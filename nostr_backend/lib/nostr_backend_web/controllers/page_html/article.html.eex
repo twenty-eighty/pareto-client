@@ -1,0 +1,4 @@
+  <h1><%= @article && @article.title || "Article Not Found" %></h1>
+  <div>
+    <%= @article && raw(@article.content) || "Content not available." %>
+  </div>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title><%= @group && @group.name || "Default Group Name" %></title>
+  <meta name="description" content="<%= @group && @group.description || "Default Description" %>">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="<%= @group && @group.name || "Default Group Name" %>">
+  <meta property="og:description" content="<%= @group && @group.description || "Default Description" %>">
+  <meta property="og:image" content="<%= @group && @group.image_url || "default_image.jpg" %>">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:title" content="<%= @group && @group.name || "Default Group Name" %>">
+  <meta name="twitter:description" content="<%= @group && @group.description || "Default Description" %>">
+  <meta name="twitter:image" content="<%= @group && @group.image_url || "default_image.jpg" %>">
+
+  <link rel="stylesheet" type="text/css" href="/styles/styles.css">
+  <script src="/js/textarea-autoresize.js"></script>
+  <link rel="stylesheet" crossorigin href="<%= NostrBackendWeb.FrontendAssets.css_file() %>">
+  <script type="module" crossorigin src="<%= NostrBackendWeb.FrontendAssets.js_file() %>"></script>
+  <!-- Other metadata -->
+</head>
+<body>
+  <h1><%= @group && @group.name || "Group Not Found" %></h1>
+  <div>
+    <p><%= @group && @group.description || "No information available." %></p>
+  </div>
+</body>
+</html>

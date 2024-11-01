@@ -1,0 +1,48 @@
+{
+   "bookmarks menu item text": "Lesezeichen",
+   "communities menu item text": "Communities",
+   "get started button text": "Erste Schritte",
+   "posts menu item text": "Posts",
+   "read menu item text": "Lesen",
+   "search menu item text": "Suche",
+   "write menu item text": "Schreiben",
+   "about menu item text": "Über",
+   "bookmarks": {
+      "bookmarks title": "Lesezeichen",
+      "no bookmarks": "Keine Listen mit Lesezeichen gefunden",
+      "my bookmarks title": "Meine Lesezeichen",
+      "articles title": "Artikel",
+      "notes title": "Notizen",
+      "hashtags title": "Hashtags",
+      "relays title": "Relays"
+   },
+   "communities": {
+      "communities title": "Communities",
+      "my communities title": "Meine Communities",
+      "no communities text": "Anscheinend folgst du noch keinen Communities. Kein Problem, schau dir die Liste unten an und folge denen, die dich interessieren.",
+      "browsee communities text": "Communities durchsuchen"
+   },
+   "media selector": {
+      "Select image": "Bild auswählen",
+      "Upload images": "Bilder hochladen"
+   },
+   "read": {
+      "global feed category": "Global",
+      "highlighter feed category": "Highlighter"
+   },
+   "posts": {
+      "posts title": "Posts",
+      "published category": "Veröffentlicht",
+      "drafts category": "Entwürfe"
+   },
+   "write": {
+      "article image": "Bild",
+      "editor title placeholder text": "Titel",
+      "editor subtitle placeholder text": "Füge eine Zusammenfassung hinzu ...",
+      "publish button title": "Veröffentlichen",
+      "save draft button title": "Entwurf speichern",
+      "summary text": "Zusammenfassung",
+      "tags text": "Schlüsselwörter",
+      "upload button title": "Hochladen"
+   }
+}

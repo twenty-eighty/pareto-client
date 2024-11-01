@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en" class="[scrollbar-gutter:stable]">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
+    </script>
+    
+    <title><%= @meta_title %></title>
+    <meta name="description" content={@meta_description || "Pareto Project"}>
+
+    <!-- Open Graph -->
+    <meta property="og:title" content={@meta_title}>
+    <meta property="og:description" content={@meta_description || "Pareto Project"}>
+    <meta property="og:image" content={@meta_image}>
+    <meta property="og:url" content={@meta_url}>
+    <meta property="og:type" content="website">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content={@meta_title}>
+    <meta name="twitter:description" content={@meta_description || "Pareto Project"}>
+    <meta name="twitter:image" content={@meta_image}>
+
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <script src="/js/textarea-autoresize.js"></script>
+    <link rel="stylesheet" crossorigin href={NostrBackendWeb.FrontendAssets.css_file() } />
+    <script type="module" crossorigin src={NostrBackendWeb.FrontendAssets.js_file() }></script>
+  </head>
+  <body class="bg-white">
+    <%= @inner_content %>
+  </body>
+</html>

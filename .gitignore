@@ -1,0 +1,53 @@
+.dockerignore
+.formatter.exs
+.env
+.npmrc
+.DS_Store
+*.pem
+*.swp
+
+/frontend/dist
+/frontend/.elm-land
+/frontend/elm-stuff
+/frontend/node_modules
+/frontend/pktriot
+/frontend/pktriot.sh
+
+# The directory Mix will write compiled artifacts to.
+/nostr_backend/_build/
+
+# If you run "mix test --cover", coverage assets end up here.
+/nostr_backend/cover/
+
+# The directory Mix downloads your dependencies sources to.
+/nostr_backend/deps/
+
+# Where 3rd-party dependencies like ExDoc output generated docs.
+/nostr_backend/doc/
+
+# Ignore .fetch files in case you like to edit your project deps locally.
+/.fetch
+
+# If the VM crashes, it generates a dump, let's ignore it too.
+erl_crash.dump
+
+# Also ignore archive artifacts (built via "mix archive.build").
+*.ez
+
+# Temporary files, for example, from tests.
+/nostr_backend/tmp/
+
+# Ignore package tarball (built via "mix hex.build").
+nostr_backend-*.tar
+
+# Ignore assets that are produced by build tools.
+/nostr_backend/priv/static/
+
+# Ignore digested assets cache.
+/nostr_backend/priv/static/cache_manifest.json
+
+# In case you use Node.js/npm, you want to ignore these.
+npm-debug.log
+/nostr_backend/assets/node_modules/
+
+
