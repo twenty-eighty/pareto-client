@@ -33,6 +33,8 @@ COPY nostr_backend/lib ./lib
 COPY nostr_backend/priv ./priv
 COPY nostr_backend/test ./test
 
+RUN mkdir ./priv/static
+
 # Copy built frontend assets to the Phoenix static directory
 RUN cp -r /app/frontend/dist/* ./priv/static/
 
