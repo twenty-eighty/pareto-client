@@ -81,7 +81,7 @@ defmodule NostrBackendWeb.ContentController do
       {:ok, {:profile, profile_hex_id}} ->
         get_and_render_profile(conn, profile_hex_id)
 
-      {:error, reason} ->
+      {:error, _reason} ->
         conn
         |> conn_with_default_meta()
         |> render(:not_found, layout: false)
