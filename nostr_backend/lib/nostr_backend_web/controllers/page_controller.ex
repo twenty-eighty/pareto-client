@@ -3,6 +3,15 @@ defmodule NostrBackendWeb.PageController do
 
   alias NostrBackendWeb.Endpoint
 
+  @meta_title "The Pareto Project"
+  @meta_description "An open source publishing platform for uncensorable, investigative journalism powered by Nostr, Lightning and eCash."
+  @meta_url "https://pareto.space"
+  @sharing_image "/images/pareto-shared.png"
+
+  def landing_page2(conn, _params) do
+    redirect(conn, to: ~p"/lp2/index.html")
+  end
+
   def home(conn, _params) do
     # The home page is often custom made,
     # so skip the default app layout.
@@ -10,39 +19,44 @@ defmodule NostrBackendWeb.PageController do
   end
 
   def index(conn, _params) do
-    render(conn, :index,
-      page_title: "The Pareto Project",
-      page_description: "Welcome to NostrBackend, your gateway to Nostr content.",
-      page_image: Endpoint.static_url() <> "/images/home_image.jpg",
-      meta_url: "https://pareto.space",
-      meta_title: "The Pareto Project",
-      meta_description:
-        "An open source publishing ecosystem for uncensorable, citizen journalism powered by Nostr, Lightning and eCash.",
-      meta_image: Endpoint.url() <> "/images/pareto-banner.png"
-    )
+    conn
+    |> add_meta_tags
+
+    render(:index)
   end
 
   def search(conn, _params) do
     conn
-    |> assign(:page_title, "Search - NostrBackend")
-    |> assign(:page_description, "Search through Nostr articles and profiles.")
-    |> assign(:page_image, Endpoint.static_url() <> "/images/search_image.jpg")
+    |> add_meta_tags
     |> render(:search)
   end
 
   def bookmarks(conn, _params) do
     conn
-    |> assign(:page_title, "Bookmarks - NostrBackend")
-    |> assign(:page_description, "Your saved Nostr articles and profiles.")
-    |> assign(:page_image, Endpoint.static_url() <> "/images/bookmarks_image.jpg")
+    |> add_meta_tags
     |> render(:bookmarks)
+  end
+
+  def read(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:read)
   end
 
   def write(conn, _params) do
     conn
-    |> assign(:page_title, "Write - NostrBackend")
-    |> assign(:page_description, "Compose and publish your Nostr articles.")
-    |> assign(:page_image, Endpoint.static_url() <> "/images/write_image.jpg")
+    |> add_meta_tags
     |> render(:write)
+  end
+
+  defp add_meta_tags(conn) do
+    conn
+    |> assign(:page_title, @meta_title)
+    |> assign(:page_description, @meta_description)
+    |> assign(:page_image, @sharing_image)
+    |> assign(:meta_title, @meta_title)
+    |> assign(:meta_description, @meta_description)
+    |> assign(:meta_image, @sharing_image)
+    |> assign(:meta_url, @meta_url)
   end
 end

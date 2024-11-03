@@ -19,6 +19,12 @@ defmodule NostrBackendWeb.Endpoint do
   #
   # You should set gzip to true if you are running phx.digest
   # when deploying your static files in production.
+
+  plug Plug.Static,
+    at: "/lp2",
+    from: "priv/static/lp2",
+    gzip: false
+
   plug Plug.Static,
     at: "/",
     from: :nostr_backend,

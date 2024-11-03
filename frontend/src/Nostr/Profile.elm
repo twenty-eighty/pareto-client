@@ -117,18 +117,6 @@ decodeUnixTime =
         |> Decode.map (\timeInt -> Time.millisToPosix (timeInt)
         )
 
-{-
-{
-    "created_at": 1725050484,
-    "profileEvent": "{\"created_at\":1725050484,\"content\":\"{\\\"nip05\\\":\\\"synalysis@synalysis.com\\\",\\\"lud16\\\":\\\"synalysis@npub.cash\\\",\\\"picture\\\":\\\"https://image.nostr.build/a4630d4bd50ed9ce2f24c6cde9de8b0097806134c3b89ec9be698e98eb5bb0b2.jpg\\\",\\\"name\\\":\\\"synalysis\\\",\\\"about\\\":\\\"Software for binary file analysis\\\",\\\"banner\\\":\\\"https://synalysis.com/banner.png\\\"}\",\"tags\":[],\"kind\":0,\"pubkey\":\"8127df93d8453767aa11e74206f48aeea30d3d65a383c98d243b031fc7446afb\",\"id\":\"72340a0731be736735b8f8d08c31d1b4db0e925a4c31fff6dd674dd9a0cbeb1d\",\"sig\":\"67f37ed6a952f8f15f225afc8d3f5fca540501e6a63c37b12067caf081b7a32b65b954d73e6d2bc898e95d850ae47537c2d1e685b1354d8c72aef150cfaf1af1\"}",
-    "nip05": "synalysis@synalysis.com",
-    "lud16": "synalysis@npub.cash",
-    "image": "https://image.nostr.build/a4630d4bd50ed9ce2f24c6cde9de8b0097806134c3b89ec9be698e98eb5bb0b2.jpg",
-    "name": "synalysis",
-    "about": "Software for binary file analysis",
-    "banner": "https://synalysis.com/banner.png"
-}
--}
 
 profileDisplayName : PubKey -> Profile -> String
 profileDisplayName pubKey profile =

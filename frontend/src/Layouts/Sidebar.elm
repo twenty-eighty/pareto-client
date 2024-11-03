@@ -47,7 +47,7 @@ sidebarItems : ClientRole -> I18Next.Translations -> List (SidebarItemData)
 sidebarItems clientRole translations =
     case clientRole of
         ClientConsumer ->
-            [ { path = Route.Path.Home_, title = Translations.readMenuItemText [ translations ], icon = FeatherIcons.bookOpen, requiresLogin = False, disabled = False }
+            [ { path = Route.Path.Read, title = Translations.readMenuItemText [ translations ], icon = FeatherIcons.bookOpen, requiresLogin = False, disabled = False }
             , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcons.search, requiresLogin = False, disabled = True }
           --, { path = Route.Path.Communities, title = Translations.communitiesMenuItemText [ translations ], icon = FeatherIcons.globe, requiresLogin = False, disabled = False }
             , { path = Route.Path.Bookmarks, title = Translations.bookmarksMenuItemText [ translations ], icon = FeatherIcons.bookmark, requiresLogin = True, disabled = False }

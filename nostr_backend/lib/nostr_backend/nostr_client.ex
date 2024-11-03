@@ -34,11 +34,6 @@ defmodule NostrBackend.NostrClient do
     fetch_from_relays(@relay_urls, profile_hex_id, :profile)
   end
 
-  @spec fetch_group(String.t()) :: {:ok, map()} | {:error, String.t()}
-  def fetch_group(group_hex_id) do
-    fetch_from_relays(@relay_urls, group_hex_id, :group)
-  end
-
   defp fetch_from_relays([], _id, _type) do
     {:error, "Failed to fetch data from all relays"}
   end
@@ -98,6 +93,12 @@ defmodule NostrBackend.NostrClient do
         WebSockex.send_frame(pid, {:text, Jason.encode!(["CLOSE", subscription_id])})
         Process.exit(pid, :normal)
         {:error, "No events found"}
+
+      {:notice, notice} ->
+        Logger.debug("Received notice: #{subscription_id}, no events found")
+        WebSockex.send_frame(pid, {:text, Jason.encode!(["CLOSE", subscription_id])})
+        Process.exit(pid, :normal)
+        {:error, "No events found"}
     after
       15_000 ->
         Logger.error("Timeout while fetching event")
@@ -136,8 +137,9 @@ defmodule NostrBackend.NostrClient do
   end
 
   defp build_filters(event_id, :article), do: [%{"ids" => [event_id]}]
-  defp build_filters(pubkey, :profile), do: [%{"authors" => [pubkey], "kinds" => [0]}]
-  defp build_filters(group_id, :group), do: [%{"ids" => [group_id]}]
+
+  defp build_filters(pubkey, :profile),
+    do: [%{"authors" => [pubkey], "kinds" => [0], "limit" => 1}]
 
   @impl true
   def handle_frame({:text, msg}, %{caller_pid: caller_pid} = state) do
@@ -152,6 +154,11 @@ defmodule NostrBackend.NostrClient do
       {:ok, ["EOSE", subscription_id]} ->
         Logger.debug("Received EOSE for subscription_id: #{subscription_id}")
         send(caller_pid, {:eose, subscription_id})
+        {:ok, state}
+
+      {:ok, ["NOTICE", notice]} ->
+        Logger.debug("Received NOTICE from relay: #{notice}")
+        send(caller_pid, {:notice, notice})
         {:ok, state}
 
       {:ok, other} ->

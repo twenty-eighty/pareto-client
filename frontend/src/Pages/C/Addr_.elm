@@ -114,50 +114,7 @@ update shared msg model =
         ReceivedMessage message ->
             case message.messageType of
                 "communities" ->
-{-
-                    case Decode.decodeValue (Decode.list Nostr.Community.communityDecoder) message.value of
-                        Ok communities ->
-                            let
-                                maybeCommunity =
-                                    communities
-                                    |> List.filter (communityMatchesFilter model.filter)
-                                    |> List.head
-
-                                requestModeratorProfilesCmd =
-                                    maybeCommunity
-                                    |> Maybe.map (\community -> List.map .pubKey community.moderators)
-                                    |> Maybe.andThen (\pubKeys ->
-                                        Nostr.requestProfiles shared.nostr pubKeys
-                                        )
-                                    |> Maybe.withDefault Cmd.none
-
-                                requestPostsApprovalCmd =
-                                    maybeCommunity
-                                    |> Maybe.map (Nostr.requestCommunityPostApprovals shared.nostr)
-                                    |> Maybe.withDefault Cmd.none
-
---  ["REQ","kinds:4550-authors,#-546",
---      { "authors": ["4b74667f89358cd582ad82b16a2d24d5bfcb89ac4b1347ee80e5674a13ba78b2"]
---      , "kinds": [4550]
---      , "#a": ["34550:4b74667f89358cd582ad82b16a2d24d5bfcb89ac4b1347ee80e5674a13ba78b2:AITradingInsights"]
---      }
---  ]
-
-                                requestCmd =
-                                    Cmd.batch
-                                        [ requestModeratorProfilesCmd
-                                        , requestPostsApprovalCmd
-                                        ]
-                                    |> Cmd.map NostrMsg
-                            in
-                            ({ model | community = maybeCommunity }, Effect.sendCmd requestCmd )
-                        
-                        Err error ->
-                            let
-                                _ = Debug.log "ERROR" error
-                            in
--}
-                            ( model, Effect.none )
+                    ( model, Effect.none )
 
                 _ ->
                     ( model, Effect.none )

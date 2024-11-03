@@ -17,15 +17,17 @@ defmodule NostrBackendWeb.Router do
   scope "/", NostrBackendWeb do
     pipe_through(:browser)
 
-    # get "/", PageController, :home
-    get("/", PageController, :index)
+    # get("/", PageController, :landing_page)
+    get("/", PageController, :landing_page2)
+    # get("/", PageController, :index)
     get("/search", PageController, :search)
     get("/bookmarks", PageController, :bookmarks)
+    get("/read", PageController, :read)
     get("/write", PageController, :write)
 
     get("/a/:article_id", ContentController, :article)
     get("/p/:profile_id", ContentController, :profile)
-    get("/c/:group_id", ContentController, :group)
+    get("/u/:user_nip05", ContentController, :user_nip05)
   end
 
   # Other scopes may use custom stacks.

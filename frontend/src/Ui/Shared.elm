@@ -5,7 +5,6 @@ import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 import Svg.Loaders
-import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 
@@ -14,6 +13,9 @@ fontFamilyInter =
 
 fontFamilyUnbounded =
     Attr.style "font-family" "Unbounded"
+
+fontFamilyArimo =
+    Attr.style "font-family" "Arimo"
 
 pageLoadingIndicator : Html msg
 pageLoadingIndicator =

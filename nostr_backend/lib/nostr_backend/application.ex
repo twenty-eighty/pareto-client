@@ -24,6 +24,12 @@ defmodule NostrBackend.Application do
         id: :profiles_cache
       ),
 
+      # Cache for profiles
+      Supervisor.child_spec(
+        {Cachex, name: :nip05_cache, ttl_interval: :timer.minutes(1440)},
+        id: :nip05_cache
+      ),
+
       # Start a worker by calling: NostrBackend.Worker.start_link(arg)
       # {NostrBackend.Worker, arg},
       # Start to serve requests, typically the last entry

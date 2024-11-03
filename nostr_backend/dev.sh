@@ -1,3 +1,5 @@
 #!/bin/bash
 
-iex -S mix
+set -eu
+
+mix phx.server

@@ -481,4 +481,386 @@ featherMehIcon width =
             []
         ]
     
+-- landing page
+
+keyboardIcon =
+    svg
+        [ SvgAttr.width "24"
+        , SvgAttr.height "24"
+        , SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        ]
+        [ path
+            [ SvgAttr.stroke "none"
+            , SvgAttr.d "M0 0h24v24H0z"
+            , SvgAttr.fill "none"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M2 6m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M6 10l0 .01"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M10 10l0 .01"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M14 10l0 .01"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M18 10l0 .01"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M6 14l0 .01"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M18 14l0 .01"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M10 14l4 .01"
+            ]
+            []
+        ]
+    
+listSearchIcon =
+    svg
+        [ SvgAttr.width "24"
+        , SvgAttr.height "24"
+        , SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        ]
+        [ path
+            [ SvgAttr.stroke "none"
+            , SvgAttr.d "M0 0h24v24H0z"
+            , SvgAttr.fill "none"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M15 15m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M18.5 18.5l2.5 2.5"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M4 6h16"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M4 12h4"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M4 18h4"
+            ]
+            []
+        ]
+    
+mailIcon =
+    svg
+        [ SvgAttr.width "24"
+        , SvgAttr.height "24"
+        , SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        ]
+        [ path
+            [ SvgAttr.stroke "none"
+            , SvgAttr.d "M0 0h24v24H0z"
+            , SvgAttr.fill "none"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M3 7l9 6l9 -6"
+            ]
+            []
+        ]
+    
+speakerPhoneIcon =
+    svg
+        [ SvgAttr.width "24"
+        , SvgAttr.height "24"
+        , SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        ]
+        [ path
+            [ SvgAttr.stroke "none"
+            , SvgAttr.d "M0 0h24v24H0z"
+            , SvgAttr.fill "none"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M18 8a3 3 0 0 1 0 6"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M10 8v11a1 1 0 0 1 -1 1h-1a1 1 0 0 1 -1 -1v-5"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M12 8h0l4.524 -3.77a.9 .9 0 0 1 1.476 .692v12.156a.9 .9 0 0 1 -1.476 .692l-4.524 -3.77h-8a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h8"
+            ]
+            []
+        ]
+    
+sunIcon =
+    svg
+        [ SvgAttr.width "24"
+        , SvgAttr.height "24"
+        , SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        ]
+        [ path
+            [ SvgAttr.stroke "none"
+            , SvgAttr.d "M0 0h24v24H0z"
+            , SvgAttr.fill "none"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"
+            ]
+            []
+        ]
+    
+topologyStar3Icon =
+    svg
+        [ SvgAttr.width "24"
+        , SvgAttr.height "24"
+        , SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        ]
+        [ path
+            [ SvgAttr.stroke "none"
+            , SvgAttr.d "M0 0h24v24H0z"
+            , SvgAttr.fill "none"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M10 19a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M18 5a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M10 5a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M6 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M18 19a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M14 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M22 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M6 12h4"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M14 12h4"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M15 7l-2 3"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M9 7l2 3"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M11 14l-2 3"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M13 14l2 3"
+            ]
+            []
+        ]
+    
+plant2Icon =
+    svg
+        [ SvgAttr.width "24"
+        , SvgAttr.height "24"
+        , SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        ]
+        [ path
+            [ SvgAttr.stroke "none"
+            , SvgAttr.d "M0 0h24v24H0z"
+            , SvgAttr.fill "none"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M2 9a10 10 0 1 0 20 0"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M12 19a10 10 0 0 1 10 -10"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M2 9a10 10 0 0 1 10 10"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M12 4a9.7 9.7 0 0 1 2.99 7.5"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M9.01 11.5a9.7 9.7 0 0 1 2.99 -7.5"
+            ]
+            []
+        ]
+    
+infinityIcon =
+    svg
+        [ SvgAttr.width "24"
+        , SvgAttr.height "24"
+        , SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        ]
+        [ path
+            [ SvgAttr.stroke "none"
+            , SvgAttr.d "M0 0h24v24H0z"
+            , SvgAttr.fill "none"
+            ]
+            []
+        , path
+            [ SvgAttr.d "M9.828 9.172a4 4 0 1 0 0 5.656a10 10 0 0 0 2.172 -2.828a10 10 0 0 1 2.172 -2.828a4 4 0 1 1 0 5.656a10 10 0 0 1 -2.172 -2.828a10 10 0 0 0 -2.172 -2.828"
+            ]
+            []
+        ]
+    
+roadmapCheckIcon =
+    svg
+        [ SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.width "1.2em"
+        , SvgAttr.height "1.2em"
+        ]
+        [ Svg.g
+            [ SvgAttr.fill "none"
+            , SvgAttr.stroke "currentColor"
+            , SvgAttr.strokeLinecap "round"
+            , SvgAttr.strokeLinejoin "round"
+            , SvgAttr.strokeWidth "2"
+            ]
+            [ path
+                [ SvgAttr.d "M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0"
+                ]
+                []
+            , path
+                [ SvgAttr.d "m9 12l2 2l4-4"
+                ]
+                []
+            ]
+        ]
+    
+plusIcon =
+    svg
+        [ SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.width "1.2em"
+        , SvgAttr.height "1.2em"
+        ]
+        [ path
+            [ SvgAttr.fill "none"
+            , SvgAttr.stroke "currentColor"
+            , SvgAttr.strokeLinecap "round"
+            , SvgAttr.strokeLinejoin "round"
+            , SvgAttr.strokeWidth "2"
+            , SvgAttr.d "M12 5v14m-7-7h14"
+            ]
+            []
+        ]
+    
+minusIcon =
+    svg
+        [ SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.width "1.2em"
+        , SvgAttr.height "1.2em"
+        ]
+        [ path
+            [ SvgAttr.fill "none"
+            , SvgAttr.stroke "currentColor"
+            , SvgAttr.strokeLinecap "round"
+            , SvgAttr.strokeLinejoin "round"
+            , SvgAttr.strokeWidth "2"
+            , SvgAttr.d "M5 12h14"
+            ]
+            []
+        ]
+    
+videoPlayIcon =
+    svg
+        [ SvgAttr.fill "none"
+        , Attr.attribute "aria-hidden" "true"
+        , Attr.attribute "focusable" "false"
+        , SvgAttr.viewBox "0 0 32 32"
+        , Attr.attribute "data-icon" "play"
+        ]
+        [ path
+            [ SvgAttr.d "M10.6667 6.6548C10.6667 6.10764 11.2894 5.79346 11.7295 6.11862L24.377 15.4634C24.7377 15.7298 24.7377 16.2692 24.3771 16.5357L11.7295 25.8813C11.2895 26.2065 10.6667 25.8923 10.6667 25.3451L10.6667 6.6548Z"
+            , SvgAttr.fill "currentColor"
+            ]
+            []
+        ]
     

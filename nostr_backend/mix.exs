@@ -51,6 +51,7 @@ defmodule NostrBackend.MixProject do
       {:websockex, "~> 0.4.3"},
       {:cachex, "~> 3.4"},
       {:uuid, "~> 1.1"},
+      {:httpoison, "~> 1.8"},
       {:earmark, "~> 1.4"}
     ]
   end

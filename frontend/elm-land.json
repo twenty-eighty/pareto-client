@@ -16,7 +16,7 @@
         },
         "head": {}
       },
-      "title": "Elm Land",
+      "title": "Pareto",
       "meta": [
         {
           "charset": "UTF-8"
@@ -28,6 +28,42 @@
         {
           "name": "viewport",
           "content": "width=device-width, initial-scale=1.0"
+        },
+        {
+          "name": "description",
+          "content": "An open source publishing platform for uncensorable, investigative journalism powered by Nostr, Lightning and eCash."
+        },
+        {
+          "property": "og:type",
+          "content": "website"
+        },
+        {
+          "property": "og:title",
+          "content": "Pareto"
+        },
+        {
+          "property": "og:description",
+          "content": "An open source publishing platform for uncensorable, investigative journalism powered by Nostr, Lightning and eCash."
+        },
+        {
+          "property": "og:image",
+          "content": "/images/pareto-shared.png"
+        },
+        {
+          "name": "twitter:card",
+          "content": "summary_large_image"
+        },
+        {
+          "name": "twitter:title",
+          "content": "Pareto"
+        },
+        {
+          "name": "twitter:description",
+          "content": "An open source publishing platform for uncensorable, investigative journalism powered by Nostr, Lightning and eCash."
+        },
+        {
+          "name": "twitter:image",
+          "content": "/images/pareto-shared.png"
         }
       ],
       "link": [

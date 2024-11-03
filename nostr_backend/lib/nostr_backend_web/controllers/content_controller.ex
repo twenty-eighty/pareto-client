@@ -3,9 +3,16 @@ defmodule NostrBackendWeb.ContentController do
 
   alias NostrBackendWeb.Endpoint
 
+  alias NostrBackend.Nip05
   alias NostrBackend.NostrId
   alias NostrBackend.ArticleCache
+  alias NostrBackend.Nip05Cache
   alias NostrBackend.ProfileCache
+
+  @meta_title "The Pareto Project"
+  @meta_description "An open source publishing platform for uncensorable, investigative journalism powered by Nostr, Lightning and eCash."
+  @meta_url "https://pareto.space"
+  @sharing_image "/images/pareto-shared.png"
 
   def article(conn, %{"article_id" => nostr_id}) do
     case NostrId.parse(nostr_id) do
@@ -13,7 +20,7 @@ defmodule NostrBackendWeb.ContentController do
         case ArticleCache.get_article(query_data) do
           {:ok, article} ->
             conn
-            |> conn_with_meta(article)
+            |> conn_with_article_meta(article)
             |> put_view(NostrBackendWeb.ContentHTML)
             |> render(:article, article: article)
 
@@ -31,7 +38,7 @@ defmodule NostrBackendWeb.ContentController do
         case ArticleCache.get_article(article_hex_id) do
           {:ok, article} ->
             conn
-            |> conn_with_meta(article)
+            |> conn_with_article_meta(article)
             |> put_view(NostrBackendWeb.ContentHTML)
             |> render(:article, article: article)
 
@@ -49,7 +56,7 @@ defmodule NostrBackendWeb.ContentController do
         case ArticleCache.get_article(address_info) do
           {:ok, article} ->
             conn
-            |> conn_with_meta(article)
+            |> conn_with_article_meta(article)
             |> put_view(NostrBackendWeb.ContentHTML)
             |> render(:article, article: article)
 
@@ -69,16 +76,81 @@ defmodule NostrBackendWeb.ContentController do
     end
   end
 
-  defp conn_with_meta(conn, article) do
+  def profile(conn, %{"profile_id" => nostr_id}) do
+    case NostrId.parse(nostr_id) do
+      {:ok, {:profile, profile_hex_id}} ->
+        get_and_render_profile(conn, profile_hex_id)
+
+      {:error, reason} ->
+        conn
+        |> conn_with_default_meta()
+        |> render(:not_found, layout: false)
+    end
+  end
+
+  def user_nip05(conn, %{"user_nip05" => user_nip05}) do
+    case Nip05.parse_identifier(user_nip05) do
+      {:ok, _name, _domain} ->
+        case Nip05Cache.get_pubkey_and_relays(user_nip05) do
+          {:ok, pubkey, relays} ->
+            get_and_render_profile(conn, pubkey)
+
+          {:error, reason} ->
+            IO.inspect(reason, label: "ERROR REASON")
+
+            conn
+            |> conn_with_default_meta()
+            |> render(:not_found, layout: false)
+
+            # |> render(NostrBackendWeb.ErrorHTML, :"404")
+        end
+
+      {:error, reason} ->
+        conn
+        |> conn_with_default_meta()
+        |> text("Invalid NIP-05 identifier: #{reason}")
+        |> render(:not_found, layout: false)
+    end
+  end
+
+  defp get_and_render_profile(conn, profile_hex_id) do
+    case ProfileCache.get_profile(profile_hex_id) do
+      {:ok, profile} ->
+        conn
+        |> conn_with_profile_meta(profile)
+        |> put_view(NostrBackendWeb.ContentHTML)
+        |> render("profile.html", profile: profile)
+
+      {:error, _reason} ->
+        conn
+        |> conn_with_default_meta()
+        |> render(:not_found, layout: false)
+    end
+  end
+
+  defp conn_with_article_meta(conn, article) do
     conn
-    |> assign(:page_title, article.title)
-    |> assign(:meta_title, article.title)
+    |> assign(:page_title, article.title || @meta_title)
+    |> assign(:meta_title, article.title || @meta_title)
     |> assign(:meta_url, Endpoint.url() <> conn.request_path)
-    |> assign(:meta_description, article.description)
-    |> assign(:meta_image, article.image_url)
+    |> assign(:meta_description, article.description || @meta_description)
     |> assign(
       :meta_image,
-      article.image_url || Endpoint.static_url() <> "/images/pareto_banner.png"
+      article.image_url || @sharing_image
+    )
+  end
+
+  defp conn_with_profile_meta(conn, profile) do
+    IO.inspect(profile, label: "Profile")
+
+    conn
+    |> assign(:page_title, profile.name <> " | Pareto")
+    |> assign(:meta_title, profile.name <> " | Pareto")
+    |> assign(:meta_url, Endpoint.url() <> conn.request_path)
+    |> assign(:meta_description, profile.about)
+    |> assign(
+      :meta_image,
+      profile.image || @sharing_image
     )
   end
 
@@ -93,23 +165,5 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_image, "/images/pareto_banner.png")
     |> assign(:meta_url, Endpoint.url() <> conn.request_path)
     |> assign(:article, nil)
-  end
-
-  def profile(conn, %{"profile_id" => nostr_id}) do
-    case NostrId.parse(nostr_id) do
-      {:ok, {:profile, profile_hex_id}} ->
-        case ProfileCache.get_profile(profile_hex_id) do
-          {:ok, profile} ->
-            render(conn, "profile.html", profile: profile)
-
-          {:error, _reason} ->
-            render(conn, "profile.html", profile: nil)
-        end
-
-      {:error, reason} ->
-        conn
-        |> put_status(:bad_request)
-        |> text("Invalid Nostr ID: #{reason}")
-    end
   end
 end

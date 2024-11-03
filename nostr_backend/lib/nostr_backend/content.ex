@@ -36,11 +36,22 @@ defmodule NostrBackend.Content do
   end
 
   def parse_profile_event(event) do
+    content =
+      event["content"]
+      |> Jason.decode!()
+
     %{
       profile_id: event["pubkey"],
-      name: extract_name(event),
-      about: extract_about(event),
-      picture_url: extract_picture_url(event)
+      name: content["name"],
+      username: content["username"],
+      about: content["about"],
+      banner: content["banner"],
+      image: content["image"],
+      display_name: content["display_name"],
+      website: content["website"],
+      lud16: content["lud16"],
+      nip05: content["nip05"],
+      picture: content["picture"]
     }
   end
 
