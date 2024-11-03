@@ -42,6 +42,7 @@ erl_crash.dump
 nostr_backend-*.tar
 
 # Ignore assets that are produced by build tools.
+/nostr_backend/priv/static/index.html
 /nostr_backend/priv/static/assets
 /nostr_backend/priv/static/fonts
 /nostr_backend/priv/static/images

@@ -31,9 +31,9 @@ defmodule NostrBackendWeb.Router do
   end
 
   # Other scopes may use custom stacks.
-  # scope "/api", NostrBackendWeb do
-  #   pipe_through :api
-  # end
+  scope "/.well-known", NostrBackendWeb do
+    get("/nostr.json", NostrController, :nip05)
+  end
 
   # Enable LiveDashboard in development
   if Application.compile_env(:nostr_backend, :dev_routes) do
