@@ -4,27 +4,31 @@ defmodule NostrBackend.PostHogPlug do
   def call(conn, _options) do
     # Capture request information
     ip_address = ip_address_to_string(conn.remote_ip)
-    url = conn.request_path
-    method = conn.method
 
-    tracking_data =
-      [
-        distinct_id: ip_address,
-        event: "#{method} #{url}",
-        "$current_url": url,
-        "$ip": ip_address,
-        properties: %{
-          method: method
-        }
-      ]
+    if ip_address != "127.0.0.1" do
+      url = conn.request_path
+      method = conn.method
 
-    # Send tracking data asynchronously to PostHog
-    Task.start(fn ->
-      Posthog.capture(
-        "web access",
-        tracking_data
-      )
-    end)
+      tracking_data =
+        [
+          distinct_id: ip_address,
+          event: "#{method} #{url}",
+          "$current_url": url,
+          "$ip": ip_address,
+          "$lib": "posthog",
+          properties: %{
+            method: method
+          }
+        ]
+
+      # Send tracking data asynchronously to PostHog
+      Task.start(fn ->
+        Posthog.capture(
+          "web access",
+          tracking_data
+        )
+      end)
+    end
 
     # Continue with the request
     conn

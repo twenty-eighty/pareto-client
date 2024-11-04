@@ -77,7 +77,8 @@ defmodule NostrBackendWeb.ContentController do
 
   def profile(conn, %{"profile_id" => nostr_id}) do
     case NostrId.parse(nostr_id) do
-      {:ok, {:profile, profile_hex_id, relays}} ->
+      {:ok, {:profile, profile_hex_id, _relays}} ->
+        # TODO: use relays for profile lookup
         get_and_render_profile(conn, profile_hex_id)
 
       {:error, _reason} ->
@@ -91,7 +92,8 @@ defmodule NostrBackendWeb.ContentController do
     case Nip05.parse_identifier(user_nip05) do
       {:ok, _name, _domain} ->
         case Nip05Cache.get_pubkey_and_relays(user_nip05) do
-          {:ok, pubkey, relays} ->
+          {:ok, pubkey, _relays} ->
+            # TODO: use relays for profile lookup
             get_and_render_profile(conn, pubkey)
 
           {:error, reason} ->

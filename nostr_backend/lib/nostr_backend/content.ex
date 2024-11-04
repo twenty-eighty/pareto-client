@@ -99,10 +99,6 @@ defmodule NostrBackend.Content do
     end
   end
 
-  defp extract_name(_event), do: nil
-  defp extract_about(_event), do: nil
-  defp extract_picture_url(_event), do: nil
-
   defp render_markdown(content) when is_binary(content) do
     Earmark.as_html!(content)
   end

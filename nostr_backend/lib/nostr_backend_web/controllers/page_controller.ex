@@ -1,8 +1,6 @@
 defmodule NostrBackendWeb.PageController do
   use NostrBackendWeb, :controller
 
-  alias NostrBackendWeb.Endpoint
-
   @meta_title "The Pareto Project"
   @meta_description "An open source publishing platform for uncensorable, investigative journalism powered by Nostr, Lightning and eCash."
   @meta_url "https://pareto.space"
