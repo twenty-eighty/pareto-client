@@ -15,6 +15,7 @@ import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), eventFilte
 import Nostr.Nip19 as Nip19 exposing (NIP19Type)
 import Nostr.Request exposing (RequestData(..))
 import Page exposing (Page)
+import Ports
 import Route exposing (Route)
 import Shared
 import Shared.Model
@@ -23,10 +24,9 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
+import Ui.View
 import Url
 import View exposing (View)
-import Ports
-import Time
 
 
 page : Shared.Model -> Route { addr : String } -> Page Model Msg
@@ -148,6 +148,6 @@ viewArticle : BrowserEnv -> Nostr.Model -> Maybe Community -> Html Msg
 viewArticle browserEnv nostr maybeCommunity =
     case maybeCommunity of
         Just community ->
-            Nostr.viewCommunity browserEnv nostr community 
+            Ui.View.viewCommunity browserEnv nostr community 
         Nothing ->
             div [][]

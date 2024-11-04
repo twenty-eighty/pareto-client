@@ -52,7 +52,8 @@ defmodule NostrBackend.MixProject do
       {:cachex, "~> 3.4"},
       {:uuid, "~> 1.1"},
       {:httpoison, "~> 1.8"},
-      {:earmark, "~> 1.4"}
+      {:earmark, "~> 1.4"},
+      {:posthog, "~> 0.1"}
     ]
   end
 

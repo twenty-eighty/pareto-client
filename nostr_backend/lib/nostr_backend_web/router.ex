@@ -10,12 +10,16 @@ defmodule NostrBackendWeb.Router do
     plug(:put_secure_browser_headers)
   end
 
+  pipeline :posthog do
+    plug NostrBackend.PostHogPlug
+  end
+
   pipeline :api do
     plug(:accepts, ["json"])
   end
 
   scope "/", NostrBackendWeb do
-    pipe_through(:browser)
+    pipe_through([:browser, :posthog])
 
     # get("/", PageController, :landing_page)
     get("/", PageController, :landing_page2)

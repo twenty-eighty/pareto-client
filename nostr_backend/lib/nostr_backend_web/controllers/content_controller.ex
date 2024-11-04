@@ -11,8 +11,7 @@ defmodule NostrBackendWeb.ContentController do
 
   @meta_title "The Pareto Project"
   @meta_description "An open source publishing platform for uncensorable, investigative journalism powered by Nostr, Lightning and eCash."
-  @meta_url "https://pareto.space"
-  @sharing_image "/images/pareto-shared.png"
+  @sharing_image "https://pareto.space/images/pareto-shared.png"
 
   def article(conn, %{"article_id" => nostr_id}) do
     case NostrId.parse(nostr_id) do
@@ -78,7 +77,7 @@ defmodule NostrBackendWeb.ContentController do
 
   def profile(conn, %{"profile_id" => nostr_id}) do
     case NostrId.parse(nostr_id) do
-      {:ok, {:profile, profile_hex_id}} ->
+      {:ok, {:profile, profile_hex_id, relays}} ->
         get_and_render_profile(conn, profile_hex_id)
 
       {:error, _reason} ->
@@ -141,6 +140,7 @@ defmodule NostrBackendWeb.ContentController do
   end
 
   defp conn_with_profile_meta(conn, profile) do
+    IO.inspect(conn, label: "conn")
     IO.inspect(profile, label: "Profile")
 
     conn
@@ -150,7 +150,7 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_description, profile.about)
     |> assign(
       :meta_image,
-      profile.image || @sharing_image
+      profile.image || profile.picture || profile.banner || @sharing_image
     )
   end
 

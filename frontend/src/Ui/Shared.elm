@@ -14,8 +14,9 @@ fontFamilyInter =
 fontFamilyUnbounded =
     Attr.style "font-family" "Unbounded"
 
-fontFamilyArimo =
-    Attr.style "font-family" "Arimo"
+fontFamilySourceSerifPro =
+    Attr.style "font-family" "Source Serif Pro"
+
 
 pageLoadingIndicator : Html msg
 pageLoadingIndicator =

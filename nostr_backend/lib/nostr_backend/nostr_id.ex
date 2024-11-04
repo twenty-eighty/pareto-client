@@ -26,7 +26,7 @@ defmodule NostrBackend.NostrId do
   defp parse_data("naddr", data) do
     case TLVDecoder.decode_tlv_stream(data) do
       {:ok, tlv_list} ->
-        parsed_data = extract_tlv_data(tlv_list)
+        parsed_data = extract_tlv_data(:naddr, tlv_list)
         {:ok, {:author_article, parsed_data}}
 
       {:error, reason} ->
@@ -35,8 +35,17 @@ defmodule NostrBackend.NostrId do
   end
 
   defp parse_data("nprofile", data) do
-    pubkey = Base.encode16(data, case: :lower)
-    {:ok, {:profile, pubkey}}
+    case TLVDecoder.decode_tlv_stream(data) do
+      {:ok, tlv_list} ->
+        {:ok, pubkey, relays} =
+          extract_tlv_data(:nprofile, tlv_list)
+          |> IO.inspect()
+
+        {:ok, {:profile, pubkey, relays}}
+
+      {:error, reason} ->
+        {:error, "Invalid TLV data in nprofile: #{inspect(reason)}"}
+    end
   end
 
   defp parse_data("ncomm", data) do
@@ -53,7 +62,7 @@ defmodule NostrBackend.NostrId do
     {:error, "Unknown prefix: #{prefix}"}
   end
 
-  defp extract_tlv_data(tlv_list) do
+  defp extract_tlv_data(:naddr, tlv_list) do
     Enum.reduce(tlv_list, %{}, fn tlv, acc ->
       case tlv.tag do
         # Identifier
@@ -81,6 +90,31 @@ defmodule NostrBackend.NostrId do
           acc
       end
     end)
+  end
+
+  defp extract_tlv_data(:nprofile, tlv_list) do
+    {pubkey, relays} =
+      Enum.reduce(tlv_list, {nil, []}, fn tlv, {pubkey, relays} ->
+        case tlv.tag do
+          # Pubkey
+          0x00 ->
+            {Base.encode16(tlv.value, case: :lower), relays}
+
+          # Relay
+          0x01 ->
+            {pubkey, relays ++ [tlv.value]}
+
+          _ ->
+            # Ignore unknown tags
+            {pubkey, relays}
+        end
+      end)
+
+    if pubkey == nil do
+      {:error, "No pubkey found in nprofile TLV"}
+    else
+      {:ok, pubkey, relays}
+    end
   end
 
   # defp parse_naddr_tlv(data) do

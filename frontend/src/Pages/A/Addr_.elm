@@ -12,19 +12,20 @@ import Layouts
 import Layouts.Sidebar
 import Nostr
 import Nostr.Article exposing (Article)
+import Nostr.Event as Event
 import Nostr.Nip19 as Nip19 exposing (NIP19Type)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..))
 import Nostr.Request exposing (RequestData(..))
 import Page exposing (Page)
+import Ports
 import Route exposing (Route)
 import Shared
+import Shared.Msg
 import Shared.Model
 import Translations
+import Ui.View
 import Url
 import View exposing (View)
-import Ports
-import Nostr.Event as Event
-import Shared.Msg
 
 
 page : Shared.Model -> Route { addr : String } -> Page Model Msg
@@ -131,6 +132,6 @@ viewArticle : BrowserEnv -> Nostr.Model -> Maybe Article -> Html Msg
 viewArticle browserEnv nostr maybeArticle =
     case maybeArticle of
         Just article ->
-            Nostr.viewArticle browserEnv nostr article 
+            Ui.View.viewArticle browserEnv nostr article 
         Nothing ->
             div [][]

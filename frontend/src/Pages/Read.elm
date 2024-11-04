@@ -20,6 +20,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
 import Translations.Read
+import Ui.View
 import View exposing (View)
 import Ports
 
@@ -122,6 +123,6 @@ view shared model =
                     [ text <| Translations.Read.highlighterFeedCategory [ shared.browserEnv.translations ] ]
                 ]
             , Nostr.getArticlesByDate shared.nostr
-             |> Nostr.viewArticlePreviews shared.browserEnv shared.nostr 
+             |> Ui.View.viewArticlePreviews shared.browserEnv shared.nostr 
             ]
     }

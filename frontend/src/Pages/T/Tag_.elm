@@ -25,6 +25,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
 import Ui.Shared exposing (fontFamilyUnbounded, fontFamilyInter)
+import Ui.View
 import Url
 import View exposing (View)
 
@@ -143,7 +144,7 @@ view shared model =
                     [ text <| "#" ++ model.tag
                     ]
                 , Nostr.getArticlesByDate shared.nostr
-                |> Nostr.viewArticlePreviews shared.browserEnv shared.nostr 
+                |> Ui.View.viewArticlePreviews shared.browserEnv shared.nostr 
                 ]
             ]
         ]

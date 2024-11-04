@@ -1,4 +1,4 @@
-  <h1><%= @profile && @profile.name || "Profile Not Found" %></h1>
+  <h1><%= @profile && @profile.name || "No profile name" %></h1>
   <div>
     <p><%= @profile && @profile.about || "No information available." %></p>
   </div>

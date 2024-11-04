@@ -1126,19 +1126,3 @@ addToZapReceiptDict (address, receipt) receiptDict =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     model.hooks.receiveMessage ReceivedMessage
-
-viewArticle : BrowserEnv -> Model -> Article -> Html msg
-viewArticle browserEnv nostr article =
-    Ui.Article.viewArticle browserEnv (getAuthor nostr article.author) article (getInteractions nostr article)
-
-viewArticlePreviews : BrowserEnv -> Model -> List Article -> Html msg
-viewArticlePreviews browserEnv nostr articles =
-    articles
-    |> List.take 20
-    |> List.map (\article -> Ui.Article.viewArticlePreview browserEnv (getAuthor nostr article.author) article (getInteractions nostr article) True)
-    |> div []
-
-
-viewCommunity : BrowserEnv -> Model -> Community -> Html msg
-viewCommunity browserEnv nostr community =
-    Nostr.Community.viewCommunity browserEnv nostr.profiles community

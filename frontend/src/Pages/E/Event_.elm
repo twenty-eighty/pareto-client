@@ -14,6 +14,7 @@ import Nostr.Article exposing (Article)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..))
 import Nostr.Nip19 as Nip19
 import Page exposing (Page)
+import Ports
 import Route exposing (Route)
 import Shared
 import Shared.Model
@@ -21,10 +22,9 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
+import Ui.View
 import Url
 import View exposing (View)
-import Ports
-import Time
 
 
 page : Shared.Model -> Route { event : String } -> Page Model Msg
@@ -163,6 +163,6 @@ view shared model =
                     [ text "Highlights" ]
                 ]
             , Nostr.getArticlesByDate shared.nostr
-            |> Nostr.viewArticlePreviews shared.browserEnv shared.nostr 
+            |> Ui.View.viewArticlePreviews shared.browserEnv shared.nostr 
             ]
     }
