@@ -31,6 +31,7 @@ defmodule NostrBackendWeb.Router do
 
     get("/a/:article_id", ContentController, :article)
     get("/p/:profile_id", ContentController, :profile)
+    get("/u/:user_nip05/:identifier", ContentController, :nip05_article)
     get("/u/:user_nip05", ContentController, :user_nip05)
   end
 

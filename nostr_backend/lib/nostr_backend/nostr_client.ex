@@ -15,8 +15,12 @@ defmodule NostrBackend.NostrClient do
   ]
 
   def fetch_article_by_address(kind, author, identifier) do
+    fetch_article_by_address(kind, author, identifier, @relay_urls)
+  end
+
+  def fetch_article_by_address(kind, author, identifier, relay_urls) do
     address_info = %{kind: kind, author: author, identifier: identifier}
-    fetch_from_relays(@relay_urls, address_info, :address)
+    fetch_from_relays(relay_urls, address_info, :address)
   end
 
   def fetch_article_by_address(kind, identifier) do
@@ -29,9 +33,13 @@ defmodule NostrBackend.NostrClient do
     fetch_from_relays(@relay_urls, article_hex_id, :article)
   end
 
-  @spec fetch_profile(String.t()) :: {:ok, map()} | {:error, String.t()}
-  def fetch_profile(profile_hex_id) do
-    fetch_from_relays(@relay_urls, profile_hex_id, :profile)
+  @spec fetch_profile(String.t(), list()) :: {:ok, map()} | {:error, String.t()}
+  def fetch_profile(profile_hex_id, []) do
+    fetch_profile(profile_hex_id, @relay_urls)
+  end
+
+  def fetch_profile(profile_hex_id, relays) do
+    fetch_from_relays(relays, profile_hex_id, :profile)
   end
 
   defp fetch_from_relays([], _id, _type) do

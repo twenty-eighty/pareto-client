@@ -6,11 +6,11 @@ defmodule NostrBackend.ProfileCache do
   # 24 hours
   @ttl_in_seconds 86_400
 
-  def get_profile(pubkey) do
+  def get_profile(pubkey, relays) do
     case Cachex.get(@cache_name, pubkey) do
       {:ok, nil} ->
         # Profile not found in cache, load it
-        with {:ok, profile} <- load_profile(pubkey) do
+        with {:ok, profile} <- load_profile(pubkey, relays) do
           # Store the profile in the cache with a TTL
           Cachex.put(@cache_name, pubkey, profile, ttl: @ttl_in_seconds)
           {:ok, profile}
@@ -26,10 +26,10 @@ defmodule NostrBackend.ProfileCache do
     end
   end
 
-  defp load_profile(pubkey) do
+  defp load_profile(pubkey, relays) do
     # Implement the logic to load the profile from the Nostr network
     # For example:
-    case NostrClient.fetch_profile(pubkey) do
+    case NostrClient.fetch_profile(pubkey, relays) do
       {:ok, event} -> {:ok, Content.parse_profile_event(event)}
       {:error, reason} -> {:error, reason}
     end

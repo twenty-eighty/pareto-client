@@ -77,9 +77,9 @@ defmodule NostrBackendWeb.ContentController do
 
   def profile(conn, %{"profile_id" => nostr_id}) do
     case NostrId.parse(nostr_id) do
-      {:ok, {:profile, profile_hex_id, _relays}} ->
+      {:ok, {:profile, profile_hex_id, relays}} ->
         # TODO: use relays for profile lookup
-        get_and_render_profile(conn, profile_hex_id)
+        get_and_render_profile(conn, profile_hex_id, relays)
 
       {:error, _reason} ->
         conn
@@ -92,9 +92,9 @@ defmodule NostrBackendWeb.ContentController do
     case Nip05.parse_identifier(user_nip05) do
       {:ok, _name, _domain} ->
         case Nip05Cache.get_pubkey_and_relays(user_nip05) do
-          {:ok, pubkey, _relays} ->
+          {:ok, pubkey, relays} ->
             # TODO: use relays for profile lookup
-            get_and_render_profile(conn, pubkey)
+            get_and_render_profile(conn, pubkey, relays)
 
           {:error, reason} ->
             IO.inspect(reason, label: "ERROR REASON")
@@ -114,8 +114,49 @@ defmodule NostrBackendWeb.ContentController do
     end
   end
 
-  defp get_and_render_profile(conn, profile_hex_id) do
-    case ProfileCache.get_profile(profile_hex_id) do
+  def nip05_article(conn, %{"user_nip05" => user_nip05, "identifier" => article_id}) do
+    case Nip05.parse_identifier(user_nip05) do
+      {:ok, _name, _domain} ->
+        case Nip05Cache.get_pubkey_and_relays(user_nip05) do
+          {:ok, pubkey, relays} ->
+            case ArticleCache.get_article(%{
+                   kind: 30023,
+                   identifier: article_id,
+                   author: pubkey,
+                   relays: relays
+                 }) do
+              {:ok, article} ->
+                conn
+                |> conn_with_article_meta(article)
+                |> put_view(NostrBackendWeb.ContentHTML)
+                |> render(:article, article: article)
+
+              {:error, _reason} ->
+                conn
+                |> conn_with_default_meta()
+                |> render(:not_found, layout: false)
+            end
+
+          {:error, reason} ->
+            IO.inspect(reason, label: "ERROR REASON")
+
+            conn
+            |> conn_with_default_meta()
+            |> render(:not_found, layout: false)
+
+            # |> render(NostrBackendWeb.ErrorHTML, :"404")
+        end
+
+      {:error, reason} ->
+        conn
+        |> conn_with_default_meta()
+        |> text("Invalid NIP-05 identifier: #{reason}")
+        |> render(:not_found, layout: false)
+    end
+  end
+
+  defp get_and_render_profile(conn, profile_hex_id, relays) do
+    case ProfileCache.get_profile(profile_hex_id, relays) do
       {:ok, profile} ->
         conn
         |> conn_with_profile_meta(profile)
@@ -142,7 +183,6 @@ defmodule NostrBackendWeb.ContentController do
   end
 
   defp conn_with_profile_meta(conn, profile) do
-    IO.inspect(conn, label: "conn")
     IO.inspect(profile, label: "Profile")
 
     conn
