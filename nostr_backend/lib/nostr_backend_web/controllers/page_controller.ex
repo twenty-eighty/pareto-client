@@ -6,8 +6,14 @@ defmodule NostrBackendWeb.PageController do
   @meta_url "https://pareto.space"
   @sharing_image "/images/pareto-shared.png"
 
-  def landing_page2(conn, _params) do
-    redirect(conn, to: ~p"/lp2/index.html")
+  def landing_page(conn, _params) do
+    # Determine the preferred language from the `Accept-Language` header
+    case get_preferred_language(conn) do
+      "en" -> redirect(conn, to: ~p"/lp/en/index.html")
+      "de" -> redirect(conn, to: ~p"/lp/de/index.html")
+      # Default to English
+      _ -> redirect(conn, to: ~p"/lp/en/index.html")
+    end
   end
 
   def home(conn, _params) do
@@ -56,5 +62,28 @@ defmodule NostrBackendWeb.PageController do
     |> assign(:meta_description, @meta_description)
     |> assign(:meta_image, @sharing_image)
     |> assign(:meta_url, @meta_url)
+  end
+
+  defp get_preferred_language(conn) do
+    # Parse `Accept-Language` to get the primary language code
+    conn
+    |> get_req_header("accept-language")
+    |> List.first()
+    |> parse_language()
+  end
+
+  # Default if no language is provided
+  defp parse_language(nil), do: "en"
+
+  defp parse_language(lang_header) do
+    lang_header
+    # Handle multiple languages
+    |> String.split(",")
+    # Take the first language
+    |> List.first()
+    # Split language and region (e.g., "en-US")
+    |> String.split("-")
+    # Use the main language code
+    |> List.first()
   end
 end

@@ -103,7 +103,10 @@ defmodule NostrBackend.NostrClient do
         {:error, "No events found"}
 
       {:notice, notice} ->
-        Logger.debug("Received notice: #{subscription_id}, no events found")
+        Logger.debug(
+          "Received notice for subscription_id: #{subscription_id}: #{inspect(notice)}"
+        )
+
         WebSockex.send_frame(pid, {:text, Jason.encode!(["CLOSE", subscription_id])})
         Process.exit(pid, :normal)
         {:error, "No events found"}

@@ -21,8 +21,8 @@ defmodule NostrBackendWeb.Router do
   scope "/", NostrBackendWeb do
     pipe_through([:browser, :posthog])
 
-    # get("/", PageController, :landing_page)
-    get("/", PageController, :landing_page2)
+    get("/", PageController, :landing_page)
+
     # get("/", PageController, :index)
     get("/search", PageController, :search)
     get("/bookmarks", PageController, :bookmarks)

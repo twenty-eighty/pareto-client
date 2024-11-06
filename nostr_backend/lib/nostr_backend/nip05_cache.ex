@@ -1,7 +1,5 @@
 defmodule NostrBackend.Nip05Cache do
-  alias NostrBackend.Content
   alias NostrBackend.Nip05
-  alias NostrBackend.NostrClient
 
   @cache_name :nip05_cache
   # 24 hours
