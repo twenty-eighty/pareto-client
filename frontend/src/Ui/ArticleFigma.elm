@@ -13,7 +13,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
-import Ui.Shared exposing (fontFamilyInter, fontFamilyUnbounded, fontFamilySourceSerifPro)
+import Ui.Shared exposing (darkMode, fontFamilyInter, fontFamilyUnbounded, fontFamilySourceSerifPro)
 import Time
 
 viewArticlePreview : BrowserEnv -> Author -> Article -> Interactions -> Bool -> Html msg
@@ -29,6 +29,9 @@ viewArticlePreview browserEnv author article interactions displayAuthor =
             , Tw.items_start
             , Tw.gap_2
             , Tw.inline_flex
+            , darkMode
+                [ Tw.border_color Theme.neutral_700
+                ]
             ]
         ]
         [ div
@@ -61,6 +64,9 @@ viewArticlePreview browserEnv author article interactions displayAuthor =
                         [ Tw.text_color Theme.zinc_900
                         , Tw.text_sm
                         , Tw.font_normal
+                        , darkMode
+                            [ Tw.text_color Theme.white
+                            ]
                         ]
                     , fontFamilyInter
                     ]
@@ -70,6 +76,9 @@ viewArticlePreview browserEnv author article interactions displayAuthor =
                         [ Tw.text_color Theme.zinc_500
                         , Tw.text_sm
                         , Tw.font_normal
+                        , darkMode
+                            [ Tw.text_color Theme.zinc_400
+                            ]
                         ]
                     , fontFamilyInter
                     ]
@@ -107,6 +116,9 @@ viewArticlePreview browserEnv author article interactions displayAuthor =
                             [ Tw.text_color Theme.zinc_900
                             , Tw.text_2xl
                             , Tw.font_semibold
+                            , darkMode
+                                [ Tw.text_color Theme.white
+                                ]
                             ]
                         , fontFamilyUnbounded
                         ]
@@ -118,6 +130,9 @@ viewArticlePreview browserEnv author article interactions displayAuthor =
                             , Tw.text_lg
                             , Tw.font_normal
                             , Tw.leading_relaxed
+                            , darkMode
+                                [ Tw.text_color Theme.zinc_400
+                                ]
                             ]
                         , fontFamilySourceSerifPro
                         ]
@@ -142,7 +157,10 @@ viewHashTags hashTags =
     (List.map viewTag hashTags)
     |> div
         [ css
-            [ Tw.space_x_2
+            [ Tw.justify_start
+            , Tw.items_start
+            , Tw.gap_2
+            , Tw.inline_flex
             ]
         ]
 
@@ -158,6 +176,9 @@ viewTag hashTag =
             , Tw.items_center
             , Tw.gap_2
             , Tw.inline_flex
+            , darkMode
+                [ Tw.bg_color Theme.neutral_700
+                ]
             ]
         ]
         [ div
@@ -165,11 +186,16 @@ viewTag hashTag =
                 [ Tw.text_color Theme.zinc_900
                 , Tw.text_sm
                 , Tw.font_medium
+                , darkMode
+                    [ Tw.text_color Theme.white
+                    ]
                 ]
             , fontFamilyInter
             ]
             [ text hashTag ]
         ]
+    
+
 viewAuthorAndDate : BrowserEnv -> Maybe Time.Posix -> PubKey -> Nostr.Profile.Author -> Html msg
 viewAuthorAndDate browserEnv published articlePubKey author =
     case author of
@@ -186,7 +212,7 @@ viewAuthorAndDate browserEnv published articlePubKey author =
                 , timeParagraph browserEnv published
                 ]
 
-        Nostr.Profile.AuthorProfile profile ->
+        Nostr.Profile.AuthorProfile profile validationStatus ->
             div
                 [ css
                     [ Tw.flex
@@ -195,12 +221,12 @@ viewAuthorAndDate browserEnv published articlePubKey author =
                     , Tw.mb_4
                     ]
                 ]
-                [ viewProfileSmall profile
+                [ viewProfileSmall profile validationStatus
                 , timeParagraph browserEnv published
                 ]
 
-viewProfileSmall : Profile -> Html msg
-viewProfileSmall profile =
+viewProfileSmall : Profile -> ProfileValidation -> Html msg
+viewProfileSmall profile validationStatus =
         div
             [ css
                 [ Tw.flex
@@ -218,7 +244,7 @@ viewProfileSmall profile =
                     , Tw.mb_4
                     ]
                 ]
-                [ viewProfileImageSmall (linkElementForProfile profile) profile.picture profile.valid
+                [ viewProfileImageSmall (linkElementForProfile profile) profile.picture validationStatus
                 , h2
                     [ css
                         [ Tw.text_sm

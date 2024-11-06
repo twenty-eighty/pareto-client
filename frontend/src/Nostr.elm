@@ -30,7 +30,6 @@ import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
 import Nostr.Types exposing (EventId, PubKey)
 import Nostr.Zaps exposing (ZapReceipt)
 import Html.Attributes exposing (kind)
-import Ui.Article
 import Time
 
 
@@ -48,7 +47,7 @@ type alias IncomingMessage =
 type alias Hooks =
     { connect : List String -> Cmd Msg
     , receiveMessage : (IncomingMessage -> Msg) -> Sub Msg
-    , requestEvents : String -> Bool -> RequestId -> EventFilter -> Cmd Msg
+    , requestEvents : String -> Bool -> RequestId -> Maybe (List String) -> EventFilter -> Cmd Msg
     , requestBlossomListAuth : RequestId -> String -> Cmd Msg
     , requestNip96Auth : RequestId -> String -> String -> Cmd Msg
     , sendEvent : SendId -> Event -> Cmd Msg
@@ -70,6 +69,7 @@ type alias Model =
     , pubKeyByNip05 : Dict Nip05String PubKey
     , poolState : RelayState
     , profiles : Dict PubKey Nostr.Profile.Profile
+    , profileValidations : Dict PubKey ProfileValidation
     , reactions : Dict EventId (Dict EventId Nostr.Reactions.Reaction)
     , relayMetadataLists : Dict PubKey (List RelayMetadata)
     , reposts : Dict EventId Repost
@@ -159,37 +159,41 @@ performRequest : Model -> String -> RequestId -> RequestData -> (Model, Cmd Msg)
 performRequest model description requestId requestData =
     case requestData of
         RequestArticle eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId eventFilter)
+            ( model, model.hooks.requestEvents description True requestId Nothing eventFilter)
 
         RequestArticles eventFilter ->
             ( { model | articlesByDate = [] }
-            , model.hooks.requestEvents description True requestId eventFilter)
+            , model.hooks.requestEvents description True requestId Nothing eventFilter)
 
         RequestArticlesFeed eventFilter ->
             ( { model | articlesByDate = [] }
-            , model.hooks.requestEvents description False requestId eventFilter)
+            , model.hooks.requestEvents description False requestId Nothing eventFilter)
 
         RequestArticleDrafts eventFilter ->
             ( { model | articleDraftsByDate = [] }
-            , model.hooks.requestEvents description False requestId eventFilter)
+            , model.hooks.requestEvents description False requestId Nothing eventFilter)
 
         RequestBookmarks eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId eventFilter)
+            ( model, model.hooks.requestEvents description True requestId Nothing eventFilter)
 
         RequestFollowSets eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId eventFilter)
+            ( model, model.hooks.requestEvents description True requestId Nothing eventFilter)
 
-        RequestProfile eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId eventFilter)
+        RequestNip05AndArticle nip05 _ ->
+            -- identifier not needed here, only after getting nip05 data
+            ( model, fetchNip05Info (Nip05FetchedForNip05 requestId nip05) nip05 )
+
+        RequestProfile relays eventFilter ->
+            ( model, model.hooks.requestEvents description True requestId relays eventFilter)
 
         RequestProfileByNip05 nip05 ->
             ( model, fetchNip05Info (Nip05FetchedForNip05 requestId nip05) nip05 )
 
         RequestReactions eventFilter ->
-            ( model, model.hooks.requestEvents description False requestId eventFilter)
+            ( model, model.hooks.requestEvents description False requestId Nothing eventFilter)
 
         RequestUserData eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId eventFilter)
+            ( model, model.hooks.requestEvents description True requestId Nothing eventFilter)
 
         RequestBlossomListAuth server ->
             ( model, model.hooks.requestBlossomListAuth requestId server)
@@ -205,11 +209,20 @@ send model sendRequest =
             , model.hooks.sendEvent model.lastSendRequestId event )
 
 getAuthor : Model -> PubKey -> Nostr.Profile.Author
-getAuthor model pubkey =
+getAuthor model pubKey =
+    let
+        validationStatus =
+            getProfileValidationStatus model pubKey
+            |> Maybe.withDefault ValidationUnknown
+    in
     model.profiles
-    |> Dict.get pubkey 
-    |> Maybe.map Nostr.Profile.AuthorProfile
-    |> Maybe.withDefault (Nostr.Profile.AuthorPubkey pubkey)
+    |> Dict.get pubKey 
+    |> Maybe.map (\profile -> Nostr.Profile.AuthorProfile profile validationStatus)
+    |> Maybe.withDefault (Nostr.Profile.AuthorPubkey pubKey)
+
+getProfileValidationStatus : Model -> PubKey -> Maybe ProfileValidation
+getProfileValidationStatus model pubKey =
+    Dict.get pubKey model.profileValidations
 
 getArticlesByDate : Model -> List Article
 getArticlesByDate model =
@@ -300,9 +313,14 @@ getBookmarks : Model -> PubKey -> Maybe BookmarkList
 getBookmarks model pubKey =
     Dict.get pubKey model.bookmarkLists
 
+
 getReactionsForArticle : Model -> Article -> Maybe (Dict String Nostr.Reactions.Reaction)
 getReactionsForArticle model article =
     Dict.get article.id model.reactions
+
+getRequest : Model -> RequestId -> Maybe Request
+getRequest model requestId =
+    Dict.get requestId model.requests
 
 
 getZapReceiptsForArticle : Model -> Article -> Maybe (Dict String Nostr.Zaps.ZapReceipt)
@@ -341,7 +359,7 @@ getPubKeyByNip05 model nip05 =
 requestCommunityPostApprovals : Model -> Community -> Cmd Msg
 requestCommunityPostApprovals model community =
     profileFilterForCommunityPostApprovals community
-    |> model.hooks.requestEvents "Community post approvals" False -1
+    |> model.hooks.requestEvents "Community post approvals" False -1 Nothing
 
 profileFilterForCommunityPostApprovals : Community -> EventFilter
 profileFilterForCommunityPostApprovals community =
@@ -375,7 +393,8 @@ requestUserData model pubKey =
             , since = Nothing
             , until = Nothing
             }
-            |> RequestProfile
+            -- assumption: our standard relays are good for the user's profile
+            |> RequestProfile Nothing
             |> createRequest model "Related data for logged-in user" []
     in
     doRequest model request
@@ -498,7 +517,7 @@ empty =
     , hooks =
         { connect = \ _ -> Cmd.none
         , receiveMessage = \_ -> Sub.none
-        , requestEvents = \_ _ _ _ -> Cmd.none
+        , requestEvents = \_ _ _ _ _ -> Cmd.none
         , requestBlossomListAuth = \_ _ -> Cmd.none
         , requestNip96Auth = \_ _ _ -> Cmd.none
         , sendEvent = \_ _ -> Cmd.none
@@ -508,6 +527,7 @@ empty =
     , followLists = Dict.empty
     , followSets = Dict.empty
     , profiles = Dict.empty
+    , profileValidations = Dict.empty
     , reactions = Dict.empty
     , relayMetadataLists = Dict.empty
     , reposts = Dict.empty
@@ -621,6 +641,7 @@ update msg model =
                     (model, Cmd.none)
 
         Nip05FetchedForPubKey pubKey nip05 (Ok nip05Data) ->
+        -- TODO: store relays for user
             let
                 validationStatus =
                     Dict.get nip05.user nip05Data.names
@@ -632,55 +653,13 @@ update msg model =
                         )
                     |> Maybe.withDefault ValidationNameMissing
             in
-            updateProfileWithValidationStatus model pubKey validationStatus
+            (updateProfileWithValidationStatus model pubKey validationStatus, Cmd.none)
 
         Nip05FetchedForPubKey pubKey _ (Err error) ->
-            updateProfileWithValidationStatus model pubKey (ValidationNetworkError error)
+            (updateProfileWithValidationStatus model pubKey (ValidationNetworkError error), Cmd.none)
 
         Nip05FetchedForNip05 requestId nip05 (Ok nip05Data) ->
-            let
-                pubKeyInNip05Data =
-                    Dict.get (nip05.user) nip05Data.names
-
-                loadedProfile =
-                    pubKeyInNip05Data
-                    |> Maybe.andThen (getProfile model)
-
-                (pubKeyForUpdate, validationStatus) =
-                    case (pubKeyInNip05Data, loadedProfile) of
-                        (Just pubKey, Just profile) ->
-                            -- profile is already loaded - update status for pubKey in profile
-                            if pubKey == profile.pubKey then
-                                (Just profile.pubKey, ValidationSucceeded)
-                            else
-                                (Just profile.pubKey, ValidationNotMatchingPubKey)
-
-                        (Just pubKey, Nothing) ->
-                            -- profile not yet loaded - load for pubKey in NIP-05 data
-                            (pubKeyInNip05Data, ValidationUnknown)
-
-                        (Nothing, _) ->
-                            -- pubKey in response doesn't match
-                            (Nothing, ValidationNameMissing)
-
-            in
-            case (validationStatus, loadedProfile) of
-                (ValidationUnknown, _) ->
-                    let
-                        relatedKinds =
-                            Dict.get requestId model.requests
-                            |> relatedKindsForRequest
-
-                    in
-                    RequestProfile { emptyEventFilter | authors = Maybe.map List.singleton pubKeyForUpdate, kinds = Just [KindUserMetadata] }
-                    |> createRequest model ("Profile for NIP-05 user " ++ nip05.user) relatedKinds 
-                    |> doRequestWithId model requestId 
-
-                (status, Just profile) ->
-                    updateProfileWithValidationStatus model profile.pubKey status
-
-                (_, Nothing) ->
-                    ( { model | errors = "unexpected case" :: model.errors}, Cmd.none )
+            updateModelWithNip05Data model requestId nip05 nip05Data
 
 
         Nip05FetchedForNip05 requestId nip05 (Err error) ->
@@ -879,8 +858,9 @@ requestRelatedKindsForArticles model articles request =
         (requestProfileModel, extendedRequestProfile) =
             case maybeEventFilterForAuthorProfiles of
                 Just eventFilterForAuthorProfiles ->
+                    -- TODO: add relays for request
                     eventFilterForAuthorProfiles
-                    |> RequestProfile
+                    |> RequestProfile Nothing
                     |> addToRequest model request
 
                 Nothing ->
@@ -1012,18 +992,80 @@ insertIntoEventsDict event dict =
         Nothing ->
             Dict.singleton kindNum [ event ]
 
-updateProfileWithValidationStatus : Model -> PubKey -> ProfileValidation -> (Model, Cmd Msg)
+updateModelWithNip05Data : Model -> RequestId -> Nip05 -> Nip05.Nip05Data -> (Model, Cmd Msg)
+updateModelWithNip05Data model requestId nip05 nip05Data =
+    let
+        modelWithValidatedNip05 =
+            validateNip05 model nip05 nip05Data
+
+        maybePubKey =
+            Dict.get nip05.user nip05Data.names
+
+        loadedProfile =
+            getProfileByNip05 modelWithValidatedNip05 nip05
+
+        maybeRequest =
+            getRequest model requestId
+
+        maybeRelays =
+            case nip05Data.relays of
+                Just relayDict ->
+                    maybePubKey
+                    |> Maybe.andThen (\pubKey -> (Dict.get pubKey relayDict))
+
+                Nothing ->
+                    Nothing
+
+        (requestModel, requestProfileCmd) = 
+            case (loadedProfile, maybeRequest, maybePubKey) of
+                ( Nothing, Just request, Just pubKey ) ->
+                    { emptyEventFilter | authors = Just [ pubKey ], kinds = Just [KindUserMetadata] }
+                    |> RequestProfile maybeRelays
+                    |> addToRequest modelWithValidatedNip05 request
+                    |> (\(modelWithRequest, extendedRequest) -> doRequest modelWithRequest extendedRequest)
+
+                ( _, _, _ ) ->
+                    (modelWithValidatedNip05, Cmd.none)
+    in
+    (requestModel, requestProfileCmd)
+
+validateNip05 : Model -> Nip05 -> Nip05.Nip05Data -> Model
+validateNip05 model nip05 nip05Data =
+    let
+        pubKeyInNip05Data =
+            Dict.get (nip05.user) nip05Data.names
+
+        loadedProfile =
+            pubKeyInNip05Data
+            |> Maybe.andThen (getProfile model)
+
+        (pubKeyForUpdate, validationStatus) =
+            case (pubKeyInNip05Data, loadedProfile) of
+                (Just pubKey, Just profile) ->
+                    -- profile is already loaded - update status for pubKey in profile
+                    if pubKey == profile.pubKey then
+                        (Just profile.pubKey, ValidationSucceeded)
+                    else
+                        (Just profile.pubKey, ValidationNotMatchingPubKey)
+
+                (Just _, Nothing) ->
+                    -- profile not yet loaded - load for pubKey in NIP-05 data
+                    (pubKeyInNip05Data, ValidationPending)
+
+                (Nothing, _) ->
+                    -- name missing in response
+                    (Nothing, ValidationNameMissing)
+
+    in
+    updateProfileWithValidationStatus model "1234" validationStatus
+    -- updateProfileWithValidationStatus model profile.pubKey validationStatus
+
+
+updateProfileWithValidationStatus : Model -> PubKey -> ProfileValidation -> Model
 updateProfileWithValidationStatus model pubKey valid =
     let
         maybeProfile =
             Dict.get pubKey model.profiles
-
-        updatedProfiles =
-            maybeProfile
-            |> Maybe.map (\profile ->
-                Dict.insert pubKey { profile | valid = valid } model.profiles
-                )
-            |> Maybe.withDefault model.profiles
 
         updatedNip05Dict =
             maybeProfile
@@ -1033,7 +1075,7 @@ updateProfileWithValidationStatus model pubKey valid =
                 )
             |> Maybe.withDefault model.pubKeyByNip05
     in
-    ( { model | profiles = updatedProfiles, pubKeyByNip05 = updatedNip05Dict }, Cmd.none )
+    { model | profileValidations = Dict.insert pubKey valid model.profileValidations, pubKeyByNip05 = updatedNip05Dict }
 
 
 updateWithReactions : Model -> List Nostr.Reactions.Reaction -> (Model, Cmd Msg)

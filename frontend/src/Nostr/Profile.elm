@@ -12,7 +12,7 @@ import Nostr.Nip05 as Nip05
 
 type Author
     = AuthorPubkey PubKey
-    | AuthorProfile Profile
+    | AuthorProfile Profile ProfileValidation
 
 type alias Profile =
     { nip05 : Maybe Nip05
@@ -26,12 +26,11 @@ type alias Profile =
     , npub : Maybe String
     , createdAt : Maybe Time.Posix
     , pubKey : PubKey
-    , valid : ProfileValidation
     }
 
 type ProfileValidation
     = ValidationUnknown
-    | ValidationNoNip05InProfile
+    | ValidationPending
     | ValidationNameMissing
     | ValidationNotMatchingPubKey
     | ValidationNetworkError Http.Error
@@ -50,8 +49,6 @@ emptyProfile pubKey =
     , pubKey = pubKey
     , npub = Nothing
     , createdAt = Nothing
-    , valid = ValidationUnknown
-
     }
 
 profileFromEvent : Event -> Maybe Profile
@@ -60,9 +57,9 @@ profileFromEvent event =
     |> Result.toMaybe
     |> Maybe.map (\profile ->
         if profile.nip05 == Nothing then
-            { profile | pubKey = event.pubKey, valid = ValidationNoNip05InProfile }
+            { profile | pubKey = event.pubKey }
         else
-            { profile | pubKey = event.pubKey, valid = ValidationUnknown }
+            { profile | pubKey = event.pubKey }
         )
 
 {-
@@ -108,7 +105,6 @@ nostrProfileDecoder =
     |> DecodePipeline.optional "npub" (Decode.maybe Decode.string) Nothing
     |> DecodePipeline.optional "created_at" (Decode.maybe decodeUnixTime) Nothing
     |> DecodePipeline.hardcoded ""
-    |> DecodePipeline.hardcoded ValidationUnknown
 
 
 decodeUnixTime : Decoder Time.Posix

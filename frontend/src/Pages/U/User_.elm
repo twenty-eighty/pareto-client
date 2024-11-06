@@ -10,8 +10,7 @@ import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Nip05 as Nip05 exposing (Nip05)
-import Nostr.Nip19 as Nip19
-import Nostr.Profile exposing (Profile)
+import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Types exposing (PubKey)
 import Page exposing (Page)
@@ -132,8 +131,8 @@ view shared model =
 viewProfile : Shared.Model -> Profile -> Html Msg
 viewProfile shared profile =
     div []
-        [ Ui.Profile.viewProfile profile
-        , Nostr.getArticlesForAuthor shared.nostr profile.pubKey
+        [ Ui.Profile.viewProfile profile (Nostr.getProfileValidationStatus shared.nostr profile.pubKey |> Maybe.withDefault ValidationUnknown)
+        , Nostr.getArticlesForAuthor shared.nostr profile.pubKey 
         |> viewArticlePreviews shared.browserEnv shared.nostr 
         ]
 

@@ -40,7 +40,7 @@ linkToAuthor author =
         AuthorPubkey pubKey ->
             linkToProfilePubKey pubKey
 
-        AuthorProfile profile ->
+        AuthorProfile profile _ ->
             linkToProfile profile
 
 

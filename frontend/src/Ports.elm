@@ -24,8 +24,17 @@ requestUser : Cmd msg
 requestUser =
     sendCommand { command = "requestUser", value = Encode.null }
 
-requestEvents : String -> Bool -> RequestId -> EventFilter -> Cmd msg
-requestEvents description closeOnEose requestId filter =
+requestEvents : String -> Bool -> RequestId -> Maybe (List String) -> EventFilter -> Cmd msg
+requestEvents description closeOnEose requestId maybeRelays filter =
+    let
+        relaysValue =
+            case maybeRelays of
+                Just relays ->
+                    Encode.list Encode.string relays
+
+                Nothing ->
+                    Encode.null
+    in
     sendCommand
         { command = "requestEvents"
         , value = 
@@ -34,6 +43,7 @@ requestEvents description closeOnEose requestId filter =
                 , ("filter", encodeEventFilter filter)
                 , ("closeOnEose", Encode.bool closeOnEose)
                 , ("description", Encode.string description)
+                , ("relays", relaysValue)
                 ]
         }
 

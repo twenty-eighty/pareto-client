@@ -1,6 +1,7 @@
 module Ui.Shared exposing (..)
 
 import Css
+import Css.Media
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
@@ -16,6 +17,10 @@ fontFamilyUnbounded =
 
 fontFamilySourceSerifPro =
     Attr.style "font-family" "Source Serif Pro"
+
+darkMode : List Css.Style -> Css.Style
+darkMode =
+    Css.Media.withMediaQuery [ "(prefers-color-scheme: dark)" ]
 
 
 pageLoadingIndicator : Html msg

@@ -30,6 +30,7 @@ import Ui.Article
 import Ui.Profile
 import Ui.Shared exposing (fontFamilyUnbounded, fontFamilyInter)
 import View exposing (View)
+import Nostr.Profile exposing (ProfileValidation(..))
 
 
 page : Shared.Model -> Route { profile : String } -> Page Model Msg
@@ -78,7 +79,7 @@ init shared route () =
 
                     Nothing ->
                         filterForAuthor pubKey
-                        |> RequestProfile 
+                        |> RequestProfile Nothing
                         |> Nostr.createRequest shared.nostr "Profile" [KindLongFormContent]
                         |> Shared.Msg.RequestNostrEvents
                         |> Effect.sendSharedMsg
@@ -155,7 +156,7 @@ view shared model =
 viewProfile : Shared.Model -> Profile -> Html Msg
 viewProfile shared profile =
     div []
-        [ Ui.Profile.viewProfile profile
+        [ Ui.Profile.viewProfile profile (Nostr.getProfileValidationStatus shared.nostr profile.pubKey |> Maybe.withDefault ValidationUnknown)
         , Nostr.getArticlesForAuthor shared.nostr profile.pubKey
         |> viewArticlePreviews shared.browserEnv shared.nostr 
         ]

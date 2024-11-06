@@ -25,7 +25,8 @@ type RequestData
     | RequestArticleDrafts EventFilter
     | RequestBookmarks EventFilter
     | RequestFollowSets EventFilter
-    | RequestProfile EventFilter
+    | RequestNip05AndArticle Nip05 String
+    | RequestProfile  (Maybe (List String)) EventFilter
     | RequestProfileByNip05 Nip05
     | RequestReactions EventFilter
     | RequestUserData EventFilter

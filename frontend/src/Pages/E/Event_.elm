@@ -71,7 +71,7 @@ init route () =
     ( { articles = []
       , filter = filter
       }
-    , Effect.sendCmd <| Ports.requestEvents ("NIP-19 event: " ++ route.params.event) True -1 filter
+    , Effect.sendCmd <| Ports.requestEvents ("NIP-19 event: " ++ route.params.event) True -1 Nothing filter
     )
 
 tagReferencesForParam : String -> Maybe (List TagReference)

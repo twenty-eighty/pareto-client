@@ -36,8 +36,8 @@ type alias Model = Shared.Model.Model
 
 defaultRelays : List String
 defaultRelays =
-    [ "nostr.pareto.space/"
---    , "pareto.nostr1.com/"
+    [ -- "nostr.pareto.space/"
+     "pareto.nostr1.com/"
     , "nostr.wine/"
     , "nos.lol/"
     ]

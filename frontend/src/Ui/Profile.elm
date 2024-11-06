@@ -20,8 +20,8 @@ defaultProfileImage =
     "/images/avatars/placeholder_01.png"
 
 
-viewProfileSmall : Profile -> Html msg
-viewProfileSmall profile =
+viewProfileSmall : Profile -> ProfileValidation -> Html msg
+viewProfileSmall profile validationStatus =
         div
             [ css
                 [ Tw.flex
@@ -39,7 +39,7 @@ viewProfileSmall profile =
                     , Tw.mb_4
                     ]
                 ]
-                [ viewProfileImageSmall (linkElementForProfile profile) profile.picture profile.valid
+                [ viewProfileImageSmall (linkElementForProfile profile) profile.picture validationStatus
                 , h2
                     [ css
                         [ Tw.text_sm
@@ -53,8 +53,8 @@ viewProfileSmall profile =
 
 
 
-viewProfile : Profile -> Html msg
-viewProfile profile =
+viewProfile : Profile -> ProfileValidation -> Html msg
+viewProfile profile validationStatus =
         div
             [ css
                 [ Tw.flex
@@ -73,7 +73,7 @@ viewProfile profile =
                     , Tw.mb_4
                     ]
                 ]
-                [ viewProfileImage (div [ css [ Tw.flex_none ]]) profile.picture profile.valid
+                [ viewProfileImage (div [ css [ Tw.flex_none ]]) profile.picture validationStatus
                 , div
                     [ css
                         [ Tw.flex
@@ -196,8 +196,8 @@ validationIcon width validation =
         ValidationUnknown ->
             Graphics.featherMehIcon width
 
-        ValidationNoNip05InProfile ->
-            div [][]
+        ValidationPending ->
+            Graphics.featherMehIcon width
 
         ValidationNameMissing ->
             Graphics.featherFrownIcon width
@@ -218,8 +218,8 @@ validationTooltipText status =
         ValidationUnknown ->
             "Unknown profile validation status"
 
-        ValidationNoNip05InProfile ->
-            "No NIP-05 entry present in profile"
+        ValidationPending ->
+            "Validating profile..."
 
         ValidationNameMissing ->
             "Error validating profile: name missing in nostr.json"

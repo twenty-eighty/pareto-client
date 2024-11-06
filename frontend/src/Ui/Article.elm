@@ -177,7 +177,7 @@ viewAuthorAndDate browserEnv published articlePubKey author =
                 , timeParagraph browserEnv published
                 ]
 
-        Nostr.Profile.AuthorProfile profile ->
+        Nostr.Profile.AuthorProfile profile validationStatus ->
             div
                 [ css
                     [ Tw.flex
@@ -186,7 +186,7 @@ viewAuthorAndDate browserEnv published articlePubKey author =
                     , Tw.mb_4
                     ]
                 ]
-                [ Ui.Profile.viewProfileSmall profile
+                [ Ui.Profile.viewProfileSmall profile validationStatus
                 , timeParagraph browserEnv published
                 ]
 

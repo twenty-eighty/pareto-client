@@ -246,23 +246,24 @@ viewModerators browserEnv profiles moderators =
             , fontFamilyUnbounded
             ]
             [ text "Moderators"
-            , List.map (\moderator -> viewModerator (Dict.get moderator.pubKey profiles) moderator) moderators
+            -- TODO: get actual validation status 
+            , List.map (\moderator -> viewModerator (Dict.get moderator.pubKey profiles) ValidationUnknown moderator) moderators
                 |> div []
             ]
     else
         div [][]
 
-viewModerator : Maybe Profile -> Moderator -> Html msg
-viewModerator maybeProfile moderator =
+viewModerator : Maybe Profile -> ProfileValidation -> Moderator -> Html msg
+viewModerator maybeProfile validationStatus moderator =
     case maybeProfile of
         Just profile ->
-            viewProfile profile moderator
+            viewProfile profile validationStatus moderator
 
         Nothing ->
             viewPubKey moderator.pubKey
 
-viewProfile : Profile -> Moderator -> Html msg
-viewProfile profile moderator =
+viewProfile : Profile -> ProfileValidation -> Moderator -> Html msg
+viewProfile profile validationStatus moderator =
     div
         [ css
             [ Tw.flex
@@ -271,7 +272,7 @@ viewProfile profile moderator =
             , Tw.mb_4
             ]
         ]
-        [ Ui.Profile.viewProfileImage (div []) profile.picture profile.valid
+        [ Ui.Profile.viewProfileImage (div []) profile.picture validationStatus
         , div []
             [ h4
                 [ css

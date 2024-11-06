@@ -152,12 +152,21 @@ export const onReady = ({ app, env }) => {
   }
 
 
-  function requestEvents(app, { requestId: requestId, filter: filter, closeOnEose: closeOnEose, description: description }) {
+  function requestEvents(app,
+    { requestId: requestId
+      , filter: filter
+      , closeOnEose: closeOnEose
+      , description: description
+      , relays: relays
+    }
+  ) {
     if (debug) {
-      console.log("FILTER: ", filter, description, " requestId: " + requestId, "closeOnEose: " + closeOnEose);
+      console.log("FILTER: ", filter, description, " requestId: " + requestId, "closeOnEose: " + closeOnEose, "relays: ", relays);
     }
 
-    window.ndk.fetchEvents(filter, { closeOnEose: closeOnEose }).then((ndkEvents) => {
+    const ndkRelays = relays ? NDKRelaySet.fromRelayUrls(relays, window.ndk) : null;
+
+    window.ndk.fetchEvents(filter, { closeOnEose: closeOnEose }, ndkRelays).then((ndkEvents) => {
       var articles = [];
       var communities = [];
       var eventsSortedByKind = {};

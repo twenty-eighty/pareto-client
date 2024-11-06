@@ -1,15 +1,11 @@
 module Pages.A.Addr_ exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
-import Css
-import Json.Decode as Decode
 import Effect exposing (Effect)
-import Graphics
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 import Layouts
-import Layouts.Sidebar
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event as Event
