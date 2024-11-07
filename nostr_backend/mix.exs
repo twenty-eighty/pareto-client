@@ -53,6 +53,7 @@ defmodule NostrBackend.MixProject do
       {:uuid, "~> 1.1"},
       {:httpoison, "~> 1.8"},
       {:earmark, "~> 1.4"},
+      {:browser, "~> 0.5.4"},
       {:posthog, "~> 0.1"}
     ]
   end

@@ -7,12 +7,25 @@ defmodule NostrBackendWeb.PageController do
   @sharing_image "/images/pareto-shared.png"
 
   def landing_page(conn, _params) do
+    user_agent = get_req_header(conn, "user-agent") |> List.first() || "Unknown"
+    is_mobile = Browser.mobile?(user_agent)
+
     # Determine the preferred language from the `Accept-Language` header
     case get_preferred_language(conn) do
-      "en" -> redirect(conn, to: ~p"/lp/en/index.html")
-      "de" -> redirect(conn, to: ~p"/lp/de/index.html")
+      "de" ->
+        if is_mobile do
+          redirect(conn, to: ~p"/lp/de/index_mobile.html")
+        else
+          redirect(conn, to: ~p"/lp/de/index.html")
+        end
+
       # Default to English
-      _ -> redirect(conn, to: ~p"/lp/en/index.html")
+      _ ->
+        if is_mobile do
+          redirect(conn, to: ~p"/lp/en/index_mobile.html")
+        else
+          redirect(conn, to: ~p"/lp/en/index.html")
+        end
     end
   end
 
