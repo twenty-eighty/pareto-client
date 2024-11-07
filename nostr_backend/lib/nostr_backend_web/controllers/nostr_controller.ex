@@ -5,6 +5,7 @@ defmodule NostrBackendWeb.NostrController do
   @nostr_data %{
     "names" => %{
       "milosz" => "2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638",
+      "ashoka" => "e373ca4101e25a4d4fcb2a53473fa4113b91dba2c2e451d039d8528eb82abcc5",
       "roland" => "cff1720e77bb068f0ebbd389dcd50822dd1ac8d2ac0b0f5f0800ae9e15c7e2b2",
       "donjoe" => "0f4795bf31824a414148daf1b589bb8138fb0a03963f984c84462e40a8365abe",
       "kalle" => "08d79c2e514edd4634ea92bbfe1ec089730a049216be9d28c77c4c1c7733f518",
@@ -13,6 +14,10 @@ defmodule NostrBackendWeb.NostrController do
     },
     "relays" => %{
       "2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" => [
+        "wss://nostr.pareto.space",
+        "wss://pareto.nostr1.com"
+      ],
+      "e373ca4101e25a4d4fcb2a53473fa4113b91dba2c2e451d039d8528eb82abcc5" => [
         "wss://nostr.pareto.space",
         "wss://pareto.nostr1.com"
       ],
