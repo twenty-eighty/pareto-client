@@ -2,10 +2,13 @@
 
 This is a monorepo with both Elixir/Phoenix backend and Elm frontend.
 
-The backend delivers for certain routes HTML metadata for nostr articles and profiles:
-- /a/naddr1qvzqq...    - metadata for long-form article
-- /u/bella@zaps.lol    - metadata for Nostr profile
-- /p/nprofile1qyt8w... - metadata for Nostr profile
+The backend delivers for certain routes HTML metadata for nostr articles, communities, and profiles:
+- /a/naddr1qvzqq...            - metadata for long-form article
+- /c/ncomm1qvzqq...            - metadata for Nostr community
+- /e/nevent1q...               - metadata for Nostr article
+- /u/bella@zaps.lol            - metadata for Nostr profile
+- /u/bella@zaps.lol/identifier - metadata for Nostr article
+- /p/nprofile1qyt8w... 	       - metadata for Nostr profile
 
 Additionally a static landing page is delivered for the home route.
 
