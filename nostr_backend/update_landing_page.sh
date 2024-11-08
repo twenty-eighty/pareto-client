@@ -16,7 +16,7 @@ sed -i -e 's|https://pareto.onepage.me/de|/lp/de/index.html|g' -e 's|https://par
 # EN/mobile
 curl --compressed -H 'user-agent: Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36' "$INDEX_ORG_EN" > $INDEX_EN_MOBILE
 
-sed -i -e 's|\\u002Fde|\\u002Flp\\u002Fde\\u002Findex_mobile.html|g' -e 's|https://pareto.onepage.me/en|https://pareto.space|g' -e 's|pareto.onepage.me|pareto.space|g' -e 's|content="pareto.onepage.me"|content="The Pareto Project"|g' -e 's|lang="de"|lang="en"|g' -e 's|"lang":"de"|"lang":"en"|g' $INDEX_EN_MOBILE
+sed -i -e 's|https:\\u002F\\u002Fpareto.onepage.me\\u002Fde|https:\\u002F\\u002Fpareto.space\\u002Flp\\u002Fde\\u002Findex_mobile.html|g' -e 's|https://pareto.onepage.me/en|https://pareto.space|g' -e 's|pareto.onepage.me|pareto.space|g' -e 's|content="pareto.onepage.me"|content="The Pareto Project"|g' -e 's|lang="de"|lang="en"|g' -e 's|"lang":"de"|"lang":"en"|g' $INDEX_EN_MOBILE
 
 # DE/desktop
 curl --compressed "$INDEX_ORG_DE" > $INDEX_DE_DESKTOP
