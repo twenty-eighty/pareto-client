@@ -9,7 +9,7 @@ import Json.Encode as Encode
 import Nostr.Article exposing (Article, articleFromEvent, filterMatchesArticle, tagReference)
 import Nostr.BookmarkList exposing (BookmarkList, bookmarkListFromEvent)
 import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
-import Nostr.Community exposing (Community)
+import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
 import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), decodeEvent, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
@@ -31,6 +31,7 @@ import Nostr.Types exposing (EventId, PubKey)
 import Nostr.Zaps exposing (ZapReceipt)
 import Html.Attributes exposing (kind)
 import Time
+import Nostr.Types exposing (RelayUrl)
 
 
 type alias OutgoingCommand =
@@ -72,6 +73,7 @@ type alias Model =
     , profileValidations : Dict PubKey ProfileValidation
     , reactions : Dict EventId (Dict EventId Nostr.Reactions.Reaction)
     , relayMetadataLists : Dict PubKey (List RelayMetadata)
+    , relaysForPubKey : Dict PubKey (List RelayUrl)
     , reposts : Dict EventId Repost
     , shortTextNotes : List ShortNote
     , zapReceiptsAddress : Dict String (Dict String Nostr.Zaps.ZapReceipt)
@@ -158,8 +160,8 @@ doRequestWithId model requestId request =
 performRequest : Model -> String -> RequestId -> RequestData -> (Model, Cmd Msg)
 performRequest model description requestId requestData =
     case requestData of
-        RequestArticle eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId Nothing eventFilter)
+        RequestArticle relays eventFilter ->
+            ( model, model.hooks.requestEvents description True requestId relays eventFilter)
 
         RequestArticles eventFilter ->
             ( { model | articlesByDate = [] }
@@ -175,6 +177,9 @@ performRequest model description requestId requestData =
 
         RequestBookmarks eventFilter ->
             ( model, model.hooks.requestEvents description True requestId Nothing eventFilter)
+
+        RequestCommunity relays eventFilter ->
+            ( model, model.hooks.requestEvents description True requestId relays eventFilter)
 
         RequestFollowSets eventFilter ->
             ( model, model.hooks.requestEvents description True requestId Nothing eventFilter)
@@ -317,6 +322,10 @@ getBookmarks model pubKey =
 getReactionsForArticle : Model -> Article -> Maybe (Dict String Nostr.Reactions.Reaction)
 getReactionsForArticle model article =
     Dict.get article.id model.reactions
+
+getRelaysForPubKey : Model -> PubKey -> Maybe (List RelayUrl)
+getRelaysForPubKey model pubKey =
+    Dict.get pubKey model.relaysForPubKey
 
 getRequest : Model -> RequestId -> Maybe Request
 getRequest model requestId =
@@ -530,6 +539,7 @@ empty =
     , profileValidations = Dict.empty
     , reactions = Dict.empty
     , relayMetadataLists = Dict.empty
+    , relaysForPubKey = Dict.empty
     , reposts = Dict.empty
     , shortTextNotes = []
     , zapReceiptsAddress = Dict.empty
@@ -682,6 +692,9 @@ updateModelWithEvents model requestId kind events =
         KindBookmarkSets ->
             updateModelWithBookmarkSets model events
 
+        KindCommunityDefinition ->
+            updateModelWithCommunityDefinitions model events
+
         KindCommunitiesList ->
             updateModelWithCommunityLists model events
 
@@ -738,6 +751,19 @@ updateModelWithBookmarkSets model events =
                 ) model.bookmarkSets
     in
     ({ model | bookmarkSets = bookmarkSets}, Cmd.none)
+
+
+updateModelWithCommunityDefinitions : Model -> List Event -> (Model, Cmd Msg)
+updateModelWithCommunityDefinitions model events =
+    let
+        communityDefinitions =
+            events
+            |> List.map communityDefinitionFromEvent
+            |> List.foldl (\communityDefinition dict ->
+                Dict.insert communityDefinition.pubKey [communityDefinition] dict
+                ) model.communities
+    in
+    ({ model | communities = communityDefinitions }, Cmd.none)
 
 updateModelWithCommunityLists : Model -> List Event -> (Model, Cmd Msg)
 updateModelWithCommunityLists model events =

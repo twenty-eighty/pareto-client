@@ -1,4 +1,4 @@
-module Pages.Communities exposing (Model, Msg, page)
+module Pages.C exposing (Model, Msg, page)
 
 import Json.Decode as Decode
 import Effect exposing (Effect)

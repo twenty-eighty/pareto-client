@@ -11,8 +11,8 @@ import Html.Styled.Events as Events exposing (..)
 import Layouts
 import Nostr
 import Nostr.Community exposing (Community, communityMatchesFilter)
-import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), eventFilterForNip19)
-import Nostr.Nip19 as Nip19 exposing (NIP19Type)
+import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), eventFilterForNaddr)
+import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Request exposing (RequestData(..))
 import Page exposing (Page)
 import Ports
@@ -72,13 +72,12 @@ init shared route () =
 
         effect =
             case (maybeCommunity, maybeNip19) of
-                (Nothing, Just nip19) ->
-                    eventFilterForNip19 nip19
-                    |> Maybe.map RequestArticle
-                    |> Maybe.map (Nostr.createRequest shared.nostr "Profile for NIP-19 user" [KindUserMetadata])
-                    |> Maybe.map (Shared.Msg.RequestNostrEvents)
-                    |> Maybe.map (Effect.sendSharedMsg)
-                    |> Maybe.withDefault Effect.none
+                (Nothing, Just (NAddr naddrData)) ->
+                    eventFilterForNaddr naddrData
+                    |> RequestCommunity (Just naddrData.relays)
+                    |> Nostr.createRequest shared.nostr "Community for NIP-19 address" [ KindUserMetadata ]
+                    |> Shared.Msg.RequestNostrEvents
+                    |> Effect.sendSharedMsg
 
                 (_, _) ->
                     Effect.none
@@ -139,13 +138,17 @@ subscriptions model =
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     { title = "Read"
-    , body = [                                  {- Main Content -}
-            viewArticle shared.browserEnv shared.nostr model.community 
-            ]
+    , body =
+        [
+        model.nip19
+        |> Maybe.map (Nostr.getCommunityForNip19 shared.nostr)
+        |> Maybe.map (viewCommunity shared.browserEnv shared.nostr)
+        |> Maybe.withDefault (div [][])
+        ]
     }
 
-viewArticle : BrowserEnv -> Nostr.Model -> Maybe Community -> Html Msg
-viewArticle browserEnv nostr maybeCommunity =
+viewCommunity : BrowserEnv -> Nostr.Model -> Maybe Community -> Html Msg
+viewCommunity browserEnv nostr maybeCommunity =
     case maybeCommunity of
         Just community ->
             Ui.View.viewCommunity browserEnv nostr community 

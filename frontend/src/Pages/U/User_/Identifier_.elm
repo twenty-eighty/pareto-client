@@ -68,7 +68,7 @@ init shared route () =
                                     , kinds = Just [ KindLongFormContent ]
                                     , tagReferences = Just [ TagReferenceIdentifier model.identifier ]
                                 }
-                                |> RequestArticle
+                                |> RequestArticle (Nostr.getRelaysForPubKey shared.nostr pubKey)
                                 |> Nostr.createRequest shared.nostr ("Article of NIP-05 user " ++ Nip05.nip05ToString nip05) [ ]
                                 |> Shared.Msg.RequestNostrEvents
                                 |> Effect.sendSharedMsg

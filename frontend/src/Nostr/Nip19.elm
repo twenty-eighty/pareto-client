@@ -1,4 +1,4 @@
-module Nostr.Nip19 exposing (NIP19Type(..), encode, decode)
+module Nostr.Nip19 exposing (NIP19Type(..), NAddrData, encode, decode)
 
 import Nostr.Bech32 as Bech32
 import Bitwise exposing (shiftLeftBy, shiftRightBy, or)

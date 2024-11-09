@@ -7,8 +7,9 @@ import Html.Styled as Html exposing (Html, div)
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Community exposing (Community)
-import Ui.Article
 import Ui.ArticleFigma
+import Ui.Article
+import Ui.Community
 
 
 viewArticle : BrowserEnv -> Nostr.Model -> Article -> Html msg
@@ -25,4 +26,4 @@ viewArticlePreviews browserEnv nostr articles =
 
 viewCommunity : BrowserEnv -> Nostr.Model -> Community -> Html msg
 viewCommunity browserEnv nostr community =
-    Nostr.Community.viewCommunity browserEnv nostr.profiles community
+    Ui.Community.viewCommunity browserEnv nostr.profiles community

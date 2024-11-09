@@ -38,8 +38,12 @@ defaultRelays : List String
 defaultRelays =
     [ -- "nostr.pareto.space/"
      "pareto.nostr1.com/"
-    , "nostr.wine/"
-    , "nos.lol/"
+    , "relay.snort.social"
+--  , "relay.damus.io"
+--  , "nos.lol"
+--  , "offchain.pub"
+--  , "relay.damus.io"
+--  , "nostr.wine"
     ]
 
 -- FLAGS

@@ -251,42 +251,20 @@ export const onReady = ({ app, env }) => {
               break;
             }
 
-          case 30023: // long-form content
-          case 30024: // long-form content draft
-            {
-              /*
-                        const ndkArticle = new NDKArticle(window.ndk, ndkEvent);
-                        const article = {
-                          alt: ndkArticle.alt,
-                          author: ndkArticle.pubkey,
-                          content: ndkArticle.content,
-                          dTag: ndkArticle.dTag,
-                          image: ndkArticle.image,
-                          isValid: ndkArticle.isValid,
-                          published_at: ndkArticle.published_at,
-                          summary: ndkArticle.summary,
-                          title: ndkArticle.title,
-                          url: ndkArticle.url,
-                          tags: ndkArticle.tags,
-                          id: ndkArticle.id
-                        };
-                        articles.push(article);
-              */
-              eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
-              break;
-            }
-
           case 34550: // community definition
             {
-              const community = extractCommunityInfo(ndkEvent);
-
-              try {
-                community['content'] = (ndkEvent.content != "") ? JSON.parse(ndkEvent.content) : {};
-              } catch (e) {
-                console.log(e);
-              }
-
-              communities.push(community);
+              /*
+                            const community = extractCommunityInfo(ndkEvent);
+              
+                            try {
+                              community['content'] = (ndkEvent.content != "") ? JSON.parse(ndkEvent.content) : {};
+                            } catch (e) {
+                              console.log(e);
+                            }
+              
+                            communities.push(community);
+              */
+              eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
               break;
             }
 

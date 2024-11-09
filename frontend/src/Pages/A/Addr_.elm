@@ -9,7 +9,7 @@ import Layouts
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event as Event
-import Nostr.Nip19 as Nip19 exposing (NIP19Type)
+import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..))
 import Nostr.Request exposing (RequestData(..))
 import Page exposing (Page)
@@ -66,13 +66,12 @@ init shared route () =
 
         effect =
             case (maybeArticle, maybeNip19) of
-                (Nothing, Just nip19) ->
-                    Event.eventFilterForNip19 nip19
-                    |> Maybe.map RequestArticle
-                    |> Maybe.map (Nostr.createRequest shared.nostr "Article described as NIP-19" [KindUserMetadata])
-                    |> Maybe.map Shared.Msg.RequestNostrEvents
-                    |> Maybe.map Effect.sendSharedMsg
-                    |> Maybe.withDefault Effect.none
+                (Nothing, Just (NAddr naddrData)) ->
+                    Event.eventFilterForNaddr naddrData
+                    |> RequestArticle (Just naddrData.relays)
+                    |> Nostr.createRequest shared.nostr "Article described as NIP-19" [KindUserMetadata]
+                    |> Shared.Msg.RequestNostrEvents
+                    |> Effect.sendSharedMsg
 
                 (_, _) ->
                     Effect.none

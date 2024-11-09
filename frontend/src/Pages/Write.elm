@@ -16,7 +16,7 @@ import MilkdownEditor as Milkdown
 import Murmur3
 import Nostr
 import Nostr.Event as Event exposing (Event, Kind(..), Tag(..))
-import Nostr.Nip19 as Nip19
+import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Page exposing (Page)
@@ -80,13 +80,12 @@ init shared route () =
 
         effect =
             case (maybeArticle, maybeNip19) of
-                (Nothing, Just nip19) ->
-                    Event.eventFilterForNip19 nip19
-                    |> Maybe.map RequestArticle
-                    |> Maybe.map (Nostr.createRequest shared.nostr "Article described as NIP-19 for editing" [])
-                    |> Maybe.map Shared.Msg.RequestNostrEvents
-                    |> Maybe.map Effect.sendSharedMsg
-                    |> Maybe.withDefault Effect.none
+                (Nothing, Just (NAddr naddrData)) ->
+                    Event.eventFilterForNaddr naddrData
+                    |> RequestArticle (Just naddrData.relays)
+                    |> (Nostr.createRequest shared.nostr "Article described as NIP-19 for editing" [])
+                    |> Shared.Msg.RequestNostrEvents
+                    |> Effect.sendSharedMsg
 
                 (_, _) ->
                     Effect.none
@@ -232,6 +231,7 @@ eventWithContent shared model user kind =
     , content = model.content |> Maybe.withDefault ""
     , id = ""
     , sig = Nothing
+    , relay = Nothing
     }
 
 filterTitleChars : String -> String

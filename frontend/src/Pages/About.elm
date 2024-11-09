@@ -58,7 +58,7 @@ init shared () =
             }
     in
     ( model
-    , RequestArticle filter
+    , RequestArticle Nothing filter
     |> Nostr.createRequest shared.nostr "About article" []
     |> Shared.Msg.RequestNostrEvents
     |> Effect.sendSharedMsg)

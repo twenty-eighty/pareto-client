@@ -4,12 +4,13 @@ import Dict exposing (Dict)
 import Json.Encode as Encode
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as Pipeline
-import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
+import Nostr.Nip19 as Nip19 exposing (NIP19Type(..), NAddrData)
 import Nostr.Types exposing (EventId, PubKey)
 import Time
 import Json.Encode as Encode
 import Json.Encode as Encode
 import Translations.Write exposing (tagsText)
+import Json.Decode as Decode
 import Json.Decode as Decode
 import Json.Decode as Decode
 
@@ -51,6 +52,7 @@ type alias Event =
     , content : String
     , id : String
     , sig : Maybe String
+    , relay : Maybe String
     }
 
 
@@ -495,24 +497,32 @@ decodeEvent =
         |> Pipeline.required "tags" (Decode.list decodeTag)
         |> Pipeline.required "content" Decode.string
         |> Pipeline.required "id" Decode.string
-        |> Pipeline.required "sig" (Decode.maybe Decode.string)
+        |> Pipeline.optional "sig" (Decode.maybe Decode.string) Nothing
+        |> Pipeline.optional "relay" (Decode.maybe relayUrlDecoder) Nothing
+
+relayUrlDecoder : Decode.Decoder String
+relayUrlDecoder =
+    Decode.field "url" Decode.string
 
 eventFilterForNip19 : NIP19Type -> Maybe EventFilter
 eventFilterForNip19 nip19 =
     case nip19 of
-        Nip19.NAddr { identifier, kind, pubKey, relays } ->
-            Just
-                { authors = Just [ pubKey ]
-                , ids = Nothing
-                , kinds = Just [ kindFromNumber kind ]
-                , tagReferences = Just [ TagReferenceIdentifier identifier ]
-                , limit = Just 1
-                , since = Nothing
-                , until = Nothing
-                }
+        Nip19.NAddr naddrData ->
+            Just <| eventFilterForNaddr naddrData
 
         _ ->
             Nothing
+
+eventFilterForNaddr : NAddrData -> EventFilter
+eventFilterForNaddr { identifier, kind, pubKey, relays } =
+    { authors = Just [ pubKey ]
+    , ids = Nothing
+    , kinds = Just [ kindFromNumber kind ]
+    , tagReferences = Just [ TagReferenceIdentifier identifier ]
+    , limit = Just 1
+    , since = Nothing
+    , until = Nothing
+    }
 
 decodeTag : Decode.Decoder Tag
 decodeTag =
