@@ -22,6 +22,8 @@ defmodule NostrBackendWeb.Router do
     pipe_through([:browser, :posthog])
 
     get("/", PageController, :landing_page)
+    get("/de", PageController, :landing_page_de)
+    get("/en", PageController, :landing_page_en)
 
     # get("/", PageController, :index)
     get("/search", PageController, :search)
@@ -30,6 +32,8 @@ defmodule NostrBackendWeb.Router do
     get("/write", PageController, :write)
 
     get("/a/:article_id", ContentController, :article)
+    get("/e/:event_id", ContentController, :event)
+    get("/c/:community_id", ContentController, :community)
     get("/p/:profile_id", ContentController, :profile)
     get("/u/:user_nip05/:identifier", ContentController, :nip05_article)
     get("/u/:user_nip05", ContentController, :user_nip05)

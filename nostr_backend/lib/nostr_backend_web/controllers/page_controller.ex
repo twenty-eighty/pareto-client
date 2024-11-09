@@ -6,27 +6,48 @@ defmodule NostrBackendWeb.PageController do
   @meta_url "https://pareto.space"
   @sharing_image "/images/pareto-shared.png"
 
-  def landing_page(conn, _params) do
-    user_agent = get_req_header(conn, "user-agent") |> List.first() || "Unknown"
-    is_mobile = Browser.mobile?(user_agent)
-
+  def landing_page(conn, params) do
     # Determine the preferred language from the `Accept-Language` header
     case get_preferred_language(conn) do
       "de" ->
-        if is_mobile do
-          redirect(conn, to: ~p"/lp/de/index_mobile.html")
-        else
-          redirect(conn, to: ~p"/lp/de/index.html")
-        end
+        redirect(conn, to: "/de")
 
       # Default to English
       _ ->
-        if is_mobile do
-          redirect(conn, to: ~p"/lp/en/index_mobile.html")
-        else
-          redirect(conn, to: ~p"/lp/en/index.html")
-        end
+        redirect(conn, to: "/en")
     end
+  end
+
+  def landing_page_de(conn, _params) do
+    user_agent = get_req_header(conn, "user-agent") |> List.first() || "Unknown"
+    is_mobile = Browser.mobile?(user_agent)
+
+    file_path =
+      if is_mobile do
+        "priv/static/lp/de/index_mobile.html"
+      else
+        "priv/static/lp/de/index.html"
+      end
+
+    conn
+    |> put_resp_content_type(MIME.from_path(file_path))
+    |> send_file(200, file_path)
+  end
+
+  def landing_page_en(conn, _params) do
+    user_agent = get_req_header(conn, "user-agent") |> List.first() || "Unknown"
+    is_mobile = Browser.mobile?(user_agent)
+
+    file_path =
+      if is_mobile do
+        "priv/static/lp/en/index_mobile.html"
+      else
+        "priv/static/lp/en/index.html"
+      end
+
+    conn
+    |> put_resp_content_type(MIME.from_path(file_path))
+    |> send_file(200, file_path)
   end
 
   def home(conn, _params) do
