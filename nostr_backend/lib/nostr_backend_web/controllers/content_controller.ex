@@ -6,6 +6,7 @@ defmodule NostrBackendWeb.ContentController do
   alias NostrBackend.Nip05
   alias NostrBackend.NostrId
   alias NostrBackend.ArticleCache
+  alias NostrBackend.CommunityCache
   alias NostrBackend.Nip05Cache
   alias NostrBackend.ProfileCache
 
@@ -60,6 +61,47 @@ defmodule NostrBackendWeb.ContentController do
             |> render(:article, article: article)
 
           {:error, _reason} ->
+            conn
+            |> conn_with_default_meta()
+            |> render(:not_found, layout: false)
+
+            #            |> render(NostrBackendWeb.ErrorHTML, :"404")
+        end
+
+      {:error, reason} ->
+        conn
+        |> conn_with_default_meta()
+        |> text("Invalid Nostr ID: #{reason}")
+        |> render(:not_found, layout: false)
+    end
+  end
+
+  def community(conn, %{"community_id" => community_id}) do
+    case NostrId.parse(community_id) do
+      {:ok, {:community, community_data}} ->
+        get_and_render_community(conn, community_data)
+
+      {:error, _reason} ->
+        conn
+        |> conn_with_default_meta()
+        |> render(:not_found, layout: false)
+    end
+  end
+
+  # TODO: check if this branch works
+  def event(conn, %{"event_id" => nostr_id}) do
+    case NostrId.parse(nostr_id) do
+      {:ok, {:author_event, query_data}} ->
+        case ArticleCache.get_article(query_data) do
+          {:ok, article} ->
+            conn
+            |> conn_with_article_meta(article)
+            |> put_view(NostrBackendWeb.ContentHTML)
+            |> render(:article, article: article)
+
+          {:error, reason} ->
+            IO.inspect(reason, label: "ERROR REASON")
+
             conn
             |> conn_with_default_meta()
             |> render(:not_found, layout: false)
@@ -155,6 +197,21 @@ defmodule NostrBackendWeb.ContentController do
     end
   end
 
+  defp get_and_render_community(conn, community_data) do
+    case CommunityCache.get_community(community_data) do
+      {:ok, community} ->
+        conn
+        |> conn_with_community_meta(community)
+        |> put_view(NostrBackendWeb.ContentHTML)
+        |> render("community.html", community: community)
+
+      {:error, _reason} ->
+        conn
+        |> conn_with_default_meta()
+        |> render(:not_found, layout: false)
+    end
+  end
+
   defp get_and_render_profile(conn, profile_hex_id, relays) do
     case ProfileCache.get_profile(profile_hex_id, relays) do
       {:ok, profile} ->
@@ -180,6 +237,17 @@ defmodule NostrBackendWeb.ContentController do
       :meta_image,
       article.image_url || @sharing_image
     )
+  end
+
+  defp conn_with_community_meta(conn, community) do
+    IO.inspect(community, label: "Community")
+
+    conn
+    |> assign(:page_title, community.name <> " | Pareto")
+    |> assign(:meta_title, community.name <> " | Pareto")
+    |> assign(:meta_url, Endpoint.url() <> conn.request_path)
+    |> assign(:meta_description, community.description)
+    |> assign(:meta_image, community.image || @sharing_image)
   end
 
   defp conn_with_profile_meta(conn, profile) do

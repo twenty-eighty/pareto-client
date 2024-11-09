@@ -29,9 +29,18 @@ defmodule NostrBackend.Content do
     %{
       article_id: event["id"],
       title: extract_title(event),
-      description: extract_description(event),
+      description: extract_summary(event),
       content: render_markdown(event["content"]),
       image_url: extract_image_url(event)
+    }
+  end
+
+  def parse_community_event(event) do
+    %{
+      community_id: event["pubkey"],
+      name: extract_first_tag(event, "d"),
+      description: extract_first_tag(event, "description"),
+      image: extract_first_tag(event, "image")
     }
   end
 
@@ -79,7 +88,7 @@ defmodule NostrBackend.Content do
   # ["a","34550:731fec28760cf14e5de3e9677f8f728be01b1051adbec22bc42c868597669b82:OrganicBodyPolitic-SelfGoverningCommunityOrganizing"],
   # ["published_at","1728627880"]]}]
 
-  defp extract_description(event) do
+  defp extract_summary(event) do
     tags = event["tags"] || []
 
     case Enum.find(tags, fn tag -> List.first(tag) == "summary" end) do
@@ -95,6 +104,15 @@ defmodule NostrBackend.Content do
     case Enum.find(tags, fn tag -> List.first(tag) == "image" end) do
       ["image", image | _rest] -> image
       # Returns nil if the image tag is not found
+      _ -> nil
+    end
+  end
+
+  defp extract_first_tag(event, name) do
+    tags = event["tags"] || []
+
+    case Enum.find(tags, fn tag -> List.first(tag) == name end) do
+      [^name, image | _rest] -> image
       _ -> nil
     end
   end

@@ -6,7 +6,7 @@ defmodule NostrBackendWeb.PageController do
   @meta_url "https://pareto.space"
   @sharing_image "/images/pareto-shared.png"
 
-  def landing_page(conn, params) do
+  def landing_page(conn, _params) do
     # Determine the preferred language from the `Accept-Language` header
     case get_preferred_language(conn) do
       "de" ->
@@ -73,6 +73,12 @@ defmodule NostrBackendWeb.PageController do
     conn
     |> add_meta_tags
     |> render(:bookmarks)
+  end
+
+  def communities(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:communities)
   end
 
   def read(conn, _params) do

@@ -8,7 +8,7 @@ defmodule NostrBackend.NostrId do
   @type nostr_id ::
           {:article, String.t()}
           | {:profile, String.t()}
-          | {:group, String.t()}
+          | {:community, String.t()}
           | {:address, %{kind: integer(), pubkey: String.t(), identifier: String.t()}}
 
   @spec parse(String.t()) :: {:ok, nostr_id} | {:error, String.t()}
@@ -27,11 +27,24 @@ defmodule NostrBackend.NostrId do
     case TLVDecoder.decode_tlv_stream(data) do
       {:ok, tlv_list} ->
         parsed_data = extract_tlv_data(:naddr, tlv_list)
-        {:ok, {:author_article, parsed_data}}
+
+        case parsed_data do
+          %{kind: 34550} ->
+            {:ok, {:community, parsed_data}}
+
+          _ ->
+            {:ok, {:author_article, parsed_data}}
+        end
 
       {:error, reason} ->
         {:error, "Invalid TLV data in naddr: #{inspect(reason)}"}
     end
+  end
+
+  # TODO: check how ncomm's are built
+  defp parse_data("ncomm", data) do
+    community_id = Base.encode16(data, case: :lower)
+    {:ok, {:community, community_id}}
   end
 
   defp parse_data("nprofile", data) do
@@ -46,11 +59,6 @@ defmodule NostrBackend.NostrId do
       {:error, reason} ->
         {:error, "Invalid TLV data in nprofile: #{inspect(reason)}"}
     end
-  end
-
-  defp parse_data("ncomm", data) do
-    group_id = Base.encode16(data, case: :lower)
-    {:ok, {:group, group_id}}
   end
 
   defp parse_data("nattr", data) do

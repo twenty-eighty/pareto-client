@@ -33,6 +33,15 @@ defmodule NostrBackend.NostrClient do
     fetch_from_relays(@relay_urls, article_hex_id, :article)
   end
 
+  @spec fetch_community(String.t(), list()) :: {:ok, map()} | {:error, String.t()}
+  def fetch_community(community_data) do
+    fetch_community(community_data, @relay_urls)
+  end
+
+  def fetch_community(community_data, relays) do
+    fetch_from_relays(relays, community_data, :community)
+  end
+
   @spec fetch_profile(String.t(), list()) :: {:ok, map()} | {:error, String.t()}
   def fetch_profile(profile_hex_id, []) do
     fetch_profile(profile_hex_id, @relay_urls)
@@ -142,6 +151,16 @@ defmodule NostrBackend.NostrClient do
       %{
         "kinds" => [kind],
         "authors" => [pubkey],
+        "#d" => [identifier]
+      }
+    ]
+  end
+
+  defp build_filters(%{kind: kind, author: author, identifier: identifier}, :community) do
+    [
+      %{
+        "kinds" => [kind],
+        "authors" => [author],
         "#d" => [identifier]
       }
     ]

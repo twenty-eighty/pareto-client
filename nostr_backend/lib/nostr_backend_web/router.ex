@@ -19,13 +19,19 @@ defmodule NostrBackendWeb.Router do
   end
 
   scope "/", NostrBackendWeb do
-    pipe_through([:browser, :posthog])
+    pipe_through([:browser])
 
     get("/", PageController, :landing_page)
+  end
+
+  scope "/", NostrBackendWeb do
+    pipe_through([:browser, :posthog])
+
     get("/de", PageController, :landing_page_de)
     get("/en", PageController, :landing_page_en)
 
     # get("/", PageController, :index)
+    get("/c", PageController, :communities)
     get("/search", PageController, :search)
     get("/bookmarks", PageController, :bookmarks)
     get("/read", PageController, :read)

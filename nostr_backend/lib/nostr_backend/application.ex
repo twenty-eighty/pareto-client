@@ -18,6 +18,12 @@ defmodule NostrBackend.Application do
         id: :articles_cache
       ),
 
+      # Cache for communities
+      Supervisor.child_spec(
+        {Cachex, name: :communities_cache, ttl_interval: :timer.minutes(1440)},
+        id: :communities_cache
+      ),
+
       # Cache for profiles
       Supervisor.child_spec(
         {Cachex, name: :profiles_cache, ttl_interval: :timer.minutes(1440)},
@@ -29,6 +35,7 @@ defmodule NostrBackend.Application do
         {Cachex, name: :nip05_cache, ttl_interval: :timer.minutes(1440)},
         id: :nip05_cache
       ),
+      NostrBackend.PostHogBuffer,
 
       # Start a worker by calling: NostrBackend.Worker.start_link(arg)
       # {NostrBackend.Worker, arg},
