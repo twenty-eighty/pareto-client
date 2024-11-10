@@ -222,7 +222,7 @@ viewFollowedCommunities shared model =
 communityForRef : List Community -> String -> PubKey -> Maybe Community
 communityForRef communities identifier pubKey =
     communities
-    |> List.filter (\community -> community.dtag == identifier && community.pubKey == pubKey)
+    |> List.filter (\community -> community.dtag == Just identifier && community.pubKey == pubKey)
     |> List.head
 
 viewSearchBar : Model -> Html Msg
@@ -277,7 +277,7 @@ filteredCommunity : Maybe String -> Community -> Bool
 filteredCommunity maybeSearchString community =
     maybeSearchString
     |> Maybe.map (\searchString ->
-        String.contains searchString (String.toLower community.dtag) ||
+        String.contains searchString (String.toLower (Maybe.withDefault "" community.dtag)) ||
         String.contains searchString (String.toLower <| Maybe.withDefault "" community.name) ||
         String.contains searchString (String.toLower <| Maybe.withDefault "" community.description) 
         )
@@ -373,8 +373,8 @@ linkToCommunity community =
     Nip19.NAddr
         { kind = KindCommunityDefinition |> numberForKind
         , pubKey = community.pubKey
-        , identifier = community.dtag
-        , relays = [ community.relay ]
+        , identifier = Maybe.withDefault "" community.dtag
+        , relays = Maybe.map List.singleton community.relay |> Maybe.withDefault [ ]
         }
     |> Nip19.encode
     |> Result.toMaybe

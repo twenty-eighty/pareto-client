@@ -35,8 +35,8 @@ followSetFromEvent event =
                     EventDelegationTag identifier ->
                         { res | identifier = Just identifier }
 
-                    ImageTag image ->
-                        { res | image = Just image }
+                    ImageTag url _ ->
+                        { res | image = Just url }
 
                     NameTag title ->
                         { res | title = Just title }

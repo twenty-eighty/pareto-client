@@ -306,7 +306,7 @@ getCommunityForNip19 model nip19 =
 filterCommunitiesWithIdentifier : String -> List Community -> Maybe Community
 filterCommunitiesWithIdentifier identifier communities =
     communities
-    |> List.filter (\community -> community.dtag == identifier)
+    |> List.filter (\community -> community.dtag == Just identifier)
     |> List.head
 
 
@@ -375,7 +375,7 @@ profileFilterForCommunityPostApprovals community =
     { authors = Just [ community.pubKey ]
     , kinds = Just [ KindCommunityPostApproval ]
     , ids = Nothing
-    , tagReferences = Just [ TagReferenceCode KindCommunityDefinition community.pubKey community.dtag ]
+    , tagReferences = Just [ TagReferenceCode KindCommunityDefinition community.pubKey (Maybe.withDefault "" community.dtag) ]
     , limit = Nothing
     , since = Nothing
     , until = Nothing

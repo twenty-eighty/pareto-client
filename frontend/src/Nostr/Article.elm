@@ -63,7 +63,7 @@ articleFromEvent event =
                     EventDelegationTag identifier ->
                         ({ article | identifier = Just identifier }, errors)
 
-                    ImageTag image ->
+                    ImageTag image _ ->
                         ({ article | image = Just image }, errors)
 
                     PublishedAtTag publishedAt ->

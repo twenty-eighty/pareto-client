@@ -30,7 +30,7 @@ type Tag
     | FileTag String String
     | HashTag String
     | IdentityTag String String
-    | ImageTag String
+    | ImageTag String (Maybe ImageSize)
     | LocationTag String String
     | MentionTag PubKey
     | NameTag String
@@ -43,6 +43,10 @@ type Tag
     | TitleTag String
     | UrlTag String (Maybe String)
     | ZapTag String
+
+type ImageSize
+    = ImageSize Int Int
+
 
 type alias Event =
     { pubKey : String
@@ -474,6 +478,38 @@ tagReferenceToString tagRef =
         TagReferenceTag tag ->
             tag
 
+imageSizeDecoder : Decoder ImageSize
+imageSizeDecoder =
+    Decode.string
+        |> Decode.andThen
+            (\sizeString ->
+                case imageSizeFromString sizeString of
+                    Just imageSize ->
+                        Decode.succeed <| imageSize
+
+                    _ ->
+                        Decode.fail <| "Invalid numbers in image size: " ++ sizeString
+            )
+
+imageSizeFromString : String -> Maybe ImageSize
+imageSizeFromString sizeString =
+    case String.split "x" sizeString of
+        [ widthString, heightString ] ->
+            case ( String.toInt widthString, String.toInt heightString ) of
+                ( Just width, Just height ) ->
+                    Just <| ImageSize width height
+                
+                _ ->
+                    Nothing
+
+        _ ->
+            Nothing
+
+imageSizeToString : ImageSize -> String 
+imageSizeToString (ImageSize width height) =
+    String.fromInt width ++ "x" ++ String.fromInt height
+
+
 
 emptyEventFilter : EventFilter
 emptyEventFilter =
@@ -565,7 +601,7 @@ decodeTag =
                 Decode.map2 IdentityTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string)
 
             "image" ->
-                Decode.map ImageTag (Decode.index 1 Decode.string)
+                Decode.map2 ImageTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 imageSizeDecoder))
 
             "l" ->
                 Decode.map2 LocationTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string)
@@ -663,7 +699,10 @@ tagToList tag =
         IdentityTag value1 value2 ->
             [ "i", value1, value2 ]
 
-        ImageTag value ->
+        ImageTag value (Just size) ->
+            [ "image", value, imageSizeToString size ]
+
+        ImageTag value Nothing ->
             [ "image", value ]
 
         LocationTag value1 value2 ->
@@ -753,8 +792,8 @@ imageFromTags tags =
 imageFromTag : Tag -> Maybe String
 imageFromTag tag =
     case tag of
-        ImageTag image ->
-            Just image
+        ImageTag url _ ->
+            Just url
 
         _ ->
             Nothing
@@ -971,9 +1010,9 @@ addSummaryTag maybeSummary tags =
     |> Maybe.withDefault tags
 
 addImageTag : Maybe String -> List Tag -> List Tag
-addImageTag maybeImage tags =
-    maybeImage
-    |> Maybe.map (\image -> ImageTag image :: tags)
+addImageTag maybeUrl tags =
+    maybeUrl
+    |> Maybe.map (\url -> ImageTag url Nothing :: tags)
     |> Maybe.withDefault tags
 
 
