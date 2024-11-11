@@ -31,6 +31,10 @@ config :esbuild,
     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ]
 
+config :ua_inspector,
+  database_path: "priv/ua_inspector",
+  http_opts: [recv_timeout: 10_000]
+
 # Configures Elixir's Logger
 config :logger, :console,
   format: "$time $metadata[$level] $message\n",

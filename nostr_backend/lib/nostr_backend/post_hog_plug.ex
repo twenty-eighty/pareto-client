@@ -19,7 +19,6 @@ defmodule NostrBackend.PostHogPlug do
     user_agent =
       Plug.Conn.get_req_header(conn, "user-agent")
       |> List.first()
-      |> IO.inspect(label: "User Agent")
 
     client_hints = extract_client_hints(conn)
     ua_result = UAInspector.parse(user_agent, client_hints)

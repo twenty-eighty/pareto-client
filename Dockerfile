@@ -37,7 +37,6 @@ COPY nostr_backend/test ./test
 RUN cp -r /app/frontend/dist/* ./priv/static/
 
 # Install Elixir dependencies and compile the backend application
-RUN mix ua_inspector.download
 RUN mix phx.digest && \
     mix release
 
