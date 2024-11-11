@@ -5,7 +5,9 @@ defmodule NostrBackend.PostHogPlug do
     # Capture request information
     ip_address = ip_address_to_string(conn.remote_ip)
 
-    if ip_address != "127.0.0.1" do
+    is_local = ip_address == "127.0.0.1"
+
+    if !is_local do
       url = conn.request_path
       method = conn.method
 
@@ -19,7 +21,8 @@ defmodule NostrBackend.PostHogPlug do
           "$lib": "posthog",
           properties: %{
             method: method,
-            path: url
+            path: url,
+            "user-agent": Plug.Conn.get_req_header(conn, "user-agent")
           }
         },
         nil
