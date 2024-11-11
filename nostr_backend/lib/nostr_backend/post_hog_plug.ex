@@ -33,9 +33,9 @@ defmodule NostrBackend.PostHogPlug do
     conn
   end
 
-  defp ip_address_to_string(ip_address) do
-    ip_address
-    |> Tuple.to_list()
-    |> Enum.join(".")
+  defp ip_address_to_string({a, b, c, d}), do: "#{a}.#{b}.#{c}.#{d}"
+
+  defp ip_address_to_string({a, b, c, d, e, f, g, h}) do
+    Enum.join([a, b, c, d, e, f, g, h] |> Enum.map(&Integer.to_string(&1, 16)), ":")
   end
 end
