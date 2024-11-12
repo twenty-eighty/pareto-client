@@ -20,7 +20,10 @@ defmodule NostrBackend.PostHogPlug do
       Plug.Conn.get_req_header(conn, "user-agent")
       |> List.first()
 
-    Plug.Conn.get_req_header(conn, "X-Forwarded-For")
+    Plug.Conn.get_req_header(conn, "x-forwarded-for")
+    |> IO.inspect(label: "X-Forwarded-For")
+
+    Plug.Conn.get_req_header(conn, "forwarded")
     |> IO.inspect(label: "X-Forwarded-For")
 
     client_hints = extract_client_hints(conn)
@@ -67,6 +70,17 @@ defmodule NostrBackend.PostHogPlug do
          user_agent: user_agent
        }) do
     %{category: category, name: name, url: url, user_agent: user_agent}
+  end
+
+  defp ua_info(%UAInspector.Result{
+         browser_family: :unknown,
+         device: :unknown,
+         os: :unknown,
+         os_family: :unknown
+       }) do
+    %{
+      client: "unknown"
+    }
   end
 
   defp ua_info(%UAInspector.Result{client: :unknown, user_agent: user_agent}) do

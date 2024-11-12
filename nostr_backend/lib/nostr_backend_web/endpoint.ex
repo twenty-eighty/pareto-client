@@ -16,7 +16,7 @@ defmodule NostrBackendWeb.Endpoint do
     longpoll: [connect_info: [session: @session_options]]
 
   # get correct remote IP address even behind proxy
-  plug RemoteIp
+  # plug RemoteIp
 
   # Serve at "/" the static files from "priv/static" directory.
   #
