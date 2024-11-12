@@ -23,9 +23,6 @@ defmodule NostrBackend.PostHogPlug do
     Plug.Conn.get_req_header(conn, "x-forwarded-for")
     |> IO.inspect(label: "X-Forwarded-For")
 
-    Plug.Conn.get_req_header(conn, "forwarded")
-    |> IO.inspect(label: "X-Forwarded-For")
-
     client_hints = extract_client_hints(conn)
     ua_result = UAInspector.parse(user_agent, client_hints)
 
@@ -37,6 +34,7 @@ defmodule NostrBackend.PostHogPlug do
     if !is_local && !is_site_monitor do
       url = conn.request_path
       method = conn.method
+      accept_language = Plug.Conn.get_req_header(conn, "accept-language")
 
       tracking_data = {
         method,
@@ -49,7 +47,8 @@ defmodule NostrBackend.PostHogPlug do
           properties: %{
             method: method,
             path: url,
-            browser: ua_info(ua_result)
+            browser: ua_info(ua_result),
+            "accept-language": accept_language
           }
         },
         nil
