@@ -31,9 +31,6 @@ config :esbuild,
     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ]
 
-config :remote_ip,
-  headers: ["x-forwarded-for"]
-
 config :ua_inspector,
   database_path: "priv/ua_inspector",
   http_opts: [recv_timeout: 10_000]

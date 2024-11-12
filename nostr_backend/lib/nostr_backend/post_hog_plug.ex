@@ -23,16 +23,15 @@ defmodule NostrBackend.PostHogPlug do
     forwarded_header =
       Plug.Conn.get_req_header(conn, "x-forwarded-for")
       |> List.first()
-      |> IO.inspect(label: "X-Forwarded-For")
-
-    remote_ip =
-      [{"X-Forwarded-For", forwarded_header}]
-      |> RemoteIp.from()
+      |> IO.inspect(label: "x-forwarded-for")
 
     ip_address =
-      if remote_ip != nil do
+      if forwarded_header != nil do
         # IP address behind proxy
-        ip_address_to_string(remote_ip)
+        [{"x-forwarded-for", forwarded_header}]
+        |> RemoteIp.Headers.parse()
+        |> List.first()
+        |> ip_address_to_string()
       else
         # IP address of the client
         ip_address_to_string(conn.remote_ip)
