@@ -22,6 +22,7 @@ defmodule NostrBackend.PostHogPlug do
     # get client's IP address
     forwarded_header =
       Plug.Conn.get_req_header(conn, "x-forwarded-for")
+      |> List.first()
       |> IO.inspect(label: "X-Forwarded-For")
 
     remote_ip =
