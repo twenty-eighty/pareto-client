@@ -23,7 +23,6 @@ defmodule NostrBackend.PostHogPlug do
     forwarded_header =
       Plug.Conn.get_req_header(conn, "x-forwarded-for")
       |> List.first()
-      |> IO.inspect(label: "x-forwarded-for")
 
     ip_address =
       if forwarded_header != nil do
@@ -36,7 +35,6 @@ defmodule NostrBackend.PostHogPlug do
         # IP address of the client
         ip_address_to_string(conn.remote_ip)
       end
-      |> IO.inspect(label: "remote IP")
 
     client_hints = extract_client_hints(conn)
     ua_result = UAInspector.parse(user_agent, client_hints)
