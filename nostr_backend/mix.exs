@@ -55,6 +55,7 @@ defmodule NostrBackend.MixProject do
       {:earmark, "~> 1.4"},
       {:browser, "~> 0.5.4"},
       {:ua_inspector, "~> 3.0"},
+      {:remote_ip, "~> 1.2"},
       {:posthog, "~> 0.1"}
     ]
   end
