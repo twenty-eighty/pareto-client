@@ -15,9 +15,6 @@ defmodule NostrBackendWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
 
-  # get correct remote IP address even behind proxy
-  plug RemoteIp
-
   # Serve at "/" the static files from "priv/static" directory.
   #
   # You should set gzip to true if you are running phx.digest

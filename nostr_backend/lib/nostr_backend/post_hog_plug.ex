@@ -14,14 +14,29 @@ defmodule NostrBackend.PostHogPlug do
 
   def call(conn, _options) do
     # Capture request information
-    ip_address = ip_address_to_string(conn.remote_ip)
 
     user_agent =
       Plug.Conn.get_req_header(conn, "user-agent")
       |> List.first()
 
-    Plug.Conn.get_req_header(conn, "x-forwarded-for")
-    |> IO.inspect(label: "X-Forwarded-For")
+    # get client's IP address
+    forwarded_header =
+      Plug.Conn.get_req_header(conn, "x-forwarded-for")
+      |> IO.inspect(label: "X-Forwarded-For")
+
+    remote_ip =
+      [{"X-Forwarded-For", forwarded_header}]
+      |> RemoteIp.from()
+
+    ip_address =
+      if remote_ip != nil do
+        # IP address behind proxy
+        ip_address_to_string(remote_ip)
+      else
+        # IP address of the client
+        ip_address_to_string(conn.remote_ip)
+      end
+      |> IO.inspect(label: "remote IP")
 
     client_hints = extract_client_hints(conn)
     ua_result = UAInspector.parse(user_agent, client_hints)
