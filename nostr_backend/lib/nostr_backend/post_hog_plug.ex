@@ -20,6 +20,9 @@ defmodule NostrBackend.PostHogPlug do
       Plug.Conn.get_req_header(conn, "user-agent")
       |> List.first()
 
+    Plug.Conn.get_req_header(conn, "X-Forwarded-For")
+    |> IO.inspect(label: "X-Forwarded-For")
+
     client_hints = extract_client_hints(conn)
     ua_result = UAInspector.parse(user_agent, client_hints)
 
