@@ -47,6 +47,7 @@ defmodule NostrBackendWeb.Router do
   # Other scopes may use custom stacks.
   scope "/.well-known", NostrBackendWeb do
     get("/nostr.json", NostrController, :nip05)
+    get("/nostr/nip96.json", NostrController, :nip96)
   end
 
   # Enable LiveDashboard in development

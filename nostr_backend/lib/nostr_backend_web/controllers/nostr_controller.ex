@@ -49,6 +49,11 @@ defmodule NostrBackendWeb.NostrController do
     }
   }
 
+  @nip96_redirect %{
+    "api_url" => "",
+    "delegated_to_url" => "https://nostrcheckme.pareto.space"
+  }
+
   @empty_data %{
     "names" => %{},
     "relays" => %{}
@@ -76,6 +81,12 @@ defmodule NostrBackendWeb.NostrController do
     conn
     |> put_required_headers()
     |> json(@nostr_data)
+  end
+
+  def nip96(conn, _params) do
+    conn
+    |> put_required_headers()
+    |> json(@nip96_redirect)
   end
 
   defp put_required_headers(conn) do
