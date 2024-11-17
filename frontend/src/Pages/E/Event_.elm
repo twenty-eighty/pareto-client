@@ -13,15 +13,18 @@ import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..))
 import Nostr.Nip19 as Nip19
+import Nostr.Request exposing (RequestData(..))
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
 import Shared
 import Shared.Model
+import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
+import Ui.Styles exposing (Styles)
 import Ui.View
 import Url
 import View exposing (View)
@@ -30,7 +33,7 @@ import View exposing (View)
 page : Shared.Model -> Route { event : String } -> Page Model Msg
 page shared route =
     Page.new
-        { init = init route
+        { init = init shared route
         , update = update shared
         , subscriptions = subscriptions
         , view = view shared
@@ -45,33 +48,62 @@ toLayout model =
 
 -- INIT
 
+type ContentToView
+    = ShortNote String
+    | Article String
 
 type alias Model =
-    { articles : List Article
-    , filter : EventFilter
+    { contentToView : Maybe ContentToView
     }
 
 
-init : Route { event : String } -> () -> ( Model, Effect Msg )
-init route () =
+init : Shared.Model -> Route { event : String } -> () -> ( Model, Effect Msg )
+init shared route () =
     let
         decoded =
             Nip19.decode route.params.event
 
-        filter =
-            { authors = Nothing
-            , ids = Nothing
-            , kinds = Just [KindLongFormContent]
-            , tagReferences = tagReferencesForParam route.params.event
-            , limit = Just 20
-            , since = Nothing
-            , until = Nothing
-            }
+        contentToView =
+            case decoded of
+                Ok (Nip19.Note noteId) ->
+                    Just <| ShortNote noteId
+
+                _ ->
+                    Nothing
+
+        effect =
+            case contentToView of
+                Just (ShortNote noteId) ->
+                    { authors = Nothing
+                    , ids = Just [noteId]
+                    , kinds = Nothing
+                    , tagReferences = Nothing
+                    , limit = Just 1
+                    , since = Nothing
+                    , until = Nothing
+                    }
+                    |> RequestProfile Nothing
+                    |> Nostr.createRequest shared.nostr ("NIP-19 note " ++ route.params.event) [ KindUserMetadata]
+                    |> Shared.Msg.RequestNostrEvents
+                    |> Effect.sendSharedMsg
+
+                _ ->
+                    { authors = Nothing
+                    , ids = Nothing
+                    , kinds = Just [KindLongFormContent]
+                    , tagReferences = tagReferencesForParam route.params.event
+                    , limit = Just 20
+                    , since = Nothing
+                    , until = Nothing
+                    }
+                    |> RequestProfile Nothing
+                    |> Nostr.createRequest shared.nostr ("NIP-19 note " ++ route.params.event) []
+                    |> Shared.Msg.RequestNostrEvents
+                    |> Effect.sendSharedMsg
     in
-    ( { articles = []
-      , filter = filter
+    ( { contentToView = contentToView
       }
-    , Effect.sendCmd <| Ports.requestEvents ("NIP-19 event: " ++ route.params.event) True -1 Nothing filter
+    , effect
     )
 
 tagReferencesForParam : String -> Maybe (List TagReference)
@@ -133,36 +165,18 @@ subscriptions model =
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     { title = "Read"
-    , body = [                                  {- Main Content -}
-            div
-                [ css
-                    [ Tw.flex
-                    , Tw.space_x_4
-                    , Tw.mb_6
-                    ]
-                ]
-                [ button
-                    [ css
-                        [ Tw.bg_color Theme.purple_100
-                        , Tw.text_color Theme.purple_600
-                        , Tw.px_4
-                        , Tw.py_2
-                        , Tw.rounded_full
-                        ]
-                    ]
-                    [ text "Articles" ]
-                , button
-                    [ css
-                        [ Tw.bg_color Theme.gray_100
-                        , Tw.text_color Theme.gray_600
-                        , Tw.px_4
-                        , Tw.py_2
-                        , Tw.rounded_full
-                        ]
-                    ]
-                    [ text "Highlights" ]
-                ]
-            , Nostr.getArticlesByDate shared.nostr
-            |> Ui.View.viewArticlePreviews shared.browserEnv shared.nostr 
-            ]
+    , body =
+        [ viewContent shared model
+        ]
     }
+
+viewContent : Shared.Model -> Model -> Html Msg
+viewContent shared model =
+    case model.contentToView of
+        Just (ShortNote noteId) ->
+            Nostr.getShortNoteById shared.nostr noteId
+            |> Maybe.map (Ui.View.viewShortNote Ui.Styles.referenceDesignStyles shared.browserEnv shared.nostr)
+            |> Maybe.withDefault (div [][])
+
+        _ ->
+            div [][]

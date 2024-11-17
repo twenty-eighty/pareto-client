@@ -22,7 +22,8 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
 import Translations.Posts
-import Ui.Article
+import Ui.ArticleOld
+import Ui.Styles exposing (referenceDesignStyles)
 import View exposing (View)
 
 
@@ -179,14 +180,14 @@ viewArticlePreviews : BrowserEnv -> Nostr.Model -> List Article -> Html msg
 viewArticlePreviews browserEnv nostr articles =
     articles
     |> List.take 20
-    |> List.map (\article -> Ui.Article.viewArticlePreview browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article) True)
+    |> List.map (\article -> Ui.ArticleOld.viewArticlePreview browserEnv referenceDesignStyles (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article) True)
     |> div []
 
 viewArticleDraftPreviews : BrowserEnv -> Nostr.Model -> List Article -> Html msg
 viewArticleDraftPreviews browserEnv nostr articles =
     articles
     |> List.take 20
-    |> List.map (\article -> Ui.Article.viewArticleDraftPreview browserEnv article)
+    |> List.map (\article -> Ui.ArticleOld.viewArticleDraftPreview browserEnv article)
     |> div []
 
 

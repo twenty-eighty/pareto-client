@@ -40,7 +40,7 @@ defaultRelays =
      "pareto.nostr1.com/"
     , "relay.snort.social"
 --  , "relay.damus.io"
---  , "nos.lol"
+  , "nos.lol"
 --  , "offchain.pub"
 --  , "relay.damus.io"
 --  , "nostr.wine"

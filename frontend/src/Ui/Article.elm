@@ -1,170 +1,430 @@
 module Ui.Article exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
-import Css
-import Graphics
-import Html.Styled as Html exposing (Html, Attribute, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
+import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
-import Markdown
 import Nostr.Article exposing (Article)
-import Nostr.Event exposing (Kind(..), TagReference(..), numberForKind)
-import Nostr.Nip19 as Nip19
-import Nostr.Profile exposing (Author, Profile, ProfileValidation(..), profileDisplayName)
+import Nostr.Profile exposing (Author, Profile, ProfileValidation(..))
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Types exposing (PubKey)
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
+import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
+import Ui.Styles exposing (darkMode, fontFamilyInter, fontFamilyUnbounded, fontFamilySourceSerifPro)
+import Ui.Styles exposing (Styles)
 import Time
-import Ui.Links exposing (linkElementForAuthor, linkToAuthor, linkToProfile, linkToProfilePubKey)
-import Ui.Profile exposing (timeParagraph)
-import Ui.Shared exposing (fontFamilyUnbounded, fontFamilyInter)
 
-viewArticle : BrowserEnv -> Author -> Article -> Interactions -> Html msg
-viewArticle browserEnv author article interactions =
+viewArticlePreview : Styles msg -> BrowserEnv -> Author -> Article -> Interactions -> Bool -> Html msg
+viewArticlePreview styles browserEnv author article interactions displayAuthor =
     div
         [ css
-            [ Tw.flex
-            , Tw.items_center
-            , Tw.justify_center
-            , Tw.min_h_screen
-            , Tw.bg_color Theme.gray_100
+            [ Tw.h_64
+            , Tw.pb_6
+            , Tw.border_b
+            , Tw.border_color Theme.gray_200
+            , Tw.flex_col
+            , Tw.justify_start
+            , Tw.items_start
+            , Tw.gap_2
+            , Tw.inline_flex
+            ]
+        , Attr.width 720
+        ]
+        [ viewAuthorAndDate styles browserEnv article.publishedAt author
+        , div
+            [ css
+                [ Tw.self_stretch
+                , Tw.justify_between
+                , Tw.items_start
+                , Tw.inline_flex
+                ]
+            ]
+            [ div
+                [ css
+                    [ Tw.h_52
+                    , Tw.flex_col
+                    , Tw.justify_start
+                    , Tw.items_start
+                    , Tw.gap_4
+                    , Tw.inline_flex
+                    ]
+                ]
+                [ div
+                    [ css
+                        [ Tw.flex_col
+                        , Tw.justify_start
+                        , Tw.items_start
+                        , Tw.gap_3
+                        , Tw.flex
+                        ]
+                    ]
+                    [ div
+                        (styles.colorStyleGrayscaleTitle ++ styles.textStyleH2 ++ 
+                        [ css
+                            [ Tw.w_96
+                            , Tw.line_clamp_3
+                            ]
+                        ])
+                        [ text <| Maybe.withDefault "" article.title ]
+                    , div
+                        (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ 
+                        [ css
+                            [ Tw.w_96
+                            , Tw.line_clamp_3
+                            ]
+                        ])
+                        [ text <| Maybe.withDefault "" article.summary ]
+                    , div
+                        [ css
+                            [ Tw.px_4
+                            , Tw.py_2
+                            , Tw.bg_color Theme.gray_300
+                            , Tw.rounded_3xl
+                            , Tw.justify_center
+                            , Tw.items_center
+                            , Tw.gap_2
+                            , Tw.inline_flex
+                            ]
+                        ]
+                        [ div
+                            (styles.colorStyleLabel ++ styles.textStyleUppercaseLabel)
+                            [ text "Nostr" ]
+                        ]
+                    ]
+                ]
+            , div
+                [ css
+                    [ Tw.w_64
+                    , Tw.h_44
+                    , Tw.bg_color Theme.gray_300
+                    ]
+                ]
+                []
+            ]
+        ]
+    
+{-
+    div
+        [ css
+            [ Tw.h_56
+            , Tw.pb_6
+            , Tw.border_b
+            , Tw.border_color Theme.gray_200
+            , Tw.flex_col
+            , Tw.justify_start
+            , Tw.items_start
+            , Tw.gap_2
+            , Tw.inline_flex
+            , darkMode
+                [ Tw.border_color Theme.neutral_700
+                ]
             ]
         ]
         [ div
             [ css
-                [ Tw.bg_color Theme.white
-                , Tw.p_6
-                , Tw.rounded_lg
-                , Tw.shadow_lg
-                , Tw.max_w_3xl
+                [ Tw.justify_start
+                , Tw.items_center
+                , Tw.gap_2
+                , Tw.inline_flex
+                ]
+            ]
+            [ img
+                [ css
+                    [ Tw.w_8
+                    , Tw.h_8
+                    , Tw.rounded_3xl
+                    ]
+                , Attr.src "https://via.placeholder.com/32x32"
+                ]
+                []
+            , div
+                [ css
+                    [ Tw.justify_start
+                    , Tw.items_start
+                    , Tw.gap_2
+                    , Tw.flex
+                    ]
+                ]
+                [ div
+                    [ css
+                        [ Tw.text_color Theme.zinc_900
+                        , Tw.text_sm
+                        , Tw.font_normal
+                        , darkMode
+                            [ Tw.text_color Theme.white
+                            ]
+                        ]
+                    , fontFamilyInter
+                    ]
+                    [ text "Tony" ]
+                , div
+                    [ css
+                        [ Tw.text_color Theme.zinc_500
+                        , Tw.text_sm
+                        , Tw.font_normal
+                        , darkMode
+                            [ Tw.text_color Theme.zinc_400
+                            ]
+                        ]
+                    , fontFamilyInter
+                    ]
+                    [ text "Apr. 15" ]
+                ]
+            ]
+        , div
+            [ css
+                [ Tw.justify_start
+                , Tw.items_start
+                , Tw.gap_6
+                , Tw.inline_flex
+                ]
+            ]
+            [ div
+                [ css
+                    [ Tw.flex_col
+                    , Tw.justify_start
+                    , Tw.items_start
+                    , Tw.gap_4
+                    , Tw.inline_flex
+                    ]
+                ]
+                [ div
+                    [ css
+                        [ Tw.flex_col
+                        , Tw.justify_start
+                        , Tw.items_start
+                        , Tw.gap_3
+                        , Tw.flex
+                        ]
+                    ]
+                    [ div
+                        [ css
+                            [ Tw.text_color Theme.zinc_900
+                            , Tw.text_2xl
+                            , Tw.font_semibold
+                            , darkMode
+                                [ Tw.text_color Theme.white
+                                ]
+                            ]
+                        , fontFamilyUnbounded
+                        ]
+                        [ text <| Maybe.withDefault "" article.title ]
+                    , div
+                        [ css
+                            [ Tw.w_96
+                            , Tw.text_color Theme.zinc_500
+                            , Tw.text_lg
+                            , Tw.font_normal
+                            , Tw.leading_relaxed
+                            , darkMode
+                                [ Tw.text_color Theme.zinc_400
+                                ]
+                            ]
+                        , fontFamilySourceSerifPro
+                        ]
+                        [ text <| Maybe.withDefault "" article.summary ]
+                    ]
+                , viewHashTags article.hashtags
+                ]
+            , img
+                [ css
+                    [ Tw.w_60
+                    , Tw.h_40
+                    , Tw.rounded_2xl
+                    ]
+                , Attr.src <| Maybe.withDefault "" article.image
+                ]
+                []
+            ]
+        ]
+-}
+    
+viewHashTags : List String -> Html msg
+viewHashTags hashTags =
+    (List.map viewTag hashTags)
+    |> div
+        [ css
+            [ Tw.justify_start
+            , Tw.items_start
+            , Tw.gap_2
+            , Tw.inline_flex
+            ]
+        ]
+
+viewTag : String -> Html msg
+viewTag hashTag =
+    div
+        [ css
+            [ Tw.px_4
+            , Tw.py_2
+            , Tw.bg_color Theme.neutral_100
+            , Tw.rounded_3xl
+            , Tw.justify_center
+            , Tw.items_center
+            , Tw.gap_2
+            , Tw.inline_flex
+            , darkMode
+                [ Tw.bg_color Theme.neutral_700
+                ]
+            ]
+        ]
+        [ div
+            [ css
+                [ Tw.text_color Theme.zinc_900
+                , Tw.text_sm
+                , Tw.font_medium
+                , darkMode
+                    [ Tw.text_color Theme.white
+                    ]
+                ]
+            , fontFamilyInter
+            ]
+            [ text hashTag ]
+        ]
+    
+
+viewAuthorAndDate : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Nostr.Profile.Author -> Html msg
+viewAuthorAndDate styles browserEnv published author =
+    case author of
+        Nostr.Profile.AuthorPubkey pubKey ->
+            div
+                [ css
+                    [ Tw.justify_start
+                    , Tw.items_center
+                    , Tw.gap_2
+                    , Tw.inline_flex
+                    ]
+                ]
+                [ viewProfilePubKey pubKey
+                , timeParagraph styles browserEnv published
+                ]
+
+        Nostr.Profile.AuthorProfile profile validationStatus ->
+            div
+                [ css
+                    [ Tw.justify_start
+                    , Tw.items_center
+                    , Tw.gap_2
+                    , Tw.inline_flex
+                    ]
+                ]
+                [ viewProfileImageSmall (linkElementForProfile profile) profile.picture validationStatus
+                , div
+                    [ css
+                        [ Tw.justify_start
+                        , Tw.items_start
+                        , Tw.gap_2
+                        , Tw.flex
+                        ]
+                    ]
+                    [ div
+                        (styles.colorStyleGrayscaleText ++ styles.textStyle14)
+                        [ text (profileDisplayName profile.pubKey profile) ]
+                    , timeParagraph styles browserEnv published
+                    ]
+                ]
+
+viewProfileSmall : Profile -> ProfileValidation -> Html msg
+viewProfileSmall profile validationStatus =
+--   let
+--       image =
+--           maybeImage
+--           |> Maybe.withDefault Ui.Profile.defaultProfileImage
+--   in
+    div
+        [ css
+            [ Tw.h_8
+            , Tw.justify_start
+            , Tw.items_center
+            , Tw.gap_2
+            , Tw.inline_flex
+            ]
+        ]
+        [ img
+            [ css
+                [ Tw.w_8
+                , Tw.h_8
+                , Tw.rounded_3xl
+                ]
+--            , Attr.src image
+            , Attr.alt "Profile image"
+            ]
+            []
+        , div
+            [ css
+                [ Tw.justify_start
+                , Tw.items_start
+                , Tw.gap_2
+                , Tw.flex
+                ]
+            ]
+            [ div
+                [ css
+                    [ Tw.text_color Theme.gray_500
+                    , Tw.text_sm
+                    , Tw.font_normal
+--                    , Tw.font_['Inter']
+                    ]
+                ]
+                [ text "Vortex-948" ]
+            , div
+                [ css
+                    [ Tw.text_color Theme.gray_400
+                    , Tw.text_sm
+                    , Tw.font_normal
+--                    , Tw.font_['Inter']
+                    ]
+                ]
+                [ text "Apr. 15" ]
+            ]
+        ]
+   {- 
+        div
+            [ css
+                [ Tw.flex
+                , Tw.flex_col
                 , Tw.space_y_2
-                ]
-            ]
-            [ viewImage article.image
-            , viewTitle article.title
-            , viewSummary article.summary
-            , viewTags article
-            , viewInteractions browserEnv interactions
-            , viewAuthorAndDate browserEnv article.publishedAt article.author author
-            , viewContent article.content
-            ]
-        ]
-
-viewArticleInternal : BrowserEnv -> Article -> Html msg
-viewArticleInternal browserEnv article =
-    div
-        [ css
-            [ Tw.flex
-            , Tw.items_center
-            , Tw.justify_center
-            , Tw.min_h_screen
-            , Tw.bg_color Theme.gray_100
-            ]
-        ]
-        [ div
-            [ css
-                [ Tw.bg_color Theme.white
-                , Tw.p_6
-                , Tw.rounded_lg
-                , Tw.shadow_lg
-                , Tw.max_w_3xl
-                , Bp.xxl
-                    [ Tw.w_max
-                    ]
-                , Bp.xl
-                    [ Tw.w_max
-                    ]
-                , Bp.lg
-                    [ Tw.w_max
-                    ]
-                ]
-            ]
-            [ viewImage article.image
-            , viewTitle article.title
-            , viewSummary article.summary
-            , viewContent article.content
-            ]
-        ]
-
-viewArticlePreview : BrowserEnv -> Author -> Article -> Interactions -> Bool -> Html msg
-viewArticlePreview browserEnv author article interactions displayAuthor =
-    div
-        [ css
-            [ Tw.flex
-            , Tw.items_center
-            , Tw.justify_center
-            , Tw.mb_4
-            ]
-        ]
-        [ div
-            [ css
-                [ Tw.bg_color Theme.white
-                , Tw.p_6
-                , Tw.rounded_lg
-                , Tw.shadow_lg
-                , Tw.max_w_3xl
-                ]
-            ]
-            [ if displayAuthor then
-                viewAuthorAndDate browserEnv article.publishedAt article.author author
-              else
-                timeParagraph browserEnv article.publishedAt
-            , viewTitleSummaryImagePreview article
-            , viewTags article
-            , viewInteractions browserEnv interactions
-            ]
-        ]
-
-
-viewArticleDraftPreview : BrowserEnv -> Article -> Html msg
-viewArticleDraftPreview browserEnv article =
-    div
-        [ css
-            [ Tw.flex
-            , Tw.items_center
-            , Tw.justify_center
-            , Tw.mb_4
-            ]
-        ]
-        [ div
-            [ css
-                [ Tw.bg_color Theme.white
-                , Tw.p_6
-                , Tw.rounded_lg
-                , Tw.shadow_lg
-                , Tw.min_w_96
-                , Tw.max_w_3xl
+                , Tw.mb_4
                 ]
             ]
             [ div
                 [ css
                     [ Tw.flex
                     , Tw.flex_row
-                    , Tw.justify_between
+                    , Tw.items_center
+                    , Tw.space_x_2
+                    , Tw.mb_4
                     ]
                 ]
-                [ timeParagraph browserEnv article.publishedAt
-                , editDraftButton article
+                [ viewProfileImageSmall (linkElementForProfile profile) profile.picture validationStatus
+                , h2
+                    [ css
+                        [ Tw.text_sm
+                        , Tw.font_semibold
+                        , Tw.text_color Theme.gray_800
+                        ]
+                    ]
+                    [ text (profileDisplayName profile.pubKey profile) ]
                 ]
-            , viewTitleSummaryImagePreview article
-            , viewTags article
             ]
-        ]
+-}
 
-editDraftButton : Article -> Html msg
-editDraftButton article =
-    editDraftLink article
-    |> Maybe.map (Ui.Shared.linkButton "Edit")
-    |> Maybe.withDefault (div [][])
+timeParagraph : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Html msg
+timeParagraph styles browserEnv maybePublishedAt =
+    case maybePublishedAt of
+        Just publishedAt ->
+            div
+                (styles.colorStyleGrayscaleMuted ++ styles.textStyle14)
+                [ text <| BrowserEnv.formatDate browserEnv publishedAt ]
 
+        Nothing ->
+            div [][]
 
-
-viewAuthorAndDate : BrowserEnv -> Maybe Time.Posix -> PubKey -> Nostr.Profile.Author -> Html msg
-viewAuthorAndDate browserEnv published articlePubKey author =
-    case author of
-        Nostr.Profile.AuthorPubkey pubKey ->
+viewProfilePubKey : PubKey -> Html msg
+viewProfilePubKey pubKey =
             div
                 [ css
                     [ Tw.flex
@@ -173,291 +433,93 @@ viewAuthorAndDate browserEnv published articlePubKey author =
                     , Tw.mb_4
                     ]
                 ]
-                [ Ui.Profile.viewProfilePubKey pubKey
-                , timeParagraph browserEnv published
-                ]
-
-        Nostr.Profile.AuthorProfile profile validationStatus ->
-            div
-                [ css
-                    [ Tw.flex
-                    , Tw.items_center
-                    , Tw.space_x_2
-                    , Tw.mb_4
-                    ]
-                ]
-                [ Ui.Profile.viewProfileSmall profile validationStatus
-                , timeParagraph browserEnv published
-                ]
-
-viewTitleSummaryImagePreview : Article -> Html msg
-viewTitleSummaryImagePreview article =
-    div 
-        [ css
-            [ Tw.flex
-            , Tw.flex_row
-            , Tw.space_x_5
-            ]
-        ]
-        [ div []
-            [ viewTitlePreview article.title (linkToArticle article)
-            , viewSummary article.summary
-            ]
-        , viewImagePreview article.image
-        ]
-
-linkToArticle : Article -> Maybe String
-linkToArticle article =
-    case Nip19.encode <| Nip19.NAddr 
-            { identifier = article.identifier |> Maybe.withDefault ""
-            , pubKey = article.author
-            , kind = numberForKind article.kind
-            , relays = []
-            } of
-        Ok encodedCoordinates ->
-            Just <| "/a/" ++ encodedCoordinates
-
-        Err error ->
-            Nothing
-
-
-editDraftLink : Article -> Maybe String
-editDraftLink article =
-    case Nip19.encode <| Nip19.NAddr 
-            { identifier = article.identifier |> Maybe.withDefault ""
-            , pubKey = article.author
-            , kind = numberForKind article.kind
-            , relays = []
-            } of
-        Ok encodedCoordinates ->
-            Just <| "/write?a=" ++ encodedCoordinates
-
-        Err error ->
-            Nothing
-
-     
-
-viewTitle : Maybe String -> Html msg
-viewTitle maybeTitle =
-    case maybeTitle of
-        Just title ->
-            h3
-                [ css
-                    [ Tw.text_4xl
-                    , Tw.font_bold
-                    , Tw.text_color Theme.gray_900
-                    , Tw.mb_2
-                    ]
-                , fontFamilyUnbounded
-                ]
-                [ text title
-                ]
-
-        Nothing ->
-            div [][]
-
-viewTitlePreview : Maybe String -> Maybe String -> Html msg
-viewTitlePreview maybeTitle maybeLinkTarget =
-    case maybeTitle of
-        Just title ->
-            let
-                linkElement =
-                    case maybeLinkTarget of
-                        Just linkTarget ->
-                            a
-                                [ href linkTarget
-                                ]
-                                [ text title ]
-                        Nothing ->
-                            text  title
-            in
-            h3
-                [ css
-                    [ Tw.text_2xl
-                    , Tw.font_bold
-                    , Tw.text_color Theme.gray_900
-                    , Tw.mb_2
-                    ]
-                , fontFamilyUnbounded
-                ]
-                [ linkElement 
-                ]
-
-        Nothing ->
-            div [][]
-
-viewSummary : Maybe String -> Html msg
-viewSummary maybeSummary =
-    case maybeSummary of
-        Just summary ->
-            p
-                [ css
-                    [ Tw.text_color Theme.gray_600
-                    , Tw.text_sm
-                    , Tw.mb_4
-                    ]
-                ]
-                [ text summary ]
-        Nothing ->
-            div [][]
-
-viewSummaryPreview : Maybe String -> Html msg
-viewSummaryPreview maybeSummary =
-    case maybeSummary of
-        Just summary ->
-            p
-                [ css
-                    [ Tw.text_color Theme.gray_600
-                    , Tw.text_sm
-                    , Tw.mb_4
-                    ]
-                ]
-                [ text summary ]
-        Nothing ->
-            div [][]
-
-viewContent : String -> Html msg
-viewContent content =
-            p
-                [ css
-                    [ Tw.text_color Theme.gray_600
-                    , Tw.text_sm
-                    , Tw.mb_4
-                    ]
-                ]
-                [ viewContentMarkdown content ]
-
-viewContentMarkdown : String -> Html msg
-viewContentMarkdown content =
-    case Markdown.markdownViewHtml content of
-        Ok html ->
-            html
-
-        Err error ->
-            div [][]
-
-viewImage : Maybe String -> Html msg
-viewImage maybeImage =
-    case maybeImage of
-        Just image ->
-            div
-                [ css
-                    [ Tw.relative
-                    , Tw.mb_4
-                    ]
-                ]
-                [ img
-                    [ Attr.src image
-                    , Attr.alt "Post Image"
-                    , css
-                        [ Tw.rounded_lg
-                        , Tw.w_full
-                        , Tw.object_cover
+                [ viewProfileImageSmall (linkElementForProfilePubKey pubKey) (Just Ui.Profile.defaultProfileImage) ValidationUnknown
+                , h2
+                    [ css
+                        [ Tw.text_sm
+                        , Tw.font_semibold
+                        , Tw.text_color Theme.gray_800
+                        , Tw.truncate
                         ]
                     ]
-                    []
+                    [ text <| shortenedPubKey pubKey ]
                 ]
 
-        Nothing ->
-            div [][]
-
-viewImagePreview : Maybe String -> Html msg
-viewImagePreview maybeImage =
-    case maybeImage of
-        Just image ->
-            div
-                [ css
-                    [ Tw.relative
-                    , Tw.mb_4
-                    ]
-                ]
-                [ img
-                    [ Attr.src image
-                    , Attr.alt "Post Image"
-                    , css
-                        [ Tw.rounded_2xl
-                        , Tw.object_cover
-                        , Tw.max_w_60
-                        , Tw.max_h_36
-                        ]
-                    ]
-                    []
-                ]
-
-        Nothing ->
-            div [][]
-
-viewTags : Article -> Html msg
-viewTags article =
-    article.hashtags
-    |> List.map viewTag
-    |> div
-        [ css
-            [ Tw.flex
-            , Tw.flex_row
-            , Tw.flex_wrap
-            , Tw.space_x_2
-            ]
-        ]
-
-viewTag : String -> Html msg
-viewTag tag =
-    a
-        [ css
-            [ Tw.rounded_2xl
-            , Tw.mb_4
-            , Tw.bg_color Theme.gray_300
-            , Tw.px_3
-            , Tw.text_sm
-            ]
-        , href ("/t/" ++ tag )
-        ]
-        [ text tag ]
-
-viewInteractions : BrowserEnv -> Interactions -> Html msg
-viewInteractions browserEnv interactions =
+viewProfileImage : (List (Html msg) -> Html msg) -> Maybe String -> ProfileValidation -> Html msg
+viewProfileImage linkElement maybeImage validationStatus =
+    let
+        image =
+            maybeImage
+            |> Maybe.withDefault Ui.Profile.defaultProfileImage
+    in
     div
         [ css
-            [ Tw.flex
-            , Tw.items_center
-            , Tw.justify_between
-            , Tw.text_color Theme.gray_400
-            , Tw.text_sm
+            [ Tw.relative
             ]
         ]
-        [ div
+        [ linkElement
+            [ img
+                [ Attr.src image
+                , Attr.alt "Avatar"
+                , css
+                    [ Tw.min_w_28
+                    , Tw.min_h_28
+                    , Tw.max_w_28
+                    , Tw.max_h_28
+                    , Tw.p_1
+                    , Tw.rounded_full
+                    ]
+                ]
+                []
+            ]
+        , div 
             [ css
-                [ Tw.flex
-                , Tw.space_x_6
-                , Tw.mb_2
+                [  Tw.absolute
+                , Tw.top_0
+                , Tw.right_0
+                , Tw.text_color Theme.gray_400
+                , Tw.w_4
+                , Tw.h_4
                 ]
             ]
-            [ viewReactions Graphics.zapIcon (Maybe.map (formatZapNum browserEnv) interactions.zaps)
-            , viewReactions Graphics.repostIcon (Maybe.map String.fromInt interactions.reposts)
-            , viewReactions Graphics.likeIcon (Maybe.map String.fromInt interactions.reactions)
-            , viewReactions Graphics.commentsIcon (Maybe.map String.fromInt interactions.notes)
-            , viewReactions Graphics.smallBookmarkIcon (Maybe.map String.fromInt interactions.bookmarks)
+            [ Ui.Profile.validationIcon 24 validationStatus
             ]
         ]
 
-viewReactions : Html msg -> Maybe String -> Html msg
-viewReactions icon maybeCount =
-    span
+viewProfileImageSmall : (List (Html msg) -> Html msg) -> Maybe String -> ProfileValidation -> Html msg
+viewProfileImageSmall linkElement maybeImage validationStatus =
+    let
+        image =
+            maybeImage
+            |> Maybe.withDefault Ui.Profile.defaultProfileImage
+    in
+    div
         [ css
-            [ Tw.flex
-            , Tw.items_center
-            , Tw.space_x_2
-            , Tw.cursor_pointer
-            , Css.hover
-                [ Tw.text_color Theme.gray_600
-                ]
+            [ Tw.relative
             ]
         ]
-        [ icon
-        , span []
-            [ text ( maybeCount |> Maybe.withDefault "0" ) ]
+        [ linkElement
+            [ img
+                [ css
+                    [ Tw.w_8
+                    , Tw.h_8
+                    , Tw.rounded_3xl
+                    ]
+                , Attr.src image
+                , Attr.alt "profile image"
+                ]
+                []
+            ]
+        , div 
+            [ css
+                [ Tw.absolute
+                , Tw.top_0
+                , Tw.right_0
+                , Tw.text_color Theme.gray_400
+                , Tw.max_w_2
+                , Tw.max_h_2
+                ]
+            ]
+            [ Ui.Profile.validationIcon 16 validationStatus
+            ]
         ]
-
-formatZapNum : BrowserEnv -> Int -> String
-formatZapNum browserEnv bigNum =
-    browserEnv.formatNumber "0 a" <| toFloat bigNum

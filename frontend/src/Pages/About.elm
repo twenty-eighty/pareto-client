@@ -17,7 +17,7 @@ import Route exposing (Route)
 import Shared
 import Translations
 import View exposing (View)
-import Ui.Article
+import Ui.ArticleOld
 import Shared.Msg
 
 
@@ -117,7 +117,7 @@ viewArticle : BrowserEnv -> Maybe Article -> Html Msg
 viewArticle browserEnv maybeArticle =
     case maybeArticle of
         Just article ->
-            Ui.Article.viewArticleInternal browserEnv article
+            Ui.ArticleOld.viewArticleInternal browserEnv article
 
         Nothing ->
             div [][]

@@ -20,7 +20,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
 import View exposing (View)
-import Ui.Article
+import Ui.ArticleOld
 
 
 page : Shared.Model -> Route () -> Page Model Msg
@@ -129,7 +129,7 @@ viewArticle : BrowserEnv -> Maybe Article -> Html Msg
 viewArticle browserEnv maybeArticle =
     case maybeArticle of
         Just article ->
-            Ui.Article.viewArticleInternal browserEnv article
+            Ui.ArticleOld.viewArticleInternal browserEnv article
 
         Nothing ->
             div [][]

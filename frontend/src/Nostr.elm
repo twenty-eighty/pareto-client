@@ -32,6 +32,7 @@ import Nostr.Zaps exposing (ZapReceipt)
 import Html.Attributes exposing (kind)
 import Time
 import Nostr.Types exposing (RelayUrl)
+import Set
 
 
 type alias OutgoingCommand =
@@ -75,7 +76,7 @@ type alias Model =
     , relayMetadataLists : Dict PubKey (List RelayMetadata)
     , relaysForPubKey : Dict PubKey (List RelayUrl)
     , reposts : Dict EventId Repost
-    , shortTextNotes : List ShortNote
+    , shortTextNotes : Dict String ShortNote
     , zapReceiptsAddress : Dict String (Dict String Nostr.Zaps.ZapReceipt)
     , zapReceiptsEvents : Dict String (Dict String Nostr.Zaps.ZapReceipt)
     , hooks : Hooks
@@ -331,6 +332,10 @@ getRequest : Model -> RequestId -> Maybe Request
 getRequest model requestId =
     Dict.get requestId model.requests
 
+getShortNoteById : Model -> String -> Maybe ShortNote
+getShortNoteById model noteId =
+    Dict.get noteId model.shortTextNotes
+
 
 getZapReceiptsForArticle : Model -> Article -> Maybe (Dict String Nostr.Zaps.ZapReceipt)
 getZapReceiptsForArticle model article =
@@ -541,7 +546,7 @@ empty =
     , relayMetadataLists = Dict.empty
     , relaysForPubKey = Dict.empty
     , reposts = Dict.empty
-    , shortTextNotes = []
+    , shortTextNotes = Dict.empty
     , zapReceiptsAddress = Dict.empty
     , zapReceiptsEvents = Dict.empty
     , errors = []
@@ -910,8 +915,61 @@ updateModelWithShortTextNotes model requestId events =
         shortTextNotes =
             events
             |> List.map shortNoteFromEvent
+
+        shortTextNotesDict =
+            shortTextNotes
+            |> List.foldl (\shortNote acc ->
+                Dict.insert shortNote.id shortNote acc
+            ) model.shortTextNotes
+
+        maybeRequest =
+            Dict.get requestId model.requests
+
+        (requestModel, requestCmd) =
+            case maybeRequest of
+                Just request ->
+                    requestRelatedKindsForShortNotes model shortTextNotes request
+
+                Nothing ->
+                    (model, Cmd.none)
     in
-    ({ model | shortTextNotes = shortTextNotes }, Cmd.none)
+    ({ requestModel | shortTextNotes = shortTextNotesDict }, requestCmd)
+
+requestRelatedKindsForShortNotes : Model -> List ShortNote -> Request -> (Model, Cmd Msg)
+requestRelatedKindsForShortNotes model shortNotes request =
+    let
+        authorPubKeys =
+            shortNotes
+            |> List.map .pubKey
+            |> Set.fromList
+            |> Set.toList
+
+        maybeEventFilterForAuthorProfiles =
+            authorPubKeys
+            |> getMissingProfilePubKeys model
+            |> profileFilterForAuthors
+
+        (requestProfileModel, extendedRequestProfile) =
+            case maybeEventFilterForAuthorProfiles of
+                Just eventFilterForAuthorProfiles ->
+                    -- TODO: add relays for request
+                    eventFilterForAuthorProfiles
+                    |> RequestProfile Nothing
+                    |> addToRequest model request
+
+                Nothing ->
+                    (model, request)
+
+        (extendedModel, extendedRequestReactions) =
+            shortNotes
+            |> List.map Nostr.ShortNote.tagReference
+            |> profileFilterForReactions
+            |> Maybe.map RequestReactions
+            |> Maybe.map (addToRequest requestProfileModel extendedRequestProfile)
+            |> Maybe.withDefault (requestProfileModel, extendedRequestProfile)
+
+    in
+    doRequest extendedModel extendedRequestReactions
 
 
 updateModelWithUserMetadata : Model -> RequestId -> List Event -> (Model, Cmd Msg)

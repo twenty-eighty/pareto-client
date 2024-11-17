@@ -9,20 +9,6 @@ import Svg.Loaders
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 
-fontFamilyInter =
-    Attr.style "font-family" "Inter, sans-serif"
-
-fontFamilyUnbounded =
-    Attr.style "font-family" "Unbounded"
-
-fontFamilySourceSerifPro =
-    Attr.style "font-family" "Source Serif Pro"
-
-darkMode : List Css.Style -> Css.Style
-darkMode =
-    Css.Media.withMediaQuery [ "(prefers-color-scheme: dark)" ]
-
-
 pageLoadingIndicator : Html msg
 pageLoadingIndicator =
     Svg.Loaders.rings []

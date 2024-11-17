@@ -26,9 +26,10 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
-import Ui.Article
+import Ui.ArticleOld
 import Ui.Profile
-import Ui.Shared exposing (fontFamilyUnbounded, fontFamilyInter)
+import Ui.Styles exposing (fontFamilyUnbounded, fontFamilyInter)
+import Ui.Styles exposing (referenceDesignStyles)
 import View exposing (View)
 import Nostr.Profile exposing (ProfileValidation(..))
 
@@ -173,6 +174,6 @@ viewArticlePreviews browserEnv nostr articles =
             interactions =
                 (Nostr.getInteractions nostr article)
         in
-        Ui.Article.viewArticlePreview browserEnv author article interactions False
+        Ui.ArticleOld.viewArticlePreview browserEnv referenceDesignStyles author article interactions False
         )
     |> div []

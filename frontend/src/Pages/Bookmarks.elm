@@ -19,7 +19,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations.Bookmarks as Translations
-import Ui.Shared exposing (fontFamilyUnbounded, fontFamilyInter)
+import Ui.Styles exposing (fontFamilyUnbounded, fontFamilyInter)
 import View exposing (View)
 
 
