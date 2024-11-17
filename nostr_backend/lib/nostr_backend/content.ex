@@ -44,6 +44,14 @@ defmodule NostrBackend.Content do
     }
   end
 
+  def parse_note_event(event) do
+    %{
+      note_id: event["id"],
+      content: event["content"]
+    }
+    |> IO.inspect(label: "Parsed note event")
+  end
+
   def parse_profile_event(event) do
     content =
       event["content"]

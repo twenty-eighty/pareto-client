@@ -8,6 +8,7 @@ defmodule NostrBackendWeb.ContentController do
   alias NostrBackend.ArticleCache
   alias NostrBackend.CommunityCache
   alias NostrBackend.Nip05Cache
+  alias NostrBackend.NoteCache
   alias NostrBackend.ProfileCache
 
   @meta_title "The Pareto Project"
@@ -91,6 +92,24 @@ defmodule NostrBackendWeb.ContentController do
   # TODO: check if this branch works
   def event(conn, %{"event_id" => nostr_id}) do
     case NostrId.parse(nostr_id) do
+      {:ok, {:note, note_id_hex}} ->
+        case NoteCache.get_note(note_id_hex) do
+          {:ok, note} ->
+            conn
+            |> conn_with_default_meta()
+            |> put_view(NostrBackendWeb.ContentHTML)
+            |> render(:note, note: note)
+
+          {:error, reason} ->
+            IO.inspect(reason, label: "ERROR REASON")
+
+            conn
+            |> conn_with_default_meta()
+            |> render(:not_found, layout: false)
+
+            #            |> render(NostrBackendWeb.ErrorHTML, :"404")
+        end
+
       {:ok, {:author_event, query_data}} ->
         case ArticleCache.get_article(query_data) do
           {:ok, article} ->

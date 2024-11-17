@@ -42,6 +42,11 @@ defmodule NostrBackend.NostrClient do
     fetch_from_relays(relays, community_data, :community)
   end
 
+  @spec fetch_note(String.t()) :: {:ok, map()} | {:error, String.t()}
+  def fetch_note(note_id) do
+    fetch_from_relays(@relay_urls, note_id, :note)
+  end
+
   @spec fetch_profile(String.t(), list()) :: {:ok, map()} | {:error, String.t()}
   def fetch_profile(profile_hex_id, []) do
     fetch_profile(profile_hex_id, @relay_urls)
@@ -162,6 +167,14 @@ defmodule NostrBackend.NostrClient do
         "kinds" => [kind],
         "authors" => [author],
         "#d" => [identifier]
+      }
+    ]
+  end
+
+  defp build_filters(note_id, :note) do
+    [
+      %{
+        "ids" => [note_id]
       }
     ]
   end
