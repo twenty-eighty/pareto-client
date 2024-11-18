@@ -16,8 +16,7 @@ type alias Following =
     , relay : Maybe String
     , petname : Maybe String
     }
-{-
--}
+
 
 followListFromEvent : Event -> PubKeyFollowList
 followListFromEvent event =

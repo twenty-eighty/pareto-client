@@ -19,6 +19,15 @@ import Time
 
 viewArticlePreview : Styles msg -> BrowserEnv -> Author -> Article -> Interactions -> Bool -> Html msg
 viewArticlePreview styles browserEnv author article interactions displayAuthor =
+    let
+        textWidthAttr =
+            case article.image of
+                Just _ ->
+                    [ Tw.w_96 ]
+                
+                Nothing ->
+                    []
+    in
     div
         [ css
             [ Tw.h_64
@@ -31,7 +40,8 @@ viewArticlePreview styles browserEnv author article interactions displayAuthor =
             , Tw.gap_2
             , Tw.inline_flex
             ]
-        , Attr.width 720
+        , Attr.style "width" "720px"
+        , Attr.style "height" "266px"
         ]
         [ viewAuthorAndDate styles browserEnv article.publishedAt author
         , div
@@ -64,203 +74,46 @@ viewArticlePreview styles browserEnv author article interactions displayAuthor =
                     [ div
                         (styles.colorStyleGrayscaleTitle ++ styles.textStyleH2 ++ 
                         [ css
-                            [ Tw.w_96
-                            , Tw.line_clamp_3
-                            ]
+                            ([ Tw.line_clamp_3
+                            ] ++ textWidthAttr)
                         ])
                         [ text <| Maybe.withDefault "" article.title ]
                     , div
                         (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ 
                         [ css
-                            [ Tw.w_96
-                            , Tw.line_clamp_3
-                            ]
+                            ([ Tw.line_clamp_3
+                            ] ++ textWidthAttr)
                         ])
                         [ text <| Maybe.withDefault "" article.summary ]
-                    , div
-                        [ css
-                            [ Tw.px_4
-                            , Tw.py_2
-                            , Tw.bg_color Theme.gray_300
-                            , Tw.rounded_3xl
-                            , Tw.justify_center
-                            , Tw.items_center
-                            , Tw.gap_2
-                            , Tw.inline_flex
-                            ]
-                        ]
-                        [ div
-                            (styles.colorStyleLabel ++ styles.textStyleUppercaseLabel)
-                            [ text "Nostr" ]
-                        ]
+                    , viewHashTags styles article.hashtags
                     ]
                 ]
-            , div
-                [ css
-                    [ Tw.w_64
-                    , Tw.h_44
-                    , Tw.bg_color Theme.gray_300
-                    ]
-                ]
-                []
+            , articleImage article
             ]
         ]
     
-{-
-    div
-        [ css
-            [ Tw.h_56
-            , Tw.pb_6
-            , Tw.border_b
-            , Tw.border_color Theme.gray_200
-            , Tw.flex_col
-            , Tw.justify_start
-            , Tw.items_start
-            , Tw.gap_2
-            , Tw.inline_flex
-            , darkMode
-                [ Tw.border_color Theme.neutral_700
-                ]
-            ]
-        ]
-        [ div
+viewHashTags : Styles msg -> List String -> Html msg
+viewHashTags styles hashTags =
+        hashTags
+        |> List.take 3
+        |> List.map (viewHashTag styles)
+        |> div
             [ css
-                [ Tw.justify_start
-                , Tw.items_center
+                [ Tw.h_10
+                , Tw.justify_start
+                , Tw.items_start
                 , Tw.gap_2
                 , Tw.inline_flex
                 ]
             ]
-            [ img
-                [ css
-                    [ Tw.w_8
-                    , Tw.h_8
-                    , Tw.rounded_3xl
-                    ]
-                , Attr.src "https://via.placeholder.com/32x32"
-                ]
-                []
-            , div
-                [ css
-                    [ Tw.justify_start
-                    , Tw.items_start
-                    , Tw.gap_2
-                    , Tw.flex
-                    ]
-                ]
-                [ div
-                    [ css
-                        [ Tw.text_color Theme.zinc_900
-                        , Tw.text_sm
-                        , Tw.font_normal
-                        , darkMode
-                            [ Tw.text_color Theme.white
-                            ]
-                        ]
-                    , fontFamilyInter
-                    ]
-                    [ text "Tony" ]
-                , div
-                    [ css
-                        [ Tw.text_color Theme.zinc_500
-                        , Tw.text_sm
-                        , Tw.font_normal
-                        , darkMode
-                            [ Tw.text_color Theme.zinc_400
-                            ]
-                        ]
-                    , fontFamilyInter
-                    ]
-                    [ text "Apr. 15" ]
-                ]
-            ]
-        , div
-            [ css
-                [ Tw.justify_start
-                , Tw.items_start
-                , Tw.gap_6
-                , Tw.inline_flex
-                ]
-            ]
-            [ div
-                [ css
-                    [ Tw.flex_col
-                    , Tw.justify_start
-                    , Tw.items_start
-                    , Tw.gap_4
-                    , Tw.inline_flex
-                    ]
-                ]
-                [ div
-                    [ css
-                        [ Tw.flex_col
-                        , Tw.justify_start
-                        , Tw.items_start
-                        , Tw.gap_3
-                        , Tw.flex
-                        ]
-                    ]
-                    [ div
-                        [ css
-                            [ Tw.text_color Theme.zinc_900
-                            , Tw.text_2xl
-                            , Tw.font_semibold
-                            , darkMode
-                                [ Tw.text_color Theme.white
-                                ]
-                            ]
-                        , fontFamilyUnbounded
-                        ]
-                        [ text <| Maybe.withDefault "" article.title ]
-                    , div
-                        [ css
-                            [ Tw.w_96
-                            , Tw.text_color Theme.zinc_500
-                            , Tw.text_lg
-                            , Tw.font_normal
-                            , Tw.leading_relaxed
-                            , darkMode
-                                [ Tw.text_color Theme.zinc_400
-                                ]
-                            ]
-                        , fontFamilySourceSerifPro
-                        ]
-                        [ text <| Maybe.withDefault "" article.summary ]
-                    ]
-                , viewHashTags article.hashtags
-                ]
-            , img
-                [ css
-                    [ Tw.w_60
-                    , Tw.h_40
-                    , Tw.rounded_2xl
-                    ]
-                , Attr.src <| Maybe.withDefault "" article.image
-                ]
-                []
-            ]
-        ]
--}
-    
-viewHashTags : List String -> Html msg
-viewHashTags hashTags =
-    (List.map viewTag hashTags)
-    |> div
-        [ css
-            [ Tw.justify_start
-            , Tw.items_start
-            , Tw.gap_2
-            , Tw.inline_flex
-            ]
-        ]
 
-viewTag : String -> Html msg
-viewTag hashTag =
+viewHashTag : Styles msg -> String -> Html msg
+viewHashTag styles hashTag =
     div
         [ css
             [ Tw.px_4
             , Tw.py_2
-            , Tw.bg_color Theme.neutral_100
+            , Tw.bg_color Theme.gray_300
             , Tw.rounded_3xl
             , Tw.justify_center
             , Tw.items_center
@@ -271,19 +124,41 @@ viewTag hashTag =
                 ]
             ]
         ]
-        [ div
-            [ css
-                [ Tw.text_color Theme.zinc_900
-                , Tw.text_sm
-                , Tw.font_medium
-                , darkMode
-                    [ Tw.text_color Theme.white
-                    ]
-                ]
-            , fontFamilyInter
-            ]
+        [
+        div
+            (styles.colorStyleLabel ++ styles.textStyleUppercaseLabel)
             [ text hashTag ]
         ]
+
+articleImage : Article -> Html msg
+articleImage article =
+    case article.image of
+        Just image ->
+            div
+                [ css
+                    [ Tw.w_64
+                    , Tw.h_44
+                    , Tw.bg_color Theme.gray_300
+                    , Tw.overflow_hidden
+                    , Tw.relative
+                    ]
+                ]
+                [ img
+                    [ Attr.src image
+                    , Attr.style "top" "50%"
+                    , Attr.style "left" "50%"
+                    , Attr.style "object-fit" "cover"
+                    , Attr.style "width" "100%"
+                    , Attr.style "height" "100%"
+                    , Attr.style "position" "absolute"
+                    , Attr.style "transform" "translate(-50%, -50%)"
+                    ]
+                    [
+                    ]
+                ]
+
+        Nothing ->
+            div [][]
     
 
 viewAuthorAndDate : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Nostr.Profile.Author -> Html msg

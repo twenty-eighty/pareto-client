@@ -33,6 +33,7 @@ viewArticlePreviews styles browserEnv nostr articles =
             , Tw.gap_8
             , Tw.inline_flex
             ]
+        , Attr.style "width" "720px"
         ]
         [ div
             [ css
@@ -44,6 +45,7 @@ viewArticlePreviews styles browserEnv nostr articles =
                 , Tw.gap_8
                 , Tw.flex
                 ]
+            , Attr.style "width" "720px"
             ]
             ( articles
             |> List.take 20

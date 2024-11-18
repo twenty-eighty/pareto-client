@@ -28,6 +28,7 @@
    },
    "read": {
       "global feed category": "Global",
+      "pareto feed category": "Pareto",
       "highlighter feed category": "Highlighter"
    },
    "posts": {
