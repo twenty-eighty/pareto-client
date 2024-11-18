@@ -1,7 +1,7 @@
 
 import "./MilkdownEditor.js";
 
-import NDK, { NDKEvent, NDKArticle, NDKRelaySet, NDKNip07Signer, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
+import NDK, { NDKEvent, NDKArticle, NDKRelaySet, NDKNip07Signer, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import { BlossomClient } from "blossom-client-sdk/client";
 import { init as initNostrLogin } from "nostr-login"
 
@@ -104,6 +104,8 @@ export const onReady = ({ app, env }) => {
       console.log('connect to relays', relays);
     }
     window.ndk = new NDK({ explicitRelayUrls: relays });
+
+    window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk })
 
     window.ndk.pool.on("connecting", (relay) => {
       if (debug) {
