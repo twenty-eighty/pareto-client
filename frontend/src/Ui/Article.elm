@@ -17,8 +17,8 @@ import Ui.Styles exposing (darkMode, fontFamilyInter, fontFamilyUnbounded, fontF
 import Ui.Styles exposing (Styles)
 import Time
 
-viewArticlePreview : Styles msg -> BrowserEnv -> Author -> Article -> Interactions -> Bool -> Html msg
-viewArticlePreview styles browserEnv author article interactions displayAuthor =
+viewArticlePreviewList : Styles msg -> BrowserEnv -> Author -> Article -> Interactions -> Bool -> Html msg
+viewArticlePreviewList styles browserEnv author article interactions displayAuthor =
     let
         textWidthAttr =
             case article.image of
@@ -74,7 +74,7 @@ viewArticlePreview styles browserEnv author article interactions displayAuthor =
                     [ div
                         (styles.colorStyleGrayscaleTitle ++ styles.textStyleH2 ++ 
                         [ css
-                            ([ Tw.line_clamp_3
+                            ([ Tw.line_clamp_2
                             ] ++ textWidthAttr)
                         ])
                         [ text <| Maybe.withDefault "" article.title ]
@@ -88,7 +88,7 @@ viewArticlePreview styles browserEnv author article interactions displayAuthor =
                     , viewHashTags styles article.hashtags
                     ]
                 ]
-            , articleImage article
+            , previewListImage article
             ]
         ]
     
@@ -109,7 +109,7 @@ viewHashTags styles hashTags =
 
 viewHashTag : Styles msg -> String -> Html msg
 viewHashTag styles hashTag =
-    div
+    a
         [ css
             [ Tw.px_4
             , Tw.py_2
@@ -123,6 +123,7 @@ viewHashTag styles hashTag =
                 [ Tw.bg_color Theme.neutral_700
                 ]
             ]
+        , href ("/t/" ++ hashTag )
         ]
         [
         div
@@ -130,8 +131,41 @@ viewHashTag styles hashTag =
             [ text hashTag ]
         ]
 
-articleImage : Article -> Html msg
-articleImage article =
+viewArticlePreviewBigPicture : Styles msg -> BrowserEnv -> Author -> Article -> Interactions -> Bool -> Html msg
+viewArticlePreviewBigPicture styles browserEnv author article interactions displayAuthor =
+        div
+            [ css
+                [ Tw.flex_col
+                , Tw.justify_start
+                , Tw.items_start
+                , Tw.gap_4
+                , Tw.inline_flex
+                ]
+            ]
+            [ previewBigPictureImage article
+            , div
+                [ css
+                    [ Tw.flex_col
+                    , Tw.justify_start
+                    , Tw.items_start
+                    , Tw.gap_3
+                    , Tw.flex
+                    ]
+                ]
+                [ div
+                    (styles.textStyleH4 ++ styles.colorStyleGrayscaleTitle ++
+                    [ css
+                        [ Tw.w_96
+                        ]
+                    ])
+                    [ text <| Maybe.withDefault "" article.title ]
+                , viewAuthorAndDate styles browserEnv article.publishedAt author
+                ]
+            ]
+
+
+previewListImage : Article -> Html msg
+previewListImage article =
     case article.image of
         Just image ->
             div
@@ -160,6 +194,46 @@ articleImage article =
         Nothing ->
             div [][]
     
+previewBigPictureImage : Article -> Html msg
+previewBigPictureImage article =
+    case article.image of
+        Just image ->
+            div
+                [ css
+                    [ Tw.w_96
+                    , Tw.h_60
+                    , Tw.bg_color Theme.gray_300
+                    , Tw.overflow_hidden
+                    , Tw.relative
+                    , Tw.rounded_xl
+                    ]
+                ]
+                [ img
+                    [ Attr.src image
+                    , Attr.style "top" "50%"
+                    , Attr.style "left" "50%"
+                    , Attr.style "object-fit" "cover"
+                    , Attr.style "width" "100%"
+                    , Attr.style "height" "100%"
+                    , Attr.style "position" "absolute"
+                    , Attr.style "transform" "translate(-50%, -50%)"
+                    ]
+                    [
+                    ]
+                ]
+
+        Nothing ->
+            div
+                [ css
+                    [ Tw.w_96
+                    , Tw.h_60
+                    , Tw.bg_color Theme.gray_300
+                    , Tw.overflow_hidden
+                    , Tw.relative
+                    , Tw.rounded_xl
+                    ]
+                ]
+                []
 
 viewAuthorAndDate : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Nostr.Profile.Author -> Html msg
 viewAuthorAndDate styles browserEnv published author =
@@ -256,36 +330,6 @@ viewProfileSmall profile validationStatus =
                 [ text "Apr. 15" ]
             ]
         ]
-   {- 
-        div
-            [ css
-                [ Tw.flex
-                , Tw.flex_col
-                , Tw.space_y_2
-                , Tw.mb_4
-                ]
-            ]
-            [ div
-                [ css
-                    [ Tw.flex
-                    , Tw.flex_row
-                    , Tw.items_center
-                    , Tw.space_x_2
-                    , Tw.mb_4
-                    ]
-                ]
-                [ viewProfileImageSmall (linkElementForProfile profile) profile.picture validationStatus
-                , h2
-                    [ css
-                        [ Tw.text_sm
-                        , Tw.font_semibold
-                        , Tw.text_color Theme.gray_800
-                        ]
-                    ]
-                    [ text (profileDisplayName profile.pubKey profile) ]
-                ]
-            ]
--}
 
 timeParagraph : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Html msg
 timeParagraph styles browserEnv maybePublishedAt =

@@ -32,6 +32,7 @@ type alias Styles msg =
     , textStyleH1 : StyleBundle msg
     , textStyleH2 : StyleBundle msg
     , textStyleH3 : StyleBundle msg
+    , textStyleH4 : StyleBundle msg
     , textStyle14 : StyleBundle msg
     , colorStyleBackground : StyleBundle msg
     , colorStyleLabel : StyleBundle msg
@@ -139,6 +140,13 @@ referenceDesignStyles =
             ]
         , fontFamilyInter
         , Attr.style "line-height" "auto"
+        ]
+    , textStyleH4 =
+        [ css
+            [ Tw.text_lg
+            , Tw.font_semibold
+            ]
+        , fontFamilyInter
         ]
     , textStyle14 =
         [ css

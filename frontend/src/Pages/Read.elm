@@ -23,8 +23,9 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
 import Translations.Read
+import Ui.Article
 import Ui.Styles
-import Ui.View
+import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 import Ports
 import Pareto
@@ -152,9 +153,9 @@ availableCategories nostr translations =
     [ { category = Global
       , title = Translations.Read.globalFeedCategory [ translations ]
       }
-    , { category = Highlighter
-      , title = Translations.Read.highlighterFeedCategory [ translations ]
-      }
+--   , { category = Highlighter
+--     , title = Translations.Read.highlighterFeedCategory [ translations ]
+--     }
     ] ++ paretoCategories
 
 paretoCategory : I18Next.Translations -> Components.Categories.CategoryData Category
@@ -176,6 +177,6 @@ view shared model =
                 }
                 |> Components.Categories.view
             , Nostr.getArticlesByDate shared.nostr
-             |> Ui.View.viewArticlePreviews Ui.Styles.referenceDesignStyles shared.browserEnv shared.nostr 
+             |> Ui.View.viewArticlePreviews ArticlePreviewList Ui.Styles.referenceDesignStyles shared.browserEnv shared.nostr 
             ]
     }

@@ -17,13 +17,26 @@ import Ui.ShortNote
 import Ui.Styles exposing (Styles)
 import Nostr.ShortNote exposing (ShortNote)
 
+type ArticlePreviewType
+    = ArticlePreviewList
+    | ArticlePreviewBigPicture
+
 
 viewArticle : BrowserEnv -> Nostr.Model -> Article -> Html msg
 viewArticle browserEnv nostr article =
     Ui.ArticleOld.viewArticle browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article)
 
-viewArticlePreviews : Styles msg -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
-viewArticlePreviews styles browserEnv nostr articles =
+viewArticlePreviews : ArticlePreviewType -> Styles msg -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
+viewArticlePreviews previewType styles browserEnv nostr articles =
+    case previewType of
+        ArticlePreviewList ->
+            viewArticlePreviewsList styles browserEnv nostr articles
+
+        ArticlePreviewBigPicture ->
+            viewArticlePreviewsBigPicture styles browserEnv nostr articles
+
+viewArticlePreviewsList : Styles msg -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
+viewArticlePreviewsList styles browserEnv nostr articles =
     div
         [ css
             [ Tw.h_96
@@ -49,10 +62,25 @@ viewArticlePreviews styles browserEnv nostr articles =
             ]
             ( articles
             |> List.take 20
-            |> List.map (\article -> Ui.Article.viewArticlePreview styles browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article) True)
+            |> List.map (\article -> Ui.Article.viewArticlePreviewList styles browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article) True)
             )
         ]
     
+viewArticlePreviewsBigPicture : Styles msg -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
+viewArticlePreviewsBigPicture styles browserEnv nostr articles =
+    div
+        [ css
+            [ Tw.h_80
+            , Tw.justify_start
+            , Tw.items_start
+            , Tw.gap_5
+            , Tw.inline_flex
+            ]
+        ]
+        ( articles
+        |> List.take 20
+        |> List.map (\article -> Ui.Article.viewArticlePreviewBigPicture styles browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article) True)
+        )
 
 viewCommunity : BrowserEnv -> Nostr.Model -> Community -> Html msg
 viewCommunity browserEnv nostr community =
