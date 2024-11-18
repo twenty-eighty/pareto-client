@@ -49,9 +49,17 @@ defmodule NostrBackend.Nip05 do
     case HTTPoison.get(url, [], follow_redirect: true) do
       {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
         with {:ok, data} <- Jason.decode(body),
-             %{"names" => names, "relays" => relays} <- data,
+             %{"names" => names} <- data,
              public_key when is_binary(public_key) <- Map.get(names, name) do
-          relay_urls = Map.get(relays, public_key, [])
+          relays = data["relays"]
+
+          relay_urls =
+            if relays != nil do
+              Map.get(relays, public_key, [])
+            else
+              []
+            end
+
           {:ok, public_key, relay_urls}
         else
           _ -> {:error, "Public key and relays not found for name and domain"}

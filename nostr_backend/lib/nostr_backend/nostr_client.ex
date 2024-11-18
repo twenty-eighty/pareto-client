@@ -18,6 +18,10 @@ defmodule NostrBackend.NostrClient do
     fetch_article_by_address(kind, author, identifier, @relay_urls)
   end
 
+  def fetch_article_by_address(kind, author, identifier, []) do
+    fetch_article_by_address(kind, author, identifier, @relay_urls)
+  end
+
   def fetch_article_by_address(kind, author, identifier, relay_urls) do
     address_info = %{kind: kind, author: author, identifier: identifier}
     fetch_from_relays(relay_urls, address_info, :address)
