@@ -271,7 +271,7 @@ viewAuthorAndDate styles browserEnv published author =
                             , Tw.top_0
                             ]
                         ])
-                        [ text "Jack Whitmore" ]
+                        [ text <| profileDisplayName profile.pubKey profile ]
                     , viewArticleTime styles browserEnv published
                     ]
                 ]
