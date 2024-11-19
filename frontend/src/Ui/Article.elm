@@ -258,8 +258,7 @@ viewAuthorAndDate styles browserEnv published author =
                 [ viewArticleProfileSmall profile validationStatus
                 , div
                     [ css
-                        [ Tw.w_28
-                        , Tw.h_11
+                        [ Tw.h_11
                         , Tw.left_16
                         , Tw.top_1
                         ]
@@ -310,11 +309,11 @@ viewArticleProfileSmall profile validationStatus =
                 , Tw.top_0
                 , Tw.right_0
                 , Tw.text_color Theme.gray_400
-                , Tw.w_4
-                , Tw.h_4
+                , Tw.w_3
+                , Tw.h_2
                 ]
             ]
-            [ Ui.Profile.validationIcon 24 validationStatus ]
+            [ Ui.Profile.validationIcon 16 validationStatus ]
         ]
 
 viewArticleTime : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Html msg
