@@ -13,7 +13,8 @@ const debug = true;
 // into your `Shared.init` function.
 export const flags = ({ env }) => {
   return {
-    isLoggedIn: JSON.parse(localStorage.getItem('isLoggedIn')) || false
+    isLoggedIn: JSON.parse(localStorage.getItem('isLoggedIn')) || false,
+    locale: navigator.language
   }
 }
 

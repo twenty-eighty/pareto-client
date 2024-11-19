@@ -5,6 +5,7 @@ import Page exposing (Page)
 import Route exposing (Route)
 import Shared
 import Pages.Read as Implementation
+import Ui.Styles exposing (referenceDesignStyles)
 
 
 page : Shared.Model -> Route () -> Page Model Msg
@@ -20,7 +21,7 @@ page shared route =
 toLayout : Model -> Layouts.Layout Msg
 toLayout _ =
     Layouts.Sidebar
-        {}
+        { styles = referenceDesignStyles }
 
 type alias Model = Implementation.Model
 type alias Msg = Implementation.Msg

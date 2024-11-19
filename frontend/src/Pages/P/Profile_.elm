@@ -47,7 +47,7 @@ page shared route =
 toLayout : Model -> Layouts.Layout Msg
 toLayout model =
     Layouts.Sidebar
-        {}
+        { styles = referenceDesignStyles }
 
 
 -- INIT

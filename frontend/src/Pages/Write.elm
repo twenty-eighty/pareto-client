@@ -29,6 +29,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Time
 import Translations.Write
+import Ui.Styles exposing (referenceDesignStyles)
 import View exposing (View)
 
 
@@ -45,7 +46,7 @@ page user shared route =
 toLayout : Model -> Layouts.Layout Msg
 toLayout model =
     Layouts.Sidebar
-        {}
+        { styles = referenceDesignStyles }
 
 
 -- INIT

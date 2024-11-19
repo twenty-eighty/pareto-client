@@ -1,8 +1,9 @@
-module Layouts.Sidebar exposing (Model, Msg, Props, layout)
+module Layouts.Sidebar exposing (Model, Msg, Props, layout, map)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.OnboardingDialog as OnboardingDialog
 import Css
+import Dict
 import Effect exposing (Effect)
 import FeatherIcons
 import Graphics
@@ -17,22 +18,25 @@ import Nostr.Types exposing (PubKey)
 import Nostr.Profile exposing (Profile)
 import Pareto
 import Route exposing (Route)
+import Route.Path
 import Shared
-import Shared.Model exposing (LoginStatus(..))
+import Shared.Model exposing (ClientRole(..), LoginStatus(..))
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
+import Ui.Styles exposing (Styles)
 import View exposing (View)
-import Route.Path
-import Dict
-import Shared.Model exposing (ClientRole)
-import Shared.Model exposing (ClientRole(..))
 
 
-type alias Props =
-    { 
+type alias Props contentMsg =
+    { styles : Styles contentMsg
+    }
+
+map : (msg1 -> msg2) -> Props msg1 -> Props msg2
+map toMsg props =
+    { styles = Ui.Styles.map toMsg props.styles
     }
 
 type alias SidebarItemData =
@@ -61,12 +65,12 @@ sidebarItems clientRole translations =
             ]
 
 
-layout : Props -> Shared.Model -> Route () -> Layout () Model Msg contentMsg
+layout : Props contentMsg -> Shared.Model -> Route () -> Layout () Model Msg contentMsg
 layout props shared route =
     Layout.new
         { init = init
         , update = update shared
-        , view = view shared route.path
+        , view = view props.styles shared route.path
         , subscriptions = subscriptions
         }
 
@@ -148,12 +152,19 @@ subscriptions model =
 -- VIEW
 
 
-view : Shared.Model.Model -> Route.Path.Path -> { toContentMsg : Msg -> contentMsg, content : View contentMsg, model : Model } -> View contentMsg
-view shared path { toContentMsg, model, content } =
+view : Styles contentMsg -> Shared.Model.Model -> Route.Path.Path -> { toContentMsg : Msg -> contentMsg, content : View contentMsg, model : Model } -> View contentMsg
+view styles shared path { toContentMsg, model, content } =
     { title = content.title ++ " | Pareto"
     , body = 
-        [ viewSidebar shared path toContentMsg content.body
-        , viewModalDialog model |> Html.map toContentMsg
+        [ div
+            (styles.colorStyleBackground ++
+            [ css
+                [ Tw.h_full
+                ]
+            ])
+            [ viewSidebar styles shared path toContentMsg content.body
+            , viewModalDialog model |> Html.map toContentMsg
+            ]
         ]
     }
 
@@ -171,47 +182,41 @@ viewModalDialog model =
                 div [][]
 
 
-viewSidebar : Shared.Model.Model -> Route.Path.Path -> (Msg -> contentMsg) -> List (Html contentMsg) -> Html contentMsg
-viewSidebar shared currentPath toContentMsg content =
-        Html.div
+viewSidebar : Styles contentMsg -> Shared.Model.Model -> Route.Path.Path -> (Msg -> contentMsg) -> List (Html contentMsg) -> Html contentMsg
+viewSidebar styles shared currentPath toContentMsg content =
+    Html.div
+        (styles.colorStyleGrayscaleTitle)
+        [ div
+            [ css
+                [ Tw.flex
+                , Tw.h_full
+                ]
+            ]
+            [ aside
                 [ css
-                    [ Tw.bg_color Theme.gray_50
-                    , Tw.text_color Theme.gray_800
+                    [ Tw.p_6
+                    , Tw.border_r
+                    , Tw.border_color Theme.gray_200
+                    , Tw.w_0
+                    , Tw.hidden
+                    , Bp.xl
+                        [ Tw.w_52
+                        ]
+                    , Bp.md
+                        [ Tw.inline
+                        , Tw.w_20
+                        ]
                     ]
                 ]
-                [ div
-                    [ css
-                        [ Tw.flex
-                        , Tw.h_screen
-                        ]
-                    ]
-                    [             {- Sidebar -}
-                    aside
-                        [ css
-                            [ Tw.bg_color Theme.white
-                            , Tw.p_6
-                            , Tw.border_r
-                            , Tw.border_color Theme.gray_200
-                            , Tw.w_0
-                            , Tw.hidden
-                            , Bp.xl
-                                [ Tw.w_52
-                                ]
-                            , Bp.md
-                                [ Tw.inline
-                                , Tw.w_20
-                                ]
-                            ]
-                        ]
-                        [ viewSidebarItems shared.browserEnv.translations shared.role (Shared.loggedIn shared) currentPath ]
+                [ viewSidebarItems styles shared.browserEnv.translations shared.role (Shared.loggedIn shared) currentPath ]
         , div
             [ css
                 [ Tw.flex_1
                 , Tw.p_8
+                , Tw.h_full
                 ]
             ]
-            [                 {- Top Section -}
-            div
+            [ div
                 [ css
                     [ Tw.flex
                     , Tw.justify_between
@@ -227,16 +232,16 @@ viewSidebar shared currentPath toContentMsg content =
                 , loginButton shared.browserEnv shared.loginStatus (profileForUser shared shared.loginStatus)
                 ]
                 |> Html.map toContentMsg
-                    , main_
-                        [ class "page"
-                        , css
-                            [ Tw.w_full
-                            ]
-                        ]
-                        content
+            , main_
+                [ class "page"
+                , css
+                    [ Tw.w_full
                     ]
                 ]
+                content
             ]
+        ]
+    ]
 
 viewBanner : Html contentMsg
 viewBanner =
@@ -410,8 +415,8 @@ profileForUser shared loggedIn =
 
 
 
-viewSidebarItems : I18Next.Translations -> ClientRole -> Bool -> Route.Path.Path -> Html msg
-viewSidebarItems translations clientRole loggedIn currentPath =
+viewSidebarItems : Styles contentMsg -> I18Next.Translations -> ClientRole -> Bool -> Route.Path.Path -> Html contentMsg
+viewSidebarItems styles translations clientRole loggedIn currentPath =
     let
         visibleSidebarItems =
             (sidebarItems clientRole translations)
@@ -428,7 +433,7 @@ viewSidebarItems translations clientRole loggedIn currentPath =
         ]
         ([ viewBannerSmall
         ] ++
-        (List.map (viewSidebarItem currentPath) visibleSidebarItems)
+        (List.map (viewSidebarItem styles currentPath) visibleSidebarItems)
         )
 
 
@@ -436,37 +441,29 @@ sidebarItemVisible : Bool -> SidebarItemData -> Bool
 sidebarItemVisible loggedIn sidebarItem =
     loggedIn || not sidebarItem.requiresLogin
 
-viewSidebarItem : Route.Path.Path -> SidebarItemData -> Html msg
-viewSidebarItem currentPath itemData =
+viewSidebarItem : Styles contentMsg -> Route.Path.Path -> SidebarItemData -> Html contentMsg
+viewSidebarItem styles currentPath itemData =
     let
         (foreground, background) =
             if itemData.disabled then
-                ( [ Tw.text_color Theme.gray_300
-                  ]
-                , [ 
-                  ]
+                ( styles.colorStyleGrayscaleDisabled
+                , [ ]
                 )
             else
                 if currentPath == itemData.path then
-                    ( [ Tw.text_color Theme.purple_600
-                    ]
-                    , [ Tw.bg_color Theme.purple_100
-                    ]
+                    ( styles.colorStyleSitebarItemActive
+                    , styles.colorStyleSitebarItemActiveBackground
                     )
                 else
-                    ( [ Tw.text_color Theme.gray_600
-                    ]
-                    , [ Css.hover
-                        [ Tw.bg_color Theme.purple_100
-                        ]
-                    ]
+                    ( styles.colorStyleLabel
+                    , []
                     )
     in
 
     a
-        [ Attr.href <| Route.toString { path = itemData.path, hash = Nothing, query = Dict.empty }
+        ([ Attr.href <| Route.toString { path = itemData.path, hash = Nothing, query = Dict.empty }
         , css
-            ([ Tw.flex
+            [ Tw.flex
             , Tw.items_center
             , Tw.space_x_2
             , Tw.w_0
@@ -478,8 +475,8 @@ viewSidebarItem currentPath itemData =
             , Bp.md
                 [ Tw.w_10
                 ]
-            ] ++ background ++ foreground)
-        ]
+            ]
+        ] ++ background ++ foreground)
         [ div
             [ css
                 [ Tw.min_w_0
@@ -493,13 +490,13 @@ viewSidebarItem currentPath itemData =
             ]
             [ itemData.icon |> FeatherIcons.toHtml [] |> Html.fromUnstyled ]
         , span
-            [ css
+            ([ css
                 [ Tw.hidden 
                 , Bp.xl
-                    ([ Tw.inline
-                    ] ++ foreground)
+                    [ Tw.inline
+                    ]
                 ]
-            ]
+            ] ++ foreground)
             [ text itemData.title ]
         ]
 

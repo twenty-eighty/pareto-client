@@ -8,6 +8,7 @@ import Html.Styled.Events as Events exposing (..)
 
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Html.Attributes
 
 fontFamilyInter : Html.Attribute msg
 fontFamilyInter =
@@ -24,6 +25,60 @@ fontFamilyUnbounded =
 fontFamilySourceSerifPro : Html.Attribute msg
 fontFamilySourceSerifPro =
     Attr.style "font-family" "Source Serif Pro"
+
+type alias StyleBundle msg =
+    List (Html.Attribute msg)
+
+mapStyleBundle : (msg1 -> msg2) -> StyleBundle msg1 -> StyleBundle msg2
+mapStyleBundle toMsg styles =
+    styles
+    |> List.map (\style -> Attr.map toMsg style)
+
+map : (msg1 -> msg2) -> Styles msg1 -> Styles msg2
+map toMsg props =
+    { textStyleReactions = mapStyleBundle toMsg props.textStyleReactions
+    , textStyleLinks = mapStyleBundle toMsg props.textStyleLinks
+    , textStyleBody = mapStyleBundle toMsg props.textStyleBody
+    , textStyleDropdownsLabel = mapStyleBundle toMsg props.textStyleDropdownsLabel
+    , textStyleSemiboldLabel = mapStyleBundle toMsg props.textStyleSemiboldLabel
+    , textStyleUppercaseLabel = mapStyleBundle toMsg props.textStyleUppercaseLabel
+    , textStyleH1 = mapStyleBundle toMsg props.textStyleH1
+    , textStyleH1Article = mapStyleBundle toMsg props.textStyleH1Article
+    , textStyleH2 = mapStyleBundle toMsg props.textStyleH2
+    , textStyleH3 = mapStyleBundle toMsg props.textStyleH3
+    , textStyleH4 = mapStyleBundle toMsg props.textStyleH4
+    , textStyleH4Article = mapStyleBundle toMsg props.textStyleH4Article
+    , textStyle14 = mapStyleBundle toMsg props.textStyle14
+    , textStyleArticleHashtags = mapStyleBundle toMsg props.textStyleArticleHashtags 
+    , textStyleArticleAuthor = mapStyleBundle toMsg props.textStyleArticleAuthor
+    , textStyleArticleCode = mapStyleBundle toMsg props.textStyleArticleCode
+    , textStyleArticleDate = mapStyleBundle toMsg props.textStyleArticleDate
+    , textStyleHashtagLarge = mapStyleBundle toMsg props.textStyleHashtagLarge
+    , colorStyleBackground = mapStyleBundle toMsg props.colorStyleBackground
+    , colorStyleLabel = mapStyleBundle toMsg props.colorStyleLabel
+    , colorStyleMedia = mapStyleBundle toMsg props.colorStyleMedia
+    , colorStyleLabelBG = mapStyleBundle toMsg props.colorStyleLabelBG
+    , colorStyleBorders = mapStyleBundle toMsg props.colorStyleBorders
+    , colorStyleIcons = mapStyleBundle toMsg props.colorStyleIcons
+    , colorStyleGreen = mapStyleBundle toMsg props.colorStyleGreen
+    , colorStyleCover = mapStyleBundle toMsg props.colorStyleCover
+    , colorStyleGrayscaleTitle = mapStyleBundle toMsg props.colorStyleGrayscaleTitle 
+    , colorStyleGrayscaleMuted = mapStyleBundle toMsg props.colorStyleGrayscaleMuted 
+    , colorStyleGrayscaleText = mapStyleBundle toMsg props.colorStyleGrayscaleText
+    , colorStyleGrayscaleMedia = mapStyleBundle toMsg props.colorStyleGrayscaleMedia 
+    , colorStyleGrayscaleDisabled = mapStyleBundle toMsg props.colorStyleGrayscaleDisabled
+    , colorStyleArticleHashtags = mapStyleBundle toMsg props.colorStyleArticleHashtags
+    , colorStyleInverse = mapStyleBundle toMsg props.colorStyleInverse
+    , colorStyleSitebarItemActive = mapStyleBundle toMsg props.colorStyleSitebarItemActive
+    , colorStyleSitebarItemActiveBackground = mapStyleBundle toMsg props.colorStyleSitebarItemActiveBackground
+    , colorStyleSitebarItemInactiveBackground = mapStyleBundle toMsg props.colorStyleSitebarItemInactiveBackground
+    , effectStyleModalShadow = mapStyleBundle toMsg props.effectStyleModalShadow
+    , effectStyleShadow1 = mapStyleBundle toMsg props.effectStyleShadow1
+    , effectStyleSheetShadow = mapStyleBundle toMsg props.effectStyleSheetShadow
+    , effectStyleNavShadow = mapStyleBundle toMsg props.effectStyleNavShadow
+    , effectStyleButtonShadow = mapStyleBundle toMsg props.effectStyleButtonShadow
+    , effectStyleButtonHover = mapStyleBundle toMsg props.effectStyleButtonHover
+    }
 
 
 type alias Styles msg =
@@ -44,6 +99,7 @@ type alias Styles msg =
     , textStyleArticleAuthor : StyleBundle msg
     , textStyleArticleCode : StyleBundle msg
     , textStyleArticleDate : StyleBundle msg
+    , textStyleHashtagLarge : StyleBundle msg
     , colorStyleBackground : StyleBundle msg
     , colorStyleLabel : StyleBundle msg
     , colorStyleMedia : StyleBundle msg
@@ -56,8 +112,12 @@ type alias Styles msg =
     , colorStyleGrayscaleMuted : StyleBundle msg
     , colorStyleGrayscaleText : StyleBundle msg
     , colorStyleGrayscaleMedia : StyleBundle msg
+    , colorStyleGrayscaleDisabled : StyleBundle msg
     , colorStyleArticleHashtags : StyleBundle msg
     , colorStyleInverse : StyleBundle msg
+    , colorStyleSitebarItemActive : StyleBundle msg
+    , colorStyleSitebarItemActiveBackground : StyleBundle msg
+    , colorStyleSitebarItemInactiveBackground : StyleBundle msg
     , effectStyleModalShadow : StyleBundle msg
     , effectStyleShadow1 : StyleBundle msg
     , effectStyleSheetShadow : StyleBundle msg
@@ -65,9 +125,6 @@ type alias Styles msg =
     , effectStyleButtonShadow : StyleBundle msg
     , effectStyleButtonHover : StyleBundle msg
     }
-
-type alias StyleBundle msg =
-    List (Html.Attribute msg)
 
 referenceDesignStyles : Styles msg
 referenceDesignStyles =
@@ -213,8 +270,14 @@ referenceDesignStyles =
         [ css
             [ Tw.text_xs
             , Tw.font_normal
-            , Tw.capitalize
             , Tw.leading_tight
+            ]
+        , fontFamilyRobotoMono
+        ]
+    , textStyleHashtagLarge =
+        [ css
+            [ Tw.text_4xl
+            , Tw.font_bold
             ]
         , fontFamilyRobotoMono
         ]
@@ -222,7 +285,7 @@ referenceDesignStyles =
         [ css
             [ Tw.bg_color Theme.white
             , darkMode
-                [ -- Tw.bg_color Theme.black
+                [ Tw.bg_color Theme.black
                 ]
             ]
         ]
@@ -230,7 +293,7 @@ referenceDesignStyles =
         [ css
             [ Tw.text_color Theme.slate_600 -- should be #565C70
             , darkMode
-                [ -- Tw.bg_color Theme.black
+                [ Tw.text_color Theme.slate_400
                 ]
             ]
         ]
@@ -238,7 +301,7 @@ referenceDesignStyles =
         [ css
             [ Tw.text_color Theme.slate_200 -- should be #D6D9E5
             , darkMode
-                [ -- Tw.bg_color Theme.black
+                [ Tw.text_color Theme.slate_800
                 ]
             ]
         ]
@@ -246,7 +309,7 @@ referenceDesignStyles =
         [ css
             [ Tw.text_color Theme.slate_200 -- should be #D6D9E5
             , darkMode
-                [ -- Tw.bg_color Theme.black
+                [ Tw.text_color Theme.slate_800
                 ]
             ]
         ]
@@ -254,7 +317,7 @@ referenceDesignStyles =
         [ css
             [ Tw.text_color Theme.slate_100 -- should be #DFE1EB
             , darkMode
-                [ -- Tw.bg_color Theme.black
+                [ Tw.text_color Theme.slate_900
                 ]
             ]
         ]
@@ -262,7 +325,7 @@ referenceDesignStyles =
         [ css
             [ Tw.text_color Theme.slate_400 -- should be #999CAB
             , darkMode
-                [ -- Tw.bg_color Theme.black
+                [ Tw.text_color Theme.slate_600
                 ]
             ]
         ]
@@ -270,7 +333,7 @@ referenceDesignStyles =
         [ css
             [ Tw.text_color Theme.emerald_400 -- should be Linear in Figma
             , darkMode
-                [ -- Tw.bg_color Theme.black
+                [ Tw.text_color Theme.emerald_600
                 ]
             ]
         ]
@@ -278,7 +341,7 @@ referenceDesignStyles =
         [ css
             [ Tw.text_opacity_70
             , darkMode
-                [ -- Tw.bg_color Theme.black
+                [ 
                 ]
             ]
         ]
@@ -286,7 +349,7 @@ referenceDesignStyles =
         [ css
             [ Tw.text_color Theme.slate_800
             , darkMode
-                [ -- Tw.bg_color Theme.black
+                [ Tw.text_color Theme.slate_200
                 ]
             ]
         ]
@@ -294,7 +357,7 @@ referenceDesignStyles =
         [ css
             [ Tw.text_color Theme.slate_400
             , darkMode
-                [ -- Tw.bg_color Theme.black
+                [ Tw.text_color Theme.slate_600
                 ]
             ]
         ]
@@ -302,7 +365,7 @@ referenceDesignStyles =
         [ css
             [ Tw.text_color Theme.slate_500
             , darkMode
-                [ -- Tw.bg_color Theme.black
+                [ Tw.text_color Theme.slate_500
                 ]
             ]
         ]
@@ -310,7 +373,15 @@ referenceDesignStyles =
         [ css
             [ Tw.text_color Theme.slate_300
             , darkMode
-                [ -- Tw.bg_color Theme.black
+                [ Tw.text_color Theme.slate_700
+                ]
+            ]
+        ]
+    , colorStyleGrayscaleDisabled =
+        [ css
+            [ Tw.text_color Theme.slate_300
+            , darkMode
+                [ Tw.text_color Theme.slate_700
                 ]
             ]
         ]
@@ -318,7 +389,7 @@ referenceDesignStyles =
         [ css
             [ Tw.text_color Theme.blue_600
             , darkMode
-                [ -- Tw.bg_color Theme.black
+                [ Tw.text_color Theme.blue_400
                 ]
             ]
         ]
@@ -330,30 +401,45 @@ referenceDesignStyles =
                 ]
             ]
         ]
+    , colorStyleSitebarItemActive =
+        [ css
+            [ Tw.text_color Theme.purple_600
+            , darkMode
+                [ Tw.text_color Theme.purple_400
+                ]
+            ]
+        ]
+    , colorStyleSitebarItemActiveBackground =
+        [ css
+            [ Tw.bg_color Theme.purple_100
+            , darkMode
+                [ Tw.bg_color Theme.purple_900
+                ]
+            ]
+        ]
+    , colorStyleSitebarItemInactiveBackground =
+        [ css
+            [ Tw.bg_color Theme.purple_100
+            , darkMode
+                [ Tw.bg_color Theme.slate_600
+                ]
+            ]
+        ]
     , effectStyleModalShadow =
         [ css
             [ Tw.drop_shadow_md
             , Tw.backdrop_blur_md
-            , darkMode
-                [ -- Tw.bg_color Theme.black
-                ]
             ]
         ]
     , effectStyleShadow1 =
         [ css
             [ Tw.drop_shadow_lg
             , Tw.backdrop_blur_md
-            , darkMode
-                [ -- Tw.bg_color Theme.black
-                ]
             ]
         ]
     , effectStyleSheetShadow =
         [ css
             [ Tw.backdrop_blur
-            , darkMode
-                [ -- Tw.bg_color Theme.black
-                ]
             ]
         , Attr.style "filter" "drop-shadow(0 -1px rgb(0 0 0 / 0.05))"
         ]
@@ -361,27 +447,18 @@ referenceDesignStyles =
         [ css
             [ Tw.drop_shadow
             , Tw.backdrop_blur_sm
-            , darkMode
-                [ -- Tw.bg_color Theme.black
-                ]
             ]
         ]
     , effectStyleButtonShadow =
         [ css
             [ Tw.drop_shadow
             , Tw.backdrop_blur_sm
-            , darkMode
-                [ -- Tw.bg_color Theme.black
-                ]
             ]
         ]
     , effectStyleButtonHover =
         [ css
             [ Tw.drop_shadow
             , Tw.backdrop_blur_sm
-            , darkMode
-                [ -- Tw.bg_color Theme.black
-                ]
             ]
         ]
     }

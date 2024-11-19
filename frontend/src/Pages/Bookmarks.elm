@@ -20,6 +20,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations.Bookmarks as Translations
 import Ui.Styles exposing (fontFamilyUnbounded, fontFamilyInter)
+import Ui.Styles exposing (referenceDesignStyles)
 import View exposing (View)
 
 
@@ -36,7 +37,7 @@ page user shared route =
 toLayout : Model -> Layouts.Layout Msg
 toLayout model =
     Layouts.Sidebar
-        {}
+        { styles = referenceDesignStyles }
 
 
 

@@ -23,8 +23,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
 import Translations.Read
-import Ui.Article
-import Ui.Styles
+import Ui.Styles exposing (referenceDesignStyles)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 import Ports
@@ -44,7 +43,7 @@ page shared route =
 toLayout : Model -> Layouts.Layout Msg
 toLayout model =
     Layouts.Sidebar
-        {}
+        { styles = referenceDesignStyles }
 
 
 -- INIT
@@ -57,6 +56,7 @@ type alias Model =
 type Category
     = Global
     | Pareto
+    | Followed
     | Highlighter
 
 
@@ -113,6 +113,9 @@ updateModelWithCategory shared model category =
                 Pareto ->
                     { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just (paretoFollowsList shared.nostr) , limit = Just 20 }
 
+                Followed ->
+                    { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just (userFollowsList shared.nostr shared.loginStatus) , limit = Just 20 }
+
                 Highlighter ->
                     { emptyEventFilter | kinds = Just [KindLongFormContent], limit = Just 20 }
     in
@@ -129,6 +132,18 @@ paretoFollowsList nostr =
     |> Maybe.map (List.map .pubKey)
     |> Maybe.withDefault []
 
+
+userFollowsList : Nostr.Model -> Shared.Model.LoginStatus -> List PubKey
+userFollowsList nostr loginStatus =
+    case loginStatus of
+        Shared.Model.LoggedIn pubKey ->
+            Nostr.getFollowsList nostr pubKey
+            |> Maybe.map (List.map .pubKey)
+            |> Maybe.withDefault []
+
+        _ ->
+            []
+
 -- SUBSCRIPTIONS
 
 
@@ -141,27 +156,40 @@ subscriptions model =
 -- VIEW
 
 
-availableCategories : Nostr.Model -> I18Next.Translations -> List (Components.Categories.CategoryData Category)
-availableCategories nostr translations =
+availableCategories : Nostr.Model -> Shared.Model.LoginStatus -> I18Next.Translations -> List (Components.Categories.CategoryData Category)
+availableCategories nostr loginStatus translations =
     let
         paretoCategories =
             if paretoFollowsList nostr /= [] then
                 [ paretoCategory translations ]
             else
                 []
+
+        followedCategories =
+            if userFollowsList nostr loginStatus /= [] then
+                [ followedCategory translations ]
+            else
+                []
     in
+    followedCategories ++ paretoCategories ++
     [ { category = Global
       , title = Translations.Read.globalFeedCategory [ translations ]
       }
 --   , { category = Highlighter
 --     , title = Translations.Read.highlighterFeedCategory [ translations ]
 --     }
-    ] ++ paretoCategories
+    ]
 
 paretoCategory : I18Next.Translations -> Components.Categories.CategoryData Category
 paretoCategory translations =
     { category = Pareto
-      , title = Translations.Read.paretoFeedCategory [ translations ]
+    , title = Translations.Read.paretoFeedCategory [ translations ]
+    }
+
+followedCategory : I18Next.Translations -> Components.Categories.CategoryData Category
+followedCategory translations =
+    { category = Followed
+    , title = Translations.Read.followedFeedCategory [ translations ]
     }
 
 view : Shared.Model.Model -> Model -> View Msg
@@ -172,8 +200,9 @@ view shared model =
                 { model = model.categories
                 , toMsg = CategoriesSent
                 , onSelect = CategorySelected
-                , categories = availableCategories shared.nostr shared.browserEnv.translations
+                , categories = availableCategories shared.nostr shared.loginStatus shared.browserEnv.translations
                 , browserEnv = shared.browserEnv
+                , styles = referenceDesignStyles
                 }
                 |> Components.Categories.view
             , Nostr.getArticlesByDate shared.nostr

@@ -24,7 +24,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
-import Ui.Styles exposing (fontFamilyUnbounded, fontFamilyInter)
+import Ui.Styles exposing (referenceDesignStyles, fontFamilyUnbounded, fontFamilyInter)
 import Ui.View exposing (ArticlePreviewType(..))
 import Url
 import View exposing (View)
@@ -43,7 +43,7 @@ page shared route =
 toLayout : Model -> Layouts.Layout Msg
 toLayout model =
     Layouts.Sidebar
-        {}
+        { styles = referenceDesignStyles }
 
 
 -- INIT
@@ -113,7 +113,7 @@ subscriptions model =
 
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
-    { title = "Read"
+    { title = model.tag
     , body =
         [ div
             [ css
@@ -125,22 +125,18 @@ view shared model =
             ]
             [ div
                 [ css
-                    [ Tw.bg_color Theme.white
-                    , Tw.p_6
+                    [ Tw.p_6
                     , Tw.rounded_lg
                     , Tw.shadow_lg
                     , Tw.max_w_3xl
                     ]
                 ]
                 [ h3
+                    (referenceDesignStyles.textStyleHashtagLarge ++ referenceDesignStyles.colorStyleGrayscaleTitle ++
                     [ css
-                        [ Tw.text_4xl
-                        , Tw.font_bold
-                        , Tw.text_color Theme.gray_900
-                        , Tw.mb_4
+                        [ Tw.mb_4
                         ]
-                    , fontFamilyUnbounded
-                    ]
+                    ])
                     [ text <| "#" ++ model.tag
                     ]
                 , Nostr.getArticlesByDate shared.nostr

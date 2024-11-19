@@ -24,7 +24,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
-import Ui.Styles exposing (Styles)
+import Ui.Styles exposing (referenceDesignStyles)
 import Ui.View
 import Url
 import View exposing (View)
@@ -43,7 +43,7 @@ page shared route =
 toLayout : Model -> Layouts.Layout Msg
 toLayout model =
     Layouts.Sidebar
-        {}
+        { styles = referenceDesignStyles }
 
 
 -- INIT
@@ -175,7 +175,7 @@ viewContent shared model =
     case model.contentToView of
         Just (ShortNote noteId) ->
             Nostr.getShortNoteById shared.nostr noteId
-            |> Maybe.map (Ui.View.viewShortNote Ui.Styles.referenceDesignStyles shared.browserEnv shared.nostr)
+            |> Maybe.map (Ui.View.viewShortNote referenceDesignStyles shared.browserEnv shared.nostr)
             |> Maybe.withDefault (div [][])
 
         _ ->

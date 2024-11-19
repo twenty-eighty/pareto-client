@@ -18,6 +18,7 @@ import Shared
 import Translations
 import View exposing (View)
 import Ui.ArticleOld
+import Ui.Styles exposing (referenceDesignStyles)
 import Shared.Msg
 
 
@@ -34,7 +35,7 @@ page shared route =
 toLayout : Model -> Layouts.Layout Msg
 toLayout model =
     Layouts.Sidebar
-        {}
+        { styles = referenceDesignStyles }
 
 
 -- INIT

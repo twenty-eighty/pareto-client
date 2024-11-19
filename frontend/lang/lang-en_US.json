@@ -27,6 +27,7 @@
       "Upload images": "Upload images"
    },
    "read": {
+      "followed feed category": "Followed",
       "global feed category": "Global",
       "pareto feed category": "Pareto",
       "highlighter feed category": "Highlighter"

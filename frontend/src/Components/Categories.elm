@@ -21,6 +21,7 @@ import Svg.Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Ui.Styles exposing (Styles)
 
 type Categories category msg
      = Settings
@@ -29,6 +30,7 @@ type Categories category msg
         , onSelect : category -> msg
         , categories : List (CategoryData category)
         , browserEnv : BrowserEnv
+        , styles : Styles msg
         }
 
 new :
@@ -37,6 +39,7 @@ new :
     , onSelect : category -> msg
     , categories : List (CategoryData category)
     , browserEnv : BrowserEnv
+    , styles : Styles msg
     }
     -> Categories category msg
 new props =
@@ -46,6 +49,7 @@ new props =
         , onSelect = props.onSelect
         , categories = props.categories
         , browserEnv = props.browserEnv
+        , styles = props.styles
         }
 
 
@@ -113,7 +117,7 @@ viewCategories (Settings settings) =
             (settings.model)
     in
     settings.categories
-    |> List.map (\categoryData -> viewCategory settings.toMsg settings.onSelect (model.selected == categoryData.category) categoryData)
+    |> List.map (\categoryData -> viewCategory settings.styles settings.toMsg settings.onSelect (model.selected == categoryData.category) categoryData)
     |> div
         [ css
             [ Tw.flex
@@ -122,30 +126,26 @@ viewCategories (Settings settings) =
             ]
         ]
 
-viewCategory : (Msg category msg -> msg) -> (category -> msg) -> Bool -> CategoryData category -> Html msg
-viewCategory toMsg onSelect active data =
+viewCategory : Styles msg -> (Msg category msg -> msg) -> (category -> msg) -> Bool -> CategoryData category -> Html msg
+viewCategory styles toMsg onSelect active data =
     let
         onClickCategory =
             toMsg (SelectedItem { category = data.category, onSelect = onSelect data.category })
 
         attrs =
             if active then
-                [ Tw.bg_color Theme.purple_100
-                , Tw.text_color Theme.purple_600
-                ]
+                styles.colorStyleSitebarItemActiveBackground ++ styles.colorStyleSitebarItemActive
             else
-                [ Tw.bg_color Theme.gray_100
-                , Tw.text_color Theme.gray_600
-                ]
+                styles.colorStyleSitebarItemInactiveBackground ++ styles.colorStyleSitebarItemActive
     in
     button
-        [ css
-            ([ Tw.px_4
+        ([ css
+            [ Tw.px_4
             , Tw.py_2
             , Tw.rounded_full
-            ] ++ attrs)
+            ]
         , Events.onClick onClickCategory
-        ]
+        ] ++ attrs)
         [ text data.title ]
 
 
