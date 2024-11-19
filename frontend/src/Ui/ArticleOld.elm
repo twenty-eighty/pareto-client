@@ -30,13 +30,11 @@ viewArticle browserEnv author article interactions =
             , Tw.items_center
             , Tw.justify_center
             , Tw.min_h_screen
-            , Tw.bg_color Theme.gray_100
             ]
         ]
         [ div
             [ css
-                [ Tw.bg_color Theme.white
-                , Tw.p_6
+                [ Tw.p_6
                 , Tw.rounded_lg
                 , Tw.shadow_lg
                 , Tw.max_w_3xl
@@ -61,13 +59,11 @@ viewArticleInternal browserEnv article =
             , Tw.items_center
             , Tw.justify_center
             , Tw.min_h_screen
-            , Tw.bg_color Theme.gray_100
             ]
         ]
         [ div
             [ css
-                [ Tw.bg_color Theme.white
-                , Tw.p_6
+                [ Tw.p_6
                 , Tw.rounded_lg
                 , Tw.shadow_lg
                 , Tw.max_w_3xl
@@ -101,8 +97,7 @@ viewArticlePreview browserEnv styles author article interactions displayAuthor =
         ]
         [ div
             [ css
-                [ Tw.bg_color Theme.white
-                , Tw.p_6
+                [ Tw.p_6
                 , Tw.rounded_lg
                 , Tw.shadow_lg
                 , Tw.max_w_3xl
@@ -131,8 +126,7 @@ viewArticleDraftPreview browserEnv article =
         ]
         [ div
             [ css
-                [ Tw.bg_color Theme.white
-                , Tw.p_6
+                [ Tw.p_6
                 , Tw.rounded_lg
                 , Tw.shadow_lg
                 , Tw.min_w_96

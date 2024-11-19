@@ -3,6 +3,7 @@ module Components.Categories exposing
     , CategoryData
     , Model, init
     , Msg, update
+    , selected
     , view
     , subscribe
     )
@@ -32,6 +33,10 @@ type Categories category msg
         , browserEnv : BrowserEnv
         , styles : Styles msg
         }
+
+selected : Model category -> category
+selected (Model model) =
+    model.selected
 
 new :
     { model : Model category

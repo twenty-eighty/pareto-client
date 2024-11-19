@@ -39,8 +39,7 @@ viewArticlePreviewsList : Styles msg -> BrowserEnv -> Nostr.Model -> List Articl
 viewArticlePreviewsList styles browserEnv nostr articles =
     div
         [ css
-            [ Tw.h_96
-            , Tw.flex_col
+            [ Tw.flex_col
             , Tw.justify_start
             , Tw.items_start
             , Tw.gap_8
@@ -51,7 +50,6 @@ viewArticlePreviewsList styles browserEnv nostr articles =
         [ div
             [ css
                 [ Tw.self_stretch
-                , Tw.h_96
                 , Tw.flex_col
                 , Tw.justify_start
                 , Tw.items_start
@@ -87,5 +85,5 @@ viewCommunity browserEnv nostr community =
     Ui.Community.viewCommunity browserEnv nostr.profiles community
 
 viewShortNote : Styles msg -> BrowserEnv -> Nostr.Model -> ShortNote -> Html msg
-viewShortNote  styles browserEnv nostr shortNote =
-    Ui.ShortNote.viewShortNote browserEnv nostr.profiles shortNote
+viewShortNote styles browserEnv nostr shortNote =
+    Ui.ShortNote.viewShortNote styles browserEnv nostr.profiles shortNote

@@ -189,7 +189,6 @@ viewSidebar styles shared currentPath toContentMsg content =
         [ div
             [ css
                 [ Tw.flex
-                , Tw.h_full
                 ]
             ]
             [ aside

@@ -12,45 +12,41 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Ui.Profile exposing (defaultProfileImage, profileDisplayName, validationIcon)
-import Ui.Styles exposing (fontFamilyUnbounded, fontFamilyInter)
+import Ui.Styles exposing (Styles)
 
-viewShortNote : BrowserEnv -> Dict PubKey Profile -> ShortNote -> Html msg
-viewShortNote browserEnv profiles shortNote =
+viewShortNote : Styles msg -> BrowserEnv -> Dict PubKey Profile -> ShortNote -> Html msg
+viewShortNote styles browserEnv profiles shortNote =
     div
         [ css
             [ Tw.flex
-            , Tw.items_center
             , Tw.justify_center
             , Tw.min_h_screen
-            , Tw.bg_color Theme.gray_100
             ]
         ]
         [ div
             [ css
-                [ Tw.bg_color Theme.white
-                , Tw.p_6
+                [ Tw.p_6
                 , Tw.rounded_lg
                 , Tw.shadow_lg
                 , Tw.max_w_3xl
-                , Tw.space_y_2
                 ]
             ]
-            [ viewContent shortNote.content
+            [ viewContent styles shortNote.content
             ]
         ]
 
-viewContent : Maybe String -> Html msg
-viewContent maybeDescription =
+viewContent : Styles msg -> Maybe String -> Html msg
+viewContent styles maybeDescription =
     case maybeDescription of
         Just description ->
             p
+                (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++
                 [ css
-                    [ Tw.text_color Theme.gray_600
-                    , Tw.text_sm
-                    , Tw.mb_4
+                    [ Tw.mb_4
                     ]
-                ]
+                ])
                 ( formattedContent description )
+
         Nothing ->
             div [][]
 

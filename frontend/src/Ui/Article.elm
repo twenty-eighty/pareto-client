@@ -18,6 +18,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
+import Ui.Shared
 import Ui.Styles exposing (Styles, darkMode, fontFamilyInter, fontFamilyUnbounded, fontFamilySourceSerifPro)
 import Time
 
@@ -93,9 +94,9 @@ viewArticle styles browserEnv author article interactions =
                     , Tw.mx_48
                     ]
                 ])
-                [ viewInteractions browserEnv interactions
+                [ viewInteractions styles browserEnv interactions
                 , viewContent styles article.content
-                , viewInteractions browserEnv interactions
+                , viewInteractions styles browserEnv interactions
                 ]
             ]
         -- , viewArticleComments styles
@@ -147,8 +148,8 @@ viewTitle maybeTitle =
             div [][]
 
 
-viewSummary : Maybe String -> Html msg
-viewSummary maybeSummary =
+viewSummary : Styles msg -> Maybe String -> Html msg
+viewSummary styles maybeSummary =
     case maybeSummary of
         Just summary ->
             p
@@ -180,8 +181,8 @@ viewTag tag =
         [ text tag ]
 
 
-viewInteractions : BrowserEnv -> Interactions -> Html msg
-viewInteractions browserEnv interactions =
+viewInteractions : Styles msg -> BrowserEnv -> Interactions -> Html msg
+viewInteractions styles browserEnv interactions =
     div
         [ css
             [ Tw.justify_start
@@ -190,25 +191,25 @@ viewInteractions browserEnv interactions =
             , Tw.inline_flex
             ]
         ]
-        [ viewReactions Graphics.commentsIcon (Maybe.map String.fromInt interactions.notes)
-        , viewReactions Graphics.likeIcon (Maybe.map String.fromInt interactions.reactions)
-        , viewReactions Graphics.repostIcon (Maybe.map String.fromInt interactions.reposts)
-        , viewReactions Graphics.zapIcon (Maybe.map (formatZapNum browserEnv) interactions.zaps)
+        [ viewReactions styles Graphics.commentsIcon (Maybe.map String.fromInt interactions.notes)
+        , viewReactions styles Graphics.likeIcon (Maybe.map String.fromInt interactions.reactions)
+        , viewReactions styles Graphics.repostIcon (Maybe.map String.fromInt interactions.reposts)
+        , viewReactions styles Graphics.zapIcon (Maybe.map (formatZapNum browserEnv) interactions.zaps)
         ]
                 
 
-viewReactions : Html msg -> Maybe String -> Html msg
-viewReactions icon maybeCount =
+viewReactions : Styles msg -> Html msg -> Maybe String -> Html msg
+viewReactions styles icon maybeCount =
     div
+        (styles.colorStyleLabel ++
         [ css
-            [ Tw.bg_color Theme.white
-            , Tw.rounded_3xl
+            [ Tw.rounded_3xl
             , Tw.justify_center
             , Tw.items_center
             , Tw.gap_1
             , Tw.flex
             ]
-        ]
+        ])
         [ div
             [ css
                 [ Tw.w_5
@@ -346,89 +347,6 @@ viewContent styles content =
         [ viewContentMarkdown styles content 
         ]
 
-{-
-        div
-            [ css
-                [ Tw.flex_col
-                , Tw.justify_start
-                , Tw.items_start
-                , Tw.gap_10
-                , Tw.flex
-                ]
-            ]
-            [ div
-                [ css
-                    [ Tw.w_96
-                    , Tw.text_color Theme.gray_500
-                    , Tw.text_base
-                    , Tw.font_normal
-                    , Tw.font_['Inter']
-                    , Tw.leading_normal
-                    ]
-                ]
-                [ text "I can't even begin to summarize everything that has come my way as a direct result of blogging as a developer.", br []
-                    []
-                , br []
-                    []
-                , text "Job opportunities and consulting work. Speaking gigs at conferences around the world. Even the financial freedom to bootstrap my own company full-time. All of that and more came as a result of blogging.", br []
-                    []
-                , br []
-                    []
-                , text "I've also worked as a hiring manager and seen how much a coherent tech blog with just a few articles can help a developer stand out from hundreds of other candidates.", br []
-                    []
-                , br []
-                    []
-                , text "In this post you'll learn:" ]
-            , div
-                [ css
-                    [ Tw.flex_col
-                    , Tw.justify_start
-                    , Tw.items_start
-                    , Tw.gap_8
-                    , Tw.flex
-                    ]
-                ]
-                [ div
-                    [ css
-                        [ Tw.text_color Theme.slate_800
-                        , Tw.text_3xl
-                        , Tw.font_semibold
-                        , Tw.font_['Inter']
-                        ]
-                    ]
-                    [ text "Why blog as a developer?" ]
-                , div
-                    [ css
-                        [ Tw.w_96
-                        , Tw.text_color Theme.gray_500
-                        , Tw.text_base
-                        , Tw.font_normal
-                        , Tw.font_['Inter']
-                        , Tw.leading_normal
-                        ]
-                    ]
-                    [ text "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Interdum consectetur condimentum id integer interdum a. Eget suspendisse id pretium bibendum sed condimentum at. Vitae duis adipiscing sit sociis leo vivamus vulputate. Tellus, tristique ac donec at aliquam nullam molestie senectus. Id eu nibh varius sit lectus a, auctor mauris nullam. Felis odio purus tortor odio nulla ultricies at mauris rhoncus.", br []
-                        []
-                    , br []
-                        []
-                    , text "Tincidunt eget ut ultricies pulvinar donec. Fames nunc mi non pellentesque tellus eget. Nisl arcu varius vehicula arcu velit. Commodo nibh vestibulum eu est est egestas. Diam id eget sagittis eu augue arcu. Cursus nullam volutpat urna sed. Nunc, odio vitae tortor purus quis gravida turpis.", br []
-                        []
-                    , br []
-                        []
-                    , text "Id elit diam iaculis adipiscing arcu venenatis, mauris. Nibh pretium dignissim ultrices in pharetra. Sit sit habitasse et iaculis lacus diam. Quis molestie eu sodales est id. Fringilla dolor porta sollicitudin pellentesque pellentesque nam nunc urna, volutpat. Tincidunt phasellus bibendum habitant scelerisque ridiculus sed.", br []
-                        []
-                    , br []
-                        []
-                    , text "Faucibus tellus id massa adipiscing. Iaculis molestie dictum id sapien sem scelerisque. Cras metus, egestas quam donec ultrices cras quam. Volutpat amet nec diam sed. Iaculis augue est varius egestas quam at. Non in posuere sapien tristique faucibus urna sed dignissim feugiat.", br []
-                        []
-                    , br []
-                        []
-                    , text "Nunc volutpat morbi nam ornare pretium, habitant at eu dictum. Eu tellus diam eu, duis sagittis, pharetra curabitur amet. Vulputate tincidunt nulla in a eu accumsan, purus. Suspendisse at amet, elementum ultrices. Tempor in sit tristique morbi. Justo, egestas et metus, lacinia eu netus faucibus. Curabitur nullam nunc vel amet duis magna ut a pretium. Nec sit suspendisse fermentum pellentesque ligula at diam, quis. Arcu congue eget vel senectus tincidunt scelerisque turpis volutpat, massa. Sit aenean purus."
-                    ]
-                ]
-            ]
--}
-
 viewContentMarkdown : Styles msg -> String -> Html msg
 viewContentMarkdown styles content =
     case Markdown.markdownViewHtml styles content of
@@ -531,6 +449,52 @@ viewArticleComments styles =
                     ]
                 ]
             ]
+
+viewArticleInternal : Styles msg -> BrowserEnv -> Article -> Html msg
+viewArticleInternal styles browserEnv article =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.items_center
+            , Tw.justify_center
+            , Tw.min_h_screen
+            ]
+        ]
+        [ div
+            [ css
+                [ Tw.p_6
+                , Tw.rounded_lg
+                , Tw.shadow_lg
+                , Tw.max_w_3xl
+                , Bp.xxl
+                    [ Tw.w_max
+                    ]
+                , Bp.xl
+                    [ Tw.w_max
+                    ]
+                , Bp.lg
+                    [ Tw.w_max
+                    ]
+                ]
+            ]
+            [ viewArticleImage article.image
+            , div
+                (styles.textStyleH1Article ++ styles.colorStyleGrayscaleTitle ++
+                [ css
+                    [ -- Tw.w_96
+                    ]
+                ])
+                [ text <| Maybe.withDefault "" article.title ]
+            , div
+                (styles.textStyleH4Article ++ styles.colorStyleGrayscaleText ++
+                [ css
+                    [ -- Tw.w_96
+                    ]
+                ])
+                [ text <| Maybe.withDefault "" article.summary ]
+            , viewContent styles article.content
+            ]
+        ]
 
 -- article previews
 
@@ -990,3 +954,76 @@ viewProfileImageSmall linkElement maybeImage validationStatus =
             [ Ui.Profile.validationIcon 16 validationStatus
             ]
         ]
+
+viewArticleDraftPreview : Styles msg -> BrowserEnv -> Article -> Html msg
+viewArticleDraftPreview styles browserEnv article =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.items_center
+            , Tw.justify_center
+            , Tw.mb_4
+            ]
+        ]
+        [ div
+            [ css
+                [ Tw.p_6
+                , Tw.rounded_lg
+                , Tw.shadow_lg
+                , Tw.min_w_96
+                , Tw.max_w_3xl
+                ]
+            ]
+            [ div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_row
+                    , Tw.justify_between
+                    ]
+                ]
+                [ timeParagraph styles browserEnv article.publishedAt
+                , editDraftButton article
+                ]
+            , viewTitleSummaryImagePreview styles article
+            , viewTags styles article
+            ]
+        ]
+
+viewTitleSummaryImagePreview : Styles msg -> Article -> Html msg
+viewTitleSummaryImagePreview styles article =
+    div 
+        [ css
+            [ Tw.flex
+            , Tw.flex_row
+            , Tw.space_x_5
+            ]
+        ]
+        [ div []
+            [ viewTitlePreview styles article.title (linkToArticle article) []
+            , viewSummary styles article.summary
+            ]
+        , viewArticleImage article.image
+        ]
+
+editDraftButton : Article -> Html msg
+editDraftButton article =
+    editDraftLink article
+    |> Maybe.map (Ui.Shared.linkButton "Edit")
+    |> Maybe.withDefault (div [][])
+
+
+editDraftLink : Article -> Maybe String
+editDraftLink article =
+    case Nip19.encode <| Nip19.NAddr 
+            { identifier = article.identifier |> Maybe.withDefault ""
+            , pubKey = article.author
+            , kind = numberForKind article.kind
+            , relays = []
+            } of
+        Ok encodedCoordinates ->
+            Just <| "/write?a=" ++ encodedCoordinates
+
+        Err error ->
+            Nothing
+
+     

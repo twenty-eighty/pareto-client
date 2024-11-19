@@ -15,9 +15,10 @@ import Nostr.Types exposing (PubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
+import Tailwind.Utilities as Tw
 import Translations
 import View exposing (View)
-import Ui.ArticleOld
+import Ui.Article
 import Ui.Styles exposing (referenceDesignStyles)
 import Shared.Msg
 
@@ -118,7 +119,12 @@ viewArticle : BrowserEnv -> Maybe Article -> Html Msg
 viewArticle browserEnv maybeArticle =
     case maybeArticle of
         Just article ->
-            Ui.ArticleOld.viewArticleInternal browserEnv article
+            Ui.Article.viewArticleInternal referenceDesignStyles browserEnv article
 
         Nothing ->
-            div [][]
+            div
+                [ css
+                    [ Tw.h_full
+                    ]
+                ]
+                []

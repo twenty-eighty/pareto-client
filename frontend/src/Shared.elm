@@ -16,31 +16,32 @@ module Shared exposing
 import BrowserEnv exposing (BrowserEnv)
 import Effect exposing (Effect)
 import Json.Decode
+import Json.Decode as Decode
 import Nostr
-import Nostr.Event exposing (emptyEventFilter)
+import Nostr.Event exposing (Kind(..), emptyEventFilter)
 import Nostr.Profile exposing (Profile)
 import Nostr.Request exposing (Request, RequestData(..))
 import Nostr.Types exposing (PubKey)
+import Pareto
 import Ports
 import Route exposing (Route)
 import Route.Path
 import Shared.Model exposing (LoginStatus(..))
 import Shared.Msg exposing (Msg(..))
-import Json.Decode as Decode
 import Shared.Model exposing (ClientRole(..))
-import Nostr.Event exposing (Kind(..))
-import Pareto
 
 type alias Model = Shared.Model.Model
 
 
 defaultRelays : List String
 defaultRelays =
-    [ -- "nostr.pareto.space/"
-     "pareto.nostr1.com/"
-    , "relay.snort.social"
+    [
+     "nostr.pareto.space/"
+--    , "team-relay.pareto.space"
+    , "pareto.nostr1.com/"
+--    , "relay.snort.social"
 --  , "relay.damus.io"
-  , "nos.lol"
+    , "nos.lol"
 --  , "offchain.pub"
 --  , "relay.damus.io"
 --  , "nostr.wine"
@@ -50,14 +51,16 @@ defaultRelays =
 
 type alias Flags =
     { isLoggedIn : Bool
+    , locale : String
     }
 
 
 -- Define a decoder for the 'isLoggedIn' field
 decoder : Json.Decode.Decoder Flags
 decoder =
-    Json.Decode.map Flags
+    Json.Decode.map2 Flags
         (Json.Decode.field "isLoggedIn" Json.Decode.bool)
+        (Json.Decode.field "locale" Json.Decode.string)
 
 -- INIT
 
@@ -77,7 +80,7 @@ init flagsResult route =
                     BrowserEnv.init
                         { backendUrl = ""
                         , frontendUrl = ""
-                        , locale = "de_DE"
+                        , locale = flags.locale
                         }
 
                 (nostrInit, nostrInitCmd) =

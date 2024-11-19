@@ -110,13 +110,11 @@ view shared model =
                 , Tw.items_center
                 , Tw.justify_center
                 , Tw.min_h_screen
-                , Tw.bg_color Theme.gray_100
                 ]
             ]
             [ div
                 [ css
-                    [ Tw.bg_color Theme.white
-                    , Tw.p_6
+                    [ Tw.p_6
                     , Tw.rounded_lg
                     , Tw.shadow_lg
                     , Tw.max_w_3xl
@@ -124,25 +122,20 @@ view shared model =
                     ]
                 ]
                 [ h1
+                    (referenceDesignStyles.colorStyleGrayscaleTitle ++ referenceDesignStyles.textStyleH1 ++
                     [ css
-                        [ Tw.text_4xl
-                        , Tw.font_bold
-                        , Tw.text_color Theme.gray_900
-                        , Tw.mb_2
+                        [ Tw.mb_2
                         ]
-                    , fontFamilyUnbounded
-                    ]
+                    ])
                     [ text <| Translations.bookmarksTitle [ shared.browserEnv.translations ]
                     ]
                 , h3
+                    (referenceDesignStyles.colorStyleGrayscaleTitle ++ referenceDesignStyles.textStyleH3 ++
                     [ css
-                        [ Tw.text_2xl
-                        , Tw.font_bold
-                        , Tw.text_color Theme.gray_900
-                        , Tw.mb_2
+                        [ Tw.mb_2
                         ]
                     , fontFamilyUnbounded
-                    ]
+                    ])
                     [ text <| Translations.myBookmarksTitle [ shared.browserEnv.translations ]
                     ]
                 , viewBookmarks shared model
