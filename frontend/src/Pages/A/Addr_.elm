@@ -19,6 +19,7 @@ import Shared
 import Shared.Msg
 import Shared.Model
 import Translations
+import Ui.Styles exposing (referenceDesignStyles)
 import Ui.View
 import Url
 import View exposing (View)
@@ -127,6 +128,6 @@ viewArticle : BrowserEnv -> Nostr.Model -> Maybe Article -> Html Msg
 viewArticle browserEnv nostr maybeArticle =
     case maybeArticle of
         Just article ->
-            Ui.View.viewArticle browserEnv nostr article 
+            Ui.View.viewArticle referenceDesignStyles browserEnv nostr article 
         Nothing ->
             div [][]

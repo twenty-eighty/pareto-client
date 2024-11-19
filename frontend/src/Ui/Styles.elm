@@ -13,6 +13,10 @@ fontFamilyInter : Html.Attribute msg
 fontFamilyInter =
     Attr.style "font-family" "Inter, sans-serif"
 
+fontFamilyRobotoMono : Html.Attribute msg
+fontFamilyRobotoMono =
+    Attr.style "font-family" "Roboto Mono, monospaced"
+
 fontFamilyUnbounded : Html.Attribute msg
 fontFamilyUnbounded =
     Attr.style "font-family" "Unbounded"
@@ -30,10 +34,16 @@ type alias Styles msg =
     , textStyleSemiboldLabel : StyleBundle msg
     , textStyleUppercaseLabel : StyleBundle msg
     , textStyleH1 : StyleBundle msg
+    , textStyleH1Article : StyleBundle msg
     , textStyleH2 : StyleBundle msg
     , textStyleH3 : StyleBundle msg
     , textStyleH4 : StyleBundle msg
+    , textStyleH4Article : StyleBundle msg
     , textStyle14 : StyleBundle msg
+    , textStyleArticleHashtags : StyleBundle msg
+    , textStyleArticleAuthor : StyleBundle msg
+    , textStyleArticleCode : StyleBundle msg
+    , textStyleArticleDate : StyleBundle msg
     , colorStyleBackground : StyleBundle msg
     , colorStyleLabel : StyleBundle msg
     , colorStyleMedia : StyleBundle msg
@@ -46,6 +56,8 @@ type alias Styles msg =
     , colorStyleGrayscaleMuted : StyleBundle msg
     , colorStyleGrayscaleText : StyleBundle msg
     , colorStyleGrayscaleMedia : StyleBundle msg
+    , colorStyleArticleHashtags : StyleBundle msg
+    , colorStyleInverse : StyleBundle msg
     , effectStyleModalShadow : StyleBundle msg
     , effectStyleShadow1 : StyleBundle msg
     , effectStyleSheetShadow : StyleBundle msg
@@ -123,6 +135,14 @@ referenceDesignStyles =
         , fontFamilyInter
         , Attr.style "line-height" "auto"
         ]
+    , textStyleH1Article =
+        [ css
+            [ Tw.text_5xl
+            , Tw.font_semibold
+            ]
+        , fontFamilyInter
+        , Attr.style "line-height" "auto"
+        ]
     , textStyleH2 =
         [ css
             [ Tw.text_2xl
@@ -148,6 +168,14 @@ referenceDesignStyles =
             ]
         , fontFamilyInter
         ]
+    , textStyleH4Article =
+        [ css
+            [ Tw.text_lg
+            , Tw.font_normal
+            , Tw.leading_7
+            ]
+        , fontFamilyInter
+        ]
     , textStyle14 =
         [ css
             [ Tw.text_sm
@@ -155,6 +183,40 @@ referenceDesignStyles =
             , Tw.leading_5
             ]
         , fontFamilyInter
+        ]
+    , textStyleArticleHashtags =
+        [ css
+            [ Tw.text_sm
+            , Tw.font_medium
+            , Tw.leading_snug
+            ]
+        , fontFamilyRobotoMono
+        ]
+    , textStyleArticleAuthor =
+        [ css
+            [ Tw.text_sm
+            , Tw.font_normal
+            , Tw.leading_snug
+            ]
+        , fontFamilyRobotoMono
+        ]
+    , textStyleArticleCode =
+        [ css
+            [ Tw.text_xs
+            , Tw.font_normal
+            , Tw.capitalize
+            , Tw.leading_tight
+            ]
+        , fontFamilyRobotoMono
+        ]
+    , textStyleArticleDate =
+        [ css
+            [ Tw.text_xs
+            , Tw.font_normal
+            , Tw.capitalize
+            , Tw.leading_tight
+            ]
+        , fontFamilyRobotoMono
         ]
     , colorStyleBackground =
         [ css
@@ -249,6 +311,22 @@ referenceDesignStyles =
             [ Tw.text_color Theme.slate_300
             , darkMode
                 [ -- Tw.bg_color Theme.black
+                ]
+            ]
+        ]
+    , colorStyleArticleHashtags =
+        [ css
+            [ Tw.text_color Theme.blue_600
+            , darkMode
+                [ -- Tw.bg_color Theme.black
+                ]
+            ]
+        ]
+    , colorStyleInverse =
+        [ css
+            [ Tw.text_color Theme.white
+            , darkMode
+                [ Tw.text_color Theme.black
                 ]
             ]
         ]

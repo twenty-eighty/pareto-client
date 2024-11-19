@@ -22,9 +22,9 @@ type ArticlePreviewType
     | ArticlePreviewBigPicture
 
 
-viewArticle : BrowserEnv -> Nostr.Model -> Article -> Html msg
-viewArticle browserEnv nostr article =
-    Ui.ArticleOld.viewArticle browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article)
+viewArticle : Styles msg -> BrowserEnv -> Nostr.Model -> Article -> Html msg
+viewArticle styles browserEnv nostr article =
+    Ui.Article.viewArticle styles browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article)
 
 viewArticlePreviews : ArticlePreviewType -> Styles msg -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
 viewArticlePreviews previewType styles browserEnv nostr articles =

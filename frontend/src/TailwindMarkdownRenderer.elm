@@ -10,21 +10,28 @@ import SyntaxHighlight
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Ui.Styles exposing (Styles)
 
 
-renderer : Markdown.Renderer.Renderer (Html.Html msg)
-renderer =
-    { heading = heading
+renderer : Styles msg -> Markdown.Renderer.Renderer (Html.Html msg)
+renderer styles =
+    { heading = heading styles
     , paragraph =
         Html.p
+            (styles.textStyleBody ++ styles.colorStyleGrayscaleText ++
             [ css
-                [ Tw.mt_8
-                , Tw.text_xl
-                , Tw.leading_8
-                , Tw.text_color Theme.gray_500
+                [ Tw.mb_6
                 ]
             ]
-    , thematicBreak = Html.hr [] []
+            )
+
+    , thematicBreak =
+        Html.hr
+            [ css
+                [ Tw.my_14
+                ]
+            ]
+            []
     , text = Html.text
     , strong = \content -> Html.strong [ css [ Tw.font_bold ] ] content
     , emphasis = \content -> Html.em [ css [ Tw.italic ] ] content
@@ -32,23 +39,19 @@ renderer =
     , codeSpan =
         \content ->
             Html.code
-                [ css
-                    [ Tw.font_semibold
-                    , Tw.font_medium
-                    , Css.color (Css.rgb 226 0 124) |> Css.important
-                    ]
-                ]
+                (styles.textStyleArticleCode ++ styles.colorStyleArticleHashtags)
                 [ Html.text content ]
 
     --, codeSpan = code
     , link =
         \{ destination } body ->
             Html.a
+                (styles.textStyleLinks ++ styles.colorStyleArticleHashtags ++
                 [ Attr.href destination
                 , css
                     [ Tw.underline
                     ]
-                ]
+                ])
                 body
     , hardLineBreak = Html.br [] []
     , image =
@@ -61,7 +64,7 @@ renderer =
                     Html.img [ Attr.src image.src, Attr.alt image.alt ] []
     , unorderedList =
         \items ->
-            Html.ul []
+            Html.ul (styles.textStyleBody ++ styles.colorStyleGrayscaleText)
                 (items
                     |> List.map
                         (\item ->
@@ -97,15 +100,32 @@ renderer =
             Html.ol
                 (case startingIndex of
                     1 ->
-                        [ Attr.start startingIndex ]
+                        (styles.textStyleBody ++ styles.colorStyleGrayscaleText ++
+                        [ Attr.start startingIndex
+                        , css
+                            [ Tw.list_decimal
+                            , Tw.ps_6
+                            ]
+                        ]
+                        )
 
                     _ ->
-                        []
+                        (styles.textStyleBody ++ styles.colorStyleGrayscaleText ++
+                        [ css
+                            [ Tw.list_decimal
+                            , Tw.ps_6
+                            ]
+                        ])
                 )
                 (items
                     |> List.map
                         (\itemBlocks ->
-                            Html.li []
+                            Html.li
+                                [ css
+                                    [ Tw.ps_2
+                                    , Tw.my_3
+                                    ]
+                                ]
                                 itemBlocks
                         )
                 )
@@ -204,34 +224,31 @@ rawTextToId rawText =
         |> String.toLower
 
 
-heading : { level : Block.HeadingLevel, rawText : String, children : List (Html.Html msg) } -> Html.Html msg
-heading { level, rawText, children } =
+heading : Styles msg -> { level : Block.HeadingLevel, rawText : String, children : List (Html.Html msg) } -> Html.Html msg
+heading styles { level, rawText, children } =
     case level of
         Block.H1 ->
             Html.h1
+                (styles.textStyleH1Article ++ styles.colorStyleGrayscaleText ++
                 [ css
-                    [ Tw.text_4xl
-                    , Tw.font_bold
-                    , Tw.tracking_tight
-                    , Tw.mt_2
+                    [ Tw.mt_2
                     , Tw.mb_4
                     ]
-                ]
+                ])
                 children
 
         Block.H2 ->
             Html.h2
+                (styles.textStyleH2 ++ styles.colorStyleGrayscaleText ++
                 [ Attr.id (rawTextToId rawText)
                 , Attr.attribute "name" (rawTextToId rawText)
                 , css
-                    [ Tw.text_3xl
-                    , Tw.font_semibold
-                    , Tw.tracking_tight
-                    , Tw.mt_10
+                    [ Tw.mt_10
                     , Tw.pb_1
                     , Tw.border_b
                     ]
                 ]
+                )
                 [ Html.a
                     [ Attr.href <| "#" ++ rawTextToId rawText
                     , css
@@ -251,6 +268,16 @@ heading { level, rawText, children } =
                            ]
                     )
                 ]
+
+        Block.H3 ->
+            Html.h3
+                (styles.textStyleH3 ++ styles.colorStyleGrayscaleText ++
+                [ css
+                    [ Tw.mt_10
+                    , Tw.mb_4
+                    ]
+                ])
+                children
 
         _ ->
             (case level of

@@ -20,8 +20,7 @@ import Time
 import Ui.Links exposing (linkElementForAuthor, linkToAuthor, linkToProfile, linkToProfilePubKey)
 import Ui.Profile exposing (timeParagraph)
 import Ui.Shared
-import Ui.Styles exposing (fontFamilyUnbounded, fontFamilyInter)
-import Ui.Styles exposing (Styles)
+import Ui.Styles exposing (Styles, fontFamilyUnbounded)
 
 viewArticle : BrowserEnv -> Author -> Article -> Interactions -> Html msg
 viewArticle browserEnv author article interactions =
@@ -331,7 +330,7 @@ viewContent content =
 
 viewContentMarkdown : String -> Html msg
 viewContentMarkdown content =
-    case Markdown.markdownViewHtml content of
+    case Markdown.markdownViewHtml Ui.Styles.referenceDesignStyles content of
         Ok html ->
             html
 

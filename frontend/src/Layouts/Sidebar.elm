@@ -219,23 +219,8 @@ viewSidebar shared currentPath toContentMsg content =
                     , Tw.mb_6
                     ]
                 ]
-                [ div
-                    [ css
-                        [ Tw.flex
-                        , Tw.items_center
-                        , Tw.space_x_4
-                        ]
-                    ]
-                    [ img
-                        [ Attr.src "/images/pareto-banner.png"
-                        , Attr.alt "Banner"
-                        , css
-                            [ Tw.h_16
-                            ]
-                        ]
-                        []
-                    ]
-                , if roleSwitchButtonEnabled shared.nostr shared.loginStatus then
+                [ -- viewBanner
+                 if roleSwitchButtonEnabled shared.nostr shared.loginStatus then
                     clientRoleSwitch shared.role
                   else
                     div [][]
@@ -252,6 +237,45 @@ viewSidebar shared currentPath toContentMsg content =
                     ]
                 ]
             ]
+
+viewBanner : Html contentMsg
+viewBanner =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.items_center
+            , Tw.space_x_4
+            ]
+        ]
+        [ img
+            [ Attr.src "/images/pareto-banner.png"
+            , Attr.alt "Banner"
+            , css
+                [ Tw.h_16
+                ]
+            ]
+            []
+        ]
+
+viewBannerSmall : Html contentMsg
+viewBannerSmall =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.items_center
+            , Tw.space_x_4
+            ]
+        ]
+        [ img
+            [ Attr.src "/images/pareto-banner.png"
+            , Attr.alt "Banner"
+            , css
+                [ Tw.h_10
+                , Tw.rounded_md
+                ]
+            ]
+            []
+        ]
 
 roleSwitchButtonEnabled : Nostr.Model -> LoginStatus -> Bool
 roleSwitchButtonEnabled nostr loginStatus =
@@ -402,7 +426,10 @@ viewSidebarItems translations clientRole loggedIn currentPath =
             , Tw.space_y_4
             ]
         ]
+        ([ viewBannerSmall
+        ] ++
         (List.map (viewSidebarItem currentPath) visibleSidebarItems)
+        )
 
 
 sidebarItemVisible : Bool -> SidebarItemData -> Bool

@@ -1,8 +1,10 @@
 module Pages.U.User_.Identifier_ exposing (Model, Msg, page)
 
 import Effect exposing (Effect)
+import FeatherIcons exposing (user)
 import Html.Styled as Html exposing (Html)
 import Layouts
+import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Nip05 as Nip05
@@ -12,8 +14,7 @@ import Route exposing (Route)
 import Shared
 import Shared.Msg
 import View exposing (View)
-import FeatherIcons exposing (user)
-import Nostr
+import Ui.Styles exposing (referenceDesignStyles)
 import Ui.View
 
 
@@ -132,7 +133,7 @@ viewArticle : Shared.Model -> Maybe Article -> Html Msg
 viewArticle shared maybeArticle =
     case maybeArticle of
         Just article ->
-            Ui.View.viewArticle shared.browserEnv shared.nostr article
+            Ui.View.viewArticle referenceDesignStyles shared.browserEnv shared.nostr article
 
         Nothing ->
             Html.div [][]

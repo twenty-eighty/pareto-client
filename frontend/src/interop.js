@@ -248,6 +248,7 @@ export const onReady = ({ app, env }) => {
           case 10096: // relay list for file uploads (NIP-96)
           case 30000: // follow sets
           case 30003: // bookmark sets
+          case 30023: // long-form article
             {
               eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
               break;

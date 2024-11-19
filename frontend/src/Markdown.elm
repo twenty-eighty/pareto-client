@@ -1,4 +1,4 @@
-module Markdown exposing (Msg, markdownViewHtml, maybeHtmlFromMarkdown)
+module Markdown exposing (Msg, markdownViewHtml)
 
 -- import Html exposing (Attribute, Html)
 
@@ -11,19 +11,11 @@ import Markdown.Parser
 import Markdown.Renderer as Renderer
 import Parser
 import Parser.Advanced as Advanced
+import Ui.Styles exposing (Styles)
 import TailwindMarkdownRenderer
-
 
 type Msg
     = OnMarkdownInput String
-
-
-render : String -> Result String (List (Html msg))
-render markdown =
-    markdown
-        |> Markdown.Parser.parse
-        |> Result.mapError deadEndsToString
-        |> Result.andThen (\ast -> Renderer.render TailwindMarkdownRenderer.renderer ast)
 
 
 deadEndsToString : List (Advanced.DeadEnd String Parser.Problem) -> String
@@ -33,29 +25,20 @@ deadEndsToString deadEnds =
         |> String.join "\n"
 
 
-markdownViewHtml : String -> Result String (Html msg)
-markdownViewHtml markdown =
-    render markdown
+markdownViewHtml : Styles msg -> String -> Result String (Html msg)
+markdownViewHtml styles markdown =
+    render styles markdown
         |> Result.map elementFromHtmlList
+
+render : Styles msg -> String -> Result String (List (Html msg))
+render styles markdown =
+    markdown
+        |> Markdown.Parser.parse
+        |> Result.mapError deadEndsToString
+        |> Result.andThen (\ast -> Renderer.render (TailwindMarkdownRenderer.renderer styles) ast)
+
 
 
 elementFromHtmlList : List (Html msg) -> Html msg
 elementFromHtmlList htmlList =
     Html.div [] htmlList
-
-
-maybeHtmlFromMarkdown : String -> Maybe (Html msg)
-maybeHtmlFromMarkdown markdownFile =
-    let
-        markdownResult =
-            markdownFile
-                |> markdownViewHtml
-    in
-    case markdownResult of
-        Ok contentData ->
-            Just contentData
-
-        Err error ->
-            Nothing
-
-

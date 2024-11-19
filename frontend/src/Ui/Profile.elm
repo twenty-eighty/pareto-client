@@ -195,7 +195,7 @@ validationIcon : Int -> ProfileValidation -> Html msg
 validationIcon width validation =
     case validation of
         ValidationUnknown ->
-            Graphics.featherMehIcon width
+            div [][]
 
         ValidationPending ->
             Graphics.featherMehIcon width
