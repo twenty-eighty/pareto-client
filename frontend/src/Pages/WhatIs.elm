@@ -21,7 +21,7 @@ import Tailwind.Theme as Theme
 import Translations
 import View exposing (View)
 import Ui.ArticleOld
-import Ui.Styles exposing (referenceDesignStyles)
+import Ui.Styles exposing (Styles, Theme)
 
 
 page : Shared.Model -> Route () -> Page Model Msg
@@ -30,14 +30,14 @@ page shared route =
         { init = init shared
         , update = update
         , subscriptions = subscriptions
-        , view = view shared.browserEnv
+        , view = view shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        { styles = referenceDesignStyles }
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 -- INIT
@@ -118,19 +118,19 @@ subscriptions model =
 -- VIEW
 
 
-view : BrowserEnv -> Model -> View Msg
-view browserEnv model =
+view : Shared.Model -> Model -> View Msg
+view shared model =
     { title = "What Is Pareto"
     , body =
-        [ viewArticle browserEnv model.article
+        [ viewArticle (Ui.Styles.stylesForTheme shared.theme) shared.browserEnv model.article
         ]
     }
 
-viewArticle : BrowserEnv -> Maybe Article -> Html Msg
-viewArticle browserEnv maybeArticle =
+viewArticle : Styles Msg -> BrowserEnv -> Maybe Article -> Html Msg
+viewArticle styles browserEnv maybeArticle =
     case maybeArticle of
         Just article ->
-            Ui.ArticleOld.viewArticleInternal browserEnv article
+            Ui.ArticleOld.viewArticleInternal styles browserEnv article
 
         Nothing ->
             div [][]

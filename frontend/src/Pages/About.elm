@@ -19,7 +19,7 @@ import Tailwind.Utilities as Tw
 import Translations
 import View exposing (View)
 import Ui.Article
-import Ui.Styles exposing (referenceDesignStyles)
+import Ui.Styles exposing (Theme)
 import Shared.Msg
 
 
@@ -31,12 +31,12 @@ page shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        { styles = referenceDesignStyles }
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 -- INIT
@@ -111,15 +111,15 @@ view shared model =
     { title = Translations.aboutMenuItemText [shared.browserEnv.translations]
     , body =
         [ Nostr.getArticleWithIdentifier shared.nostr model.pubKey model.identifier
-            |> viewArticle shared.browserEnv
+            |> viewArticle shared.theme shared.browserEnv
         ]
     }
 
-viewArticle : BrowserEnv -> Maybe Article -> Html Msg
-viewArticle browserEnv maybeArticle =
+viewArticle : Theme -> BrowserEnv -> Maybe Article -> Html Msg
+viewArticle theme browserEnv maybeArticle =
     case maybeArticle of
         Just article ->
-            Ui.Article.viewArticleInternal referenceDesignStyles browserEnv article
+            Ui.Article.viewArticleInternal (Ui.Styles.stylesForTheme theme) browserEnv article
 
         Nothing ->
             div

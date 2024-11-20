@@ -5,7 +5,7 @@ import Page exposing (Page)
 import Route exposing (Route)
 import Shared
 import Pages.Read as Implementation
-import Ui.Styles exposing (referenceDesignStyles)
+import Ui.Styles exposing (Theme)
 
 
 page : Shared.Model -> Route () -> Page Model Msg
@@ -16,12 +16,12 @@ page shared route =
         , subscriptions = Implementation.subscriptions
         , view = Implementation.view shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout _ =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme _ =
     Layouts.Sidebar
-        { styles = referenceDesignStyles }
+        { styles = Ui.Styles.stylesForTheme theme }
 
 type alias Model = Implementation.Model
 type alias Msg = Implementation.Msg

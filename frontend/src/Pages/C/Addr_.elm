@@ -24,7 +24,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
-import Ui.Styles exposing (referenceDesignStyles)
+import Ui.Styles exposing (Theme)
 import Ui.View
 import Url
 import View exposing (View)
@@ -38,12 +38,12 @@ page shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        { styles = referenceDesignStyles }
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 -- INIT

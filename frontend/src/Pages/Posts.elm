@@ -24,24 +24,24 @@ import Tailwind.Theme as Theme
 import Translations
 import Translations.Posts
 import Ui.Article
-import Ui.Styles exposing (referenceDesignStyles)
+import Ui.Styles exposing (Styles, Theme)
 import View exposing (View)
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
 page user shared route =
     Page.new
-        { init = init shared user
+        { init = init shared
         , update = update shared
         , subscriptions = subscriptions
         , view = view shared user
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        { styles = referenceDesignStyles }
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 -- INIT
@@ -55,12 +55,6 @@ type Category
     = Published
     | Drafts
 
-type alias CategoryData =
-    { category : Category
-    , title : String
-    , request : RequestData
-    }
-
 availableCategories : I18Next.Translations -> List (Components.Categories.CategoryData Category)
 availableCategories translations =
     [ { category = Published
@@ -72,10 +66,12 @@ availableCategories translations =
     ]
 
 
-init : Shared.Model -> Auth.User -> () -> ( Model, Effect Msg )
-init shared user () =
-    ({ categories = Components.Categories.init { selected = Published } }, Effect.none)
-
+init : Shared.Model -> () -> ( Model, Effect Msg )
+init shared () =
+    updateModelWithCategory
+        shared
+        { categories = Components.Categories.init { selected = Published } }
+        Published
 
 -- UPDATE
 
@@ -142,7 +138,7 @@ view shared user model =
             , onSelect = CategorySelected
             , categories = availableCategories shared.browserEnv.translations
             , browserEnv = shared.browserEnv
-            , styles = referenceDesignStyles
+            , styles = Ui.Styles.stylesForTheme shared.theme
             }
             |> Components.Categories.view
         , viewArticles shared model
@@ -151,27 +147,31 @@ view shared user model =
 
 viewArticles : Shared.Model -> Model -> Html Msg
 viewArticles shared model =
+    let
+        styles =
+            Ui.Styles.stylesForTheme shared.theme
+    in
     case Components.Categories.selected model.categories of
         Published ->
             Nostr.getArticlesByDate shared.nostr
-            |> viewArticlePreviews shared.browserEnv shared.nostr
+            |> viewArticlePreviews styles shared.browserEnv shared.nostr
 
         Drafts ->
             Nostr.getArticleDraftsByDate shared.nostr
-            |> viewArticleDraftPreviews shared.browserEnv shared.nostr
+            |> viewArticleDraftPreviews styles shared.browserEnv shared.nostr
 
-viewArticlePreviews : BrowserEnv -> Nostr.Model -> List Article -> Html msg
-viewArticlePreviews browserEnv nostr articles =
+viewArticlePreviews : Styles msg -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
+viewArticlePreviews styles browserEnv nostr articles =
     articles
     |> List.take 20
-    |> List.map (\article -> Ui.Article.viewArticlePreviewList referenceDesignStyles browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article) True)
+    |> List.map (\article -> Ui.Article.viewArticlePreviewList styles browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article) True)
     |> div []
 
-viewArticleDraftPreviews : BrowserEnv -> Nostr.Model -> List Article -> Html msg
-viewArticleDraftPreviews browserEnv nostr articles =
+viewArticleDraftPreviews : Styles msg -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
+viewArticleDraftPreviews styles browserEnv nostr articles =
     articles
     |> List.take 20
-    |> List.map (\article -> Ui.Article.viewArticleDraftPreview referenceDesignStyles browserEnv article)
+    |> List.map (\article -> Ui.Article.viewArticleDraftPreview styles browserEnv article)
     |> div []
 
 

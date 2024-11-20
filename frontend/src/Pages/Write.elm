@@ -29,7 +29,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Time
 import Translations.Write
-import Ui.Styles exposing (referenceDesignStyles)
+import Ui.Styles exposing (Theme)
 import View exposing (View)
 
 
@@ -39,14 +39,14 @@ page user shared route =
         { init = init shared route
         , update = update shared user
         , subscriptions = subscriptions
-        , view = view user shared.browserEnv
+        , view = view user shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        { styles = referenceDesignStyles }
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 -- INIT
@@ -257,8 +257,8 @@ subscriptions model =
 -- VIEW
 
 
-view : Auth.User -> BrowserEnv -> Model -> View Msg
-view user browserEnv model =
+view : Auth.User -> Shared.Model -> Model -> View Msg
+view user shared model =
     { title = "Write"
     , body =
         [ div
@@ -274,16 +274,19 @@ view user browserEnv model =
                     ]
                 ]
             ]
-            [ viewTitle browserEnv model
-            , viewSubtitle browserEnv model
-            , viewEditor browserEnv model
-            , viewTags  browserEnv model
-            , saveButtons browserEnv model
+            [ viewTitle shared.browserEnv model
+            , viewSubtitle shared.browserEnv model
+            , viewEditor shared.browserEnv model
+            , viewTags  shared.browserEnv model
+            , saveButtons shared.browserEnv model
             , MediaSelector.new
                 { model = model.mediaSelector
                 , toMsg = MediaSelectorSent
                 , pubKey = user.pubKey
-                , browserEnv = browserEnv
+                , browserEnv = shared.browserEnv
+                , styles = Ui.Styles.stylesForTheme shared.theme
+                , blossomServers = Nostr.getBlossomServers shared.nostr user.pubKey
+                , nip96Servers = Nostr.getNip96Servers shared.nostr user.pubKey
                 }
                 |> MediaSelector.view
             ]

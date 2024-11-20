@@ -26,8 +26,17 @@ fontFamilySourceSerifPro : Html.Attribute msg
 fontFamilySourceSerifPro =
     Attr.style "font-family" "Source Serif Pro"
 
+type Theme
+    = ReferenceStyleTheme
+
 type alias StyleBundle msg =
     List (Html.Attribute msg)
+
+stylesForTheme : Theme -> Styles msg
+stylesForTheme theme =
+    case theme of
+        ReferenceStyleTheme ->
+            referenceDesignThemeStyles
 
 mapStyleBundle : (msg1 -> msg2) -> StyleBundle msg1 -> StyleBundle msg2
 mapStyleBundle toMsg styles =
@@ -126,8 +135,8 @@ type alias Styles msg =
     , effectStyleButtonHover : StyleBundle msg
     }
 
-referenceDesignStyles : Styles msg
-referenceDesignStyles =
+referenceDesignThemeStyles : Styles msg
+referenceDesignThemeStyles =
     { textStyleReactions =
         [ css
             [ Tw.text_base

@@ -3,6 +3,7 @@ module Shared.Model exposing (Model, LoginStatus(..), ClientRole(..))
 import BrowserEnv exposing (BrowserEnv)
 import Nostr
 import Nostr.Types exposing (PubKey)
+import Ui.Styles exposing (Theme)
 
 {-| Normally, this value would live in "Shared.elm"
 but that would lead to a circular dependency import cycle.
@@ -16,6 +17,7 @@ type alias Model =
     , browserEnv : BrowserEnv
     , nostr : Nostr.Model
     , role : ClientRole
+    , theme : Theme
     }
 
 type LoginStatus

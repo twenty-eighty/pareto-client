@@ -26,6 +26,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations.MediaSelector
+import Ui.Styles exposing (Styles)
 
 blossomServer =
     "https://nostrmedia.com"
@@ -43,6 +44,9 @@ type MediaSelector msg
         , toMsg : Msg msg -> msg
         , pubKey : PubKey
         , browserEnv : BrowserEnv
+        , styles : Styles msg
+        , blossomServers : List String
+        , nip96Servers : List String
         }
 
 new :
@@ -50,6 +54,9 @@ new :
     , toMsg : Msg msg -> msg
     , pubKey : PubKey
     , browserEnv : BrowserEnv
+    , styles : Styles msg
+    , blossomServers : List String
+    , nip96Servers : List String
     }
     -> MediaSelector msg
 new props =
@@ -58,6 +65,9 @@ new props =
         , toMsg = props.toMsg
         , pubKey = props.pubKey
         , browserEnv = props.browserEnv
+        , styles = props.styles
+        , blossomServers = props.blossomServers
+        , nip96Servers = props.nip96Servers
         }
 
 

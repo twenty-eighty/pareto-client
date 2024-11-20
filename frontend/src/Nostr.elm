@@ -7,6 +7,7 @@ import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Nostr.Article exposing (Article, articleFromEvent, filterMatchesArticle, tagReference)
+import Nostr.Blossom exposing (userServerListFromEvent)
 import Nostr.BookmarkList exposing (BookmarkList, bookmarkListFromEvent)
 import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
@@ -77,6 +78,7 @@ type alias Model =
     , relaysForPubKey : Dict PubKey (List RelayUrl)
     , reposts : Dict EventId Repost
     , shortTextNotes : Dict String ShortNote
+    , userServerLists : Dict PubKey (List String)
     , zapReceiptsAddress : Dict String (Dict String Nostr.Zaps.ZapReceipt)
     , zapReceiptsEvents : Dict String (Dict String Nostr.Zaps.ZapReceipt)
     , hooks : Hooks
@@ -278,6 +280,18 @@ getArticleDraftWithIdentifier model pubKey identifier =
     |> Dict.get pubKey
     |> Maybe.andThen (filterArticlesWithIdentifier identifier)
 
+getBlossomServers : Model -> PubKey -> List String
+getBlossomServers model pubKey =
+    model.userServerLists
+    |> Dict.get pubKey
+    |> Maybe.withDefault []
+
+getNip96Servers : Model -> PubKey -> List String
+getNip96Servers model pubKey =
+    model.fileStorageServerLists
+    |> Dict.get pubKey
+    |> Maybe.withDefault []
+
 getLastRequestId : Model -> RequestId
 getLastRequestId model =
     model.lastRequestId
@@ -399,6 +413,7 @@ requestUserData model pubKey =
                 , KindCommunitiesList
                 , KindFollowSets
                 , KindCommunitiesList
+                , KindUserServerList
                 , KindFileStorageServerList
                 ]
             , ids = Nothing
@@ -547,6 +562,7 @@ empty =
     , relaysForPubKey = Dict.empty
     , reposts = Dict.empty
     , shortTextNotes = Dict.empty
+    , userServerLists = Dict.empty
     , zapReceiptsAddress = Dict.empty
     , zapReceiptsEvents = Dict.empty
     , errors = []
@@ -703,6 +719,9 @@ updateModelWithEvents model requestId kind events =
         KindCommunitiesList ->
             updateModelWithCommunityLists model events
 
+        KindUserServerList ->
+            updateModelWithUserServerLists model requestId events
+
         KindFileStorageServerList ->
             updateModelWithFileStorageServerLists model requestId events
 
@@ -782,6 +801,20 @@ updateModelWithCommunityLists model events =
                 ) model.communityLists
     in
     ({ model | communityLists = communityLists}, Cmd.none)
+
+updateModelWithUserServerLists : Model -> RequestId -> List Event -> (Model, Cmd Msg)
+updateModelWithUserServerLists model requestId events =
+    let
+        -- usually there should be only one for the logged-in user
+        userServerLists =
+            events
+            |> List.map userServerListFromEvent
+            |> List.foldl (\(pubKey, userServerList) dict ->
+                Dict.insert pubKey userServerList dict
+                ) model.userServerLists
+    in
+    ({ model | userServerLists = userServerLists }, Cmd.none)
+
 
 updateModelWithFileStorageServerLists : Model -> RequestId -> List Event -> (Model, Cmd Msg)
 updateModelWithFileStorageServerLists model requestId events =

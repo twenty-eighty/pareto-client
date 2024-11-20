@@ -4,6 +4,7 @@ import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as Pipeline
 import Time
+import Nostr.Event exposing (Event, Tag(..))
 import Nostr.Nip11 exposing (decodeUnixTime)
 import Nostr.Types exposing (PubKey)
 
@@ -14,6 +15,24 @@ type alias BlobDescriptor =
     , type_ : Maybe String
     , uploaded : Time.Posix
     }
+
+userServerListFromEvent : Event -> (PubKey, List String)
+userServerListFromEvent event =
+    let
+        userServerList =
+            event.tags
+            |> List.foldl (\tag serverList ->
+                case tag of 
+                    ServerTag url ->
+                        serverList ++ [ url ]
+
+                    _ ->
+                        serverList
+                    )
+                []
+    in
+    (event.pubKey, userServerList )
+
 
 fetchFileList : (Result Http.Error (List BlobDescriptor) -> msg) -> String -> String -> PubKey -> Cmd msg
 fetchFileList toMsg authHeader url pubKey =

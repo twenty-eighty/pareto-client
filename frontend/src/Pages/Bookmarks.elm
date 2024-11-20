@@ -19,8 +19,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations.Bookmarks as Translations
-import Ui.Styles exposing (fontFamilyUnbounded, fontFamilyInter)
-import Ui.Styles exposing (referenceDesignStyles)
+import Ui.Styles exposing (Theme, fontFamilyUnbounded, fontFamilyInter)
 import View exposing (View)
 
 
@@ -32,12 +31,12 @@ page user shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        { styles = referenceDesignStyles }
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 
@@ -102,6 +101,10 @@ subscriptions model =
 
 view : Shared.Model -> Model -> View Msg
 view shared model =
+    let
+        styles =
+            Ui.Styles.stylesForTheme shared.theme
+    in
     { title = Translations.bookmarksTitle [ shared.browserEnv.translations ]
     , body =
         [ div
@@ -122,7 +125,7 @@ view shared model =
                     ]
                 ]
                 [ h1
-                    (referenceDesignStyles.colorStyleGrayscaleTitle ++ referenceDesignStyles.textStyleH1 ++
+                    (styles.colorStyleGrayscaleTitle ++ styles.textStyleH1 ++
                     [ css
                         [ Tw.mb_2
                         ]
@@ -130,7 +133,7 @@ view shared model =
                     [ text <| Translations.bookmarksTitle [ shared.browserEnv.translations ]
                     ]
                 , h3
-                    (referenceDesignStyles.colorStyleGrayscaleTitle ++ referenceDesignStyles.textStyleH3 ++
+                    (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3 ++
                     [ css
                         [ Tw.mb_2
                         ]

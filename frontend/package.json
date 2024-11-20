@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@lo-fi/webauthn-local-client": "^0.1000.2",
     "@milkdown/core": "^7.5.0",
     "@milkdown/crepe": "^7.5.7",
     "@milkdown/kit": "^7.5.5",
@@ -7,7 +8,9 @@
     "@milkdown/preset-commonmark": "^7.5.0",
     "@milkdown/theme-nord": "^7.5.0",
     "@milkdown/utils": "^7.5.0",
-    "@nostr-dev-kit/ndk": "^2.10.2",
+    "@noble/hashes": "^1.5.0",
+    "@nostr-dev-kit/ndk": "^2.10.6",
+    "@scure/bip39": "^1.4.0",
     "blossom-client-sdk": "^1.1.1",
     "node": "^22.9.0",
     "nostr-login": "^1.6.6",

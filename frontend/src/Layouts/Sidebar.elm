@@ -1,6 +1,8 @@
 module Layouts.Sidebar exposing (Model, Msg, Props, layout, map)
 
 import BrowserEnv exposing (BrowserEnv)
+import Components.Button
+import Components.ContextMenu
 import Components.OnboardingDialog as OnboardingDialog
 import Css
 import Dict
@@ -17,6 +19,7 @@ import Nostr
 import Nostr.Types exposing (PubKey)
 import Nostr.Profile exposing (Profile)
 import Pareto
+import Ports
 import Route exposing (Route)
 import Route.Path
 import Shared
@@ -112,8 +115,8 @@ update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
         OpenGetStarted ->
-            ( { model | modalDialog = GetStartedDialog <| OnboardingDialog.init { onClose = CloseModal } }
-            , Effect.none
+            ( model
+            , Effect.sendCmd Ports.loginSignUp
             )
 
         OpenProfileMenu ->
@@ -570,17 +573,8 @@ profileImage maybeProfile =
 
 getStartedButton : BrowserEnv -> Html Msg
 getStartedButton browserEnv =
-    button
-        [ css
-            [ Tw.bg_color Theme.orange_500
-            , Tw.text_color Theme.white
-            , Tw.py_2
-            , Tw.px_4
-            , Tw.rounded_full
-            , Css.hover
-                [ Tw.bg_color Theme.orange_700
-                ]
-            ]
-        , Events.onClick OpenGetStarted
-        ]
-        [ text <| Translations.getStartedButtonText [ browserEnv.translations ] ]
+    Components.Button.new
+        { label = Translations.getStartedButtonText [ browserEnv.translations ]
+        , onClick = OpenGetStarted
+        }
+        |> Components.Button.view

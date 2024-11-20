@@ -24,7 +24,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
-import Ui.Styles exposing (referenceDesignStyles, fontFamilyUnbounded, fontFamilyInter)
+import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import Url
 import View exposing (View)
@@ -38,12 +38,12 @@ page shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        { styles = referenceDesignStyles }
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 -- INIT
@@ -113,6 +113,11 @@ subscriptions model =
 
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
+    let
+        styles =
+            Ui.Styles.stylesForTheme shared.theme
+    
+    in
     { title = model.tag
     , body =
         [ div
@@ -132,7 +137,7 @@ view shared model =
                     ]
                 ]
                 [ h3
-                    (referenceDesignStyles.textStyleHashtagLarge ++ referenceDesignStyles.colorStyleGrayscaleTitle ++
+                    (styles.textStyleHashtagLarge ++ styles.colorStyleGrayscaleTitle ++
                     [ css
                         [ Tw.mb_4
                         ]
@@ -140,7 +145,7 @@ view shared model =
                     [ text <| "#" ++ model.tag
                     ]
                 , Nostr.getArticlesByDate shared.nostr
-                |> Ui.View.viewArticlePreviews ArticlePreviewList Ui.Styles.referenceDesignStyles shared.browserEnv shared.nostr 
+                |> Ui.View.viewArticlePreviews ArticlePreviewList styles shared.browserEnv shared.nostr 
                 ]
             ]
         ]

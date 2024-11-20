@@ -23,7 +23,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
 import Translations.Read
-import Ui.Styles exposing (referenceDesignStyles)
+import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 import Ports
@@ -38,12 +38,12 @@ page shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        { styles = referenceDesignStyles }
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 -- INIT
@@ -194,6 +194,10 @@ followedCategory translations =
 
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
+    let
+        styles =
+            Ui.Styles.stylesForTheme shared.theme
+    in
     { title = Translations.readMenuItemText [shared.browserEnv.translations]
     , body = [                                  {- Main Content -}
             Components.Categories.new
@@ -202,10 +206,10 @@ view shared model =
                 , onSelect = CategorySelected
                 , categories = availableCategories shared.nostr shared.loginStatus shared.browserEnv.translations
                 , browserEnv = shared.browserEnv
-                , styles = referenceDesignStyles
+                , styles = styles
                 }
                 |> Components.Categories.view
             , Nostr.getArticlesByDate shared.nostr
-             |> Ui.View.viewArticlePreviews ArticlePreviewList Ui.Styles.referenceDesignStyles shared.browserEnv shared.nostr 
+             |> Ui.View.viewArticlePreviews ArticlePreviewList styles shared.browserEnv shared.nostr 
             ]
     }

@@ -20,7 +20,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations.Communities as Translations
-import Ui.Styles exposing (fontFamilyUnbounded, fontFamilyInter, referenceDesignStyles)
+import Ui.Styles exposing (Theme, fontFamilyUnbounded, fontFamilyInter)
 import View exposing (View)
 import Html.Styled exposing (input)
 import Shared.Model exposing (LoginStatus(..))
@@ -34,12 +34,12 @@ page shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        { styles = referenceDesignStyles }
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 

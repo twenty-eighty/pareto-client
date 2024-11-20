@@ -22,8 +22,8 @@ import Ui.Profile exposing (timeParagraph)
 import Ui.Shared
 import Ui.Styles exposing (Styles, fontFamilyUnbounded)
 
-viewArticle : BrowserEnv -> Author -> Article -> Interactions -> Html msg
-viewArticle browserEnv author article interactions =
+viewArticle : Styles msg -> BrowserEnv -> Author -> Article -> Interactions -> Html msg
+viewArticle styles browserEnv author article interactions =
     div
         [ css
             [ Tw.flex
@@ -47,12 +47,12 @@ viewArticle browserEnv author article interactions =
             , viewTags article
             , viewInteractions browserEnv interactions
             , viewAuthorAndDate browserEnv article.publishedAt article.author author
-            , viewContent article.content
+            , viewContent styles article.content
             ]
         ]
 
-viewArticleInternal : BrowserEnv -> Article -> Html msg
-viewArticleInternal browserEnv article =
+viewArticleInternal : Styles msg -> BrowserEnv -> Article -> Html msg
+viewArticleInternal styles browserEnv article =
     div
         [ css
             [ Tw.flex
@@ -81,7 +81,7 @@ viewArticleInternal browserEnv article =
             [ viewImage article.image
             , viewTitle article.title
             , viewSummary article.summary
-            , viewContent article.content
+            , viewContent styles article.content
             ]
         ]
 
@@ -311,8 +311,8 @@ viewSummaryPreview maybeSummary =
         Nothing ->
             div [][]
 
-viewContent : String -> Html msg
-viewContent content =
+viewContent : Styles msg -> String -> Html msg
+viewContent styles content =
             p
                 [ css
                     [ Tw.text_color Theme.gray_600
@@ -320,11 +320,11 @@ viewContent content =
                     , Tw.mb_4
                     ]
                 ]
-                [ viewContentMarkdown content ]
+                [ viewContentMarkdown styles content ]
 
-viewContentMarkdown : String -> Html msg
-viewContentMarkdown content =
-    case Markdown.markdownViewHtml Ui.Styles.referenceDesignStyles content of
+viewContentMarkdown : Styles msg -> String -> Html msg
+viewContentMarkdown styles content =
+    case Markdown.markdownViewHtml styles content of
         Ok html ->
             html
 

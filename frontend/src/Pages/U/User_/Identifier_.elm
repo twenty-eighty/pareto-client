@@ -14,7 +14,7 @@ import Route exposing (Route)
 import Shared
 import Shared.Msg
 import View exposing (View)
-import Ui.Styles exposing (referenceDesignStyles)
+import Ui.Styles exposing (Theme)
 import Ui.View
 
 
@@ -26,12 +26,12 @@ page shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        { styles = referenceDesignStyles }
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 
@@ -133,7 +133,7 @@ viewArticle : Shared.Model -> Maybe Article -> Html Msg
 viewArticle shared maybeArticle =
     case maybeArticle of
         Just article ->
-            Ui.View.viewArticle referenceDesignStyles shared.browserEnv shared.nostr article
+            Ui.View.viewArticle (Ui.Styles.stylesForTheme shared.theme) shared.browserEnv shared.nostr article
 
         Nothing ->
             Html.div [][]

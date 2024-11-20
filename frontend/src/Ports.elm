@@ -20,6 +20,10 @@ loginWithExtension : Cmd msg
 loginWithExtension =
     sendCommand { command = "loginWithExtension", value = Encode.null }
 
+loginSignUp : Cmd msg
+loginSignUp =
+    sendCommand { command = "loginSignUp", value = Encode.null }
+
 requestUser : Cmd msg
 requestUser =
     sendCommand { command = "requestUser", value = Encode.null }

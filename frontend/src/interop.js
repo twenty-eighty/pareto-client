@@ -3,7 +3,14 @@ import "./MilkdownEditor.js";
 
 import NDK, { NDKEvent, NDKArticle, NDKRelaySet, NDKNip07Signer, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import { BlossomClient } from "blossom-client-sdk/client";
-import { init as initNostrLogin } from "nostr-login"
+import { init as initNostrLogin, launch as launchNostrLoginDialog } from "nostr-login"
+
+// import NostrPasskeyModule from './nostrPasskeyModule.js';
+// const nostrPasskey = new NostrPasskeyModule();
+
+const nostrLoginOptions = {
+};
+initNostrLogin(nostrLoginOptions);
 
 const debug = true;
 
@@ -30,6 +37,8 @@ export const onReady = ({ app, env }) => {
   app.ports.sendCommand.subscribe(({ command: command, value: value }) => {
     if (command === 'connect') {
       connect(app, storedCommands, value);
+    } else if (command === 'loginSignUp') {
+      loginSignUp(app);
     } else if (connected) {
       processOnlineCommand(app, command, value);
     } else {
@@ -47,6 +56,7 @@ export const onReady = ({ app, env }) => {
     windowLoaded = true;
   };
 
+  // listen to events of nostr-login
   document.addEventListener('nlAuth', (event) => {
     switch (event.detail.type) {
       case 'login':
@@ -54,13 +64,13 @@ export const onReady = ({ app, env }) => {
         requestUser(app);
         localStorage.setItem('isLoggedIn', JSON.stringify(true));
         break;
+
       default:
         app.ports.receiveMessage.send({ messageType: 'loggedOut', value: null });
         localStorage.removeItem('isLoggedIn');
         break;
     }
   });
-
 
   function processOnlineCommand(app, command, value) {
     if (debug) {
@@ -246,6 +256,7 @@ export const onReady = ({ app, env }) => {
 
           case 10002: // relay list metadata
           case 10004: // community lists
+          case 10063: // relay list for file uploads (Blossom)
           case 10096: // relay list for file uploads (NIP-96)
           case 30000: // follow sets
           case 30003: // bookmark sets
@@ -519,15 +530,12 @@ export const onReady = ({ app, env }) => {
       }
       )
     }
-    /*
-         else {
-          // use nostr-login only if no browser extension is present
-          const nostrLoginOptions = {
-            "data-methods": ["extension"]
-          };
-          initNostrLogin(nostrLoginOptions);
-        }
-    */
+  }
+
+  function loginSignUp(app) {
+    const nostrLoginOptions = {
+    };
+    launchNostrLoginDialog(nostrLoginOptions);
   }
 
   function loginWithExtension(app) {

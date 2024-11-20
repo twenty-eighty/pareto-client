@@ -29,6 +29,7 @@ import Route.Path
 import Shared.Model exposing (LoginStatus(..))
 import Shared.Msg exposing (Msg(..))
 import Shared.Model exposing (ClientRole(..))
+import Ui.Styles exposing (Theme(..))
 
 type alias Model = Shared.Model.Model
 
@@ -99,6 +100,7 @@ init flagsResult route =
               , browserEnv = browserEnv
               , nostr = nostr
               , role = ClientConsumer
+              , theme = ReferenceStyleTheme
               }
             , Effect.batch
                 [ effect
@@ -122,6 +124,7 @@ init flagsResult route =
               , browserEnv = browserEnv
               , nostr = Nostr.empty
               , role = ClientConsumer
+              , theme = ReferenceStyleTheme
               }
             , Effect.none
             )
