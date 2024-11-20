@@ -419,9 +419,9 @@ referenceDesignStyles =
         ]
     , colorStyleSitebarItemInactiveBackground =
         [ css
-            [ Tw.bg_color Theme.purple_100
+            [ Tw.bg_color Theme.slate_100
             , darkMode
-                [ Tw.bg_color Theme.slate_600
+                [ Tw.bg_color Theme.slate_900
                 ]
             ]
         ]

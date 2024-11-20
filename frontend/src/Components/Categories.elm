@@ -141,7 +141,7 @@ viewCategory styles toMsg onSelect active data =
             if active then
                 styles.colorStyleSitebarItemActiveBackground ++ styles.colorStyleSitebarItemActive
             else
-                styles.colorStyleSitebarItemInactiveBackground ++ styles.colorStyleSitebarItemActive
+                styles.colorStyleSitebarItemInactiveBackground ++ styles.colorStyleGrayscaleText
     in
     button
         ([ css
