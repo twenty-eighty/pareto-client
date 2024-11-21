@@ -33,7 +33,7 @@ type RequestData
     | RequestReactions EventFilter
     | RequestUserData EventFilter
     | RequestBlossomListAuth String
-    | RequestNip98Auth String String
+    | RequestNip98Auth String String String
 
 relatedKindsForRequest : Maybe Request -> List Kind
 relatedKindsForRequest maybeRequest =

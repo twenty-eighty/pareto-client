@@ -52,7 +52,7 @@ type alias Hooks =
     , receiveMessage : (IncomingMessage -> Msg) -> Sub Msg
     , requestEvents : String -> Bool -> RequestId -> Maybe (List String) -> EventFilter -> Cmd Msg
     , requestBlossomListAuth : RequestId -> String -> Cmd Msg
-    , requestNip96Auth : RequestId -> String -> String -> Cmd Msg
+    , requestNip96Auth : RequestId -> String -> String -> String -> Cmd Msg
     , sendEvent : SendId -> Event -> Cmd Msg
     }
 
@@ -206,8 +206,8 @@ performRequest model description requestId requestData =
         RequestBlossomListAuth server ->
             ( model, model.hooks.requestBlossomListAuth requestId server)
 
-        RequestNip98Auth url method ->
-            ( model, model.hooks.requestNip96Auth requestId url method)
+        RequestNip98Auth serverUrl apiUrl method ->
+            ( model, model.hooks.requestNip96Auth requestId serverUrl apiUrl method)
 
 send : Model -> SendRequest -> (Model, Cmd Msg)
 send model sendRequest =
@@ -548,7 +548,7 @@ empty =
         , receiveMessage = \_ -> Sub.none
         , requestEvents = \_ _ _ _ _ -> Cmd.none
         , requestBlossomListAuth = \_ _ -> Cmd.none
-        , requestNip96Auth = \_ _ _ -> Cmd.none
+        , requestNip96Auth = \_ _ _ _ -> Cmd.none
         , sendEvent = \_ _ -> Cmd.none
         }
     , pubKeyByNip05 = Dict.empty

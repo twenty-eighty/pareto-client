@@ -376,23 +376,23 @@ export const onReady = ({ app, env }) => {
       // encode it using base64
       const encodedAuthHeader = BlossomClient.encodeAuthorizationHeader(listAuth);
 
-      app.ports.receiveMessage.send({ messageType: 'blossomAuthHeader', value: { requestId: requestId, authHeader: encodedAuthHeader } });
+      app.ports.receiveMessage.send({ messageType: 'blossomAuthHeader', value: { requestId: requestId, authHeader: encodedAuthHeader, url: server } });
     })
   }
 
 
-  function requestNip96Auth(app, { requestId: requestId, url: url, method: method }) {
+  function requestNip96Auth(app, { requestId: requestId, serverUrl: serverUrl, apiUrl: apiUrl, method: method }) {
     if (debug) {
       console.log("Nip96 auth request with requestId: " + requestId);
     }
 
-    const nip96 = window.ndk.getNip96(url);
-    nip96.generateNip98Header(url, method).then(nip98AuthHeader => {
+    const nip96 = window.ndk.getNip96(apiUrl);
+    nip96.generateNip98Header(apiUrl, method).then(nip98AuthHeader => {
       if (debug) {
         console.log('nip98 header', nip98AuthHeader);
       }
       // encode it using base64
-      app.ports.receiveMessage.send({ messageType: 'nip98AuthHeader', value: { requestId: requestId, authHeader: nip98AuthHeader, url: url } });
+      app.ports.receiveMessage.send({ messageType: 'nip98AuthHeader', value: { requestId: requestId, authHeader: nip98AuthHeader, serverUrl: serverUrl, apiUrl: apiUrl } });
     });
   }
 

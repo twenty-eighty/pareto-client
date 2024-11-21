@@ -6,7 +6,9 @@ import Json.Decode.Pipeline as Pipeline
 import Time
 import Nostr.Event exposing (Event, Tag(..))
 import Nostr.Nip11 exposing (decodeUnixTime)
+import Nostr.Nip94 as Nip94 exposing (FileMetadata)
 import Nostr.Types exposing (PubKey)
+import Json.Decode as Decode
 
 type alias BlobDescriptor =
     { url : String
@@ -14,6 +16,7 @@ type alias BlobDescriptor =
     , size : Int
     , type_ : Maybe String
     , uploaded : Time.Posix
+    , nip94 : Maybe FileMetadata
     }
 
 userServerListFromEvent : Event -> (PubKey, List String)
@@ -76,3 +79,31 @@ blobDescriptorDecoder =
         |> Pipeline.required "size" Decode.int
         |> Pipeline.optional "type" (Decode.map Just Decode.string) Nothing
         |> Pipeline.required "uploaded" decodeUnixTime
+        |> Pipeline.optional "nip94" (Decode.map Just metadataDecoder) Nothing
+
+metadataDecoder : Decode.Decoder FileMetadata
+metadataDecoder =
+    (Decode.list (Decode.list Decode.string))
+    |> Decode.andThen (\tagList ->
+        let
+            initialEvent =
+                { kind = Nothing
+                , content = ""
+                , createdAt = 0
+                , url = Nothing
+                , mimeType = Nothing
+                , xHash = Nothing
+                , oxHash = Nothing
+                , size = Nothing
+                , dim = Nothing
+                , magnet = Nothing
+                , i = Nothing
+                , blurhash = Nothing
+                , thumb = Nothing
+                , image = Nothing
+                , summary = Nothing
+                , alt = Nothing
+                }
+        in
+        Decode.succeed (Nip94.parseTags tagList initialEvent)
+    )

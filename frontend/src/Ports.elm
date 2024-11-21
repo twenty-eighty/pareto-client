@@ -62,14 +62,15 @@ requestBlossomListAuth requestId server =
                 ]
         }
 
-requestNip96Auth : RequestId -> String -> String -> Cmd msg
-requestNip96Auth requestId url method =
+requestNip96Auth : RequestId -> String -> String -> String -> Cmd msg
+requestNip96Auth requestId serverUrl apiUrl method =
     sendCommand
         { command = "requestNip96Auth"
         , value = 
             Encode.object
                 [ ("requestId", Encode.int requestId)
-                , ("url", Encode.string url)
+                , ("serverUrl", Encode.string serverUrl)
+                , ("apiUrl", Encode.string apiUrl)
                 , ("method", Encode.string method)
                 ]
         }
