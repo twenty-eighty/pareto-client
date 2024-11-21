@@ -1,7 +1,7 @@
 module Components.MediaSelector exposing
     ( MediaSelector, new
     , Model, init
-    , Msg, update
+    , Msg, update, show
     , view
     , subscribe
     )
@@ -9,6 +9,7 @@ module Components.MediaSelector exposing
 import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Css
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, strong, text)
 import Html.Styled.Attributes as Attr exposing (class, classList, css, disabled, href, type_)
@@ -27,16 +28,19 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations.MediaSelector
 import Ui.Styles exposing (Styles)
+import Dict
 
 blossomServer =
     "https://nostrmedia.com"
     -- "https://naughty-wood-53400.pktriot.net"
     --"http://localhost:4884"
 
+{-
 nip96Server =
     "https://void.cat"
     -- "https://nostrmedia.com"
     -- "https://nostr.build"
+-}
 
 type MediaSelector msg
      = Settings
@@ -45,8 +49,6 @@ type MediaSelector msg
         , pubKey : PubKey
         , browserEnv : BrowserEnv
         , styles : Styles msg
-        , blossomServers : List String
-        , nip96Servers : List String
         }
 
 new :
@@ -55,8 +57,6 @@ new :
     , pubKey : PubKey
     , browserEnv : BrowserEnv
     , styles : Styles msg
-    , blossomServers : List String
-    , nip96Servers : List String
     }
     -> MediaSelector msg
 new props =
@@ -66,8 +66,6 @@ new props =
         , pubKey = props.pubKey
         , browserEnv = props.browserEnv
         , styles = props.styles
-        , blossomServers = props.blossomServers
-        , nip96Servers = props.nip96Servers
         }
 
 
@@ -75,7 +73,10 @@ type Model
     = Model
         { selected : Maybe Int
         , search : String
-        , isMenuOpen : Bool
+        , isDialogOpen : Bool
+        , blossomServers : List String
+        , nip96Servers : List String
+        , nip96ServerDescResponses : Dict String Nip96.ServerDescResponse
         , authHeader : Maybe String
         , nip96Files : List Nip96.File
         , errors : List String
@@ -83,24 +84,47 @@ type Model
 
 
 
-init : { selected : Maybe item, toMsg : Msg msg -> msg } -> ( Model, Effect msg )
+init :
+    { selected : Maybe item
+    , toMsg : Msg msg -> msg
+    , blossomServers : List String
+    , nip96Servers : List String
+    }
+     -> ( Model, Effect msg )
 init props =
     ( Model
         { selected = Just 0
         , search = ""
-        , isMenuOpen = False
+        , isDialogOpen = False
+        , blossomServers = props.blossomServers
+        , nip96Servers = props.nip96Servers
+        , nip96ServerDescResponses = Dict.empty
         , authHeader = Nothing
         , nip96Files = []
         , errors = []
         }
 --  , Effect.sendCmd <| Ports.requestBlossomListAuth 1 blossomServer
-    , Effect.sendCmd (Nip96.fetchServerSpec (ReceivedNip96ServerDesc nip96Server) nip96Server)
+    , requestNip96ServerSpecs props.nip96Servers
     |> Effect.map props.toMsg
     )
+
+requestNip96ServerSpecs :  List String -> Effect (Msg msg)
+requestNip96ServerSpecs nip96Servers =
+    nip96Servers
+    |> List.map (\nip96Server ->
+        Effect.sendCmd (Nip96.fetchServerSpec (ReceivedNip96ServerDesc nip96Server) nip96Server)
+    )
+    |> Effect.batch
+
+
+show : Model -> Model
+show (Model model) =
+    Model { model | isDialogOpen = True }
 
 type Msg msg
     = FocusedDropdown
     | BlurredDropdown
+    | CloseDialog
     | UpdatedSearchInput String
     | IncomingMessage { messageType : String , value : Encode.Value }
     | ReceivedBlossomFileList (Result Http.Error (List BlobDescriptor))
@@ -134,19 +158,16 @@ update props =
     toParentModel <|
         case props.msg of
             FocusedDropdown ->
-                ( Model { model | isMenuOpen = True }
-                , Effect.none
-                )
+                ( Model { model | isDialogOpen = True } , Effect.none)
 
             BlurredDropdown ->
-                ( Model { model | search = "", isMenuOpen = False }
-                , Effect.none
-                )
+                ( Model { model | search = "", isDialogOpen = False } , Effect.none)
+
+            CloseDialog ->
+                ( Model { model | isDialogOpen = False } , Effect.none)
 
             UpdatedSearchInput input ->
-                ( Model { model | search = input, isMenuOpen = False }
-                , Effect.none
-                )
+                ( Model { model | search = input, isDialogOpen = False } , Effect.none)
 
             IncomingMessage { messageType, value } ->
                 processIncomingMessage props.user props.model messageType props.toMsg value
@@ -155,7 +176,7 @@ update props =
                 ( Model 
                     { model
                         | search = ""
-                        , isMenuOpen = False
+                        , isDialogOpen = False
                         , selected = Just 1
                     }
                 , case data.onChange of
@@ -177,7 +198,7 @@ update props =
             ReceivedNip96ServerDesc serverUrl result ->
                 case result of
                     Ok (Nip96.ServerRedirect serverRedirection) ->
-                        ( Model model
+                        ( Model { model | nip96ServerDescResponses = Dict.insert serverUrl (Nip96.ServerRedirect serverRedirection) model.nip96ServerDescResponses }
                         , Effect.sendCmd (Nip96.fetchServerSpec (ReceivedNip96ServerDesc serverUrl) serverRedirection.delegated_to_url)
                         |> Effect.map props.toMsg
                         )
@@ -187,7 +208,7 @@ update props =
                             serverDescWithExtendedUrls =
                                 extendRelativeServerDescriptorUrls serverUrl serverDescriptorData
                         in
-                        ( Model model
+                        ( Model { model | nip96ServerDescResponses = Dict.insert serverUrl (Nip96.ServerDescriptor serverDescWithExtendedUrls) model.nip96ServerDescResponses }
                         , Effect.sendCmd <| Ports.requestNip96Auth 1 serverDescWithExtendedUrls.apiUrl "GET"
                         )
 
@@ -247,6 +268,17 @@ view (Settings settings) =
     let
         (Model model) =
             settings.model
+    in
+    if model.isDialogOpen then
+        viewDialog (Settings settings)
+    else
+        div [][]
+
+viewDialog : MediaSelector msg -> Html msg 
+viewDialog (Settings settings) =
+    let
+        (Model model) =
+            settings.model
 
         onSearchInput : String -> msg
         onSearchInput value =
@@ -277,7 +309,7 @@ view (Settings settings) =
                     text ""
 
                 Just item ->
-                    if model.isMenuOpen then
+                    if model.isDialogOpen then
                         text ""
 
                     else
@@ -288,7 +320,7 @@ view (Settings settings) =
 
         viewDropdownMenu : Html msg
         viewDropdownMenu =
-            if model.isMenuOpen then
+            if model.isDialogOpen then
                 div [ class "dropdown__menu" ]
                     [] -- (List.map viewDropdownMenuItem settings.choices)
 
@@ -304,6 +336,7 @@ view (Settings settings) =
             , Tw.items_center
             , Tw.justify_center
             , Tw.z_50
+            , Tw.max_h_screen
             ]
         , Attr.id "modal-overlay"
         ]
@@ -344,6 +377,7 @@ view (Settings settings) =
                             ]
                         ]
                     , Attr.id "close-modal"
+                    , Events.onClick <| settings.toMsg CloseDialog
                     ]
                     [ text " ✕ " ]
                 ]
@@ -408,9 +442,10 @@ imagePreview nip96File =
             , Tw.justify_center
             , Tw.text_color Theme.gray_400
             ]
+        , Attr.alt <| Maybe.withDefault "" nip96File.alt
         , Attr.src (nip96File.url |> Maybe.withDefault "")
         ]
-        [ text " Image 1 " ]
+        [ ]
 
 subscribe : Model -> Sub (Msg msg)
 subscribe model =

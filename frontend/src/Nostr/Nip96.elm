@@ -86,9 +86,16 @@ extendRelativeUrl url path =
             |> Maybe.withDefault True
     in
     if urlIsRelative then
-        url ++ path
+        urlWithoutTrailingSlash url ++ path
     else
         path
+
+urlWithoutTrailingSlash : String -> String
+urlWithoutTrailingSlash url =
+    if String.endsWith "/" url then
+        String.dropRight 1 url
+    else
+        url
 
 -- Decoders
 
