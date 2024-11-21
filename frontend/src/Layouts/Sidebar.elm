@@ -16,6 +16,7 @@ import I18Next
 import Layout exposing (Layout)
 import ModalDialog exposing (ModalDialog)
 import Nostr
+import Nostr.FollowList exposing (Following(..))
 import Nostr.Types exposing (PubKey)
 import Nostr.Profile exposing (Profile)
 import Pareto
@@ -287,9 +288,16 @@ viewBannerSmall =
 roleSwitchButtonEnabled : Nostr.Model -> LoginStatus -> Bool
 roleSwitchButtonEnabled nostr loginStatus =
     case loginStatus of
-        LoggedIn pubKey ->
+        LoggedIn userPubKey ->
             Nostr.getFollowsList nostr Pareto.authorsKey
-            |> Maybe.map (List.filter (\follows -> follows.pubKey == pubKey))
+            |> Maybe.map (List.filter (\follows ->
+                case follows of
+                    FollowingPubKey { pubKey } ->
+                        userPubKey == pubKey
+
+                    _ ->
+                        False
+                    ))
             |> Maybe.map (not << List.isEmpty)
             |> Maybe.withDefault False
 

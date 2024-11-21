@@ -3,7 +3,7 @@ module Nostr.FollowSet exposing (..)
 import Dict exposing (Dict)
 import Json.Decode as Decode exposing (Decoder)
 import Nostr.Event exposing (Event, Kind(..), Tag(..))
-import Nostr.FollowList exposing (Following)
+import Nostr.FollowList exposing (Following(..))
 import Nostr.Types exposing (PubKey)
 
 
@@ -42,7 +42,10 @@ followSetFromEvent event =
                         { res | title = Just title }
 
                     PublicKeyTag pubKey relay petname ->
-                        { res | followList = res.followList ++ [{pubKey = pubKey, relay = relay, petname = petname}] }
+                        { res | followList = res.followList ++ [ FollowingPubKey {pubKey = pubKey, relay = relay, petname = petname}] }
+
+                    HashTag hashtag ->
+                        { res | followList = res.followList ++ [FollowingHashtag hashtag ] }
 
                     TitleTag title ->
                         { res | title = Just title }

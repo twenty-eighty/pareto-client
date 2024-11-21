@@ -28,6 +28,7 @@ import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import Url
 import View exposing (View)
+import Time exposing (Month(..))
 
 
 page : Shared.Model -> Route { tag : String } -> Page Model Msg
@@ -59,10 +60,14 @@ type alias Model =
 init : Shared.Model -> Route { tag : String } -> () -> ( Model, Effect Msg )
 init shared route () =
     let
+        decodedParam =
+            Url.percentDecode route.params.tag
+            |> Maybe.withDefault route.params.tag
+
         filter =
-            { emptyEventFilter | kinds = Just [KindLongFormContent], tagReferences = tagReferencesForParam route.params.tag, limit = Just 20 }
+            { emptyEventFilter | kinds = Just [KindLongFormContent], tagReferences = tagReferencesForParam decodedParam, limit = Just 20 }
     in
-    ( { tag = route.params.tag
+    ( { tag = decodedParam
       , articles = []
       , filter = filter
       }

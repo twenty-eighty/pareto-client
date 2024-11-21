@@ -11,6 +11,7 @@ import Layouts
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (EventFilter, Kind(..), kindDecoder, emptyEventFilter)
+import Nostr.FollowList exposing (followingPubKey)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Types exposing (PubKey)
 import Page exposing (Page)
@@ -128,18 +129,25 @@ updateModelWithCategory shared model category =
 
 paretoFollowsList : Nostr.Model -> List PubKey
 paretoFollowsList nostr =
-    Nostr.getFollowsList nostr Pareto.authorsKey
-    |> Maybe.map (List.map .pubKey)
-    |> Maybe.withDefault []
+    case Nostr.getFollowsList nostr Pareto.authorsKey of
+        Just followsList ->
+            followsList
+            |> List.filterMap followingPubKey
 
+        Nothing ->
+            []
 
 userFollowsList : Nostr.Model -> Shared.Model.LoginStatus -> List PubKey
 userFollowsList nostr loginStatus =
     case loginStatus of
         Shared.Model.LoggedIn pubKey ->
-            Nostr.getFollowsList nostr pubKey
-            |> Maybe.map (List.map .pubKey)
-            |> Maybe.withDefault []
+            case Nostr.getFollowsList nostr pubKey of
+                Just followsList ->
+                    followsList
+                    |> List.filterMap followingPubKey
+
+                Nothing ->
+                    []
 
         _ ->
             []
