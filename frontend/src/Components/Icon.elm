@@ -1,12 +1,21 @@
-module Components.Icon exposing (Icon, view)
+module Components.Icon exposing (Icon(..), view)
 
-import Html.Styled exposing (Html, div)
+import FeatherIcons
+import Html.Styled as Html exposing (Html, div)
 
 type Icon
-    = Icon
+    = FeatherIcon FeatherIcons.Icon
+    | DummyIcon
         {
         }
 
 view : Icon -> Html msg
 view icon =
-    div [][]
+    case icon of
+        FeatherIcon featherIcon ->
+            featherIcon
+            |> FeatherIcons.toHtml []
+            |> Html.fromUnstyled
+
+        DummyIcon _ ->
+            div [][]

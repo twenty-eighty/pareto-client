@@ -1,6 +1,6 @@
 module Components.MediaSelector exposing
     ( MediaSelector, new
-    , Model, init
+    , Model, init, DisplayType(..)
     , Msg, update, show
     , view
     , subscribe
@@ -74,7 +74,7 @@ type Model
     = Model
         { selected : Maybe Int
         , search : String
-        , isDialogOpen : Bool
+        , displayType : DisplayType
         , selectedServer : Maybe String
         , blossomServers : Dict String ServerState
         , nip96Servers : Dict String ServerState
@@ -84,6 +84,10 @@ type Model
         , uploadedNip96Files : Dict String (List UploadedFile)
         , errors : List String
         }
+
+type DisplayType
+    = DisplayModalDialog Bool
+    | DisplayEmbedded
 
 type ServerState
     = ServerStateUnknown
@@ -104,13 +108,14 @@ init :
     , toMsg : Msg msg -> msg
     , blossomServers : List String
     , nip96Servers : List String
+    , displayType : DisplayType
     }
      -> ( Model, Effect msg )
 init props =
     ( Model
         { selected = Just 0
         , search = ""
-        , isDialogOpen = False
+        , displayType = props.displayType
         , selectedServer = Nothing
         , blossomServers = serversWithUnknownState props.blossomServers
         , nip96Servers = serversWithUnknownState props.nip96Servers
@@ -154,13 +159,12 @@ requestNip96ServerSpecs nip96Servers =
 
 show : Model -> Model
 show (Model model) =
-    Model { model | isDialogOpen = True }
+    Model { model | displayType = DisplayModalDialog True }
 
 type Msg msg
     = FocusedDropdown
     | BlurredDropdown
     | CloseDialog
-    | UpdatedSearchInput String
     | IncomingMessage { messageType : String , value : Encode.Value }
     | ReceivedBlossomFileList String (Result Http.Error (List BlobDescriptor))
     | ReceivedNip96ServerDesc String (Result Http.Error Nip96.ServerDescResponse)
@@ -193,16 +197,13 @@ update props =
     toParentModel <|
         case props.msg of
             FocusedDropdown ->
-                ( Model { model | isDialogOpen = True } , Effect.none)
+                ( Model { model | displayType = DisplayModalDialog True } , Effect.none)
 
             BlurredDropdown ->
-                ( Model { model | search = "", isDialogOpen = False } , Effect.none)
+                ( Model { model | displayType = DisplayModalDialog False } , Effect.none)
 
             CloseDialog ->
-                ( Model { model | isDialogOpen = False } , Effect.none)
-
-            UpdatedSearchInput input ->
-                ( Model { model | search = input, isDialogOpen = False } , Effect.none)
+                ( Model { model | displayType = DisplayModalDialog False } , Effect.none)
 
             IncomingMessage { messageType, value } ->
                 processIncomingMessage props.user props.model messageType props.toMsg value
@@ -211,7 +212,6 @@ update props =
                 ( Model 
                     { model
                         | search = ""
-                        , isDialogOpen = False
                         , selected = Just 1
                     }
                 , case data.onChange of
@@ -347,63 +347,47 @@ view (Settings settings) =
         (Model model) =
             settings.model
     in
-    if model.isDialogOpen then
-        viewDialog (Settings settings)
-    else
-        div [][]
+    case model.displayType of
+        DisplayModalDialog False ->
+            div [][]
 
-viewDialog : MediaSelector msg -> Html msg 
-viewDialog (Settings settings) =
+        DisplayModalDialog True ->
+            div
+                [ css
+                    [ Tw.fixed
+                    , Tw.inset_0
+                    , Tw.bg_opacity_50
+                    , Tw.flex
+                    , Tw.items_center
+                    , Tw.justify_center
+                    , Tw.z_50
+                    , Tw.max_h_screen
+                    ]
+                , Attr.id "modal-overlay"
+                ]
+            [ div
+                [ css
+                    [ Tw.bg_color Theme.white
+                    , Tw.rounded_lg
+                    , Tw.shadow_lg
+                    , Tw.w_full
+                    , Tw.max_w_lg
+                    , Tw.p_6
+                    ]
+                ]
+                [ viewMediaSelector (Settings settings)
+                ]
+            ]
+
+        DisplayEmbedded ->
+            viewMediaSelector (Settings settings)
+
+viewMediaSelector : MediaSelector msg -> Html msg 
+viewMediaSelector (Settings settings) =
     let
         (Model model) =
             settings.model
 
-        onSearchInput : String -> msg
-        onSearchInput value =
-            settings.toMsg (UpdatedSearchInput value)
-
-        -- View the input of the dropdown, that opens the 
-        -- menu when focused, and displays the search query
-        viewDropdownInput : Html msg
-        viewDropdownInput =
-            div [ class "dropdown__toggle" ]
-                [ input
-                    [ class "dropdown__input"
-                    , type_ "search"
-                    , onInput onSearchInput
-                    , onFocus (settings.toMsg FocusedDropdown)
-                    , onBlur (settings.toMsg BlurredDropdown)
-                    ]
-                    []
-                , viewSelectedValueOverlay
-                ]
-
-        -- If a value is selected, this overlay should
-        -- appear over our input field when the menu is closed
-        viewSelectedValueOverlay : Html msg
-        viewSelectedValueOverlay = 
-            case model.selected of
-                Nothing ->
-                    text ""
-
-                Just item ->
-                    if model.isDialogOpen then
-                        text ""
-
-                    else
-                        strong
-                            [ class "dropdown__selected" ]
-                            [ text "text" ] -- (settings.toLabel item) ]
-
-
-        viewDropdownMenu : Html msg
-        viewDropdownMenu =
-            if model.isDialogOpen then
-                div [ class "dropdown__menu" ]
-                    [] -- (List.map viewDropdownMenuItem settings.choices)
-
-            else
-                text ""
 
         filesToShow =
             case model.selectedServer of
@@ -415,38 +399,85 @@ viewDialog (Settings settings) =
                     |> Maybe.withDefault [])
 
                 Nothing ->
-                    (Dict.values model.uploadedNip96Files
-                    |> List.concat)
+                    -- respect order of server list
+                    (Dict.keys model.blossomServers
+                    |> List.filterMap (\blossomServer -> Dict.get blossomServer model.uploadedBlossomFiles)
+                    |> List.concat
+                    )
                     ++
-                    (Dict.values model.uploadedBlossomFiles
-                    |> List.concat)
+                    (Dict.keys model.nip96Servers
+                    |> List.filterMap (\nip96Server -> Dict.get nip96Server model.uploadedNip96Files)
+                    |> List.concat
+                    )
 
     in
-    div
-        [ css
-            [ Tw.fixed
-            , Tw.inset_0
-            , Tw.bg_opacity_50
-            , Tw.flex
-            , Tw.items_center
-            , Tw.justify_center
-            , Tw.z_50
-            , Tw.max_h_screen
-            ]
-        , Attr.id "modal-overlay"
-        ]
-        [         {- Modal Content -}
+    div []
+        [ viewHeader model.displayType (Settings settings)
+        ,             {- Image Grid -}
         div
             [ css
-                [ Tw.bg_color Theme.white
-                , Tw.rounded_lg
-                , Tw.shadow_lg
-                , Tw.w_full
-                , Tw.max_w_lg
-                , Tw.p_6
+                [ Tw.grid
+                , Tw.gap_4
+                , Tw.mt_4
+                , Bp.xxl
+                    [ Tw.grid_cols_6
+                    ]
+                , Bp.xl
+                    [ Tw.grid_cols_5
+                    ]
+                , Bp.lg
+                    [ Tw.grid_cols_4
+                    ]
+                , Bp.md
+                    [ Tw.grid_cols_3
+                    ]
+                , Bp.sm
+                    [ Tw.grid_cols_2
+                    ]
+                , Tw.grid_cols_1
                 ]
             ]
-            [             {- Modal Header -}
+            (List.map imagePreview filesToShow)
+        ,             {- Upload Button -}
+        div
+            [ css
+                [ Tw.mt_6
+                , Tw.flex
+                , Tw.justify_end
+                ]
+            ]
+            [ label
+                [ css
+                    [ Tw.cursor_pointer
+                    , Tw.inline_flex
+                    , Tw.items_center
+                    , Tw.bg_color Theme.blue_500
+                    , Tw.text_color Theme.white
+                    , Tw.font_medium
+                    , Tw.py_2
+                    , Tw.px_4
+                    , Tw.rounded_lg
+                    , Css.hover
+                        [ Tw.bg_color Theme.blue_600
+                        ]
+                    ]
+                ]
+                [ input
+                    [ Attr.type_ "file"
+                    , Attr.multiple True
+                    , css
+                        [ Tw.hidden
+                        ]
+                    ]
+                    []
+                , text <| Translations.MediaSelector.uploadImages [settings.browserEnv.translations] ]
+            ]
+        ]
+    
+viewHeader : DisplayType -> MediaSelector msg -> Html msg
+viewHeader displayType (Settings settings) =
+    case displayType of
+        DisplayModalDialog True ->
             div
                 [ css
                     [ Tw.flex
@@ -476,88 +507,48 @@ viewDialog (Settings settings) =
                     ]
                     [ text " ✕ " ]
                 ]
-            ,             {- Image Grid -}
-            div
-                [ css
-                    [ Tw.grid
-                    , Tw.grid_rows_2
-                    , Tw.grid_cols_3
-                    , Tw.gap_4
-                    , Tw.mt_4
-                    ]
-                ]
-                (List.map imagePreview filesToShow)
-            ,             {- Upload Button -}
-            div
-                [ css
-                    [ Tw.mt_6
-                    , Tw.flex
-                    , Tw.justify_end
-                    ]
-                ]
-                [ label
-                    [ css
-                        [ Tw.cursor_pointer
-                        , Tw.inline_flex
-                        , Tw.items_center
-                        , Tw.bg_color Theme.blue_500
-                        , Tw.text_color Theme.white
-                        , Tw.font_medium
-                        , Tw.py_2
-                        , Tw.px_4
-                        , Tw.rounded_lg
-                        , Css.hover
-                            [ Tw.bg_color Theme.blue_600
-                            ]
-                        ]
-                    ]
-                    [ input
-                        [ Attr.type_ "file"
-                        , Attr.multiple True
-                        , css
-                            [ Tw.hidden
-                            ]
-                        ]
-                        []
-                    , text <| Translations.MediaSelector.uploadImages [settings.browserEnv.translations] ]
-                ]
-            ]
-        ]
-    
+
+        DisplayModalDialog False ->
+            div [][]
+
+        DisplayEmbedded ->
+            div [][]
+
 imagePreview : UploadedFile -> Html msg
 imagePreview uploadedFile =
+    let
+        commonAttributes =
+            [ css
+                [ Tw.w_full
+                , Tw.h_auto
+                , Tw.max_h_56
+                , Tw.bg_color Theme.gray_200
+                , Tw.rounded_lg
+                , Tw.flex
+                , Tw.items_center
+                , Tw.justify_center
+                , Tw.text_color Theme.gray_400
+                ]
+            ]
+    in
     case uploadedFile of
         Nip96File nip96File ->
             img
+                (commonAttributes ++
                 [ css
-                    [ Tw.w_full
-                    , Tw.h_24
-                    , Tw.bg_color Theme.gray_200
-                    , Tw.rounded_lg
-                    , Tw.flex
-                    , Tw.items_center
-                    , Tw.justify_center
-                    , Tw.text_color Theme.gray_400
-                    ]
+                    [ ]
                 , Attr.alt <| Maybe.withDefault "" nip96File.alt
                 , Attr.src (nip96File.url |> Maybe.withDefault "")
-                ]
+                ])
                 [ ]
 
         BlossomFile blobDescriptor ->
             img
+                (commonAttributes ++
                 [ css
-                    [ Tw.w_full
-                    , Tw.h_24
-                    , Tw.bg_color Theme.gray_200
-                    , Tw.rounded_lg
-                    , Tw.flex
-                    , Tw.items_center
-                    , Tw.justify_center
-                    , Tw.text_color Theme.gray_400
-                    ]
+                    [ ]
                 , Attr.src blobDescriptor.url
-                ]
+                ])
                 [ ]
 
 subscribe : Model -> Sub (Msg msg)

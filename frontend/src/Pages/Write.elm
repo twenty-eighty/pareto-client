@@ -97,6 +97,7 @@ init user shared route () =
                 , toMsg = MediaSelectorSent
                 , blossomServers = Nostr.getBlossomServers shared.nostr user.pubKey
                 , nip96Servers = Nostr.getNip96Servers shared.nostr user.pubKey
+                , displayType = MediaSelector.DisplayModalDialog False
                 }
 
         model =
