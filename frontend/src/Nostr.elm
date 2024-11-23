@@ -24,7 +24,7 @@ import Nostr.Reactions
 import Nostr.Relay exposing (Relay, RelayState(..))
 import Nostr.RelayListMetadata exposing (RelayMetadata, relayListFromEvent)
 import Nostr.Repost exposing (Repost, repostFromEvent)
-import Nostr.Request exposing (Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
+import Nostr.Request exposing (HttpRequestMethod, Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
@@ -46,13 +46,12 @@ type alias IncomingMessage =
     , value : Encode.Value
     }
 
-
 type alias Hooks =
     { connect : List String -> Cmd Msg
     , receiveMessage : (IncomingMessage -> Msg) -> Sub Msg
     , requestEvents : String -> Bool -> RequestId -> Maybe (List String) -> EventFilter -> Cmd Msg
     , requestBlossomListAuth : RequestId -> String -> Cmd Msg
-    , requestNip96Auth : RequestId -> String -> String -> String -> Cmd Msg
+    , requestNip96Auth : RequestId -> String -> String -> HttpRequestMethod -> Cmd Msg
     , sendEvent : SendId -> Event -> Cmd Msg
     }
 

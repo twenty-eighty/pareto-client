@@ -25,7 +25,7 @@
    },
    "media selector": {
       "Select image": "Bild auswählen",
-      "Upload images": "Bilder hochladen"
+      "Upload button title": "Hochladen"
    },
    "read": {
       "followed feed category": "Gefolgt",
@@ -37,6 +37,10 @@
       "posts title": "Posts",
       "published category": "Veröffentlicht",
       "drafts category": "Entwürfe"
+   },
+   "upload dialog": {
+      "dialog title": "Hochladen",
+      "upload button title": "Hochladen"
    },
    "write": {
       "article image": "Bild",

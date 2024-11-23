@@ -24,6 +24,7 @@
             "elm/time": "1.0.0",
             "elm/url": "1.0.0",
             "feathericons/elm-feather": "1.5.0",
+            "folkertdev/elm-sha2": "1.0.0",
             "justinmimbs/timezone-data": "11.0.0",
             "matheus23/elm-tailwind-modules-base": "1.0.0",
             "myrho/numeral-elm": "1.0.1",
@@ -36,6 +37,7 @@
             "tj/elm-svg-loaders": "1.0.0"
         },
         "indirect": {
+            "danfishgold/base64-bytes": "1.1.0",
             "elm/bytes": "1.0.8",
             "elm/regex": "1.0.0",
             "elm/virtual-dom": "1.0.3",

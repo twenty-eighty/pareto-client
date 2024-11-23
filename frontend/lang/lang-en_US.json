@@ -25,7 +25,7 @@
    },
    "media selector": {
       "Select image": "Select image",
-      "Upload images": "Upload images"
+      "Upload button title": "Upload"
    },
    "read": {
       "followed feed category": "Followed",
@@ -37,6 +37,10 @@
       "posts title": "Posts",
       "published category": "Published",
       "drafts category": "Drafts"
+   },
+   "upload dialog": {
+      "dialog title": "Upload",
+      "upload button title": "Upload"
    },
    "write": {
       "article image": "Image",

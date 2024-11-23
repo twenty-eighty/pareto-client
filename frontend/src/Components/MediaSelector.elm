@@ -8,6 +8,7 @@ module Components.MediaSelector exposing
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
+import Components.UploadDialog as UploadDialog exposing (UploadDialog)
 import Css
 import Dict exposing (Dict)
 import Effect exposing (Effect)
@@ -20,6 +21,7 @@ import Http
 import Nostr.Blossom as Blossom exposing (BlobDescriptor)
 import Nostr.Nip94 as Nip94
 import Nostr.Nip96 as Nip96 exposing (extendRelativeServerDescriptorUrls)
+import Nostr.Request exposing (HttpRequestMethod(..))
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
 import Ports
@@ -30,6 +32,9 @@ import Tailwind.Theme as Theme
 import Translations.MediaSelector
 import Ui.Styles exposing (Styles)
 import Dict
+import Components.Button as Button
+import Components.Icon as Icon
+import FeatherIcons
 
 {-
 blossomServer =
@@ -45,7 +50,7 @@ nip96Server =
 
 type MediaSelector msg
      = Settings
-        { model : Model 
+        { model : Model
         , toMsg : Msg msg -> msg
         , pubKey : PubKey
         , browserEnv : BrowserEnv
@@ -70,7 +75,7 @@ new props =
         }
 
 
-type Model 
+type Model
     = Model
         { selected : Maybe Int
         , search : String
@@ -82,6 +87,7 @@ type Model
         , authHeader : Maybe String
         , uploadedBlossomFiles : Dict String (List UploadedFile)
         , uploadedNip96Files : Dict String (List UploadedFile)
+        , uploadDialog : UploadDialog.Model
         , errors : List String
         }
 
@@ -123,6 +129,9 @@ init props =
         , authHeader = Nothing
         , uploadedBlossomFiles = Dict.empty
         , uploadedNip96Files = Dict.empty
+        , uploadDialog = UploadDialog.init
+            { toMsg = UploadDialogSent
+            }
         , errors = []
         }
     , Effect.batch
@@ -165,6 +174,8 @@ type Msg msg
     = FocusedDropdown
     | BlurredDropdown
     | CloseDialog
+    | Upload
+    | UploadDialogSent UploadDialog.Msg 
     | IncomingMessage { messageType : String , value : Encode.Value }
     | ReceivedBlossomFileList String (Result Http.Error (List BlobDescriptor))
     | ReceivedNip96ServerDesc String (Result Http.Error Nip96.ServerDescResponse)
@@ -177,7 +188,7 @@ type Msg msg
 
 update :
     { msg : Msg msg
-    , model : Model 
+    , model : Model
     , toModel : Model -> model
     , toMsg : Msg msg -> msg
     , user : Auth.User
@@ -204,6 +215,18 @@ update props =
 
             CloseDialog ->
                 ( Model { model | displayType = DisplayModalDialog False } , Effect.none)
+
+            Upload ->
+                ( Model { model | uploadDialog = UploadDialog.show model.uploadDialog } , Effect.none)
+
+            UploadDialogSent innerMsg ->
+                UploadDialog.update
+                    { msg = innerMsg
+                    , model = model.uploadDialog
+                    , toModel = \uploadDialog -> Model { model | uploadDialog = uploadDialog }
+                    , toMsg = (props.toMsg << UploadDialogSent)
+                    , user = props.user
+                    }
 
             IncomingMessage { messageType, value } ->
                 processIncomingMessage props.user props.model messageType props.toMsg value
@@ -256,7 +279,7 @@ update props =
                             { model | nip96ServerDescResponses = Dict.insert serverUrl (Nip96.ServerDescriptor serverDescWithExtendedUrls) model.nip96ServerDescResponses
                             , nip96Servers = updateServerState model.nip96Servers serverUrl ServerFunctioning
                             }
-                        , Effect.sendCmd <| Ports.requestNip96Auth 1 serverUrl serverDescWithExtendedUrls.apiUrl "GET"
+                        , Effect.sendCmd <| Ports.requestNip96Auth 1 serverUrl serverDescWithExtendedUrls.apiUrl GetRequest
                         )
 
                     Err error ->
@@ -470,7 +493,7 @@ viewMediaSelector (Settings settings) =
                         ]
                     ]
                     []
-                , text <| Translations.MediaSelector.uploadImages [settings.browserEnv.translations] ]
+                , text <| Translations.MediaSelector.selectImage [settings.browserEnv.translations] ]
             ]
         ]
     
@@ -513,6 +536,14 @@ viewHeader displayType (Settings settings) =
 
         DisplayEmbedded ->
             div [][]
+
+uploadButton =
+    Button.new
+        { label = "Upload"
+        , onClick = Upload
+        }
+        |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.upload)
+        |> Button.view
 
 imagePreview : UploadedFile -> Html msg
 imagePreview uploadedFile =
