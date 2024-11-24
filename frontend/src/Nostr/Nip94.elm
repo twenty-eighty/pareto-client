@@ -10,6 +10,7 @@ import Url
 
 -- Type Definitions
 
+
 type alias FileMetadata =
     { kind : Maybe Int
     , content : String
@@ -35,6 +36,22 @@ type alias Media =
     , hash : Maybe String
     }
 
+type alias Nip94Event =
+    { tags : List (List String)
+    , content : String
+    }
+
+isImage : FileMetadata -> Bool
+isImage metaData =
+    case metaData.mimeType of
+        Just mimeType ->
+            String.startsWith "image/" mimeType ||
+            "avatar" == mimeType ||
+            "banner" == mimeType ||
+            "" == mimeType
+        
+        _ ->
+            True
 
 -- Decoders
 
@@ -165,3 +182,12 @@ parseDimensions dimValue file =
 
         _ ->
             file
+
+-- JSON DECODERS
+
+
+nip94EventDecoder : Decode.Decoder Nip94Event
+nip94EventDecoder =
+    Decode.map2 Nip94Event
+        (Decode.field "tags" (Decode.list (Decode.list Decode.string)))
+        (Decode.field "content" Decode.string)

@@ -89,6 +89,7 @@ update shared user msg model =
                 , model = model.mediaSelector
                 , toModel = \mediaSelector -> { model | mediaSelector = mediaSelector }
                 , toMsg = MediaSelectorSent
+                , nostr = shared.nostr
                 }
 
 
@@ -113,7 +114,7 @@ view user shared model =
             , toMsg = MediaSelectorSent
             , pubKey = user.pubKey
             , browserEnv = shared.browserEnv
-            , styles = Ui.Styles.stylesForTheme shared.theme
+            , theme = shared.theme
             }
             |> MediaSelector.view
         ]

@@ -16,7 +16,7 @@ import Page exposing (Page)
 import Route exposing (Route)
 import Shared
 import Tailwind.Utilities as Tw
-import Translations
+import Translations.Sidebar
 import View exposing (View)
 import Ui.Article
 import Ui.Styles exposing (Theme)
@@ -108,7 +108,7 @@ subscriptions model =
 
 view : Shared.Model -> Model -> View Msg
 view shared model =
-    { title = Translations.aboutMenuItemText [shared.browserEnv.translations]
+    { title = Translations.Sidebar.aboutMenuItemText [shared.browserEnv.translations]
     , body =
         [ Nostr.getArticleWithIdentifier shared.nostr model.pubKey model.identifier
             |> viewArticle shared.theme shared.browserEnv

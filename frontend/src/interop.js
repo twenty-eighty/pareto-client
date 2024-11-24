@@ -1,7 +1,7 @@
 
 import "./MilkdownEditor.js";
 
-import NDK, { NDKEvent, NDKArticle, NDKRelaySet, NDKNip07Signer, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
+import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import { BlossomClient } from "blossom-client-sdk/client";
 import { init as initNostrLogin, launch as launchNostrLoginDialog } from "nostr-login"
 
@@ -116,8 +116,20 @@ export const onReady = ({ app, env }) => {
     }
     window.ndk = new NDK({ explicitRelayUrls: relays });
 
-    window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk })
+    // sign in if a relay requests authorization
+    window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk });
 
+    // don't validate each event, it's computational intense
+    window.ndk.initialValidationRatio = 0.5;
+    window.ndk.lowestValidationRatio = 0.01;
+
+    window.ndk.on("event:invalid-sig", (event) => {
+      const { relay } = event;
+      if (debug) {
+        console.log('relay delivered event with invalid signature', relay);
+      }
+      app.ports.receiveMessage.send({ messageType: 'event:invalid-sig', value: { relay: relay } });
+    })
     window.ndk.pool.on("connecting", (relay) => {
       if (debug) {
         console.log('connecting relays', relay);
@@ -261,24 +273,8 @@ export const onReady = ({ app, env }) => {
           case 30000: // follow sets
           case 30003: // bookmark sets
           case 30023: // long-form article
-            {
-              eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
-              break;
-            }
-
           case 34550: // community definition
             {
-              /*
-                            const community = extractCommunityInfo(ndkEvent);
-              
-                            try {
-                              community['content'] = (ndkEvent.content != "") ? JSON.parse(ndkEvent.content) : {};
-                            } catch (e) {
-                              console.log(e);
-                            }
-              
-                            communities.push(community);
-              */
               eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
               break;
             }
@@ -381,18 +377,30 @@ export const onReady = ({ app, env }) => {
   }
 
 
-  function requestNip96Auth(app, { requestId: requestId, serverUrl: serverUrl, apiUrl: apiUrl, method: method }) {
+  function requestNip96Auth(app, { requestId: requestId, fileId: fileId, serverUrl: serverUrl, apiUrl: apiUrl, method: method, hash: sha256Hash }) {
     if (debug) {
       console.log("Nip96 auth request with requestId: " + requestId);
     }
 
-    const nip96 = window.ndk.getNip96(apiUrl);
-    nip96.generateNip98Header(apiUrl, method).then(nip98AuthHeader => {
+    generateNip98Header(apiUrl, method, sha256Hash).then(nip98AuthHeader => {
       if (debug) {
         console.log('nip98 header', nip98AuthHeader);
       }
       // encode it using base64
-      app.ports.receiveMessage.send({ messageType: 'nip98AuthHeader', value: { requestId: requestId, authHeader: nip98AuthHeader, serverUrl: serverUrl, apiUrl: apiUrl } });
+      app.ports.receiveMessage.send(
+        {
+          messageType: 'nip98AuthHeader'
+          , value:
+          {
+            requestId: requestId
+            , fileId: fileId
+            , method: method
+            , authHeader: nip98AuthHeader
+            , serverUrl: serverUrl
+            , apiUrl: apiUrl
+          }
+        }
+      );
     });
   }
 
@@ -426,38 +434,6 @@ export const onReady = ({ app, env }) => {
     return eventsSortedByKind;
   }
 
-  function extractCommunityInfo(event) {
-    const tags = event.tags;
-
-    const dTag = tags.find(tag => tag[0] === 'd');
-    const nameTag = tags.find(tag => tag[0] === 'name');
-    const descriptionTag = tags.find(tag => tag[0] === 'description');
-    const imageTag = tags.find(tag => tag[0] === 'image');
-
-    const moderators = tags.filter(tag => tag[0] === 'p' && tag[3] === 'moderator')
-      .map(tag => ({
-        pubkey: tag[1],
-        relay: tag[2],
-        role: tag[3],
-      }));
-
-    const relays = tags.filter(tag => tag[0] === 'relay')
-      .map(tag => ({
-        url: tag[1],
-        type: tag[2],
-      }));
-
-    return {
-      pubkey: event.pubkey,
-      dtag: dTag ? dTag[1] : null,
-      name: nameTag ? nameTag[1] : null,
-      description: descriptionTag ? descriptionTag[1] : null,
-      image: imageTag ? { url: imageTag[1], resolution: imageTag[2] } : null,
-      moderators,
-      relay: event.relay.url,
-      relays
-    };
-  }
 
   function lastTagWithId(tags, tagName) {
     for (let i = tags.length - 1; i >= 0; i--) {
@@ -551,5 +527,23 @@ export const onReady = ({ app, env }) => {
   function urlWithoutProtocol(url) {
     const urlObj = new URL(url);
     return urlObj.hostname + urlObj.pathname;
+  }
+
+  async function generateNip98Header(requestUrl, httpMethod, sha256Hash) {
+    const event = new NDKEvent(window.ndk, {
+      kind: NDKKind.HttpAuth,
+      tags: [
+        ["u", requestUrl],
+        ["method", httpMethod],
+      ],
+    });
+
+    if (["POST", "PUT", "PATCH"].includes(httpMethod)) {
+      event.tags.push(["payload", sha256Hash]);
+    }
+
+    await event.sign();
+    const encodedEvent = btoa(JSON.stringify(event.rawEvent()));
+    return `Nostr ${encodedEvent}`;
   }
 }

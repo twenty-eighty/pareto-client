@@ -1,13 +1,18 @@
 {
-   "bookmarks menu item text": "Bookmarks",
-   "communities menu item text": "Communities",
-   "get started button text": "Get Started",
-   "media menu item text": "Media",
-   "posts menu item text": "Posts",
-   "read menu item text": "Read",
-   "search menu item text": "Search",
-   "write menu item text": "Write",
-   "about menu item text": "About",
+   "sidebar": {
+      "bookmarks menu item text": "Bookmarks",
+      "communities menu item text": "Communities",
+      "get started button text": "Get Started",
+      "media menu item text": "Media",
+      "messages menu item text": "Messages",
+      "notifications menu item text": "Notifications",
+      "posts menu item text": "Posts",
+      "read menu item text": "Read",
+      "search menu item text": "Search",
+      "settings menu item text": "Settings",
+      "write menu item text": "Write",
+      "about menu item text": "About"
+   },
    "bookmarks": {
       "bookmarks title": "Bookmarks",
       "no bookmarks": "No bookmark lists found",
@@ -24,8 +29,8 @@
       "browsee communities text": "Browse communities"
    },
    "media selector": {
-      "Select image": "Select image",
-      "Upload button title": "Upload"
+      "Upload files": "Select image",
+      "Upload button title": "Upload images"
    },
    "read": {
       "followed feed category": "Followed",
@@ -40,7 +45,8 @@
    },
    "upload dialog": {
       "dialog title": "Upload",
-      "upload button title": "Upload"
+      "upload button title": "Upload",
+      "select files button title": "Select files..."
    },
    "write": {
       "article image": "Image",

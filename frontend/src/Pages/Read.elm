@@ -24,6 +24,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations
 import Translations.Read
+import Translations.Sidebar
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
@@ -206,7 +207,7 @@ view shared model =
         styles =
             Ui.Styles.stylesForTheme shared.theme
     in
-    { title = Translations.readMenuItemText [shared.browserEnv.translations]
+    { title = Translations.Sidebar.readMenuItemText [shared.browserEnv.translations]
     , body = [                                  {- Main Content -}
             Components.Categories.new
                 { model = model.categories

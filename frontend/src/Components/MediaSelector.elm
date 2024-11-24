@@ -8,45 +8,37 @@ module Components.MediaSelector exposing
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
-import Components.UploadDialog as UploadDialog exposing (UploadDialog)
+import Components.Button as Button
+import Components.Dropdown
+import Components.Icon as Icon
+import Components.UploadDialog as UploadDialog exposing (UploadResponse(..))
 import Css
 import Dict exposing (Dict)
 import Effect exposing (Effect)
+import FeatherIcons
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, strong, text)
 import Html.Styled.Attributes as Attr exposing (class, classList, css, disabled, href, type_)
 import Html.Styled.Events as Events exposing (..)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Http
+import Nostr
 import Nostr.Blossom as Blossom exposing (BlobDescriptor)
 import Nostr.Nip94 as Nip94
 import Nostr.Nip96 as Nip96 exposing (extendRelativeServerDescriptorUrls)
-import Nostr.Request exposing (HttpRequestMethod(..))
+import Nostr.Request exposing (HttpRequestMethod(..), RequestData(..))
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
 import Ports
+import Shared.Msg
 import Svg.Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations.MediaSelector
-import Ui.Styles exposing (Styles)
-import Dict
-import Components.Button as Button
-import Components.Icon as Icon
-import FeatherIcons
+import Ui.Styles exposing (Styles, Theme)
+import Ui.Shared
 
-{-
-blossomServer =
-    "https://nostrmedia.com"
-    -- "https://naughty-wood-53400.pktriot.net"
-    --"http://localhost:4884"
-
-nip96Server =
-    "https://void.cat"
-    -- "https://nostrmedia.com"
-    -- "https://nostr.build"
--}
 
 type MediaSelector msg
      = Settings
@@ -54,7 +46,7 @@ type MediaSelector msg
         , toMsg : Msg msg -> msg
         , pubKey : PubKey
         , browserEnv : BrowserEnv
-        , styles : Styles msg
+        , theme : Theme
         }
 
 new :
@@ -62,7 +54,7 @@ new :
     , toMsg : Msg msg -> msg
     , pubKey : PubKey
     , browserEnv : BrowserEnv
-    , styles : Styles msg
+    , theme : Theme
     }
     -> MediaSelector msg
 new props =
@@ -71,7 +63,7 @@ new props =
         , toMsg = props.toMsg
         , pubKey = props.pubKey
         , browserEnv = props.browserEnv
-        , styles = props.styles
+        , theme = props.theme
         }
 
 
@@ -80,16 +72,26 @@ type Model
         { selected : Maybe Int
         , search : String
         , displayType : DisplayType
-        , selectedServer : Maybe String
-        , blossomServers : Dict String ServerState
-        , nip96Servers : Dict String ServerState
+        , serverSelectionDropdown : Components.Dropdown.Model MediaServer
+        , selectedServer : MediaServer
+        , blossomServers : Dict ServerUrl ServerState
+        , nip96Servers : Dict ServerUrl ServerState
         , nip96ServerDescResponses : Dict String Nip96.ServerDescResponse
         , authHeader : Maybe String
-        , uploadedBlossomFiles : Dict String (List UploadedFile)
-        , uploadedNip96Files : Dict String (List UploadedFile)
+        , uploadedBlossomFiles : Dict ServerUrl (List UploadedFile)
+        , uploadedNip96Files : Dict ServerUrl (List UploadedFile)
         , uploadDialog : UploadDialog.Model
         , errors : List String
         }
+
+type MediaServer
+    = BlossomMediaServer ServerUrl
+    | Nip96MediaServer ServerUrl
+    | NoMediaServer
+    | AllMediaServers
+
+type alias ServerUrl = String
+
 
 type DisplayType
     = DisplayModalDialog Bool
@@ -122,7 +124,8 @@ init props =
         { selected = Just 0
         , search = ""
         , displayType = props.displayType
-        , selectedServer = Nothing
+        , serverSelectionDropdown = Components.Dropdown.init { selected = Nothing }
+        , selectedServer = NoMediaServer
         , blossomServers = serversWithUnknownState props.blossomServers
         , nip96Servers = serversWithUnknownState props.nip96Servers
         , nip96ServerDescResponses = Dict.empty
@@ -174,7 +177,10 @@ type Msg msg
     = FocusedDropdown
     | BlurredDropdown
     | CloseDialog
+    | DropdownSent (Components.Dropdown.Msg MediaServer (Msg msg))
+    | ChangedSelectedServer MediaServer
     | Upload
+    | Uploaded UploadDialog.UploadResponse
     | UploadDialogSent UploadDialog.Msg 
     | IncomingMessage { messageType : String , value : Encode.Value }
     | ReceivedBlossomFileList String (Result Http.Error (List BlobDescriptor))
@@ -192,6 +198,7 @@ update :
     , toModel : Model -> model
     , toMsg : Msg msg -> msg
     , user : Auth.User
+    , nostr : Nostr.Model
     }
     -> ( model, Effect msg )
 update props =
@@ -216,8 +223,26 @@ update props =
             CloseDialog ->
                 ( Model { model | displayType = DisplayModalDialog False } , Effect.none)
 
+            DropdownSent innerMsg ->
+                let
+                    (newModel, effect) =
+                        Components.Dropdown.update
+                            { msg = innerMsg
+                            , model = model.serverSelectionDropdown
+                            , toModel = \dropdown -> Model { model | serverSelectionDropdown = dropdown }
+                            , toMsg = (DropdownSent)
+                            }
+                in
+                (newModel, Effect.map props.toMsg effect)
+
+            ChangedSelectedServer selectedServer ->
+                ( Model { model | selectedServer = selectedServer }, Effect.none )
+
             Upload ->
-                ( Model { model | uploadDialog = UploadDialog.show model.uploadDialog } , Effect.none)
+                ( Model { model | uploadDialog = UploadDialog.show model.uploadDialog }, Effect.none)
+
+            Uploaded uploadResponse ->
+                modelWithUploadedFile props.model uploadResponse
 
             UploadDialogSent innerMsg ->
                 UploadDialog.update
@@ -225,7 +250,9 @@ update props =
                     , model = model.uploadDialog
                     , toModel = \uploadDialog -> Model { model | uploadDialog = uploadDialog }
                     , toMsg = (props.toMsg << UploadDialogSent)
+                    , onUploaded = (props.toMsg << Uploaded)
                     , user = props.user
+                    , nostr = props.nostr
                     }
 
             IncomingMessage { messageType, value } ->
@@ -279,7 +306,11 @@ update props =
                             { model | nip96ServerDescResponses = Dict.insert serverUrl (Nip96.ServerDescriptor serverDescWithExtendedUrls) model.nip96ServerDescResponses
                             , nip96Servers = updateServerState model.nip96Servers serverUrl ServerFunctioning
                             }
-                        , Effect.sendCmd <| Ports.requestNip96Auth 1 serverUrl serverDescWithExtendedUrls.apiUrl GetRequest
+                        , GetRequest
+                            |> RequestNip98Auth serverUrl serverDescWithExtendedUrls.apiUrl
+                            |> Nostr.createRequest props.nostr "NIP-96 auth request for file list of server" []
+                            |> Shared.Msg.RequestNostrEvents
+                            |> Effect.sendSharedMsg
                         )
 
                     Err error ->
@@ -303,18 +334,97 @@ update props =
                         , Effect.none
                         )
 
+modelWithUploadedFile : Model -> UploadResponse -> (Model, Effect msg)
+modelWithUploadedFile model uploadResponse =
+    case uploadResponse of
+        UploadResponseNip96 apiUrl fileMetadata ->
+            modelWithUploadedNip96File model apiUrl fileMetadata
+
+modelWithUploadedNip96File : Model -> String -> Nip94.FileMetadata -> (Model, Effect msg)
+modelWithUploadedNip96File (Model model) apiUrl fileMetadata =
+    let
+        uploadedFile =
+            Nip96File fileMetadata
+
+        uploadedNip96Files =
+            Dict.update apiUrl
+                (\maybeFilesList ->
+                    case maybeFilesList of
+                        Just fileList ->
+                            Just <| uploadedFile :: fileList
+
+                        Nothing ->
+                            Just [uploadedFile]
+                ) model.uploadedNip96Files
+    in
+    ( Model { model | uploadedNip96Files = uploadedNip96Files }, Effect.none)
+
 updateModelWithBlossomFileList : Model -> String -> List Blossom.BlobDescriptor -> Model
 updateModelWithBlossomFileList (Model model) serverUrl fileList =
+    let
+        blossomServers =
+            updateServerState model.blossomServers serverUrl ServerFileListReceived
+    in
     Model
         { model | uploadedBlossomFiles = Dict.insert serverUrl (List.map BlossomFile fileList) model.uploadedNip96Files
-        , blossomServers = updateServerState model.blossomServers serverUrl ServerFileListReceived
+        , blossomServers = blossomServers
+        , uploadDialog = updateUploadDialogServerList model.nip96ServerDescResponses model.uploadDialog blossomServers model.nip96Servers
+        , selectedServer =
+            selectableMediaServers (Model model)
+            |> List.head
+            |> Maybe.withDefault NoMediaServer
         }
+
+updateUploadDialogServerList : Dict String Nip96.ServerDescResponse -> UploadDialog.Model -> Dict String ServerState -> Dict String ServerState -> UploadDialog.Model
+updateUploadDialogServerList nip96ServerDescResponses uploadDialogModel blossomServers nip96Servers =
+    let
+        workingBlossomServers =
+            blossomServers
+            |> Dict.toList
+            |> List.filterMap (\(url, status) ->
+                -- only consider servers that delivered a file list eligible for uploading files
+                if status == ServerFileListReceived then
+                    Just url
+                else
+                    Nothing
+            )
+            |> List.map UploadDialog.UploadServerBlossom
+
+        workingNip96Servers =
+            nip96Servers
+            |> Dict.toList
+            |> List.filterMap (\(url, status) ->
+                -- only consider servers that delivered a file list eligible for uploading files
+                if status == ServerFileListReceived then
+                    Just url
+                else
+                    Nothing
+            )
+            |> List.filterMap (\serverUrl ->
+                case Dict.get serverUrl nip96ServerDescResponses of
+                    Just (Nip96.ServerDescriptor serverDescriptorData) ->
+                        Just (UploadDialog.UploadServerNip96 serverDescriptorData)
+
+                    _ ->
+                        Nothing
+            )
+    in
+    UploadDialog.updateServerList uploadDialogModel (workingNip96Servers ++ workingBlossomServers)
 
 updateModelWithNip96FileList : Model -> String -> Nip96.FileList -> Model
 updateModelWithNip96FileList (Model model) serverUrl fileList =
+    let
+        nip96Servers =
+            updateServerState model.nip96Servers serverUrl ServerFileListReceived
+    in
     Model
         { model | uploadedNip96Files = Dict.insert serverUrl (List.map Nip96File fileList.files) model.uploadedNip96Files
-        , nip96Servers = updateServerState model.nip96Servers serverUrl ServerFileListReceived
+        , nip96Servers = nip96Servers
+        , uploadDialog = updateUploadDialogServerList model.nip96ServerDescResponses model.uploadDialog model.blossomServers nip96Servers
+        , selectedServer =
+            selectableMediaServers (Model model)
+            |> List.head
+            |> Maybe.withDefault NoMediaServer
         }
 
 updateServerState : Dict String ServerState -> String -> ServerState -> Dict String ServerState
@@ -347,21 +457,41 @@ processIncomingMessage user xModel messageType toMsg value =
                     ( Model { model | errors = model.errors ++ [ "Error decoding blossom auth header" ]}, Effect.none)
 
         "nip98AuthHeader" ->
-            case (Decode.decodeValue (Decode.field "authHeader" Decode.string) value,
-                  Decode.decodeValue (Decode.field "serverUrl"  Decode.string) value,
-                  Decode.decodeValue (Decode.field "apiUrl"     Decode.string) value) of
-                (Ok authHeader, Ok serverUrl, Ok apiUrl) ->
-                    ( Model { model | authHeader = Just authHeader }
-                    , Nip96.fetchFileList (ReceivedNip96FileList serverUrl) authHeader apiUrl
-                     |> Cmd.map toMsg
-                     |> Effect.sendCmd
-                    )
+            case (Decode.decodeValue decodeAuthHeaderReceived value) of
+                Ok decoded ->
+                    if decoded.method == "GET" then
+                        ( Model { model | authHeader = Just decoded.authHeader }
+                        , Nip96.fetchFileList (ReceivedNip96FileList decoded.serverUrl) decoded.authHeader decoded.apiUrl
+                        |> Cmd.map toMsg
+                        |> Effect.sendCmd
+                        )
+                    else
+                        ((Model model), Effect.none)
 
-                (_, _, _) ->
-                    ( Model { model | errors = model.errors ++ [ "Error decoding NIP-98 auth header" ]}, Effect.none)
+                Err error ->
+                    ( Model { model | errors = model.errors ++ [ "Error decoding NIP-98 auth header: " ++ Decode.errorToString error ]}, Effect.none)
 
         _ ->
             ( Model model, Effect.none)
+
+
+decodeAuthHeaderReceived : Decode.Decoder AuthHeaderReceived
+decodeAuthHeaderReceived =
+    Decode.map5 AuthHeaderReceived
+        (Decode.field "requestId" Decode.int)
+        (Decode.field "method" Decode.string)
+        (Decode.field "authHeader" Decode.string)
+        (Decode.field "serverUrl" Decode.string)
+        (Decode.field "apiUrl" Decode.string)
+
+
+type alias AuthHeaderReceived =
+    { requestId : Int
+    , method : String
+    , authHeader : String
+    , serverUrl : String
+    , apiUrl : String
+    }
 
 
 view : MediaSelector msg -> Html msg
@@ -375,32 +505,10 @@ view (Settings settings) =
             div [][]
 
         DisplayModalDialog True ->
-            div
-                [ css
-                    [ Tw.fixed
-                    , Tw.inset_0
-                    , Tw.bg_opacity_50
-                    , Tw.flex
-                    , Tw.items_center
-                    , Tw.justify_center
-                    , Tw.z_50
-                    , Tw.max_h_screen
-                    ]
-                , Attr.id "modal-overlay"
-                ]
-            [ div
-                [ css
-                    [ Tw.bg_color Theme.white
-                    , Tw.rounded_lg
-                    , Tw.shadow_lg
-                    , Tw.w_full
-                    , Tw.max_w_lg
-                    , Tw.p_6
-                    ]
-                ]
-                [ viewMediaSelector (Settings settings)
-                ]
-            ]
+            Ui.Shared.modalDialog
+                "Select image"
+                [ viewMediaSelector (Settings settings) ]
+                (settings.toMsg CloseDialog)
 
         DisplayEmbedded ->
             viewMediaSelector (Settings settings)
@@ -411,17 +519,19 @@ viewMediaSelector (Settings settings) =
         (Model model) =
             settings.model
 
+        selectableServers =
+            selectableMediaServers (Model model)
 
         filesToShow =
             case model.selectedServer of
-                Just serverUrl ->
-                    (Dict.get serverUrl model.uploadedNip96Files
-                    |> Maybe.withDefault [])
-                    ++
+                Nip96MediaServer serverUrl ->
+                    (uploadedNip96ImageFiles model.uploadedNip96Files serverUrl)
+
+                BlossomMediaServer serverUrl ->
                     (Dict.get serverUrl model.uploadedBlossomFiles
                     |> Maybe.withDefault [])
 
-                Nothing ->
+                AllMediaServers ->
                     -- respect order of server list
                     (Dict.keys model.blossomServers
                     |> List.filterMap (\blossomServer -> Dict.get blossomServer model.uploadedBlossomFiles)
@@ -429,13 +539,53 @@ viewMediaSelector (Settings settings) =
                     )
                     ++
                     (Dict.keys model.nip96Servers
-                    |> List.filterMap (\nip96Server -> Dict.get nip96Server model.uploadedNip96Files)
+                    |> List.map (uploadedNip96ImageFiles model.uploadedNip96Files)
                     |> List.concat
                     )
 
+                NoMediaServer ->
+                    []
     in
     div []
         [ viewHeader model.displayType (Settings settings)
+        ,             {- Upload Button -}
+        div
+            [ css
+                [ Tw.mt_6
+                , Tw.flex
+                , Tw.justify_between
+                ]
+            ]
+            [ Components.Dropdown.new
+                { model = model.serverSelectionDropdown
+                , toMsg = DropdownSent
+                , choices = selectableServers
+                , toLabel = mediaServerToString
+                }
+                |> Components.Dropdown.withOnChange ChangedSelectedServer
+                |> Components.Dropdown.view
+                |> Html.map settings.toMsg
+            ,label
+                [ css
+                    [ Tw.cursor_pointer
+                    , Tw.inline_flex
+                    , Tw.items_center
+                    , Tw.bg_color Theme.blue_500
+                    , Tw.text_color Theme.white
+                    , Tw.font_medium
+                    , Tw.py_2
+                    , Tw.px_4
+                    , Tw.rounded_lg
+                    , Css.hover
+                        [ Tw.bg_color Theme.blue_600
+                        ]
+                    ]
+                , Events.onClick Upload
+                ]
+                [ text <| Translations.MediaSelector.uploadButtonTitle [settings.browserEnv.translations]
+                ]
+                |> Html.map settings.toMsg
+            ]
         ,             {- Image Grid -}
         div
             [ css
@@ -461,42 +611,86 @@ viewMediaSelector (Settings settings) =
                 ]
             ]
             (List.map imagePreview filesToShow)
-        ,             {- Upload Button -}
-        div
-            [ css
-                [ Tw.mt_6
-                , Tw.flex
-                , Tw.justify_end
-                ]
-            ]
-            [ label
-                [ css
-                    [ Tw.cursor_pointer
-                    , Tw.inline_flex
-                    , Tw.items_center
-                    , Tw.bg_color Theme.blue_500
-                    , Tw.text_color Theme.white
-                    , Tw.font_medium
-                    , Tw.py_2
-                    , Tw.px_4
-                    , Tw.rounded_lg
-                    , Css.hover
-                        [ Tw.bg_color Theme.blue_600
-                        ]
-                    ]
-                ]
-                [ input
-                    [ Attr.type_ "file"
-                    , Attr.multiple True
-                    , css
-                        [ Tw.hidden
-                        ]
-                    ]
-                    []
-                , text <| Translations.MediaSelector.selectImage [settings.browserEnv.translations] ]
-            ]
+        , UploadDialog.new
+            { model = model.uploadDialog
+            , toMsg = UploadDialogSent
+            , pubKey = settings.pubKey
+            , browserEnv = settings.browserEnv
+            , theme = settings.theme
+            }
+            |> UploadDialog.view
+            |> Html.map settings.toMsg
         ]
     
+selectableMediaServers : Model -> List MediaServer
+selectableMediaServers (Model model) =
+    let
+        selectableBlossomServers =
+            model.blossomServers
+            |> Dict.toList
+            |> List.filterMap (\(serverUrl, state) ->
+                    if state == ServerFileListReceived then
+                        Just (BlossomMediaServer serverUrl)
+                    else
+                        Nothing
+                )
+
+        selectableNip96Servers =
+            model.nip96Servers
+            |> Dict.toList
+            |> List.filterMap (\(serverUrl, state) ->
+                    if state == ServerFileListReceived then
+                        Just (Nip96MediaServer serverUrl)
+                    else
+                        Nothing
+                )
+    in
+    case List.length selectableBlossomServers + List.length selectableNip96Servers of
+        0 ->
+            [ NoMediaServer ]
+
+        1 ->
+            selectableBlossomServers ++ selectableNip96Servers
+
+        _ ->
+            AllMediaServers :: (selectableBlossomServers ++ selectableNip96Servers)
+
+mediaServerToString : MediaServer -> String
+mediaServerToString mediaServer =
+    case mediaServer of
+        AllMediaServers ->
+            "All servers"
+
+        NoMediaServer ->
+            "No server available"
+
+        BlossomMediaServer serverUrl ->
+            serverUrl ++ " (Blossom)"
+
+        Nip96MediaServer serverUrl ->
+            serverUrl ++ " (NIP-96)"
+
+
+uploadedNip96ImageFiles : Dict String (List UploadedFile) -> String -> List UploadedFile
+uploadedNip96ImageFiles uploadedNip96Files serverUrl =
+    -- filter non-image files
+    -- later we could add displaying of video or audio files
+    Dict.get serverUrl uploadedNip96Files
+    |> Maybe.map (\uploadedFiles ->
+        uploadedFiles
+        |> List.filter (\uploadedFile ->
+            case uploadedFile of
+                Nip96File fileMetadata ->
+                    Nip94.isImage fileMetadata
+
+                BlossomFile _ ->
+                    -- don't know what type blossom file is
+                    True
+            )
+        ) 
+    |> Maybe.withDefault []
+
+
 viewHeader : DisplayType -> MediaSelector msg -> Html msg
 viewHeader displayType (Settings settings) =
     case displayType of
@@ -517,7 +711,7 @@ viewHeader displayType (Settings settings) =
                         , Tw.text_color Theme.gray_800
                         ]
                     ]
-                    [ text <| Translations.MediaSelector.selectImage [settings.browserEnv.translations] ]
+                    [ text <| Translations.MediaSelector.uploadButtonTitle [settings.browserEnv.translations] ]
                 , button
                     [ css
                         [ Tw.text_color Theme.gray_400
@@ -564,12 +758,16 @@ imagePreview uploadedFile =
     in
     case uploadedFile of
         Nip96File nip96File ->
+            let
+                imageWidth =
+                    200
+            in
             img
                 (commonAttributes ++
                 [ css
                     [ ]
                 , Attr.alt <| Maybe.withDefault "" nip96File.alt
-                , Attr.src (nip96File.url |> Maybe.withDefault "")
+                , Attr.src (Maybe.withDefault "" nip96File.url ++ "?w=" ++ String.fromInt imageWidth) -- NIP-96 servers can return scaled versions of images
                 ])
                 [ ]
 
@@ -583,5 +781,8 @@ imagePreview uploadedFile =
                 [ ]
 
 subscribe : Model -> Sub (Msg msg)
-subscribe model =
-    Ports.receiveMessage IncomingMessage
+subscribe (Model model) =
+    Sub.batch
+        [ Ports.receiveMessage IncomingMessage
+        , Sub.map UploadDialogSent (UploadDialog.subscribe model.uploadDialog)
+        ]

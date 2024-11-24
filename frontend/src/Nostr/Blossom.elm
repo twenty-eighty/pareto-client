@@ -8,14 +8,13 @@ import Nostr.Event exposing (Event, Tag(..))
 import Nostr.Nip11 exposing (decodeUnixTime)
 import Nostr.Nip94 as Nip94 exposing (FileMetadata)
 import Nostr.Types exposing (PubKey)
-import Json.Decode as Decode
 
 type alias BlobDescriptor =
     { url : String
     , sha256 : String
     , size : Int
     , type_ : Maybe String
-    , uploaded : Time.Posix
+    , uploaded : Maybe Time.Posix
     , nip94 : Maybe FileMetadata
     }
 
@@ -45,12 +44,19 @@ fetchFileList toMsg authHeader url pubKey =
             [ Http.header "Accept" "application/json"
             , Http.header "Authorization" authHeader
             ]
-        , url = url ++ "/list/" ++ pubKey
+        , url = urlWithoutTrailingSlash url ++ "/list/" ++ pubKey
         , body = Http.emptyBody
         , expect = Http.expectJson toMsg (Decode.list blobDescriptorDecoder)
         , timeout = Nothing
         , tracker = Nothing
         }
+
+urlWithoutTrailingSlash : String -> String
+urlWithoutTrailingSlash url =
+    if String.endsWith "/" url then
+        String.dropRight 1 url
+    else
+        url
 
 uploadFile : (Result Http.Error BlobDescriptor -> msg) -> String -> String -> Int -> String -> Cmd msg
 uploadFile toMsg authHeader url contentLength mimeType =
@@ -78,32 +84,43 @@ blobDescriptorDecoder =
         |> Pipeline.required "sha256" Decode.string
         |> Pipeline.required "size" Decode.int
         |> Pipeline.optional "type" (Decode.map Just Decode.string) Nothing
-        |> Pipeline.required "uploaded" decodeUnixTime
+        |> Pipeline.optional "uploaded" (Decode.map Just decodeUnixTime) Nothing
         |> Pipeline.optional "nip94" (Decode.map Just metadataDecoder) Nothing
 
 metadataDecoder : Decode.Decoder FileMetadata
 metadataDecoder =
-    (Decode.list (Decode.list Decode.string))
-    |> Decode.andThen (\tagList ->
-        let
-            initialEvent =
-                { kind = Nothing
-                , content = ""
-                , createdAt = 0
-                , url = Nothing
-                , mimeType = Nothing
-                , xHash = Nothing
-                , oxHash = Nothing
-                , size = Nothing
-                , dim = Nothing
-                , magnet = Nothing
-                , i = Nothing
-                , blurhash = Nothing
-                , thumb = Nothing
-                , image = Nothing
-                , summary = Nothing
-                , alt = Nothing
-                }
-        in
-        Decode.succeed (Nip94.parseTags tagList initialEvent)
-    )
+    Decode.succeed Nip94.FileMetadata
+    |> Pipeline.hardcoded Nothing
+    |> Pipeline.hardcoded ""
+    |> Pipeline.hardcoded 0
+    |> Pipeline.optional "url" (Decode.map Just Decode.string) Nothing
+    |> Pipeline.optional "mimeType" (Decode.map Just Decode.string) Nothing
+    |> Pipeline.optional "xHash" (Decode.map Just Decode.string) Nothing
+    |> Pipeline.optional "oxHash" (Decode.map Just Decode.string) Nothing
+    |> Pipeline.optional "size" (Decode.map Just sizeDecoder) Nothing
+    |> Pipeline.hardcoded Nothing
+    |> Pipeline.optional "magnet" (Decode.map Just Decode.string) Nothing
+    |> Pipeline.optional "i" (Decode.map Just Decode.string) Nothing
+    |> Pipeline.optional "blurhash" (Decode.map Just Decode.string) Nothing
+    |> Pipeline.hardcoded Nothing
+    |> Pipeline.hardcoded Nothing
+    |> Pipeline.optional "summary" (Decode.map Just Decode.string) Nothing
+    |> Pipeline.optional "alt" (Decode.map Just Decode.string) Nothing
+
+sizeDecoder : Decode.Decoder Int
+sizeDecoder =
+    Decode.oneOf
+        [ Decode.int
+        , Decode.string
+            |> Decode.andThen (\intStr ->
+                case String.toInt intStr of
+                    Just intValue ->
+                        Decode.succeed intValue
+
+                    Nothing ->
+                        Decode.fail <| "Error converting size string to int: " ++ intStr
+
+
+            )
+
+        ]

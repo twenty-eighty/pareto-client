@@ -21,8 +21,8 @@ import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-import Translations
 import Translations.Posts
+import Translations.Sidebar
 import Ui.Article
 import Ui.Styles exposing (Styles, Theme)
 import View exposing (View)
@@ -130,7 +130,7 @@ subscriptions model =
 
 view : Shared.Model.Model -> Auth.User -> Model -> View Msg
 view shared user model =
-    { title = Translations.postsMenuItemText [shared.browserEnv.translations]
+    { title = Translations.Sidebar.postsMenuItemText [shared.browserEnv.translations]
     , body =
         [ Components.Categories.new
             { model = model.categories

@@ -212,6 +212,7 @@ update shared user msg model =
         MediaSelectorSent innerMsg ->
             MediaSelector.update
                 { user = user
+                , nostr = shared.nostr
                 , msg = innerMsg
                 , model = model.mediaSelector
                 , toModel = \mediaSelector -> { model | mediaSelector = mediaSelector }
@@ -288,14 +289,14 @@ view user shared model =
             , viewSubtitle shared.browserEnv model
             , viewEditor shared.browserEnv model
             , viewTags  shared.browserEnv model
-            , openMediaSelectorButton shared.browserEnv
+            -- , openMediaSelectorButton shared.browserEnv
             , saveButtons shared.browserEnv model
             , MediaSelector.new
                 { model = model.mediaSelector
                 , toMsg = MediaSelectorSent
                 , pubKey = user.pubKey
                 , browserEnv = shared.browserEnv
-                , styles = Ui.Styles.stylesForTheme shared.theme
+                , theme = shared.theme
                 }
                 |> MediaSelector.view
             ]

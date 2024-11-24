@@ -1,6 +1,7 @@
 module Nostr.Nip96 exposing (..)
 
 import Dict exposing (Dict)
+import File exposing (File)
 import Http
 import Json.Decode exposing (Decoder, andThen, bool, dict, fail, field, float, int, list, maybe, string, succeed)
 import Json.Decode.Pipeline exposing (required, optional)
@@ -187,6 +188,100 @@ type alias FileList =
     }
 
 
+-- Uploads
+
+type alias FileUpload =
+    { file : File
+    , status : UploadStatus
+    , caption : Maybe String
+    , alt : Maybe String
+    , mediaType : Maybe String
+    , noTransform : Maybe Bool
+    , uploadResponse : Maybe UploadResponse
+    }
+
+type alias UploadResponse =
+    { status : String
+    , message : Maybe String
+    , processingUrl : Maybe String
+    , fileMetadata : Maybe Nip94.FileMetadata
+    }
+
+type UploadStatus
+    = Selected
+    | Hashing
+    | AwaitingAuthHeader String -- SHA256 Hash
+    | ReadyToUpload String String -- SHA256 Hash, Auth Header
+    | Uploading Float -- Progress percentage
+    | Uploaded
+    | Failed String -- Error message
+
+
+
+
+uploadFile : String -> Int -> FileUpload -> (Result Http.Error UploadResponse -> msg) -> String -> Cmd msg
+uploadFile apiUrl fileId fileUpload resultMsg authHeader =
+    Http.request
+        { method = "POST"
+        , headers =
+            [ Http.header "Authorization" authHeader ]
+        , url = apiUrl
+        , body = multipartBody fileUpload
+        , expect = Http.expectJson resultMsg uploadResponseDecoder
+        , timeout = Nothing
+        , tracker = Just (String.fromInt fileId)
+        }
+
+
+multipartBody : FileUpload -> Http.Body
+multipartBody upload =
+    let
+        sizeString =
+            File.size upload.file
+            |> String.fromInt
+
+        contentTypeString =
+             File.mime upload.file
+
+        expirationString =
+            "" -- Empty string for no expiration; can adjust as needed
+
+        -- Collect form fields
+        formFields =
+            [ Http.filePart "file" upload.file
+            , Http.stringPart "size" sizeString
+            , Http.stringPart "content_type" contentTypeString
+            , Http.stringPart "expiration" expirationString
+            ]
+            |> appendStringField "media_type" upload.mediaType
+            |> appendStringField "alt" upload.alt
+            |> appendStringField "caption" upload.caption
+            |> appendBooleanField "no_transform" upload.noTransform
+    in
+    Http.multipartBody formFields
+
+appendStringField : String -> Maybe String -> List Http.Part -> List Http.Part
+appendStringField fieldName maybeFieldValue fields =
+    case maybeFieldValue of
+        Just fieldValue ->
+            fields ++ [ Http.stringPart fieldName fieldValue ]
+
+        Nothing ->
+            fields
+
+appendBooleanField : String -> Maybe Bool -> List Http.Part -> List Http.Part
+appendBooleanField fieldName maybeFieldValue fields =
+    case maybeFieldValue of
+        Just True ->
+            fields ++ [ Http.stringPart fieldName "true" ]
+
+        Just False ->
+            fields ++ [ Http.stringPart fieldName "false" ]
+
+        Nothing ->
+            fields
+
+
 -- Decoders
 
 fileListDecoder : Decoder FileList
@@ -196,3 +291,12 @@ fileListDecoder =
         |> required "total" int
         |> required "page" int
         |> required "files" (list Nip94.fileMetadataDecoder)
+
+
+uploadResponseDecoder : Decode.Decoder UploadResponse
+uploadResponseDecoder =
+    Decode.map4 UploadResponse
+        (Decode.field "status" Decode.string)
+        (Decode.maybe (Decode.field "message" Decode.string))
+        (Decode.maybe (Decode.field "processing_url" Decode.string))
+        (Decode.field "nip94_event" (Decode.nullable Nip94.fileMetadataDecoder))

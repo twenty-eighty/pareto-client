@@ -2,6 +2,8 @@ module Components.UploadDialog exposing
     ( UploadDialog, new
     , Model, init
     , Msg, update, show
+    , UploadServer(..), updateServerList
+    , UploadResponse(..)
     , view
     , subscribe
     )
@@ -9,6 +11,7 @@ module Components.UploadDialog exposing
 import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
+import Components.Dropdown
 import Components.Icon as Icon
 import Css
 import Dict exposing (Dict)
@@ -23,22 +26,25 @@ import Http
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Http
+import Nostr
 import Nostr.Blossom as Blossom exposing (BlobDescriptor)
 import Nostr.Nip94 as Nip94
 import Nostr.Nip96 as Nip96 exposing (extendRelativeServerDescriptorUrls)
-import Nostr.Request exposing (HttpRequestMethod(..))
+import Nostr.Request exposing (HttpRequestMethod(..), RequestData(..))
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
 import Ports
 import Svg.Loaders
 import SHA256
+import Shared.Msg
 import Task exposing (Task)
 import Time exposing (Posix, posixToMillis, millisToPosix)
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-import Translations.UploadDialog
-import Ui.Styles exposing (Styles)
+import Translations.UploadDialog as Translations
+import Ui.Shared exposing (modalDialog)
+import Ui.Styles exposing (Styles, Styles)
 import Json.Decode as Decode
 
 type UploadDialog msg
@@ -47,7 +53,7 @@ type UploadDialog msg
         , toMsg : Msg -> msg
         , pubKey : PubKey
         , browserEnv : BrowserEnv
-        , styles : Styles msg
+        , theme : Ui.Styles.Theme
         }
 
 new :
@@ -55,7 +61,7 @@ new :
     , toMsg : Msg -> msg
     , pubKey : PubKey
     , browserEnv : BrowserEnv
-    , styles : Styles msg
+    , theme : Ui.Styles.Theme
     }
     -> UploadDialog msg
 new props =
@@ -64,13 +70,14 @@ new props =
         , toMsg = props.toMsg
         , pubKey = props.pubKey
         , browserEnv = props.browserEnv
-        , styles = props.styles
+        , theme = props.theme
         }
 
 
 type Model 
     = Model
-        { dialogVisible : Bool
+        { state : DialogState
+        , serverSelectionDropdown : Components.Dropdown.Model UploadServer
         , uploadServer : Maybe UploadServer
         , uploadServers : List UploadServer
         , errors : List String
@@ -78,45 +85,20 @@ type Model
         , nextFileId : Int
         }
 
+type DialogState
+    = DialogClosed
+    | WaitingForFiles
+    | EditingMetadata
+    | Uploading
+    | Uploaded
+
+type FileUpload
+    = FileUploadNip96 (Maybe String) Nip96.FileUpload
 
 type UploadServer
     = UploadServerBlossom String
     | UploadServerNip96 Nip96.ServerDescriptorData
 
-
-type alias FileUpload =
-    { file : File
-    , status : UploadStatus
-    , caption : String
-    , alt : String
-    , mediaType : String
-    , noTransform : Bool
-    , uploadResponse : Maybe UploadResponse
-    }
-
-
-type UploadStatus
-    = Selected
-    | Hashing
-    | AwaitingAuthHeader String -- SHA256 Hash
-    | ReadyToUpload String String -- SHA256 Hash, Auth Header
-    | Uploading Float -- Progress percentage
-    | Uploaded
-    | Failed String -- Error message
-
-
-type alias UploadResponse =
-    { status : String
-    , message : String
-    , processingUrl : Maybe String
-    , nip94Event : Maybe Nip94Event
-    }
-
-
-type alias Nip94Event =
-    { tags : List (List String)
-    , content : String
-    }
 
 
 init :
@@ -125,7 +107,8 @@ init :
      -> Model
 init props =
     Model
-        { dialogVisible = False
+        { state = DialogClosed
+        , serverSelectionDropdown = Components.Dropdown.init { selected = Nothing }
         , uploadServer = Nothing
         , uploadServers = []
         , files = Dict.empty
@@ -135,24 +118,43 @@ init props =
 
 show : Model -> Model
 show (Model model) =
-    Model { model | dialogVisible = True }
+    Model { model | state = WaitingForFiles }
+
+updateServerList : Model -> List UploadServer -> Model
+updateServerList (Model model) uploadServers =
+    case model.uploadServer of
+        -- prefer NIP-96 server for uploads
+        Just (UploadServerNip96 _) ->
+            Model { model | uploadServers = uploadServers }
+
+        _ ->
+            Model { model | uploadServer = List.head uploadServers, uploadServers = uploadServers }
 
 type Msg
     = FocusedDropdown
     | BlurredDropdown
     | CloseDialog
     | IncomingMessage { messageType : String , value : Encode.Value }
+    | DropdownSent (Components.Dropdown.Msg UploadServer Msg)
+    | ChangedSelectedServer UploadServer
+    | DragEnter
+    | DragOver
+    | DragLeave
     | TriggerFileSelect
     | FilesSelected File (List File)
+    | ConvertedToUrl Int String
     | UpdateCaption Int String
     | UpdateAltText Int String
     | UpdateMediaType Int String
     | ToggleNoTransform Int
     | StartUpload Int -- FileId
     | HashComputed Int String -- FileId, SHA256 Hash
-    | UploadResult Int (Result Http.Error UploadResponse)
+    | UploadResult Int String (Result Http.Error Nip96.UploadResponse) -- fileId, api URL
     | UploadProgress String Http.Progress
     | ErrorOccurred String
+
+type UploadResponse
+    = UploadResponseNip96 String Nip94.FileMetadata -- server URL, NIP-96 response
 
 
 update :
@@ -160,7 +162,9 @@ update :
     , model : Model 
     , toModel : Model -> model
     , toMsg : Msg -> msg
+    , onUploaded : UploadResponse -> msg
     , user : Auth.User
+    , nostr : Nostr.Model
     }
     -> ( model, Effect msg )
 update props =
@@ -177,20 +181,47 @@ update props =
     toParentModel <|
         case props.msg of
             FocusedDropdown ->
-                ( Model { model | dialogVisible = True } , Effect.none)
+                ( Model { model | state = WaitingForFiles }, Effect.none)
 
             BlurredDropdown ->
-                ( Model { model | dialogVisible = False } , Effect.none)
+                ( Model { model | state = DialogClosed }, Effect.none)
 
             CloseDialog ->
-                ( Model { model | dialogVisible = False } , Effect.none)
+                ( Model { model | state = DialogClosed, files = Dict.empty }, Effect.none)
 
             IncomingMessage { messageType, value } ->
                 processIncomingMessage props.user props.model messageType props.toMsg value
 
+            DropdownSent innerMsg ->
+                let
+                    (newModel, effect) =
+                        Components.Dropdown.update
+                            { msg = innerMsg
+                            , model = model.serverSelectionDropdown
+                            , toModel = \dropdown -> Model { model | serverSelectionDropdown = dropdown }
+                            , toMsg = (DropdownSent)
+                            }
+                in
+                (newModel, Effect.map props.toMsg effect)
+
+            ChangedSelectedServer uploadServer ->
+                ( Model { model | uploadServer = Just uploadServer }, Effect.none )
+
+            DragEnter ->
+                ( Model model, Effect.none)
+
+            DragOver ->
+                ( Model model, Effect.none)
+
+            DragLeave ->
+                ( Model model, Effect.none)
+
             TriggerFileSelect ->
                 ( Model model
-                , FileSelect.files ["image/png", "image/jpg"] FilesSelected
+                -- multi file selection temporarily disabled
+                -- TODO need to improve the metadata editor for multi file
+                -- , FileSelect.files ["image/png", "image/jpg"] FilesSelected
+                , FileSelect.file ["image/png", "image/jpg"] (\file -> FilesSelected file [])
                 |> Cmd.map props.toMsg
                 |> Effect.sendCmd
                 )
@@ -202,21 +233,52 @@ update props =
                             (\fileToUpload ( dict, cmdList, id ) ->
                                 let
                                     fileUpload =
-                                        { file = fileToUpload
-                                        , status = Selected
-                                        , caption = ""
-                                        , alt = ""
-                                        , mediaType = ""
-                                        , noTransform = False
-                                        , uploadResponse = Nothing
-                                        }
+                                        FileUploadNip96 Nothing
+                                            { file = fileToUpload
+                                            , status = Nip96.Selected
+                                            , caption = Nothing
+                                            , alt = Nothing
+                                            , mediaType = Nothing
+                                            , noTransform = Nothing
+                                            , uploadResponse = Nothing
+                                            }
+
+                                    convertToUrlCommand =
+                                        if File.size fileToUpload < 1000000 then
+                                            Task.perform (ConvertedToUrl id) (File.toUrl fileToUpload)
+                                        else
+                                            Cmd.none
                                 in
-                                ( Dict.insert id fileUpload dict, cmdList, id + 1 )
+                                ( Dict.insert id fileUpload dict, convertToUrlCommand :: cmdList, id + 1 )
                             )
                             ( model.files, [], model.nextFileId )
                             (file :: files)
                 in
-                ( Model { model | files = newFiles, nextFileId = nextId }, Effect.sendCmd <| Cmd.batch cmds )
+                ( Model
+                    { model | files = newFiles
+                    , nextFileId = nextId
+                    , state = EditingMetadata
+                    }
+                , Cmd.batch cmds
+                    |> Cmd.map props.toMsg
+                    |> Effect.sendCmd
+                )
+
+            ConvertedToUrl fileId fileUrl ->
+                let
+                    updatedFiles =
+                        Dict.update fileId
+                            (\maybeUpload ->
+                                case maybeUpload of
+                                    Just (FileUploadNip96 _ upload) ->
+                                        Just <| FileUploadNip96 (Just fileUrl) upload 
+
+                                    Nothing ->
+                                        Nothing
+                            )
+                            model.files
+                in
+                ( Model { model | files = updatedFiles }, Effect.none )
 
             UpdateCaption fileId captionText ->
                 let
@@ -224,8 +286,11 @@ update props =
                         Dict.update fileId
                             (\maybeUpload ->
                                 case maybeUpload of
-                                    Just upload ->
-                                        Just { upload | caption = captionText }
+                                    Just (FileUploadNip96 maybePreviewLink upload) ->
+                                        if captionText /= "" then
+                                            Just <| FileUploadNip96 maybePreviewLink { upload | caption = Just captionText }
+                                        else
+                                            Just <| FileUploadNip96 maybePreviewLink { upload | caption = Nothing }
 
                                     Nothing ->
                                         Nothing
@@ -240,8 +305,11 @@ update props =
                         Dict.update fileId
                             (\maybeUpload ->
                                 case maybeUpload of
-                                    Just upload ->
-                                        Just { upload | alt = altText }
+                                    Just (FileUploadNip96 maybePreviewLink upload) ->
+                                        if altText /= "" then
+                                            Just <| FileUploadNip96 maybePreviewLink { upload | alt = Just altText }
+                                        else
+                                            Just <| FileUploadNip96 maybePreviewLink { upload | alt = Nothing }
 
                                     Nothing ->
                                         Nothing
@@ -256,8 +324,11 @@ update props =
                         Dict.update fileId
                             (\maybeUpload ->
                                 case maybeUpload of
-                                    Just upload ->
-                                        Just { upload | mediaType = mediaType }
+                                    Just (FileUploadNip96 maybePreviewLink upload) ->
+                                        if mediaType /= "" then
+                                            Just <| FileUploadNip96 maybePreviewLink { upload | mediaType = Just mediaType }
+                                        else
+                                            Just <| FileUploadNip96 maybePreviewLink { upload | mediaType = Nothing }
 
                                     Nothing ->
                                         Nothing
@@ -272,8 +343,16 @@ update props =
                         Dict.update fileId
                             (\maybeUpload ->
                                 case maybeUpload of
-                                    Just upload ->
-                                        Just { upload | noTransform = not upload.noTransform }
+                                    Just (FileUploadNip96 maybePreviewLink upload) ->
+                                        case upload.noTransform of
+                                            Just True ->
+                                                Just <| FileUploadNip96 maybePreviewLink { upload | noTransform = Just False }
+
+                                            Just False ->
+                                                Just <| FileUploadNip96 maybePreviewLink { upload | noTransform = Just True }
+
+                                            Nothing ->
+                                                Just <| FileUploadNip96 maybePreviewLink { upload | noTransform = Nothing }
 
                                     Nothing ->
                                         Nothing
@@ -288,7 +367,7 @@ update props =
 
                     effect =
                         case maybeUpload of
-                            Just upload ->
+                            Just (FileUploadNip96 _ upload) ->
                                 -- Compute the hash of the file in Elm
                                 computeFileHash props.toMsg fileId upload.file
                                 |> Effect.sendCmd
@@ -300,8 +379,8 @@ update props =
                         Dict.update fileId
                             (\maybeUploadInner ->
                                 case maybeUploadInner of
-                                    Just upload ->
-                                        Just { upload | status = Hashing }
+                                    Just (FileUploadNip96 maybePreviewLink upload) ->
+                                        Just <| FileUploadNip96 maybePreviewLink { upload | status = Nip96.Hashing }
 
                                     Nothing ->
                                         Nothing
@@ -316,8 +395,8 @@ update props =
                         Dict.update fileId
                             (\maybeUpload ->
                                 case maybeUpload of
-                                    Just upload ->
-                                        Just { upload | status = AwaitingAuthHeader hash }
+                                    Just (FileUploadNip96 maybePreviewLink upload) ->
+                                        Just <| FileUploadNip96 maybePreviewLink { upload | status = Nip96.AwaitingAuthHeader hash }
 
                                     Nothing ->
                                         Nothing
@@ -330,36 +409,48 @@ update props =
                                 Effect.none
 
                             Just (UploadServerNip96 nip96ServerDescriptorData) ->
-                                Effect.sendCmd <| Ports.requestNip96Auth fileId nip96ServerDescriptorData.downloadUrl nip96ServerDescriptorData.apiUrl (PostRequest hash)
+                                PostRequest fileId hash
+                                |> RequestNip98Auth nip96ServerDescriptorData.downloadUrl nip96ServerDescriptorData.apiUrl 
+                                |> Nostr.createRequest props.nostr "NIP-96 auth request for files to be uploaded" []
+                                |> Shared.Msg.RequestNostrEvents
+                                |> Effect.sendSharedMsg
 
                             Nothing ->
                                 Effect.none
                 in
                 ( Model { model | files = updatedFiles }, effect )
 
-            UploadResult fileId result ->
+            UploadResult fileId apiUrl result ->
                 let
+                    (status, uploadResponse, effect) =
+                        case result of
+                            Ok response ->
+                                case (response.status, response.fileMetadata) of
+                                    ("success", Just fileMetadata) ->
+                                        ( Nip96.Uploaded
+                                        , Just response
+                                        , Effect.sendMsg <| props.onUploaded (UploadResponseNip96 apiUrl fileMetadata)
+                                        )
+
+                                    (responseStatus, _) ->
+                                        (Nip96.Failed <| Maybe.withDefault responseStatus response.message, Just response, Effect.none)
+
+                            Err error ->
+                                (Nip96.Failed (httpErrorToString error), Nothing, Effect.none)
+
                     updatedFiles =
                         Dict.update fileId
                             (\maybeUpload ->
                                 case maybeUpload of
-                                    Just upload ->
-                                        case result of
-                                            Ok response ->
-                                                if response.status == "success" then
-                                                    Just { upload | status = Uploaded, uploadResponse = Just response }
-                                                else
-                                                    Just { upload | status = Failed response.message, uploadResponse = Just response }
-
-                                            Err error ->
-                                                Just { upload | status = Failed (httpErrorToString error) }
+                                    Just (FileUploadNip96 maybePreviewLink upload) ->
+                                        Just <| FileUploadNip96 maybePreviewLink { upload | status = status, uploadResponse = uploadResponse }
 
                                     Nothing ->
                                         Nothing
                             )
                             model.files
                 in
-                ( Model { model | files = updatedFiles }, Effect.none )
+                ( Model { model | files = updatedFiles }, effect )
 
             UploadProgress tracker progress ->
                 let
@@ -371,9 +462,9 @@ update props =
                             Dict.update fileId
                                 (\maybeUpload ->
                                     case maybeUpload of
-                                        Just upload ->
+                                        Just (FileUploadNip96 maybePreviewLink upload) ->
                                             case upload.status of
-                                                Uploading _ ->
+                                                Nip96.Uploading _ ->
                                                     let
                                                         progressValue =
                                                             case progress of
@@ -383,10 +474,10 @@ update props =
                                                                 Http.Receiving _ ->
                                                                     100
                                                     in
-                                                    Just { upload | status = Uploading progressValue }
+                                                    Just <| FileUploadNip96 maybePreviewLink { upload | status = Nip96.Uploading progressValue }
 
                                                 _ ->
-                                                    Just upload
+                                                    Just <| FileUploadNip96 maybePreviewLink upload
 
                                         Nothing ->
                                             Nothing
@@ -430,42 +521,56 @@ processIncomingMessage user xModel messageType toMsg value =
         "nip98AuthHeader" ->
             case (Decode.decodeValue decodeAuthHeaderReceived value) of
                 (Ok decoded) ->
-                    let
-                        updatedFiles =
-                            Dict.update decoded.requestId
-                                (\maybeUpload ->
-                                    case maybeUpload of
-                                        Just upload ->
+                    case ( decoded.method, decoded.fileId ) of
+                        ("POST", Just fileId) ->
+                            let
+                                updatedFiles =
+                                    Dict.update fileId
+                                        (\maybeUpload ->
+                                            case maybeUpload of
+                                                Just (FileUploadNip96 maybePreviewLink upload) ->
+                                                    case upload.status of
+                                                        Nip96.AwaitingAuthHeader hash ->
+                                                            Just <| FileUploadNip96 maybePreviewLink { upload | status = Nip96.ReadyToUpload hash decoded.authHeader }
+
+                                                        _ ->
+                                                            Just <| FileUploadNip96 maybePreviewLink upload
+
+                                                Nothing ->
+                                                    Nothing
+                                        )
+                                        model.files
+
+                                -- Start the upload
+                                effect =
+                                    case Dict.get fileId updatedFiles of
+                                        Just (FileUploadNip96 maybePreviewLink upload) ->
                                             case upload.status of
-                                                AwaitingAuthHeader hash ->
-                                                    Just { upload | status = ReadyToUpload hash decoded.authHeader }
+                                                Nip96.ReadyToUpload hash authHeader ->
+                                                    let
+                                                        apiUrl =
+                                                            case model.uploadServer of
+                                                                Just (UploadServerNip96 serverDescriptorData) ->
+                                                                    serverDescriptorData.apiUrl
+
+                                                                _ ->
+                                                                    ""
+                                                    in
+                                                    Nip96.uploadFile apiUrl fileId upload (UploadResult fileId apiUrl) authHeader
+                                                    |> Cmd.map toMsg
+                                                    |> Effect.sendCmd
 
                                                 _ ->
-                                                    Just upload
-
-                                        Nothing ->
-                                            Nothing
-                                )
-                                model.files
-
-                        -- Start the upload
-                        effect =
-                            case Dict.get decoded.requestId updatedFiles of
-                                Just upload ->
-                                    case upload.status of
-                                        ReadyToUpload hash authHeader ->
-                                            uploadFile (Model model) decoded.requestId upload.file authHeader
-                                            |> Cmd.map toMsg
-                                            |> Effect.sendCmd
+                                                    Effect.none
 
                                         _ ->
                                             Effect.none
 
-                                _ ->
-                                    Effect.none
+                            in
+                            ( Model { model | files = updatedFiles }, effect)
 
-                    in
-                    ( Model { model | files = updatedFiles }, effect)
+                        (_, _) ->
+                            ( Model model, Effect.none)
 
                 (Err error) ->
                     ( Model { model | errors = model.errors ++ [ "Error decoding NIP-98 auth header: " ++ Decode.errorToString error]}, Effect.none)
@@ -476,14 +581,18 @@ processIncomingMessage user xModel messageType toMsg value =
 
 decodeAuthHeaderReceived : Decode.Decoder AuthHeaderReceived
 decodeAuthHeaderReceived =
-    Decode.map4 AuthHeaderReceived
-        (Decode.field "fileId" Decode.int)
+    Decode.map6 AuthHeaderReceived
+        (Decode.field "requestId" Decode.int)
+        (Decode.maybe (Decode.field "fileId" Decode.int))
+        (Decode.field "method" Decode.string)
         (Decode.field "authHeader" Decode.string)
         (Decode.field "serverUrl" Decode.string)
         (Decode.field "apiUrl" Decode.string)
 
 type alias AuthHeaderReceived =
     { requestId : Int
+    , fileId : Maybe Int
+    , method : String
     , authHeader : String
     , serverUrl : String
     , apiUrl : String
@@ -495,87 +604,276 @@ view (Settings settings) =
         (Model model) =
             settings.model
     in
-    div [ class "p-4" ]
-        [ div [ class "mb-4" ]
-            [ button
-                [ onClick TriggerFileSelect
-                , class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+    case model.state of
+        DialogClosed ->
+            div [][]
+
+        WaitingForFiles ->
+            viewWaitingForFiles (Settings settings)
+            |> Html.map settings.toMsg
+
+        EditingMetadata ->
+            viewMetadataDialog (Settings settings)
+
+        Uploading ->
+            viewDialog (Settings settings)
+
+        Uploaded ->
+            viewDialog (Settings settings)
+
+viewWaitingForFiles : UploadDialog msg -> Html Msg
+viewWaitingForFiles (Settings settings) =
+    let
+        (Model model) =
+            settings.model
+    in
+    modalDialog
+        (Translations.dialogTitle [ settings.browserEnv.translations ])
+        [ Components.Dropdown.new
+            { model = model.serverSelectionDropdown
+            , toMsg = DropdownSent
+            , choices = model.uploadServers
+            , toLabel = uploadServerToString
+            }
+            |> Components.Dropdown.withOnChange ChangedSelectedServer
+            |> Components.Dropdown.view
+        , div
+            [ css 
+                [ Tw.p_20
+                , Tw.m_2
+                , Tw.rounded_2xl
+                , Tw.border_color Theme.slate_500
+                , Tw.border_dashed
+                , Tw.border_4
                 ]
-                [ text "Select Files" ]
+            , hijackOn "dragenter" (Decode.succeed DragEnter)
+            , hijackOn "dragover" (Decode.succeed DragOver)
+            , hijackOn "dragleave" (Decode.succeed DragLeave)
+            , hijackOn "drop" dropDecoder
             ]
-        , div []
-            (Dict.toList model.files |> List.map viewFileUpload)
-        , case model.errors of
-            [] ->
-                text ""
-
-            errors ->
-                errors
-                |> List.map (\errorMsg ->
-                    li [ class "text-red-500" ] [ text errorMsg ]
-                )
-                |> ul []
+            [ div [ class "mb-4" ]
+                [ button
+                    [ onClick TriggerFileSelect
+                    , class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                    ]
+                    [ text <| Translations.selectFilesButtonTitle [ settings.browserEnv.translations ] ]
+                ]
+            ]
         ]
-    |> Html.map settings.toMsg
+        CloseDialog
 
+uploadServerToString : UploadServer -> String
+uploadServerToString uploadServer =
+    case uploadServer of
+        UploadServerBlossom serverUrl ->
+            serverUrl ++ " (Blossom)"
+
+        UploadServerNip96 nip96ServerDescriptorData ->
+            nip96ServerDescriptorData.apiUrl ++ " (NIP-96)"
+
+
+dropDecoder : Decode.Decoder Msg
+dropDecoder =
+    -- multi-file dropping temporarily disabled
+    -- TODO: improve metadata editor for multiple files
+    -- Decode.at [ "dataTransfer", "files" ] (Decode.oneOrMore FilesSelected File.decoder)
+    Decode.at [ "dataTransfer", "files" ] (Decode.oneOrMore (\file1 _ -> FilesSelected file1 []) File.decoder)
+
+hijackOn : String -> Decode.Decoder msg -> Html.Attribute msg
+hijackOn event decoder =
+    preventDefaultOn event (Decode.map hijack decoder)
+
+hijack : msg -> (msg, Bool)
+hijack msg =
+    (msg, True)
+
+
+viewMetadataDialog : UploadDialog msg -> Html msg
+viewMetadataDialog (Settings settings) =
+    let
+        (Model model) =
+            settings.model
+    in
+    modalDialog
+        "Edit metadata of files"
+        [ div
+            [ css 
+                [
+                ]
+            ]
+            [ div []
+                (Dict.toList model.files |> List.map viewFileUpload)
+            ]
+        |> Html.map settings.toMsg
+        ]
+        (settings.toMsg CloseDialog)
+
+
+viewDialog : UploadDialog msg -> Html msg
+viewDialog (Settings settings) =
+    let
+        (Model model) =
+            settings.model
+    in
+    modalDialog
+        (Translations.dialogTitle [ settings.browserEnv.translations ])
+        [ div [ class "p-4" ]
+            [ div [ class "mb-4" ]
+                [ button
+                    [ onClick TriggerFileSelect
+                    , class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                    ]
+                    [ text "Select Files" ]
+                ]
+            , div []
+                (Dict.toList model.files |> List.map viewFileUpload)
+            , case model.errors of
+                [] ->
+                    text ""
+
+                errors ->
+                    errors
+                    |> List.map (\errorMsg ->
+                        li [ class "text-red-500" ] [ text errorMsg ]
+                    )
+                    |> ul []
+            ]
+        |> Html.map settings.toMsg
+        ]
+        (settings.toMsg CloseDialog)
 
 viewFileUpload : ( Int, FileUpload ) -> Html Msg
 viewFileUpload ( fileId, fileUpload ) =
+    case fileUpload of
+        FileUploadNip96 maybePreviewLink fileUploadNip96 ->
+            viewFileUploadNip96 maybePreviewLink (fileId, fileUploadNip96)
+
+viewFileUploadNip96 : Maybe String -> ( Int, Nip96.FileUpload ) -> Html Msg
+viewFileUploadNip96 maybePreviewLink ( fileId, fileUpload ) =
     let
         fileName =
             File.name <| fileUpload.file
 
         statusView =
             case fileUpload.status of
-                Selected ->
-                    div []
-                        [ label [] [ text "Caption (optional):" ]
-                        , textarea
-                            [ onInput (UpdateCaption fileId)
-                            , class "w-full border rounded p-2 mb-2"
+                Nip96.Selected ->
+                    div
+                        [ css
+                            [ Tw.flex
+                            , Tw.flex_col
+                            , Tw.gap_3
                             ]
-                            [ text fileUpload.caption ]
-                        , label [] [ text "Alt Text (optional):" ]
-                        , textarea
-                            [ onInput (UpdateAltText fileId)
-                            , class "w-full border rounded p-2 mb-2"
-                            ]
-                            [ text fileUpload.alt ]
-                        , label [] [ text "Media Type (optional):" ]
-                        , select
-                            [ onInput (UpdateMediaType fileId)
-                            , class "w-full border rounded p-2 mb-2"
-                            ]
-                            [ option [ value "" ] [ text "Select Media Type" ]
-                            , option [ value "avatar" ] [ text "Avatar" ]
-                            , option [ value "banner" ] [ text "Banner" ]
-                            ]
-                        , label [ class "inline-flex items-center mt-2" ]
-                            [ input
-                                [ type_ "checkbox"
-                                , checked fileUpload.noTransform
-                                , onClick (ToggleNoTransform fileId)
+                        ]
+                        [ div
+                            [ css
+                                [ Tw.flex
+                                , Tw.flex_row
+                                , Tw.gap_3
                                 ]
-                                []
-                            , span [ class "ml-2" ] [ text "No Transform" ]
                             ]
-                        , button
-                            [ onClick (StartUpload fileId)
-                            , class "bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mt-4"
+                            [ div
+                                [ css
+                                    [ Tw.flex
+                                    , Tw.flex_col
+                                    , Tw.gap_3
+                                    ]
+                                ]
+                                [ div 
+                                    [ css
+                                        [ Tw.flex
+                                        , Tw.flex_row
+                                        ]
+                                    ]
+                                    [ label [] [ text "Caption (optional):" ]
+                                    , textarea
+                                        [ onInput (UpdateCaption fileId)
+                                        , class "w-full border rounded p-2 mb-2"
+                                        ]
+                                        [ text <| Maybe.withDefault "" fileUpload.caption ]
+                                    ]
+                                , div 
+                                    [ css
+                                        [ Tw.flex
+                                        , Tw.flex_row
+                                        ]
+                                    ]
+                                    [ label [] [ text "Alt Text (optional):" ]
+                                    , textarea
+                                        [ onInput (UpdateAltText fileId)
+                                        , class "w-full border rounded p-2 mb-2"
+                                        ]
+                                        [ text <| Maybe.withDefault "" fileUpload.alt ]
+                                    ]
+                                , div 
+                                    [ css
+                                        [ Tw.flex
+                                        , Tw.flex_row
+                                        ]
+                                    ]
+                                    [ label [] [ text "Media Type (optional):" ]
+                                    , select
+                                        [ onInput (UpdateMediaType fileId)
+                                        , class "w-full border rounded p-2 mb-2"
+                                        ]
+                                        [ option [ value "" ] [ text "Select Media Type" ]
+                                        , option [ value "avatar" ] [ text "Avatar" ]
+                                        , option [ value "banner" ] [ text "Banner" ]
+                                        ]
+                                    ]
+                                , div 
+                                    [ css
+                                        [ Tw.flex
+                                        , Tw.flex_row
+                                        ]
+                                    ]
+                                    [ label
+                                        [ css
+                                            [ Tw.inline_flex
+                                            , Tw.items_center
+                                            , Tw.mt_2
+                                            , Tw.gap_1
+                                            ]
+                                        ]
+                                        [ input
+                                            [ type_ "checkbox"
+                                            , checked <| Maybe.withDefault False fileUpload.noTransform
+                                            , onClick (ToggleNoTransform fileId)
+                                            ]
+                                            []
+                                        , span [ class "ml-2" ] [ text "No Transform" ]
+                                        ]
+                                    ]
+                                ]
+                            , case maybePreviewLink of
+                                Just previewLink ->
+                                    img [ Attr.src previewLink
+                                        , css
+                                            [ Tw.w_40
+                                            , Tw.h_40
+                                            ]
+                                        ]
+                                        []
+
+                                Nothing ->
+                                    div [][]
                             ]
-                            [ text "Start Upload" ]
+                        , Button.new
+                            { label = "Start Upload"
+                            , onClick = StartUpload fileId
+                            }
+                            |> Button.view
                         ]
 
-                Hashing ->
+                Nip96.Hashing ->
                     text "Computing file hash..."
 
-                AwaitingAuthHeader _ ->
+                Nip96.AwaitingAuthHeader _ ->
                     text "Awaiting authentication header..."
 
-                ReadyToUpload _ _ ->
+                Nip96.ReadyToUpload _ _ ->
                     text "Ready to upload..."
 
-                Uploading progressValue ->
+                Nip96.Uploading progressValue ->
                     div []
                         [ progress
                             [ Attr.max "100"
@@ -585,7 +883,7 @@ viewFileUpload ( fileId, fileUpload ) =
                         , div [ class "text-sm text-gray-700" ] [ text (String.fromInt (round progressValue) ++ "%") ]
                         ]
 
-                Uploaded ->
+                Nip96.Uploaded ->
                     case fileUpload.uploadResponse of
                         Just response ->
                             div []
@@ -596,31 +894,54 @@ viewFileUpload ( fileId, fileUpload ) =
                         Nothing ->
                             div [ class "text-green-500" ] [ text "Upload completed." ]
 
-                Failed errorMsg ->
+                Nip96.Failed errorMsg ->
                     div [ class "text-red-500" ] [ text ("Upload failed: " ++ errorMsg) ]
     in
-    div [ class "mb-4 border p-4 rounded" ]
-        [ div [ class "font-bold mb-2" ] [ text fileName ]
+    div [ css
+            [ Tw.mb_4
+            , Tw.p_4
+            , Tw.rounded
+            ]
+        ]
+        [ div
+            [ css
+                [ Tw.font_bold
+                , Tw.mb_2
+                ] 
+            ]
+            [ text fileName ]
         , statusView
         ]
 
 
-viewUploadResponse : UploadResponse -> Html msg
+viewUploadResponse : Nip96.UploadResponse -> Html msg
 viewUploadResponse response =
     div [ class "mt-2" ]
-        (case response.nip94Event of
-            Just nip94Event ->
+        (case response.fileMetadata of
+            Just fileMetadata ->
                 let
                     url =
-                        tagValue nip94Event.tags "url"
+                        fileMetadata.url
                         |> Maybe.withDefault "No URL provided"
 
                     ox =
-                        tagValue nip94Event.tags "ox"
+                        fileMetadata.oxHash
                         |> Maybe.withDefault "No hash provided"
                 in
-                [ div [] [ text ("Download URL: " ++ url) ]
-                , div [] [ text ("Original File Hash (ox): " ++ ox) ]
+                [ div
+                    [ css
+                        [ Tw.text_ellipsis
+                        , Tw.overflow_hidden
+                        ]
+                    ]
+                    [ text ("Download URL: " ++ url) ]
+                , div
+                    [ css
+                        [ Tw.text_ellipsis
+                        , Tw.overflow_hidden
+                        ]
+                    ]
+                    [ text ("Original File Hash (ox): " ++ ox) ]
                 ]
 
             Nothing ->
@@ -685,87 +1006,4 @@ hashResultHandler toMsg fileId result =
         Err _ ->
             toMsg <| ErrorOccurred "Failed to compute file hash."
 
-
-uploadFile : Model -> Int -> File -> String -> Cmd Msg
-uploadFile (Model model) fileId file authHeader =
-    let
-        url =
-            "https://placeholder.api.url/upload" -- Replace with actual URL
-
-        maybeUpload =
-            Dict.get fileId model.files
-
-        body =
-            case maybeUpload of
-                Just upload ->
-                    multipartBody upload
-
-                Nothing ->
-                    Http.emptyBody
-
-        request_ =
-            Http.request
-                { method = "POST"
-                , headers =
-                    [ Http.header "Authorization" ("Nostr " ++ authHeader) ]
-                , url = url
-                , body = body
-                , expect = Http.expectJson (UploadResult fileId) uploadResponseDecoder
-                , timeout = Nothing
-                , tracker = Just (String.fromInt fileId)
-                }
-    in
-    request_
-
-
-multipartBody : FileUpload -> Http.Body
-multipartBody upload =
-    let
-        sizeString =
-            String.fromInt <| File.size upload.file
-
-        contentTypeString =
-             File.mime upload.file
-
-        noTransformString =
-            if upload.noTransform then
-                "true"
-            else
-                "false"
-
-        expirationString =
-            "" -- Empty string for no expiration; can adjust as needed
-
-        -- Collect form fields
-        formFields =
-            [ Http.stringPart "caption" upload.caption
-            , Http.stringPart "alt" upload.alt
-            , Http.stringPart "media_type" upload.mediaType
-            , Http.stringPart "no_transform" noTransformString
-            , Http.stringPart "size" sizeString
-            , Http.stringPart "content_type" contentTypeString
-            , Http.stringPart "expiration" expirationString
-            , Http.filePart "file" upload.file
-            ]
-    in
-    Http.multipartBody formFields
-
-
--- JSON DECODERS
-
-
-uploadResponseDecoder : Decode.Decoder UploadResponse
-uploadResponseDecoder =
-    Decode.map4 UploadResponse
-        (Decode.field "status" Decode.string)
-        (Decode.field "message" Decode.string)
-        (Decode.field "processing_url" (Decode.nullable Decode.string))
-        (Decode.field "nip94_event" (Decode.nullable nip94EventDecoder))
-
-
-nip94EventDecoder : Decode.Decoder Nip94Event
-nip94EventDecoder =
-    Decode.map2 Nip94Event
-        (Decode.field "tags" (Decode.list (Decode.list Decode.string)))
-        (Decode.field "content" Decode.string)
 

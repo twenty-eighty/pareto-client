@@ -37,10 +37,10 @@ type RequestData
 
 type HttpRequestMethod
     = GetRequest
-    | DeleteRequest
-    | PatchRequest String
-    | PostRequest String
-    | PutRequest String
+    | DeleteRequest Int
+    | PatchRequest Int String
+    | PostRequest Int String
+    | PutRequest Int String
 
 
 

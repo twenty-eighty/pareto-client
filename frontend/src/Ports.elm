@@ -70,21 +70,26 @@ requestNip96Auth requestId serverUrl apiUrl method =
                 GetRequest ->
                     [ ("method", Encode.string "GET") ]
 
-                DeleteRequest ->
-                    [ ("method", Encode.string "DELETE") ]
+                DeleteRequest fileId ->
+                    [ ("method", Encode.string "DELETE")
+                    , ("fileId", Encode.int fileId)
+                    ]
 
-                PostRequest hash ->
+                PostRequest fileId hash ->
                     [ ("method", Encode.string "POST")
+                    , ("fileId", Encode.int fileId)
                     , ("hash", Encode.string hash)
                     ]
 
-                PutRequest hash ->
+                PutRequest fileId hash ->
                     [ ("method", Encode.string "PUT")
+                    , ("fileId", Encode.int fileId)
                     , ("hash", Encode.string hash)
                     ]
 
-                PatchRequest hash ->
+                PatchRequest fileId hash ->
                     [ ("method", Encode.string "PATCH")
+                    , ("fileId", Encode.int fileId)
                     , ("hash", Encode.string hash)
                     ]
 
