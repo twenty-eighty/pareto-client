@@ -23,7 +23,6 @@ import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-import Translations
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import Url

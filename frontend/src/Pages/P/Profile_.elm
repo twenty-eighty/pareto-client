@@ -25,7 +25,7 @@ import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-import Translations
+import Translations.Sidebar as Translations
 import Ui.ArticleOld
 import Ui.Profile
 import Ui.Styles exposing (Styles, Theme)
@@ -142,7 +142,7 @@ view shared model =
                 Nostr.getProfile shared.nostr pubKey
             )
     in
-    { title = "Profile"
+    { title = Translations.readMenuItemText [ shared.browserEnv.translations ]
     , body =
         [ case maybeProfile of
             Just profile ->

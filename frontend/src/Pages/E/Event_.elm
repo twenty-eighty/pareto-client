@@ -23,7 +23,7 @@ import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-import Translations
+import Translations.Sidebar as Translations
 import Ui.Styles exposing (Theme)
 import Ui.View
 import Url
@@ -164,7 +164,7 @@ subscriptions model =
 
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
-    { title = "Read"
+    { title = Translations.readMenuItemText [ shared.browserEnv.translations ]
     , body =
         [ viewContent shared model
         ]

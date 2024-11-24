@@ -18,7 +18,7 @@ import Route exposing (Route)
 import Shared
 import Shared.Msg
 import Shared.Model
-import Translations
+import Translations.Sidebar as Translations
 import Ui.Styles exposing (Styles, Theme)
 import Ui.View
 import Url
@@ -116,7 +116,7 @@ subscriptions model =
 
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
-    { title = "Read"
+    { title = Translations.readMenuItemText [ shared.browserEnv.translations ]
     , body =
         [ model.nip19
           |> Maybe.andThen (Nostr.getArticleForNip19 shared.nostr)
