@@ -1,7 +1,7 @@
 port module Ports exposing (..)
 
 import Json.Encode as Encode
-import Nostr exposing (IncomingMessage, OutgoingCommand)
+import Nostr.Types exposing (IncomingMessage, OutgoingCommand)
 import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), encodeEvent, encodeEventFilter)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestId)
 import Nostr.Send exposing (SendRequestId)

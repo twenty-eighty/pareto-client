@@ -28,23 +28,13 @@ import Nostr.Request exposing (HttpRequestMethod, Request, RequestData(..), Requ
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
-import Nostr.Types exposing (EventId, PubKey)
+import Nostr.Types exposing (EventId, PubKey, IncomingMessage, OutgoingCommand)
 import Nostr.Zaps exposing (ZapReceipt)
 import Html.Attributes exposing (kind)
 import Time
 import Nostr.Types exposing (RelayUrl)
 import Set
 
-
-type alias OutgoingCommand =
-    { command : String
-    , value : Encode.Value
-    }
-
-type alias IncomingMessage =
-    { messageType : String
-    , value : Encode.Value
-    }
 
 type alias Hooks =
     { connect : List String -> Cmd Msg

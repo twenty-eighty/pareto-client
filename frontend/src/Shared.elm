@@ -21,7 +21,7 @@ import Nostr
 import Nostr.Event exposing (Kind(..), emptyEventFilter)
 import Nostr.Profile exposing (Profile)
 import Nostr.Request exposing (Request, RequestData(..))
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (PubKey, IncomingMessage)
 import Pareto
 import Ports
 import Route exposing (Route)
@@ -51,7 +51,8 @@ defaultRelays =
 -- FLAGS
 
 type alias Flags =
-    { isLoggedIn : Bool
+    { darkMode : Bool
+    , isLoggedIn : Bool
     , locale : String
     }
 
@@ -59,7 +60,8 @@ type alias Flags =
 -- Define a decoder for the 'isLoggedIn' field
 decoder : Json.Decode.Decoder Flags
 decoder =
-    Json.Decode.map2 Flags
+    Json.Decode.map3 Flags
+        (Json.Decode.field "darkMode" Json.Decode.bool)
         (Json.Decode.field "isLoggedIn" Json.Decode.bool)
         (Json.Decode.field "locale" Json.Decode.string)
 
@@ -80,6 +82,7 @@ init flagsResult route =
                 (browserEnv, browserEnvCmd) =
                     BrowserEnv.init
                         { backendUrl = ""
+                        , darkMode = flags.darkMode
                         , frontendUrl = ""
                         , locale = flags.locale
                         }
@@ -110,11 +113,12 @@ init flagsResult route =
                 ]
             )
 
-        Err error ->
+        Err _ ->
             let
-                (browserEnv, browserEnvCmd) =
+                (browserEnv, _) =
                     BrowserEnv.init
                         { backendUrl = ""
+                        , darkMode = False
                         , frontendUrl = ""
                         , locale = ""
                         }
@@ -203,7 +207,7 @@ update route msg model =
             else
                 ( { model | role = ClientConsumer }, Effect.pushRoutePath Route.Path.Home_ )
 
-updateWithPortMessage : Model -> Nostr.IncomingMessage -> ( Model, Effect Msg )
+updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage model portMessage =
     case portMessage.messageType of
         "user" ->

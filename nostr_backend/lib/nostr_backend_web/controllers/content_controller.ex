@@ -149,6 +149,12 @@ defmodule NostrBackendWeb.ContentController do
     end
   end
 
+  def hashtag(conn, %{"hashtag" => hashtag}) do
+    conn
+    |> conn_with_default_meta()
+    |> render("hashtag.html", hashtag: hashtag)
+  end
+
   def user_nip05(conn, %{"user_nip05" => user_nip05}) do
     case Nip05.parse_identifier(user_nip05) do
       {:ok, _name, _domain} ->

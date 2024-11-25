@@ -43,6 +43,7 @@ defmodule NostrBackendWeb.Router do
     get("/e/:event_id", ContentController, :event)
     get("/c/:community_id", ContentController, :community)
     get("/p/:profile_id", ContentController, :profile)
+    get("/t/:hashtag", ContentController, :hashtag)
     get("/u/:user_nip05/:identifier", ContentController, :nip05_article)
     get("/u/:user_nip05", ContentController, :user_nip05)
   end

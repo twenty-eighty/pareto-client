@@ -10,7 +10,7 @@ import Nostr
 import Nostr.Nip19 as Nip19
 import Nostr.Community exposing (Community, communityDecoder)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), numberForKind)
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (PubKey, IncomingMessage)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
@@ -81,7 +81,7 @@ communitiesFilter =
 
 
 type Msg
-    = ReceivedMessage Nostr.IncomingMessage
+    = ReceivedMessage IncomingMessage
     | UpdateSearch String
 
 
@@ -97,7 +97,7 @@ update shared msg model =
             else    
                 ({ model | searchString = Just searchString, searchStringLowerCase = Just <| String.toLower searchString }, Effect.none)
 
-updateWithMessage : Shared.Model -> Model -> Nostr.IncomingMessage -> (Model, Effect Msg)
+updateWithMessage : Shared.Model -> Model -> IncomingMessage -> (Model, Effect Msg)
 updateWithMessage shared model message =
     case message.messageType of
         "communities" ->

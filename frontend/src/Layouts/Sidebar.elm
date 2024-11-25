@@ -219,7 +219,7 @@ viewSidebar styles shared currentPath toContentMsg content =
                         ]
                     ]
                 ]
-                [ viewSidebarItems styles shared.browserEnv.translations shared.role (Shared.loggedIn shared) currentPath ]
+                [ viewSidebarItems styles shared.browserEnv shared.role (Shared.loggedIn shared) currentPath ]
         , div
             [ css
                 [ Tw.flex_1
@@ -273,8 +273,15 @@ viewBanner =
             []
         ]
 
-viewBannerSmall : Html contentMsg
-viewBannerSmall =
+viewBannerSmall : BrowserEnv -> Html contentMsg
+viewBannerSmall browserEnv =
+    let
+        bannerImage =
+            if browserEnv.darkMode then
+                "/images/icon/Pareto-Log4.png"
+            else
+                "/images/icon/Pareto-Log5.png"
+    in
     div
         [ css
             [ Tw.flex
@@ -283,11 +290,10 @@ viewBannerSmall =
             ]
         ]
         [ img
-            [ Attr.src "/images/pareto-banner.png"
+            [ Attr.src bannerImage
             , Attr.alt "Banner"
             , css
                 [ Tw.h_10
-                , Tw.rounded_md
                 ]
             ]
             []
@@ -433,11 +439,11 @@ profileForUser shared loggedIn =
 
 
 
-viewSidebarItems : Styles contentMsg -> I18Next.Translations -> ClientRole -> Bool -> Route.Path.Path -> Html contentMsg
-viewSidebarItems styles translations clientRole loggedIn currentPath =
+viewSidebarItems : Styles contentMsg -> BrowserEnv -> ClientRole -> Bool -> Route.Path.Path -> Html contentMsg
+viewSidebarItems styles browserEnv clientRole loggedIn currentPath =
     let
         visibleSidebarItems =
-            (sidebarItems clientRole translations)
+            (sidebarItems clientRole browserEnv.translations)
             |> List.filter (sidebarItemVisible loggedIn)
     in
     
@@ -449,7 +455,7 @@ viewSidebarItems styles translations clientRole loggedIn currentPath =
             , Tw.space_y_4
             ]
         ]
-        ([ viewBannerSmall
+        ([ viewBannerSmall browserEnv
         ] ++
         (List.map (viewSidebarItem styles currentPath) visibleSidebarItems)
         )

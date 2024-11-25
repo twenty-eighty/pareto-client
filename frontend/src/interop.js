@@ -21,7 +21,8 @@ const debug = true;
 export const flags = ({ env }) => {
   return {
     isLoggedIn: JSON.parse(localStorage.getItem('isLoggedIn')) || false,
-    locale: navigator.language
+    locale: navigator.language,
+    darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
   }
 }
 
@@ -33,6 +34,16 @@ export const onReady = ({ app, env }) => {
   var requestUserWhenLoaded = false;
   var storedCommands = [];
 
+  if (window.matchMedia) {
+    window.matchMedia("(prefers-color-scheme: dark)").addListener(e =>
+      e.matches &&
+      app.ports.receiveMessage.send({ messageType: 'darkMode', value: true })
+    );
+    window.matchMedia("(prefers-color-scheme: light)").addListener(e =>
+      e.matches &&
+      app.ports.receiveMessage.send({ messageType: 'darkMode', value: false })
+    );
+  }
 
   app.ports.sendCommand.subscribe(({ command: command, value: value }) => {
     if (command === 'connect') {

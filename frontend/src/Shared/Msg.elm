@@ -7,6 +7,7 @@ import BrowserEnv
 import Nostr
 import Nostr.Request exposing (Request)
 import Nostr.Send exposing (SendRequest)
+import Nostr.Types exposing (IncomingMessage)
 
 
 {-| Normally, this value would live in "Shared.elm"
@@ -18,7 +19,7 @@ own file, so they can be imported by `Effect.elm`
 -}
 type Msg
     = TriggerLogin
-    | ReceivedPortMessage Nostr.IncomingMessage
+    | ReceivedPortMessage IncomingMessage
     | NostrMsg Nostr.Msg
     | BrowserEnvMsg BrowserEnv.Msg
     | RequestNostrEvents Request

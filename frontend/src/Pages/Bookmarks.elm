@@ -9,6 +9,7 @@ import Layouts
 import Nostr exposing (getBookmarks)
 import Nostr.Event exposing (Kind(..))
 import Nostr.Request exposing (RequestData(..))
+import Nostr.Types exposing (IncomingMessage)
 import Route exposing (Route)
 import Page exposing (Page)
 import Ports
@@ -75,7 +76,7 @@ init shared user () =
 
 
 type Msg
-    =  ReceivedMessage Nostr.IncomingMessage
+    =  ReceivedMessage IncomingMessage
 
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -85,7 +86,7 @@ update shared msg model =
             updateWithMessage shared model message
 
 
-updateWithMessage : Shared.Model.Model -> Model -> Nostr.IncomingMessage -> (Model, Effect Msg)
+updateWithMessage : Shared.Model.Model -> Model -> IncomingMessage -> (Model, Effect Msg)
 updateWithMessage shared model message =
     ( model, Effect.none )
 

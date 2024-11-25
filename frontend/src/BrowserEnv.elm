@@ -9,6 +9,8 @@ import Http
 import I18Next
 import Json.Decode as Decode
 import Locale exposing (Language(..), dateFormatFromLanguage, languageFromLocale, numberFormatFromLanguage, relativeTimeOptionsFromLanguage)
+import Nostr.Types exposing (IncomingMessage)
+import Ports
 import Result exposing (Result)
 import Task
 import Time exposing (Posix)
@@ -22,6 +24,7 @@ type alias BrowserEnv =
     , dateFormatTokensWithYear : List DateFormat.Token
     , dateFormatTokensWithoutYear : List DateFormat.Token
     , dateFormatRelativeTimeOptions : RelativeTimeOptions
+    , darkMode : Bool
     , formatNumber : String -> Float -> String
     , frontendUrl : String
     , installPromptAvailable : Bool
@@ -40,11 +43,14 @@ type Msg
     = UpdateLocale String
     | UpdateTranslations (Result Http.Error I18Next.Translations)
     | UpdateZone Time.Zone
+    | ReceivedPortMessage IncomingMessage
+    | SwitchToDarkMode Bool
     | Now Posix
 
 
 type alias InitParams =
     { backendUrl : String
+    , darkMode : Bool
     , frontendUrl : String
     , locale : String
     }
@@ -69,6 +75,7 @@ init initParams =
             , dateFormatTokensWithYear = dateFormatTokensWithYear
             , dateFormatTokensWithoutYear = dateFormatTokensWithoutYear
             , dateFormatRelativeTimeOptions = relativeTimeOptions
+            , darkMode = initParams.darkMode
             , formatNumber = numberFormatFromLanguage language
             , errors = []
             , installPromptAvailable = False
@@ -153,8 +160,29 @@ update msg browserEnv =
         UpdateZone zone ->
             ( { browserEnv | zone = zone }, Cmd.none )
 
+        ReceivedPortMessage portMessage -> 
+            updateWithPortMessage browserEnv portMessage
+
+        SwitchToDarkMode darkMode ->
+            ( { browserEnv | darkMode = darkMode }, Cmd.none )
+
         Now now ->
             ( { browserEnv | now = now }, Cmd.none )
+
+updateWithPortMessage : BrowserEnv -> IncomingMessage -> ( BrowserEnv, Cmd Msg )
+updateWithPortMessage browserEnv portMessage =
+    case portMessage.messageType of
+        "darkMode" ->
+            case Decode.decodeValue Decode.bool portMessage.value of
+                Ok darkMode ->
+                    ( { browserEnv | darkMode = darkMode }, Cmd.none )
+
+                Err _ ->
+                    ( browserEnv, Cmd.none )
+        
+        _ -> 
+            ( browserEnv, Cmd.none )
+
 
 httpError error =
     case error of
@@ -248,5 +276,7 @@ updateTimeZone zoneName browserEnv =
 
 subscriptions : BrowserEnv -> Sub Msg
 subscriptions browserEnv =
-    Sub.none
-    --Time.every 1000 Now
+    Sub.batch
+        [ Ports.receiveMessage ReceivedPortMessage
+        --, Time.every 1000 Now
+        ]

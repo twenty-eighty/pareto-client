@@ -11,6 +11,7 @@ import Locale
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..))
+import Nostr.Types exposing (IncomingMessage)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
@@ -83,7 +84,7 @@ articleFilterForLanguage browserEnv =
 -- UPDATE
 
 type Msg
-    = ReceivedMessage Nostr.IncomingMessage
+    = ReceivedMessage IncomingMessage
 
 
 update : Msg -> Model -> ( Model, Effect Msg )

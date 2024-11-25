@@ -14,6 +14,7 @@ import Nostr.Article exposing (Article)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..))
 import Nostr.Nip19 as Nip19
 import Nostr.Request exposing (RequestData(..))
+import Nostr.Types exposing (IncomingMessage)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
@@ -121,7 +122,7 @@ decodedTagParam tag =
 
 type Msg
     = OpenGetStarted
-    | ReceivedMessage Nostr.IncomingMessage
+    | ReceivedMessage IncomingMessage
     | NostrMsg Nostr.Msg
 
 
