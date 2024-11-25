@@ -54,16 +54,18 @@ type alias Flags =
     { darkMode : Bool
     , isLoggedIn : Bool
     , locale : String
+    , sharingAvailable : Bool
     }
 
 
 -- Define a decoder for the 'isLoggedIn' field
 decoder : Json.Decode.Decoder Flags
 decoder =
-    Json.Decode.map3 Flags
+    Json.Decode.map4 Flags
         (Json.Decode.field "darkMode" Json.Decode.bool)
         (Json.Decode.field "isLoggedIn" Json.Decode.bool)
         (Json.Decode.field "locale" Json.Decode.string)
+        (Json.Decode.field "sharingAvailable" Json.Decode.bool)
 
 -- INIT
 
@@ -85,6 +87,7 @@ init flagsResult route =
                         , darkMode = flags.darkMode
                         , frontendUrl = ""
                         , locale = flags.locale
+                        , sharingAvailable = flags.sharingAvailable
                         }
 
                 (nostrInit, nostrInitCmd) =
@@ -121,6 +124,7 @@ init flagsResult route =
                         , darkMode = False
                         , frontendUrl = ""
                         , locale = ""
+                        , sharingAvailable = False
                         }
             in
             

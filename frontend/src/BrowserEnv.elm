@@ -31,6 +31,7 @@ type alias BrowserEnv =
     , language : Language
     , locale : String
     , nativeSharingAvailable : Bool
+    , sharingAvailable : Bool
     , translations : I18Next.Translations
     , now : Posix
     , zone : Time.Zone
@@ -53,6 +54,7 @@ type alias InitParams =
     , darkMode : Bool
     , frontendUrl : String
     , locale : String
+    , sharingAvailable : Bool
     }
 
 
@@ -82,6 +84,7 @@ init initParams =
             , language = language
             , locale = initParams.locale
             , nativeSharingAvailable = False
+            , sharingAvailable = initParams.sharingAvailable
             , translations = DefaultLanguage.defaultLanguage
             , now = Time.millisToPosix 0
             , zone = Time.utc

@@ -46,6 +46,7 @@ import Translations.UploadDialog as Translations
 import Ui.Shared exposing (modalDialog)
 import Ui.Styles exposing (Styles, Styles)
 import Json.Decode as Decode
+import Nostr.Nip96 as Nip96
 
 type UploadDialog msg
      = Settings
@@ -87,10 +88,7 @@ type Model
 
 type DialogState
     = DialogClosed
-    | WaitingForFiles
-    | EditingMetadata
-    | Uploading
-    | Uploaded
+    | DialogVisible
 
 type FileUpload
     = FileUploadNip96 (Maybe String) Nip96.FileUpload
@@ -118,7 +116,7 @@ init props =
 
 show : Model -> Model
 show (Model model) =
-    Model { model | state = WaitingForFiles }
+    Model { model | state = DialogVisible }
 
 updateServerList : Model -> List UploadServer -> Model
 updateServerList (Model model) uploadServers =
@@ -181,7 +179,7 @@ update props =
     toParentModel <|
         case props.msg of
             FocusedDropdown ->
-                ( Model { model | state = WaitingForFiles }, Effect.none)
+                ( Model { model | state = DialogVisible }, Effect.none)
 
             BlurredDropdown ->
                 ( Model { model | state = DialogClosed }, Effect.none)
@@ -257,7 +255,6 @@ update props =
                 ( Model
                     { model | files = newFiles
                     , nextFileId = nextId
-                    , state = EditingMetadata
                     }
                 , Cmd.batch cmds
                     |> Cmd.map props.toMsg
@@ -598,28 +595,82 @@ type alias AuthHeaderReceived =
     , apiUrl : String
     }
 
+type DisplayMode
+    = WaitingForFiles
+    | EditingMetadata
+    | Uploading
+    | Finished
+
+displayMode : Model -> DisplayMode
+displayMode (Model model) =
+    let
+        uploads =
+            Dict.values model.files
+    in
+    if List.length uploads < 1 then
+        WaitingForFiles
+    else if uploadNeedsMetadata uploads then
+        EditingMetadata
+    else if uploadInProgress uploads then
+        Uploading
+    else
+        Finished
+
+uploadNeedsMetadata : List FileUpload -> Bool
+uploadNeedsMetadata uploads =
+    uploads
+    |> List.any (\upload ->
+        case upload of
+            FileUploadNip96 _ { status } ->
+                status == Nip96.Selected
+    )
+
+uploadInProgress : List FileUpload -> Bool
+uploadInProgress uploads =
+    uploads
+    |> List.any (\upload ->
+        case upload of
+            FileUploadNip96 _ { status } ->
+                case status of
+                    Nip96.Hashing ->
+                        True
+
+                    Nip96.AwaitingAuthHeader _ ->
+                        True
+
+                    Nip96.ReadyToUpload _ _ ->
+                        True
+
+                    Nip96.Uploading _ ->
+                        True
+
+                    _ ->
+                        False
+    )
+
 view : UploadDialog msg -> Html msg
 view (Settings settings) =
     let
         (Model model) =
             settings.model
     in
-    case model.state of
-        DialogClosed ->
+    case (model.state, displayMode (Model model)) of
+        (DialogClosed, _) ->
             div [][]
 
-        WaitingForFiles ->
+        (DialogVisible, WaitingForFiles) ->
             viewWaitingForFiles (Settings settings)
             |> Html.map settings.toMsg
 
-        EditingMetadata ->
+        (DialogVisible, EditingMetadata) ->
             viewMetadataDialog (Settings settings)
 
-        Uploading ->
+        (DialogVisible, Uploading) ->
             viewDialog (Settings settings)
 
-        Uploaded ->
+        (DialogVisible, Finished) ->
             viewDialog (Settings settings)
+
 
 viewWaitingForFiles : UploadDialog msg -> Html Msg
 viewWaitingForFiles (Settings settings) =

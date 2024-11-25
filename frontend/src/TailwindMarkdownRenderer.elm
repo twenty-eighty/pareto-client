@@ -3,9 +3,11 @@ module TailwindMarkdownRenderer exposing (renderer)
 import Css
 import Html.Styled as Html
 import Html.Styled.Attributes as Attr exposing (css)
+import LinkPreview
 import Markdown.Block as Block
 import Markdown.Html
 import Markdown.Renderer
+import Nostr.Nip27 exposing (subsituteNostrLinks)
 import SyntaxHighlight
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
@@ -32,7 +34,7 @@ renderer styles =
                 ]
             ]
             []
-    , text = Html.text
+    , text = (Html.div []) << subsituteNostrLinks
     , strong = \content -> Html.strong [ css [ Tw.font_bold ] ] content
     , emphasis = \content -> Html.em [ css [ Tw.italic ] ] content
     , blockQuote = Html.blockquote []
@@ -44,15 +46,7 @@ renderer styles =
 
     --, codeSpan = code
     , link =
-        \{ destination } body ->
-            Html.a
-                (styles.textStyleLinks ++ styles.colorStyleArticleHashtags ++
-                [ Attr.href destination
-                , css
-                    [ Tw.underline
-                    ]
-                ])
-                body
+        formatLink styles
     , hardLineBreak = Html.br [] []
     , image =
         \image ->
@@ -333,3 +327,11 @@ codeBlock details =
         |> Result.map (SyntaxHighlight.toBlockHtml (Just 1))
         |> Result.map Html.fromUnstyled
         |> Result.withDefault (Html.pre [] [ Html.code [] [ Html.text details.body ] ])
+
+
+formatLink : Styles msg -> { title: Maybe String, destination : String } -> List (Html.Html msg) -> Html.Html msg
+formatLink styles { destination } body =
+    LinkPreview.generatePreviewHtml
+        destination
+        (styles.textStyleLinks ++ styles.colorStyleArticleHashtags ++ [ css [ Tw.underline ] ])
+        body

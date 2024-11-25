@@ -20,9 +20,10 @@ const debug = true;
 // into your `Shared.init` function.
 export const flags = ({ env }) => {
   return {
+    darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
     isLoggedIn: JSON.parse(localStorage.getItem('isLoggedIn')) || false,
     locale: navigator.language,
-    darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+    sharingAvailable: (navigator.share != undefined)
   }
 }
 
