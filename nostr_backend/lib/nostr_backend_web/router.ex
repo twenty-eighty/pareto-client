@@ -33,6 +33,9 @@ defmodule NostrBackendWeb.Router do
     get("/c", PageController, :communities)
     get("/search", PageController, :search)
     get("/bookmarks", PageController, :bookmarks)
+    get("/media", PageController, :media)
+    get("/messages", PageController, :messages)
+    get("/notifications", PageController, :notifications)
     get("/read", PageController, :read)
     get("/write", PageController, :write)
 
