@@ -38,6 +38,7 @@ import Tailwind.Theme as Theme
 import Translations.MediaSelector
 import Ui.Styles exposing (Styles, Theme)
 import Ui.Shared
+import Url
 
 
 type MediaSelector msg
@@ -73,7 +74,6 @@ type Model
         , search : String
         , displayType : DisplayType
         , serverSelectionDropdown : Components.Dropdown.Model MediaServer
-        , selectedServer : MediaServer
         , blossomServers : Dict ServerUrl ServerState
         , nip96Servers : Dict ServerUrl ServerState
         , nip96ServerDescResponses : Dict String Nip96.ServerDescResponse
@@ -124,8 +124,7 @@ init props =
         { selected = Just 0
         , search = ""
         , displayType = props.displayType
-        , serverSelectionDropdown = Components.Dropdown.init { selected = Nothing }
-        , selectedServer = NoMediaServer
+        , serverSelectionDropdown = Components.Dropdown.init { selected = Just NoMediaServer }
         , blossomServers = serversWithUnknownState props.blossomServers
         , nip96Servers = serversWithUnknownState props.nip96Servers
         , nip96ServerDescResponses = Dict.empty
@@ -236,7 +235,13 @@ update props =
                 (newModel, Effect.map props.toMsg effect)
 
             ChangedSelectedServer selectedServer ->
-                ( Model { model | selectedServer = selectedServer }, Effect.none )
+                ( Model
+                    { model
+                    | serverSelectionDropdown =
+                        Components.Dropdown.selectItem model.serverSelectionDropdown (Just selectedServer)
+                    }
+                , Effect.none
+                )
 
             Upload ->
                 ( Model { model | uploadDialog = UploadDialog.show model.uploadDialog }, Effect.none)
@@ -369,10 +374,12 @@ updateModelWithBlossomFileList (Model model) serverUrl fileList =
         { model | uploadedBlossomFiles = Dict.insert serverUrl (List.map BlossomFile fileList) model.uploadedNip96Files
         , blossomServers = blossomServers
         , uploadDialog = updateUploadDialogServerList model.nip96ServerDescResponses model.uploadDialog blossomServers model.nip96Servers
-        , selectedServer =
+        , serverSelectionDropdown =
             selectableMediaServers (Model model)
             |> List.head
             |> Maybe.withDefault NoMediaServer
+            |> Just
+            |> Components.Dropdown.selectItem model.serverSelectionDropdown
         }
 
 updateUploadDialogServerList : Dict String Nip96.ServerDescResponse -> UploadDialog.Model -> Dict String ServerState -> Dict String ServerState -> UploadDialog.Model
@@ -421,10 +428,12 @@ updateModelWithNip96FileList (Model model) serverUrl fileList =
         { model | uploadedNip96Files = Dict.insert serverUrl (List.map Nip96File fileList.files) model.uploadedNip96Files
         , nip96Servers = nip96Servers
         , uploadDialog = updateUploadDialogServerList model.nip96ServerDescResponses model.uploadDialog model.blossomServers nip96Servers
-        , selectedServer =
+        , serverSelectionDropdown =
             selectableMediaServers (Model model)
             |> List.head
             |> Maybe.withDefault NoMediaServer
+            |> Just
+            |> Components.Dropdown.selectItem model.serverSelectionDropdown
         }
 
 updateServerState : Dict String ServerState -> String -> ServerState -> Dict String ServerState
@@ -523,15 +532,15 @@ viewMediaSelector (Settings settings) =
             selectableMediaServers (Model model)
 
         filesToShow =
-            case model.selectedServer of
-                Nip96MediaServer serverUrl ->
+            case Components.Dropdown.selectedItem model.serverSelectionDropdown of
+                Just (Nip96MediaServer serverUrl) ->
                     (uploadedNip96ImageFiles model.uploadedNip96Files serverUrl)
 
-                BlossomMediaServer serverUrl ->
+                Just (BlossomMediaServer serverUrl) ->
                     (Dict.get serverUrl model.uploadedBlossomFiles
                     |> Maybe.withDefault [])
 
-                AllMediaServers ->
+                Just AllMediaServers ->
                     -- respect order of server list
                     (Dict.keys model.blossomServers
                     |> List.filterMap (\blossomServer -> Dict.get blossomServer model.uploadedBlossomFiles)
@@ -543,7 +552,10 @@ viewMediaSelector (Settings settings) =
                     |> List.concat
                     )
 
-                NoMediaServer ->
+                Just NoMediaServer ->
+                    []
+
+                Nothing ->
                     []
     in
     div []
@@ -565,25 +577,12 @@ viewMediaSelector (Settings settings) =
                 |> Components.Dropdown.withOnChange ChangedSelectedServer
                 |> Components.Dropdown.view
                 |> Html.map settings.toMsg
-            ,label
-                [ css
-                    [ Tw.cursor_pointer
-                    , Tw.inline_flex
-                    , Tw.items_center
-                    , Tw.bg_color Theme.blue_500
-                    , Tw.text_color Theme.white
-                    , Tw.font_medium
-                    , Tw.py_2
-                    , Tw.px_4
-                    , Tw.rounded_lg
-                    , Css.hover
-                        [ Tw.bg_color Theme.blue_600
-                        ]
-                    ]
-                , Events.onClick Upload
-                ]
-                [ text <| Translations.MediaSelector.uploadButtonTitle [settings.browserEnv.translations]
-                ]
+            , Button.new
+                { label = Translations.MediaSelector.uploadButtonTitle [settings.browserEnv.translations]
+                , onClick = Upload
+                }
+                |> Button.withDisabled (List.length selectableServers < 1)
+                |> Button.view
                 |> Html.map settings.toMsg
             ]
         ,             {- Image Grid -}
@@ -665,11 +664,19 @@ mediaServerToString mediaServer =
             "No server available"
 
         BlossomMediaServer serverUrl ->
-            serverUrl ++ " (Blossom)"
+            hostOfUrl serverUrl ++ " (Blossom)"
 
         Nip96MediaServer serverUrl ->
-            serverUrl ++ " (NIP-96)"
+            hostOfUrl serverUrl ++ " (NIP-96)"
 
+hostOfUrl : String -> String
+hostOfUrl url =
+    case Url.fromString url of
+        Just { host } ->
+            host
+        
+        Nothing ->
+            url
 
 uploadedNip96ImageFiles : Dict String (List UploadedFile) -> String -> List UploadedFile
 uploadedNip96ImageFiles uploadedNip96Files serverUrl =

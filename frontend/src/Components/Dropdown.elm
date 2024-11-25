@@ -9,7 +9,7 @@ import Html.Styled.Events as Events exposing (..)
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-
+import Ui.Styles exposing (darkMode, fontFamilyInter)
 
 -- SETTINGS
 
@@ -104,6 +104,13 @@ type Msg item msg
         , onChange : Maybe msg
         }
 
+selectItem : Model item -> Maybe item -> Model item
+selectItem (Model model) maybeitem =
+    Model { model | selected = maybeitem }
+
+selectedItem : Model item -> Maybe item
+selectedItem (Model model) =
+    model.selected
 
 update :
     { msg : Msg item msg
@@ -192,6 +199,11 @@ view (Settings settings) =
                         , Tw.ring_color Theme.blue_500
                         , Tw.border_color Theme.blue_500
                         ]
+                    , darkMode
+                        [ Tw.border_color Theme.gray_700
+                        , Tw.text_color Theme.gray_300
+                        , Tw.bg_color Theme.black
+                        ]
                     ]
                 , onClick (settings.toMsg FocusedDropdown)
                 ]
@@ -236,12 +248,18 @@ view (Settings settings) =
                         , Tw.border_color Theme.gray_200
                         , Tw.rounded_lg
                         , Tw.shadow_lg
+                        , darkMode
+                            [ Tw.bg_color Theme.black
+                            ]
                         ]
                     ]
                     [ ul
                         [ css
                             [ Tw.py_2
                             , Tw.text_color Theme.gray_700
+                            , darkMode
+                                [ Tw.text_color Theme.gray_300
+                                ]
                             ]
                         ]
                         (List.map viewDropdownMenuItem settings.choices)
@@ -260,6 +278,9 @@ view (Settings settings) =
                                 , Tw.py_2
                                 , Css.hover
                                     [ Tw.bg_color Theme.blue_100
+                                    , darkMode
+                                        [ Tw.bg_color Theme.blue_900
+                                        ]
                                     ]
                                 ]
                             ]
@@ -284,6 +305,7 @@ view (Settings settings) =
 
     in
     div [ class "dropdown"
+        , fontFamilyInter
         , classList
             [ ( "dropdown--small", settings.size == Small )
             ]

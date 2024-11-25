@@ -45,8 +45,7 @@ import Tailwind.Theme as Theme
 import Translations.UploadDialog as Translations
 import Ui.Shared exposing (modalDialog)
 import Ui.Styles exposing (Styles, Styles)
-import Json.Decode as Decode
-import Nostr.Nip96 as Nip96
+import Url
 
 type UploadDialog msg
      = Settings
@@ -79,7 +78,6 @@ type Model
     = Model
         { state : DialogState
         , serverSelectionDropdown : Components.Dropdown.Model UploadServer
-        , uploadServer : Maybe UploadServer
         , uploadServers : List UploadServer
         , errors : List String
         , files : Dict Int FileUpload
@@ -107,7 +105,6 @@ init props =
     Model
         { state = DialogClosed
         , serverSelectionDropdown = Components.Dropdown.init { selected = Nothing }
-        , uploadServer = Nothing
         , uploadServers = []
         , files = Dict.empty
         , nextFileId = 0
@@ -120,13 +117,18 @@ show (Model model) =
 
 updateServerList : Model -> List UploadServer -> Model
 updateServerList (Model model) uploadServers =
-    case model.uploadServer of
+    case Components.Dropdown.selectedItem model.serverSelectionDropdown of
         -- prefer NIP-96 server for uploads
         Just (UploadServerNip96 _) ->
             Model { model | uploadServers = uploadServers }
 
         _ ->
-            Model { model | uploadServer = List.head uploadServers, uploadServers = uploadServers }
+            Model
+                { model
+                | serverSelectionDropdown =
+                    Components.Dropdown.selectItem model.serverSelectionDropdown (List.head uploadServers)
+                , uploadServers = uploadServers
+                }
 
 type Msg
     = FocusedDropdown
@@ -203,7 +205,12 @@ update props =
                 (newModel, Effect.map props.toMsg effect)
 
             ChangedSelectedServer uploadServer ->
-                ( Model { model | uploadServer = Just uploadServer }, Effect.none )
+                ( Model { model 
+                | serverSelectionDropdown =
+                    Components.Dropdown.selectItem model.serverSelectionDropdown (Just uploadServer)
+                }
+                , Effect.none
+                )
 
             DragEnter ->
                 ( Model model, Effect.none)
@@ -401,7 +408,7 @@ update props =
                             model.files
 
                     effect =
-                        case model.uploadServer of
+                        case Components.Dropdown.selectedItem model.serverSelectionDropdown of
                             Just (UploadServerBlossom _) ->
                                 Effect.none
 
@@ -546,7 +553,7 @@ processIncomingMessage user xModel messageType toMsg value =
                                                 Nip96.ReadyToUpload hash authHeader ->
                                                     let
                                                         apiUrl =
-                                                            case model.uploadServer of
+                                                            case Components.Dropdown.selectedItem model.serverSelectionDropdown of
                                                                 Just (UploadServerNip96 serverDescriptorData) ->
                                                                     serverDescriptorData.apiUrl
 
@@ -666,7 +673,7 @@ view (Settings settings) =
             viewMetadataDialog (Settings settings)
 
         (DialogVisible, Uploading) ->
-            viewDialog (Settings settings)
+            viewUploadingDialog (Settings settings)
 
         (DialogVisible, Finished) ->
             viewDialog (Settings settings)
@@ -717,10 +724,19 @@ uploadServerToString : UploadServer -> String
 uploadServerToString uploadServer =
     case uploadServer of
         UploadServerBlossom serverUrl ->
-            serverUrl ++ " (Blossom)"
+            hostOfUrl serverUrl ++ " (Blossom)"
 
         UploadServerNip96 nip96ServerDescriptorData ->
-            nip96ServerDescriptorData.apiUrl ++ " (NIP-96)"
+            hostOfUrl nip96ServerDescriptorData.apiUrl ++ " (NIP-96)"
+
+hostOfUrl : String -> String
+hostOfUrl url =
+    case Url.fromString url of
+        Just { host } ->
+            host
+        
+        Nothing ->
+            url
 
 
 dropDecoder : Decode.Decoder Msg
@@ -747,6 +763,27 @@ viewMetadataDialog (Settings settings) =
     in
     modalDialog
         "Edit metadata of files"
+        [ div
+            [ css 
+                [
+                ]
+            ]
+            [ div []
+                (Dict.toList model.files |> List.map viewFileUpload)
+            ]
+        |> Html.map settings.toMsg
+        ]
+        (settings.toMsg CloseDialog)
+
+
+viewUploadingDialog : UploadDialog msg -> Html msg
+viewUploadingDialog (Settings settings) =
+    let
+        (Model model) =
+            settings.model
+    in
+    modalDialog
+        "Uploading..."
         [ div
             [ css 
                 [

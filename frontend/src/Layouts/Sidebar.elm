@@ -33,6 +33,7 @@ import Tailwind.Theme as Theme
 import Translations.Sidebar as Translations
 import Ui.Styles exposing (Styles)
 import View exposing (View)
+import Ui.Styles exposing (darkMode)
 
 
 type alias Props contentMsg =
@@ -276,27 +277,54 @@ viewBanner =
 viewBannerSmall : BrowserEnv -> Html contentMsg
 viewBannerSmall browserEnv =
     let
-        bannerImage =
+        bannerImageWide =
             if browserEnv.darkMode then
                 "/images/icon/Pareto-Log4.png"
             else
                 "/images/icon/Pareto-Log5.png"
+
+        bannerImageNarrow =
+            "/images/icon/Pareto-Log1.png"
     in
     div
         [ css
             [ Tw.flex
             , Tw.items_center
-            , Tw.space_x_4
+            , Tw.space_x_2
             ]
         ]
-        [ img
-            [ Attr.src bannerImage
+        [ div
+            [ Attr.src bannerImageWide
             , Attr.alt "Banner"
             , css
                 [ Tw.h_10
+                , Tw.w_0
+                , Bp.xl
+                    [ Tw.w_40
+                    ]
                 ]
             ]
-            []
+            [ img
+                [ Attr.src bannerImageWide
+                , Attr.alt "Banner"
+                ]
+                []
+            ]
+        , div
+            [ css
+                [ Tw.h_8
+                , Tw.w_8
+                , Bp.xl
+                    [ Tw.w_0
+                    ]
+                ]
+            ]
+            [ img
+                [ Attr.src bannerImageNarrow
+                , Attr.alt "Banner"
+                ]
+                []
+            ]
         ]
 
 roleSwitchButtonEnabled : Nostr.Model -> LoginStatus -> Bool
@@ -493,9 +521,9 @@ viewSidebarItem styles currentPath itemData =
             [ Tw.flex
             , Tw.items_center
             , Tw.space_x_2
-            , Tw.w_0
             , Tw.py_2
             , Tw.rounded_full
+            , Tw.w_0
             , Bp.xl
                 [ Tw.w_40
                 ]
