@@ -470,8 +470,26 @@ update props =
                     effect =
                         case Components.Dropdown.selectedItem model.serverSelectionDropdown of
                             Just (UploadServerBlossom serverUrl) ->
+                                let
+                                    upload =
+                                        case Dict.get fileId model.files of
+                                            Just (FileUploadBlossom _ fileUpload) ->
+                                                Just fileUpload
+                                            
+                                            Just (FileUploadNip96 _ _) ->
+                                                Nothing
+
+                                            Nothing ->
+                                                Nothing
+
+                                    -- content field of auth header
+                                    content =
+                                        upload
+                                        |> Maybe.andThen .caption
+                                        |> Maybe.withDefault "Image upload"
+                                in
                                 PutRequest fileId hash
-                                |> RequestBlossomAuth serverUrl
+                                |> RequestBlossomAuth serverUrl content
                                 |> Nostr.createRequest props.nostr "Blossom auth request for files to be uploaded" []
                                 |> Shared.Msg.RequestNostrEvents
                                 |> Effect.sendSharedMsg

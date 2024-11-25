@@ -365,7 +365,7 @@ export const onReady = ({ app, env }) => {
     })
   }
 
-  function requestBlossomAuth(app, { requestId: requestId, fileId: fileId, serverUrl: serverUrl, method: method, hash: sha256Hash }) {
+  function requestBlossomAuth(app, { requestId: requestId, fileId: fileId, serverUrl: serverUrl, content: content, method: method, hash: sha256Hash }) {
     if (debug) {
       console.log("Blossom auth request with requestId: " + requestId);
     }
@@ -378,7 +378,7 @@ export const onReady = ({ app, env }) => {
 
     switch (method) {
       case 'PUT':
-        authPromise = BlossomClient.createUploadAuth(sha256Hash, signer, "upload");
+        authPromise = BlossomClient.createUploadAuth(sha256Hash, signer, content);
         break;
 
       case 'GET':

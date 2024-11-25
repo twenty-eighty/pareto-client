@@ -51,14 +51,15 @@ requestEvents description closeOnEose requestId maybeRelays filter =
                 ]
         }
 
-requestBlossomAuth : RequestId -> String -> HttpRequestMethod -> Cmd msg
-requestBlossomAuth requestId server method =
+requestBlossomAuth : RequestId -> String -> String -> HttpRequestMethod -> Cmd msg
+requestBlossomAuth requestId server content method =
     sendCommand
         { command = "requestBlossomAuth"
         , value = 
             Encode.object
                 ([ ("requestId", Encode.int requestId)
                 , ("serverUrl", Encode.string server)
+                , ("content", Encode.string content)
                 ] ++ httpMethodParams method
                 )
         }

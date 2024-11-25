@@ -155,7 +155,7 @@ requestBlossomListAuths : List String -> Effect (Msg msg)
 requestBlossomListAuths blossomServers =
     blossomServers
     |> List.map (\blossomServer ->
-        Effect.sendCmd <| Ports.requestBlossomAuth 1 blossomServer GetRequest
+        Effect.sendCmd <| Ports.requestBlossomAuth 1 blossomServer "List Blobs" GetRequest
     )
     |> Effect.batch
 
