@@ -1,5 +1,6 @@
 module Nostr.Blossom exposing (..)
 
+import File exposing (File)
 import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as Pipeline
@@ -17,6 +18,23 @@ type alias BlobDescriptor =
     , uploaded : Maybe Time.Posix
     , nip94 : Maybe FileMetadata
     }
+
+type alias FileUpload =
+    { file : File
+    , status : UploadStatus
+    , caption : Maybe String
+    , uploadResponse : Maybe BlobDescriptor
+    }
+
+type UploadStatus
+    = Selected
+    | Hashing
+    | AwaitingAuthHeader String -- SHA256 Hash
+    | ReadyToUpload String String -- SHA256 Hash, Auth Header
+    | Uploading Float -- Progress percentage
+    | Uploaded
+    | Failed String -- Error message
+
 
 userServerListFromEvent : Event -> (PubKey, List String)
 userServerListFromEvent event =
@@ -58,19 +76,19 @@ urlWithoutTrailingSlash url =
     else
         url
 
-uploadFile : (Result Http.Error BlobDescriptor -> msg) -> String -> String -> Int -> String -> Cmd msg
-uploadFile toMsg authHeader url contentLength mimeType =
+uploadFile : (Result Http.Error BlobDescriptor -> msg) -> String -> String -> File -> Cmd msg
+uploadFile toMsg authHeader url file =
      Http.request
         { method = "PUT"
         , headers =
             [ Http.header "Accept" "application/json"
             , Http.header "Authorization" authHeader
-            , Http.header "Content-length" (contentLength |> String.fromInt)
-            , Http.header "Content-type" mimeType
+            -- refused by Elm as "unsafe header"
+            --, Http.header "Content-length" (contentLength |> String.fromInt)
+            , Http.header "Content-type" (File.mime file)
             ]
         , url = url ++ "/upload"
-        , body = Http.emptyBody
-        --, body = Http.bytesBody
+        , body = Http.fileBody file
         , expect = Http.expectJson toMsg blobDescriptorDecoder
         , timeout = Nothing
         , tracker = Nothing

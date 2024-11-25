@@ -2,7 +2,7 @@ module Components.UploadDialog exposing
     ( UploadDialog, new
     , Model, init
     , Msg, update, show
-    , UploadServer(..), updateServerList
+    , UploadServer(..), selectServer, updateServerList
     , UploadResponse(..)
     , view
     , subscribe
@@ -89,7 +89,8 @@ type DialogState
     | DialogVisible
 
 type FileUpload
-    = FileUploadNip96 (Maybe String) Nip96.FileUpload
+    = FileUploadBlossom (Maybe String) Blossom.FileUpload
+    | FileUploadNip96 (Maybe String) Nip96.FileUpload
 
 type UploadServer
     = UploadServerBlossom String
@@ -114,6 +115,14 @@ init props =
 show : Model -> Model
 show (Model model) =
     Model { model | state = DialogVisible }
+
+selectServer : Model -> Maybe UploadServer -> Model
+selectServer (Model model) maybeUploadServer =
+    Model
+        { model |
+            serverSelectionDropdown =
+                Components.Dropdown.selectItem model.serverSelectionDropdown maybeUploadServer
+        }
 
 updateServerList : Model -> List UploadServer -> Model
 updateServerList (Model model) uploadServers =
@@ -149,12 +158,14 @@ type Msg
     | ToggleNoTransform Int
     | StartUpload Int -- FileId
     | HashComputed Int String -- FileId, SHA256 Hash
-    | UploadResult Int String (Result Http.Error Nip96.UploadResponse) -- fileId, api URL
+    | UploadResultBlossom Int String (Result Http.Error Blossom.BlobDescriptor) -- fileId, api URL
+    | UploadResultNip96 Int String (Result Http.Error Nip96.UploadResponse) -- fileId, api URL
     | UploadProgress String Http.Progress
     | ErrorOccurred String
 
 type UploadResponse
-    = UploadResponseNip96 String Nip94.FileMetadata -- server URL, NIP-96 response
+    = UploadResponseBlossom String Blossom.BlobDescriptor -- server URL, blob descriptor response
+    | UploadResponseNip96 String Nip94.FileMetadata -- server URL, NIP-96 response
 
 
 update :
@@ -225,8 +236,8 @@ update props =
                 ( Model model
                 -- multi file selection temporarily disabled
                 -- TODO need to improve the metadata editor for multi file
-                -- , FileSelect.files ["image/png", "image/jpg"] FilesSelected
-                , FileSelect.file ["image/png", "image/jpg"] (\file -> FilesSelected file [])
+                , FileSelect.files ["image/png", "image/jpg"] FilesSelected
+                -- , FileSelect.file ["image/png", "image/jpg"] (\file -> FilesSelected file [])
                 |> Cmd.map props.toMsg
                 |> Effect.sendCmd
                 )
@@ -237,24 +248,43 @@ update props =
                         List.foldl
                             (\fileToUpload ( dict, cmdList, id ) ->
                                 let
-                                    fileUpload =
-                                        FileUploadNip96 Nothing
-                                            { file = fileToUpload
-                                            , status = Nip96.Selected
-                                            , caption = Nothing
-                                            , alt = Nothing
-                                            , mediaType = Nothing
-                                            , noTransform = Nothing
-                                            , uploadResponse = Nothing
-                                            }
+                                    maybeFileUpload =
+                                        case Components.Dropdown.selectedItem model.serverSelectionDropdown of
+                                            Just (UploadServerBlossom _) ->
+                                                FileUploadBlossom Nothing
+                                                    { file = fileToUpload
+                                                    , status = Blossom.Selected
+                                                    , caption = Nothing
+                                                    , uploadResponse = Nothing
+                                                    }
+                                                    |> Just
 
+                                            Just (UploadServerNip96 _) ->
+                                                FileUploadNip96 Nothing
+                                                    { file = fileToUpload
+                                                    , status = Nip96.Selected
+                                                    , caption = Nothing
+                                                    , alt = Nothing
+                                                    , mediaType = Nothing
+                                                    , noTransform = Nothing
+                                                    , uploadResponse = Nothing
+                                                    }
+                                                    |> Just
+
+                                            Nothing ->
+                                                Nothing
                                     convertToUrlCommand =
                                         if File.size fileToUpload < 1000000 then
                                             Task.perform (ConvertedToUrl id) (File.toUrl fileToUpload)
                                         else
                                             Cmd.none
                                 in
-                                ( Dict.insert id fileUpload dict, convertToUrlCommand :: cmdList, id + 1 )
+                                case maybeFileUpload of
+                                    Just fileUpload ->
+                                        ( Dict.insert id fileUpload dict, convertToUrlCommand :: cmdList, id + 1 )
+
+                                    Nothing ->
+                                        ( dict, cmdList, id )
                             )
                             ( model.files, [], model.nextFileId )
                             (file :: files)
@@ -274,6 +304,9 @@ update props =
                         Dict.update fileId
                             (\maybeUpload ->
                                 case maybeUpload of
+                                    Just (FileUploadBlossom _ upload) ->
+                                        Just <| FileUploadBlossom (Just fileUrl) upload 
+
                                     Just (FileUploadNip96 _ upload) ->
                                         Just <| FileUploadNip96 (Just fileUrl) upload 
 
@@ -290,6 +323,12 @@ update props =
                         Dict.update fileId
                             (\maybeUpload ->
                                 case maybeUpload of
+                                    Just (FileUploadBlossom maybePreviewLink upload) ->
+                                        if captionText /= "" then
+                                            Just <| FileUploadBlossom maybePreviewLink { upload | caption = Just captionText }
+                                        else
+                                            Just <| FileUploadBlossom maybePreviewLink { upload | caption = Nothing }
+
                                     Just (FileUploadNip96 maybePreviewLink upload) ->
                                         if captionText /= "" then
                                             Just <| FileUploadNip96 maybePreviewLink { upload | caption = Just captionText }
@@ -309,6 +348,10 @@ update props =
                         Dict.update fileId
                             (\maybeUpload ->
                                 case maybeUpload of
+                                    Just (FileUploadBlossom maybePreviewLink upload) ->
+                                        -- Blossom doesn't know about alt text
+                                        Just (FileUploadBlossom maybePreviewLink upload)
+
                                     Just (FileUploadNip96 maybePreviewLink upload) ->
                                         if altText /= "" then
                                             Just <| FileUploadNip96 maybePreviewLink { upload | alt = Just altText }
@@ -328,6 +371,9 @@ update props =
                         Dict.update fileId
                             (\maybeUpload ->
                                 case maybeUpload of
+                                    Just (FileUploadBlossom maybePreviewLink upload) ->
+                                        Just (FileUploadBlossom maybePreviewLink upload)
+
                                     Just (FileUploadNip96 maybePreviewLink upload) ->
                                         if mediaType /= "" then
                                             Just <| FileUploadNip96 maybePreviewLink { upload | mediaType = Just mediaType }
@@ -347,6 +393,9 @@ update props =
                         Dict.update fileId
                             (\maybeUpload ->
                                 case maybeUpload of
+                                    Just (FileUploadBlossom maybePreviewLink upload) ->
+                                        Just (FileUploadBlossom maybePreviewLink upload)
+
                                     Just (FileUploadNip96 maybePreviewLink upload) ->
                                         case upload.noTransform of
                                             Just True ->
@@ -371,6 +420,11 @@ update props =
 
                     effect =
                         case maybeUpload of
+                            Just (FileUploadBlossom _ upload) ->
+                                -- Compute the hash of the file in Elm
+                                computeFileHash props.toMsg fileId upload.file
+                                |> Effect.sendCmd
+
                             Just (FileUploadNip96 _ upload) ->
                                 -- Compute the hash of the file in Elm
                                 computeFileHash props.toMsg fileId upload.file
@@ -383,6 +437,9 @@ update props =
                         Dict.update fileId
                             (\maybeUploadInner ->
                                 case maybeUploadInner of
+                                    Just (FileUploadBlossom maybePreviewLink upload) ->
+                                        Just <| FileUploadBlossom maybePreviewLink { upload | status = Blossom.Hashing }
+
                                     Just (FileUploadNip96 maybePreviewLink upload) ->
                                         Just <| FileUploadNip96 maybePreviewLink { upload | status = Nip96.Hashing }
 
@@ -399,6 +456,9 @@ update props =
                         Dict.update fileId
                             (\maybeUpload ->
                                 case maybeUpload of
+                                    Just (FileUploadBlossom maybePreviewLink upload) ->
+                                        Just <| FileUploadBlossom maybePreviewLink { upload | status = Blossom.AwaitingAuthHeader hash }
+
                                     Just (FileUploadNip96 maybePreviewLink upload) ->
                                         Just <| FileUploadNip96 maybePreviewLink { upload | status = Nip96.AwaitingAuthHeader hash }
 
@@ -409,8 +469,12 @@ update props =
 
                     effect =
                         case Components.Dropdown.selectedItem model.serverSelectionDropdown of
-                            Just (UploadServerBlossom _) ->
-                                Effect.none
+                            Just (UploadServerBlossom serverUrl) ->
+                                PutRequest fileId hash
+                                |> RequestBlossomAuth serverUrl
+                                |> Nostr.createRequest props.nostr "Blossom auth request for files to be uploaded" []
+                                |> Shared.Msg.RequestNostrEvents
+                                |> Effect.sendSharedMsg
 
                             Just (UploadServerNip96 nip96ServerDescriptorData) ->
                                 PostRequest fileId hash
@@ -424,30 +488,68 @@ update props =
                 in
                 ( Model { model | files = updatedFiles }, effect )
 
-            UploadResult fileId apiUrl result ->
+            UploadResultBlossom fileId apiUrl (Ok blobDescriptor) ->
                 let
-                    (status, uploadResponse, effect) =
-                        case result of
-                            Ok response ->
-                                case (response.status, response.fileMetadata) of
-                                    ("success", Just fileMetadata) ->
-                                        ( Nip96.Uploaded
-                                        , Just response
-                                        , Effect.sendMsg <| props.onUploaded (UploadResponseNip96 apiUrl fileMetadata)
-                                        )
+                    updatedFiles =
+                        Dict.update fileId
+                            (\maybeUpload ->
+                                case maybeUpload of
+                                    Just (FileUploadBlossom maybePreviewLink upload) ->
+                                        Just <| FileUploadBlossom maybePreviewLink { upload | status = Blossom.Uploaded, uploadResponse = Just blobDescriptor }
 
-                                    (responseStatus, _) ->
-                                        (Nip96.Failed <| Maybe.withDefault responseStatus response.message, Just response, Effect.none)
+                                    Just (FileUploadNip96 maybePreviewLink upload) ->
+                                        Just (FileUploadNip96 maybePreviewLink upload)
 
-                            Err error ->
-                                (Nip96.Failed (httpErrorToString error), Nothing, Effect.none)
+                                    Nothing ->
+                                        Nothing
+                            )
+                            model.files
+                in
+                ( Model { model | files = updatedFiles }
+                , Effect.sendMsg <| props.onUploaded (UploadResponseBlossom apiUrl blobDescriptor)
+                )
+
+            UploadResultBlossom fileId apiUrl (Err error) ->
+                let
+                    updatedFiles =
+                        Dict.update fileId
+                            (\maybeUpload ->
+                                case maybeUpload of
+                                    Just (FileUploadBlossom maybePreviewLink upload) ->
+                                        Just <| FileUploadBlossom maybePreviewLink { upload | status = Blossom.Failed <| httpErrorToString error }
+
+                                    Just (FileUploadNip96 maybePreviewLink upload) ->
+                                        Just (FileUploadNip96 maybePreviewLink upload)
+
+                                    Nothing ->
+                                        Nothing
+                            )
+                            model.files
+                in
+                ( Model { model | files = updatedFiles, errors = model.errors ++ [ httpErrorToString error] }, Effect.none )
+
+            UploadResultNip96 fileId apiUrl (Ok response) ->
+                let
+                    (statusNip96, effect) =
+                        case (response.status, response.fileMetadata) of
+                            ("success", Just fileMetadata) ->
+                                ( Nip96.Uploaded
+                                , Effect.sendMsg <| props.onUploaded (UploadResponseNip96 apiUrl fileMetadata)
+                                )
+
+                            (responseStatus, _) ->
+                                (Nip96.Failed <| Maybe.withDefault responseStatus response.message
+                                , Effect.none)
 
                     updatedFiles =
                         Dict.update fileId
                             (\maybeUpload ->
                                 case maybeUpload of
+                                    Just (FileUploadBlossom maybePreviewLink upload) ->
+                                        Just (FileUploadBlossom maybePreviewLink upload)
+
                                     Just (FileUploadNip96 maybePreviewLink upload) ->
-                                        Just <| FileUploadNip96 maybePreviewLink { upload | status = status, uploadResponse = uploadResponse }
+                                        Just <| FileUploadNip96 maybePreviewLink { upload | status = statusNip96, uploadResponse = Just response }
 
                                     Nothing ->
                                         Nothing
@@ -455,6 +557,25 @@ update props =
                             model.files
                 in
                 ( Model { model | files = updatedFiles }, effect )
+
+            UploadResultNip96 fileId apiUrl (Err error) ->
+                let
+                    updatedFiles =
+                        Dict.update fileId
+                            (\maybeUpload ->
+                                case maybeUpload of
+                                    Just (FileUploadBlossom maybePreviewLink upload) ->
+                                        Just (FileUploadBlossom maybePreviewLink upload)
+
+                                    Just (FileUploadNip96 maybePreviewLink upload) ->
+                                        Just <| FileUploadNip96 maybePreviewLink { upload | status = Nip96.Failed <| httpErrorToString error }
+
+                                    Nothing ->
+                                        Nothing
+                            )
+                            model.files
+                in
+                ( Model { model | files = updatedFiles, errors = model.errors ++ [ httpErrorToString error] }, Effect.none )
 
             UploadProgress tracker progress ->
                 let
@@ -466,6 +587,23 @@ update props =
                             Dict.update fileId
                                 (\maybeUpload ->
                                     case maybeUpload of
+                                        Just (FileUploadBlossom maybePreviewLink upload) ->
+                                            case upload.status of
+                                                Blossom.Uploading _ ->
+                                                    let
+                                                        progressValue =
+                                                            case progress of
+                                                                Http.Sending { sent, size } ->
+                                                                    Http.fractionSent { sent = sent, size = size } * 100
+
+                                                                Http.Receiving _ ->
+                                                                    100
+                                                    in
+                                                    Just <| FileUploadBlossom maybePreviewLink { upload | status = Blossom.Uploading progressValue }
+
+                                                _ ->
+                                                    Just <| FileUploadBlossom maybePreviewLink upload
+
                                         Just (FileUploadNip96 maybePreviewLink upload) ->
                                             case upload.status of
                                                 Nip96.Uploading _ ->
@@ -499,28 +637,67 @@ update props =
 
 
 processIncomingMessage : Auth.User -> Model -> String -> (Msg -> msg) -> Encode.Value -> (Model, Effect msg)
-processIncomingMessage user xModel messageType toMsg value =
-    let
-        (Model model) =
-            xModel
-    in
-
+processIncomingMessage user (Model model) messageType toMsg value =
     case messageType of
---      "blossomAuthHeader" ->
---          case (Decode.decodeValue (Decode.field "authHeader" Decode.string) value,
---                Decode.decodeValue (Decode.field "url"        Decode.string) value) of
---              (Ok authHeader, Ok url) ->
---                  ( Model { model | authHeader = Just authHeader }
---                  , Blossom.fetchFileList (ReceivedBlossomFileList url) authHeader url user.pubKey
---                   |> Cmd.map toMsg
---                   |> Effect.sendCmd
---                  )
+        "blossomAuthHeader" ->
+            case (Decode.decodeValue decodeAuthHeaderReceived value) of
+                (Ok decoded) ->
+                    case ( decoded.method, decoded.fileId ) of
+                        ("PUT", Just fileId) ->
+                            let
+                                updatedFiles =
+                                    Dict.update fileId
+                                        (\maybeUpload ->
+                                            case maybeUpload of
+                                                Just (FileUploadBlossom maybePreviewLink upload) ->
+                                                    case upload.status of
+                                                        Blossom.AwaitingAuthHeader hash ->
+                                                            Just <| FileUploadBlossom maybePreviewLink { upload | status = Blossom.ReadyToUpload hash decoded.authHeader }
 
---              (Err error, _) ->
---                  ( Model { model | errors = model.errors ++ [ Decode.errorToString error ]}, Effect.none)
+                                                        _ ->
+                                                            Just <| FileUploadBlossom maybePreviewLink upload
 
---              (_, _) ->
---                  ( Model { model | errors = model.errors ++ [ "Error decoding blossom auth header" ]}, Effect.none)
+                                                Just (FileUploadNip96 maybePreviewLink upload) ->
+                                                    Just (FileUploadNip96 maybePreviewLink upload)
+
+                                                Nothing ->
+                                                    Nothing
+                                        )
+                                        model.files
+
+                                -- Start the upload
+                                effect =
+                                    case Dict.get fileId updatedFiles of
+                                        Just (FileUploadBlossom maybePreviewLink upload) ->
+                                            case upload.status of
+                                                Blossom.ReadyToUpload hash authHeader ->
+                                                    let
+                                                        apiUrl =
+                                                            case Components.Dropdown.selectedItem model.serverSelectionDropdown of
+                                                                Just (UploadServerBlossom serverUrl) ->
+                                                                    serverUrl
+
+                                                                _ ->
+                                                                    ""
+                                                    in
+                                                    Blossom.uploadFile (UploadResultBlossom fileId apiUrl) authHeader apiUrl upload.file
+                                                    |> Cmd.map toMsg
+                                                    |> Effect.sendCmd
+
+                                                _ ->
+                                                    Effect.none
+
+                                        _ ->
+                                            Effect.none
+
+                            in
+                            ( Model { model | files = updatedFiles }, effect)
+
+                        (_, _) ->
+                            ( Model model, Effect.none)
+
+                (Err error) ->
+                    ( Model { model | errors = model.errors ++ [ "Error decoding Blossom auth header: " ++ Decode.errorToString error]}, Effect.none)
 
         "nip98AuthHeader" ->
             case (Decode.decodeValue decodeAuthHeaderReceived value) of
@@ -532,6 +709,9 @@ processIncomingMessage user xModel messageType toMsg value =
                                     Dict.update fileId
                                         (\maybeUpload ->
                                             case maybeUpload of
+                                                Just (FileUploadBlossom maybePreviewLink upload) ->
+                                                    Just (FileUploadBlossom maybePreviewLink upload)
+
                                                 Just (FileUploadNip96 maybePreviewLink upload) ->
                                                     case upload.status of
                                                         Nip96.AwaitingAuthHeader hash ->
@@ -560,7 +740,7 @@ processIncomingMessage user xModel messageType toMsg value =
                                                                 _ ->
                                                                     ""
                                                     in
-                                                    Nip96.uploadFile apiUrl fileId upload (UploadResult fileId apiUrl) authHeader
+                                                    Nip96.uploadFile apiUrl fileId upload (UploadResultNip96 fileId apiUrl) authHeader
                                                     |> Cmd.map toMsg
                                                     |> Effect.sendCmd
 
@@ -604,7 +784,7 @@ type alias AuthHeaderReceived =
 
 type DisplayMode
     = WaitingForFiles
-    | EditingMetadata
+    | EditingMetadata Int FileUpload
     | Uploading
     | Finished
 
@@ -613,21 +793,33 @@ displayMode (Model model) =
     let
         uploads =
             Dict.values model.files
+
+        firstUploadWithoutMetadata =
+            model.files
+            |> Dict.toList 
+            |> uploadsNeedingMetadata
+            |> List.head
     in
     if List.length uploads < 1 then
         WaitingForFiles
-    else if uploadNeedsMetadata uploads then
-        EditingMetadata
-    else if uploadInProgress uploads then
-        Uploading
-    else
-        Finished
+    else case firstUploadWithoutMetadata of
+        Just (fileId, upload) ->
+            EditingMetadata fileId upload
 
-uploadNeedsMetadata : List FileUpload -> Bool
-uploadNeedsMetadata uploads =
+        Nothing ->
+            if uploadInProgress uploads then
+                Uploading
+            else
+                Finished
+
+uploadsNeedingMetadata : List (Int, FileUpload) -> List (Int, FileUpload)
+uploadsNeedingMetadata uploads =
     uploads
-    |> List.any (\upload ->
+    |> List.filter (\(fileId, upload) ->
         case upload of
+            FileUploadBlossom _ { status } ->
+                status == Blossom.Selected
+
             FileUploadNip96 _ { status } ->
                 status == Nip96.Selected
     )
@@ -637,6 +829,23 @@ uploadInProgress uploads =
     uploads
     |> List.any (\upload ->
         case upload of
+            FileUploadBlossom _ { status } ->
+                case status of
+                    Blossom.Hashing ->
+                        True
+
+                    Blossom.AwaitingAuthHeader _ ->
+                        True
+
+                    Blossom.ReadyToUpload _ _ ->
+                        True
+
+                    Blossom.Uploading _ ->
+                        True
+
+                    _ ->
+                        False
+
             FileUploadNip96 _ { status } ->
                 case status of
                     Nip96.Hashing ->
@@ -669,14 +878,14 @@ view (Settings settings) =
             viewWaitingForFiles (Settings settings)
             |> Html.map settings.toMsg
 
-        (DialogVisible, EditingMetadata) ->
-            viewMetadataDialog (Settings settings)
+        (DialogVisible, EditingMetadata fileId fileUpload) ->
+            viewMetadataDialog (Settings settings) (fileId, fileUpload)
 
         (DialogVisible, Uploading) ->
             viewUploadingDialog (Settings settings)
 
         (DialogVisible, Finished) ->
-            viewDialog (Settings settings)
+            viewFinishedDialog (Settings settings)
 
 
 viewWaitingForFiles : UploadDialog msg -> Html Msg
@@ -743,8 +952,8 @@ dropDecoder : Decode.Decoder Msg
 dropDecoder =
     -- multi-file dropping temporarily disabled
     -- TODO: improve metadata editor for multiple files
-    -- Decode.at [ "dataTransfer", "files" ] (Decode.oneOrMore FilesSelected File.decoder)
-    Decode.at [ "dataTransfer", "files" ] (Decode.oneOrMore (\file1 _ -> FilesSelected file1 []) File.decoder)
+    Decode.at [ "dataTransfer", "files" ] (Decode.oneOrMore FilesSelected File.decoder)
+    -- Decode.at [ "dataTransfer", "files" ] (Decode.oneOrMore (\file1 _ -> FilesSelected file1 []) File.decoder)
 
 hijackOn : String -> Decode.Decoder msg -> Html.Attribute msg
 hijackOn event decoder =
@@ -755,8 +964,8 @@ hijack msg =
     (msg, True)
 
 
-viewMetadataDialog : UploadDialog msg -> Html msg
-viewMetadataDialog (Settings settings) =
+viewMetadataDialog : UploadDialog msg -> (Int, FileUpload) -> Html msg
+viewMetadataDialog (Settings settings) (fileId, fileUpload) =
     let
         (Model model) =
             settings.model
@@ -768,8 +977,7 @@ viewMetadataDialog (Settings settings) =
                 [
                 ]
             ]
-            [ div []
-                (Dict.toList model.files |> List.map viewFileUpload)
+            [ viewFileUpload (fileId, fileUpload)
             ]
         |> Html.map settings.toMsg
         ]
@@ -797,8 +1005,8 @@ viewUploadingDialog (Settings settings) =
         (settings.toMsg CloseDialog)
 
 
-viewDialog : UploadDialog msg -> Html msg
-viewDialog (Settings settings) =
+viewFinishedDialog : UploadDialog msg -> Html msg
+viewFinishedDialog (Settings settings) =
     let
         (Model model) =
             settings.model
@@ -806,14 +1014,7 @@ viewDialog (Settings settings) =
     modalDialog
         (Translations.dialogTitle [ settings.browserEnv.translations ])
         [ div [ class "p-4" ]
-            [ div [ class "mb-4" ]
-                [ button
-                    [ onClick TriggerFileSelect
-                    , class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                    ]
-                    [ text "Select Files" ]
-                ]
-            , div []
+            [ div []
                 (Dict.toList model.files |> List.map viewFileUpload)
             , case model.errors of
                 [] ->
@@ -833,8 +1034,127 @@ viewDialog (Settings settings) =
 viewFileUpload : ( Int, FileUpload ) -> Html Msg
 viewFileUpload ( fileId, fileUpload ) =
     case fileUpload of
+        FileUploadBlossom maybePreviewLink fileUploadBlossom ->
+            viewFileUploadBlossom maybePreviewLink (fileId, fileUploadBlossom)
+
         FileUploadNip96 maybePreviewLink fileUploadNip96 ->
             viewFileUploadNip96 maybePreviewLink (fileId, fileUploadNip96)
+
+
+viewFileUploadBlossom : Maybe String -> ( Int, Blossom.FileUpload ) -> Html Msg
+viewFileUploadBlossom maybePreviewLink ( fileId, fileUpload ) =
+    let
+        fileName =
+            File.name <| fileUpload.file
+
+        statusView =
+            case fileUpload.status of
+                Blossom.Selected ->
+                    div
+                        [ css
+                            [ Tw.flex
+                            , Tw.flex_col
+                            , Tw.gap_3
+                            ]
+                        ]
+                        [ div
+                            [ css
+                                [ Tw.flex
+                                , Tw.flex_row
+                                , Tw.gap_3
+                                ]
+                            ]
+                            [ div
+                                [ css
+                                    [ Tw.flex
+                                    , Tw.flex_col
+                                    , Tw.gap_3
+                                    ]
+                                ]
+                                [ div 
+                                    [ css
+                                        [ Tw.flex
+                                        , Tw.flex_row
+                                        ]
+                                    ]
+                                    [ label [] [ text "Caption (optional):" ]
+                                    , textarea
+                                        [ onInput (UpdateCaption fileId)
+                                        , class "w-full border rounded p-2 mb-2"
+                                        ]
+                                        [ text <| Maybe.withDefault "" fileUpload.caption ]
+                                    ]
+                                ]
+                            , case maybePreviewLink of
+                                Just previewLink ->
+                                    img [ Attr.src previewLink
+                                        , css
+                                            [ Tw.w_40
+                                            , Tw.h_40
+                                            ]
+                                        ]
+                                        []
+
+                                Nothing ->
+                                    div [][]
+                            ]
+                        , Button.new
+                            { label = "Start Upload"
+                            , onClick = StartUpload fileId
+                            }
+                            |> Button.view
+                        ]
+
+                Blossom.Hashing ->
+                    text "Computing file hash..."
+
+                Blossom.AwaitingAuthHeader _ ->
+                    text "Awaiting authentication header..."
+
+                Blossom.ReadyToUpload _ _ ->
+                    text "Ready to upload..."
+
+                Blossom.Uploading progressValue ->
+                    div []
+                        [ progress
+                            [ Attr.max "100"
+                            , value (String.fromFloat progressValue)
+                            , class "w-full"
+                            ] []
+                        , div [ class "text-sm text-gray-700" ] [ text (String.fromInt (round progressValue) ++ "%") ]
+                        ]
+
+                Blossom.Uploaded ->
+                    case fileUpload.uploadResponse of
+                        Just response ->
+                            div []
+                                [ div [ class "text-green-500" ] [ text "Upload completed." ]
+                                , viewUploadResponseBlossom response
+                                ]
+
+                        Nothing ->
+                            div [ class "text-green-500" ] [ text "Upload completed." ]
+
+                Blossom.Failed errorMsg ->
+                    div [ class "text-red-500" ] [ text ("Upload failed: " ++ errorMsg) ]
+    in
+    div [ css
+            [ Tw.mb_4
+            , Tw.p_4
+            , Tw.rounded
+            ]
+        ]
+        [ div
+            [ css
+                [ Tw.font_bold
+                , Tw.mb_2
+                ] 
+            ]
+            [ text fileName ]
+        , statusView
+        ]
+
+
 
 viewFileUploadNip96 : Maybe String -> ( Int, Nip96.FileUpload ) -> Html Msg
 viewFileUploadNip96 maybePreviewLink ( fileId, fileUpload ) =
@@ -976,7 +1296,7 @@ viewFileUploadNip96 maybePreviewLink ( fileId, fileUpload ) =
                         Just response ->
                             div []
                                 [ div [ class "text-green-500" ] [ text "Upload completed." ]
-                                , viewUploadResponse response
+                                , viewUploadResponseNip96 response
                                 ]
 
                         Nothing ->
@@ -1001,9 +1321,42 @@ viewFileUploadNip96 maybePreviewLink ( fileId, fileUpload ) =
         , statusView
         ]
 
+viewUploadResponseBlossom : Blossom.BlobDescriptor -> Html msg
+viewUploadResponseBlossom response =
+    div [ class "mt-2" ]
+        (case response.nip94 of
+            Just fileMetadata ->
+                let
+                    url =
+                        fileMetadata.url
+                        |> Maybe.withDefault "No URL provided"
 
-viewUploadResponse : Nip96.UploadResponse -> Html msg
-viewUploadResponse response =
+                    ox =
+                        fileMetadata.oxHash
+                        |> Maybe.withDefault "No hash provided"
+                in
+                [ div
+                    [ css
+                        [ Tw.text_ellipsis
+                        , Tw.overflow_hidden
+                        ]
+                    ]
+                    [ text ("Download URL: " ++ url) ]
+                , div
+                    [ css
+                        [ Tw.text_ellipsis
+                        , Tw.overflow_hidden
+                        ]
+                    ]
+                    [ text ("Original File Hash (ox): " ++ ox) ]
+                ]
+
+            Nothing ->
+                [ div [] [ text "No NIP-94 event provided." ] ]
+        )
+
+viewUploadResponseNip96 : Nip96.UploadResponse -> Html msg
+viewUploadResponseNip96 response =
     div [ class "mt-2" ]
         (case response.fileMetadata of
             Just fileMetadata ->

@@ -51,21 +51,33 @@ requestEvents description closeOnEose requestId maybeRelays filter =
                 ]
         }
 
-requestBlossomListAuth : RequestId -> String -> Cmd msg
-requestBlossomListAuth requestId server =
+requestBlossomAuth : RequestId -> String -> HttpRequestMethod -> Cmd msg
+requestBlossomAuth requestId server method =
     sendCommand
-        { command = "requestBlossomListAuth"
+        { command = "requestBlossomAuth"
         , value = 
             Encode.object
-                [ ("requestId", Encode.int requestId)
-                , ("server", Encode.string server)
-                ]
+                ([ ("requestId", Encode.int requestId)
+                , ("serverUrl", Encode.string server)
+                ] ++ httpMethodParams method
+                )
         }
 
 requestNip96Auth : RequestId -> String -> String -> HttpRequestMethod -> Cmd msg
 requestNip96Auth requestId serverUrl apiUrl method =
-    let
-        methodParams =
+    sendCommand
+        { command = "requestNip96Auth"
+        , value = 
+            Encode.object
+                ([ ("requestId", Encode.int requestId)
+                , ("serverUrl", Encode.string serverUrl)
+                , ("apiUrl", Encode.string apiUrl)
+                ] ++ httpMethodParams method
+                )
+        }
+
+httpMethodParams : HttpRequestMethod -> List (String, Encode.Value)
+httpMethodParams method =
             case method of
                 GetRequest ->
                     [ ("method", Encode.string "GET") ]
@@ -93,17 +105,6 @@ requestNip96Auth requestId serverUrl apiUrl method =
                     , ("hash", Encode.string hash)
                     ]
 
-    in
-    sendCommand
-        { command = "requestNip96Auth"
-        , value = 
-            Encode.object
-                ([ ("requestId", Encode.int requestId)
-                , ("serverUrl", Encode.string serverUrl)
-                , ("apiUrl", Encode.string apiUrl)
-                ] ++ methodParams
-                )
-        }
 
 sendEvent : SendRequestId -> Event -> Cmd msg
 sendEvent sendRequestId event =

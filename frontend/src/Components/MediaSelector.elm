@@ -107,8 +107,8 @@ type ServerState
     | ServerHttpError Http.Error
 
 type UploadedFile
-    = Nip96File Nip94.FileMetadata
-    | BlossomFile Blossom.BlobDescriptor
+    = BlossomFile Blossom.BlobDescriptor
+    | Nip96File Nip94.FileMetadata
 
 
 init :
@@ -155,7 +155,7 @@ requestBlossomListAuths : List String -> Effect (Msg msg)
 requestBlossomListAuths blossomServers =
     blossomServers
     |> List.map (\blossomServer ->
-        Effect.sendCmd <| Ports.requestBlossomListAuth 1 blossomServer
+        Effect.sendCmd <| Ports.requestBlossomAuth 1 blossomServer GetRequest
     )
     |> Effect.batch
 
@@ -235,10 +235,35 @@ update props =
                 (newModel, Effect.map props.toMsg effect)
 
             ChangedSelectedServer selectedServer ->
+                let
+                    uploadServer =
+                        case selectedServer of
+                            BlossomMediaServer serverUrl ->
+                                Just <| UploadDialog.UploadServerBlossom serverUrl
+
+                            Nip96MediaServer serverUrl ->
+                                case Dict.get serverUrl model.nip96ServerDescResponses of
+                                    Just (Nip96.ServerDescriptor serverDescriptorData) ->
+                                        Just <| UploadDialog.UploadServerNip96 serverDescriptorData
+
+                                    Just (Nip96.ServerRedirect _) ->
+                                        Nothing
+
+                                    Nothing ->
+                                        Nothing
+
+                            NoMediaServer ->
+                                Nothing
+
+                            AllMediaServers ->
+                                Nothing
+                in
                 ( Model
                     { model
                     | serverSelectionDropdown =
                         Components.Dropdown.selectItem model.serverSelectionDropdown (Just selectedServer)
+                    , uploadDialog =
+                        UploadDialog.selectServer model.uploadDialog uploadServer
                     }
                 , Effect.none
                 )
@@ -342,8 +367,30 @@ update props =
 modelWithUploadedFile : Model -> UploadResponse -> (Model, Effect msg)
 modelWithUploadedFile model uploadResponse =
     case uploadResponse of
+        UploadResponseBlossom apiUrl fileMetadata ->
+            modelWithUploadedBlossomFile model apiUrl fileMetadata
+
         UploadResponseNip96 apiUrl fileMetadata ->
             modelWithUploadedNip96File model apiUrl fileMetadata
+
+modelWithUploadedBlossomFile : Model -> String -> Blossom.BlobDescriptor -> (Model, Effect msg)
+modelWithUploadedBlossomFile (Model model) apiUrl blobDescriptor =
+    let
+        uploadedFile =
+            BlossomFile blobDescriptor
+
+        uploadedBlossomFiles =
+            Dict.update apiUrl
+                (\maybeFilesList ->
+                    case maybeFilesList of
+                        Just fileList ->
+                            Just <| uploadedFile :: fileList
+
+                        Nothing ->
+                            Just [uploadedFile]
+                ) model.uploadedBlossomFiles
+    in
+    ( Model { model | uploadedBlossomFiles = uploadedBlossomFiles }, Effect.none)
 
 modelWithUploadedNip96File : Model -> String -> Nip94.FileMetadata -> (Model, Effect msg)
 modelWithUploadedNip96File (Model model) apiUrl fileMetadata =
@@ -450,20 +497,16 @@ processIncomingMessage user xModel messageType toMsg value =
 
     case messageType of
         "blossomAuthHeader" ->
-            case (Decode.decodeValue (Decode.field "authHeader" Decode.string) value,
-                  Decode.decodeValue (Decode.field "url"        Decode.string) value) of
-                (Ok authHeader, Ok url) ->
-                    ( Model { model | authHeader = Just authHeader }
-                    , Blossom.fetchFileList (ReceivedBlossomFileList url) authHeader url user.pubKey
+            case (Decode.decodeValue decodeAuthHeaderReceived value) of
+                Ok decoded ->
+                    ( Model { model | authHeader = Just decoded.authHeader }
+                    , Blossom.fetchFileList (ReceivedBlossomFileList decoded.serverUrl) decoded.authHeader decoded.serverUrl user.pubKey
                      |> Cmd.map toMsg
                      |> Effect.sendCmd
                     )
 
-                (Err error, _) ->
+                (Err error) ->
                     ( Model { model | errors = model.errors ++ [ Decode.errorToString error ]}, Effect.none)
-
-                (_, _) ->
-                    ( Model { model | errors = model.errors ++ [ "Error decoding blossom auth header" ]}, Effect.none)
 
         "nip98AuthHeader" ->
             case (Decode.decodeValue decodeAuthHeaderReceived value) of

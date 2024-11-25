@@ -32,7 +32,7 @@ type RequestData
     | RequestProfileByNip05 Nip05
     | RequestReactions EventFilter
     | RequestUserData EventFilter
-    | RequestBlossomListAuth String
+    | RequestBlossomAuth String HttpRequestMethod
     | RequestNip98Auth String String HttpRequestMethod
 
 type HttpRequestMethod

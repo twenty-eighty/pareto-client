@@ -142,7 +142,7 @@ portHooks =
     { connect = Ports.connect
     , requestEvents = Ports.requestEvents
     , receiveMessage = Ports.receiveMessage
-    , requestBlossomListAuth = Ports.requestBlossomListAuth
+    , requestBlossomAuth = Ports.requestBlossomAuth
     , requestNip96Auth = Ports.requestNip96Auth
     , sendEvent = Ports.sendEvent
     }

@@ -93,8 +93,8 @@ export const onReady = ({ app, env }) => {
         requestEvents(app, value);
         break;
 
-      case 'requestBlossomListAuth':
-        requestBlossomListAuth(app, value);
+      case 'requestBlossomAuth':
+        requestBlossomAuth(app, value);
         break;
 
       case 'requestNip96Auth':
@@ -365,26 +365,50 @@ export const onReady = ({ app, env }) => {
     })
   }
 
-  function requestBlossomListAuth(app, { requestId: requestId, server: server }) {
+  function requestBlossomAuth(app, { requestId: requestId, fileId: fileId, serverUrl: serverUrl, method: method, hash: sha256Hash }) {
     if (debug) {
-      console.log("Blossom list auth request with requestId: " + requestId);
+      console.log("Blossom auth request with requestId: " + requestId);
     }
 
     async function signer(event) {
       return await window.nostr.signEvent(event);
     }
 
-    const client = new BlossomClient(server, signer);
+    var authPromise;
+
+    switch (method) {
+      case 'PUT':
+        authPromise = BlossomClient.createUploadAuth(sha256Hash, signer, "upload");
+        break;
+
+      case 'GET':
+        const client = new BlossomClient(serverUrl, signer);
+        authPromise = client.getListAuth("file list");
+        break;
+    }
 
     // create an upload auth event
-    client.getListAuth("file list").then(listAuth => {
+    authPromise.then(authHeader => {
       if (debug) {
-        console.log('list auth', listAuth);
+        console.log('authHeader', authHeader);
       }
-      // encode it using base64
-      const encodedAuthHeader = BlossomClient.encodeAuthorizationHeader(listAuth);
 
-      app.ports.receiveMessage.send({ messageType: 'blossomAuthHeader', value: { requestId: requestId, authHeader: encodedAuthHeader, url: server } });
+      // encode it using base64
+      const encodedAuthHeader = BlossomClient.encodeAuthorizationHeader(authHeader);
+
+      app.ports.receiveMessage.send(
+        {
+          messageType: 'blossomAuthHeader'
+          , value:
+          {
+            requestId: requestId
+            , fileId: fileId
+            , method: method
+            , authHeader: encodedAuthHeader
+            , serverUrl: serverUrl
+            , apiUrl: ""
+          }
+        });
     })
   }
 

@@ -40,7 +40,7 @@ type alias Hooks =
     { connect : List String -> Cmd Msg
     , receiveMessage : (IncomingMessage -> Msg) -> Sub Msg
     , requestEvents : String -> Bool -> RequestId -> Maybe (List String) -> EventFilter -> Cmd Msg
-    , requestBlossomListAuth : RequestId -> String -> Cmd Msg
+    , requestBlossomAuth : RequestId -> String -> HttpRequestMethod -> Cmd Msg
     , requestNip96Auth : RequestId -> String -> String -> HttpRequestMethod -> Cmd Msg
     , sendEvent : SendId -> Event -> Cmd Msg
     }
@@ -192,8 +192,8 @@ performRequest model description requestId requestData =
         RequestUserData eventFilter ->
             ( model, model.hooks.requestEvents description True requestId Nothing eventFilter)
 
-        RequestBlossomListAuth server ->
-            ( model, model.hooks.requestBlossomListAuth requestId server)
+        RequestBlossomAuth serverUrl method ->
+            ( model, model.hooks.requestBlossomAuth requestId serverUrl method)
 
         RequestNip98Auth serverUrl apiUrl method ->
             ( model, model.hooks.requestNip96Auth requestId serverUrl apiUrl method)
@@ -536,7 +536,7 @@ empty =
         { connect = \ _ -> Cmd.none
         , receiveMessage = \_ -> Sub.none
         , requestEvents = \_ _ _ _ _ -> Cmd.none
-        , requestBlossomListAuth = \_ _ -> Cmd.none
+        , requestBlossomAuth = \_ _ _ -> Cmd.none
         , requestNip96Auth = \_ _ _ _ -> Cmd.none
         , sendEvent = \_ _ -> Cmd.none
         }
