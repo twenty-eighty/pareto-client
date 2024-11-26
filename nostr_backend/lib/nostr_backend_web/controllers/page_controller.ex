@@ -99,6 +99,12 @@ defmodule NostrBackendWeb.PageController do
     |> render(:communities)
   end
 
+  def posts(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:posts)
+  end
+
   def read(conn, _params) do
     conn
     |> add_meta_tags
