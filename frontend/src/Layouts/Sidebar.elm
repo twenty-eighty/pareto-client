@@ -56,7 +56,7 @@ type alias SidebarItemData =
 sidebarItems : ClientRole -> I18Next.Translations -> List (SidebarItemData)
 sidebarItems clientRole translations =
     case clientRole of
-        ClientConsumer ->
+        ClientReader ->
             [ { path = Route.Path.Read, title = Translations.readMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bookOpen, requiresLogin = False, disabled = False }
             , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, disabled = True }
           --, { path = Route.Path.Communities, title = Translations.communitiesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.globe, requiresLogin = False, disabled = False }
@@ -238,7 +238,7 @@ viewSidebar styles shared currentPath toContentMsg content =
                 ]
                 [ -- viewBanner
                  if roleSwitchButtonEnabled shared.nostr shared.loginStatus then
-                    clientRoleSwitch shared.role
+                    clientRoleSwitch shared.browserEnv.translations shared.role
                   else
                     div [][]
                 , loginButton shared.browserEnv shared.loginStatus (profileForUser shared shared.loginStatus)
@@ -346,8 +346,8 @@ roleSwitchButtonEnabled nostr loginStatus =
         _ ->
             False
 
-clientRoleSwitch : ClientRole -> Html Msg
-clientRoleSwitch clientRole =
+clientRoleSwitch : I18Next.Translations -> ClientRole -> Html Msg
+clientRoleSwitch translations clientRole =
     {- Switch Container -}
     div
         [ css
@@ -363,10 +363,10 @@ clientRoleSwitch clientRole =
                 , Tw.font_medium
                 ]
             ]
-            [ if clientRole == ClientConsumer then
-                 text "Consumer"
+            [ if clientRole == ClientReader then
+                 text <| Translations.readerClientRoleText [ translations ]
               else  
-                 text "Creator"
+                 text <| Translations.creatorClientRoleText [ translations ]
              ]
         ,         {- Switch -}
         label
@@ -387,7 +387,7 @@ clientRoleSwitch clientRole =
                 ]
                 []
             ,             {- Switch Background -}
-            if clientRole == ClientConsumer then
+            if clientRole == ClientReader then
                 div
                     [ Attr.id "switch-background"
                     , css
@@ -414,7 +414,7 @@ clientRoleSwitch clientRole =
                     ]
                     []
             ,             {- Switch Knob -}
-            if clientRole == ClientConsumer then
+            if clientRole == ClientReader then
                 div
                     [ Attr.id "switch-knob"
                     , css

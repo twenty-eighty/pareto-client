@@ -26,5 +26,5 @@ type LoginStatus
     | LoggedIn PubKey
 
 type ClientRole
-    = ClientConsumer
+    = ClientReader
     | ClientCreator

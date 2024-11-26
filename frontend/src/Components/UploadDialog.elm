@@ -46,6 +46,8 @@ import Translations.UploadDialog as Translations
 import Ui.Shared exposing (modalDialog)
 import Ui.Styles exposing (Styles, Styles)
 import Url
+import Nostr.Nip96 exposing (ServerDescriptorData)
+import Components.Dropdown as Dropdown
 
 type UploadDialog msg
      = Settings
@@ -94,7 +96,7 @@ type FileUpload
 
 type UploadServer
     = UploadServerBlossom String
-    | UploadServerNip96 Nip96.ServerDescriptorData
+    | UploadServerNip96 String Nip96.ServerDescriptorData
 
 
 
@@ -127,8 +129,8 @@ selectServer (Model model) maybeUploadServer =
 updateServerList : Model -> List UploadServer -> Model
 updateServerList (Model model) uploadServers =
     case Components.Dropdown.selectedItem model.serverSelectionDropdown of
-        -- prefer NIP-96 server for uploads
-        Just (UploadServerNip96 _) ->
+        -- prefer NIP-96 server for uploads as they accept more metadata
+        Just (UploadServerNip96 _ _) ->
             Model { model | uploadServers = uploadServers }
 
         _ ->
@@ -159,7 +161,7 @@ type Msg
     | StartUpload Int -- FileId
     | HashComputed Int String -- FileId, SHA256 Hash
     | UploadResultBlossom Int String (Result Http.Error Blossom.BlobDescriptor) -- fileId, api URL
-    | UploadResultNip96 Int String (Result Http.Error Nip96.UploadResponse) -- fileId, api URL
+    | UploadResultNip96 Int String String (Result Http.Error Nip96.UploadResponse) -- fileId, api URL
     | UploadProgress String Http.Progress
     | ErrorOccurred String
 
@@ -198,7 +200,14 @@ update props =
                 ( Model { model | state = DialogClosed }, Effect.none)
 
             CloseDialog ->
-                ( Model { model | state = DialogClosed, files = Dict.empty }, Effect.none)
+                ( Model
+                    { model
+                        | state = DialogClosed
+                        , files = Dict.empty
+                        , serverSelectionDropdown = Dropdown.close model.serverSelectionDropdown
+                    }
+                , Effect.none
+                )
 
             IncomingMessage { messageType, value } ->
                 processIncomingMessage props.user props.model messageType props.toMsg value
@@ -259,7 +268,7 @@ update props =
                                                     }
                                                     |> Just
 
-                                            Just (UploadServerNip96 _) ->
+                                            Just (UploadServerNip96 _ _) ->
                                                 FileUploadNip96 Nothing
                                                     { file = fileToUpload
                                                     , status = Nip96.Selected
@@ -494,9 +503,9 @@ update props =
                                 |> Shared.Msg.RequestNostrEvents
                                 |> Effect.sendSharedMsg
 
-                            Just (UploadServerNip96 nip96ServerDescriptorData) ->
+                            Just (UploadServerNip96 serverUrl nip96ServerDescriptorData) ->
                                 PostRequest fileId hash
-                                |> RequestNip98Auth nip96ServerDescriptorData.downloadUrl nip96ServerDescriptorData.apiUrl 
+                                |> RequestNip98Auth serverUrl nip96ServerDescriptorData.apiUrl 
                                 |> Nostr.createRequest props.nostr "NIP-96 auth request for files to be uploaded" []
                                 |> Shared.Msg.RequestNostrEvents
                                 |> Effect.sendSharedMsg
@@ -546,13 +555,13 @@ update props =
                 in
                 ( Model { model | files = updatedFiles, errors = model.errors ++ [ httpErrorToString error] }, Effect.none )
 
-            UploadResultNip96 fileId apiUrl (Ok response) ->
+            UploadResultNip96 fileId serverUrl _ (Ok response) ->
                 let
                     (statusNip96, effect) =
                         case (response.status, response.fileMetadata) of
                             ("success", Just fileMetadata) ->
                                 ( Nip96.Uploaded
-                                , Effect.sendMsg <| props.onUploaded (UploadResponseNip96 apiUrl fileMetadata)
+                                , Effect.sendMsg <| props.onUploaded (UploadResponseNip96 serverUrl fileMetadata)
                                 )
 
                             (responseStatus, _) ->
@@ -576,7 +585,7 @@ update props =
                 in
                 ( Model { model | files = updatedFiles }, effect )
 
-            UploadResultNip96 fileId apiUrl (Err error) ->
+            UploadResultNip96 fileId _ apiUrl (Err error) ->
                 let
                     updatedFiles =
                         Dict.update fileId
@@ -586,7 +595,7 @@ update props =
                                         Just (FileUploadBlossom maybePreviewLink upload)
 
                                     Just (FileUploadNip96 maybePreviewLink upload) ->
-                                        Just <| FileUploadNip96 maybePreviewLink { upload | status = Nip96.Failed <| httpErrorToString error }
+                                        Just <| FileUploadNip96 maybePreviewLink { upload | status = Nip96.Failed <| "Error uploading to NIP-96 server " ++ apiUrl ++ httpErrorToString error }
 
                                     Nothing ->
                                         Nothing
@@ -750,15 +759,15 @@ processIncomingMessage user (Model model) messageType toMsg value =
                                             case upload.status of
                                                 Nip96.ReadyToUpload hash authHeader ->
                                                     let
-                                                        apiUrl =
+                                                        (apiUrl, serverUrl) =
                                                             case Components.Dropdown.selectedItem model.serverSelectionDropdown of
-                                                                Just (UploadServerNip96 serverDescriptorData) ->
-                                                                    serverDescriptorData.apiUrl
+                                                                Just (UploadServerNip96 nip96ServerUrl serverDescriptorData) ->
+                                                                    (serverDescriptorData.apiUrl, nip96ServerUrl)
 
                                                                 _ ->
-                                                                    ""
+                                                                    ("", "")
                                                     in
-                                                    Nip96.uploadFile apiUrl fileId upload (UploadResultNip96 fileId apiUrl) authHeader
+                                                    Nip96.uploadFile apiUrl fileId upload (UploadResultNip96 fileId decoded.serverUrl apiUrl) authHeader
                                                     |> Cmd.map toMsg
                                                     |> Effect.sendCmd
 
@@ -953,8 +962,8 @@ uploadServerToString uploadServer =
         UploadServerBlossom serverUrl ->
             hostOfUrl serverUrl ++ " (Blossom)"
 
-        UploadServerNip96 nip96ServerDescriptorData ->
-            hostOfUrl nip96ServerDescriptorData.apiUrl ++ " (NIP-96)"
+        UploadServerNip96 serverUrl _ ->
+            hostOfUrl serverUrl ++ " (NIP-96)"
 
 hostOfUrl : String -> String
 hostOfUrl url =

@@ -240,9 +240,6 @@ multipartBody upload =
             File.size upload.file
             |> String.fromInt
 
-        contentTypeString =
-             File.mime upload.file
-
         expirationString =
             "" -- Empty string for no expiration; can adjust as needed
 
@@ -250,7 +247,7 @@ multipartBody upload =
         formFields =
             [ Http.filePart "file" upload.file
             , Http.stringPart "size" sizeString
-            , Http.stringPart "content_type" contentTypeString
+            , Http.stringPart "content_type" (File.mime upload.file)
             , Http.stringPart "expiration" expirationString
             ]
             |> appendStringField "media_type" upload.mediaType

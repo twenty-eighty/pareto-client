@@ -106,7 +106,7 @@ init flagsResult route =
             ( { loginStatus = loginStatus
               , browserEnv = browserEnv
               , nostr = nostr
-              , role = ClientConsumer
+              , role = ClientReader
               , theme = ReferenceStyleTheme
               }
             , Effect.batch
@@ -132,7 +132,7 @@ init flagsResult route =
             ( { loginStatus = Shared.Model.LoggedOut
               , browserEnv = browserEnv
               , nostr = Nostr.empty
-              , role = ClientConsumer
+              , role = ClientReader
               , theme = ReferenceStyleTheme
               }
             , Effect.none
@@ -207,10 +207,10 @@ update route msg model =
             )
 
         SwitchClientRole ->
-            if model.role == ClientConsumer then
+            if model.role == ClientReader then
                 ( { model | role = ClientCreator }, Effect.pushRoutePath Route.Path.Posts )
             else
-                ( { model | role = ClientConsumer }, Effect.pushRoutePath Route.Path.Home_ )
+                ( { model | role = ClientReader }, Effect.pushRoutePath Route.Path.Home_ )
 
 updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage model portMessage =

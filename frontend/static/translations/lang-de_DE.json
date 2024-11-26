@@ -1,8 +1,10 @@
 {
    "sidebar": {
+      "reader client role text": "Leser",
+      "creator client role text": "Autor",
       "bookmarks menu item text": "Lesezeichen",
       "communities menu item text": "Communities",
-      "get started button text": "Erste Schritte",
+      "get started button text": "Anmelden",
       "media menu item text": "Bilder",
       "messages menu item text": "Nachrichten",
       "notifications menu item text": "Benachrichtigungen",

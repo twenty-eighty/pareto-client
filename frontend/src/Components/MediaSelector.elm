@@ -247,7 +247,7 @@ update props =
                             Nip96MediaServer serverUrl ->
                                 case Dict.get serverUrl model.nip96ServerDescResponses of
                                     Just (Nip96.ServerDescriptor serverDescriptorData) ->
-                                        Just <| UploadDialog.UploadServerNip96 serverDescriptorData
+                                        Just <| UploadDialog.UploadServerNip96 serverUrl serverDescriptorData
 
                                     Just (Nip96.ServerRedirect _) ->
                                         Nothing
@@ -462,7 +462,7 @@ updateUploadDialogServerList nip96ServerDescResponses uploadDialogModel blossomS
             |> List.filterMap (\serverUrl ->
                 case Dict.get serverUrl nip96ServerDescResponses of
                     Just (Nip96.ServerDescriptor serverDescriptorData) ->
-                        Just (UploadDialog.UploadServerNip96 serverDescriptorData)
+                        Just (UploadDialog.UploadServerNip96 serverUrl serverDescriptorData)
 
                     _ ->
                         Nothing
@@ -605,6 +605,34 @@ viewMediaSelector (Settings settings) =
 
                 Nothing ->
                     []
+
+        dialogAttributes =
+            case model.displayType of
+                DisplayModalDialog _ ->
+                    [ Tw.max_h_96
+                    , Tw.overflow_y_auto
+                    , Tw.grid_cols_3
+                    ]
+
+                DisplayEmbedded ->
+                    [ Bp.xxl
+                        [ Tw.grid_cols_6
+                        ]
+                    , Bp.xl
+                        [ Tw.grid_cols_5
+                        ]
+                    , Bp.lg
+                        [ Tw.grid_cols_4
+                        ]
+                    , Bp.md
+                        [ Tw.grid_cols_3
+                        ]
+                    , Bp.sm
+                        [ Tw.grid_cols_2
+                        ]
+                    , Tw.grid_cols_1
+                    ]
+
     in
     div []
         [ div
@@ -635,28 +663,11 @@ viewMediaSelector (Settings settings) =
         ,             {- Image Grid -}
         div
             [ css
+                (dialogAttributes ++ 
                 [ Tw.grid
                 , Tw.gap_4
                 , Tw.mt_4
-                , Tw.max_h_96
-                , Tw.overflow_y_auto
-                , Bp.xxl
-                    [ Tw.grid_cols_6
-                    ]
-                , Bp.xl
-                    [ Tw.grid_cols_5
-                    ]
-                , Bp.lg
-                    [ Tw.grid_cols_4
-                    ]
-                , Bp.md
-                    [ Tw.grid_cols_3
-                    ]
-                , Bp.sm
-                    [ Tw.grid_cols_2
-                    ]
-                , Tw.grid_cols_1
-                ]
+                ])
             ]
             (List.map (imagePreview settings.onSelected) filesToShow
             |> List.map (Html.map settings.toMsg)

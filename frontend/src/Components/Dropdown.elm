@@ -104,6 +104,10 @@ type Msg item msg
         , onChange : Maybe msg
         }
 
+close : Model item  -> Model item
+close (Model model) =
+    Model { model | isMenuOpen = False }
+
 selectItem : Model item -> Maybe item -> Model item
 selectItem (Model model) maybeitem =
     Model { model | selected = maybeitem }
