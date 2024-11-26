@@ -35,10 +35,12 @@ import Svg.Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-import Translations.MediaSelector
+import Translations.MediaSelector as Translations
 import Ui.Styles exposing (Styles, Theme)
 import Ui.Shared
 import Url
+import I18Next
+import Components.UploadDialog exposing (UploadServer)
 
 
 type MediaSelector msg
@@ -259,7 +261,7 @@ update props =
                                 Nothing
 
                             AllMediaServers ->
-                                Nothing
+                                preferredUploadServer (Model model)
                 in
                 ( Model
                     { model
@@ -646,13 +648,13 @@ viewMediaSelector (Settings settings) =
                 { model = model.serverSelectionDropdown
                 , toMsg = DropdownSent
                 , choices = selectableServers
-                , toLabel = mediaServerToString
+                , toLabel = mediaServerToString settings.browserEnv.translations
                 }
                 |> Components.Dropdown.withOnChange ChangedSelectedServer
                 |> Components.Dropdown.view
                 |> Html.map settings.toMsg
             , Button.new
-                { label = Translations.MediaSelector.uploadButtonTitle [settings.browserEnv.translations]
+                { label = Translations.uploadButtonTitle [ settings.browserEnv.translations ]
                 , onClick = Upload
                 }
                 |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.upload)
@@ -683,8 +685,47 @@ viewMediaSelector (Settings settings) =
             |> Html.map settings.toMsg
         ]
     
+preferredUploadServer : Model -> Maybe UploadServer
+preferredUploadServer (Model model) =
+    availableMediaServers (Model model)
+    |> List.head
+    |> Maybe.andThen (\mediaServer ->
+        case mediaServer of
+            BlossomMediaServer serverUrl ->
+                (Just <| UploadDialog.UploadServerBlossom serverUrl)
+
+            Nip96MediaServer serverUrl ->
+                Dict.get serverUrl model.nip96ServerDescResponses
+                |> Maybe.andThen (\serverDescResponse ->
+                    case serverDescResponse of
+                        Nip96.ServerDescriptor serverDescriptorData ->
+                            (Just <| UploadDialog.UploadServerNip96 serverUrl serverDescriptorData)
+
+                        _ ->
+                            Nothing
+                )
+            _ ->
+                Nothing
+    )
+
 selectableMediaServers : Model -> List MediaServer
 selectableMediaServers (Model model) =
+    let
+        servers =
+            availableMediaServers (Model model)
+    in
+    case List.length servers of
+        0 ->
+            [ NoMediaServer ]
+
+        1 ->
+            servers
+
+        _ ->
+            AllMediaServers :: servers
+
+availableMediaServers : Model -> List MediaServer
+availableMediaServers (Model model) =
     let
         selectableBlossomServers =
             model.blossomServers
@@ -706,24 +747,16 @@ selectableMediaServers (Model model) =
                         Nothing
                 )
     in
-    case List.length selectableBlossomServers + List.length selectableNip96Servers of
-        0 ->
-            [ NoMediaServer ]
+    selectableNip96Servers ++ selectableBlossomServers
 
-        1 ->
-            selectableBlossomServers ++ selectableNip96Servers
-
-        _ ->
-            AllMediaServers :: (selectableBlossomServers ++ selectableNip96Servers)
-
-mediaServerToString : MediaServer -> String
-mediaServerToString mediaServer =
+mediaServerToString : I18Next.Translations -> MediaServer -> String
+mediaServerToString translations mediaServer =
     case mediaServer of
         AllMediaServers ->
-            "All servers"
+            Translations.allServersListboxEntry [ translations ]
 
         NoMediaServer ->
-            "No server available"
+            Translations.noServerListboxEntry [ translations ]
 
         BlossomMediaServer serverUrl ->
             hostOfUrl serverUrl ++ " (Blossom)"

@@ -32,7 +32,9 @@
    },
    "media selector": {
       "Select image": "Bild auswählen",
-      "Upload button title": "Bilder hochladen"
+      "Upload button title": "Bilder hochladen",
+      "all servers listbox entry": "Alle Server",
+      "no server listbox entry": "Kein Server konfiguriert"
    },
    "read": {
       "followed feed category": "Gefolgt",
@@ -57,7 +59,8 @@
       "publish button title": "Veröffentlichen",
       "save draft button title": "Entwurf speichern",
       "summary text": "Zusammenfassung",
-      "tags text": "Schlüsselwörter",
+      "tags label text": "Schlüsselwörter",
+      "tags placeholder text": "Schlüsselwörter, mit Komma getrennt",
       "upload button title": "Hochladen"
    }
 }

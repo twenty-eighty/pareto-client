@@ -9,7 +9,6 @@ import Nostr.Types exposing (EventId, PubKey)
 import Time
 import Json.Encode as Encode
 import Json.Encode as Encode
-import Translations.Write exposing (tagsText)
 import Json.Decode as Decode
 import Json.Decode as Decode
 import Json.Decode as Decode

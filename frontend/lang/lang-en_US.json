@@ -32,7 +32,9 @@
    },
    "media selector": {
       "Upload files": "Select image",
-      "Upload button title": "Upload images"
+      "Upload button title": "Upload images",
+      "all servers listbox entry": "All servers",
+      "no server listbox entry": "No server configured"
    },
    "read": {
       "followed feed category": "Followed",
@@ -57,7 +59,8 @@
       "publish button title": "Publish",
       "save draft button title": "Save draft",
       "summary text": "Summary",
-      "tags text": "Tags",
+      "tags label text": "Tags",
+      "tags placeholder text": "Tags, comma separated",
       "upload button title": "Upload"
    }
 }

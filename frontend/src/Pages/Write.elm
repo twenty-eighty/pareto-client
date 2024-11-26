@@ -28,7 +28,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Time
-import Translations.Write
+import Translations.Write as Translations
 import Ui.Styles exposing (Theme)
 import View exposing (View)
 
@@ -348,7 +348,7 @@ viewTitle browserEnv model =
             , Attr.attribute "fontfamily" "Inter"
             , Attr.attribute "fontsize" "36px"
             , Attr.attribute "fontWeight" "700"
-            , Attr.attribute "placeholder" ( Translations.Write.editorTitlePlaceholderText [ browserEnv.translations ])
+            , Attr.attribute "placeholder" ( Translations.editorTitlePlaceholderText [ browserEnv.translations ])
             , on "input-change" (Decode.map UpdateTitle decodeInputChange)
             ]
             []
@@ -368,7 +368,7 @@ viewSubtitle browserEnv model =
             , Attr.attribute "fontfamily" "Inter"
             , Attr.attribute "fontsize" "19px"
             , Attr.attribute "fontWeight" "700"
-            , Attr.attribute "placeholder" ( Translations.Write.editorSubtitlePlaceholderText [ browserEnv.translations ])
+            , Attr.attribute "placeholder" ( Translations.editorSubtitlePlaceholderText [ browserEnv.translations ])
             , on "input-change" (Decode.map UpdateSubtitle decodeInputChange)
             ]
             []
@@ -498,12 +498,13 @@ viewTags browserEnv model =
                 , Tw.mb_2
                 ]
             ]
-            [ text "Tags" ]
+            [ text <| Translations.tagsLabelText [ browserEnv.translations ]
+            ]
         ,         {- Input Field -}
         input
             [ Attr.type_ "text"
             , Attr.id "entry-field"
-            , Attr.placeholder "Tags, comma separated"
+            , Attr.placeholder <| Translations.tagsPlaceholderText [ browserEnv.translations ]
             , Attr.value (model.tags |> Maybe.withDefault "")
             , Events.onInput UpdateTags
             , css
@@ -558,7 +559,7 @@ publishButton browserEnv =
             ]
         , Events.onClick Publish
         ]
-        [ text <| Translations.Write.publishButtonTitle [ browserEnv.translations ] ]
+        [ text <| Translations.publishButtonTitle [ browserEnv.translations ] ]
 
 openMediaSelectorButton : BrowserEnv -> Html Msg
 openMediaSelectorButton browserEnv =
@@ -590,4 +591,4 @@ saveDraftButton browserEnv =
             ]
         , Events.onClick SaveDraft
         ]
-        [ text <| Translations.Write.saveDraftButtonTitle [ browserEnv.translations ] ]
+        [ text <| Translations.saveDraftButtonTitle [ browserEnv.translations ] ]
