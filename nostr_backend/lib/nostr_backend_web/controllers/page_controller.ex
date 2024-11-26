@@ -69,6 +69,12 @@ defmodule NostrBackendWeb.PageController do
     |> render(:search)
   end
 
+  def about(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:about)
+  end
+
   def bookmarks(conn, _params) do
     conn
     |> add_meta_tags
