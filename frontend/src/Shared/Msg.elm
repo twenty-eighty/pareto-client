@@ -8,6 +8,7 @@ import Nostr
 import Nostr.Request exposing (Request)
 import Nostr.Send exposing (SendRequest)
 import Nostr.Types exposing (IncomingMessage)
+import Shared.Model exposing (ClientRole)
 
 
 {-| Normally, this value would live in "Shared.elm"
@@ -25,3 +26,4 @@ type Msg
     | RequestNostrEvents Request
     | SendNostrEvent SendRequest
     | SwitchClientRole
+    | SetClientRole ClientRole

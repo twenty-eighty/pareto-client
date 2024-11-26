@@ -212,6 +212,9 @@ update route msg model =
             else
                 ( { model | role = ClientReader }, Effect.pushRoutePath Route.Path.Home_ )
 
+        SetClientRole clientRole ->
+            ( { model | role = clientRole }, Effect.none )
+
 updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage model portMessage =
     case portMessage.messageType of

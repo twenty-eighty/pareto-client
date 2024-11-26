@@ -47,6 +47,11 @@
       "published category": "Published",
       "drafts category": "Drafts"
    },
+   "sign-in": {
+      "page title": "Sign in/up",
+      "sign-in request": "Please sign up/in to access the page",
+      "continue without signing in message": "Continue without signing up/in..."
+   },
    "upload dialog": {
       "dialog title": "Upload",
       "upload button title": "Upload",

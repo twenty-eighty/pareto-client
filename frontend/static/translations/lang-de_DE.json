@@ -47,6 +47,11 @@
       "published category": "Veröffentlicht",
       "drafts category": "Entwürfe"
    },
+   "sign-in": {
+      "page title": "Anmelden/Konto anlegen",
+      "sign-in request": "Bitte melden Sie sich an oder erstellen ein Konto, um auf die Seite zuzugreifen",
+      "continue without signing in message": "Ohne Konto fortfahren ..."
+   },
    "upload dialog": {
       "dialog title": "Hochladen",
       "upload button title": "Hochladen",

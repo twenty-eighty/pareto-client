@@ -236,17 +236,13 @@ uploadFile apiUrl fileId fileUpload resultMsg authHeader =
 multipartBody : FileUpload -> Http.Body
 multipartBody upload =
     let
-        sizeString =
-            File.size upload.file
-            |> String.fromInt
-
         expirationString =
-            "" -- Empty string for no expiration; can adjust as needed
+            "" -- Empty string for no expiration
 
         -- Collect form fields
         formFields =
             [ Http.filePart "file" upload.file
-            , Http.stringPart "size" sizeString
+            , Http.stringPart "size" (File.size upload.file |> String.fromInt)
             , Http.stringPart "content_type" (File.mime upload.file)
             , Http.stringPart "expiration" expirationString
             ]

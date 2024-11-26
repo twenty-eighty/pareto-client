@@ -7,11 +7,6 @@ import Json.Decode.Pipeline as Pipeline
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..), NAddrData)
 import Nostr.Types exposing (EventId, PubKey)
 import Time
-import Json.Encode as Encode
-import Json.Encode as Encode
-import Json.Decode as Decode
-import Json.Decode as Decode
-import Json.Decode as Decode
 
 
 type Tag

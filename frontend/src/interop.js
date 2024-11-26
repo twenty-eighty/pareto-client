@@ -8,10 +8,6 @@ import { init as initNostrLogin, launch as launchNostrLoginDialog } from "nostr-
 // import NostrPasskeyModule from './nostrPasskeyModule.js';
 // const nostrPasskey = new NostrPasskeyModule();
 
-const nostrLoginOptions = {
-};
-initNostrLogin(nostrLoginOptions);
-
 const debug = true;
 
 // This is called BEFORE your Elm app starts up
@@ -62,6 +58,10 @@ export const onReady = ({ app, env }) => {
   });
 
   window.onload = function () {
+    const nostrLoginOptions = {
+    };
+    initNostrLogin(nostrLoginOptions);
+
     if (requestUserWhenLoaded) {
       requestUser(app);
     }
@@ -545,9 +545,7 @@ export const onReady = ({ app, env }) => {
   }
 
   function loginSignUp(app) {
-    const nostrLoginOptions = {
-    };
-    launchNostrLoginDialog(nostrLoginOptions);
+    processOnlineCommand(app, "requestUser")
   }
 
   function loginWithExtension(app) {

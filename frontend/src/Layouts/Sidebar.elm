@@ -1,4 +1,4 @@
-module Layouts.Sidebar exposing (Model, Msg, Props, layout, map)
+module Layouts.Sidebar exposing (Model, Msg, Props, layout, map, clientRoleForRoutePath)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button
@@ -44,6 +44,17 @@ map : (msg1 -> msg2) -> Props msg1 -> Props msg2
 map toMsg props =
     { styles = Ui.Styles.map toMsg props.styles
     }
+
+clientRoleForRoutePath : Route.Path.Path -> ClientRole
+clientRoleForRoutePath path =
+    sidebarItems ClientReader I18Next.initialTranslations
+    |> List.any (\item -> item.path == path)
+    |> (\isInReaderList ->
+            if isInReaderList then
+                ClientReader
+            else
+                ClientCreator
+       )
 
 type alias SidebarItemData =
     { path : Route.Path.Path
