@@ -7,9 +7,10 @@ defmodule NostrBackend.NostrClient do
   @relay_urls [
     "wss://nostr.pareto.space",
     "wss://pareto.nostr1.com",
-    "wss://nos.lol"
+    "wss://nos.lol",
+    "wss://relay.nostr.band",
+    "wss://relay.damus.io"
     #   "wss://nostr.wine",
-    #   "wss://relay.damus.io",
     #   "wss://relay.snort.social"
     # Add more relay URLs as needed
   ]
