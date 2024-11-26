@@ -290,7 +290,7 @@ viewBannerSmall browserEnv =
     let
         bannerImageWide =
             if browserEnv.darkMode then
-                "/images/icon/Pareto-Log4.png"
+                "/images/icon/Pareto-Log7.png"
             else
                 "/images/icon/Pareto-Log5.png"
 
