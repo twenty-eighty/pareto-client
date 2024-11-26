@@ -112,6 +112,7 @@ view user shared model =
         [ MediaSelector.new
             { model = model.mediaSelector
             , toMsg = MediaSelectorSent
+            , onSelected = Nothing
             , pubKey = user.pubKey
             , browserEnv = shared.browserEnv
             , theme = shared.theme

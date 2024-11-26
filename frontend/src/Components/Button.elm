@@ -135,6 +135,9 @@ view (Settings settings) =
             , Tw.text_color Theme.white
             , Tw.py_2
             , Tw.px_4
+            , Tw.flex
+            , Tw.flex_row
+            , Tw.gap_2
             , Tw.rounded_full
             , Css.hover
                 [ Tw.bg_color Theme.orange_700

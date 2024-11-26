@@ -1,6 +1,6 @@
 module Components.MediaSelector exposing
     ( MediaSelector, new
-    , Model, init, DisplayType(..)
+    , Model, init, DisplayType(..), UploadedFile(..)
     , Msg, update, show
     , view
     , subscribe
@@ -45,6 +45,7 @@ type MediaSelector msg
      = Settings
         { model : Model
         , toMsg : Msg msg -> msg
+        , onSelected : Maybe (UploadedFile -> msg)
         , pubKey : PubKey
         , browserEnv : BrowserEnv
         , theme : Theme
@@ -53,6 +54,7 @@ type MediaSelector msg
 new :
     { model : Model
     , toMsg : Msg msg -> msg
+    , onSelected : Maybe (UploadedFile -> msg)
     , pubKey : PubKey
     , browserEnv : BrowserEnv
     , theme : Theme
@@ -62,6 +64,7 @@ new props =
     Settings
         { model = props.model
         , toMsg = props.toMsg
+        , onSelected = props.onSelected
         , pubKey = props.pubKey
         , browserEnv = props.browserEnv
         , theme = props.theme
@@ -186,8 +189,8 @@ type Msg msg
     | ReceivedNip96ServerDesc String (Result Http.Error Nip96.ServerDescResponse)
     | ReceivedNip96FileList String (Result Http.Error Nip96.FileList)
     | SelectedItem
-        { item : Int
-        , onChange : Maybe msg
+        { item : UploadedFile
+        , onSelected : Maybe (UploadedFile -> msg)
         }
 
 
@@ -289,18 +292,20 @@ update props =
                 processIncomingMessage props.user props.model messageType props.toMsg value
 
             SelectedItem data ->
-                ( Model 
-                    { model
-                        | search = ""
-                        , selected = Just 1
-                    }
-                , case data.onChange of
-                    Just onChange ->
-                        Effect.sendMsg onChange
-                    
+                case data.onSelected of
+                    Just onSelected ->
+                        ( Model 
+                            { model
+                                | selected = Just 1
+                                , displayType = DisplayModalDialog False
+                            }
+                        , Effect.sendMsg (onSelected data.item)
+                        )
+
                     Nothing ->
-                        Effect.none
-                )
+                        ( Model { model | selected = Just 1 }
+                        , Effect.none
+                        )
 
             ReceivedBlossomFileList serverUrl result ->
                 case result of
@@ -602,9 +607,7 @@ viewMediaSelector (Settings settings) =
                     []
     in
     div []
-        [ viewHeader model.displayType (Settings settings)
-        ,             {- Upload Button -}
-        div
+        [ div
             [ css
                 [ Tw.mt_6
                 , Tw.flex
@@ -624,6 +627,7 @@ viewMediaSelector (Settings settings) =
                 { label = Translations.MediaSelector.uploadButtonTitle [settings.browserEnv.translations]
                 , onClick = Upload
                 }
+                |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.upload)
                 |> Button.withDisabled (List.length selectableServers < 1)
                 |> Button.view
                 |> Html.map settings.toMsg
@@ -634,6 +638,8 @@ viewMediaSelector (Settings settings) =
                 [ Tw.grid
                 , Tw.gap_4
                 , Tw.mt_4
+                , Tw.max_h_96
+                , Tw.overflow_y_auto
                 , Bp.xxl
                     [ Tw.grid_cols_6
                     ]
@@ -652,7 +658,9 @@ viewMediaSelector (Settings settings) =
                 , Tw.grid_cols_1
                 ]
             ]
-            (List.map imagePreview filesToShow)
+            (List.map (imagePreview settings.onSelected) filesToShow
+            |> List.map (Html.map settings.toMsg)
+            )
         , UploadDialog.new
             { model = model.uploadDialog
             , toMsg = UploadDialogSent
@@ -741,56 +749,8 @@ uploadedNip96ImageFiles uploadedNip96Files serverUrl =
     |> Maybe.withDefault []
 
 
-viewHeader : DisplayType -> MediaSelector msg -> Html msg
-viewHeader displayType (Settings settings) =
-    case displayType of
-        DisplayModalDialog True ->
-            div
-                [ css
-                    [ Tw.flex
-                    , Tw.justify_between
-                    , Tw.items_center
-                    , Tw.border_b
-                    , Tw.pb_4
-                    ]
-                ]
-                [ h2
-                    [ css
-                        [ Tw.text_lg
-                        , Tw.font_semibold
-                        , Tw.text_color Theme.gray_800
-                        ]
-                    ]
-                    [ text <| Translations.MediaSelector.uploadButtonTitle [settings.browserEnv.translations] ]
-                , button
-                    [ css
-                        [ Tw.text_color Theme.gray_400
-                        , Css.hover
-                            [ Tw.text_color Theme.gray_600
-                            ]
-                        ]
-                    , Attr.id "close-modal"
-                    , Events.onClick <| settings.toMsg CloseDialog
-                    ]
-                    [ text " ✕ " ]
-                ]
-
-        DisplayModalDialog False ->
-            div [][]
-
-        DisplayEmbedded ->
-            div [][]
-
-uploadButton =
-    Button.new
-        { label = "Upload"
-        , onClick = Upload
-        }
-        |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.upload)
-        |> Button.view
-
-imagePreview : UploadedFile -> Html msg
-imagePreview uploadedFile =
+imagePreview : Maybe (UploadedFile -> msg) -> UploadedFile -> Html (Msg msg)
+imagePreview onSelected uploadedFile =
     let
         commonAttributes =
             [ css
@@ -804,6 +764,7 @@ imagePreview uploadedFile =
                 , Tw.justify_center
                 , Tw.text_color Theme.gray_400
                 ]
+            , Events.onDoubleClick (SelectedItem { item = uploadedFile, onSelected = onSelected })
             ]
     in
     case uploadedFile of

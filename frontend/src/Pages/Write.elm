@@ -2,7 +2,7 @@ module Pages.Write exposing (Model, Msg, page)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
-import Components.MediaSelector as MediaSelector
+import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
 import Css
 import Dict exposing (Dict)
 import Effect exposing (Effect)
@@ -151,6 +151,8 @@ type Msg
     | UpdateTitle String
     | UpdateSubtitle String
     | UpdateTags String
+    | SelectImage
+    | ImageSelected MediaSelector.UploadedFile
     | Publish
     | SaveDraft
     | Now Time.Posix
@@ -193,6 +195,17 @@ update shared user msg model =
                 ( { model | tags = Nothing }, Effect.none )
             else
                 ( { model | tags = Just tags }, Effect.none )
+
+        SelectImage ->
+            ( { model | mediaSelector = MediaSelector.show model.mediaSelector }, Effect.none )
+
+        ImageSelected uploadedFile ->
+            case uploadedFile of
+                BlossomFile blobDescriptor ->
+                    ( { model | image = Just blobDescriptor.url }, Effect.none )
+
+                Nip96File fileMetadata ->
+                    ( { model | image = fileMetadata.url }, Effect.none )
 
         Publish ->
             ( model, Effect.none )
@@ -285,8 +298,26 @@ view user shared model =
                     ]
                 ]
             ]
-            [ viewTitle shared.browserEnv model
-            , viewSubtitle shared.browserEnv model
+            [ div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_row
+                    ]
+                ]
+                [ div
+                    [ css
+                        [ Tw.flex
+                        , Tw.flex_col
+                        ]
+                    ]
+                    [ viewTitle shared.browserEnv model
+                    , viewSubtitle shared.browserEnv model
+                    ]
+                , div
+                    []
+                    [ viewImage model
+                    ]
+                ]
             , viewEditor shared.browserEnv model
             , viewTags  shared.browserEnv model
             -- , openMediaSelectorButton shared.browserEnv
@@ -294,6 +325,7 @@ view user shared model =
             , MediaSelector.new
                 { model = model.mediaSelector
                 , toMsg = MediaSelectorSent
+                , onSelected = Just ImageSelected
                 , pubKey = user.pubKey
                 , browserEnv = shared.browserEnv
                 , theme = shared.theme
@@ -346,6 +378,33 @@ decodeInputChange : Decode.Decoder String
 decodeInputChange =
     Decode.field "detail" (Decode.field "value" Decode.string)
 
+
+viewImage : Model -> Html Msg
+viewImage model =
+    case model.image of
+        Just image ->
+            div
+                [ css
+                    [ Tw.max_w_72
+                    ]
+                ]
+                [ img
+                    [ Attr.src image
+                    , Events.onClick SelectImage
+                    ]
+                    []
+                ]
+
+        Nothing ->
+            div
+                [ css
+                    [ Tw.w_48
+                    , Tw.h_32
+                    , Tw.bg_color Theme.slate_500
+                    ]
+                , Events.onClick SelectImage
+                ]
+                []
 
 viewEditor : BrowserEnv -> Model -> Html Msg
 viewEditor browserEnv model =
