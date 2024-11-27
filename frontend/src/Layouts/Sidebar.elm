@@ -235,7 +235,6 @@ viewSidebar styles shared currentPath toContentMsg content =
         , div
             [ css
                 [ Tw.flex_1
-                , Tw.p_8
                 , Tw.h_full
                 ]
             ]
@@ -244,21 +243,47 @@ viewSidebar styles shared currentPath toContentMsg content =
                     [ Tw.flex
                     , Tw.justify_between
                     , Tw.items_center
+                    , Tw.h_20
                     , Tw.mb_6
                     ]
+                , Attr.style "background-image" "url('/images/Pareto-Client-Banner1.png')"
+                , Attr.style "background-size" "cover"
                 ]
                 [ -- viewBanner
                  if roleSwitchButtonEnabled shared.nostr shared.loginStatus then
                     clientRoleSwitch shared.browserEnv.translations shared.role
                   else
                     div [][]
-                , loginButton shared.browserEnv shared.loginStatus (profileForUser shared shared.loginStatus)
+                , div
+                    [ css
+                        [ Tw.mx_4
+                        ]
+                    ]
+                    [
+                    loginButton shared (profileForUser shared shared.loginStatus)
+                    ]
                 ]
                 |> Html.map toContentMsg
             , main_
                 [ class "page"
                 , css
-                    [ Tw.w_full
+                    [ Tw.w_min
+                    , Tw.mx_1
+                    , Bp.xxl
+                        [ Tw.mx_40
+                        ]
+                    , Bp.xl
+                        [ Tw.mx_32
+                        ]
+                    , Bp.lg
+                        [ Tw.mx_20
+                        ]
+                    , Bp.md
+                        [ Tw.mx_10
+                        ]
+                    , Bp.sm
+                        [ Tw.mx_5
+                        ]
                     ]
                 ]
                 content
@@ -308,10 +333,11 @@ viewBannerSmall browserEnv =
             [ Attr.src bannerImageWide
             , Attr.alt "Banner"
             , css
-                [ Tw.h_10
-                , Tw.w_0
+                [ Tw.w_0
                 , Bp.xl
-                    [ Tw.w_40
+                    [ Tw.w_36
+                    , Tw.h_10
+                    , Tw.ml_2
                     ]
                 ]
             ]
@@ -365,6 +391,7 @@ clientRoleSwitch translations clientRole =
             [ Tw.flex
             , Tw.items_center
             , Tw.space_x_4
+            , Tw.mx_10
             ]
         ]
         [         {- Label for the Switch -}
@@ -566,14 +593,14 @@ viewSidebarItem styles currentPath itemData =
             [ text itemData.title ]
         ]
 
-loginButton : BrowserEnv -> LoginStatus -> Maybe Profile -> Html Msg
-loginButton browserEnv loginStatus maybeProfile =
-    case loginStatus of
+loginButton : Shared.Model -> Maybe Profile -> Html Msg
+loginButton shared maybeProfile =
+    case shared.loginStatus of
         Shared.Model.LoggedIn pubKey ->
             loggedInButton maybeProfile
 
         _ ->
-            getStartedButton browserEnv
+            getStartedButton shared.theme shared.browserEnv
 
 loggedInButton : Maybe Profile -> Html Msg
 loggedInButton maybeProfile =
@@ -635,10 +662,11 @@ profileImage maybeProfile =
     |> Maybe.andThen (\profile -> profile.picture)
     |> Maybe.withDefault "/images/avatars/placeholder_01.png" 
 
-getStartedButton : BrowserEnv -> Html Msg
-getStartedButton browserEnv =
+getStartedButton : Ui.Styles.Theme-> BrowserEnv -> Html Msg
+getStartedButton theme browserEnv =
     Components.Button.new
         { label = Translations.getStartedButtonText [ browserEnv.translations ]
         , onClick = OpenGetStarted
+        , theme = theme
         }
         |> Components.Button.view

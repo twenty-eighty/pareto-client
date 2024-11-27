@@ -656,6 +656,7 @@ viewMediaSelector (Settings settings) =
             , Button.new
                 { label = Translations.uploadButtonTitle [ settings.browserEnv.translations ]
                 , onClick = Upload
+                , theme = settings.theme
                 }
                 |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.upload)
                 |> Button.withDisabled (List.length selectableServers < 1)

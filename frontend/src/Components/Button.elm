@@ -30,7 +30,7 @@ import Html.Styled.Events as Events
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-
+import Ui.Styles
 
 -- SETTINGS
 
@@ -45,10 +45,11 @@ type Button msg
         , iconRight : Maybe Icon
         , isOutlined : Bool
         , isDisabled : Bool
+        , theme : Ui.Styles.Theme
         }
 
 
-new : { label : String, onClick : msg } -> Button msg
+new : { label : String, onClick : msg, theme : Ui.Styles.Theme } -> Button msg
 new props =
     Settings
         { label = props.label
@@ -59,6 +60,7 @@ new props =
         , iconRight = Nothing
         , isOutlined = False
         , isDisabled = False
+        , theme = props.theme
         }
 
 
@@ -120,6 +122,9 @@ withDisabled isDisabled (Settings settings) =
 view : Button msg -> Html msg
 view (Settings settings) =
     let
+        styles =
+            Ui.Styles.stylesForTheme settings.theme
+
         viewOptionalIcon : Maybe Icon -> Html msg
         viewOptionalIcon maybeIcon =
             case maybeIcon of
@@ -130,17 +135,16 @@ view (Settings settings) =
                     text ""
     in
     button
+        ( styles.colorStyleButtonText ++ styles.colorStyleButtonBackground ++
         [ css
-            [ Tw.bg_color Theme.orange_500
-            , Tw.text_color Theme.white
-            , Tw.py_2
+            [ Tw.py_2
             , Tw.px_4
             , Tw.flex
             , Tw.flex_row
             , Tw.gap_2
             , Tw.rounded_full
             , Css.hover
-                [ Tw.bg_color Theme.orange_700
+                [ 
                 ]
             ]
         , Events.onClick settings.onClick
@@ -152,7 +156,7 @@ view (Settings settings) =
             , ( "is-small", settings.size == Small )
             ]
         , disabled settings.isDisabled
-        ]
+        ])
         [ viewOptionalIcon settings.iconLeft
         , text settings.label
         , viewOptionalIcon settings.iconRight

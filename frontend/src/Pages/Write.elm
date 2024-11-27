@@ -302,6 +302,7 @@ view user shared model =
                 [ css
                     [ Tw.flex
                     , Tw.flex_row
+                    , Tw.gap_4
                     ]
                 ]
                 [ div

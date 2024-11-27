@@ -107,7 +107,7 @@ init flagsResult route =
               , browserEnv = browserEnv
               , nostr = nostr
               , role = ClientReader
-              , theme = ReferenceStyleTheme
+              , theme = ParetoTheme
               }
             , Effect.batch
                 [ effect
@@ -133,7 +133,7 @@ init flagsResult route =
               , browserEnv = browserEnv
               , nostr = Nostr.empty
               , role = ClientReader
-              , theme = ReferenceStyleTheme
+              , theme = ParetoTheme
               }
             , Effect.none
             )

@@ -21,11 +21,34 @@ import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
 import Ui.Shared
 import Ui.Styles exposing (Styles, darkMode, fontFamilyInter, fontFamilyUnbounded, fontFamilySourceSerifPro)
 import Time
+import TailwindExtensions exposing (bp_xsl)
 
 -- single article
 
 viewArticle : Styles msg -> BrowserEnv -> Author -> Article -> Interactions -> Html msg
 viewArticle styles browserEnv author article interactions =
+    let
+        contentMargins =
+            [ css
+               [ Tw.mx_1
+               , Bp.xxl
+                   [ Tw.mx_40
+                   ]
+               , Bp.xl
+                   [ Tw.mx_32
+                   ]
+               , Bp.lg
+                   [ Tw.mx_20
+                   ]
+               , Bp.md
+                   [ Tw.mx_10
+                   ]
+               , Bp.sm
+                   [ Tw.mx_5
+                   ]
+               ]
+            ]
+    in
     div
         [ css
             [ Tw.flex_col
@@ -46,15 +69,15 @@ viewArticle styles browserEnv author article interactions =
                 ]
             ]
             [ div
+                (
                 [ css
-                    [ Tw.mx_48
-                    , Tw.flex_col
+                    [ Tw.flex_col
                     , Tw.justify_start
                     , Tw.items_start
                     , Tw.gap_4
                     , Tw.inline_flex
                     ]
-                ]
+                ] ++ contentMargins)
                 [ viewTags styles article
                 , div
                     [ css
@@ -91,9 +114,8 @@ viewArticle styles browserEnv author article interactions =
                     , Tw.items_start
                     , Tw.gap_4
                     , Tw.flex
-                    , Tw.mx_48
                     ]
-                ])
+                ] ++ contentMargins)
                 [ viewInteractions styles browserEnv interactions
                 , viewContent styles article.content
                 , viewInteractions styles browserEnv interactions
@@ -519,6 +541,22 @@ viewArticlePreviewList styles browserEnv author article interactions displayAuth
             , Tw.items_start
             , Tw.gap_2
             , Tw.inline_flex
+            , Tw.mx_1
+            , Bp.xxl
+                [ Tw.mx_40
+                ]
+            , Bp.xl
+                [ Tw.mx_32
+                ]
+            , Bp.lg
+                [ Tw.mx_20
+                ]
+            , Bp.md
+                [ Tw.mx_10
+                ]
+            , Bp.sm
+                [ Tw.mx_5
+                ]
             ]
         , Attr.style "width" "720px"
         , Attr.style "height" "266px"

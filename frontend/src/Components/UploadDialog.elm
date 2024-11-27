@@ -44,7 +44,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations.UploadDialog as Translations
 import Ui.Shared exposing (modalDialog)
-import Ui.Styles exposing (Styles, Styles)
+import Ui.Styles exposing (Styles)
 import Url
 import Nostr.Nip96 exposing (ServerDescriptorData)
 import Components.Dropdown as Dropdown
@@ -1004,7 +1004,7 @@ viewMetadataDialog (Settings settings) (fileId, fileUpload) =
                 [
                 ]
             ]
-            [ viewFileUpload (fileId, fileUpload)
+            [ viewFileUpload settings.theme (fileId, fileUpload)
             ]
         |> Html.map settings.toMsg
         ]
@@ -1025,7 +1025,7 @@ viewUploadingDialog (Settings settings) =
                 ]
             ]
             [ div []
-                (Dict.toList model.files |> List.map viewFileUpload)
+                (Dict.toList model.files |> List.map (viewFileUpload settings.theme))
             ]
         |> Html.map settings.toMsg
         ]
@@ -1042,7 +1042,7 @@ viewFinishedDialog (Settings settings) =
         (Translations.dialogTitle [ settings.browserEnv.translations ])
         [ div [ class "p-4" ]
             [ div []
-                (Dict.toList model.files |> List.map viewFileUpload)
+                (Dict.toList model.files |> List.map (viewFileUpload settings.theme ))
             , case model.errors of
                 [] ->
                     text ""
@@ -1058,18 +1058,18 @@ viewFinishedDialog (Settings settings) =
         ]
         (settings.toMsg CloseDialog)
 
-viewFileUpload : ( Int, FileUpload ) -> Html Msg
-viewFileUpload ( fileId, fileUpload ) =
+viewFileUpload : Ui.Styles.Theme -> ( Int, FileUpload ) -> Html Msg
+viewFileUpload theme ( fileId, fileUpload ) =
     case fileUpload of
         FileUploadBlossom maybePreviewLink fileUploadBlossom ->
-            viewFileUploadBlossom maybePreviewLink (fileId, fileUploadBlossom)
+            viewFileUploadBlossom theme maybePreviewLink (fileId, fileUploadBlossom)
 
         FileUploadNip96 maybePreviewLink fileUploadNip96 ->
-            viewFileUploadNip96 maybePreviewLink (fileId, fileUploadNip96)
+            viewFileUploadNip96 theme maybePreviewLink (fileId, fileUploadNip96)
 
 
-viewFileUploadBlossom : Maybe String -> ( Int, Blossom.FileUpload ) -> Html Msg
-viewFileUploadBlossom maybePreviewLink ( fileId, fileUpload ) =
+viewFileUploadBlossom : Ui.Styles.Theme -> Maybe String -> ( Int, Blossom.FileUpload ) -> Html Msg
+viewFileUploadBlossom theme maybePreviewLink ( fileId, fileUpload ) =
     let
         fileName =
             File.name <| fileUpload.file
@@ -1128,6 +1128,7 @@ viewFileUploadBlossom maybePreviewLink ( fileId, fileUpload ) =
                         , Button.new
                             { label = "Start Upload"
                             , onClick = StartUpload fileId
+                            , theme = theme
                             }
                             |> Button.view
                         ]
@@ -1183,8 +1184,8 @@ viewFileUploadBlossom maybePreviewLink ( fileId, fileUpload ) =
 
 
 
-viewFileUploadNip96 : Maybe String -> ( Int, Nip96.FileUpload ) -> Html Msg
-viewFileUploadNip96 maybePreviewLink ( fileId, fileUpload ) =
+viewFileUploadNip96 : Ui.Styles.Theme -> Maybe String -> ( Int, Nip96.FileUpload ) -> Html Msg
+viewFileUploadNip96 theme maybePreviewLink ( fileId, fileUpload ) =
     let
         fileName =
             File.name <| fileUpload.file
@@ -1295,6 +1296,7 @@ viewFileUploadNip96 maybePreviewLink ( fileId, fileUpload ) =
                         , Button.new
                             { label = "Start Upload"
                             , onClick = StartUpload fileId
+                            , theme = theme
                             }
                             |> Button.view
                         ]
@@ -1429,10 +1431,12 @@ tagValue tags tagName =
         ) 
     |> List.head
 
-uploadButton =
+uploadButton : Ui.Styles.Theme -> Html Msg
+uploadButton theme =
     Button.new
         { label = "Upload"
         , onClick = TriggerFileSelect
+        , theme = theme
         }
         |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.upload)
         |> Button.view
