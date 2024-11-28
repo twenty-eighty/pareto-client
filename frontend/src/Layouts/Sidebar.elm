@@ -327,6 +327,7 @@ viewBannerSmall browserEnv =
             [ Tw.flex
             , Tw.items_center
             , Tw.space_x_2
+            , Tw.mb_6
             ]
         ]
         [ div
@@ -349,7 +350,7 @@ viewBannerSmall browserEnv =
             ]
         , div
             [ css
-                [ Tw.h_8
+                [ Tw.h_10
                 , Tw.w_8
                 , Bp.xl
                     [ Tw.w_0
