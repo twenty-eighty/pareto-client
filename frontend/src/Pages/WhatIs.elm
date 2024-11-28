@@ -11,6 +11,7 @@ import Locale
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..))
+import Nostr.Types exposing (IncomingMessage)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
@@ -18,9 +19,9 @@ import Shared
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-import Translations
 import View exposing (View)
-import Ui.Article
+import Ui.ArticleOld
+import Ui.Styles exposing (Styles, Theme)
 
 
 page : Shared.Model -> Route () -> Page Model Msg
@@ -29,14 +30,14 @@ page shared route =
         { init = init shared
         , update = update
         , subscriptions = subscriptions
-        , view = view shared.browserEnv
+        , view = view shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        {}
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 -- INIT
@@ -83,7 +84,7 @@ articleFilterForLanguage browserEnv =
 -- UPDATE
 
 type Msg
-    = ReceivedMessage Nostr.IncomingMessage
+    = ReceivedMessage IncomingMessage
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
@@ -117,19 +118,19 @@ subscriptions model =
 -- VIEW
 
 
-view : BrowserEnv -> Model -> View Msg
-view browserEnv model =
+view : Shared.Model -> Model -> View Msg
+view shared model =
     { title = "What Is Pareto"
     , body =
-        [ viewArticle browserEnv model.article
+        [ viewArticle (Ui.Styles.stylesForTheme shared.theme) shared.browserEnv model.article
         ]
     }
 
-viewArticle : BrowserEnv -> Maybe Article -> Html Msg
-viewArticle browserEnv maybeArticle =
+viewArticle : Styles Msg -> BrowserEnv -> Maybe Article -> Html Msg
+viewArticle styles browserEnv maybeArticle =
     case maybeArticle of
         Just article ->
-            Ui.Article.viewArticleInternal browserEnv article
+            Ui.ArticleOld.viewArticleInternal styles browserEnv article
 
         Nothing ->
             div [][]

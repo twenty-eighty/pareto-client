@@ -1,12 +1,18 @@
 {
-   "bookmarks menu item text": "Lesezeichen",
-   "communities menu item text": "Communities",
-   "get started button text": "Erste Schritte",
-   "posts menu item text": "Posts",
-   "read menu item text": "Lesen",
-   "search menu item text": "Suche",
-   "write menu item text": "Schreiben",
-   "about menu item text": "Über",
+   "sidebar": {
+      "bookmarks menu item text": "Lesezeichen",
+      "communities menu item text": "Communities",
+      "get started button text": "Erste Schritte",
+      "media menu item text": "Bilder",
+      "messages menu item text": "Nachrichten",
+      "notifications menu item text": "Benachrichtigungen",
+      "posts menu item text": "Posts",
+      "read menu item text": "Lesen",
+      "search menu item text": "Suche",
+      "settings menu item text": "Einstellungen",
+      "write menu item text": "Schreiben",
+      "about menu item text": "Über"
+   },
    "bookmarks": {
       "bookmarks title": "Lesezeichen",
       "no bookmarks": "Keine Listen mit Lesezeichen gefunden",
@@ -24,16 +30,23 @@
    },
    "media selector": {
       "Select image": "Bild auswählen",
-      "Upload images": "Bilder hochladen"
+      "Upload button title": "Bilder hochladen"
    },
    "read": {
+      "followed feed category": "Gefolgt",
       "global feed category": "Global",
+      "pareto feed category": "Pareto",
       "highlighter feed category": "Highlighter"
    },
    "posts": {
       "posts title": "Posts",
       "published category": "Veröffentlicht",
       "drafts category": "Entwürfe"
+   },
+   "upload dialog": {
+      "dialog title": "Hochladen",
+      "upload button title": "Hochladen",
+      "select files button title": "Dateien wählen ..."
    },
    "write": {
       "article image": "Bild",

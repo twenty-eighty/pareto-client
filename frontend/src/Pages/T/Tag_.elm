@@ -23,11 +23,11 @@ import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-import Translations
-import Ui.Shared exposing (fontFamilyUnbounded, fontFamilyInter)
-import Ui.View
+import Ui.Styles exposing (Theme)
+import Ui.View exposing (ArticlePreviewType(..))
 import Url
 import View exposing (View)
+import Time exposing (Month(..))
 
 
 page : Shared.Model -> Route { tag : String } -> Page Model Msg
@@ -38,12 +38,12 @@ page shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        {}
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 -- INIT
@@ -59,10 +59,14 @@ type alias Model =
 init : Shared.Model -> Route { tag : String } -> () -> ( Model, Effect Msg )
 init shared route () =
     let
+        decodedParam =
+            Url.percentDecode route.params.tag
+            |> Maybe.withDefault route.params.tag
+
         filter =
-            { emptyEventFilter | kinds = Just [KindLongFormContent], tagReferences = tagReferencesForParam route.params.tag, limit = Just 20 }
+            { emptyEventFilter | kinds = Just [KindLongFormContent], tagReferences = tagReferencesForParam decodedParam, limit = Just 20 }
     in
-    ( { tag = route.params.tag
+    ( { tag = decodedParam
       , articles = []
       , filter = filter
       }
@@ -113,7 +117,12 @@ subscriptions model =
 
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
-    { title = "Read"
+    let
+        styles =
+            Ui.Styles.stylesForTheme shared.theme
+    
+    in
+    { title = model.tag
     , body =
         [ div
             [ css
@@ -125,26 +134,22 @@ view shared model =
             ]
             [ div
                 [ css
-                    [ Tw.bg_color Theme.white
-                    , Tw.p_6
+                    [ Tw.p_6
                     , Tw.rounded_lg
                     , Tw.shadow_lg
                     , Tw.max_w_3xl
                     ]
                 ]
                 [ h3
+                    (styles.textStyleHashtagLarge ++ styles.colorStyleGrayscaleTitle ++
                     [ css
-                        [ Tw.text_4xl
-                        , Tw.font_bold
-                        , Tw.text_color Theme.gray_900
-                        , Tw.mb_4
+                        [ Tw.mb_4
                         ]
-                    , fontFamilyUnbounded
-                    ]
+                    ])
                     [ text <| "#" ++ model.tag
                     ]
                 , Nostr.getArticlesByDate shared.nostr
-                |> Ui.View.viewArticlePreviews shared.browserEnv shared.nostr 
+                |> Ui.View.viewArticlePreviews ArticlePreviewList styles shared.browserEnv shared.nostr 
                 ]
             ]
         ]

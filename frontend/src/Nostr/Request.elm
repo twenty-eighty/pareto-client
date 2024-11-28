@@ -33,7 +33,16 @@ type RequestData
     | RequestReactions EventFilter
     | RequestUserData EventFilter
     | RequestBlossomListAuth String
-    | RequestNip98Auth String String
+    | RequestNip98Auth String String HttpRequestMethod
+
+type HttpRequestMethod
+    = GetRequest
+    | DeleteRequest Int
+    | PatchRequest Int String
+    | PostRequest Int String
+    | PutRequest Int String
+
+
 
 relatedKindsForRequest : Maybe Request -> List Kind
 relatedKindsForRequest maybeRequest =

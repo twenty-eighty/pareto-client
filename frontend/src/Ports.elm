@@ -1,9 +1,9 @@
 port module Ports exposing (..)
 
 import Json.Encode as Encode
-import Nostr exposing (IncomingMessage, OutgoingCommand)
+import Nostr.Types exposing (IncomingMessage, OutgoingCommand)
 import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), encodeEvent, encodeEventFilter)
-import Nostr.Request exposing (RequestId)
+import Nostr.Request exposing (HttpRequestMethod(..), RequestId)
 import Nostr.Send exposing (SendRequestId)
 
 
@@ -19,6 +19,10 @@ connect relays =
 loginWithExtension : Cmd msg
 loginWithExtension =
     sendCommand { command = "loginWithExtension", value = Encode.null }
+
+loginSignUp : Cmd msg
+loginSignUp =
+    sendCommand { command = "loginSignUp", value = Encode.null }
 
 requestUser : Cmd msg
 requestUser =
@@ -58,16 +62,47 @@ requestBlossomListAuth requestId server =
                 ]
         }
 
-requestNip96Auth : RequestId -> String -> String -> Cmd msg
-requestNip96Auth requestId url method =
+requestNip96Auth : RequestId -> String -> String -> HttpRequestMethod -> Cmd msg
+requestNip96Auth requestId serverUrl apiUrl method =
+    let
+        methodParams =
+            case method of
+                GetRequest ->
+                    [ ("method", Encode.string "GET") ]
+
+                DeleteRequest fileId ->
+                    [ ("method", Encode.string "DELETE")
+                    , ("fileId", Encode.int fileId)
+                    ]
+
+                PostRequest fileId hash ->
+                    [ ("method", Encode.string "POST")
+                    , ("fileId", Encode.int fileId)
+                    , ("hash", Encode.string hash)
+                    ]
+
+                PutRequest fileId hash ->
+                    [ ("method", Encode.string "PUT")
+                    , ("fileId", Encode.int fileId)
+                    , ("hash", Encode.string hash)
+                    ]
+
+                PatchRequest fileId hash ->
+                    [ ("method", Encode.string "PATCH")
+                    , ("fileId", Encode.int fileId)
+                    , ("hash", Encode.string hash)
+                    ]
+
+    in
     sendCommand
         { command = "requestNip96Auth"
         , value = 
             Encode.object
-                [ ("requestId", Encode.int requestId)
-                , ("url", Encode.string url)
-                , ("method", Encode.string method)
-                ]
+                ([ ("requestId", Encode.int requestId)
+                , ("serverUrl", Encode.string serverUrl)
+                , ("apiUrl", Encode.string apiUrl)
+                ] ++ methodParams
+                )
         }
 
 sendEvent : SendRequestId -> Event -> Cmd msg

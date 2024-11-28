@@ -7,6 +7,7 @@ import Layouts
 import Page exposing (Page)
 import Shared
 import View exposing (View)
+import Ui.Styles exposing (Theme)
 
 
 page : Shared.Model -> Route () -> Page Model Msg
@@ -17,12 +18,12 @@ page shared route =
         , subscriptions = subscriptions
         , view = view
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        {}
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 

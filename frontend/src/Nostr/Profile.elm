@@ -113,15 +113,3 @@ decodeUnixTime =
         |> Decode.map (\timeInt -> Time.millisToPosix (timeInt)
         )
 
-
-profileDisplayName : PubKey -> Profile -> String
-profileDisplayName pubKey profile =
-    case (profile.displayName, profile.name, profile.nip05) of
-        (Just displayName, _, _) ->
-            displayName
-        (Nothing, Just name, _) ->
-            name
-        (Nothing, Nothing, Just nip05) ->
-            Nip05.nip05ToString nip05
-        (Nothing, Nothing, Nothing) ->
-            pubKey

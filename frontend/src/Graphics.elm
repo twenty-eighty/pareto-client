@@ -849,12 +849,14 @@ minusIcon =
             []
         ]
     
-videoPlayIcon =
+videoPlayIcon width =
     svg
         [ SvgAttr.fill "none"
         , Attr.attribute "aria-hidden" "true"
         , Attr.attribute "focusable" "false"
-        , SvgAttr.viewBox "0 0 32 32"
+        , Attr.width width
+        , Attr.height width
+        , SvgAttr.viewBox <| "0 0 32 32"
         , Attr.attribute "data-icon" "play"
         ]
         [ path

@@ -16,31 +16,33 @@ module Shared exposing
 import BrowserEnv exposing (BrowserEnv)
 import Effect exposing (Effect)
 import Json.Decode
+import Json.Decode as Decode
 import Nostr
-import Nostr.Event exposing (emptyEventFilter)
+import Nostr.Event exposing (Kind(..), emptyEventFilter)
 import Nostr.Profile exposing (Profile)
 import Nostr.Request exposing (Request, RequestData(..))
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (PubKey, IncomingMessage)
+import Pareto
 import Ports
 import Route exposing (Route)
 import Route.Path
 import Shared.Model exposing (LoginStatus(..))
 import Shared.Msg exposing (Msg(..))
-import Json.Decode as Decode
 import Shared.Model exposing (ClientRole(..))
-import Nostr.Event exposing (Kind(..))
-import Pareto
+import Ui.Styles exposing (Theme(..))
 
 type alias Model = Shared.Model.Model
 
 
 defaultRelays : List String
 defaultRelays =
-    [ -- "nostr.pareto.space/"
-     "pareto.nostr1.com/"
-    , "relay.snort.social"
+    [
+     "nostr.pareto.space/"
+--    , "team-relay.pareto.space"
+    , "pareto.nostr1.com/"
+--    , "relay.snort.social"
 --  , "relay.damus.io"
---  , "nos.lol"
+    , "nos.lol"
 --  , "offchain.pub"
 --  , "relay.damus.io"
 --  , "nostr.wine"
@@ -49,15 +51,21 @@ defaultRelays =
 -- FLAGS
 
 type alias Flags =
-    { isLoggedIn : Bool
+    { darkMode : Bool
+    , isLoggedIn : Bool
+    , locale : String
+    , sharingAvailable : Bool
     }
 
 
 -- Define a decoder for the 'isLoggedIn' field
 decoder : Json.Decode.Decoder Flags
 decoder =
-    Json.Decode.map Flags
+    Json.Decode.map4 Flags
+        (Json.Decode.field "darkMode" Json.Decode.bool)
         (Json.Decode.field "isLoggedIn" Json.Decode.bool)
+        (Json.Decode.field "locale" Json.Decode.string)
+        (Json.Decode.field "sharingAvailable" Json.Decode.bool)
 
 -- INIT
 
@@ -76,8 +84,10 @@ init flagsResult route =
                 (browserEnv, browserEnvCmd) =
                     BrowserEnv.init
                         { backendUrl = ""
+                        , darkMode = flags.darkMode
                         , frontendUrl = ""
-                        , locale = "de_DE"
+                        , locale = flags.locale
+                        , sharingAvailable = flags.sharingAvailable
                         }
 
                 (nostrInit, nostrInitCmd) =
@@ -96,6 +106,7 @@ init flagsResult route =
               , browserEnv = browserEnv
               , nostr = nostr
               , role = ClientConsumer
+              , theme = ReferenceStyleTheme
               }
             , Effect.batch
                 [ effect
@@ -105,13 +116,15 @@ init flagsResult route =
                 ]
             )
 
-        Err error ->
+        Err _ ->
             let
-                (browserEnv, browserEnvCmd) =
+                (browserEnv, _) =
                     BrowserEnv.init
                         { backendUrl = ""
+                        , darkMode = False
                         , frontendUrl = ""
                         , locale = ""
+                        , sharingAvailable = False
                         }
             in
             
@@ -119,6 +132,7 @@ init flagsResult route =
               , browserEnv = browserEnv
               , nostr = Nostr.empty
               , role = ClientConsumer
+              , theme = ReferenceStyleTheme
               }
             , Effect.none
             )
@@ -197,7 +211,7 @@ update route msg model =
             else
                 ( { model | role = ClientConsumer }, Effect.pushRoutePath Route.Path.Home_ )
 
-updateWithPortMessage : Model -> Nostr.IncomingMessage -> ( Model, Effect Msg )
+updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage model portMessage =
     case portMessage.messageType of
         "user" ->

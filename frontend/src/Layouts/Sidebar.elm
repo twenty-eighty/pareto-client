@@ -1,8 +1,12 @@
-module Layouts.Sidebar exposing (Model, Msg, Props, layout)
+module Layouts.Sidebar exposing (Model, Msg, Props, layout, map)
 
 import BrowserEnv exposing (BrowserEnv)
+import Components.Button
+import Components.ContextMenu
+import Components.Icon as Icon exposing (Icon(..))
 import Components.OnboardingDialog as OnboardingDialog
 import Css
+import Dict
 import Effect exposing (Effect)
 import FeatherIcons
 import Graphics
@@ -13,32 +17,38 @@ import I18Next
 import Layout exposing (Layout)
 import ModalDialog exposing (ModalDialog)
 import Nostr
+import Nostr.FollowList exposing (Following(..))
 import Nostr.Types exposing (PubKey)
 import Nostr.Profile exposing (Profile)
 import Pareto
+import Ports
 import Route exposing (Route)
+import Route.Path
 import Shared
-import Shared.Model exposing (LoginStatus(..))
+import Shared.Model exposing (ClientRole(..), LoginStatus(..))
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-import Translations
+import Translations.Sidebar as Translations
+import Ui.Styles exposing (Styles)
 import View exposing (View)
-import Route.Path
-import Dict
-import Shared.Model exposing (ClientRole)
-import Shared.Model exposing (ClientRole(..))
+import Ui.Styles exposing (darkMode)
 
 
-type alias Props =
-    { 
+type alias Props contentMsg =
+    { styles : Styles contentMsg
+    }
+
+map : (msg1 -> msg2) -> Props msg1 -> Props msg2
+map toMsg props =
+    { styles = Ui.Styles.map toMsg props.styles
     }
 
 type alias SidebarItemData =
     { path : Route.Path.Path
     , title : String
-    , icon : FeatherIcons.Icon
+    , icon : Icon
     , requiresLogin : Bool
     , disabled : Bool
     }
@@ -47,26 +57,33 @@ sidebarItems : ClientRole -> I18Next.Translations -> List (SidebarItemData)
 sidebarItems clientRole translations =
     case clientRole of
         ClientConsumer ->
-            [ { path = Route.Path.Read, title = Translations.readMenuItemText [ translations ], icon = FeatherIcons.bookOpen, requiresLogin = False, disabled = False }
-            , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcons.search, requiresLogin = False, disabled = True }
-          --, { path = Route.Path.Communities, title = Translations.communitiesMenuItemText [ translations ], icon = FeatherIcons.globe, requiresLogin = False, disabled = False }
-            , { path = Route.Path.Bookmarks, title = Translations.bookmarksMenuItemText [ translations ], icon = FeatherIcons.bookmark, requiresLogin = True, disabled = False }
-            , { path = Route.Path.About, title = Translations.aboutMenuItemText [ translations ], icon = FeatherIcons.helpCircle, requiresLogin = False, disabled = False }
+            [ { path = Route.Path.Read, title = Translations.readMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bookOpen, requiresLogin = False, disabled = False }
+            , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, disabled = True }
+          --, { path = Route.Path.Communities, title = Translations.communitiesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.globe, requiresLogin = False, disabled = False }
+            , { path = Route.Path.Bookmarks, title = Translations.bookmarksMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bookmark, requiresLogin = True, disabled = False }
+            , { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, disabled = True }
+            , { path = Route.Path.Notifications, title = Translations.notificationsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bell, requiresLogin = True, disabled = True }
+            , { path = Route.Path.Settings, title = Translations.settingsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.settings, requiresLogin = True, disabled = True }
+            , { path = Route.Path.About, title = Translations.aboutMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.helpCircle, requiresLogin = False, disabled = False }
             ]
 
         ClientCreator ->
-            [ { path = Route.Path.Posts, title = Translations.postsMenuItemText [ translations ], icon = FeatherIcons.fileText, requiresLogin = True, disabled = False }
-            , { path = Route.Path.Write, title = Translations.writeMenuItemText [ translations ], icon = FeatherIcons.feather, requiresLogin = True, disabled = False }
-            , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcons.search, requiresLogin = False, disabled = True }
+            [ { path = Route.Path.Posts, title = Translations.postsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.fileText, requiresLogin = True, disabled = False }
+            , { path = Route.Path.Write, title = Translations.writeMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.feather, requiresLogin = True, disabled = False }
+            , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, disabled = True }
+            , { path = Route.Path.Media, title = Translations.mediaMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.image, requiresLogin = False, disabled = False }
+            , { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, disabled = True }
+            , { path = Route.Path.Notifications, title = Translations.notificationsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bell, requiresLogin = True, disabled = True }
+            , { path = Route.Path.Settings, title = Translations.settingsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.settings, requiresLogin = True, disabled = True }
             ]
 
 
-layout : Props -> Shared.Model -> Route () -> Layout () Model Msg contentMsg
+layout : Props contentMsg -> Shared.Model -> Route () -> Layout () Model Msg contentMsg
 layout props shared route =
     Layout.new
         { init = init
         , update = update shared
-        , view = view shared route.path
+        , view = view props.styles shared route.path
         , subscriptions = subscriptions
         }
 
@@ -108,8 +125,8 @@ update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
         OpenGetStarted ->
-            ( { model | modalDialog = GetStartedDialog <| OnboardingDialog.init { onClose = CloseModal } }
-            , Effect.none
+            ( model
+            , Effect.sendCmd Ports.loginSignUp
             )
 
         OpenProfileMenu ->
@@ -148,12 +165,19 @@ subscriptions model =
 -- VIEW
 
 
-view : Shared.Model.Model -> Route.Path.Path -> { toContentMsg : Msg -> contentMsg, content : View contentMsg, model : Model } -> View contentMsg
-view shared path { toContentMsg, model, content } =
+view : Styles contentMsg -> Shared.Model.Model -> Route.Path.Path -> { toContentMsg : Msg -> contentMsg, content : View contentMsg, model : Model } -> View contentMsg
+view styles shared path { toContentMsg, model, content } =
     { title = content.title ++ " | Pareto"
     , body = 
-        [ viewSidebar shared path toContentMsg content.body
-        , viewModalDialog model |> Html.map toContentMsg
+        [ div
+            (styles.colorStyleBackground ++
+            [ css
+                [ Tw.h_full
+                ]
+            ])
+            [ viewSidebar styles shared path toContentMsg content.body
+            , viewModalDialog model |> Html.map toContentMsg
+            ]
         ]
     }
 
@@ -171,47 +195,40 @@ viewModalDialog model =
                 div [][]
 
 
-viewSidebar : Shared.Model.Model -> Route.Path.Path -> (Msg -> contentMsg) -> List (Html contentMsg) -> Html contentMsg
-viewSidebar shared currentPath toContentMsg content =
-        Html.div
+viewSidebar : Styles contentMsg -> Shared.Model.Model -> Route.Path.Path -> (Msg -> contentMsg) -> List (Html contentMsg) -> Html contentMsg
+viewSidebar styles shared currentPath toContentMsg content =
+    Html.div
+        (styles.colorStyleGrayscaleTitle)
+        [ div
+            [ css
+                [ Tw.flex
+                ]
+            ]
+            [ aside
                 [ css
-                    [ Tw.bg_color Theme.gray_50
-                    , Tw.text_color Theme.gray_800
+                    [ Tw.p_6
+                    , Tw.border_r
+                    , Tw.border_color Theme.gray_200
+                    , Tw.w_0
+                    , Tw.hidden
+                    , Bp.xl
+                        [ Tw.w_52
+                        ]
+                    , Bp.md
+                        [ Tw.inline
+                        , Tw.w_20
+                        ]
                     ]
                 ]
-                [ div
-                    [ css
-                        [ Tw.flex
-                        , Tw.h_screen
-                        ]
-                    ]
-                    [             {- Sidebar -}
-                    aside
-                        [ css
-                            [ Tw.bg_color Theme.white
-                            , Tw.p_6
-                            , Tw.border_r
-                            , Tw.border_color Theme.gray_200
-                            , Tw.w_0
-                            , Tw.hidden
-                            , Bp.xl
-                                [ Tw.w_52
-                                ]
-                            , Bp.md
-                                [ Tw.inline
-                                , Tw.w_20
-                                ]
-                            ]
-                        ]
-                        [ viewSidebarItems shared.browserEnv.translations shared.role (Shared.loggedIn shared) currentPath ]
+                [ viewSidebarItems styles shared.browserEnv shared.role (Shared.loggedIn shared) currentPath ]
         , div
             [ css
                 [ Tw.flex_1
                 , Tw.p_8
+                , Tw.h_full
                 ]
             ]
-            [                 {- Top Section -}
-            div
+            [ div
                 [ css
                     [ Tw.flex
                     , Tw.justify_between
@@ -219,46 +236,110 @@ viewSidebar shared currentPath toContentMsg content =
                     , Tw.mb_6
                     ]
                 ]
-                [ div
-                    [ css
-                        [ Tw.flex
-                        , Tw.items_center
-                        , Tw.space_x_4
-                        ]
-                    ]
-                    [ img
-                        [ Attr.src "/images/pareto-banner.png"
-                        , Attr.alt "Banner"
-                        , css
-                            [ Tw.h_16
-                            ]
-                        ]
-                        []
-                    ]
-                , if roleSwitchButtonEnabled shared.nostr shared.loginStatus then
+                [ -- viewBanner
+                 if roleSwitchButtonEnabled shared.nostr shared.loginStatus then
                     clientRoleSwitch shared.role
                   else
                     div [][]
                 , loginButton shared.browserEnv shared.loginStatus (profileForUser shared shared.loginStatus)
                 ]
                 |> Html.map toContentMsg
-                    , main_
-                        [ class "page"
-                        , css
-                            [ Tw.w_full
-                            ]
-                        ]
-                        content
+            , main_
+                [ class "page"
+                , css
+                    [ Tw.w_full
+                    ]
+                ]
+                content
+            ]
+        ]
+    ]
+
+viewBanner : Html contentMsg
+viewBanner =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.items_center
+            , Tw.space_x_4
+            ]
+        ]
+        [ img
+            [ Attr.src "/images/pareto-banner.png"
+            , Attr.alt "Banner"
+            , css
+                [ Tw.h_16
+                ]
+            ]
+            []
+        ]
+
+viewBannerSmall : BrowserEnv -> Html contentMsg
+viewBannerSmall browserEnv =
+    let
+        bannerImageWide =
+            if browserEnv.darkMode then
+                "/images/icon/Pareto-Log4.png"
+            else
+                "/images/icon/Pareto-Log5.png"
+
+        bannerImageNarrow =
+            "/images/icon/Pareto-Log1.png"
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.items_center
+            , Tw.space_x_2
+            ]
+        ]
+        [ div
+            [ Attr.src bannerImageWide
+            , Attr.alt "Banner"
+            , css
+                [ Tw.h_10
+                , Tw.w_0
+                , Bp.xl
+                    [ Tw.w_40
                     ]
                 ]
             ]
+            [ img
+                [ Attr.src bannerImageWide
+                , Attr.alt "Banner"
+                ]
+                []
+            ]
+        , div
+            [ css
+                [ Tw.h_8
+                , Tw.w_8
+                , Bp.xl
+                    [ Tw.w_0
+                    ]
+                ]
+            ]
+            [ img
+                [ Attr.src bannerImageNarrow
+                , Attr.alt "Banner"
+                ]
+                []
+            ]
+        ]
 
 roleSwitchButtonEnabled : Nostr.Model -> LoginStatus -> Bool
 roleSwitchButtonEnabled nostr loginStatus =
     case loginStatus of
-        LoggedIn pubKey ->
+        LoggedIn userPubKey ->
             Nostr.getFollowsList nostr Pareto.authorsKey
-            |> Maybe.map (List.filter (\follows -> follows.pubKey == pubKey))
+            |> Maybe.map (List.filter (\follows ->
+                case follows of
+                    FollowingPubKey { pubKey } ->
+                        userPubKey == pubKey
+
+                    _ ->
+                        False
+                    ))
             |> Maybe.map (not << List.isEmpty)
             |> Maybe.withDefault False
 
@@ -386,11 +467,11 @@ profileForUser shared loggedIn =
 
 
 
-viewSidebarItems : I18Next.Translations -> ClientRole -> Bool -> Route.Path.Path -> Html msg
-viewSidebarItems translations clientRole loggedIn currentPath =
+viewSidebarItems : Styles contentMsg -> BrowserEnv -> ClientRole -> Bool -> Route.Path.Path -> Html contentMsg
+viewSidebarItems styles browserEnv clientRole loggedIn currentPath =
     let
         visibleSidebarItems =
-            (sidebarItems clientRole translations)
+            (sidebarItems clientRole browserEnv.translations)
             |> List.filter (sidebarItemVisible loggedIn)
     in
     
@@ -402,57 +483,55 @@ viewSidebarItems translations clientRole loggedIn currentPath =
             , Tw.space_y_4
             ]
         ]
-        (List.map (viewSidebarItem currentPath) visibleSidebarItems)
+        ([ viewBannerSmall browserEnv
+        ] ++
+        (List.map (viewSidebarItem styles currentPath) visibleSidebarItems)
+        )
 
 
 sidebarItemVisible : Bool -> SidebarItemData -> Bool
 sidebarItemVisible loggedIn sidebarItem =
     loggedIn || not sidebarItem.requiresLogin
 
-viewSidebarItem : Route.Path.Path -> SidebarItemData -> Html msg
-viewSidebarItem currentPath itemData =
+viewSidebarItem : Styles contentMsg -> Route.Path.Path -> SidebarItemData -> Html contentMsg
+viewSidebarItem styles currentPath itemData =
     let
-        (foreground, background) =
+        (foreground, background, linkAttr) =
             if itemData.disabled then
-                ( [ Tw.text_color Theme.gray_300
-                  ]
-                , [ 
-                  ]
+                ( styles.colorStyleGrayscaleDisabled
+                , []
+                , []
                 )
             else
                 if currentPath == itemData.path then
-                    ( [ Tw.text_color Theme.purple_600
-                    ]
-                    , [ Tw.bg_color Theme.purple_100
-                    ]
+                    ( styles.colorStyleSitebarItemActive
+                    , styles.colorStyleSitebarItemActiveBackground
+                    , [ ]
                     )
                 else
-                    ( [ Tw.text_color Theme.gray_600
-                    ]
-                    , [ Css.hover
-                        [ Tw.bg_color Theme.purple_100
-                        ]
-                    ]
+                    ( styles.colorStyleLabel
+                    , []
+                    , [ Attr.href <| Route.toString { path = itemData.path, hash = Nothing, query = Dict.empty } ]
                     )
     in
 
     a
-        [ Attr.href <| Route.toString { path = itemData.path, hash = Nothing, query = Dict.empty }
-        , css
-            ([ Tw.flex
+        (linkAttr ++
+        [ css
+            [ Tw.flex
             , Tw.items_center
             , Tw.space_x_2
-            , Tw.w_0
             , Tw.py_2
             , Tw.rounded_full
+            , Tw.w_0
             , Bp.xl
                 [ Tw.w_40
                 ]
             , Bp.md
                 [ Tw.w_10
                 ]
-            ] ++ background ++ foreground)
-        ]
+            ]
+        ] ++ background ++ foreground)
         [ div
             [ css
                 [ Tw.min_w_0
@@ -464,15 +543,15 @@ viewSidebarItem currentPath itemData =
                     ] 
                 ]
             ]
-            [ itemData.icon |> FeatherIcons.toHtml [] |> Html.fromUnstyled ]
+            [ Icon.view itemData.icon ]
         , span
-            [ css
+            ([ css
                 [ Tw.hidden 
                 , Bp.xl
-                    ([ Tw.inline
-                    ] ++ foreground)
+                    [ Tw.inline
+                    ]
                 ]
-            ]
+            ] ++ foreground)
             [ text itemData.title ]
         ]
 
@@ -547,17 +626,8 @@ profileImage maybeProfile =
 
 getStartedButton : BrowserEnv -> Html Msg
 getStartedButton browserEnv =
-    button
-        [ css
-            [ Tw.bg_color Theme.orange_500
-            , Tw.text_color Theme.white
-            , Tw.py_2
-            , Tw.px_4
-            , Tw.rounded_full
-            , Css.hover
-                [ Tw.bg_color Theme.orange_700
-                ]
-            ]
-        , Events.onClick OpenGetStarted
-        ]
-        [ text <| Translations.getStartedButtonText [ browserEnv.translations ] ]
+    Components.Button.new
+        { label = Translations.getStartedButtonText [ browserEnv.translations ]
+        , onClick = OpenGetStarted
+        }
+        |> Components.Button.view

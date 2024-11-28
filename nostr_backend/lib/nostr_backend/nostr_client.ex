@@ -18,6 +18,10 @@ defmodule NostrBackend.NostrClient do
     fetch_article_by_address(kind, author, identifier, @relay_urls)
   end
 
+  def fetch_article_by_address(kind, author, identifier, []) do
+    fetch_article_by_address(kind, author, identifier, @relay_urls)
+  end
+
   def fetch_article_by_address(kind, author, identifier, relay_urls) do
     address_info = %{kind: kind, author: author, identifier: identifier}
     fetch_from_relays(relay_urls, address_info, :address)
@@ -40,6 +44,11 @@ defmodule NostrBackend.NostrClient do
 
   def fetch_community(community_data, relays) do
     fetch_from_relays(relays, community_data, :community)
+  end
+
+  @spec fetch_note(String.t()) :: {:ok, map()} | {:error, String.t()}
+  def fetch_note(note_id) do
+    fetch_from_relays(@relay_urls, note_id, :note)
   end
 
   @spec fetch_profile(String.t(), list()) :: {:ok, map()} | {:error, String.t()}
@@ -162,6 +171,14 @@ defmodule NostrBackend.NostrClient do
         "kinds" => [kind],
         "authors" => [author],
         "#d" => [identifier]
+      }
+    ]
+  end
+
+  defp build_filters(note_id, :note) do
+    [
+      %{
+        "ids" => [note_id]
       }
     ]
   end

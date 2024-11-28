@@ -9,6 +9,7 @@ import Layouts
 import Nostr exposing (getBookmarks)
 import Nostr.Event exposing (Kind(..))
 import Nostr.Request exposing (RequestData(..))
+import Nostr.Types exposing (IncomingMessage)
 import Route exposing (Route)
 import Page exposing (Page)
 import Ports
@@ -19,7 +20,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations.Bookmarks as Translations
-import Ui.Shared exposing (fontFamilyUnbounded, fontFamilyInter)
+import Ui.Styles exposing (Theme, fontFamilyUnbounded, fontFamilyInter)
 import View exposing (View)
 
 
@@ -31,12 +32,12 @@ page user shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        {}
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 
@@ -75,7 +76,7 @@ init shared user () =
 
 
 type Msg
-    =  ReceivedMessage Nostr.IncomingMessage
+    =  ReceivedMessage IncomingMessage
 
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -85,7 +86,7 @@ update shared msg model =
             updateWithMessage shared model message
 
 
-updateWithMessage : Shared.Model.Model -> Model -> Nostr.IncomingMessage -> (Model, Effect Msg)
+updateWithMessage : Shared.Model.Model -> Model -> IncomingMessage -> (Model, Effect Msg)
 updateWithMessage shared model message =
     ( model, Effect.none )
 
@@ -101,6 +102,10 @@ subscriptions model =
 
 view : Shared.Model -> Model -> View Msg
 view shared model =
+    let
+        styles =
+            Ui.Styles.stylesForTheme shared.theme
+    in
     { title = Translations.bookmarksTitle [ shared.browserEnv.translations ]
     , body =
         [ div
@@ -109,13 +114,11 @@ view shared model =
                 , Tw.items_center
                 , Tw.justify_center
                 , Tw.min_h_screen
-                , Tw.bg_color Theme.gray_100
                 ]
             ]
             [ div
                 [ css
-                    [ Tw.bg_color Theme.white
-                    , Tw.p_6
+                    [ Tw.p_6
                     , Tw.rounded_lg
                     , Tw.shadow_lg
                     , Tw.max_w_3xl
@@ -123,25 +126,20 @@ view shared model =
                     ]
                 ]
                 [ h1
+                    (styles.colorStyleGrayscaleTitle ++ styles.textStyleH1 ++
                     [ css
-                        [ Tw.text_4xl
-                        , Tw.font_bold
-                        , Tw.text_color Theme.gray_900
-                        , Tw.mb_2
+                        [ Tw.mb_2
                         ]
-                    , fontFamilyUnbounded
-                    ]
+                    ])
                     [ text <| Translations.bookmarksTitle [ shared.browserEnv.translations ]
                     ]
                 , h3
+                    (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3 ++
                     [ css
-                        [ Tw.text_2xl
-                        , Tw.font_bold
-                        , Tw.text_color Theme.gray_900
-                        , Tw.mb_2
+                        [ Tw.mb_2
                         ]
                     , fontFamilyUnbounded
-                    ]
+                    ])
                     [ text <| Translations.myBookmarksTitle [ shared.browserEnv.translations ]
                     ]
                 , viewBookmarks shared model

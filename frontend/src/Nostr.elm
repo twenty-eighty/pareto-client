@@ -7,6 +7,7 @@ import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Nostr.Article exposing (Article, articleFromEvent, filterMatchesArticle, tagReference)
+import Nostr.Blossom exposing (userServerListFromEvent)
 import Nostr.BookmarkList exposing (BookmarkList, bookmarkListFromEvent)
 import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
@@ -23,26 +24,16 @@ import Nostr.Reactions
 import Nostr.Relay exposing (Relay, RelayState(..))
 import Nostr.RelayListMetadata exposing (RelayMetadata, relayListFromEvent)
 import Nostr.Repost exposing (Repost, repostFromEvent)
-import Nostr.Request exposing (Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
+import Nostr.Request exposing (HttpRequestMethod, Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
-import Nostr.Types exposing (EventId, PubKey)
+import Nostr.Types exposing (EventId, PubKey, IncomingMessage, OutgoingCommand)
 import Nostr.Zaps exposing (ZapReceipt)
 import Html.Attributes exposing (kind)
 import Time
 import Nostr.Types exposing (RelayUrl)
-
-
-type alias OutgoingCommand =
-    { command : String
-    , value : Encode.Value
-    }
-
-type alias IncomingMessage =
-    { messageType : String
-    , value : Encode.Value
-    }
+import Set
 
 
 type alias Hooks =
@@ -50,7 +41,7 @@ type alias Hooks =
     , receiveMessage : (IncomingMessage -> Msg) -> Sub Msg
     , requestEvents : String -> Bool -> RequestId -> Maybe (List String) -> EventFilter -> Cmd Msg
     , requestBlossomListAuth : RequestId -> String -> Cmd Msg
-    , requestNip96Auth : RequestId -> String -> String -> Cmd Msg
+    , requestNip96Auth : RequestId -> String -> String -> HttpRequestMethod -> Cmd Msg
     , sendEvent : SendId -> Event -> Cmd Msg
     }
 
@@ -75,7 +66,8 @@ type alias Model =
     , relayMetadataLists : Dict PubKey (List RelayMetadata)
     , relaysForPubKey : Dict PubKey (List RelayUrl)
     , reposts : Dict EventId Repost
-    , shortTextNotes : List ShortNote
+    , shortTextNotes : Dict String ShortNote
+    , userServerLists : Dict PubKey (List String)
     , zapReceiptsAddress : Dict String (Dict String Nostr.Zaps.ZapReceipt)
     , zapReceiptsEvents : Dict String (Dict String Nostr.Zaps.ZapReceipt)
     , hooks : Hooks
@@ -203,8 +195,8 @@ performRequest model description requestId requestData =
         RequestBlossomListAuth server ->
             ( model, model.hooks.requestBlossomListAuth requestId server)
 
-        RequestNip98Auth url method ->
-            ( model, model.hooks.requestNip96Auth requestId url method)
+        RequestNip98Auth serverUrl apiUrl method ->
+            ( model, model.hooks.requestNip96Auth requestId serverUrl apiUrl method)
 
 send : Model -> SendRequest -> (Model, Cmd Msg)
 send model sendRequest =
@@ -277,6 +269,18 @@ getArticleDraftWithIdentifier model pubKey identifier =
     |> Dict.get pubKey
     |> Maybe.andThen (filterArticlesWithIdentifier identifier)
 
+getBlossomServers : Model -> PubKey -> List String
+getBlossomServers model pubKey =
+    model.userServerLists
+    |> Dict.get pubKey
+    |> Maybe.withDefault []
+
+getNip96Servers : Model -> PubKey -> List String
+getNip96Servers model pubKey =
+    model.fileStorageServerLists
+    |> Dict.get pubKey
+    |> Maybe.withDefault []
+
 getLastRequestId : Model -> RequestId
 getLastRequestId model =
     model.lastRequestId
@@ -330,6 +334,10 @@ getRelaysForPubKey model pubKey =
 getRequest : Model -> RequestId -> Maybe Request
 getRequest model requestId =
     Dict.get requestId model.requests
+
+getShortNoteById : Model -> String -> Maybe ShortNote
+getShortNoteById model noteId =
+    Dict.get noteId model.shortTextNotes
 
 
 getZapReceiptsForArticle : Model -> Article -> Maybe (Dict String Nostr.Zaps.ZapReceipt)
@@ -394,6 +402,7 @@ requestUserData model pubKey =
                 , KindCommunitiesList
                 , KindFollowSets
                 , KindCommunitiesList
+                , KindUserServerList
                 , KindFileStorageServerList
                 ]
             , ids = Nothing
@@ -528,7 +537,7 @@ empty =
         , receiveMessage = \_ -> Sub.none
         , requestEvents = \_ _ _ _ _ -> Cmd.none
         , requestBlossomListAuth = \_ _ -> Cmd.none
-        , requestNip96Auth = \_ _ _ -> Cmd.none
+        , requestNip96Auth = \_ _ _ _ -> Cmd.none
         , sendEvent = \_ _ -> Cmd.none
         }
     , pubKeyByNip05 = Dict.empty
@@ -541,7 +550,8 @@ empty =
     , relayMetadataLists = Dict.empty
     , relaysForPubKey = Dict.empty
     , reposts = Dict.empty
-    , shortTextNotes = []
+    , shortTextNotes = Dict.empty
+    , userServerLists = Dict.empty
     , zapReceiptsAddress = Dict.empty
     , zapReceiptsEvents = Dict.empty
     , errors = []
@@ -698,6 +708,9 @@ updateModelWithEvents model requestId kind events =
         KindCommunitiesList ->
             updateModelWithCommunityLists model events
 
+        KindUserServerList ->
+            updateModelWithUserServerLists model requestId events
+
         KindFileStorageServerList ->
             updateModelWithFileStorageServerLists model requestId events
 
@@ -777,6 +790,20 @@ updateModelWithCommunityLists model events =
                 ) model.communityLists
     in
     ({ model | communityLists = communityLists}, Cmd.none)
+
+updateModelWithUserServerLists : Model -> RequestId -> List Event -> (Model, Cmd Msg)
+updateModelWithUserServerLists model requestId events =
+    let
+        -- usually there should be only one for the logged-in user
+        userServerLists =
+            events
+            |> List.map userServerListFromEvent
+            |> List.foldl (\(pubKey, userServerList) dict ->
+                Dict.insert pubKey userServerList dict
+                ) model.userServerLists
+    in
+    ({ model | userServerLists = userServerLists }, Cmd.none)
+
 
 updateModelWithFileStorageServerLists : Model -> RequestId -> List Event -> (Model, Cmd Msg)
 updateModelWithFileStorageServerLists model requestId events =
@@ -910,8 +937,61 @@ updateModelWithShortTextNotes model requestId events =
         shortTextNotes =
             events
             |> List.map shortNoteFromEvent
+
+        shortTextNotesDict =
+            shortTextNotes
+            |> List.foldl (\shortNote acc ->
+                Dict.insert shortNote.id shortNote acc
+            ) model.shortTextNotes
+
+        maybeRequest =
+            Dict.get requestId model.requests
+
+        (requestModel, requestCmd) =
+            case maybeRequest of
+                Just request ->
+                    requestRelatedKindsForShortNotes model shortTextNotes request
+
+                Nothing ->
+                    (model, Cmd.none)
     in
-    ({ model | shortTextNotes = shortTextNotes }, Cmd.none)
+    ({ requestModel | shortTextNotes = shortTextNotesDict }, requestCmd)
+
+requestRelatedKindsForShortNotes : Model -> List ShortNote -> Request -> (Model, Cmd Msg)
+requestRelatedKindsForShortNotes model shortNotes request =
+    let
+        authorPubKeys =
+            shortNotes
+            |> List.map .pubKey
+            |> Set.fromList
+            |> Set.toList
+
+        maybeEventFilterForAuthorProfiles =
+            authorPubKeys
+            |> getMissingProfilePubKeys model
+            |> profileFilterForAuthors
+
+        (requestProfileModel, extendedRequestProfile) =
+            case maybeEventFilterForAuthorProfiles of
+                Just eventFilterForAuthorProfiles ->
+                    -- TODO: add relays for request
+                    eventFilterForAuthorProfiles
+                    |> RequestProfile Nothing
+                    |> addToRequest model request
+
+                Nothing ->
+                    (model, request)
+
+        (extendedModel, extendedRequestReactions) =
+            shortNotes
+            |> List.map Nostr.ShortNote.tagReference
+            |> profileFilterForReactions
+            |> Maybe.map RequestReactions
+            |> Maybe.map (addToRequest requestProfileModel extendedRequestProfile)
+            |> Maybe.withDefault (requestProfileModel, extendedRequestProfile)
+
+    in
+    doRequest extendedModel extendedRequestReactions
 
 
 updateModelWithUserMetadata : Model -> RequestId -> List Event -> (Model, Cmd Msg)

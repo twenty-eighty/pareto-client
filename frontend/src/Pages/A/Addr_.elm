@@ -18,7 +18,8 @@ import Route exposing (Route)
 import Shared
 import Shared.Msg
 import Shared.Model
-import Translations
+import Translations.Sidebar as Translations
+import Ui.Styles exposing (Styles, Theme)
 import Ui.View
 import Url
 import View exposing (View)
@@ -32,12 +33,12 @@ page shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        {}
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 -- INIT
@@ -115,18 +116,19 @@ subscriptions model =
 
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
-    { title = "Read"
+    { title = Translations.readMenuItemText [ shared.browserEnv.translations ]
     , body =
         [ model.nip19
           |> Maybe.andThen (Nostr.getArticleForNip19 shared.nostr)
-          |> viewArticle shared.browserEnv shared.nostr
+          |> viewArticle (Ui.Styles.stylesForTheme shared.theme) shared.browserEnv shared.nostr
         ]
     }
 
-viewArticle : BrowserEnv -> Nostr.Model -> Maybe Article -> Html Msg
-viewArticle browserEnv nostr maybeArticle =
+viewArticle : Styles Msg -> BrowserEnv -> Nostr.Model -> Maybe Article -> Html Msg
+viewArticle styles browserEnv nostr maybeArticle =
     case maybeArticle of
         Just article ->
-            Ui.View.viewArticle browserEnv nostr article 
+            Ui.View.viewArticle styles browserEnv nostr article 
+
         Nothing ->
             div [][]

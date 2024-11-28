@@ -75,6 +75,24 @@ defmodule NostrBackendWeb.PageController do
     |> render(:bookmarks)
   end
 
+  def media(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:media)
+  end
+
+  def messages(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:messages)
+  end
+
+  def notifications(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:notifications)
+  end
+
   def communities(conn, _params) do
     conn
     |> add_meta_tags

@@ -6,7 +6,8 @@ import Html.Styled as Html exposing (Html, Attribute, a, article, aside, button,
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 import Http
-import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName)
+import Nostr.Nip05 exposing (nip05ToString)
+import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
 import Tailwind.Breakpoints as Bp
@@ -194,7 +195,7 @@ validationIcon : Int -> ProfileValidation -> Html msg
 validationIcon width validation =
     case validation of
         ValidationUnknown ->
-            Graphics.featherMehIcon width
+            div [][]
 
         ValidationPending ->
             Graphics.featherMehIcon width
@@ -287,3 +288,19 @@ timeParagraph browserEnv maybePublishedAt =
 
         Nothing ->
             div [][]
+
+profileDisplayName : PubKey -> Profile -> String
+profileDisplayName pubKey profile =
+    case (profile.displayName, profile.name, profile.nip05) of
+        (Just displayName, _, _) ->
+            displayName
+        (Nothing, Just name, _) ->
+            name
+        (Nothing, Nothing, Just nip05) ->
+            nip05ToString nip05
+        (Nothing, Nothing, Nothing) ->
+            shortenedPubKey pubKey
+
+shortenedPubKey : String -> String
+shortenedPubKey pubKey =
+    String.left 6 pubKey ++ "..." ++ String.right 6 pubKey

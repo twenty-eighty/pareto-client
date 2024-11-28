@@ -66,6 +66,11 @@ defmodule NostrBackend.NostrId do
     {:ok, {:article, article_id}}
   end
 
+  defp parse_data("note", data) do
+    note_id = Base.encode16(data, case: :lower)
+    {:ok, {:note, note_id}}
+  end
+
   defp parse_data(prefix, _data) do
     {:error, "Unknown prefix: #{prefix}"}
   end

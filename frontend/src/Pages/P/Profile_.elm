@@ -25,10 +25,10 @@ import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-import Translations
-import Ui.Article
+import Translations.Sidebar as Translations
+import Ui.ArticleOld
 import Ui.Profile
-import Ui.Shared exposing (fontFamilyUnbounded, fontFamilyInter)
+import Ui.Styles exposing (Styles, Theme)
 import View exposing (View)
 import Nostr.Profile exposing (ProfileValidation(..))
 
@@ -41,12 +41,12 @@ page shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        {}
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 -- INIT
@@ -142,7 +142,7 @@ view shared model =
                 Nostr.getProfile shared.nostr pubKey
             )
     in
-    { title = "Profile"
+    { title = Translations.readMenuItemText [ shared.browserEnv.translations ]
     , body =
         [ case maybeProfile of
             Just profile ->
@@ -158,11 +158,11 @@ viewProfile shared profile =
     div []
         [ Ui.Profile.viewProfile profile (Nostr.getProfileValidationStatus shared.nostr profile.pubKey |> Maybe.withDefault ValidationUnknown)
         , Nostr.getArticlesForAuthor shared.nostr profile.pubKey
-        |> viewArticlePreviews shared.browserEnv shared.nostr 
+        |> viewArticlePreviews (Ui.Styles.stylesForTheme shared.theme) shared.browserEnv shared.nostr 
         ]
 
-viewArticlePreviews : BrowserEnv -> Nostr.Model -> List Article -> Html msg
-viewArticlePreviews browserEnv nostr articles =
+viewArticlePreviews : Styles msg -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
+viewArticlePreviews styles browserEnv nostr articles =
     articles
     |> List.take 20
     |> List.map (\article ->
@@ -173,6 +173,6 @@ viewArticlePreviews browserEnv nostr articles =
             interactions =
                 (Nostr.getInteractions nostr article)
         in
-        Ui.Article.viewArticlePreview browserEnv author article interactions False
+        Ui.ArticleOld.viewArticlePreview browserEnv styles author article interactions False
         )
     |> div []

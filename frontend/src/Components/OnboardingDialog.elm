@@ -13,7 +13,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Shared.Msg exposing (Msg)
 import Shared.Model exposing (Model)
-import Ui.Shared exposing (fontFamilyUnbounded, fontFamilyInter)
+import Ui.Styles exposing (fontFamilyUnbounded, fontFamilyInter)
 
 type Msg
     = CloseDialog

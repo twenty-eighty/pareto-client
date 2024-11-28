@@ -3,7 +3,7 @@ module Nostr.Article exposing (..)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as DecodePipeline
 import Nostr.Event exposing (Event, EventFilter, Kind(..), Tag(..), TagReference(..), numberForKind)
-import Nostr.Profile exposing (ProfileValidation(..), profileDisplayName)
+import Nostr.Profile exposing (ProfileValidation(..))
 import Nostr.Types exposing (EventId, PubKey)
 import Set
 import Time

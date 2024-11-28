@@ -18,8 +18,8 @@ defmodule NostrBackendWeb.FrontendAssets do
       {:ok, content} ->
         regex =
           case type do
-            "script" -> ~r/src="\/assets\/(index-[\w\d]+\.js)"/
-            "link" -> ~r/href="\/assets\/(index-[\w\d]+\.css)"/
+            "script" -> ~r/src="\/assets\/(index-[\w\d-]+\.js)"/
+            "link" -> ~r/href="\/assets\/(index-[\w\d-]+\.css)"/
           end
 
         find_asset_in_html(content, regex)

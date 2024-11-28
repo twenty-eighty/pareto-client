@@ -10,7 +10,7 @@ import Nostr
 import Nostr.Nip19 as Nip19
 import Nostr.Community exposing (Community, communityDecoder)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), numberForKind)
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (PubKey, IncomingMessage)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
@@ -20,7 +20,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations.Communities as Translations
-import Ui.Shared exposing (fontFamilyUnbounded, fontFamilyInter)
+import Ui.Styles exposing (Theme, fontFamilyUnbounded, fontFamilyInter)
 import View exposing (View)
 import Html.Styled exposing (input)
 import Shared.Model exposing (LoginStatus(..))
@@ -34,12 +34,12 @@ page shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        {}
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 
@@ -81,7 +81,7 @@ communitiesFilter =
 
 
 type Msg
-    = ReceivedMessage Nostr.IncomingMessage
+    = ReceivedMessage IncomingMessage
     | UpdateSearch String
 
 
@@ -97,7 +97,7 @@ update shared msg model =
             else    
                 ({ model | searchString = Just searchString, searchStringLowerCase = Just <| String.toLower searchString }, Effect.none)
 
-updateWithMessage : Shared.Model -> Model -> Nostr.IncomingMessage -> (Model, Effect Msg)
+updateWithMessage : Shared.Model -> Model -> IncomingMessage -> (Model, Effect Msg)
 updateWithMessage shared model message =
     case message.messageType of
         "communities" ->

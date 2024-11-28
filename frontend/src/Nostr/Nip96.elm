@@ -1,10 +1,12 @@
 module Nostr.Nip96 exposing (..)
 
 import Dict exposing (Dict)
+import File exposing (File)
 import Http
 import Json.Decode exposing (Decoder, andThen, bool, dict, fail, field, float, int, list, maybe, string, succeed)
 import Json.Decode.Pipeline exposing (required, optional)
 import Json.Decode as Decode
+import Nostr.Nip94 as Nip94
 import Url
 
 
@@ -53,7 +55,7 @@ fetchServerSpec toMsg url =
         , headers =
             [ Http.header "Accept" "application/json"
             ]
-        , url = url ++ "/.well-known/nostr/nip96.json"
+        , url = urlWithoutTrailingSlash url ++ "/.well-known/nostr/nip96.json"
         , body = Http.emptyBody
         , expect = Http.expectJson toMsg serverSpecOrDelegationDecoder
         , timeout = Nothing
@@ -86,9 +88,16 @@ extendRelativeUrl url path =
             |> Maybe.withDefault True
     in
     if urlIsRelative then
-        url ++ path
+        urlWithoutTrailingSlash url ++ path
     else
         path
+
+urlWithoutTrailingSlash : String -> String
+urlWithoutTrailingSlash url =
+    if String.endsWith "/" url then
+        String.dropRight 1 url
+    else
+        url
 
 -- Decoders
 
@@ -175,8 +184,102 @@ type alias FileList =
     { count : Int
     , total : Int
     , page : Int
-    , files : List File
+    , files : List Nip94.FileMetadata
     }
+
+
+-- Uploads
+
+type alias FileUpload =
+    { file : File
+    , status : UploadStatus
+    , caption : Maybe String
+    , alt : Maybe String
+    , mediaType : Maybe String
+    , noTransform : Maybe Bool
+    , uploadResponse : Maybe UploadResponse
+    }
+
+type alias UploadResponse =
+    { status : String
+    , message : Maybe String
+    , processingUrl : Maybe String
+    , fileMetadata : Maybe Nip94.FileMetadata
+    }
+
+type UploadStatus
+    = Selected
+    | Hashing
+    | AwaitingAuthHeader String -- SHA256 Hash
+    | ReadyToUpload String String -- SHA256 Hash, Auth Header
+    | Uploading Float -- Progress percentage
+    | Uploaded
+    | Failed String -- Error message
+
+
+
+
+uploadFile : String -> Int -> FileUpload -> (Result Http.Error UploadResponse -> msg) -> String -> Cmd msg
+uploadFile apiUrl fileId fileUpload resultMsg authHeader =
+    Http.request
+        { method = "POST"
+        , headers =
+            [ Http.header "Authorization" authHeader ]
+        , url = apiUrl
+        , body = multipartBody fileUpload
+        , expect = Http.expectJson resultMsg uploadResponseDecoder
+        , timeout = Nothing
+        , tracker = Just (String.fromInt fileId)
+        }
+
+
+multipartBody : FileUpload -> Http.Body
+multipartBody upload =
+    let
+        sizeString =
+            File.size upload.file
+            |> String.fromInt
+
+        contentTypeString =
+             File.mime upload.file
+
+        expirationString =
+            "" -- Empty string for no expiration; can adjust as needed
+
+        -- Collect form fields
+        formFields =
+            [ Http.filePart "file" upload.file
+            , Http.stringPart "size" sizeString
+            , Http.stringPart "content_type" contentTypeString
+            , Http.stringPart "expiration" expirationString
+            ]
+            |> appendStringField "media_type" upload.mediaType
+            |> appendStringField "alt" upload.alt
+            |> appendStringField "caption" upload.caption
+            |> appendBooleanField "no_transform" upload.noTransform
+    in
+    Http.multipartBody formFields
+
+appendStringField : String -> Maybe String -> List Http.Part -> List Http.Part
+appendStringField fieldName maybeFieldValue fields =
+    case maybeFieldValue of
+        Just fieldValue ->
+            fields ++ [ Http.stringPart fieldName fieldValue ]
+
+        Nothing ->
+            fields
+
+appendBooleanField : String -> Maybe Bool -> List Http.Part -> List Http.Part
+appendBooleanField fieldName maybeFieldValue fields =
+    case maybeFieldValue of
+        Just True ->
+            fields ++ [ Http.stringPart fieldName "true" ]
+
+        Just False ->
+            fields ++ [ Http.stringPart fieldName "false" ]
+
+        Nothing ->
+            fields
 
 
 -- Decoders
@@ -187,163 +290,13 @@ fileListDecoder =
         |> required "count" int
         |> required "total" int
         |> required "page" int
-        |> required "files" (list fileDecoder)
+        |> required "files" (list Nip94.fileMetadataDecoder)
 
 
--- Type Definitions
-
-type alias File =
-    { kind : Maybe Int
-    , content : String
-    , createdAt : Int
-    , url : Maybe String
-    , mimeType : Maybe String
-    , xHash : Maybe String
-    , oxHash : Maybe String
-    , size : Maybe Int
-    , dim : Maybe ( Int, Int )
-    , magnet : Maybe String
-    , i : Maybe String
-    , blurhash : Maybe String
-    , thumb : Maybe Media
-    , image : Maybe Media
-    , summary : Maybe String
-    , alt : Maybe String
-    }
-
-
-type alias Media =
-    { uri : String
-    , hash : Maybe String
-    }
-
-
--- Decoders
-
-fileDecoder : Decoder File
-fileDecoder =
-    decodeRawEvent
-        |> andThen fromRawEvent
-
-
-type alias RawEvent =
-    { kind : Maybe Int
-    , content : String
-    , createdAt : Int
-    , tags : List (List String)
-    }
-
-
-decodeRawEvent : Decoder RawEvent
-decodeRawEvent =
-    succeed RawEvent
-        |> optional "kind" (maybe int) Nothing
-        |> required "content" string
-        |> required "created_at" int
-        |> required "tags" (list (list string))
-
-
-fromRawEvent : RawEvent -> Decoder File
-fromRawEvent rawEvent =
-    let
-        initialEvent =
-            { kind = rawEvent.kind
-            , content = rawEvent.content
-            , createdAt = rawEvent.createdAt
-            , url = Nothing
-            , mimeType = Nothing
-            , xHash = Nothing
-            , oxHash = Nothing
-            , size = Nothing
-            , dim = Nothing
-            , magnet = Nothing
-            , i = Nothing
-            , blurhash = Nothing
-            , thumb = Nothing
-            , image = Nothing
-            , summary = Nothing
-            , alt = Nothing
-            }
-    in
-    succeed (parseTags rawEvent.tags initialEvent)
-
-
-parseTags : List (List String) -> File -> File
-parseTags tags file =
-    List.foldl parseTag file tags
-
-
-parseTag : List String -> File -> File
-parseTag tag file =
-    case tag of
-        [ "url", urlValue ] ->
-            { file | url = Just urlValue }
-
-        [ "m", mimeTypeValue ] ->
-            { file | mimeType = Just mimeTypeValue }
-
-        [ "x", xHashValue ] ->
-            { file | xHash = Just xHashValue }
-
-        [ "ox", oxHashValue ] ->
-            { file | oxHash = Just oxHashValue }
-
-        [ "size", sizeValue ] ->
-            case String.toInt sizeValue of
-                Just sizeInt ->
-                    { file | size = Just sizeInt }
-
-                Nothing ->
-                    file
-
-        [ "dim", dimValue ] ->
-            parseDimensions dimValue file
-
-        [ "magnet", magnetValue ] ->
-            { file | magnet = Just magnetValue }
-
-        [ "i", iValue ] ->
-            { file | i = Just iValue }
-
-        [ "blurhash", blurhashValue ] ->
-            { file | blurhash = Just blurhashValue }
-
-        [ "thumb", uri ] ->
-            { file | thumb = Just { uri = uri, hash = Nothing } }
-
-        [ "thumb", uri, hash ] ->
-            { file | thumb = Just { uri = uri, hash = Just hash } }
-
-        [ "image", uri ] ->
-            { file | image = Just { uri = uri, hash = Nothing } }
-
-        [ "image", uri, hash ] ->
-            { file | image = Just { uri = uri, hash = Just hash } }
-
-        [ "summary", summaryValue ] ->
-            { file | summary = Just summaryValue }
-
-        [ "alt", altValue ] ->
-            { file | alt = Just altValue }
-
-        _ ->
-            file
-
-
-parseDimensions : String -> File -> File
-parseDimensions dimValue file =
-    let
-        dimensions =
-            String.split "x" dimValue
-    in
-    case dimensions of
-        [ widthStr, heightStr ] ->
-            case ( String.toInt widthStr, String.toInt heightStr ) of
-                ( Just width, Just height ) ->
-                    { file | dim = Just ( width, height ) }
-
-                _ ->
-                    file
-
-        _ ->
-            file
+uploadResponseDecoder : Decode.Decoder UploadResponse
+uploadResponseDecoder =
+    Decode.map4 UploadResponse
+        (Decode.field "status" Decode.string)
+        (Decode.maybe (Decode.field "message" Decode.string))
+        (Decode.maybe (Decode.field "processing_url" Decode.string))
+        (Decode.field "nip94_event" (Decode.nullable Nip94.fileMetadataDecoder))

@@ -11,13 +11,23 @@ type alias PubKeyFollowList =
     , following : List Following
     }
 
-type alias Following =
-    { pubKey : PubKey
-    , relay : Maybe String
-    , petname : Maybe String
-    }
-{-
--}
+type Following
+    = FollowingPubKey
+        { pubKey : PubKey
+        , relay : Maybe String
+        , petname : Maybe String
+        }
+    | FollowingHashtag String
+
+
+followingPubKey : Following -> Maybe PubKey
+followingPubKey following =
+    case following of
+        FollowingPubKey { pubKey }  ->
+            Just pubKey
+
+        FollowingHashtag _ ->
+            Nothing
 
 followListFromEvent : Event -> PubKeyFollowList
 followListFromEvent event =
@@ -27,7 +37,10 @@ followListFromEvent event =
             |> List.foldl (\tag res ->
                 case tag of 
                     PublicKeyTag pubKey relay petname ->
-                        { res | following = res.following ++ [{pubKey = pubKey, relay = relay, petname = petname}] }
+                        { res | following = res.following ++ [FollowingPubKey {pubKey = pubKey, relay = relay, petname = petname}] }
+
+                    HashTag hashtag ->
+                        { res | following = res.following ++ [FollowingHashtag hashtag ] }
 
                     _ ->
                         res
@@ -37,17 +50,3 @@ followListFromEvent event =
                 }
     in
     followList
-
-
-nostrPubKeyFollowListDecoder : Decoder PubKeyFollowList
-nostrPubKeyFollowListDecoder =
-    Decode.succeed PubKeyFollowList
-    |> DecodePipeline.required "pubkey" Decode.string
-    |> DecodePipeline.required "following" (Decode.list nostrFollowingDecoder)
-
-nostrFollowingDecoder : Decoder Following
-nostrFollowingDecoder =
-    Decode.succeed Following
-    |> DecodePipeline.required "pubkey" Decode.string
-    |> DecodePipeline.optional "relay" (Decode.maybe Decode.string) Nothing
-    |> DecodePipeline.optional "petname" (Decode.maybe Decode.string) Nothing

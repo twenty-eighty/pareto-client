@@ -6,7 +6,7 @@ import Json.Decode as Decode exposing (Decoder, maybe, string, succeed, list, nu
 import Json.Decode.Pipeline exposing (required, optional)
 import Json.Decode exposing (fail)
 import Nostr.Event exposing (Event, EventFilter, ImageSize, Kind, Tag(..), imageSizeDecoder)
-import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName)
+import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Types exposing (EventId, PubKey)
 import Time exposing (Month(..))
 

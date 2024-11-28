@@ -14,6 +14,7 @@ import Nostr.Community exposing (Community, communityMatchesFilter)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), eventFilterForNaddr)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Request exposing (RequestData(..))
+import Nostr.Types exposing (IncomingMessage)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
@@ -23,7 +24,8 @@ import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-import Translations
+import Translations.Sidebar as Translations
+import Ui.Styles exposing (Theme)
 import Ui.View
 import Url
 import View exposing (View)
@@ -37,12 +39,12 @@ page shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        {}
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 -- INIT
@@ -99,7 +101,7 @@ decodedTagParam tag =
 
 type Msg
     = OpenGetStarted
-    | ReceivedMessage Nostr.IncomingMessage
+    | ReceivedMessage IncomingMessage
     | NostrMsg Nostr.Msg
 
 
@@ -137,7 +139,7 @@ subscriptions model =
 
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
-    { title = "Read"
+    { title = Translations.readMenuItemText [ shared.browserEnv.translations ]
     , body =
         [
         model.nip19

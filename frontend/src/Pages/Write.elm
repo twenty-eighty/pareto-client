@@ -2,7 +2,7 @@ module Pages.Write exposing (Model, Msg, page)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
-import Components.MediaSelector as MediaSelector exposing (MediaSelector)
+import Components.MediaSelector as MediaSelector
 import Css
 import Dict exposing (Dict)
 import Effect exposing (Effect)
@@ -29,23 +29,24 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Time
 import Translations.Write
+import Ui.Styles exposing (Theme)
 import View exposing (View)
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
 page user shared route =
     Page.new
-        { init = init shared route
+        { init = init user shared route
         , update = update shared user
         , subscriptions = subscriptions
-        , view = view user shared.browserEnv
+        , view = view user shared
         }
-        |> Page.withLayout (toLayout)
+        |> Page.withLayout (toLayout shared.theme)
 
-toLayout : Model -> Layouts.Layout Msg
-toLayout model =
+toLayout : Theme -> Model -> Layouts.Layout Msg
+toLayout theme model =
     Layouts.Sidebar
-        {}
+        { styles = Ui.Styles.stylesForTheme theme }
 
 
 -- INIT
@@ -62,8 +63,8 @@ type alias Model =
     , mediaSelector : MediaSelector.Model
     }
 
-init : Shared.Model -> Route () -> () -> ( Model, Effect Msg )
-init shared route () =
+init : Auth.User -> Shared.Model -> Route () -> () -> ( Model, Effect Msg )
+init user shared route () =
     let
         maybeNip19 =
             case Dict.get "a" route.query of
@@ -91,7 +92,13 @@ init shared route () =
                     Effect.none
 
         (mediaSelector, mediaSelectorEffect) =
-            MediaSelector.init { selected = Nothing, toMsg = MediaSelectorSent }
+            MediaSelector.init
+                { selected = Nothing
+                , toMsg = MediaSelectorSent
+                , blossomServers = Nostr.getBlossomServers shared.nostr user.pubKey
+                , nip96Servers = Nostr.getNip96Servers shared.nostr user.pubKey
+                , displayType = MediaSelector.DisplayModalDialog False
+                }
 
         model =
             case maybeArticle of
@@ -147,6 +154,7 @@ type Msg
     | Publish
     | SaveDraft
     | Now Time.Posix
+    | OpenMediaSelector
     | MediaSelectorSent (MediaSelector.Msg Msg)
 
 
@@ -198,9 +206,13 @@ update shared user msg model =
             else
                 ( { model | now = now }, Effect.none )
 
+        OpenMediaSelector ->
+                ( { model | mediaSelector = MediaSelector.show model.mediaSelector }, Effect.none )
+
         MediaSelectorSent innerMsg ->
             MediaSelector.update
                 { user = user
+                , nostr = shared.nostr
                 , msg = innerMsg
                 , model = model.mediaSelector
                 , toModel = \mediaSelector -> { model | mediaSelector = mediaSelector }
@@ -256,8 +268,8 @@ subscriptions model =
 -- VIEW
 
 
-view : Auth.User -> BrowserEnv -> Model -> View Msg
-view user browserEnv model =
+view : Auth.User -> Shared.Model -> Model -> View Msg
+view user shared model =
     { title = "Write"
     , body =
         [ div
@@ -273,16 +285,18 @@ view user browserEnv model =
                     ]
                 ]
             ]
-            [ viewTitle browserEnv model
-            , viewSubtitle browserEnv model
-            , viewEditor browserEnv model
-            , viewTags  browserEnv model
-            , saveButtons browserEnv model
+            [ viewTitle shared.browserEnv model
+            , viewSubtitle shared.browserEnv model
+            , viewEditor shared.browserEnv model
+            , viewTags  shared.browserEnv model
+            -- , openMediaSelectorButton shared.browserEnv
+            , saveButtons shared.browserEnv model
             , MediaSelector.new
                 { model = model.mediaSelector
                 , toMsg = MediaSelectorSent
                 , pubKey = user.pubKey
-                , browserEnv = browserEnv
+                , browserEnv = shared.browserEnv
+                , theme = shared.theme
                 }
                 |> MediaSelector.view
             ]
@@ -486,6 +500,22 @@ publishButton browserEnv =
         , Events.onClick Publish
         ]
         [ text <| Translations.Write.publishButtonTitle [ browserEnv.translations ] ]
+
+openMediaSelectorButton : BrowserEnv -> Html Msg
+openMediaSelectorButton browserEnv =
+    button
+        [ css
+            [ Tw.bg_color Theme.gray_200
+            , Tw.py_2
+            , Tw.px_4
+            , Tw.rounded_full
+            , Css.hover
+                [ Tw.bg_color Theme.gray_300
+                ]
+            ]
+        , Events.onClick OpenMediaSelector
+        ]
+        [ text <| "Open Media Selector" ]
 
 saveDraftButton : BrowserEnv -> Html Msg
 saveDraftButton browserEnv =

@@ -9,20 +9,6 @@ import Svg.Loaders
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 
-fontFamilyInter =
-    Attr.style "font-family" "Inter, sans-serif"
-
-fontFamilyUnbounded =
-    Attr.style "font-family" "Unbounded"
-
-fontFamilySourceSerifPro =
-    Attr.style "font-family" "Source Serif Pro"
-
-darkMode : List Css.Style -> Css.Style
-darkMode =
-    Css.Media.withMediaQuery [ "(prefers-color-scheme: dark)" ]
-
-
 pageLoadingIndicator : Html msg
 pageLoadingIndicator =
     Svg.Loaders.rings []
@@ -59,3 +45,65 @@ linkButton title url =
         , Attr.href url
         ]
         [ text title ]
+
+
+modalDialog : String -> List (Html msg) -> msg -> Html msg
+modalDialog title content onClose =
+    div
+        [ css
+            [ Tw.fixed
+            , Tw.inset_0
+            , Tw.bg_opacity_50
+            , Tw.flex
+            , Tw.items_center
+            , Tw.justify_center
+            , Tw.z_50
+            , Tw.max_h_screen
+            , Tw.m_10
+            ]
+        , Attr.id "modal-overlay"
+        ]
+        [ div
+            [ css
+                [ Tw.bg_color Theme.white
+                , Tw.rounded_lg
+                , Tw.shadow_lg
+                , Tw.w_full
+                , Tw.max_w_lg
+                , Tw.p_6
+                ]
+            ]
+            [ div
+                [ css
+                    [ Tw.flex
+                    , Tw.justify_between
+                    , Tw.items_center
+                    , Tw.border_b
+                    , Tw.pb_4
+                    ]
+                ]
+                [ h2
+                    [ css
+                        [ Tw.text_lg
+                        , Tw.font_semibold
+                        , Tw.text_color Theme.gray_800
+                        ]
+                    ]
+                    [ text title ]
+                , button
+                    [ css
+                        [ Tw.text_color Theme.gray_400
+                        , Css.hover
+                            [ Tw.text_color Theme.gray_600
+                            ]
+                        ]
+                    , Attr.id "close-modal"
+                    , Events.onClick onClose
+                    ]
+                    [ text " ✕ " ]
+                ]
+            , div
+                []
+                content
+            ]
+        ]

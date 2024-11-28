@@ -3,53 +3,50 @@ module TailwindMarkdownRenderer exposing (renderer)
 import Css
 import Html.Styled as Html
 import Html.Styled.Attributes as Attr exposing (css)
+import LinkPreview
 import Markdown.Block as Block
 import Markdown.Html
 import Markdown.Renderer
+import Nostr.Nip27 exposing (subsituteNostrLinks)
 import SyntaxHighlight
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Ui.Styles exposing (Styles)
 
 
-renderer : Markdown.Renderer.Renderer (Html.Html msg)
-renderer =
-    { heading = heading
+renderer : Styles msg -> Markdown.Renderer.Renderer (Html.Html msg)
+renderer styles =
+    { heading = heading styles
     , paragraph =
         Html.p
+            (styles.textStyleBody ++ styles.colorStyleGrayscaleText ++
             [ css
-                [ Tw.mt_8
-                , Tw.text_xl
-                , Tw.leading_8
-                , Tw.text_color Theme.gray_500
+                [ Tw.mb_6
                 ]
             ]
-    , thematicBreak = Html.hr [] []
-    , text = Html.text
+            )
+
+    , thematicBreak =
+        Html.hr
+            [ css
+                [ Tw.my_14
+                ]
+            ]
+            []
+    , text = (Html.div []) << subsituteNostrLinks
     , strong = \content -> Html.strong [ css [ Tw.font_bold ] ] content
     , emphasis = \content -> Html.em [ css [ Tw.italic ] ] content
     , blockQuote = Html.blockquote []
     , codeSpan =
         \content ->
             Html.code
-                [ css
-                    [ Tw.font_semibold
-                    , Tw.font_medium
-                    , Css.color (Css.rgb 226 0 124) |> Css.important
-                    ]
-                ]
+                (styles.textStyleArticleCode ++ styles.colorStyleArticleHashtags)
                 [ Html.text content ]
 
     --, codeSpan = code
     , link =
-        \{ destination } body ->
-            Html.a
-                [ Attr.href destination
-                , css
-                    [ Tw.underline
-                    ]
-                ]
-                body
+        formatLink styles
     , hardLineBreak = Html.br [] []
     , image =
         \image ->
@@ -61,7 +58,7 @@ renderer =
                     Html.img [ Attr.src image.src, Attr.alt image.alt ] []
     , unorderedList =
         \items ->
-            Html.ul []
+            Html.ul (styles.textStyleBody ++ styles.colorStyleGrayscaleText)
                 (items
                     |> List.map
                         (\item ->
@@ -97,15 +94,32 @@ renderer =
             Html.ol
                 (case startingIndex of
                     1 ->
-                        [ Attr.start startingIndex ]
+                        (styles.textStyleBody ++ styles.colorStyleGrayscaleText ++
+                        [ Attr.start startingIndex
+                        , css
+                            [ Tw.list_decimal
+                            , Tw.ps_6
+                            ]
+                        ]
+                        )
 
                     _ ->
-                        []
+                        (styles.textStyleBody ++ styles.colorStyleGrayscaleText ++
+                        [ css
+                            [ Tw.list_decimal
+                            , Tw.ps_6
+                            ]
+                        ])
                 )
                 (items
                     |> List.map
                         (\itemBlocks ->
-                            Html.li []
+                            Html.li
+                                [ css
+                                    [ Tw.ps_2
+                                    , Tw.my_3
+                                    ]
+                                ]
                                 itemBlocks
                         )
                 )
@@ -204,34 +218,31 @@ rawTextToId rawText =
         |> String.toLower
 
 
-heading : { level : Block.HeadingLevel, rawText : String, children : List (Html.Html msg) } -> Html.Html msg
-heading { level, rawText, children } =
+heading : Styles msg -> { level : Block.HeadingLevel, rawText : String, children : List (Html.Html msg) } -> Html.Html msg
+heading styles { level, rawText, children } =
     case level of
         Block.H1 ->
             Html.h1
+                (styles.textStyleH1Article ++ styles.colorStyleGrayscaleText ++
                 [ css
-                    [ Tw.text_4xl
-                    , Tw.font_bold
-                    , Tw.tracking_tight
-                    , Tw.mt_2
+                    [ Tw.mt_2
                     , Tw.mb_4
                     ]
-                ]
+                ])
                 children
 
         Block.H2 ->
             Html.h2
+                (styles.textStyleH2 ++ styles.colorStyleGrayscaleText ++
                 [ Attr.id (rawTextToId rawText)
                 , Attr.attribute "name" (rawTextToId rawText)
                 , css
-                    [ Tw.text_3xl
-                    , Tw.font_semibold
-                    , Tw.tracking_tight
-                    , Tw.mt_10
+                    [ Tw.mt_10
                     , Tw.pb_1
                     , Tw.border_b
                     ]
                 ]
+                )
                 [ Html.a
                     [ Attr.href <| "#" ++ rawTextToId rawText
                     , css
@@ -251,6 +262,16 @@ heading { level, rawText, children } =
                            ]
                     )
                 ]
+
+        Block.H3 ->
+            Html.h3
+                (styles.textStyleH3 ++ styles.colorStyleGrayscaleText ++
+                [ css
+                    [ Tw.mt_10
+                    , Tw.mb_4
+                    ]
+                ])
+                children
 
         _ ->
             (case level of
@@ -306,3 +327,11 @@ codeBlock details =
         |> Result.map (SyntaxHighlight.toBlockHtml (Just 1))
         |> Result.map Html.fromUnstyled
         |> Result.withDefault (Html.pre [] [ Html.code [] [ Html.text details.body ] ])
+
+
+formatLink : Styles msg -> { title: Maybe String, destination : String } -> List (Html.Html msg) -> Html.Html msg
+formatLink styles { destination } body =
+    LinkPreview.generatePreviewHtml
+        destination
+        (styles.textStyleLinks ++ styles.colorStyleArticleHashtags ++ [ css [ Tw.underline ] ])
+        body
