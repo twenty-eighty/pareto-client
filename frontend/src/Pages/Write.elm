@@ -125,7 +125,12 @@ init user shared route () =
                     }
 
     in
-    (model, mediaSelectorEffect)
+    ( model
+    , Effect.batch
+        [ mediaSelectorEffect
+        , effect
+        ]
+    )
 
 tagsString : List String -> Maybe String
 tagsString tags =
@@ -283,7 +288,7 @@ subscriptions model =
 
 view : Auth.User -> Shared.Model -> Model -> View Msg
 view user shared model =
-    { title = "Write"
+    { title = Translations.pageTitle [ shared.browserEnv.translations ]
     , body =
         [ div
             [ css
@@ -309,13 +314,19 @@ view user shared model =
                     [ css
                         [ Tw.flex
                         , Tw.flex_col
+                        , Tw.w_full
                         ]
                     ]
                     [ viewTitle shared.browserEnv model
                     , viewSubtitle shared.browserEnv model
                     ]
                 , div
-                    []
+                    [ css
+                        [ Tw.flex
+                        , Tw.flex_col
+                        , Tw.w_96
+                        ]
+                    ]
                     [ viewImage model
                     ]
                 ]
@@ -414,7 +425,7 @@ viewEditor browserEnv model =
                     [ Tw.w_full
                     ]
                 ]
-                [ milkdownEditor (model.content |> Maybe.withDefault "")
+                [ milkdownEditor browserEnv (model.content |> Maybe.withDefault "")
                 ]
 
 statusDiv : Model -> Html msg
@@ -445,18 +456,25 @@ hexHash str =
         |> (++) "0x"
 
 
-milkdownEditor : Milkdown.Content -> Html Msg
-milkdownEditor content =
+milkdownEditor : BrowserEnv -> Milkdown.Content -> Html Msg
+milkdownEditor browserEnv content =
    Milkdown.view
         (Milkdown.defaults
             |> Milkdown.withContent content
 --          |> Milkdown.withPlaceholder "Start typing..."
-            |> Milkdown.withTheme Milkdown.Dark
+            |> Milkdown.withDarkMode (milkDownDarkMode browserEnv.darkMode)
             |> Milkdown.onChange (Just EditorChanged)
             |> Milkdown.onFocus (Just EditorFocused)
             |> Milkdown.onBlur (Just EditorBlurred)
             |> Milkdown.onLoad (Just EditorLoaded)
         )
+
+milkDownDarkMode : Bool -> Milkdown.DarkMode
+milkDownDarkMode darkModeActive =
+    if darkModeActive then
+        Milkdown.Dark
+    else
+        Milkdown.Light
 
 sampleDoc : String
 sampleDoc =

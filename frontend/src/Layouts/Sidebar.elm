@@ -267,7 +267,7 @@ viewSidebar styles shared currentPath toContentMsg content =
             , main_
                 [ class "page"
                 , css
-                    [ Tw.w_min
+                    [ Tw.w_auto
                     , Tw.mx_1
                     , Bp.xxl
                         [ Tw.mx_40

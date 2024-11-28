@@ -1,4 +1,5 @@
 import { Crepe } from '@milkdown/crepe';
+import { nord } from '@milkdown/theme-nord'
 import { imageBlockConfig } from '@milkdown/kit/component/image-block'
 import "@milkdown/crepe/theme/common/style.css";
 
@@ -98,15 +99,24 @@ class ElmMilkdownEditor extends HTMLElement {
         const crepe = new Crepe({
             root: this._element,
             defaultValue: this._content,
+            featureConfigs: {
+                // we don't need all these programming languages
+                [Crepe.Feature.CodeMirror]: {
+                    languages: ["Brainfuck"]
+                }
+            }
         });
 
         crepe.editor
+            .use(nord)
             .use(commonmark)
             .use(listener);
 
         crepe.create().then((editor) => {
             this._editor = editor;
             editor.action((ctx) => {
+                nord(ctx);
+
                 const listener = ctx.get(listenerCtx);
 
                 listener.markdownUpdated((ctx, markdown) => {
@@ -227,10 +237,11 @@ class ElmMilkdownEditor extends HTMLElement {
     }
 
     _setTheme(theme) {
-        if (theme !== 'light' && theme !== 'dark') {
-            theme = 'light';
+        if (theme !== 'nord' && theme !== 'nord-dark') {
+            theme = 'nord';
         }
         this._element.setAttribute('data-theme', theme);
+        this.crepe._setTheme(theme);
     }
 }
 

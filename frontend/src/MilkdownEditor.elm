@@ -1,6 +1,6 @@
 module MilkdownEditor exposing
     ( Content
-    , Theme(..)
+    , DarkMode(..)
     , defaults
     , destroy
     , init
@@ -12,7 +12,7 @@ module MilkdownEditor exposing
     , view
     , withContent
     , withHeight
-    , withTheme
+    , withDarkMode
     )
 
 import Html.Styled as Html exposing (Html)
@@ -27,14 +27,14 @@ type alias Content =
     String
 
 
-type Theme
+type DarkMode
     = Light
     | Dark
 
 
 type alias Options msg =
     { content : Content
-    , theme : Theme
+    , darkMode : DarkMode
     , height : String
     , onchange : Maybe (Content -> msg)
     , onfocus : Maybe msg
@@ -49,7 +49,7 @@ type alias Options msg =
 defaults : Options msg
 defaults =
     { content = ""
-    , theme = Light
+    , darkMode = Light
     , height = "600px"
     , onchange = Nothing
     , onfocus = Nothing
@@ -66,9 +66,9 @@ withContent value options =
     { options | content = value }
 
 
-withTheme : Theme -> Options msg -> Options msg
-withTheme theme options =
-    { options | theme = theme }
+withDarkMode : DarkMode -> Options msg -> Options msg
+withDarkMode darkMode options =
+    { options | darkMode = darkMode }
 
 
 withHeight : String -> Options msg -> Options msg
@@ -110,7 +110,7 @@ view options =
          , style "font-size" "1em"
          ]
             ++ contentAttr options.content
-            ++ themeAttr options.theme
+            ++ themeAttr options.darkMode
             ++ destroyAttr options.destroy
             ++ eventHandlers options
         )
@@ -124,13 +124,14 @@ contentAttr val =
     [ attribute "content" val ]
 
 
-themeAttr : Theme -> List (Html.Attribute msg)
-themeAttr theme =
-    [ attribute "theme" (case theme of
-                            Light -> "light"
-                            Dark -> "dark"
+themeAttr : DarkMode -> List (Html.Attribute msg)
+themeAttr darkMode =
+    [ attribute "theme" (case darkMode of
+                            Light -> "nord"
+                            Dark -> "nord-dark"
                         )
     ]
+
 
 
 destroyAttr : Bool -> List (Html.Attribute msg)
