@@ -101,10 +101,15 @@ init initParams =
 
 requestTranslations : Language -> Cmd Msg
 requestTranslations language =
-    Http.get
-        { url = "/translations/lang-" ++ (translationsLocale language) ++ ".json"
-        , expect = Http.expectJson UpdateTranslations  I18Next.translationsDecoder
-        }
+    case language of
+        German _ ->
+            Http.get
+                { url = "/translations/lang-" ++ (translationsLocale language) ++ ".json"
+                , expect = Http.expectJson UpdateTranslations  I18Next.translationsDecoder
+                }
+
+        _ ->
+            Cmd.none
 
 formatDate : BrowserEnv -> Posix -> String
 formatDate browserEnv time =
