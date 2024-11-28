@@ -19,9 +19,10 @@ import Tailwind.Theme as Theme
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
 import Ui.Shared
-import Ui.Styles exposing (Styles, darkMode, fontFamilyInter, fontFamilyUnbounded, fontFamilySourceSerifPro)
+import Ui.Styles exposing (Styles, darkMode, fontFamilyUnbounded)
 import Time
 import TailwindExtensions exposing (bp_xsl)
+import Html.Styled exposing (summary)
 
 -- single article
 
@@ -529,6 +530,18 @@ viewArticlePreviewList styles browserEnv author article interactions displayAuth
                 
                 Nothing ->
                     []
+
+
+        summaryText =
+            case article.summary of
+                Just summary ->
+                    if String.trim summary == "" then
+                        article.content
+                    else
+                        summary
+
+                Nothing ->
+                    article.content
     in
     div
         [ css
@@ -596,7 +609,7 @@ viewArticlePreviewList styles browserEnv author article interactions displayAuth
                             ([ Tw.line_clamp_3
                             ] ++ textWidthAttr)
                         ])
-                        [ text <| Maybe.withDefault "" article.summary ]
+                        [ text summaryText ]
                     , viewHashTags styles article.hashtags
                     ]
                 ]

@@ -181,11 +181,10 @@ view styles shared path { toContentMsg, model, content } =
     { title = content.title ++ " | Pareto"
     , body = 
         [ div
-            (styles.colorStyleBackground ++
             [ css
                 [ Tw.h_full
                 ]
-            ])
+            ]
             [ viewSidebar styles shared path toContentMsg content.body
             , viewModalDialog model |> Html.map toContentMsg
             ]
@@ -209,10 +208,16 @@ viewModalDialog model =
 viewSidebar : Styles contentMsg -> Shared.Model.Model -> Route.Path.Path -> (Msg -> contentMsg) -> List (Html contentMsg) -> Html contentMsg
 viewSidebar styles shared currentPath toContentMsg content =
     Html.div
-        (styles.colorStyleGrayscaleTitle)
+        (styles.colorStyleGrayscaleTitle ++ styles.colorStyleBackground ++
+        [ css
+            [ Tw.h_full
+            ]
+        ]
+        )
         [ div
             [ css
                 [ Tw.flex
+                , Tw.h_full
                 ]
             ]
             [ aside
@@ -221,6 +226,7 @@ viewSidebar styles shared currentPath toContentMsg content =
                     , Tw.border_r
                     , Tw.border_color Theme.gray_200
                     , Tw.w_0
+                    , Tw.h_full
                     , Tw.hidden
                     , Bp.xl
                         [ Tw.w_52
@@ -231,7 +237,14 @@ viewSidebar styles shared currentPath toContentMsg content =
                         ]
                     ]
                 ]
-                [ viewSidebarItems styles shared.browserEnv shared.role (Shared.loggedIn shared) currentPath ]
+                [ viewSidebarItems styles shared.browserEnv shared.role (Shared.loggedIn shared) currentPath
+                , div
+                    [ css
+                        [ Tw.h_screen
+                        ]
+                    ]
+                    []
+                ]
         , div
             [ css
                 [ Tw.flex_1
