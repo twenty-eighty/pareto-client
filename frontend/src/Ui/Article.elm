@@ -537,11 +537,19 @@ viewArticlePreviewList styles browserEnv author article interactions displayAuth
                 Just summary ->
                     if String.trim summary == "" then
                         article.content
+                        |> Markdown.summaryFromContent 
+                        |> Maybe.withDefault ""
                     else
                         summary
 
                 Nothing ->
                     article.content
+
+        summaryLinesAttr =
+            if List.length article.hashtags < 1 then
+                [ Tw.line_clamp_5 ]
+            else
+                [ Tw.line_clamp_3 ]
     in
     div
         [ css
@@ -606,8 +614,7 @@ viewArticlePreviewList styles browserEnv author article interactions displayAuth
                     , div
                         (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ 
                         [ css
-                            ([ Tw.line_clamp_3
-                            ] ++ textWidthAttr)
+                            (summaryLinesAttr ++ textWidthAttr)
                         ])
                         [ text summaryText ]
                     , viewHashTags styles article.hashtags
