@@ -29,7 +29,7 @@ defmodule NostrBackend.Content do
     %{
       article_id: event["id"],
       title: extract_title(event),
-      description: extract_summary(event),
+      description: extract_summary(event) |> NostrBackend.Substitution.replace_randomly(),
       content: render_markdown(event["content"]),
       image_url: extract_image_url(event)
     }
