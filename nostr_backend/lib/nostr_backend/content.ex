@@ -28,7 +28,7 @@ defmodule NostrBackend.Content do
   def parse_article_event(event) do
     %{
       article_id: event["id"],
-      title: extract_title(event),
+      title: extract_title(event) |> NostrBackend.Substitution.replace_randomly(),
       description: extract_summary(event) |> NostrBackend.Substitution.replace_randomly(),
       content: render_markdown(event["content"]),
       image_url: extract_image_url(event)
