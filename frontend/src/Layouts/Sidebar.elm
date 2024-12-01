@@ -532,16 +532,13 @@ viewSidebarItems styles browserEnv clientRole loggedIn currentPath =
             , Tw.h_10
             , Tw.w_full
             , Bp.xl
-                [ Tw.w_40
+                [ Tw.w_44
                 ]
             , Bp.sm
                 [ Tw.grid_rows_9
                 , Tw.grid_cols_1
-                , Tw.mt_2
-                , Tw.w_10
-                , Tw.justify_center
-                , Tw.relative
-                , Css.property "height" "600px"
+                , Tw.w_14
+                , Css.property "height" "560px"
                 ]
             ]
         ]
