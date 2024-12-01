@@ -249,18 +249,8 @@ heading styles { level, rawText, children } =
                         [ Tw.no_underline |> Css.important
                         ]
                     ]
-                    (children
-                        ++ [ Html.span
-                                [ Attr.class "anchor-icon"
-                                , css
-                                    [ Tw.ml_2
-                                    , Tw.text_color Theme.gray_500
-                                    , Tw.select_none
-                                    ]
-                                ]
-                                [ Html.text "#" ]
-                           ]
-                    )
+                    children
+                    
                 ]
 
         Block.H3 ->

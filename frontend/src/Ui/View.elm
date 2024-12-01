@@ -3,13 +3,15 @@ module Ui.View exposing (..)
 -- this module connects the Nostr engine and the UI functions
 
 import BrowserEnv exposing (BrowserEnv)
+import Css
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Community exposing (Community)
-import Tailwind.Utilities as Tw
+import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
 import Ui.Article
 import Ui.ArticleOld
 import Ui.Community
@@ -39,24 +41,16 @@ viewArticlePreviewsList : Styles msg -> BrowserEnv -> Nostr.Model -> List Articl
 viewArticlePreviewsList styles browserEnv nostr articles =
     div
         [ css
-            [ Tw.flex_col
-            , Tw.justify_start
-            , Tw.items_start
-            , Tw.gap_8
-            , Tw.inline_flex
+            [ Tw.flex
+            , Tw.justify_center
             ]
-        , Attr.style "width" "720px"
         ]
         [ div
             [ css
-                [ Tw.self_stretch
+                [ Tw.flex
                 , Tw.flex_col
-                , Tw.justify_start
-                , Tw.items_start
                 , Tw.gap_8
-                , Tw.flex
                 ]
-            , Attr.style "width" "720px"
             ]
             ( articles
             |> List.take 20

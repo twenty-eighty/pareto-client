@@ -210,99 +210,89 @@ viewSidebar styles shared currentPath toContentMsg content =
     Html.div
         (styles.colorStyleGrayscaleTitle ++ styles.colorStyleBackground ++
         [ css
-            [ Tw.h_full
+            [ Tw.h_screen
             ]
         ]
         )
         [ div
             [ css
                 [ Tw.flex
-                , Tw.h_full
                 ]
             ]
             [ aside
+                (styles.colorStyleSitebarBackground ++
                 [ css
-                    [ Tw.p_6
-                    , Tw.border_r
-                    , Tw.border_color Theme.gray_200
-                    , Tw.w_0
-                    , Tw.h_full
-                    , Tw.hidden
+                    [ Tw.p_2
+                    , Tw.h_14
+                    , Tw.fixed
+                    , Tw.bottom_0
+                    , Tw.w_screen
+                    , Tw.z_10
+                    , Tw.flex
+                    , Tw.flex_row
+                    , Tw.space_x_4
                     , Bp.xl
                         [ Tw.w_52
                         ]
-                    , Bp.md
+                    , Bp.sm
                         [ Tw.inline
                         , Tw.w_20
+                        , Tw.relative
+                        , Tw.justify_items_center
+                        , Tw.h_screen
+                        , Tw.border_r
+                        , Tw.border_color Theme.gray_200
+                        , Tw.z_0
                         ]
                     ]
+                ])
+                [ viewBannerSmall shared.browserEnv
+                , viewSidebarItems styles shared.browserEnv shared.role (Shared.loggedIn shared) currentPath
                 ]
-                [ viewSidebarItems styles shared.browserEnv shared.role (Shared.loggedIn shared) currentPath
-                , div
-                    [ css
-                        [ Tw.h_screen
-                        ]
-                    ]
-                    []
-                ]
-        , div
-            [ css
-                [ Tw.flex_1
-                , Tw.h_full
-                ]
-            ]
-            [ div
+            , div
                 [ css
-                    [ Tw.flex
-                    , Tw.justify_between
-                    , Tw.items_center
-                    , Tw.h_20
-                    , Tw.mb_6
+                    [ Tw.flex_1
                     ]
-                , Attr.style "background-image" "url('/images/Pareto-Client-Banner1.png')"
-                , Attr.style "background-size" "cover"
                 ]
-                [ -- viewBanner
-                 if roleSwitchButtonEnabled shared.nostr shared.loginStatus then
-                    clientRoleSwitch shared.browserEnv.translations shared.role
-                  else
-                    div [][]
-                , div
+                [ div
                     [ css
-                        [ Tw.mx_4
+                        [ Tw.flex
+                        , Tw.justify_between
+                        , Tw.items_center
+                        , Tw.h_20
+                        , Tw.mb_6
+                        ]
+                    , Attr.style "background-image" "url('/images/Pareto-Client-Banner1.png')"
+                    , Attr.style "background-size" "cover"
+                    ]
+                    [ -- viewBanner
+                    if roleSwitchButtonEnabled shared.nostr shared.loginStatus then
+                        clientRoleSwitch shared.browserEnv.translations shared.role
+                    else
+                        div [][]
+                    , div
+                        [ css
+                            [ Tw.px_4
+                            ]
+                        ]
+                        [ loginButton shared (profileForUser shared shared.loginStatus)
                         ]
                     ]
-                    [
-                    loginButton shared (profileForUser shared shared.loginStatus)
-                    ]
+                    |> Html.map toContentMsg
+                , viewMainContent content
                 ]
-                |> Html.map toContentMsg
-            , main_
-                [ class "page"
-                , css
-                    [ Tw.w_auto
-                    , Tw.mx_1
-                    , Bp.xxl
-                        [ Tw.mx_40
-                        ]
-                    , Bp.xl
-                        [ Tw.mx_32
-                        ]
-                    , Bp.lg
-                        [ Tw.mx_20
-                        ]
-                    , Bp.md
-                        [ Tw.mx_10
-                        ]
-                    , Bp.sm
-                        [ Tw.mx_5
-                        ]
-                    ]
-                ]
-                content
             ]
         ]
-    ]
+
+viewMainContent : List (Html contentMsg) -> Html contentMsg
+viewMainContent content =
+    main_
+        [ class "page"
+        , css
+            [ 
+            ]
+        ]
+        content
 
 viewBanner : Html contentMsg
 viewBanner =
@@ -338,9 +328,12 @@ viewBannerSmall browserEnv =
     div
         [ css
             [ Tw.flex
-            , Tw.items_center
             , Tw.space_x_2
-            , Tw.mb_6
+            , Bp.sm
+                [ Tw.mt_3
+                , Tw.mb_11
+                , Tw.items_center
+                ]
             ]
         ]
         [ div
@@ -367,6 +360,10 @@ viewBannerSmall browserEnv =
                 , Tw.w_8
                 , Bp.xl
                     [ Tw.w_0
+                    ]
+                , Bp.sm
+                    [ Tw.w_10
+                    , Tw.mr_0
                     ]
                 ]
             ]
@@ -529,14 +526,26 @@ viewSidebarItems styles browserEnv clientRole loggedIn currentPath =
     
     div
         [ css
-            [ Tw.flex
-            , Tw.flex_col
-            , Tw.items_start
-            , Tw.space_y_4
+            [ Tw.grid
+            , Tw.grid_rows_1
+            , Tw.grid_cols_8
+            , Tw.h_10
+            , Tw.w_full
+            , Bp.xl
+                [ Tw.w_40
+                ]
+            , Bp.sm
+                [ Tw.grid_rows_9
+                , Tw.grid_cols_1
+                , Tw.mt_2
+                , Tw.w_10
+                , Tw.justify_center
+                , Tw.relative
+                , Css.property "height" "600px"
+                ]
             ]
         ]
-        ([ viewBannerSmall browserEnv
-        ] ++
+        (
         (List.map (viewSidebarItem styles currentPath) visibleSidebarItems)
         )
 
@@ -550,7 +559,7 @@ viewSidebarItem styles currentPath itemData =
     let
         (foreground, background, linkAttr) =
             if itemData.disabled then
-                ( styles.colorStyleGrayscaleDisabled
+                ( styles.colorStyleSitebarItemDisabled
                 , []
                 , []
                 )
@@ -561,7 +570,7 @@ viewSidebarItem styles currentPath itemData =
                     , [ ]
                     )
                 else
-                    ( styles.colorStyleLabel
+                    ( styles.colorStyleSitebarItemEnabled
                     , []
                     , [ Attr.href <| Route.toString { path = itemData.path, hash = Nothing, query = Dict.empty } ]
                     )
@@ -570,28 +579,26 @@ viewSidebarItem styles currentPath itemData =
     a
         (linkAttr ++
         [ css
-            [ Tw.flex
-            , Tw.items_center
-            , Tw.space_x_2
-            , Tw.py_2
-            , Tw.rounded_full
-            , Tw.w_0
+            [ Tw.py_2
+            , Tw.w_10
             , Bp.xl
                 [ Tw.w_40
+                , Tw.flex
+                , Tw.flex_row
                 ]
-            , Bp.md
-                [ Tw.w_10
+            , Bp.sm
+                [ Tw.rounded_full
+                , Tw.h_10
                 ]
             ]
         ] ++ background ++ foreground)
         [ div
             [ css
-                [ Tw.min_w_0
-                , Tw.flex
-                , Tw.items_center
+                [ Tw.flex
                 , Tw.justify_center
-                , Bp.md
+                , Bp.sm
                     [ Tw.min_w_10
+                    , Tw.h_10
                     ] 
                 ]
             ]

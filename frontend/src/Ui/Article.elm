@@ -31,12 +31,12 @@ viewArticle styles browserEnv author article interactions =
     let
         contentMargins =
             [ css
-               [ Tw.mx_1
+               [ Tw.px_1
                , Bp.xxl
-                   [ Tw.mx_40
+                   [ Tw.mx_28
                    ]
                , Bp.xl
-                   [ Tw.mx_32
+                   [ Tw.mx_24
                    ]
                , Bp.lg
                    [ Tw.mx_20
@@ -45,7 +45,7 @@ viewArticle styles browserEnv author article interactions =
                    [ Tw.mx_10
                    ]
                , Bp.sm
-                   [ Tw.mx_5
+                   [ Tw.px_5
                    ]
                ]
             ]
@@ -57,6 +57,22 @@ viewArticle styles browserEnv author article interactions =
             , Tw.items_center
             , Tw.gap_12
             , Tw.inline_flex
+            , Tw.px_2
+            , Bp.xxl
+                [ Tw.px_40
+                ]
+            , Bp.xl
+                [ Tw.px_20
+                ]
+            , Bp.lg
+                [ Tw.px_10
+                ]
+            , Bp.md
+                [ Tw.px_5
+                ]
+            , Bp.sm
+                [ Tw.px_3
+                ]
             ]
         ]
         [ div
@@ -115,6 +131,7 @@ viewArticle styles browserEnv author article interactions =
                     , Tw.items_start
                     , Tw.gap_4
                     , Tw.flex
+                    , Tw.mb_4
                     ]
                 ] ++ contentMargins)
                 [ viewInteractions styles browserEnv interactions
@@ -526,11 +543,42 @@ viewArticlePreviewList styles browserEnv author article interactions displayAuth
         textWidthAttr =
             case article.image of
                 Just _ ->
-                    [ Tw.w_96 ]
+                    [ Tw.w_80
+                    , Bp.xxl
+                        [ Css.property "width" "600px"
+                        ]
+                    , Bp.xl
+                        [ Css.property "width" "400px"
+                        ]
+                    , Bp.lg
+                        [ Css.property "width" "340px"
+                        ]
+                    , Bp.md
+                        [ Css.property "width" "340px"
+                        ]
+                    , Bp.sm
+                        [ Css.property "width" "320px"
+                        ]
+                    ]
                 
                 Nothing ->
-                    []
-
+                    [ Tw.w_80
+                    , Bp.xxl
+                        [ Css.property "width" "950px"
+                        ]
+                    , Bp.xl
+                        [ Css.property "width" "750px"
+                        ]
+                    , Bp.lg
+                        [ Css.property "width" "640px"
+                        ]
+                    , Bp.md
+                        [ Css.property "width" "580px"
+                        ]
+                    , Bp.sm
+                        [ Css.property "width" "640px"
+                        ]
+                    ]
 
         summaryText =
             case article.summary of
@@ -553,34 +601,31 @@ viewArticlePreviewList styles browserEnv author article interactions displayAuth
     in
     div
         [ css
-            [ Tw.h_64
-            , Tw.pb_6
+            [Tw.pb_6
             , Tw.border_b
             , Tw.border_color Theme.gray_200
+            , Tw.flex
             , Tw.flex_col
             , Tw.justify_start
-            , Tw.items_start
-            , Tw.gap_2
-            , Tw.inline_flex
-            , Tw.mx_1
+            , Tw.gap_3
+            , Tw.px_6
             , Bp.xxl
-                [ Tw.mx_40
+                [ Css.property "width" "1024px"
                 ]
             , Bp.xl
-                [ Tw.mx_32
+                [ Css.property "width" "800px"
                 ]
             , Bp.lg
-                [ Tw.mx_20
+                [ Css.property "width" "720px"
                 ]
             , Bp.md
-                [ Tw.mx_10
+                [ Css.property "width" "640px"
                 ]
             , Bp.sm
-                [ Tw.mx_5
+                [ Tw.h_64
+                , Css.property "width" "550px"
                 ]
             ]
-        , Attr.style "width" "720px"
-        , Attr.style "height" "266px"
         ]
         [ viewAuthorAndDatePreview styles browserEnv article.publishedAt author
         , div
@@ -588,13 +633,20 @@ viewArticlePreviewList styles browserEnv author article interactions displayAuth
                 [ Tw.self_stretch
                 , Tw.justify_between
                 , Tw.items_start
-                , Tw.inline_flex
+                , Tw.flex
+                , Tw.flex_col
+                , Tw.gap_4
+                , Bp.sm
+                    [ Tw.inline_flex
+                    , Tw.flex_row_reverse
+                    , Tw.gap_10
+                    ]
                 ]
             ]
-            [ div
+            [ previewListImage article
+            , div
                 [ css
-                    [ Tw.h_52
-                    , Tw.flex_col
+                    [ Tw.flex_col
                     , Tw.justify_start
                     , Tw.items_start
                     , Tw.gap_4
@@ -608,6 +660,10 @@ viewArticlePreviewList styles browserEnv author article interactions displayAuth
                         , Tw.items_start
                         , Tw.gap_3
                         , Tw.flex
+                        , Tw.mb_2
+                        , Bp.sm
+                            [ Tw.w_80
+                            ]
                         ]
                     ]
                     [ viewTitlePreview styles article.title (linkToArticle article) textWidthAttr
@@ -617,10 +673,9 @@ viewArticlePreviewList styles browserEnv author article interactions displayAuth
                             (summaryLinesAttr ++ textWidthAttr)
                         ])
                         [ text summaryText ]
-                    , viewHashTags styles article.hashtags
+                    , viewHashTags styles article.hashtags textWidthAttr
                     ]
                 ]
-            , previewListImage article
             ]
         ]
     
@@ -666,20 +721,23 @@ viewTitlePreview styles maybeTitle maybeLinkTarget textWidthAttr =
             div [][]
 
 
-viewHashTags : Styles msg -> List String -> Html msg
-viewHashTags styles hashTags =
+viewHashTags : Styles msg -> List String -> List Css.Style -> Html msg
+viewHashTags styles hashTags widthAttr =
+    if List.length hashTags > 0 then
         hashTags
-        |> List.take 3
         |> List.map (viewHashTag styles)
         |> div
             [ css
-                [ Tw.h_10
-                , Tw.justify_start
-                , Tw.items_start
+                (widthAttr ++ 
+                [ Tw.space_x_2
+                , Tw.mb_2
                 , Tw.gap_2
-                , Tw.inline_flex
-                ]
+                , Tw.line_clamp_1
+                , Tw.text_clip
+                ])
             ]
+    else
+        div [][]
 
 viewHashTag : Styles msg -> String -> Html msg
 viewHashTag styles hashTag =
@@ -689,10 +747,7 @@ viewHashTag styles hashTag =
             , Tw.py_2
             , Tw.bg_color Theme.gray_300
             , Tw.rounded_3xl
-            , Tw.justify_center
-            , Tw.items_center
-            , Tw.gap_2
-            , Tw.inline_flex
+            , Tw.inline_block
             , darkMode
                 [ Tw.bg_color Theme.neutral_700
                 ]
@@ -701,7 +756,12 @@ viewHashTag styles hashTag =
         ]
         [
         div
-            (styles.colorStyleLabel ++ styles.textStyleUppercaseLabel)
+            (styles.colorStyleLabel ++ styles.textStyleUppercaseLabel ++
+            [ css
+                [ Tw.whitespace_nowrap
+                ]
+            ]
+            )
             [ text hashTag ]
         ]
 
@@ -744,7 +804,7 @@ previewListImage article =
         Just image ->
             div
                 [ css
-                    [ Tw.w_64
+                    [ Tw.w_80
                     , Tw.h_44
                     , Tw.bg_color Theme.gray_300
                     , Tw.overflow_hidden
