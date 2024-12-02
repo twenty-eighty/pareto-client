@@ -1,5 +1,6 @@
 module Pages.A.Addr_ exposing (..)
 
+import Browser.Dom
 import BrowserEnv exposing (BrowserEnv)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
@@ -18,6 +19,7 @@ import Route exposing (Route)
 import Shared
 import Shared.Msg
 import Shared.Model
+import Task
 import Translations.Sidebar as Translations
 import Ui.Styles exposing (Styles, Theme)
 import Ui.View
@@ -80,7 +82,11 @@ init shared route () =
     in
     ( { nip19 = maybeNip19
       }
-    , effect
+    , Effect.batch
+        [ effect
+        -- jump to top of article
+        , Effect.sendCmd <| Task.perform (\_ -> NoOp) (Browser.Dom.setViewport 0 0)
+        ]
     )
 
 decodedTagParam : String -> Maybe (List String)
@@ -93,14 +99,16 @@ decodedTagParam tag =
 
 type Msg
     = OpenGetStarted
-
+    | NoOp
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
         OpenGetStarted ->
-            ( model, Effect.sendCmd <| Ports.requestUser
-            )
+            ( model, Effect.sendCmd <| Ports.requestUser)
+
+        NoOp ->
+            ( model, Effect.none )
 
 -- SUBSCRIPTIONS
 
