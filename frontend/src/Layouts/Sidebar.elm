@@ -325,7 +325,7 @@ viewBannerSmall browserEnv =
         bannerImageNarrow =
             "/images/icon/Pareto-Log1.png"
     in
-    div
+    a
         [ css
             [ Tw.flex
             , Tw.space_x_2
@@ -335,6 +335,7 @@ viewBannerSmall browserEnv =
                 , Tw.items_center
                 ]
             ]
+        , Attr.href <| Route.Path.toString Route.Path.Read
         ]
         [ div
             [ Attr.src bannerImageWide
