@@ -109,14 +109,20 @@ view : Auth.User -> Shared.Model -> Model -> View Msg
 view user shared model =
     { title = "Media"
     , body =
-        [ MediaSelector.new
-            { model = model.mediaSelector
-            , toMsg = MediaSelectorSent
-            , onSelected = Nothing
-            , pubKey = user.pubKey
-            , browserEnv = shared.browserEnv
-            , theme = shared.theme
-            }
-            |> MediaSelector.view
+        [ div
+            [ css
+                [ Tw.m_10
+                ]
+            ]
+            [ MediaSelector.new
+                { model = model.mediaSelector
+                , toMsg = MediaSelectorSent
+                , onSelected = Nothing
+                , pubKey = user.pubKey
+                , browserEnv = shared.browserEnv
+                , theme = shared.theme
+                }
+                |> MediaSelector.view
+            ]
         ]
     }

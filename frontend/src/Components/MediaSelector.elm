@@ -708,6 +708,8 @@ viewMediaSelector (Settings settings) =
                 [ Tw.mt_6
                 , Tw.flex
                 , Tw.justify_between
+                , Tw.pb_4
+                , Tw.border_b_2
                 ]
             ]
             [ Components.Dropdown.new
@@ -725,7 +727,7 @@ viewMediaSelector (Settings settings) =
                 , theme = settings.theme
                 }
                 |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.upload)
-                |> Button.withDisabled (List.length selectableServers < 1)
+                |> Button.withDisabled (List.head selectableServers == Just NoMediaServer)
                 |> Button.view
                 |> Html.map settings.toMsg
             ]
