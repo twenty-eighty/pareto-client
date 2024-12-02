@@ -875,6 +875,9 @@ paretoThemeStyles =
     , colorStyleSitebarBackground =
         [ css
             [ Tw.bg_color Theme.slate_800
+            , darkMode
+                [ Tw.border_t_2
+                ]
             , Bp.sm
                 [ Tw.bg_color Theme.white
                 , darkMode
@@ -886,8 +889,14 @@ paretoThemeStyles =
     , colorStyleSitebarItemActive =
         [ css
             [ Tw.text_color Theme.slate_700
-            , Bp.sm
+            , darkMode
                 [ Tw.text_color Theme.slate_300
+                , Bp.sm
+                    [ Tw.text_color Theme.slate_700
+                    ]
+                ]
+            , Bp.sm
+                [ Tw.text_color Theme.slate_700
                 , darkMode
                     [ Tw.text_color Theme.slate_700
                     ]
