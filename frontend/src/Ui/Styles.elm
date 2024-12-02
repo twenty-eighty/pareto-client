@@ -877,17 +877,20 @@ paretoThemeStyles =
             [ Tw.bg_color Theme.slate_800
             , Bp.sm
                 [ Tw.bg_color Theme.white
-                ]
-            , darkMode
-                [ Tw.bg_color Theme.slate_800
+                , darkMode
+                    [ Tw.bg_color Theme.black
+                    ]
                 ]
             ]
         ]
     , colorStyleSitebarItemActive =
         [ css
             [ Tw.text_color Theme.slate_700
-            , darkMode
+            , Bp.sm
                 [ Tw.text_color Theme.slate_300
+                , darkMode
+                    [ Tw.text_color Theme.slate_700
+                    ]
                 ]
             ]
         ]
@@ -920,6 +923,9 @@ paretoThemeStyles =
             [ Tw.text_color Theme.slate_300
             , Bp.sm
                 [ Tw.text_color Theme.slate_700
+                , darkMode
+                    [ Tw.text_color Theme.slate_300
+                    ]
                 ]
             ]
         ]
@@ -928,6 +934,9 @@ paretoThemeStyles =
             [ Tw.text_color Theme.slate_700
             , Bp.sm
                 [ Tw.text_color Theme.slate_300
+                , darkMode
+                    [ Tw.text_color Theme.slate_700
+                    ]
                 ]
             ]
         ]
