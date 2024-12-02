@@ -23,6 +23,7 @@
             "elm/svg": "1.0.1",
             "elm/time": "1.0.0",
             "elm/url": "1.0.0",
+            "elm-community/list-extra": "8.7.0",
             "feathericons/elm-feather": "1.5.0",
             "folkertdev/elm-sha2": "1.0.0",
             "justinmimbs/timezone-data": "11.0.0",
