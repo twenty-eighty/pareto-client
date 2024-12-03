@@ -115,7 +115,7 @@ viewArticle styles browserEnv author article interactions =
                     , div
                         (styles.textStyleH4Article ++ styles.colorStyleGrayscaleText ++
                         [ css
-                            [ -- Tw.w_96
+                            [ Tw.max_w_prose
                             ]
                         ])
                         [ text <| Maybe.withDefault "" article.summary ]
@@ -158,6 +158,7 @@ viewArticleImage maybeImage =
                     , css
                         [ Tw.rounded_lg
                         , Tw.w_full
+                        , Tw.max_h_96
                         , Tw.object_cover
                         ]
                     ]
@@ -374,13 +375,12 @@ viewArticleTime styles browserEnv maybePublishedAt =
 
 viewContent : Styles msg -> String -> Html msg
 viewContent styles content =
-    div
+    article
         [ css
             [ Tw.flex_col
             , Tw.justify_start
-            , Tw.items_start
             , Tw.gap_10
-            , Tw.flex
+            , Tw.max_w_prose
             ]
         ]
         [ viewContentMarkdown styles content 

@@ -1,4 +1,4 @@
-module Markdown exposing (Msg, markdownViewHtml, summaryFromContent)
+module Markdown exposing (markdownViewHtml, summaryFromContent)
 
 -- import Html exposing (Attribute, Html)
 
@@ -12,9 +12,6 @@ import Parser.Advanced as Advanced
 import Regex exposing (Regex)
 import TailwindMarkdownRenderer
 import Ui.Styles exposing (Styles)
-
-type Msg
-    = OnMarkdownInput String
 
 summaryFromContent : String -> Maybe String
 summaryFromContent markdown =

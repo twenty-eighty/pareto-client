@@ -8,6 +8,7 @@ import Markdown.Block as Block
 import Markdown.Html
 import Markdown.Renderer
 import Nostr.Nip27 exposing (subsituteNostrLinks)
+import Parser
 import SyntaxHighlight
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
@@ -23,6 +24,8 @@ renderer styles =
             (styles.textStyleBody ++ styles.colorStyleGrayscaleText ++
             [ css
                 [ Tw.mb_6
+                , Css.property "overflow-wrap" "break-word"
+                , Css.property "word-break" "break-word"
                 ]
             ]
             )
@@ -352,10 +355,59 @@ renderHtmlImgElement src maybeAlt children =
 
 codeBlock : { body : String, language : Maybe String } -> Html msg
 codeBlock details =
-    SyntaxHighlight.elm details.body
-        |> Result.map (SyntaxHighlight.toBlockHtml (Just 1))
-        |> Result.map Html.fromUnstyled
-        |> Result.withDefault (Html.pre [] [ Html.code [] [ Html.text details.body ] ])
+    case details.language of
+        Just language ->
+            (codeParsingFunction language) details.body
+                |> Result.map (SyntaxHighlight.toBlockHtml (Just 1))
+                |> Result.map Html.fromUnstyled
+                |> Result.withDefault (defaultFormatCodeBlock details.body)
+
+        Nothing ->
+            defaultFormatCodeBlock details.body
+
+codeParsingFunction : String -> (String -> Result (List Parser.DeadEnd) SyntaxHighlight.HCode)
+codeParsingFunction language =
+    case language of
+        "css" ->
+            SyntaxHighlight.css
+        
+        "elm" ->
+            SyntaxHighlight.elm
+
+        "javascript" ->
+            SyntaxHighlight.javascript
+
+        "python" ->
+            SyntaxHighlight.python
+
+        "sql" ->
+            SyntaxHighlight.sql
+
+        "xml" ->
+            SyntaxHighlight.xml
+
+        "json" ->
+            SyntaxHighlight.json
+
+        "nix" ->
+            SyntaxHighlight.nix
+
+        _ ->
+            SyntaxHighlight.noLang
+
+defaultFormatCodeBlock body =
+    Html.pre
+        [ css
+            [ Tw.bg_scroll
+            , Tw.overflow_x_auto
+            , Tw.max_w_prose
+            , Tw.p_3
+            , Tw.rounded_2xl
+            , Tw.bg_color Theme.slate_800
+            , Tw.mb_3
+            ]
+        ]
+        [ Html.code [] [ Html.text body ] ]
 
 
 formatLink : Styles msg -> { title: Maybe String, destination : String } -> List (Html msg) -> Html msg
