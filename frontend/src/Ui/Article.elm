@@ -108,14 +108,20 @@ viewArticle styles browserEnv author article interactions =
                     [ div
                         (styles.textStyleH1Article ++ styles.colorStyleGrayscaleTitle ++
                         [ css
-                            [ -- Tw.w_96
+                            [ Tw.max_w_screen_sm
+                            , Bp.sm
+                                [ Tw.max_w_prose
+                                ]
                             ]
                         ])
                         [ text <| Maybe.withDefault "" article.title ]
                     , div
                         (styles.textStyleH4Article ++ styles.colorStyleGrayscaleText ++
                         [ css
-                            [ Tw.max_w_prose
+                            [ Tw.max_w_screen_sm
+                            , Bp.sm
+                                [ Tw.max_w_prose
+                                ]
                             ]
                         ])
                         [ text <| Maybe.withDefault "" article.summary ]
@@ -380,7 +386,10 @@ viewContent styles content =
             [ Tw.flex_col
             , Tw.justify_start
             , Tw.gap_10
-            , Tw.max_w_prose
+            , Tw.max_w_96
+            , Bp.sm
+                [ Tw.max_w_prose
+                ]
             ]
         ]
         [ viewContentMarkdown styles content 
