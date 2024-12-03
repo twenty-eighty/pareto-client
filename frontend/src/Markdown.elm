@@ -68,6 +68,7 @@ filterFirstText inline =
 
 
 -- Replace HTML img tags with Markdown-style image links, including alt text if present
+-- the <img> elements found in Markdown may contain no end tag which breaks parsing otherwise
 replaceImgTags : String -> String
 replaceImgTags input =
     let
