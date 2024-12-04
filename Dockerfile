@@ -1,14 +1,24 @@
 # Use official Elixir image
 FROM elixir:1.17.3
 
+ARG TARGETPLATFORM
+RUN echo "Building pareto-client for $TARGETPLATFORM"
+
 # Install Hex and Rebar
 RUN mix local.hex --force && \
     mix local.rebar --force
 
-# Install Node.js, npm, and Elm for asset compilation
+# Install Node.js and npm
 RUN curl -sL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get install -y nodejs && \
-    npm install -g elm elm-land
+    apt-get install -y nodejs
+
+# Install Elm and elm-land for asset compilation
+# Elm official package currently does not support ARM64, but lydell/elm does (used used by elm-land library)
+# For ARM architecture we setup elm and alm -land through node_module libraries, installed as dev dependenices in frontend
+RUN if [ "$TARGETPLATFORM" != "linux/arm64" ] ; \
+    then npm install -g elm elm-land ; \
+    else echo 'export PATH=$PATH:/app/frontend/node_modules/elm/bin ;  alias elm-land="node /app/frontend/node_modules/elm-land/src/index.js"' >> ~/.bashrc ; \
+    fi
 
 # Set environment
 ENV MIX_ENV=prod
