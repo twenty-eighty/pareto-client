@@ -127,8 +127,8 @@ viewCategories (Settings settings) =
         [ css
             [ Tw.flex
             , Tw.space_x_4
-            , Tw.max_w_96
             , Tw.mb_10
+            , Tw.px_4
             ]
         ]
 
@@ -140,11 +140,11 @@ viewCategory styles toMsg onSelect active data =
 
         attrs =
             if active then
-                styles.colorStyleSitebarItemActiveBackground ++
-                styles.colorStyleSitebarItemActive ++
-                styles.colorStyleSitebarItemActiveBorder
+                styles.colorStyleCategoryActiveBackground ++
+                styles.colorStyleCategoryActive ++
+                styles.colorStyleCategoryActiveBorder
             else
-                styles.colorStyleSitebarItemInactiveBackground ++ styles.colorStyleGrayscaleText
+                styles.colorStyleCategoryInactiveBackground ++ styles.colorStyleGrayscaleText
     in
     button
         ([ css

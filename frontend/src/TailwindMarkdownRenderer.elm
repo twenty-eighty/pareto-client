@@ -1,13 +1,14 @@
 module TailwindMarkdownRenderer exposing (renderer)
 
 import Css
-import Html.Styled as Html
+import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as Attr exposing (css)
 import LinkPreview
 import Markdown.Block as Block
 import Markdown.Html
 import Markdown.Renderer
 import Nostr.Nip27 exposing (subsituteNostrLinks)
+import Parser
 import SyntaxHighlight
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
@@ -15,7 +16,7 @@ import Tailwind.Theme as Theme
 import Ui.Styles exposing (Styles)
 
 
-renderer : Styles msg -> Markdown.Renderer.Renderer (Html.Html msg)
+renderer : Styles msg -> Markdown.Renderer.Renderer (Html msg)
 renderer styles =
     { heading = heading styles
     , paragraph =
@@ -23,6 +24,8 @@ renderer styles =
             (styles.textStyleBody ++ styles.colorStyleGrayscaleText ++
             [ css
                 [ Tw.mb_6
+                , Css.property "overflow-wrap" "break-word"
+                , Css.property "word-break" "break-word"
                 ]
             ]
             )
@@ -34,7 +37,7 @@ renderer styles =
                 ]
             ]
             []
-    , text = (Html.div []) << subsituteNostrLinks
+    , text = (subsituteNostrLinks styles)
     , strong = \content -> Html.strong [ css [ Tw.font_bold ] ] content
     , emphasis = \content -> Html.em [ css [ Tw.italic ] ] content
     , blockQuote = Html.blockquote []
@@ -52,10 +55,22 @@ renderer styles =
         \image ->
             case image.title of
                 Just _ ->
-                    Html.img [ Attr.src image.src, Attr.alt image.alt ] []
+                    Html.img
+                        [ Attr.src image.src
+                        , Attr.alt image.alt
+                        , css
+                            [Tw.max_h_96
+                            ]
+                        ] []
 
                 Nothing ->
-                    Html.img [ Attr.src image.src, Attr.alt image.alt ] []
+                    Html.img
+                        [ Attr.src image.src
+                        , Attr.alt image.alt
+                        , css
+                            [Tw.max_h_96
+                            ]
+                        ] []
     , unorderedList =
         \items ->
             Html.ul (styles.textStyleBody ++ styles.colorStyleGrayscaleText)
@@ -218,7 +233,7 @@ rawTextToId rawText =
         |> String.toLower
 
 
-heading : Styles msg -> { level : Block.HeadingLevel, rawText : String, children : List (Html.Html msg) } -> Html.Html msg
+heading : Styles msg -> { level : Block.HeadingLevel, rawText : String, children : List (Html msg) } -> Html msg
 heading styles { level, rawText, children } =
     case level of
         Block.H1 ->
@@ -249,18 +264,8 @@ heading styles { level, rawText, children } =
                         [ Tw.no_underline |> Css.important
                         ]
                     ]
-                    (children
-                        ++ [ Html.span
-                                [ Attr.class "anchor-icon"
-                                , css
-                                    [ Tw.ml_2
-                                    , Tw.text_color Theme.gray_500
-                                    , Tw.select_none
-                                    ]
-                                ]
-                                [ Html.text "#" ]
-                           ]
-                    )
+                    children
+                    
                 ]
 
         Block.H3 ->
@@ -317,19 +322,95 @@ heading styles { level, rawText, children } =
 --
 --
 
-htmlBlock : Markdown.Html.Renderer view
+htmlBlock : Markdown.Html.Renderer (List (Html msg) -> Html msg)
 htmlBlock =
-    Markdown.Html.oneOf []
+    Markdown.Html.oneOf
+        [ htmlImgElement
+        ]
 
-codeBlock : { body : String, language : Maybe String } -> Html.Html msg
+htmlImgElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlImgElement =
+    Markdown.Html.tag "img"
+        (\src maybeAlt ->
+            renderHtmlImgElement src maybeAlt
+        )
+        |> Markdown.Html.withAttribute "src"
+        |> Markdown.Html.withOptionalAttribute "alt"
+
+renderHtmlImgElement : String -> Maybe String -> (List (Html msg) -> Html msg)
+renderHtmlImgElement src maybeAlt children =
+    let
+        altAttr =
+            maybeAlt
+            |> Maybe.map (\alt -> [ Attr.alt alt ])
+            |> Maybe.withDefault []
+    in
+    Html.img
+        ([ Attr.src src
+        , css
+            [Tw.max_h_96
+            ]
+        ] ++ altAttr)
+        children
+
+codeBlock : { body : String, language : Maybe String } -> Html msg
 codeBlock details =
-    SyntaxHighlight.elm details.body
-        |> Result.map (SyntaxHighlight.toBlockHtml (Just 1))
-        |> Result.map Html.fromUnstyled
-        |> Result.withDefault (Html.pre [] [ Html.code [] [ Html.text details.body ] ])
+    case details.language of
+        Just language ->
+            (codeParsingFunction language) details.body
+                |> Result.map (SyntaxHighlight.toBlockHtml (Just 1))
+                |> Result.map Html.fromUnstyled
+                |> Result.withDefault (defaultFormatCodeBlock details.body)
+
+        Nothing ->
+            defaultFormatCodeBlock details.body
+
+codeParsingFunction : String -> (String -> Result (List Parser.DeadEnd) SyntaxHighlight.HCode)
+codeParsingFunction language =
+    case language of
+        "css" ->
+            SyntaxHighlight.css
+        
+        "elm" ->
+            SyntaxHighlight.elm
+
+        "javascript" ->
+            SyntaxHighlight.javascript
+
+        "python" ->
+            SyntaxHighlight.python
+
+        "sql" ->
+            SyntaxHighlight.sql
+
+        "xml" ->
+            SyntaxHighlight.xml
+
+        "json" ->
+            SyntaxHighlight.json
+
+        "nix" ->
+            SyntaxHighlight.nix
+
+        _ ->
+            SyntaxHighlight.noLang
+
+defaultFormatCodeBlock body =
+    Html.pre
+        [ css
+            [ Tw.bg_scroll
+            , Tw.overflow_x_auto
+            , Tw.max_w_prose
+            , Tw.p_3
+            , Tw.rounded_2xl
+            , Tw.bg_color Theme.slate_800
+            , Tw.mb_3
+            ]
+        ]
+        [ Html.code [] [ Html.text body ] ]
 
 
-formatLink : Styles msg -> { title: Maybe String, destination : String } -> List (Html.Html msg) -> Html.Html msg
+formatLink : Styles msg -> { title: Maybe String, destination : String } -> List (Html msg) -> Html msg
 formatLink styles { destination } body =
     LinkPreview.generatePreviewHtml
         destination

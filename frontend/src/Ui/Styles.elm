@@ -6,6 +6,7 @@ import Html.Styled as Html exposing (Html, a, article, aside, button, div, h1, h
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 
+import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Html.Attributes
@@ -84,10 +85,17 @@ map toMsg props =
     , colorStyleButtonText = mapStyleBundle toMsg props.colorStyleButtonText
     , colorStyleButtonBackground = mapStyleBundle toMsg props.colorStyleButtonBackground
     , colorStyleInverse = mapStyleBundle toMsg props.colorStyleInverse
+    , colorStyleSitebarBackground = mapStyleBundle toMsg props.colorStyleSitebarBackground
     , colorStyleSitebarItemActive = mapStyleBundle toMsg props.colorStyleSitebarItemActive
     , colorStyleSitebarItemActiveBackground = mapStyleBundle toMsg props.colorStyleSitebarItemActiveBackground
     , colorStyleSitebarItemActiveBorder = mapStyleBundle toMsg props.colorStyleSitebarItemActiveBorder
     , colorStyleSitebarItemInactiveBackground = mapStyleBundle toMsg props.colorStyleSitebarItemInactiveBackground
+    , colorStyleSitebarItemEnabled = mapStyleBundle toMsg props.colorStyleSitebarItemEnabled
+    , colorStyleSitebarItemDisabled = mapStyleBundle toMsg props.colorStyleSitebarItemDisabled
+    , colorStyleCategoryActive = mapStyleBundle toMsg props.colorStyleCategoryActive
+    , colorStyleCategoryActiveBackground = mapStyleBundle toMsg props.colorStyleCategoryActiveBackground
+    , colorStyleCategoryActiveBorder = mapStyleBundle toMsg props.colorStyleCategoryActiveBorder
+    , colorStyleCategoryInactiveBackground = mapStyleBundle toMsg props.colorStyleCategoryInactiveBackground
     , effectStyleModalShadow = mapStyleBundle toMsg props.effectStyleModalShadow
     , effectStyleShadow1 = mapStyleBundle toMsg props.effectStyleShadow1
     , effectStyleSheetShadow = mapStyleBundle toMsg props.effectStyleSheetShadow
@@ -133,10 +141,17 @@ type alias Styles msg =
     , colorStyleButtonText : StyleBundle msg
     , colorStyleButtonBackground : StyleBundle msg
     , colorStyleInverse : StyleBundle msg
+    , colorStyleSitebarBackground : StyleBundle msg
     , colorStyleSitebarItemActive : StyleBundle msg
     , colorStyleSitebarItemActiveBackground : StyleBundle msg
-    , colorStyleSitebarItemInactiveBackground : StyleBundle msg
     , colorStyleSitebarItemActiveBorder : StyleBundle msg
+    , colorStyleSitebarItemInactiveBackground : StyleBundle msg
+    , colorStyleSitebarItemEnabled : StyleBundle msg
+    , colorStyleSitebarItemDisabled : StyleBundle msg
+    , colorStyleCategoryActive : StyleBundle msg
+    , colorStyleCategoryActiveBackground : StyleBundle msg
+    , colorStyleCategoryInactiveBackground : StyleBundle msg
+    , colorStyleCategoryActiveBorder : StyleBundle msg
     , effectStyleModalShadow : StyleBundle msg
     , effectStyleShadow1 : StyleBundle msg
     , effectStyleSheetShadow : StyleBundle msg
@@ -436,6 +451,17 @@ referenceDesignThemeStyles =
                 ]
             ]
         ]
+    , colorStyleSitebarBackground =
+        [ css
+            [ Tw.bg_color Theme.slate_800
+            , Bp.sm
+                [ Tw.bg_color Theme.slate_100
+                ]
+            , darkMode
+                [ Tw.bg_color Theme.slate_800
+                ]
+            ]
+        ]
     , colorStyleSitebarItemActive =
         [ css
             [ Tw.text_color Theme.purple_600
@@ -461,6 +487,54 @@ referenceDesignThemeStyles =
             ]
         ]
     , colorStyleSitebarItemInactiveBackground =
+        [ css
+            [ Tw.bg_color Theme.slate_100
+            , darkMode
+                [ Tw.bg_color Theme.slate_900
+                ]
+            ]
+        ]
+    , colorStyleSitebarItemEnabled =
+        [ css
+            [ Tw.bg_color Theme.slate_100
+            , darkMode
+                [ Tw.bg_color Theme.slate_900
+                ]
+            ]
+        ]
+    , colorStyleSitebarItemDisabled =
+        [ css
+            [ Tw.bg_color Theme.slate_100
+            , darkMode
+                [ Tw.bg_color Theme.slate_900
+                ]
+            ]
+        ]
+    , colorStyleCategoryActive =
+        [ css
+            [ Tw.text_color Theme.purple_600
+            , darkMode
+                [ Tw.text_color Theme.purple_400
+                ]
+            ]
+        ]
+    , colorStyleCategoryActiveBackground =
+        [ css
+            [ Tw.bg_color Theme.purple_100
+            , darkMode
+                [ Tw.bg_color Theme.purple_900
+                ]
+            ]
+        ]
+    , colorStyleCategoryActiveBorder =
+        [ css
+            [ Tw.border_color Theme.slate_700
+            , darkMode
+                [ Tw.border_color Theme.slate_300
+                ]
+            ]
+        ]
+    , colorStyleCategoryInactiveBackground =
         [ css
             [ Tw.bg_color Theme.slate_100
             , darkMode
@@ -798,7 +872,84 @@ paretoThemeStyles =
                 ]
             ]
         ]
+    , colorStyleSitebarBackground =
+        [ css
+            [ Tw.bg_color Theme.slate_800
+            , darkMode
+                [ Tw.border_t_2
+                ]
+            , Bp.sm
+                [ Tw.bg_color Theme.white
+                , darkMode
+                    [ Tw.bg_color Theme.black
+                    ]
+                ]
+            ]
+        ]
     , colorStyleSitebarItemActive =
+        [ css
+            [ Tw.text_color Theme.slate_700
+            , darkMode
+                [ Tw.text_color Theme.slate_300
+                , Bp.sm
+                    [ Tw.text_color Theme.slate_700
+                    ]
+                ]
+            , Bp.sm
+                [ Tw.text_color Theme.slate_700
+                , darkMode
+                    [ Tw.text_color Theme.slate_700
+                    ]
+                ]
+            ]
+        ]
+    , colorStyleSitebarItemActiveBackground =
+        [ css
+            [ Tw.bg_color Theme.slate_300
+            , Bp.sm
+                [ Tw.bg_color Theme.slate_300
+                ]
+            , darkMode
+                [ Tw.bg_color Theme.slate_700
+                ]
+            ]
+        ]
+    , colorStyleSitebarItemActiveBorder =
+        [ css
+            [ 
+            ]
+        ]
+    , colorStyleSitebarItemInactiveBackground =
+        [ css
+            [ Tw.text_color Theme.slate_100
+            , Bp.sm
+                [ Tw.text_color Theme.slate_900
+                ]
+            ]
+        ]
+    , colorStyleSitebarItemEnabled =
+        [ css
+            [ Tw.text_color Theme.slate_300
+            , Bp.sm
+                [ Tw.text_color Theme.slate_700
+                , darkMode
+                    [ Tw.text_color Theme.slate_300
+                    ]
+                ]
+            ]
+        ]
+    , colorStyleSitebarItemDisabled =
+        [ css
+            [ Tw.text_color Theme.slate_700
+            , Bp.sm
+                [ Tw.text_color Theme.slate_300
+                , darkMode
+                    [ Tw.text_color Theme.slate_700
+                    ]
+                ]
+            ]
+        ]
+    , colorStyleCategoryActive =
         [ css
             [ Tw.text_color Theme.slate_700
             , darkMode
@@ -806,7 +957,7 @@ paretoThemeStyles =
                 ]
             ]
         ]
-    , colorStyleSitebarItemActiveBackground =
+    , colorStyleCategoryActiveBackground =
         [ css
             [ Tw.bg_color Theme.slate_300
             , darkMode
@@ -814,7 +965,7 @@ paretoThemeStyles =
                 ]
             ]
         ]
-    , colorStyleSitebarItemActiveBorder =
+    , colorStyleCategoryActiveBorder =
         [ css
             [ Tw.border_2
             , Tw.border_color Theme.slate_700
@@ -823,7 +974,7 @@ paretoThemeStyles =
                 ]
             ]
         ]
-    , colorStyleSitebarItemInactiveBackground =
+    , colorStyleCategoryInactiveBackground =
         [ css
             [ Tw.bg_color Theme.slate_100
             , darkMode

@@ -6,11 +6,12 @@ import Html.Styled as Html exposing (Html, div, img, a, text)
 import Html.Styled.Attributes exposing (css, href, src, alt, style)
 import Maybe exposing (withDefault)
 import String exposing (contains)
-import Url exposing (Url)
-import Url.Parser exposing (Parser, (</>), s, string, parse)
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Ui.Styles exposing (Styles)
+import Url exposing (Url)
+import Url.Parser exposing (Parser, (</>), s, string, parse)
 
 
 -- Function to generate preview HTML based on the link type
@@ -26,7 +27,7 @@ generatePreviewHtml urlString linkAttr body =
                     generateTwitterPreview urlString tweetId
 
                 OtherLink ->
-                    a [ href urlString ] body
+                    a (linkAttr ++ [ href urlString ]) body
 
         Nothing ->
             -- If URL parsing fails, just return a simple link

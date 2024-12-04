@@ -1,5 +1,6 @@
 module Pages.U.User_.Identifier_ exposing (Model, Msg, page)
 
+import Browser.Dom
 import Effect exposing (Effect)
 import FeatherIcons exposing (user)
 import Html.Styled as Html exposing (Html)
@@ -13,6 +14,7 @@ import Page exposing (Page)
 import Route exposing (Route)
 import Shared
 import Shared.Msg
+import Task
 import View exposing (View)
 import Ui.Styles exposing (Theme)
 import Ui.View
@@ -83,7 +85,11 @@ init shared route () =
             |> Maybe.withDefault Effect.none
     in
     ( model
-    , requestEffect
+    , Effect.batch
+        [ requestEffect
+        -- jump to top of article
+        , Effect.sendCmd <| Task.perform (\_ -> NoOp) (Browser.Dom.setViewport 0 0)
+        ]
     )
 
 

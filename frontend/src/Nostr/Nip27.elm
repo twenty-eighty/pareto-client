@@ -3,18 +3,28 @@ module Nostr.Nip27 exposing (subsituteNostrLinks)
 import Html.Styled as Html exposing (Html, text, a)
 import Html.Styled.Attributes exposing (href)
 import String
+import Ui.Styles exposing (Styles)
 
 
 -- Main function to parse text and substitute nostr links
-subsituteNostrLinks : String -> List (Html msg)
-subsituteNostrLinks text =
-    parseHelper text []
+subsituteNostrLinks : Styles msg -> String -> Html msg
+subsituteNostrLinks styles text =
+    case parseHelper styles text [] of
+        [] ->
+            Html.text text
+
+        [ oneElement ] ->
+            oneElement
+        
+        moreElements ->
+            Html.div [] moreElements
+        
 
 
 
 -- Helper function to recursively parse the text
-parseHelper : String -> List (Html msg) -> List (Html msg)
-parseHelper remainingText acc =
+parseHelper : Styles msg -> String -> List (Html msg) -> List (Html msg)
+parseHelper styles remainingText acc =
     case String.indexes "nostr:" remainingText |> List.head of
         Nothing ->
             -- No more nostr links
@@ -36,9 +46,9 @@ parseHelper remainingText acc =
                     else
                         text before :: acc
 
-                linkHtml = generateNostrLink nostrLink
+                linkHtml = generateNostrLink styles nostrLink
             in
-            parseHelper rest (linkHtml :: newAcc)
+            parseHelper styles rest (linkHtml :: newAcc)
 
 
 -- Function to extract the nostr link and the rest of the text
@@ -65,8 +75,8 @@ isWhitespace c =
 
 
 -- Function to generate the Html link based on the nostr link type
-generateNostrLink : String -> Html msg
-generateNostrLink nostrLink =
+generateNostrLink : Styles msg -> String -> Html msg
+generateNostrLink styles nostrLink =
     let
         -- Remove the "nostr:" prefix
         linkContent = String.dropLeft 6 nostrLink
@@ -86,4 +96,4 @@ generateNostrLink nostrLink =
         -- Not a recognized link type; output as text
         text nostrLink
     else
-        a [ href path ] [ text nostrLink ]
+        a (styles.textStyleLinks ++ [ href path ]) [ text nostrLink ]

@@ -12,7 +12,6 @@ import Components.Button as Button
 import Components.Dropdown
 import Components.Icon as Icon
 import Components.UploadDialog as UploadDialog exposing (UploadResponse(..))
-import Css
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import FeatherIcons
@@ -23,7 +22,9 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import Http
 import Nostr
-import Nostr.Blossom as Blossom exposing (BlobDescriptor)
+import Nostr.Blossom as Blossom exposing (BlobDescriptor, userServerListFromEvent)
+import Nostr.Event exposing (Event, Kind(..))
+import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.Nip94 as Nip94
 import Nostr.Nip96 as Nip96 exposing (extendRelativeServerDescriptorUrls)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestData(..))
@@ -130,8 +131,8 @@ init props =
         , search = ""
         , displayType = props.displayType
         , serverSelectionDropdown = Components.Dropdown.init { selected = Just NoMediaServer }
-        , blossomServers = serversWithUnknownState props.blossomServers
-        , nip96Servers = serversWithUnknownState props.nip96Servers
+        , blossomServers = serversWithUnknownState Dict.empty props.blossomServers
+        , nip96Servers = serversWithUnknownState Dict.empty props.nip96Servers
         , nip96ServerDescResponses = Dict.empty
         , authHeader = Nothing
         , uploadedBlossomFiles = Dict.empty
@@ -148,12 +149,15 @@ init props =
     |> Effect.map props.toMsg
     )
 
-serversWithUnknownState : List String -> Dict String ServerState
-serversWithUnknownState serverUrls =
+serversWithUnknownState : Dict String ServerState -> List String -> Dict String ServerState
+serversWithUnknownState dict serverUrls =
     serverUrls
     |> List.foldl (\serverUrl acc ->
-        Dict.insert serverUrl ServerStateUnknown acc
-        ) Dict.empty
+        if Dict.member serverUrl acc then
+            acc
+        else
+            Dict.insert serverUrl ServerStateUnknown acc
+        ) dict
 
 
 requestBlossomListAuths : List String -> Effect (Msg msg)
@@ -530,6 +534,19 @@ processIncomingMessage user xModel messageType toMsg value =
                 Err error ->
                     ( Model { model | errors = model.errors ++ [ "Error decoding NIP-98 auth header: " ++ Decode.errorToString error ]}, Effect.none)
 
+        -- the file server lists may appear after the media selector is instantiated
+        -- so we have to process them when arriving
+        "events" ->
+            case (Decode.decodeValue (Decode.field "kind" Nostr.Event.kindDecoder) value,
+                  Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) value) of
+                (Ok KindUserServerList, Ok events) ->
+                    updateModelWithUserServerLists (Model model) user toMsg events
+
+                (Ok KindFileStorageServerList, Ok events) ->
+                    updateModelWithFileStorageServerLists (Model model) user toMsg events
+
+                _ ->
+                    ((Model model), Effect.none)
         _ ->
             ( Model model, Effect.none)
 
@@ -551,6 +568,55 @@ type alias AuthHeaderReceived =
     , serverUrl : String
     , apiUrl : String
     }
+
+updateModelWithUserServerLists : Model -> Auth.User -> (Msg msg -> msg) -> List Event -> (Model, Effect msg)
+updateModelWithUserServerLists (Model model) user toMsg events =
+    let
+        -- usually there should be only one for the logged-in user
+        newUserServers =
+            events
+            |> List.filter (\event -> user.pubKey == event.pubKey)
+            |> List.map userServerListFromEvent
+            |> List.foldl (\(_, userServerList) servers ->
+                servers ++ userServerList
+                ) []
+            |> List.filter (\server ->
+                    not <| Dict.member server model.blossomServers
+                )
+
+        newServerDict =
+            serversWithUnknownState model.blossomServers newUserServers
+        
+        listAuthRequests = 
+            requestBlossomListAuths newUserServers
+            |> Effect.map toMsg
+
+    in
+    ( Model {model | blossomServers = newServerDict }, listAuthRequests)
+
+updateModelWithFileStorageServerLists : Model -> Auth.User -> (Msg msg -> msg) -> List Event -> (Model, Effect msg)
+updateModelWithFileStorageServerLists (Model model) user toMsg events =
+    let
+        -- usually there should be only one for the logged-in user
+        newFileStorageServers =
+            events
+            |> List.filter (\event -> user.pubKey == event.pubKey)
+            |> List.map fileStorageServerListFromEvent
+            |> List.foldl (\(_, fileStorageServerList) servers ->
+                servers ++ fileStorageServerList
+                ) []
+            |> List.filter (\server ->
+                    not <| Dict.member server model.nip96Servers
+                )
+
+        newServerDict =
+            serversWithUnknownState model.nip96Servers newFileStorageServers
+        
+        serverSpecRequests = 
+            requestNip96ServerSpecs newFileStorageServers
+            |> Effect.map toMsg
+    in
+    ( Model { model | nip96Servers = newServerDict}, serverSpecRequests)
 
 
 view : MediaSelector msg -> Html msg
@@ -642,6 +708,8 @@ viewMediaSelector (Settings settings) =
                 [ Tw.mt_6
                 , Tw.flex
                 , Tw.justify_between
+                , Tw.pb_4
+                , Tw.border_b_2
                 ]
             ]
             [ Components.Dropdown.new
@@ -659,7 +727,7 @@ viewMediaSelector (Settings settings) =
                 , theme = settings.theme
                 }
                 |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.upload)
-                |> Button.withDisabled (List.length selectableServers < 1)
+                |> Button.withDisabled (List.head selectableServers == Just NoMediaServer)
                 |> Button.view
                 |> Html.map settings.toMsg
             ]

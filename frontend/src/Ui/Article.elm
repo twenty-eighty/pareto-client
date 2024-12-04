@@ -19,9 +19,10 @@ import Tailwind.Theme as Theme
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
 import Ui.Shared
-import Ui.Styles exposing (Styles, darkMode, fontFamilyInter, fontFamilyUnbounded, fontFamilySourceSerifPro)
+import Ui.Styles exposing (Styles, darkMode, fontFamilyUnbounded)
 import Time
 import TailwindExtensions exposing (bp_xsl)
+import Html.Styled exposing (summary)
 
 -- single article
 
@@ -30,12 +31,12 @@ viewArticle styles browserEnv author article interactions =
     let
         contentMargins =
             [ css
-               [ Tw.mx_1
+               [ Tw.px_1
                , Bp.xxl
-                   [ Tw.mx_40
+                   [ Tw.mx_28
                    ]
                , Bp.xl
-                   [ Tw.mx_32
+                   [ Tw.mx_24
                    ]
                , Bp.lg
                    [ Tw.mx_20
@@ -44,7 +45,7 @@ viewArticle styles browserEnv author article interactions =
                    [ Tw.mx_10
                    ]
                , Bp.sm
-                   [ Tw.mx_5
+                   [ Tw.px_5
                    ]
                ]
             ]
@@ -56,6 +57,22 @@ viewArticle styles browserEnv author article interactions =
             , Tw.items_center
             , Tw.gap_12
             , Tw.inline_flex
+            , Tw.px_2
+            , Bp.xxl
+                [ Tw.px_40
+                ]
+            , Bp.xl
+                [ Tw.px_20
+                ]
+            , Bp.lg
+                [ Tw.px_10
+                ]
+            , Bp.md
+                [ Tw.px_5
+                ]
+            , Bp.sm
+                [ Tw.px_3
+                ]
             ]
         ]
         [ div
@@ -98,7 +115,7 @@ viewArticle styles browserEnv author article interactions =
                     , div
                         (styles.textStyleH4Article ++ styles.colorStyleGrayscaleText ++
                         [ css
-                            [ -- Tw.w_96
+                            [ Tw.max_w_prose
                             ]
                         ])
                         [ text <| Maybe.withDefault "" article.summary ]
@@ -114,6 +131,7 @@ viewArticle styles browserEnv author article interactions =
                     , Tw.items_start
                     , Tw.gap_4
                     , Tw.flex
+                    , Tw.mb_4
                     ]
                 ] ++ contentMargins)
                 [ viewInteractions styles browserEnv interactions
@@ -140,6 +158,7 @@ viewArticleImage maybeImage =
                     , css
                         [ Tw.rounded_lg
                         , Tw.w_full
+                        , Tw.max_h_96
                         , Tw.object_cover
                         ]
                     ]
@@ -356,13 +375,12 @@ viewArticleTime styles browserEnv maybePublishedAt =
 
 viewContent : Styles msg -> String -> Html msg
 viewContent styles content =
-    div
+    article
         [ css
             [ Tw.flex_col
             , Tw.justify_start
-            , Tw.items_start
             , Tw.gap_10
-            , Tw.flex
+            , Tw.max_w_prose
             ]
         ]
         [ viewContentMarkdown styles content 
@@ -525,41 +543,89 @@ viewArticlePreviewList styles browserEnv author article interactions displayAuth
         textWidthAttr =
             case article.image of
                 Just _ ->
-                    [ Tw.w_96 ]
+                    [ Tw.w_80
+                    , Bp.xxl
+                        [ Css.property "width" "600px"
+                        ]
+                    , Bp.xl
+                        [ Css.property "width" "400px"
+                        ]
+                    , Bp.lg
+                        [ Css.property "width" "340px"
+                        ]
+                    , Bp.md
+                        [ Css.property "width" "340px"
+                        ]
+                    , Bp.sm
+                        [ Css.property "width" "320px"
+                        ]
+                    ]
                 
                 Nothing ->
-                    []
+                    [ Tw.w_80
+                    , Bp.xxl
+                        [ Css.property "width" "950px"
+                        ]
+                    , Bp.xl
+                        [ Css.property "width" "750px"
+                        ]
+                    , Bp.lg
+                        [ Css.property "width" "640px"
+                        ]
+                    , Bp.md
+                        [ Css.property "width" "580px"
+                        ]
+                    , Bp.sm
+                        [ Css.property "width" "640px"
+                        ]
+                    ]
+
+        summaryText =
+            case article.summary of
+                Just summary ->
+                    if String.trim summary == "" then
+                        article.content
+                        |> Markdown.summaryFromContent 
+                        |> Maybe.withDefault ""
+                    else
+                        summary
+
+                Nothing ->
+                    article.content
+
+        summaryLinesAttr =
+            if List.length article.hashtags < 1 then
+                [ Tw.line_clamp_5 ]
+            else
+                [ Tw.line_clamp_3 ]
     in
     div
         [ css
-            [ Tw.h_64
-            , Tw.pb_6
+            [Tw.pb_6
             , Tw.border_b
             , Tw.border_color Theme.gray_200
+            , Tw.flex
             , Tw.flex_col
             , Tw.justify_start
-            , Tw.items_start
-            , Tw.gap_2
-            , Tw.inline_flex
-            , Tw.mx_1
+            , Tw.gap_3
+            , Tw.px_6
             , Bp.xxl
-                [ Tw.mx_40
+                [ Css.property "width" "1024px"
                 ]
             , Bp.xl
-                [ Tw.mx_32
+                [ Css.property "width" "800px"
                 ]
             , Bp.lg
-                [ Tw.mx_20
+                [ Css.property "width" "720px"
                 ]
             , Bp.md
-                [ Tw.mx_10
+                [ Css.property "width" "640px"
                 ]
             , Bp.sm
-                [ Tw.mx_5
+                [ Tw.h_64
+                , Css.property "width" "550px"
                 ]
             ]
-        , Attr.style "width" "720px"
-        , Attr.style "height" "266px"
         ]
         [ viewAuthorAndDatePreview styles browserEnv article.publishedAt author
         , div
@@ -567,13 +633,20 @@ viewArticlePreviewList styles browserEnv author article interactions displayAuth
                 [ Tw.self_stretch
                 , Tw.justify_between
                 , Tw.items_start
-                , Tw.inline_flex
+                , Tw.flex
+                , Tw.flex_col
+                , Tw.gap_4
+                , Bp.sm
+                    [ Tw.inline_flex
+                    , Tw.flex_row_reverse
+                    , Tw.gap_10
+                    ]
                 ]
             ]
-            [ div
+            [ previewListImage article
+            , div
                 [ css
-                    [ Tw.h_52
-                    , Tw.flex_col
+                    [ Tw.flex_col
                     , Tw.justify_start
                     , Tw.items_start
                     , Tw.gap_4
@@ -587,20 +660,22 @@ viewArticlePreviewList styles browserEnv author article interactions displayAuth
                         , Tw.items_start
                         , Tw.gap_3
                         , Tw.flex
+                        , Tw.mb_2
+                        , Bp.sm
+                            [ Tw.w_80
+                            ]
                         ]
                     ]
                     [ viewTitlePreview styles article.title (linkToArticle article) textWidthAttr
                     , div
                         (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ 
                         [ css
-                            ([ Tw.line_clamp_3
-                            ] ++ textWidthAttr)
+                            (summaryLinesAttr ++ textWidthAttr)
                         ])
-                        [ text <| Maybe.withDefault "" article.summary ]
-                    , viewHashTags styles article.hashtags
+                        [ text summaryText ]
+                    , viewHashTags styles article.hashtags textWidthAttr
                     ]
                 ]
-            , previewListImage article
             ]
         ]
     
@@ -646,20 +721,23 @@ viewTitlePreview styles maybeTitle maybeLinkTarget textWidthAttr =
             div [][]
 
 
-viewHashTags : Styles msg -> List String -> Html msg
-viewHashTags styles hashTags =
+viewHashTags : Styles msg -> List String -> List Css.Style -> Html msg
+viewHashTags styles hashTags widthAttr =
+    if List.length hashTags > 0 then
         hashTags
-        |> List.take 3
         |> List.map (viewHashTag styles)
         |> div
             [ css
-                [ Tw.h_10
-                , Tw.justify_start
-                , Tw.items_start
+                (widthAttr ++ 
+                [ Tw.space_x_2
+                , Tw.mb_2
                 , Tw.gap_2
-                , Tw.inline_flex
-                ]
+                , Tw.line_clamp_1
+                , Tw.text_clip
+                ])
             ]
+    else
+        div [][]
 
 viewHashTag : Styles msg -> String -> Html msg
 viewHashTag styles hashTag =
@@ -669,10 +747,7 @@ viewHashTag styles hashTag =
             , Tw.py_2
             , Tw.bg_color Theme.gray_300
             , Tw.rounded_3xl
-            , Tw.justify_center
-            , Tw.items_center
-            , Tw.gap_2
-            , Tw.inline_flex
+            , Tw.inline_block
             , darkMode
                 [ Tw.bg_color Theme.neutral_700
                 ]
@@ -681,7 +756,12 @@ viewHashTag styles hashTag =
         ]
         [
         div
-            (styles.colorStyleLabel ++ styles.textStyleUppercaseLabel)
+            (styles.colorStyleLabel ++ styles.textStyleUppercaseLabel ++
+            [ css
+                [ Tw.whitespace_nowrap
+                ]
+            ]
+            )
             [ text hashTag ]
         ]
 
@@ -724,7 +804,7 @@ previewListImage article =
         Just image ->
             div
                 [ css
-                    [ Tw.w_64
+                    [ Tw.w_80
                     , Tw.h_44
                     , Tw.bg_color Theme.gray_300
                     , Tw.overflow_hidden

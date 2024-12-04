@@ -324,6 +324,24 @@ body {
   transition: all 0.25s cubic-bezier(0.445, 0.05, 0.55, 0.95);
 }
 
+@media (prefers-color-scheme: light) {
+
+  html,
+  body {
+    background-color: white;
+    color: black;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+
+  html,
+  body {
+    background-color: black;
+    color: white;
+  }
+}
+
 .milkdown {
   color: rgb(55, 55, 55);
 }
