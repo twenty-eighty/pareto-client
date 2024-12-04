@@ -98,6 +98,7 @@ init props =
 type Msg item msg
     = FocusedDropdown
     | BlurredDropdown
+    | CloseDropdown
     | UpdatedSearchInput String
     | SelectedItem
         { item : item
@@ -146,6 +147,12 @@ update props =
                 , Effect.none
                 )
 
+            CloseDropdown ->
+                ( Model { model | isMenuOpen = False }
+                , Effect.none
+                )
+
+
             UpdatedSearchInput value ->
                 ( Model { model | search = value }
                 , Effect.none
@@ -180,6 +187,12 @@ view (Settings settings) =
         onSearchInput value =
             settings.toMsg (UpdatedSearchInput value)
 
+        dropdownClickMsg =
+            if model.isMenuOpen then
+                CloseDropdown
+            else
+                FocusedDropdown
+
         -- View the input of the dropdown, that opens the 
         -- menu when focused, and displays the search query
         viewDropdownInput : Html msg
@@ -209,7 +222,7 @@ view (Settings settings) =
                         , Tw.bg_color Theme.black
                         ]
                     ]
-                , onClick (settings.toMsg FocusedDropdown)
+                , onClick (settings.toMsg dropdownClickMsg)
                 ]
                 [ {- input
                     [ class "dropdown__input"
@@ -233,7 +246,8 @@ view (Settings settings) =
 
                 Just item ->
                     strong
-                        [ class "dropdown__selected" ]
+                        [ class "dropdown__selected"
+                        ]
                         [ text (settings.toLabel item) ]
 
 
