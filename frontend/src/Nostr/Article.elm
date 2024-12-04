@@ -3,6 +3,8 @@ module Nostr.Article exposing (..)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as DecodePipeline
 import Nostr.Event exposing (Event, EventFilter, Kind(..), Tag(..), TagReference(..), numberForKind)
+import Nostr.Nip19 as Nip19
+import Nostr.Nip27 as Nip27
 import Nostr.Profile exposing (ProfileValidation(..))
 import Nostr.Types exposing (EventId, PubKey)
 import Set
@@ -23,6 +25,7 @@ type alias Article =
     , url : Maybe String
     , identifier : Maybe String
     , hashtags : List String
+    , nip27References : List Nip19.NIP19Type
     }
 
 -- assume published date is event creation date unless specified explicitely in publishedAt tag
@@ -41,6 +44,8 @@ emptyArticle author eventId kind createdAt content =
     , url = Nothing
     , identifier = Nothing
     , hashtags = []
+    , nip27References = 
+        Nip27.collectNostrLinks content
     }
 
 

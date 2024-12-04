@@ -1,9 +1,13 @@
-module Nostr.Nip27 exposing (subsituteNostrLinks)
+module Nostr.Nip27 exposing (collectNostrLinks, subsituteNostrLinks)
 
 import Html.Styled as Html exposing (Html, text, a)
 import Html.Styled.Attributes exposing (href)
+import Nostr.Nip19 as Nip19
+import Regex exposing (Regex)
 import String
 import Ui.Styles exposing (Styles)
+import Nostr.Nip19 as Nip19
+
 
 
 -- Main function to parse text and substitute nostr links
@@ -17,9 +21,22 @@ subsituteNostrLinks styles text =
             oneElement
         
         moreElements ->
-            Html.div [] moreElements
+            Html.span [] moreElements
         
 
+-- Define the regex for Nostr NIP-27 links
+nostrRegex : Regex
+nostrRegex =
+    Regex.fromString "nostr:[a-zA-Z0-9]+(?:[?#].*)?" |> Maybe.withDefault Regex.never
+
+-- Function to collect all Nostr links from a given string
+collectNostrLinks : String -> List Nip19.NIP19Type
+collectNostrLinks input =
+    Regex.find nostrRegex input
+        |> List.map (\match -> match.match)
+        |> List.map (String.dropLeft 6)
+        |> List.map Nip19.decode
+        |> List.filterMap Result.toMaybe
 
 
 -- Helper function to recursively parse the text

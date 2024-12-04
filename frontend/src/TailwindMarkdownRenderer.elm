@@ -325,7 +325,8 @@ heading styles { level, rawText, children } =
 htmlBlock : Markdown.Html.Renderer (List (Html msg) -> Html msg)
 htmlBlock =
     Markdown.Html.oneOf
-        [ htmlImgElement
+        [ htmlCiteElement
+        , htmlImgElement
         ]
 
 htmlImgElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
@@ -336,6 +337,29 @@ htmlImgElement =
         )
         |> Markdown.Html.withAttribute "src"
         |> Markdown.Html.withOptionalAttribute "alt"
+
+htmlCiteElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlCiteElement =
+    Markdown.Html.tag "cite"
+        (\maybeSrc ->
+            renderHtmlCiteElement maybeSrc
+        )
+        |> Markdown.Html.withOptionalAttribute "src"
+
+renderHtmlCiteElement : Maybe String -> (List (Html msg) -> Html msg)
+renderHtmlCiteElement maybeSrc children =
+    let
+        srcAttr =
+            maybeSrc
+            |> Maybe.map (\src -> [ Attr.src src ])
+            |> Maybe.withDefault []
+    in
+    Html.cite
+        ([ css
+            [
+            ]
+        ] ++ srcAttr)
+        children
 
 renderHtmlImgElement : String -> Maybe String -> (List (Html msg) -> Html msg)
 renderHtmlImgElement src maybeAlt children =
