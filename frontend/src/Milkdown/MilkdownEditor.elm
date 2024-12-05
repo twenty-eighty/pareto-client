@@ -1,6 +1,8 @@
-module MilkdownEditor exposing
+module Milkdown.MilkdownEditor exposing
     ( Content
     , DarkMode(..)
+    , Model
+    , Msg
     , defaults
     , destroy
     , init
@@ -8,6 +10,8 @@ module MilkdownEditor exposing
     , onChange
     , onFocus
     , onLoad
+    , onFileRequest
+    , setSelectedImage
     , update
     , view
     , withContent
@@ -40,6 +44,7 @@ type alias Options msg =
     , onfocus : Maybe msg
     , onblur : Maybe msg
     , onload : Maybe msg
+    , onfilerequest : Maybe msg
     , destroy : Bool
     }
 
@@ -55,6 +60,7 @@ defaults =
     , onfocus = Nothing
     , onblur = Nothing
     , onload = Nothing
+    , onfilerequest = Nothing
     , destroy = False
     }
 
@@ -96,6 +102,11 @@ onLoad handler options =
     { options | onload = handler }
 
 
+onFileRequest : Maybe msg -> Options msg -> Options msg
+onFileRequest handler options =
+    { options | onfilerequest = handler }
+
+
 destroy : Bool -> Options msg -> Options msg
 destroy shouldDestroy options =
     { options | destroy = shouldDestroy }
@@ -103,13 +114,15 @@ destroy shouldDestroy options =
 
 -- VIEW
 
-view : Options msg -> Html msg
-view options =
+view : (Msg msg -> msg) -> Options msg -> Model -> Html msg
+view toMsg options model =
     Html.node "elm-milkdown-editor"
         ([ style "height" options.height
          , style "font-size" "1em"
+         , on "receivedSelectedFile" (JD.succeed (toMsg OnReceivedSelectedFile))
          ]
             ++ contentAttr options.content
+            ++ selectedFileAttr model.selectedFile
             ++ themeAttr options.darkMode
             ++ destroyAttr options.destroy
             ++ eventHandlers options
@@ -123,6 +136,15 @@ contentAttr : String -> List (Html.Attribute msg)
 contentAttr val =
     [ attribute "content" val ]
 
+
+selectedFileAttr : Maybe String -> List (Html.Attribute msg)
+selectedFileAttr selectedFile =
+    case selectedFile of
+        Just url ->
+            [ attribute "selectedfile" url ]
+
+        Nothing ->
+            [ attribute "selectedfile" "" ]
 
 themeAttr : DarkMode -> List (Html.Attribute msg)
 themeAttr darkMode =
@@ -171,6 +193,13 @@ eventHandlers options =
 
             Nothing ->
                 []
+
+        , case options.onfilerequest of
+            Just handler ->
+                [ on "filerequest" (JD.succeed handler) ]
+
+            Nothing ->
+                []
         ]
 
 
@@ -185,12 +214,16 @@ decodeContent toMsg =
 -- INITIAL MODEL
 
 type alias Model =
-    { content : Content }
+    { content : Content
+    , selectedFile : Maybe String
+    }
 
 
 init : Model
 init =
-    { content = "" }
+    { content = ""
+    , selectedFile = Nothing
+    }
 
 
 -- UPDATE
@@ -200,6 +233,8 @@ type Msg msg
     | OnChange Content
     | OnFocus msg
     | OnBlur msg
+    | OnFileRequest msg
+    | OnReceivedSelectedFile
 
 
 update : Msg msg -> Model -> ( Model, Cmd msg )
@@ -216,3 +251,14 @@ update msg model =
 
         OnBlur userMsg ->
             ( model, Cmd.none )
+
+        OnFileRequest userMsg ->
+            ( model, Cmd.none )
+
+        OnReceivedSelectedFile ->
+            ( { model | selectedFile = Nothing }, Cmd.none )
+
+
+setSelectedImage : Model -> String -> Model
+setSelectedImage model url =
+    { model | selectedFile = Just url }

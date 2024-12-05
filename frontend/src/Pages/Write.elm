@@ -12,7 +12,7 @@ import Html.Styled.Attributes as Attr exposing (class, css, style)
 import Html.Styled.Events as Events exposing (..)
 import Json.Decode as Decode
 import Layouts
-import MilkdownEditor as Milkdown
+import Milkdown.MilkdownEditor as Milkdown
 import Murmur3
 import Nostr
 import Nostr.Event as Event exposing (Event, Kind(..), Tag(..))
@@ -31,6 +31,7 @@ import Time
 import Translations.Write as Translations
 import Ui.Styles exposing (Theme)
 import View exposing (View)
+import Nostr.Article exposing (Article)
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
@@ -57,11 +58,17 @@ type alias Model =
     , summary : Maybe String
     , image : Maybe String
     , content : Maybe String
+    , milkdown : Milkdown.Model
     , identifier : Maybe String
     , tags : Maybe String
     , now : Time.Posix
     , mediaSelector : MediaSelector.Model
+    , imageSelectionn : Maybe ImageSelection
     }
+
+type ImageSelection
+    = ArticleImageSelection
+    | MarkdownImageSelection
 
 init : Auth.User -> Shared.Model -> Route () -> () -> ( Model, Effect Msg )
 init user shared route () =
@@ -107,10 +114,12 @@ init user shared route () =
                     , summary = article.summary
                     , image = article.image
                     , content = Just article.content
+                    , milkdown = Milkdown.init
                     , identifier = article.identifier
                     , tags = tagsString article.hashtags
                     , now = Time.millisToPosix 0
                     , mediaSelector = mediaSelector
+                    , imageSelectionn = Nothing
                     }
 
                 Nothing ->
@@ -118,10 +127,12 @@ init user shared route () =
                     , summary = Nothing
                     , image = Nothing
                     , content = Nothing
+                    , milkdown = Milkdown.init
                     , identifier = Nothing
                     , tags = Nothing
                     , now = Time.millisToPosix 0
                     , mediaSelector = mediaSelector
+                    , imageSelectionn = Nothing
                     }
 
     in
@@ -156,13 +167,14 @@ type Msg
     | UpdateTitle String
     | UpdateSubtitle String
     | UpdateTags String
-    | SelectImage
-    | ImageSelected MediaSelector.UploadedFile
+    | SelectImage ImageSelection
+    | ImageSelected ImageSelection MediaSelector.UploadedFile
     | Publish
     | SaveDraft
     | Now Time.Posix
     | OpenMediaSelector
     | MediaSelectorSent (MediaSelector.Msg Msg)
+    | MilkdownSent (Milkdown.Msg Msg)
 
 
 update : Shared.Model -> Auth.User -> Msg -> Model -> ( Model, Effect Msg )
@@ -201,16 +213,34 @@ update shared user msg model =
             else
                 ( { model | tags = Just tags }, Effect.none )
 
-        SelectImage ->
-            ( { model | mediaSelector = MediaSelector.show model.mediaSelector }, Effect.none )
+        SelectImage imageSelection ->
+            ( { model |
+                mediaSelector = MediaSelector.show model.mediaSelector
+                , imageSelectionn = Just imageSelection
+              }, Effect.none )
 
-        ImageSelected uploadedFile ->
-            case uploadedFile of
-                BlossomFile blobDescriptor ->
-                    ( { model | image = Just blobDescriptor.url }, Effect.none )
+        ImageSelected imageSelection uploadedFile ->
+            case imageSelection of
+                ArticleImageSelection ->
+                    case uploadedFile of
+                        BlossomFile blobDescriptor ->
+                            ( { model | image = Just blobDescriptor.url }, Effect.none )
 
-                Nip96File fileMetadata ->
-                    ( { model | image = fileMetadata.url }, Effect.none )
+                        Nip96File fileMetadata ->
+                            ( { model | image = fileMetadata.url }, Effect.none )
+
+                MarkdownImageSelection ->
+                    case uploadedFile of
+                        BlossomFile blobDescriptor ->
+                            ( { model | milkdown = Milkdown.setSelectedImage model.milkdown blobDescriptor.url }, Effect.none )
+
+                        Nip96File fileMetadata ->
+                            case fileMetadata.url of
+                                Just url ->
+                                    ( { model | milkdown = Milkdown.setSelectedImage model.milkdown url }, Effect.none )
+
+                                Nothing ->
+                                    ( model, Effect.none )
 
         Publish ->
             ( model, Effect.none )
@@ -237,6 +267,12 @@ update shared user msg model =
                 , toMsg = MediaSelectorSent
                 }
 
+        MilkdownSent innerMsg ->
+            let
+                (milkdown, cmd) =
+                    Milkdown.update innerMsg model.milkdown
+            in
+            ( { model | milkdown = milkdown }, Effect.sendCmd cmd )
 
 sendDraftCmd : Shared.Model -> Model -> Auth.User -> Effect Msg
 sendDraftCmd shared model user =
@@ -334,18 +370,27 @@ view user shared model =
             , viewTags  shared.browserEnv model
             -- , openMediaSelectorButton shared.browserEnv
             , saveButtons shared.browserEnv model
-            , MediaSelector.new
+            , viewMediaSelector user shared model
+            ]
+        ]
+    }
+
+viewMediaSelector : Auth.User -> Shared.Model -> Model -> Html Msg
+viewMediaSelector user shared model =
+    case model.imageSelectionn of
+        Just imageSelection ->
+            MediaSelector.new
                 { model = model.mediaSelector
                 , toMsg = MediaSelectorSent
-                , onSelected = Just ImageSelected
+                , onSelected = Just (ImageSelected imageSelection)
                 , pubKey = user.pubKey
                 , browserEnv = shared.browserEnv
                 , theme = shared.theme
                 }
                 |> MediaSelector.view
-            ]
-        ]
-    }
+
+        Nothing ->
+            div [][]
 
 viewTitle : BrowserEnv -> Model -> Html Msg
 viewTitle browserEnv model =
@@ -402,7 +447,7 @@ viewImage model =
                 ]
                 [ img
                     [ Attr.src image
-                    , Events.onClick SelectImage
+                    , Events.onClick (SelectImage ArticleImageSelection)
                     ]
                     []
                 ]
@@ -414,7 +459,7 @@ viewImage model =
                     , Tw.h_32
                     , Tw.bg_color Theme.slate_500
                     ]
-                , Events.onClick SelectImage
+                , Events.onClick (SelectImage ArticleImageSelection)
                 ]
                 []
 
@@ -425,7 +470,7 @@ viewEditor browserEnv model =
                     [ Tw.w_full
                     ]
                 ]
-                [ milkdownEditor browserEnv (model.content |> Maybe.withDefault "")
+                [ milkdownEditor model.milkdown browserEnv (model.content |> Maybe.withDefault "")
                 ]
 
 statusDiv : Model -> Html msg
@@ -456,9 +501,10 @@ hexHash str =
         |> (++) "0x"
 
 
-milkdownEditor : BrowserEnv -> Milkdown.Content -> Html Msg
-milkdownEditor browserEnv content =
+milkdownEditor : Milkdown.Model -> BrowserEnv -> Milkdown.Content -> Html Msg
+milkdownEditor milkdownModel browserEnv content =
    Milkdown.view
+        MilkdownSent
         (Milkdown.defaults
             |> Milkdown.withContent content
 --          |> Milkdown.withPlaceholder "Start typing..."
@@ -467,7 +513,9 @@ milkdownEditor browserEnv content =
             |> Milkdown.onFocus (Just EditorFocused)
             |> Milkdown.onBlur (Just EditorBlurred)
             |> Milkdown.onLoad (Just EditorLoaded)
+            |> Milkdown.onFileRequest (Just <| SelectImage MarkdownImageSelection)
         )
+        milkdownModel
 
 milkDownDarkMode : Bool -> Milkdown.DarkMode
 milkDownDarkMode darkModeActive =

@@ -1,5 +1,5 @@
 
-import "./MilkdownEditor.js";
+import "./Milkdown/MilkdownEditor.js";
 
 import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import { BlossomClient } from "blossom-client-sdk/client";

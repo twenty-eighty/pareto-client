@@ -12,7 +12,7 @@ import Html.Styled.Attributes as Attr exposing (class, css, style)
 import Html.Styled.Events as Events exposing (..)
 import Json.Decode as Decode
 import Layouts
-import MilkdownEditor as Milkdown
+import Milkdown.MilkdownEditor as Milkdown
 import Murmur3
 import Nostr
 import Nostr.Event as Event exposing (Event, Kind(..), Tag(..))
