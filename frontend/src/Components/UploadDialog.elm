@@ -178,6 +178,7 @@ update :
     , onUploaded : UploadResponse -> msg
     , user : Auth.User
     , nostr : Nostr.Model
+    , browserEnv : BrowserEnv
     }
     -> ( model, Effect msg )
 update props =
@@ -595,7 +596,7 @@ update props =
                                         Just (FileUploadBlossom maybePreviewLink upload)
 
                                     Just (FileUploadNip96 maybePreviewLink upload) ->
-                                        Just <| FileUploadNip96 maybePreviewLink { upload | status = Nip96.Failed <| "Error uploading to NIP-96 server " ++ apiUrl ++ ": " ++ httpErrorToString error }
+                                        Just <| FileUploadNip96 maybePreviewLink { upload | status = Nip96.Failed <| Translations.errorUploadingToNip96ServerText [ props.browserEnv.translations ] ++ apiUrl ++ " : " ++ httpErrorToString error }
 
                                     Nothing ->
                                         Nothing
@@ -998,13 +999,13 @@ viewMetadataDialog (Settings settings) (fileId, fileUpload) =
             settings.model
     in
     modalDialog
-        "Edit metadata of files"
+        (Translations.editMetadataDialogTitle [ settings.browserEnv.translations ])
         [ div
             [ css 
                 [
                 ]
             ]
-            [ viewFileUpload settings.theme (fileId, fileUpload)
+            [ viewFileUpload settings.theme settings.browserEnv (fileId, fileUpload)
             ]
         |> Html.map settings.toMsg
         ]
@@ -1018,14 +1019,14 @@ viewUploadingDialog (Settings settings) =
             settings.model
     in
     modalDialog
-        "Uploading..."
+        (Translations.uploadingStateText [ settings.browserEnv.translations ])
         [ div
             [ css 
                 [
                 ]
             ]
             [ div []
-                (Dict.toList model.files |> List.map (viewFileUpload settings.theme))
+                (Dict.toList model.files |> List.map (viewFileUpload settings.theme settings.browserEnv))
             ]
         |> Html.map settings.toMsg
         ]
@@ -1042,7 +1043,7 @@ viewFinishedDialog (Settings settings) =
         (Translations.dialogTitle [ settings.browserEnv.translations ])
         [ div [ class "p-4" ]
             [ div []
-                (Dict.toList model.files |> List.map (viewFileUpload settings.theme ))
+                (Dict.toList model.files |> List.map (viewFileUpload settings.theme settings.browserEnv))
             , case model.errors of
                 [] ->
                     text ""
@@ -1058,18 +1059,18 @@ viewFinishedDialog (Settings settings) =
         ]
         (settings.toMsg CloseDialog)
 
-viewFileUpload : Ui.Styles.Theme -> ( Int, FileUpload ) -> Html Msg
-viewFileUpload theme ( fileId, fileUpload ) =
+viewFileUpload : Ui.Styles.Theme -> BrowserEnv -> ( Int, FileUpload ) -> Html Msg
+viewFileUpload theme browserEnv ( fileId, fileUpload ) =
     case fileUpload of
         FileUploadBlossom maybePreviewLink fileUploadBlossom ->
-            viewFileUploadBlossom theme maybePreviewLink (fileId, fileUploadBlossom)
+            viewFileUploadBlossom theme browserEnv maybePreviewLink (fileId, fileUploadBlossom)
 
         FileUploadNip96 maybePreviewLink fileUploadNip96 ->
-            viewFileUploadNip96 theme maybePreviewLink (fileId, fileUploadNip96)
+            viewFileUploadNip96 theme browserEnv maybePreviewLink (fileId, fileUploadNip96)
 
 
-viewFileUploadBlossom : Ui.Styles.Theme -> Maybe String -> ( Int, Blossom.FileUpload ) -> Html Msg
-viewFileUploadBlossom theme maybePreviewLink ( fileId, fileUpload ) =
+viewFileUploadBlossom : Ui.Styles.Theme -> BrowserEnv -> Maybe String -> ( Int, Blossom.FileUpload ) -> Html Msg
+viewFileUploadBlossom theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
     let
         fileName =
             File.name <| fileUpload.file
@@ -1104,7 +1105,8 @@ viewFileUploadBlossom theme maybePreviewLink ( fileId, fileUpload ) =
                                         , Tw.flex_row
                                         ]
                                     ]
-                                    [ label [] [ text "Caption (optional):" ]
+        
+                                    [ label [] [ text <| Translations.imageCaptionFormLabel [ browserEnv.translations ] ]
                                     , textarea
                                         [ onInput (UpdateCaption fileId)
                                         , class "w-full border rounded p-2 mb-2"
@@ -1126,7 +1128,7 @@ viewFileUploadBlossom theme maybePreviewLink ( fileId, fileUpload ) =
                                     div [][]
                             ]
                         , Button.new
-                            { label = "Start Upload"
+                            { label = Translations.startUploadButtonText [ browserEnv.translations ]
                             , onClick = StartUpload fileId
                             , theme = theme
                             }
@@ -1134,13 +1136,13 @@ viewFileUploadBlossom theme maybePreviewLink ( fileId, fileUpload ) =
                         ]
 
                 Blossom.Hashing ->
-                    text "Computing file hash..."
+                    text <| Translations.computingFileHashStateText [ browserEnv.translations ]
 
                 Blossom.AwaitingAuthHeader _ ->
-                    text "Awaiting authentication header..."
+                    text <| Translations.awaitingAuthenticationHeaderStateText [ browserEnv.translations ]
 
                 Blossom.ReadyToUpload _ _ ->
-                    text "Ready to upload..."
+                    text <| Translations.readyToUploadStateText [ browserEnv.translations ]
 
                 Blossom.Uploading progressValue ->
                     div []
@@ -1156,15 +1158,16 @@ viewFileUploadBlossom theme maybePreviewLink ( fileId, fileUpload ) =
                     case fileUpload.uploadResponse of
                         Just response ->
                             div []
-                                [ div [ class "text-green-500" ] [ text "Upload completed." ]
-                                , viewUploadResponseBlossom response
+                                [ div [ class "text-green-500" ] [ text <| Translations.uploadCompletedStateText [ browserEnv.translations ] ]
+                                , viewUploadResponseBlossom browserEnv response
                                 ]
+                    
 
                         Nothing ->
-                            div [ class "text-green-500" ] [ text "Upload completed." ]
+                            div [ class "text-green-500" ] [ text  <| Translations.uploadCompletedStateText [ browserEnv.translations ] ]
 
                 Blossom.Failed errorMsg ->
-                    div [ class "text-red-500" ] [ text ("Upload failed: " ++ errorMsg) ]
+                    div [ class "text-red-500" ] [ text (Translations.uploadFailedStateText [ browserEnv.translations ] ++ " " ++ errorMsg) ]
     in
     div [ css
             [ Tw.mb_4
@@ -1184,8 +1187,8 @@ viewFileUploadBlossom theme maybePreviewLink ( fileId, fileUpload ) =
 
 
 
-viewFileUploadNip96 : Ui.Styles.Theme -> Maybe String -> ( Int, Nip96.FileUpload ) -> Html Msg
-viewFileUploadNip96 theme maybePreviewLink ( fileId, fileUpload ) =
+viewFileUploadNip96 : Ui.Styles.Theme -> BrowserEnv -> Maybe String -> ( Int, Nip96.FileUpload ) -> Html Msg
+viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
     let
         fileName =
             File.name <| fileUpload.file
@@ -1220,7 +1223,7 @@ viewFileUploadNip96 theme maybePreviewLink ( fileId, fileUpload ) =
                                         , Tw.flex_row
                                         ]
                                     ]
-                                    [ label [] [ text "Caption (optional):" ]
+                                    [ label [] [ text <| Translations.imageCaptionFormLabel [ browserEnv.translations ] ]
                                     , textarea
                                         [ onInput (UpdateCaption fileId)
                                         , class "w-full border rounded p-2 mb-2"
@@ -1233,7 +1236,7 @@ viewFileUploadNip96 theme maybePreviewLink ( fileId, fileUpload ) =
                                         , Tw.flex_row
                                         ]
                                     ]
-                                    [ label [] [ text "Alt Text (optional):" ]
+                                    [ label [] [ text <| Translations.imageAltTextFormLabel [ browserEnv.translations ] ]
                                     , textarea
                                         [ onInput (UpdateAltText fileId)
                                         , class "w-full border rounded p-2 mb-2"
@@ -1246,14 +1249,14 @@ viewFileUploadNip96 theme maybePreviewLink ( fileId, fileUpload ) =
                                         , Tw.flex_row
                                         ]
                                     ]
-                                    [ label [] [ text "Media Type (optional):" ]
+                                    [ label [] [ text <| Translations.mediaTypeFormLabel [ browserEnv.translations ] ]
                                     , select
                                         [ onInput (UpdateMediaType fileId)
                                         , class "w-full border rounded p-2 mb-2"
                                         ]
-                                        [ option [ value "" ] [ text "Select Media Type" ]
-                                        , option [ value "avatar" ] [ text "Avatar" ]
-                                        , option [ value "banner" ] [ text "Banner" ]
+                                        [ option [ value "" ] [ text <| Translations.mediaTypeExplanationText [ browserEnv.translations ] ]
+                                        , option [ value "avatar" ] [ text <| Translations.avatarMediaType [ browserEnv.translations ] ]
+                                        , option [ value "banner" ] [ text <| Translations.bannerMediaType [ browserEnv.translations ] ]
                                         ]
                                     ]
                                 , div 
@@ -1276,7 +1279,7 @@ viewFileUploadNip96 theme maybePreviewLink ( fileId, fileUpload ) =
                                             , onClick (ToggleNoTransform fileId)
                                             ]
                                             []
-                                        , span [ class "ml-2" ] [ text "No Transform" ]
+                                        , span [ class "ml-2" ] [ text <| Translations.noTransformCheckboxText [ browserEnv.translations ] ]
                                         ]
                                     ]
                                 ]
@@ -1294,7 +1297,7 @@ viewFileUploadNip96 theme maybePreviewLink ( fileId, fileUpload ) =
                                     div [][]
                             ]
                         , Button.new
-                            { label = "Start Upload"
+                            { label = Translations.startUploadButtonText [ browserEnv.translations ]
                             , onClick = StartUpload fileId
                             , theme = theme
                             }
@@ -1302,13 +1305,13 @@ viewFileUploadNip96 theme maybePreviewLink ( fileId, fileUpload ) =
                         ]
 
                 Nip96.Hashing ->
-                    text "Computing file hash..."
+                    text <| Translations.computingFileHashStateText [ browserEnv.translations ]
 
                 Nip96.AwaitingAuthHeader _ ->
-                    text "Awaiting authentication header..."
+                    text <| Translations.awaitingAuthenticationHeaderStateText [ browserEnv.translations ]
 
                 Nip96.ReadyToUpload _ _ ->
-                    text "Ready to upload..."
+                    text <| Translations.readyToUploadStateText [ browserEnv.translations ]
 
                 Nip96.Uploading progressValue ->
                     div []
@@ -1324,15 +1327,15 @@ viewFileUploadNip96 theme maybePreviewLink ( fileId, fileUpload ) =
                     case fileUpload.uploadResponse of
                         Just response ->
                             div []
-                                [ div [ class "text-green-500" ] [ text "Upload completed." ]
-                                , viewUploadResponseNip96 response
+                                [ div [ class "text-green-500" ] [ text <| Translations.uploadCompletedStateText [ browserEnv.translations ] ]
+                                , viewUploadResponseNip96 browserEnv response
                                 ]
 
                         Nothing ->
-                            div [ class "text-green-500" ] [ text "Upload completed." ]
+                            div [ class "text-green-500" ] [ text <| Translations.uploadCompletedStateText [ browserEnv.translations ] ]
 
                 Nip96.Failed errorMsg ->
-                    div [ class "text-red-500" ] [ text ("Upload failed: " ++ errorMsg) ]
+                    div [ class "text-red-500" ] [ text (Translations.uploadFailedStateText [ browserEnv.translations ] ++ " " ++ errorMsg) ]
     in
     div [ css
             [ Tw.mb_4
@@ -1350,19 +1353,19 @@ viewFileUploadNip96 theme maybePreviewLink ( fileId, fileUpload ) =
         , statusView
         ]
 
-viewUploadResponseBlossom : Blossom.BlobDescriptor -> Html msg
-viewUploadResponseBlossom response =
+viewUploadResponseBlossom : BrowserEnv -> Blossom.BlobDescriptor -> Html msg
+viewUploadResponseBlossom browserEnv response =
     div [ class "mt-2" ]
         (case response.nip94 of
             Just fileMetadata ->
                 let
                     url =
                         fileMetadata.url
-                        |> Maybe.withDefault "No URL provided"
+                        |> Maybe.withDefault (Translations.noUrlProvidedText [ browserEnv.translations ])
 
                     ox =
                         fileMetadata.oxHash
-                        |> Maybe.withDefault "No hash provided"
+                        |> Maybe.withDefault (Translations.noHashProvidedText [ browserEnv.translations ])
                 in
                 [ div
                     [ css
@@ -1370,33 +1373,33 @@ viewUploadResponseBlossom response =
                         , Tw.overflow_hidden
                         ]
                     ]
-                    [ text ("Download URL: " ++ url) ]
+                    [ text (Translations.downloadUrlFieldText [ browserEnv.translations ] ++ " " ++ url) ]
                 , div
                     [ css
                         [ Tw.text_ellipsis
                         , Tw.overflow_hidden
                         ]
                     ]
-                    [ text ("Original File Hash (ox): " ++ ox) ]
+                    [ text (Translations.originalFileHashText [ browserEnv.translations ] ++ " " ++ ox) ]
                 ]
 
             Nothing ->
-                [ div [] [ text "No NIP-94 event provided." ] ]
+                [ div [] [ text <| Translations.noNip94ProvidedText [ browserEnv.translations ] ] ]
         )
 
-viewUploadResponseNip96 : Nip96.UploadResponse -> Html msg
-viewUploadResponseNip96 response =
+viewUploadResponseNip96 : BrowserEnv -> Nip96.UploadResponse -> Html msg
+viewUploadResponseNip96 browserEnv response =
     div [ class "mt-2" ]
         (case response.fileMetadata of
             Just fileMetadata ->
                 let
                     url =
                         fileMetadata.url
-                        |> Maybe.withDefault "No URL provided"
+                        |> Maybe.withDefault (Translations.noUrlProvidedText [ browserEnv.translations ])
 
                     ox =
                         fileMetadata.oxHash
-                        |> Maybe.withDefault "No hash provided"
+                        |> Maybe.withDefault (Translations.noHashProvidedText [ browserEnv.translations ])
                 in
                 [ div
                     [ css
@@ -1404,18 +1407,18 @@ viewUploadResponseNip96 response =
                         , Tw.overflow_hidden
                         ]
                     ]
-                    [ text ("Download URL: " ++ url) ]
+                    [ text (Translations.downloadUrlFieldText [ browserEnv.translations ] ++ " " ++ url) ]
                 , div
                     [ css
                         [ Tw.text_ellipsis
                         , Tw.overflow_hidden
                         ]
                     ]
-                    [ text ("Original File Hash (ox): " ++ ox) ]
+                    [ text (Translations.originalFileHashText [ browserEnv.translations ] ++ " " ++ ox) ]
                 ]
 
             Nothing ->
-                [ div [] [ text "No NIP-94 event provided." ] ]
+                [ div [] [ text <| Translations.noNip94ProvidedText [ browserEnv.translations ] ] ]
         )
 
 tagValue : List (List String) -> String -> Maybe String

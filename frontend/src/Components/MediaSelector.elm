@@ -313,6 +313,7 @@ update props =
                     , onUploaded = (props.toMsg << Uploaded)
                     , user = props.user
                     , nostr = props.nostr
+                    , browserEnv = props.browserEnv
                     }
 
             IncomingMessage { messageType, value } ->
