@@ -97,8 +97,11 @@ filterForAuthor author =
 decodeParam : String -> Maybe (PubKey, List String)
 decodeParam profile =
     case Nip19.decode profile of
-        Ok (Nip19.NProfile { pubKey , relays }) ->
+        Ok (Nip19.NProfile { pubKey, relays }) ->
             Just (pubKey, relays)
+
+        Ok (Nip19.Npub pubKey) ->
+            Just (pubKey, [])
 
         Ok _ ->
             -- unexpected NIP-19 value

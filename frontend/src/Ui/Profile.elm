@@ -6,7 +6,7 @@ import Html.Styled as Html exposing (Html, Attribute, a, article, aside, button,
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 import Http
-import Nostr.Nip05 exposing (nip05ToString)
+import Nostr.Nip05 as Nip05
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
@@ -70,7 +70,7 @@ viewProfile profile validationStatus =
                     [ Tw.flex
                     , Tw.flex_row
                     , Tw.items_center
-                    , Tw.space_x_2
+                    , Tw.space_x_4
                     , Tw.mb_4
                     ]
                 ]
@@ -100,9 +100,46 @@ viewProfile profile validationStatus =
                             ]
                         ]
                         [ text (profile.about |> Maybe.withDefault "") ]
+                    , viewWebsite profile
+                    , viewNip05 profile
                     ]
                 ]
             ]
+
+viewWebsite : Profile -> Html msg
+viewWebsite profile =
+    case profile.website of
+        Just website ->
+            a
+                [ css
+                    [ Tw.text_color Theme.gray_600
+                    , Tw.text_sm
+                    , Tw.mb_4
+                    , Tw.w_auto
+                    ]
+                , Attr.href website
+                ]
+                [ text website ]
+
+        Nothing ->
+            div [][]
+
+viewNip05 : Profile -> Html msg
+viewNip05 profile =
+    case profile.nip05 of
+        Just nip05 ->
+            p
+                [ css
+                    [ Tw.text_color Theme.gray_600
+                    , Tw.text_sm
+                    , Tw.mb_4
+                    , Tw.w_auto
+                    ]
+                ]
+                [ text <| Nip05.nip05ToString nip05 ]
+
+        Nothing ->
+            div [][]
 
 viewBanner : Maybe String -> Html msg
 viewBanner maybeImage =
@@ -297,7 +334,7 @@ profileDisplayName pubKey profile =
         (Nothing, Just name, _) ->
             name
         (Nothing, Nothing, Just nip05) ->
-            nip05ToString nip05
+            Nip05.nip05ToString nip05
         (Nothing, Nothing, Nothing) ->
             shortenedPubKey pubKey
 
