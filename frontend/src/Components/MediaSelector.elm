@@ -28,8 +28,10 @@ import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.Nip94 as Nip94
 import Nostr.Nip96 as Nip96 exposing (extendRelativeServerDescriptorUrls)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestData(..))
+import Nostr.Send exposing (SendRequest(..))
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
+import Pareto
 import Ports
 import Shared.Msg
 import Svg.Loaders
@@ -187,6 +189,7 @@ type Msg msg
     | CloseDialog
     | DropdownSent (Components.Dropdown.Msg MediaServer (Msg msg))
     | ChangedSelectedServer MediaServer
+    | ConfigureDefaultMediaServer
     | Upload
     | Uploaded UploadDialog.UploadResponse
     | UploadDialogSent UploadDialog.Msg 
@@ -207,6 +210,7 @@ update :
     , toMsg : Msg msg -> msg
     , user : Auth.User
     , nostr : Nostr.Model
+    , browserEnv : BrowserEnv
     }
     -> ( model, Effect msg )
 update props =
@@ -275,6 +279,23 @@ update props =
                         UploadDialog.selectServer model.uploadDialog uploadServer
                     }
                 , Effect.none
+                )
+
+            ConfigureDefaultMediaServer ->
+                let
+                    modelWithServer =
+                        { model
+                            | nip96Servers = updateServerState model.nip96Servers Pareto.defaultNip96Server ServerStateUnknown
+                            , serverSelectionDropdown =
+                                Components.Dropdown.selectItem model.serverSelectionDropdown (Just (Nip96MediaServer Pareto.defaultNip96Server))
+                        }
+                in
+                ( Model model -- Model modelWithServer
+                , Effect.batch
+                    [ sendNip96ServerListCmd props.browserEnv props.user Pareto.defaultNip96Server Pareto.defaultRelayUrls
+                    -- , requestNip96ServerSpecs [ Pareto.defaultNip96Server ]
+                    ]
+                  |> Effect.map props.toMsg
                 )
 
             Upload ->
@@ -375,6 +396,28 @@ update props =
                         , Effect.none
                         )
 
+sendNip96ServerListCmd : BrowserEnv -> Auth.User -> String -> List ServerUrl -> Effect msg
+sendNip96ServerListCmd browserEnv user serverUrl relays =
+    eventWithNip96ServerList browserEnv user serverUrl
+    |> SendFileStorageServerList relays
+    |> Shared.Msg.SendNostrEvent
+    |> Effect.sendSharedMsg
+
+eventWithNip96ServerList : BrowserEnv -> Auth.User -> ServerUrl -> Event
+eventWithNip96ServerList browserEnv user serverUrl =
+    { pubKey = user.pubKey
+    , createdAt = browserEnv.now
+    , kind = KindFileStorageServerList
+    , tags =
+        [ ]
+        |> Nostr.Event.addServerTag serverUrl
+    , content = ""
+    , id = ""
+    , sig = Nothing
+    , relay = Nothing
+    }
+
+
 modelWithUploadedFile : Model -> UploadResponse -> (Model, Effect msg)
 modelWithUploadedFile model uploadResponse =
     case uploadResponse of
@@ -427,17 +470,22 @@ updateModelWithBlossomFileList (Model model) serverUrl fileList =
     let
         blossomServers =
             updateServerState model.blossomServers serverUrl ServerFileListReceived
+
+        modelWithServerList =
+            { model
+                | uploadedBlossomFiles = Dict.insert serverUrl (List.map BlossomFile fileList) model.uploadedNip96Files
+                , blossomServers = blossomServers
+                , uploadDialog = updateUploadDialogServerList model.nip96ServerDescResponses model.uploadDialog blossomServers model.nip96Servers
+            }
     in
     Model
-        { model | uploadedBlossomFiles = Dict.insert serverUrl (List.map BlossomFile fileList) model.uploadedNip96Files
-        , blossomServers = blossomServers
-        , uploadDialog = updateUploadDialogServerList model.nip96ServerDescResponses model.uploadDialog blossomServers model.nip96Servers
-        , serverSelectionDropdown =
-            selectableMediaServers (Model model)
-            |> List.head
-            |> Maybe.withDefault NoMediaServer
-            |> Just
-            |> Components.Dropdown.selectItem model.serverSelectionDropdown
+        { modelWithServerList
+            | serverSelectionDropdown =
+                selectableMediaServers (Model modelWithServerList)
+                |> List.head
+                |> Maybe.withDefault NoMediaServer
+                |> Just
+                |> Components.Dropdown.selectItem model.serverSelectionDropdown
         }
 
 updateUploadDialogServerList : Dict String Nip96.ServerDescResponse -> UploadDialog.Model -> Dict String ServerState -> Dict String ServerState -> UploadDialog.Model
@@ -481,17 +529,22 @@ updateModelWithNip96FileList (Model model) serverUrl fileList =
     let
         nip96Servers =
             updateServerState model.nip96Servers serverUrl ServerFileListReceived
+
+        modelWithServerList =
+            { model
+                | uploadedNip96Files = Dict.insert serverUrl (List.map Nip96File fileList.files) model.uploadedNip96Files
+                , nip96Servers = nip96Servers
+                , uploadDialog = updateUploadDialogServerList model.nip96ServerDescResponses model.uploadDialog model.blossomServers nip96Servers
+            }
     in
     Model
-        { model | uploadedNip96Files = Dict.insert serverUrl (List.map Nip96File fileList.files) model.uploadedNip96Files
-        , nip96Servers = nip96Servers
-        , uploadDialog = updateUploadDialogServerList model.nip96ServerDescResponses model.uploadDialog model.blossomServers nip96Servers
-        , serverSelectionDropdown =
-            selectableMediaServers (Model model)
-            |> List.head
-            |> Maybe.withDefault NoMediaServer
-            |> Just
-            |> Components.Dropdown.selectItem model.serverSelectionDropdown
+        { modelWithServerList
+            | serverSelectionDropdown =
+                selectableMediaServers (Model modelWithServerList)
+                |> List.head
+                |> Maybe.withDefault NoMediaServer
+                |> Just
+                |> Components.Dropdown.selectItem model.serverSelectionDropdown
         }
 
 updateServerState : Dict String ServerState -> String -> ServerState -> Dict String ServerState
@@ -540,9 +593,11 @@ processIncomingMessage user xModel messageType toMsg value =
             case (Decode.decodeValue (Decode.field "kind" Nostr.Event.kindDecoder) value,
                   Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) value) of
                 (Ok KindUserServerList, Ok events) ->
+                    -- list with Blossom servers
                     updateModelWithUserServerLists (Model model) user toMsg events
 
                 (Ok KindFileStorageServerList, Ok events) ->
+                    -- list with NIP-96 servers
                     updateModelWithFileStorageServerLists (Model model) user toMsg events
 
                 _ ->
@@ -674,33 +729,6 @@ viewMediaSelector (Settings settings) =
                 Nothing ->
                     []
 
-        dialogAttributes =
-            case model.displayType of
-                DisplayModalDialog _ ->
-                    [ Tw.max_h_96
-                    , Tw.overflow_y_auto
-                    , Tw.grid_cols_3
-                    ]
-
-                DisplayEmbedded ->
-                    [ Bp.xxl
-                        [ Tw.grid_cols_6
-                        ]
-                    , Bp.xl
-                        [ Tw.grid_cols_5
-                        ]
-                    , Bp.lg
-                        [ Tw.grid_cols_4
-                        ]
-                    , Bp.md
-                        [ Tw.grid_cols_3
-                        ]
-                    , Bp.sm
-                        [ Tw.grid_cols_2
-                        ]
-                    , Tw.grid_cols_1
-                    ]
-
     in
     div []
         [ div
@@ -731,7 +759,83 @@ viewMediaSelector (Settings settings) =
                 |> Button.view
                 |> Html.map settings.toMsg
             ]
-        ,             {- Image Grid -}
+        , viewImages (Settings settings) filesToShow
+        , viewConfigureMediaServerMessage (Settings settings)
+        , UploadDialog.new
+            { model = model.uploadDialog
+            , toMsg = UploadDialogSent
+            , pubKey = settings.pubKey
+            , browserEnv = settings.browserEnv
+            , theme = settings.theme
+            }
+            |> UploadDialog.view
+            |> Html.map settings.toMsg
+        ]
+
+viewConfigureMediaServerMessage : MediaSelector msg -> Html msg
+viewConfigureMediaServerMessage (Settings settings) =
+    let
+        (Model model) =
+            settings.model
+    in
+    if Dict.isEmpty model.blossomServers && Dict.isEmpty model.nip96Servers then
+        div
+            [ css
+                [ Tw.flex
+                , Tw.justify_center
+                , Tw.items_center
+                , Tw.flex_col
+                , Tw.my_4
+                , Tw.gap_4
+                ]
+            ]
+            [ text <| Translations.noServerConfiguredMessage [ settings.browserEnv.translations ]
+            , Button.new
+                { label = Translations.configureServerButtonTitle [ settings.browserEnv.translations ]
+                , onClick = ConfigureDefaultMediaServer
+                , theme = settings.theme
+                }
+                |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.settings)
+                |> Button.view
+                |> Html.map settings.toMsg
+            ]
+    else
+        div [][]
+
+viewImages : MediaSelector msg -> List UploadedFile -> Html msg
+viewImages (Settings settings) filesToShow =
+    let
+        (Model model) =
+            settings.model
+
+        dialogAttributes =
+            case model.displayType of
+                DisplayModalDialog _ ->
+                    [ Tw.max_h_96
+                    , Tw.overflow_y_auto
+                    , Tw.grid_cols_3
+                    ]
+
+                DisplayEmbedded ->
+                    [ Bp.xxl
+                        [ Tw.grid_cols_6
+                        ]
+                    , Bp.xl
+                        [ Tw.grid_cols_5
+                        ]
+                    , Bp.lg
+                        [ Tw.grid_cols_4
+                        ]
+                    , Bp.md
+                        [ Tw.grid_cols_3
+                        ]
+                    , Bp.sm
+                        [ Tw.grid_cols_2
+                        ]
+                    , Tw.grid_cols_1
+                    ]
+
+    in
         div
             [ css
                 (dialogAttributes ++ 
@@ -743,17 +847,7 @@ viewMediaSelector (Settings settings) =
             (List.map (imagePreview settings.onSelected) filesToShow
             |> List.map (Html.map settings.toMsg)
             )
-        , UploadDialog.new
-            { model = model.uploadDialog
-            , toMsg = UploadDialogSent
-            , pubKey = settings.pubKey
-            , browserEnv = settings.browserEnv
-            , theme = settings.theme
-            }
-            |> UploadDialog.view
-            |> Html.map settings.toMsg
-        ]
-    
+
 preferredUploadServer : Model -> Maybe UploadServer
 preferredUploadServer (Model model) =
     availableMediaServers (Model model)

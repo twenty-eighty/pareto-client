@@ -34,21 +34,6 @@ import Ui.Styles exposing (Theme(..))
 type alias Model = Shared.Model.Model
 
 
-defaultRelays : List String
-defaultRelays =
-    [
-     "nostr.pareto.space/"
---    , "team-relay.pareto.space"
-    , "pareto.nostr1.com/"
---    , "relay.snort.social"
-    , "relay.nostr.band"
-    , "relay.damus.io"
-    , "nos.lol"
---  , "offchain.pub"
---  , "relay.damus.io"
---  , "nostr.wine"
-    ]
-
 -- FLAGS
 
 type alias Flags =
@@ -92,7 +77,7 @@ init flagsResult route =
                         }
 
                 (nostrInit, nostrInitCmd) =
-                    Nostr.init portHooks defaultRelays
+                    Nostr.init portHooks Pareto.defaultRelays
 
                 -- request bookmark list of Pareto creators
                 -- as well as bookmark sets for different purposes

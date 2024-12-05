@@ -34,7 +34,9 @@
       "Select image": "Bild auswählen",
       "Upload button title": "Bilder hochladen",
       "all servers listbox entry": "Alle Server",
-      "no server listbox entry": "Kein Server konfiguriert"
+      "no server listbox entry": "Kein Server konfiguriert",
+      "no server configured message": "Anscheinend wurde noch kein Medien-Server eingerichtet. Soll der Medienserver des Pareto Projekts verwendet werden?",
+      "configure server button title": "Pareto Medien-Server konfigurieren"
    },
    "read": {
       "followed feed category": "Gefolgt",

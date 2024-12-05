@@ -265,6 +265,7 @@ update shared user msg model =
                 , model = model.mediaSelector
                 , toModel = \mediaSelector -> { model | mediaSelector = mediaSelector }
                 , toMsg = MediaSelectorSent
+                , browserEnv = shared.browserEnv
                 }
 
         MilkdownSent innerMsg ->
@@ -277,7 +278,7 @@ update shared user msg model =
 sendDraftCmd : Shared.Model -> Model -> Auth.User -> Effect Msg
 sendDraftCmd shared model user =
     eventWithContent shared model user KindDraftLongFormContent
-    |> SendLongFormDraft 
+    |> SendLongFormDraft Pareto.defaultRelays
     |> Shared.Msg.SendNostrEvent
     |> Effect.sendSharedMsg
 

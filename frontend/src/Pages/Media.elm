@@ -90,6 +90,7 @@ update shared user msg model =
                 , toModel = \mediaSelector -> { model | mediaSelector = mediaSelector }
                 , toMsg = MediaSelectorSent
                 , nostr = shared.nostr
+                , browserEnv = shared.browserEnv
                 }
 
 

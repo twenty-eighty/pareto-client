@@ -595,7 +595,7 @@ update props =
                                         Just (FileUploadBlossom maybePreviewLink upload)
 
                                     Just (FileUploadNip96 maybePreviewLink upload) ->
-                                        Just <| FileUploadNip96 maybePreviewLink { upload | status = Nip96.Failed <| "Error uploading to NIP-96 server " ++ apiUrl ++ httpErrorToString error }
+                                        Just <| FileUploadNip96 maybePreviewLink { upload | status = Nip96.Failed <| "Error uploading to NIP-96 server " ++ apiUrl ++ ": " ++ httpErrorToString error }
 
                                     Nothing ->
                                         Nothing

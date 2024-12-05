@@ -997,6 +997,10 @@ addTitleTag maybeTitle tags =
     |> Maybe.map (\title -> TitleTag title :: tags)
     |> Maybe.withDefault tags
 
+addServerTag : String -> List Tag -> List Tag
+addServerTag serverUrl tags =
+    ServerTag serverUrl :: tags
+
 addSummaryTag : Maybe String -> List Tag -> List Tag
 addSummaryTag maybeSummary tags =
     maybeSummary

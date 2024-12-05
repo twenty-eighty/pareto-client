@@ -11,3 +11,28 @@ authorsKey =
 client : String
 client =
     "Pareto"
+
+defaultNip96Server : String
+defaultNip96Server =
+    "https://route96.pareto.space"
+
+defaultRelays : List String
+defaultRelays =
+    [
+     "nostr.pareto.space/"
+--    , "team-relay.pareto.space"
+    , "pareto.nostr1.com/"
+--    , "relay.snort.social"
+    , "relay.nostr.band"
+    , "relay.damus.io"
+    , "nos.lol"
+--  , "offchain.pub"
+--  , "relay.damus.io"
+--  , "nostr.wine"
+    ]
+
+
+defaultRelayUrls : List String
+defaultRelayUrls =
+    defaultRelays
+    |> List.map (String.append "wss://")

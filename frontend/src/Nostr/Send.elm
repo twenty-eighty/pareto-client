@@ -4,5 +4,6 @@ import Nostr.Event exposing (Event)
 
 type alias SendRequestId = Int
 
-type SendRequest =
-    SendLongFormDraft Event
+type SendRequest
+    = SendLongFormDraft (List String) Event
+    | SendFileStorageServerList (List String) Event

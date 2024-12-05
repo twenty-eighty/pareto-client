@@ -204,165 +204,171 @@ export const onReady = ({ app, env }) => {
     const ndkRelays = relays ? NDKRelaySet.fromRelayUrls(relays, window.ndk) : null;
 
     window.ndk.fetchEvents(filter, { closeOnEose: closeOnEose }, ndkRelays).then((ndkEvents) => {
-      var articles = [];
-      var communities = [];
-      var eventsSortedByKind = {};
-      var followlists = [];
-      var profiles = [];
-      var reactions = [];
-      var reposts = [];
-      var shortNotes = [];
-      var highlights = [];
-      var zapReceipts = [];
 
-      ndkEvents.forEach(ndkEvent => {
-        switch (ndkEvent.kind) {
-          case 0: // profile
-          case 1: // short text note
-          case 3: // follow list
-          case 6: // repost
-            {
-              eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
-              break;
-            }
+      processEvents(app, requestId, description, ndkEvents);
+    })
+  }
 
-          case 7: // reactions
-            {
-              const reaction =
-              {
-                pubkey: ndkEvent.pubkey
-                , content: ndkEvent.content
-                , id: ndkEvent.id
-                , "noteid-reactedto": lastTagWithId(ndkEvent.tags, "e")
-                , "pubkey-reactedto": lastTagWithId(ndkEvent.tags, "p")
-                , "kind-reactedto": lastTagWithId(ndkEvent.tags, "k")
-                , "coordinates-reactedto": lastTagWithId(ndkEvent.tags, "a")
-              };
-              reactions.push(reaction);
-              break;
-            }
+  function processEvents(app, requestId, description, ndkEvents) {
 
-          case 9735: // zap receipt
-            // example:
-            // ["EVENT","+#a-kinds-sewzz",
-            //   {"content":"",
-            //    "created_at":1708155853,
-            //    "id":"93a65bdce4e4d0ba1f5042fde8e8311781cb5eee13b30e19e4b701a1c0ca6b57",
-            //    "kind":9735,
-            //    "pubkey":"79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f432",
-            //    "sig":"eb91b24d8df6e3c6a87d47783eed6bda1232607a43839713fe51d235768bcba0c5ea49ba47f526b00dc4dda42e7ad3caffecbccf773e3120dc45dd1555ecdce9",
-            //    "tags":[
-            //      ["p","ec42c765418b3db9c85abff3a88f4a3bbe57535eebbdc54522041fa5328c0600"],
-            //      ["a","30023:ec42c765418b3db9c85abff3a88f4a3bbe57535eebbdc54522041fa5328c0600:1707912490439","wss://nostr.wine"],
-            //      ["P","6b0a60cff3eca5a2b2505ccb3f7133d8422045cbef40f3d2c6189fb0b952e7d4"],
-            //      ["bolt11","lnbc210n1pjaqca7pp59mrnpu6chr5j3q763wqjqprd5kdqrxqt5x8elr49y7k52gd55lushp5855evqmzhzmv9geeu2pgqc46wdhhnmhg4a6yv77mcau4y08085gscqzzsxqyz5vqsp5zktsuxysy7ffnye2caajk07g8lpwk8geg9f00h5g6ve30s98dfms9qyyssqv86ejdsap4gu3x3ej9mjy4qtuyxws8pxuxh30fr9q9nh6xkf37fx3q858lxkwpyge5udqf35z34gm6ut3w86xh7yafa7aqrguy770wsqy5dke6"],
-            //      ["preimage","9887b5e519332ae71991fd5d0d315e6ab24d92979a54ac29c0fd4d74394ecc16"],
-            //      ["pubkey","79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f432"],
-            //      ["description","{\"created_at\":1708155834,\"content\":\"\",\"tags\":[[\"p\",\"ec42c765418b3db9c85abff3a88f4a3bbe57535eebbdc54522041fa5328c0600\"],[\"a\",\"30023:ec42c765418b3db9c85abff3a88f4a3bbe57535eebbdc54522041fa5328c0600:1707912490439\",\"wss://nostr.wine\"],[\"amount\",\"21000\"],[\"relays\",\"wss://relay.snort.social\",\"wss://relay.damus.io\",\"wss://nos.lol\",\"wss://nostr.wine\",\"wss://offchain.pub\"]],\"kind\":9734,\"pubkey\":\"6b0a60cff3eca5a2b2505ccb3f7133d8422045cbef40f3d2c6189fb0b952e7d4\",\"id\":\"0519059ed961675cc8709d9f28cb8b842dbc7e54fb5ec00a7f697a722c5bc794\",\"sig\":\"62fcc1f5cfe74bd28d47eb2e50de58444505d2ab58eb065f9b0eaf4dc5457f8d7537a8eb4e34ef36bf676e5aa2a05958f42b67cdccc67581d9b0dff07611430a\"}"]
-            //    ]
-            //  }]
-            {
-              const zapReceipt = fillZapReceipt(ndkEvent);
-              if (debug) {
-                // console.log("Zap receipt: ", zapReceipt);
-              }
-              zapReceipts.push(zapReceipt);
-              break;
-            }
+    var articles = [];
+    var communities = [];
+    var eventsSortedByKind = {};
+    var followlists = [];
+    var profiles = [];
+    var reactions = [];
+    var reposts = [];
+    var shortNotes = [];
+    var highlights = [];
+    var zapReceipts = [];
 
-          case 9802: // highlight
-            {
-              const highlight = ndkEvent.content;
-              const pubkeyHighlight = { pubkey: ndkEvent.pubkey, highlight: highlight };
-              highlights.push(pubkeyHighlight);
-              break;
-            }
-
-          case 10002: // relay list metadata
-          case 10004: // community lists
-          case 10063: // relay list for file uploads (Blossom)
-          case 10096: // relay list for file uploads (NIP-96)
-          case 30000: // follow sets
-          case 30003: // bookmark sets
-          case 30023: // long-form article
-          case 34550: // community definition
-            {
-              eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
-              break;
-            }
-
-          default:
-            if (debug) {
-              console.log("Unhandled event with kind: ", ndkEvent.kind);
-            }
+    ndkEvents.forEach(ndkEvent => {
+      switch (ndkEvent.kind) {
+        case 0: // profile
+        case 1: // short text note
+        case 3: // follow list
+        case 6: // repost
+          {
             eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
             break;
-        }
-      });
+          }
 
-      if (articles.length > 0) {
-        if (debug) {
-          console.log("Articles: ", articles.length);
-        }
-        app.ports.receiveMessage.send({ messageType: 'articles', value: articles });
-      }
-      if (communities.length > 0) {
-        if (debug) {
-          console.log("Communities: ", communities.length);
-        }
-        app.ports.receiveMessage.send({ messageType: 'communities', value: communities });
-      }
-      for (const kind in eventsSortedByKind) {
-        const events = eventsSortedByKind[kind]
-        if (debug) {
-          console.log("Events of kind " + kind + ": ", events.length);
-        }
-        app.ports.receiveMessage.send({ messageType: 'events', value: { kind: parseInt(kind), events: events, requestId: requestId } });
-      }
+        case 7: // reactions
+          {
+            const reaction =
+            {
+              pubkey: ndkEvent.pubkey
+              , content: ndkEvent.content
+              , id: ndkEvent.id
+              , "noteid-reactedto": lastTagWithId(ndkEvent.tags, "e")
+              , "pubkey-reactedto": lastTagWithId(ndkEvent.tags, "p")
+              , "kind-reactedto": lastTagWithId(ndkEvent.tags, "k")
+              , "coordinates-reactedto": lastTagWithId(ndkEvent.tags, "a")
+            };
+            reactions.push(reaction);
+            break;
+          }
 
-      if (followlists.length > 0) {
-        if (debug) {
-          console.log("Follow lists: ", followlists.length);
-        }
-        app.ports.receiveMessage.send({ messageType: 'followlists', value: followlists });
+        case 9735: // zap receipt
+          // example:
+          // ["EVENT","+#a-kinds-sewzz",
+          //   {"content":"",
+          //    "created_at":1708155853,
+          //    "id":"93a65bdce4e4d0ba1f5042fde8e8311781cb5eee13b30e19e4b701a1c0ca6b57",
+          //    "kind":9735,
+          //    "pubkey":"79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f432",
+          //    "sig":"eb91b24d8df6e3c6a87d47783eed6bda1232607a43839713fe51d235768bcba0c5ea49ba47f526b00dc4dda42e7ad3caffecbccf773e3120dc45dd1555ecdce9",
+          //    "tags":[
+          //      ["p","ec42c765418b3db9c85abff3a88f4a3bbe57535eebbdc54522041fa5328c0600"],
+          //      ["a","30023:ec42c765418b3db9c85abff3a88f4a3bbe57535eebbdc54522041fa5328c0600:1707912490439","wss://nostr.wine"],
+          //      ["P","6b0a60cff3eca5a2b2505ccb3f7133d8422045cbef40f3d2c6189fb0b952e7d4"],
+          //      ["bolt11","lnbc210n1pjaqca7pp59mrnpu6chr5j3q763wqjqprd5kdqrxqt5x8elr49y7k52gd55lushp5855evqmzhzmv9geeu2pgqc46wdhhnmhg4a6yv77mcau4y08085gscqzzsxqyz5vqsp5zktsuxysy7ffnye2caajk07g8lpwk8geg9f00h5g6ve30s98dfms9qyyssqv86ejdsap4gu3x3ej9mjy4qtuyxws8pxuxh30fr9q9nh6xkf37fx3q858lxkwpyge5udqf35z34gm6ut3w86xh7yafa7aqrguy770wsqy5dke6"],
+          //      ["preimage","9887b5e519332ae71991fd5d0d315e6ab24d92979a54ac29c0fd4d74394ecc16"],
+          //      ["pubkey","79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f432"],
+          //      ["description","{\"created_at\":1708155834,\"content\":\"\",\"tags\":[[\"p\",\"ec42c765418b3db9c85abff3a88f4a3bbe57535eebbdc54522041fa5328c0600\"],[\"a\",\"30023:ec42c765418b3db9c85abff3a88f4a3bbe57535eebbdc54522041fa5328c0600:1707912490439\",\"wss://nostr.wine\"],[\"amount\",\"21000\"],[\"relays\",\"wss://relay.snort.social\",\"wss://relay.damus.io\",\"wss://nos.lol\",\"wss://nostr.wine\",\"wss://offchain.pub\"]],\"kind\":9734,\"pubkey\":\"6b0a60cff3eca5a2b2505ccb3f7133d8422045cbef40f3d2c6189fb0b952e7d4\",\"id\":\"0519059ed961675cc8709d9f28cb8b842dbc7e54fb5ec00a7f697a722c5bc794\",\"sig\":\"62fcc1f5cfe74bd28d47eb2e50de58444505d2ab58eb065f9b0eaf4dc5457f8d7537a8eb4e34ef36bf676e5aa2a05958f42b67cdccc67581d9b0dff07611430a\"}"]
+          //    ]
+          //  }]
+          {
+            const zapReceipt = fillZapReceipt(ndkEvent);
+            if (debug) {
+              // console.log("Zap receipt: ", zapReceipt);
+            }
+            zapReceipts.push(zapReceipt);
+            break;
+          }
+
+        case 9802: // highlight
+          {
+            const highlight = ndkEvent.content;
+            const pubkeyHighlight = { pubkey: ndkEvent.pubkey, highlight: highlight };
+            highlights.push(pubkeyHighlight);
+            break;
+          }
+
+        case 10002: // relay list metadata
+        case 10004: // community lists
+        case 10063: // relay list for file uploads (Blossom)
+        case 10096: // relay list for file uploads (NIP-96)
+        case 30000: // follow sets
+        case 30003: // bookmark sets
+        case 30023: // long-form article
+        case 34550: // community definition
+          {
+            eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
+            break;
+          }
+
+        default:
+          if (debug) {
+            console.log("Unhandled event with kind: ", ndkEvent.kind);
+          }
+          eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
+          break;
       }
-      if (profiles.length > 0) {
-        if (debug) {
-          console.log("Profiles: ", profiles.length);
-        }
-        app.ports.receiveMessage.send({ messageType: 'profiles', value: profiles });
+    });
+
+    if (articles.length > 0) {
+      if (debug) {
+        console.log("Articles: ", articles.length);
       }
-      if (reactions.length > 0) {
-        if (debug) {
-          console.log("Reactions: ", reactions.length);
-        }
-        app.ports.receiveMessage.send({ messageType: 'reactions', value: reactions });
+      app.ports.receiveMessage.send({ messageType: 'articles', value: articles });
+    }
+    if (communities.length > 0) {
+      if (debug) {
+        console.log("Communities: ", communities.length);
       }
-      if (reposts.length > 0) {
-        if (debug) {
-          console.log("Reposts: ", reposts.length);
-        }
-        app.ports.receiveMessage.send({ messageType: 'reposts', value: reposts });
+      app.ports.receiveMessage.send({ messageType: 'communities', value: communities });
+    }
+    for (const kind in eventsSortedByKind) {
+      const events = eventsSortedByKind[kind]
+      if (debug) {
+        console.log("Events of kind " + kind + ": ", events.length);
       }
-      if (shortNotes.length > 0) {
-        if (debug) {
-          console.log("Short notes: ", shortNotes.length);
-        }
-        app.ports.receiveMessage.send({ messageType: 'short_notes', value: shortNotes });
+      app.ports.receiveMessage.send({ messageType: 'events', value: { kind: parseInt(kind), events: events, requestId: requestId } });
+    }
+
+    if (followlists.length > 0) {
+      if (debug) {
+        console.log("Follow lists: ", followlists.length);
       }
-      if (highlights.length > 0) {
-        if (debug) {
-          console.log("Highlights: ", highlights.length);
-        }
-        app.ports.receiveMessage.send({ messageType: 'highlights', value: highlights });
+      app.ports.receiveMessage.send({ messageType: 'followlists', value: followlists });
+    }
+    if (profiles.length > 0) {
+      if (debug) {
+        console.log("Profiles: ", profiles.length);
       }
-      if (zapReceipts.length > 0) {
-        if (debug) {
-          console.log("ZapReceipts: ", zapReceipts.length);
-        }
-        app.ports.receiveMessage.send({ messageType: 'zap_receipts', value: zapReceipts });
+      app.ports.receiveMessage.send({ messageType: 'profiles', value: profiles });
+    }
+    if (reactions.length > 0) {
+      if (debug) {
+        console.log("Reactions: ", reactions.length);
       }
-    })
+      app.ports.receiveMessage.send({ messageType: 'reactions', value: reactions });
+    }
+    if (reposts.length > 0) {
+      if (debug) {
+        console.log("Reposts: ", reposts.length);
+      }
+      app.ports.receiveMessage.send({ messageType: 'reposts', value: reposts });
+    }
+    if (shortNotes.length > 0) {
+      if (debug) {
+        console.log("Short notes: ", shortNotes.length);
+      }
+      app.ports.receiveMessage.send({ messageType: 'short_notes', value: shortNotes });
+    }
+    if (highlights.length > 0) {
+      if (debug) {
+        console.log("Highlights: ", highlights.length);
+      }
+      app.ports.receiveMessage.send({ messageType: 'highlights', value: highlights });
+    }
+    if (zapReceipts.length > 0) {
+      if (debug) {
+        console.log("ZapReceipts: ", zapReceipts.length);
+      }
+      app.ports.receiveMessage.send({ messageType: 'zap_receipts', value: zapReceipts });
+    }
   }
 
   function requestBlossomAuth(app, { requestId: requestId, fileId: fileId, serverUrl: serverUrl, content: content, method: method, hash: sha256Hash }) {
@@ -440,7 +446,7 @@ export const onReady = ({ app, env }) => {
     });
   }
 
-  function sendEvent(app, { sendId: sendId, event: event }) {
+  function sendEvent(app, { sendId: sendId, event: event, relays: relays }) {
     if (debug) {
       console.log('send event ' + sendId, event);
     }
@@ -449,13 +455,19 @@ export const onReady = ({ app, env }) => {
       if (debug) {
         console.log('signed event ' + sendId, ndkEvent);
       }
-      const relays = ["wss://pareto.nostr1.com"];
+      if (!relays) {
+        relays = ["wss://pareto.nostr1.com"];
+      }
       const relaySet = NDKRelaySet.fromRelayUrls(relays, window.ndk);
       ndkEvent.publish(relaySet, 5000).then((results) => {
         if (debug) {
           console.log('published event ' + sendId, ndkEvent);
         }
         app.ports.receiveMessage.send({ messageType: 'published', value: { sendId: sendId, results: results } });
+
+        // feed sent events into app as if received by relay.
+        // thus we can let the event modify the state correctly
+        processEvents(app, -1, "sent event", [ndkEvent]);
       })
     })
   }

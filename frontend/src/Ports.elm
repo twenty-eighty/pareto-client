@@ -107,13 +107,14 @@ httpMethodParams method =
                     ]
 
 
-sendEvent : SendRequestId -> Event -> Cmd msg
-sendEvent sendRequestId event =
+sendEvent : SendRequestId -> List String -> Event -> Cmd msg
+sendEvent sendRequestId relays event =
     sendCommand
         { command = "sendEvent"
         , value = 
             Encode.object
                 [ ("sendId", Encode.int sendRequestId)
                 , ("event", encodeEvent event)
+                , ("relays", Encode.list Encode.string relays)
                 ]
         }

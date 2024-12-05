@@ -42,7 +42,7 @@ type alias Hooks =
     , requestEvents : String -> Bool -> RequestId -> Maybe (List String) -> EventFilter -> Cmd Msg
     , requestBlossomAuth : RequestId -> String -> String -> HttpRequestMethod -> Cmd Msg
     , requestNip96Auth : RequestId -> String -> String -> HttpRequestMethod -> Cmd Msg
-    , sendEvent : SendId -> Event -> Cmd Msg
+    , sendEvent : SendId -> List String -> Event -> Cmd Msg
     }
 
 type alias Model =
@@ -201,9 +201,15 @@ performRequest model description requestId requestData =
 send : Model -> SendRequest -> (Model, Cmd Msg)
 send model sendRequest =
     case sendRequest of
-        SendLongFormDraft event ->
+        SendLongFormDraft relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId event )
+            , model.hooks.sendEvent model.lastSendRequestId relays event
+            )
+
+        SendFileStorageServerList relays event ->
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId relays event
+            )
 
 getAuthor : Model -> PubKey -> Nostr.Profile.Author
 getAuthor model pubKey =
@@ -538,7 +544,7 @@ empty =
         , requestEvents = \_ _ _ _ _ -> Cmd.none
         , requestBlossomAuth = \_ _ _ _ -> Cmd.none
         , requestNip96Auth = \_ _ _ _ -> Cmd.none
-        , sendEvent = \_ _ -> Cmd.none
+        , sendEvent = \_ _ _ -> Cmd.none
         }
     , pubKeyByNip05 = Dict.empty
     , poolState = RelayStateUnknown
