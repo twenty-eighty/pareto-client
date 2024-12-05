@@ -15,6 +15,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Time
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
+import Nostr.Nip19 as Nip19
 
 defaultProfileImage : String
 defaultProfileImage =
@@ -102,6 +103,7 @@ viewProfile profile validationStatus =
                         [ text (profile.about |> Maybe.withDefault "") ]
                     , viewWebsite profile
                     , viewNip05 profile
+                    , viewNpub profile
                     ]
                 ]
             ]
@@ -137,6 +139,29 @@ viewNip05 profile =
                     ]
                 ]
                 [ text <| Nip05.nip05ToString nip05 ]
+
+        Nothing ->
+            div [][]
+
+viewNpub : Profile -> Html msg
+viewNpub profile =
+    let
+        maybeNip19 =
+            Nip19.Npub profile.pubKey
+            |> Nip19.encode
+            |> Result.toMaybe
+    in
+    case maybeNip19 of
+        Just nip19 ->
+            p
+                [ css
+                    [ Tw.text_color Theme.gray_600
+                    , Tw.text_sm
+                    , Tw.mb_4
+                    , Tw.w_auto
+                    ]
+                ]
+                [ text nip19 ]
 
         Nothing ->
             div [][]
