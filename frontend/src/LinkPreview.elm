@@ -24,7 +24,7 @@ generatePreviewHtml urlString linkAttr body =
                     generateYouTubePreview urlString videoId
 
                 TwitterTweet tweetId ->
-                    generateTwitterPreview urlString tweetId
+                    generateTwitterPreview urlString tweetId body
 
                 OtherLink ->
                     a (linkAttr ++ [ href urlString ]) body
@@ -218,10 +218,8 @@ generateYouTubePreview url videoId =
       
 
 -- Function to generate Twitter preview HTML
-generateTwitterPreview : String -> String -> Html msg
-generateTwitterPreview url _ =
+generateTwitterPreview : String -> String -> List (Html msg) -> Html msg
+generateTwitterPreview url _ body =
     -- Embedding tweets requires external scripts, so we provide a link
-    div []
-        [ a [ href url ]
-            [ text "View Tweet" ]
-        ]
+        a [ href url ]
+            body
