@@ -576,16 +576,16 @@ viewArticlePreviewList styles browserEnv author article interactions displayAuth
                         [ Css.property "width" "950px"
                         ]
                     , Bp.xl
-                        [ Css.property "width" "750px"
+                        [ Css.property "width" "700px"
                         ]
                     , Bp.lg
-                        [ Css.property "width" "640px"
+                        [ Css.property "width" "600px"
                         ]
                     , Bp.md
-                        [ Css.property "width" "580px"
+                        [ Css.property "width" "540px"
                         ]
                     , Bp.sm
-                        [ Css.property "width" "640px"
+                        [ Css.property "width" "460px"
                         ]
                     ]
 
