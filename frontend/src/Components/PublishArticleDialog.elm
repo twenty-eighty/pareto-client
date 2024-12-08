@@ -3,7 +3,7 @@ module Components.PublishArticleDialog exposing (PublishArticleDialog, Model, Ms
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Checkbox as Checkbox
-import Css
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, a, button, div, form, h2, img, input, label, li, p, span, text, ul)
 import Html.Styled.Attributes as Attr exposing (css)
@@ -32,7 +32,7 @@ type Msg msg
 type Model msg =
     Model
         { state : DialogState
-        , relays : List (Relay, Bool)
+        , relayStates : Dict RelayUrl Bool
         }
 
 type DialogState
@@ -44,6 +44,7 @@ type PublishArticleDialog msg
         { model : Model msg
         , toMsg : Msg msg -> msg
         , onPublish : List RelayUrl -> msg
+        , relays : List Relay
         , browserEnv : BrowserEnv
         , theme : Theme
         }
@@ -52,6 +53,7 @@ new :
     { model : Model msg
     , toMsg : Msg msg -> msg
     , onPublish : List RelayUrl -> msg
+    , relays : List Relay
     , browserEnv : BrowserEnv
     , theme : Theme
     }
@@ -61,17 +63,16 @@ new props =
         { model = props.model
         , toMsg = props.toMsg
         , onPublish = props.onPublish
+        , relays = props.relays
         , browserEnv = props.browserEnv
         , theme = props.theme
         }
 
-init : { relays : List Relay } -> Model msg
+init : { } -> Model msg
 init props =
     Model
         { state = DialogHidden
-        , relays =
-            props.relays
-            |> List.map (\relay -> (relay, True))
+        , relayStates = Dict.empty
         }
 
 show : Model msg -> Model msg
@@ -87,6 +88,7 @@ update :
     , model : Model msg
     , toModel : Model msg -> model
     , toMsg : Msg msg -> msg
+    , relays : List Relay
     }
     -> ( model, Effect msg )
 update props  = 
@@ -112,13 +114,18 @@ update props  =
 
             PublishClicked msg ->
                 let
+                    -- the list of relays is not stored in the model
+                    -- because there may appear more relays after
+                    -- init call
                     relayUrls =
-                        model.relays
-                        |> List.filterMap (\(relay, checked) ->
-                                if checked then
-                                    Just relay.urlWithoutProtocol
-                                else
-                                    Nothing
+                        props.relays
+                        |> List.filterMap (\relay ->
+                                case Dict.get relay.urlWithoutProtocol model.relayStates of
+                                    Just False ->
+                                        Nothing
+
+                                    _ ->
+                                        Just relay.urlWithoutProtocol
                             )
                 in
                 ( Model model
@@ -127,17 +134,7 @@ update props  =
 
 updateRelayChecked : Model msg -> RelayUrl -> Bool -> (Model msg, Effect msg)
 updateRelayChecked (Model model) relayUrl newChecked =
-    let
-        updatedRelayChecked =
-            model.relays
-            |> List.map (\(relay, checked) ->
-                    if relay.urlWithoutProtocol == relayUrl then
-                        (relay, newChecked)
-                    else
-                        (relay, checked)
-                )
-    in
-    (Model {model | relays = updatedRelayChecked}, Effect.none)
+    (Model { model | relayStates = Dict.insert relayUrl newChecked model.relayStates }, Effect.none)
 
 view : PublishArticleDialog msg -> Html msg
 view dialog =
@@ -182,14 +179,14 @@ viewPublishArticleDialog (Settings settings) =
             , theme = settings.theme
             }
             |> Button.withTypePrimary
-            |> Button.withDisabled (numberOfCheckedRelays model.relays < 1)
+            |> Button.withDisabled (numberOfCheckedRelays settings.model settings.relays < 1)
             |> Button.view
         ]
 
-numberOfCheckedRelays : List (Relay, Bool) -> Int
-numberOfCheckedRelays relays =
+numberOfCheckedRelays : Model msg -> List Relay -> Int
+numberOfCheckedRelays (Model model) relays =
     relays
-    |> List.filter (\(relay, checked) -> checked)
+    |> List.filter (\relay -> Dict.get relay.urlWithoutProtocol model.relayStates /= Just False)
     |> List.length
 
 relaysSection : PublishArticleDialog msg -> Html (Msg msg)
@@ -197,6 +194,12 @@ relaysSection (Settings settings) =
     let
         (Model model) =
             settings.model
+
+        relays =
+            settings.relays
+            |> List.map (\relay ->
+                    (relay, Dict.get relay.urlWithoutProtocol model.relayStates /= Just False)
+                )
     in
     div []
         [
@@ -246,7 +249,7 @@ relaysSection (Settings settings) =
                 , Tw.gap_y_2
                 ]
             ]
-            (List.map (viewRelayCheckbox settings.theme) model.relays)
+            (List.map (viewRelayCheckbox settings.theme) relays)
         ]
 
 viewRelayCheckbox : Theme -> (Relay, Bool) -> Html (Msg msg)

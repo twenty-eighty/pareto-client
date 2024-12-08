@@ -82,11 +82,10 @@ type ArticleState
     | ArticleSavingDraft SendRequestId
     | ArticleDraftSaveError String
     | ArticleDraftSaved
-    | ArticlePreparingPublishing
     | ArticlePublishing SendRequestId
     | ArticlePublishingError String
     | ArticlePublished
-    | ArticleDeletingDraft
+    | ArticleDeletingDraft SendRequestId
 
 type ImageSelection
     = ArticleImageSelection
@@ -141,9 +140,8 @@ init user shared route () =
                 }
 
         publishArticleDialog =
-            PublishArticleDialog.init
-                { relays = Nostr.getWriteRelaysForPubKey shared.nostr user.pubKey
-                }
+            PublishArticleDialog.init { }
+
         model =
             case maybeArticle of
                 Just article ->
@@ -290,7 +288,7 @@ update shared user msg model =
                                     ( model, Effect.none )
 
         Publish ->
-            ( { model | articleState = ArticlePreparingPublishing, publishArticleDialog = PublishArticleDialog.show model.publishArticleDialog }, Effect.none )
+            ( { model | publishArticleDialog = PublishArticleDialog.show model.publishArticleDialog }, Effect.none )
 
         PublishArticle relayUrls ->
             ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) }, sendPublishCmd shared model user relayUrls )
@@ -332,6 +330,7 @@ update shared user msg model =
             PublishArticleDialog.update
                 { msg = innerMsg
                 , model = model.publishArticleDialog
+                , relays = Nostr.getWriteRelaysForPubKey shared.nostr user.pubKey
                 , toModel = \publishArticleDialog -> { model | publishArticleDialog = publishArticleDialog }
                 , toMsg = PublishArticleDialogSent
                 }
@@ -414,15 +413,25 @@ updateWithPublishedResults shared model user value =
         ArticlePublishing sendRequestId ->
             if Just sendRequestId == receivedSendRequestId then
                 ( { model
-                    | articleState = ArticlePublished
-                    , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                    | articleState = ArticleDeletingDraft (Nostr.getLastSendRequestId shared.nostr)
                   }
                 -- after publishing article, delete draft
                 , sendDraftDeletionCmd shared model user
                 )
             else
                 (model, Effect.none)
-        
+
+        ArticleDeletingDraft sendRequestId ->
+            if Just sendRequestId == receivedSendRequestId then
+                ( { model
+                    | articleState = ArticlePublished
+                    , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                  }
+                , Effect.none
+                )
+            else
+                (model, Effect.none)
+
         _ ->
             (model, Effect.none)
 
@@ -560,6 +569,7 @@ view user shared model =
             { model = model.publishArticleDialog
             , toMsg = PublishArticleDialogSent
             , onPublish = PublishArticle
+            , relays = Nostr.getWriteRelaysForPubKey shared.nostr user.pubKey
             , browserEnv = shared.browserEnv
             , theme = shared.theme
             }
@@ -608,9 +618,6 @@ articleStateToString browserEnv articleState =
         ArticleDraftSaveError error ->
             Just <| Translations.articleDraftSaveError [ browserEnv.translations ] ++ ": " ++ error
 
-        ArticlePreparingPublishing ->
-            Just <| Translations.articlePreparingPublishingState [ browserEnv.translations ]
-
         ArticlePublishing _ ->
             Just <| Translations.articlePublishingState [ browserEnv.translations ]
 
@@ -620,7 +627,7 @@ articleStateToString browserEnv articleState =
         ArticlePublished ->
             Just <| Translations.articlePublishedState [ browserEnv.translations ]
 
-        ArticleDeletingDraft ->
+        ArticleDeletingDraft _ ->
             Just <| Translations.articleDeletingDraftState [ browserEnv.translations ]
 
 viewMediaSelector : Auth.User -> Shared.Model -> Model -> Html Msg
