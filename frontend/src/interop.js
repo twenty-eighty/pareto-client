@@ -292,6 +292,7 @@ export const onReady = ({ app, env }) => {
         case 30000: // follow sets
         case 30003: // bookmark sets
         case 30023: // long-form article
+        case 30024: // long-form draft
         case 34550: // community definition
           {
             eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
@@ -448,17 +449,20 @@ export const onReady = ({ app, env }) => {
 
   function sendEvent(app, { sendId: sendId, event: event, relays: relays }) {
     if (debug) {
-      console.log('send event ' + sendId, event);
+      console.log('send event ' + sendId, event, 'relays: ', relays);
     }
     const ndkEvent = new NDKEvent(window.ndk, event);
     ndkEvent.sign().then(() => {
       if (debug) {
         console.log('signed event ' + sendId, ndkEvent);
       }
-      if (!relays) {
-        relays = ["wss://pareto.nostr1.com"];
+
+      var relaysWithProtocol = relays.map(relay => "wss://" + relay);
+
+      if (relaysWithProtocol.length === 0) {
+        relaysWithProtocol = ["wss://pareto.nostr1.com"];
       }
-      const relaySet = NDKRelaySet.fromRelayUrls(relays, window.ndk);
+      const relaySet = NDKRelaySet.fromRelayUrls(relaysWithProtocol, window.ndk);
       ndkEvent.publish(relaySet, 5000).then((results) => {
         if (debug) {
           console.log('published event ' + sendId, ndkEvent);
@@ -543,13 +547,6 @@ export const onReady = ({ app, env }) => {
         if (!!user.npub) {
           app.ports.receiveMessage.send({ messageType: 'user', value: { pubKey: user.pubkey } });
           localStorage.setItem('isLoggedIn', JSON.stringify(true));
-          /*
-                    user.fetchProfile({ cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST })
-                      .then(async (profile) => {
-                      app.ports.receiveMessage.send({ messageType: 'user', value: { pubKey: user.pubkey, profile: profile }  });
-                      localStorage.setItem('isLoggedIn', JSON.stringify(true));
-                    })
-          */
         }
       }
       )

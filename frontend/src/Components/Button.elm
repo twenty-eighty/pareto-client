@@ -32,6 +32,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Ui.Styles
+import Html
 
 -- SETTINGS
 
@@ -141,8 +142,8 @@ withDisabled isDisabled (Settings settings) =
 view : Button msg -> Html msg
 view (Settings settings) =
     let
-        styles =
-            Ui.Styles.stylesForTheme settings.theme
+        buttonStyles =
+            stylesForTheme (Settings settings)
 
         viewOptionalIcon : Maybe Icon -> Html msg
         viewOptionalIcon maybeIcon =
@@ -153,30 +154,68 @@ view (Settings settings) =
                 Nothing ->
                     text ""
     in
-    button
-        ( styles.colorStyleButtonText ++ styles.colorStyleButtonBackground ++
+    div
         [ css
-            [ Tw.py_2
-            , Tw.px_4
-            , Tw.flex
+            [ Tw.flex
             , Tw.flex_row
             , Tw.gap_2
-            , Tw.rounded_full
-            , Css.hover
-                [ 
-                ]
             ]
-        , Events.onClick settings.onClick
-        , class "button"
-        , classList
-            [ ( "is-success", settings.style == Success )
-            , ( "is-warning", settings.style == Warning )
-            , ( "is-danger", settings.style == Danger )
-            , ( "is-small", settings.size == Small )
-            ]
-        , disabled settings.isDisabled
-        ])
-        [ viewOptionalIcon settings.iconLeft
-        , text settings.label
-        , viewOptionalIcon settings.iconRight
         ]
+        [ button
+            ( buttonStyles ++
+            [ css
+                [ Tw.py_2
+                , Tw.px_4
+                , Tw.flex
+                , Tw.flex_row
+                , Tw.gap_2
+                , Tw.rounded_full
+                , Css.hover
+                    [ 
+                    ]
+                ]
+            , Events.onClick settings.onClick
+            , classList
+                [ ( "is-success", settings.style == Success )
+                , ( "is-warning", settings.style == Warning )
+                , ( "is-danger", settings.style == Danger )
+                , ( "is-small", settings.size == Small )
+                ]
+            , disabled settings.isDisabled
+            ])
+            [ viewOptionalIcon settings.iconLeft
+            , text settings.label
+            , viewOptionalIcon settings.iconRight
+            ]
+        ]
+
+stylesForTheme : Button msg -> List (Attribute msg)
+stylesForTheme (Settings settings) =
+    let
+        styles =
+            Ui.Styles.stylesForTheme settings.theme
+
+        (foregroundStyles, backgroundStyles) =
+            case settings.type_ of
+                RegularButton ->
+                    if settings.isDisabled then
+                        (styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground)
+                    else
+                        (styles.colorStyleRegularButtonText, styles.colorStyleRegularButtonBackground)
+
+                PrimaryButton ->
+                    if settings.isDisabled then
+                        (styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground)
+                    else
+                        (styles.colorStylePrimaryButtonText, styles.colorStylePrimaryButtonBackground)
+
+                SecondaryButton ->
+                    if settings.isDisabled then
+                        (styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground)
+                    else
+                        (styles.colorStyleSecondaryButtonText, styles.colorStyleSecondaryButtonBackground)
+
+        attributes =
+            foregroundStyles ++ backgroundStyles
+    in
+    attributes

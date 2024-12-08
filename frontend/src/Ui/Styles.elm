@@ -82,8 +82,14 @@ map toMsg props =
     , colorStyleGrayscaleMedia = mapStyleBundle toMsg props.colorStyleGrayscaleMedia 
     , colorStyleGrayscaleDisabled = mapStyleBundle toMsg props.colorStyleGrayscaleDisabled
     , colorStyleArticleHashtags = mapStyleBundle toMsg props.colorStyleArticleHashtags
-    , colorStyleButtonText = mapStyleBundle toMsg props.colorStyleButtonText
-    , colorStyleButtonBackground = mapStyleBundle toMsg props.colorStyleButtonBackground
+    , colorStyleRegularButtonText = mapStyleBundle toMsg props.colorStyleRegularButtonText
+    , colorStylePrimaryButtonText = mapStyleBundle toMsg props.colorStylePrimaryButtonText
+    , colorStyleSecondaryButtonText = mapStyleBundle toMsg props.colorStyleSecondaryButtonText
+    , colorStyleDisabledButtonText = mapStyleBundle toMsg props.colorStyleDisabledButtonText
+    , colorStyleRegularButtonBackground = mapStyleBundle toMsg props.colorStyleRegularButtonBackground
+    , colorStylePrimaryButtonBackground = mapStyleBundle toMsg props.colorStylePrimaryButtonBackground
+    , colorStyleSecondaryButtonBackground = mapStyleBundle toMsg props.colorStyleSecondaryButtonBackground
+    , colorStyleDisabledButtonBackground = mapStyleBundle toMsg props.colorStyleDisabledButtonBackground
     , colorStyleInverse = mapStyleBundle toMsg props.colorStyleInverse
     , colorStyleSitebarBackground = mapStyleBundle toMsg props.colorStyleSitebarBackground
     , colorStyleSitebarItemActive = mapStyleBundle toMsg props.colorStyleSitebarItemActive
@@ -138,8 +144,14 @@ type alias Styles msg =
     , colorStyleGrayscaleMedia : StyleBundle msg
     , colorStyleGrayscaleDisabled : StyleBundle msg
     , colorStyleArticleHashtags : StyleBundle msg
-    , colorStyleButtonText : StyleBundle msg
-    , colorStyleButtonBackground : StyleBundle msg
+    , colorStyleRegularButtonText : StyleBundle msg
+    , colorStylePrimaryButtonText : StyleBundle msg
+    , colorStyleSecondaryButtonText : StyleBundle msg
+    , colorStyleDisabledButtonText : StyleBundle msg
+    , colorStyleRegularButtonBackground : StyleBundle msg
+    , colorStylePrimaryButtonBackground : StyleBundle msg
+    , colorStyleSecondaryButtonBackground : StyleBundle msg
+    , colorStyleDisabledButtonBackground : StyleBundle msg
     , colorStyleInverse : StyleBundle msg
     , colorStyleSitebarBackground : StyleBundle msg
     , colorStyleSitebarItemActive : StyleBundle msg
@@ -427,7 +439,7 @@ referenceDesignThemeStyles =
                 ]
             ]
         ]
-    , colorStyleButtonText =
+    , colorStyleRegularButtonText =
         [ css
             [ Tw.text_color Theme.slate_300
             , darkMode
@@ -435,7 +447,55 @@ referenceDesignThemeStyles =
                 ]
             ]
         ]
-    , colorStyleButtonBackground =
+    , colorStylePrimaryButtonText =
+        [ css
+            [ Tw.text_color Theme.slate_300
+            , darkMode
+                [ Tw.text_color Theme.slate_700
+                ]
+            ]
+        ]
+    , colorStyleSecondaryButtonText =
+        [ css
+            [ Tw.text_color Theme.slate_300
+            , darkMode
+                [ Tw.text_color Theme.slate_700
+                ]
+            ]
+        ]
+    , colorStyleDisabledButtonText =
+        [ css
+            [ Tw.text_color Theme.slate_300
+            , darkMode
+                [ Tw.text_color Theme.slate_700
+                ]
+            ]
+        ]
+    , colorStyleRegularButtonBackground =
+        [ css
+            [ Tw.text_color Theme.slate_700
+            , darkMode
+                [ Tw.text_color Theme.slate_300
+                ]
+            ]
+        ]
+    , colorStylePrimaryButtonBackground =
+        [ css
+            [ Tw.text_color Theme.slate_700
+            , darkMode
+                [ Tw.text_color Theme.slate_300
+                ]
+            ]
+        ]
+    , colorStyleSecondaryButtonBackground =
+        [ css
+            [ Tw.text_color Theme.slate_700
+            , darkMode
+                [ Tw.text_color Theme.slate_300
+                ]
+            ]
+        ]
+    , colorStyleDisabledButtonBackground =
         [ css
             [ Tw.text_color Theme.slate_700
             , darkMode
@@ -583,6 +643,25 @@ referenceDesignThemeStyles =
 
 paretoThemeStyles : Styles msg
 paretoThemeStyles =
+    let
+        color1 =
+            Theme.slate_700
+
+        color1Inverse =
+            Theme.slate_300
+
+        color2 =
+            Theme.slate_300
+
+        color2Inverse =
+            Theme.slate_700
+
+        color3 =
+            Theme.slate_100
+
+        color3Inverse =
+            Theme.slate_900
+    in
     { textStyleReactions =
         [ css
             [ Tw.text_base
@@ -770,9 +849,9 @@ paretoThemeStyles =
         ]
     , colorStyleBorders =
         [ css
-            [ Tw.text_color Theme.slate_100 -- should be #DFE1EB
+            [ Tw.text_color color3
             , darkMode
-                [ Tw.text_color Theme.slate_900
+                [ Tw.text_color color3Inverse
                 ]
             ]
         ]
@@ -826,17 +905,17 @@ paretoThemeStyles =
         ]
     , colorStyleGrayscaleMedia =
         [ css
-            [ Tw.text_color Theme.slate_300
+            [ Tw.text_color color2
             , darkMode
-                [ Tw.text_color Theme.slate_700
+                [ Tw.text_color color1
                 ]
             ]
         ]
     , colorStyleGrayscaleDisabled =
         [ css
-            [ Tw.text_color Theme.slate_300
+            [ Tw.text_color color2
             , darkMode
-                [ Tw.text_color Theme.slate_700
+                [ Tw.text_color color1
                 ]
             ]
         ]
@@ -848,27 +927,78 @@ paretoThemeStyles =
                 ]
             ]
         ]
-    , colorStyleButtonText =
+    , colorStyleRegularButtonText =
         [ css
-            [ Tw.text_color Theme.slate_300
+            [ Tw.text_color color1
             , darkMode
-                [ Tw.text_color Theme.slate_700
+                [ Tw.text_color color1Inverse
                 ]
             ]
         ]
-    , colorStyleButtonBackground =
+    , colorStylePrimaryButtonText =
         [ css
-            [ Tw.bg_color Theme.slate_700
+            [ Tw.text_color color2
             , darkMode
-                [ Tw.bg_color Theme.slate_300
+                [ Tw.text_color color2Inverse
+                ]
+            ]
+        ]
+    , colorStyleSecondaryButtonText =
+        [ css
+            [ Tw.text_color color1
+            , darkMode
+                [ Tw.text_color color1Inverse
+                ]
+            ]
+        ]
+    , colorStyleDisabledButtonText =
+        [ css
+            [ Tw.text_color color2
+            , darkMode
+                [ Tw.text_color color2Inverse
+                ]
+            ]
+        ]
+    , colorStyleRegularButtonBackground =
+        [ css
+            [ Tw.bg_color color2
+            , Tw.border_color color1
+            , Tw.border_2
+            , darkMode
+                [ Tw.bg_color color2Inverse
+                , Tw.border_color color1Inverse
+                ]
+            ]
+        ]
+    , colorStylePrimaryButtonBackground =
+        [ css
+            [ Tw.bg_color color1
+            , darkMode
+                [ Tw.bg_color color1Inverse
+                ]
+            ]
+        ]
+    , colorStyleSecondaryButtonBackground =
+        [ css
+            [ Tw.bg_color color2
+            , darkMode
+                [ Tw.bg_color color2Inverse
+                ]
+            ]
+        ]
+    , colorStyleDisabledButtonBackground =
+        [ css
+            [ Tw.bg_color color3
+            , darkMode
+                [ Tw.bg_color color3Inverse
                 ]
             ]
         ]
     , colorStyleInverse =
         [ css
-            [ Tw.text_color Theme.white
+            [ Tw.bg_color Theme.white
             , darkMode
-                [ Tw.text_color Theme.black
+                [ Tw.bg_color Theme.black
                 ]
             ]
         ]
@@ -888,29 +1018,29 @@ paretoThemeStyles =
         ]
     , colorStyleSitebarItemActive =
         [ css
-            [ Tw.text_color Theme.slate_700
+            [ Tw.text_color color1
             , darkMode
-                [ Tw.text_color Theme.slate_300
+                [ Tw.text_color color2
                 , Bp.sm
-                    [ Tw.text_color Theme.slate_700
+                    [ Tw.text_color color1
                     ]
                 ]
             , Bp.sm
-                [ Tw.text_color Theme.slate_700
+                [ Tw.text_color color1
                 , darkMode
-                    [ Tw.text_color Theme.slate_700
+                    [ Tw.text_color color1
                     ]
                 ]
             ]
         ]
     , colorStyleSitebarItemActiveBackground =
         [ css
-            [ Tw.bg_color Theme.slate_300
+            [ Tw.bg_color color2
             , Bp.sm
-                [ Tw.bg_color Theme.slate_300
+                [ Tw.bg_color color2
                 ]
             , darkMode
-                [ Tw.bg_color Theme.slate_700
+                [ Tw.bg_color color1
                 ]
             ]
         ]
@@ -921,64 +1051,64 @@ paretoThemeStyles =
         ]
     , colorStyleSitebarItemInactiveBackground =
         [ css
-            [ Tw.text_color Theme.slate_100
+            [ Tw.text_color color3
             , Bp.sm
-                [ Tw.text_color Theme.slate_900
+                [ Tw.text_color color3Inverse
                 ]
             ]
         ]
     , colorStyleSitebarItemEnabled =
         [ css
-            [ Tw.text_color Theme.slate_300
+            [ Tw.text_color color2
             , Bp.sm
-                [ Tw.text_color Theme.slate_700
+                [ Tw.text_color color1
                 , darkMode
-                    [ Tw.text_color Theme.slate_300
+                    [ Tw.text_color color2
                     ]
                 ]
             ]
         ]
     , colorStyleSitebarItemDisabled =
         [ css
-            [ Tw.text_color Theme.slate_700
+            [ Tw.text_color color1
             , Bp.sm
-                [ Tw.text_color Theme.slate_300
+                [ Tw.text_color color2
                 , darkMode
-                    [ Tw.text_color Theme.slate_700
+                    [ Tw.text_color color1
                     ]
                 ]
             ]
         ]
     , colorStyleCategoryActive =
         [ css
-            [ Tw.text_color Theme.slate_700
+            [ Tw.text_color color1
             , darkMode
-                [ Tw.text_color Theme.slate_300
+                [ Tw.text_color color2
                 ]
             ]
         ]
     , colorStyleCategoryActiveBackground =
         [ css
-            [ Tw.bg_color Theme.slate_300
+            [ Tw.bg_color color2
             , darkMode
-                [ Tw.bg_color Theme.slate_700
+                [ Tw.bg_color color1
                 ]
             ]
         ]
     , colorStyleCategoryActiveBorder =
         [ css
             [ Tw.border_2
-            , Tw.border_color Theme.slate_700
+            , Tw.border_color color1
             , darkMode
-                [ Tw.border_color Theme.slate_300
+                [ Tw.border_color color2
                 ]
             ]
         ]
     , colorStyleCategoryInactiveBackground =
         [ css
-            [ Tw.bg_color Theme.slate_100
+            [ Tw.bg_color color3
             , darkMode
-                [ Tw.bg_color Theme.slate_900
+                [ Tw.bg_color color3Inverse
                 ]
             ]
         ]

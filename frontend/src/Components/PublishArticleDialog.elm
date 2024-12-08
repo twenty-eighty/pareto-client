@@ -1,4 +1,4 @@
-module Components.PublishArticleDialog exposing (PublishArticleDialog, Model, Msg, new, init, update, view, show)
+module Components.PublishArticleDialog exposing (PublishArticleDialog, Model, Msg, new, init, update, view, show, hide)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
@@ -78,6 +78,10 @@ show : Model msg -> Model msg
 show (Model model) =
     Model { model | state = DialogVisible }
 
+hide : Model msg -> Model msg
+hide (Model model) =
+    Model { model | state = DialogHidden }
+
 update :
     { msg : Msg msg
     , model : Model msg
@@ -117,7 +121,7 @@ update props  =
                                     Nothing
                             )
                 in
-                ( Model { model | state = DialogHidden }
+                ( Model model
                 , Effect.sendMsg ( msg relayUrls )
                 )
 
@@ -162,7 +166,14 @@ viewPublishArticleDialog (Settings settings) =
         (Model model) =
             settings.model
     in
-    div []
+    div [ css
+            [ Tw.my_4
+            , Tw.flex
+            , Tw.flex_col
+            , Tw.justify_start
+            , Tw.gap_2
+            ]
+        ]
         [ relaysSection (Settings settings)
         -- , zapSplitSection (Settings settings)
         , Button.new
@@ -170,6 +181,7 @@ viewPublishArticleDialog (Settings settings) =
             , onClick = PublishClicked settings.onPublish
             , theme = settings.theme
             }
+            |> Button.withTypePrimary
             |> Button.withDisabled (numberOfCheckedRelays model.relays < 1)
             |> Button.view
         ]

@@ -216,6 +216,11 @@ send model sendRequest =
             , model.hooks.sendEvent model.lastSendRequestId relays event
             )
 
+        SendDeletionRequest relays event ->
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId relays event
+            )
+
 getAuthor : Model -> PubKey -> Nostr.Profile.Author
 getAuthor model pubKey =
     let
@@ -296,8 +301,8 @@ getLastRequestId : Model -> RequestId
 getLastRequestId model =
     model.lastRequestId
 
-getLastSendId : Model -> SendRequestId
-getLastSendId model =
+getLastSendRequestId : Model -> SendRequestId
+getLastSendRequestId model =
     model.lastSendRequestId
 
 filterArticlesWithIdentifier : String -> List Article -> Maybe Article

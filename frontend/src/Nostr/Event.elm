@@ -998,6 +998,10 @@ addClientTag : String -> List Tag -> List Tag
 addClientTag client tags =
     ClientTag client :: tags
 
+addEventIdTag : String -> List Tag -> List Tag
+addEventIdTag eventId tags =
+    EventIdTag eventId :: tags
+
 addTitleTag : Maybe String -> List Tag -> List Tag
 addTitleTag maybeTitle tags =
     maybeTitle

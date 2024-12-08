@@ -98,6 +98,17 @@
       "summary text": "Summary",
       "tags label text": "Tags",
       "tags placeholder text": "Tags, comma separated",
-      "upload button title": "Upload"
+      "upload button title": "Upload",
+      "article modified state": "Article modified",
+      "article loading draft state": "Loading draft...",
+      "article loading draft error": "Error loading draft",
+      "article saving draft state": "Saving draft...",
+      "article draft saved state": "Draft saved",
+      "article draft save error": "Error saving draft",
+      "article preparing publishing state": "Preparing article for publishing",
+      "article publishing state": "Publishing article...",
+      "article published state": "Article published",
+      "article publishing error": "Error publishing article",
+      "article deleting draft state": "Deleting draft after publishing..."
    }
 }

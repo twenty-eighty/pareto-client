@@ -98,6 +98,17 @@
       "summary text": "Zusammenfassung",
       "tags label text": "Schlüsselwörter",
       "tags placeholder text": "Schlüsselwörter, mit Komma getrennt",
-      "upload button title": "Hochladen"
+      "upload button title": "Hochladen",
+      "article modified state": "Artikel geändert",
+      "article loading draft state": "Lade Entwurf ...",
+      "article loading draft error": "Fehler beim Laden des Entwurfs",
+      "article saving draft state": "Speichere Entwurf ...",
+      "article draft saved state": "Entwurf gespeichert",
+      "article draft save error": "Fehler beim Speichern des Entwurfs",
+      "article preparing publishing state": "Artikel für Veröffentlichung vorbereiten",
+      "article publishing state": "Artikel wird veröffentlicht ...",
+      "article published state": "Artikel wurde veröffentlicht",
+      "article publishing error": "Fehler beim Veröffentlichen des Artikels",
+      "article deleting draft state": "Lösche Entwurf nach Veröffentlichung ..."
    }
 }
