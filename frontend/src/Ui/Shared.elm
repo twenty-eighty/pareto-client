@@ -53,24 +53,21 @@ modalDialog title content onClose =
         [ css
             [ Tw.fixed
             , Tw.inset_0
+            , Tw.bg_color Theme.gray_900
             , Tw.bg_opacity_50
             , Tw.flex
-            , Tw.items_center
             , Tw.justify_center
+            , Tw.items_center
             , Tw.z_50
-            , Tw.max_h_screen
-            , Tw.m_10
             ]
-        , Attr.id "modal-overlay"
         ]
         [ div
             [ css
                 [ Tw.bg_color Theme.white
                 , Tw.rounded_lg
                 , Tw.shadow_lg
-                , Tw.w_full
-                , Tw.max_w_lg
-                , Tw.p_6
+                , Tw.p_8
+                , Tw.w_96
                 ]
             ]
             [ div

@@ -1,6 +1,7 @@
 module Components.Button exposing
     ( Button, new
     , view
+    , withTypePrimary, withTypeSecondary
     , withStyleSuccess, withStyleWarning, withStyleDanger
     , withSizeSmall
     , withIconLeft, withIconRight
@@ -41,6 +42,7 @@ type Button msg
         , onClick : msg
         , style : Style
         , size : Size
+        , type_ : ButtonType
         , iconLeft : Maybe Icon
         , iconRight : Maybe Icon
         , isOutlined : Bool
@@ -56,6 +58,7 @@ new props =
         , onClick = props.onClick
         , style = Default
         , size = Normal
+        , type_ = RegularButton
         , iconLeft = Nothing
         , iconRight = Nothing
         , isOutlined = False
@@ -66,6 +69,22 @@ new props =
 
 
 -- MODIFIERS
+
+type ButtonType
+    = RegularButton
+    | PrimaryButton
+    | SecondaryButton
+
+
+withTypePrimary : Button msg -> Button msg
+withTypePrimary (Settings settings) =
+    Settings { settings | type_ = PrimaryButton }
+
+
+withTypeSecondary : Button msg -> Button msg
+withTypeSecondary (Settings settings) =
+    Settings { settings | type_ = SecondaryButton }
+
 
 
 type Style

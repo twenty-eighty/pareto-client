@@ -22,18 +22,17 @@ import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileFromEvent)
 import Nostr.Reactions
 import Nostr.Relay exposing (Relay, RelayState(..))
-import Nostr.RelayListMetadata exposing (RelayMetadata, relayListFromEvent)
+import Nostr.RelayListMetadata exposing (RelayMetadata, RelayRole(..), relayListFromEvent)
 import Nostr.Repost exposing (Repost, repostFromEvent)
 import Nostr.Request exposing (HttpRequestMethod, Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
-import Nostr.Types exposing (EventId, PubKey, IncomingMessage, OutgoingCommand)
+import Nostr.Types exposing (EventId, PubKey, IncomingMessage, OutgoingCommand, RelayUrl)
 import Nostr.Zaps exposing (ZapReceipt)
 import Html.Attributes exposing (kind)
-import Time
-import Nostr.Types exposing (RelayUrl)
 import Set
+import Time
 
 
 type alias Hooks =
@@ -46,8 +45,7 @@ type alias Hooks =
     }
 
 type alias Model =
-    { relays : List Relay
-    , articlesByAuthor : Dict PubKey (List Article)
+    { articlesByAuthor : Dict PubKey (List Article)
     , articleDraftsByAuthor : Dict PubKey (List Article)
     , articlesByDate : List Article
     , articleDraftsByDate : List Article
@@ -55,6 +53,7 @@ type alias Model =
     , bookmarkSets : Dict PubKey BookmarkSet
     , communities : Dict PubKey (List Community)
     , communityLists : Dict PubKey (List CommunityReference)
+    , defaultRelays : List String
     , fileStorageServerLists : Dict PubKey (List String)
     , followLists : Dict PubKey (List Following)
     , followSets : Dict PubKey (Dict String FollowSet) -- follow sets; keys pubKey / identifier
@@ -63,6 +62,7 @@ type alias Model =
     , profiles : Dict PubKey Nostr.Profile.Profile
     , profileValidations : Dict PubKey ProfileValidation
     , reactions : Dict EventId (Dict EventId Nostr.Reactions.Reaction)
+    , relays : Dict String Relay
     , relayMetadataLists : Dict PubKey (List RelayMetadata)
     , relaysForPubKey : Dict PubKey (List RelayUrl)
     , reposts : Dict EventId Repost
@@ -201,6 +201,11 @@ performRequest model description requestId requestData =
 send : Model -> SendRequest -> (Model, Cmd Msg)
 send model sendRequest =
     case sendRequest of
+        SendLongFormArticle relays event ->
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId relays event
+            )
+
         SendLongFormDraft relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
             , model.hooks.sendEvent model.lastSendRequestId relays event
@@ -250,7 +255,7 @@ getArticleDraftsForAuthor model pubKey =
 getArticleForNip19 : Model -> NIP19Type -> Maybe Article
 getArticleForNip19 model nip19 =
     case nip19 of
-        NAddr { identifier, kind, pubKey, relays } ->
+        NAddr { identifier, kind, pubKey } ->
             case kindFromNumber kind of
                 KindLongFormContent ->
                     getArticleWithIdentifier model pubKey identifier            
@@ -333,9 +338,60 @@ getReactionsForArticle : Model -> Article -> Maybe (Dict String Nostr.Reactions.
 getReactionsForArticle model article =
     Dict.get article.id model.reactions
 
-getRelaysForPubKey : Model -> PubKey -> Maybe (List RelayUrl)
+getRelaysForPubKey : Model -> PubKey -> List (RelayRole, Relay)
 getRelaysForPubKey model pubKey =
-    Dict.get pubKey model.relaysForPubKey
+    let
+        userRelaysFromNip05 =
+            Dict.get pubKey model.relaysForPubKey
+            |> Maybe.withDefault []
+
+        userRelaysFromEvent =
+            Dict.get pubKey model.relayMetadataLists
+            |> Maybe.withDefault []
+
+        combinedRelayList =
+            userRelaysFromNip05
+            |> List.map (\relayUrl -> { role = ReadWriteRelay, url = relayUrl })
+            |> List.append userRelaysFromEvent
+            |> relayListWithUniqueEntries
+            |> List.filterMap (\{ role, url } ->
+                Maybe.map
+                    (\relay -> (role, relay))
+                    (Dict.get url model.relays)
+                )
+    in
+    combinedRelayList
+
+getReadRelaysForPubKey : Model -> PubKey -> List Relay
+getReadRelaysForPubKey model pubKey =
+    getRelaysForPubKey model pubKey
+    |> List.filterMap (\(role, relay) ->
+            if role == ReadRelay || role == ReadWriteRelay then
+                Just relay
+            else
+                Nothing
+        )
+
+getReadRelayUrlsForPubKey : Model -> PubKey -> List String
+getReadRelayUrlsForPubKey model pubKey =
+    getReadRelaysForPubKey model pubKey
+    |> List.map .urlWithoutProtocol
+
+
+getWriteRelaysForPubKey : Model -> PubKey -> List Relay
+getWriteRelaysForPubKey model pubKey =
+    getRelaysForPubKey model pubKey
+    |> List.filterMap (\(role, relay) ->
+            if role == WriteRelay || role == ReadWriteRelay then
+                Just relay
+            else
+                Nothing
+        )
+
+getWriteRelayUrlsForPubKey : Model -> PubKey -> List String
+getWriteRelayUrlsForPubKey model pubKey =
+    getWriteRelaysForPubKey model pubKey
+    |> List.map .urlWithoutProtocol
 
 getRequest : Model -> RequestId -> Maybe Request
 getRequest model requestId =
@@ -367,8 +423,8 @@ getZapReceiptsForArticle model article =
             Nothing
 
 getProfile : Model -> PubKey -> Maybe Profile
-getProfile model pubkey =
-    Dict.get pubkey model.profiles
+getProfile model pubKey =
+    Dict.get pubKey model.profiles
 
 getProfileByNip05 : Model -> Nip05 -> Maybe Profile
 getProfileByNip05 model nip05 =
@@ -378,6 +434,7 @@ getProfileByNip05 model nip05 =
 getPubKeyByNip05 : Model -> Nip05 -> Maybe PubKey
 getPubKeyByNip05 model nip05 =
     Dict.get (nip05ToString nip05) model.pubKeyByNip05
+
 
 requestCommunityPostApprovals : Model -> Community -> Cmd Msg
 requestCommunityPostApprovals model community =
@@ -405,8 +462,12 @@ requestUserData model pubKey =
                 , KindFollows
                 , KindMuteList
                 , KindRelayListMetadata
+                , KindBlockedRelaysList
+                , KindSearchRelaysList
+                , KindRelayListForDMs
                 , KindCommunitiesList
                 , KindFollowSets
+                , KindRelaySets
                 , KindCommunitiesList
                 , KindUserServerList
                 , KindFileStorageServerList
@@ -528,8 +589,7 @@ cmdBatch2 cmd1 cmd2 =
 
 empty : Model
 empty =
-    { relays = []
-    , articlesByAuthor = Dict.empty
+    { articlesByAuthor = Dict.empty
     , articleDraftsByAuthor = Dict.empty
     , articlesByDate = []
     , articleDraftsByDate = []
@@ -537,6 +597,7 @@ empty =
     , bookmarkSets = Dict.empty
     , communities = Dict.empty
     , communityLists = Dict.empty
+    , defaultRelays = []
     , fileStorageServerLists = Dict.empty
     , hooks =
         { connect = \ _ -> Cmd.none
@@ -554,6 +615,7 @@ empty =
     , profileValidations = Dict.empty
     , reactions = Dict.empty
     , relayMetadataLists = Dict.empty
+    , relays = Dict.empty
     , relaysForPubKey = Dict.empty
     , reposts = Dict.empty
     , shortTextNotes = Dict.empty
@@ -570,7 +632,11 @@ empty =
 
 init : Hooks -> List String -> (Model, Cmd Msg)
 init hooks relayUrls =
-    ({ empty | hooks = hooks, relays = initRelayList relayUrls }
+    (
+    { empty | hooks = hooks
+    , relays = initRelayList relayUrls
+    , defaultRelays = relayUrls
+    }
     , Cmd.batch
         [ hooks.connect (List.map Nostr.Relay.websocketUrl relayUrls)
         , requestRelayNip11 relayUrls
@@ -584,10 +650,11 @@ requestRelayNip11 relayUrls =
     |> Cmd.batch
 
 
-initRelayList : List String -> List Relay
+initRelayList : List String -> Dict String Relay
 initRelayList relayUrls =
     relayUrls
-    |> List.map (\urlWithoutProtocol -> { urlWithoutProtocol = urlWithoutProtocol, state = RelayStateUnknown, nip11 = Nothing })
+    |> List.map (\urlWithoutProtocol -> (urlWithoutProtocol, { urlWithoutProtocol = urlWithoutProtocol, state = RelayStateUnknown, nip11 = Nothing }))
+    |> Dict.fromList
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -667,19 +734,42 @@ update msg model =
                     (model, Cmd.none)
 
         Nip05FetchedForPubKey pubKey nip05 (Ok nip05Data) ->
-        -- TODO: store relays for user
             let
-                validationStatus =
+                maybePubKeyInNip05Data =
+                    Dict.get nip05.user nip05Data.names
+                
+                nip05Relays =
+                    Maybe.map2 (\pubKeyInNip05Data relaysDict ->
+                            Dict.get pubKeyInNip05Data relaysDict
+                            |> Maybe.withDefault []
+                        ) maybePubKeyInNip05Data nip05Data.relays
+                    |> Maybe.withDefault []
+
+                (validationStatus, relays) =
                     Dict.get nip05.user nip05Data.names
                     |> Maybe.map (\pubKeyInNip05Data ->
                             if pubKeyInNip05Data == pubKey then
-                                ValidationSucceeded
+                                (ValidationSucceeded, nip05Relays)
                             else
-                                ValidationNotMatchingPubKey
+                                -- ignore relays if pubkey doesn't match in NIP-05
+                                (ValidationNotMatchingPubKey, [])
                         )
-                    |> Maybe.withDefault ValidationNameMissing
+                    |> Maybe.withDefault (ValidationNameMissing, [])
+
+                unknownRelays =
+                    relays
+                    |> List.map Nostr.Relay.hostWithoutProtocol
+                    |> List.filter (\relay ->
+                            not <| Dict.member relay model.relays
+                        )
+
+                -- don't store relays here, only response for NIP-11 request
+                requestNip11Cmd =
+                    requestRelayNip11 unknownRelays
             in
-            (updateProfileWithValidationStatus model pubKey validationStatus, Cmd.none)
+            ( updateProfileWithValidationStatus model pubKey validationStatus
+            , requestNip11Cmd
+            )
 
         Nip05FetchedForPubKey pubKey _ (Err error) ->
             (updateProfileWithValidationStatus model pubKey (ValidationNetworkError error), Cmd.none)
@@ -692,7 +782,17 @@ update msg model =
             ( { model | errors = ("Error fetching NIP05 data for " ++ nip05ToString nip05 ++ ": " ++ httpErrorToString error) :: model.errors}, Cmd.none )
 
         Nip11Fetched urlWithoutProtocol (Ok info) ->
-            ({ model | relays = Nostr.Relay.updateRelayNip11 urlWithoutProtocol info model.relays }, Cmd.none)
+            let
+                updatedRelay =
+                    Dict.get urlWithoutProtocol model.relays
+                    |> Maybe.map (\relay -> { relay | nip11 = Just info })
+                    |> Maybe.withDefault
+                        { urlWithoutProtocol = urlWithoutProtocol
+                        , state = RelayStateUnknown
+                        , nip11 = Just info
+                        }
+            in
+            ({ model | relays = Dict.insert urlWithoutProtocol updatedRelay model.relays }, Cmd.none)
 
         Nip11Fetched urlWithoutProtocol (Err err) ->
             -- Handle error, e.g., log it, retry, or display to user
@@ -1053,11 +1153,34 @@ updateModelWithRelayListMetadata model events =
         relayLists =
             events
             |> List.map relayListFromEvent
+
+        relayListDict =
+            relayLists
             |> List.foldl (\(pubKey, relayList) dict ->
-                Dict.insert pubKey relayList dict
+                Dict.insert pubKey (relayListWithUniqueEntries relayList) dict
                 ) model.relayMetadataLists
+
+        unknownRelays =
+            relayLists
+            |> List.map (\(pubKey, relayMetadataList) -> relayMetadataList)
+            |> List.concat
+            |> List.map (\{ url } -> Nostr.Relay.hostWithoutProtocol url)
+            |> List.filter (\relay ->
+                    not <| Dict.member relay model.relays
+                )
+
+        requestNip11Cmd =
+            requestRelayNip11 unknownRelays
     in
-    ({ model | relayMetadataLists = relayLists }, Cmd.none)
+    ({ model | relayMetadataLists = relayListDict }, requestNip11Cmd)
+
+relayListWithUniqueEntries : List RelayMetadata -> List RelayMetadata
+relayListWithUniqueEntries relayList =
+    relayList
+    |> List.map (\relayMetadata -> (relayMetadata.url, relayMetadata.role))
+    |> Dict.fromList
+    |> Dict.toList
+    |> List.map (\(url, role) -> { url = Nostr.Relay.hostWithoutProtocol url, role = role})
 
 updateModelWithFollowLists : Model -> List Event -> (Model, Cmd Msg)
 updateModelWithFollowLists model events =

@@ -2,6 +2,7 @@ module Nostr.Relay exposing (..)
 
 import Nostr.Nip11 exposing (Nip11Info)
 import Url
+import Dict exposing (Dict)
 
 type alias Relay =
     { urlWithoutProtocol : String
@@ -16,6 +17,13 @@ type RelayState
     | RelayConnected
     | RelayReady
 
+displayName : Relay -> String
+displayName relay =
+    relay.nip11
+    |> Maybe.andThen .name
+    |> Maybe.withDefault relay.urlWithoutProtocol
+
+
 icon : Relay -> String
 icon relay =
     relay.nip11
@@ -26,15 +34,13 @@ websocketUrl : String -> String
 websocketUrl urlWithoutProtocol =
     "wss://" ++ urlWithoutProtocol
 
-updateRelayStatus : String -> RelayState -> List Relay -> List Relay
-updateRelayStatus relayUrlWithoutProtocol state relayList =
-    relayList
-    |> List.map (\relay ->
-        if relayUrlWithoutProtocol == relay.urlWithoutProtocol then
-            { relay | state = state }
-        else
-            relay
-        )
+updateRelayStatus : String -> RelayState -> Dict String Relay -> Dict String Relay
+updateRelayStatus relayUrlWithoutProtocol state relayDict =
+    Dict.update relayUrlWithoutProtocol
+        (\maybeRelay ->
+            maybeRelay
+            |> Maybe.map (\relay -> { relay | state = state })
+        ) relayDict
 
 updateRelayNip11 : String -> Nip11Info -> List Relay -> List Relay
 updateRelayNip11 urlWithoutProtocol info relays =
@@ -47,6 +53,21 @@ updateRelayNip11 urlWithoutProtocol info relays =
         )
         relays
  
+hostWithoutProtocol : String -> String
+hostWithoutProtocol url =
+    let
+        urlWithoutProtocol =
+            if String.startsWith "wss://" url then
+                String.dropLeft 6 url
+            else
+                url
+
+    in
+    if String.endsWith "/" urlWithoutProtocol then
+        String.dropRight 1 urlWithoutProtocol
+    else
+        urlWithoutProtocol
+
 hostAndPathOfUrl : String -> (Maybe String, Maybe String )
 hostAndPathOfUrl urlString =
     case Url.fromString urlString of

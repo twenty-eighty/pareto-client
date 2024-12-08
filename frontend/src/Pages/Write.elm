@@ -2,7 +2,9 @@ module Pages.Write exposing (Model, Msg, page)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
+import Components.Button as Button
 import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
+import Components.PublishArticleDialog as PublishArticleDialog
 import Css
 import Dict exposing (Dict)
 import Effect exposing (Effect)
@@ -32,6 +34,8 @@ import Translations.Write as Translations
 import Ui.Styles exposing (Theme)
 import View exposing (View)
 import Nostr.Article exposing (Article)
+import Components.PublishArticleDialog exposing (PublishArticleDialog)
+import Nostr.Types exposing (RelayUrl)
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
@@ -64,6 +68,7 @@ type alias Model =
     , now : Time.Posix
     , mediaSelector : MediaSelector.Model
     , imageSelectionn : Maybe ImageSelection
+    , publishArticleDialog : PublishArticleDialog.Model Msg
     }
 
 type ImageSelection
@@ -107,6 +112,10 @@ init user shared route () =
                 , displayType = MediaSelector.DisplayModalDialog False
                 }
 
+        publishArticleDialog =
+            PublishArticleDialog.init
+                { relays = Nostr.getWriteRelaysForPubKey shared.nostr user.pubKey
+                }
         model =
             case maybeArticle of
                 Just article ->
@@ -120,6 +129,7 @@ init user shared route () =
                     , now = Time.millisToPosix 0
                     , mediaSelector = mediaSelector
                     , imageSelectionn = Nothing
+                    , publishArticleDialog = publishArticleDialog
                     }
 
                 Nothing ->
@@ -133,6 +143,7 @@ init user shared route () =
                     , now = Time.millisToPosix 0
                     , mediaSelector = mediaSelector
                     , imageSelectionn = Nothing
+                    , publishArticleDialog = publishArticleDialog
                     }
 
     in
@@ -170,11 +181,13 @@ type Msg
     | SelectImage ImageSelection
     | ImageSelected ImageSelection MediaSelector.UploadedFile
     | Publish
+    | PublishArticle (List RelayUrl)
     | SaveDraft
     | Now Time.Posix
     | OpenMediaSelector
     | MediaSelectorSent (MediaSelector.Msg Msg)
     | MilkdownSent (Milkdown.Msg Msg)
+    | PublishArticleDialogSent (PublishArticleDialog.Msg Msg)
 
 
 update : Shared.Model -> Auth.User -> Msg -> Model -> ( Model, Effect Msg )
@@ -243,7 +256,10 @@ update shared user msg model =
                                     ( model, Effect.none )
 
         Publish ->
-            ( model, Effect.none )
+            ( { model | publishArticleDialog = PublishArticleDialog.show model.publishArticleDialog }, Effect.none )
+
+        PublishArticle relayUrls ->
+            ( model, sendPublishCmd shared model user relayUrls )
 
         SaveDraft ->
             ( model, sendDraftCmd shared model user )
@@ -274,6 +290,21 @@ update shared user msg model =
                     Milkdown.update innerMsg model.milkdown
             in
             ( { model | milkdown = milkdown }, Effect.sendCmd cmd )
+
+        PublishArticleDialogSent innerMsg ->
+            PublishArticleDialog.update
+                { msg = innerMsg
+                , model = model.publishArticleDialog
+                , toModel = \publishArticleDialog -> { model | publishArticleDialog = publishArticleDialog }
+                , toMsg = PublishArticleDialogSent
+                }
+
+sendPublishCmd : Shared.Model -> Model -> Auth.User -> List RelayUrl -> Effect Msg
+sendPublishCmd shared model user relayUrls =
+    eventWithContent shared model user KindDraftLongFormContent
+    |> SendLongFormArticle relayUrls
+    |> Shared.Msg.SendNostrEvent
+    |> Effect.sendSharedMsg
 
 sendDraftCmd : Shared.Model -> Model -> Auth.User -> Effect Msg
 sendDraftCmd shared model user =
@@ -370,9 +401,17 @@ view user shared model =
             , viewEditor shared.browserEnv model
             , viewTags  shared.browserEnv model
             -- , openMediaSelectorButton shared.browserEnv
-            , saveButtons shared.browserEnv model
+            , saveButtons shared.browserEnv shared.theme model
             , viewMediaSelector user shared model
             ]
+        , PublishArticleDialog.new
+            { model = model.publishArticleDialog
+            , toMsg = PublishArticleDialogSent
+            , onPublish = PublishArticle
+            , browserEnv = shared.browserEnv
+            , theme = shared.theme
+            }
+            |> PublishArticleDialog.view
         ]
     }
 
@@ -598,8 +637,8 @@ viewTags browserEnv model =
         
 
 
-saveButtons : BrowserEnv -> Model -> Html Msg
-saveButtons browserEnv mmodel =
+saveButtons : BrowserEnv -> Theme -> Model -> Html Msg
+saveButtons browserEnv theme model =
     div
         [ css
             [ Tw.flex
@@ -607,27 +646,25 @@ saveButtons browserEnv mmodel =
             , Tw.mb_10
             ]
         ]
-        [ saveDraftButton browserEnv
-        , publishButton browserEnv
+        [ saveDraftButton browserEnv theme
+        , publishButton browserEnv model theme
         ]
 
 
-publishButton : BrowserEnv -> Html Msg
-publishButton browserEnv =
-    button
-        [ css
-            [ Tw.bg_color Theme.orange_500
-            , Tw.text_color Theme.white
-            , Tw.py_2
-            , Tw.px_4
-            , Tw.rounded_full
-            , Css.hover
-                [ Tw.bg_color Theme.orange_700
-                ]
-            ]
-        , Events.onClick Publish
-        ]
-        [ text <| Translations.publishButtonTitle [ browserEnv.translations ] ]
+publishButton : BrowserEnv -> Model -> Theme -> Html Msg
+publishButton browserEnv model theme =
+    Button.new
+        { label = Translations.publishButtonTitle [ browserEnv.translations ]
+        , onClick = Publish
+        , theme = theme
+        }
+        |> Button.withDisabled (not <| articleReadyForPublishing model)
+        |> Button.withTypePrimary
+        |> Button.view
+
+articleReadyForPublishing : Model -> Bool
+articleReadyForPublishing model =
+    True
 
 openMediaSelectorButton : BrowserEnv -> Html Msg
 openMediaSelectorButton browserEnv =
@@ -645,18 +682,12 @@ openMediaSelectorButton browserEnv =
         ]
         [ text <| "Open Media Selector" ]
 
-saveDraftButton : BrowserEnv -> Html Msg
-saveDraftButton browserEnv =
-    button
-        [ css
-            [ Tw.bg_color Theme.gray_200
-            , Tw.py_2
-            , Tw.px_4
-            , Tw.rounded_full
-            , Css.hover
-                [ Tw.bg_color Theme.gray_300
-                ]
-            ]
-        , Events.onClick SaveDraft
-        ]
-        [ text <| Translations.saveDraftButtonTitle [ browserEnv.translations ] ]
+saveDraftButton : BrowserEnv -> Theme -> Html Msg
+saveDraftButton browserEnv theme =
+    Button.new
+        { label = Translations.saveDraftButtonTitle [ browserEnv.translations ]
+        , onClick = SaveDraft
+        , theme = theme
+        }
+        |> Button.withTypeSecondary
+        |> Button.view

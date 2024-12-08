@@ -49,6 +49,14 @@
       "published category": "Published",
       "drafts category": "Drafts"
    },
+   "publish article dialog": {
+      "dialog title": "Publish article",
+      "relays title": "Relays",
+      "relays description": "Select the relays you want to publish to",
+      "revenue title": "Revenue",
+      "revenue description": "Configure how revenue is shared",
+      "publish button title": "Publish article"
+   },
    "sign-in": {
       "page title": "Sign in/up",
       "sign-in request": "Please sign up/in to access the page",
@@ -85,7 +93,7 @@
       "editor title placeholder text": "Title",
       "editor subtitle placeholder text": "Add a summary...",
       "page title": "Write article",
-      "publish button title": "Publish",
+      "publish button title": "Publish...",
       "save draft button title": "Save draft",
       "summary text": "Summary",
       "tags label text": "Tags",

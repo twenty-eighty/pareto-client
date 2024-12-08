@@ -31,6 +31,7 @@ type Tag
     | PublicKeyTag PubKey (Maybe String) (Maybe String)
     | PublishedAtTag Time.Posix
     | QuotedEventTag EventId
+    | RelayTag String
     | RelaysTag (List String)
     | ServerTag String
     | SummaryTag String
@@ -618,6 +619,9 @@ decodeTag =
             "r" ->
                 Decode.map2 UrlTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 1 Decode.string))
 
+            "relay" ->
+                Decode.map RelayTag (Decode.index 1 Decode.string)
+
             "relays" ->
                 Decode.map RelaysTag (Decode.list Decode.string)
 
@@ -716,6 +720,9 @@ tagToList tag =
 
         QuotedEventTag eventId ->
             [ "q", eventId ]
+
+        RelayTag relay ->
+            [ "relay", relay ]
 
         RelaysTag relays ->
             "relays" :: relays
