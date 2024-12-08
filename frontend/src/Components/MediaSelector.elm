@@ -292,7 +292,7 @@ update props =
                 in
                 ( Model model -- Model modelWithServer
                 , Effect.batch
-                    [ sendNip96ServerListCmd props.browserEnv props.user Pareto.defaultNip96Server Pareto.defaultRelayUrls
+                    [ sendNip96ServerListCmd props.browserEnv props.user Pareto.defaultNip96Server Pareto.defaultRelays
                     -- , requestNip96ServerSpecs [ Pareto.defaultNip96Server ]
                     ]
                   |> Effect.map props.toMsg
