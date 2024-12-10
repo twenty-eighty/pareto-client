@@ -2,7 +2,7 @@ module Nostr.Article exposing (..)
 
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as DecodePipeline
-import Nostr.Event exposing (Event, EventFilter, Kind(..), Tag(..), TagReference(..), addEventIdTag, numberForKind)
+import Nostr.Event exposing (Event, EventFilter, Kind(..), Tag(..), TagReference(..))
 import Nostr.Nip19 as Nip19
 import Nostr.Nip27 as Nip27
 import Nostr.Profile exposing (ProfileValidation(..))

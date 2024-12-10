@@ -86,7 +86,7 @@ init shared () =
 type Msg
     = CategorySelected Category
     | CategoriesSent (Components.Categories.Msg Category Msg)
-    | DeleteDraft String -- draft event id
+    | DeleteDraft String (Maybe String) -- draft event id
     | EditDraft String
 
 update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -103,9 +103,9 @@ update user shared msg model =
                 , toMsg = CategoriesSent
                 }
 
-        DeleteDraft draftArticleId ->
+        DeleteDraft draftArticleId draftIdentifier ->
             ( model
-            , draftDeletionEvent user.pubKey shared.browserEnv.now draftArticleId "Deleting draft"
+            , draftDeletionEvent user.pubKey shared.browserEnv.now draftArticleId "Deleting draft" draftIdentifier
                 |> SendDeletionRequest (Nostr.getDraftRelayUrls shared.nostr draftArticleId)
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
@@ -239,7 +239,7 @@ deleteDraftButton : Theme -> String -> Article -> Html Msg
 deleteDraftButton theme label article =
     Button.new
         { label = label
-        , onClick = Just <| DeleteDraft article.id
+        , onClick = Just <| DeleteDraft article.id article.identifier
         , theme = theme
         }
         |> Button.view

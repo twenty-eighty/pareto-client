@@ -2,7 +2,7 @@ module Nostr.DeletionRequest exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
 import Dict exposing (Dict)
-import Nostr.Event exposing (Event, Kind(..), Tag(..), addEventIdTag)
+import Nostr.Event exposing (Event, Kind(..), Tag(..), addAddressTag, addEventIdTag, buildAddress)
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Types exposing (EventId, PubKey, RelayUrl)
 import Set exposing (Set)
@@ -35,13 +35,23 @@ deletionRequestFromEvent event =
             ) { eventIds = Set.empty, addresses = Set.empty, reason = event.content, kinds = Set.empty }
 
 
-draftDeletionEvent : PubKey -> Time.Posix -> EventId -> String -> Event
-draftDeletionEvent pubKey createdAt draftEventId content =
+draftDeletionEvent : PubKey -> Time.Posix -> EventId -> String -> Maybe String -> Event
+draftDeletionEvent pubKey createdAt draftEventId content maybeIdentifier =
+    let
+        addIdentifer =
+            case maybeIdentifier of
+                Just identifier ->
+                    addAddressTag (buildAddress (KindDraftLongFormContent, pubKey, identifier))
+
+                Nothing ->
+                    identity
+    in
             { pubKey = pubKey
             , createdAt = createdAt
             , kind = KindEventDeletionRequest
             , tags =
                 [ ]
+                |> addIdentifer
                 |> addEventIdTag draftEventId
             , content = content
             , id = ""

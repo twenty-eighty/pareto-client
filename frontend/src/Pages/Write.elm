@@ -456,7 +456,7 @@ sendDraftDeletionCmd : Shared.Model -> Model -> Auth.User -> Effect Msg
 sendDraftDeletionCmd shared model user =
     case model.draftEventId of
         Just draftEventId ->
-            draftDeletionEvent user.pubKey shared.browserEnv.now draftEventId "Deleting draft after publishing article"
+            draftDeletionEvent user.pubKey shared.browserEnv.now draftEventId "Deleting draft after publishing article" model.identifier
             |> SendDeletionRequest (Nostr.getDraftRelayUrls shared.nostr draftEventId)
             |> Shared.Msg.SendNostrEvent
             |> Effect.sendSharedMsg

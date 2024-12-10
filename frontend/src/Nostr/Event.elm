@@ -764,6 +764,10 @@ tagToList tag =
         ZapTag value ->
             [ "zap", value ]
 
+buildAddress : (Kind, PubKey, String) -> String
+buildAddress (kind, pubKey, identifier) =
+    String.fromInt (numberForKind kind) ++ ":" ++ pubKey ++ ":" ++ identifier
+
 parseAddress : String -> Maybe (Kind, PubKey, String)
 parseAddress address =
     case String.split ":" address of
@@ -1011,6 +1015,10 @@ appendTags tags eventElements =
     eventElements ++ [ ("tags", Encode.list (Encode.list Encode.string) tagArrays ) ]
 
 -- functions for building Event structure
+
+addAddressTag : String -> List Tag -> List Tag
+addAddressTag address tags =
+    AddressTag address :: tags
 
 addClientTag : String -> List Tag -> List Tag
 addClientTag client tags =
