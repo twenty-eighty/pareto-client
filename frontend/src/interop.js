@@ -170,19 +170,19 @@ export const onReady = ({ app, env }) => {
       if (debug) {
         console.log('relay connected', relay);
       }
-      app.ports.receiveMessage.send({ messageType: 'relay:connected', value: urlWithoutProtocol(relay.url) });
+      app.ports.receiveMessage.send({ messageType: 'relay:connected', value: { url: relay.url } });
     })
     window.ndk.pool.on("relay:ready", (relay) => {
       if (debug) {
         console.log('relay ready', relay);
       }
-      app.ports.receiveMessage.send({ messageType: 'relay:ready', value: urlWithoutProtocol(relay.url) });
+      app.ports.receiveMessage.send({ messageType: 'relay:ready', value: { url: relay.url } });
     })
     window.ndk.pool.on("relay:disconnect", (relay) => {
       if (debug) {
         console.log('relay disconnected', relay);
       }
-      app.ports.receiveMessage.send({ messageType: 'relay:disconnected', value: urlWithoutProtocol(relay.url) });
+      app.ports.receiveMessage.send({ messageType: 'relay:disconnected', value: { url: relay.url } });
     })
 
     window.ndk.connect();
@@ -227,6 +227,7 @@ export const onReady = ({ app, env }) => {
         case 0: // profile
         case 1: // short text note
         case 3: // follow list
+        case 5: // event deletion request
         case 6: // repost
           {
             eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);

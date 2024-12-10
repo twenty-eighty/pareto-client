@@ -2,7 +2,9 @@
 
 set -eu
 
-npx @abradley2/elm-i18next-gen --output=gen/Translations --translations=lang/lang-en_US.json
+ELMI18NEXTGEN="npx @abradley2/elm-i18next-gen"
+
+$ELMI18NEXTGEN --output=gen/Translations --translations=lang/lang-en_US.json
 
 CONFLICTING_FILE=gen/Translations/Language.elm
 

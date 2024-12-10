@@ -961,11 +961,11 @@ paretoThemeStyles =
         ]
     , colorStyleRegularButtonBackground =
         [ css
-            [ Tw.bg_color color2
+            [ Tw.bg_color color3
             , Tw.border_color color1
             , Tw.border_2
             , darkMode
-                [ Tw.bg_color color2Inverse
+                [ Tw.bg_color color3Inverse
                 , Tw.border_color color1Inverse
                 ]
             ]

@@ -175,7 +175,7 @@ viewPublishArticleDialog (Settings settings) =
         -- , zapSplitSection (Settings settings)
         , Button.new
             { label = Translations.publishButtonTitle [ settings.browserEnv.translations ]
-            , onClick = PublishClicked settings.onPublish
+            , onClick = Just <| PublishClicked settings.onPublish
             , theme = settings.theme
             }
             |> Button.withTypePrimary

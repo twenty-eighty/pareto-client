@@ -2,7 +2,9 @@ module Pages.Posts exposing (Model, Msg, page)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
+import Components.Button as Button exposing (Button)
 import Components.Categories
+import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
@@ -11,19 +13,24 @@ import I18Next
 import Layouts
 import Nostr
 import Nostr.Article exposing (Article)
+import Nostr.DeletionRequest exposing (draftDeletionEvent)
 import Nostr.Event exposing (EventFilter, Kind(..), kindDecoder, emptyEventFilter)
+import Nostr.Nip19 as Nip19
 import Nostr.Request exposing (RequestData(..))
+import Nostr.Send exposing (SendRequest(..))
 import Page exposing (Page)
 import Route exposing (Route)
+import Route.Path
 import Shared
 import Shared.Model
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-import Translations.Posts
+import Translations.Posts as Translations
 import Translations.Sidebar
 import Ui.Article
+import Ui.Shared
 import Ui.Styles exposing (Styles, Theme)
 import View exposing (View)
 
@@ -32,7 +39,7 @@ page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
 page user shared route =
     Page.new
         { init = init shared
-        , update = update shared
+        , update = update user shared
         , subscriptions = subscriptions
         , view = view shared user
         }
@@ -58,10 +65,10 @@ type Category
 availableCategories : I18Next.Translations -> List (Components.Categories.CategoryData Category)
 availableCategories translations =
     [ { category = Published
-      , title = Translations.Posts.publishedCategory [ translations ]
+      , title = Translations.publishedCategory [ translations ]
       }
     , { category = Drafts
-      , title = Translations.Posts.draftsCategory [ translations ]
+      , title = Translations.draftsCategory [ translations ]
       }
     ]
 
@@ -79,10 +86,11 @@ init shared () =
 type Msg
     = CategorySelected Category
     | CategoriesSent (Components.Categories.Msg Category Msg)
+    | DeleteDraft String -- draft event id
+    | EditDraft String
 
-
-update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
-update shared msg model =
+update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
+update user shared msg model =
     case msg of
         CategorySelected category ->
             updateModelWithCategory shared model category
@@ -94,6 +102,17 @@ update shared msg model =
                 , toModel = \categories -> { model | categories = categories}
                 , toMsg = CategoriesSent
                 }
+
+        DeleteDraft draftArticleId ->
+            ( model
+            , draftDeletionEvent user.pubKey shared.browserEnv.now draftArticleId "Deleting draft"
+                |> SendDeletionRequest (Nostr.getDraftRelayUrls shared.nostr draftArticleId)
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        EditDraft nip19 ->
+            (model, Effect.pushRoute { path = Route.Path.Write, query = Dict.singleton "a" nip19, hash = Nothing } )
 
 updateModelWithCategory : Shared.Model -> Model -> Category -> (Model, Effect Msg)
 updateModelWithCategory shared model category =
@@ -158,7 +177,7 @@ viewArticles shared model =
 
         Drafts ->
             Nostr.getArticleDraftsByDate shared.nostr
-            |> viewArticleDraftPreviews styles shared.browserEnv shared.nostr
+            |> viewArticleDraftPreviews shared.theme shared.browserEnv shared.nostr
 
 viewArticlePreviews : Styles msg -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
 viewArticlePreviews styles browserEnv nostr articles =
@@ -167,11 +186,82 @@ viewArticlePreviews styles browserEnv nostr articles =
     |> List.map (\article -> Ui.Article.viewArticlePreviewList styles browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article) True)
     |> div []
 
-viewArticleDraftPreviews : Styles msg -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
-viewArticleDraftPreviews styles browserEnv nostr articles =
+viewArticleDraftPreviews : Theme -> BrowserEnv -> Nostr.Model -> List Article -> Html Msg
+viewArticleDraftPreviews theme browserEnv nostr articles =
     articles
     |> List.take 20
-    |> List.map (\article -> Ui.Article.viewArticleDraftPreview styles browserEnv article)
+    |> List.map (\article -> viewArticleDraftPreview theme browserEnv article)
     |> div []
 
 
+viewArticleDraftPreview : Ui.Styles.Theme -> BrowserEnv -> Article -> Html Msg
+viewArticleDraftPreview theme browserEnv article =
+    let
+        styles =
+            Ui.Styles.stylesForTheme theme
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.items_center
+            , Tw.justify_center
+            , Tw.mb_4
+            ]
+        ]
+        [ div
+            [ css
+                [ Tw.p_6
+                , Tw.rounded_lg
+                , Tw.shadow_lg
+                , Tw.min_w_96
+                , Tw.max_w_3xl
+                ]
+            ]
+            [ div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_row
+                    , Tw.justify_between
+                    , Tw.mb_3
+                    ]
+                ]
+                [ Ui.Article.timeParagraph styles browserEnv article.publishedAt
+                , deleteDraftButton theme (Translations.deleteDraftButtonLabel [browserEnv.translations]) article
+                , editDraftButton theme (Translations.editDraftButtonLabel [browserEnv.translations]) article
+                ]
+            , Ui.Article.viewTitleSummaryImagePreview styles article
+            , Ui.Article.viewTags styles article
+            ]
+        ]
+
+
+deleteDraftButton : Theme -> String -> Article -> Html Msg
+deleteDraftButton theme label article =
+    Button.new
+        { label = label
+        , onClick = Just <| DeleteDraft article.id
+        , theme = theme
+        }
+        |> Button.view
+
+
+editDraftButton : Theme -> String -> Article -> Html Msg
+editDraftButton theme label article =
+    Button.new
+        { label = label
+        , onClick = Maybe.map EditDraft (editDraftLink article)
+        , theme = theme
+        }
+        |> Button.view
+
+
+editDraftLink : Article -> Maybe String
+editDraftLink article =
+    Nip19.NAddr 
+        { identifier = article.identifier |> Maybe.withDefault ""
+        , pubKey = article.author
+        , kind = Nostr.Event.numberForKind article.kind
+        , relays = []
+        }
+    |> Nip19.encode
+    |> Result.toMaybe

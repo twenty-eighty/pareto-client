@@ -7,6 +7,9 @@ import Json.Decode.Pipeline as Pipeline
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..), NAddrData)
 import Nostr.Types exposing (EventId, PubKey)
 import Time
+import Nostr.Relay
+import Nostr.Types exposing (RelayUrl)
+import Json.Decode as Decode
 
 
 type Tag
@@ -24,6 +27,7 @@ type Tag
     | FileTag String String
     | HashTag String
     | IdentityTag String String
+    | KindTag Kind
     | ImageTag String (Maybe ImageSize)
     | LocationTag String String
     | MentionTag PubKey
@@ -51,7 +55,7 @@ type alias Event =
     , content : String
     , id : String
     , sig : Maybe String
-    , relay : Maybe String
+    , relay : Maybe RelayUrl
     }
 
 
@@ -459,6 +463,18 @@ kindDecoder =
     Decode.int
         |> Decode.map kindFromNumber
     
+kindStringDecoder : Decoder Kind
+kindStringDecoder =
+    Decode.string
+        |> Decode.andThen (\kindString ->
+                case String.toInt kindString of
+                    Just kindInt ->
+                        Decode.succeed (kindFromNumber kindInt)
+
+                    Nothing ->
+                        Decode.fail <| "String is not kind number: " ++ kindString
+            )
+    
 tagReferenceToString : TagReference -> String
 tagReferenceToString tagRef =
     case tagRef of
@@ -529,11 +545,7 @@ decodeEvent =
         |> Pipeline.required "content" Decode.string
         |> Pipeline.required "id" Decode.string
         |> Pipeline.optional "sig" (Decode.maybe Decode.string) Nothing
-        |> Pipeline.optional "relay" (Decode.maybe relayUrlDecoder) Nothing
-
-relayUrlDecoder : Decode.Decoder String
-relayUrlDecoder =
-    Decode.field "url" Decode.string
+        |> Pipeline.optional "relay" (Decode.maybe Nostr.Relay.relayUrlDecoder) Nothing
 
 eventFilterForNip19 : NIP19Type -> Maybe EventFilter
 eventFilterForNip19 nip19 =
@@ -597,6 +609,9 @@ decodeTag =
 
             "image" ->
                 Decode.map2 ImageTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 imageSizeDecoder))
+
+            "k" ->
+                Decode.map KindTag (Decode.index 1 kindStringDecoder)
 
             "l" ->
                 Decode.map2 LocationTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string)
@@ -702,6 +717,9 @@ tagToList tag =
 
         ImageTag value Nothing ->
             [ "image", value ]
+
+        KindTag kind ->
+            [ "k", String.fromInt <| numberForKind kind ]
 
         LocationTag value1 value2 ->
             [ "l", value1, value2 ]

@@ -282,18 +282,9 @@ update props =
                 )
 
             ConfigureDefaultMediaServer ->
-                let
-                    modelWithServer =
-                        { model
-                            | nip96Servers = updateServerState model.nip96Servers Pareto.defaultNip96Server ServerStateUnknown
-                            , serverSelectionDropdown =
-                                Components.Dropdown.selectItem model.serverSelectionDropdown (Just (Nip96MediaServer Pareto.defaultNip96Server))
-                        }
-                in
-                ( Model model -- Model modelWithServer
+                ( Model model
                 , Effect.batch
                     [ sendNip96ServerListCmd props.browserEnv props.user Pareto.defaultNip96Server Pareto.defaultRelays
-                    -- , requestNip96ServerSpecs [ Pareto.defaultNip96Server ]
                     ]
                   |> Effect.map props.toMsg
                 )
@@ -752,7 +743,7 @@ viewMediaSelector (Settings settings) =
                 |> Html.map settings.toMsg
             , Button.new
                 { label = Translations.uploadButtonTitle [ settings.browserEnv.translations ]
-                , onClick = Upload
+                , onClick = Just Upload
                 , theme = settings.theme
                 }
                 |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.upload)
@@ -793,7 +784,7 @@ viewConfigureMediaServerMessage (Settings settings) =
             [ text <| Translations.noServerConfiguredMessage [ settings.browserEnv.translations ]
             , Button.new
                 { label = Translations.configureServerButtonTitle [ settings.browserEnv.translations ]
-                , onClick = ConfigureDefaultMediaServer
+                , onClick = Just ConfigureDefaultMediaServer
                 , theme = settings.theme
                 }
                 |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.settings)

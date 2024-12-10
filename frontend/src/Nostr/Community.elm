@@ -7,7 +7,7 @@ import Json.Decode.Pipeline exposing (required, optional)
 import Json.Decode exposing (fail)
 import Nostr.Event exposing (Event, EventFilter, ImageSize, Kind, Tag(..), imageSizeDecoder)
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
-import Nostr.Types exposing (EventId, PubKey)
+import Nostr.Types exposing (EventId, PubKey, RelayUrl)
 import Time exposing (Month(..))
 
 -- NIP-72
@@ -16,7 +16,7 @@ import Time exposing (Month(..))
 
 type alias Moderator =
     { pubKey : String
-    , relay : String
+    , relay : RelayUrl
     , role : String
     }
 
@@ -47,7 +47,7 @@ type alias Community =
     , description : Maybe String
     , image : Maybe Image
     , moderators : List Moderator
-    , relay : Maybe String -- the relay this event was loaded from
+    , relay : Maybe RelayUrl -- the relay this event was loaded from
     , relays : List Relay
     }
 
@@ -73,7 +73,7 @@ communityDefinitionFromEvent event =
             ) (emptyCommunity event.pubKey event.relay )
 
 
-emptyCommunity : PubKey -> Maybe String -> Community
+emptyCommunity : PubKey -> Maybe RelayUrl -> Community
 emptyCommunity pubKey relay =
     { dtag = Nothing
     , pubKey = pubKey
@@ -129,30 +129,9 @@ relayDecoder =
         |> optional "type" relayTypeDecoder RelayTypeGeneric
 
 
-moderatorDecoder : Decoder Moderator
-moderatorDecoder =
-    Decode.succeed Moderator
-        |> required "pubkey" string
-        |> required "relay" string
-        |> required "role" string
-
-
 imageDecoder : Decoder Image
 imageDecoder =
     Decode.succeed Image
         |> required "url" string
         |> optional "resolution" (maybe imageSizeDecoder) Nothing
-
-
-communityDecoder : Decoder Community
-communityDecoder =
-    Decode.succeed Community
-        |> optional "dtag" (maybe string) Nothing
-        |> required "pubkey" string
-        |> required "name" (nullable string)
-        |> optional "description" (maybe string) Nothing
-        |> optional "image" (maybe imageDecoder) Nothing
-        |> required "moderators" (list moderatorDecoder)
-        |> optional "relay" (maybe string) Nothing
-        |> required "relays" (list relayDecoder)
 

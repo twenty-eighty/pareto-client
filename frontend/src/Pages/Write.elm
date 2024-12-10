@@ -18,6 +18,7 @@ import Milkdown.MilkdownEditor as Milkdown
 import Murmur3
 import Nostr
 import Nostr.Article exposing (Article, articleFromEvent)
+import Nostr.DeletionRequest exposing (draftDeletionEvent)
 import Nostr.Event as Event exposing (Event, Kind(..), Tag(..))
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Request exposing (RequestId, RequestData(..))
@@ -455,18 +456,8 @@ sendDraftDeletionCmd : Shared.Model -> Model -> Auth.User -> Effect Msg
 sendDraftDeletionCmd shared model user =
     case model.draftEventId of
         Just draftEventId ->
-            { pubKey = user.pubKey
-            , createdAt = shared.browserEnv.now
-            , kind = KindEventDeletionRequest
-            , tags =
-                [ ]
-                |> Event.addEventIdTag draftEventId
-            , content = "Deleting draft after publishing article"
-            , id = ""
-            , sig = Nothing
-            , relay = Nothing
-            }
-            |> SendDeletionRequest (Nostr.getWriteRelayUrlsForPubKey shared.nostr user.pubKey)
+            draftDeletionEvent user.pubKey shared.browserEnv.now draftEventId "Deleting draft after publishing article"
+            |> SendDeletionRequest (Nostr.getDraftRelayUrls shared.nostr draftEventId)
             |> Shared.Msg.SendNostrEvent
             |> Effect.sendSharedMsg
 
@@ -560,7 +551,6 @@ view user shared model =
                 ]
             , viewEditor shared.browserEnv model
             , viewTags  shared.browserEnv model
-            -- , openMediaSelectorButton shared.browserEnv
             , viewArticleState shared.browserEnv shared.theme model.articleState
             , saveButtons shared.browserEnv shared.theme model
             , viewMediaSelector user shared model
@@ -870,7 +860,7 @@ publishButton : BrowserEnv -> Model -> Theme -> Html Msg
 publishButton browserEnv model theme =
     Button.new
         { label = Translations.publishButtonTitle [ browserEnv.translations ]
-        , onClick = Publish
+        , onClick = Just Publish
         , theme = theme
         }
         |> Button.withDisabled (not <| articleReadyForPublishing model)
@@ -886,27 +876,11 @@ articleReadyForPublishing model =
     model.image /= Nothing
 
 
-openMediaSelectorButton : BrowserEnv -> Html Msg
-openMediaSelectorButton browserEnv =
-    button
-        [ css
-            [ Tw.bg_color Theme.gray_200
-            , Tw.py_2
-            , Tw.px_4
-            , Tw.rounded_full
-            , Css.hover
-                [ Tw.bg_color Theme.gray_300
-                ]
-            ]
-        , Events.onClick OpenMediaSelector
-        ]
-        [ text <| "Open Media Selector" ]
-
 saveDraftButton : BrowserEnv -> Model -> Theme -> Html Msg
 saveDraftButton browserEnv model theme =
     Button.new
         { label = Translations.saveDraftButtonTitle [ browserEnv.translations ]
-        , onClick = SaveDraft
+        , onClick = Just SaveDraft
         , theme = theme
         }
         |> Button.withDisabled (not <| articleReadyForSaving model)

@@ -47,7 +47,9 @@
    "posts": {
       "posts title": "Posts",
       "published category": "Published",
-      "drafts category": "Drafts"
+      "drafts category": "Drafts",
+      "edit draft button label": "Edit",
+      "delete draft button label": "Delete"
    },
    "publish article dialog": {
       "dialog title": "Publish article",

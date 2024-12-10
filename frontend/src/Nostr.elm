@@ -12,6 +12,7 @@ import Nostr.BookmarkList exposing (BookmarkList, bookmarkListFromEvent)
 import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
+import Nostr.DeletionRequest exposing (deletionRequestFromEvent)
 import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), decodeEvent, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.FollowList exposing (Following, followListFromEvent)
@@ -21,7 +22,7 @@ import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
 import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileFromEvent)
 import Nostr.Reactions
-import Nostr.Relay exposing (Relay, RelayState(..))
+import Nostr.Relay exposing (Relay, RelayState(..), relayUrlDecoder)
 import Nostr.RelayListMetadata exposing (RelayMetadata, RelayRole(..), relayListFromEvent)
 import Nostr.Repost exposing (Repost, repostFromEvent)
 import Nostr.Request exposing (HttpRequestMethod, Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
@@ -31,7 +32,7 @@ import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
 import Nostr.Types exposing (EventId, PubKey, IncomingMessage, OutgoingCommand, RelayUrl)
 import Nostr.Zaps exposing (ZapReceipt)
 import Html.Attributes exposing (kind)
-import Set
+import Set exposing (Set)
 import Time
 
 
@@ -46,9 +47,9 @@ type alias Hooks =
 
 type alias Model =
     { articlesByAuthor : Dict PubKey (List Article)
-    , articleDraftsByAuthor : Dict PubKey (List Article)
     , articlesByDate : List Article
     , articleDraftsByDate : List Article
+    , articleDraftRelays : Dict EventId (Set RelayUrl)
     , bookmarkLists : Dict PubKey BookmarkList
     , bookmarkSets : Dict PubKey BookmarkSet
     , communities : Dict PubKey (List Community)
@@ -245,15 +246,18 @@ getArticleDraftsByDate : Model -> List Article
 getArticleDraftsByDate model =
     model.articleDraftsByDate
 
+getArticleDraftWithIdentifier : Model -> PubKey -> String -> Maybe Article
+getArticleDraftWithIdentifier model pubKey identifier =
+    model.articleDraftsByDate
+    |> List.filter (\article ->
+            article.author == pubKey &&
+            article.identifier == Just identifier
+        )
+    |> List.head
+
 getArticlesForAuthor : Model -> PubKey -> List Article
 getArticlesForAuthor model pubKey =
     model.articlesByAuthor
-    |> Dict.get pubKey
-    |> Maybe.withDefault []
-
-getArticleDraftsForAuthor : Model -> PubKey -> List Article
-getArticleDraftsForAuthor model pubKey =
-    model.articleDraftsByAuthor
     |> Dict.get pubKey
     |> Maybe.withDefault []
 
@@ -276,12 +280,6 @@ getArticleForNip19 model nip19 =
 getArticleWithIdentifier : Model -> PubKey -> String -> Maybe Article
 getArticleWithIdentifier model pubKey identifier =
     model.articlesByAuthor
-    |> Dict.get pubKey
-    |> Maybe.andThen (filterArticlesWithIdentifier identifier)
-
-getArticleDraftWithIdentifier : Model -> PubKey -> String -> Maybe Article
-getArticleDraftWithIdentifier model pubKey identifier =
-    model.articleDraftsByAuthor
     |> Dict.get pubKey
     |> Maybe.andThen (filterArticlesWithIdentifier identifier)
 
@@ -397,6 +395,13 @@ getWriteRelayUrlsForPubKey : Model -> PubKey -> List String
 getWriteRelayUrlsForPubKey model pubKey =
     getWriteRelaysForPubKey model pubKey
     |> List.map .urlWithoutProtocol
+
+getDraftRelayUrls : Model -> EventId -> List String
+getDraftRelayUrls model articleId =
+    model.articleDraftRelays
+    |> Dict.get articleId
+    |> Maybe.withDefault Set.empty
+    |> Set.toList
 
 getRequest : Model -> RequestId -> Maybe Request
 getRequest model requestId =
@@ -595,9 +600,9 @@ cmdBatch2 cmd1 cmd2 =
 empty : Model
 empty =
     { articlesByAuthor = Dict.empty
-    , articleDraftsByAuthor = Dict.empty
     , articlesByDate = []
     , articleDraftsByDate = []
+    , articleDraftRelays = Dict.empty
     , bookmarkLists = Dict.empty
     , bookmarkSets = Dict.empty
     , communities = Dict.empty
@@ -676,7 +681,7 @@ update msg model =
                     (model, Cmd.none)
 
                 "relay:connected" ->
-                    case Decode.decodeValue Decode.string message.value of
+                    case Decode.decodeValue relayUrlDecoder message.value of
                         Ok relayUrlWithoutProtocol ->
                             ({ model | relays = Nostr.Relay.updateRelayStatus relayUrlWithoutProtocol RelayConnected model.relays }, Cmd.none)
                         
@@ -684,7 +689,7 @@ update msg model =
                             ({ model | errors = Decode.errorToString error :: model.errors }, Cmd.none)
 
                 "relay:ready" ->
-                    case Decode.decodeValue Decode.string message.value of
+                    case Decode.decodeValue relayUrlDecoder message.value of
                         Ok relayUrlWithoutProtocol ->
                             ({ model | relays = Nostr.Relay.updateRelayStatus relayUrlWithoutProtocol RelayReady model.relays }, Cmd.none)
                         
@@ -692,7 +697,7 @@ update msg model =
                             ({ model | errors = Decode.errorToString error :: model.errors }, Cmd.none)
 
                 "relay:disconnected" ->
-                    case Decode.decodeValue Decode.string message.value of
+                    case Decode.decodeValue relayUrlDecoder message.value of
                         Ok relayUrlWithoutProtocol ->
                             ({ model | relays = Nostr.Relay.updateRelayStatus relayUrlWithoutProtocol RelayDisconnected model.relays }, Cmd.none)
                         
@@ -819,6 +824,9 @@ updateModelWithEvents model requestId kind events =
         KindCommunitiesList ->
             updateModelWithCommunityLists model events
 
+        KindEventDeletionRequest ->
+            updateModelWithDeletionRequests model events
+
         KindUserServerList ->
             updateModelWithUserServerLists model requestId events
 
@@ -901,6 +909,26 @@ updateModelWithCommunityLists model events =
                 ) model.communityLists
     in
     ({ model | communityLists = communityLists}, Cmd.none)
+
+
+updateModelWithDeletionRequests : Model -> List Event -> (Model, Cmd Msg)
+updateModelWithDeletionRequests model events =
+    let
+        deletedEventIds =
+            events
+            |> List.map deletionRequestFromEvent
+            |> List.foldl (\deletionRequest acc ->
+                Set.union acc deletionRequest.eventIds
+            ) Set.empty
+
+        -- currently only drafts are deleted by us
+        articleDraftsByDate =
+            model.articleDraftsByDate
+            |> List.filter (\article ->
+                    not <| Set.member article.id deletedEventIds
+                )
+    in
+    ({ model | articleDraftsByDate = articleDraftsByDate }, Cmd.none)
 
 updateModelWithUserServerLists : Model -> RequestId -> List Event -> (Model, Cmd Msg)
 updateModelWithUserServerLists model requestId events =
@@ -989,6 +1017,23 @@ updateModelWithLongFormContentDraft model requestId events =
                         (articleAcc, decodingErrors ++ errors)
                 ) ([], [])
 
+        -- collect relays we read them from so we can delete drafts effectively and efficiently
+        articleDraftRelays =
+            articles
+            |> List.foldl (\article acc ->
+                case (article.relay, Dict.get article.id acc) of
+                    (Just relayUrl, Just relaySet) ->
+                        Dict.insert article.id (Set.insert relayUrl relaySet) acc
+
+                    (Just relayUrl, Nothing) ->
+                        Dict.insert article.id (Set.singleton relayUrl) acc
+
+                    (Nothing, _) ->
+                        -- usually we should get a relay URL this this branch shouldn't be run through
+                        acc
+
+            ) model.articleDraftRelays   
+
         -- sort articles, newest first
         articleDraftsByDate =
             articles
@@ -997,18 +1042,13 @@ updateModelWithLongFormContentDraft model requestId events =
                 |> Maybe.map (\publishedAt -> Time.posixToMillis publishedAt * -1)
                 |> Maybe.withDefault 0
                 )
-
-        articleDraftsByAuthor =
-            articles
-            |> List.foldl (\article dict ->
-                    case Dict.get article.author dict of
-                        Just articleList ->
-                            Dict.insert article.author (article :: articleList) dict
-                        Nothing ->
-                            Dict.insert article.author [ article ] dict
-                ) model.articleDraftsByAuthor
     in
-    ({ model | articleDraftsByAuthor = articleDraftsByAuthor, articleDraftsByDate = articleDraftsByDate, errors = newErrors ++ model.errors }, Cmd.none)
+    ( { model
+        | articleDraftsByDate = articleDraftsByDate
+        , articleDraftRelays = articleDraftRelays
+        , errors = newErrors ++ model.errors
+      }
+    , Cmd.none)
 
 requestRelatedKindsForArticles : Model -> List Article -> Request -> (Model, Cmd Msg)
 requestRelatedKindsForArticles model articles request =

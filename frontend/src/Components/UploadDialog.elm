@@ -1129,7 +1129,7 @@ viewFileUploadBlossom theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                             ]
                         , Button.new
                             { label = Translations.startUploadButtonText [ browserEnv.translations ]
-                            , onClick = StartUpload fileId
+                            , onClick = Just <| StartUpload fileId
                             , theme = theme
                             }
                             |> Button.view
@@ -1298,7 +1298,7 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                             ]
                         , Button.new
                             { label = Translations.startUploadButtonText [ browserEnv.translations ]
-                            , onClick = StartUpload fileId
+                            , onClick = Just <| StartUpload fileId
                             , theme = theme
                             }
                             |> Button.view
@@ -1438,7 +1438,7 @@ uploadButton : Ui.Styles.Theme -> Html Msg
 uploadButton theme =
     Button.new
         { label = "Upload"
-        , onClick = TriggerFileSelect
+        , onClick = Just TriggerFileSelect
         , theme = theme
         }
         |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.upload)

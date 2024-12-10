@@ -40,7 +40,7 @@ import Html
 type Button msg
     = Settings
         { label : String
-        , onClick : msg
+        , onClick : Maybe msg
         , style : Style
         , size : Size
         , type_ : ButtonType
@@ -52,7 +52,7 @@ type Button msg
         }
 
 
-new : { label : String, onClick : msg, theme : Ui.Styles.Theme } -> Button msg
+new : { label : String, onClick : Maybe msg, theme : Ui.Styles.Theme } -> Button msg
 new props =
     Settings
         { label = props.label
@@ -153,6 +153,14 @@ view (Settings settings) =
 
                 Nothing ->
                     text ""
+
+        (onClickAttr) =
+            case (settings.isDisabled, settings.onClick) of
+                (False, Just onClick) ->
+                    [ Events.onClick onClick ]
+
+                (_, _) ->
+                    [ disabled True ]
     in
     div
         [ css
@@ -162,7 +170,7 @@ view (Settings settings) =
             ]
         ]
         [ button
-            ( buttonStyles ++
+            ( buttonStyles ++ onClickAttr ++
             [ css
                 [ Tw.py_2
                 , Tw.px_4
@@ -174,14 +182,12 @@ view (Settings settings) =
                     [ 
                     ]
                 ]
-            , Events.onClick settings.onClick
             , classList
                 [ ( "is-success", settings.style == Success )
                 , ( "is-warning", settings.style == Warning )
                 , ( "is-danger", settings.style == Danger )
                 , ( "is-small", settings.size == Small )
                 ]
-            , disabled settings.isDisabled
             ])
             [ viewOptionalIcon settings.iconLeft
             , text settings.label

@@ -2,11 +2,11 @@ module Nostr.Nip05 exposing (..)
 
 import Dict exposing (Dict)
 import Email
-import UInt64 exposing (add)
+import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as DecodePipeline
-import Http
-import Nostr.Types exposing (PubKey)
+import Nostr.Relay as Relay
+import Nostr.Types exposing (PubKey, RelayUrl)
 
 type alias Nip05 =
     { user : String
@@ -15,7 +15,7 @@ type alias Nip05 =
 
 type alias Nip05Data =
     { names : Dict String String
-    , relays : Maybe (Dict String (List String))
+    , relays : Maybe (Dict String (List RelayUrl))
     }
 
 type alias Nip05String = String
@@ -48,9 +48,9 @@ nip05NamesDecoder : Decoder (Dict String String)
 nip05NamesDecoder =
     Decode.dict Decode.string
 
-nip05RelaysDecoder : Decoder (Dict String (List String))
+nip05RelaysDecoder : Decoder (Dict String (List RelayUrl))
 nip05RelaysDecoder =
-    Decode.dict (Decode.list Decode.string)
+    Decode.dict (Decode.list Relay.relayUrlDecoder)
 
 
 nip05StringDecoder : Decoder Nip05

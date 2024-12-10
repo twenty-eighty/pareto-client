@@ -1,0 +1,50 @@
+module Nostr.DeletionRequest exposing (..)
+
+import BrowserEnv exposing (BrowserEnv)
+import Dict exposing (Dict)
+import Nostr.Event exposing (Event, Kind(..), Tag(..), addEventIdTag)
+import Nostr.Profile exposing (Profile, ProfileValidation(..))
+import Nostr.Types exposing (EventId, PubKey, RelayUrl)
+import Set exposing (Set)
+import Time
+
+-- NIP-09
+
+type alias DeletionRequest =
+    { eventIds : Set EventId
+    , kinds : Set Int
+    , addresses : Set String
+    , reason : String
+    }
+
+deletionRequestFromEvent : Event -> DeletionRequest
+deletionRequestFromEvent event =
+    event.tags
+    |> List.foldl (\tag acc ->
+        case tag of 
+            AddressTag address ->
+                {acc | eventIds = Set.insert address acc.addresses }
+
+            EventIdTag eventId ->
+                {acc | eventIds = Set.insert eventId acc.eventIds }
+
+            KindTag kind ->
+                {acc | kinds = Set.insert (Nostr.Event.numberForKind kind) acc.kinds }
+            _ ->
+                acc
+            ) { eventIds = Set.empty, addresses = Set.empty, reason = event.content, kinds = Set.empty }
+
+
+draftDeletionEvent : PubKey -> Time.Posix -> EventId -> String -> Event
+draftDeletionEvent pubKey createdAt draftEventId content =
+            { pubKey = pubKey
+            , createdAt = createdAt
+            , kind = KindEventDeletionRequest
+            , tags =
+                [ ]
+                |> addEventIdTag draftEventId
+            , content = content
+            , id = ""
+            , sig = Nothing
+            , relay = Nothing
+            }

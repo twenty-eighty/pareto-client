@@ -3,7 +3,7 @@ module Ui.Article exposing (..)
 import BrowserEnv exposing (BrowserEnv)
 import Css
 import Graphics
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
+import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, summary, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 import Markdown
@@ -19,10 +19,9 @@ import Tailwind.Theme as Theme
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
 import Ui.Shared
-import Ui.Styles exposing (Styles, darkMode, fontFamilyUnbounded)
+import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded)
 import Time
 import TailwindExtensions exposing (bp_xsl)
-import Html.Styled exposing (summary)
 
 -- single article
 
@@ -1081,40 +1080,6 @@ viewProfileImageSmall linkElement maybeImage validationStatus =
             ]
         ]
 
-viewArticleDraftPreview : Styles msg -> BrowserEnv -> Article -> Html msg
-viewArticleDraftPreview styles browserEnv article =
-    div
-        [ css
-            [ Tw.flex
-            , Tw.items_center
-            , Tw.justify_center
-            , Tw.mb_4
-            ]
-        ]
-        [ div
-            [ css
-                [ Tw.p_6
-                , Tw.rounded_lg
-                , Tw.shadow_lg
-                , Tw.min_w_96
-                , Tw.max_w_3xl
-                ]
-            ]
-            [ div
-                [ css
-                    [ Tw.flex
-                    , Tw.flex_row
-                    , Tw.justify_between
-                    ]
-                ]
-                [ timeParagraph styles browserEnv article.publishedAt
-                , editDraftButton article
-                ]
-            , viewTitleSummaryImagePreview styles article
-            , viewTags styles article
-            ]
-        ]
-
 viewTitleSummaryImagePreview : Styles msg -> Article -> Html msg
 viewTitleSummaryImagePreview styles article =
     div 
@@ -1130,26 +1095,3 @@ viewTitleSummaryImagePreview styles article =
             ]
         , viewArticleImage article.image
         ]
-
-editDraftButton : Article -> Html msg
-editDraftButton article =
-    editDraftLink article
-    |> Maybe.map (Ui.Shared.linkButton "Edit")
-    |> Maybe.withDefault (div [][])
-
-
-editDraftLink : Article -> Maybe String
-editDraftLink article =
-    case Nip19.encode <| Nip19.NAddr 
-            { identifier = article.identifier |> Maybe.withDefault ""
-            , pubKey = article.author
-            , kind = numberForKind article.kind
-            , relays = []
-            } of
-        Ok encodedCoordinates ->
-            Just <| "/write?a=" ++ encodedCoordinates
-
-        Err error ->
-            Nothing
-
-     

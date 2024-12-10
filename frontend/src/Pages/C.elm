@@ -8,8 +8,8 @@ import Html.Styled.Events as Events exposing (..)
 import Layouts
 import Nostr
 import Nostr.Nip19 as Nip19
-import Nostr.Community exposing (Community, communityDecoder)
-import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), numberForKind)
+import Nostr.Community exposing (Community, communityDefinitionFromEvent)
+import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), decodeEvent, numberForKind)
 import Nostr.Types exposing (PubKey, IncomingMessage)
 import Page exposing (Page)
 import Ports
@@ -100,14 +100,15 @@ update shared msg model =
 updateWithMessage : Shared.Model -> Model -> IncomingMessage -> (Model, Effect Msg)
 updateWithMessage shared model message =
     case message.messageType of
-        "communities" ->
-            case Decode.decodeValue (Decode.list communityDecoder) message.value of
-                Ok communities ->
+        "events" ->
+            case Decode.decodeValue (Decode.list decodeEvent) message.value of
+                Ok events ->
                     let
-                        (bookmarks, requestCmd) =
-                            ([], Cmd.none)
+                        communities =
+                            events
+                            |> List.map communityDefinitionFromEvent
                     in
-                    ({ model | communities = Just communities }, Effect.sendCmd requestCmd )
+                    ({ model | communities = Just communities }, Effect.none )
 
                 Err error ->
                     ( model, Effect.none )

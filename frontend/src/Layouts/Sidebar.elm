@@ -685,7 +685,7 @@ getStartedButton : Ui.Styles.Theme-> BrowserEnv -> Html Msg
 getStartedButton theme browserEnv =
     Components.Button.new
         { label = Translations.getStartedButtonText [ browserEnv.translations ]
-        , onClick = OpenGetStarted
+        , onClick = Just OpenGetStarted
         , theme = theme
         }
         |> Components.Button.view

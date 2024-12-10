@@ -1,8 +1,11 @@
 module Nostr.Relay exposing (..)
 
-import Nostr.Nip11 exposing (Nip11Info)
-import Url
 import Dict exposing (Dict)
+import Json.Decode as Decode
+import Nostr.Nip11 exposing (Nip11Info)
+import Nostr.Types exposing (RelayUrl)
+import Url
+
 
 type alias Relay =
     { urlWithoutProtocol : String
@@ -34,13 +37,28 @@ websocketUrl : String -> String
 websocketUrl urlWithoutProtocol =
     "wss://" ++ urlWithoutProtocol
 
+relayUrlDecoder : Decode.Decoder RelayUrl
+relayUrlDecoder =
+    Decode.field "url" Decode.string
+        |> Decode.andThen (\relayUrl ->
+                Decode.succeed <| hostWithoutProtocol relayUrl
+            )
+
+
 updateRelayStatus : String -> RelayState -> Dict String Relay -> Dict String Relay
 updateRelayStatus relayUrlWithoutProtocol state relayDict =
-    Dict.update relayUrlWithoutProtocol
-        (\maybeRelay ->
-            maybeRelay
-            |> Maybe.map (\relay -> { relay | state = state })
-        ) relayDict
+    case Dict.get relayUrlWithoutProtocol relayDict of
+        Just relay ->
+            Dict.insert relayUrlWithoutProtocol { relay | state = state } relayDict
+
+        Nothing ->
+            Dict.insert
+                relayUrlWithoutProtocol
+                { urlWithoutProtocol = relayUrlWithoutProtocol
+                , state = state
+                , nip11 = Nothing
+                }
+                relayDict
 
 updateRelayNip11 : String -> Nip11Info -> List Relay -> List Relay
 updateRelayNip11 urlWithoutProtocol info relays =
