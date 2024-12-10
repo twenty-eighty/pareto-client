@@ -30,8 +30,8 @@ import Tailwind.Theme as Theme
 import Translations.Posts as Translations
 import Translations.Sidebar
 import Ui.Article
-import Ui.Shared
 import Ui.Styles exposing (Styles, Theme)
+import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 
 
@@ -173,7 +173,7 @@ viewArticles shared model =
     case Components.Categories.selected model.categories of
         Published ->
             Nostr.getArticlesByDate shared.nostr
-            |> viewArticlePreviews styles shared.browserEnv shared.nostr
+            |> Ui.View.viewArticlePreviews ArticlePreviewList styles shared.browserEnv shared.nostr 
 
         Drafts ->
             Nostr.getArticleDraftsByDate shared.nostr
