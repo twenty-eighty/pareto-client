@@ -678,7 +678,7 @@ view (Settings settings) =
 
         DisplayModalDialog True ->
             Ui.Shared.modalDialog
-                "Select image"
+                (Translations.selectImageDialogTitle [ settings.browserEnv.translations ])
                 [ viewMediaSelector (Settings settings) ]
                 (settings.toMsg CloseDialog)
 

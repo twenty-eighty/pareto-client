@@ -36,7 +36,8 @@
       "all servers listbox entry": "All servers",
       "no server listbox entry": "No server configured",
       "no server configured message": "You seem to have no media servers configured. Do you want to use the Pareto media server?",
-      "configure server button title": "Configure Pareto media server"
+      "configure server button title": "Configure Pareto media server",
+      "select image dialog title": "Select image"
    },
    "read": {
       "followed feed category": "Followed",

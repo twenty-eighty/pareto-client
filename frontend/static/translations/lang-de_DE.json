@@ -36,7 +36,8 @@
       "all servers listbox entry": "Alle Server",
       "no server listbox entry": "Kein Server konfiguriert",
       "no server configured message": "Anscheinend wurde noch kein Medien-Server eingerichtet. Soll der Medienserver des Pareto Projekts verwendet werden?",
-      "configure server button title": "Pareto Medien-Server konfigurieren"
+      "configure server button title": "Pareto Medien-Server konfigurieren",
+      "select image dialog title": "Bild auswählen"
    },
    "read": {
       "followed feed category": "Gefolgt",
@@ -45,7 +46,7 @@
       "highlighter feed category": "Highlighter"
    },
    "posts": {
-      "posts title": "Posts",
+      "posts title": "Artikel",
       "published category": "Veröffentlicht",
       "drafts category": "Entwürfe",
       "edit draft button label": "Bearbeiten",
@@ -54,7 +55,7 @@
    "publish article dialog": {
       "dialog title": "Artikel veröffentlichen",
       "relays title": "Relays",
-      "relays description": "Wähle die Relays, auf die veröffentlich werden soll",
+      "relays description": "Wähle die Relays, auf die veröffentlicht werden soll",
       "revenue title": "Einkommen",
       "revenue description": "Wähle, wie Einkommen verteilt werden soll",
       "publish button title": "Artikel veröffentlichen"
@@ -68,7 +69,7 @@
       "dialog title": "Hochladen",
       "upload button title": "Hochladen",
       "select files button title": "Dateien wählen ...",
-      "edit metadata dialog title": "Metadata bearbeiten",
+      "edit metadata dialog title": "Metadaten bearbeiten",
       "image caption form label": "Bildunterschrift (optional):",
       "image alt text form label": "Alternativtext (optional):",
       "media type form label": "Medientyp (optional):",

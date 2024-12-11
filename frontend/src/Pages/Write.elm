@@ -440,7 +440,7 @@ updateWithPublishedResults shared model user value =
 
 sendPublishCmd : Shared.Model -> Model -> Auth.User -> List RelayUrl -> Effect Msg
 sendPublishCmd shared model user relayUrls =
-    eventWithContent shared model user KindDraftLongFormContent
+    eventWithContent shared model user KindLongFormContent
     |> SendLongFormArticle relayUrls
     |> Shared.Msg.SendNostrEvent
     |> Effect.sendSharedMsg
