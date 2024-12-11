@@ -10,6 +10,9 @@ import Time
 import Nostr.Relay
 import Nostr.Types exposing (RelayUrl)
 import Json.Decode as Decode
+import Json.Decode as Decode
+import Json.Decode as Decode
+import Json.Decode as Decode
 
 
 type Tag
@@ -17,7 +20,7 @@ type Tag
     | AboutTag String
     | AddressTag String
     | AltTag String
-    | ClientTag String
+    | ClientTag String String (Maybe String)
     | DescriptionTag String
     | DirTag
     | EventIdTag EventId
@@ -41,7 +44,7 @@ type Tag
     | SummaryTag String
     | TitleTag String
     | UrlTag String (Maybe String)
-    | ZapTag String
+    | ZapTag PubKey RelayUrl (Maybe Int)
 
 type ImageSize
     = ImageSize Int Int
@@ -580,11 +583,11 @@ decodeTag =
             "alt" ->
                 Decode.map AltTag (Decode.index 1 Decode.string)
 
-            "c" ->
-                Decode.map ClientTag (Decode.index 1 Decode.string)
+--           "c" ->
+--               Decode.map ClientTag (Decode.index 1 Decode.string)
 
             "client" ->
-                Decode.map ClientTag (Decode.index 1 Decode.string)
+                Decode.map3 ClientTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string) (Decode.maybe (Decode.index 3 Decode.string))
 
             "d" ->
                 Decode.map EventDelegationTag (Decode.index 1 Decode.string)
@@ -656,11 +659,23 @@ decodeTag =
                 Decode.map ExternalIdTag (Decode.index 1 Decode.string)
 
             "zap" ->
-                Decode.map ZapTag (Decode.index 1 Decode.string)
+                Decode.map3 ZapTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string) (Decode.maybe (Decode.index 3 decodeStringInt))
 
             _ ->
                 Decode.map (GenericTag typeStr) Decode.value
     )
+
+decodeStringInt : Decode.Decoder Int
+decodeStringInt =
+    Decode.string
+    |> Decode.andThen (\strValue ->
+            case String.toInt strValue of
+                Just intValue ->
+                    Decode.succeed intValue
+
+                Nothing ->
+                    Decode.fail <| "String can't be converted to int: " ++ strValue
+        )
 
 tagToList : Tag -> List String
 tagToList tag =
@@ -682,8 +697,13 @@ tagToList tag =
         AltTag value ->
             [ "alt", value ]
 
-        ClientTag value ->
-            [ "client", value ]
+        ClientTag client address maybeRelay ->
+            case maybeRelay of
+                Just relay ->
+                    [ "client", client, address, relay ]
+
+                Nothing ->
+                    [ "client", client, address ]
 
         DescriptionTag value ->
             [ "description", value ]
@@ -761,8 +781,13 @@ tagToList tag =
                 Nothing ->
                     [ "r", value1 ]
 
-        ZapTag value ->
-            [ "zap", value ]
+        ZapTag pubKey relayUrl maybeWeight ->
+            case maybeWeight of
+                Just weight ->
+                    [ "zap", pubKey, relayUrl, String.fromInt weight ]
+
+                Nothing ->
+                    [ "zap", pubKey, relayUrl ]
 
 buildAddress : (Kind, PubKey, String) -> String
 buildAddress (kind, pubKey, identifier) =
@@ -1020,9 +1045,14 @@ addAddressTag : String -> List Tag -> List Tag
 addAddressTag address tags =
     AddressTag address :: tags
 
-addClientTag : String -> List Tag -> List Tag
-addClientTag client tags =
-    ClientTag client :: tags
+addClientTag : String -> Kind -> PubKey -> Maybe String -> List Tag -> List Tag
+addClientTag client kind pubKey maybeIdentifier tags =
+    case maybeIdentifier of
+        Just identifier ->
+            ClientTag client (buildAddress (kind, pubKey, identifier)) Nothing :: tags
+
+        Nothing ->
+            tags
 
 addEventIdTag : String -> List Tag -> List Tag
 addEventIdTag eventId tags =
@@ -1075,3 +1105,14 @@ addTagTags maybeTags tags =
         |> List.append tags
         )
     |> Maybe.withDefault tags
+
+addZapTags : List (PubKey, RelayUrl, Maybe Int) -> List Tag -> List Tag
+addZapTags zapWeights tags =
+    let
+        zapTags =
+            zapWeights
+            |> List.map (\(pubKey, relayUrl, weight) ->
+                    ZapTag pubKey relayUrl weight
+                )
+    in
+    tags ++ zapTags

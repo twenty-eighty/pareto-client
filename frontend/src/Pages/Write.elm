@@ -19,11 +19,11 @@ import Murmur3
 import Nostr
 import Nostr.Article exposing (Article, articleFromEvent)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
-import Nostr.Event as Event exposing (Event, Kind(..), Tag(..))
+import Nostr.Event as Event exposing (Event, Kind(..), Tag(..), buildAddress)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Request exposing (RequestId, RequestData(..))
 import Nostr.Send exposing (SendRequestId, SendRequest(..))
-import Nostr.Types exposing (EventId, IncomingMessage, RelayUrl)
+import Nostr.Types exposing (EventId, IncomingMessage, PubKey, RelayUrl)
 import Page exposing (Page)
 import Pareto
 import Ports
@@ -68,6 +68,8 @@ type alias Model =
     , milkdown : Milkdown.Model
     , identifier : Maybe String
     , tags : Maybe String
+    , zapWeights : List (PubKey, RelayUrl, Maybe Int)
+    , otherTags : List Tag
     , now : Time.Posix
     , mediaSelector : MediaSelector.Model
     , imageSelection : Maybe ImageSelection
@@ -154,6 +156,8 @@ init user shared route () =
                     , milkdown = Milkdown.init
                     , identifier = article.identifier
                     , tags = tagsString article.hashtags
+                    , otherTags = article.otherTags
+                    , zapWeights = article.zapWeights
                     , now = Time.millisToPosix 0
                     , mediaSelector = mediaSelector
                     , imageSelection = Nothing
@@ -170,6 +174,8 @@ init user shared route () =
                     , milkdown = Milkdown.init
                     , identifier = Nothing
                     , tags = Nothing
+                    , otherTags = []
+                    , zapWeights = []
                     , now = Time.millisToPosix 0
                     , mediaSelector = mediaSelector
                     , imageSelection = Nothing
@@ -299,7 +305,17 @@ update shared user msg model =
 
         Now now ->
             if model.identifier == Nothing then
-                ( { model | now = now, identifier = now |> Time.posixToMillis |> String.fromInt |> Just }, Effect.none )
+                let
+                    identifier =
+                        now
+                        |> Time.posixToMillis
+                        |> String.fromInt
+                in
+                ( { model
+                    | now = now
+                    , identifier = Just identifier
+                    }, Effect.none
+                )
             else
                 ( { model | now = now }, Effect.none )
 
@@ -476,7 +492,8 @@ eventWithContent shared model user kind =
         |> Event.addImageTag model.image
         |> Event.addIdentifierTag model.identifier
         |> Event.addTagTags model.tags
-        |> Event.addClientTag Pareto.client
+        |> Event.addZapTags model.zapWeights
+--        |> Event.addClientTag Pareto.client kind user.pubKey model.identifier 
     , content = model.content |> Maybe.withDefault ""
     , id = ""
     , sig = Nothing
@@ -873,7 +890,8 @@ articleReadyForPublishing model =
     model.title /= Nothing &&
     model.summary /= Nothing &&
     model.content /= Nothing &&
-    model.image /= Nothing
+    model.image /= Nothing &&
+    model.identifier /= Nothing
 
 
 saveDraftButton : BrowserEnv -> Model -> Theme -> Html Msg

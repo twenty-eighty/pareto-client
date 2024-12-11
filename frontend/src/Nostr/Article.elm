@@ -16,6 +16,7 @@ type alias Article =
     , id : EventId
     , kind : Kind
     , alt : Maybe String
+    , client : Maybe (String, String)
     , content : String
     , image : Maybe String
     , isValid : Maybe String
@@ -25,6 +26,8 @@ type alias Article =
     , url : Maybe String
     , identifier : Maybe String
     , hashtags : List String
+    , zapWeights : List (PubKey, RelayUrl, Maybe Int)
+    , otherTags : List Tag
     , relay : Maybe RelayUrl
     , nip27References : List Nip19.NIP19Type
     }
@@ -36,6 +39,7 @@ emptyArticle author eventId kind createdAt content relayUrl =
     , id = eventId
     , kind = kind
     , alt = Nothing
+    , client = Nothing
     , content = content
     , image = Nothing
     , isValid = Nothing
@@ -45,6 +49,8 @@ emptyArticle author eventId kind createdAt content relayUrl =
     , url = Nothing
     , identifier = Nothing
     , hashtags = []
+    , zapWeights = []
+    , otherTags = []
     , relay = relayUrl
     , nip27References = 
         Nip27.collectNostrLinks content
@@ -67,6 +73,9 @@ articleFromEvent event =
                     AltTag alt ->
                         ({ article | alt = Just alt }, errors)
 
+                    ClientTag client address maybeRelay ->
+                        ({ article | client = Just (client, address) }, errors)
+
                     EventDelegationTag identifier ->
                         ({ article | identifier = Just identifier }, errors)
 
@@ -82,8 +91,11 @@ articleFromEvent event =
                     TitleTag title ->
                         ({ article | title = Just title }, errors)
 
+                    ZapTag pubKey relayUrl maybeWeight ->
+                        ({ article | zapWeights = article.zapWeights ++ [(pubKey, relayUrl, maybeWeight)] }, errors)
+
                     _ ->
-                        (article, errors)
+                        ({ article | otherTags = article.otherTags ++ [ tag ] }, errors)
                     ) (articleWithoutTags, [])
     in
     case (builtArticle, buildingErrors) of
