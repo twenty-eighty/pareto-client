@@ -673,7 +673,7 @@ paretoThemeStyles =
         ]
     , textStyleLinks =
         [ css
-            [ Tw.text_sm
+            [ Tw.text_base
             , Tw.font_medium
             , Tw.leading_6
             , Tw.tracking_normal
