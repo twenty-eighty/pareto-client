@@ -2,6 +2,7 @@ module Ui.View exposing (..)
 
 -- this module connects the Nostr engine and the UI functions
 
+import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Css
 import Html.Styled as Html exposing (Html, div)
@@ -9,6 +10,7 @@ import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Community exposing (Community)
+import Nostr.ShortNote exposing (ShortNote)
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
@@ -17,7 +19,6 @@ import Ui.ArticleOld
 import Ui.Community
 import Ui.ShortNote
 import Ui.Styles exposing (Styles)
-import Nostr.ShortNote exposing (ShortNote)
 
 type ArticlePreviewType
     = ArticlePreviewList
@@ -28,17 +29,17 @@ viewArticle : Styles msg -> BrowserEnv -> Nostr.Model -> Article -> Html msg
 viewArticle styles browserEnv nostr article =
     Ui.Article.viewArticle styles browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article)
 
-viewArticlePreviews : ArticlePreviewType -> Styles msg -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
-viewArticlePreviews previewType styles browserEnv nostr articles =
+viewArticlePreviews : ArticlePreviewType -> Styles msg -> BrowserEnv -> Nostr.Model -> Maybe Auth.User -> List Article -> Html msg
+viewArticlePreviews previewType styles browserEnv nostr maybeUser articles =
     case previewType of
         ArticlePreviewList ->
-            viewArticlePreviewsList styles browserEnv nostr articles
+            viewArticlePreviewsList styles browserEnv nostr maybeUser articles
 
         ArticlePreviewBigPicture ->
             viewArticlePreviewsBigPicture styles browserEnv nostr articles
 
-viewArticlePreviewsList : Styles msg -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
-viewArticlePreviewsList styles browserEnv nostr articles =
+viewArticlePreviewsList : Styles msg -> BrowserEnv -> Nostr.Model -> Maybe Auth.User -> List Article -> Html msg
+viewArticlePreviewsList styles browserEnv nostr maybeUser articles =
     div
         [ css
             [ Tw.flex
@@ -54,7 +55,7 @@ viewArticlePreviewsList styles browserEnv nostr articles =
             ]
             ( articles
             |> List.take 20
-            |> List.map (\article -> Ui.Article.viewArticlePreviewList styles browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article) True)
+            |> List.map (\article -> Ui.Article.viewArticlePreviewList styles browserEnv (Nostr.getAuthor nostr article.author) maybeUser article (Nostr.getInteractions nostr article) True)
             )
         ]
     

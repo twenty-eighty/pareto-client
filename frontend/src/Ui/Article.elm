@@ -1,5 +1,6 @@
 module Ui.Article exposing (..)
 
+import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Css
 import Graphics
@@ -545,8 +546,8 @@ viewArticleInternal styles browserEnv article =
 
 -- article previews
 
-viewArticlePreviewList : Styles msg -> BrowserEnv -> Author -> Article -> Interactions -> Bool -> Html msg
-viewArticlePreviewList styles browserEnv author article interactions displayAuthor =
+viewArticlePreviewList : Styles msg -> BrowserEnv -> Author -> Maybe Auth.User -> Article -> Interactions -> Bool -> Html msg
+viewArticlePreviewList styles browserEnv author maybeUser article interactions displayAuthor =
     let
         textWidthAttr =
             case article.image of

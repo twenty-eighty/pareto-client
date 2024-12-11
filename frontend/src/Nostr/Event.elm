@@ -20,7 +20,7 @@ type Tag
     | AboutTag String
     | AddressTag String
     | AltTag String
-    | ClientTag String String (Maybe String)
+    | ClientTag String (Maybe String) (Maybe String)
     | DescriptionTag String
     | DirTag
     | EventIdTag EventId
@@ -587,7 +587,7 @@ decodeTag =
 --               Decode.map ClientTag (Decode.index 1 Decode.string)
 
             "client" ->
-                Decode.map3 ClientTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string) (Decode.maybe (Decode.index 3 Decode.string))
+                Decode.map3 ClientTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 Decode.string))
 
             "d" ->
                 Decode.map EventDelegationTag (Decode.index 1 Decode.string)
@@ -697,13 +697,16 @@ tagToList tag =
         AltTag value ->
             [ "alt", value ]
 
-        ClientTag client address maybeRelay ->
-            case maybeRelay of
-                Just relay ->
+        ClientTag client maybeAddress maybeRelay ->
+            case (maybeAddress, maybeRelay) of
+                (Just address, Just relay) ->
                     [ "client", client, address, relay ]
 
-                Nothing ->
+                (Just address, Nothing) ->
                     [ "client", client, address ]
+
+                _ ->
+                    [ "client", client ]
 
         DescriptionTag value ->
             [ "description", value ]
@@ -1049,7 +1052,7 @@ addClientTag : String -> Kind -> PubKey -> Maybe String -> List Tag -> List Tag
 addClientTag client kind pubKey maybeIdentifier tags =
     case maybeIdentifier of
         Just identifier ->
-            ClientTag client (buildAddress (kind, pubKey, identifier)) Nothing :: tags
+            ClientTag client (Just <| buildAddress (kind, pubKey, identifier)) Nothing :: tags
 
         Nothing ->
             tags

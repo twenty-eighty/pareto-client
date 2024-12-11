@@ -422,7 +422,7 @@ updateWithPublishedResults shared model user value =
             |> Result.toMaybe
 
         -- TODO: Error handling
-        -- - not enough relays published?
+        -- - not on enough relays published?
     in
     case model.articleState of
         ArticleSavingDraft sendRequestId ->

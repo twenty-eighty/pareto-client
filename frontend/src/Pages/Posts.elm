@@ -160,12 +160,12 @@ view shared user model =
             , styles = Ui.Styles.stylesForTheme shared.theme
             }
             |> Components.Categories.view
-        , viewArticles shared model
+        , viewArticles shared model (Just user)
         ]
     }
 
-viewArticles : Shared.Model -> Model -> Html Msg
-viewArticles shared model =
+viewArticles : Shared.Model -> Model -> Maybe Auth.User -> Html Msg
+viewArticles shared model maybeUser =
     let
         styles =
             Ui.Styles.stylesForTheme shared.theme
@@ -173,18 +173,11 @@ viewArticles shared model =
     case Components.Categories.selected model.categories of
         Published ->
             Nostr.getArticlesByDate shared.nostr
-            |> Ui.View.viewArticlePreviews ArticlePreviewList styles shared.browserEnv shared.nostr 
+            |> Ui.View.viewArticlePreviews ArticlePreviewList styles shared.browserEnv shared.nostr maybeUser
 
         Drafts ->
             Nostr.getArticleDraftsByDate shared.nostr
             |> viewArticleDraftPreviews shared.theme shared.browserEnv shared.nostr
-
-viewArticlePreviews : Styles msg -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
-viewArticlePreviews styles browserEnv nostr articles =
-    articles
-    |> List.take 20
-    |> List.map (\article -> Ui.Article.viewArticlePreviewList styles browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article) True)
-    |> div []
 
 viewArticleDraftPreviews : Theme -> BrowserEnv -> Nostr.Model -> List Article -> Html Msg
 viewArticleDraftPreviews theme browserEnv nostr articles =

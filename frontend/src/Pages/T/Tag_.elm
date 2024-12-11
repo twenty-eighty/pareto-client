@@ -149,7 +149,7 @@ view shared model =
                     [ text <| "#" ++ model.tag
                     ]
                 , Nostr.getArticlesByDate shared.nostr
-                |> Ui.View.viewArticlePreviews ArticlePreviewList styles shared.browserEnv shared.nostr 
+                |> Ui.View.viewArticlePreviews ArticlePreviewList styles shared.browserEnv shared.nostr Nothing
                 ]
             ]
         ]

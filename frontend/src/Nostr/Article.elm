@@ -16,7 +16,7 @@ type alias Article =
     , id : EventId
     , kind : Kind
     , alt : Maybe String
-    , client : Maybe (String, String)
+    , client : Maybe (String, Maybe String, Maybe String)
     , content : String
     , image : Maybe String
     , isValid : Maybe String
@@ -73,8 +73,8 @@ articleFromEvent event =
                     AltTag alt ->
                         ({ article | alt = Just alt }, errors)
 
-                    ClientTag client address maybeRelay ->
-                        ({ article | client = Just (client, address) }, errors)
+                    ClientTag client maybeAddress maybeRelay ->
+                        ({ article | client = Just (client, maybeAddress, maybeRelay) }, errors)
 
                     EventDelegationTag identifier ->
                         ({ article | identifier = Just identifier }, errors)
