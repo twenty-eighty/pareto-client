@@ -23,13 +23,13 @@ import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileFromEvent)
 import Nostr.Reactions
 import Nostr.Relay exposing (Relay, RelayState(..), relayUrlDecoder)
-import Nostr.RelayListMetadata exposing (RelayMetadata, RelayRole(..), relayListFromEvent)
+import Nostr.RelayListMetadata exposing (RelayMetadata, relayListFromEvent)
 import Nostr.Repost exposing (Repost, repostFromEvent)
 import Nostr.Request exposing (HttpRequestMethod, Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
-import Nostr.Types exposing (EventId, PubKey, IncomingMessage, OutgoingCommand, RelayUrl)
+import Nostr.Types exposing (EventId, PubKey, IncomingMessage, RelayRole(..), RelayUrl)
 import Nostr.Zaps exposing (ZapReceipt)
 import Html.Attributes exposing (kind)
 import Set exposing (Set)
@@ -222,6 +222,11 @@ send model sendRequest =
             , model.hooks.sendEvent model.lastSendRequestId relays event
             )
 
+        SendRelayList relays event ->
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId relays event
+            )
+
 getAuthor : Model -> PubKey -> Nostr.Profile.Author
 getAuthor model pubKey =
     let
@@ -341,6 +346,7 @@ getReactionsForArticle : Model -> Article -> Maybe (Dict String Nostr.Reactions.
 getReactionsForArticle model article =
     Dict.get article.id model.reactions
 
+
 getRelaysForPubKey : Model -> PubKey -> List (RelayRole, Relay)
 getRelaysForPubKey model pubKey =
     let
@@ -349,8 +355,7 @@ getRelaysForPubKey model pubKey =
             |> Maybe.withDefault []
 
         userRelaysFromEvent =
-            Dict.get pubKey model.relayMetadataLists
-            |> Maybe.withDefault []
+            getRelayListForPubKey model pubKey
 
         combinedRelayList =
             userRelaysFromNip05
@@ -364,6 +369,13 @@ getRelaysForPubKey model pubKey =
                 )
     in
     combinedRelayList
+
+-- this function only returns the relays obtained via relay metadata list (NIP-65 / kind 10002)
+getRelayListForPubKey : Model -> PubKey -> List RelayMetadata
+getRelayListForPubKey  model pubKey =
+    Dict.get pubKey model.relayMetadataLists
+    |> Maybe.withDefault []
+
 
 getReadRelaysForPubKey : Model -> PubKey -> List Relay
 getReadRelaysForPubKey model pubKey =

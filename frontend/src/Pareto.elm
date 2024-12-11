@@ -1,6 +1,6 @@
 module Pareto exposing (..)
 
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (PubKey, RelayRole(..))
 
 -- the follow list of this pubkey contains all Pareto authors
 authorsKey : PubKey
@@ -31,6 +31,10 @@ defaultRelays =
 --  , "nostr.wine"
     ]
 
+defaultOutboxRelays : List { url : String , role : RelayRole }
+defaultOutboxRelays =
+    defaultRelays   
+    |> List.map (\relayUrl -> { url = relayUrl , role = ReadWriteRelay })
 
 defaultRelayUrls : List String
 defaultRelayUrls =

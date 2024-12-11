@@ -347,9 +347,10 @@ update shared user msg model =
             PublishArticleDialog.update
                 { msg = innerMsg
                 , model = model.publishArticleDialog
-                , relays = Nostr.getWriteRelaysForPubKey shared.nostr user.pubKey
                 , toModel = \publishArticleDialog -> { model | publishArticleDialog = publishArticleDialog }
                 , toMsg = PublishArticleDialogSent
+                , nostr = shared.nostr
+                , pubKey = user.pubKey
                 }
 
 updateWithPortMessage : Shared.Model -> Model -> Auth.User -> IncomingMessage -> ( Model, Effect Msg )
@@ -593,7 +594,8 @@ view user shared model =
             { model = model.publishArticleDialog
             , toMsg = PublishArticleDialogSent
             , onPublish = PublishArticle
-            , relays = Nostr.getWriteRelaysForPubKey shared.nostr user.pubKey
+            , nostr = shared.nostr
+            , pubKey = user.pubKey
             , browserEnv = shared.browserEnv
             , theme = shared.theme
             }

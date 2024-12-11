@@ -58,7 +58,10 @@
       "relays description": "Wähle die Relays, auf die veröffentlicht werden soll",
       "revenue title": "Einkommen",
       "revenue description": "Wähle, wie Einkommen verteilt werden soll",
-      "publish button title": "Artikel veröffentlichen"
+      "publish button title": "Artikel veröffentlichen",
+      "no relays configured title": "Keine Relays konfiguriert",
+      "no relays configured text": "Möchtest du ein paar Standard-Relays einrichten?",
+      "configure relays button title": "Relays konfigurieren"
    },
    "sign-in": {
       "page title": "Anmelden/Konto anlegen",

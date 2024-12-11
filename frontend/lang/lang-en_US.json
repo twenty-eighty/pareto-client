@@ -58,7 +58,10 @@
       "relays description": "Select the relays you want to publish to",
       "revenue title": "Revenue",
       "revenue description": "Configure how revenue is shared",
-      "publish button title": "Publish article"
+      "publish button title": "Publish article",
+      "no relays configured title": "No relays configured",
+      "no relays configured text": "Do you want to configure some default relays?",
+      "configure relays button title": "Configure relays"
    },
    "sign-in": {
       "page title": "Sign in/up",

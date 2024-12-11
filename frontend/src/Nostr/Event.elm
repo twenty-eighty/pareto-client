@@ -5,12 +5,9 @@ import Json.Encode as Encode
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as Pipeline
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..), NAddrData)
-import Nostr.Types exposing (EventId, PubKey)
-import Time
 import Nostr.Relay
-import Nostr.Types exposing (RelayUrl)
-import Json.Decode as Decode
-import Json.Decode as Decode
+import Nostr.Types exposing (EventId, PubKey, RelayRole(..), RelayUrl, decodeRelayRole, relayRoleToString)
+import Time
 import Json.Decode as Decode
 import Json.Decode as Decode
 
@@ -43,7 +40,7 @@ type Tag
     | ServerTag String
     | SummaryTag String
     | TitleTag String
-    | UrlTag String (Maybe String)
+    | UrlTag String RelayRole
     | ZapTag PubKey RelayUrl (Maybe Int)
 
 type ImageSize
@@ -635,7 +632,10 @@ decodeTag =
                 Decode.map QuotedEventTag (Decode.index 1 Decode.string)
 
             "r" ->
-                Decode.map2 UrlTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 1 Decode.string))
+                Decode.oneOf
+                    [ Decode.map2 UrlTag (Decode.index 1 Decode.string) (Decode.index 2 decodeRelayRole)
+                    , Decode.map2 UrlTag (Decode.index 1 Decode.string) (Decode.succeed ReadWriteRelay)
+                    ]
 
             "relay" ->
                 Decode.map RelayTag (Decode.index 1 Decode.string)
@@ -777,12 +777,12 @@ tagToList tag =
         TitleTag value ->
             [ "title", value ]
 
-        UrlTag value1 maybeValue2 ->
-            case maybeValue2 of
-                Just value2 ->
-                    [ "r", value1, value2 ]
+        UrlTag relay role ->
+            case relayRoleToString role of
+                Just roleString ->
+                    [ "r", relay, roleString ]
                 Nothing ->
-                    [ "r", value1 ]
+                    [ "r", relay ]
 
         ZapTag pubKey relayUrl maybeWeight ->
             case maybeWeight of
