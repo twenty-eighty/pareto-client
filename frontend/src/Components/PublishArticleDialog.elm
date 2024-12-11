@@ -209,7 +209,7 @@ viewPublishArticleDialog (Settings settings) =
             settings.model
 
         relays =
-            [] -- Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
+            Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
     in
     div [ css
             [ Tw.my_4
