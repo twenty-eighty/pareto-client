@@ -40,7 +40,15 @@ renderer styles =
     , text = (subsituteNostrLinks styles)
     , strong = \content -> Html.strong [ css [ Tw.font_bold ] ] content
     , emphasis = \content -> Html.em [ css [ Tw.italic ] ] content
-    , blockQuote = Html.blockquote []
+    , blockQuote =
+        Html.blockquote
+            [ css
+                [ Tw.border_s_2
+                , Tw.ps_4
+                , Tw.font_semibold
+                , Tw.italic
+                ]
+            ]
     , codeSpan =
         \content ->
             Html.code
