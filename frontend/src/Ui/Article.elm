@@ -2,18 +2,22 @@ module Ui.Article exposing (..)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
+import Components.Button as Button
 import Css
+import Dict
 import Graphics
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, summary, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 import Markdown
-import Nostr.Article exposing (Article)
+import Nostr.Article exposing (Article, nip19ForArticle)
 import Nostr.Event exposing (Kind(..), TagReference(..), numberForKind)
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Author, Profile, ProfileValidation(..))
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Types exposing (PubKey)
+import Route
+import Route.Path
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
@@ -23,6 +27,9 @@ import Ui.Shared
 import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded)
 import Time
 import TailwindExtensions exposing (bp_xsl)
+import Html.Styled exposing (label)
+import Ui.Styles exposing (stylesForTheme)
+import Translations.Posts
 
 -- single article
 
@@ -546,9 +553,12 @@ viewArticleInternal styles browserEnv article =
 
 -- article previews
 
-viewArticlePreviewList : Styles msg -> BrowserEnv -> Author -> Maybe Auth.User -> Article -> Interactions -> Bool -> Html msg
-viewArticlePreviewList styles browserEnv author maybeUser article interactions displayAuthor =
+viewArticlePreviewList : Theme -> BrowserEnv -> Author -> Maybe PubKey -> Article -> Interactions -> Bool -> Html msg
+viewArticlePreviewList theme browserEnv author maybeUserPubKey article interactions displayAuthor =
     let
+        styles =
+            Ui.Styles.stylesForTheme theme
+
         textWidthAttr =
             case article.image of
                 Just _ ->
@@ -636,7 +646,7 @@ viewArticlePreviewList styles browserEnv author maybeUser article interactions d
                 ]
             ]
         ]
-        [ viewAuthorAndDatePreview styles browserEnv article.publishedAt author
+        [ viewAuthorAndDatePreview theme browserEnv article maybeUserPubKey author
         , div
             [ css
                 [ Tw.self_stretch
@@ -774,37 +784,41 @@ viewHashTag styles hashTag =
             [ text hashTag ]
         ]
 
-viewArticlePreviewBigPicture : Styles msg -> BrowserEnv -> Author -> Article -> Interactions -> Bool -> Html msg
-viewArticlePreviewBigPicture styles browserEnv author article interactions displayAuthor =
-        div
+viewArticlePreviewBigPicture : Theme -> BrowserEnv -> Author -> Article -> Interactions -> Bool -> Html msg
+viewArticlePreviewBigPicture theme browserEnv author article interactions displayAuthor =
+    let
+        styles =
+            Ui.Styles.stylesForTheme theme
+    in
+    div
+        [ css
+            [ Tw.flex_col
+            , Tw.justify_start
+            , Tw.items_start
+            , Tw.gap_4
+            , Tw.inline_flex
+            ]
+        ]
+        [ previewBigPictureImage article
+        , div
             [ css
                 [ Tw.flex_col
                 , Tw.justify_start
                 , Tw.items_start
-                , Tw.gap_4
-                , Tw.inline_flex
+                , Tw.gap_3
+                , Tw.flex
                 ]
             ]
-            [ previewBigPictureImage article
-            , div
+            [ div
+                (styles.textStyleH4 ++ styles.colorStyleGrayscaleTitle ++
                 [ css
-                    [ Tw.flex_col
-                    , Tw.justify_start
-                    , Tw.items_start
-                    , Tw.gap_3
-                    , Tw.flex
+                    [ Tw.w_96
                     ]
-                ]
-                [ div
-                    (styles.textStyleH4 ++ styles.colorStyleGrayscaleTitle ++
-                    [ css
-                        [ Tw.w_96
-                        ]
-                    ])
-                    [ text <| Maybe.withDefault "" article.title ]
-                , viewAuthorAndDatePreview styles browserEnv article.publishedAt author
-                ]
+                ])
+                [ text <| Maybe.withDefault "" article.title ]
+            , viewAuthorAndDatePreview theme browserEnv article Nothing author
             ]
+        ]
 
 
 previewListImage : Article -> Html msg
@@ -878,8 +892,13 @@ previewBigPictureImage article =
                 ]
                 []
 
-viewAuthorAndDatePreview : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Nostr.Profile.Author -> Html msg
-viewAuthorAndDatePreview styles browserEnv published author =
+viewAuthorAndDatePreview : Theme -> BrowserEnv -> Article -> Maybe PubKey -> Nostr.Profile.Author -> Html msg
+viewAuthorAndDatePreview theme browserEnv article maybeUserPubKey author =
+    let
+        styles =
+            Ui.Styles.stylesForTheme theme
+
+    in
     case author of
         Nostr.Profile.AuthorPubkey pubKey ->
             div
@@ -891,33 +910,62 @@ viewAuthorAndDatePreview styles browserEnv published author =
                     ]
                 ]
                 [ viewProfilePubKey pubKey
-                , timeParagraph styles browserEnv published
+                , timeParagraph styles browserEnv article.publishedAt
                 ]
 
         Nostr.Profile.AuthorProfile profile validationStatus ->
             div
                 [ css
-                    [ Tw.justify_start
-                    , Tw.items_center
+                    [ Tw.justify_between
                     , Tw.gap_2
                     , Tw.inline_flex
                     ]
                 ]
-                [ viewProfileImageSmall (linkElementForProfile profile) profile.picture validationStatus
-                , div
+                [ div
                     [ css
                         [ Tw.justify_start
-                        , Tw.items_start
+                        , Tw.items_center
                         , Tw.gap_2
-                        , Tw.flex
+                        , Tw.inline_flex
                         ]
                     ]
-                    [ div
-                        (styles.colorStyleGrayscaleText ++ styles.textStyle14)
-                        [ text (profileDisplayName profile.pubKey profile) ]
-                    , timeParagraph styles browserEnv published
+                    [ viewProfileImageSmall (linkElementForProfile profile) profile.picture validationStatus
+                    , div
+                        [ css
+                            [ Tw.justify_start
+                            , Tw.items_start
+                            , Tw.gap_2
+                            , Tw.flex
+                            ]
+                        ]
+                        [ div
+                            (styles.colorStyleGrayscaleText ++ styles.textStyle14)
+                            [ text (profileDisplayName profile.pubKey profile) ]
+                        , timeParagraph styles browserEnv article.publishedAt
+                        ]
                     ]
+                , viewArticleEditButton theme browserEnv article maybeUserPubKey profile.pubKey
                 ]
+
+viewArticleEditButton : Theme -> BrowserEnv -> Article -> Maybe PubKey -> PubKey -> Html msg
+viewArticleEditButton theme browserEnv article maybeUserPubKey articleAuthorPubKey =
+    if maybeUserPubKey == Just articleAuthorPubKey then
+        Button.new
+            { label = Translations.Posts.editDraftButtonLabel [ browserEnv.translations ]
+            , onClick = Nothing
+            , theme = theme
+            }
+            |> Button.withLink (editLink article)
+            |> Button.view
+    else
+        div [][]
+
+
+editLink : Article -> Maybe String
+editLink article =
+    nip19ForArticle article
+    |> Maybe.map (\nip19 -> Route.toString { path = Route.Path.Write, query = Dict.singleton "a" nip19, hash = Nothing })
+
 
 viewProfileSmall : Profile -> ProfileValidation -> Html msg
 viewProfileSmall profile validationStatus =

@@ -56,6 +56,17 @@ emptyArticle author eventId kind createdAt content relayUrl =
         Nip27.collectNostrLinks content
     }
 
+nip19ForArticle : Article -> Maybe String
+nip19ForArticle article =
+    Nip19.NAddr 
+        { identifier = article.identifier |> Maybe.withDefault ""
+        , pubKey = article.author
+        , kind = Nostr.Event.numberForKind article.kind
+        , relays = []
+        }
+    |> Nip19.encode
+    |> Result.toMaybe
+
 
 articleFromEvent : Event -> Result (List String) Article
 articleFromEvent event =

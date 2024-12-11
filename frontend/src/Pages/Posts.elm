@@ -12,12 +12,13 @@ import Html.Styled.Events as Events exposing (..)
 import I18Next
 import Layouts
 import Nostr
-import Nostr.Article exposing (Article)
+import Nostr.Article exposing (Article, nip19ForArticle)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
 import Nostr.Event exposing (EventFilter, Kind(..), kindDecoder, emptyEventFilter)
 import Nostr.Nip19 as Nip19
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
+import Nostr.Types exposing (PubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Route.Path
@@ -160,20 +161,16 @@ view shared user model =
             , styles = Ui.Styles.stylesForTheme shared.theme
             }
             |> Components.Categories.view
-        , viewArticles shared model (Just user)
+        , viewArticles shared model (Just user.pubKey)
         ]
     }
 
-viewArticles : Shared.Model -> Model -> Maybe Auth.User -> Html Msg
-viewArticles shared model maybeUser =
-    let
-        styles =
-            Ui.Styles.stylesForTheme shared.theme
-    in
+viewArticles : Shared.Model -> Model -> Maybe PubKey -> Html Msg
+viewArticles shared model maybeUserPubKey =
     case Components.Categories.selected model.categories of
         Published ->
             Nostr.getArticlesByDate shared.nostr
-            |> Ui.View.viewArticlePreviews ArticlePreviewList styles shared.browserEnv shared.nostr maybeUser
+            |> Ui.View.viewArticlePreviews ArticlePreviewList shared.theme shared.browserEnv shared.nostr maybeUserPubKey
 
         Drafts ->
             Nostr.getArticleDraftsByDate shared.nostr
@@ -242,19 +239,8 @@ editDraftButton : Theme -> String -> Article -> Html Msg
 editDraftButton theme label article =
     Button.new
         { label = label
-        , onClick = Maybe.map EditDraft (editDraftLink article)
+        , onClick = Maybe.map EditDraft (nip19ForArticle article)
         , theme = theme
         }
         |> Button.view
 
-
-editDraftLink : Article -> Maybe String
-editDraftLink article =
-    Nip19.NAddr 
-        { identifier = article.identifier |> Maybe.withDefault ""
-        , pubKey = article.author
-        , kind = Nostr.Event.numberForKind article.kind
-        , relays = []
-        }
-    |> Nip19.encode
-    |> Result.toMaybe

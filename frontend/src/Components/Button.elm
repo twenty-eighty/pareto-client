@@ -1,6 +1,7 @@
 module Components.Button exposing
     ( Button, new
     , view
+    , withLink
     , withTypePrimary, withTypeSecondary
     , withStyleSuccess, withStyleWarning, withStyleDanger
     , withSizeSmall
@@ -41,6 +42,7 @@ type Button msg
     = Settings
         { label : String
         , onClick : Maybe msg
+        , link : Maybe String
         , style : Style
         , size : Size
         , type_ : ButtonType
@@ -57,6 +59,7 @@ new props =
     Settings
         { label = props.label
         , onClick = props.onClick
+        , link = Nothing
         , style = Default
         , size = Normal
         , type_ = RegularButton
@@ -70,6 +73,11 @@ new props =
 
 
 -- MODIFIERS
+
+withLink : Maybe String -> Button msg -> Button msg
+withLink link (Settings settings) =
+    Settings { settings | link = link }
+
 
 type ButtonType
     = RegularButton
@@ -154,13 +162,16 @@ view (Settings settings) =
                 Nothing ->
                     text ""
 
-        (onClickAttr) =
-            case (settings.isDisabled, settings.onClick) of
-                (False, Just onClick) ->
-                    [ Events.onClick onClick ]
+        (element, onClickAttr) =
+            case (settings.isDisabled, settings.onClick, settings.link) of
+                (False, Just onClick, _) ->
+                    (button, [ Events.onClick onClick ])
 
-                (_, _) ->
-                    [ disabled True ]
+                (False, Nothing, Just link) ->
+                    (a, [ href link ])
+
+                (_, _, _) ->
+                    (div, [ disabled True ])
     in
     div
         [ css
@@ -169,7 +180,7 @@ view (Settings settings) =
             , Tw.gap_2
             ]
         ]
-        [ button
+        [ element
             ( buttonStyles ++ onClickAttr ++
             [ css
                 [ Tw.py_2

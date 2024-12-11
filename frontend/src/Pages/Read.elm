@@ -218,6 +218,6 @@ view shared model =
                 }
                 |> Components.Categories.view
             , Nostr.getArticlesByDate shared.nostr
-             |> Ui.View.viewArticlePreviews ArticlePreviewList styles shared.browserEnv shared.nostr Nothing
+             |> Ui.View.viewArticlePreviews ArticlePreviewList shared.theme shared.browserEnv shared.nostr Nothing
             ]
     }

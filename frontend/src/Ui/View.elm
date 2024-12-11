@@ -11,6 +11,7 @@ import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Community exposing (Community)
 import Nostr.ShortNote exposing (ShortNote)
+import Nostr.Types exposing (PubKey)
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
@@ -18,7 +19,7 @@ import Ui.Article
 import Ui.ArticleOld
 import Ui.Community
 import Ui.ShortNote
-import Ui.Styles exposing (Styles)
+import Ui.Styles exposing (Styles, Theme)
 
 type ArticlePreviewType
     = ArticlePreviewList
@@ -29,17 +30,17 @@ viewArticle : Styles msg -> BrowserEnv -> Nostr.Model -> Article -> Html msg
 viewArticle styles browserEnv nostr article =
     Ui.Article.viewArticle styles browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article)
 
-viewArticlePreviews : ArticlePreviewType -> Styles msg -> BrowserEnv -> Nostr.Model -> Maybe Auth.User -> List Article -> Html msg
-viewArticlePreviews previewType styles browserEnv nostr maybeUser articles =
+viewArticlePreviews : ArticlePreviewType -> Theme -> BrowserEnv -> Nostr.Model -> Maybe PubKey -> List Article -> Html msg
+viewArticlePreviews previewType theme browserEnv nostr maybeUserPubKey articles =
     case previewType of
         ArticlePreviewList ->
-            viewArticlePreviewsList styles browserEnv nostr maybeUser articles
+            viewArticlePreviewsList theme browserEnv nostr maybeUserPubKey articles
 
         ArticlePreviewBigPicture ->
-            viewArticlePreviewsBigPicture styles browserEnv nostr articles
+            viewArticlePreviewsBigPicture theme browserEnv nostr articles
 
-viewArticlePreviewsList : Styles msg -> BrowserEnv -> Nostr.Model -> Maybe Auth.User -> List Article -> Html msg
-viewArticlePreviewsList styles browserEnv nostr maybeUser articles =
+viewArticlePreviewsList : Theme -> BrowserEnv -> Nostr.Model -> Maybe PubKey -> List Article -> Html msg
+viewArticlePreviewsList theme browserEnv nostr maybeUserPubKey articles =
     div
         [ css
             [ Tw.flex
@@ -55,12 +56,12 @@ viewArticlePreviewsList styles browserEnv nostr maybeUser articles =
             ]
             ( articles
             |> List.take 20
-            |> List.map (\article -> Ui.Article.viewArticlePreviewList styles browserEnv (Nostr.getAuthor nostr article.author) maybeUser article (Nostr.getInteractions nostr article) True)
+            |> List.map (\article -> Ui.Article.viewArticlePreviewList theme browserEnv (Nostr.getAuthor nostr article.author) maybeUserPubKey article (Nostr.getInteractions nostr article) True)
             )
         ]
     
-viewArticlePreviewsBigPicture : Styles msg -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
-viewArticlePreviewsBigPicture styles browserEnv nostr articles =
+viewArticlePreviewsBigPicture : Theme -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
+viewArticlePreviewsBigPicture theme browserEnv nostr articles =
     div
         [ css
             [ Tw.h_80
@@ -72,7 +73,7 @@ viewArticlePreviewsBigPicture styles browserEnv nostr articles =
         ]
         ( articles
         |> List.take 20
-        |> List.map (\article -> Ui.Article.viewArticlePreviewBigPicture styles browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article) True)
+        |> List.map (\article -> Ui.Article.viewArticlePreviewBigPicture theme browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article) True)
         )
 
 viewCommunity : BrowserEnv -> Nostr.Model -> Community -> Html msg

@@ -23,6 +23,7 @@ type alias Profile =
     , picture : Maybe String
     , banner : Maybe String
     , website : Maybe String
+    , bot : Maybe Bool
     , npub : Maybe String
     , createdAt : Maybe Time.Posix
     , pubKey : PubKey
@@ -46,6 +47,7 @@ emptyProfile pubKey =
     , picture = Nothing
     , banner = Nothing
     , website = Nothing
+    , bot = Nothing
     , pubKey = pubKey
     , npub = Nothing
     , createdAt = Nothing
@@ -102,6 +104,7 @@ nostrProfileDecoder =
     |> DecodePipeline.optional "picture" (Decode.maybe Decode.string) Nothing
     |> DecodePipeline.optional "banner" (Decode.maybe Decode.string) Nothing
     |> DecodePipeline.optional "website" (Decode.maybe Decode.string) Nothing
+    |> DecodePipeline.optional "bot" (Decode.maybe Decode.bool) Nothing
     |> DecodePipeline.optional "npub" (Decode.maybe Decode.string) Nothing
     |> DecodePipeline.optional "created_at" (Decode.maybe decodeUnixTime) Nothing
     |> DecodePipeline.hardcoded ""

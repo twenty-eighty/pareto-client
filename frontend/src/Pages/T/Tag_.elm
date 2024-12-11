@@ -120,7 +120,6 @@ view shared model =
     let
         styles =
             Ui.Styles.stylesForTheme shared.theme
-    
     in
     { title = model.tag
     , body =
@@ -149,7 +148,7 @@ view shared model =
                     [ text <| "#" ++ model.tag
                     ]
                 , Nostr.getArticlesByDate shared.nostr
-                |> Ui.View.viewArticlePreviews ArticlePreviewList styles shared.browserEnv shared.nostr Nothing
+                |> Ui.View.viewArticlePreviews ArticlePreviewList shared.theme shared.browserEnv shared.nostr Nothing
                 ]
             ]
         ]
