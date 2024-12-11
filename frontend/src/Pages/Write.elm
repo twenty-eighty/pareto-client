@@ -417,24 +417,41 @@ updateWithPublishedResults shared model user value =
             Decode.decodeValue (Decode.field "sendId" Decode.int) value
             |> Result.toMaybe
 
+        receivedDraftEventId =
+            Decode.decodeValue (Decode.at [ "event", "id" ] Decode.string) value
+            |> Result.toMaybe
+
         -- TODO: Error handling
         -- - not enough relays published?
     in
     case model.articleState of
         ArticleSavingDraft sendRequestId ->
             if Just sendRequestId == receivedSendRequestId then
-                ({ model | articleState = ArticleDraftSaved }, Effect.none)
+                ({ model
+                    | articleState = ArticleDraftSaved
+                    , draftEventId = receivedDraftEventId
+                }, Effect.none)
             else
                 (model, Effect.none)
 
         ArticlePublishing sendRequestId ->
             if Just sendRequestId == receivedSendRequestId then
-                ( { model
-                    | articleState = ArticleDeletingDraft (Nostr.getLastSendRequestId shared.nostr)
-                  }
-                -- after publishing article, delete draft
-                , sendDraftDeletionCmd shared model user
-                )
+                case model.draftEventId of
+                    Just _ ->
+                        ( { model
+                            | articleState = ArticleDeletingDraft (Nostr.getLastSendRequestId shared.nostr)
+                        }
+                        -- after publishing article, delete draft
+                        , sendDraftDeletionCmd shared model user
+                        )
+
+                    Nothing ->
+                        ( { model
+                            | articleState = ArticlePublished
+                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                        }
+                        , Effect.none
+                        )
             else
                 (model, Effect.none)
 

@@ -468,7 +468,7 @@ export const onReady = ({ app, env }) => {
         if (debug) {
           console.log('published event ' + sendId, ndkEvent);
         }
-        app.ports.receiveMessage.send({ messageType: 'published', value: { sendId: sendId, results: results } });
+        app.ports.receiveMessage.send({ messageType: 'published', value: { sendId: sendId, event: ndkEvent, results: results } });
 
         // feed sent events into app as if received by relay.
         // thus we can let the event modify the state correctly
