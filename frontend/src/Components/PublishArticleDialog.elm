@@ -156,6 +156,12 @@ update props  =
 sendRelayListCmd : PubKey -> List RelayMetadata -> Effect msg
 sendRelayListCmd pubKey relays =
     let
+        relaysWithProtocol =
+            relays
+            |> List.map (\relay ->
+                    { relay | url = "wss://" ++ relay.url}
+                )
+
         relayUrls =
             relays
             |> List.filterMap (\relay ->
@@ -165,7 +171,7 @@ sendRelayListCmd pubKey relays =
                     Nothing
             )
     in
-    eventWithRelayList pubKey relays
+    eventWithRelayList pubKey relaysWithProtocol
     |> SendRelayList relayUrls
     |> Shared.Msg.SendNostrEvent
     |> Effect.sendSharedMsg
@@ -203,7 +209,7 @@ viewPublishArticleDialog (Settings settings) =
             settings.model
 
         relays =
-            Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
+            [] -- Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
     in
     div [ css
             [ Tw.my_4
