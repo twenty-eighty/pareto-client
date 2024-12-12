@@ -23,7 +23,7 @@ deletionRequestFromEvent event =
     |> List.foldl (\tag acc ->
         case tag of 
             AddressTag address ->
-                {acc | eventIds = Set.insert address acc.addresses }
+                {acc | addresses = Set.insert address acc.addresses }
 
             EventIdTag eventId ->
                 {acc | eventIds = Set.insert eventId acc.eventIds }

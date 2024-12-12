@@ -12,8 +12,8 @@ import Nostr.BookmarkList exposing (BookmarkList, bookmarkListFromEvent)
 import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
-import Nostr.DeletionRequest exposing (deletionRequestFromEvent)
-import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), decodeEvent, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
+import Nostr.DeletionRequest exposing (DeletionRequest, deletionRequestFromEvent)
+import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), buildAddress, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.FollowList exposing (Following, followListFromEvent)
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
@@ -29,7 +29,7 @@ import Nostr.Request exposing (HttpRequestMethod, Request, RequestData(..), Requ
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
-import Nostr.Types exposing (EventId, PubKey, IncomingMessage, RelayRole(..), RelayUrl)
+import Nostr.Types exposing (Address, EventId, PubKey, IncomingMessage, RelayRole(..), RelayUrl)
 import Nostr.Zaps exposing (ZapReceipt)
 import Html.Attributes exposing (kind)
 import Set exposing (Set)
@@ -55,6 +55,8 @@ type alias Model =
     , communities : Dict PubKey (List Community)
     , communityLists : Dict PubKey (List CommunityReference)
     , defaultRelays : List String
+    , deletedAddresses : Set Address
+    , deletedEvents : Set EventId
     , fileStorageServerLists : Dict PubKey (List String)
     , followLists : Dict PubKey (List Following)
     , followSets : Dict PubKey (Dict String FollowSet) -- follow sets; keys pubKey / identifier
@@ -246,14 +248,17 @@ getProfileValidationStatus model pubKey =
 getArticlesByDate : Model -> List Article
 getArticlesByDate model =
     model.articlesByDate
+    |> List.filter (filterDeletedArticle model)
 
 getArticleDraftsByDate : Model -> List Article
 getArticleDraftsByDate model =
     model.articleDraftsByDate
+    |> List.filter (filterDeletedArticle model)
 
 getArticleDraftWithIdentifier : Model -> PubKey -> String -> Maybe Article
 getArticleDraftWithIdentifier model pubKey identifier =
     model.articleDraftsByDate
+    |> List.filter (filterDeletedArticle model)
     |> List.filter (\article ->
             article.author == pubKey &&
             article.identifier == Just identifier
@@ -265,6 +270,13 @@ getArticlesForAuthor model pubKey =
     model.articlesByAuthor
     |> Dict.get pubKey
     |> Maybe.withDefault []
+    |> List.filter (filterDeletedArticle model)
+
+filterDeletedArticle : Model -> Article -> Bool
+filterDeletedArticle model article =
+    Set.member article.id model.deletedEvents ||
+    Set.member (buildAddress (article.kind, article.author, Maybe.withDefault "" article.identifier)) model.deletedAddresses
+    |> not
 
 getArticleForNip19 : Model -> NIP19Type -> Maybe Article
 getArticleForNip19 model nip19 =
@@ -620,6 +632,8 @@ empty =
     , communities = Dict.empty
     , communityLists = Dict.empty
     , defaultRelays = []
+    , deletedAddresses = Set.empty
+    , deletedEvents = Set.empty
     , fileStorageServerLists = Dict.empty
     , hooks =
         { connect = \ _ -> Cmd.none
@@ -926,21 +940,19 @@ updateModelWithCommunityLists model events =
 updateModelWithDeletionRequests : Model -> List Event -> (Model, Cmd Msg)
 updateModelWithDeletionRequests model events =
     let
-        deletedEventIds =
+        (deletedAddresses, deletedEventIds) =
             events
             |> List.map deletionRequestFromEvent
-            |> List.foldl (\deletionRequest acc ->
-                Set.union acc deletionRequest.eventIds
-            ) Set.empty
-
-        -- currently only drafts are deleted by us
-        articleDraftsByDate =
-            model.articleDraftsByDate
-            |> List.filter (\article ->
-                    not <| Set.member article.id deletedEventIds
+            |> List.foldl (\deletionRequest (accAddresses, accEvents) ->
+                ( Set.union accAddresses deletionRequest.addresses
+                , Set.union accEvents deletionRequest.eventIds
                 )
+            ) (model.deletedAddresses, model.deletedEvents)
     in
-    ({ model | articleDraftsByDate = articleDraftsByDate }, Cmd.none)
+    ({ model
+        | deletedAddresses = deletedAddresses
+        , deletedEvents = deletedEventIds
+    }, Cmd.none)
 
 updateModelWithUserServerLists : Model -> RequestId -> List Event -> (Model, Cmd Msg)
 updateModelWithUserServerLists model requestId events =
@@ -1041,7 +1053,7 @@ updateModelWithLongFormContentDraft model requestId events =
                         Dict.insert article.id (Set.singleton relayUrl) acc
 
                     (Nothing, _) ->
-                        -- usually we should get a relay URL this this branch shouldn't be run through
+                        -- usually we should get a relay URL so this branch shouldn't be run through
                         acc
 
             ) model.articleDraftRelays   

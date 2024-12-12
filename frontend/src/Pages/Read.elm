@@ -65,7 +65,7 @@ init : Shared.Model -> () -> ( Model, Effect Msg )
 init shared () =
     let
         filter =
-            { emptyEventFilter | kinds = Just [KindLongFormContent] , limit = Just 20 }
+            { emptyEventFilter | kinds = Just [KindEventDeletionRequest, KindLongFormContent] , limit = Just 20 }
     in
     ( { categories = Components.Categories.init { selected = Global }}
     , RequestArticlesFeed filter
@@ -109,16 +109,16 @@ updateModelWithCategory shared model category =
         filter =
             case category of
                 Global ->
-                    { emptyEventFilter | kinds = Just [KindLongFormContent], limit = Just 20 }
+                    { emptyEventFilter | kinds = Just [KindEventDeletionRequest, KindLongFormContent], limit = Just 20 }
 
                 Pareto ->
-                    { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just (paretoFollowsList shared.nostr) , limit = Just 20 }
+                    { emptyEventFilter | kinds = Just [KindEventDeletionRequest, KindLongFormContent], authors = Just (paretoFollowsList shared.nostr) , limit = Just 20 }
 
                 Followed ->
-                    { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just (userFollowsList shared.nostr shared.loginStatus) , limit = Just 20 }
+                    { emptyEventFilter | kinds = Just [KindEventDeletionRequest, KindLongFormContent], authors = Just (userFollowsList shared.nostr shared.loginStatus) , limit = Just 20 }
 
                 Highlighter ->
-                    { emptyEventFilter | kinds = Just [KindLongFormContent], limit = Just 20 }
+                    { emptyEventFilter | kinds = Just [KindEventDeletionRequest, KindLongFormContent], limit = Just 20 }
     in
     ( model
     , RequestArticlesFeed filter

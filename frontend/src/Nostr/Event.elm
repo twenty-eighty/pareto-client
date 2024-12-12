@@ -6,7 +6,7 @@ import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as Pipeline
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..), NAddrData)
 import Nostr.Relay
-import Nostr.Types exposing (EventId, PubKey, RelayRole(..), RelayUrl, decodeRelayRole, relayRoleToString)
+import Nostr.Types exposing (Address, EventId, PubKey, RelayRole(..), RelayUrl, decodeRelayRole, relayRoleToString)
 import Time
 import Json.Decode as Decode
 import Json.Decode as Decode
@@ -15,7 +15,7 @@ import Json.Decode as Decode
 type Tag
     = GenericTag String (Encode.Value)
     | AboutTag String
-    | AddressTag String
+    | AddressTag Address
     | AltTag String
     | ClientTag String (Maybe String) (Maybe String)
     | DescriptionTag String
@@ -792,11 +792,11 @@ tagToList tag =
                 Nothing ->
                     [ "zap", pubKey, relayUrl ]
 
-buildAddress : (Kind, PubKey, String) -> String
+buildAddress : (Kind, PubKey, String) -> Address
 buildAddress (kind, pubKey, identifier) =
     String.fromInt (numberForKind kind) ++ ":" ++ pubKey ++ ":" ++ identifier
 
-parseAddress : String -> Maybe (Kind, PubKey, String)
+parseAddress : Address -> Maybe (Kind, PubKey, String)
 parseAddress address =
     case String.split ":" address of
         [kindStr, pubKey, identifier] ->
@@ -1044,7 +1044,7 @@ appendTags tags eventElements =
 
 -- functions for building Event structure
 
-addAddressTag : String -> List Tag -> List Tag
+addAddressTag : Address -> List Tag -> List Tag
 addAddressTag address tags =
     AddressTag address :: tags
 
