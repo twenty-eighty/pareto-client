@@ -10,7 +10,7 @@ import Layouts
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (Kind(..), KindInformationLink(..), Tag(..), TagReference(..), buildAddress, emptyEventFilter, informationForKind, numberForKind)
-import Nostr.HandlerInformation exposing (HandlerInformation, WebTarget)
+import Nostr.HandlerInformation exposing (HandlerInformation, WebTarget, buildHandlerInformation)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileToJson)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
@@ -90,7 +90,7 @@ sendClientRecommendation nostr pubKey handlerInformation =
     , kind = KindHandlerRecommendation
     , tags =
         [ EventDelegationTag (numberForKind KindLongFormContent |> String.fromInt)
-        , GenericTag4 "a" (buildAddress (KindLongFormContent, handlerInformation.pubKey, handlerInformation.handlerIdentifier)) Pareto.paretoRelay "web"
+        , GenericTag4 "a" (buildAddress (KindHandlerInformation, handlerInformation.pubKey, handlerInformation.handlerIdentifier)) Pareto.paretoRelay "web"
         ]
     , content = ""
     , id = ""
@@ -103,19 +103,7 @@ sendClientRecommendation nostr pubKey handlerInformation =
 
 sendHandlerInformation : Nostr.Model -> PubKey -> HandlerInformation -> Effect Msg
 sendHandlerInformation nostr pubKey handlerInformation =
-    { pubKey = pubKey
-    , createdAt = Time.millisToPosix 0
-    , kind = KindHandlerRecommendation
-    , tags =
-        [ EventDelegationTag handlerInformation.handlerIdentifier
-        , KindTag KindLongFormContent
-        , GenericTag4 "a" (buildAddress (KindLongFormContent, handlerInformation.pubKey, handlerInformation.handlerIdentifier)) Pareto.paretoRelay "web"
-        ]
-    , content = ""
-    , id = ""
-    , sig = Nothing
-    , relay = Nothing
-    }
+    buildHandlerInformation handlerInformation
     |> SendHandlerInformation (Nostr.getWriteRelayUrlsForPubKey nostr pubKey)
     |> Shared.Msg.SendNostrEvent
     |> Effect.sendSharedMsg
@@ -202,6 +190,10 @@ viewActionButtons : Theme -> BrowserEnv -> HandlerInformation -> LoginStatus -> 
 viewActionButtons theme browserEnv handlerInformation loginStatus =
     case loginStatus of
         LoggedIn pubKey ->
+            let
+                styles =
+                    stylesForTheme theme
+            in
             div
                 [ css
                     [ Tw.flex
@@ -209,7 +201,11 @@ viewActionButtons theme browserEnv handlerInformation loginStatus =
                     , Tw.gap_3
                     ]
                 ]
-                [ Button.new
+                [ div
+                    (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
+                    [ text <| Translations.recomendationExplanation [ browserEnv.translations ]
+                    ]
+                , Button.new
                     { label = Translations.recommendClientButtonTitle [ browserEnv.translations ]
                     , onClick = Just <| RecommendClient pubKey handlerInformation
                     , theme = theme

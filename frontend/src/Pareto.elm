@@ -130,6 +130,8 @@ paretoReferences =
 paretoWebTargets : List (String, Maybe String)
 paretoWebTargets =
     [ ("https://pareto.space/a/<bech32>", Just "naddr")
+--    , ("https://pareto.space/e/<bech32>", Just "nevent")
+    , ("https://pareto.space/p/<bech32>", Just "nprofile")
     ]
 
 paretoZapTargets : List (PubKey, RelayUrl, Maybe Int)
@@ -139,7 +141,7 @@ paretoZapTargets =
 
 paretoAltText : String
 paretoAltText =
-    ""
+    "Nostr App: " ++ String.toLower client
 
 applicationInformation : Time.Posix -> HandlerInformation
 applicationInformation time =

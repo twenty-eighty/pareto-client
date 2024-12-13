@@ -42,10 +42,10 @@ profileToJson : Profile -> String
 profileToJson profile =
     [
     ]
-    |> appendStringToEncode "nip05" (Maybe.map Nip05.nip05ToString profile.nip05)
-    |> appendStringToEncode "lud16" profile.lud16 
     |> appendStringToEncode "name" profile.name 
     |> appendStringToEncode "displayName" profile.displayName
+    |> appendStringToEncode "nip05" (Maybe.map Nip05.nip05ToString profile.nip05)
+    |> appendStringToEncode "lud16" profile.lud16 
     |> appendStringToEncode "about" profile.about 
     |> appendStringToEncode "picture" profile.picture 
     |> appendStringToEncode "banner" profile.banner 
@@ -58,7 +58,7 @@ appendStringToEncode : String -> Maybe String -> List (String, Encode.Value) -> 
 appendStringToEncode key maybeValue elements =
     case maybeValue of
         Just value ->
-            ( key, Encode.string value ) :: elements
+            elements ++ [ ( key, Encode.string value ) ]
 
         Nothing ->
             elements

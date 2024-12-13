@@ -42,3 +42,8 @@ buildHandlerInformation info =
     , sig = Nothing
     , relay = Nothing
     }
+
+--      [ EventDelegationTag handlerInformation.handlerIdentifier
+--      , KindTag KindLongFormContent
+--      , GenericTag4 "a" (buildAddress (KindLongFormContent, handlerInformation.pubKey, handlerInformation.handlerIdentifier)) Pareto.paretoRelay "web"
+--      , PublishedAtTag time
