@@ -34,6 +34,7 @@ type RequestData
     | RequestUserData EventFilter
     | RequestBlossomAuth String String HttpRequestMethod
     | RequestNip98Auth String String HttpRequestMethod
+    | RequestShortNote EventFilter
 
 type HttpRequestMethod
     = GetRequest

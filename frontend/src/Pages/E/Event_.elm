@@ -11,7 +11,7 @@ import Html.Styled.Events as Events exposing (..)
 import Layouts
 import Nostr
 import Nostr.Article exposing (Article)
-import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..))
+import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), kindFromNumber)
 import Nostr.Nip19 as Nip19
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Types exposing (IncomingMessage)
@@ -51,7 +51,7 @@ toLayout theme model =
 
 type ContentToView
     = ShortNote String
-    | Article String
+    | Article Nip19.NAddrData
 
 type alias Model =
     { contentToView : Maybe ContentToView
@@ -69,6 +69,9 @@ init shared route () =
                 Ok (Nip19.Note noteId) ->
                     Just <| ShortNote noteId
 
+                Ok (Nip19.NAddr naddrData) ->
+                    Just <| Article naddrData
+
                 _ ->
                     Nothing
 
@@ -83,8 +86,22 @@ init shared route () =
                     , since = Nothing
                     , until = Nothing
                     }
-                    |> RequestProfile Nothing
+                    |> RequestShortNote
                     |> Nostr.createRequest shared.nostr ("NIP-19 note " ++ route.params.event) [ KindUserMetadata]
+                    |> Shared.Msg.RequestNostrEvents
+                    |> Effect.sendSharedMsg
+
+                Just (Article naddrData) ->
+                    { authors = Just [naddrData.pubKey]
+                    , ids = Nothing
+                    , kinds = Just [ kindFromNumber naddrData.kind ]
+                    , tagReferences = Just [ TagReferenceIdentifier naddrData.identifier]
+                    , limit = Just 1
+                    , since = Nothing
+                    , until = Nothing
+                    }
+                    |> RequestArticle (Just naddrData.relays)
+                    |> Nostr.createRequest shared.nostr ("NIP-19 article " ++ route.params.event) [ KindUserMetadata]
                     |> Shared.Msg.RequestNostrEvents
                     |> Effect.sendSharedMsg
 
@@ -173,10 +190,19 @@ view shared model =
 
 viewContent : Shared.Model -> Model -> Html Msg
 viewContent shared model =
+    let
+        styles =
+            Ui.Styles.stylesForTheme shared.theme
+    in
     case model.contentToView of
         Just (ShortNote noteId) ->
             Nostr.getShortNoteById shared.nostr noteId
-            |> Maybe.map (Ui.View.viewShortNote (Ui.Styles.stylesForTheme shared.theme) shared.browserEnv shared.nostr)
+            |> Maybe.map (Ui.View.viewShortNote (styles) shared.browserEnv shared.nostr)
+            |> Maybe.withDefault (div [][])
+
+        Just (Article naddrData) ->
+            Nostr.getArticleForNip19 shared.nostr (Nip19.NAddr naddrData)
+            |> Maybe.map (Ui.View.viewArticle styles shared.browserEnv shared.nostr)
             |> Maybe.withDefault (div [][])
 
         _ ->

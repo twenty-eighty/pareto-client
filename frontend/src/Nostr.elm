@@ -201,6 +201,9 @@ performRequest model description requestId requestData =
         RequestNip98Auth serverUrl apiUrl method ->
             ( model, model.hooks.requestNip96Auth requestId serverUrl apiUrl method)
 
+        RequestShortNote eventFilter ->
+            ( model, model.hooks.requestEvents description True requestId Nothing eventFilter)
+
 send : Model -> SendRequest -> (Model, Cmd Msg)
 send model sendRequest =
     case sendRequest of
