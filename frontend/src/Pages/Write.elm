@@ -157,7 +157,11 @@ init user shared route () =
                     , identifier = article.identifier
                     , tags = tagsString article.hashtags
                     , otherTags = article.otherTags
-                    , zapWeights = article.zapWeights
+                    , zapWeights =
+                        if List.length article.zapWeights > 0 then
+                            article.zapWeights
+                        else
+                            defaultZapWeights user.pubKey
                     , now = Time.millisToPosix 0
                     , mediaSelector = mediaSelector
                     , imageSelection = Nothing
@@ -175,14 +179,13 @@ init user shared route () =
                     , identifier = Nothing
                     , tags = Nothing
                     , otherTags = []
-                    , zapWeights = []
+                    , zapWeights = defaultZapWeights user.pubKey
                     , now = Time.millisToPosix 0
                     , mediaSelector = mediaSelector
                     , imageSelection = Nothing
                     , publishArticleDialog = publishArticleDialog
                     , articleState = ArticleEmpty
                     }
-
     in
     ( model
     , Effect.batch
@@ -190,6 +193,16 @@ init user shared route () =
         , effect
         ]
     )
+
+defaultZapWeights : PubKey -> List (PubKey, RelayUrl, Maybe Int)
+defaultZapWeights pubKey =
+    if pubKey == Pareto.paretoPubKey then
+        [ (Pareto.paretoPubKey, Pareto.paretoRelay, Just 1)
+        ]
+    else
+        [ (pubKey, Pareto.paretoRelay, Just 80)
+        , (Pareto.paretoPubKey, Pareto.paretoRelay, Just 20)
+        ]
 
 tagsString : List String -> Maybe String
 tagsString tags =
