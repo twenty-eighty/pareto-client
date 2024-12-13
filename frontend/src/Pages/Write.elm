@@ -511,7 +511,7 @@ eventWithContent shared model user kind =
         |> Event.addIdentifierTag model.identifier
         |> Event.addTagTags model.tags
         |> Event.addZapTags model.zapWeights
---        |> Event.addClientTag Pareto.client kind user.pubKey model.identifier 
+        |> Event.addClientTag Pareto.client Pareto.paretoPubKey Pareto.handlerIdentifier Pareto.paretoRelay
     , content = model.content |> Maybe.withDefault ""
     , id = ""
     , sig = Nothing

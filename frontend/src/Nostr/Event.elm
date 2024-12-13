@@ -1254,14 +1254,9 @@ addAltTag : String -> List Tag -> List Tag
 addAltTag alt tags =
     AltTag alt :: tags
 
-addClientTag : String -> Kind -> PubKey -> Maybe String -> List Tag -> List Tag
-addClientTag client kind pubKey maybeIdentifier tags =
-    case maybeIdentifier of
-        Just identifier ->
-            ClientTag client (Just <| buildAddress (kind, pubKey, identifier)) Nothing :: tags
-
-        Nothing ->
-            tags
+addClientTag : String -> PubKey -> String -> RelayUrl -> List Tag -> List Tag
+addClientTag client pubKey identifier relay tags =
+    ClientTag client (Just <| buildAddress (KindHandlerInformation, pubKey, identifier)) (Just relay) :: tags
 
 addDTag : String -> List Tag -> List Tag
 addDTag identifier tags =
