@@ -15,7 +15,6 @@ import Nostr
 import Nostr.Article exposing (Article, nip19ForArticle)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
 import Nostr.Event exposing (EventFilter, Kind(..), kindDecoder, emptyEventFilter)
-import Nostr.Nip19 as Nip19
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)

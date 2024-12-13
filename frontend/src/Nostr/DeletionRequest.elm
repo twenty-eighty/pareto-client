@@ -52,7 +52,6 @@ draftDeletionEvent pubKey createdAt draftEventId content maybeIdentifier =
             , tags =
                 [ ]
                 |> addIdentifer
-                |> addEventIdTag draftEventId
             , content = content
             , id = ""
             , sig = Nothing
