@@ -31,12 +31,17 @@ parseNip05 nip05String =
 
 nip05ToString : Nip05 -> Nip05String
 nip05ToString nip05 =
+    nip05.user ++ "@" ++ nip05.domain
+
+nip05ToDisplayString : Nip05 -> Nip05String
+nip05ToDisplayString nip05 =
     case nip05.user of
         "_" ->
+            -- special case according to NIP-05
             nip05.domain
 
-        user ->
-            user ++ "@" ++ nip05.domain
+        _ ->
+            nip05ToString nip05
 
 nip05Decoder : Decoder Nip05Data
 nip05Decoder =

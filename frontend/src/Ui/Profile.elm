@@ -138,7 +138,7 @@ viewNip05 profile =
                     , Tw.w_auto
                     ]
                 ]
-                [ text <| Nip05.nip05ToString nip05 ]
+                [ text <| Nip05.nip05ToDisplayString nip05 ]
 
         Nothing ->
             div [][]
@@ -359,7 +359,7 @@ profileDisplayName pubKey profile =
         (Nothing, Just name, _) ->
             name
         (Nothing, Nothing, Just nip05) ->
-            Nip05.nip05ToString nip05
+            Nip05.nip05ToDisplayString nip05
         (Nothing, Nothing, Nothing) ->
             shortenedPubKey pubKey
 

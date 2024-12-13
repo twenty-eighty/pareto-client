@@ -9,6 +9,7 @@ import Nostr.Nip05 exposing (Nip05, nip05StringDecoder)
 import Nostr.Types exposing (PubKey)
 import Time
 import Nostr.Nip05 as Nip05
+import Json.Encode as Encode
 
 type Author
     = AuthorPubkey PubKey
@@ -36,6 +37,40 @@ type ProfileValidation
     | ValidationNotMatchingPubKey
     | ValidationNetworkError Http.Error
     | ValidationSucceeded
+
+profileToJson : Profile -> String
+profileToJson profile =
+    [
+    ]
+    |> appendStringToEncode "nip05" (Maybe.map Nip05.nip05ToString profile.nip05)
+    |> appendStringToEncode "lud16" profile.lud16 
+    |> appendStringToEncode "name" profile.name 
+    |> appendStringToEncode "displayName" profile.displayName
+    |> appendStringToEncode "about" profile.about 
+    |> appendStringToEncode "picture" profile.picture 
+    |> appendStringToEncode "banner" profile.banner 
+    |> appendStringToEncode "website" profile.website 
+    |> appendBoolToEncode "bot" profile.bot
+    |> Encode.object
+    |> Encode.encode 0
+
+appendStringToEncode : String -> Maybe String -> List (String, Encode.Value) -> List (String, Encode.Value)
+appendStringToEncode key maybeValue elements =
+    case maybeValue of
+        Just value ->
+            ( key, Encode.string value ) :: elements
+
+        Nothing ->
+            elements
+
+appendBoolToEncode : String -> Maybe Bool -> List (String, Encode.Value) -> List (String, Encode.Value)
+appendBoolToEncode key maybeValue elements =
+    case maybeValue of
+        Just value ->
+            ( key, Encode.bool value ) :: elements
+
+        Nothing ->
+            elements
 
 emptyProfile : String -> Profile
 emptyProfile pubKey =

@@ -13,7 +13,8 @@ defmodule NostrBackendWeb.NostrController do
       "psychobabble" => "6734e11d8d67d9ca4dedb920f81182ded2bca918e3e0f3528bd5f4c4c7e34e8f",
       "indikativ" => "1a040599c19734813abcec04d9bda0ff5fc5054fc4d035b79484bf970a05f5c4",
       "waltersiegrist" => "78c90fc422bdadafb4df0de5d1ed87133265f896949705bebc61aee44bff983c",
-      "_" => "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84"
+      "_" => "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84",
+      "client" => "0f479c7dff7bb53dae53f3bb32ad1109edbb07ba562bdd5168044b3f4364e7b5"
     },
     "relays" => %{
       "2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" => [
@@ -57,6 +58,10 @@ defmodule NostrBackendWeb.NostrController do
         "wss://pareto.nostr1.com",
         "nos.lol",
         "relay.damus.io"
+      ],
+      "0f479c7dff7bb53dae53f3bb32ad1109edbb07ba562bdd5168044b3f4364e7b5" => [
+        "wss://nostr.pareto.space",
+        "wss://pareto.nostr1.com"
       ]
     }
   }

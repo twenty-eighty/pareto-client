@@ -1,6 +1,12 @@
 module Pareto exposing (..)
 
-import Nostr.Types exposing (PubKey, RelayRole(..))
+import Nostr.Event exposing (Kind(..))
+import Nostr.HandlerInformation exposing (HandlerInformation)
+import Nostr.Profile exposing (Profile)
+import Nostr.Types exposing (PubKey, RelayRole(..), RelayUrl)
+import Time
+import Nostr.Nip05 as Nip05
+
 
 -- the follow list of this pubkey contains all Pareto authors
 authorsKey : PubKey
@@ -11,6 +17,24 @@ authorsKey =
 client : String
 client =
     "Pareto"
+
+applicationDomain : String
+applicationDomain =
+    "pareto.space"
+
+applicationUrl : String
+applicationUrl =
+    "https://" ++ applicationDomain
+
+paretoNip05 : Nip05.Nip05
+paretoNip05 =
+    { user = "client"
+    , domain = applicationDomain
+    }
+
+paretoRelay : RelayUrl
+paretoRelay =
+    "wss://nostr." ++ applicationDomain
 
 defaultNip96Server : String
 defaultNip96Server =
@@ -40,3 +64,93 @@ defaultRelayUrls : List String
 defaultRelayUrls =
     defaultRelays
     |> List.map (String.append "wss://")
+
+paretoNpub : String
+paretoNpub =
+    "npub1parecl0l0w6nmtjn7wan9tg3p8kmkpa62c4a65tgq39n7smyu76sht8cm5"
+
+paretoPubKey : PubKey
+paretoPubKey =
+    "0f479c7dff7bb53dae53f3bb32ad1109edbb07ba562bdd5168044b3f4364e7b5"
+
+handlerIdentifier : String
+handlerIdentifier =
+    "8020802080208020"
+
+supportedKinds : List Kind
+supportedKinds =
+    [ KindUserMetadata
+    , KindEventDeletionRequest
+    , KindFileMetadata
+    , KindRelayListMetadata
+    , KindUserServerList
+    , KindFileStorageServerList
+    , KindClientAuthentication
+    , KindBlobsStoredOnMediaservers
+    , KindHTTPAuth
+    , KindLongFormContent
+    , KindDraftLongFormContent
+    , KindHandlerRecommendation
+    , KindHandlerInformation
+    ]
+
+paretoAbout : String
+paretoAbout =
+    "A #Nostr client for publishing and an ecosystem for citizen journalism."
+
+paretoHashtags : List String
+paretoHashtags =
+    [ "pareto"
+    , "nostr client"
+    , "freedom"
+    , "journalism"
+    ]
+
+paretoProfile : Profile
+paretoProfile =
+    { nip05 = Just paretoNip05
+    , lud16 = Just "donate2pareto@walletofsatoshi.com"
+    , name = Just <| String.toLower client
+    , displayName = Just client
+    , about = Just paretoAbout
+    , picture = Just "https://pfp.nostr.build/4fbcbefaee70ba58804014760d6408adf2e544e4f2d2f7c3be063db8e6ae8f0e.png"
+    , banner = Just "https://image.nostr.build/ddc8d30046efb51767c3db33cc9edafb83bd0a61142bd84c4d1e55705b96c819.png"
+    , website = Just applicationUrl
+    , bot = Nothing
+    , npub = Just paretoNpub
+    , createdAt = Nothing
+    , pubKey = paretoPubKey
+    }
+
+paretoReferences : List (String, Maybe String)
+paretoReferences =
+    [ ("https://pareto.space/read", Nothing)
+    ]
+
+paretoWebTargets : List (String, Maybe String)
+paretoWebTargets =
+    [ ("https://pareto.space/a/<bech32>", Just "naddr")
+    ]
+
+paretoZapTargets : List (PubKey, RelayUrl, Maybe Int)
+paretoZapTargets =
+    [ (paretoPubKey, paretoRelay, Just 1)
+    ]
+
+paretoAltText : String
+paretoAltText =
+    ""
+
+applicationInformation : Time.Posix -> HandlerInformation
+applicationInformation time =
+    { alt = paretoAltText
+    , handlerIdentifier = handlerIdentifier
+    , hashtags = paretoHashtags
+    , kinds = supportedKinds
+    , pubKey = paretoPubKey
+    , profile = paretoProfile
+    , references = paretoReferences
+    , time = time
+    , webTargets = paretoWebTargets
+    , zapTargets = paretoZapTargets
+    }

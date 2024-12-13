@@ -1,19 +1,12 @@
 {
-   "sidebar": {
-      "reader client role text": "Reader",
-      "creator client role text": "Creator",
-      "bookmarks menu item text": "Bookmarks",
-      "communities menu item text": "Communities",
-      "get started button text": "Sign in/up",
-      "media menu item text": "Media",
-      "messages menu item text": "Messages",
-      "notifications menu item text": "Notifications",
-      "posts menu item text": "Posts",
-      "read menu item text": "Read",
-      "search menu item text": "Search",
-      "settings menu item text": "Settings",
-      "write menu item text": "Write",
-      "about menu item text": "About"
+   "about": {
+      "about page title": "About",
+      "supported kinds title": "Supported kinds",
+      "supported web targets title": "Supported web targets",
+      "publish handler information button title": "Publish handler information",
+      "publish profile button title": "Publish profile",
+      "recomendation explanation": "Yes, I like this application. The whole world should know about it!",
+      "recommend client button title": "Recommend Pareto client"
    },
    "bookmarks": {
       "bookmarks title": "Bookmarks",
@@ -62,6 +55,22 @@
       "no relays configured title": "No relays configured",
       "no relays configured text": "Do you want to configure some default relays?",
       "configure relays button title": "Configure relays"
+   },
+   "sidebar": {
+      "reader client role text": "Reader",
+      "creator client role text": "Creator",
+      "bookmarks menu item text": "Bookmarks",
+      "communities menu item text": "Communities",
+      "get started button text": "Sign in/up",
+      "media menu item text": "Media",
+      "messages menu item text": "Messages",
+      "notifications menu item text": "Notifications",
+      "posts menu item text": "Posts",
+      "read menu item text": "Read",
+      "search menu item text": "Search",
+      "settings menu item text": "Settings",
+      "write menu item text": "Write",
+      "about menu item text": "About"
    },
    "sign-in": {
       "page title": "Sign in/up",

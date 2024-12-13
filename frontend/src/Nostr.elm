@@ -204,6 +204,16 @@ performRequest model description requestId requestData =
 send : Model -> SendRequest -> (Model, Cmd Msg)
 send model sendRequest =
     case sendRequest of
+        SendClientRecommendation relays event ->
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId relays event
+            )
+
+        SendHandlerInformation relays event ->
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId relays event
+            )
+
         SendLongFormArticle relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
             , model.hooks.sendEvent model.lastSendRequestId relays event
@@ -225,6 +235,11 @@ send model sendRequest =
             )
 
         SendRelayList relays event ->
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId relays event
+            )
+
+        SendProfile relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
             , model.hooks.sendEvent model.lastSendRequestId relays event
             )

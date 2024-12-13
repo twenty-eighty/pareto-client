@@ -1,19 +1,12 @@
 {
-   "sidebar": {
-      "reader client role text": "Leser",
-      "creator client role text": "Autor",
-      "bookmarks menu item text": "Lesezeichen",
-      "communities menu item text": "Communities",
-      "get started button text": "Anmelden",
-      "media menu item text": "Bilder",
-      "messages menu item text": "Nachrichten",
-      "notifications menu item text": "Benachrichtigungen",
-      "posts menu item text": "Posts",
-      "read menu item text": "Lesen",
-      "search menu item text": "Suche",
-      "settings menu item text": "Einstellungen",
-      "write menu item text": "Schreiben",
-      "about menu item text": "Über"
+   "about": {
+      "about page title": "Über",
+      "supported kinds title": "Unterstützte Nostr \"kinds\"",
+      "supported web targets title": "Unterstützte Web-Ziele",
+      "publish handler information button title": "Handler-Information veröffentlichen",
+      "publish profile button title": "Profil veröffentlichen",
+      "recomendation explanation": "Das ist eine tolle App. Alle sollten davon wissen!",
+      "recommend client button title": "Pareto-Client empfehlen"
    },
    "bookmarks": {
       "bookmarks title": "Lesezeichen",
@@ -62,6 +55,22 @@
       "no relays configured title": "Keine Relays konfiguriert",
       "no relays configured text": "Möchtest du ein paar Standard-Relays einrichten?",
       "configure relays button title": "Relays konfigurieren"
+   },
+   "sidebar": {
+      "reader client role text": "Leser",
+      "creator client role text": "Autor",
+      "bookmarks menu item text": "Lesezeichen",
+      "communities menu item text": "Communities",
+      "get started button text": "Anmelden",
+      "media menu item text": "Bilder",
+      "messages menu item text": "Nachrichten",
+      "notifications menu item text": "Benachrichtigungen",
+      "posts menu item text": "Posts",
+      "read menu item text": "Lesen",
+      "search menu item text": "Suche",
+      "settings menu item text": "Einstellungen",
+      "write menu item text": "Schreiben",
+      "about menu item text": "Über"
    },
    "sign-in": {
       "page title": "Anmelden/Konto anlegen",

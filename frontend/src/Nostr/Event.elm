@@ -10,10 +10,15 @@ import Nostr.Types exposing (Address, EventId, PubKey, RelayRole(..), RelayUrl, 
 import Time
 import Json.Decode as Decode
 import Json.Decode as Decode
+import Json.Decode as Decode
+import Json.Decode as Decode
 
 
 type Tag
-    = GenericTag String (Encode.Value)
+    = GenericTag String
+    | GenericTag2 String String 
+    | GenericTag3 String String String 
+    | GenericTag4 String String String String
     | AboutTag String
     | AddressTag Address
     | AltTag String
@@ -35,12 +40,14 @@ type Tag
     | PublicKeyTag PubKey (Maybe String) (Maybe String)
     | PublishedAtTag Time.Posix
     | QuotedEventTag EventId
+    | ReferenceTag String (Maybe String)
     | RelayTag String
     | RelaysTag (List String)
     | ServerTag String
     | SummaryTag String
     | TitleTag String
     | UrlTag String RelayRole
+    | WebTag String (Maybe String)
     | ZapTag PubKey RelayUrl (Maybe Int)
 
 type ImageSize
@@ -48,7 +55,7 @@ type ImageSize
 
 
 type alias Event =
-    { pubKey : String
+    { pubKey : PubKey
     , createdAt : Time.Posix
     , kind : Kind
     , tags : List Tag
@@ -96,6 +103,7 @@ type Kind
     | KindDirectMessage
     | KindGenericRepost
     | KindReactionToWebsite
+    | KindPicture
     | KindChannelCreation
     | KindChannelMetadata
     | KindChannelMessage
@@ -108,6 +116,7 @@ type Kind
     | KindOpenTimestamp
     | KindGiftWrap
     | KindFileMetadata
+    | KindComment
     | KindLiveChatMessage
     | KindPatches
     | KindIssues
@@ -125,8 +134,12 @@ type Kind
     | KindJobRequest Int
     | KindJobResult Int
     | KindJobFeedback
+    | KindReservedCashuWalletTokens
+    | KindCashuWalletTokens
+    | KindCashuWalletHistory
     | KindGroupControlEvent Int
     | KindZapGoal
+    | KindNutzap
     | KindTidalLogin
     | KindZapRequest
     | KindZapReceipt
@@ -141,6 +154,7 @@ type Kind
     | KindSearchRelaysList
     | KindUserGroups
     | KindInterestsLists
+    | KindNutzapMintRecommendation
     | KindUserEmojiList
     | KindRelayListForDMs
     | KindUserServerList
@@ -193,11 +207,151 @@ type Kind
     | KindHandlerInformation
     | KindVideoEvent
     | KindShortFormPortraitVideoEvent
-    | KindVideoViewEvent
     | KindCommunityDefinition
+    | KindCashuWalletEvent
+    | KindPeerToPeerOrder
     | KindGroupMetadataEvent Int
 
+type alias KindInformation =
+    { description : String
+    , link : Maybe KindInformationLink
+    }
 
+type KindInformationLink
+    = LinkToNip Int
+    | LinkToNips (List Int)
+    | OtherLink String String
+
+informationForKind : Kind -> KindInformation
+informationForKind kind =
+    case kind of
+        KindUserMetadata                -> { description = "User Metadata", link = Just <| LinkToNip 1 }
+        KindShortTextNote               -> { description = "Short Text Note", link = Just <| LinkToNip 1 }
+        KindRecommendRelay              -> { description = "Recommend Relay", link = Just <| LinkToNip 1 }
+        KindFollows                     -> { description = "Follows", link = Just <| LinkToNip 2 }
+        KindEncryptedDirectMessage      -> { description = "Encrypted Direct Messages", link = Just <| LinkToNip 4 }
+        KindEventDeletionRequest        -> { description = "Event Deletion Request", link = Just <| LinkToNip 9 }
+        KindRepost                      -> { description = "Repost", link = Just <| LinkToNip 18 }
+        KindReaction                    -> { description = "Reaction", link = Just <| LinkToNip 25 }
+        KindBadgeAward                  -> { description = "Badge Award", link = Just <| LinkToNip 58 }
+        KindGroupChatMessage            -> { description = "Chat Message", link = Nothing }
+        KindGroupChatThreadedReply      -> { description = "Group Chat Threaded Reply", link = Just <| LinkToNip 29 }
+        KindGroupThread                 -> { description = "Thread", link = Nothing }
+        KindGroupThreadReply            -> { description = "Group Thread Reply", link = Just <| LinkToNip 29 }
+        KindSeal                        -> { description = "Seal", link = Just <| LinkToNip 59 }
+        KindDirectMessage               -> { description = "Direct Message", link = Just <| LinkToNip 17 }
+        KindGenericRepost               -> { description = "Generic Repost", link = Just <| LinkToNip 18 }
+        KindReactionToWebsite           -> { description = "Reaction to a website", link = Just <| LinkToNip 25 }
+        KindPicture                     -> { description = "Picture", link = Just <| LinkToNip 68 }
+        KindChannelCreation             -> { description = "Channel Creation", link = Just <| LinkToNip 28 }
+        KindChannelMetadata             -> { description = "Channel Metadata", link = Just <| LinkToNip 28 }
+        KindChannelMessage              -> { description = "Channel Message", link = Just <| LinkToNip 28 }
+        KindChannelHideMessage          -> { description = "Channel Hide Message", link = Just <| LinkToNip 28 }
+        KindChannelMuteUser             -> { description = "Channel Mute User", link = Just <| LinkToNip 28 }
+        KindChess                       -> { description = "Chess (PGN)", link = Just <| LinkToNip 64  }
+        KindMergeRequest                -> { description = "Merge Requests", link = Just <| LinkToNip 54 }
+        KindBid                         -> { description = "Bid", link = Just <| LinkToNip 15 }
+        KindBidConfirmation             -> { description = "Bid confirmation", link = Just <| LinkToNip 15 }
+        KindOpenTimestamp               -> { description = "OpenTimestamps", link = Just <| LinkToNip 3 }
+        KindGiftWrap                    -> { description = "Gift Wrap", link = Just <| LinkToNip 59 }
+        KindFileMetadata                -> { description = "File Metadata", link = Just <| LinkToNip 94 }
+        KindComment                     -> { description = "Comment", link = Just <| LinkToNip 22 }
+        KindLiveChatMessage             -> { description = "Live Chat Message", link = Just <| LinkToNip 53 }
+        KindPatches                     -> { description = "Patches", link = Just <| LinkToNip 34 }
+        KindIssues                      -> { description = "Issues", link = Just <| LinkToNip 34 }
+        KindReplies                     -> { description = "Replies", link = Just <| LinkToNip 34 }
+        KindStatus _                    -> { description = "Status", link = Just <| LinkToNip 34 }
+        KindProblemTracker              -> { description = "Problem Tracker", link = Just <| OtherLink "nostrocket" "https://github.com/nostrocket/NIPS/blob/main/Problems.md" }
+        KindReporting                   -> { description = "Reporting", link = Just <| LinkToNip 56 }
+        KindLabel                       -> { description = "Label", link = Just <| LinkToNip 32 }
+        KindRelayReview                 -> { description = "Relay reviews", link = Nothing }
+        KindAIEmbedding                 -> { description = "AI Embeddings / Vector lists", link = Just <| OtherLink "NKBIP-02" "https://wikistr.com/nkbip-02" }
+        KindTorrent                     -> { description = "Torrent", link = Just <| LinkToNip 35 }
+        KindTorrentComment              -> { description = "Torrent Comment", link = Just <| LinkToNip 35 }
+        KindCoinjoinPool                -> { description = "Coinjoin Pool", link = Just <| OtherLink "joinstr" "https://gitlab.com/1440000bytes/joinstr/-/blob/main/NIP.md" }
+        KindCommunityPostApproval       -> { description = "Community Post Approval", link = Just <| LinkToNip 72 }
+        KindJobRequest _                -> { description = "Job Request", link = Just <| LinkToNip 90 }
+        KindJobResult _                 -> { description = "Job Result", link = Just <| LinkToNip 90 }
+        KindJobFeedback                 -> { description = "Job Feedback", link = Just <| LinkToNip 90 }
+        KindReservedCashuWalletTokens   -> { description = "Reserved Cashu Wallet Tokens", link = Just <| LinkToNip 60 }
+        KindCashuWalletTokens           -> { description = "Cashu Wallet Tokens", link = Just <| LinkToNip 60 }
+        KindCashuWalletHistory          -> { description = "Cashu Wallet History", link = Just <| LinkToNip 60 }
+        KindGroupControlEvent _         -> { description = "Group Control Events", link = Just <| LinkToNip 29 }
+        KindZapGoal                     -> { description = "Zap Goal", link = Just <| LinkToNip 75 }
+        KindNutzap                      -> { description = "Nutzap", link = Just <| LinkToNip 61 }
+        KindTidalLogin                  -> { description = "Tidal login", link = Just <| OtherLink "Tidal-nostr" "https://wikistr.com/tidal-nostr" }
+        KindZapRequest                  -> { description = "Zap Request", link = Just <| LinkToNip 57 }
+        KindZapReceipt                  -> { description = "Zap", link = Just <| LinkToNip 57 }
+        KindHighlights                  -> { description = "Highlights", link = Just <| LinkToNip 84 }
+        KindMuteList                    -> { description = "Mute list", link = Just <| LinkToNip 51 }
+        KindPinList                     -> { description = "Pin list", link = Just <| LinkToNip 51 }
+        KindRelayListMetadata           -> { description = "Relay List Metadata", link = Just <| LinkToNip 65 }
+        KindBookmarkList                -> { description = "Bookmark list", link = Just <| LinkToNip 51 }
+        KindCommunitiesList             -> { description = "Communities list", link = Just <| LinkToNip 51 }
+        KindPublicChatsList             -> { description = "Public chats list", link = Just <| LinkToNip 51 }
+        KindBlockedRelaysList           -> { description = "Blocked relays list", link = Just <| LinkToNip 51 }
+        KindSearchRelaysList            -> { description = "Search relays list", link = Just <| LinkToNip 51 }
+        KindUserGroups                  -> { description = "User groups", link = Just <| LinkToNips [51, 29] }
+        KindInterestsLists              -> { description = "Interests list", link = Just <| LinkToNip 51 }
+        KindNutzapMintRecommendation    -> { description = "Nutzap Mint Recommendation", link = Just <| LinkToNip 61 }
+        KindUserEmojiList               -> { description = "User emoji list", link = Just <| LinkToNip 51 }
+        KindRelayListForDMs             -> { description = "Relay list to receive DMs", link = Just <| LinkToNips [51, 17] }
+        KindUserServerList              -> { description = "User server list", link = Just <| OtherLink "Blossom" "https://github.com/hzrd149/blossom" }
+        KindFileStorageServerList       -> { description = "File storage server list", link = Just <| LinkToNip 96 }
+        KindWalletInfo                  -> { description = "Wallet Info", link = Just <| LinkToNip 47 }
+        KindLightningPubRPC             -> { description = "Lightning Pub RPC", link = Just <| OtherLink "Lightning.Pub" "https://github.com/shocknet/Lightning.Pub/blob/master/proto/autogenerated/client.md" }
+        KindClientAuthentication        -> { description = "Client Authentication", link = Just <| LinkToNip 42 }
+        KindWalletRequest               -> { description = "Wallet Request", link = Just <| LinkToNip 47 }
+        KindWalletResponse              -> { description = "Wallet Response", link = Just <| LinkToNip 47 }
+        KindNostrConnect                -> { description = "Nostr Connect", link = Just <| LinkToNip 46 }
+        KindBlobsStoredOnMediaservers   -> { description = "Blobs stored on mediaservers", link = Just <| OtherLink "Blossom" "https://github.com/hzrd149/blossom" }
+        KindHTTPAuth                    -> { description = "HTTP Auth", link = Just <| LinkToNip 98 }
+        KindFollowSets                  -> { description = "Follow sets", link = Just <| LinkToNip 51 }
+        KindGenericLists                -> { description = "Generic lists", link = Just <| LinkToNip 51 }
+        KindRelaySets                   -> { description = "Relay sets", link = Just <| LinkToNip 51 }
+        KindBookmarkSets                -> { description = "Bookmark sets", link = Just <| LinkToNip 51 }
+        KindCurationSets                -> { description = "Curation sets", link = Just <| LinkToNip 51 }
+        KindVideoSets                   -> { description = "Video sets", link = Just <| LinkToNip 51 }
+        KindKindMuteSets                -> { description = "Kind mute sets", link = Just <| LinkToNip 51 }
+        KindProfileBadges               -> { description = "Profile Badges", link = Just <| LinkToNip 58 }
+        KindBadgeDefinition             -> { description = "Badge Definition", link = Just <| LinkToNip 58 }
+        KindInterestSets                -> { description = "Interest sets", link = Just <| LinkToNip 51 }
+        KindCreateUpdateStall           -> { description = "Create or update a stall", link = Just <| LinkToNip 15 }
+        KindCreateUpdateProduct         -> { description = "Create or update a product", link = Just <| LinkToNip 15 }
+        KindMarketplaceUIUX             -> { description = "Marketplace UI/UX", link = Just <| LinkToNip 15 }
+        KindProductSoldViaAuction       -> { description = "Product sold as an auction", link = Just <| LinkToNip 15 }
+        KindLongFormContent             -> { description = "Long-form Content", link = Just <| LinkToNip 23 }
+        KindDraftLongFormContent        -> { description = "Draft Long-form Content", link = Just <| LinkToNip 23 }
+        KindEmojiSet                    -> { description = "Emoji sets", link = Just <| LinkToNip 51 }
+        KindModularArticleHeader        -> { description = "Modular Article Header", link = Just <| OtherLink "NKBIP-01" "https://wikistr.com/nkbip-01" }
+        KindModularArticleContent       -> { description = "Modular Article Content", link = Just <| OtherLink "NKBIP-01" "https://wikistr.com/nkbip-01" }
+        KindReleaseArtifactSet          -> { description = "Release artifact sets", link = Just <| LinkToNip 51 }
+        KindApplicationSpecificData     -> { description = "Application-specific Data", link = Just <| LinkToNip 78 }
+        KindLiveEvent                   -> { description = "Live Event", link = Just <| LinkToNip 53 }
+        KindUserStatuses                -> { description = "User Statuses", link = Just <| LinkToNip 38 }
+        KindSlideSet                    -> { description = "Slide Set", link = Just <| OtherLink "Corny Chat" "https://cornychat.com/datatypes#kind30388slideset" }
+        KindClassifiedListing           -> { description = "Classified Listing", link = Just <| LinkToNip 99 }
+        KindDraftClassifiedListing      -> { description = "Draft Classified Listing", link = Just <| LinkToNip 99 }
+        KindRepositoryAnnouncement      -> { description = "Repository announcements", link = Just <| LinkToNip 34 }
+        KindRepositoryStateAnnouncement -> { description = "Repository state announcements", link = Just <| LinkToNip 34 }
+        KindWikiArticle                 -> { description = "Wiki article", link = Just <| LinkToNip 54 }
+        KindRedirect                    -> { description = "Redirects", link = Just <| LinkToNip 54 }
+        KindLinkSet                     -> { description = "Link Set", link = Just <| OtherLink "Corny Chat" "https://cornychat.com/datatypes#kind31388linkset" }
+        KindFeed                        -> { description = "Feed", link = Just <| OtherLink "NUD: Custom Feeds" "https://wikifreedia.xyz/cip-01/" }
+        KindDateBasedCalendar           -> { description = "Date-Based Calendar Event", link = Just <| LinkToNip 52 }
+        KindTimeBasedCalendar           -> { description = "Time-Based Calendar Event", link = Just <| LinkToNip 52 }
+        KindCalendar                    -> { description = "Calendar", link = Just <| LinkToNip 52 }
+        KindCalendarEvent               -> { description = "Calendar Event RSVP", link = Just <| LinkToNip 52 }
+        KindHandlerRecommendation       -> { description = "Handler recommendation", link = Just <| LinkToNip 89 }
+        KindHandlerInformation          -> { description = "Handler information", link = Just <| LinkToNip 89 }
+        KindVideoEvent                  -> { description = "Video Event", link = Just <| LinkToNip 71 }
+        KindShortFormPortraitVideoEvent -> { description = "Short-form Portrait Video Event", link = Just <| LinkToNip 71 }
+        KindCommunityDefinition         -> { description = "Community Definition", link = Just <| LinkToNip 72 }
+        KindCashuWalletEvent            -> { description = "Cashu Wallet Event", link = Just <| LinkToNip 60 }
+        KindPeerToPeerOrder             -> { description = "Peer-to-peer Order events", link = Just <| LinkToNip 69 }
+        KindGroupMetadataEvent _        -> { description = "Group metadata events", link = Just <| LinkToNip 29 }
+        KindUnknown number              -> { description = "Unknown kind: " ++ String.fromInt number, link = Nothing }
+ 
 kindFromNumber : Int -> Kind
 kindFromNumber num =
     if num >= 5000 && num <= 5999 then
@@ -225,6 +379,7 @@ kindFromNumber num =
             14 -> KindDirectMessage
             16 -> KindGenericRepost
             17 -> KindReactionToWebsite
+            20 -> KindPicture
             40 -> KindChannelCreation
             41 -> KindChannelMetadata
             42 -> KindChannelMessage
@@ -237,6 +392,7 @@ kindFromNumber num =
             1040 -> KindOpenTimestamp
             1059 -> KindGiftWrap
             1063 -> KindFileMetadata
+            1111 -> KindComment
             1311 -> KindLiveChatMessage
             1617 -> KindPatches
             1621 -> KindIssues
@@ -255,7 +411,11 @@ kindFromNumber num =
             2022 -> KindCoinjoinPool
             4550 -> KindCommunityPostApproval
             7000 -> KindJobFeedback
+            7374 -> KindReservedCashuWalletTokens
+            7375 -> KindCashuWalletTokens
+            7376 -> KindCashuWalletHistory
             9041 -> KindZapGoal
+            9321 -> KindNutzap
             9467 -> KindTidalLogin
             9734 -> KindZapRequest
             9735 -> KindZapReceipt
@@ -270,6 +430,7 @@ kindFromNumber num =
             10007 -> KindSearchRelaysList
             10009 -> KindUserGroups
             10015 -> KindInterestsLists
+            10019 -> KindNutzapMintRecommendation
             10030 -> KindUserEmojiList
             10050 -> KindRelayListForDMs
             10063 -> KindUserServerList
@@ -322,8 +483,9 @@ kindFromNumber num =
             31990 -> KindHandlerInformation
             34235 -> KindVideoEvent
             34236 -> KindShortFormPortraitVideoEvent
-            34237 -> KindVideoViewEvent
             34550 -> KindCommunityDefinition
+            37375 -> KindCashuWalletEvent
+            38383 -> KindPeerToPeerOrder
             39000 -> KindGroupMetadataEvent 0
             39001 -> KindGroupMetadataEvent 1
             39002 -> KindGroupMetadataEvent 2
@@ -357,6 +519,7 @@ numberForKind kind =
         KindDirectMessage                   -> 14
         KindGenericRepost                   -> 16
         KindReactionToWebsite               -> 17
+        KindPicture                         -> 20
         KindChannelCreation                 -> 40
         KindChannelMetadata                 -> 41
         KindChannelMessage                  -> 42
@@ -369,6 +532,7 @@ numberForKind kind =
         KindOpenTimestamp                   -> 1040
         KindGiftWrap                        -> 1059
         KindFileMetadata                    -> 1063
+        KindComment                         -> 1111
         KindLiveChatMessage                 -> 1311
         KindPatches                         -> 1617
         KindIssues                          -> 1621
@@ -386,8 +550,12 @@ numberForKind kind =
         KindJobRequest num                  -> num
         KindJobResult num                   -> num
         KindJobFeedback                     -> 7000
+        KindReservedCashuWalletTokens       -> 7374
+        KindCashuWalletTokens               -> 7375
+        KindCashuWalletHistory              -> 7376
         KindGroupControlEvent num           -> 9000
         KindZapGoal                         -> 9041
+        KindNutzap                          -> 9321
         KindTidalLogin                      -> 9467
         KindZapRequest                      -> 9734
         KindZapReceipt                      -> 9735
@@ -402,6 +570,7 @@ numberForKind kind =
         KindSearchRelaysList                -> 10007
         KindUserGroups                      -> 10009
         KindInterestsLists                  -> 10015
+        KindNutzapMintRecommendation        -> 10019
         KindUserEmojiList                   -> 10030
         KindRelayListForDMs                 -> 10050
         KindUserServerList                  -> 10063
@@ -454,8 +623,9 @@ numberForKind kind =
         KindHandlerInformation              -> 31990
         KindVideoEvent                      -> 34235
         KindShortFormPortraitVideoEvent     -> 34236
-        KindVideoViewEvent                  -> 34237
         KindCommunityDefinition             -> 34550
+        KindCashuWalletEvent                -> 37375
+        KindPeerToPeerOrder                 -> 38383
         KindGroupMetadataEvent num          -> num
 
 kindDecoder : Decoder Kind
@@ -655,6 +825,9 @@ decodeTag =
             "title" ->
                 Decode.map TitleTag (Decode.index 1 Decode.string)
 
+            "web" ->
+                Decode.map2 WebTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
+
             "x" ->
                 Decode.map ExternalIdTag (Decode.index 1 Decode.string)
 
@@ -662,8 +835,17 @@ decodeTag =
                 Decode.map3 ZapTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string) (Decode.maybe (Decode.index 3 decodeStringInt))
 
             _ ->
-                Decode.map (GenericTag typeStr) Decode.value
+                decodeGenericTag
     )
+
+decodeGenericTag : Decode.Decoder Tag
+decodeGenericTag =
+    Decode.oneOf
+        [ Decode.map4 GenericTag4 (Decode.index 0 Decode.string) (Decode.index 1 Decode.string) (Decode.index 2 Decode.string) (Decode.index 3 Decode.string)
+        , Decode.map3 GenericTag3 (Decode.index 0 Decode.string) (Decode.index 1 Decode.string) (Decode.index 2 Decode.string)
+        , Decode.map2 GenericTag2 (Decode.index 0 Decode.string) (Decode.index 1 Decode.string)
+        , Decode.map  GenericTag  (Decode.index 0 Decode.string)
+        ]
 
 decodeStringInt : Decode.Decoder Int
 decodeStringInt =
@@ -680,13 +862,17 @@ decodeStringInt =
 tagToList : Tag -> List String
 tagToList tag =
     case tag of
-        GenericTag key value ->
-            case Decode.decodeValue (Decode.list Decode.string) value of
-                Ok stringArray ->
-                    stringArray
+        GenericTag key ->
+            [ key ]
 
-                Err _ ->
-                    [ key ]
+        GenericTag2 key value ->
+            [ key, value ]
+
+        GenericTag3 key value1 value2 ->
+            [ key, value1, value2 ]
+
+        GenericTag4 key value1 value2 value3 ->
+            [ key, value1, value2, value3 ]
 
         AboutTag value ->
             [ "about", value ]
@@ -762,6 +948,14 @@ tagToList tag =
         QuotedEventTag eventId ->
             [ "q", eventId ]
 
+        ReferenceTag reference maybeType ->
+            case maybeType of
+                Just type_ ->
+                    [ "r", reference, type_ ]
+
+                Nothing ->
+                    [ "r", reference ]
+
         RelayTag relay ->
             [ "relay", relay ]
 
@@ -783,6 +977,14 @@ tagToList tag =
                     [ "r", relay, roleString ]
                 Nothing ->
                     [ "r", relay ]
+
+        WebTag target maybeType ->
+            case maybeType of
+                Just type_ ->
+                    [ "web", target, type_ ]
+
+                Nothing ->
+                    [ "web", target ]
 
         ZapTag pubKey relayUrl maybeWeight ->
             case maybeWeight of
@@ -1048,6 +1250,10 @@ addAddressTag : Address -> List Tag -> List Tag
 addAddressTag address tags =
     AddressTag address :: tags
 
+addAltTag : String -> List Tag -> List Tag
+addAltTag alt tags =
+    AltTag alt :: tags
+
 addClientTag : String -> Kind -> PubKey -> Maybe String -> List Tag -> List Tag
 addClientTag client kind pubKey maybeIdentifier tags =
     case maybeIdentifier of
@@ -1057,9 +1263,33 @@ addClientTag client kind pubKey maybeIdentifier tags =
         Nothing ->
             tags
 
-addEventIdTag : String -> List Tag -> List Tag
+addDTag : String -> List Tag -> List Tag
+addDTag identifier tags =
+    EventDelegationTag identifier :: tags
+
+addEventIdTag : EventId -> List Tag -> List Tag
 addEventIdTag eventId tags =
     EventIdTag eventId :: tags
+
+addKindTag : Kind -> List Tag -> List Tag
+addKindTag kind tags =
+    KindTag kind :: tags
+
+addKindTags : List Kind -> List Tag -> List Tag
+addKindTags kinds tags =
+    kinds
+    |> List.map KindTag
+    |> List.append tags
+
+addPublishedAtTag : Time.Posix -> List Tag -> List Tag
+addPublishedAtTag time tags =
+    PublishedAtTag time :: tags
+
+addReferenceTags : List (String, Maybe String) -> List Tag -> List Tag
+addReferenceTags references tags =
+    references
+    |> List.map (\(reference, maybeType) -> ReferenceTag reference maybeType)
+    |> List.append tags
 
 addTitleTag : Maybe String -> List Tag -> List Tag
 addTitleTag maybeTitle tags =
@@ -1097,6 +1327,13 @@ addPublishedTag maybeTime tags =
     |> Maybe.withDefault tags
 
 
+addHashtagTags : List String -> List Tag -> List Tag
+addHashtagTags hashtags tags =
+    hashtags
+    |> List.map String.trim
+    |> List.map HashTag
+    |> List.append tags
+
 addTagTags : Maybe String -> List Tag -> List Tag
 addTagTags maybeTags tags =
     maybeTags
@@ -1108,6 +1345,13 @@ addTagTags maybeTags tags =
         |> List.append tags
         )
     |> Maybe.withDefault tags
+
+addWebTargetTags : List (String, Maybe String) -> List Tag -> List Tag
+addWebTargetTags webTargets =
+    webTargets
+    |> List.map (\(target, type_) -> WebTag target type_)
+    |> List.append
+
 
 addZapTags : List (PubKey, RelayUrl, Maybe Int) -> List Tag -> List Tag
 addZapTags zapWeights tags =

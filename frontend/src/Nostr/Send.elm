@@ -5,8 +5,11 @@ import Nostr.Event exposing (Event)
 type alias SendRequestId = Int
 
 type SendRequest
-    = SendDeletionRequest (List String) Event
+    = SendClientRecommendation (List String) Event
+    | SendDeletionRequest (List String) Event
     | SendFileStorageServerList (List String) Event
+    | SendHandlerInformation (List String) Event
     | SendLongFormDraft (List String) Event
     | SendLongFormArticle (List String) Event
+    | SendProfile (List String) Event
     | SendRelayList (List String) Event
