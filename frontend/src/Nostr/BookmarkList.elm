@@ -10,7 +10,7 @@ type alias BookmarkList =
     { notes : List EventId
     , articles : List TagReference
     , hashtags : List String
-    , relays : List String
+    , urls : List String
     }
 
 {-
@@ -37,8 +37,8 @@ bookmarkListFromEvent event =
                     EventDelegationTag identifier ->
                         { bml | notes = identifier :: bml.notes }
 
-                    UrlTag relay _ ->
-                        { bml | relays = relay :: bml.relays }
+                    UrlTag urls _ ->
+                        { bml | urls = urls :: bml.urls }
 
                     _ ->
                         bml
@@ -46,7 +46,7 @@ bookmarkListFromEvent event =
                 { notes = []
                 , articles = []
                 , hashtags = []
-                , relays = []
+                , urls = []
                 }
     in
     (event.pubKey, bookmarkList )

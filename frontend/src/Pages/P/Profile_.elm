@@ -174,7 +174,7 @@ viewArticlePreviews styles browserEnv nostr articles =
                 (Nostr.getAuthor nostr article.author)
 
             interactions =
-                (Nostr.getInteractions nostr article)
+                (Nostr.getInteractions nostr Nothing article)
         in
         Ui.ArticleOld.viewArticlePreview browserEnv styles author article interactions False
         )

@@ -12,6 +12,7 @@ type alias Interactions =
     , reposts : Maybe Int
     , notes : Maybe Int
     , bookmarks : Maybe Int
+    , isBookmarked : Bool
     }
 
 type alias Reaction =

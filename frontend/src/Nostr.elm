@@ -511,18 +511,19 @@ requestUserData model pubKey =
             { authors = Just [ pubKey ]
             , kinds = Just
                 [ KindUserMetadata
+                , KindBlockedRelaysList
+                , KindBookmarkList
+                , KindBookmarkSets
+                , KindCommunitiesList
+                , KindFileStorageServerList
                 , KindFollows
+                , KindFollowSets
                 , KindMuteList
                 , KindRelayListMetadata
-                , KindBlockedRelaysList
-                , KindSearchRelaysList
                 , KindRelayListForDMs
-                , KindCommunitiesList
-                , KindFollowSets
                 , KindRelaySets
-                , KindCommunitiesList
+                , KindSearchRelaysList
                 , KindUserServerList
-                , KindFileStorageServerList
                 ]
             , ids = Nothing
             , tagReferences = Nothing
@@ -579,15 +580,46 @@ getCommunityList : Model -> PubKey -> Maybe (List CommunityReference)
 getCommunityList model pubKey =
     Dict.get pubKey model.communityLists
 
-getInteractions : Model -> Article -> Nostr.Reactions.Interactions
-getInteractions model article =
+getInteractions : Model -> Maybe PubKey -> Article -> Nostr.Reactions.Interactions
+getInteractions model maybePubKey article =
     { zaps = getZapReceiptsCountForArticle model article
     , highlights = Nothing
     , reactions = getReactionsCountForArticle model article
     , reposts = Nothing
     , notes = Nothing
     , bookmarks = Nothing
+    , isBookmarked =
+        Maybe.map (isArticleBookmarked model article) maybePubKey
+        |> Maybe.withDefault False
     }
+    
+
+isArticleBookmarked : Model -> Article -> PubKey -> Bool
+isArticleBookmarked model article pubKey =
+    let
+        bookmarkList =
+            getBookmarks model pubKey
+            |> Maybe.withDefault { notes = [], articles = [], hashtags = [], urls = [] }
+    in
+    bookmarkList.articles
+    |> List.filter (\tagRef ->
+        case tagRef of
+            TagReferenceEventId eventId ->
+                eventId == article.id
+
+            TagReferenceCode kind referencedPubKey dCode ->
+                article.kind == kind &&
+                article.author == referencedPubKey &&
+                article.identifier == Just dCode
+
+            TagReferenceIdentifier _ ->
+                False
+
+            TagReferenceTag _ ->
+                False
+        )
+    |> List.isEmpty
+    |> not
 
 getZapReceiptsCountForArticle : Model -> Article -> Maybe Int
 getZapReceiptsCountForArticle model article =

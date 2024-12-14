@@ -28,7 +28,7 @@ type ArticlePreviewType
 
 viewArticle : Styles msg -> BrowserEnv -> Nostr.Model -> Article -> Html msg
 viewArticle styles browserEnv nostr article =
-    Ui.Article.viewArticle styles browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article)
+    Ui.Article.viewArticle styles browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr Nothing article)
 
 viewArticlePreviews : ArticlePreviewType -> Theme -> BrowserEnv -> Nostr.Model -> Maybe PubKey -> List Article -> Html msg
 viewArticlePreviews previewType theme browserEnv nostr maybeUserPubKey articles =
@@ -56,7 +56,7 @@ viewArticlePreviewsList theme browserEnv nostr maybeUserPubKey articles =
             ]
             ( articles
             |> List.take 20
-            |> List.map (\article -> Ui.Article.viewArticlePreviewList theme browserEnv (Nostr.getAuthor nostr article.author) maybeUserPubKey article (Nostr.getInteractions nostr article) True)
+            |> List.map (\article -> Ui.Article.viewArticlePreviewList theme browserEnv (Nostr.getAuthor nostr article.author) maybeUserPubKey article (Nostr.getInteractions nostr Nothing article) True)
             )
         ]
     
@@ -73,7 +73,7 @@ viewArticlePreviewsBigPicture theme browserEnv nostr articles =
         ]
         ( articles
         |> List.take 20
-        |> List.map (\article -> Ui.Article.viewArticlePreviewBigPicture theme browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr article) True)
+        |> List.map (\article -> Ui.Article.viewArticlePreviewBigPicture theme browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr Nothing article) True)
         )
 
 viewCommunity : BrowserEnv -> Nostr.Model -> Community -> Html msg

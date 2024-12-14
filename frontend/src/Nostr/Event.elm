@@ -650,8 +650,9 @@ tagReferenceToString tagRef =
     case tagRef of
         TagReferenceEventId eventId ->
             eventId
+
         TagReferenceCode kind pubKey dCode ->
-            String.fromInt (numberForKind kind) ++ ":" ++ pubKey ++ ":" ++ dCode
+            buildAddress (kind, pubKey, dCode)
 
         TagReferenceIdentifier identifier ->
             identifier

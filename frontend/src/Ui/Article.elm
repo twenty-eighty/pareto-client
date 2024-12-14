@@ -1,11 +1,11 @@
 module Ui.Article exposing (..)
 
-import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
+import Components.Icon as Icon exposing (Icon)
 import Css
 import Dict
-import Graphics
+import FeatherIcons
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, summary, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
@@ -23,7 +23,6 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
-import Ui.Shared
 import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded)
 import Time
 import TailwindExtensions exposing (bp_xsl)
@@ -128,6 +127,7 @@ viewArticle styles browserEnv author article interactions =
                             [ Tw.max_w_screen_sm
                             , Bp.sm
                                 [ Tw.max_w_prose
+                                , Tw.list_none
                                 ]
                             ]
                         ])
@@ -206,11 +206,12 @@ viewSummary : Styles msg -> Maybe String -> Html msg
 viewSummary styles maybeSummary =
     case maybeSummary of
         Just summary ->
-            p
+            Html.summary
                 [ css
                     [ Tw.text_color Theme.gray_600
                     , Tw.text_sm
                     , Tw.mb_4
+                    , Tw.list_none
                     ]
                 ]
                 [ text summary ]
@@ -237,6 +238,13 @@ viewTag tag =
 
 viewInteractions : Styles msg -> BrowserEnv -> Interactions -> Html msg
 viewInteractions styles browserEnv interactions =
+    let
+        bookmarkIcon =
+            if interactions.isBookmarked then
+                Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdded 30 Icon.Inherit
+            else
+                Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdd 30 Icon.Inherit
+    in
     div
         [ css
             [ Tw.justify_start
@@ -245,14 +253,15 @@ viewInteractions styles browserEnv interactions =
             , Tw.inline_flex
             ]
         ]
-        [ viewReactions styles Graphics.commentsIcon (Maybe.map String.fromInt interactions.notes)
-        , viewReactions styles Graphics.likeIcon (Maybe.map String.fromInt interactions.reactions)
-        , viewReactions styles Graphics.repostIcon (Maybe.map String.fromInt interactions.reposts)
-        , viewReactions styles Graphics.zapIcon (Maybe.map (formatZapNum browserEnv) interactions.zaps)
+        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) (Maybe.map String.fromInt interactions.notes)
+        , viewReactions styles (Icon.FeatherIcon FeatherIcons.edit) (Maybe.map String.fromInt interactions.reactions)
+        , viewReactions styles (Icon.FeatherIcon FeatherIcons.repeat) (Maybe.map String.fromInt interactions.reposts)
+        , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) (Maybe.map (formatZapNum browserEnv) interactions.zaps)
+        , viewReactions styles bookmarkIcon (Maybe.map String.fromInt interactions.bookmarks)
         ]
                 
 
-viewReactions : Styles msg -> Html msg -> Maybe String -> Html msg
+viewReactions : Styles msg -> Icon -> Maybe String -> Html msg
 viewReactions styles icon maybeCount =
     div
         (styles.colorStyleLabel ++
@@ -275,7 +284,7 @@ viewReactions styles icon maybeCount =
                 , Tw.flex
                 ]
             ]
-            [ icon ]
+            [ Icon.view icon]
         , div
             [ ] [ text (maybeCount |> Maybe.withDefault "0" ) ]
         ]
