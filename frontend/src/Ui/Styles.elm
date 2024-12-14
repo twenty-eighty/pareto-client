@@ -730,6 +730,7 @@ paretoThemeStyles =
         [ css
             [ Tw.text_5xl
             , Tw.font_semibold
+            , Tw.leading_tight
             ]
         , fontFamilyInter
         , Attr.style "line-height" "auto"

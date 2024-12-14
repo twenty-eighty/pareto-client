@@ -112,7 +112,7 @@ viewArticle styles browserEnv author article interactions =
                         , Tw.flex
                         ]
                     ]
-                    [ div
+                    [ Html.h1
                         (styles.textStyleH1Article ++ styles.colorStyleGrayscaleTitle ++
                         [ css
                             [ Tw.max_w_screen_sm
@@ -122,7 +122,7 @@ viewArticle styles browserEnv author article interactions =
                             ]
                         ])
                         [ text <| Maybe.withDefault "" article.title ]
-                    , div
+                    , Html.summary
                         (styles.textStyleH4Article ++ styles.colorStyleGrayscaleText ++
                         [ css
                             [ Tw.max_w_screen_sm
