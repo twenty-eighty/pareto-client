@@ -34,7 +34,7 @@ type Tag
     | IdentityTag String String
     | KindTag Kind
     | ImageTag String (Maybe ImageSize)
-    | LocationTag String String
+    | LocationTag String (Maybe String)
     | MentionTag PubKey
     | NameTag String
     | PublicKeyTag PubKey (Maybe String) (Maybe String)
@@ -784,7 +784,7 @@ decodeTag =
                 Decode.map KindTag (Decode.index 1 kindStringDecoder)
 
             "l" ->
-                Decode.map2 LocationTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string)
+                Decode.map2 LocationTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
             "m" ->
                 Decode.map MentionTag (Decode.index 1 Decode.string)
@@ -930,8 +930,13 @@ tagToList tag =
         KindTag kind ->
             [ "k", String.fromInt <| numberForKind kind ]
 
-        LocationTag value1 value2 ->
-            [ "l", value1, value2 ]
+        LocationTag value1 maybeValue2 ->
+            case maybeValue2 of
+                Just value2 ->
+                    [ "l", value1, value2 ]
+
+                Nothing ->
+                    [ "l", value1 ]
 
         MentionTag pubKey ->
             [ "m", pubKey ]
