@@ -18,6 +18,7 @@ type alias Article =
     , alt : Maybe String
     , client : Maybe (String, Maybe String, Maybe String)
     , content : String
+    , createdAt : Time.Posix
     , image : Maybe String
     , isValid : Maybe String
     , publishedAt : Maybe Time.Posix
@@ -40,6 +41,7 @@ emptyArticle author eventId kind createdAt content relayUrl =
     , kind = kind
     , alt = Nothing
     , client = Nothing
+    , createdAt = createdAt
     , content = content
     , image = Nothing
     , isValid = Nothing

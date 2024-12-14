@@ -132,7 +132,7 @@ viewArticle styles browserEnv author article interactions =
                             ]
                         ])
                         [ text <| Maybe.withDefault "" article.summary ]
-                    , viewAuthorAndDate styles browserEnv article.publishedAt author
+                    , viewAuthorAndDate styles browserEnv article.publishedAt article.createdAt author
                     ]
                 ]
             , viewArticleImage article.image
@@ -284,8 +284,8 @@ formatZapNum : BrowserEnv -> Int -> String
 formatZapNum browserEnv bigNum =
     browserEnv.formatNumber "0 a" <| toFloat bigNum
 
-viewAuthorAndDate : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Nostr.Profile.Author -> Html msg
-viewAuthorAndDate styles browserEnv published author =
+viewAuthorAndDate : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Nostr.Profile.Author -> Html msg
+viewAuthorAndDate styles browserEnv published createdAt author =
     case author of
         Nostr.Profile.AuthorPubkey pubKey ->
             div
@@ -297,7 +297,7 @@ viewAuthorAndDate styles browserEnv published author =
                     ]
                 ]
                 [ Ui.Profile.viewProfilePubKey pubKey
-                , timeParagraph styles browserEnv published
+                , timeParagraph styles browserEnv published createdAt
                 ]
 
         Nostr.Profile.AuthorProfile profile validationStatus ->
@@ -325,7 +325,7 @@ viewAuthorAndDate styles browserEnv published author =
                             ]
                         ])
                         [ text <| profileDisplayName profile.pubKey profile ]
-                    , viewArticleTime styles browserEnv published
+                    , viewArticleTime styles browserEnv published createdAt
                     ]
                 ]
 
@@ -370,8 +370,8 @@ viewArticleProfileSmall profile validationStatus =
             [ Ui.Profile.validationIcon 16 validationStatus ]
         ]
 
-viewArticleTime : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Html msg
-viewArticleTime styles browserEnv maybePublishedAt =
+viewArticleTime : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg
+viewArticleTime styles browserEnv maybePublishedAt createdAt =
     case maybePublishedAt of
         Just publishedAt ->
             div
@@ -381,7 +381,7 @@ viewArticleTime styles browserEnv maybePublishedAt =
                     , Tw.top_5
                     ]
                 ])
-                [ text <| BrowserEnv.formatDate browserEnv publishedAt ]
+                [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
 
         Nothing ->
             div [][]
@@ -910,7 +910,7 @@ viewAuthorAndDatePreview theme browserEnv article maybeUserPubKey author =
                     ]
                 ]
                 [ viewProfilePubKey pubKey
-                , timeParagraph styles browserEnv article.publishedAt
+                , timeParagraph styles browserEnv article.publishedAt article.createdAt
                 ]
 
         Nostr.Profile.AuthorProfile profile validationStatus ->
@@ -941,7 +941,7 @@ viewAuthorAndDatePreview theme browserEnv article maybeUserPubKey author =
                         [ div
                             (styles.colorStyleGrayscaleText ++ styles.textStyle14)
                             [ text (profileDisplayName profile.pubKey profile) ]
-                        , timeParagraph styles browserEnv article.publishedAt
+                        , timeParagraph styles browserEnv article.publishedAt article.createdAt
                         ]
                     ]
                 , viewArticleEditButton theme browserEnv article maybeUserPubKey profile.pubKey
@@ -1017,16 +1017,27 @@ viewProfileSmall profile validationStatus =
             ]
         ]
 
-timeParagraph : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Html msg
-timeParagraph styles browserEnv maybePublishedAt =
+timeParagraph : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg
+timeParagraph styles browserEnv maybePublishedAt createdAt =
+    div
+        (styles.colorStyleGrayscaleMuted ++ styles.textStyle14)
+        [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
+
+publishedTime : Time.Posix -> Maybe Time.Posix -> Time.Posix
+publishedTime createdAt maybePublishedAt =
     case maybePublishedAt of
         Just publishedAt ->
-            div
-                (styles.colorStyleGrayscaleMuted ++ styles.textStyle14)
-                [ text <| BrowserEnv.formatDate browserEnv publishedAt ]
+            -- some clients produce(d) wrong article dates > year 55000.
+            -- maybe missed a conversion from milliseconds to seconds
+            if Time.toYear Time.utc publishedAt > 50000 then
+                -- show event creation time in this case
+                createdAt
+            else
+                publishedAt
 
         Nothing ->
-            div [][]
+            createdAt
+
 
 viewProfilePubKey : PubKey -> Html msg
 viewProfilePubKey pubKey =

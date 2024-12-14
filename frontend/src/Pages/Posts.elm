@@ -214,7 +214,7 @@ viewArticleDraftPreview theme browserEnv article =
                     , Tw.mb_3
                     ]
                 ]
-                [ Ui.Article.timeParagraph styles browserEnv article.publishedAt
+                [ Ui.Article.timeParagraph styles browserEnv article.publishedAt article.createdAt
                 , deleteDraftButton theme (Translations.deleteDraftButtonLabel [browserEnv.translations]) article
                 , editDraftButton theme (Translations.editDraftButtonLabel [browserEnv.translations]) article
                 ]
