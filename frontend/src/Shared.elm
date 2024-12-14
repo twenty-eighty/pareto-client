@@ -211,18 +211,30 @@ updateWithPortMessage model portMessage =
 
 updateWithUserValue : Model -> Decode.Value -> ( Model, Effect Msg )
 updateWithUserValue model value =
-    case Json.Decode.decodeValue pubkeyDecoder value of
-        Ok pubKey ->
+    case (Json.Decode.decodeValue pubkeyDecoder value, model.loginStatus) of
+        (Ok pubKeyNew, Shared.Model.LoggedIn pubKeyLoggedIn) ->
             let
                 (nostr, cmd) =
-                    Nostr.requestUserData model.nostr pubKey
+                    if pubKeyNew /= pubKeyLoggedIn then
+                        Nostr.requestUserData model.nostr pubKeyNew
+                    else
+                        -- ignore messages that don't change user
+                        (model.nostr, Cmd.none)
             in
-
-            ( { model | loginStatus = Shared.Model.LoggedIn pubKey, nostr = nostr }
+            ( { model | loginStatus = Shared.Model.LoggedIn pubKeyNew, nostr = nostr }
             , Effect.sendCmd (Cmd.map Shared.Msg.NostrMsg cmd)
             )
 
-        Err error ->
+        (Ok pubKeyNew, _) ->
+            let
+                (nostr, cmd) =
+                    Nostr.requestUserData model.nostr pubKeyNew
+            in
+            ( { model | loginStatus = Shared.Model.LoggedIn pubKeyNew, nostr = nostr }
+            , Effect.sendCmd (Cmd.map Shared.Msg.NostrMsg cmd)
+            )
+
+        (Err error, _) ->
             ( model , Effect.none )
 
 loggedIn : Model -> Bool
