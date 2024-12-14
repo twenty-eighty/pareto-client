@@ -377,4 +377,6 @@ viewFooter browserEnv =
                 ]
             , text "."
             ]
+
+        , text <| Translations.sourceCodeText [ browserEnv.translations ]
         ]
