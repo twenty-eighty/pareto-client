@@ -6,7 +6,10 @@
       "publish handler information button title": "Handler-Information veröffentlichen",
       "publish profile button title": "Profil veröffentlichen",
       "recomendation explanation": "Das ist eine tolle App. Alle sollten davon wissen!",
-      "recommend client button title": "Pareto-Client empfehlen"
+      "recommend client button title": "Pareto-Client empfehlen",
+      "about frontend text": "Der Pareto Client wurde entwickelt mit",
+      "about backend text": "Das Pareto Backend wurde entwickelt mit",
+      "source code text": "Der Quellcode wird bald veröffentlicht."
    },
    "bookmarks": {
       "bookmarks title": "Lesezeichen",

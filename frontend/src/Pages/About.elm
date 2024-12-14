@@ -147,6 +147,7 @@ view shared model =
                 ]
             ]
             [ viewHandlerInformation shared.theme shared.browserEnv shared.loginStatus shared.nostr (Pareto.applicationInformation shared.browserEnv.now)
+            , viewFooter shared.browserEnv
             ]
         ]
     }
@@ -342,4 +343,38 @@ viewWebTarget theme (target, maybeType) =
         [
         ]
         [ text <| target ++ webTargetType
+        ]
+
+viewFooter : BrowserEnv -> Html Msg
+viewFooter browserEnv =
+    div
+        [ css
+            [ Tw.my_4
+            , Tw.flex
+            , Tw.flex_col
+            , Tw.gap_2
+            ]
+        ]
+        [ span
+            [
+            ]
+            [ text <| Translations.aboutFrontendText [ browserEnv.translations ] ++ " "
+            , a
+                [ Attr.href "https://elm.land/"
+                ]
+                [ text "Elm Land"
+                ]
+            , text "."
+            ]
+        , span
+            [
+            ]
+            [ text <| Translations.aboutBackendText [ browserEnv.translations ] ++ " "
+            , a
+                [ Attr.href "https://www.phoenixframework.org/"
+                ]
+                [ text "Phoenix Framework"
+                ]
+            , text "."
+            ]
         ]
