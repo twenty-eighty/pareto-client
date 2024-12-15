@@ -332,7 +332,7 @@ getArticlesForAuthor model pubKey =
 filterDeletedArticle : Model -> Article -> Bool
 filterDeletedArticle model article =
     Set.member article.id model.deletedEvents ||
-    Set.member (buildAddress (article.kind, article.author, Maybe.withDefault "" article.identifier)) model.deletedAddresses
+    Set.member (addressForArticle article |> Maybe.withDefault "") model.deletedAddresses
     |> not
 
 getArticleForNip19 : Model -> NIP19Type -> Maybe Article

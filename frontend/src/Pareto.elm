@@ -58,7 +58,6 @@ defaultRelays =
 defaultSearchRelays : List String
 defaultSearchRelays =
     [ "relay.nostr.band"
-    , "nostra.wine"
     , "nostr.wine"
     ]
 
