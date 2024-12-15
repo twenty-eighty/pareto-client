@@ -6,7 +6,7 @@ import Components.Icon as Icon exposing (Icon)
 import Css
 import Dict
 import FeatherIcons
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, summary, text)
+import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, label, main_, p, span, summary, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 import Markdown
@@ -22,14 +22,12 @@ import Route.Path
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import TailwindExtensions exposing (bp_xsl)
+import Time
+import Translations.Posts
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
-import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded)
-import Time
-import TailwindExtensions exposing (bp_xsl)
-import Html.Styled exposing (label)
-import Ui.Styles exposing (stylesForTheme)
-import Translations.Posts
+import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded, stylesForTheme)
 
 -- single article
 
@@ -348,12 +346,11 @@ viewArticleProfileSmall profile validationStatus =
         image =
             profile.picture
             |> Maybe.withDefault Ui.Profile.defaultProfileImage
+
+        linkElement =
+            linkElementForProfile profile
     in
-    div
-        [ css
-            [ Tw.relative
-            ]
-        ]
+    linkElement
         [ div
             []
             [ img
