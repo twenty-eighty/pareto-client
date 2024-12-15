@@ -70,7 +70,7 @@ init shared route () =
             )
             |> Maybe.withDefault { pubKey = Nothing, relays = [] }
 
-        requestEffect =
+        requestProfileEffect =
             model.pubKey
             |> Maybe.map (\pubKey ->
                 case Nostr.getProfile shared.nostr pubKey of
@@ -86,9 +86,25 @@ init shared route () =
             )
             |> Maybe.withDefault Effect.none
 
+        requestArticlesEffect =
+            model.pubKey
+            |> Maybe.map (buildRequestArticlesEffect shared.nostr)
+            |> Maybe.withDefault Effect.none
     in
-    ( model, requestEffect
+    ( model
+    , Effect.batch
+        [ requestProfileEffect
+        , requestArticlesEffect
+        ] 
     )
+
+buildRequestArticlesEffect : Nostr.Model -> PubKey -> Effect Msg
+buildRequestArticlesEffect nostr pubKey =
+    { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just [pubKey], limit = Just 20 }
+    |> RequestArticlesFeed 
+    |> Nostr.createRequest nostr "Posts of user" [KindUserMetadata]
+    |> Shared.Msg.RequestNostrEvents
+    |> Effect.sendSharedMsg
 
 filterForAuthor : PubKey -> EventFilter
 filterForAuthor author =
