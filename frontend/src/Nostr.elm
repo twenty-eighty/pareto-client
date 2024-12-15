@@ -696,7 +696,6 @@ profileFilterForDeletionRequests tagsReferences =
             , since = Nothing
             , until = Nothing
             }
-            |> Debug.log "DELETION REQUEST FILTER"
 
 profileFilterForReactions : List TagReference -> Maybe EventFilter
 profileFilterForReactions tagReferences =
