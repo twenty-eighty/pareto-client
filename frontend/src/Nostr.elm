@@ -13,7 +13,7 @@ import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
 import Nostr.DeletionRequest exposing (DeletionRequest, deletionRequestFromEvent)
-import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), buildAddress, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
+import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag, TagReference(..), buildAddress, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.FollowList exposing (Following, followListFromEvent)
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
@@ -23,7 +23,8 @@ import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileFromEvent)
 import Nostr.Reactions
 import Nostr.Relay exposing (Relay, RelayState(..), relayUrlDecoder)
-import Nostr.RelayListMetadata exposing (RelayMetadata, relayListFromEvent)
+import Nostr.RelayList exposing (relayListFromEvent)
+import Nostr.RelayListMetadata exposing (RelayMetadata, relayMetadataListFromEvent)
 import Nostr.Repost exposing (Repost, repostFromEvent)
 import Nostr.Request exposing (HttpRequestMethod, Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
@@ -34,6 +35,7 @@ import Nostr.Zaps exposing (ZapReceipt)
 import Html.Attributes exposing (kind)
 import Set exposing (Set)
 import Time
+import Pareto
 
 
 type alias Hooks =
@@ -70,6 +72,7 @@ type alias Model =
     , relayMetadataLists : Dict PubKey (List RelayMetadata)
     , relaysForPubKey : Dict PubKey (List RelayUrl)
     , reposts : Dict EventId Repost
+    , searchRelayLists : Dict PubKey (List RelayUrl)
     , shortTextNotes : Dict String ShortNote
     , userServerLists : Dict PubKey (List String)
     , zapReceiptsAddress : Dict String (Dict String Nostr.Zaps.ZapReceipt)
@@ -176,6 +179,9 @@ performRequest model description requestId requestData =
 
         RequestCommunity relays eventFilter ->
             ( model, model.hooks.requestEvents description True requestId relays eventFilter)
+
+        RequestDeletionRequests eventFilter ->
+            ( model, model.hooks.requestEvents description True requestId Nothing eventFilter)
 
         RequestFollowSets eventFilter ->
             ( model, model.hooks.requestEvents description True requestId Nothing eventFilter)
@@ -424,7 +430,7 @@ getRelaysForPubKey model pubKey =
             userRelaysFromNip05
             |> List.map (\relayUrl -> { role = ReadWriteRelay, url = relayUrl })
             |> List.append userRelaysFromEvent
-            |> relayListWithUniqueEntries
+            |> relayMetadataListWithUniqueEntries
             |> List.filterMap (\{ role, url } ->
                 Maybe.map
                     (\relay -> (role, relay))
@@ -477,6 +483,16 @@ getDraftRelayUrls model articleId =
     |> Dict.get articleId
     |> Maybe.withDefault Set.empty
     |> Set.toList
+
+getSearchRelayUrls : Model -> Maybe PubKey -> List RelayUrl
+getSearchRelayUrls model maybePubKey =
+    case maybePubKey of
+        Just pubKey ->
+            Dict.get pubKey model.searchRelayLists
+            |> Maybe.withDefault (getSearchRelayUrls model Nothing)
+
+        Nothing ->
+            Pareto.defaultSearchRelays
 
 getRequest : Model -> RequestId -> Maybe Request
 getRequest model requestId =
@@ -666,6 +682,21 @@ getReactionsCountForArticle model article =
     |> getReactionsForArticle model
     |> Maybe.map Dict.size
 
+profileFilterForDeletionRequests : List TagReference -> Maybe EventFilter
+profileFilterForDeletionRequests tagsReferences =
+    if List.isEmpty tagsReferences then
+        Nothing
+    else
+        Just
+            { authors = Nothing
+            , kinds = Just [ KindEventDeletionRequest ]
+            , ids = Nothing
+            , tagReferences = Just tagsReferences
+            , limit = Nothing
+            , since = Nothing
+            , until = Nothing
+            }
+            |> Debug.log "DELETION REQUEST FILTER"
 
 profileFilterForReactions : List TagReference -> Maybe EventFilter
 profileFilterForReactions tagReferences =
@@ -727,6 +758,7 @@ empty =
     , relays = Dict.empty
     , relaysForPubKey = Dict.empty
     , reposts = Dict.empty
+    , searchRelayLists = Dict.empty 
     , shortTextNotes = Dict.empty
     , userServerLists = Dict.empty
     , zapReceiptsAddress = Dict.empty
@@ -943,6 +975,9 @@ updateModelWithEvents model requestId kind events =
 
         KindDraftLongFormContent ->
             updateModelWithLongFormContentDraft model requestId events
+
+        KindSearchRelaysList ->
+            updateModelWithSearchRelays model requestId events
 
         KindShortTextNote ->
             updateModelWithShortTextNotes model requestId events
@@ -1194,8 +1229,45 @@ requestRelatedKindsForArticles model articles request =
             |> Maybe.map (addToRequest requestProfileModel extendedRequestProfile)
             |> Maybe.withDefault (requestProfileModel, extendedRequestProfile)
 
+        (modelWithDeletionRequests, extendedRequestDeletionRequests) =
+            articles
+            |> List.filterMap Nostr.Article.addressComponentsForArticle
+            |> List.map Nostr.Event.TagReferenceCode
+            |> profileFilterForDeletionRequests
+            |> Maybe.map RequestDeletionRequests
+            |> Maybe.map (addToRequest extendedModel extendedRequestReactions)
+            |> Maybe.withDefault (extendedModel, extendedRequestReactions)
+
     in
-    doRequest extendedModel extendedRequestReactions
+    doRequest modelWithDeletionRequests extendedRequestDeletionRequests
+
+updateModelWithSearchRelays : Model -> RequestId -> List Event -> (Model, Cmd Msg)
+updateModelWithSearchRelays model requestId events =
+    let
+        -- usually there should be only one for the logged-in user
+        searchRelaysLists =
+            events
+            |> List.map relayListFromEvent
+
+        relayListDict =
+            searchRelaysLists
+            |> List.foldl (\(pubKey, relayList) dict ->
+                Dict.insert pubKey (relayUrlListWithUniqueEntries relayList) dict
+                ) model.searchRelayLists
+
+        unknownRelays =
+            searchRelaysLists
+            |> List.map (\(pubKey, relayMetadataList) -> relayMetadataList)
+            |> List.concat
+            |> List.map (\url -> Nostr.Relay.hostWithoutProtocol url)
+            |> List.filter (\relay ->
+                    not <| Dict.member relay model.relays
+                )
+
+        requestNip11Cmd =
+            requestRelayNip11 unknownRelays
+    in
+    ({ model | searchRelayLists = relayListDict }, requestNip11Cmd)
 
 
 updateModelWithShortTextNotes : Model -> RequestId -> List Event -> (Model, Cmd Msg)
@@ -1313,12 +1385,12 @@ updateModelWithRelayListMetadata model events =
         -- usually there should be only one for the logged-in user
         relayLists =
             events
-            |> List.map relayListFromEvent
+            |> List.map relayMetadataListFromEvent
 
         relayListDict =
             relayLists
             |> List.foldl (\(pubKey, relayList) dict ->
-                Dict.insert pubKey (relayListWithUniqueEntries relayList) dict
+                Dict.insert pubKey (relayMetadataListWithUniqueEntries relayList) dict
                 ) model.relayMetadataLists
 
         unknownRelays =
@@ -1335,8 +1407,14 @@ updateModelWithRelayListMetadata model events =
     in
     ({ model | relayMetadataLists = relayListDict }, requestNip11Cmd)
 
-relayListWithUniqueEntries : List RelayMetadata -> List RelayMetadata
-relayListWithUniqueEntries relayList =
+relayUrlListWithUniqueEntries : List RelayUrl -> List RelayUrl
+relayUrlListWithUniqueEntries relayList =
+    relayList
+    |> Set.fromList
+    |> Set.toList
+
+relayMetadataListWithUniqueEntries : List RelayMetadata -> List RelayMetadata
+relayMetadataListWithUniqueEntries relayList =
     relayList
     |> List.map (\relayMetadata -> (relayMetadata.url, relayMetadata.role))
     |> Dict.fromList

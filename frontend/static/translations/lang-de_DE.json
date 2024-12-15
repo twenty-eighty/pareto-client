@@ -59,6 +59,9 @@
       "no relays configured text": "Möchtest du ein paar Standard-Relays einrichten?",
       "configure relays button title": "Relays konfigurieren"
    },
+   "search": {
+      "page title": "Suchen"
+   },
    "sidebar": {
       "reader client role text": "Leser",
       "creator client role text": "Autor",

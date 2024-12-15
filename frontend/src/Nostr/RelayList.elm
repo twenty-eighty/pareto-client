@@ -1,12 +1,12 @@
 module Nostr.RelayList exposing (..)
 
 import Nostr.Event exposing (Event, Tag(..))
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (PubKey, RelayUrl)
 
 -- NIP-51
 -- this is intended for kinds 10006 (blocked relays), 10007 (search relays), 10050 (DM relays)
 
-relayListFromEvent : Event -> (PubKey, List String)
+relayListFromEvent : Event -> (PubKey, List RelayUrl)
 relayListFromEvent event =
     let
         relayList =

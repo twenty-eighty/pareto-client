@@ -86,8 +86,8 @@ eventWithRelayList pubKey relays =
     }
 
 
-relayListFromEvent : Event -> (PubKey, List RelayMetadata)
-relayListFromEvent event =
+relayMetadataListFromEvent : Event -> (PubKey, List RelayMetadata)
+relayMetadataListFromEvent event =
     let
         relayList =
             event.tags

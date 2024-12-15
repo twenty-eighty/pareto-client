@@ -66,11 +66,11 @@ init : Shared.Model -> () -> ( Model, Effect Msg )
 init shared () =
     let
         filter =
-            { emptyEventFilter | kinds = Just [KindEventDeletionRequest, KindLongFormContent] , limit = Just 20 }
+            { emptyEventFilter | kinds = Just [KindLongFormContent] , limit = Just 20 }
     in
     ( { categories = Components.Categories.init { selected = Global }}
     , RequestArticlesFeed filter
-      |> Nostr.createRequest shared.nostr "Long-form articles" [KindUserMetadata]
+      |> Nostr.createRequest shared.nostr "Long-form articles" [KindUserMetadata, KindEventDeletionRequest]
       |> Shared.Msg.RequestNostrEvents
       |> Effect.sendSharedMsg
     )
@@ -126,20 +126,20 @@ updateModelWithCategory shared model category =
         filter =
             case category of
                 Global ->
-                    { emptyEventFilter | kinds = Just [KindEventDeletionRequest, KindLongFormContent], limit = Just 20 }
+                    { emptyEventFilter | kinds = Just [KindLongFormContent], limit = Just 20 }
 
                 Pareto ->
-                    { emptyEventFilter | kinds = Just [KindEventDeletionRequest, KindLongFormContent], authors = Just (paretoFollowsList shared.nostr) , limit = Just 20 }
+                    { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just (paretoFollowsList shared.nostr) , limit = Just 20 }
 
                 Followed ->
-                    { emptyEventFilter | kinds = Just [KindEventDeletionRequest, KindLongFormContent], authors = Just (userFollowsList shared.nostr shared.loginStatus) , limit = Just 20 }
+                    { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just (userFollowsList shared.nostr shared.loginStatus) , limit = Just 20 }
 
                 Highlighter ->
-                    { emptyEventFilter | kinds = Just [KindEventDeletionRequest, KindLongFormContent], limit = Just 20 }
+                    { emptyEventFilter | kinds = Just [KindLongFormContent], limit = Just 20 }
     in
     ( model
     , RequestArticlesFeed filter
-      |> Nostr.createRequest shared.nostr "Long-form articles" [KindUserMetadata]
+      |> Nostr.createRequest shared.nostr "Long-form articles" [KindUserMetadata, KindEventDeletionRequest]
       |> Shared.Msg.RequestNostrEvents
       |> Effect.sendSharedMsg
     )
@@ -238,7 +238,7 @@ view shared model =
                 }
                 |> Components.Categories.view
             , Nostr.getArticlesByDate shared.nostr
-             |> Ui.View.viewArticlePreviews
+                |> Ui.View.viewArticlePreviews
                     ArticlePreviewList
                         { theme = shared.theme
                         , browserEnv = shared.browserEnv

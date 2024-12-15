@@ -26,6 +26,7 @@ type RequestData
     | RequestArticleDrafts EventFilter
     | RequestBookmarks EventFilter
     | RequestCommunity (Maybe (List RelayUrl)) EventFilter
+    | RequestDeletionRequests EventFilter
     | RequestFollowSets EventFilter
     | RequestNip05AndArticle Nip05 String
     | RequestProfile  (Maybe (List RelayUrl)) EventFilter

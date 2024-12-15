@@ -2,10 +2,11 @@ module Pages.Search exposing (Model, Msg, page)
 
 import Effect exposing (Effect)
 import Route exposing (Route)
-import Html
+import Html.Styled as Html exposing (Html, div)
 import Layouts
 import Page exposing (Page)
 import Shared
+import Translations.Search as Translations
 import View exposing (View)
 import Ui.Styles exposing (Theme)
 
@@ -16,7 +17,7 @@ page shared route =
         { init = init
         , update = update
         , subscriptions = subscriptions
-        , view = view
+        , view = view shared
         }
         |> Page.withLayout (toLayout shared.theme)
 
@@ -56,7 +57,7 @@ update msg model =
             ( model
             , Effect.none
             )
-
+-- Nostr.getSearchRelayUrls model maybePubKey
 
 
 -- SUBSCRIPTIONS
@@ -71,6 +72,19 @@ subscriptions model =
 -- VIEW
 
 
-view : Model -> View Msg
-view model =
-    View.fromString "Pages.Search"
+view : Shared.Model -> Model -> View Msg
+view shared model =
+    { title = Translations.pageTitle [ shared.browserEnv.translations ]
+    , body =
+        [ viewSearch shared model
+        ] 
+    }
+
+
+viewSearch : Shared.Model -> Model -> Html Msg
+viewSearch shared model =
+    div
+        [
+        ]
+        [
+        ]
