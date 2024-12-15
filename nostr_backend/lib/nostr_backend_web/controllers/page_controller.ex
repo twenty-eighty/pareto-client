@@ -117,6 +117,12 @@ defmodule NostrBackendWeb.PageController do
     |> render(:read)
   end
 
+  def sign_in(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:sign_in)
+  end
+
   def write(conn, _params) do
     conn
     |> add_meta_tags
