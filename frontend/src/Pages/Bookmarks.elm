@@ -78,6 +78,10 @@ requestForBookmarkContent nostr bookmarkType bookmarkList =
     case bookmarkType of
         ArticleBookmark ->
             bookmarkList.articles
+            |> List.filter (\addressComponents ->
+                    -- only request articles we don't have yet
+                    Nostr.getArticle nostr addressComponents == Nothing
+                )
             |> List.map (\(kind, pubKey, identifier) ->
                 { authors = Just [ pubKey ]
                 , ids = Nothing
