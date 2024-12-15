@@ -1211,14 +1211,26 @@ updateModelWithLongFormContentDraft model requestId events =
                 |> Maybe.map (\publishedAt -> Time.posixToMillis publishedAt * -1)
                 |> Maybe.withDefault 0
                 )
+
+        maybeRequest =
+            Dict.get requestId model.requests
+
+        (requestModel, requestCmd) =
+            case maybeRequest of
+                Just request ->
+                    requestRelatedKindsForArticles model articles request
+
+                Nothing ->
+                    (model, Cmd.none)
+
     in
-    ( { model
+    ({ requestModel
         | articleDraftsByDate = articleDraftsByDate
         , articleDraftRelays = articleDraftRelays
         , errors = newErrors ++ model.errors
-      }
-    , Cmd.none)
-
+    }
+    ,requestCmd
+    )
 requestRelatedKindsForArticles : Model -> List Article -> Request -> (Model, Cmd Msg)
 requestRelatedKindsForArticles model articles request =
     let
