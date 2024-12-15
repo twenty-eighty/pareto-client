@@ -350,34 +350,40 @@ viewArticleProfileSmall profile validationStatus =
         linkElement =
             linkElementForProfile profile
     in
-    linkElement
-        [ div
-            []
-            [ img
-                [ Attr.src image
-                , Attr.alt "Avatar"
-                , css
-                    [ Tw.min_w_12
-                    , Tw.min_h_12
-                    , Tw.max_w_12
-                    , Tw.max_h_12
-                    , Tw.p_1
-                    , Tw.rounded_full
+    div
+        [ css
+            [ Tw.relative
+            ]
+        ]
+        [ linkElement
+            [ div
+                []
+                [ img
+                    [ Attr.src image
+                    , Attr.alt "Avatar"
+                    , css
+                        [ Tw.min_w_12
+                        , Tw.min_h_12
+                        , Tw.max_w_12
+                        , Tw.max_h_12
+                        , Tw.p_1
+                        , Tw.rounded_full
+                        ]
+                    ]
+                    []
+                ]
+            , div 
+                [ css
+                    [ Tw.absolute
+                    , Tw.top_0
+                    , Tw.right_0
+                    , Tw.text_color Theme.gray_400
+                    , Tw.w_3
+                    , Tw.h_2
                     ]
                 ]
-                []
+                [ Ui.Profile.validationIcon 16 validationStatus ]
             ]
-        , div 
-            [ css
-                [ Tw.absolute
-                , Tw.top_0
-                , Tw.right_0
-                , Tw.text_color Theme.gray_400
-                , Tw.w_3
-                , Tw.h_2
-                ]
-            ]
-            [ Ui.Profile.validationIcon 16 validationStatus ]
         ]
 
 viewArticleTime : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg

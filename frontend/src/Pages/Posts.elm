@@ -239,6 +239,7 @@ deleteDraftButton theme label article =
         , onClick = Just <| DeleteDraft article.id article.identifier
         , theme = theme
         }
+        |> Button.withStyleDanger
         |> Button.view
 
 

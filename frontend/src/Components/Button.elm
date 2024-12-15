@@ -212,6 +212,7 @@ stylesForTheme (Settings settings) =
         styles =
             Ui.Styles.stylesForTheme settings.theme
 
+        -- TODO: use style (Default | Success | Warning | Danger)
         (foregroundStyles, backgroundStyles) =
             case settings.type_ of
                 RegularButton ->
