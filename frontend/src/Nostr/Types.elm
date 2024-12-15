@@ -11,6 +11,7 @@ type alias RelayUrl = String
 
 type alias Address = String
 
+
 type RelayRole
     = ReadRelay
     | WriteRelay

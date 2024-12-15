@@ -15,7 +15,7 @@ import Nostr.Types exposing (PubKey)
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Ui.Article
+import Ui.Article exposing (ArticlePreviewData, ArticlePreviewsData)
 import Ui.ArticleOld
 import Ui.Community
 import Ui.ShortNote
@@ -26,21 +26,27 @@ type ArticlePreviewType
     | ArticlePreviewBigPicture
 
 
-viewArticle : Styles msg -> BrowserEnv -> Nostr.Model -> Article -> Html msg
-viewArticle styles browserEnv nostr article =
-    Ui.Article.viewArticle styles browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr Nothing article)
+viewArticle : ArticlePreviewsData msg -> Article -> Html msg
+viewArticle articlePreviewsData article =
+    Ui.Article.viewArticle
+        articlePreviewsData
+        { author = Nostr.getAuthor articlePreviewsData.nostr article.author
+        , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
+        , displayAuthor = True
+        }
+        article
 
-viewArticlePreviews : ArticlePreviewType -> Theme -> BrowserEnv -> Nostr.Model -> Maybe PubKey -> List Article -> Html msg
-viewArticlePreviews previewType theme browserEnv nostr maybeUserPubKey articles =
+viewArticlePreviews : ArticlePreviewType -> ArticlePreviewsData msg -> List Article -> Html msg
+viewArticlePreviews previewType articlePreviewsData articles =
     case previewType of
         ArticlePreviewList ->
-            viewArticlePreviewsList theme browserEnv nostr maybeUserPubKey articles
+            viewArticlePreviewsList articlePreviewsData articles
 
         ArticlePreviewBigPicture ->
-            viewArticlePreviewsBigPicture theme browserEnv nostr articles
+            viewArticlePreviewsBigPicture articlePreviewsData articles
 
-viewArticlePreviewsList : Theme -> BrowserEnv -> Nostr.Model -> Maybe PubKey -> List Article -> Html msg
-viewArticlePreviewsList theme browserEnv nostr maybeUserPubKey articles =
+viewArticlePreviewsList : ArticlePreviewsData msg -> List Article -> Html msg
+viewArticlePreviewsList articlePreviewsData articles =
     div
         [ css
             [ Tw.flex
@@ -56,12 +62,20 @@ viewArticlePreviewsList theme browserEnv nostr maybeUserPubKey articles =
             ]
             ( articles
             |> List.take 20
-            |> List.map (\article -> Ui.Article.viewArticlePreviewList theme browserEnv (Nostr.getAuthor nostr article.author) maybeUserPubKey article (Nostr.getInteractions nostr Nothing article) True)
+            |> List.map (\article ->
+                Ui.Article.viewArticlePreviewList
+                    articlePreviewsData
+                        { author = Nostr.getAuthor articlePreviewsData.nostr article.author
+                        , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
+                        , displayAuthor = True
+                        }
+                        article
+                )
             )
         ]
     
-viewArticlePreviewsBigPicture : Theme -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
-viewArticlePreviewsBigPicture theme browserEnv nostr articles =
+viewArticlePreviewsBigPicture : ArticlePreviewsData msg -> List Article -> Html msg
+viewArticlePreviewsBigPicture articlePreviewsData articles =
     div
         [ css
             [ Tw.h_80
@@ -73,7 +87,15 @@ viewArticlePreviewsBigPicture theme browserEnv nostr articles =
         ]
         ( articles
         |> List.take 20
-        |> List.map (\article -> Ui.Article.viewArticlePreviewBigPicture theme browserEnv (Nostr.getAuthor nostr article.author) article (Nostr.getInteractions nostr Nothing article) True)
+        |> List.map (\article ->
+                Ui.Article.viewArticlePreviewBigPicture
+                    articlePreviewsData
+                    { author = Nostr.getAuthor articlePreviewsData.nostr article.author
+                    , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
+                    , displayAuthor = True
+                    }
+                    article
+            )
         )
 
 viewCommunity : BrowserEnv -> Nostr.Model -> Community -> Html msg

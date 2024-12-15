@@ -12,6 +12,9 @@ import Json.Decode as Decode
 import Json.Decode as Decode
 import Json.Decode as Decode
 import Json.Decode as Decode
+import Json.Decode as Decode
+import Json.Decode as Decode
+import Json.Decode as Decode
 
 
 type Tag
@@ -20,7 +23,7 @@ type Tag
     | GenericTag3 String String String 
     | GenericTag4 String String String String
     | AboutTag String
-    | AddressTag Address
+    | AddressTag AddressComponents
     | AltTag String
     | ClientTag String (Maybe String) (Maybe String)
     | DescriptionTag String
@@ -78,9 +81,11 @@ type alias EventFilter =
 
 type TagReference
     = TagReferenceEventId EventId
-    | TagReferenceCode Kind PubKey DCode
+    | TagReferenceCode AddressComponents
     | TagReferenceIdentifier String
     | TagReferenceTag String
+
+type alias AddressComponents = (Kind, PubKey, DCode)
 
 type alias DCode = String
 
@@ -645,14 +650,27 @@ kindStringDecoder =
                         Decode.fail <| "String is not kind number: " ++ kindString
             )
     
+emptyEvent : PubKey -> Kind -> Event
+emptyEvent pubKey kind =
+    { pubKey = pubKey
+    , createdAt = Time.millisToPosix 0
+    , kind = kind
+    , tags = []
+    , content = ""
+    , id = ""
+    , sig = Nothing
+    , relay = Nothing
+    }
+
+
 tagReferenceToString : TagReference -> String
 tagReferenceToString tagRef =
     case tagRef of
         TagReferenceEventId eventId ->
             eventId
 
-        TagReferenceCode kind pubKey dCode ->
-            buildAddress (kind, pubKey, dCode)
+        TagReferenceCode addressComponents ->
+            buildAddress addressComponents
 
         TagReferenceIdentifier identifier ->
             identifier
@@ -743,7 +761,7 @@ decodeTag =
     Decode.index 0 Decode.string |> Decode.andThen (\typeStr ->
         case typeStr of
             "a" ->
-                Decode.map AddressTag (Decode.index 1 Decode.string)
+                Decode.map AddressTag (Decode.index 1 decodeAddress)
 
             "about" ->
                 Decode.map AboutTag (Decode.index 1 Decode.string)
@@ -878,8 +896,8 @@ tagToList tag =
         AboutTag value ->
             [ "about", value ]
 
-        AddressTag value ->
-            [ "a", value ]
+        AddressTag addressComponents ->
+            [ "a", buildAddress addressComponents ]
 
         AltTag value ->
             [ "alt", value ]
@@ -1000,11 +1018,11 @@ tagToList tag =
                 Nothing ->
                     [ "zap", pubKey, relayUrl ]
 
-buildAddress : (Kind, PubKey, String) -> Address
+buildAddress : AddressComponents -> Address
 buildAddress (kind, pubKey, identifier) =
     String.fromInt (numberForKind kind) ++ ":" ++ pubKey ++ ":" ++ identifier
 
-parseAddress : Address -> Maybe (Kind, PubKey, String)
+parseAddress : Address -> Maybe AddressComponents
 parseAddress address =
     case String.split ":" address of
         [kindStr, pubKey, identifier] ->
@@ -1013,6 +1031,18 @@ parseAddress address =
 
         _ ->
             Nothing
+
+decodeAddress : Decode.Decoder AddressComponents
+decodeAddress =
+    Decode.string
+    |> Decode.andThen (\address ->
+            case parseAddress address of
+                Just addressComponents ->
+                    Decode.succeed addressComponents
+
+                Nothing ->
+                    Decode.fail ("Error decoding address: " ++ address)
+        )
 
 titleFromTags : List Tag -> Maybe String
 titleFromTags tags =
@@ -1111,7 +1141,7 @@ appendTagReferenceList maybeTagRefList encodeList =
                         case tagRef of
                             TagReferenceEventId _ ->
                                 Nothing 
-                            TagReferenceCode _ _ _ ->
+                            TagReferenceCode _ ->
                                 Just <| tagReferenceToString tagRef
                             TagReferenceIdentifier _ ->
                                 Nothing 
@@ -1132,7 +1162,7 @@ appendTagReferenceList maybeTagRefList encodeList =
                         case tagRef of
                             TagReferenceEventId eventId ->
                                 Just eventId
-                            TagReferenceCode _ _ _ ->
+                            TagReferenceCode _ ->
                                 Nothing 
                             TagReferenceIdentifier _ ->
                                 Nothing 
@@ -1153,7 +1183,7 @@ appendTagReferenceList maybeTagRefList encodeList =
                         case tagRef of
                             TagReferenceEventId _ ->
                                 Nothing 
-                            TagReferenceCode _ _ _ ->
+                            TagReferenceCode _ ->
                                 Nothing
                             TagReferenceIdentifier identifier ->
                                 Just identifier
@@ -1174,7 +1204,7 @@ appendTagReferenceList maybeTagRefList encodeList =
                         case tagRef of
                             TagReferenceEventId _ ->
                                 Nothing 
-                            TagReferenceCode _ _ _ ->
+                            TagReferenceCode _ ->
                                 Nothing
                             TagReferenceIdentifier _ ->
                                 Nothing
@@ -1252,9 +1282,16 @@ appendTags tags eventElements =
 
 -- functions for building Event structure
 
-addAddressTag : Address -> List Tag -> List Tag
-addAddressTag address tags =
-    AddressTag address :: tags
+addAddressTag : AddressComponents -> List Tag -> List Tag
+addAddressTag addressComponents tags =
+    tags ++ [ AddressTag addressComponents ]
+
+addAddressTags : List AddressComponents -> List Tag -> List Tag
+addAddressTags addresses tags =
+    addresses
+    |> List.map AddressTag
+    |> List.append tags
+
 
 addAltTag : String -> List Tag -> List Tag
 addAltTag alt tags =

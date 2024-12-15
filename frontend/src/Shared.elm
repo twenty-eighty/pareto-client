@@ -2,7 +2,7 @@ module Shared exposing
     ( Flags, decoder
     , Model, Msg
     , init, update, subscriptions
-    , loggedIn
+    , loggedIn, loggedInPubKey
     )
 
 {-|
@@ -249,6 +249,14 @@ loggedIn model =
         LoggedIn _ ->
             True
 
+loggedInPubKey : Shared.Model.LoginStatus -> Maybe PubKey
+loggedInPubKey loginStatus =
+    case loginStatus of
+        Shared.Model.LoggedIn pubKey ->
+            Just pubKey
+
+        _ ->
+            Nothing
         
 
 pubkeyDecoder : Json.Decode.Decoder PubKey

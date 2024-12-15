@@ -22,8 +22,8 @@ deletionRequestFromEvent event =
     event.tags
     |> List.foldl (\tag acc ->
         case tag of 
-            AddressTag address ->
-                {acc | addresses = Set.insert address acc.addresses }
+            AddressTag addressComponents ->
+                {acc | addresses = Set.insert (buildAddress addressComponents) acc.addresses }
 
             EventIdTag eventId ->
                 {acc | eventIds = Set.insert eventId acc.eventIds }
@@ -41,7 +41,7 @@ draftDeletionEvent pubKey createdAt draftEventId content maybeIdentifier =
         addIdentifer =
             case maybeIdentifier of
                 Just identifier ->
-                    addAddressTag (buildAddress (KindDraftLongFormContent, pubKey, identifier))
+                    addAddressTag (KindDraftLongFormContent, pubKey, identifier)
 
                 Nothing ->
                     identity

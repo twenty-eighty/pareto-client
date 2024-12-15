@@ -9,10 +9,11 @@ import Html.Styled.Events as Events exposing (..)
 import I18Next
 import Layouts
 import Nostr
-import Nostr.Article exposing (Article)
-import Nostr.Event exposing (EventFilter, Kind(..), kindDecoder, emptyEventFilter)
+import Nostr.Article exposing (Article, addressForArticle)
+import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), kindDecoder, emptyEventFilter)
 import Nostr.FollowList exposing (followingPubKey)
 import Nostr.Request exposing (RequestData(..))
+import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
 import Page exposing (Page)
 import Route exposing (Route)
@@ -83,6 +84,8 @@ type Msg
     = OpenGetStarted
     | CategorySelected Category
     | CategoriesSent (Components.Categories.Msg Category Msg)
+    | AddArticleBookmark PubKey AddressComponents
+    | RemoveArticleBookmark PubKey AddressComponents
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -102,6 +105,22 @@ update shared msg model =
                 , toModel = \categories -> { model | categories = categories}
                 , toMsg = CategoriesSent
                 }
+
+        AddArticleBookmark pubKey addressComponents ->
+            ( model
+            , 
+                SendBookmarkListWithArticle pubKey addressComponents
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        RemoveArticleBookmark pubKey addressComponents ->
+            ( model
+            , 
+                SendBookmarkListWithoutArticle pubKey addressComponents
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
 
 updateModelWithCategory : Shared.Model -> Model -> Category -> (Model, Effect Msg)
 updateModelWithCategory shared model category =
@@ -139,8 +158,8 @@ paretoFollowsList nostr =
 
 userFollowsList : Nostr.Model -> Shared.Model.LoginStatus -> List PubKey
 userFollowsList nostr loginStatus =
-    case loginStatus of
-        Shared.Model.LoggedIn pubKey ->
+    case Shared.loggedInPubKey loginStatus of
+        Just pubKey ->
             case Nostr.getFollowsList nostr pubKey of
                 Just followsList ->
                     followsList
@@ -205,6 +224,9 @@ view shared model =
     let
         styles =
             Ui.Styles.stylesForTheme shared.theme
+
+        userPubKey =
+            Shared.loggedInPubKey shared.loginStatus
     in
     { title = Translations.Sidebar.readMenuItemText [shared.browserEnv.translations]
     , body = [                                  {- Main Content -}
@@ -218,6 +240,13 @@ view shared model =
                 }
                 |> Components.Categories.view
             , Nostr.getArticlesByDate shared.nostr
-             |> Ui.View.viewArticlePreviews ArticlePreviewList shared.theme shared.browserEnv shared.nostr Nothing
+             |> Ui.View.viewArticlePreviews
+                    ArticlePreviewList
+                        { theme = shared.theme
+                        , browserEnv = shared.browserEnv
+                        , nostr = shared.nostr
+                        , userPubKey = userPubKey
+                        , onBookmark = Maybe.map (\pubKey -> (AddArticleBookmark pubKey, RemoveArticleBookmark pubKey)) userPubKey
+                        }
             ]
     }

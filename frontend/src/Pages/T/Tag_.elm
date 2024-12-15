@@ -148,7 +148,14 @@ view shared model =
                     [ text <| "#" ++ model.tag
                     ]
                 , Nostr.getArticlesByDate shared.nostr
-                |> Ui.View.viewArticlePreviews ArticlePreviewList shared.theme shared.browserEnv shared.nostr Nothing
+                |> Ui.View.viewArticlePreviews
+                        ArticlePreviewList 
+                        { theme = shared.theme
+                        , browserEnv = shared.browserEnv
+                        , nostr = shared.nostr
+                        , userPubKey = Shared.loggedInPubKey shared.loginStatus
+                        , onBookmark = Nothing
+                        }
                 ]
             ]
         ]

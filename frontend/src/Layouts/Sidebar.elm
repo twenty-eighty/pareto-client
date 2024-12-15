@@ -17,6 +17,7 @@ import I18Next
 import Layout exposing (Layout)
 import ModalDialog exposing (ModalDialog)
 import Nostr
+import Nostr.BookmarkList exposing (bookmarksCount)
 import Nostr.FollowList exposing (Following(..))
 import Nostr.Types exposing (PubKey)
 import Nostr.Profile exposing (Profile)
@@ -207,6 +208,13 @@ viewModalDialog model =
 
 viewSidebar : Styles contentMsg -> Shared.Model.Model -> Route.Path.Path -> (Msg -> contentMsg) -> List (Html contentMsg) -> Html contentMsg
 viewSidebar styles shared currentPath toContentMsg content =
+    let
+        maybeBookmarksCount =
+            Shared.loggedInPubKey shared.loginStatus
+            |> Maybe.andThen (Nostr.getBookmarks shared.nostr)
+            |> Maybe.map bookmarksCount
+            |> Maybe.andThen (\count -> if count > 0 then Just count else Nothing)
+    in
     Html.div
         (styles.colorStyleGrayscaleTitle ++ styles.colorStyleBackground ++
         [ css
@@ -247,7 +255,7 @@ viewSidebar styles shared currentPath toContentMsg content =
                     ]
                 ])
                 [ viewBannerSmall shared.browserEnv
-                , viewSidebarItems styles shared.browserEnv shared.role (Shared.loggedIn shared) currentPath
+                , viewSidebarItems styles shared.browserEnv shared.role (Shared.loggedIn shared) maybeBookmarksCount currentPath
                 ]
             , div
                 [ css
@@ -517,14 +525,26 @@ profileForUser shared loggedIn =
 
 
 
-viewSidebarItems : Styles contentMsg -> BrowserEnv -> ClientRole -> Bool -> Route.Path.Path -> Html contentMsg
-viewSidebarItems styles browserEnv clientRole loggedIn currentPath =
+viewSidebarItems : Styles contentMsg -> BrowserEnv -> ClientRole -> Bool -> Maybe Int -> Route.Path.Path -> Html contentMsg
+viewSidebarItems styles browserEnv clientRole loggedIn maybeBookmarksCount currentPath =
     let
         visibleSidebarItems =
             (sidebarItems clientRole browserEnv.translations)
             |> List.filter (sidebarItemVisible loggedIn)
+            |> List.filterMap (\sidebarItem ->
+                if sidebarItem.path /= Route.Path.Bookmarks then
+                    Just sidebarItem
+                else
+                    case maybeBookmarksCount of
+                        Just bookmarksCount ->
+                            -- add bookmarks count to title
+                            Just { sidebarItem | title = sidebarItem.title ++ " (" ++ String.fromInt bookmarksCount ++ ")"}
+
+                        Nothing ->
+                            -- filter bookmarks sidebar item
+                            Nothing
+                )
     in
-    
     div
         [ css
             [ Tw.grid
@@ -546,7 +566,6 @@ viewSidebarItems styles browserEnv clientRole loggedIn currentPath =
         (
         (List.map (viewSidebarItem styles currentPath) visibleSidebarItems)
         )
-
 
 sidebarItemVisible : Bool -> SidebarItemData -> Bool
 sidebarItemVisible loggedIn sidebarItem =
@@ -573,7 +592,6 @@ viewSidebarItem styles currentPath itemData =
                     , [ Attr.href <| Route.toString { path = itemData.path, hash = Nothing, query = Dict.empty } ]
                     )
     in
-
     a
         (linkAttr ++
         [ css

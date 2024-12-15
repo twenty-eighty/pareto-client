@@ -8,7 +8,7 @@ import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Nostr.Article exposing (Article, articleFromEvent, filterMatchesArticle, tagReference)
 import Nostr.Blossom exposing (userServerListFromEvent)
-import Nostr.BookmarkList exposing (BookmarkList, bookmarkListFromEvent)
+import Nostr.BookmarkList exposing (BookmarkList, bookmarkListFromEvent, bookmarkListEvent, bookmarkListWithArticle, bookmarkListWithoutArticle, emptyBookmarkList)
 import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
@@ -207,6 +207,34 @@ performRequest model description requestId requestData =
 send : Model -> SendRequest -> (Model, Cmd Msg)
 send model sendRequest =
     case sendRequest of
+        SendBookmarkListWithArticle pubKey address ->
+            let
+                bookmarkList =
+                    getBookmarks model pubKey
+                    |> Maybe.withDefault emptyBookmarkList
+
+                event =
+                    bookmarkListWithArticle bookmarkList address
+                    |> bookmarkListEvent pubKey
+            in
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model pubKey) event
+            )
+
+        SendBookmarkListWithoutArticle pubKey address ->
+            let
+                bookmarkList =
+                    getBookmarks model pubKey
+                    |> Maybe.withDefault emptyBookmarkList
+
+                event =
+                    bookmarkListWithoutArticle bookmarkList address
+                    |> bookmarkListEvent pubKey
+            in
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model pubKey) event
+            )
+
         SendClientRecommendation relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
             , model.hooks.sendEvent model.lastSendRequestId relays event
@@ -465,7 +493,7 @@ getZapReceiptsForArticle model article =
         TagReferenceEventId eventId ->
             Dict.get eventId model.zapReceiptsEvents
 
-        TagReferenceCode _ _ _ ->
+        TagReferenceCode _ ->
             Dict.get (tagReferenceToString tagRef) model.zapReceiptsAddress
 
         TagReferenceIdentifier _ ->
@@ -498,7 +526,7 @@ profileFilterForCommunityPostApprovals community =
     { authors = Just [ community.pubKey ]
     , kinds = Just [ KindCommunityPostApproval ]
     , ids = Nothing
-    , tagReferences = Just [ TagReferenceCode KindCommunityDefinition community.pubKey (Maybe.withDefault "" community.dtag) ]
+    , tagReferences = Just [ TagReferenceCode (KindCommunityDefinition, community.pubKey, (Maybe.withDefault "" community.dtag)) ]
     , limit = Nothing
     , since = Nothing
     , until = Nothing
@@ -599,24 +627,13 @@ isArticleBookmarked model article pubKey =
     let
         bookmarkList =
             getBookmarks model pubKey
-            |> Maybe.withDefault { notes = [], articles = [], hashtags = [], urls = [] }
+            |> Maybe.withDefault emptyBookmarkList
     in
     bookmarkList.articles
-    |> List.filter (\tagRef ->
-        case tagRef of
-            TagReferenceEventId eventId ->
-                eventId == article.id
-
-            TagReferenceCode kind referencedPubKey dCode ->
-                article.kind == kind &&
-                article.author == referencedPubKey &&
-                article.identifier == Just dCode
-
-            TagReferenceIdentifier _ ->
-                False
-
-            TagReferenceTag _ ->
-                False
+    |> List.filter (\(kind, referencedPubKey, dCode) ->
+            article.kind == kind &&
+            article.author == referencedPubKey &&
+            article.identifier == Just dCode
         )
     |> List.isEmpty
     |> not

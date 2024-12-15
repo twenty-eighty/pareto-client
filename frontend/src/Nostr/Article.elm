@@ -2,11 +2,11 @@ module Nostr.Article exposing (..)
 
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as DecodePipeline
-import Nostr.Event exposing (Event, EventFilter, Kind(..), Tag(..), TagReference(..))
+import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress)
 import Nostr.Nip19 as Nip19
 import Nostr.Nip27 as Nip27
 import Nostr.Profile exposing (ProfileValidation(..))
-import Nostr.Types exposing (EventId, PubKey, RelayUrl)
+import Nostr.Types exposing (Address, EventId, PubKey, RelayUrl)
 import Set
 import Time
 import Ui.Profile exposing (defaultProfileImage)
@@ -69,6 +69,18 @@ nip19ForArticle article =
     |> Nip19.encode
     |> Result.toMaybe
 
+addressForArticle : Article -> Maybe Address
+addressForArticle article =
+    article
+    |> addressComponentsForArticle
+    |> Maybe.map buildAddress 
+
+addressComponentsForArticle : Article -> Maybe AddressComponents
+addressComponentsForArticle article =
+    article.identifier
+    |> Maybe.map (\identifier ->
+        (article.kind, article.author, identifier)
+    )
 
 articleFromEvent : Event -> Result (List String) Article
 articleFromEvent event =
@@ -123,7 +135,7 @@ tagReference : Article -> TagReference
 tagReference article =
     case article.identifier of
         Just identifier ->
-            TagReferenceCode KindLongFormContent article.author identifier
+            TagReferenceCode (KindLongFormContent, article.author, identifier)
 
         Nothing ->
             TagReferenceEventId article.id

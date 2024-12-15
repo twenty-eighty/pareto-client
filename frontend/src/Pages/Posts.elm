@@ -114,6 +114,7 @@ update user shared msg model =
         EditDraft nip19 ->
             (model, Effect.pushRoute { path = Route.Path.Write, query = Dict.singleton "a" nip19, hash = Nothing } )
 
+
 updateModelWithCategory : Shared.Model -> Model -> Category -> (Model, Effect Msg)
 updateModelWithCategory shared model category =
     let
@@ -160,16 +161,23 @@ view shared user model =
             , styles = Ui.Styles.stylesForTheme shared.theme
             }
             |> Components.Categories.view
-        , viewArticles shared model (Just user.pubKey)
+        , viewArticles shared model user.pubKey
         ]
     }
 
-viewArticles : Shared.Model -> Model -> Maybe PubKey -> Html Msg
-viewArticles shared model maybeUserPubKey =
+viewArticles : Shared.Model -> Model -> PubKey -> Html Msg
+viewArticles shared model userPubKey =
     case Components.Categories.selected model.categories of
         Published ->
             Nostr.getArticlesByDate shared.nostr
-            |> Ui.View.viewArticlePreviews ArticlePreviewList shared.theme shared.browserEnv shared.nostr maybeUserPubKey
+            |> Ui.View.viewArticlePreviews
+                    ArticlePreviewList 
+                        { theme = shared.theme
+                        , browserEnv = shared.browserEnv
+                        , nostr = shared.nostr
+                        , userPubKey = Just userPubKey
+                        , onBookmark = Nothing
+                        }
 
         Drafts ->
             Nostr.getArticleDraftsByDate shared.nostr

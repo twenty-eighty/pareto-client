@@ -135,11 +135,19 @@ view shared model =
     , body = [ viewArticle shared maybeArticle ]
     }
 
+
 viewArticle : Shared.Model -> Maybe Article -> Html Msg
 viewArticle shared maybeArticle =
     case maybeArticle of
         Just article ->
-            Ui.View.viewArticle (Ui.Styles.stylesForTheme shared.theme) shared.browserEnv shared.nostr article
+            Ui.View.viewArticle 
+                { theme = shared.theme
+                , browserEnv = shared.browserEnv
+                , nostr = shared.nostr
+                , userPubKey = Shared.loggedInPubKey shared.loginStatus
+                , onBookmark = Nothing
+                }
+                article
 
         Nothing ->
             Html.div [][]

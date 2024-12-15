@@ -10,8 +10,9 @@ import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 import Markdown
-import Nostr.Article exposing (Article, nip19ForArticle)
-import Nostr.Event exposing (Kind(..), TagReference(..), numberForKind)
+import Nostr
+import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle)
+import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), numberForKind)
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Author, Profile, ProfileValidation(..))
 import Nostr.Reactions exposing (Interactions)
@@ -32,9 +33,12 @@ import Translations.Posts
 
 -- single article
 
-viewArticle : Styles msg -> BrowserEnv -> Author -> Article -> Interactions -> Html msg
-viewArticle styles browserEnv author article interactions =
+viewArticle : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
+viewArticle articlePreviewsData articlePreviewData article =
     let
+        styles =
+            Ui.Styles.stylesForTheme articlePreviewsData.theme
+
         contentMargins =
             [ css
                [ Tw.px_1
@@ -132,7 +136,7 @@ viewArticle styles browserEnv author article interactions =
                             ]
                         ])
                         [ text <| Maybe.withDefault "" article.summary ]
-                    , viewAuthorAndDate styles browserEnv article.publishedAt article.createdAt author
+                    , viewAuthorAndDate styles articlePreviewsData.browserEnv article.publishedAt article.createdAt articlePreviewData.author
                     ]
                 ]
             , viewArticleImage article.image
@@ -147,9 +151,9 @@ viewArticle styles browserEnv author article interactions =
                     , Tw.mb_4
                     ]
                 ] ++ contentMargins)
-                [ viewInteractions styles browserEnv interactions
+                [ viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.interactions
                 , viewContent styles article.content
-                , viewInteractions styles browserEnv interactions
+                , viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.interactions
                 ]
             ]
         -- , viewArticleComments styles
@@ -562,11 +566,25 @@ viewArticleInternal styles browserEnv article =
 
 -- article previews
 
-viewArticlePreviewList : Theme -> BrowserEnv -> Author -> Maybe PubKey -> Article -> Interactions -> Bool -> Html msg
-viewArticlePreviewList theme browserEnv author maybeUserPubKey article interactions displayAuthor =
+type alias ArticlePreviewsData msg =
+    { theme : Theme
+    , browserEnv : BrowserEnv
+    , nostr : Nostr.Model
+    , userPubKey : Maybe PubKey
+    , onBookmark : Maybe ((AddressComponents -> msg), (AddressComponents -> msg)) -- msgs for adding/removing a bookmark
+    }
+
+type alias ArticlePreviewData =
+    { author : Author
+    , interactions : Interactions
+    , displayAuthor : Bool
+    }
+
+viewArticlePreviewList : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
+viewArticlePreviewList articlePreviewsData articlePreviewData article =
     let
         styles =
-            Ui.Styles.stylesForTheme theme
+            Ui.Styles.stylesForTheme articlePreviewsData.theme
 
         textWidthAttr =
             case article.image of
@@ -654,8 +672,8 @@ viewArticlePreviewList theme browserEnv author maybeUserPubKey article interacti
                 , Css.property "width" "550px"
                 ]
             ]
-        ]
-        [ viewAuthorAndDatePreview theme browserEnv article maybeUserPubKey author
+        ] 
+        [ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article
         , div
             [ css
                 [ Tw.self_stretch
@@ -793,11 +811,11 @@ viewHashTag styles hashTag =
             [ text hashTag ]
         ]
 
-viewArticlePreviewBigPicture : Theme -> BrowserEnv -> Author -> Article -> Interactions -> Bool -> Html msg
-viewArticlePreviewBigPicture theme browserEnv author article interactions displayAuthor =
+viewArticlePreviewBigPicture : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
+viewArticlePreviewBigPicture articlePreviewsData articlePreviewData article =
     let
         styles =
-            Ui.Styles.stylesForTheme theme
+            Ui.Styles.stylesForTheme articlePreviewsData.theme
     in
     div
         [ css
@@ -825,7 +843,7 @@ viewArticlePreviewBigPicture theme browserEnv author article interactions displa
                     ]
                 ])
                 [ text <| Maybe.withDefault "" article.title ]
-            , viewAuthorAndDatePreview theme browserEnv article Nothing author
+            , viewAuthorAndDatePreview articlePreviewsData articlePreviewData article
             ]
         ]
 
@@ -901,14 +919,14 @@ previewBigPictureImage article =
                 ]
                 []
 
-viewAuthorAndDatePreview : Theme -> BrowserEnv -> Article -> Maybe PubKey -> Nostr.Profile.Author -> Html msg
-viewAuthorAndDatePreview theme browserEnv article maybeUserPubKey author =
+viewAuthorAndDatePreview : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
+viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
     let
         styles =
-            Ui.Styles.stylesForTheme theme
+            Ui.Styles.stylesForTheme articlePreviewsData.theme
 
     in
-    case author of
+    case articlePreviewData.author of
         Nostr.Profile.AuthorPubkey pubKey ->
             div
                 [ css
@@ -919,7 +937,7 @@ viewAuthorAndDatePreview theme browserEnv article maybeUserPubKey author =
                     ]
                 ]
                 [ viewProfilePubKey pubKey
-                , timeParagraph styles browserEnv article.publishedAt article.createdAt
+                , timeParagraph styles articlePreviewsData.browserEnv article.publishedAt article.createdAt
                 ]
 
         Nostr.Profile.AuthorProfile profile validationStatus ->
@@ -950,24 +968,54 @@ viewAuthorAndDatePreview theme browserEnv article maybeUserPubKey author =
                         [ div
                             (styles.colorStyleGrayscaleText ++ styles.textStyle14)
                             [ text (profileDisplayName profile.pubKey profile) ]
-                        , timeParagraph styles browserEnv article.publishedAt article.createdAt
+                        , timeParagraph styles articlePreviewsData.browserEnv article.publishedAt article.createdAt
                         ]
                     ]
-                , viewArticleEditButton theme browserEnv article maybeUserPubKey profile.pubKey
+                , viewArticleEditButton articlePreviewsData article profile.pubKey
+                , viewArticleBookmarkButton articlePreviewsData articlePreviewData article 
                 ]
 
-viewArticleEditButton : Theme -> BrowserEnv -> Article -> Maybe PubKey -> PubKey -> Html msg
-viewArticleEditButton theme browserEnv article maybeUserPubKey articleAuthorPubKey =
-    if maybeUserPubKey == Just articleAuthorPubKey then
+viewArticleEditButton : ArticlePreviewsData msg -> Article -> PubKey -> Html msg
+viewArticleEditButton articlePreviewsData article articleAuthorPubKey =
+    if articlePreviewsData.userPubKey == Just articleAuthorPubKey then
         Button.new
-            { label = Translations.Posts.editDraftButtonLabel [ browserEnv.translations ]
+            { label = Translations.Posts.editDraftButtonLabel [ articlePreviewsData.browserEnv.translations ]
             , onClick = Nothing
-            , theme = theme
+            , theme = articlePreviewsData.theme
             }
             |> Button.withLink (editLink article)
             |> Button.view
     else
         div [][]
+
+
+viewArticleBookmarkButton : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
+viewArticleBookmarkButton articlePreviewsData articlePreviewData article =
+    case
+        ( articlePreviewsData.onBookmark
+        , articlePreviewsData.userPubKey
+        , addressComponentsForArticle article
+        ) of
+        (Just (onAddBookmark, onRemoveBookmark), Just userPubKey, Just addressComponents) ->
+            let
+                (bookmarkMsg, bookmarkIcon) =
+                    if articlePreviewData.interactions.isBookmarked then
+                        (onRemoveBookmark, Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdded 30 Icon.Inherit)
+                    else
+                        (onAddBookmark, Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdd 30 Icon.Inherit)
+            in
+            div
+                [ css
+                    [ Tw.cursor_pointer
+                    ]
+                , Events.onClick <| bookmarkMsg addressComponents
+                ]
+                [ bookmarkIcon
+                    |> Icon.view
+                ]
+
+        ( _, _, _ ) ->
+            div [][]
 
 
 editLink : Article -> Maybe String

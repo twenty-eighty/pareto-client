@@ -21,6 +21,7 @@ import Shared.Msg
 import Shared.Model
 import Task
 import Translations.Sidebar as Translations
+import Ui.Article exposing (ArticlePreviewsData)
 import Ui.Styles exposing (Styles, Theme)
 import Ui.View
 import Url
@@ -128,15 +129,21 @@ view shared model =
     , body =
         [ model.nip19
           |> Maybe.andThen (Nostr.getArticleForNip19 shared.nostr)
-          |> viewArticle (Ui.Styles.stylesForTheme shared.theme) shared.browserEnv shared.nostr
+          |> viewArticle
+            { theme = shared.theme
+            , browserEnv = shared.browserEnv
+            , nostr = shared.nostr
+            , userPubKey = Shared.loggedInPubKey shared.loginStatus
+            , onBookmark = Nothing
+            }
         ]
     }
 
-viewArticle : Styles Msg -> BrowserEnv -> Nostr.Model -> Maybe Article -> Html Msg
-viewArticle styles browserEnv nostr maybeArticle =
+viewArticle : ArticlePreviewsData msg -> Maybe Article -> Html msg
+viewArticle articlePreviewsData maybeArticle =
     case maybeArticle of
         Just article ->
-            Ui.View.viewArticle styles browserEnv nostr article 
+            Ui.View.viewArticle articlePreviewsData article 
 
         Nothing ->
             div [][]

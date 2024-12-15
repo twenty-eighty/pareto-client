@@ -202,7 +202,15 @@ viewContent shared model =
 
         Just (Article naddrData) ->
             Nostr.getArticleForNip19 shared.nostr (Nip19.NAddr naddrData)
-            |> Maybe.map (Ui.View.viewArticle styles shared.browserEnv shared.nostr)
+            |> Maybe.map
+                (Ui.View.viewArticle 
+                    { theme = shared.theme
+                    , browserEnv = shared.browserEnv
+                    , nostr = shared.nostr
+                    , userPubKey = Shared.loggedInPubKey shared.loginStatus
+                    , onBookmark = Nothing
+                    }
+                )
             |> Maybe.withDefault (div [][])
 
         _ ->

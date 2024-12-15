@@ -31,15 +31,9 @@ communityListFromEvent event =
             event.tags
             |> List.filterMap (\tag ->
                 case tag of 
-                    AddressTag address ->
-                        address
-                        |> parseAddress
-                        |> Maybe.andThen (\(kind, pubKey, identifier) ->
-                            if kind == KindCommunityDefinition then
-                                Just { identifier = identifier, pubKey = pubKey }
-                            else
-                                Nothing
-                            )
+                    AddressTag (KindCommunityDefinition, pubKey, identifier) ->
+                        Just { identifier = identifier, pubKey = pubKey }
+
                     _ ->
                         Nothing
                     )
