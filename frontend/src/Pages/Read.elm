@@ -108,16 +108,14 @@ update shared msg model =
 
         AddArticleBookmark pubKey addressComponents ->
             ( model
-            , 
-                SendBookmarkListWithArticle pubKey addressComponents
+            , SendBookmarkListWithArticle pubKey addressComponents
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
 
         RemoveArticleBookmark pubKey addressComponents ->
             ( model
-            , 
-                SendBookmarkListWithoutArticle pubKey addressComponents
+            , SendBookmarkListWithoutArticle pubKey addressComponents
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )

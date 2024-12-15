@@ -1,16 +1,22 @@
 module Pages.Bookmarks exposing (Model, Msg, page)
 
 import Auth
+import Components.Categories as Categories
+import Dict
+import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h1, h2, h3, h4, img, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
-import Effect exposing (Effect)
+import I18Next
 import Layouts
 import Nostr exposing (getBookmarks)
-import Nostr.Event exposing (Kind(..))
+import Nostr.BookmarkList exposing (BookmarkList, BookmarkType(..), bookmarksCount, emptyBookmarkList)
+import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..))
 import Nostr.Request exposing (RequestData(..))
-import Nostr.Types exposing (IncomingMessage)
+import Nostr.Send exposing (SendRequest(..))
+import Nostr.Types exposing (IncomingMessage, PubKey)
 import Route exposing (Route)
+import Route.Path
 import Page exposing (Page)
 import Ports
 import Shared
@@ -21,6 +27,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations.Bookmarks as Translations
 import Ui.Styles exposing (Theme, fontFamilyUnbounded, fontFamilyInter)
+import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 
 
@@ -28,9 +35,9 @@ page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
 page user shared route =
     Page.new
         { init = init shared user
-        , update = update shared
+        , update = update user shared
         , subscriptions = subscriptions
-        , view = view shared
+        , view = view user shared
         }
         |> Page.withLayout (toLayout shared.theme)
 
@@ -46,29 +53,75 @@ toLayout theme model =
 
 
 type alias Model =
-    {
+    { categories : Categories.Model BookmarkType
+    , selectedBookmarkType : BookmarkType
     }
 
 
 init : Shared.Model -> Auth.User -> () -> ( Model, Effect Msg )
 init shared user () =
     let
-        filter =
-            { authors = Just [ user.pubKey ]
+        contentRequest =
+            Nostr.getBookmarks shared.nostr user.pubKey
+            |> Maybe.map (requestForBookmarks shared.nostr ArticleBookmark)
+            |> Maybe.withDefault Effect.none
+    in
+    ( { categories = Categories.init { selected = ArticleBookmark }
+      , selectedBookmarkType = ArticleBookmark
+      }
+    , contentRequest
+    )
+
+requestForBookmarks : Nostr.Model -> BookmarkType -> BookmarkList -> Effect Msg
+requestForBookmarks nostr bookmarkType bookmarkList =
+    case bookmarkType of
+        ArticleBookmark ->
+            { authors = Nothing
             , ids = Nothing
-            , kinds = Just [ KindBookmarkList, KindBookmarkSets ]
-            , tagReferences = Nothing
+            , kinds = Just [ KindLongFormContent ]
+            , tagReferences =
+                bookmarkList.articles
+                |> List.map TagReferenceCode
+                |> Just
             , limit = Nothing
             , since = Nothing
             , until = Nothing
             }
-    in
-    ( { }
-    , RequestBookmarks filter
-    |> Nostr.createRequest shared.nostr "Bookmarks" []
-    |> Shared.Msg.RequestNostrEvents
-    |> Effect.sendSharedMsg
-    )
+            |> RequestArticlesFeed 
+            |> Nostr.createRequest nostr "Bookmark articles" [KindUserMetadata]
+            |> Shared.Msg.RequestNostrEvents
+            |> Effect.sendSharedMsg
+
+        HashtagBookmark ->
+            -- { authors = Nothing
+            -- , ids = Nothing
+            -- , kinds = Just [ KindLongFormContent ]
+            -- , tagReferences =
+            --     bookmarkList.hashtags
+            --     |> List.map TagReferenceTag
+            --     |> Just
+            -- , limit = Nothing
+            -- , since = Nothing
+            -- , until = Nothing
+            -- }
+            Effect.none
+
+        NoteBookmark ->
+            -- { authors = Nothing
+            -- , ids = Nothing
+            -- , kinds = Just [ KindLongFormContent ]
+            -- , tagReferences =
+            --     bookmarkList.notes
+            --     |> List.map TagReferenceEventId
+            --     |> Just
+            -- , limit = Nothing
+            -- , since = Nothing
+            -- , until = Nothing
+            -- }
+            Effect.none
+
+        UrlBookmark ->
+            Effect.none
 
 
 
@@ -77,14 +130,57 @@ init shared user () =
 
 type Msg
     =  ReceivedMessage IncomingMessage
+    | CategoriesSent (Categories.Msg BookmarkType Msg)
+    | CategorySelected BookmarkType
+    | AddArticleBookmark PubKey AddressComponents
+    | RemoveArticleBookmark PubKey AddressComponents
 
-
-update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
-update shared msg model =
+update : Auth.User -> Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
+update user shared msg model =
     case msg of
         ReceivedMessage message ->
             updateWithMessage shared model message
 
+        CategoriesSent innerMsg ->
+            Categories.update
+                { msg = innerMsg
+                , model = model.categories
+                , toModel = \categories -> { model | categories = categories}
+                , toMsg = CategoriesSent
+                }
+
+        CategorySelected bookmarkType ->
+            ( { model | selectedBookmarkType = bookmarkType }, Effect.none )
+
+        AddArticleBookmark pubKey addressComponents ->
+            ( model
+            , SendBookmarkListWithArticle pubKey addressComponents
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        RemoveArticleBookmark pubKey addressComponents ->
+            let
+                numberOfBookmarks =
+                    Nostr.getBookmarks shared.nostr user.pubKey
+                    |> Maybe.map bookmarksCount
+                    |> Maybe.withDefault 0
+
+                redirectForEmptyList =
+                    if numberOfBookmarks <= 1 then
+                        -- assume that we're about to delete the last bookmark
+                        Effect.replaceRoute { hash = Nothing , path = Route.Path.Read , query = Dict.empty }
+                    else
+                        Effect.none
+            in
+            ( model
+            , Effect.batch
+                [ redirectForEmptyList
+                , SendBookmarkListWithoutArticle pubKey addressComponents
+                    |> Shared.Msg.SendNostrEvent
+                    |> Effect.sendSharedMsg
+                ]
+            )
 
 updateWithMessage : Shared.Model.Model -> Model -> IncomingMessage -> (Model, Effect Msg)
 updateWithMessage shared model message =
@@ -100,72 +196,93 @@ subscriptions model =
 
 -- VIEW
 
-view : Shared.Model -> Model -> View Msg
-view shared model =
+view : Auth.User -> Shared.Model -> Model -> View Msg
+view user shared model =
     let
         styles =
             Ui.Styles.stylesForTheme shared.theme
+
+        bookmarkList =
+            Nostr.getBookmarks shared.nostr user.pubKey
+            |> Maybe.withDefault emptyBookmarkList
     in
     { title = Translations.bookmarksTitle [ shared.browserEnv.translations ]
     , body =
-        [ div
-            [ css
-                [ Tw.flex
-                , Tw.items_center
-                , Tw.justify_center
-                , Tw.min_h_screen
-                ]
-            ]
-            [ div
-                [ css
-                    [ Tw.p_6
-                    , Tw.rounded_lg
-                    , Tw.shadow_lg
-                    , Tw.max_w_3xl
-                    , Tw.space_y_2
-                    ]
-                ]
-                [ h1
-                    (styles.colorStyleGrayscaleTitle ++ styles.textStyleH1 ++
-                    [ css
-                        [ Tw.mb_2
-                        ]
-                    ])
-                    [ text <| Translations.bookmarksTitle [ shared.browserEnv.translations ]
-                    ]
-                , h3
-                    (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3 ++
-                    [ css
-                        [ Tw.mb_2
-                        ]
-                    , fontFamilyUnbounded
-                    ])
-                    [ text <| Translations.myBookmarksTitle [ shared.browserEnv.translations ]
-                    ]
-                , viewBookmarks shared model
-                ]
-            ]
+        [ Categories.new
+            { model = model.categories
+            , toMsg = CategoriesSent
+            , onSelect = CategorySelected
+            , categories = availableCategories bookmarkList shared.browserEnv.translations
+            , browserEnv = shared.browserEnv
+            , styles = styles
+            }
+            |> Categories.view
+        , viewBookmarks user shared model bookmarkList
         ]
     }
 
-viewBookmarks : Shared.Model -> Model -> Html Msg
-viewBookmarks shared model =
-    div [][]
-{-
-    case shared.loginStatus of
-        Shared.Model.LoggedIn pubKey ->
-            case getBookmarks shared.nostr pubKey of
-                Just bookmarks ->
-                    bookmarks.articles
-                    |> List.map (viewArticlePreview model)
-                    |> div 
-                        [ css
-                            [ Tw.space_y_2
-                            ]
-                        ]
+viewBookmarks : Auth.User -> Shared.Model -> Model -> BookmarkList -> Html Msg
+viewBookmarks user shared model bookmarkList =
+    case model.selectedBookmarkType of
+        ArticleBookmark ->
+            viewArticleBookmarks user shared model bookmarkList.articles
 
-        Nothing ->
-            div
+        HashtagBookmark ->
+            viewHashtagBookmarks user shared model bookmarkList.hashtags
+
+        NoteBookmark ->
+            viewNoteBookmarks user shared model bookmarkList.notes
+
+        UrlBookmark ->
+            viewUrlBookmarks user shared model bookmarkList.urls
+
+viewArticleBookmarks : Auth.User -> Shared.Model -> Model -> List AddressComponents -> Html Msg
+viewArticleBookmarks user shared model addressComponents =
+    addressComponents
+    |> List.filterMap (Nostr.getArticle shared.nostr)
+    |> Ui.View.viewArticlePreviews
+        ArticlePreviewList
+            { theme = shared.theme
+            , browserEnv = shared.browserEnv
+            , nostr = shared.nostr
+            , userPubKey = Just user.pubKey
+            , onBookmark = Just (AddArticleBookmark user.pubKey, RemoveArticleBookmark user.pubKey)
+            }
+
+viewHashtagBookmarks user shared model hashtags =
+    div [][]
+
+viewNoteBookmarks user shared model notes =
+    div [][]
+
+viewUrlBookmarks user shared model urls =
+    div [][]
+
+availableCategories : BookmarkList -> I18Next.Translations -> List (Categories.CategoryData BookmarkType)
+availableCategories bookmarkList translations =
+    let
+        articleBookmarkCategory =
+            if List.length bookmarkList.articles > 0 then
+                [ { category = ArticleBookmark , title = Translations.articlesTitle [ translations ] } ]
+            else
                 []
+
+        hashtagBookmarkCategory =
+            if List.length bookmarkList.hashtags > 0 then
+                [ { category = HashtagBookmark, title = Translations.hashtagsTitle [ translations ] } ]
+            else
                 []
--}
+
+        urlBookmarkCategory =
+            if List.length bookmarkList.urls > 0 then
+                [ { category = UrlBookmark, title = Translations.urlsTitle [ translations ] } ]
+            else
+                []
+
+        noteBookmarkCategory =
+            if List.length bookmarkList.notes > 0 then
+                [ { category = NoteBookmark, title = Translations.notesTitle [ translations ] } ]
+            else
+                []
+    in
+    articleBookmarkCategory ++ hashtagBookmarkCategory ++ urlBookmarkCategory ++ noteBookmarkCategory

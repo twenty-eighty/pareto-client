@@ -6,14 +6,14 @@ import Html.Styled as Html exposing (Html, div)
 import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
-import Nostr.Article exposing (Article, articleFromEvent, filterMatchesArticle, tagReference)
+import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, tagReference)
 import Nostr.Blossom exposing (userServerListFromEvent)
 import Nostr.BookmarkList exposing (BookmarkList, bookmarkListFromEvent, bookmarkListEvent, bookmarkListWithArticle, bookmarkListWithoutArticle, emptyBookmarkList)
 import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
 import Nostr.DeletionRequest exposing (DeletionRequest, deletionRequestFromEvent)
-import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), buildAddress, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
+import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), buildAddress, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.FollowList exposing (Following, followListFromEvent)
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
@@ -46,7 +46,8 @@ type alias Hooks =
     }
 
 type alias Model =
-    { articlesByAuthor : Dict PubKey (List Article)
+    { articlesByAddress : Dict Address Article
+    , articlesByAuthor : Dict PubKey (List Article)
     , articlesByDate : List Article
     , articleDraftsByDate : List Article
     , articleDraftRelays : Dict EventId (Set RelayUrl)
@@ -290,6 +291,10 @@ getAuthor model pubKey =
 getProfileValidationStatus : Model -> PubKey -> Maybe ProfileValidation
 getProfileValidationStatus model pubKey =
     Dict.get pubKey model.profileValidations
+
+getArticle : Model -> AddressComponents -> Maybe Article
+getArticle model addressComponents =
+    Dict.get (buildAddress addressComponents) model.articlesByAddress 
 
 getArticlesByDate : Model -> List Article
 getArticlesByDate model =
@@ -690,7 +695,8 @@ cmdBatch2 cmd1 cmd2 =
 
 empty : Model
 empty =
-    { articlesByAuthor = Dict.empty
+    { articlesByAddress = Dict.empty
+    , articlesByAuthor = Dict.empty
     , articlesByDate = []
     , articleDraftsByDate = []
     , articleDraftRelays = Dict.empty
@@ -1071,6 +1077,18 @@ updateModelWithLongFormContent model requestId events =
                 |> Maybe.withDefault 0
                 )
 
+        articlesByAddress =
+            articles
+            |> List.foldl (\article dict ->
+                    case addressForArticle article of
+                        Just address ->
+                            Dict.insert address article dict
+
+                        Nothing ->
+                            dict
+
+                ) model.articlesByAddress
+
         articlesByAuthor =
             articles
             |> List.foldl (\article dict ->
@@ -1092,7 +1110,14 @@ updateModelWithLongFormContent model requestId events =
                 Nothing ->
                     (model, Cmd.none)
     in
-    ({ requestModel | articlesByAuthor = articlesByAuthor, articlesByDate = articlesByDate, errors = newErrors ++ model.errors }, requestCmd)
+    ({ requestModel
+        | articlesByAddress = articlesByAddress
+        , articlesByAuthor = articlesByAuthor
+        , articlesByDate = articlesByDate
+        , errors = newErrors ++ model.errors
+    }
+    , requestCmd
+    )
 
 updateModelWithLongFormContentDraft : Model -> RequestId -> List Event -> (Model, Cmd Msg)
 updateModelWithLongFormContentDraft model requestId events =

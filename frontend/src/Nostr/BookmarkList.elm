@@ -14,6 +14,13 @@ type alias BookmarkList =
     , urls : List String
     }
 
+type BookmarkType
+    = ArticleBookmark
+    | HashtagBookmark
+    | NoteBookmark
+    | UrlBookmark
+
+
 {-
 -}
 emptyBookmarkList : BookmarkList
