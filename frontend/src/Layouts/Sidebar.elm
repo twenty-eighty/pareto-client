@@ -538,7 +538,7 @@ viewSidebarItems styles browserEnv clientRole loggedIn maybeBookmarksCount curre
                     case maybeBookmarksCount of
                         Just bookmarksCount ->
                             -- add bookmarks count to title
-                            Just { sidebarItem | title = sidebarItem.title ++ " (" ++ String.fromInt bookmarksCount ++ ")"}
+                            Just { sidebarItem | title = sidebarItem.title ++ " " ++ countBadge bookmarksCount }
 
                         Nothing ->
                             -- filter bookmarks sidebar item
@@ -566,6 +566,72 @@ viewSidebarItems styles browserEnv clientRole loggedIn maybeBookmarksCount curre
         (
         (List.map (viewSidebarItem styles currentPath) visibleSidebarItems)
         )
+
+countBadge : Int -> String
+countBadge count =
+    case count of
+        1 ->
+            "\u{2460}"
+
+        2 ->
+            "\u{2461}"
+
+        3 ->
+            "\u{2462}"
+
+        4 ->
+            "\u{2463}"
+
+        5 ->
+            "\u{2464}"
+
+        6 ->
+            "\u{2465}"
+
+        7 ->
+            "\u{2466}"
+
+        8 ->
+            "\u{2467}"
+
+        9 ->
+            "\u{2468}"
+
+        10 ->
+            "\u{2469}"
+
+        11 ->
+            "\u{246A}"
+
+        12 ->
+            "\u{246B}"
+
+        13 ->
+            "\u{246C}"
+
+        14 ->
+            "\u{246D}"
+
+        15 ->
+            "\u{246E}"
+
+        16 ->
+            "\u{246F}"
+
+        17 ->
+            "\u{2470}"
+
+        18 ->
+            "\u{2471}"
+
+        19 ->
+            "\u{2472}"
+
+        20 ->
+            "\u{2473}"
+
+        otherNumber ->
+            "(" ++ String.fromInt count ++ ")"
 
 sidebarItemVisible : Bool -> SidebarItemData -> Bool
 sidebarItemVisible loggedIn sidebarItem =
