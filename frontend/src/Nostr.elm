@@ -1129,7 +1129,7 @@ updateModelWithLongFormContent model requestId events =
             |> List.foldl (\article dict ->
                     case Dict.get article.author dict of
                         Just articleList ->
-                            Dict.insert article.author (article :: articleList) dict
+                            Dict.insert article.author (appendArticleToList articleList article) dict
                         Nothing ->
                             Dict.insert article.author [ article ] dict
                 ) model.articlesByAuthor
@@ -1153,6 +1153,25 @@ updateModelWithLongFormContent model requestId events =
     }
     , requestCmd
     )
+
+appendArticleToList : List Article -> Article -> List Article
+appendArticleToList articleList article =
+    let
+        addressComponents =
+            addressComponentsForArticle article
+
+        articleIsInList =
+            articleList
+            |> List.filter (\articleInList ->
+                    addressComponents == addressComponentsForArticle articleInList
+                )
+            |> List.isEmpty
+            |> not
+    in
+    if articleIsInList then
+        articleList
+    else
+        articleList ++ [ article ]
 
 updateModelWithLongFormContentDraft : Model -> RequestId -> List Event -> (Model, Cmd Msg)
 updateModelWithLongFormContentDraft model requestId events =
