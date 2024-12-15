@@ -8,9 +8,10 @@ import Html.Styled as Html exposing (Html, a, article, aside, button, div, h1, h
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
+import Json.Decode as Decode
 import Layouts
 import Nostr exposing (getBookmarks)
-import Nostr.BookmarkList exposing (BookmarkList, BookmarkType(..), bookmarksCount, emptyBookmarkList)
+import Nostr.BookmarkList exposing (BookmarkList, BookmarkType(..), bookmarkListFromEvent, bookmarksCount, emptyBookmarkList)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..))
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
@@ -63,7 +64,7 @@ init shared user () =
     let
         contentRequest =
             Nostr.getBookmarks shared.nostr user.pubKey
-            |> Maybe.map (requestForBookmarks shared.nostr ArticleBookmark)
+            |> Maybe.map (requestForBookmarkContent shared.nostr ArticleBookmark)
             |> Maybe.withDefault Effect.none
     in
     ( { categories = Categories.init { selected = ArticleBookmark }
@@ -72,25 +73,26 @@ init shared user () =
     , contentRequest
     )
 
-requestForBookmarks : Nostr.Model -> BookmarkType -> BookmarkList -> Effect Msg
-requestForBookmarks nostr bookmarkType bookmarkList =
+requestForBookmarkContent : Nostr.Model -> BookmarkType -> BookmarkList -> Effect Msg
+requestForBookmarkContent nostr bookmarkType bookmarkList =
     case bookmarkType of
         ArticleBookmark ->
-            { authors = Nothing
-            , ids = Nothing
-            , kinds = Just [ KindLongFormContent ]
-            , tagReferences =
-                bookmarkList.articles
-                |> List.map TagReferenceCode
-                |> Just
-            , limit = Nothing
-            , since = Nothing
-            , until = Nothing
-            }
-            |> RequestArticlesFeed 
-            |> Nostr.createRequest nostr "Bookmark articles" [KindUserMetadata]
-            |> Shared.Msg.RequestNostrEvents
-            |> Effect.sendSharedMsg
+            bookmarkList.articles
+            |> List.map (\(kind, pubKey, identifier) ->
+                { authors = Just [ pubKey ]
+                , ids = Nothing
+                , kinds = Just [ kind ]
+                , tagReferences = Just [ TagReferenceIdentifier identifier ]
+                , limit = Nothing
+                , since = Nothing
+                , until = Nothing
+                }
+                |> RequestArticlesFeed 
+                |> Nostr.createRequest nostr "Bookmark articles" [KindUserMetadata]
+                |> Shared.Msg.RequestNostrEvents
+                |> Effect.sendSharedMsg
+            )
+            |> Effect.batch
 
         HashtagBookmark ->
             -- { authors = Nothing
@@ -139,7 +141,7 @@ update : Auth.User -> Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg 
 update user shared msg model =
     case msg of
         ReceivedMessage message ->
-            updateWithMessage shared model message
+            updateWithMessage user shared model message
 
         CategoriesSent innerMsg ->
             Categories.update
@@ -182,9 +184,38 @@ update user shared msg model =
                 ]
             )
 
-updateWithMessage : Shared.Model.Model -> Model -> IncomingMessage -> (Model, Effect Msg)
-updateWithMessage shared model message =
-    ( model, Effect.none )
+updateWithMessage : Auth.User -> Shared.Model.Model -> Model -> IncomingMessage -> (Model, Effect Msg)
+updateWithMessage user shared model message =
+    case message.messageType of
+        "events" ->
+            case (Decode.decodeValue (Decode.field "kind" Nostr.Event.kindDecoder) message.value) of
+                Ok KindBookmarkList ->
+                    case (Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) message.value) of
+                        Ok events ->
+                            let
+                                requestEffect =
+                                    events
+                                    |> List.map bookmarkListFromEvent
+                                    |> List.filterMap (\(pubKey, bookmarkList) ->
+                                            if pubKey == user.pubKey then
+                                                Just bookmarkList
+                                            else
+                                                Nothing
+                                        )
+                                    |> List.head
+                                    |> Maybe.map (requestForBookmarkContent shared.nostr model.selectedBookmarkType)
+                                    |> Maybe.withDefault Effect.none
+                            in
+                            ( model, requestEffect )
+
+                        _ ->
+                            ( model, Effect.none )
+
+                _ ->
+                    ( model, Effect.none )
+
+        _ ->
+            ( model, Effect.none )
 
 -- SUBSCRIPTIONS
 

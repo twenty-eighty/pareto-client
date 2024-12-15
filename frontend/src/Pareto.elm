@@ -83,6 +83,7 @@ supportedKinds =
     , KindEventDeletionRequest
     , KindFileMetadata
     , KindRelayListMetadata
+    , KindBookmarkList
     , KindUserServerList
     , KindFileStorageServerList
     , KindClientAuthentication
