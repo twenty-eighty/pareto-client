@@ -14,17 +14,13 @@ import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Types exposing (PubKey)
 import Page exposing (Page)
-import Ports
 import Route exposing (Route)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
-import Tailwind.Theme as Theme
-import Ui.ArticleOld
 import Ui.Profile
 import Ui.Styles exposing (Styles, Theme)
+import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 import Nostr.Event exposing (Kind(..))
 import Nostr.Nip05 exposing (nip05ToString)
@@ -65,9 +61,10 @@ init shared route () =
             model.nip05
             |> Maybe.map (\nip05 ->
                 case Nostr.getPubKeyByNip05 shared.nostr nip05 of
-                    Just _ ->
+                    Just pubKey ->
                         -- already validated, don't do again
-                        Effect.none
+                        pubKey
+                        |> buildRequestArticlesEffect shared.nostr
 
                     Nothing ->
                         RequestProfileByNip05 nip05
@@ -80,6 +77,14 @@ init shared route () =
     in
     ( model, requestEffect
     )
+
+buildRequestArticlesEffect : Nostr.Model -> PubKey -> Effect Msg
+buildRequestArticlesEffect nostr pubKey =
+    { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just [pubKey], limit = Just 20 }
+    |> RequestArticlesFeed 
+    |> Nostr.createRequest nostr "Posts of user" [KindUserMetadata]
+    |> Shared.Msg.RequestNostrEvents
+    |> Effect.sendSharedMsg
 
 
 -- UPDATE
@@ -130,23 +135,14 @@ view shared model =
 viewProfile : Shared.Model -> Profile -> Html Msg
 viewProfile shared profile =
     div []
-        [ Ui.Profile.viewProfile profile (Nostr.getProfileValidationStatus shared.nostr profile.pubKey |> Maybe.withDefault ValidationUnknown)
+        [ Ui.Profile.viewProfile shared.theme profile (Nostr.getProfileValidationStatus shared.nostr profile.pubKey |> Maybe.withDefault ValidationUnknown)
         , Nostr.getArticlesForAuthor shared.nostr profile.pubKey 
-        |> viewArticlePreviews (Ui.Styles.stylesForTheme shared.theme) shared.browserEnv shared.nostr 
+        |> Ui.View.viewArticlePreviews
+                ArticlePreviewList 
+                    { theme = shared.theme
+                    , browserEnv = shared.browserEnv
+                    , nostr = shared.nostr
+                    , userPubKey = Shared.loggedInPubKey shared.loginStatus
+                    , onBookmark = Nothing
+                    }
         ]
-
-viewArticlePreviews : Styles msg -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
-viewArticlePreviews styles browserEnv nostr articles =
-    articles
-    |> List.take 20
-    |> List.map (\article ->
-        let
-            author = 
-                (Nostr.getAuthor nostr article.author)
-
-            interactions =
-                (Nostr.getInteractions nostr Nothing article)
-        in
-        Ui.ArticleOld.viewArticlePreview browserEnv styles author article interactions False
-        )
-    |> div []

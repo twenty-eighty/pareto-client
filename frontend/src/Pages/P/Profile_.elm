@@ -20,10 +20,9 @@ import Shared
 import Shared.Model
 import Shared.Msg
 import Translations.Sidebar as Translations
-import Ui.ArticleOld
 import Ui.Profile
 import Ui.Styles exposing (Styles, Theme)
-import Ui.View exposing (viewRelayStatus)
+import Ui.View exposing (ArticlePreviewType(..), viewRelayStatus)
 import View exposing (View)
 import Nostr.Profile exposing (ProfileValidation(..))
 
@@ -172,23 +171,14 @@ view shared model =
 viewProfile : Shared.Model -> Profile -> Html Msg
 viewProfile shared profile =
     div []
-        [ Ui.Profile.viewProfile profile (Nostr.getProfileValidationStatus shared.nostr profile.pubKey |> Maybe.withDefault ValidationUnknown)
+        [ Ui.Profile.viewProfile shared.theme profile (Nostr.getProfileValidationStatus shared.nostr profile.pubKey |> Maybe.withDefault ValidationUnknown)
         , Nostr.getArticlesForAuthor shared.nostr profile.pubKey
-        |> viewArticlePreviews (Ui.Styles.stylesForTheme shared.theme) shared.browserEnv shared.nostr 
+        |> Ui.View.viewArticlePreviews
+                ArticlePreviewList 
+                    { theme = shared.theme
+                    , browserEnv = shared.browserEnv
+                    , nostr = shared.nostr
+                    , userPubKey = Shared.loggedInPubKey shared.loginStatus
+                    , onBookmark = Nothing
+                    }
         ]
-
-viewArticlePreviews : Styles msg -> BrowserEnv -> Nostr.Model -> List Article -> Html msg
-viewArticlePreviews styles browserEnv nostr articles =
-    articles
-    |> List.take 20
-    |> List.map (\article ->
-        let
-            author = 
-                (Nostr.getAuthor nostr article.author)
-
-            interactions =
-                (Nostr.getInteractions nostr Nothing article)
-        in
-        Ui.ArticleOld.viewArticlePreview browserEnv styles author article interactions False
-        )
-    |> div []

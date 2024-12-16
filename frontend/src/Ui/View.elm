@@ -2,10 +2,8 @@ module Ui.View exposing (..)
 
 -- this module connects the Nostr engine and the UI functions
 
-import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.RelayStatus as RelayStatus exposing (Purpose(..))
-import Css
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Nostr
@@ -14,11 +12,8 @@ import Nostr.Community exposing (Community)
 import Nostr.Request exposing (RequestId)
 import Nostr.ShortNote exposing (ShortNote)
 import Nostr.Types exposing (PubKey)
-import Tailwind.Breakpoints as Bp
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Ui.Article exposing (ArticlePreviewData, ArticlePreviewsData)
-import Ui.ArticleOld
 import Ui.Community
 import Ui.ShortNote
 import Ui.Styles exposing (Styles, Theme)

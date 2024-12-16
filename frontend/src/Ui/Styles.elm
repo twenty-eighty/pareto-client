@@ -70,6 +70,7 @@ map toMsg props =
     , textStyleHashtagLarge = mapStyleBundle toMsg props.textStyleHashtagLarge
     , colorStyleBackground = mapStyleBundle toMsg props.colorStyleBackground
     , colorStyleLabel = mapStyleBundle toMsg props.colorStyleLabel
+    , colorStyleLinks = mapStyleBundle toMsg props.colorStyleLinks
     , colorStyleMedia = mapStyleBundle toMsg props.colorStyleMedia
     , colorStyleLabelBG = mapStyleBundle toMsg props.colorStyleLabelBG
     , colorStyleBorders = mapStyleBundle toMsg props.colorStyleBorders
@@ -132,6 +133,7 @@ type alias Styles msg =
     , textStyleHashtagLarge : StyleBundle msg
     , colorStyleBackground : StyleBundle msg
     , colorStyleLabel : StyleBundle msg
+    , colorStyleLinks : StyleBundle msg
     , colorStyleMedia : StyleBundle msg
     , colorStyleLabelBG : StyleBundle msg
     , colorStyleBorders : StyleBundle msg
@@ -340,6 +342,14 @@ referenceDesignThemeStyles =
             [ Tw.text_color Theme.slate_600 -- should be #565C70
             , darkMode
                 [ Tw.text_color Theme.slate_400
+                ]
+            ]
+        ]
+    , colorStyleLinks = 
+        [ css
+            [ Tw.text_color Theme.blue_600
+            , darkMode
+                [ Tw.text_color Theme.blue_400
                 ]
             ]
         ]
@@ -829,6 +839,14 @@ paretoThemeStyles =
             [ Tw.text_color Theme.slate_600 -- should be #565C70
             , darkMode
                 [ Tw.text_color Theme.slate_400
+                ]
+            ]
+        ]
+    , colorStyleLinks = 
+        [ css
+            [ Tw.text_color Theme.blue_600
+            , darkMode
+                [ Tw.text_color Theme.blue_400
                 ]
             ]
         ]

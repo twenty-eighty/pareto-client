@@ -5,8 +5,8 @@ import Graphics
 import Html.Styled as Html exposing (Html, Attribute, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
-import Http
 import Nostr.Nip05 as Nip05
+import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
@@ -15,7 +15,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Time
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
-import Nostr.Nip19 as Nip19
+import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 
 defaultProfileImage : String
 defaultProfileImage =
@@ -55,96 +55,79 @@ viewProfileSmall profile validationStatus =
 
 
 
-viewProfile : Profile -> ProfileValidation -> Html msg
-viewProfile profile validationStatus =
-        div
+viewProfile : Theme -> Profile -> ProfileValidation -> Html msg
+viewProfile theme profile validationStatus =
+    let
+        styles =
+            stylesForTheme theme
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.space_y_2
+            , Tw.mb_4
+            ]
+        ]
+        [ viewBanner profile.banner
+        , div
             [ css
                 [ Tw.flex
-                , Tw.flex_col
-                , Tw.space_y_2
+                , Tw.flex_row
+                , Tw.items_center
+                , Tw.space_x_4
                 , Tw.mb_4
                 ]
             ]
-            [ viewBanner profile.banner
+            [ viewProfileImage (div [ css [ Tw.flex_none ]]) profile.picture validationStatus
             , div
                 [ css
                     [ Tw.flex
-                    , Tw.flex_row
-                    , Tw.items_center
-                    , Tw.space_x_4
+                    , Tw.flex_col
+                    , Tw.space_y_2
+                    , Tw.flex_grow
                     , Tw.mb_4
                     ]
                 ]
-                [ viewProfileImage (div [ css [ Tw.flex_none ]]) profile.picture validationStatus
-                , div
-                    [ css
-                        [ Tw.flex
-                        , Tw.flex_col
-                        , Tw.space_y_2
-                        , Tw.flex_grow
-                        , Tw.mb_4
-                        ]
-                    ]
-                    [ h2
-                        [ css
-                            [ Tw.text_2xl
-                            , Tw.text_color Theme.gray_800
-                            ]
-                        ]
-                        [ text (profileDisplayName profile.pubKey profile) ]
-                    , p
-                        [ css
-                            [ Tw.text_color Theme.gray_600
-                            , Tw.text_sm
-                            , Tw.mb_4
-                            , Tw.w_auto
-                            ]
-                        ]
-                        [ text (profile.about |> Maybe.withDefault "") ]
-                    , viewWebsite profile
-                    , viewNip05 profile
-                    , viewNpub profile
-                    ]
+                [ h2
+                    (styles.colorStyleGrayscaleTitle ++ styles.textStyleH2)
+                    [ text (profileDisplayName profile.pubKey profile) ]
+                , p
+                    (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
+                    [ text (profile.about |> Maybe.withDefault "") ]
+                , viewWebsite styles profile
+                , viewNip05 styles profile
+                , viewNpub styles profile
                 ]
             ]
+        ]
 
-viewWebsite : Profile -> Html msg
-viewWebsite profile =
+viewWebsite : Styles msg -> Profile -> Html msg
+viewWebsite styles profile =
     case profile.website of
         Just website ->
             a
-                [ css
-                    [ Tw.text_color Theme.gray_600
-                    , Tw.text_sm
-                    , Tw.mb_4
-                    , Tw.w_auto
-                    ]
-                , Attr.href website
-                ]
+                (styles.colorStyleLinks ++ styles.textStyleLinks ++
+                [ Attr.href website
+                ])
                 [ text website ]
 
         Nothing ->
             div [][]
 
-viewNip05 : Profile -> Html msg
-viewNip05 profile =
+viewNip05 : Styles msg -> Profile -> Html msg
+viewNip05 styles profile =
     case profile.nip05 of
         Just nip05 ->
             p
-                [ css
-                    [ Tw.text_color Theme.gray_600
-                    , Tw.text_sm
-                    , Tw.mb_4
-                    , Tw.w_auto
-                    ]
-                ]
+                (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
                 [ text <| Nip05.nip05ToDisplayString nip05 ]
 
         Nothing ->
             div [][]
 
-viewNpub : Profile -> Html msg
-viewNpub profile =
+viewNpub : Styles msg -> Profile -> Html msg
+viewNpub styles profile =
     let
         maybeNip19 =
             Nip19.Npub profile.pubKey
@@ -154,13 +137,7 @@ viewNpub profile =
     case maybeNip19 of
         Just nip19 ->
             p
-                [ css
-                    [ Tw.text_color Theme.gray_600
-                    , Tw.text_sm
-                    , Tw.mb_4
-                    , Tw.w_auto
-                    ]
-                ]
+                (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
                 [ text nip19 ]
 
         Nothing ->
