@@ -4,6 +4,8 @@ import Browser.Dom
 import BrowserEnv exposing (BrowserEnv)
 import Components.RelayStatus exposing (Purpose(..))
 import Effect exposing (Effect)
+import Html.Styled as Html exposing (Html)
+import Html.Styled.Attributes as Attr exposing (css)
 import Layouts
 import Nostr
 import Nostr.Event as Event
@@ -16,12 +18,15 @@ import Route exposing (Route)
 import Shared
 import Shared.Msg
 import Shared.Model
+import Tailwind.Utilities as Tw
 import Task
 import Translations.ArticlePage as Translations
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (viewRelayStatus)
 import Url
 import View exposing (View)
+import Html.Styled exposing (div)
+import Ui.Styles exposing (stylesForTheme)
 
 
 page : Shared.Model -> Route { addr : String } -> Page Model Msg
@@ -43,13 +48,13 @@ toLayout theme model =
 -- INIT
 
 
-type alias Model =
-    { nip19 : Maybe NIP19Type
-    , requestId : Maybe RequestId
-    }
+type Model
+    = Nip19Model
+        { nip19 : NIP19Type
+        , requestId : RequestId
+        }
+    | ErrorModel String
 
--- ["REQ"," 30023-#d,autho-538",{"kinds":[30023],"#d":["1707912490439"],"authors":["ec42c765418b3db9c85abff3a88f4a3bbe57535eebbdc54522041fa5328c0600"]}]
--- ["REQ","uthors-ids-ki-plocc",{"authors":["ec42c765418b3db9c85abff3a88f4a3bbe57535eebbdc54522041fa5328c0600"],"ids":["1707912490439"],"kinds":[30023],"limit":20}]
 
 init : Shared.Model -> Route { addr : String } -> () -> ( Model, Effect Msg )
 init shared route () =
@@ -57,32 +62,38 @@ init shared route () =
         decoded =
             Nip19.decode route.params.addr
 
-        (maybeNip19, maybeArticle) =
+        (model, maybeArticle) =
             case decoded of
                 Ok nip19 ->
-                    (Just nip19, Nostr.getArticleForNip19 shared.nostr nip19)
-
-                Err _ ->
-                    (Nothing, Nothing)
-
-        (effect, requestId) =
-            case (maybeArticle, maybeNip19) of
-                (Nothing, Just (NAddr naddrData)) ->
-                   ( Event.eventFilterForNaddr naddrData
-                        |> RequestArticle (if naddrData.relays /= [] then Just naddrData.relays else Nothing)
-                        |> Nostr.createRequest shared.nostr "Article described as NIP-19" [KindUserMetadata]
-                        |> Shared.Msg.RequestNostrEvents
-                        |> Effect.sendSharedMsg
-                    , Just <| Nostr.getLastRequestId shared.nostr
+                    ( Nip19Model
+                        { nip19 = nip19
+                        , requestId = Nostr.getLastRequestId shared.nostr
+                        }
+                    , Nostr.getArticleForNip19 shared.nostr nip19
                     )
 
+                Err error ->
+                    ( ErrorModel error, Nothing )
+        effect =
+            case (maybeArticle, model) of
+                ( Nothing, Nip19Model { nip19, requestId }) ->
+                    -- article not loaded yet, request it now
+                    case nip19 of
+                        NAddr naddrData ->
+                            Event.eventFilterForNaddr naddrData
+                                |> RequestArticle (if naddrData.relays /= [] then Just naddrData.relays else Nothing)
+                                |> Nostr.createRequest shared.nostr "Article described as NIP-19" [KindUserMetadata]
+                                |> Shared.Msg.RequestNostrEvents
+                                |> Effect.sendSharedMsg
+                    
+                        _ ->
+                            Effect.none
+
                 (_, _) ->
-                    ( Effect.none, Nothing)
+                    Effect.none
                 
     in
-    ( { nip19 = maybeNip19
-      , requestId = requestId
-      }
+    ( model
     , Effect.batch
        [ effect
        -- jump to top of article
@@ -125,10 +136,18 @@ subscriptions model =
 
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
+    case model of
+        Nip19Model { nip19, requestId } ->
+            viewContent shared nip19 requestId
+
+        ErrorModel error ->
+            viewError shared error
+
+viewContent : Shared.Model -> NIP19Type -> RequestId -> View Msg
+viewContent shared nip19 requestId =
     let
         maybeArticle =
-            model.nip19
-            |> Maybe.andThen (Nostr.getArticleForNip19 shared.nostr)
+            Nostr.getArticleForNip19 shared.nostr nip19
     in
     { title =
         maybeArticle
@@ -145,7 +164,25 @@ view shared model =
                     , onBookmark = Nothing
                     }
                 )
-            |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle model.requestId)
+            |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle (Just requestId))
+        ]
+    }
 
+viewError : Shared.Model -> String -> View Msg
+viewError shared error =
+    let
+        styles =
+            stylesForTheme shared.theme
+    in
+    { title = Translations.defaultPageTitle [ shared.browserEnv.translations ]
+    , body =
+        [ div
+            (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3 ++
+            [ css
+                [ Tw.m_4
+                ]
+            ])
+            [ Html.text <| "Error loading content: " ++ error
+            ]
         ]
     }
