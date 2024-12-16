@@ -11,7 +11,7 @@ import Ui.Styles exposing (Theme)
 page : Shared.Model -> Route () -> Page Model Msg
 page shared route =
     Page.new
-        { init = Implementation.init shared
+        { init = Implementation.init shared route
         , update = Implementation.update shared
         , subscriptions = Implementation.subscriptions
         , view = Implementation.view shared

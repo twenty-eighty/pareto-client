@@ -2,6 +2,7 @@ module Pages.Read exposing (Model, Msg, page, init, update, view, subscriptions)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Categories
+import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
@@ -17,12 +18,10 @@ import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
 import Page exposing (Page)
 import Route exposing (Route)
+import Route.Path
 import Shared
 import Shared.Model
 import Shared.Msg
-import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
-import Tailwind.Theme as Theme
 import Translations.Read
 import Translations.Sidebar
 import Ui.Styles exposing (Theme)
@@ -30,12 +29,13 @@ import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 import Ports
 import Pareto
+import Material.Icons exposing (category)
 
 
 page : Shared.Model -> Route () -> Page Model Msg
 page shared route =
     Page.new
-        { init = init shared
+        { init = init shared route
         , update = update shared
         , subscriptions = subscriptions
         , view = view shared
@@ -53,6 +53,7 @@ toLayout theme model =
 
 type alias Model =
     { categories : Components.Categories.Model Category
+    , path : Route.Path.Path
     }
 
 type Category
@@ -61,18 +62,85 @@ type Category
     | Followed
     | Highlighter
 
+stringFromCategory : Category -> String 
+stringFromCategory category =
+    case category of
+        Global ->
+            "global"
 
-init : Shared.Model -> () -> ( Model, Effect Msg )
-init shared () =
+        Pareto ->
+            "pareto"
+
+        Followed ->
+            "followed"
+
+        Highlighter ->
+            "highlights"
+
+
+categoryFromString : String -> Maybe Category
+categoryFromString categoryString =
+    case categoryString of
+        "global" ->
+            Just Global
+
+        "pareto" ->
+            Just Pareto
+
+        "followed" ->
+            Just Followed
+
+        "highlights" ->
+            Just Highlighter
+
+        _ ->
+            Nothing
+
+categoryParamName : String
+categoryParamName =
+    "category"
+
+init : Shared.Model -> Route () -> () -> ( Model, Effect Msg )
+init shared route () =
     let
-        filter =
-            { emptyEventFilter | kinds = Just [KindLongFormContent] , limit = Just 20 }
+        category =
+            Dict.get categoryParamName route.query
+            |> Maybe.andThen categoryFromString
+            |> Maybe.withDefault Global
+
+        correctedCategory =
+            case category of
+                Pareto ->
+                    if (paretoFollowsList shared.nostr) == [] then
+                        Global
+                    else
+                        category
+
+                Followed ->
+                    if (userFollowsList shared.nostr shared.loginStatus) == [] then
+                        Global
+                    else
+                        category
+
+                _ ->
+                    category
+
+        changeCategoryEffect =
+            if correctedCategory /= category then
+                Effect.replaceRoute { path = route.path, query = Dict.singleton categoryParamName (stringFromCategory correctedCategory), hash = Nothing }
+            else
+                Effect.none
     in
-    ( { categories = Components.Categories.init { selected = Global }}
-    , RequestArticlesFeed filter
-      |> Nostr.createRequest shared.nostr "Long-form articles" [KindUserMetadata, KindEventDeletionRequest]
-      |> Shared.Msg.RequestNostrEvents
-      |> Effect.sendSharedMsg
+    ( { categories = Components.Categories.init { selected = correctedCategory }
+      , path = route.path
+      }
+    , Effect.batch
+        [ changeCategoryEffect
+        , RequestArticlesFeed (filterForCategory shared correctedCategory)
+            |> Nostr.createRequest shared.nostr "Long-form articles" [KindUserMetadata, KindEventDeletionRequest]
+            |> Shared.Msg.RequestNostrEvents
+            |> Effect.sendSharedMsg
+        ]
     )
 
 
@@ -122,27 +190,30 @@ update shared msg model =
 
 updateModelWithCategory : Shared.Model -> Model -> Category -> (Model, Effect Msg)
 updateModelWithCategory shared model category =
-    let
-        filter =
-            case category of
-                Global ->
-                    { emptyEventFilter | kinds = Just [KindLongFormContent], limit = Just 20 }
-
-                Pareto ->
-                    { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just (paretoFollowsList shared.nostr) , limit = Just 20 }
-
-                Followed ->
-                    { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just (userFollowsList shared.nostr shared.loginStatus) , limit = Just 20 }
-
-                Highlighter ->
-                    { emptyEventFilter | kinds = Just [KindLongFormContent], limit = Just 20 }
-    in
     ( model
-    , RequestArticlesFeed filter
-      |> Nostr.createRequest shared.nostr "Long-form articles" [KindUserMetadata, KindEventDeletionRequest]
-      |> Shared.Msg.RequestNostrEvents
-      |> Effect.sendSharedMsg
+    , Effect.batch
+        [ Effect.replaceRoute { path = model.path, query = Dict.singleton categoryParamName (stringFromCategory category), hash = Nothing }
+        , RequestArticlesFeed (filterForCategory shared category)
+            |> Nostr.createRequest shared.nostr "Long-form articles" [KindUserMetadata, KindEventDeletionRequest]
+            |> Shared.Msg.RequestNostrEvents
+            |> Effect.sendSharedMsg
+        ]
     )
+
+filterForCategory : Shared.Model -> Category -> EventFilter
+filterForCategory shared category =
+    case category of
+        Global ->
+            { emptyEventFilter | kinds = Just [KindLongFormContent], limit = Just 20 }
+
+        Pareto ->
+            { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just (paretoFollowsList shared.nostr) , limit = Just 20 }
+
+        Followed ->
+            { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just (userFollowsList shared.nostr shared.loginStatus) , limit = Just 20 }
+
+        Highlighter ->
+            { emptyEventFilter | kinds = Just [KindLongFormContent], limit = Just 20 }
 
 paretoFollowsList : Nostr.Model -> List PubKey
 paretoFollowsList nostr =
