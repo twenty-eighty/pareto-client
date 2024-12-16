@@ -4,12 +4,14 @@ module Ui.View exposing (..)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
+import Components.RelayStatus as RelayStatus exposing (Purpose(..))
 import Css
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Community exposing (Community)
+import Nostr.Request exposing (RequestId)
 import Nostr.ShortNote exposing (ShortNote)
 import Nostr.Types exposing (PubKey)
 import Tailwind.Breakpoints as Bp
@@ -20,6 +22,7 @@ import Ui.ArticleOld
 import Ui.Community
 import Ui.ShortNote
 import Ui.Styles exposing (Styles, Theme)
+import I18Next
 
 type ArticlePreviewType
     = ArticlePreviewList
@@ -105,3 +108,20 @@ viewCommunity browserEnv nostr community =
 viewShortNote : Styles msg -> BrowserEnv -> Nostr.Model -> ShortNote -> Html msg
 viewShortNote styles browserEnv nostr shortNote =
     Ui.ShortNote.viewShortNote styles browserEnv nostr.profiles shortNote
+
+
+viewRelayStatus : Theme -> I18Next.Translations -> Nostr.Model -> Purpose -> Maybe RequestId -> Html msg
+viewRelayStatus theme translations nostr purpose requestId =
+    let
+        relays =
+            Nostr.getRelaysForRequest nostr requestId
+            |> List.filterMap (Nostr.getRelayData nostr)
+    in
+    RelayStatus.new
+        { relays = relays
+        , theme = theme
+        , translations = translations
+        , purpose = purpose
+        }
+        |> RelayStatus.view
+        

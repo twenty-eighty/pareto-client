@@ -2,17 +2,14 @@ module Pages.A.Addr_ exposing (..)
 
 import Browser.Dom
 import BrowserEnv exposing (BrowserEnv)
+import Components.RelayStatus exposing (Purpose(..))
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
-import Html.Styled.Events as Events exposing (..)
 import Layouts
 import Nostr
-import Nostr.Article exposing (Article)
 import Nostr.Event as Event
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..))
-import Nostr.Request exposing (RequestData(..))
+import Nostr.Request exposing (RequestData(..), RequestId)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
@@ -20,10 +17,9 @@ import Shared
 import Shared.Msg
 import Shared.Model
 import Task
-import Translations.Sidebar as Translations
-import Ui.Article exposing (ArticlePreviewsData)
-import Ui.Styles exposing (Styles, Theme)
-import Ui.View
+import Translations.ArticlePage as Translations
+import Ui.Styles exposing (Theme)
+import Ui.View exposing (viewRelayStatus)
 import Url
 import View exposing (View)
 
@@ -49,6 +45,7 @@ toLayout theme model =
 
 type alias Model =
     { nip19 : Maybe NIP19Type
+    , requestId : Maybe RequestId
     }
 
 -- ["REQ"," 30023-#d,autho-538",{"kinds":[30023],"#d":["1707912490439"],"authors":["ec42c765418b3db9c85abff3a88f4a3bbe57535eebbdc54522041fa5328c0600"]}]
@@ -68,26 +65,29 @@ init shared route () =
                 Err _ ->
                     (Nothing, Nothing)
 
-        effect =
+        (effect, requestId) =
             case (maybeArticle, maybeNip19) of
                 (Nothing, Just (NAddr naddrData)) ->
-                    Event.eventFilterForNaddr naddrData
-                    |> RequestArticle (Just naddrData.relays)
-                    |> Nostr.createRequest shared.nostr "Article described as NIP-19" [KindUserMetadata]
-                    |> Shared.Msg.RequestNostrEvents
-                    |> Effect.sendSharedMsg
+                   ( Event.eventFilterForNaddr naddrData
+                        |> RequestArticle (if naddrData.relays /= [] then Just naddrData.relays else Nothing)
+                        |> Nostr.createRequest shared.nostr "Article described as NIP-19" [KindUserMetadata]
+                        |> Shared.Msg.RequestNostrEvents
+                        |> Effect.sendSharedMsg
+                    , Just <| Nostr.getLastRequestId shared.nostr
+                    )
 
                 (_, _) ->
-                    Effect.none
+                    ( Effect.none, Nothing)
                 
     in
     ( { nip19 = maybeNip19
+      , requestId = requestId
       }
     , Effect.batch
-        [ effect
-        -- jump to top of article
-        , Effect.sendCmd <| Task.perform (\_ -> NoOp) (Browser.Dom.setViewport 0 0)
-        ]
+       [ effect
+       -- jump to top of article
+       , Effect.sendCmd <| Task.perform (\_ -> NoOp) (Browser.Dom.setViewport 0 0)
+       ]
     )
 
 decodedTagParam : String -> Maybe (List String)
@@ -125,25 +125,27 @@ subscriptions model =
 
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
-    { title = Translations.readMenuItemText [ shared.browserEnv.translations ]
+    let
+        maybeArticle =
+            model.nip19
+            |> Maybe.andThen (Nostr.getArticleForNip19 shared.nostr)
+    in
+    { title =
+        maybeArticle
+        |> Maybe.andThen .title
+        |> Maybe.withDefault (Translations.defaultPageTitle [ shared.browserEnv.translations ])
     , body =
-        [ model.nip19
-          |> Maybe.andThen (Nostr.getArticleForNip19 shared.nostr)
-          |> viewArticle
-            { theme = shared.theme
-            , browserEnv = shared.browserEnv
-            , nostr = shared.nostr
-            , userPubKey = Shared.loggedInPubKey shared.loginStatus
-            , onBookmark = Nothing
-            }
+        [ maybeArticle 
+            |> Maybe.map (
+                Ui.View.viewArticle
+                    { theme = shared.theme
+                    , browserEnv = shared.browserEnv
+                    , nostr = shared.nostr
+                    , userPubKey = Shared.loggedInPubKey shared.loginStatus
+                    , onBookmark = Nothing
+                    }
+                )
+            |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle model.requestId)
+
         ]
     }
-
-viewArticle : ArticlePreviewsData msg -> Maybe Article -> Html msg
-viewArticle articlePreviewsData maybeArticle =
-    case maybeArticle of
-        Just article ->
-            Ui.View.viewArticle articlePreviewsData article 
-
-        Nothing ->
-            div [][]

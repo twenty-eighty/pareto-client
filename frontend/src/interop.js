@@ -159,6 +159,8 @@ export const onReady = ({ app, env }) => {
       for (let i = 0; i < storedCommands.length; i++) {
         processOnlineCommand(app, storedCommands[i].command, storedCommands[i].value);
       }
+
+      storedCommands = [];
     })
     window.ndk.pool.on("notice", (relay, notice) => {
       if (debug) {
@@ -293,9 +295,14 @@ export const onReady = ({ app, env }) => {
         case 10096: // relay list for file uploads (NIP-96)
         case 30000: // follow sets
         case 30003: // bookmark sets
-        case 30023: // long-form article
         case 30024: // long-form draft
         case 34550: // community definition
+          {
+            eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
+            break;
+          }
+
+        case 30023: // long-form article
           {
             eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
             break;

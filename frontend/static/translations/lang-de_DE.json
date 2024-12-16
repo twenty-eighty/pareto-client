@@ -11,6 +11,9 @@
       "about backend text": "Das Pareto Backend wurde entwickelt mit",
       "source code text": "Der Quellcode des Pareto Clients wird bald veröffentlicht."
    },
+   "article page": {
+      "default page title": "Artikel"
+   },
    "bookmarks": {
       "bookmarks title": "Lesezeichen",
       "no bookmarks": "Keine Listen mit Lesezeichen gefunden",
@@ -58,6 +61,16 @@
       "no relays configured title": "Keine Relays konfiguriert",
       "no relays configured text": "Möchtest du ein paar Standard-Relays einrichten?",
       "configure relays button title": "Relays konfigurieren"
+   },
+   "relay status component": {
+      "relay state unknown": "unbekannt",
+      "relay disconnected": "getrennt",
+      "relay connecting": "verbinden ...",
+      "relay connected": "verbunden",
+      "relay ready": "bereit",
+      "loading article": "Lade Artikel ...",
+      "loading note": "Lade Notiz ...",
+      "loading profile": "Lade Profil ..."
    },
    "search": {
       "page title": "Suchen"

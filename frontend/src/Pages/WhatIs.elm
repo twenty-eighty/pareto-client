@@ -55,7 +55,7 @@ init shared () =
     in
     ( { article = Nothing
       , filter = filter
-       }, Effect.sendCmd <| Ports.requestEvents "What is page" True -1 Nothing filter
+       }, Effect.sendCmd <| Ports.requestEvents "What is page" True -1 [] filter
     )
 
 articleFilterForLanguage : BrowserEnv -> EventFilter

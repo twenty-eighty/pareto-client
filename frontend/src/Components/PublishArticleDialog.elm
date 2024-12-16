@@ -17,7 +17,6 @@ import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey, RelayUrl)
 import Pareto
 import Svg.Styled as Svg exposing (svg, path)
-import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Translations.PublishArticleDialog as Translations
@@ -82,7 +81,8 @@ init : { } -> Model msg
 init props =
     Model
         { state = DialogHidden
-        , relayStates = Dict.empty
+        -- authors shouldn't publish on team relay as normal users can't read from it
+        , relayStates = Dict.singleton Pareto.teamRelay False
         }
 
 show : Model msg -> Model msg

@@ -1,6 +1,7 @@
 module Pages.U.User_.Identifier_ exposing (Model, Msg, page)
 
 import Browser.Dom
+import Components.RelayStatus exposing (Purpose(..))
 import Effect exposing (Effect)
 import FeatherIcons exposing (user)
 import Html.Styled as Html exposing (Html)
@@ -9,7 +10,7 @@ import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Nip05 as Nip05
-import Nostr.Request exposing (RequestData(..))
+import Nostr.Request exposing (RequestData(..), RequestId)
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
@@ -17,7 +18,7 @@ import Shared.Msg
 import Task
 import View exposing (View)
 import Ui.Styles exposing (Theme)
-import Ui.View
+import Ui.View exposing (viewRelayStatus)
 
 
 page : Shared.Model -> Route { user : String, identifier : String } -> Page Model Msg
@@ -43,6 +44,7 @@ toLayout theme model =
 type alias Model =
     { nip05 : Maybe Nip05.Nip05
     , identifier : String
+    , requestId : Maybe RequestId
     }
 
 
@@ -52,9 +54,10 @@ init shared route () =
         model =
             { nip05 = Nip05.parseNip05 route.params.user
             , identifier = route.params.identifier
+            , requestId = Nothing
             }
 
-        requestEffect =
+        (requestEffect, requestId) =
             model.nip05
             |> Maybe.map (\nip05 ->
                 case Nostr.getPubKeyByNip05 shared.nostr nip05 of
@@ -62,29 +65,33 @@ init shared route () =
                         case Nostr.getArticleWithIdentifier shared.nostr pubKey model.identifier of
                             Just _ ->
                                 -- article already loaded, accessible in view function
-                                Effect.none
+                                ( Effect.none, Nothing )
 
                             Nothing ->
-                                -- pubkey already loaded, request article
-                                { emptyEventFilter
-                                    | authors = Just [ pubKey ]
-                                    , kinds = Just [ KindLongFormContent ]
-                                    , tagReferences = Just [ TagReferenceIdentifier model.identifier ]
-                                }
-                                |> RequestArticle (Just <| Nostr.getReadRelayUrlsForPubKey shared.nostr pubKey)
-                                |> Nostr.createRequest shared.nostr ("Article of NIP-05 user " ++ Nip05.nip05ToString nip05) [ ]
-                                |> Shared.Msg.RequestNostrEvents
-                                |> Effect.sendSharedMsg
+                                ( -- pubkey already loaded, request article
+                                    { emptyEventFilter
+                                        | authors = Just [ pubKey ]
+                                        , kinds = Just [ KindLongFormContent ]
+                                        , tagReferences = Just [ TagReferenceIdentifier model.identifier ]
+                                    }
+                                    |> RequestArticle (Just <| Nostr.getReadRelayUrlsForPubKey shared.nostr pubKey)
+                                    |> Nostr.createRequest shared.nostr ("Article of NIP-05 user " ++ Nip05.nip05ToString nip05) [ ]
+                                    |> Shared.Msg.RequestNostrEvents
+                                    |> Effect.sendSharedMsg
+                                , Just <| Nostr.getLastRequestId shared.nostr
+                                )
 
                     Nothing ->
-                        RequestNip05AndArticle nip05 model.identifier
-                        |> Nostr.createRequest shared.nostr ("Article of NIP-05 user " ++ Nip05.nip05ToString nip05) [KindLongFormContent, KindHighlights, KindBookmarkList, KindBookmarkSets]
-                        |> Shared.Msg.RequestNostrEvents
-                        |> Effect.sendSharedMsg
+                        ( RequestNip05AndArticle nip05 model.identifier
+                            |> Nostr.createRequest shared.nostr ("Article of NIP-05 user " ++ Nip05.nip05ToString nip05) [KindLongFormContent, KindHighlights, KindBookmarkList, KindBookmarkSets]
+                            |> Shared.Msg.RequestNostrEvents
+                            |> Effect.sendSharedMsg
+                        , Just <| Nostr.getLastRequestId shared.nostr
+                        )
             )
-            |> Maybe.withDefault Effect.none
+            |> Maybe.withDefault (Effect.none, Nothing)
     in
-    ( model
+    ( { model | requestId = requestId }
     , Effect.batch
         [ requestEffect
         -- jump to top of article
@@ -132,12 +139,12 @@ view shared model =
             |> Maybe.andThen (\pubKey -> Nostr.getArticleWithIdentifier shared.nostr pubKey model.identifier)
     in
     { title = maybeArticle |> Maybe.andThen .title |> Maybe.withDefault "Article"
-    , body = [ viewArticle shared maybeArticle ]
+    , body = [ viewArticle shared model maybeArticle ]
     }
 
 
-viewArticle : Shared.Model -> Maybe Article -> Html Msg
-viewArticle shared maybeArticle =
+viewArticle : Shared.Model -> Model -> Maybe Article -> Html Msg
+viewArticle shared model maybeArticle =
     case maybeArticle of
         Just article ->
             Ui.View.viewArticle 
@@ -150,4 +157,4 @@ viewArticle shared maybeArticle =
                 article
 
         Nothing ->
-            Html.div [][]
+            viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle model.requestId

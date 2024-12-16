@@ -1,10 +1,8 @@
 module Pages.P.Profile_ exposing (Model, Msg, page)
 
 import BrowserEnv exposing (BrowserEnv)
-import Css
-import Json.Decode as Decode
+import Components.RelayStatus exposing (Purpose(..))
 import Effect exposing (Effect)
-import Graphics
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
@@ -14,21 +12,18 @@ import Nostr.Article exposing (Article)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Profile)
-import Nostr.Request exposing (RequestData(..))
+import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Types exposing (PubKey)
 import Page exposing (Page)
-import Ports
 import Route exposing (Route)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
-import Tailwind.Theme as Theme
 import Translations.Sidebar as Translations
 import Ui.ArticleOld
 import Ui.Profile
 import Ui.Styles exposing (Styles, Theme)
+import Ui.View exposing (viewRelayStatus)
 import View exposing (View)
 import Nostr.Profile exposing (ProfileValidation(..))
 
@@ -55,6 +50,7 @@ toLayout theme model =
 type alias Model =
     { pubKey : Maybe PubKey
     , relays : List String
+    , requestId : Maybe RequestId
     }
 
 
@@ -66,32 +62,35 @@ init shared route () =
             |> Maybe.map (\(pubKey, relays) ->
                 { pubKey = Just pubKey
                 , relays = relays
+                , requestId = Nothing
                 }
             )
-            |> Maybe.withDefault { pubKey = Nothing, relays = [] }
+            |> Maybe.withDefault { pubKey = Nothing, relays = [], requestId = Nothing }
 
-        requestProfileEffect =
+        ( requestProfileEffect, requestId ) =
             model.pubKey
             |> Maybe.map (\pubKey ->
                 case Nostr.getProfile shared.nostr pubKey of
                     Just _ ->
-                        Effect.none
+                        (Effect.none, Nothing)
 
                     Nothing ->
-                        filterForAuthor pubKey
-                        |> RequestProfile Nothing
-                        |> Nostr.createRequest shared.nostr "Profile" [KindLongFormContent]
-                        |> Shared.Msg.RequestNostrEvents
-                        |> Effect.sendSharedMsg
+                        ( filterForAuthor pubKey
+                            |> RequestProfile Nothing
+                            |> Nostr.createRequest shared.nostr "Profile" [KindLongFormContent]
+                            |> Shared.Msg.RequestNostrEvents
+                            |> Effect.sendSharedMsg
+                        , Just <| Nostr.getLastRequestId shared.nostr
+                        )
             )
-            |> Maybe.withDefault Effect.none
+            |> Maybe.withDefault (Effect.none, Nothing)
 
         requestArticlesEffect =
             model.pubKey
             |> Maybe.map (buildRequestArticlesEffect shared.nostr)
             |> Maybe.withDefault Effect.none
     in
-    ( model
+    ( { model | requestId = requestId }
     , Effect.batch
         [ requestProfileEffect
         , requestArticlesEffect
@@ -157,9 +156,7 @@ view shared model =
     let
         maybeProfile =
             model.pubKey
-            |> Maybe.andThen (\pubKey ->
-                Nostr.getProfile shared.nostr pubKey
-            )
+            |> Maybe.andThen (Nostr.getProfile shared.nostr)
     in
     { title = Translations.readMenuItemText [ shared.browserEnv.translations ]
     , body =
@@ -168,7 +165,7 @@ view shared model =
                 viewProfile shared profile
 
             Nothing ->
-                div [][]
+                viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingProfile model.requestId
         ]
     }
 

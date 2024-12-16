@@ -26,7 +26,7 @@ import Nostr.Relay exposing (Relay, RelayState(..), relayUrlDecoder)
 import Nostr.RelayList exposing (relayListFromEvent)
 import Nostr.RelayListMetadata exposing (RelayMetadata, relayMetadataListFromEvent)
 import Nostr.Repost exposing (Repost, repostFromEvent)
-import Nostr.Request exposing (HttpRequestMethod, Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
+import Nostr.Request as Request exposing (HttpRequestMethod, Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
@@ -41,7 +41,7 @@ import Pareto
 type alias Hooks =
     { connect : List String -> Cmd Msg
     , receiveMessage : (IncomingMessage -> Msg) -> Sub Msg
-    , requestEvents : String -> Bool -> RequestId -> Maybe (List String) -> EventFilter -> Cmd Msg
+    , requestEvents : String -> Bool -> RequestId -> List RelayUrl -> EventFilter -> Cmd Msg
     , requestBlossomAuth : RequestId -> String -> String -> HttpRequestMethod -> Cmd Msg
     , requestNip96Auth : RequestId -> String -> String -> HttpRequestMethod -> Cmd Msg
     , sendEvent : SendId -> List String -> Event -> Cmd Msg
@@ -58,6 +58,7 @@ type alias Model =
     , communities : Dict PubKey (List Community)
     , communityLists : Dict PubKey (List CommunityReference)
     , defaultRelays : List String
+    , defaultUser : Maybe PubKey
     , deletedAddresses : Set Address
     , deletedEvents : Set EventId
     , fileStorageServerLists : Dict PubKey (List String)
@@ -99,7 +100,7 @@ createRequest : Model -> String -> List Kind -> RequestData -> Request
 createRequest model description relatedKinds data =
     { id = model.lastRequestId
     , relatedKinds = relatedKinds
-    , value = [ RequestCreated data ]
+    , states = [ RequestCreated data ]
     , description = description
     }
 
@@ -107,7 +108,7 @@ addToRequest : Model -> Request -> RequestData -> (Model, Request)
 addToRequest model request data =
     let
         extendedRequest =
-            { request | value = request.value ++ [ RequestCreated data ] }
+            { request | states = request.states ++ [ RequestCreated data ] }
 
     in
     ({ model | requests = Dict.insert request.id extendedRequest model.requests }, extendedRequest)
@@ -138,10 +139,10 @@ doRequestWithId model requestId request =
                     RequestSent _ ->
                         (modelAcc, reqAcc ++ [requestState], cmdAcc)
 
-                ) (model, [], []) request.value
+                ) (model, [], []) request.states
 
         updatedRequest =
-            { request | value = updatedRequestData }
+            { request | states = updatedRequestData }
 
         requestCmd =
             case requestCmds of
@@ -158,49 +159,60 @@ doRequestWithId model requestId request =
 
 performRequest : Model -> String -> RequestId -> RequestData -> (Model, Cmd Msg)
 performRequest model description requestId requestData =
+    let
+        configuredRelays =
+            case model.defaultUser of
+                Just pubKey ->
+                    getReadRelayUrlsForPubKey model pubKey
+                    |> List.map (\url -> "wss://" ++ url)
+
+                Nothing ->
+                    Pareto.defaultRelays
+                    |> List.map (\url -> "wss://" ++ url)
+    in
     case requestData of
         RequestArticle relays eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId relays eventFilter)
+            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) eventFilter)
 
         RequestArticles eventFilter ->
             ( { model | articlesByDate = [] }
-            , model.hooks.requestEvents description True requestId Nothing eventFilter)
+            , model.hooks.requestEvents description True requestId configuredRelays eventFilter)
 
         RequestArticlesFeed eventFilter ->
             ( { model | articlesByDate = [] }
-            , model.hooks.requestEvents description False requestId Nothing eventFilter)
+            , model.hooks.requestEvents description False requestId configuredRelays eventFilter)
 
         RequestArticleDrafts eventFilter ->
             ( { model | articleDraftsByDate = [] }
-            , model.hooks.requestEvents description False requestId Nothing eventFilter)
+            , model.hooks.requestEvents description False requestId configuredRelays eventFilter)
 
         RequestBookmarks eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId Nothing eventFilter)
+            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter)
 
         RequestCommunity relays eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId relays eventFilter)
+            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) eventFilter)
 
         RequestDeletionRequests eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId Nothing eventFilter)
+            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter)
 
         RequestFollowSets eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId Nothing eventFilter)
+            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter)
 
         RequestNip05AndArticle nip05 _ ->
             -- identifier not needed here, only after getting nip05 data
             ( model, fetchNip05Info (Nip05FetchedForNip05 requestId nip05) nip05 )
 
         RequestProfile relays eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId relays eventFilter)
+            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) eventFilter)
 
         RequestProfileByNip05 nip05 ->
             ( model, fetchNip05Info (Nip05FetchedForNip05 requestId nip05) nip05 )
 
         RequestReactions eventFilter ->
-            ( model, model.hooks.requestEvents description False requestId Nothing eventFilter)
+            ( model, model.hooks.requestEvents description False requestId configuredRelays eventFilter)
 
         RequestUserData eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId Nothing eventFilter)
+            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter)
 
         RequestBlossomAuth serverUrl content method ->
             ( model, model.hooks.requestBlossomAuth requestId serverUrl content method)
@@ -209,7 +221,7 @@ performRequest model description requestId requestData =
             ( model, model.hooks.requestNip96Auth requestId serverUrl apiUrl method)
 
         RequestShortNote eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId Nothing eventFilter)
+            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter)
 
 send : Model -> SendRequest -> (Model, Cmd Msg)
 send model sendRequest =
@@ -494,6 +506,29 @@ getSearchRelayUrls model maybePubKey =
         Nothing ->
             Pareto.defaultSearchRelays
 
+getRelaysForRequest : Model -> Maybe RequestId -> List RelayUrl
+getRelaysForRequest model maybeRequestId =
+    let
+        maybeRequest =
+            maybeRequestId
+            |> Maybe.andThen (getRequest model)
+
+        requestUrls =
+            maybeRequest
+            |> Maybe.andThen Request.relaysOfRequest
+            |> Maybe.withDefault []
+    in
+    case requestUrls of
+        [] ->
+            Pareto.defaultRelays
+
+        relayUrls ->
+            relayUrls
+
+getRelayData : Model -> RelayUrl -> Maybe Relay
+getRelayData model relayUrl =
+    Dict.get relayUrl model.relays
+
 getRequest : Model -> RequestId -> Maybe Request
 getRequest model requestId =
     Dict.get requestId model.requests
@@ -540,7 +575,7 @@ getPubKeyByNip05 model nip05 =
 requestCommunityPostApprovals : Model -> Community -> Cmd Msg
 requestCommunityPostApprovals model community =
     profileFilterForCommunityPostApprovals community
-    |> model.hooks.requestEvents "Community post approvals" False -1 Nothing
+    |> model.hooks.requestEvents "Community post approvals" False -1 []
 
 profileFilterForCommunityPostApprovals : Community -> EventFilter
 profileFilterForCommunityPostApprovals community =
@@ -584,7 +619,7 @@ requestUserData model pubKey =
             |> RequestProfile Nothing
             |> createRequest model "Related data for logged-in user" []
     in
-    doRequest model request
+    doRequest { model | defaultUser = Just pubKey } request
 
 {-
 requestRelatedInfo : Model -> PubKey -> Cmd Msg
@@ -735,6 +770,7 @@ empty =
     , communities = Dict.empty
     , communityLists = Dict.empty
     , defaultRelays = []
+    , defaultUser = Nothing
     , deletedAddresses = Set.empty
     , deletedEvents = Set.empty
     , fileStorageServerLists = Dict.empty

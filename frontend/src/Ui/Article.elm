@@ -727,14 +727,14 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                 ]
             ]
         ]
-    
+
 linkToArticle : Article -> Maybe String
 linkToArticle article =
     case Nip19.encode <| Nip19.NAddr 
             { identifier = article.identifier |> Maybe.withDefault ""
             , pubKey = article.author
             , kind = numberForKind article.kind
-            , relays = []
+            , relays = Maybe.map (\urlWithoutProtocol -> [ "wss://" ++ urlWithoutProtocol ]) article.relay |> Maybe.withDefault []
             } of
         Ok encodedCoordinates ->
             Just <| "/a/" ++ encodedCoordinates

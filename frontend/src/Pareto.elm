@@ -40,11 +40,13 @@ defaultNip96Server : String
 defaultNip96Server =
     "https://route96.pareto.space"
 
+teamRelay : String
+teamRelay =
+    "team-relay.pareto.space"
+
 defaultRelays : List String
 defaultRelays =
-    [
-     "nostr.pareto.space"
---    , "team-relay.pareto.space"
+    [ "nostr.pareto.space"
     , "pareto.nostr1.com"
 --    , "relay.snort.social"
 --  , "relay.nostr.band"

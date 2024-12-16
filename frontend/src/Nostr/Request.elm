@@ -9,7 +9,7 @@ import Nostr.Types exposing (RelayUrl)
 type alias Request =
     { id : RequestId
     , relatedKinds : List Kind
-    , value : List RequestState
+    , states : List RequestState
     , description : String
     }
 
@@ -52,3 +52,77 @@ relatedKindsForRequest maybeRequest =
     |> Maybe.map .relatedKinds
     |> Maybe.withDefault []
 
+relaysOfRequest : Request -> Maybe (List RelayUrl)
+relaysOfRequest request =
+    let
+        maybeData =
+            case List.head request.states of
+                Just (RequestCreated requestData) ->
+                    Just requestData
+
+                Just (RequestSent requestData) ->
+                    Just requestData
+                
+                Nothing ->
+                    Nothing
+    in
+    case maybeData of
+        Just (RequestArticle (Just relayList) _) ->
+            Just relayList
+
+        Just (RequestArticle Nothing _) ->
+            Nothing
+
+        Just (RequestArticles _) ->
+            Nothing
+
+        Just (RequestArticlesFeed _) ->
+            Nothing
+
+        Just (RequestArticleDrafts _) ->
+            Nothing
+
+        Just (RequestBookmarks _) ->
+            Nothing
+
+        Just (RequestCommunity (Just relayList) _) ->
+            Just relayList
+
+        Just (RequestCommunity Nothing _) ->
+            Nothing
+
+        Just (RequestDeletionRequests _) ->
+            Nothing
+
+        Just (RequestFollowSets _) ->
+            Nothing
+
+        Just (RequestNip05AndArticle _ _) ->
+            Nothing
+
+        Just (RequestProfile (Just relayList) _) ->
+            Just relayList
+
+        Just (RequestProfile Nothing _) ->
+            Nothing
+
+        Just (RequestProfileByNip05 _) ->
+            Nothing
+
+        Just (RequestReactions _) ->
+            Nothing
+
+        Just (RequestUserData _) ->
+            Nothing
+
+        Just (RequestBlossomAuth _ _ _) ->
+            Nothing
+
+        Just (RequestNip98Auth _ _ _) ->
+            Nothing
+
+        Just (RequestShortNote _) ->
+            Nothing
+
+        Nothing ->
+            Nothing
