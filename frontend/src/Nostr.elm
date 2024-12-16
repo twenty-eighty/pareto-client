@@ -347,6 +347,18 @@ filterDeletedArticle model article =
     Set.member (addressForArticle article |> Maybe.withDefault "") model.deletedAddresses
     |> not
 
+getArticleForAddressComponents : Model -> AddressComponents -> Maybe Article
+getArticleForAddressComponents model addressComponents =
+    case addressComponents of
+        (KindLongFormContent, pubKey, identifier) ->
+            getArticleWithIdentifier model pubKey identifier            
+
+        (KindDraftLongFormContent, pubKey, identifier) ->
+            getArticleDraftWithIdentifier model pubKey identifier            
+
+        _ ->
+            Nothing
+
 getArticleForNip19 : Model -> NIP19Type -> Maybe Article
 getArticleForNip19 model nip19 =
     case nip19 of

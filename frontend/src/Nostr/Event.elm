@@ -8,13 +8,6 @@ import Nostr.Nip19 as Nip19 exposing (NIP19Type(..), NAddrData)
 import Nostr.Relay
 import Nostr.Types exposing (Address, EventId, PubKey, RelayRole(..), RelayUrl, decodeRelayRole, relayRoleToString)
 import Time
-import Json.Decode as Decode
-import Json.Decode as Decode
-import Json.Decode as Decode
-import Json.Decode as Decode
-import Json.Decode as Decode
-import Json.Decode as Decode
-import Json.Decode as Decode
 
 
 type Tag
@@ -742,6 +735,9 @@ eventFilterForNip19 nip19 =
         Nip19.NAddr naddrData ->
             Just <| eventFilterForNaddr naddrData
 
+        Nip19.Note noteId ->
+            Just <| eventFilterForShortNote noteId
+
         _ ->
             Nothing
 
@@ -751,6 +747,17 @@ eventFilterForNaddr { identifier, kind, pubKey, relays } =
     , ids = Nothing
     , kinds = Just [ kindFromNumber kind ]
     , tagReferences = Just [ TagReferenceIdentifier identifier ]
+    , limit = Just 1
+    , since = Nothing
+    , until = Nothing
+    }
+
+eventFilterForShortNote : String -> EventFilter
+eventFilterForShortNote noteId =
+    { authors = Nothing
+    , ids = Just [ noteId ]
+    , kinds = Nothing
+    , tagReferences = Nothing
     , limit = Just 1
     , since = Nothing
     , until = Nothing

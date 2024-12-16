@@ -9,10 +9,10 @@ import Html.Styled.Events as Events exposing (..)
 import Layouts
 import Nostr
 import Nostr.Article exposing (Article)
-import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), kindFromNumber)
+import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), eventFilterForNip19, informationForKind, kindFromNumber)
 import Nostr.Nip19 as Nip19
 import Nostr.Request exposing (RequestData(..), RequestId)
-import Nostr.Types exposing (IncomingMessage)
+import Nostr.Types exposing (IncomingMessage, RelayUrl)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
@@ -47,8 +47,9 @@ toLayout theme model =
 
 type ContentToView
     = ShortNote String
-    | Article Nip19.NAddrData
+    | Article AddressComponents (List RelayUrl)
     | NonSupportedNip19 String
+    | NonSupportedKind Kind
     | DecodingError String
 
 type alias Model =
@@ -68,8 +69,13 @@ init shared route () =
                 Ok (Nip19.Note noteId) ->
                     ShortNote noteId
 
-                Ok (Nip19.NAddr naddrData) ->
-                    Article naddrData
+                Ok (Nip19.NAddr { identifier, pubKey, kind, relays }) ->
+                    case kindFromNumber kind of
+                        KindLongFormContent ->
+                            Article (kindFromNumber kind, pubKey, identifier) relays 
+
+                        _ ->
+                            NonSupportedKind (kindFromNumber kind)
 
                 Ok _ ->
                     NonSupportedNip19 route.params.event
@@ -78,16 +84,9 @@ init shared route () =
                     DecodingError ("Error decoding " ++ route.params.event ++ "(" ++ error ++ ")")
 
         (effect, requestId) =
-            case contentToView of
-                ShortNote noteId ->
-                    ( { authors = Nothing
-                        , ids = Just [noteId]
-                        , kinds = Nothing
-                        , tagReferences = Nothing
-                        , limit = Just 1
-                        , since = Nothing
-                        , until = Nothing
-                     }
+            case (contentToView, Result.toMaybe decoded |> Maybe.andThen eventFilterForNip19 ) of
+                ( ShortNote noteId, Just eventFilter ) ->
+                    ( eventFilter
                         |> RequestShortNote
                         |> Nostr.createRequest shared.nostr ("NIP-19 note " ++ route.params.event) [ KindUserMetadata]
                         |> Shared.Msg.RequestNostrEvents
@@ -95,26 +94,42 @@ init shared route () =
                     , Just <| Nostr.getLastRequestId shared.nostr
                     )
 
-                Article naddrData ->
-                    ( { authors = Just [naddrData.pubKey]
-                      , ids = Nothing
-                      , kinds = Just [ kindFromNumber naddrData.kind ]
-                      , tagReferences = Just [ TagReferenceIdentifier naddrData.identifier]
-                      , limit = Just 1
-                      , since = Nothing
-                      , until = Nothing
-                      }
-                        |> RequestArticle (Just naddrData.relays)
+                ( ShortNote _, Nothing ) ->
+                    ( Effect.none, Nothing
+                    )
+
+                ( Article _ relays, Just eventFilter ) ->
+                    ( eventFilter
+                        |> RequestArticle (Just relays)
                         |> Nostr.createRequest shared.nostr ("NIP-19 article " ++ route.params.event) [ KindUserMetadata]
                         |> Shared.Msg.RequestNostrEvents
                         |> Effect.sendSharedMsg
                     , Just <| Nostr.getLastRequestId shared.nostr
                     )
 
-                NonSupportedNip19 _ ->
-                    ( Effect.none, Nothing )
+                ( Article _ _, Nothing ) ->
+                    ( Effect.none, Nothing
+                    )
 
-                DecodingError _ ->
+                ( NonSupportedNip19 _, Just eventFilter ) ->
+                    -- request event so we can implement test with it
+                    ( eventFilter
+                        |> RequestArticle Nothing
+                        |> Nostr.createRequest shared.nostr ("NIP-19 event " ++ route.params.event) [ KindUserMetadata]
+                        |> Shared.Msg.RequestNostrEvents
+                        |> Effect.sendSharedMsg
+                    , Just <| Nostr.getLastRequestId shared.nostr
+                    )
+
+                ( NonSupportedNip19 _, _ ) ->
+                    ( Effect.none, Nothing
+                    )
+
+                ( NonSupportedKind _, _ ) ->
+                    ( Effect.none, Nothing
+                    )
+
+                ( DecodingError _, _) ->
                     ( Effect.none, Nothing )
     in
     ( { contentToView = contentToView
@@ -199,8 +214,8 @@ viewContent shared model =
             |> Maybe.map (Ui.View.viewShortNote (styles) shared.browserEnv shared.nostr)
             |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingNote model.requestId)
 
-        Article naddrData ->
-            Nostr.getArticleForNip19 shared.nostr (Nip19.NAddr naddrData)
+        Article addressComponents relays ->
+            Nostr.getArticleForAddressComponents shared.nostr addressComponents
             |> Maybe.map
                 (Ui.View.viewArticle 
                     { theme = shared.theme
@@ -217,6 +232,17 @@ viewContent shared model =
                 [
                 ]
                 [ text <| "Non-supported NIP-19 parameter: " ++ parameter
+                ]
+
+        NonSupportedKind kind ->
+            let
+                info =
+                    informationForKind kind
+            in
+            div
+                [
+                ]
+                [ text <| "Non-supported kind: " ++ info.description
                 ]
 
         DecodingError error ->
