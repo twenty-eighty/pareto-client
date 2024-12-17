@@ -24,3 +24,13 @@ These environment variables need to be set
 ## Adding Nostr users
 
 Additional users @pareto.space can be added at nostr\_backend/lib/nostr\_backend\_web/controllers/nostr\_controller.ex
+
+## Frontend debugging
+
+To enable debugging, write the following command in the browser console:
+`localStorage.setItem('debug', 'ndk*,pareto-client*');`
+
+To disable debugging, type
+`localStorage.removeItem('debug');`
+
+Make sure you display all log levels in the console in order to see debug messages.

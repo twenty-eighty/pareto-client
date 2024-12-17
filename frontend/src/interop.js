@@ -10,8 +10,6 @@ import debug from 'debug';
 // import NostrPasskeyModule from './nostrPasskeyModule.js';
 // const nostrPasskey = new NostrPasskeyModule();
 
-const debugLog = debug('pareto-client');
-
 // This is called BEFORE your Elm app starts up
 // 
 // The value returned here will be passed as flags 
@@ -24,6 +22,8 @@ export const flags = ({ env }) => {
     sharingAvailable: (navigator.share != undefined)
   }
 }
+
+const debugLog = debug('pareto-client');
 
 var connected = false;
 var windowLoaded = false;
