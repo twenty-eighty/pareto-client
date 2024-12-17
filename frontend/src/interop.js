@@ -44,7 +44,7 @@ export const onReady = ({ app, env }) => {
 
   app.ports.sendCommand.subscribe(({ command: command, value: value }) => {
     if (command === 'connect') {
-      connect(app, storedCommands, value);
+      connect(app, value);
     } else if (command === 'loginSignUp') {
       loginSignUp(app);
     } else if (connected) {
@@ -122,7 +122,7 @@ export const onReady = ({ app, env }) => {
   }
 
 
-  function connect(app, storedCommands, relays) {
+  function connect(app, relays) {
     if (debug) {
       console.log('connect to relays', relays);
     }

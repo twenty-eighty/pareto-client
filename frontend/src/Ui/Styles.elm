@@ -687,6 +687,7 @@ paretoThemeStyles =
             , Tw.font_medium
             , Tw.leading_6
             , Tw.tracking_normal
+            , Tw.underline
             ]
         , fontFamilyInter
         ]

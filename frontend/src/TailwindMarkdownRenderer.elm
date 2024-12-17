@@ -109,7 +109,13 @@ renderer styles =
                                                         ]
                                                         []
                                     in
-                                    Html.li [] (checkbox :: children)
+                                    Html.li
+                                        [ css
+                                            [ Tw.list_disc
+                                            , Tw.m_6
+                                            ]
+                                        ]
+                                        (checkbox :: children)
                         )
                 )
     , orderedList =
@@ -446,5 +452,5 @@ formatLink : Styles msg -> { title: Maybe String, destination : String } -> List
 formatLink styles { destination } body =
     LinkPreview.generatePreviewHtml
         destination
-        (styles.textStyleLinks ++ styles.colorStyleArticleHashtags ++ [ css [ Tw.underline ] ])
+        (styles.textStyleLinks ++ styles.colorStyleLinks)
         body
