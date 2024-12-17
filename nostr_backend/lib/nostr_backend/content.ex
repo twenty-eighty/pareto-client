@@ -126,8 +126,16 @@ defmodule NostrBackend.Content do
   end
 
   defp render_markdown(content) when is_binary(content) do
-    Earmark.as_html!(content)
+    content
+    |> replace_http_with_https()
+    |> Earmark.as_html!()
   end
 
   defp render_markdown(_), do: ""
+
+  def replace_http_with_https(nil), do: nil
+
+  def replace_http_with_https(text) do
+    Regex.replace(~r/http:\/\//, text, "https://")
+  end
 end
