@@ -152,15 +152,6 @@ export const onReady = ({ app, env }) => {
       if (debug) {
         console.log('relays connected');
       }
-      connected = true;
-
-      app.ports.receiveMessage.send({ messageType: 'connected', value: null });
-
-      for (let i = 0; i < storedCommands.length; i++) {
-        processOnlineCommand(app, storedCommands[i].command, storedCommands[i].value);
-      }
-
-      storedCommands = [];
     })
     window.ndk.pool.on("notice", (relay, notice) => {
       if (debug) {
@@ -179,6 +170,17 @@ export const onReady = ({ app, env }) => {
         console.log('relay ready', relay);
       }
       app.ports.receiveMessage.send({ messageType: 'relay:ready', value: { url: relay.url } });
+
+      // start sending when at least one relay is ready
+      connected = true;
+
+      app.ports.receiveMessage.send({ messageType: 'connected', value: null });
+
+      for (let i = 0; i < storedCommands.length; i++) {
+        processOnlineCommand(app, storedCommands[i].command, storedCommands[i].value);
+      }
+
+      storedCommands = [];
     })
     window.ndk.pool.on("relay:disconnect", (relay) => {
       if (debug) {
