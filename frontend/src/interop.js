@@ -4,11 +4,13 @@ import "./Milkdown/MilkdownEditor.js";
 import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import { BlossomClient } from "blossom-client-sdk/client";
 import { init as initNostrLogin, launch as launchNostrLoginDialog } from "nostr-login"
+import debug from 'debug';
+
 
 // import NostrPasskeyModule from './nostrPasskeyModule.js';
 // const nostrPasskey = new NostrPasskeyModule();
 
-const debug = true;
+const debugLog = debug('pareto-client');
 
 // This is called BEFORE your Elm app starts up
 // 
@@ -51,9 +53,7 @@ export const onReady = ({ app, env }) => {
       processOnlineCommand(app, command, value);
     } else {
       storedCommands.push({ command: command, value: value });
-      if (debug) {
-        console.log('store command', command);
-      }
+      debugLog('store command', command);
     }
   });
 
@@ -85,9 +85,7 @@ export const onReady = ({ app, env }) => {
   });
 
   function processOnlineCommand(app, command, value) {
-    if (debug) {
-      console.log('process command', command);
-    }
+    debugLog('process command', command);
     switch (command) {
       case 'requestEvents':
         requestEvents(app, value);
@@ -123,10 +121,8 @@ export const onReady = ({ app, env }) => {
 
 
   function connect(app, relays) {
-    if (debug) {
-      console.log('connect to relays', relays);
-    }
-    window.ndk = new NDK({ explicitRelayUrls: relays });
+    debugLog('connect to relays', relays);
+    window.ndk = new NDK({ explicitRelayUrls: relays, debug: debugLog });
 
     // sign in if a relay requests authorization
     window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk });
@@ -137,38 +133,26 @@ export const onReady = ({ app, env }) => {
 
     window.ndk.on("event:invalid-sig", (event) => {
       const { relay } = event;
-      if (debug) {
-        console.log('relay delivered event with invalid signature', relay);
-      }
+      debugLog('relay delivered event with invalid signature', relay);
       app.ports.receiveMessage.send({ messageType: 'event:invalid-sig', value: { relay: relay } });
     })
     window.ndk.pool.on("connecting", (relay) => {
-      if (debug) {
-        console.log('connecting relays', relay);
-      }
+      debugLog('connecting relays', relay);
       app.ports.receiveMessage.send({ messageType: 'connecting', value: null });
     })
     window.ndk.pool.on("connect", () => {
-      if (debug) {
-        console.log('relays connected');
-      }
+      debugLog('relays connected');
     })
     window.ndk.pool.on("notice", (relay, notice) => {
-      if (debug) {
-        console.log('relay notice', relay, notice);
-      }
+      debugLog('relay notice', relay, notice);
       app.ports.receiveMessage.send({ messageType: 'relay:notice', value: { relay: relay, notice: notice } });
     })
     window.ndk.pool.on("relay:connect", (relay) => {
-      if (debug) {
-        console.log('relay connected', relay);
-      }
+      debugLog('relay connected', relay);
       app.ports.receiveMessage.send({ messageType: 'relay:connected', value: { url: relay.url } });
     })
     window.ndk.pool.on("relay:ready", (relay) => {
-      if (debug) {
-        console.log('relay ready', relay);
-      }
+      debugLog('relay ready', relay);
       app.ports.receiveMessage.send({ messageType: 'relay:ready', value: { url: relay.url } });
 
       // start sending when at least one relay is ready
@@ -183,9 +167,7 @@ export const onReady = ({ app, env }) => {
       storedCommands = [];
     })
     window.ndk.pool.on("relay:disconnect", (relay) => {
-      if (debug) {
-        console.log('relay disconnected', relay);
-      }
+      debugLog('relay disconnected', relay);
       app.ports.receiveMessage.send({ messageType: 'relay:disconnected', value: { url: relay.url } });
     })
 
@@ -201,9 +183,7 @@ export const onReady = ({ app, env }) => {
       , relays: relays
     }
   ) {
-    if (debug) {
-      console.log("FILTER: ", filter, description, " requestId: " + requestId, "closeOnEose: " + closeOnEose, "relays: ", relays);
-    }
+    debugLog("FILTER: ", filter, description, " requestId: " + requestId, "closeOnEose: " + closeOnEose, "relays: ", relays);
 
     const ndkRelays = relays ? NDKRelaySet.fromRelayUrls(relays, window.ndk) : null;
 
@@ -275,9 +255,6 @@ export const onReady = ({ app, env }) => {
           //  }]
           {
             const zapReceipt = fillZapReceipt(ndkEvent);
-            if (debug) {
-              // console.log("Zap receipt: ", zapReceipt);
-            }
             zapReceipts.push(zapReceipt);
             break;
           }
@@ -311,82 +288,58 @@ export const onReady = ({ app, env }) => {
           }
 
         default:
-          if (debug) {
-            console.log("Unhandled event with kind: ", ndkEvent.kind);
-          }
+          debugLog("Unhandled event with kind: ", ndkEvent.kind);
           eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
           break;
       }
     });
 
     if (articles.length > 0) {
-      if (debug) {
-        console.log("Articles: ", articles.length);
-      }
+      debugLog("Articles: ", articles.length);
       app.ports.receiveMessage.send({ messageType: 'articles', value: articles });
     }
     if (communities.length > 0) {
-      if (debug) {
-        console.log("Communities: ", communities.length);
-      }
+      debugLog("Communities: ", communities.length);
       app.ports.receiveMessage.send({ messageType: 'communities', value: communities });
     }
     for (const kind in eventsSortedByKind) {
       const events = eventsSortedByKind[kind]
-      if (debug) {
-        console.log("Events of kind " + kind + ": ", events.length);
-      }
+      debugLog("Events of kind " + kind + ": ", events.length);
       app.ports.receiveMessage.send({ messageType: 'events', value: { kind: parseInt(kind), events: events, requestId: requestId } });
     }
 
     if (followlists.length > 0) {
-      if (debug) {
-        console.log("Follow lists: ", followlists.length);
-      }
+      debugLog("Follow lists: ", followlists.length);
       app.ports.receiveMessage.send({ messageType: 'followlists', value: followlists });
     }
     if (profiles.length > 0) {
-      if (debug) {
-        console.log("Profiles: ", profiles.length);
-      }
+      debugLog("Profiles: ", profiles.length);
       app.ports.receiveMessage.send({ messageType: 'profiles', value: profiles });
     }
     if (reactions.length > 0) {
-      if (debug) {
-        console.log("Reactions: ", reactions.length);
-      }
+      debugLog("Reactions: ", reactions.length);
       app.ports.receiveMessage.send({ messageType: 'reactions', value: reactions });
     }
     if (reposts.length > 0) {
-      if (debug) {
-        console.log("Reposts: ", reposts.length);
-      }
+      debugLog("Reposts: ", reposts.length);
       app.ports.receiveMessage.send({ messageType: 'reposts', value: reposts });
     }
     if (shortNotes.length > 0) {
-      if (debug) {
-        console.log("Short notes: ", shortNotes.length);
-      }
+      debugLog("Short notes: ", shortNotes.length);
       app.ports.receiveMessage.send({ messageType: 'short_notes', value: shortNotes });
     }
     if (highlights.length > 0) {
-      if (debug) {
-        console.log("Highlights: ", highlights.length);
-      }
+      debugLog("Highlights: ", highlights.length);
       app.ports.receiveMessage.send({ messageType: 'highlights', value: highlights });
     }
     if (zapReceipts.length > 0) {
-      if (debug) {
-        console.log("ZapReceipts: ", zapReceipts.length);
-      }
+      debugLog("ZapReceipts: ", zapReceipts.length);
       app.ports.receiveMessage.send({ messageType: 'zap_receipts', value: zapReceipts });
     }
   }
 
   function requestBlossomAuth(app, { requestId: requestId, fileId: fileId, serverUrl: serverUrl, content: content, method: method, hash: sha256Hash }) {
-    if (debug) {
-      console.log("Blossom auth request with requestId: " + requestId);
-    }
+    debugLog("Blossom auth request with requestId: " + requestId);
 
     async function signer(event) {
       return await window.nostr.signEvent(event);
@@ -407,9 +360,7 @@ export const onReady = ({ app, env }) => {
 
     // create an upload auth event
     authPromise.then(authHeader => {
-      if (debug) {
-        console.log('authHeader', authHeader);
-      }
+      debugLog('authHeader', authHeader);
 
       // encode it using base64
       const encodedAuthHeader = BlossomClient.encodeAuthorizationHeader(authHeader);
@@ -432,14 +383,10 @@ export const onReady = ({ app, env }) => {
 
 
   function requestNip96Auth(app, { requestId: requestId, fileId: fileId, serverUrl: serverUrl, apiUrl: apiUrl, method: method, hash: sha256Hash }) {
-    if (debug) {
-      console.log("Nip96 auth request with requestId: " + requestId);
-    }
+    debugLog("Nip96 auth request with requestId: " + requestId);
 
     generateNip98Header(apiUrl, method, sha256Hash).then(nip98AuthHeader => {
-      if (debug) {
-        console.log('nip98 header', nip98AuthHeader);
-      }
+      debugLog('nip98 header', nip98AuthHeader);
       // encode it using base64
       app.ports.receiveMessage.send(
         {
@@ -459,14 +406,10 @@ export const onReady = ({ app, env }) => {
   }
 
   function sendEvent(app, { sendId: sendId, event: event, relays: relays }) {
-    if (debug) {
-      console.log('send event ' + sendId, event, 'relays: ', relays);
-    }
+    debugLog('send event ' + sendId, event, 'relays: ', relays);
     const ndkEvent = new NDKEvent(window.ndk, event);
     ndkEvent.sign().then(() => {
-      if (debug) {
-        console.log('signed event ' + sendId, ndkEvent);
-      }
+      debugLog('signed event ' + sendId, ndkEvent);
 
       var relaysWithProtocol = relays.map(relay => "wss://" + relay);
 
@@ -475,9 +418,7 @@ export const onReady = ({ app, env }) => {
       }
       const relaySet = NDKRelaySet.fromRelayUrls(relaysWithProtocol, window.ndk);
       ndkEvent.publish(relaySet, 5000).then((results) => {
-        if (debug) {
-          console.log('published event ' + sendId, ndkEvent);
-        }
+        debugLog('published event ' + sendId, ndkEvent);
         app.ports.receiveMessage.send({ messageType: 'published', value: { sendId: sendId, event: ndkEvent, results: results } });
 
         // feed sent events into app as if received by relay.
