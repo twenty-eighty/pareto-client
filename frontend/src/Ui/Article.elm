@@ -27,6 +27,7 @@ import Time
 import Translations.Posts
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
+import Ui.Shared exposing (ensureHttps)
 import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded, stylesForTheme)
 
 -- single article
@@ -168,7 +169,7 @@ viewArticleImage maybeImage =
                     ]
                 ]
                 [ img
-                    [ Attr.src image
+                    [ Attr.src (ensureHttps image)
                     , Attr.alt "Post Image"
                     , css
                         [ Tw.rounded_lg
@@ -359,7 +360,7 @@ viewArticleProfileSmall profile validationStatus =
             [ div
                 []
                 [ img
-                    [ Attr.src image
+                    [ Attr.src (ensureHttps image)
                     , Attr.alt "Avatar"
                     , css
                         [ Tw.min_w_12
@@ -865,7 +866,7 @@ previewListImage article =
                     ]
                 ]
                 [ img
-                    [ Attr.src image
+                    [ Attr.src (ensureHttps image)
                     , Attr.style "top" "50%"
                     , Attr.style "left" "50%"
                     , Attr.style "object-fit" "cover"
@@ -896,7 +897,7 @@ previewBigPictureImage article =
                     ]
                 ]
                 [ img
-                    [ Attr.src image
+                    [ Attr.src (ensureHttps image)
                     , Attr.style "top" "50%"
                     , Attr.style "left" "50%"
                     , Attr.style "object-fit" "cover"
@@ -1135,7 +1136,7 @@ viewProfileImage linkElement maybeImage validationStatus =
         ]
         [ linkElement
             [ img
-                [ Attr.src image
+                [ Attr.src (ensureHttps image)
                 , Attr.alt "Avatar"
                 , css
                     [ Tw.min_w_28
@@ -1181,7 +1182,7 @@ viewProfileImageSmall linkElement maybeImage validationStatus =
                     , Tw.h_8
                     , Tw.rounded_3xl
                     ]
-                , Attr.src image
+                , Attr.src (ensureHttps image)
                 , Attr.alt "profile image"
                 ]
                 []
