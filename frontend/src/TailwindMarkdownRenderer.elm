@@ -13,6 +13,7 @@ import SyntaxHighlight
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Nostr.Shared exposing (ensureHttps)
 import Ui.Styles exposing (Styles)
 
 
@@ -64,7 +65,7 @@ renderer styles =
             case image.title of
                 Just _ ->
                     Html.img
-                        [ Attr.src image.src
+                        [ Attr.src (ensureHttps image.src)
                         , Attr.alt image.alt
                         , css
                             [Tw.max_h_96
@@ -73,7 +74,7 @@ renderer styles =
 
                 Nothing ->
                     Html.img
-                        [ Attr.src image.src
+                        [ Attr.src (ensureHttps image.src)
                         , Attr.alt image.alt
                         , css
                             [Tw.max_h_96
@@ -384,7 +385,9 @@ renderHtmlImgElement src maybeAlt children =
             |> Maybe.withDefault []
     in
     Html.img
-        ([ Attr.src src
+        -- don't reference unsafe (http) resources
+        -- as this might display our site as unsafe
+        ([ Attr.src (ensureHttps src)
         , css
             [Tw.max_h_96
             ]
