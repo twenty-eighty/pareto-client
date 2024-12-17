@@ -6,6 +6,7 @@ import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Ta
 import Nostr.Nip19 as Nip19
 import Nostr.Nip27 as Nip27
 import Nostr.Profile exposing (ProfileValidation(..))
+import Nostr.Shared
 import Nostr.Types exposing (Address, EventId, PubKey, RelayUrl)
 import Set
 import Time
@@ -105,7 +106,9 @@ articleFromEvent event =
                         ({ article | identifier = Just identifier }, errors)
 
                     ImageTag image _ ->
-                        ({ article | image = Just image }, errors)
+                        -- HTTP images make the client appear unsafe
+                        -- all images should be served with HTTPS in 2024
+                        ({ article | image = Just <| Nostr.Shared.ensureHttps image }, errors)
 
                     PublishedAtTag publishedAt ->
                         ({ article | publishedAt = Just publishedAt }, errors)

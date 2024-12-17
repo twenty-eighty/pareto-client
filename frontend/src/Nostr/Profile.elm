@@ -4,12 +4,12 @@ import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as DecodePipeline
+import Json.Encode as Encode
 import Nostr.Event exposing (Event, Tag(..))
-import Nostr.Nip05 exposing (Nip05, nip05StringDecoder)
+import Nostr.Nip05 as Nip05 exposing (Nip05, nip05StringDecoder)
+import Nostr.Shared
 import Nostr.Types exposing (PubKey)
 import Time
-import Nostr.Nip05 as Nip05
-import Json.Encode as Encode
 
 type Author
     = AuthorPubkey PubKey
@@ -136,13 +136,25 @@ nostrProfileDecoder =
     |> DecodePipeline.optional "name" (Decode.maybe Decode.string) Nothing
     |> DecodePipeline.optional "display_name" (Decode.maybe Decode.string) Nothing
     |> DecodePipeline.optional "about" (Decode.maybe Decode.string) Nothing
-    |> DecodePipeline.optional "picture" (Decode.maybe Decode.string) Nothing
-    |> DecodePipeline.optional "banner" (Decode.maybe Decode.string) Nothing
-    |> DecodePipeline.optional "website" (Decode.maybe Decode.string) Nothing
+    |> DecodePipeline.optional "picture" (Decode.maybe httpsUrlDecoder) Nothing
+    |> DecodePipeline.optional "banner" (Decode.maybe httpsUrlDecoder) Nothing
+    |> DecodePipeline.optional "website" (Decode.maybe httpsUrlDecoder) Nothing
     |> DecodePipeline.optional "bot" (Decode.maybe Decode.bool) Nothing
     |> DecodePipeline.optional "npub" (Decode.maybe Decode.string) Nothing
     |> DecodePipeline.optional "created_at" (Decode.maybe decodeUnixTime) Nothing
     |> DecodePipeline.hardcoded ""
+
+
+-- by upgrading HTTP to HTTPS links we avoid
+-- being displayed as unsafe site
+httpsUrlDecoder : Decode.Decoder String
+httpsUrlDecoder =
+    Decode.string
+    |> Decode.andThen (\url ->
+            url
+            |> Nostr.Shared.ensureHttps 
+            |> Decode.succeed
+        )
 
 
 decodeUnixTime : Decoder Time.Posix

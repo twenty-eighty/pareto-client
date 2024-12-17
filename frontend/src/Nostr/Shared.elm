@@ -271,3 +271,10 @@ httpTextForStatus status =
 
         _ ->
             "Unknown status code"
+
+ensureHttps : String -> String
+ensureHttps url =
+    if String.startsWith "http://" url then
+        "https://" ++ String.dropLeft 7 url
+    else
+        url

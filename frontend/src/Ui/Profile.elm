@@ -66,6 +66,7 @@ viewProfile theme profile validationStatus =
             [ Tw.flex
             , Tw.flex_col
             , Tw.space_y_2
+            , Tw.mx_4
             , Tw.mb_4
             ]
         ]

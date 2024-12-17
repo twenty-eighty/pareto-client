@@ -14,13 +14,6 @@ pageLoadingIndicator =
     Svg.Loaders.rings []
     |> Html.fromUnstyled
 
-ensureHttps : String -> String
-ensureHttps url =
-    if String.startsWith "http://" url then
-        "https://" ++ String.dropLeft 7 url
-    else
-        url
-
 thinBorderButton : msg -> String -> Html msg
 thinBorderButton onClickMsg title =
     button
