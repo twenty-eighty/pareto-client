@@ -25,6 +25,17 @@ defmodule NostrBackendWeb.Router do
   end
 
   scope "/", NostrBackendWeb do
+    pipe_through([])
+
+    # Catch typical WordPress paths and respond with 404
+    get "/wp-admin/*path", NotFoundController, :index
+    get "/wp-content/*path", NotFoundController, :index
+    get "/wp-includes/*path", NotFoundController, :index
+    get "/xmlrpc.php", NotFoundController, :index
+    get "/index.php", NotFoundController, :index
+  end
+
+  scope "/", NostrBackendWeb do
     pipe_through([:browser, :posthog])
 
     get("/de", PageController, :landing_page_de)
