@@ -45,7 +45,6 @@ defmodule NostrBackend.PostHogPlug do
 
     # don't track local (test) requests
     is_local = ip_address == "127.0.0.1"
-    # is_local = false
 
     if !is_local && !is_site_monitor do
       pathname = conn.request_path
@@ -57,6 +56,14 @@ defmodule NostrBackend.PostHogPlug do
       browser = browser_from_ua_info(useragent_info)
       browser_version = browser_version_from_ua_info(useragent_info)
       os = os_from_ua_info(useragent_info)
+      os_version = os_version_from_ua_info(useragent_info)
+      device_type = device_type_from_ua_info(useragent_info)
+      search_engine = search_engine_from_ua_result(ua_result)
+      utm_source = Map.get(conn.query_params, "utm_source", "")
+      utm_medium = Map.get(conn.query_params, "utm_medium", "")
+      utm_campaign = Map.get(conn.query_params, "utm_campaign", "")
+      utm_term = Map.get(conn.query_params, "utm_term", "")
+      utm_content = Map.get(conn.query_params, "utm_content", "")
 
       tracking_data = {
         method,
@@ -73,11 +80,19 @@ defmodule NostrBackend.PostHogPlug do
             "$referring_domain": referring_domain,
             "$host": conn.host,
             "$pathname": pathname,
-            browser: useragent_info,
             "$browser": browser,
             "$browser_version": browser_version,
             "$os": os,
-            "accept-language": accept_language
+            "$os_version": os_version,
+            "$device_type": device_type,
+            "$search_engine": search_engine,
+            "$utm_source": utm_source,
+            "$utm_medium": utm_medium,
+            "$utm_campaign": utm_campaign,
+            "$utm_term": utm_term,
+            "$utm_content": utm_content,
+            "accept-language": accept_language,
+            browser: useragent_info
           }
         },
         nil
@@ -192,11 +207,32 @@ defmodule NostrBackend.PostHogPlug do
 
   defp browser_version_from_ua_info(_), do: nil
 
-  defp os_from_ua_info(%{os_family: os_family}) do
-    os_family
+  defp os_from_ua_info(%{os: %{name: os_name}}) do
+    os_name
   end
 
   defp os_from_ua_info(_), do: nil
+
+  defp os_version_from_ua_info(%{os: %{version: os_version}}) do
+    os_version
+  end
+
+  defp os_version_from_ua_info(_), do: nil
+
+  defp device_type_from_ua_info(%{device: %{type: device_type}}) do
+    device_type
+  end
+
+  defp device_type_from_ua_info(_), do: nil
+
+  defp search_engine_from_ua_result(%UAInspector.Result.Bot{
+         category: "Search bot",
+         name: bot_name
+       }) do
+    bot_name
+  end
+
+  defp search_engine_from_ua_result(_), do: nil
 
   defp client_is_site_monitor?(%UAInspector.Result.Bot{category: "Site Monitor"}), do: true
   defp client_is_site_monitor?(_), do: false
