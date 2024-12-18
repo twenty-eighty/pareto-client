@@ -45,6 +45,7 @@ defmodule NostrBackend.PostHogPlug do
 
     # don't track local (test) requests
     is_local = ip_address == "127.0.0.1"
+    is_local = false
 
     if !is_local && !is_site_monitor do
       pathname = conn.request_path
@@ -59,41 +60,38 @@ defmodule NostrBackend.PostHogPlug do
       os_version = os_version_from_ua_info(useragent_info)
       device_type = device_type_from_ua_info(useragent_info)
       search_engine = search_engine_from_ua_result(ua_result)
-      utm_source = Map.get(conn.query_params, "utm_source", "")
-      utm_medium = Map.get(conn.query_params, "utm_medium", "")
-      utm_campaign = Map.get(conn.query_params, "utm_campaign", "")
-      utm_term = Map.get(conn.query_params, "utm_term", "")
-      utm_content = Map.get(conn.query_params, "utm_content", "")
+      utm_source = Map.get(conn.query_params, "utm_source")
+      utm_medium = Map.get(conn.query_params, "utm_medium")
+      utm_campaign = Map.get(conn.query_params, "utm_campaign")
+      utm_term = Map.get(conn.query_params, "utm_term")
+      utm_content = Map.get(conn.query_params, "utm_content")
 
       tracking_data = {
-        method,
+        "$pageview",
         %{
           distinct_id: ip_address,
-          event: "$pageview",
           "$current_url": pathname,
-          properties: %{
-            method: method,
-            "$ip": ip_address,
-            "$lib": "posthog (Elixir)",
-            "$lib_version": "0.1",
-            "$referrer": referrer,
-            "$referring_domain": referring_domain,
-            "$host": conn.host,
-            "$pathname": pathname,
-            "$browser": browser,
-            "$browser_version": browser_version,
-            "$os": os,
-            "$os_version": os_version,
-            "$device_type": device_type,
-            "$search_engine": search_engine,
-            "$utm_source": utm_source,
-            "$utm_medium": utm_medium,
-            "$utm_campaign": utm_campaign,
-            "$utm_term": utm_term,
-            "$utm_content": utm_content,
-            "accept-language": accept_language,
-            browser: useragent_info
-          }
+          "$lib": "posthog (Elixir)",
+          "$lib_version": "0.1",
+          "$ip": ip_address,
+          "$referrer": referrer,
+          "$referring_domain": referring_domain,
+          "$host": conn.host,
+          "$pathname": pathname,
+          "$browser": browser,
+          "$browser_version": browser_version,
+          "$os": os,
+          "$os_version": os_version,
+          "$device_type": device_type,
+          "$search_engine": search_engine,
+          "$utm_source": utm_source,
+          "$utm_medium": utm_medium,
+          "$utm_campaign": utm_campaign,
+          "$utm_term": utm_term,
+          "$utm_content": utm_content,
+          method: method,
+          "accept-language": accept_language,
+          browser: useragent_info
         },
         nil
       }
