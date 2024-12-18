@@ -7,7 +7,7 @@ import LinkPreview
 import Markdown.Block as Block
 import Markdown.Html
 import Markdown.Renderer
-import Nostr.Nip27 exposing (subsituteNostrLinks)
+import Nostr.Nip27 exposing (GetProfileFunction, subsituteNostrLinks)
 import Parser
 import SyntaxHighlight
 import Tailwind.Breakpoints as Bp
@@ -17,8 +17,8 @@ import Nostr.Shared exposing (ensureHttps)
 import Ui.Styles exposing (Styles)
 
 
-renderer : Styles msg -> Markdown.Renderer.Renderer (Html msg)
-renderer styles =
+renderer : Styles msg -> GetProfileFunction -> Markdown.Renderer.Renderer (Html msg)
+renderer styles fnGetProfile =
     { heading = heading styles
     , paragraph =
         Html.p
@@ -38,7 +38,7 @@ renderer styles =
                 ]
             ]
             []
-    , text = (subsituteNostrLinks styles)
+    , text = (subsituteNostrLinks styles fnGetProfile)
     , strong = \content -> Html.strong [ css [ Tw.font_bold ] ] content
     , emphasis = \content -> Html.em [ css [ Tw.italic ] ] content
     , blockQuote =

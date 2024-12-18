@@ -1282,10 +1282,16 @@ updateModelWithLongFormContentDraft model requestId events =
 requestRelatedKindsForArticles : Model -> List Article -> Request -> (Model, Cmd Msg)
 requestRelatedKindsForArticles model articles request =
     let
+        (requestNip27Model, requestWithNip27Requests) =
+            articles
+            |> List.map .nip27References
+            |> List.concat
+            |> appendNip27ProfileRequests model request
+
         maybeEventFilterForAuthorProfiles =
             articles
             |> Nostr.Article.uniqueArticleAuthors
-            |> getMissingProfilePubKeys model
+            |> getMissingProfilePubKeys requestNip27Model
             |> profileFilterForAuthors
 
         (requestProfileModel, extendedRequestProfile) =
@@ -1294,7 +1300,7 @@ requestRelatedKindsForArticles model articles request =
                     -- TODO: add relays for request
                     eventFilterForAuthorProfiles
                     |> RequestProfile Nothing
-                    |> addToRequest model request
+                    |> addToRequest model requestWithNip27Requests
 
                 Nothing ->
                     (model, request)
@@ -1318,6 +1324,56 @@ requestRelatedKindsForArticles model articles request =
 
     in
     doRequest modelWithDeletionRequests extendedRequestDeletionRequests
+
+appendNip27ProfileRequests : Model -> Request -> List NIP19Type -> (Model, Request)
+appendNip27ProfileRequests model request nip19List =
+    let
+        pubKeys =
+            nip19List
+            |> List.filterMap (\nip27Ref ->
+                case nip27Ref of
+                    Npub pubKey ->
+                        Just pubKey
+
+                    Nsec _ ->
+                        Nothing
+
+                    Note _ ->
+                        Nothing
+
+                    NProfile { pubKey, relays } ->
+                        Just pubKey
+
+                    NEvent _ ->
+                        Nothing
+
+                    NAddr _ ->
+                        Nothing
+
+                    NRelay _ ->
+                        Nothing
+
+                    Unknown _ ->
+                        Nothing
+            )
+            |> Set.fromList
+            |> Set.toList
+
+        maybeEventFilter =
+            pubKeys
+            |> getMissingProfilePubKeys model
+            |> profileFilterForAuthors
+
+    in
+    case maybeEventFilter of
+        Just eventFilterForProfiles ->
+            -- TODO: add relays for request
+            eventFilterForProfiles
+            |> RequestProfile Nothing
+            |> addToRequest model request
+
+        Nothing ->
+            (model, request)
 
 updateModelWithSearchRelays : Model -> RequestId -> List Event -> (Model, Cmd Msg)
 updateModelWithSearchRelays model requestId events =

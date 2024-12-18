@@ -7,6 +7,7 @@ import Markdown.Block as Block exposing (Block, Inline, ListItem(..), Task(..))
 import Markdown.Block exposing (Block(..))
 import Markdown.Parser
 import Markdown.Renderer as Renderer
+import Nostr.Nip27 exposing (GetProfileFunction)
 import Parser
 import Parser.Advanced as Advanced
 import Regex exposing (Regex)
@@ -100,18 +101,18 @@ deadEndsToString deadEnds =
         |> String.join "\n"
 
 
-markdownViewHtml : Styles msg -> String -> Result String (Html msg)
-markdownViewHtml styles markdown =
-    render styles markdown
+markdownViewHtml : Styles msg -> GetProfileFunction -> String -> Result String (Html msg)
+markdownViewHtml styles fnGetProfile markdown =
+    render styles fnGetProfile markdown
         |> Result.map elementFromHtmlList
 
-render : Styles msg -> String -> Result String (List (Html msg))
-render styles markdown =
+render : Styles msg -> GetProfileFunction-> String -> Result String (List (Html msg))
+render styles fnGetProfile markdown =
     markdown
         |> replaceImgTags
         |> Markdown.Parser.parse
         |> Result.mapError deadEndsToString
-        |> Result.andThen (\ast -> Renderer.render (TailwindMarkdownRenderer.renderer styles) ast)
+        |> Result.andThen (\ast -> Renderer.render (TailwindMarkdownRenderer.renderer styles fnGetProfile) ast)
 
 
 
