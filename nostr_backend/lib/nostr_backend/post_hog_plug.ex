@@ -45,7 +45,6 @@ defmodule NostrBackend.PostHogPlug do
 
     # don't track local (test) requests
     is_local = ip_address == "127.0.0.1"
-    is_local = false
 
     if !is_local && !is_site_monitor do
       pathname = conn.request_path
@@ -107,7 +106,7 @@ defmodule NostrBackend.PostHogPlug do
   defp domain_from_url(url) do
     case URI.parse(url) do
       %URI{host: host} when is_binary(host) -> host
-      _ -> ""
+      _ -> nil
     end
   end
 
