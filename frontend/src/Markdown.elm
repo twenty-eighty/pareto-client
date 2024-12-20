@@ -93,6 +93,18 @@ replaceImgTags input =
         Nothing ->
             input
 
+-- A regex to match http:// or https:// followed by non-whitespace chars
+urlRegex : Regex
+urlRegex =
+    Regex.fromString "(https?://[^\\s]+)"
+        |> Maybe.withDefault Regex.never
+
+
+-- Replaces all http(s) URLs in the given text with Markdown links
+substituteHttpLinks : String -> String
+substituteHttpLinks text =
+    Regex.replace urlRegex (\m -> "[" ++ m.match ++ "](" ++ m.match ++ ")") text
+
 
 deadEndsToString : List (Advanced.DeadEnd String Parser.Problem) -> String
 deadEndsToString deadEnds =
@@ -110,6 +122,7 @@ render : Styles msg -> GetProfileFunction-> String -> Result String (List (Html 
 render styles fnGetProfile markdown =
     markdown
         |> replaceImgTags
+        |> substituteHttpLinks
         |> Markdown.Parser.parse
         |> Result.mapError deadEndsToString
         |> Result.andThen (\ast -> Renderer.render (TailwindMarkdownRenderer.renderer styles fnGetProfile) ast)
