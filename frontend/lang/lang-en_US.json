@@ -42,6 +42,7 @@
       "followed feed category": "Followed",
       "global feed category": "Global",
       "pareto feed category": "Pareto",
+      "rss feed category": "Others",
       "highlighter feed category": "Highlighter"
    },
    "posts": {

@@ -142,18 +142,6 @@ export const onReady = ({ app, env }) => {
     })
     window.ndk.pool.on("connect", () => {
       debugLog('relays connected');
-    })
-    window.ndk.pool.on("notice", (relay, notice) => {
-      debugLog('relay notice', relay, notice);
-      app.ports.receiveMessage.send({ messageType: 'relay:notice', value: { relay: relay, notice: notice } });
-    })
-    window.ndk.pool.on("relay:connect", (relay) => {
-      debugLog('relay connected', relay);
-      app.ports.receiveMessage.send({ messageType: 'relay:connected', value: { url: relay.url } });
-    })
-    window.ndk.pool.on("relay:ready", (relay) => {
-      debugLog('relay ready', relay);
-      app.ports.receiveMessage.send({ messageType: 'relay:ready', value: { url: relay.url } });
 
       // start sending when at least one relay is ready
       connected = true;
@@ -166,12 +154,24 @@ export const onReady = ({ app, env }) => {
 
       storedCommands = [];
     })
+    window.ndk.pool.on("notice", (relay, notice) => {
+      debugLog('relay notice', relay, notice);
+      app.ports.receiveMessage.send({ messageType: 'relay:notice', value: { relay: relay, notice: notice } });
+    })
+    window.ndk.pool.on("relay:connect", (relay) => {
+      debugLog('relay connected', relay);
+      app.ports.receiveMessage.send({ messageType: 'relay:connected', value: { url: relay.url } });
+    })
+    window.ndk.pool.on("relay:ready", (relay) => {
+      debugLog('relay ready', relay);
+      app.ports.receiveMessage.send({ messageType: 'relay:ready', value: { url: relay.url } });
+    })
     window.ndk.pool.on("relay:disconnect", (relay) => {
       debugLog('relay disconnected', relay);
       app.ports.receiveMessage.send({ messageType: 'relay:disconnected', value: { url: relay.url } });
     })
 
-    window.ndk.connect();
+    window.ndk.connect(2000);
   }
 
 

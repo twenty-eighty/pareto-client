@@ -13,6 +13,10 @@ authorsKey : PubKey
 authorsKey =
     "0f47948ccf4d12064ede2e0aa744868a2443cb1c42b32c06191e0d902205abef"
 
+rssAuthorsKey : PubKey
+rssAuthorsKey =
+    "0f4791c38e1236dc55f11acbf37a00da8879906d9374498378db8d6ea7952869"
+
 -- name of client in "client" tag when publishing articles
 client : String
 client =
@@ -48,13 +52,12 @@ defaultRelays : List String
 defaultRelays =
     [ "nostr.pareto.space"
     , "pareto.nostr1.com"
---    , "relay.snort.social"
---  , "relay.nostr.band"
---  , "relay.damus.io"
+    , "relay.snort.social"
+    , "relay.nostr.band"
+    , "relay.damus.io"
     , "nos.lol"
---  , "offchain.pub"
---  , "relay.damus.io"
---  , "nostr.wine"
+    , "offchain.pub"
+    , "nostr.wine"
     ]
 
 defaultSearchRelays : List String
