@@ -122,7 +122,7 @@ render : Styles msg -> GetProfileFunction-> String -> Result String (List (Html 
 render styles fnGetProfile markdown =
     markdown
         |> replaceImgTags
-        |> substituteHttpLinks
+--        |> substituteHttpLinks
         |> Markdown.Parser.parse
         |> Result.mapError deadEndsToString
         |> Result.andThen (\ast -> Renderer.render (TailwindMarkdownRenderer.renderer styles fnGetProfile) ast)
