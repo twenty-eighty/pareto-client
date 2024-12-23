@@ -30,6 +30,7 @@ import Ports
 import Route exposing (Route)
 import Shared
 import Shared.Msg
+import Svg.Loaders as Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
@@ -622,17 +623,34 @@ viewArticleState browserEnv theme articleState =
         styles =
             Ui.Styles.stylesForTheme theme
     in
-    case articleStateToString browserEnv articleState of
-        Just articleStateString ->
+    case (articleStateToString browserEnv articleState, articleStateProcessIndicator articleState) of
+        (Just articleStateString, Just processIndicator) ->
+            div
+                (styles.colorStyleGrayscaleMuted ++ styles.textStyle14 ++
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_row
+                    , Tw.items_center
+                    ]
+                ])
+                [ processIndicator
+                , text articleStateString
+                ]
+
+        (Just articleStateString, Nothing) ->
             div
                 (styles.colorStyleGrayscaleMuted ++ styles.textStyle14 ++
                 [
                 ])
-                [ text articleStateString ]
+                [ text articleStateString
+                ]
 
-        Nothing ->
+        (Nothing, Just processIndicator) ->
+            processIndicator
+
+        (Nothing, Nothing) ->
             div [][]
-    
+
 articleStateToString : BrowserEnv -> ArticleState -> Maybe String
 articleStateToString browserEnv articleState =
     case articleState of
@@ -668,6 +686,44 @@ articleStateToString browserEnv articleState =
 
         ArticleDeletingDraft _ ->
             Just <| Translations.articleDeletingDraftState [ browserEnv.translations ]
+
+
+articleStateProcessIndicator : ArticleState -> Maybe (Html Msg)
+articleStateProcessIndicator articleState =
+    case articleState of
+        ArticleEmpty ->
+            Nothing
+
+        ArticleModified ->
+            Nothing
+
+        ArticleLoadingDraft _ ->
+            Just <| (Loaders.rings [] |> Html.fromUnstyled)
+
+        ArticleLoadingDraftError error ->
+            Nothing
+
+        ArticleSavingDraft _ ->
+            Just <| (Loaders.rings [] |> Html.fromUnstyled)
+
+        ArticleDraftSaved ->
+            Nothing
+
+        ArticleDraftSaveError error ->
+            Nothing
+
+        ArticlePublishing _ ->
+            Just <| (Loaders.rings [] |> Html.fromUnstyled)
+
+        ArticlePublishingError error ->
+            Nothing
+
+        ArticlePublished ->
+            Nothing
+
+        ArticleDeletingDraft _ ->
+            Just <| (Loaders.rings [] |> Html.fromUnstyled)
+
 
 viewMediaSelector : Auth.User -> Shared.Model -> Model -> Html Msg
 viewMediaSelector user shared model =
