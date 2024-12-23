@@ -100,10 +100,6 @@ viewCommunity : BrowserEnv -> Nostr.Model -> Community -> Html msg
 viewCommunity browserEnv nostr community =
     Ui.Community.viewCommunity browserEnv nostr.profiles community
 
-viewShortNote : Styles msg -> BrowserEnv -> Nostr.Model -> ShortNote -> Html msg
-viewShortNote styles browserEnv nostr shortNote =
-    Ui.ShortNote.viewShortNote styles browserEnv nostr.profiles shortNote
-
 
 viewRelayStatus : Theme -> I18Next.Translations -> Nostr.Model -> Purpose -> Maybe RequestId -> Html msg
 viewRelayStatus theme translations nostr purpose requestId =

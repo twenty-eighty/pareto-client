@@ -1281,7 +1281,7 @@ appendTags tags eventElements =
     let
         tagArrays =
             tags
-            |> List.foldl (\tag acc ->
+            |> List.foldr (\tag acc ->
                 tagToList tag :: acc
             ) []
     in

@@ -30,6 +30,21 @@ import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
 import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded, stylesForTheme)
 
+type alias ArticlePreviewsData msg =
+    { theme : Theme
+    , browserEnv : BrowserEnv
+    , nostr : Nostr.Model
+    , userPubKey : Maybe PubKey
+    , onBookmark : Maybe ((AddressComponents -> msg), (AddressComponents -> msg)) -- msgs for adding/removing a bookmark
+    }
+
+type alias ArticlePreviewData =
+    { author : Author
+    , interactions : Interactions
+    , displayAuthor : Bool
+    }
+
+
 -- single article
 
 viewArticle : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
@@ -572,20 +587,6 @@ viewArticleInternal styles fnGetProfile browserEnv article =
         ]
 
 -- article previews
-
-type alias ArticlePreviewsData msg =
-    { theme : Theme
-    , browserEnv : BrowserEnv
-    , nostr : Nostr.Model
-    , userPubKey : Maybe PubKey
-    , onBookmark : Maybe ((AddressComponents -> msg), (AddressComponents -> msg)) -- msgs for adding/removing a bookmark
-    }
-
-type alias ArticlePreviewData =
-    { author : Author
-    , interactions : Interactions
-    , displayAuthor : Bool
-    }
 
 viewArticlePreviewList : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
 viewArticlePreviewList articlePreviewsData articlePreviewData article =
