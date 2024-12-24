@@ -38,6 +38,9 @@
       "configure server button title": "Configure Pareto media server",
       "select image dialog title": "Select image"
    },
+   "message dialog": {
+      "warning": "Warning"
+   },
    "read": {
       "followed feed category": "Followed",
       "global feed category": "Global",
@@ -74,7 +77,12 @@
       "loading profile": "Loading profile..."
    },
    "search": {
-      "page title": "Search"
+      "page title": "Search",
+      "explanation 1": "",
+      "explanation 2": ""
+   },
+   "search bar": {
+      "placeholder": "URL, Nostr ID, or Nostr Address"
    },
    "sidebar": {
       "reader client role text": "Reader",

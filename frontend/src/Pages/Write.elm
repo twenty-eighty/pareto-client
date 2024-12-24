@@ -4,6 +4,7 @@ import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
+import Components.MessageDialog as MessageDialog
 import Components.PublishArticleDialog as PublishArticleDialog exposing (PublishArticleDialog)
 import Css
 import Dict exposing (Dict)
@@ -76,7 +77,12 @@ type alias Model =
     , imageSelection : Maybe ImageSelection
     , publishArticleDialog : PublishArticleDialog.Model Msg
     , articleState : ArticleState
+    , modalDialog : ModalDialog
     }
+
+type ModalDialog
+    = NoModalDialog
+    | PublishedDialog
 
 type ArticleState
     = ArticleEmpty
@@ -168,6 +174,7 @@ init user shared route () =
                     , imageSelection = Nothing
                     , publishArticleDialog = publishArticleDialog
                     , articleState = ArticleDraftSaved
+                    , modalDialog = NoModalDialog
                     }
 
                 Nothing ->
@@ -186,6 +193,7 @@ init user shared route () =
                     , imageSelection = Nothing
                     , publishArticleDialog = publishArticleDialog
                     , articleState = ArticleEmpty
+                    , modalDialog = NoModalDialog
                     }
     in
     ( model
@@ -240,6 +248,10 @@ type Msg
     | ReceivedPortMessage IncomingMessage
     | MilkdownSent (Milkdown.Msg Msg)
     | PublishArticleDialogSent (PublishArticleDialog.Msg Msg)
+    | PublishedDialogButtonClicked PublishedDialogButton
+
+type PublishedDialogButton
+    = OkButton
 
 
 update : Shared.Model -> Auth.User -> Msg -> Model -> ( Model, Effect Msg )
@@ -367,6 +379,10 @@ update shared user msg model =
                 , pubKey = user.pubKey
                 }
 
+        PublishedDialogButtonClicked _ ->
+            ( { model | modalDialog = NoModalDialog }, Effect.none )
+
+
 updateWithPortMessage : Shared.Model -> Model -> Auth.User -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage shared model user portMessage =
     case portMessage.messageType of
@@ -464,6 +480,7 @@ updateWithPublishedResults shared model user value =
                         ( { model
                             | articleState = ArticlePublished
                             , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                            , modalDialog = PublishedDialog
                         }
                         , Effect.none
                         )
@@ -475,6 +492,7 @@ updateWithPublishedResults shared model user value =
                 ( { model
                     | articleState = ArticlePublished
                     , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                    , modalDialog = PublishedDialog
                   }
                 , Effect.none
                 )
@@ -614,8 +632,31 @@ view user shared model =
             , theme = shared.theme
             }
             |> PublishArticleDialog.view
+        , viewModalDialog shared.theme model.modalDialog
         ]
     }
+
+viewModalDialog : Theme -> ModalDialog -> Html Msg
+viewModalDialog theme modalDialog =
+    case modalDialog of
+        NoModalDialog ->
+            div [][]
+
+        PublishedDialog ->
+            MessageDialog.new
+                { onClick = PublishedDialogButtonClicked
+                , onClose = PublishedDialogButtonClicked OkButton
+                , title = "Article published"
+                , content = div [][ text "The article has been published" ]
+                , buttons = [ 
+                        { style = MessageDialog.PrimaryButton
+                        , title = "Ok"
+                        , identifier = OkButton
+                        }
+                    ]
+                , theme = theme
+                }
+                |> MessageDialog.view
 
 viewArticleState : BrowserEnv -> Theme -> ArticleState -> Html Msg
 viewArticleState browserEnv theme articleState =

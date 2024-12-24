@@ -38,6 +38,9 @@
       "configure server button title": "Pareto Medien-Server konfigurieren",
       "select image dialog title": "Bild auswählen"
    },
+   "message dialog": {
+      "warning": "Warnung"
+   },
    "read": {
       "followed feed category": "Gefolgt",
       "global feed category": "Global",
@@ -74,7 +77,12 @@
       "loading profile": "Lade Profil ..."
    },
    "search": {
-      "page title": "Suchen"
+      "page title": "Suchen",
+      "explanation 1": "Füge eine Nostr-ID (npub, nprofile, nevent oder naddr), Nostr-Adresse (tony@pareto.space) oder eine URL mit einer Nostr-ID ein",
+      "explanation 2": "Hashtags werden unterstützt, setze ein # vor einen Begriff, um nach Hashtags zu filtern."
+   },
+   "search bar": {
+      "placeholder": "URL, Nostr-ID oder Nostr-Adresse"
    },
    "sidebar": {
       "reader client role text": "Leser",
