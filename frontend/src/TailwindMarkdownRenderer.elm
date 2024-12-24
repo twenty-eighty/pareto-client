@@ -63,14 +63,20 @@ renderer styles fnGetProfile =
     , image =
         \image ->
             case image.title of
-                Just _ ->
-                    Html.img
-                        [ Attr.src (ensureHttps image.src)
-                        , Attr.alt image.alt
-                        , css
-                            [Tw.max_h_96
+                Just title ->
+                    Html.figure
+                        [ css
+                            [ 
                             ]
-                        ] []
+                        ]
+                        [ Html.img
+                            [ Attr.src (ensureHttps image.src)
+                            , Attr.alt image.alt
+                            ] []
+                        , Html.figcaption
+                            []
+                            [ Html.text title ]
+                        ]
 
                 Nothing ->
                     Html.img
