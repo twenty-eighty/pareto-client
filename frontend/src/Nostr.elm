@@ -8,7 +8,7 @@ import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, tagReference)
 import Nostr.Blossom exposing (userServerListFromEvent)
-import Nostr.BookmarkList exposing (BookmarkList, bookmarkListFromEvent, bookmarkListEvent, bookmarkListWithArticle, bookmarkListWithoutArticle, emptyBookmarkList)
+import Nostr.BookmarkList exposing (BookmarkList, bookmarkListFromEvent, bookmarkListEvent, bookmarkListWithArticle, bookmarkListWithoutArticle, bookmarkListWithShortNote, bookmarkListWithoutShortNote, emptyBookmarkList)
 import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
@@ -248,6 +248,34 @@ send model sendRequest =
 
                 event =
                     bookmarkListWithoutArticle bookmarkList address
+                    |> bookmarkListEvent pubKey
+            in
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model pubKey) event
+            )
+
+        SendBookmarkListWithShortNote pubKey eventId ->
+            let
+                bookmarkList =
+                    getBookmarks model pubKey
+                    |> Maybe.withDefault emptyBookmarkList
+
+                event =
+                    bookmarkListWithShortNote bookmarkList eventId
+                    |> bookmarkListEvent pubKey
+            in
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model pubKey) event
+            )
+
+        SendBookmarkListWithoutShortNote pubKey eventId ->
+            let
+                bookmarkList =
+                    getBookmarks model pubKey
+                    |> Maybe.withDefault emptyBookmarkList
+
+                event =
+                    bookmarkListWithoutShortNote bookmarkList eventId
                     |> bookmarkListEvent pubKey
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
@@ -548,6 +576,10 @@ getRequest model requestId =
 getShortNoteById : Model -> String -> Maybe ShortNote
 getShortNoteById model noteId =
     Dict.get noteId model.shortTextNotes
+
+getShortNotes : Model -> List ShortNote
+getShortNotes model =
+    Dict.values model.shortTextNotes
 
 
 getZapReceiptsForArticle : Model -> Article -> Maybe (Dict String Nostr.Zaps.ZapReceipt)

@@ -20,6 +20,7 @@ import Shared
 import Shared.Model
 import Shared.Msg
 import Translations.Sidebar as Translations
+import Ui.ShortNote
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (viewRelayStatus)
 import Url
@@ -211,7 +212,27 @@ viewContent shared model =
     case model.contentToView of
         ShortNote noteId ->
             Nostr.getShortNoteById shared.nostr noteId
-            |> Maybe.map (Ui.View.viewShortNote (styles) shared.browserEnv shared.nostr)
+            |> Maybe.map (\shortNote ->
+                    Ui.ShortNote.viewShortNote 
+                        { theme = shared.theme
+                        , browserEnv = shared.browserEnv
+                        , nostr = shared.nostr
+                        , userPubKey = Nothing
+                        , onBookmark = Nothing
+                        }
+                        { author = Nostr.getAuthor shared.nostr shortNote.pubKey
+                        , interactions = 
+                            { zaps = Nothing
+                            , highlights = Nothing
+                            , reactions = Nothing
+                            , reposts = Nothing
+                            , notes = Nothing
+                            , bookmarks = Nothing
+                            , isBookmarked = False
+                            }
+                        }
+                        shortNote
+                )
             |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingNote model.requestId)
 
         Article addressComponents relays ->

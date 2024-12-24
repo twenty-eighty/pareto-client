@@ -15,7 +15,8 @@ import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), kindDecod
 import Nostr.FollowList exposing (followingPubKey)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (PubKey)
+import Nostr.ShortNote exposing (ShortNote)
+import Nostr.Types exposing (EventId, PubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Route.Path
@@ -24,12 +25,14 @@ import Shared.Model
 import Shared.Msg
 import Translations.Read
 import Translations.Sidebar
+import Ui.ShortNote exposing (ShortNotesViewData)
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 import Ports
 import Pareto
 import Material.Icons exposing (category)
+import Ui.ShortNote as ShortNote
 
 
 page : Shared.Model -> Route () -> Page Model Msg
@@ -61,6 +64,7 @@ type Category
     | Pareto
     | Followed
     | Highlighter
+    | Rss
 
 stringFromCategory : Category -> String 
 stringFromCategory category =
@@ -76,6 +80,9 @@ stringFromCategory category =
 
         Highlighter ->
             "highlights"
+
+        Rss ->
+            "rss"
 
 
 categoryFromString : String -> Maybe Category
@@ -154,6 +161,8 @@ type Msg
     | CategoriesSent (Components.Categories.Msg Category Msg)
     | AddArticleBookmark PubKey AddressComponents
     | RemoveArticleBookmark PubKey AddressComponents
+    | AddShortNoteBookmark PubKey EventId
+    | RemoveShortNoteBookmark PubKey EventId
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -188,6 +197,20 @@ update shared msg model =
                 |> Effect.sendSharedMsg
             )
 
+        AddShortNoteBookmark pubKey eventId ->
+            ( model
+            , SendBookmarkListWithShortNote pubKey eventId
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        RemoveShortNoteBookmark pubKey eventId ->
+            ( model
+            , SendBookmarkListWithoutShortNote pubKey eventId
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
 updateModelWithCategory : Shared.Model -> Model -> Category -> (Model, Effect Msg)
 updateModelWithCategory shared model category =
     ( model
@@ -215,9 +238,22 @@ filterForCategory shared category =
         Highlighter ->
             { emptyEventFilter | kinds = Just [KindLongFormContent], limit = Just 20 }
 
+        Rss ->
+            { emptyEventFilter | kinds = Just [KindShortTextNote], authors = Just (paretoRssFollowsList shared.nostr) , limit = Just 20 }
+
 paretoFollowsList : Nostr.Model -> List PubKey
 paretoFollowsList nostr =
     case Nostr.getFollowsList nostr Pareto.authorsKey of
+        Just followsList ->
+            followsList
+            |> List.filterMap followingPubKey
+
+        Nothing ->
+            []
+
+paretoRssFollowsList : Nostr.Model -> List PubKey
+paretoRssFollowsList nostr =
+    case Nostr.getFollowsList nostr Pareto.rssAuthorsKey of
         Just followsList ->
             followsList
             |> List.filterMap followingPubKey
@@ -261,13 +297,19 @@ availableCategories nostr loginStatus translations =
             else
                 []
 
+        paretoRssCategories =
+            if paretoRssFollowsList nostr /= [] then
+                [ paretoRssCategory translations ]
+            else
+                []
+
         followedCategories =
             if userFollowsList nostr loginStatus /= [] then
                 [ followedCategory translations ]
             else
                 []
     in
-    followedCategories ++ paretoCategories ++
+    followedCategories ++ paretoCategories ++ paretoRssCategories ++
     [ { category = Global
       , title = Translations.Read.globalFeedCategory [ translations ]
       }
@@ -280,6 +322,12 @@ paretoCategory : I18Next.Translations -> Components.Categories.CategoryData Cate
 paretoCategory translations =
     { category = Pareto
     , title = Translations.Read.paretoFeedCategory [ translations ]
+    }
+
+paretoRssCategory : I18Next.Translations -> Components.Categories.CategoryData Category
+paretoRssCategory translations =
+    { category = Rss
+    , title = Translations.Read.rssFeedCategory [ translations ]
     }
 
 followedCategory : I18Next.Translations -> Components.Categories.CategoryData Category
@@ -308,7 +356,14 @@ view shared model =
                 , styles = styles
                 }
                 |> Components.Categories.view
-            , Nostr.getArticlesByDate shared.nostr
+            , viewContent shared model userPubKey
+            ]
+    }
+
+viewContent shared model userPubKey =
+    let
+        viewArticles =
+            Nostr.getArticlesByDate shared.nostr
                 |> Ui.View.viewArticlePreviews
                     ArticlePreviewList
                         { theme = shared.theme
@@ -317,5 +372,51 @@ view shared model =
                         , userPubKey = userPubKey
                         , onBookmark = Maybe.map (\pubKey -> (AddArticleBookmark pubKey, RemoveArticleBookmark pubKey)) userPubKey
                         }
-            ]
-    }
+
+        viewNotes =
+            Nostr.getShortNotes shared.nostr
+            |> viewShortNotes
+                { theme = shared.theme
+                , browserEnv = shared.browserEnv
+                , nostr = shared.nostr
+                , userPubKey = userPubKey
+                , onBookmark = Maybe.map (\pubKey -> (AddShortNoteBookmark pubKey, RemoveShortNoteBookmark pubKey)) userPubKey
+                }
+
+    in
+    case Components.Categories.selected model.categories of
+        Global ->
+            viewArticles
+            
+        Pareto ->
+            viewArticles
+            
+        Followed ->
+            viewArticles
+            
+        Highlighter ->
+            viewArticles
+            
+        Rss ->
+            viewNotes
+
+viewShortNotes : ShortNotesViewData Msg -> List ShortNote -> Html Msg
+viewShortNotes shortNotesViewData shortNotes =
+    shortNotes
+    |> List.map (\shortNote ->
+        ShortNote.viewShortNote
+            shortNotesViewData
+            { author = Nostr.getAuthor shortNotesViewData.nostr shortNote.pubKey
+            , interactions = 
+                { zaps = Nothing
+                , highlights = Nothing
+                , reactions = Nothing
+                , reposts = Nothing
+                , notes = Nothing
+                , bookmarks = Nothing
+                , isBookmarked = False
+                }
+            }
+            shortNote
+    )
+    |> div []

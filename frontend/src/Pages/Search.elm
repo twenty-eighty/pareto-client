@@ -1,14 +1,21 @@
 module Pages.Search exposing (Model, Msg, page)
 
+import Components.SearchBar as SearchBar exposing (SearchBar)
 import Effect exposing (Effect)
 import Route exposing (Route)
-import Html.Styled as Html exposing (Html, div)
+import Html.Styled as Html exposing (Html, div, p)
+import Html.Styled.Attributes exposing (css)
 import Layouts
+import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), kindDecoder, emptyEventFilter)
 import Page exposing (Page)
 import Shared
+import Tailwind.Breakpoints as Bp
+import Tailwind.Utilities as Tw
+import Tailwind.Theme as Theme
 import Translations.Search as Translations
+import Ui.Styles exposing (Theme, stylesForTheme)
 import View exposing (View)
-import Ui.Styles exposing (Theme)
+import Css
 
 
 page : Shared.Model -> Route () -> Page Model Msg
@@ -32,12 +39,13 @@ toLayout theme model =
 
 
 type alias Model =
-    {}
+    { searchBar : SearchBar.Model
+    }
 
 
 init : () -> ( Model, Effect Msg )
 init () =
-    ( {}
+    ( { searchBar = SearchBar.init {} }
     , Effect.none
     )
 
@@ -47,18 +55,31 @@ init () =
 
 
 type Msg
-    = NoOp
+    = Search String
+    | SearchBarSent (SearchBar.Msg Msg)
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
-        NoOp ->
+        Search searchText ->
             ( model
             , Effect.none
             )
+
+        SearchBarSent innerMsg ->
+            SearchBar.update
+                { msg = innerMsg
+                , model = model.searchBar
+                , toModel = \searchBar -> { model | searchBar = searchBar }
+                , toMsg = SearchBarSent
+                }
+
 -- Nostr.getSearchRelayUrls model maybePubKey
 
+searchEventFilter : EventFilter
+searchEventFilter =
+    { emptyEventFilter | kinds = Just [KindLongFormContent], limit = Just 20 }
 
 -- SUBSCRIPTIONS
 
@@ -83,8 +104,32 @@ view shared model =
 
 viewSearch : Shared.Model -> Model -> Html Msg
 viewSearch shared model =
+    let
+        styles =
+            stylesForTheme shared.theme
+    in
     div
-        [
+        [ css
+            [ Tw.flex
+            , Tw.justify_center
+            , Tw.max_w_full
+            , Tw.m_4
+            ]
         ]
-        [
+        [ p
+            []
+            [ Html.text <| Translations.explanation1 [ shared.browserEnv.translations ]
+            ]
+        , p
+            []
+            [ Html.text <| Translations.explanation2 [ shared.browserEnv.translations ]
+            ]
+        , SearchBar.new
+            { model = model.searchBar
+            , toMsg = SearchBarSent
+            , onSearch = Search
+            , browserEnv = shared.browserEnv
+            , styles = styles
+            }
+            |> SearchBar.view
         ]

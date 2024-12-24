@@ -93,18 +93,20 @@ replaceImgTags input =
         Nothing ->
             input
 
--- A regex to match http:// or https:// followed by non-whitespace chars
+-- A regex to match http:// or https:// followed by one or more non-whitespace chars
 urlRegex : Regex
 urlRegex =
     Regex.fromString "(https?://[^\\s]+)"
         |> Maybe.withDefault Regex.never
 
 
--- Replaces all http(s) URLs in the given text with Markdown links
+-- Replace all HTTP(S) URLs with Markdown links.
+-- If no match exists, the string is unchanged.
 substituteHttpLinks : String -> String
 substituteHttpLinks text =
-    Regex.replace urlRegex (\m -> "[" ++ m.match ++ "](" ++ m.match ++ ")") text
-
+    Regex.replace urlRegex
+        (\match -> "[" ++ match.match ++ "](" ++ match.match ++ ")")
+        text
 
 deadEndsToString : List (Advanced.DeadEnd String Parser.Problem) -> String
 deadEndsToString deadEnds =

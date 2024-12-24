@@ -1,238 +1,175 @@
 module Components.SearchBar exposing
     ( SearchBar, new
+    , CategoryData
+    , Model, init
+    , Msg, update
     , view
-    , withLink
-    , withTypePrimary, withTypeSecondary
-    , withStyleSuccess, withStyleWarning, withStyleDanger
-    , withSizeSmall
-    , withIconLeft, withIconRight
-    , withDisabled
+    , subscribe
     )
 
-{-|
-
-## Basic usage
-
-@docs Button, new
-@docs view
-
-## Modifiers
-
-@docs withStyleSuccess, withStyleWarning, withStyleDanger
-@docs withSizeSmall
-@docs withIconLeft, withIconRight
-@docs withDisabled
-
--}
-import Components.Icon exposing (Icon)
+import BrowserEnv exposing (BrowserEnv)
+import Components.Icon as Icon
 import Css
-import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (..)
-import Html.Styled.Events as Events
+import Effect exposing (Effect)
+import FeatherIcons
+import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, strong, text)
+import Html.Styled.Attributes as Attr exposing (class, classList, css, disabled, href, type_)
+import Html.Styled.Events as Events exposing (..)
+import Nostr.Shared exposing (httpErrorToString)
+import Nostr.Types exposing (PubKey)
+import Svg.Loaders as Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
-import Tailwind.Theme as Theme
-import Ui.Styles
-import Html
-
--- SETTINGS
-
+import Translations.SearchBar as Translations
+import Ui.Styles exposing (Styles)
 
 type SearchBar msg
-    = Settings
-        { label : String
-        , onClick : Maybe msg
-        , link : Maybe String
-        , style : Style
-        , size : Size
-        , type_ : ButtonType
-        , iconLeft : Maybe Icon
-        , iconRight : Maybe Icon
-        , isOutlined : Bool
-        , isDisabled : Bool
-        , theme : Ui.Styles.Theme
+     = Settings
+        { model : Model
+        , toMsg : Msg msg -> msg
+        , onSearch : String -> msg
+        , browserEnv : BrowserEnv
+        , styles : Styles msg
         }
 
-
-new : { label : String, onClick : Maybe msg, theme : Ui.Styles.Theme } -> SearchBar msg
+new :
+    { model : Model
+    , toMsg : Msg msg -> msg
+    , onSearch : String -> msg
+    , browserEnv : BrowserEnv
+    , styles : Styles msg
+    }
+    -> SearchBar msg
 new props =
     Settings
-        { label = props.label
-        , onClick = props.onClick
-        , link = Nothing
-        , style = Default
-        , size = Normal
-        , type_ = RegularButton
-        , iconLeft = Nothing
-        , iconRight = Nothing
-        , isOutlined = False
-        , isDisabled = False
-        , theme = props.theme
+        { model = props.model
+        , toMsg = props.toMsg
+        , onSearch = props.onSearch
+        , browserEnv = props.browserEnv
+        , styles = props.styles
         }
 
 
+type Model
+    = Model
+        { searchText : String
+        }
 
--- MODIFIERS
-
-withLink : Maybe String -> SearchBar msg -> SearchBar msg
-withLink link (Settings settings) =
-    Settings { settings | link = link }
-
-
-type ButtonType
-    = RegularButton
-    | PrimaryButton
-    | SecondaryButton
+type alias CategoryData category =
+    { category :  category
+    , title : String
+    }
 
 
-withTypePrimary : SearchBar msg -> SearchBar msg
-withTypePrimary (Settings settings) =
-    Settings { settings | type_ = PrimaryButton }
+init : { } -> Model
+init props =
+    Model
+        { searchText = ""
+        }
+
+type Msg msg
+    = Search
+        { onSearch : msg
+        }
 
 
-withTypeSecondary : SearchBar msg -> SearchBar msg
-withTypeSecondary (Settings settings) =
-    Settings { settings | type_ = SecondaryButton }
+update :
+    { msg : Msg msg
+    , model : Model
+    , toModel : Model-> model
+    , toMsg : Msg msg -> msg
+    }
+    -> ( model, Effect msg )
+update props =
+    let
+        (Model model) =
+            props.model
 
-
-
-type Style
-    = Default
-    | Success
-    | Warning
-    | Danger
-
-
-withStyleSuccess : SearchBar msg -> SearchBar msg
-withStyleSuccess (Settings settings) =
-    Settings { settings | style = Success }
-
-
-withStyleWarning : SearchBar msg -> SearchBar msg
-withStyleWarning (Settings settings) =
-    Settings { settings | style = Warning }
-
-
-withStyleDanger : SearchBar msg -> SearchBar msg
-withStyleDanger (Settings settings) =
-    Settings { settings | style = Danger }
-
-
-type Size
-    = Normal
-    | Small
-
-
-withSizeSmall : SearchBar msg -> SearchBar msg
-withSizeSmall (Settings settings) =
-    Settings { settings | size = Small }
-
-
-withIconLeft : Icon -> SearchBar msg -> SearchBar msg
-withIconLeft icon (Settings settings) =
-    Settings { settings | iconLeft = Just icon }
-
-
-withIconRight : Icon -> SearchBar msg -> SearchBar msg
-withIconRight icon (Settings settings) =
-    Settings { settings | iconRight = Just icon }
-
-
-withDisabled : Bool -> SearchBar msg -> SearchBar msg
-withDisabled isDisabled (Settings settings) =
-    Settings { settings | isDisabled = isDisabled }
-
-
-
--- VIEW
+        toParentModel : ( Model, Effect msg ) -> ( model, Effect msg )
+        toParentModel ( innerModel, effect ) =
+            ( props.toModel innerModel
+            , effect
+            )
+    in
+    toParentModel <|
+        case props.msg of
+            Search data ->
+                ( Model model
+                , Effect.sendMsg data.onSearch 
+                )
 
 
 view : SearchBar msg -> Html msg
-view (Settings settings) =
+view settings =
+    viewSearch settings
+
+viewSearch : SearchBar msg -> Html msg
+viewSearch (Settings settings) =
     let
-        buttonStyles =
-            stylesForTheme (Settings settings)
+        (Model model) =
+            (settings.model)
 
-        viewOptionalIcon : Maybe Icon -> Html msg
-        viewOptionalIcon maybeIcon =
-            case maybeIcon of
-                Just icon ->
-                    Components.Icon.view icon
+        onClickCategory =
+            settings.toMsg (Search { onSearch = settings.onSearch "abc"})
 
-                Nothing ->
-                    text ""
-
-        (element, onClickAttr) =
-            case (settings.isDisabled, settings.onClick, settings.link) of
-                (False, Just onClick, _) ->
-                    (button, [ Events.onClick onClick ])
-
-                (False, Nothing, Just link) ->
-                    (a, [ href link ])
-
-                (_, _, _) ->
-                    (div, [ disabled True ])
+        attrs =
+                settings.styles.colorStyleCategoryActiveBackground ++
+                settings.styles.colorStyleCategoryActive ++
+                settings.styles.colorStyleCategoryActiveBorder
     in
-    div
+        div
         [ css
             [ Tw.flex
             , Tw.flex_row
-            , Tw.gap_2
+            , Tw.relative
+            , Tw.w_full
+            , Bp.sm
+                [ Css.property "width" "736px"
+                ]
             ]
         ]
-        [ element
-            ( buttonStyles ++ onClickAttr ++
-            [ css
-                [ Tw.py_2
-                , Tw.px_4
-                , Tw.flex
-                , Tw.flex_row
-                , Tw.gap_2
-                , Tw.rounded_full
-                , Css.hover
-                    [ 
-                    ]
-                ]
-            , classList
-                [ ( "is-success", settings.style == Success )
-                , ( "is-warning", settings.style == Warning )
-                , ( "is-danger", settings.style == Danger )
-                , ( "is-small", settings.size == Small )
+        [ div
+            (settings.styles.colorStyleGrayscaleMuted ++
+            [css
+                [ Tw.flex
+                , Tw.absolute
+                , Tw.leading_6
+                , Tw.w_10
+                , Tw.h_10
+                , Tw.items_center
+                , Tw.justify_center
+                , Tw.left_0
+                , Tw.top_0
+                , Tw.pointer_events_none
                 ]
             ])
-            [ viewOptionalIcon settings.iconLeft
-            , text settings.label
-            , viewOptionalIcon settings.iconRight
+            [ Icon.FeatherIcon FeatherIcons.search
+                |> Icon.view
             ]
+        , input
+            [ Attr.placeholder <| Translations.placeholder [ settings.browserEnv.translations ]
+            , css
+                [ Tw.appearance_none
+                , Tw.bg_scroll
+                , Tw.bg_clip_border
+                , Tw.rounded_md
+                , Tw.border_2
+                , Tw.box_border
+                , Tw.cursor_text
+                , Tw.block
+                , Tw.ps_10
+                , Tw.pe_16
+                , Tw.pl_10
+                , Tw.pr_16
+                , Tw.h_10
+                , Tw.w_full
+                ]
+            ]
+            []
         ]
+    
 
-stylesForTheme : SearchBar msg -> List (Attribute msg)
-stylesForTheme (Settings settings) =
-    let
-        styles =
-            Ui.Styles.stylesForTheme settings.theme
 
-        (foregroundStyles, backgroundStyles) =
-            case settings.type_ of
-                RegularButton ->
-                    if settings.isDisabled then
-                        (styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground)
-                    else
-                        (styles.colorStyleRegularButtonText, styles.colorStyleRegularButtonBackground)
-
-                PrimaryButton ->
-                    if settings.isDisabled then
-                        (styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground)
-                    else
-                        (styles.colorStylePrimaryButtonText, styles.colorStylePrimaryButtonBackground)
-
-                SecondaryButton ->
-                    if settings.isDisabled then
-                        (styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground)
-                    else
-                        (styles.colorStyleSecondaryButtonText, styles.colorStyleSecondaryButtonBackground)
-
-        attributes =
-            foregroundStyles ++ backgroundStyles
-    in
-    attributes
+subscribe : Model -> Sub (Msg msg)
+subscribe model =
+    Sub.none
