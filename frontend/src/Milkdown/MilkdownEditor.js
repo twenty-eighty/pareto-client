@@ -48,6 +48,8 @@ class ElmMilkdownEditor extends HTMLElement {
         this._editor = null;
         this._element = null;
         this._content = this.getAttribute('content') || '';
+        this._caption = '';
+        this._alt = '';
         this._imageSelectedResolve = null;
     }
 
@@ -81,9 +83,14 @@ class ElmMilkdownEditor extends HTMLElement {
             this._content = newValue;
             this._setContent(newValue);
         } else if (attrName === 'selectedfile') {
-            if (newValue != "") {
-                console.log("Selected file ", newValue)
-                this._imageSelectedResolve(newValue);
+            const decoded = JSON.parse(newValue)
+            const url = decoded.url;
+            if (url != undefined) {
+                console.log("Selected file ", decoded);
+                const caption = decoded.caption;
+                const alt = decoded.alt;
+
+                this._imageSelectedResolve({ url: url, caption: caption, alt: alt });
                 this.dispatchEvent(new CustomEvent('receivedSelectedFile'));
             }
         } else if (attrName === 'height') {

@@ -310,12 +310,17 @@ update shared user msg model =
                 MarkdownImageSelection ->
                     case uploadedFile of
                         BlossomFile blobDescriptor ->
-                            ( { model | milkdown = Milkdown.setSelectedImage model.milkdown blobDescriptor.url }, Effect.none )
+                            case blobDescriptor.nip94 of
+                                Just fileMetadata ->
+                                    ( { model | milkdown = Milkdown.setSelectedImage model.milkdown blobDescriptor.url fileMetadata.content fileMetadata.alt }, Effect.none )
+
+                                Nothing ->
+                                    ( { model | milkdown = Milkdown.setSelectedImage model.milkdown blobDescriptor.url "" Nothing }, Effect.none )
 
                         Nip96File fileMetadata ->
                             case fileMetadata.url of
                                 Just url ->
-                                    ( { model | milkdown = Milkdown.setSelectedImage model.milkdown url }, Effect.none )
+                                    ( { model | milkdown = Milkdown.setSelectedImage model.milkdown url fileMetadata.content fileMetadata.alt }, Effect.none )
 
                                 Nothing ->
                                     ( model, Effect.none )
