@@ -309,7 +309,7 @@ availableCategories nostr loginStatus translations =
             else
                 []
     in
-    followedCategories ++ paretoCategories ++ paretoRssCategories ++
+    followedCategories ++ paretoCategories ++ -- paretoRssCategories ++
     [ { category = Global
       , title = Translations.Read.globalFeedCategory [ translations ]
       }
