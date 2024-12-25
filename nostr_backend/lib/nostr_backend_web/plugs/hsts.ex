@@ -9,5 +9,8 @@ defmodule NostrBackendWeb.Plugs.Hsts do
       "strict-transport-security",
       "max-age=31536000; includeSubDomains; preload"
     )
+    # Disable XSS filtering
+    # see https://stackoverflow.com/questions/9090577/what-is-the-http-header-x-xss-protection
+    |> put_resp_header("X-XSS-Protection", "0")
   end
 end
