@@ -5,7 +5,6 @@ import Components.Button as Button
 import Components.Icon as Icon exposing (Icon)
 import Css
 import Dict
-import FeatherIcons
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, label, main_, p, span, summary, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
@@ -28,6 +27,7 @@ import Time
 import Translations.Posts
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
+import Ui.Shared
 import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded, stylesForTheme)
 
 type alias ArticlePreviewsData msg =
@@ -168,9 +168,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                     , Tw.mb_4
                     ]
                 ] ++ contentMargins)
-                [ viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.interactions
+                [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.interactions
                 , viewContent styles getProfile article.content
-                , viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.interactions
+                , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.interactions
                 ]
             ]
         -- , viewArticleComments styles
@@ -256,63 +256,6 @@ viewTag tag =
         ]
         [ text tag ]
 
-
-viewInteractions : Styles msg -> BrowserEnv -> Interactions -> Html msg
-viewInteractions styles browserEnv interactions =
-    let
-        bookmarkIcon =
-            if interactions.isBookmarked then
-                Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdded 30 Icon.Inherit
-            else
-                Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdd 30 Icon.Inherit
-    in
-    div
-        [ css
-            [ Tw.justify_start
-            , Tw.items_start
-            , Tw.gap_6
-            , Tw.inline_flex
-            ]
-        ]
-        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) (Maybe.map String.fromInt interactions.notes)
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.edit) (Maybe.map String.fromInt interactions.reactions)
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.repeat) (Maybe.map String.fromInt interactions.reposts)
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) (Maybe.map (formatZapNum browserEnv) interactions.zaps)
-        , viewReactions styles bookmarkIcon (Maybe.map String.fromInt interactions.bookmarks)
-        ]
-                
-
-viewReactions : Styles msg -> Icon -> Maybe String -> Html msg
-viewReactions styles icon maybeCount =
-    div
-        (styles.colorStyleLabel ++
-        [ css
-            [ Tw.rounded_3xl
-            , Tw.justify_center
-            , Tw.items_center
-            , Tw.gap_1
-            , Tw.flex
-            ]
-        ])
-        [ div
-            [ css
-                [ Tw.w_5
-                , Tw.h_5
-                , Tw.px_0_dot_5
-                , Tw.py_0_dot_5
-                , Tw.justify_center
-                , Tw.items_center
-                , Tw.flex
-                ]
-            ]
-            [ Icon.view icon]
-        , div
-            [ ] [ text (maybeCount |> Maybe.withDefault "0" ) ]
-        ]
-
-formatZapNum : BrowserEnv -> Int -> String
-formatZapNum browserEnv bigNum =
-    browserEnv.formatNumber "0 a" <| toFloat bigNum
 
 viewAuthorAndDate : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Nostr.Profile.Author -> Html msg
 viewAuthorAndDate styles browserEnv published createdAt author =
