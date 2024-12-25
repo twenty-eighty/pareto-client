@@ -17,6 +17,10 @@ rssAuthorsKey : PubKey
 rssAuthorsKey =
     "0f4791c38e1236dc55f11acbf37a00da8879906d9374498378db8d6ea7952869"
 
+editorKey : PubKey
+editorKey =
+    "0f479cb726c1578ca765d5ff6a0c58855263977d5d7cf7b4cea23d42d557c611"
+
 -- name of client in "client" tag when publishing articles
 client : String
 client =

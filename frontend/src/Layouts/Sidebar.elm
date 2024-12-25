@@ -390,7 +390,7 @@ roleSwitchButtonEnabled : Nostr.Model -> LoginStatus -> Bool
 roleSwitchButtonEnabled nostr loginStatus =
     case loginStatus of
         LoggedIn userPubKey ->
-            Nostr.getFollowsList nostr Pareto.authorsKey
+            Nostr.getFollowsList nostr Pareto.editorKey
             |> Maybe.map (List.filter (\follows ->
                 case follows of
                     FollowingPubKey { pubKey } ->
