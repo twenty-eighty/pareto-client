@@ -142,6 +142,8 @@
       "tags label text": "Schlüsselwörter",
       "tags placeholder text": "Schlüsselwörter, mit Komma getrennt",
       "upload button title": "Hochladen",
+      "article published message box title": "Artikel veröffentlicht",
+      "article published message box text": "Der Artikel wurde veröffentlicht.",
       "article modified state": "Artikel geändert",
       "article loading draft state": "Lade Entwurf ...",
       "article loading draft error": "Fehler beim Laden des Entwurfs",

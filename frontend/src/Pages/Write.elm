@@ -637,12 +637,12 @@ view user shared model =
             , theme = shared.theme
             }
             |> PublishArticleDialog.view
-        , viewModalDialog shared.theme model.modalDialog
+        , viewModalDialog shared.theme shared.browserEnv model.modalDialog
         ]
     }
 
-viewModalDialog : Theme -> ModalDialog -> Html Msg
-viewModalDialog theme modalDialog =
+viewModalDialog : Theme -> BrowserEnv -> ModalDialog -> Html Msg
+viewModalDialog theme browserEnv modalDialog =
     case modalDialog of
         NoModalDialog ->
             div [][]
@@ -651,8 +651,8 @@ viewModalDialog theme modalDialog =
             MessageDialog.new
                 { onClick = PublishedDialogButtonClicked
                 , onClose = PublishedDialogButtonClicked OkButton
-                , title = "Article published"
-                , content = div [][ text "The article has been published" ]
+                , title = Translations.articlePublishedMessageBoxTitle [ browserEnv.translations ]
+                , content = div [][ text <| Translations.articlePublishedMessageBoxText [ browserEnv.translations ] ]
                 , buttons = [ 
                         { style = MessageDialog.PrimaryButton
                         , title = "Ok"

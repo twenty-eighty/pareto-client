@@ -142,6 +142,8 @@
       "tags label text": "Tags",
       "tags placeholder text": "Tags, comma separated",
       "upload button title": "Upload",
+      "article published message box title": "Article published",
+      "article published message box text": "The article has been published.",
       "article modified state": "Article modified",
       "article loading draft state": "Loading draft...",
       "article loading draft error": "Error loading draft",
