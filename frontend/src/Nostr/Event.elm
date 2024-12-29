@@ -25,7 +25,7 @@ type Tag
     | EventDelegationTag PubKey
     | ExpirationTag Time.Posix
     | ExternalIdTag String
-    | FileTag String String
+    | FileTag String (Maybe String)
     | HashTag String
     | IdentityTag String String
     | KindTag Kind
@@ -798,7 +798,7 @@ decodeTag =
                 Decode.map ExpirationTag (Decode.index 1 decodeUnixTimeString)
 
             "f" ->
-                Decode.map2 FileTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string)
+                Decode.map2 FileTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
             "i" ->
                 Decode.map2 IdentityTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string)
@@ -938,8 +938,13 @@ tagToList tag =
         ExternalIdTag value ->
             [ "x", value ]
  
-        FileTag value1 value2 ->
-            [ "f", value1, value2 ]
+        FileTag value1 maybeValue2 ->
+            case maybeValue2 of
+                Just value2 ->
+                    [ "f", value1, value2 ]
+
+                Nothing ->
+                    [ "f", value1 ]
 
         HashTag value ->
             [ "t", value ]
