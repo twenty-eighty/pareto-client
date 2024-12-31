@@ -3,7 +3,7 @@ module LinkPreview exposing (generatePreviewHtml)
 import Dict exposing (Dict)
 import Graphics
 import Html.Styled as Html exposing (Html, div, img, a, text)
-import Html.Styled.Attributes exposing (controls, css, href, src, alt, style, type_)
+import Html.Styled.Attributes as Attr exposing (controls, css, href, src, alt, style, type_)
 import Maybe exposing (withDefault)
 import String exposing (contains)
 import Tailwind.Breakpoints as Bp
@@ -32,6 +32,9 @@ generatePreviewHtml urlString linkAttr body =
                 AudioLink mimeType ->
                     generateAudioElement url mimeType
 
+                ObjectLink mimeType ->
+                    generateObjectElement url mimeType
+
                 OtherLink ->
                     a (linkAttr ++ [ href urlString ]) body
 
@@ -49,6 +52,7 @@ type LinkType
     | TwitterTweet String
     | VideoLink String
     | AudioLink String
+    | ObjectLink String
     | OtherLink
 
 
@@ -87,10 +91,18 @@ detectLinkType url =
             Nothing ->
                 OtherLink
 
-    else if isAudiohUrl url then
+    else if isAudioUrl url then
         case getAudioMimeTypeFromUrl url.path of
             Just mimeType ->
                 AudioLink mimeType
+            
+            Nothing ->
+                OtherLink
+
+    else if isObjectUrl url then
+        case getObjectMimeTypeFromUrl url.path of
+            Just mimeType ->
+                ObjectLink mimeType
             
             Nothing ->
                 OtherLink
@@ -131,8 +143,8 @@ getVideoMimeTypeFromUrl urlPath =
     )
     |> List.head
 
-isAudiohUrl : Url -> Bool
-isAudiohUrl url =
+isAudioUrl : Url -> Bool
+isAudioUrl url =
     getAudioMimeTypeFromUrl url.path /= Nothing
 
 getAudioMimeTypeFromUrl : String -> Maybe String
@@ -140,6 +152,22 @@ getAudioMimeTypeFromUrl urlPath =
     [ ( "mp3", "audio/mpeg" )
     , ( "wav", "audio/wav" )
     , ( "ogg", "audio/ogg" )
+    ]
+    |> List.filterMap (\(extension, mimeType) ->
+        if String.endsWith extension urlPath then
+            Just mimeType
+        else
+            Nothing
+    )
+    |> List.head
+
+isObjectUrl : Url -> Bool
+isObjectUrl url =
+    getObjectMimeTypeFromUrl url.path /= Nothing
+
+getObjectMimeTypeFromUrl : String -> Maybe String
+getObjectMimeTypeFromUrl urlPath =
+    [ ( "pdf", "application/pdf" )
     ]
     |> List.filterMap (\(extension, mimeType) ->
         if String.endsWith extension urlPath then
@@ -311,4 +339,26 @@ generateAudioElement url mimeType =
             ]
             []
         , text "Your browser doesn't support the HTML video tag"
+        ]
+
+generateObjectElement : Url -> String -> Html msg
+generateObjectElement url mimeType =
+    Html.object
+        [ Attr.attribute "data" <| Url.toString url
+        , type_ mimeType
+        , css
+            [ Tw.w_full
+            , Tw.h_96
+            ]
+        ]
+        [ Html.p
+            []
+            [ text "Your browser doesn't support PDFs. You can download the PDF "
+            , Html.a
+                [ href <| Url.toString url
+                ]
+                [ text "here"
+                ]
+            , text "."
+            ]
         ]
