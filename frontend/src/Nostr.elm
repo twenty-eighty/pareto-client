@@ -13,7 +13,7 @@ import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
 import Nostr.DeletionRequest exposing (DeletionRequest, deletionRequestFromEvent)
-import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag, TagReference(..), buildAddress, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
+import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress, emptyEvent, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.FollowList exposing (Following, followListFromEvent)
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
@@ -21,7 +21,7 @@ import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05Info, nip05T
 import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
 import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileFromEvent)
-import Nostr.Reactions
+import Nostr.Reactions exposing (Reaction, reactionFromEvent)
 import Nostr.Relay exposing (Relay, RelayState(..), relayUrlDecoder)
 import Nostr.RelayList exposing (relayListFromEvent)
 import Nostr.RelayListMetadata exposing (RelayMetadata, relayMetadataListFromEvent)
@@ -68,7 +68,8 @@ type alias Model =
     , poolState : RelayState
     , profiles : Dict PubKey Nostr.Profile.Profile
     , profileValidations : Dict PubKey ProfileValidation
-    , reactions : Dict EventId (Dict EventId Nostr.Reactions.Reaction)
+    , reactionsForEventId : Dict EventId (Dict PubKey Nostr.Reactions.Reaction)
+    , reactionsForAddress : Dict Address (Dict PubKey Nostr.Reactions.Reaction)
     , relays : Dict String Relay
     , relayMetadataLists : Dict PubKey (List RelayMetadata)
     , relaysForPubKey : Dict PubKey (List RelayUrl)
@@ -312,6 +313,23 @@ send model sendRequest =
             , model.hooks.sendEvent model.lastSendRequestId relays event
             )
 
+        SendReaction userPubKey eventId articlePubKey addressComponents ->
+            let
+                event =
+                    emptyEvent userPubKey KindReaction
+            in
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model userPubKey)
+                { event
+                    | content = "+"
+                    , tags =
+                        [ AddressTag addressComponents 
+                        , EventIdTag eventId
+                        , PublicKeyTag articlePubKey Nothing Nothing
+                        ]
+                }
+            )
+
         SendRelayList relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
             , model.hooks.sendEvent model.lastSendRequestId relays event
@@ -463,9 +481,9 @@ getBookmarks model pubKey =
     Dict.get pubKey model.bookmarkLists
 
 
-getReactionsForArticle : Model -> Article -> Maybe (Dict String Nostr.Reactions.Reaction)
-getReactionsForArticle model article =
-    Dict.get article.id model.reactions
+getReactionsForArticle : Model -> AddressComponents -> Maybe (Dict PubKey Nostr.Reactions.Reaction)
+getReactionsForArticle model addressComponents =
+    Dict.get (buildAddress addressComponents) model.reactionsForAddress
 
 
 getRelaysForPubKey : Model -> PubKey -> List (RelayRole, Relay)
@@ -618,11 +636,11 @@ getPubKeyByNip05 model nip05 =
 
 requestCommunityPostApprovals : Model -> Community -> Cmd Msg
 requestCommunityPostApprovals model community =
-    profileFilterForCommunityPostApprovals community
+    eventFilterForCommunityPostApprovals community
     |> model.hooks.requestEvents "Community post approvals" False -1 []
 
-profileFilterForCommunityPostApprovals : Community -> EventFilter
-profileFilterForCommunityPostApprovals community =
+eventFilterForCommunityPostApprovals : Community -> EventFilter
+eventFilterForCommunityPostApprovals community =
     { authors = Just [ community.pubKey ]
     , kinds = Just [ KindCommunityPostApproval ]
     , ids = Nothing
@@ -675,7 +693,7 @@ requestProfiles : Model -> List PubKey -> Maybe (Cmd Msg)
 requestProfiles model authors =
     authors
     |> getMissingProfilePubKeys model
-    |> profileFilterForAuthors
+    |> eventFilterForAuthors
     |> Maybe.map (model.hooks.requestEvents -1)
 -}
 getMissingProfilePubKeys : Model -> List PubKey -> List PubKey
@@ -689,8 +707,8 @@ getMissingProfilePubKeys model pubKeys =
                     Just pubKey
         )
 
-profileFilterForAuthors : List String -> Maybe EventFilter
-profileFilterForAuthors authors =
+eventFilterForAuthors : List String -> Maybe EventFilter
+eventFilterForAuthors authors =
     if List.isEmpty authors then
         Nothing
     else
@@ -719,6 +737,13 @@ getInteractions model maybePubKey article =
     , isBookmarked =
         Maybe.map (isArticleBookmarked model article) maybePubKey
         |> Maybe.withDefault False
+    , reaction =
+        case (maybePubKey, addressComponentsForArticle article) of
+            (Just userPubKey, Just addressComponents) ->
+                getReactionForArticle model userPubKey addressComponents
+
+            (_, _) ->
+                Nothing
     }
     
 
@@ -758,11 +783,18 @@ addZapAmount zapReceipt prevSum =
 getReactionsCountForArticle : Model -> Article -> Maybe Int
 getReactionsCountForArticle model article =
     article
-    |> getReactionsForArticle model
+    |> addressComponentsForArticle
+    |> Maybe.andThen (getReactionsForArticle model)
     |> Maybe.map Dict.size
 
-profileFilterForDeletionRequests : List TagReference -> Maybe EventFilter
-profileFilterForDeletionRequests tagsReferences =
+getReactionForArticle : Model -> PubKey -> AddressComponents -> Maybe Reaction
+getReactionForArticle model pubKey addressComponents =
+    getReactionsForArticle model addressComponents
+    |> Maybe.andThen (Dict.get pubKey)
+
+
+eventFilterForDeletionRequests : List TagReference -> Maybe EventFilter
+eventFilterForDeletionRequests tagsReferences =
     if List.isEmpty tagsReferences then
         Nothing
     else
@@ -776,8 +808,8 @@ profileFilterForDeletionRequests tagsReferences =
             , until = Nothing
             }
 
-profileFilterForReactions : List TagReference -> Maybe EventFilter
-profileFilterForReactions tagReferences =
+eventFilterForReactions : List TagReference -> Maybe EventFilter
+eventFilterForReactions tagReferences =
     if List.isEmpty tagReferences then
         Nothing
     else
@@ -832,7 +864,8 @@ empty =
     , followSets = Dict.empty
     , profiles = Dict.empty
     , profileValidations = Dict.empty
-    , reactions = Dict.empty
+    , reactionsForEventId = Dict.empty
+    , reactionsForAddress = Dict.empty
     , relayMetadataLists = Dict.empty
     , relays = Dict.empty
     , relaysForPubKey = Dict.empty
@@ -918,14 +951,6 @@ update msg model =
                     case Decode.decodeValue (Decode.list Nostr.Profile.pubkeyProfileDecoder) message.value of
                         Ok pubkeyProfiles ->
                             updateWithPubkeyProfiles model pubkeyProfiles
-
-                        Err error ->
-                            ({ model | errors = Decode.errorToString error :: model.errors }, Cmd.none)
-
-                "reactions" ->
-                    case Decode.decodeValue (Decode.list Nostr.Reactions.nostrReactionDecoder) message.value of
-                        Ok reactions ->
-                            updateWithReactions model reactions
 
                         Err error ->
                             ({ model | errors = Decode.errorToString error :: model.errors }, Cmd.none)
@@ -1054,6 +1079,9 @@ updateModelWithEvents model requestId kind events =
 
         KindDraftLongFormContent ->
             updateModelWithLongFormContentDraft model requestId events
+
+        KindReaction ->
+            updateModelWithReactions model requestId events
 
         KindSearchRelaysList ->
             updateModelWithSearchRelays model requestId events
@@ -1324,7 +1352,7 @@ requestRelatedKindsForArticles model articles request =
             articles
             |> Nostr.Article.uniqueArticleAuthors
             |> getMissingProfilePubKeys requestNip27Model
-            |> profileFilterForAuthors
+            |> eventFilterForAuthors
 
         (requestProfileModel, extendedRequestProfile) =
             case maybeEventFilterForAuthorProfiles of
@@ -1340,7 +1368,7 @@ requestRelatedKindsForArticles model articles request =
         (extendedModel, extendedRequestReactions) =
             articles
             |> List.map Nostr.Article.tagReference
-            |> profileFilterForReactions
+            |> eventFilterForReactions
             |> Maybe.map RequestReactions
             |> Maybe.map (addToRequest requestProfileModel extendedRequestProfile)
             |> Maybe.withDefault (requestProfileModel, extendedRequestProfile)
@@ -1349,7 +1377,7 @@ requestRelatedKindsForArticles model articles request =
             articles
             |> List.filterMap Nostr.Article.addressComponentsForArticle
             |> List.map Nostr.Event.TagReferenceCode
-            |> profileFilterForDeletionRequests
+            |> eventFilterForDeletionRequests
             |> Maybe.map RequestDeletionRequests
             |> Maybe.map (addToRequest extendedModel extendedRequestReactions)
             |> Maybe.withDefault (extendedModel, extendedRequestReactions)
@@ -1394,7 +1422,7 @@ appendNip27ProfileRequests model request nip19List =
         maybeEventFilter =
             pubKeys
             |> getMissingProfilePubKeys model
-            |> profileFilterForAuthors
+            |> eventFilterForAuthors
 
     in
     case maybeEventFilter of
@@ -1435,6 +1463,69 @@ updateModelWithSearchRelays model requestId events =
     in
     ({ model | searchRelayLists = relayListDict }, requestNip11Cmd)
 
+updateModelWithReactions : Model -> RequestId -> List Event -> (Model, Cmd Msg)
+updateModelWithReactions model requestId events =
+    let
+        reactions =
+            events
+            |> List.map reactionFromEvent
+
+        reactionsForEventId =
+            reactions
+            |> List.foldl (\reaction acc ->
+                case reaction.noteIdReactedTo of
+                    Just noteId ->
+                        case Dict.get noteId acc of
+                            Just dict ->
+                                Dict.insert noteId (Dict.insert reaction.pubKey reaction dict) acc
+
+                            Nothing ->
+                                Dict.insert noteId (Dict.singleton reaction.pubKey reaction) acc
+
+                    _ ->
+                        acc
+
+            ) model.reactionsForEventId
+
+        reactionsForAddress =
+            reactions
+            |> List.foldl (\reaction acc ->
+                case reaction.addressComponentsReactedTo of
+                    Just addressComponents ->
+                        let
+                            address =
+                                buildAddress addressComponents
+                        in
+                        case Dict.get address acc of
+                            Just dict ->
+                                Dict.insert address (Dict.insert reaction.pubKey reaction dict) acc
+
+                            Nothing ->
+                                Dict.insert address (Dict.singleton reaction.pubKey reaction) acc
+
+                    _ ->
+                        acc
+
+            ) model.reactionsForAddress
+
+    in
+    ({ model | reactionsForEventId = reactionsForEventId, reactionsForAddress = reactionsForAddress }, Cmd.none)
+
+extendReactionsDict :
+    Nostr.Reactions.Reaction
+    -> Dict EventId (Dict EventId Nostr.Reactions.Reaction)
+    -> Dict EventId (Dict EventId Nostr.Reactions.Reaction)
+extendReactionsDict reaction reactionDict =
+    case reaction.noteIdReactedTo of
+        Just noteIdReactedTo ->
+            reactionDict
+            |> Dict.get noteIdReactedTo
+            |> Maybe.map (Dict.insert reaction.id reaction)
+            |> Maybe.map (\extendedReactionDict -> Dict.insert noteIdReactedTo extendedReactionDict reactionDict)
+            |> Maybe.withDefault (Dict.insert noteIdReactedTo (Dict.singleton reaction.id reaction) reactionDict)
+
+        Nothing ->
+            reactionDict
 
 updateModelWithShortTextNotes : Model -> RequestId -> List Event -> (Model, Cmd Msg)
 updateModelWithShortTextNotes model requestId events =
@@ -1474,7 +1565,7 @@ requestRelatedKindsForShortNotes model shortNotes request =
         maybeEventFilterForAuthorProfiles =
             authorPubKeys
             |> getMissingProfilePubKeys model
-            |> profileFilterForAuthors
+            |> eventFilterForAuthors
 
         (requestProfileModel, extendedRequestProfile) =
             case maybeEventFilterForAuthorProfiles of
@@ -1490,7 +1581,7 @@ requestRelatedKindsForShortNotes model shortNotes request =
         (extendedModel, extendedRequestReactions) =
             shortNotes
             |> List.map Nostr.ShortNote.tagReference
-            |> profileFilterForReactions
+            |> eventFilterForReactions
             |> Maybe.map RequestReactions
             |> Maybe.map (addToRequest requestProfileModel extendedRequestProfile)
             |> Maybe.withDefault (requestProfileModel, extendedRequestProfile)
@@ -1718,31 +1809,6 @@ updateProfileWithValidationStatus model pubKey valid =
     { model | profileValidations = Dict.insert pubKey valid model.profileValidations, pubKeyByNip05 = updatedNip05Dict }
 
 
-updateWithReactions : Model -> List Nostr.Reactions.Reaction -> (Model, Cmd Msg)
-updateWithReactions model reactions =
-    let
-        extendedReactions =
-            reactions
-            |> List.foldl extendReactionsDict model.reactions 
-
-    in
-    ({ model | reactions = extendedReactions }, Cmd.none )
-
-extendReactionsDict :
-    Nostr.Reactions.Reaction
-    -> Dict EventId (Dict EventId Nostr.Reactions.Reaction)
-    -> Dict EventId (Dict EventId Nostr.Reactions.Reaction)
-extendReactionsDict reaction reactionDict =
-    case reaction.noteIdReactedTo of
-        Just noteIdReactedTo ->
-            reactionDict
-            |> Dict.get noteIdReactedTo
-            |> Maybe.map (Dict.insert reaction.id reaction)
-            |> Maybe.map (\extendedReactionDict -> Dict.insert noteIdReactedTo extendedReactionDict reactionDict)
-            |> Maybe.withDefault (Dict.insert noteIdReactedTo (Dict.singleton reaction.id reaction) reactionDict)
-
-        Nothing ->
-            reactionDict
 
 updateWithPubkeyProfiles : Model -> List Nostr.Profile.PubkeyProfile -> (Model, Cmd Msg)
 updateWithPubkeyProfiles model pubkeyProfiles =

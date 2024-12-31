@@ -9,14 +9,12 @@ import Components.PublishArticleDialog as PublishArticleDialog exposing (Publish
 import Css
 import Dict exposing (Dict)
 import Effect exposing (Effect)
-import Hex
 import Html.Styled as Html exposing (Html, a, aside, button, code, div, h2, h3, h4, img, input, label, node, p, span, text, textarea)
 import Html.Styled.Attributes as Attr exposing (class, css, style)
 import Html.Styled.Events as Events exposing (..)
 import Json.Decode as Decode
 import Layouts
 import Milkdown.MilkdownEditor as Milkdown
-import Murmur3
 import Nostr
 import Nostr.Article exposing (Article, articleFromEvent)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
@@ -37,9 +35,8 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Time
 import Translations.Write as Translations
-import Ui.Styles exposing (Theme)
+import Ui.Styles exposing (Theme, stylesForTheme)
 import View exposing (View)
-import Json.Decode as Decode
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
@@ -608,8 +605,8 @@ view user shared model =
                         , Tw.w_full
                         ]
                     ]
-                    [ viewTitle shared.browserEnv model
-                    , viewSubtitle shared.browserEnv model
+                    [ viewTitle shared.theme shared.browserEnv model
+                    , viewSubtitle  shared.theme shared.browserEnv model
                     ]
                 , div
                     [ css
@@ -622,7 +619,7 @@ view user shared model =
                     ]
                 ]
             , viewEditor shared.browserEnv model
-            , viewTags  shared.browserEnv model
+            , viewTags shared.theme shared.browserEnv model
             , viewArticleState shared.browserEnv shared.theme model.articleState
             , saveButtons shared.browserEnv shared.theme model
             , viewMediaSelector user shared model
@@ -667,7 +664,7 @@ viewArticleState : BrowserEnv -> Theme -> ArticleState -> Html Msg
 viewArticleState browserEnv theme articleState =
     let
         styles =
-            Ui.Styles.stylesForTheme theme
+            stylesForTheme theme
     in
     case (articleStateToString browserEnv articleState, articleStateProcessIndicator articleState) of
         (Just articleStateString, Just processIndicator) ->
@@ -788,8 +785,15 @@ viewMediaSelector user shared model =
         Nothing ->
             div [][]
 
-viewTitle : BrowserEnv -> Model -> Html Msg
-viewTitle browserEnv model =
+viewTitle : Theme -> BrowserEnv -> Model -> Html Msg
+viewTitle theme browserEnv model =
+    let
+        (foreground, background) =
+            if browserEnv.darkMode then
+                ("white", "black")
+            else
+                ("black", "white")
+    in
     div
         [ css
             [ Tw.w_full
@@ -797,7 +801,8 @@ viewTitle browserEnv model =
         ]
         [ node "auto-resize-textarea"
             [ Attr.attribute "value" (model.title |> Maybe.withDefault "")
-            , Attr.attribute "color" "rgb(55,55,55)"
+            , Attr.attribute "color" foreground
+            , Attr.attribute "backgroundcolor" background
             , Attr.attribute "fontfamily" "Inter"
             , Attr.attribute "fontsize" "36px"
             , Attr.attribute "fontWeight" "700"
@@ -808,8 +813,15 @@ viewTitle browserEnv model =
         ]
     
 
-viewSubtitle : BrowserEnv -> Model -> Html Msg
-viewSubtitle browserEnv model =
+viewSubtitle : Theme -> BrowserEnv -> Model -> Html Msg
+viewSubtitle theme browserEnv model =
+    let
+        (foreground, background) =
+            if browserEnv.darkMode then
+                ("white", "black")
+            else
+                ("black", "white")
+    in
     div
         [ css
             [ Tw.w_full
@@ -817,7 +829,8 @@ viewSubtitle browserEnv model =
         ]
         [ node "auto-resize-textarea"
             [ Attr.attribute "value" (model.summary |> Maybe.withDefault "")
-            , Attr.attribute "color" "rgb(55,55,55)"
+            , Attr.attribute "color" foreground
+            , Attr.attribute "backgroundcolor" background
             , Attr.attribute "fontfamily" "Inter"
             , Attr.attribute "fontsize" "19px"
             , Attr.attribute "fontWeight" "700"
@@ -869,32 +882,6 @@ viewEditor browserEnv model =
                 [ milkdownEditor model.milkdown browserEnv (model.content |> Maybe.withDefault "")
                 ]
 
-statusDiv : Model -> Html msg
-statusDiv model =
-    div []
-        [ code
-            [ style "color" "#017575"
-            , style "font-family" "Monaco"
-            , style "font-weight" ""
-            , style "font-size" "12px"
-            , style "border-radius" "4px"
-            , style "margin-left" "16px"
-            ]
-            [ text (modelToStatusString model) ]
-        ]
-
-modelToStatusString : Model -> String
-modelToStatusString model =
-    model.content
-    |> Maybe.map hexHash
-    |> Maybe.withDefault ""
-
-hexHash : Milkdown.Content -> String
-hexHash str =
-    str
-        |> Murmur3.hashString 1234
-        |> Hex.toString
-        |> (++) "0x"
 
 
 milkdownEditor : Milkdown.Model -> BrowserEnv -> Milkdown.Content -> Html Msg
@@ -943,8 +930,12 @@ for x in range(100):
 
 ```"""
 
-viewTags : BrowserEnv -> Model -> Html Msg
-viewTags browserEnv model =
+viewTags : Theme -> BrowserEnv -> Model -> Html Msg
+viewTags theme browserEnv model =
+    let
+        styles =
+            stylesForTheme theme
+    in
     div
         [ css
             [ Tw.w_full
@@ -965,6 +956,7 @@ viewTags browserEnv model =
             ]
         ,         {- Input Field -}
         input
+            (styles.colorStyleBackground ++
             [ Attr.type_ "text"
             , Attr.id "entry-field"
             , Attr.placeholder <| Translations.tagsPlaceholderText [ browserEnv.translations ]
@@ -986,7 +978,7 @@ viewTags browserEnv model =
                     , Tw.border_color Theme.blue_500
                     ]
                 ]
-            ]
+            ])
             []
         ]
     

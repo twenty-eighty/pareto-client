@@ -92,7 +92,7 @@
       "get started button text": "Anmelden",
       "media menu item text": "Bilder",
       "messages menu item text": "Nachrichten",
-      "notifications menu item text": "Benachrichtigungen",
+      "notifications menu item text": "Benachr.",
       "posts menu item text": "Posts",
       "read menu item text": "Lesen",
       "search menu item text": "Suche",
@@ -155,5 +155,11 @@
       "article published state": "Artikel wurde veröffentlicht",
       "article publishing error": "Fehler beim Veröffentlichen des Artikels",
       "article deleting draft state": "Lösche Entwurf nach Veröffentlichung ..."
+   },
+   "zap dialog": {
+      "dialog title": "Zap",
+      "comment placeholder": "Kommentar (optional)",
+      "close button title": "Schließen",
+      "zap button title": "Zap"
    }
 }

@@ -282,6 +282,8 @@ viewArticleBookmarks user shared model addressComponents =
             , nostr = shared.nostr
             , userPubKey = Just user.pubKey
             , onBookmark = Just (AddArticleBookmark user.pubKey, RemoveArticleBookmark user.pubKey)
+            , onReaction = Nothing
+            , onZap = Nothing
             }
 
 viewHashtagBookmarks user shared model hashtags =

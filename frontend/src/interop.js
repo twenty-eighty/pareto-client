@@ -200,7 +200,6 @@ export const onReady = ({ app, env }) => {
     var eventsSortedByKind = {};
     var followlists = [];
     var profiles = [];
-    var reactions = [];
     var reposts = [];
     var shortNotes = [];
     var highlights = [];
@@ -213,24 +212,9 @@ export const onReady = ({ app, env }) => {
         case 3: // follow list
         case 5: // event deletion request
         case 6: // repost
-          {
-            eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
-            break;
-          }
-
         case 7: // reactions
           {
-            const reaction =
-            {
-              pubkey: ndkEvent.pubkey
-              , content: ndkEvent.content
-              , id: ndkEvent.id
-              , "noteid-reactedto": lastTagWithId(ndkEvent.tags, "e")
-              , "pubkey-reactedto": lastTagWithId(ndkEvent.tags, "p")
-              , "kind-reactedto": lastTagWithId(ndkEvent.tags, "k")
-              , "coordinates-reactedto": lastTagWithId(ndkEvent.tags, "a")
-            };
-            reactions.push(reaction);
+            eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
             break;
           }
 
@@ -316,10 +300,6 @@ export const onReady = ({ app, env }) => {
     if (profiles.length > 0) {
       debugLog("Profiles: ", profiles.length);
       app.ports.receiveMessage.send({ messageType: 'profiles', value: profiles });
-    }
-    if (reactions.length > 0) {
-      debugLog("Reactions: ", reactions.length);
-      app.ports.receiveMessage.send({ messageType: 'reactions', value: reactions });
     }
     if (reposts.length > 0) {
       debugLog("Reposts: ", reposts.length);

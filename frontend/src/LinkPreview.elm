@@ -3,7 +3,7 @@ module LinkPreview exposing (generatePreviewHtml)
 import Dict exposing (Dict)
 import Graphics
 import Html.Styled as Html exposing (Html, div, img, a, text)
-import Html.Styled.Attributes exposing (css, href, src, alt, style)
+import Html.Styled.Attributes exposing (controls, css, href, src, alt, style, type_)
 import Maybe exposing (withDefault)
 import String exposing (contains)
 import Tailwind.Breakpoints as Bp
@@ -26,6 +26,12 @@ generatePreviewHtml urlString linkAttr body =
                 TwitterTweet tweetId ->
                     generateTwitterPreview urlString tweetId body
 
+                VideoLink mimeType ->
+                    generateVideoElement url mimeType
+
+                AudioLink mimeType ->
+                    generateAudioElement url mimeType
+
                 OtherLink ->
                     a (linkAttr ++ [ href urlString ]) body
 
@@ -41,6 +47,8 @@ generatePreviewHtml urlString linkAttr body =
 type LinkType
     = YouTubeVideo String
     | TwitterTweet String
+    | VideoLink String
+    | AudioLink String
     | OtherLink
 
 
@@ -71,6 +79,22 @@ detectLinkType url =
             Nothing ->
                 OtherLink
 
+    else if isVideohUrl url then
+        case getVideoMimeTypeFromUrl url.path of
+            Just mimeType ->
+                VideoLink mimeType
+            
+            Nothing ->
+                OtherLink
+
+    else if isAudiohUrl url then
+        case getAudioMimeTypeFromUrl url.path of
+            Just mimeType ->
+                AudioLink mimeType
+            
+            Nothing ->
+                OtherLink
+
     else
         OtherLink
 
@@ -85,6 +109,45 @@ isYouTubeWatchUrl url =
     in
     List.member url.host hosts && url.path == "/watch"
 
+
+isVideohUrl : Url -> Bool
+isVideohUrl url =
+    getVideoMimeTypeFromUrl url.path /= Nothing
+
+getVideoMimeTypeFromUrl : String -> Maybe String
+getVideoMimeTypeFromUrl urlPath =
+    [ ( "mp4", "video/mp4" )
+    , ( "mov", "video/quicktime" )
+    , ( "mkv", "video/x-matroska" )
+    , ( "avi", "video/x-msvideo" )
+    , ( "m4v", "video/x-m4v" )
+    , ( "webm", "video/webm" )
+    ]
+    |> List.filterMap (\(extension, mimeType) ->
+        if String.endsWith extension urlPath then
+            Just mimeType
+        else
+            Nothing
+    )
+    |> List.head
+
+isAudiohUrl : Url -> Bool
+isAudiohUrl url =
+    getAudioMimeTypeFromUrl url.path /= Nothing
+
+getAudioMimeTypeFromUrl : String -> Maybe String
+getAudioMimeTypeFromUrl urlPath =
+    [ ( "mp3", "audio/mpeg" )
+    , ( "wav", "audio/wav" )
+    , ( "ogg", "audio/ogg" )
+    ]
+    |> List.filterMap (\(extension, mimeType) ->
+        if String.endsWith extension urlPath then
+            Just mimeType
+        else
+            Nothing
+    )
+    |> List.head
 
 getYouTubeVideoIdFromQuery : Maybe String -> Maybe String
 getYouTubeVideoIdFromQuery maybeQuery =
@@ -223,3 +286,29 @@ generateTwitterPreview url _ body =
     -- Embedding tweets requires external scripts, so we provide a link
         a [ href url ]
             body
+
+generateVideoElement : Url -> String -> Html msg
+generateVideoElement url mimeType =
+    Html.video
+        [ controls True
+        ]
+        [ Html.source
+            [ src <| Url.toString url
+            , type_ mimeType
+            ]
+            []
+        , text "Your browser doesn't support the HTML video tag"
+        ]
+
+generateAudioElement : Url -> String -> Html msg
+generateAudioElement url mimeType =
+    Html.audio
+        [ controls True
+        ]
+        [ Html.source
+            [ src <| Url.toString url
+            , type_ mimeType
+            ]
+            []
+        , text "Your browser doesn't support the HTML video tag"
+        ]

@@ -144,5 +144,7 @@ viewProfile shared profile =
                     , nostr = shared.nostr
                     , userPubKey = Shared.loggedInPubKey shared.loginStatus
                     , onBookmark = Nothing
+                    , onReaction = Nothing
+                    , onZap = Nothing
                     }
         ]

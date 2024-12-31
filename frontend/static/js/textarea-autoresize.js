@@ -8,6 +8,8 @@ class AutoResizeTextarea extends HTMLElement {
     this.textarea = document.createElement('textarea');
     this.textarea.style.borderWidth = '0px';
     this.textarea.style.boxSizing = 'border-box';
+    this.textarea.style.color = this.color;
+    this.textarea.style['background-color'] = this.backgroundcolor;
     this.textarea.style.outline = 'none';
     this.textarea.style.overflow = 'hidden';
     this.textarea.style.paddingLeft = '20px';
@@ -31,7 +33,7 @@ class AutoResizeTextarea extends HTMLElement {
 
   // Define observed attributes for syncing with Elm
   static get observedAttributes() {
-    return ['value', 'color', 'placeholder', 'fontfamily', 'fontsize', 'fontweight'];
+    return ['value', 'color', 'backgroundcolor', 'placeholder', 'fontfamily', 'fontsize', 'fontweight'];
   }
 
   // React to attribute changes
@@ -41,6 +43,8 @@ class AutoResizeTextarea extends HTMLElement {
       this._resize();
     } else if (name === 'color') {
       this.textarea.style.color = newValue || '';
+    } else if (name === 'backgroundcolor') {
+      this.textarea.style['background-color'] = newValue || '';
     } else if (name === 'fontfamily') {
       this.textarea.style.fontFamily = newValue || '';
     } else if (name === 'fontsize') {
@@ -67,7 +71,11 @@ class AutoResizeTextarea extends HTMLElement {
 
   // Property getter and setter for the 'value' attribute
   get color() {
-    return this.textarea.color;
+    return this.textarea.style.color;
+  }
+
+  get backgroundcolor() {
+    return this.textarea.style['background-color'];
   }
 
   get fontfamily() {

@@ -10,7 +10,7 @@ import Html.Styled.Events as Events exposing (..)
 import I18Next
 import Layouts
 import Nostr
-import Nostr.Article exposing (Article, addressForArticle)
+import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, nip19ForArticle)
 import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), kindDecoder, emptyEventFilter)
 import Nostr.FollowList exposing (followingPubKey)
 import Nostr.Request exposing (RequestData(..))
@@ -161,6 +161,8 @@ type Msg
     | CategoriesSent (Components.Categories.Msg Category Msg)
     | AddArticleBookmark PubKey AddressComponents
     | RemoveArticleBookmark PubKey AddressComponents
+    | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
+    | RemoveArticleReaction PubKey EventId  -- event ID of like
     | AddShortNoteBookmark PubKey EventId
     | RemoveShortNoteBookmark PubKey EventId
 
@@ -196,6 +198,16 @@ update shared msg model =
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
+
+        AddArticleReaction userPubKey eventId articlePubKey addressComponents ->
+            ( model
+            , SendReaction userPubKey eventId articlePubKey addressComponents
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        RemoveArticleReaction pubKey eventId ->
+            ( model, Effect.none )
 
         AddShortNoteBookmark pubKey eventId ->
             ( model
@@ -360,6 +372,7 @@ view shared model =
             ]
     }
 
+viewContent : Shared.Model -> Model -> Maybe PubKey -> Html Msg
 viewContent shared model userPubKey =
     let
         viewArticles =
@@ -371,6 +384,8 @@ viewContent shared model userPubKey =
                         , nostr = shared.nostr
                         , userPubKey = userPubKey
                         , onBookmark = Maybe.map (\pubKey -> (AddArticleBookmark pubKey, RemoveArticleBookmark pubKey)) userPubKey
+                        , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) userPubKey
+                        , onZap = Nothing
                         }
 
         viewNotes =
@@ -407,6 +422,12 @@ viewShortNotes shortNotesViewData shortNotes =
         ShortNote.viewShortNote
             shortNotesViewData
             { author = Nostr.getAuthor shortNotesViewData.nostr shortNote.pubKey
+            , actions =
+                { addBookmark = Nothing
+                , removeBookmark = Nothing
+                , addReaction = Nothing
+                , removeReaction = Nothing
+                }
             , interactions = 
                 { zaps = Nothing
                 , highlights = Nothing
@@ -415,6 +436,7 @@ viewShortNotes shortNotesViewData shortNotes =
                 , notes = Nothing
                 , bookmarks = Nothing
                 , isBookmarked = False
+                , reaction = Nothing
                 }
             }
             shortNote

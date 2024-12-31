@@ -177,6 +177,8 @@ viewArticles shared model userPubKey =
                         , nostr = shared.nostr
                         , userPubKey = Just userPubKey
                         , onBookmark = Nothing
+                        , onReaction = Nothing
+                        , onZap = Nothing
                         }
 
         Drafts ->

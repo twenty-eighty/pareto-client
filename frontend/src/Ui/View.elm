@@ -7,7 +7,7 @@ import Components.RelayStatus as RelayStatus exposing (Purpose(..))
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Nostr
-import Nostr.Article exposing (Article)
+import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, nip19ForArticle)
 import Nostr.Community exposing (Community)
 import Nostr.Request exposing (RequestId)
 import Nostr.ShortNote exposing (ShortNote)
@@ -15,6 +15,7 @@ import Nostr.Types exposing (PubKey)
 import Tailwind.Utilities as Tw
 import Ui.Article exposing (ArticlePreviewData, ArticlePreviewsData)
 import Ui.Community
+import Ui.Shared exposing (Actions)
 import Ui.ShortNote
 import Ui.Styles exposing (Styles, Theme)
 import I18Next
@@ -29,10 +30,39 @@ viewArticle articlePreviewsData article =
     Ui.Article.viewArticle
         articlePreviewsData
         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
+        , actions = actionsFromArticlePreviewsData articlePreviewsData article
         , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
         , displayAuthor = True
         }
         article
+
+actionsFromArticlePreviewsData : ArticlePreviewsData msg -> Article -> Actions msg
+actionsFromArticlePreviewsData articlePreviewsData article =
+    let
+        maybeAddressComponents =
+            addressComponentsForArticle article
+
+        addReactionMsg =
+            Maybe.map2 (\addReaction addressComponents ->
+                addReaction article.id article.author addressComponents
+                )
+                articlePreviewsData.onReaction
+                maybeAddressComponents
+    in
+    case (articlePreviewsData.onBookmark, maybeAddressComponents) of
+        (Just (addArticleBookmark, removeArticleBookmark), Just addressComponents) ->
+            { addBookmark = Just <| addArticleBookmark addressComponents
+            , removeBookmark = Just <| removeArticleBookmark addressComponents
+            , addReaction = addReactionMsg
+            , removeReaction = Nothing
+            }
+
+        (_, _) ->
+            { addBookmark = Nothing
+            , removeBookmark = Nothing
+            , addReaction = Nothing
+            , removeReaction = Nothing
+            }
 
 viewArticlePreviews : ArticlePreviewType -> ArticlePreviewsData msg -> List Article -> Html msg
 viewArticlePreviews previewType articlePreviewsData articles =
@@ -64,6 +94,8 @@ viewArticlePreviewsList articlePreviewsData articles =
                 Ui.Article.viewArticlePreviewList
                     articlePreviewsData
                         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
+                        , actions =
+                            actionsFromArticlePreviewsData articlePreviewsData article
                         , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
                         , displayAuthor = True
                         }
@@ -89,6 +121,8 @@ viewArticlePreviewsBigPicture articlePreviewsData articles =
                 Ui.Article.viewArticlePreviewBigPicture
                     articlePreviewsData
                     { author = Nostr.getAuthor articlePreviewsData.nostr article.author
+                    , actions =
+                        actionsFromArticlePreviewsData articlePreviewsData article
                     , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
                     , displayAuthor = True
                     }

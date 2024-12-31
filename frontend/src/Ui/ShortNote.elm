@@ -16,7 +16,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Ui.Links exposing (linkElementForAuthor, linkElementForProfilePubKey)
 import Ui.Profile exposing (defaultProfileImage, profileDisplayName, validationIcon)
-import Ui.Shared
+import Ui.Shared exposing (Actions)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 import Url
 import Nostr.Nip19 as Nip19
@@ -30,13 +30,14 @@ type alias ShortNotesViewData msg =
     , onBookmark : Maybe ((EventId -> msg), (EventId -> msg)) -- msgs for adding/removing a bookmark
     }
 
-type alias ShortNoteViewData =
+type alias ShortNoteViewData msg =
     { author : Author
+    , actions : Actions msg
     , interactions : Interactions
     }
 
 
-viewShortNote : ShortNotesViewData msg -> ShortNoteViewData -> ShortNote -> Html msg
+viewShortNote : ShortNotesViewData msg -> ShortNoteViewData msg -> ShortNote -> Html msg
 viewShortNote shortNotesViewData shortNoteViewData shortNote =
     let
         styles =
@@ -232,7 +233,7 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
                     , div
                         [ Attr.class "_footer_qj1dj_448"
                         ]
-                        [ Ui.Shared.viewInteractions styles shortNotesViewData.browserEnv shortNoteViewData.interactions
+                        [ Ui.Shared.viewInteractions styles shortNotesViewData.browserEnv shortNoteViewData.actions shortNoteViewData.interactions
                         ]
                     ]
                 ]

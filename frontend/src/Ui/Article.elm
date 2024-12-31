@@ -15,8 +15,8 @@ import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), numb
 import Nostr.Nip19 as Nip19
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author, Profile, ProfileValidation(..))
-import Nostr.Reactions exposing (Interactions)
-import Nostr.Types exposing (PubKey)
+import Nostr.Reactions exposing (Interactions, Reaction)
+import Nostr.Types exposing (EventId, PubKey)
 import Route
 import Route.Path
 import Tailwind.Breakpoints as Bp
@@ -27,8 +27,9 @@ import Time
 import Translations.Posts
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
-import Ui.Shared
+import Ui.Shared exposing (Actions)
 import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded, stylesForTheme)
+import Components.ZapDialog as ZapDialog
 
 type alias ArticlePreviewsData msg =
     { theme : Theme
@@ -36,10 +37,13 @@ type alias ArticlePreviewsData msg =
     , nostr : Nostr.Model
     , userPubKey : Maybe PubKey
     , onBookmark : Maybe ((AddressComponents -> msg), (AddressComponents -> msg)) -- msgs for adding/removing a bookmark
+    , onReaction : Maybe (EventId -> PubKey -> AddressComponents -> msg)
+    , onZap : Maybe (List ZapDialog.Recipient -> msg)
     }
 
-type alias ArticlePreviewData =
+type alias ArticlePreviewData msg =
     { author : Author
+    , actions : Actions msg
     , interactions : Interactions
     , displayAuthor : Bool
     }
@@ -47,7 +51,7 @@ type alias ArticlePreviewData =
 
 -- single article
 
-viewArticle : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
+viewArticle : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
 viewArticle articlePreviewsData articlePreviewData article =
     let
         styles =
@@ -168,9 +172,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                     , Tw.mb_4
                     ]
                 ] ++ contentMargins)
-                [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.interactions
+                [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions
                 , viewContent styles getProfile article.content
-                , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.interactions
+                , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions
                 ]
             ]
         -- , viewArticleComments styles
@@ -243,11 +247,18 @@ viewSummary styles maybeSummary =
 viewTags : Styles msg -> Article -> Html msg
 viewTags styles article =
     article.hashtags
+    |> List.map removeHashTag
     |> List.intersperse " / "
     |> List.map viewTag
     |> div
         (styles.textStyleArticleHashtags ++ styles.colorStyleArticleHashtags)
 
+removeHashTag : String -> String
+removeHashTag hashTag =
+    if String.startsWith "#" hashTag then
+        String.dropLeft 1 hashTag
+    else
+        hashTag
 
 viewTag : String -> Html msg
 viewTag tag =
@@ -531,7 +542,7 @@ viewArticleInternal styles fnGetProfile browserEnv article =
 
 -- article previews
 
-viewArticlePreviewList : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
+viewArticlePreviewList : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
 viewArticlePreviewList articlePreviewsData articlePreviewData article =
     let
         styles =
@@ -762,7 +773,7 @@ viewHashTag styles hashTag =
             [ text hashTag ]
         ]
 
-viewArticlePreviewBigPicture : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
+viewArticlePreviewBigPicture : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
 viewArticlePreviewBigPicture articlePreviewsData articlePreviewData article =
     let
         styles =
@@ -870,7 +881,7 @@ previewBigPictureImage article =
                 ]
                 []
 
-viewAuthorAndDatePreview : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
+viewAuthorAndDatePreview : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
 viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
     let
         styles =
@@ -940,7 +951,7 @@ viewArticleEditButton articlePreviewsData article articleAuthorPubKey =
         div [][]
 
 
-viewArticleBookmarkButton : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
+viewArticleBookmarkButton : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
 viewArticleBookmarkButton articlePreviewsData articlePreviewData article =
     case
         ( articlePreviewsData.onBookmark

@@ -221,6 +221,12 @@ viewContent shared model =
                         , onBookmark = Nothing
                         }
                         { author = Nostr.getAuthor shared.nostr shortNote.pubKey
+                        , actions =
+                            { addBookmark = Nothing
+                            , removeBookmark = Nothing
+                            , addReaction = Nothing
+                            , removeReaction = Nothing
+                            }
                         , interactions = 
                             { zaps = Nothing
                             , highlights = Nothing
@@ -229,6 +235,7 @@ viewContent shared model =
                             , notes = Nothing
                             , bookmarks = Nothing
                             , isBookmarked = False
+                            , reaction = Nothing
                             }
                         }
                         shortNote
@@ -244,6 +251,8 @@ viewContent shared model =
                     , nostr = shared.nostr
                     , userPubKey = Shared.loggedInPubKey shared.loginStatus
                     , onBookmark = Nothing
+                    , onReaction = Nothing
+                    , onZap = Nothing
                     }
                 )
             |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle model.requestId)

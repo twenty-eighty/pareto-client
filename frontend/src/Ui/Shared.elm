@@ -13,6 +13,7 @@ import Svg.Loaders
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded, stylesForTheme)
+import BrowserEnv exposing (Msg)
 
 pageLoadingIndicator : Html msg
 pageLoadingIndicator =
@@ -110,14 +111,28 @@ modalDialog title content onClose =
             ]
         ]
 
-viewInteractions : Styles msg -> BrowserEnv -> Interactions -> Html msg
-viewInteractions styles browserEnv interactions =
+type alias Actions msg =
+    { addBookmark : Maybe msg
+    , removeBookmark : Maybe msg
+    , addReaction : Maybe msg
+    , removeReaction : Maybe msg
+    }
+
+viewInteractions : Styles msg -> BrowserEnv -> Actions msg -> Interactions -> Html msg
+viewInteractions styles browserEnv actions interactions =
     let
-        bookmarkIcon =
+        (bookmarkIcon, bookmarkMsg) =
             if interactions.isBookmarked then
-                Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdded 30 Icon.Inherit
+                (Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdded 30 Icon.Inherit, actions.removeBookmark)
             else
-                Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdd 30 Icon.Inherit
+                (Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdd 30 Icon.Inherit, actions.addBookmark)
+
+        (reactionIcon, reactionMsg) =
+            case interactions.reaction of
+                Just _ ->
+                    (Icon.MaterialIcon Icon.MaterialFavorite 30 Icon.Inherit, actions.removeReaction)
+                Nothing ->
+                    (Icon.MaterialIcon Icon.MaterialFavoriteBorder 30 Icon.Inherit, actions.addReaction)
     in
     div
         [ css
@@ -127,15 +142,25 @@ viewInteractions styles browserEnv interactions =
             , Tw.inline_flex
             ]
         ]
-        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) (Maybe.map String.fromInt interactions.notes)
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.edit) (Maybe.map String.fromInt interactions.reactions)
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.repeat) (Maybe.map String.fromInt interactions.reposts)
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) (Maybe.map (formatZapNum browserEnv) interactions.zaps)
-        , viewReactions styles bookmarkIcon (Maybe.map String.fromInt interactions.bookmarks)
+        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) Nothing (Maybe.map String.fromInt interactions.notes)
+        , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions)
+        , viewReactions styles (Icon.FeatherIcon FeatherIcons.repeat) Nothing (Maybe.map String.fromInt interactions.reposts)
+        , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps)
+        , viewReactions styles bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks)
         ]
                 
-viewReactions : Styles msg -> Icon -> Maybe String -> Html msg
-viewReactions styles icon maybeCount =
+viewReactions : Styles msg -> Icon -> Maybe msg -> Maybe String -> Html msg
+viewReactions styles icon maybeMsg maybeCount =
+    let
+        onClickAttr =
+            case maybeMsg of
+                Just msg ->
+                    [ Events.onClick msg, css [ Tw.cursor_pointer ] ]
+
+                Nothing ->
+                    []
+
+    in
     div
         (styles.colorStyleLabel ++
         [ css
@@ -147,6 +172,7 @@ viewReactions styles icon maybeCount =
             ]
         ])
         [ div
+            ( onClickAttr ++
             [ css
                 [ Tw.w_5
                 , Tw.h_5
@@ -156,7 +182,7 @@ viewReactions styles icon maybeCount =
                 , Tw.items_center
                 , Tw.flex
                 ]
-            ]
+            ])
             [ Icon.view icon]
         , div
             [ ] [ text (maybeCount |> Maybe.withDefault "0" ) ]

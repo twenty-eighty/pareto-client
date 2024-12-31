@@ -155,5 +155,11 @@
       "article published state": "Article published",
       "article publishing error": "Error publishing article",
       "article deleting draft state": "Deleting draft after publishing..."
+   },
+   "zap dialog": {
+      "dialog title": "Zap",
+      "comment placeholder": "Comment (optional)",
+      "close button title": "Close",
+      "zap button title": "Zap"
    }
 }
