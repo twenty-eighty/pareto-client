@@ -2,6 +2,7 @@
    "about": {
       "about page title": "Über",
       "supported kinds title": "Unterstützte Nostr \"kinds\"",
+      "supported nips title": "Unterstützte NIPs",
       "supported web targets title": "Unterstützte Web-Ziele",
       "publish handler information button title": "Handler-Information veröffentlichen",
       "publish profile button title": "Profil veröffentlichen",

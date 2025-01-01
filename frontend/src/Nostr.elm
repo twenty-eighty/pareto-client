@@ -5,7 +5,6 @@ import Dict exposing (Dict)
 import Html.Styled as Html exposing (Html, div)
 import Http
 import Json.Decode as Decode exposing (Decoder)
-import Json.Encode as Encode
 import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, tagReference)
 import Nostr.Blossom exposing (userServerListFromEvent)
 import Nostr.BookmarkList exposing (BookmarkList, bookmarkListFromEvent, bookmarkListEvent, bookmarkListWithArticle, bookmarkListWithoutArticle, bookmarkListWithShortNote, bookmarkListWithoutShortNote, emptyBookmarkList)
@@ -1313,7 +1312,15 @@ updateModelWithLongFormContentDraft model requestId events =
 
         -- sort articles, newest first
         articleDraftsByDate =
-            articles
+            articles ++ model.articleDraftsByDate
+            |> List.map (\article ->
+                    (Maybe.withDefault "" article.identifier, article)
+                )
+            |> Dict.fromList
+            |> Dict.toList
+            |> List.map (\(_, article) ->
+                    article
+                )
             |> List.sortBy (\article ->
                 article.publishedAt
                 |> Maybe.map (\publishedAt -> Time.posixToMillis publishedAt * -1)
@@ -1339,6 +1346,8 @@ updateModelWithLongFormContentDraft model requestId events =
     }
     ,requestCmd
     )
+
+
 requestRelatedKindsForArticles : Model -> List Article -> Request -> (Model, Cmd Msg)
 requestRelatedKindsForArticles model articles request =
     let

@@ -8,6 +8,9 @@ import Nostr.Nip19 as Nip19 exposing (NIP19Type(..), NAddrData)
 import Nostr.Relay
 import Nostr.Types exposing (Address, EventId, PubKey, RelayRole(..), RelayUrl, decodeRelayRole, relayRoleToString)
 import Time
+import Json.Decode as Decode
+import Json.Decode as Decode
+import Json.Decode as Decode
 
 
 type Tag
@@ -27,7 +30,7 @@ type Tag
     | ExternalIdTag String
     | FileTag String (Maybe String)
     | HashTag String
-    | IdentityTag String String
+    | IdentityTag Identity String
     | KindTag Kind
     | ImageTag String (Maybe ImageSize)
     | LocationTag String (Maybe String)
@@ -40,11 +43,19 @@ type Tag
     | RelayTag String
     | RelaysTag (List String)
     | ServerTag String
+    | SubjectTag String
     | SummaryTag String
     | TitleTag String
     | UrlTag String RelayRole
     | WebTag String (Maybe String)
     | ZapTag PubKey RelayUrl (Maybe Int)
+
+type Identity
+    = GitHubIdentity String
+    | TwitterIdentity String
+    | MastodonIdentity String
+    | TelegramIdentity String
+    | OtherIdentity String String
 
 type ImageSize
     = ImageSize Int Int
@@ -151,6 +162,7 @@ type Kind
     | KindBlockedRelaysList
     | KindSearchRelaysList
     | KindUserGroups
+    | KindPrivateRelayList
     | KindInterestsLists
     | KindNutzapMintRecommendation
     | KindUserEmojiList
@@ -195,6 +207,7 @@ type Kind
     | KindRepositoryStateAnnouncement
     | KindWikiArticle
     | KindRedirect
+    | KindDraft
     | KindLinkSet
     | KindFeed
     | KindDateBasedCalendar
@@ -290,6 +303,7 @@ informationForKind kind =
         KindBlockedRelaysList           -> { description = "Blocked relays list", link = Just <| LinkToNip 51 }
         KindSearchRelaysList            -> { description = "Search relays list", link = Just <| LinkToNip 51 }
         KindUserGroups                  -> { description = "User groups", link = Just <| LinkToNips [51, 29] }
+        KindPrivateRelayList            -> { description = "Relay List for Private Content", link = Just <| LinkToNip 37 }
         KindInterestsLists              -> { description = "Interests list", link = Just <| LinkToNip 51 }
         KindNutzapMintRecommendation    -> { description = "Nutzap Mint Recommendation", link = Just <| LinkToNip 61 }
         KindUserEmojiList               -> { description = "User emoji list", link = Just <| LinkToNip 51 }
@@ -334,6 +348,7 @@ informationForKind kind =
         KindRepositoryStateAnnouncement -> { description = "Repository state announcements", link = Just <| LinkToNip 34 }
         KindWikiArticle                 -> { description = "Wiki article", link = Just <| LinkToNip 54 }
         KindRedirect                    -> { description = "Redirects", link = Just <| LinkToNip 54 }
+        KindDraft                       -> { description = "Draft events", link = Just <| LinkToNip 37 }
         KindLinkSet                     -> { description = "Link Set", link = Just <| OtherLink "Corny Chat" "https://cornychat.com/datatypes#kind31388linkset" }
         KindFeed                        -> { description = "Feed", link = Just <| OtherLink "NUD: Custom Feeds" "https://wikifreedia.xyz/cip-01/" }
         KindDateBasedCalendar           -> { description = "Date-Based Calendar Event", link = Just <| LinkToNip 52 }
@@ -427,6 +442,7 @@ kindFromNumber num =
             10006 -> KindBlockedRelaysList
             10007 -> KindSearchRelaysList
             10009 -> KindUserGroups
+            10013 -> KindPrivateRelayList
             10015 -> KindInterestsLists
             10019 -> KindNutzapMintRecommendation
             10030 -> KindUserEmojiList
@@ -471,6 +487,7 @@ kindFromNumber num =
             30618 -> KindRepositoryStateAnnouncement
             30818 -> KindWikiArticle
             30819 -> KindRedirect
+            31234 -> KindDraft
             31388 -> KindLinkSet
             31890 -> KindFeed
             31922 -> KindDateBasedCalendar
@@ -567,6 +584,7 @@ numberForKind kind =
         KindBlockedRelaysList               -> 10006
         KindSearchRelaysList                -> 10007
         KindUserGroups                      -> 10009
+        KindPrivateRelayList                -> 10013 
         KindInterestsLists                  -> 10015
         KindNutzapMintRecommendation        -> 10019
         KindUserEmojiList                   -> 10030
@@ -611,6 +629,7 @@ numberForKind kind =
         KindRepositoryStateAnnouncement     -> 30618
         KindWikiArticle                     -> 30818
         KindRedirect                        -> 30819
+        KindDraft                           -> 31234
         KindLinkSet                         -> 31388
         KindFeed                            -> 31890
         KindDateBasedCalendar               -> 31922
@@ -801,7 +820,7 @@ decodeTag =
                 Decode.map2 FileTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
             "i" ->
-                Decode.map2 IdentityTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string)
+                Decode.map2 IdentityTag (Decode.index 1 identityDecoder) (Decode.index 2 Decode.string)
 
             "image" ->
                 Decode.map2 ImageTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 imageSizeDecoder))
@@ -872,6 +891,30 @@ decodeGenericTag =
         , Decode.map2 GenericTag2 (Decode.index 0 Decode.string) (Decode.index 1 Decode.string)
         , Decode.map  GenericTag  (Decode.index 0 Decode.string)
         ]
+
+identityDecoder : Decode.Decoder Identity
+identityDecoder =
+    Decode.string
+    |> Decode.andThen (\decoded ->
+        case String.split ":" decoded of
+            [ "github", userId ] ->
+                Decode.succeed <| GitHubIdentity userId
+
+            [ "twitter", userId ] ->
+                Decode.succeed <| TwitterIdentity userId
+
+            [ "mastodon", userId ] ->
+                Decode.succeed <| MastodonIdentity userId
+
+            [ "telegram", userId ] ->
+                Decode.succeed <| TelegramIdentity userId
+
+            [ platform, userId ] ->
+                Decode.succeed <| OtherIdentity platform userId
+
+            _ ->
+                Decode.fail <| "Invalid identity tag: " ++ decoded
+        )
 
 decodeStringInt : Decode.Decoder Int
 decodeStringInt =
@@ -949,8 +992,8 @@ tagToList tag =
         HashTag value ->
             [ "t", value ]
 
-        IdentityTag value1 value2 ->
-            [ "i", value1, value2 ]
+        IdentityTag identity proof ->
+            [ "i", identityToString identity, proof ]
 
         ImageTag value (Just size) ->
             [ "image", value, imageSizeToString size ]
@@ -1001,6 +1044,9 @@ tagToList tag =
         ServerTag value ->
             [ "server", value ]
 
+        SubjectTag subject ->
+            [ "subject", subject ]
+
         SummaryTag value ->
             [ "summary", value ]
 
@@ -1029,6 +1075,24 @@ tagToList tag =
 
                 Nothing ->
                     [ "zap", pubKey, relayUrl ]
+
+identityToString : Identity -> String
+identityToString identity =
+    case identity of 
+        GitHubIdentity userName ->
+            "github:" ++ userName
+
+        TwitterIdentity userName ->
+            "twitter:" ++ userName
+
+        MastodonIdentity userName ->
+            "mastodon:" ++ userName
+
+        TelegramIdentity userId ->
+            "telegram:" ++ userId
+
+        OtherIdentity platform userName ->
+            platform ++ ":" ++ userName
 
 buildAddress : AddressComponents -> Address
 buildAddress (kind, pubKey, identifier) =

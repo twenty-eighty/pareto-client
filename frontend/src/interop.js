@@ -1,7 +1,7 @@
 
 import "./Milkdown/MilkdownEditor.js";
 
-import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
+import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import { BlossomClient } from "blossom-client-sdk/client";
 import { init as initNostrLogin, launch as launchNostrLoginDialog } from "nostr-login"
 import debug from 'debug';
@@ -259,6 +259,7 @@ export const onReady = ({ app, env }) => {
         case 10096: // relay list for file uploads (NIP-96)
         case 30000: // follow sets
         case 30003: // bookmark sets
+        case 30023: // long-form article
         case 30024: // long-form draft
         case 34550: // community definition
           {
@@ -266,9 +267,19 @@ export const onReady = ({ app, env }) => {
             break;
           }
 
-        case 30023: // long-form article
+        case 10013: // relay list for private content
           {
-            eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
+            unwrapPrivateRelayListEvent(ndkEvent).then(event => {
+              app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
+            });
+            break;
+          }
+
+        case 31234: // draft event (NIP-37)
+          {
+            unwrapDraftEvent(ndkEvent).then(event => {
+              app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
+            });
             break;
           }
 
@@ -316,6 +327,17 @@ export const onReady = ({ app, env }) => {
     if (zapReceipts.length > 0) {
       debugLog("ZapReceipts: ", zapReceipts.length);
       app.ports.receiveMessage.send({ messageType: 'zap_receipts', value: zapReceipts });
+    }
+  }
+
+  function decryptRelayList(ndkEvent) {
+    const content = ndkEvent.content;
+    const decryptedContent = nip4(encryptedContent);
+    const decryptedEvent = new NDKEvent(window.ndk, ndkEvent);
+    return {
+      kind: ndkEvent.kind,
+      pubkey: ndkEvent.pubkey,
+      content: ""
     }
   }
 
@@ -386,9 +408,15 @@ export const onReady = ({ app, env }) => {
     });
   }
 
-  function sendEvent(app, { sendId: sendId, event: event, relays: relays }) {
+  async function sendEvent(app, { sendId: sendId, event: event, relays: relays }) {
     debugLog('send event ' + sendId, event, 'relays: ', relays);
-    const ndkEvent = new NDKEvent(window.ndk, event);
+
+    var ndkEvent = new NDKEvent(window.ndk, event);
+
+    if (event.kind == 30024) {  // draft event
+      ndkEvent = await encapsulateDraftEvent(ndkEvent);
+    }
+
     ndkEvent.sign().then(() => {
       debugLog('signed event ' + sendId, ndkEvent);
 
@@ -407,6 +435,52 @@ export const onReady = ({ app, env }) => {
         processEvents(app, -1, "sent event", [ndkEvent]);
       })
     })
+  }
+
+  // https://nips.nostr.com/37
+  async function encapsulateDraftEvent(ndkEvent) {
+    await ndkEvent.sign();
+    const rawEventString = JSON.stringify(ndkEvent.rawEvent());
+    const identifier = firstTag(ndkEvent, "d");
+    const draftEvent = {
+      kind: 31234,
+      tags: [
+        ["d", identifier],
+        ["k", ndkEvent.kind.toString()],
+        ["e", ndkEvent.id],
+        ["a", ndkEvent.kind + ":" + ndkEvent.pubkey + ":" + identifier],
+      ],
+      content: await window.ndk.signer.nip44Encrypt({ pubkey: ndkEvent.pubkey }, rawEventString),
+      pubkey: ndkEvent.pubkey,
+      created_at: ndkEvent.created_at
+    }
+
+    var ndkEvent = new NDKEvent(window.ndk, draftEvent)
+    return ndkEvent;
+  }
+
+  async function unwrapPrivateRelayListEvent(ndkEvent) {
+    const stringifiedRelayTags = await window.ndk.signer.nip44Decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    ndkEvent.tags = JSON.parse(stringifiedEvent);
+    return ndkEvent;
+  }
+
+  async function unwrapDraftEvent(ndkEvent) {
+    const stringifiedEvent = await window.ndk.signer.nip44Decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    const event = JSON.parse(stringifiedEvent);
+    return event;
+  }
+
+  function firstTag(event, tagName) {
+    if (event.tags) {
+      for (const tag of event.tags) {
+        if (tag[0] === tagName) {
+          return tag[1];
+        }
+      }
+    }
+
+    return null;
   }
 
   function addEvent(eventsSortedByKind, ndkEvent) {

@@ -106,8 +106,34 @@ supportedKinds =
     , KindHTTPAuth
     , KindLongFormContent
     , KindDraftLongFormContent
+    , KindDraft
     , KindHandlerRecommendation
     , KindHandlerInformation
+    ]
+
+supportedNips : List String
+supportedNips =
+    [ "01"
+    -- , "02"
+    -- , "04" -- Encrypted Direct Message
+    , "07"
+    , "09"
+    , "11"
+    , "19"
+    , "21"
+    , "23"
+    , "24"
+    , "25"
+    , "31"
+    , "37"
+    , "42"
+    , "44"
+    , "51"
+    , "65"
+    , "89"
+    , "94"
+    , "96"
+    , "98"
     ]
 
 paretoAbout : String
@@ -136,6 +162,7 @@ paretoProfile =
     , npub = Just paretoNpub
     , createdAt = Nothing
     , pubKey = paretoPubKey
+    , identities = []
     }
 
 paretoReferences : List (String, Maybe String)

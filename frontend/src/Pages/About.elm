@@ -4,13 +4,14 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, a, article, aside, button, code, div, h2, h3, h4, img, input, label, node, p, span, text, textarea)
-import Html.Styled.Attributes as Attr exposing (class, css, style)
+import Html.Styled.Attributes as Attr exposing (class, css, href, style)
 import Html.Styled.Events as Events exposing (..)
 import Layouts
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (Kind(..), KindInformationLink(..), Tag(..), TagReference(..), buildAddress, emptyEventFilter, informationForKind, numberForKind)
 import Nostr.HandlerInformation exposing (HandlerInformation, WebTarget, buildHandlerInformation)
+import Nostr.Nips exposing (descriptionForNip)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileToJson)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
@@ -147,6 +148,7 @@ view shared model =
                 ]
             ]
             [ viewHandlerInformation shared.theme shared.browserEnv shared.loginStatus shared.nostr (Pareto.applicationInformation shared.browserEnv.now)
+            , viewSupportedNips shared.theme shared.browserEnv Pareto.supportedNips
             , viewFooter shared.browserEnv
             ]
         ]
@@ -346,6 +348,56 @@ viewWebTarget theme (target, maybeType) =
         [ text <| target ++ webTargetType
         ]
 
+viewSupportedNips : Theme -> BrowserEnv -> List String -> Html Msg
+viewSupportedNips theme browserEnv supportedNips =
+    let
+        styles =
+            Ui.Styles.stylesForTheme theme
+    in
+    Html.div
+        [ css
+            [ Tw.mt_3
+            ]
+        ]
+        [ Html.h3 (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
+            [ text <| Translations.supportedNipsTitle [ browserEnv.translations ]
+            ]
+        , Html.ul
+            [
+            ]
+            (List.map (viewNip theme) supportedNips)
+        ]
+
+viewNip : Theme -> String -> Html Msg
+viewNip theme nip =
+    let
+        nipLink =
+            case String.toInt nip of
+                Just nipNum ->
+                    "https://nips.nostr.com/" ++ String.fromInt nipNum
+
+                Nothing ->
+                    "https://nips.nostr.com/" ++ nip
+    in
+    Html.li
+        [
+        ]
+        [ Html.a
+            [ href nipLink
+            ]
+            [ text <| "NIP-" ++ nip ++ nipInfoText nip
+            ]
+        ]
+
+nipInfoText : String -> String
+nipInfoText nip =
+    case descriptionForNip nip of
+        Just description ->
+            " (" ++ description ++ ")"
+
+        Nothing ->
+            ""
+
 viewFooter : BrowserEnv -> Html Msg
 viewFooter browserEnv =
     div
@@ -365,7 +417,13 @@ viewFooter browserEnv =
                 ]
                 [ text "Elm Land"
                 ]
-            , text "."
+            , text " using the "
+            , a
+                [ Attr.href "https://elm-lang.org/"
+                ]
+                [ text "Elm"
+                ]
+            , text " programming language."
             ]
         , span
             [

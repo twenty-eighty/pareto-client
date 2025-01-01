@@ -12,6 +12,7 @@ type alias ShortNote =
     , content : Maybe String
     , createdAt : Time.Posix
     , pubKey : PubKey
+    , subject : Maybe String
     }
 
 {-
@@ -20,16 +21,19 @@ type alias ShortNote =
 shortNoteFromEvent : Event -> ShortNote
 shortNoteFromEvent event =
     event.tags
-    |> List.foldl (\tag res ->
+    |> List.foldl (\tag acc ->
         case tag of 
+            SubjectTag subject ->
+                { acc | subject = Just subject }
 
             _ ->
-                res
+                acc
             )
         { id = event.id
         , content = Just event.content
         , createdAt = event.createdAt
         , pubKey = event.pubKey
+        , subject = Nothing
         }
 
 tagReference : ShortNote -> TagReference

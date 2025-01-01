@@ -18,7 +18,7 @@ import Milkdown.MilkdownEditor as Milkdown
 import Nostr
 import Nostr.Article exposing (Article, articleFromEvent)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
-import Nostr.Event as Event exposing (Event, Kind(..), Tag(..), buildAddress)
+import Nostr.Event as Event exposing (Event, Kind(..), Tag(..), numberForKind)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Request exposing (RequestId, RequestData(..))
 import Nostr.Send exposing (SendRequestId, SendRequest(..))
@@ -37,6 +37,8 @@ import Time
 import Translations.Write as Translations
 import Ui.Styles exposing (Theme, stylesForTheme)
 import View exposing (View)
+import Nostr.Nip19 as Nip19
+import Nostr.Nip19 as Nip19
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
@@ -546,11 +548,29 @@ eventWithContent shared model user kind =
         |> Event.addTagTags model.tags
         |> Event.addZapTags model.zapWeights
         |> Event.addClientTag Pareto.client Pareto.paretoPubKey Pareto.handlerIdentifier Pareto.paretoRelay
+        |> Event.addAltTag (altText model.identifier user.pubKey kind [ Pareto.paretoRelay ] )
+
     , content = model.content |> Maybe.withDefault ""
     , id = ""
     , sig = Nothing
     , relay = Nothing
     }
+
+altText : Maybe String -> PubKey -> Kind -> List String -> String
+altText maybeIdentifier pubKey kind relays =
+    case (maybeIdentifier) of
+        ( Just identifier ) ->
+            case Nip19.encode (Nip19.NAddr { identifier = identifier, pubKey = pubKey, kind = numberForKind kind, relays = relays }) of
+                Ok nip19 ->
+                    "This is a long form article, you can read it in " ++ Pareto.applicationUrl ++ "/a/" ++ nip19
+
+                Err _ ->
+                    "This is a long form article, you can read it on " ++ Pareto.applicationUrl
+
+        Nothing ->
+            "This is a long form article, you can read it on " ++ Pareto.applicationUrl
+
+
 
 filterTitleChars : String -> String
 filterTitleChars title =
@@ -906,29 +926,6 @@ milkDownDarkMode darkModeActive =
         Milkdown.Dark
     else
         Milkdown.Light
-
-sampleDoc : String
-sampleDoc =
-    """
-# heading 1
-
-some text
-
-## heading 2
-
-* a **list**
-* **another** item
-* *third*
-
-> quote
-> me
-> on
-
-```python
-for x in range(100):
-    print(x)
-
-```"""
 
 viewTags : Theme -> BrowserEnv -> Model -> Html Msg
 viewTags theme browserEnv model =

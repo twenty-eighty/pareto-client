@@ -121,10 +121,10 @@ updateModelWithCategory shared model category =
         filter =
             case (shared.loginStatus, category) of
                 (Shared.Model.LoggedIn pubKey, Published) ->
-                    { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just [pubKey], limit = Just 20 }
+                    { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [pubKey], limit = Just 20 }
 
                 (Shared.Model.LoggedIn pubKey, Drafts) ->
-                    { emptyEventFilter | kinds = Just [KindDraftLongFormContent], authors = Just [pubKey], limit = Just 20 }
+                    { emptyEventFilter | kinds = Just [ KindDraftLongFormContent, KindDraft ], authors = Just [pubKey], limit = Just 20 }
 
                 (_, _) ->
                     emptyEventFilter

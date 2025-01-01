@@ -5,7 +5,7 @@ import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as DecodePipeline
 import Json.Encode as Encode
-import Nostr.Event exposing (Event, Tag(..))
+import Nostr.Event exposing (Event, Identity, Tag(..))
 import Nostr.Nip05 as Nip05 exposing (Nip05, nip05StringDecoder)
 import Nostr.Shared
 import Nostr.Types exposing (PubKey)
@@ -28,6 +28,7 @@ type alias Profile =
     , npub : Maybe String
     , createdAt : Maybe Time.Posix
     , pubKey : PubKey
+    , identities : List Identity
     }
 
 type ProfileValidation
@@ -86,6 +87,7 @@ emptyProfile pubKey =
     , pubKey = pubKey
     , npub = Nothing
     , createdAt = Nothing
+    , identities = []
     }
 
 profileFromEvent : Event -> Maybe Profile
@@ -143,6 +145,7 @@ nostrProfileDecoder =
     |> DecodePipeline.optional "npub" (Decode.maybe Decode.string) Nothing
     |> DecodePipeline.optional "created_at" (Decode.maybe decodeUnixTime) Nothing
     |> DecodePipeline.hardcoded ""
+    |> DecodePipeline.hardcoded []
 
 
 -- by upgrading HTTP to HTTPS links we avoid

@@ -2,7 +2,7 @@ module Nostr.DeletionRequest exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
 import Dict exposing (Dict)
-import Nostr.Event exposing (Event, Kind(..), Tag(..), addAddressTag, addEventIdTag, buildAddress)
+import Nostr.Event exposing (Event, Kind(..), Tag(..), addAddressTag, addKindTag, buildAddress)
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Types exposing (EventId, PubKey, RelayUrl)
 import Set exposing (Set)
@@ -52,6 +52,8 @@ draftDeletionEvent pubKey createdAt draftEventId content maybeIdentifier =
             , tags =
                 [ ]
                 |> addIdentifer
+                |> addKindTag KindDraftLongFormContent
+                |> addKindTag KindDraft
             , content = content
             , id = ""
             , sig = Nothing
