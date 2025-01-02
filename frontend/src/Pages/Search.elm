@@ -66,7 +66,7 @@ init shared route () =
         
         Nothing ->
             ( { searchBar = SearchBar.init { searchText = Nothing} }
-            , Effect.none
+            , Effect.sendSharedMsg Shared.Msg.ResetArticles
             )
 
 
@@ -115,6 +115,7 @@ searchEffect shared searchText =
 searchEventFilters : String -> List EventFilter
 searchEventFilters searchText =
     [ { emptyEventFilter | kinds = Just [ KindLongFormContent ], search = Just searchText, limit = Just 20 } ]
+
 
 -- SUBSCRIPTIONS
 

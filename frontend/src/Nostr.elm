@@ -368,6 +368,10 @@ getArticlesByDate model =
     model.articlesByDate
     |> List.filter (filterDeletedArticle model)
 
+resetArticles : Model -> Model
+resetArticles model =
+    { model | articlesByDate = [] }
+
 getArticleDraftsByDate : Model -> List Article
 getArticleDraftsByDate model =
     model.articleDraftsByDate

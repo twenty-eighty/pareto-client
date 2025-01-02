@@ -182,6 +182,14 @@ update route msg model =
             , Effect.sendCmd <| Cmd.map Shared.Msg.NostrMsg nostrCmd
             )
 
+        ResetArticles ->
+            let
+                newNostr =
+                    Nostr.resetArticles model.nostr
+            in
+            ( { model | nostr = newNostr }
+            , Effect.none
+            )
         
         SendNostrEvent sendRequest ->
             let

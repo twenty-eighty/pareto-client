@@ -24,6 +24,7 @@ type Msg
     | NostrMsg Nostr.Msg
     | BrowserEnvMsg BrowserEnv.Msg
     | RequestNostrEvents Request
+    | ResetArticles
     | SendNostrEvent SendRequest
     | SwitchClientRole
     | SetClientRole ClientRole
