@@ -15,7 +15,8 @@ defmodule NostrBackendWeb.NostrController do
       "walter_siegrist" => "78c90fc422bdadafb4df0de5d1ed87133265f896949705bebc61aee44bff983c",
       "_" => "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84",
       "client" => "0f479c7dff7bb53dae53f3bb32ad1109edbb07ba562bdd5168044b3f4364e7b5",
-      "christof_weber" => "79271c81ef2fd4994c20d73b0555a3e58d7ee9caaa2328082e3a336de18d9066"
+      "christof_weber" => "79271c81ef2fd4994c20d73b0555a3e58d7ee9caaa2328082e3a336de18d9066",
+      "michael_meyen" => "044da3442a54bd55202b66ca0c4f5fd58cbb158b67f2fb067cc0467c073a8a0e"
     },
     "relays" => %{
       "2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" => [
@@ -65,6 +66,10 @@ defmodule NostrBackendWeb.NostrController do
         "wss://pareto.nostr1.com"
       ],
       "79271c81ef2fd4994c20d73b0555a3e58d7ee9caaa2328082e3a336de18d9066" => [
+        "wss://nostr.pareto.space",
+        "wss://pareto.nostr1.com"
+      ],
+      "044da3442a54bd55202b66ca0c4f5fd58cbb158b67f2fb067cc0467c073a8a0e" => [
         "wss://nostr.pareto.space",
         "wss://pareto.nostr1.com"
       ]
