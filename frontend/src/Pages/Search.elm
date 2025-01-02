@@ -1,28 +1,33 @@
 module Pages.Search exposing (Model, Msg, page)
 
 import Components.SearchBar as SearchBar exposing (SearchBar)
+import Dict
 import Effect exposing (Effect)
-import Route exposing (Route)
 import Html.Styled as Html exposing (Html, div, p)
 import Html.Styled.Attributes exposing (css)
 import Layouts
 import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), kindDecoder, emptyEventFilter)
+import Nostr
+import Nostr.Request exposing (RequestData(..))
 import Page exposing (Page)
+import Route exposing (Route)
+import Route.Path
 import Shared
-import Tailwind.Breakpoints as Bp
+import Shared.Msg
 import Tailwind.Utilities as Tw
-import Tailwind.Theme as Theme
 import Translations.Search as Translations
 import Ui.Styles exposing (Theme, stylesForTheme)
+import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
-import Css
+import FeatherIcons exposing (search)
+import Url
 
 
 page : Shared.Model -> Route () -> Page Model Msg
 page shared route =
     Page.new
-        { init = init
-        , update = update
+        { init = init shared route
+        , update = update shared
         , subscriptions = subscriptions
         , view = view shared
         }
@@ -42,30 +47,52 @@ type alias Model =
     { searchBar : SearchBar.Model
     }
 
+queryDictKey : String
+queryDictKey =
+    "query"
 
-init : () -> ( Model, Effect Msg )
-init () =
-    ( { searchBar = SearchBar.init {} }
-    , Effect.none
-    )
-
+init : Shared.Model -> Route () -> () -> ( Model, Effect Msg )
+init shared route () =
+    let
+        maybeSearchText =
+            Dict.get queryDictKey route.query
+            |> Maybe.andThen Url.percentDecode
+    in
+    case maybeSearchText of
+        Just searchText ->
+            ( { searchBar = SearchBar.init { searchText = Just searchText } }
+            , searchEffect shared searchText
+            )
+        
+        Nothing ->
+            ( { searchBar = SearchBar.init { searchText = Nothing} }
+            , Effect.none
+            )
 
 
 -- UPDATE
 
 
 type Msg
-    = Search String
+    = Search (Maybe String)
     | SearchBarSent (SearchBar.Msg Msg)
 
 
-update : Msg -> Model -> ( Model, Effect Msg )
-update msg model =
+update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
+update shared msg model =
     case msg of
-        Search searchText ->
-            ( model
-            , Effect.none
-            )
+        Search maybeSearchText ->
+            case maybeSearchText of
+                Just searchText ->
+                    ( model
+                    , Effect.batch
+                        [ searchEffect shared searchText
+                        , Effect.replaceRoute { path = Route.Path.Search, query = Dict.singleton queryDictKey (Url.percentEncode searchText), hash = Nothing }
+                        ]
+                    )
+
+                Nothing ->
+                    ( model, Effect.replaceRoute { path = Route.Path.Search, query = Dict.empty, hash = Nothing } )
 
         SearchBarSent innerMsg ->
             SearchBar.update
@@ -73,20 +100,28 @@ update msg model =
                 , model = model.searchBar
                 , toModel = \searchBar -> { model | searchBar = searchBar }
                 , toMsg = SearchBarSent
+                , onSearch = Search
                 }
+
+searchEffect : Shared.Model -> String -> Effect Msg
+searchEffect shared searchText =
+    RequestSearchResults (searchEventFilters searchText)
+    |> Nostr.createRequest shared.nostr "Search" []
+    |> Shared.Msg.RequestNostrEvents
+    |> Effect.sendSharedMsg
 
 -- Nostr.getSearchRelayUrls model maybePubKey
 
-searchEventFilter : EventFilter
-searchEventFilter =
-    { emptyEventFilter | kinds = Just [KindLongFormContent], limit = Just 20 }
+searchEventFilters : String -> List EventFilter
+searchEventFilters searchText =
+    [ { emptyEventFilter | kinds = Just [ KindLongFormContent ], search = Just searchText, limit = Just 20 } ]
 
 -- SUBSCRIPTIONS
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    Sub.map SearchBarSent (SearchBar.subscribe model.searchBar)
 
 
 
@@ -111,6 +146,8 @@ viewSearch shared model =
     div
         [ css
             [ Tw.flex
+            , Tw.flex_col
+            , Tw.gap_5
             , Tw.justify_center
             , Tw.max_w_full
             , Tw.m_4
@@ -124,12 +161,34 @@ viewSearch shared model =
             []
             [ Html.text <| Translations.explanation2 [ shared.browserEnv.translations ]
             ]
-        , SearchBar.new
-            { model = model.searchBar
-            , toMsg = SearchBarSent
-            , onSearch = Search
-            , browserEnv = shared.browserEnv
-            , styles = styles
-            }
-            |> SearchBar.view
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.justify_center
+                ]
+            ]
+            [ SearchBar.new
+                { model = model.searchBar
+                , toMsg = SearchBarSent
+                , browserEnv = shared.browserEnv
+                , styles = styles
+                }
+                |> SearchBar.view
+            ]
+        , viewArticles shared
         ]
+
+viewArticles : Shared.Model -> Html Msg
+viewArticles shared =
+            Nostr.getArticlesByDate shared.nostr
+            |> Ui.View.viewArticlePreviews
+                    ArticlePreviewList 
+                        { theme = shared.theme
+                        , browserEnv = shared.browserEnv
+                        , nostr = shared.nostr
+                        , userPubKey = Shared.loggedInPubKey shared.loginStatus
+                        , onBookmark = Nothing
+                        , onReaction = Nothing
+                        , onZap = Nothing
+                        }

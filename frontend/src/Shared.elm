@@ -130,6 +130,7 @@ portHooks =
     , receiveMessage = Ports.receiveMessage
     , requestBlossomAuth = Ports.requestBlossomAuth
     , requestNip96Auth = Ports.requestNip96Auth
+    , searchEvents = Ports.searchEvents
     , sendEvent = Ports.sendEvent
     }
 

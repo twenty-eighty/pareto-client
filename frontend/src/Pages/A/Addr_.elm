@@ -53,12 +53,15 @@ toLayout theme model =
 
 
 type Model
-    = Nip19Model
-        { nip19 : NIP19Type
-        , requestId : RequestId
-        }
+    = Nip19Model Nip19ModelData
     | ErrorModel String
 
+
+type alias Nip19ModelData =
+    { nip19 : NIP19Type
+    , requestId : RequestId
+    , zapDialog : ZapDialog.Model Msg
+    }
 
 init : Shared.Model -> Route { addr : String } -> () -> ( Model, Effect Msg )
 init shared route () =
@@ -72,6 +75,7 @@ init shared route () =
                     ( Nip19Model
                         { nip19 = nip19
                         , requestId = Nostr.getLastRequestId shared.nostr
+                        , zapDialog = ZapDialog.init {}
                         }
                     , Nostr.getArticleForNip19 shared.nostr nip19
                     )
@@ -119,6 +123,7 @@ type Msg
     | RemoveArticleBookmark PubKey AddressComponents
     | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
     | ZapReaction PubKey (List ZapDialog.Recipient)
+    | ZapDialogSent (ZapDialog.Msg Msg)
     | NoOp
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -149,10 +154,39 @@ update shared msg model =
             )
 
         ZapReaction userPubKey recipients ->
-            ( model, Effect.none )
+            case model of
+                Nip19Model nip19ModelData ->
+                    showZapDialog nip19ModelData recipients
+
+                _ ->
+                    ( model, Effect.none )
+
+        ZapDialogSent innerMsg ->
+            case model of
+                Nip19Model nip19ModelData ->
+                    ZapDialog.update
+                        { nostr = shared.nostr
+                        , msg = innerMsg
+                        , model = nip19ModelData.zapDialog
+                        , toModel = \zapDialog -> Nip19Model { nip19ModelData | zapDialog = zapDialog}
+                        , toMsg = ZapDialogSent
+                        }
+
+                _ ->
+                    ( model, Effect.none )
 
         NoOp ->
             ( model, Effect.none )
+
+showZapDialog : Nip19ModelData -> List ZapDialog.Recipient -> (Model, Effect Msg)
+showZapDialog nip19ModelData recipients =
+    let
+        (zapDialogModel, effect) =
+            ZapDialog.show nip19ModelData.zapDialog ZapDialogSent recipients
+    in
+    ( Nip19Model { nip19ModelData | zapDialog = zapDialogModel }
+    , effect
+    )
 
 
 -- SUBSCRIPTIONS

@@ -170,10 +170,19 @@ removeLeadingHash tag =
 uniqueArticleAuthors : List Article -> List String
 uniqueArticleAuthors articles =
     articles
-    |> List.map .author
+    |> List.map (\article ->
+        article.author :: zapPubKeysFromWeights article.zapWeights
+    )
+    |> List.concat
     |> Set.fromList
     |> Set.toList
 
+zapPubKeysFromWeights : List (PubKey, RelayUrl, Maybe Int) -> List PubKey
+zapPubKeysFromWeights weights =
+    weights
+    |> List.map (\(pubKey, _, _) ->
+            pubKey
+        )
 
 addArticles : List Article -> List Article -> List Article
 addArticles articleList newArticles =

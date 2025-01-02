@@ -371,6 +371,10 @@ viewSupportedNips theme browserEnv supportedNips =
 viewNip : Theme -> String -> Html Msg
 viewNip theme nip =
     let
+        styles =
+            Ui.Styles.stylesForTheme theme
+    in
+    let
         nipLink =
             case String.toInt nip of
                 Just nipNum ->
@@ -383,8 +387,9 @@ viewNip theme nip =
         [
         ]
         [ Html.a
+            (styles.textStyleLinks ++ styles.colorStyleArticleHashtags ++
             [ href nipLink
-            ]
+            ])
             [ text <| "NIP-" ++ nip ++ nipInfoText nip
             ]
         ]
@@ -417,13 +422,13 @@ viewFooter browserEnv =
                 ]
                 [ text "Elm Land"
                 ]
-            , text " using the "
+            , text <| Translations.aboutFrontendText2 [ browserEnv.translations ] ++ " "
             , a
                 [ Attr.href "https://elm-lang.org/"
                 ]
                 [ text "Elm"
                 ]
-            , text " programming language."
+            , text <| Translations.aboutFrontendText3 [ browserEnv.translations ] ++ " "
             ]
         , span
             [

@@ -43,6 +43,7 @@ type alias Hooks =
     , requestEvents : String -> Bool -> RequestId -> List RelayUrl -> EventFilter -> Cmd Msg
     , requestBlossomAuth : RequestId -> String -> String -> HttpRequestMethod -> Cmd Msg
     , requestNip96Auth : RequestId -> String -> String -> HttpRequestMethod -> Cmd Msg
+    , searchEvents : String -> Bool -> RequestId -> List RelayUrl -> List EventFilter -> Cmd Msg
     , sendEvent : SendId -> List String -> Event -> Cmd Msg
     }
 
@@ -219,6 +220,9 @@ performRequest model description requestId requestData =
 
         RequestNip98Auth serverUrl apiUrl method ->
             ( model, model.hooks.requestNip96Auth requestId serverUrl apiUrl method)
+
+        RequestSearchResults eventFilters ->
+            ( { model | articlesByDate = [] }, model.hooks.searchEvents description True requestId (getSearchRelayUrls model model.defaultUser) eventFilters)
 
         RequestShortNote eventFilter ->
             ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter)
@@ -561,7 +565,39 @@ getSearchRelayUrls model maybePubKey =
             |> Maybe.withDefault (getSearchRelayUrls model Nothing)
 
         Nothing ->
-            Pareto.defaultSearchRelays
+            case relaysWithSearchCapability model of
+                [] ->
+                    -- this can happen before the relays have reported their NIP-11 data
+                    Pareto.defaultSearchRelays
+                    |> List.map (\urlWithoutProtocol -> "wss://" ++ urlWithoutProtocol)
+
+                relayList ->
+                    relayList
+                    |> List.map (\urlWithoutProtocol -> "wss://" ++ urlWithoutProtocol)
+
+
+-- filter relays that claim to support NIP-50 (Search)
+relaysWithSearchCapability : Model -> List RelayUrl
+relaysWithSearchCapability model =
+    model.relays
+    |> Dict.values
+    |> List.filterMap (\relay ->
+            case relay.nip11 of
+                Just nip11 ->
+                    case nip11.supportedNips of
+                        Just supportedNips ->
+                            if List.member 50 supportedNips then
+                                Just relay.urlWithoutProtocol
+                            else
+                                Nothing
+
+                        Nothing ->
+                            Nothing
+
+                Nothing ->
+                    Nothing
+        )
+
 
 getRelaysForRequest : Model -> Maybe RequestId -> List RelayUrl
 getRelaysForRequest model maybeRequestId =
@@ -640,20 +676,18 @@ requestCommunityPostApprovals model community =
 
 eventFilterForCommunityPostApprovals : Community -> EventFilter
 eventFilterForCommunityPostApprovals community =
-    { authors = Just [ community.pubKey ]
+    { emptyEventFilter
+    | authors = Just [ community.pubKey ]
     , kinds = Just [ KindCommunityPostApproval ]
-    , ids = Nothing
     , tagReferences = Just [ TagReferenceCode (KindCommunityDefinition, community.pubKey, (Maybe.withDefault "" community.dtag)) ]
-    , limit = Nothing
-    , since = Nothing
-    , until = Nothing
     }
 
 requestUserData : Model -> PubKey -> (Model, Cmd Msg)
 requestUserData model pubKey =
     let
         request =
-            { authors = Just [ pubKey ]
+            { emptyEventFilter
+            | authors = Just [ pubKey ]
             , kinds = Just
                 [ KindUserMetadata
                 , KindBlockedRelaysList
@@ -670,11 +704,6 @@ requestUserData model pubKey =
                 , KindSearchRelaysList
                 , KindUserServerList
                 ]
-            , ids = Nothing
-            , tagReferences = Nothing
-            , limit = Nothing
-            , since = Nothing
-            , until = Nothing
             }
             -- assumption: our standard relays are good for the user's profile
             |> RequestProfile Nothing
@@ -712,13 +741,9 @@ eventFilterForAuthors authors =
         Nothing
     else
         Just
-            { authors = Just authors
+            { emptyEventFilter
+            | authors = Just authors
             , kinds = Just [ KindUserMetadata ]
-            , ids = Nothing
-            , tagReferences = Nothing
-            , limit = Nothing
-            , since = Nothing
-            , until = Nothing
             }
 
 getCommunityList : Model -> PubKey -> Maybe (List CommunityReference)
@@ -798,13 +823,9 @@ eventFilterForDeletionRequests tagsReferences =
         Nothing
     else
         Just
-            { authors = Nothing
-            , kinds = Just [ KindEventDeletionRequest ]
-            , ids = Nothing
+            { emptyEventFilter
+            | kinds = Just [ KindEventDeletionRequest ]
             , tagReferences = Just tagsReferences
-            , limit = Nothing
-            , since = Nothing
-            , until = Nothing
             }
 
 eventFilterForReactions : List TagReference -> Maybe EventFilter
@@ -813,13 +834,9 @@ eventFilterForReactions tagReferences =
         Nothing
     else
         Just
-            { authors = Nothing
-            , kinds = Just [ KindZapReceipt, KindHighlights, KindRepost, KindShortTextNote, KindReaction, KindBookmarkSets ]
-            , ids = Nothing
+            { emptyEventFilter
+            | kinds = Just [ KindZapReceipt, KindHighlights, KindRepost, KindShortTextNote, KindReaction, KindBookmarkSets ]
             , tagReferences = Just tagReferences
-            , limit = Nothing
-            , since = Nothing
-            , until = Nothing
             }
 
 articleFromList : Model -> EventFilter -> List Article -> Maybe Article
@@ -855,6 +872,7 @@ empty =
         , requestEvents = \_ _ _ _ _ -> Cmd.none
         , requestBlossomAuth = \_ _ _ _ -> Cmd.none
         , requestNip96Auth = \_ _ _ _ -> Cmd.none
+        , searchEvents = \_ _ _ _ _ -> Cmd.none
         , sendEvent = \_ _ _ -> Cmd.none
         }
     , pubKeyByNip05 = Dict.empty
@@ -1211,11 +1229,17 @@ updateModelWithLongFormContent model requestId events =
 
         -- sort articles, newest first
         articlesByDate =
-            articles
+            articles ++ model.articlesByDate
+            |> List.map (\article ->
+                    (Maybe.withDefault "" (addressForArticle article), article)
+                )
+            -- eliminate duplicates
+            |> Dict.fromList
+            |> Dict.values
             |> List.sortBy (\article ->
                 article.publishedAt
                 |> Maybe.map (\publishedAt -> Time.posixToMillis publishedAt * -1)
-                |> Maybe.withDefault 0
+                |> Maybe.withDefault (Time.posixToMillis article.createdAt * -1)
                 )
 
         articlesByAddress =

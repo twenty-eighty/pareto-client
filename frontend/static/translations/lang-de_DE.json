@@ -9,7 +9,9 @@
       "recomendation explanation": "Das ist eine tolle App. Alle sollten davon wissen!",
       "recommend client button title": "Pareto-Client empfehlen",
       "about frontend text": "Der Pareto Client wurde entwickelt mit",
-      "about backend text": "Das Pareto Backend wurde entwickelt mit",
+      "about frontend text 2": " in der Programmiersprache ",
+      "about frontend text 3": ".",
+      "about backend text": "Das Pareto Backend wurde entwickelt mit dem",
       "source code text": "Der Quellcode des Pareto Clients wird bald veröffentlicht."
    },
    "article page": {

@@ -91,6 +91,10 @@ export const onReady = ({ app, env }) => {
         requestEvents(app, value);
         break;
 
+      case 'searchEvents':
+        searchEvents(app, value);
+        break;
+
       case 'requestBlossomAuth':
         requestBlossomAuth(app, value);
         break;
@@ -188,6 +192,24 @@ export const onReady = ({ app, env }) => {
     const ndkRelays = relays ? NDKRelaySet.fromRelayUrls(relays, window.ndk) : null;
 
     window.ndk.fetchEvents(filter, { closeOnEose: closeOnEose }, ndkRelays).then((ndkEvents) => {
+
+      processEvents(app, requestId, description, ndkEvents);
+    })
+  }
+
+  function searchEvents(app,
+    { requestId: requestId
+      , filters: filters
+      , closeOnEose: closeOnEose
+      , description: description
+      , relays: relays
+    }
+  ) {
+    debugLog("SEARCH FILTERS: ", filters, description, " requestId: " + requestId, "closeOnEose: " + closeOnEose, "relays: ", relays);
+
+    const ndkRelays = relays ? NDKRelaySet.fromRelayUrls(relays, window.ndk) : null;
+
+    window.ndk.fetchEvents(filters, { closeOnEose: closeOnEose }, ndkRelays).then((ndkEvents) => {
 
       processEvents(app, requestId, description, ndkEvents);
     })

@@ -64,15 +64,13 @@ type alias SidebarItemData =
     , disabled : Bool
     }
 
-searchDisabled =
-    True
 
 sidebarItems : ClientRole -> I18Next.Translations -> List (SidebarItemData)
 sidebarItems clientRole translations =
     case clientRole of
         ClientReader ->
             [ { path = Route.Path.Read, title = Translations.readMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bookOpen, requiresLogin = False, disabled = False }
-            , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, disabled = searchDisabled }
+            , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, disabled = False }
           --, { path = Route.Path.Communities, title = Translations.communitiesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.globe, requiresLogin = False, disabled = False }
             , { path = Route.Path.Bookmarks, title = Translations.bookmarksMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bookmark, requiresLogin = True, disabled = False }
             , { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, disabled = True }
@@ -84,7 +82,7 @@ sidebarItems clientRole translations =
         ClientCreator ->
             [ { path = Route.Path.Posts, title = Translations.postsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.fileText, requiresLogin = True, disabled = False }
             , { path = Route.Path.Write, title = Translations.writeMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.feather, requiresLogin = True, disabled = False }
-            , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, disabled = searchDisabled }
+            , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, disabled = False }
             , { path = Route.Path.Media, title = Translations.mediaMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.image, requiresLogin = False, disabled = False }
             , { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, disabled = True }
             , { path = Route.Path.Notifications, title = Translations.notificationsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bell, requiresLogin = True, disabled = True }

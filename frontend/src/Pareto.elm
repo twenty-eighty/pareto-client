@@ -69,6 +69,7 @@ defaultSearchRelays =
     [ "relay.nostr.band"
     , "nostr.wine"
     ]
+    
 
 defaultOutboxRelays : List { url : String , role : RelayRole }
 defaultOutboxRelays =

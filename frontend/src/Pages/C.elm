@@ -9,7 +9,7 @@ import Layouts
 import Nostr
 import Nostr.Nip19 as Nip19
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
-import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), decodeEvent, numberForKind)
+import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), decodeEvent, emptyEventFilter, numberForKind)
 import Nostr.Types exposing (PubKey, IncomingMessage)
 import Page exposing (Page)
 import Ports
@@ -66,13 +66,8 @@ init () =
 
 communitiesFilter : EventFilter
 communitiesFilter =
-    { authors = Nothing
-    , ids = Nothing
-    , kinds = Just [ KindCommunityDefinition ]
-    , tagReferences = Nothing
-    , limit = Nothing
-    , since = Nothing
-    , until = Nothing
+    { emptyEventFilter
+    | kinds = Just [ KindCommunityDefinition ]
     }
 
 

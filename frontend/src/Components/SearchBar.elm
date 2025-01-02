@@ -1,6 +1,5 @@
 module Components.SearchBar exposing
     ( SearchBar, new
-    , CategoryData
     , Model, init
     , Msg, update
     , view
@@ -17,9 +16,11 @@ import Html.Styled.Attributes as Attr exposing (class, classList, css, disabled,
 import Html.Styled.Events as Events exposing (..)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
-import Svg.Loaders as Loaders
+import Process
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
+import Task exposing (Task)
+import Time
 import Translations.SearchBar as Translations
 import Ui.Styles exposing (Styles)
 
@@ -27,7 +28,6 @@ type SearchBar msg
      = Settings
         { model : Model
         , toMsg : Msg msg -> msg
-        , onSearch : String -> msg
         , browserEnv : BrowserEnv
         , styles : Styles msg
         }
@@ -35,7 +35,6 @@ type SearchBar msg
 new :
     { model : Model
     , toMsg : Msg msg -> msg
-    , onSearch : String -> msg
     , browserEnv : BrowserEnv
     , styles : Styles msg
     }
@@ -44,33 +43,35 @@ new props =
     Settings
         { model = props.model
         , toMsg = props.toMsg
-        , onSearch = props.onSearch
         , browserEnv = props.browserEnv
         , styles = props.styles
         }
 
 
-type Model
+type Model 
     = Model
-        { searchText : String
+        { searchText : Maybe String
+        , lastSearchText : Maybe String
+        , debounceStatus : DebounceStatus
         }
 
-type alias CategoryData category =
-    { category :  category
-    , title : String
-    }
+type DebounceStatus
+    = Inactive
+    | Active Int -- Remaining time in milliseconds
 
 
-init : { } -> Model
+init : { searchText : Maybe String } -> Model
 init props =
     Model
-        { searchText = ""
+        { searchText = props.searchText
+        , lastSearchText = Nothing
+        , debounceStatus = Inactive
         }
 
 type Msg msg
-    = Search
-        { onSearch : msg
-        }
+    = QueryUpdated (Maybe String)
+    | TriggerSearch { onSearch : msg }
+    | Tick Time.Posix
 
 
 update :
@@ -78,6 +79,7 @@ update :
     , model : Model
     , toModel : Model-> model
     , toMsg : Msg msg -> msg
+    , onSearch : Maybe String -> msg
     }
     -> ( model, Effect msg )
 update props =
@@ -93,10 +95,39 @@ update props =
     in
     toParentModel <|
         case props.msg of
-            Search data ->
+            TriggerSearch data ->
                 ( Model model
                 , Effect.sendMsg data.onSearch 
                 )
+
+            QueryUpdated newQuery ->
+                ( Model { model | searchText = newQuery, debounceStatus = Active 500 }
+                , Effect.none
+                )
+
+            Tick _ ->
+                case model.debounceStatus of
+                    Inactive ->
+                        -- If debounce is inactive, do nothing
+                        ( Model model, Effect.none )
+
+                    Active remainingTime ->
+                        if remainingTime <= 0 then
+                            if model.lastSearchText /= model.searchText then
+                                -- Time has run out, trigger search
+                                ( Model { model | lastSearchText = model.searchText, debounceStatus = Inactive }
+                                , Effect.sendMsg (props.onSearch model.searchText)
+                                )
+                            else
+                                ( Model model
+                                , Effect.none
+                                )
+                        else
+                            -- Decrease remaining time
+                            ( Model { model | debounceStatus = Active (remainingTime - 100) }
+                            , Effect.none
+                            )
+
 
 
 view : SearchBar msg -> Html msg
@@ -109,9 +140,6 @@ viewSearch (Settings settings) =
         (Model model) =
             (settings.model)
 
-        onClickCategory =
-            settings.toMsg (Search { onSearch = settings.onSearch "abc"})
-
         attrs =
                 settings.styles.colorStyleCategoryActiveBackground ++
                 settings.styles.colorStyleCategoryActive ++
@@ -123,8 +151,14 @@ viewSearch (Settings settings) =
             , Tw.flex_row
             , Tw.relative
             , Tw.w_full
+            , Bp.lg
+                [ Css.property "width" "800px"
+                ]
+            , Bp.md
+                [ Css.property "width" "640px"
+                ]
             , Bp.sm
-                [ Css.property "width" "736px"
+                [ Css.property "width" "460px"
                 ]
             ]
         ]
@@ -148,6 +182,13 @@ viewSearch (Settings settings) =
             ]
         , input
             [ Attr.placeholder <| Translations.placeholder [ settings.browserEnv.translations ]
+            , Attr.value (Maybe.withDefault "" model.searchText)
+            , Events.onInput (\searchText ->
+                if searchText /= "" then
+                    QueryUpdated (Just searchText)
+                else
+                    QueryUpdated Nothing
+                )
             , css
                 [ Tw.appearance_none
                 , Tw.bg_scroll
@@ -166,10 +207,16 @@ viewSearch (Settings settings) =
                 ]
             ]
             []
+            |> Html.map settings.toMsg
         ]
     
 
 
 subscribe : Model -> Sub (Msg msg)
-subscribe model =
-    Sub.none
+subscribe (Model model) =
+    case model.debounceStatus of
+        Inactive ->
+            Sub.none
+
+        Active _ ->
+            Time.every 100 Tick

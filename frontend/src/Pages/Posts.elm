@@ -24,9 +24,7 @@ import Route.Path
 import Shared
 import Shared.Model
 import Shared.Msg
-import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
-import Tailwind.Theme as Theme
 import Translations.Posts as Translations
 import Translations.Sidebar
 import Ui.Article

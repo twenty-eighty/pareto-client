@@ -2,19 +2,19 @@ module Components.ZapDialog exposing (ZapDialog, Recipient, Model, Msg, new, ini
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
-import Components.Checkbox as Checkbox
 import Components.Icon as Icon
 import Dict exposing (Dict)
 import Effect exposing (Effect)
-import FeatherIcons
 import Html.Styled as Html exposing (Html, a, button, div, form, h2, img, input, label, li, p, span, text, ul)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
+import Http
 import Nostr
 import Nostr.Relay exposing (Relay)
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList)
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey, RelayUrl)
+import Nostr.Zaps exposing (Lud16, PayRequest, fetchPayRequest)
 import Pareto
 import Svg.Styled as Svg exposing (svg, path)
 import Tailwind.Utilities as Tw
@@ -24,14 +24,12 @@ import Shared.Msg exposing (Msg)
 import Shared.Model exposing (Model)
 import Ui.Shared
 import Ui.Styles exposing (Theme, fontFamilyUnbounded, fontFamilyInter)
-import Nostr exposing (getReadRelayUrlsForPubKey)
-import Css exposing (readWrite)
-import Nostr.Types exposing (RelayRole(..))
 
 type Msg msg
     = CloseDialog
     | ConfigureRelaysClicked
     | PublishClicked (List RelayUrl -> msg)
+    | ReceivedPayRequest (Result Http.Error PayRequest)
 
 
 type Model msg =
@@ -47,11 +45,13 @@ type alias Recipient =
     { imageUrl : String
     , name : String
     , part : Int
+    , lud16 : Lud16
     }
 
 type alias ZapAmountSelectionData =
     { amount : Int
     , comment : String
+    , recipients : List Recipient
     }
 
 type ZapDialog msg
@@ -59,7 +59,6 @@ type ZapDialog msg
         { model : Model msg
         , toMsg : Msg msg -> msg
         , onPublish : List RelayUrl -> msg
-        , recipients : List Recipient
         , nostr : Nostr.Model
         , pubKey : PubKey
         , browserEnv : BrowserEnv
@@ -70,7 +69,6 @@ new :
     { model : Model msg
     , toMsg : Msg msg -> msg
     , onPublish : List RelayUrl -> msg
-    , recipients : List Recipient
     , nostr : Nostr.Model
     , pubKey : PubKey
     , browserEnv : BrowserEnv
@@ -82,12 +80,12 @@ new props =
         { model = props.model
         , toMsg = props.toMsg
         , onPublish = props.onPublish
-        , recipients = props.recipients
         , nostr = props.nostr
         , pubKey = props.pubKey
         , browserEnv = props.browserEnv
         , theme = props.theme
         }
+    
 
 init : { } -> Model msg
 init props =
@@ -95,9 +93,21 @@ init props =
         { state = DialogHidden
         }
 
-show : Model msg -> Model msg
-show (Model model) =
-    Model { model | state = ZapAmountSelection { amount = 21, comment = "" } }
+show : Model msg -> (Msg msg -> msg) -> List Recipient -> (Model msg, Effect msg)
+show (Model model) toMsg recipients =
+    ( Model { model | state = ZapAmountSelection { amount = 21, comment = "", recipients = recipients } }
+    , requestPayRequests recipients
+        |> Effect.sendCmd
+        |> Effect.map toMsg
+    )
+
+requestPayRequests : List Recipient -> Cmd (Msg msg)
+requestPayRequests recipients =
+    recipients
+    |> List.map (\recipient ->
+            fetchPayRequest ReceivedPayRequest recipient.lud16
+        )
+    |> Cmd.batch
 
 hide : Model msg -> Model msg
 hide (Model model) =
@@ -109,7 +119,6 @@ update :
     , toModel : Model msg -> model
     , toMsg : Msg msg -> msg
     , nostr : Nostr.Model
-    , pubKey : PubKey
     }
     -> ( model, Effect msg )
 update props  = 
@@ -131,13 +140,8 @@ update props  =
                 )
 
             ConfigureRelaysClicked ->
-                let
-                    allListRelays = 
-                        Nostr.getRelayListForPubKey props.nostr props.pubKey
-                        |> extendRelayList Pareto.defaultOutboxRelays
-                in
                 ( Model model
-                , sendRelayListCmd props.pubKey allListRelays
+                , Effect.none
                 )
 
             PublishClicked msg ->
@@ -145,28 +149,15 @@ update props  =
                 , Effect.none
                 )
 
-sendRelayListCmd : PubKey -> List RelayMetadata -> Effect msg
-sendRelayListCmd pubKey relays =
-    let
-        relaysWithProtocol =
-            relays
-            |> List.map (\relay ->
-                    { relay | url = "wss://" ++ relay.url}
+            ReceivedPayRequest (Ok payRequest) ->
+                ( Model model
+                , Effect.none
                 )
 
-        relayUrls =
-            relays
-            |> List.filterMap (\relay ->
-                if relay.role == WriteRelay || relay.role == ReadWriteRelay then
-                    Just relay.url
-                else
-                    Nothing
-            )
-    in
-    eventWithRelayList pubKey relaysWithProtocol
-    |> SendRelayList relayUrls
-    |> Shared.Msg.SendNostrEvent
-    |> Effect.sendSharedMsg
+            ReceivedPayRequest (Err httpError) ->
+                ( Model model
+                , Effect.none
+                )
 
 
 view : ZapDialog msg -> Html msg
@@ -207,7 +198,7 @@ viewZapDialog (Settings settings) data =
             , Tw.gap_2
             ]
         ]
-        [ recipientsSection (Settings settings) settings.recipients
+        [ recipientsSection (Settings settings) data.recipients
         , div
             [
             ]

@@ -81,6 +81,7 @@ type alias EventFilter =
     , limit : Maybe Int
     , since : Maybe Int
     , until : Maybe Int
+    , search : Maybe String
     }
 
 type TagReference
@@ -732,6 +733,7 @@ emptyEventFilter =
     , limit = Nothing
     , since = Nothing
     , until = Nothing
+    , search = Nothing
     }
 
 -- EVENT DECODING
@@ -762,24 +764,18 @@ eventFilterForNip19 nip19 =
 
 eventFilterForNaddr : NAddrData -> EventFilter
 eventFilterForNaddr { identifier, kind, pubKey, relays } =
-    { authors = Just [ pubKey ]
-    , ids = Nothing
+    { emptyEventFilter
+    | authors = Just [ pubKey ]
     , kinds = Just [ kindFromNumber kind ]
     , tagReferences = Just [ TagReferenceIdentifier identifier ]
     , limit = Just 1
-    , since = Nothing
-    , until = Nothing
     }
 
 eventFilterForShortNote : String -> EventFilter
 eventFilterForShortNote noteId =
-    { authors = Nothing
-    , ids = Just [ noteId ]
-    , kinds = Nothing
-    , tagReferences = Nothing
+    { emptyEventFilter
+    | ids = Just [ noteId ]
     , limit = Just 1
-    , since = Nothing
-    , until = Nothing
     }
 
 decodeTag : Decode.Decoder Tag
@@ -1191,6 +1187,7 @@ encodeEventFilter filter =
         |> appendStringList "authors" filter.authors
         |> appendKindList filter.kinds
         |> appendTagReferenceList filter.tagReferences
+        |> appendString "search" filter.search
         |> appendInt "since" filter.since
         |> appendInt "until" filter.until
         |> appendInt "limit" filter.limit
@@ -1202,6 +1199,15 @@ appendStringList key maybeStringList encodeList =
     case maybeStringList of
         Just stringList ->
             (key, Encode.list Encode.string stringList) :: encodeList
+
+        Nothing ->
+            encodeList
+
+appendString : String -> Maybe String -> List (String, Encode.Value) -> List (String, Encode.Value)
+appendString key maybeString encodeList =
+    case maybeString of
+        Just string ->
+            (key, Encode.string string) :: encodeList
 
         Nothing ->
             encodeList

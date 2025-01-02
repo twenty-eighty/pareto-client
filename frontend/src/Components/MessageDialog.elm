@@ -5,14 +5,10 @@ module Components.MessageDialog exposing
     )
 
 import Components.Button as Button
-import Components.Icon as Icon
-import Css
 import Effect exposing (Effect)
-import FeatherIcons
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, strong, text)
 import Html.Styled.Attributes as Attr exposing (class, classList, css, disabled, href, type_)
 import Html.Styled.Events as Events exposing (..)
-import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Translations.MessageDialog as Translations
 import Ui.Shared exposing (modalDialog)

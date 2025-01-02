@@ -89,7 +89,6 @@ viewArticlePreviewsList articlePreviewsData articles =
                 ]
             ]
             ( articles
-            |> List.take 20
             |> List.map (\article ->
                 Ui.Article.viewArticlePreviewList
                     articlePreviewsData

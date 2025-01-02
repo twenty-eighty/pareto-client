@@ -1,8 +1,9 @@
 module Nostr.Zaps exposing (..)
 
+import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as DecodePipeline
-import Time
+import Nostr.Nip05 exposing (Nip05)
 
 type alias ZapReceipt =
     { id : String
@@ -25,6 +26,37 @@ type alias ZapReceipt =
     }
 -}
 
+type alias Lud16 =
+    { user : String
+    , domain : String
+    }
+
+type alias PayRequest =
+    { callback : String
+    , maxSendable : Int
+    , minSendable : Int
+    , metadata : String
+    , commentAllowed : Int
+    , tag : String
+    , allowsNostr : Bool
+    , nostrPubkey : String
+    }
+
+
+payRequestDecoder : Decoder PayRequest
+payRequestDecoder =
+    Decode.succeed PayRequest
+        |> DecodePipeline.required "callback" Decode.string
+        |> DecodePipeline.required "maxSendable" Decode.int
+        |> DecodePipeline.required "minSendable" Decode.int
+        |> DecodePipeline.required "metadata" Decode.string
+        |> DecodePipeline.required "commentAllowed" Decode.int
+        |> DecodePipeline.required "tag" Decode.string
+        |> DecodePipeline.required "allowsNostr" Decode.bool
+        |> DecodePipeline.required "nostrPubkey" Decode.string
+
+
+
 nostrZapReceiptDecoder : Decoder ZapReceipt
 nostrZapReceiptDecoder =
     Decode.succeed ZapReceipt
@@ -40,3 +72,18 @@ stringNumberDecoder : Decoder Int
 stringNumberDecoder =
     Decode.string
     |> Decode.map (String.toInt >> Maybe.withDefault 0)
+
+
+fetchPayRequest : (Result Http.Error PayRequest -> msg) -> Lud16 -> Cmd msg
+fetchPayRequest toMsg lud16 =
+     Http.request
+        { method = "GET"
+        , headers =
+            [ Http.header "Accept" "application/json"
+            ]
+        , url = "https://" ++ lud16.domain ++ "/.well-known/lnurlp/" ++ lud16.user
+        , body = Http.emptyBody
+        , expect = Http.expectJson toMsg payRequestDecoder
+        , timeout = Nothing
+        , tracker = Nothing
+        }
