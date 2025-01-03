@@ -189,5 +189,5 @@ viewReactions styles icon maybeMsg maybeCount =
         ]
 
 formatZapNum : BrowserEnv -> Int -> String
-formatZapNum browserEnv bigNum =
-    browserEnv.formatNumber "0 a" <| toFloat bigNum
+formatZapNum browserEnv milliSats =
+    browserEnv.formatNumber "0 a" <| toFloat (milliSats // 1000)
