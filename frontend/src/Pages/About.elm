@@ -149,7 +149,7 @@ view shared model =
             ]
             [ viewHandlerInformation shared.theme shared.browserEnv shared.loginStatus shared.nostr (Pareto.applicationInformation shared.browserEnv.now)
             , viewSupportedNips shared.theme shared.browserEnv Pareto.supportedNips
-            , viewFooter shared.browserEnv
+            , viewFooter shared.theme shared.browserEnv
             ]
         ]
     }
@@ -403,8 +403,12 @@ nipInfoText nip =
         Nothing ->
             ""
 
-viewFooter : BrowserEnv -> Html Msg
-viewFooter browserEnv =
+viewFooter : Theme -> BrowserEnv -> Html Msg
+viewFooter theme browserEnv =
+    let
+        styles =
+            Ui.Styles.stylesForTheme theme
+    in
     div
         [ css
             [ Tw.my_4
@@ -418,14 +422,16 @@ viewFooter browserEnv =
             ]
             [ text <| Translations.aboutFrontendText [ browserEnv.translations ] ++ " "
             , a
+                (styles.textStyleLinks ++ styles.colorStyleArticleHashtags ++
                 [ Attr.href "https://elm.land/"
-                ]
+                ])
                 [ text "Elm Land"
                 ]
             , text <| Translations.aboutFrontendText2 [ browserEnv.translations ] ++ " "
             , a
+                (styles.textStyleLinks ++ styles.colorStyleArticleHashtags ++
                 [ Attr.href "https://elm-lang.org/"
-                ]
+                ])
                 [ text "Elm"
                 ]
             , text <| Translations.aboutFrontendText3 [ browserEnv.translations ] ++ " "
@@ -435,8 +441,9 @@ viewFooter browserEnv =
             ]
             [ text <| Translations.aboutBackendText [ browserEnv.translations ] ++ " "
             , a
+                (styles.textStyleLinks ++ styles.colorStyleArticleHashtags ++
                 [ Attr.href "https://www.phoenixframework.org/"
-                ]
+                ])
                 [ text "Phoenix Framework"
                 ]
             , text "."
