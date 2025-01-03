@@ -14,6 +14,7 @@ import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded, stylesForTheme)
 import BrowserEnv exposing (Msg)
+import Color exposing (fromRgba)
 
 pageLoadingIndicator : Html msg
 pageLoadingIndicator =
@@ -130,7 +131,8 @@ viewInteractions styles browserEnv actions interactions =
         (reactionIcon, reactionMsg) =
             case interactions.reaction of
                 Just _ ->
-                    (Icon.MaterialIcon Icon.MaterialFavorite 30 Icon.Inherit, actions.removeReaction)
+                    (Icon.MaterialIcon Icon.MaterialFavorite 30 (Icon.Color (Color.fromRgba { red = 1.0, green = 0.0, blue = 0.0, alpha = 1.0 })), actions.removeReaction)
+
                 Nothing ->
                     (Icon.MaterialIcon Icon.MaterialFavoriteBorder 30 Icon.Inherit, actions.addReaction)
     in
