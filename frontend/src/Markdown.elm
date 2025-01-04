@@ -3,6 +3,7 @@ module Markdown exposing (markdownViewHtml, summaryFromContent)
 -- import Html exposing (Attribute, Html)
 
 import Html.Styled as Html exposing (..)
+import LinkPreview exposing (LoadedContent)
 import Markdown.Block as Block exposing (Block, Inline, ListItem(..), Task(..))
 import Markdown.Block exposing (Block(..))
 import Markdown.Parser
@@ -120,19 +121,19 @@ deadEndsToString deadEnds =
         |> String.join "\n"
 
 
-markdownViewHtml : Styles msg -> GetProfileFunction -> String -> Result String (Html msg)
-markdownViewHtml styles fnGetProfile markdown =
-    render styles fnGetProfile markdown
+markdownViewHtml : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Result String (Html msg)
+markdownViewHtml styles loadedContent fnGetProfile markdown =
+    render styles loadedContent fnGetProfile markdown
         |> Result.map elementFromHtmlList
 
-render : Styles msg -> GetProfileFunction-> String -> Result String (List (Html msg))
-render styles fnGetProfile markdown =
+render : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction-> String -> Result String (List (Html msg))
+render styles loadedContent fnGetProfile markdown =
     markdown
         |> replaceImgTags
         |> replaceBrokenColTag
         |> Markdown.Parser.parse
         |> Result.mapError deadEndsToString
-        |> Result.andThen (\ast -> Renderer.render (TailwindMarkdownRenderer.renderer styles fnGetProfile) ast)
+        |> Result.andThen (\ast -> Renderer.render (TailwindMarkdownRenderer.renderer styles loadedContent fnGetProfile) ast)
 
 
 

@@ -8,6 +8,7 @@ import Dict
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, label, main_, p, span, summary, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
+import LinkPreview exposing (LoadedContent)
 import Markdown
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle)
@@ -46,6 +47,7 @@ type alias ArticlePreviewData msg =
     , actions : Actions msg
     , interactions : Interactions
     , displayAuthor : Bool
+    , loadedContent : Maybe (LoadedContent msg)
     }
 
 
@@ -173,7 +175,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                     ]
                 ] ++ contentMargins)
                 [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions
-                , viewContent styles getProfile article.content
+                , viewContent styles articlePreviewData.loadedContent getProfile article.content
                 , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions
                 ]
             ]
@@ -375,8 +377,8 @@ viewArticleTime styles browserEnv maybePublishedAt createdAt =
         Nothing ->
             div [][]
 
-viewContent : Styles msg -> GetProfileFunction -> String -> Html msg
-viewContent styles fnGetProfile content =
+viewContent : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Html msg
+viewContent styles loadedContent fnGetProfile content =
     article
         [ css
             [ Tw.flex_col
@@ -388,12 +390,12 @@ viewContent styles fnGetProfile content =
                 ]
             ]
         ]
-        [ viewContentMarkdown styles fnGetProfile content 
+        [ viewContentMarkdown styles loadedContent fnGetProfile content 
         ]
 
-viewContentMarkdown : Styles msg -> GetProfileFunction -> String -> Html msg
-viewContentMarkdown styles fnGetProfile content =
-    case Markdown.markdownViewHtml styles fnGetProfile content of
+viewContentMarkdown : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Html msg
+viewContentMarkdown styles loadedContent fnGetProfile content =
+    case Markdown.markdownViewHtml styles loadedContent fnGetProfile content of
         Ok html ->
             html
 
@@ -494,8 +496,8 @@ viewArticleComments styles =
                 ]
             ]
 
-viewArticleInternal : Styles msg -> GetProfileFunction -> BrowserEnv -> Article -> Html msg
-viewArticleInternal styles fnGetProfile browserEnv article =
+viewArticleInternal : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> BrowserEnv -> Article -> Html msg
+viewArticleInternal styles loadedContent fnGetProfile browserEnv article =
     div
         [ css
             [ Tw.flex
@@ -536,7 +538,7 @@ viewArticleInternal styles fnGetProfile browserEnv article =
                     ]
                 ])
                 [ text <| Maybe.withDefault "" article.summary ]
-            , viewContent styles fnGetProfile article.content
+            , viewContent styles loadedContent fnGetProfile article.content
             ]
         ]
 

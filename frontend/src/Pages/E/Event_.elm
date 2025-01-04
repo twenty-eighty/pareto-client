@@ -7,6 +7,7 @@ import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 import Layouts
+import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), eventFilterForNip19, informationForKind, kindFromNumber)
@@ -16,6 +17,7 @@ import Nostr.Types exposing (IncomingMessage, RelayUrl)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
+import Set
 import Shared
 import Shared.Model
 import Shared.Msg
@@ -55,6 +57,7 @@ type ContentToView
 
 type alias Model =
     { contentToView : ContentToView
+    , loadedContent : LoadedContent Msg
     , requestId : Maybe RequestId
     }
 
@@ -134,6 +137,7 @@ init shared route () =
                     ( Effect.none, Nothing )
     in
     ( { contentToView = contentToView
+      , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
       , requestId = requestId
       }
     , effect
@@ -154,6 +158,7 @@ decodedTagParam tag =
 
 type Msg
     = OpenGetStarted
+    | AddLoadedContent String
     | ReceivedMessage IncomingMessage
     | NostrMsg Nostr.Msg
 
@@ -165,6 +170,9 @@ update shared msg model =
             ( model
             , Effect.sendCmd <| Ports.requestUser
             )
+
+        AddLoadedContent url ->
+            ( { model | loadedContent = LinkPreview.addLoadedContent model.loadedContent url}, Effect.none )
 
         ReceivedMessage message ->
             ( model, Effect.none )
@@ -254,6 +262,7 @@ viewContent shared model =
                     , onReaction = Nothing
                     , onZap = Nothing
                     }
+                    (Just model.loadedContent)
                 )
             |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle model.requestId)
 

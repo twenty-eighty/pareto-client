@@ -1,27 +1,37 @@
-module LinkPreview exposing (generatePreviewHtml)
+module LinkPreview exposing (LoadedContent, addLoadedContent, generatePreviewHtml)
 
 import Dict exposing (Dict)
 import Graphics
 import Html.Styled as Html exposing (Html, div, img, a, text)
 import Html.Styled.Attributes as Attr exposing (controls, css, href, src, alt, style, type_)
-import Maybe exposing (withDefault)
-import String exposing (contains)
-import Tailwind.Breakpoints as Bp
+import Html.Styled.Events as Events
+import Set exposing (Set)
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Ui.Styles exposing (Styles)
 import Url exposing (Url)
 import Url.Parser exposing (Parser, (</>), s, string, parse)
 
+type alias LoadedContent msg =
+    { loadedUrls : Set String
+    , addLoadedContentFunction : AddLoadedContent msg
+    }
+
+type alias AddLoadedContent msg =
+    String -> msg
+
+addLoadedContent : LoadedContent msg -> String -> LoadedContent msg
+addLoadedContent loadedContent url =
+    { loadedContent | loadedUrls = Set.insert url loadedContent.loadedUrls }
 
 -- Function to generate preview HTML based on the link type
-generatePreviewHtml : String -> List (Html.Attribute msg) -> List (Html msg) -> Html msg
-generatePreviewHtml urlString linkAttr body =
+generatePreviewHtml : Maybe (LoadedContent msg) -> String -> List (Html.Attribute msg) -> List (Html msg) -> Html msg
+generatePreviewHtml loadedContent urlString linkAttr body =
     case Url.fromString urlString of
         Just url ->
             case detectLinkType url of
                 YouTubeVideo videoId ->
-                    generateYouTubePreview urlString videoId
+                    generateYouTubePreview loadedContent url urlString videoId
 
                 TwitterTweet tweetId ->
                     generateTwitterPreview urlString tweetId body
@@ -265,48 +275,86 @@ parseQueryString queryString =
 
 
 -- Function to generate YouTube preview HTML with a play button
-generateYouTubePreview : String -> String -> Html msg
-generateYouTubePreview url videoId =
+generateYouTubePreview : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
+generateYouTubePreview maybeLoadedContent url urlString videoId =
     let
         thumbnailUrl =
             "https://img.youtube.com/vi/" ++ videoId ++ "/0.jpg"
+
+        urlSuffix =
+            case url.query of
+                Just query ->
+                    "?" ++ query
+
+                Nothing ->
+                    ""
+
+        (showEmbedded, linkElement, clickAttr) =
+            case maybeLoadedContent of
+                Just loadedContent ->
+                    (Set.member urlString loadedContent.loadedUrls
+                    , Html.div
+                    , [ Events.onClick (loadedContent.addLoadedContentFunction urlString)
+                      , css
+                            [ Tw.cursor_pointer
+                            ]
+                      ]
+                    )
+
+                Nothing ->
+                    (False, Html.a, [ href urlString ])
     in
-    a
-        [ css
-            [ Tw.relative
-            , Tw.block
-            , Tw.w_96
-            , Tw.h_72
+    if showEmbedded then
+        Html.iframe
+            [ Attr.width 560
+            , Attr.height 315
+            , Attr.src <| "https://www.youtube-nocookie.com/embed/" ++ videoId ++ urlSuffix
+            , Attr.title "YouTube video player"
+            , Attr.attribute "frameborder" "0"
+            , Attr.attribute "allow" "clipboard-write; encrypted-media; picture-in-picture; web-share"
+            , Attr.attribute "referrerpolicy" "strict-origin-when-cross-origin"
+            , Attr.attribute "allowfullscreen" ""
             ]
-        , href url
-        ]
-        [ div 
-            [ css
-                [ Tw.absolute
-                , Tw.inset_0
+            []
+
+    else
+        linkElement
+            ([ css
+                [ Tw.relative
+                , Tw.block
+                , Tw.w_96
+                , Tw.h_72
+                ]
+            
+            ] ++ clickAttr)
+            [ div 
+                [ css
+                    [ Tw.absolute
+                    , Tw.inset_0
+                    ]
+                ]
+                [ img
+                    [ src thumbnailUrl
+                    , alt "YouTube Video"
+                    , style "display" "block"
+                    ] []
+                ]
+            , div
+                [ css
+                    [ Tw.text_color Theme.red_500
+                    , Tw.absolute
+                    , Tw.inset_0
+                    , Tw.flex
+                    , Tw.items_center
+                    , Tw.justify_center
+                    , Tw.opacity_90
+                    ]
+                ]
+                [ Graphics.videoPlayIcon 100
                 ]
             ]
-            [ img
-                [ src thumbnailUrl
-                , alt "YouTube Video"
-                , style "display" "block"
-                ] []
-            ]
-        , div
-            [ css
-                [ Tw.text_color Theme.red_500
-                , Tw.absolute
-                , Tw.inset_0
-                , Tw.flex
-                , Tw.items_center
-                , Tw.justify_center
-                , Tw.opacity_90
-                ]
-            ]
-            [ Graphics.videoPlayIcon 100
-            ]
-        ]
       
+    
 
 -- Function to generate Twitter preview HTML
 generateTwitterPreview : String -> String -> List (Html msg) -> Html msg

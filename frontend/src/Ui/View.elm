@@ -6,6 +6,7 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.RelayStatus as RelayStatus exposing (Purpose(..))
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
+import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, nip19ForArticle)
 import Nostr.Community exposing (Community)
@@ -25,14 +26,15 @@ type ArticlePreviewType
     | ArticlePreviewBigPicture
 
 
-viewArticle : ArticlePreviewsData msg -> Article -> Html msg
-viewArticle articlePreviewsData article =
+viewArticle : ArticlePreviewsData msg -> Maybe (LoadedContent msg) -> Article -> Html msg
+viewArticle articlePreviewsData loadedContent article =
     Ui.Article.viewArticle
         articlePreviewsData
         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
         , actions = actionsFromArticlePreviewsData articlePreviewsData article
         , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
         , displayAuthor = True
+        , loadedContent = loadedContent
         }
         article
 
@@ -97,6 +99,7 @@ viewArticlePreviewsList articlePreviewsData articles =
                             actionsFromArticlePreviewsData articlePreviewsData article
                         , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
                         , displayAuthor = True
+                        , loadedContent = Nothing
                         }
                         article
                 )
@@ -124,6 +127,7 @@ viewArticlePreviewsBigPicture articlePreviewsData articles =
                         actionsFromArticlePreviewsData articlePreviewsData article
                     , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
                     , displayAuthor = True
+                    , loadedContent = Nothing
                     }
                     article
             )

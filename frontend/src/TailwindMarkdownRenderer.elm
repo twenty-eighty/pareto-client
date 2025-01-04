@@ -3,7 +3,7 @@ module TailwindMarkdownRenderer exposing (renderer)
 import Css
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as Attr exposing (css)
-import LinkPreview
+import LinkPreview exposing (LoadedContent)
 import Markdown.Block as Block
 import Markdown.Html
 import Markdown.Renderer
@@ -17,8 +17,8 @@ import Nostr.Shared exposing (ensureHttps)
 import Ui.Styles exposing (Styles)
 
 
-renderer : Styles msg -> GetProfileFunction -> Markdown.Renderer.Renderer (Html msg)
-renderer styles fnGetProfile =
+renderer : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> Markdown.Renderer.Renderer (Html msg)
+renderer styles loadedContent fnGetProfile =
     { heading = heading styles
     , paragraph =
         Html.p
@@ -58,7 +58,7 @@ renderer styles fnGetProfile =
 
     --, codeSpan = code
     , link =
-        formatLink styles
+        formatLink styles loadedContent
     , hardLineBreak = Html.br [] []
     , image =
         \image ->
@@ -477,9 +477,10 @@ defaultFormatCodeBlock body =
         [ Html.code [] [ Html.text body ] ]
 
 
-formatLink : Styles msg -> { title: Maybe String, destination : String } -> List (Html msg) -> Html msg
-formatLink styles { destination } body =
+formatLink : Styles msg -> Maybe (LoadedContent msg) -> { title: Maybe String, destination : String } -> List (Html msg) -> Html msg
+formatLink styles loadedContent { destination } body =
     LinkPreview.generatePreviewHtml
+        loadedContent
         destination
         (styles.textStyleLinks ++ styles.colorStyleLinks)
         body

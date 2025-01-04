@@ -14,6 +14,7 @@ import Html.Styled.Attributes as Attr exposing (class, css, style)
 import Html.Styled.Events as Events exposing (..)
 import Json.Decode as Decode
 import Layouts
+import LinkPreview exposing (LoadedContent)
 import Milkdown.MilkdownEditor as Milkdown
 import Nostr
 import Nostr.Article exposing (Article, articleFromEvent)
@@ -40,6 +41,7 @@ import View exposing (View)
 import Nostr.Nip19 as Nip19
 import Nostr.Nip19 as Nip19
 import Ui.Article
+import Set
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
@@ -78,6 +80,7 @@ type alias Model =
     , publishArticleDialog : PublishArticleDialog.Model Msg
     , articleState : ArticleState
     , editorMode : EditorMode
+    , loadedContent : LoadedContent Msg
     , modalDialog : ModalDialog
     }
 
@@ -180,6 +183,7 @@ init user shared route () =
                     , publishArticleDialog = publishArticleDialog
                     , articleState = ArticleDraftSaved
                     , editorMode = Editor
+                    , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
                     , modalDialog = NoModalDialog
                     }
 
@@ -200,6 +204,7 @@ init user shared route () =
                     , publishArticleDialog = publishArticleDialog
                     , articleState = ArticleEmpty
                     , editorMode = Editor
+                    , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
                     , modalDialog = NoModalDialog
                     }
     in
@@ -242,6 +247,7 @@ type Msg
     | EditorBlurred
     | EditorLoaded
     | ToggleEditorMode
+    | AddLoadedContent String
     | UpdateTitle String
     | UpdateSubtitle String
     | UpdateTags String
@@ -287,6 +293,9 @@ update shared user msg model =
 
                 Preview ->
                     ( { model | editorMode = Editor }, Effect.none )
+
+        AddLoadedContent url ->
+            ( { model | loadedContent = LinkPreview.addLoadedContent model.loadedContent url}, Effect.none )
 
         UpdateTitle title ->
             if title == "" then
@@ -926,7 +935,7 @@ viewEditor theme browserEnv model =
                 styles =
                     stylesForTheme theme
             in
-            Ui.Article.viewContentMarkdown styles (\_ -> Nothing) (Maybe.withDefault "" model.content)
+            Ui.Article.viewContentMarkdown styles (Just model.loadedContent) (\_ -> Nothing) (Maybe.withDefault "" model.content)
 
 
 

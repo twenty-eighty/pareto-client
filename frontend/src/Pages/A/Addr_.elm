@@ -5,10 +5,12 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.RelayStatus exposing (Purpose(..))
 import Components.ZapDialog as ZapDialog
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html)
+import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes as Attr exposing (css)
 import Layouts
+import LinkPreview exposing (LoadedContent)
 import Nostr
+import Nostr.Article exposing (addressComponentsForArticle)
 import Nostr.Event as Event
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..))
@@ -18,19 +20,17 @@ import Nostr.Types exposing (EventId, PubKey)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
+import Set
 import Shared
 import Shared.Msg
 import Shared.Model
 import Tailwind.Utilities as Tw
 import Task
 import Translations.ArticlePage as Translations
-import Ui.Styles exposing (Theme)
+import Ui.Styles exposing (Theme, stylesForTheme)
 import Ui.View exposing (viewRelayStatus)
 import Url
 import View exposing (View)
-import Html.Styled exposing (div)
-import Ui.Styles exposing (stylesForTheme)
-import Nostr.Article exposing (addressComponentsForArticle)
 
 
 page : Shared.Model -> Route { addr : String } -> Page Model Msg
@@ -58,7 +58,8 @@ type Model
 
 
 type alias Nip19ModelData =
-    { nip19 : NIP19Type
+    { loadedContent : LoadedContent Msg
+    , nip19 : NIP19Type
     , requestId : RequestId
     , zapDialog : ZapDialog.Model Msg
     }
@@ -73,7 +74,8 @@ init shared route () =
             case decoded of
                 Ok nip19 ->
                     ( Nip19Model
-                        { nip19 = nip19
+                        { loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
+                        , nip19 = nip19
                         , requestId = Nostr.getLastRequestId shared.nostr
                         , zapDialog = ZapDialog.init {}
                         }
@@ -122,6 +124,7 @@ type Msg
     | AddArticleBookmark PubKey AddressComponents
     | RemoveArticleBookmark PubKey AddressComponents
     | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
+    | AddLoadedContent String
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
     | NoOp
@@ -152,6 +155,14 @@ update shared msg model =
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
+
+        AddLoadedContent url ->
+            case model of
+                Nip19Model nip19ModelData ->
+                    ( Nip19Model { nip19ModelData | loadedContent = LinkPreview.addLoadedContent nip19ModelData.loadedContent url}, Effect.none )
+
+                _ ->
+                    ( model, Effect.none )
 
         ZapReaction userPubKey recipients ->
             case model of
@@ -204,14 +215,14 @@ subscriptions model =
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     case model of
-        Nip19Model { nip19, requestId } ->
-            viewContent shared nip19 requestId
+        Nip19Model { loadedContent, nip19, requestId } ->
+            viewContent shared nip19 loadedContent requestId
 
         ErrorModel error ->
             viewError shared error
 
-viewContent : Shared.Model -> NIP19Type -> RequestId -> View Msg
-viewContent shared nip19 requestId =
+viewContent : Shared.Model -> NIP19Type -> LoadedContent Msg -> RequestId -> View Msg
+viewContent shared nip19 loadedContent requestId =
     let
         maybeArticle =
             Nostr.getArticleForNip19 shared.nostr nip19
@@ -239,6 +250,7 @@ viewContent shared nip19 requestId =
                     , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) userPubKey
                     , onZap = Maybe.map (\pubKey -> ZapReaction pubKey) userPubKey
                     }
+                    (Just loadedContent)
                 )
             |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle (Just requestId))
         ]
