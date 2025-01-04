@@ -715,19 +715,6 @@ requestUserData model pubKey =
     in
     doRequest { model | defaultUser = Just pubKey } request
 
-{-
-requestRelatedInfo : Model -> PubKey -> Cmd Msg
-requestRelatedInfo model pubKey =
-    { emptyEventFilter | authors = Just [ pubKey ], kinds = Just [ KindFollows, KindMuteList, KindRelayListMetadata, KindCommunitiesList, KindFollowSets, KindCommunitiesList ] }
-    |> model.hooks.requestEvents -1
-
-requestProfiles : Model -> List PubKey -> Maybe (Cmd Msg)
-requestProfiles model authors =
-    authors
-    |> getMissingProfilePubKeys model
-    |> eventFilterForAuthors
-    |> Maybe.map (model.hooks.requestEvents -1)
--}
 getMissingProfilePubKeys : Model -> List PubKey -> List PubKey
 getMissingProfilePubKeys model pubKeys =
     pubKeys
@@ -756,17 +743,21 @@ getCommunityList model pubKey =
 
 getInteractions : Model -> Maybe PubKey -> Article -> Nostr.Reactions.Interactions
 getInteractions model maybePubKey article =
+    let
+        maybeAddressComponents =
+            addressComponentsForArticle article
+    in
     { zaps = getZapReceiptsCountForArticle model article
     , highlights = Nothing
     , reactions = getReactionsCountForArticle model article
     , reposts = Nothing
     , notes = Nothing
-    , bookmarks = Nothing
+    , bookmarks = Maybe.map (getBookmarkListCountForAddressComponents model) maybeAddressComponents
     , isBookmarked =
         Maybe.map (isArticleBookmarked model article) maybePubKey
         |> Maybe.withDefault False
     , reaction =
-        case (maybePubKey, addressComponentsForArticle article) of
+        case (maybePubKey, maybeAddressComponents) of
             (Just userPubKey, Just addressComponents) ->
                 getReactionForArticle model userPubKey addressComponents
 
@@ -808,6 +799,17 @@ addZapAmount zapReceipt prevSum =
     |> Maybe.map (\amount -> prevSum + amount)
     |> Maybe.withDefault prevSum
 
+getBookmarkListCountForAddressComponents : Model -> AddressComponents -> Int
+getBookmarkListCountForAddressComponents model addressComponents =
+    model.bookmarkLists
+    |> Dict.values
+    |> List.map (\bookmarkList ->
+            bookmarkList.articles
+            |> List.filter (\articleAddressComponents -> articleAddressComponents == addressComponents)
+            |> List.length
+        )
+    |> List.sum
+
 getReactionsCountForArticle : Model -> Article -> Maybe Int
 getReactionsCountForArticle model article =
     article
@@ -832,6 +834,7 @@ eventFilterForDeletionRequests tagsReferences =
             , tagReferences = Just tagsReferences
             }
 
+
 eventFilterForReactions : List TagReference -> Maybe EventFilter
 eventFilterForReactions tagReferences =
     if List.isEmpty tagReferences then
@@ -839,7 +842,7 @@ eventFilterForReactions tagReferences =
     else
         Just
             { emptyEventFilter
-            | kinds = Just [ KindZapReceipt, KindHighlights, KindRepost, KindShortTextNote, KindReaction, KindBookmarkSets ]
+            | kinds = Just [ KindZapReceipt, KindHighlights, KindRepost, KindShortTextNote, KindReaction, KindBookmarkList, KindBookmarkSets ]
             , tagReferences = Just tagReferences
             }
 
@@ -1418,7 +1421,6 @@ requestRelatedKindsForArticles model articles request =
             |> Maybe.map RequestDeletionRequests
             |> Maybe.map (addToRequest extendedModel extendedRequestReactions)
             |> Maybe.withDefault (extendedModel, extendedRequestReactions)
-
     in
     doRequest modelWithDeletionRequests extendedRequestDeletionRequests
 
