@@ -39,6 +39,7 @@ import Ui.Styles exposing (Theme, stylesForTheme)
 import View exposing (View)
 import Nostr.Nip19 as Nip19
 import Nostr.Nip19 as Nip19
+import Ui.Article
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
@@ -76,8 +77,13 @@ type alias Model =
     , imageSelection : Maybe ImageSelection
     , publishArticleDialog : PublishArticleDialog.Model Msg
     , articleState : ArticleState
+    , editorMode : EditorMode
     , modalDialog : ModalDialog
     }
+
+type EditorMode
+    = Editor
+    | Preview
 
 type ModalDialog
     = NoModalDialog
@@ -173,6 +179,7 @@ init user shared route () =
                     , imageSelection = Nothing
                     , publishArticleDialog = publishArticleDialog
                     , articleState = ArticleDraftSaved
+                    , editorMode = Editor
                     , modalDialog = NoModalDialog
                     }
 
@@ -192,6 +199,7 @@ init user shared route () =
                     , imageSelection = Nothing
                     , publishArticleDialog = publishArticleDialog
                     , articleState = ArticleEmpty
+                    , editorMode = Editor
                     , modalDialog = NoModalDialog
                     }
     in
@@ -233,6 +241,7 @@ type Msg
     | EditorFocused
     | EditorBlurred
     | EditorLoaded
+    | ToggleEditorMode
     | UpdateTitle String
     | UpdateSubtitle String
     | UpdateTags String
@@ -270,6 +279,14 @@ update shared user msg model =
 
         EditorLoaded ->
             ( model, Effect.none )
+
+        ToggleEditorMode ->
+            case model.editorMode of
+                Editor ->
+                    ( { model | editorMode = Preview }, Effect.none )
+
+                Preview ->
+                    ( { model | editorMode = Editor }, Effect.none )
 
         UpdateTitle title ->
             if title == "" then
@@ -638,7 +655,7 @@ view user shared model =
                     [ viewImage model
                     ]
                 ]
-            , viewEditor shared.browserEnv model
+            , viewEditor shared.theme shared.browserEnv model
             , viewTags shared.theme shared.browserEnv model
             , viewArticleState shared.browserEnv shared.theme model.articleState
             , saveButtons shared.browserEnv shared.theme model
@@ -892,8 +909,10 @@ viewImage model =
                 ]
                 []
 
-viewEditor : BrowserEnv -> Model -> Html Msg
-viewEditor browserEnv model =
+viewEditor : Theme -> BrowserEnv -> Model -> Html Msg
+viewEditor theme browserEnv model =
+    case model.editorMode of
+        Editor ->
             div
                 [ css
                     [ Tw.w_full
@@ -901,6 +920,13 @@ viewEditor browserEnv model =
                 ]
                 [ milkdownEditor model.milkdown browserEnv (model.content |> Maybe.withDefault "")
                 ]
+
+        Preview ->
+            let
+                styles =
+                    stylesForTheme theme
+            in
+            Ui.Article.viewContentMarkdown styles (\_ -> Nothing) (Maybe.withDefault "" model.content)
 
 
 
@@ -991,7 +1017,8 @@ saveButtons browserEnv theme model =
             , Tw.mb_10
             ]
         ]
-        [ saveDraftButton browserEnv model theme
+        [ previewButton browserEnv model theme
+        , saveDraftButton browserEnv model theme
         , publishButton browserEnv model theme
         ]
 
@@ -1016,6 +1043,27 @@ articleReadyForPublishing model =
     model.image /= Nothing &&
     model.identifier /= Nothing
 
+
+previewButton : BrowserEnv -> Model -> Theme -> Html Msg
+previewButton browserEnv model theme =
+    let
+        buttonTitle =
+            case model.editorMode of
+                Editor ->
+                    Translations.previewButtonTitle [ browserEnv.translations ]
+
+                Preview ->
+                    Translations.editButtonTitle [ browserEnv.translations ]
+
+    in
+    Button.new
+        { label = buttonTitle
+        , onClick = Just ToggleEditorMode
+        , theme = theme
+        }
+        |> Button.withDisabled (model.content == Nothing)
+        |> Button.withTypeSecondary
+        |> Button.view
 
 saveDraftButton : BrowserEnv -> Model -> Theme -> Html Msg
 saveDraftButton browserEnv model theme =
