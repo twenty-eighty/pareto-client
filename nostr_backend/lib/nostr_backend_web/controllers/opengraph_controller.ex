@@ -4,7 +4,12 @@ defmodule NostrBackendWeb.OpenGraphController do
   alias Floki
 
   def fetch_metadata_image(conn, %{"url" => url}) do
-    case Req.get(url) do
+    headers = [
+      {"User-Agent",
+       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
+    ]
+
+    case Req.get(url, headers: headers) do
       {:ok, %Req.Response{body: body, status: 200}} ->
         case extract_image_url(body) do
           {:ok, image_url} ->

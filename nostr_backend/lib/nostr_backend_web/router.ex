@@ -73,6 +73,7 @@ defmodule NostrBackendWeb.Router do
 
     # get "/opengraph", OpenGraphController, :fetch_metadata
     get "/opengraph/image", OpenGraphController, :fetch_metadata_image
+    get "/rumble/embed", RumbleController, :fetch_embed_url
   end
 
   # Enable LiveDashboard in development
