@@ -348,6 +348,14 @@ htmlBlock =
     Markdown.Html.oneOf
         [ htmlCiteElement
         , htmlImgElement
+        , htmlPElement
+        , htmlStrongElement
+        , htmlGenericElement "col"
+        , htmlGenericElement "colgroup"
+        , htmlGenericElement "table"
+        , htmlGenericElement "tbody"
+        , htmlGenericElement "td"
+        , htmlGenericElement "tr"
         ]
 
 htmlImgElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
@@ -366,6 +374,18 @@ htmlCiteElement =
             renderHtmlCiteElement maybeSrc
         )
         |> Markdown.Html.withOptionalAttribute "src"
+
+htmlPElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlPElement =
+    Markdown.Html.tag "p" (\children -> Html.p [] children)
+
+htmlStrongElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlStrongElement =
+    Markdown.Html.tag "strong" (\children -> Html.strong [] children)
+
+htmlGenericElement : String -> Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlGenericElement tagName =
+    Markdown.Html.tag tagName (\ children -> Html.div [] children)
 
 renderHtmlCiteElement : Maybe String -> (List (Html msg) -> Html msg)
 renderHtmlCiteElement maybeSrc children =

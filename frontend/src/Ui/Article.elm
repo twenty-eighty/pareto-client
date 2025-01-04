@@ -398,7 +398,7 @@ viewContentMarkdown styles fnGetProfile content =
             html
 
         Err error ->
-            div [][]
+            div [][ text <| "Error rendering Markdown: " ++ error]
 
 
 viewArticleComments : Styles msg -> Html msg

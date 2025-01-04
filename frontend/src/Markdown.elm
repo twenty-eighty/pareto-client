@@ -93,6 +93,11 @@ replaceImgTags input =
         Nothing ->
             input
 
+-- Replace broken HTML col tags from Primal
+replaceBrokenColTag : String -> String
+replaceBrokenColTag input =
+    String.replace "<colgroup><col></colgroup>" "<colgroup><col></col></colgroup>" input
+
 -- A regex to match http:// or https:// followed by one or more non-whitespace chars
 urlRegex : Regex
 urlRegex =
@@ -124,7 +129,7 @@ render : Styles msg -> GetProfileFunction-> String -> Result String (List (Html 
 render styles fnGetProfile markdown =
     markdown
         |> replaceImgTags
---        |> substituteHttpLinks
+        |> replaceBrokenColTag
         |> Markdown.Parser.parse
         |> Result.mapError deadEndsToString
         |> Result.andThen (\ast -> Renderer.render (TailwindMarkdownRenderer.renderer styles fnGetProfile) ast)
