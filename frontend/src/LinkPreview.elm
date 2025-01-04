@@ -281,14 +281,6 @@ generateYouTubePreview maybeLoadedContent url urlString videoId =
         thumbnailUrl =
             "https://img.youtube.com/vi/" ++ videoId ++ "/0.jpg"
 
-        urlSuffix =
-            case url.query of
-                Just query ->
-                    "?" ++ query
-
-                Nothing ->
-                    ""
-
         (showEmbedded, linkElement, clickAttr) =
             case maybeLoadedContent of
                 Just loadedContent ->
@@ -308,7 +300,7 @@ generateYouTubePreview maybeLoadedContent url urlString videoId =
         Html.iframe
             [ Attr.width 560
             , Attr.height 315
-            , Attr.src <| "https://www.youtube-nocookie.com/embed/" ++ videoId ++ urlSuffix
+            , Attr.src <| "https://www.youtube-nocookie.com/embed/" ++ videoId
             , Attr.title "YouTube video player"
             , Attr.attribute "frameborder" "0"
             , Attr.attribute "allow" "clipboard-write; encrypted-media; picture-in-picture; web-share"
