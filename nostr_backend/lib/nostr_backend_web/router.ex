@@ -68,6 +68,13 @@ defmodule NostrBackendWeb.Router do
     get("/nostr/nip96.json", NostrController, :nip96)
   end
 
+  scope "/api", NostrBackendWeb do
+    pipe_through :api
+
+    # get "/opengraph", OpenGraphController, :fetch_metadata
+    get "/opengraph/image", OpenGraphController, :fetch_metadata_image
+  end
+
   # Enable LiveDashboard in development
   if Application.compile_env(:nostr_backend, :dev_routes) do
     # If you want to use the LiveDashboard in production, you should put

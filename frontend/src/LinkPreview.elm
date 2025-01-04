@@ -33,6 +33,9 @@ generatePreviewHtml loadedContent urlString linkAttr body =
                 YouTubeVideo videoId ->
                     generateYouTubePreview loadedContent url urlString videoId
 
+                OdyseeVideo path ->
+                    generateOdyseePreview loadedContent url urlString path
+
                 TwitterTweet tweetId ->
                     generateTwitterPreview urlString tweetId body
 
@@ -59,6 +62,7 @@ generatePreviewHtml loadedContent urlString linkAttr body =
 -- Define the types of links we can encounter
 type LinkType
     = YouTubeVideo String
+    | OdyseeVideo String
     | TwitterTweet String
     | VideoLink String
     | AudioLink String
@@ -84,6 +88,9 @@ detectLinkType url =
 
             Nothing ->
                 OtherLink
+
+    else if isOdyseeUrl url then
+        OdyseeVideo url.path
 
     else if isTwitterStatusUrl url then
         case getTweetIdFromPath url.path of
@@ -206,6 +213,10 @@ isYouTubeShortUrl url =
     url.host == "youtu.be"
 
 
+isOdyseeUrl : Url -> Bool
+isOdyseeUrl url =
+    url.host == "odysee.com"
+
 getYouTubeVideoIdFromPath : String -> Maybe String
 getYouTubeVideoIdFromPath path =
     let
@@ -310,6 +321,46 @@ generateYouTubePreview maybeLoadedContent url urlString videoId =
             []
 
     else
+        videoThumbnailPreview linkElement clickAttr thumbnailUrl
+
+     
+-- Function to generate YouTube preview HTML with a play button
+generateOdyseePreview : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
+generateOdyseePreview maybeLoadedContent url urlString path =
+    let
+        thumbnailUrl =
+            "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
+
+
+        (showEmbedded, linkElement, clickAttr) =
+            case maybeLoadedContent of
+                Just loadedContent ->
+                    (Set.member urlString loadedContent.loadedUrls
+                    , Html.div
+                    , [ Events.onClick (loadedContent.addLoadedContentFunction urlString)
+                      , css
+                            [ Tw.cursor_pointer
+                            ]
+                      ]
+                    )
+
+                Nothing ->
+                    (False, Html.a, [ href urlString ])
+    in
+    if showEmbedded then
+        Html.iframe
+            [ Attr.width 560
+            , Attr.height 315
+            , Attr.src <| "https://odysee.com/$/embed" ++ path
+            , Attr.attribute "allowfullscreen" ""
+            ]
+            []
+
+    else
+        videoThumbnailPreview linkElement clickAttr thumbnailUrl
+    
+
+videoThumbnailPreview linkElement clickAttr thumbnailUrl =
         linkElement
             ([ css
                 [ Tw.relative
@@ -345,8 +396,7 @@ generateYouTubePreview maybeLoadedContent url urlString videoId =
                 [ Graphics.videoPlayIcon 100
                 ]
             ]
-      
-    
+
 
 -- Function to generate Twitter preview HTML
 generateTwitterPreview : String -> String -> List (Html msg) -> Html msg

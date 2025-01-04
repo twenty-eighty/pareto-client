@@ -12,6 +12,10 @@ The backend delivers for certain routes HTML metadata for nostr articles, commun
 
 Additionally a static landing page is delivered for the home route.
 
+There's an API available that redirects to the image of OpenGraph metadata:
+/api/opengraph/image??url=...
+This is being used for thumbnails of Odysee videos
+
 ## Backend configuration
 
 These environment variables need to be set
