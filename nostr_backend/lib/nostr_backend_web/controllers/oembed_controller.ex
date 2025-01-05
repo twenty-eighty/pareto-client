@@ -3,15 +3,15 @@ defmodule NostrBackendWeb.OembedController do
   alias Req
 
   @allowed_origins [
-    "https://pareto.space",
-    "http://localhost:1234"
+    "https://pareto.space"
+    # , "http://localhost:1234"
   ]
 
   def fetch_oembed(conn, %{"url" => oembed_url}) do
     conn =
       conn
-      # |> put_resp_header("Access-Control-Allow-Origin", "pareto.space")
-      |> put_resp_header("Access-Control-Allow-Origin", "*")
+      |> put_resp_header("Access-Control-Allow-Origin", "pareto.space")
+      # |> put_resp_header("Access-Control-Allow-Origin", "*")
       |> put_resp_header("Access-Control-Allow-Methods", "GET, OPTIONS")
 
     # Validate Origin Header
