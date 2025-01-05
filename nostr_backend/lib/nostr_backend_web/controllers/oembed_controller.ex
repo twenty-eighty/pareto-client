@@ -11,19 +11,41 @@ defmodule NostrBackendWeb.OembedController do
     conn =
       conn
       |> put_resp_header("Access-Control-Allow-Origin", "pareto.space")
-      # |> put_resp_header("Access-Control-Allow-Origin", "*")
       |> put_resp_header("Access-Control-Allow-Methods", "GET, OPTIONS")
 
-    # Validate Origin Header
-    case get_req_header(conn, "origin") do
-      [origin] when origin in @allowed_origins ->
-        conn
-        |> handle_oembed_request(oembed_url)
+    origin = get_req_header(conn, "origin") |> List.first()
+
+    allowed =
+      case origin do
+        nil ->
+          # Fallback to Referer header if Origin is missing
+          conn
+          |> get_req_header("referer")
+          |> List.first()
+          |> extract_origin()
+
+        origin ->
+          origin
+      end
+
+    if allowed in @allowed_origins do
+      handle_oembed_request(conn, oembed_url)
+    else
+      conn
+      |> put_status(:forbidden)
+      |> text("Access denied: Origin not allowed")
+    end
+  end
+
+  defp extract_origin(nil), do: nil
+
+  defp extract_origin(referer) do
+    case URI.parse(referer) do
+      %URI{scheme: scheme, host: host} when not is_nil(scheme) and not is_nil(host) ->
+        "#{scheme}://#{host}"
 
       _ ->
-        conn
-        |> put_status(:forbidden)
-        |> text("Access denied")
+        nil
     end
   end
 
