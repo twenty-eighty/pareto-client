@@ -83,7 +83,7 @@ defmodule NostrBackendWeb.NostrController do
 
   @nip96_redirect %{
     "api_url" => "",
-    "delegated_to_url" => "https://nostrcheckme.pareto.space"
+    "delegated_to_url" => "https://route96.pareto.space"
   }
 
   @empty_data %{

@@ -5,6 +5,8 @@ import Graphics
 import Html.Styled as Html exposing (Html, div, img, a, text)
 import Html.Styled.Attributes as Attr exposing (controls, css, href, src, alt, style, type_)
 import Html.Styled.Events as Events
+import Oembed
+import Regex exposing (Regex)
 import Set exposing (Set)
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
@@ -448,9 +450,35 @@ videoThumbnailPreview linkElement clickAttr thumbnailUrl =
 -- Function to generate Twitter preview HTML
 generateTwitterPreview : String -> String -> List (Html msg) -> Html msg
 generateTwitterPreview url _ body =
-    -- Embedding tweets requires external scripts, so we provide a link
-        a [ href url ]
-            body
+    case Oembed.view oemProviders (Just { maxWidth = 300 , maxHeight = 600 }) url of
+        Just tweetHtml ->
+            div
+                [ css
+                    [ Tw.w_96
+                    , Tw.h_full
+                    ]
+                ]
+                [ tweetHtml
+                    |> Html.fromUnstyled
+                ]
+
+        Nothing ->
+            a [ href url ]
+                body
+
+oemProviders : List Oembed.Provider
+oemProviders =
+    [ { url = "https://publish.x.com/oembed"
+      , schemes = [ regex "https://x\\.com/.*/status/.*", regex "https://.*\\.x\\.com/.*/status/.*" ]
+      }
+    ]
+
+regex : String -> Regex
+regex string =
+    string
+        |> Regex.fromString
+        |> Maybe.withDefault Regex.never
+
 
 generateVideoElement : Url -> String -> Html msg
 generateVideoElement url mimeType =

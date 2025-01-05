@@ -171,7 +171,7 @@ view shared model =
 viewProfile : Shared.Model -> Profile -> Html Msg
 viewProfile shared profile =
     div []
-        [ Ui.Profile.viewProfile shared.theme profile (Nostr.getProfileValidationStatus shared.nostr profile.pubKey |> Maybe.withDefault ValidationUnknown)
+        [ Ui.Profile.viewProfile shared.theme shared.browserEnv profile (Nostr.getProfileValidationStatus shared.nostr profile.pubKey |> Maybe.withDefault ValidationUnknown)
         , Nostr.getArticlesForAuthor shared.nostr profile.pubKey
         |> Ui.View.viewArticlePreviews
                 ArticlePreviewList 

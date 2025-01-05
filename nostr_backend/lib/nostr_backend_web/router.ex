@@ -72,6 +72,7 @@ defmodule NostrBackendWeb.Router do
     pipe_through :api
 
     # get "/opengraph", OpenGraphController, :fetch_metadata
+    get "/oembed", OembedController, :fetch_oembed
     get "/opengraph/image", OpenGraphController, :fetch_metadata_image
     get "/rumble/embed", RumbleController, :fetch_embed_url
   end

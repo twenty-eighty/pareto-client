@@ -24,6 +24,7 @@ type MaterialIcon
     = MaterialBookmark
     | MaterialBookmarkAdd
     | MaterialBookmarkAdded
+    | MaterialCheck
     | MaterialFavorite
     | MaterialFavoriteBorder
     | MaterialOutlineBookmark
@@ -70,6 +71,9 @@ svgForMaterialIcon materialIcon =
 
         MaterialBookmarkAdded ->
             Material.Icons.bookmark_added
+
+        MaterialCheck ->
+            Material.Icons.check
 
         MaterialFavorite ->
             Material.Icons.favorite

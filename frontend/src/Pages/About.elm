@@ -166,6 +166,7 @@ viewHandlerInformation theme browserEnv loginStatus nostr handlerInformation =
         ]
         [ Ui.Profile.viewProfile
             theme
+            browserEnv
             handlerInformation.profile
             (Nostr.getProfileValidationStatus nostr handlerInformation.pubKey
                 |> Maybe.withDefault ValidationUnknown

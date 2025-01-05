@@ -1,6 +1,8 @@
 module Ui.Profile exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
+import Components.Button as Button
+import Components.Icon as Icon
 import Graphics
 import Html.Styled as Html exposing (Html, Attribute, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
@@ -13,14 +15,27 @@ import Nostr.Types exposing (PubKey)
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Translations.Profile as Translations
 import Time
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
+import Components.Icon exposing (Icon(..))
+import FeatherIcons
+import Components.Icon exposing (MaterialIcon(..))
+import Color
+import BrowserEnv exposing (Msg)
 
 defaultProfileImage : String
 defaultProfileImage =
     "/images/avatars/placeholder_01.png"
 
+type alias ProfileViewData msg =
+    { follow : FollowType msg
+    }
+
+type FollowType msg
+    = Following msg         -- unfollow msg
+    | NotFollowing msg      -- follow msg
 
 viewProfileSmall : Profile -> ProfileValidation -> Html msg
 viewProfileSmall profile validationStatus =
@@ -55,8 +70,8 @@ viewProfileSmall profile validationStatus =
 
 
 
-viewProfile : Theme -> Profile -> ProfileValidation -> Html msg
-viewProfile theme profile validationStatus =
+viewProfile : Theme -> BrowserEnv -> Profile -> ProfileValidation -> Html msg
+viewProfile theme browserEnv profile validationStatus =
     let
         styles =
             stylesForTheme theme
@@ -75,7 +90,7 @@ viewProfile theme profile validationStatus =
             [ css
                 [ Tw.flex
                 , Tw.flex_row
-                , Tw.items_center
+                , Tw.items_start
                 , Tw.space_x_4
                 , Tw.mb_4
                 ]
@@ -100,8 +115,36 @@ viewProfile theme profile validationStatus =
                 , viewNip05 styles profile
                 , viewNpub styles profile
                 ]
+            , div
+                [ css
+                    [ 
+                    ]
+                ]
+                [ -- followButton theme browserEnv True
+                ]
             ]
         ]
+
+followButton : Theme -> BrowserEnv -> Bool -> Html msg
+followButton theme browserEnv following =
+    let
+        (buttonText, modifiers) =
+            if following then
+                ( Translations.unfollowButtonTitle [ browserEnv.translations ]
+                , Button.withIconLeft (Icon.MaterialIcon MaterialCheck 24 (Icon.Color (Color.fromRgba { red = 0.28, green = 0.73, blue = 0.47, alpha = 1.0 })))
+                )
+            else
+                ( Translations.followButtonTitle [ browserEnv.translations ]
+                , identity
+                )
+    in
+    Button.new
+        { label = buttonText
+        , onClick = Nothing
+        , theme = theme
+        }
+        |> modifiers
+        |> Button.view
 
 viewWebsite : Styles msg -> Profile -> Html msg
 viewWebsite styles profile =

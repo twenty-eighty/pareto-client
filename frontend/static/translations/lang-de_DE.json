@@ -44,19 +44,19 @@
    "message dialog": {
       "warning": "Warnung"
    },
-   "read": {
-      "followed feed category": "Gefolgt",
-      "global feed category": "Global",
-      "pareto feed category": "Pareto",
-      "rss feed category": "Andere",
-      "highlighter feed category": "Highlighter"
-   },
    "posts": {
       "posts title": "Artikel",
       "published category": "Veröffentlicht",
       "drafts category": "Entwürfe",
       "edit draft button label": "Bearbeiten",
       "delete draft button label": "Löschen"
+   },
+   "profile": {
+      "follow button title": "Folgen",
+      "unfollow button title": "Entfolgen",
+      "mute button title": "Stumm",
+      "public menu item text": "Öffentlich",
+      "private menu item text": "Privat"
    },
    "publish article dialog": {
       "dialog title": "Artikel veröffentlichen",
@@ -68,6 +68,13 @@
       "no relays configured title": "Keine Relays konfiguriert",
       "no relays configured text": "Möchtest du ein paar Standard-Relays einrichten?",
       "configure relays button title": "Relays konfigurieren"
+   },
+   "read": {
+      "followed feed category": "Gefolgt",
+      "global feed category": "Global",
+      "pareto feed category": "Pareto",
+      "rss feed category": "Andere",
+      "highlighter feed category": "Highlighter"
    },
    "relay status component": {
       "relay state unknown": "unbekannt",

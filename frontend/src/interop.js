@@ -4,6 +4,7 @@ import "./Milkdown/MilkdownEditor.js";
 import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import { BlossomClient } from "blossom-client-sdk/client";
 import { init as initNostrLogin, launch as launchNostrLoginDialog } from "nostr-login"
+import "./elm-oembed.js";
 import debug from 'debug';
 
 
