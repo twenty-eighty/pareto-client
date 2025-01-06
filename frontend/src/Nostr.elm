@@ -1236,7 +1236,8 @@ updateModelWithLongFormContent model requestId events =
 
         -- sort articles, newest first
         articlesByDate =
-            articles ++ model.articlesByDate
+            -- important that existing articles come first so if an article is edited it replaces the existing one
+            model.articlesByDate ++ articles
             |> List.map (\article ->
                     (Maybe.withDefault "" (addressForArticle article), article)
                 )
@@ -1343,7 +1344,8 @@ updateModelWithLongFormContentDraft model requestId events =
 
         -- sort articles, newest first
         articleDraftsByDate =
-            articles ++ model.articleDraftsByDate
+            -- important that existing drafts come first so if a draft is saved it replaces the existing one
+            model.articleDraftsByDate ++ articles
             |> List.map (\article ->
                     (Maybe.withDefault "" article.identifier, article)
                 )
