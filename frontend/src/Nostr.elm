@@ -393,6 +393,7 @@ getArticlesForAuthor model pubKey =
     |> Dict.get pubKey
     |> Maybe.withDefault []
     |> List.filter (filterDeletedArticle model)
+    |> sortArticlesByDate
 
 filterDeletedArticle : Model -> Article -> Bool
 filterDeletedArticle model article =
@@ -1244,11 +1245,7 @@ updateModelWithLongFormContent model requestId events =
             -- eliminate duplicates
             |> Dict.fromList
             |> Dict.values
-            |> List.sortBy (\article ->
-                article.publishedAt
-                |> Maybe.map (\publishedAt -> Time.posixToMillis publishedAt * -1)
-                |> Maybe.withDefault (Time.posixToMillis article.createdAt * -1)
-                )
+            |> sortArticlesByDate
 
         articlesByAddress =
             articles
@@ -1291,6 +1288,15 @@ updateModelWithLongFormContent model requestId events =
     }
     , requestCmd
     )
+
+sortArticlesByDate : List Article -> List Article
+sortArticlesByDate articles =
+    articles
+    |> List.sortBy (\article ->
+        article.publishedAt
+        |> Maybe.map (\publishedAt -> Time.posixToMillis publishedAt * -1)
+        |> Maybe.withDefault (Time.posixToMillis article.createdAt * -1)
+        )
 
 appendArticleToList : List Article -> Article -> List Article
 appendArticleToList articleList article =
