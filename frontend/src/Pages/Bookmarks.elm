@@ -272,6 +272,7 @@ viewArticleBookmarks : Auth.User -> Shared.Model -> Model -> List AddressCompone
 viewArticleBookmarks user shared model addressComponents =
     addressComponents
     |> List.filterMap (Nostr.getArticle shared.nostr)
+    |> Nostr.sortArticlesByDate
     |> Ui.View.viewArticlePreviews
         ArticlePreviewList
             { theme = shared.theme
