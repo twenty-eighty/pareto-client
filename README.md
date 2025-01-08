@@ -16,6 +16,12 @@ There's an API available that redirects to the image of OpenGraph metadata:
 /api/opengraph/image??url=...
 This is being used for thumbnails of Odysee videos
 
+This API call proxies OEMBED calls in order to avoid CORS issues (Twitter/X):
+/api/oembed
+
+Another API endpoint helps embed Rumble videos in articles:
+/api/rumble/embed
+
 ## Backend configuration
 
 These environment variables need to be set

@@ -67,14 +67,30 @@ nip05StringDecoder =
         |> Maybe.withDefault (Decode.fail <| "Error parsing nip05: " ++ nip05String)
         )
 
-fetchNip05Info : (Result Http.Error Nip05Data -> msg) -> Nip05 -> Cmd msg
-fetchNip05Info toMsg nip05 =
+fetchNip05InfoDirectly : (Result Http.Error Nip05Data -> msg) -> Nip05 -> Cmd msg
+fetchNip05InfoDirectly toMsg nip05 =
     Http.request
         { method = "GET"
         , headers =
             [ Http.header "Accept" "application/nostr+json"
             ]
         , url = "https://" ++ nip05.domain ++ "/.well-known/nostr.json?name=" ++ nip05.user
+        , body = Http.emptyBody
+        , expect = Http.expectJson toMsg nip05Decoder
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+fetchNip05InfoViaProxy : (Result Http.Error Nip05Data -> msg) -> Nip05 -> Cmd msg
+fetchNip05InfoViaProxy toMsg nip05 =
+    Http.request
+        { method = "GET"
+        , headers =
+            [ Http.header "Accept" "application/nostr+json"
+            ]
+        , url = "http://localhost:4000/api/nip05/validate?handle=" ++ nip05ToString nip05
+        -- , url = "https://pareto.space/api/nip05/validate?handle=" ++ nip05ToString nip05
         , body = Http.emptyBody
         , expect = Http.expectJson toMsg nip05Decoder
         , timeout = Nothing

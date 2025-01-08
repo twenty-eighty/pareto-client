@@ -1,6 +1,8 @@
 defmodule NostrBackendWeb.NostrController do
   use NostrBackendWeb, :controller
 
+  alias NostrBackend.Nip05
+
   # Define the names and relays in a module attribute
   @nostr_data %{
     "names" => %{
@@ -109,10 +111,37 @@ defmodule NostrBackendWeb.NostrController do
     end
   end
 
+  # call without specific name parameter
   def nip05(conn, _params) do
     conn
     |> put_required_headers()
     |> json(@nostr_data)
+  end
+
+
+  def validate_nip05_handle(conn, %{"handle" => handle}) do
+    case Nip05.parse_identifier(handle) do
+      {:ok, name, domain} ->
+        case Nip05.get_cached_well_known(name, domain) do
+          {:ok, response} ->
+            conn
+            # change this to pareto.space in case the API endpoint is (mis)used by other Nostr applications
+#            |> put_resp_header("Access-Control-Allow-Origin", "pareto.space")
+            |> put_resp_header("Access-Control-Allow-Origin", "*")
+            |> put_resp_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+            |> json(response)
+
+          {:error, message} ->
+            conn
+            |> put_status(:not_found)
+            |> text(message)
+        end
+
+      {:error, message} ->
+        conn
+        |> put_status(:bad_request)
+        |> text(message)
+    end
   end
 
   def nip96(conn, _params) do
