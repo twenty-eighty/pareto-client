@@ -31,6 +31,7 @@ customElements.define(
  */
 function renderOembed(shadow, urlToEmbed, options) {
   let apiUrlBuilder = new URL(
+    // This API should always deliver JSON
     `https://pareto.space/api/oembed?url=${urlToEmbed}`
     // `http://localhost:4000/api/oembed?url=${urlToEmbed}`
   );
@@ -89,21 +90,7 @@ function tryRenderingHtml(shadow, response) {
         if (tweet) {
           const isRendered = tweet.offsetHeight > 0 && tweet.offsetWidth > 0;
           if (isRendered) {
-            // iframe.style.height = iframeBody.scrollHeight + 10 + 'px';
-            if (refetchedIframe && !response.height) {
-              refetchedIframe.setAttribute(
-                "height",
-                // @ts-ignore
-                (iframe.contentWindow.document.body.scrollHeight + 10).toString()
-              );
-            }
-            if (refetchedIframe && !response.width) {
-              refetchedIframe.setAttribute(
-                "width",
-                // @ts-ignore
-                (iframe.contentWindow.document.body.scrollWidth + 10).toString()
-              );
-            }
+            fixSize(refetchedIframe, iframe, response)
             observer.disconnect(); // Stop observing after rendering
           }
         }
@@ -115,12 +102,61 @@ function tryRenderingHtml(shadow, response) {
     });
 
     iframe.onload = function () {
-      const iframeBody = iframe.contentWindow.document.body;
-      observer.observe(iframeBody, {
-        childList: true,
-        subtree: true,
-      });
+      if (response.provider_name === "Twitter") {
+        // wait for tweet to be rendered
+        const iframeBody = iframe.contentWindow.document.body;
+        observer.observe(iframeBody, {
+          childList: true,
+          subtree: true,
+        });
+      } else {
+        fixSize(refetchedIframe, iframe, response)
+      }
     };
+
+    function fixSize(refetchedIframe, iframe, response) {
+      var width = null;
+      if (response.width) {
+        if (typeof response.width === "number") {
+          width = response.width;
+        } else {
+          if (response.width.endsWith("%")) {
+            width = response.width;
+          } else {
+            width = parseInt(response.width) + 20;
+          }
+        }
+      } else {
+        width = iframe.contentWindow.document.body.scrollWidth + 10;
+      }
+      var height = null;
+      if (response.height) {
+        if (typeof response.height === "number") {
+          height = response.height;
+        } else {
+          if (response.height.endsWith("%")) {
+            height = response.height;
+          } else {
+            height = parseInt(response.height) + 20;
+          }
+        }
+      } else {
+        height = iframe.contentWindow.document.body.scrollHeight + 10;
+      }
+      if (refetchedIframe) {
+        refetchedIframe.setAttribute(
+          "height",
+          // @ts-ignore
+          height.toString()
+        );
+
+        refetchedIframe.setAttribute(
+          "width",
+          // @ts-ignore
+          width.toString()
+        );
+      }
+    }
   }
 }
 

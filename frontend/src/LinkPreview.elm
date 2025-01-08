@@ -45,19 +45,32 @@ generatePreviewHtml loadedContent urlString linkAttr body =
                     generateTwitterPreview urlString tweetId body
 
                 VideoLink mimeType ->
-                    generateVideoElement url mimeType
+                    generateVideoElement loadedContent url urlString mimeType
 
                 AudioLink mimeType ->
-                    generateAudioElement url mimeType
+                    generateAudioElement loadedContent url urlString mimeType
 
                 ObjectLink mimeType ->
-                    generateObjectElement url mimeType
+                    generateObjectElement loadedContent url urlString mimeType
 
                 OtherLink ->
-                    a (linkAttr ++ [ href urlString ]) body
+                    -- If URL parsing fails, try with oEmbed
+                    case Oembed.view oemProviders (Just { maxWidth = 300 , maxHeight = 600 }) urlString of
+                        Just embedHtml ->
+                            div
+                                [ css
+                                    [ Tw.w_96
+                                    , Tw.h_full
+                                    ]
+                                ]
+                                [ embedHtml
+                                    |> Html.fromUnstyled
+                                ]
+
+                        Nothing ->
+                            a (linkAttr ++ [ href urlString ]) body
 
         Nothing ->
-            -- If URL parsing fails, just return a simple link
             a (linkAttr ++ [ href urlString ]) body
 
 
@@ -409,42 +422,44 @@ generateRumblePreview maybeLoadedContent url urlString path =
         videoThumbnailPreview linkElement clickAttr thumbnailUrl
     
 
+videoThumbnailPreview : (List (Html.Attribute msg) -> List (Html msg) -> Html msg) -> List (Html.Attribute msg) -> String -> Html msg
 videoThumbnailPreview linkElement clickAttr thumbnailUrl =
-        linkElement
-            ([ css
-                [ Tw.relative
-                , Tw.block
-                , Tw.w_96
-                , Tw.h_72
-                ]
-            
-            ] ++ clickAttr)
-            [ div 
-                [ css
-                    [ Tw.absolute
-                    , Tw.inset_0
-                    ]
-                ]
-                [ img
-                    [ src thumbnailUrl
-                    , alt "YouTube Video"
-                    , style "display" "block"
-                    ] []
-                ]
-            , div
-                [ css
-                    [ Tw.text_color Theme.red_500
-                    , Tw.absolute
-                    , Tw.inset_0
-                    , Tw.flex
-                    , Tw.items_center
-                    , Tw.justify_center
-                    , Tw.opacity_90
-                    ]
-                ]
-                [ Graphics.videoPlayIcon 100
+    linkElement
+        ([ css
+            [ Tw.relative
+            , Tw.block
+            , Tw.h_40
+            , Tw.w_64
+            ]
+        
+        ] ++ clickAttr)
+        [ div 
+            [ css
+                [ Tw.absolute
+                , Tw.inset_0
+                , Tw.h_40
                 ]
             ]
+            [ img
+                [ src thumbnailUrl
+                , alt "YouTube Video"
+                , style "display" "block"
+                ] []
+            ]
+        , div
+            [ css
+                [ Tw.text_color Theme.red_500
+                , Tw.absolute
+                , Tw.inset_0
+                , Tw.flex
+                , Tw.items_center
+                , Tw.justify_center
+                , Tw.opacity_90
+                ]
+            ]
+            [ Graphics.videoPlayIcon 100
+            ]
+        ]
 
 
 -- Function to generate Twitter preview HTML
@@ -480,50 +495,146 @@ regex string =
         |> Maybe.withDefault Regex.never
 
 
-generateVideoElement : Url -> String -> Html msg
-generateVideoElement url mimeType =
-    Html.video
-        [ controls True
-        ]
-        [ Html.source
-            [ src <| Url.toString url
-            , type_ mimeType
-            ]
-            []
-        , text "Your browser doesn't support the HTML video tag"
-        ]
+generateVideoElement : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
+generateVideoElement maybeLoadedContent url urlString mimeType =
+    let
+        (showEmbedded, linkElement, clickAttr) =
+            case maybeLoadedContent of
+                Just loadedContent ->
+                    (Set.member urlString loadedContent.loadedUrls
+                    , Html.div
+                    , [ Events.onClick (loadedContent.addLoadedContentFunction urlString)
+                      , css
+                            [ Tw.cursor_pointer
+                            ]
+                      ]
+                    )
 
-generateAudioElement : Url -> String -> Html msg
-generateAudioElement url mimeType =
-    Html.audio
-        [ controls True
-        ]
-        [ Html.source
-            [ src <| Url.toString url
-            , type_ mimeType
+                Nothing ->
+                    (False, Html.a, [ href urlString ])
+    in
+    if showEmbedded then
+        Html.video
+            [ controls True
             ]
-            []
-        , text "Your browser doesn't support the HTML video tag"
-        ]
+            [ Html.source
+                [ src <| Url.toString url
+                , type_ mimeType
+                ]
+                []
+            , text "Your browser doesn't support the HTML video tag"
+            ]
+    else
+        videoThumbnailPreview linkElement clickAttr "/images/video-placeholder.jpeg"
 
-generateObjectElement : Url -> String -> Html msg
-generateObjectElement url mimeType =
-    Html.object
-        [ Attr.attribute "data" <| Url.toString url
-        , type_ mimeType
-        , css
-            [ Tw.w_full
-            , Tw.h_96
+generateAudioElement : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
+generateAudioElement maybeLoadedContent url urlString mimeType =
+    let
+        (showEmbedded, linkElement, clickAttr) =
+            case maybeLoadedContent of
+                Just loadedContent ->
+                    (Set.member urlString loadedContent.loadedUrls
+                    , Html.div
+                    , [ Events.onClick (loadedContent.addLoadedContentFunction urlString)
+                      , css
+                            [ Tw.cursor_pointer
+                            ]
+                      ]
+                    )
+
+                Nothing ->
+                    (False, Html.a, [ href urlString ])
+    in
+    if showEmbedded then
+        Html.audio
+            [ controls True
             ]
-        ]
-        [ Html.p
-            []
-            [ text "Your browser doesn't support PDFs. You can download the PDF "
-            , Html.a
-                [ href <| Url.toString url
+            [ Html.source
+                [ src <| Url.toString url
+                , type_ mimeType
                 ]
-                [ text "here"
+                []
+            , text "Your browser doesn't support the HTML audio tag"
+            ]
+    else
+        genericThumbnailPreview linkElement clickAttr "/images/audio-placeholder.jpeg"
+
+generateObjectElement : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
+generateObjectElement maybeLoadedContent url urlString mimeType =
+    let
+        (showEmbedded, linkElement, clickAttr) =
+            case maybeLoadedContent of
+                Just loadedContent ->
+                    (Set.member urlString loadedContent.loadedUrls
+                    , Html.div
+                    , [ Events.onClick (loadedContent.addLoadedContentFunction urlString)
+                      , css
+                            [ Tw.cursor_pointer
+                            ]
+                      ]
+                    )
+
+                Nothing ->
+                    (False, Html.a, [ href urlString ])
+    in
+    if showEmbedded then
+        Html.object
+            [ Attr.attribute "data" <| Url.toString url
+            , type_ mimeType
+            , css
+                [ Tw.w_full
+                , Tw.h_96
                 ]
-            , text "."
+            ]
+            [ Html.p
+                []
+                [ text "Your browser doesn't support PDFs. You can download the PDF "
+                , Html.a
+                    [ href <| Url.toString url
+                    ]
+                    [ text "here"
+                    ]
+                , text "."
+                ]
+            ]
+    else
+        genericThumbnailPreview linkElement clickAttr "/images/pdf-placeholder.jpeg"
+
+genericThumbnailPreview : (List (Html.Attribute msg) -> List (Html msg) -> Html msg) -> List (Html.Attribute msg) -> String -> Html msg
+genericThumbnailPreview linkElement clickAttr thumbnailUrl =
+    linkElement
+        ([ css
+            [ Tw.relative
+            , Tw.block
+            , Tw.h_40
+            , Tw.w_64
+            ]
+        
+        ] ++ clickAttr)
+        [ div 
+            [ css
+                [ Tw.absolute
+                , Tw.inset_0
+                , Tw.h_40
+                ]
+            ]
+            [ img
+                [ src thumbnailUrl
+                , alt "YouTube Video"
+                , style "display" "block"
+                ] []
+            ]
+        , div
+            [ css
+                [ Tw.text_color Theme.red_500
+                , Tw.absolute
+                , Tw.inset_0
+                , Tw.flex
+                , Tw.items_center
+                , Tw.justify_center
+                , Tw.opacity_90
+                ]
+            ]
+            [ Graphics.videoPlayIcon 100
             ]
         ]
