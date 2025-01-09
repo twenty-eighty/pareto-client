@@ -67,6 +67,12 @@ nip05StringDecoder =
         |> Maybe.withDefault (Decode.fail <| "Error parsing nip05: " ++ nip05String)
         )
 
+-- tests with checking NIP-05 data via proxy (on pareto.space) have not lead to more successful validations
+-- (didn't do exact statistics but still saw many failed validations)
+fetchNip05Info : (Result Http.Error Nip05Data -> msg) -> Nip05 -> Cmd msg
+fetchNip05Info toMsg nip05 =
+    fetchNip05InfoDirectly toMsg nip05
+
 fetchNip05InfoDirectly : (Result Http.Error Nip05Data -> msg) -> Nip05 -> Cmd msg
 fetchNip05InfoDirectly toMsg nip05 =
     Http.request
