@@ -50,7 +50,6 @@ defmodule NostrBackendWeb.Endpoint do
 
   plug Plug.MethodOverride
   plug Plug.Head
-  # we don't need cookies, we have Nostr
-  # plug Plug.Session, @session_options
+  plug Plug.Session, @session_options
   plug NostrBackendWeb.Router
 end
