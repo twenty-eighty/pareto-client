@@ -5,23 +5,22 @@ import Dict exposing (Dict)
 import Html.Styled as Html exposing (Html, div)
 import Http
 import Json.Decode as Decode exposing (Decoder)
-import Json.Encode as Encode
 import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, tagReference)
 import Nostr.Blossom exposing (userServerListFromEvent)
-import Nostr.BookmarkList exposing (BookmarkList, bookmarkListFromEvent, bookmarkListEvent, bookmarkListWithArticle, bookmarkListWithoutArticle, emptyBookmarkList)
+import Nostr.BookmarkList exposing (BookmarkList, bookmarkListFromEvent, bookmarkListEvent, bookmarkListWithArticle, bookmarkListWithoutArticle, bookmarkListWithShortNote, bookmarkListWithoutShortNote, emptyBookmarkList)
 import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
 import Nostr.DeletionRequest exposing (DeletionRequest, deletionRequestFromEvent)
-import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag, TagReference(..), buildAddress, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
+import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress, emptyEvent, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.FollowList exposing (Following, followListFromEvent)
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
-import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05Info, nip05ToString) 
+import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05InfoDirectly, fetchNip05InfoViaProxy, nip05ToString) 
 import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
 import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileFromEvent)
-import Nostr.Reactions
+import Nostr.Reactions exposing (Reaction, reactionFromEvent)
 import Nostr.Relay exposing (Relay, RelayState(..), relayUrlDecoder)
 import Nostr.RelayList exposing (relayListFromEvent)
 import Nostr.RelayListMetadata exposing (RelayMetadata, relayMetadataListFromEvent)
@@ -33,9 +32,9 @@ import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
 import Nostr.Types exposing (Address, EventId, PubKey, IncomingMessage, RelayRole(..), RelayUrl)
 import Nostr.Zaps exposing (ZapReceipt)
 import Html.Attributes exposing (kind)
+import Pareto
 import Set exposing (Set)
 import Time
-import Pareto
 
 
 type alias Hooks =
@@ -44,6 +43,7 @@ type alias Hooks =
     , requestEvents : String -> Bool -> RequestId -> List RelayUrl -> EventFilter -> Cmd Msg
     , requestBlossomAuth : RequestId -> String -> String -> HttpRequestMethod -> Cmd Msg
     , requestNip96Auth : RequestId -> String -> String -> HttpRequestMethod -> Cmd Msg
+    , searchEvents : String -> Bool -> RequestId -> List RelayUrl -> List EventFilter -> Cmd Msg
     , sendEvent : SendId -> List String -> Event -> Cmd Msg
     }
 
@@ -68,7 +68,8 @@ type alias Model =
     , poolState : RelayState
     , profiles : Dict PubKey Nostr.Profile.Profile
     , profileValidations : Dict PubKey ProfileValidation
-    , reactions : Dict EventId (Dict EventId Nostr.Reactions.Reaction)
+    , reactionsForEventId : Dict EventId (Dict PubKey Nostr.Reactions.Reaction)
+    , reactionsForAddress : Dict Address (Dict PubKey Nostr.Reactions.Reaction)
     , relays : Dict String Relay
     , relayMetadataLists : Dict PubKey (List RelayMetadata)
     , relaysForPubKey : Dict PubKey (List RelayUrl)
@@ -200,13 +201,13 @@ performRequest model description requestId requestData =
 
         RequestNip05AndArticle nip05 _ ->
             -- identifier not needed here, only after getting nip05 data
-            ( model, fetchNip05Info (Nip05FetchedForNip05 requestId nip05) nip05 )
+            ( model, fetchNip05InfoViaProxy (Nip05FetchedForNip05 requestId nip05) nip05 )
 
         RequestProfile relays eventFilter ->
             ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) eventFilter)
 
         RequestProfileByNip05 nip05 ->
-            ( model, fetchNip05Info (Nip05FetchedForNip05 requestId nip05) nip05 )
+            ( model, fetchNip05InfoViaProxy (Nip05FetchedForNip05 requestId nip05) nip05 )
 
         RequestReactions eventFilter ->
             ( model, model.hooks.requestEvents description False requestId configuredRelays eventFilter)
@@ -219,6 +220,9 @@ performRequest model description requestId requestData =
 
         RequestNip98Auth serverUrl apiUrl method ->
             ( model, model.hooks.requestNip96Auth requestId serverUrl apiUrl method)
+
+        RequestSearchResults eventFilters ->
+            ( { model | articlesByDate = [] }, model.hooks.searchEvents description True requestId (getSearchRelayUrls model model.defaultUser) eventFilters)
 
         RequestShortNote eventFilter ->
             ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter)
@@ -254,6 +258,34 @@ send model sendRequest =
             , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model pubKey) event
             )
 
+        SendBookmarkListWithShortNote pubKey eventId ->
+            let
+                bookmarkList =
+                    getBookmarks model pubKey
+                    |> Maybe.withDefault emptyBookmarkList
+
+                event =
+                    bookmarkListWithShortNote bookmarkList eventId
+                    |> bookmarkListEvent pubKey
+            in
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model pubKey) event
+            )
+
+        SendBookmarkListWithoutShortNote pubKey eventId ->
+            let
+                bookmarkList =
+                    getBookmarks model pubKey
+                    |> Maybe.withDefault emptyBookmarkList
+
+                event =
+                    bookmarkListWithoutShortNote bookmarkList eventId
+                    |> bookmarkListEvent pubKey
+            in
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model pubKey) event
+            )
+
         SendClientRecommendation relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
             , model.hooks.sendEvent model.lastSendRequestId relays event
@@ -282,6 +314,23 @@ send model sendRequest =
         SendDeletionRequest relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
             , model.hooks.sendEvent model.lastSendRequestId relays event
+            )
+
+        SendReaction userPubKey eventId articlePubKey addressComponents ->
+            let
+                event =
+                    emptyEvent userPubKey KindReaction
+            in
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model userPubKey)
+                { event
+                    | content = "+"
+                    , tags =
+                        [ AddressTag addressComponents 
+                        , EventIdTag eventId
+                        , PublicKeyTag articlePubKey Nothing Nothing
+                        ]
+                }
             )
 
         SendRelayList relays event ->
@@ -319,6 +368,10 @@ getArticlesByDate model =
     model.articlesByDate
     |> List.filter (filterDeletedArticle model)
 
+resetArticles : Model -> Model
+resetArticles model =
+    { model | articlesByDate = [] }
+
 getArticleDraftsByDate : Model -> List Article
 getArticleDraftsByDate model =
     model.articleDraftsByDate
@@ -340,6 +393,7 @@ getArticlesForAuthor model pubKey =
     |> Dict.get pubKey
     |> Maybe.withDefault []
     |> List.filter (filterDeletedArticle model)
+    |> sortArticlesByDate
 
 filterDeletedArticle : Model -> Article -> Bool
 filterDeletedArticle model article =
@@ -435,9 +489,9 @@ getBookmarks model pubKey =
     Dict.get pubKey model.bookmarkLists
 
 
-getReactionsForArticle : Model -> Article -> Maybe (Dict String Nostr.Reactions.Reaction)
-getReactionsForArticle model article =
-    Dict.get article.id model.reactions
+getReactionsForArticle : Model -> AddressComponents -> Maybe (Dict PubKey Nostr.Reactions.Reaction)
+getReactionsForArticle model addressComponents =
+    Dict.get (buildAddress addressComponents) model.reactionsForAddress
 
 
 getRelaysForPubKey : Model -> PubKey -> List (RelayRole, Relay)
@@ -516,7 +570,39 @@ getSearchRelayUrls model maybePubKey =
             |> Maybe.withDefault (getSearchRelayUrls model Nothing)
 
         Nothing ->
-            Pareto.defaultSearchRelays
+            case relaysWithSearchCapability model of
+                [] ->
+                    -- this can happen before the relays have reported their NIP-11 data
+                    Pareto.defaultSearchRelays
+                    |> List.map (\urlWithoutProtocol -> "wss://" ++ urlWithoutProtocol)
+
+                relayList ->
+                    relayList
+                    |> List.map (\urlWithoutProtocol -> "wss://" ++ urlWithoutProtocol)
+
+
+-- filter relays that claim to support NIP-50 (Search)
+relaysWithSearchCapability : Model -> List RelayUrl
+relaysWithSearchCapability model =
+    model.relays
+    |> Dict.values
+    |> List.filterMap (\relay ->
+            case relay.nip11 of
+                Just nip11 ->
+                    case nip11.supportedNips of
+                        Just supportedNips ->
+                            if List.member 50 supportedNips then
+                                Just relay.urlWithoutProtocol
+                            else
+                                Nothing
+
+                        Nothing ->
+                            Nothing
+
+                Nothing ->
+                    Nothing
+        )
+
 
 getRelaysForRequest : Model -> Maybe RequestId -> List RelayUrl
 getRelaysForRequest model maybeRequestId =
@@ -548,6 +634,10 @@ getRequest model requestId =
 getShortNoteById : Model -> String -> Maybe ShortNote
 getShortNoteById model noteId =
     Dict.get noteId model.shortTextNotes
+
+getShortNotes : Model -> List ShortNote
+getShortNotes model =
+    Dict.values model.shortTextNotes
 
 
 getZapReceiptsForArticle : Model -> Article -> Maybe (Dict String Nostr.Zaps.ZapReceipt)
@@ -586,25 +676,23 @@ getPubKeyByNip05 model nip05 =
 
 requestCommunityPostApprovals : Model -> Community -> Cmd Msg
 requestCommunityPostApprovals model community =
-    profileFilterForCommunityPostApprovals community
+    eventFilterForCommunityPostApprovals community
     |> model.hooks.requestEvents "Community post approvals" False -1 []
 
-profileFilterForCommunityPostApprovals : Community -> EventFilter
-profileFilterForCommunityPostApprovals community =
-    { authors = Just [ community.pubKey ]
+eventFilterForCommunityPostApprovals : Community -> EventFilter
+eventFilterForCommunityPostApprovals community =
+    { emptyEventFilter
+    | authors = Just [ community.pubKey ]
     , kinds = Just [ KindCommunityPostApproval ]
-    , ids = Nothing
     , tagReferences = Just [ TagReferenceCode (KindCommunityDefinition, community.pubKey, (Maybe.withDefault "" community.dtag)) ]
-    , limit = Nothing
-    , since = Nothing
-    , until = Nothing
     }
 
 requestUserData : Model -> PubKey -> (Model, Cmd Msg)
 requestUserData model pubKey =
     let
         request =
-            { authors = Just [ pubKey ]
+            { emptyEventFilter
+            | authors = Just [ pubKey ]
             , kinds = Just
                 [ KindUserMetadata
                 , KindBlockedRelaysList
@@ -621,11 +709,6 @@ requestUserData model pubKey =
                 , KindSearchRelaysList
                 , KindUserServerList
                 ]
-            , ids = Nothing
-            , tagReferences = Nothing
-            , limit = Nothing
-            , since = Nothing
-            , until = Nothing
             }
             -- assumption: our standard relays are good for the user's profile
             |> RequestProfile Nothing
@@ -633,19 +716,6 @@ requestUserData model pubKey =
     in
     doRequest { model | defaultUser = Just pubKey } request
 
-{-
-requestRelatedInfo : Model -> PubKey -> Cmd Msg
-requestRelatedInfo model pubKey =
-    { emptyEventFilter | authors = Just [ pubKey ], kinds = Just [ KindFollows, KindMuteList, KindRelayListMetadata, KindCommunitiesList, KindFollowSets, KindCommunitiesList ] }
-    |> model.hooks.requestEvents -1
-
-requestProfiles : Model -> List PubKey -> Maybe (Cmd Msg)
-requestProfiles model authors =
-    authors
-    |> getMissingProfilePubKeys model
-    |> profileFilterForAuthors
-    |> Maybe.map (model.hooks.requestEvents -1)
--}
 getMissingProfilePubKeys : Model -> List PubKey -> List PubKey
 getMissingProfilePubKeys model pubKeys =
     pubKeys
@@ -657,19 +727,15 @@ getMissingProfilePubKeys model pubKeys =
                     Just pubKey
         )
 
-profileFilterForAuthors : List String -> Maybe EventFilter
-profileFilterForAuthors authors =
+eventFilterForAuthors : List String -> Maybe EventFilter
+eventFilterForAuthors authors =
     if List.isEmpty authors then
         Nothing
     else
         Just
-            { authors = Just authors
+            { emptyEventFilter
+            | authors = Just authors
             , kinds = Just [ KindUserMetadata ]
-            , ids = Nothing
-            , tagReferences = Nothing
-            , limit = Nothing
-            , since = Nothing
-            , until = Nothing
             }
 
 getCommunityList : Model -> PubKey -> Maybe (List CommunityReference)
@@ -678,15 +744,26 @@ getCommunityList model pubKey =
 
 getInteractions : Model -> Maybe PubKey -> Article -> Nostr.Reactions.Interactions
 getInteractions model maybePubKey article =
+    let
+        maybeAddressComponents =
+            addressComponentsForArticle article
+    in
     { zaps = getZapReceiptsCountForArticle model article
     , highlights = Nothing
     , reactions = getReactionsCountForArticle model article
     , reposts = Nothing
     , notes = Nothing
-    , bookmarks = Nothing
+    , bookmarks = Maybe.map (getBookmarkListCountForAddressComponents model) maybeAddressComponents
     , isBookmarked =
         Maybe.map (isArticleBookmarked model article) maybePubKey
         |> Maybe.withDefault False
+    , reaction =
+        case (maybePubKey, maybeAddressComponents) of
+            (Just userPubKey, Just addressComponents) ->
+                getReactionForArticle model userPubKey addressComponents
+
+            (_, _) ->
+                Nothing
     }
     
 
@@ -723,40 +800,51 @@ addZapAmount zapReceipt prevSum =
     |> Maybe.map (\amount -> prevSum + amount)
     |> Maybe.withDefault prevSum
 
+getBookmarkListCountForAddressComponents : Model -> AddressComponents -> Int
+getBookmarkListCountForAddressComponents model addressComponents =
+    model.bookmarkLists
+    |> Dict.values
+    |> List.map (\bookmarkList ->
+            bookmarkList.articles
+            |> List.filter (\articleAddressComponents -> articleAddressComponents == addressComponents)
+            |> List.length
+        )
+    |> List.sum
+
 getReactionsCountForArticle : Model -> Article -> Maybe Int
 getReactionsCountForArticle model article =
     article
-    |> getReactionsForArticle model
+    |> addressComponentsForArticle
+    |> Maybe.andThen (getReactionsForArticle model)
     |> Maybe.map Dict.size
 
-profileFilterForDeletionRequests : List TagReference -> Maybe EventFilter
-profileFilterForDeletionRequests tagsReferences =
+getReactionForArticle : Model -> PubKey -> AddressComponents -> Maybe Reaction
+getReactionForArticle model pubKey addressComponents =
+    getReactionsForArticle model addressComponents
+    |> Maybe.andThen (Dict.get pubKey)
+
+
+eventFilterForDeletionRequests : List TagReference -> Maybe EventFilter
+eventFilterForDeletionRequests tagsReferences =
     if List.isEmpty tagsReferences then
         Nothing
     else
         Just
-            { authors = Nothing
-            , kinds = Just [ KindEventDeletionRequest ]
-            , ids = Nothing
+            { emptyEventFilter
+            | kinds = Just [ KindEventDeletionRequest ]
             , tagReferences = Just tagsReferences
-            , limit = Nothing
-            , since = Nothing
-            , until = Nothing
             }
 
-profileFilterForReactions : List TagReference -> Maybe EventFilter
-profileFilterForReactions tagReferences =
+
+eventFilterForReactions : List TagReference -> Maybe EventFilter
+eventFilterForReactions tagReferences =
     if List.isEmpty tagReferences then
         Nothing
     else
         Just
-            { authors = Nothing
-            , kinds = Just [ KindZapReceipt, KindHighlights, KindRepost, KindShortTextNote, KindReaction, KindBookmarkSets ]
-            , ids = Nothing
+            { emptyEventFilter
+            | kinds = Just [ KindZapReceipt, KindHighlights, KindRepost, KindShortTextNote, KindReaction, KindBookmarkList, KindBookmarkSets ]
             , tagReferences = Just tagReferences
-            , limit = Nothing
-            , since = Nothing
-            , until = Nothing
             }
 
 articleFromList : Model -> EventFilter -> List Article -> Maybe Article
@@ -792,6 +880,7 @@ empty =
         , requestEvents = \_ _ _ _ _ -> Cmd.none
         , requestBlossomAuth = \_ _ _ _ -> Cmd.none
         , requestNip96Auth = \_ _ _ _ -> Cmd.none
+        , searchEvents = \_ _ _ _ _ -> Cmd.none
         , sendEvent = \_ _ _ -> Cmd.none
         }
     , pubKeyByNip05 = Dict.empty
@@ -800,7 +889,8 @@ empty =
     , followSets = Dict.empty
     , profiles = Dict.empty
     , profileValidations = Dict.empty
-    , reactions = Dict.empty
+    , reactionsForEventId = Dict.empty
+    , reactionsForAddress = Dict.empty
     , relayMetadataLists = Dict.empty
     , relays = Dict.empty
     , relaysForPubKey = Dict.empty
@@ -890,14 +980,6 @@ update msg model =
                         Err error ->
                             ({ model | errors = Decode.errorToString error :: model.errors }, Cmd.none)
 
-                "reactions" ->
-                    case Decode.decodeValue (Decode.list Nostr.Reactions.nostrReactionDecoder) message.value of
-                        Ok reactions ->
-                            updateWithReactions model reactions
-
-                        Err error ->
-                            ({ model | errors = Decode.errorToString error :: model.errors }, Cmd.none)
-
                 "zap_receipts" ->
                     case Decode.decodeValue (Decode.list Nostr.Zaps.nostrZapReceiptDecoder) message.value of
                         Ok zapReceipts ->
@@ -965,6 +1047,8 @@ update msg model =
         Nip05FetchedForNip05 requestId nip05 (Ok nip05Data) ->
             updateModelWithNip05Data model requestId nip05 nip05Data
 
+--       Nip05FetchedForNip05 requestId nip05 (Err (Http.BadStatus 404)) ->
+--           ( model, fetchNip05InfoDirectly (Nip05FetchedForNip05 requestId nip05) nip05 )
 
         Nip05FetchedForNip05 requestId nip05 (Err error) ->
             ( { model | errors = ("Error fetching NIP05 data for " ++ nip05ToString nip05 ++ ": " ++ httpErrorToString error) :: model.errors}, Cmd.none )
@@ -1022,6 +1106,9 @@ updateModelWithEvents model requestId kind events =
 
         KindDraftLongFormContent ->
             updateModelWithLongFormContentDraft model requestId events
+
+        KindReaction ->
+            updateModelWithReactions model requestId events
 
         KindSearchRelaysList ->
             updateModelWithSearchRelays model requestId events
@@ -1152,12 +1239,15 @@ updateModelWithLongFormContent model requestId events =
 
         -- sort articles, newest first
         articlesByDate =
-            articles
-            |> List.sortBy (\article ->
-                article.publishedAt
-                |> Maybe.map (\publishedAt -> Time.posixToMillis publishedAt * -1)
-                |> Maybe.withDefault 0
+            -- important that existing articles come first so if an article is edited it replaces the existing one
+            model.articlesByDate ++ articles
+            |> List.map (\article ->
+                    (Maybe.withDefault "" (addressForArticle article), article)
                 )
+            -- eliminate duplicates
+            |> Dict.fromList
+            |> Dict.values
+            |> sortArticlesByDate
 
         articlesByAddress =
             articles
@@ -1200,6 +1290,15 @@ updateModelWithLongFormContent model requestId events =
     }
     , requestCmd
     )
+
+sortArticlesByDate : List Article -> List Article
+sortArticlesByDate articles =
+    articles
+    |> List.sortBy (\article ->
+        article.publishedAt
+        |> Maybe.map (\publishedAt -> Time.posixToMillis publishedAt * -1)
+        |> Maybe.withDefault (Time.posixToMillis article.createdAt * -1)
+        )
 
 appendArticleToList : List Article -> Article -> List Article
 appendArticleToList articleList article =
@@ -1253,7 +1352,16 @@ updateModelWithLongFormContentDraft model requestId events =
 
         -- sort articles, newest first
         articleDraftsByDate =
-            articles
+            -- important that existing drafts come first so if a draft is saved it replaces the existing one
+            model.articleDraftsByDate ++ articles
+            |> List.map (\article ->
+                    (Maybe.withDefault "" article.identifier, article)
+                )
+            |> Dict.fromList
+            |> Dict.toList
+            |> List.map (\(_, article) ->
+                    article
+                )
             |> List.sortBy (\article ->
                 article.publishedAt
                 |> Maybe.map (\publishedAt -> Time.posixToMillis publishedAt * -1)
@@ -1279,14 +1387,22 @@ updateModelWithLongFormContentDraft model requestId events =
     }
     ,requestCmd
     )
+
+
 requestRelatedKindsForArticles : Model -> List Article -> Request -> (Model, Cmd Msg)
 requestRelatedKindsForArticles model articles request =
     let
+        (requestNip27Model, requestWithNip27Requests) =
+            articles
+            |> List.map .nip27References
+            |> List.concat
+            |> appendNip27ProfileRequests model request
+
         maybeEventFilterForAuthorProfiles =
             articles
             |> Nostr.Article.uniqueArticleAuthors
-            |> getMissingProfilePubKeys model
-            |> profileFilterForAuthors
+            |> getMissingProfilePubKeys requestNip27Model
+            |> eventFilterForAuthors
 
         (requestProfileModel, extendedRequestProfile) =
             case maybeEventFilterForAuthorProfiles of
@@ -1294,7 +1410,7 @@ requestRelatedKindsForArticles model articles request =
                     -- TODO: add relays for request
                     eventFilterForAuthorProfiles
                     |> RequestProfile Nothing
-                    |> addToRequest model request
+                    |> addToRequest model requestWithNip27Requests
 
                 Nothing ->
                     (model, request)
@@ -1302,7 +1418,7 @@ requestRelatedKindsForArticles model articles request =
         (extendedModel, extendedRequestReactions) =
             articles
             |> List.map Nostr.Article.tagReference
-            |> profileFilterForReactions
+            |> eventFilterForReactions
             |> Maybe.map RequestReactions
             |> Maybe.map (addToRequest requestProfileModel extendedRequestProfile)
             |> Maybe.withDefault (requestProfileModel, extendedRequestProfile)
@@ -1311,13 +1427,62 @@ requestRelatedKindsForArticles model articles request =
             articles
             |> List.filterMap Nostr.Article.addressComponentsForArticle
             |> List.map Nostr.Event.TagReferenceCode
-            |> profileFilterForDeletionRequests
+            |> eventFilterForDeletionRequests
             |> Maybe.map RequestDeletionRequests
             |> Maybe.map (addToRequest extendedModel extendedRequestReactions)
             |> Maybe.withDefault (extendedModel, extendedRequestReactions)
-
     in
     doRequest modelWithDeletionRequests extendedRequestDeletionRequests
+
+appendNip27ProfileRequests : Model -> Request -> List NIP19Type -> (Model, Request)
+appendNip27ProfileRequests model request nip19List =
+    let
+        pubKeys =
+            nip19List
+            |> List.filterMap (\nip27Ref ->
+                case nip27Ref of
+                    Npub pubKey ->
+                        Just pubKey
+
+                    Nsec _ ->
+                        Nothing
+
+                    Note _ ->
+                        Nothing
+
+                    NProfile { pubKey, relays } ->
+                        Just pubKey
+
+                    NEvent _ ->
+                        Nothing
+
+                    NAddr _ ->
+                        Nothing
+
+                    NRelay _ ->
+                        Nothing
+
+                    Unknown _ ->
+                        Nothing
+            )
+            |> Set.fromList
+            |> Set.toList
+
+        maybeEventFilter =
+            pubKeys
+            |> getMissingProfilePubKeys model
+            |> eventFilterForAuthors
+
+    in
+    case maybeEventFilter of
+        Just eventFilterForProfiles ->
+            -- TODO: add relays for request
+            eventFilterForProfiles
+            |> RequestProfile Nothing
+            |> addToRequest model request
+
+        Nothing ->
+            (model, request)
 
 updateModelWithSearchRelays : Model -> RequestId -> List Event -> (Model, Cmd Msg)
 updateModelWithSearchRelays model requestId events =
@@ -1347,6 +1512,69 @@ updateModelWithSearchRelays model requestId events =
     in
     ({ model | searchRelayLists = relayListDict }, requestNip11Cmd)
 
+updateModelWithReactions : Model -> RequestId -> List Event -> (Model, Cmd Msg)
+updateModelWithReactions model requestId events =
+    let
+        reactions =
+            events
+            |> List.map reactionFromEvent
+
+        reactionsForEventId =
+            reactions
+            |> List.foldl (\reaction acc ->
+                case reaction.noteIdReactedTo of
+                    Just noteId ->
+                        case Dict.get noteId acc of
+                            Just dict ->
+                                Dict.insert noteId (Dict.insert reaction.pubKey reaction dict) acc
+
+                            Nothing ->
+                                Dict.insert noteId (Dict.singleton reaction.pubKey reaction) acc
+
+                    _ ->
+                        acc
+
+            ) model.reactionsForEventId
+
+        reactionsForAddress =
+            reactions
+            |> List.foldl (\reaction acc ->
+                case reaction.addressComponentsReactedTo of
+                    Just addressComponents ->
+                        let
+                            address =
+                                buildAddress addressComponents
+                        in
+                        case Dict.get address acc of
+                            Just dict ->
+                                Dict.insert address (Dict.insert reaction.pubKey reaction dict) acc
+
+                            Nothing ->
+                                Dict.insert address (Dict.singleton reaction.pubKey reaction) acc
+
+                    _ ->
+                        acc
+
+            ) model.reactionsForAddress
+
+    in
+    ({ model | reactionsForEventId = reactionsForEventId, reactionsForAddress = reactionsForAddress }, Cmd.none)
+
+extendReactionsDict :
+    Nostr.Reactions.Reaction
+    -> Dict EventId (Dict EventId Nostr.Reactions.Reaction)
+    -> Dict EventId (Dict EventId Nostr.Reactions.Reaction)
+extendReactionsDict reaction reactionDict =
+    case reaction.noteIdReactedTo of
+        Just noteIdReactedTo ->
+            reactionDict
+            |> Dict.get noteIdReactedTo
+            |> Maybe.map (Dict.insert reaction.id reaction)
+            |> Maybe.map (\extendedReactionDict -> Dict.insert noteIdReactedTo extendedReactionDict reactionDict)
+            |> Maybe.withDefault (Dict.insert noteIdReactedTo (Dict.singleton reaction.id reaction) reactionDict)
+
+        Nothing ->
+            reactionDict
 
 updateModelWithShortTextNotes : Model -> RequestId -> List Event -> (Model, Cmd Msg)
 updateModelWithShortTextNotes model requestId events =
@@ -1386,7 +1614,7 @@ requestRelatedKindsForShortNotes model shortNotes request =
         maybeEventFilterForAuthorProfiles =
             authorPubKeys
             |> getMissingProfilePubKeys model
-            |> profileFilterForAuthors
+            |> eventFilterForAuthors
 
         (requestProfileModel, extendedRequestProfile) =
             case maybeEventFilterForAuthorProfiles of
@@ -1402,7 +1630,7 @@ requestRelatedKindsForShortNotes model shortNotes request =
         (extendedModel, extendedRequestReactions) =
             shortNotes
             |> List.map Nostr.ShortNote.tagReference
-            |> profileFilterForReactions
+            |> eventFilterForReactions
             |> Maybe.map RequestReactions
             |> Maybe.map (addToRequest requestProfileModel extendedRequestProfile)
             |> Maybe.withDefault (requestProfileModel, extendedRequestProfile)
@@ -1427,7 +1655,7 @@ updateModelWithUserMetadata model requestId events =
         nip05Requests =
             profiles
             |> List.filterMap (\profile ->
-                    Maybe.map (\nip05 -> fetchNip05Info (Nip05FetchedForPubKey profile.pubKey nip05) nip05) profile.nip05
+                    Maybe.map (\nip05 -> fetchNip05InfoViaProxy (Nip05FetchedForPubKey profile.pubKey nip05) nip05) profile.nip05
                 )
 
         relatedKinds =
@@ -1630,31 +1858,6 @@ updateProfileWithValidationStatus model pubKey valid =
     { model | profileValidations = Dict.insert pubKey valid model.profileValidations, pubKeyByNip05 = updatedNip05Dict }
 
 
-updateWithReactions : Model -> List Nostr.Reactions.Reaction -> (Model, Cmd Msg)
-updateWithReactions model reactions =
-    let
-        extendedReactions =
-            reactions
-            |> List.foldl extendReactionsDict model.reactions 
-
-    in
-    ({ model | reactions = extendedReactions }, Cmd.none )
-
-extendReactionsDict :
-    Nostr.Reactions.Reaction
-    -> Dict EventId (Dict EventId Nostr.Reactions.Reaction)
-    -> Dict EventId (Dict EventId Nostr.Reactions.Reaction)
-extendReactionsDict reaction reactionDict =
-    case reaction.noteIdReactedTo of
-        Just noteIdReactedTo ->
-            reactionDict
-            |> Dict.get noteIdReactedTo
-            |> Maybe.map (Dict.insert reaction.id reaction)
-            |> Maybe.map (\extendedReactionDict -> Dict.insert noteIdReactedTo extendedReactionDict reactionDict)
-            |> Maybe.withDefault (Dict.insert noteIdReactedTo (Dict.singleton reaction.id reaction) reactionDict)
-
-        Nothing ->
-            reactionDict
 
 updateWithPubkeyProfiles : Model -> List Nostr.Profile.PubkeyProfile -> (Model, Cmd Msg)
 updateWithPubkeyProfiles model pubkeyProfiles =
@@ -1663,7 +1866,7 @@ updateWithPubkeyProfiles model pubkeyProfiles =
         nip05Requests =
             pubkeyProfiles
             |> List.filterMap (\{ pubKey, profile } ->
-                    Maybe.map (\nip05 -> fetchNip05Info (Nip05FetchedForPubKey pubKey nip05) nip05) profile.nip05
+                    Maybe.map (\nip05 -> fetchNip05InfoViaProxy (Nip05FetchedForPubKey pubKey nip05) nip05) profile.nip05
                 )
             |> Cmd.batch
 

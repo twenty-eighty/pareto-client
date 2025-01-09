@@ -24,9 +24,7 @@ import Route.Path
 import Shared
 import Shared.Model
 import Shared.Msg
-import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
-import Tailwind.Theme as Theme
 import Translations.Posts as Translations
 import Translations.Sidebar
 import Ui.Article
@@ -121,10 +119,10 @@ updateModelWithCategory shared model category =
         filter =
             case (shared.loginStatus, category) of
                 (Shared.Model.LoggedIn pubKey, Published) ->
-                    { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just [pubKey], limit = Just 20 }
+                    { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [pubKey], limit = Just 20 }
 
                 (Shared.Model.LoggedIn pubKey, Drafts) ->
-                    { emptyEventFilter | kinds = Just [KindDraftLongFormContent], authors = Just [pubKey], limit = Just 20 }
+                    { emptyEventFilter | kinds = Just [ KindDraftLongFormContent, KindDraft ], authors = Just [pubKey], limit = Just 20 }
 
                 (_, _) ->
                     emptyEventFilter
@@ -177,6 +175,8 @@ viewArticles shared model userPubKey =
                         , nostr = shared.nostr
                         , userPubKey = Just userPubKey
                         , onBookmark = Nothing
+                        , onReaction = Nothing
+                        , onZap = Nothing
                         }
 
         Drafts ->

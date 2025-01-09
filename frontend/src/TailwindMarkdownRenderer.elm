@@ -3,21 +3,22 @@ module TailwindMarkdownRenderer exposing (renderer)
 import Css
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as Attr exposing (css)
-import LinkPreview
+import LinkPreview exposing (LoadedContent)
 import Markdown.Block as Block
 import Markdown.Html
 import Markdown.Renderer
-import Nostr.Nip27 exposing (subsituteNostrLinks)
+import Nostr.Nip27 exposing (GetProfileFunction, subsituteNostrLinks)
 import Parser
 import SyntaxHighlight
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Nostr.Shared exposing (ensureHttps)
 import Ui.Styles exposing (Styles)
 
 
-renderer : Styles msg -> Markdown.Renderer.Renderer (Html msg)
-renderer styles =
+renderer : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> Markdown.Renderer.Renderer (Html msg)
+renderer styles loadedContent fnGetProfile =
     { heading = heading styles
     , paragraph =
         Html.p
@@ -37,7 +38,7 @@ renderer styles =
                 ]
             ]
             []
-    , text = (subsituteNostrLinks styles)
+    , text = (subsituteNostrLinks styles fnGetProfile)
     , strong = \content -> Html.strong [ css [ Tw.font_bold ] ] content
     , emphasis = \content -> Html.em [ css [ Tw.italic ] ] content
     , blockQuote =
@@ -57,23 +58,29 @@ renderer styles =
 
     --, codeSpan = code
     , link =
-        formatLink styles
+        formatLink styles loadedContent
     , hardLineBreak = Html.br [] []
     , image =
         \image ->
             case image.title of
-                Just _ ->
-                    Html.img
-                        [ Attr.src image.src
-                        , Attr.alt image.alt
-                        , css
-                            [Tw.max_h_96
+                Just title ->
+                    Html.figure
+                        [ css
+                            [ 
                             ]
-                        ] []
+                        ]
+                        [ Html.img
+                            [ Attr.src (ensureHttps image.src)
+                            , Attr.alt image.alt
+                            ] []
+                        , Html.figcaption
+                            []
+                            [ Html.text title ]
+                        ]
 
                 Nothing ->
                     Html.img
-                        [ Attr.src image.src
+                        [ Attr.src (ensureHttps image.src)
                         , Attr.alt image.alt
                         , css
                             [Tw.max_h_96
@@ -341,6 +348,14 @@ htmlBlock =
     Markdown.Html.oneOf
         [ htmlCiteElement
         , htmlImgElement
+        , htmlPElement
+        , htmlStrongElement
+        , htmlGenericElement "col"
+        , htmlGenericElement "colgroup"
+        , htmlGenericElement "table"
+        , htmlGenericElement "tbody"
+        , htmlGenericElement "td"
+        , htmlGenericElement "tr"
         ]
 
 htmlImgElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
@@ -359,6 +374,18 @@ htmlCiteElement =
             renderHtmlCiteElement maybeSrc
         )
         |> Markdown.Html.withOptionalAttribute "src"
+
+htmlPElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlPElement =
+    Markdown.Html.tag "p" (\children -> Html.p [] children)
+
+htmlStrongElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlStrongElement =
+    Markdown.Html.tag "strong" (\children -> Html.strong [] children)
+
+htmlGenericElement : String -> Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlGenericElement tagName =
+    Markdown.Html.tag tagName (\ children -> Html.div [] children)
 
 renderHtmlCiteElement : Maybe String -> (List (Html msg) -> Html msg)
 renderHtmlCiteElement maybeSrc children =
@@ -384,7 +411,9 @@ renderHtmlImgElement src maybeAlt children =
             |> Maybe.withDefault []
     in
     Html.img
-        ([ Attr.src src
+        -- don't reference unsafe (http) resources
+        -- as this might display our site as unsafe
+        ([ Attr.src (ensureHttps src)
         , css
             [Tw.max_h_96
             ]
@@ -448,9 +477,10 @@ defaultFormatCodeBlock body =
         [ Html.code [] [ Html.text body ] ]
 
 
-formatLink : Styles msg -> { title: Maybe String, destination : String } -> List (Html msg) -> Html msg
-formatLink styles { destination } body =
+formatLink : Styles msg -> Maybe (LoadedContent msg) -> { title: Maybe String, destination : String } -> List (Html msg) -> Html msg
+formatLink styles loadedContent { destination } body =
     LinkPreview.generatePreviewHtml
+        loadedContent
         destination
         (styles.textStyleLinks ++ styles.colorStyleLinks)
         body

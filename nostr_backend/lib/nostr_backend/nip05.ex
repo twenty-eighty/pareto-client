@@ -1,6 +1,9 @@
 defmodule NostrBackend.Nip05 do
   use HTTPoison.Base
 
+  @cache_name :nip05_cache
+  @cache_ttl 86_400 # 24 hours in seconds
+
   @moduledoc """
   Provides functions for handling NIP-05 identifiers, parsing them,
   and retrieving associated public keys and relays.
@@ -31,6 +34,59 @@ defmodule NostrBackend.Nip05 do
     end
   end
 
+    @doc """
+  Retrieves the raw `.well-known/nostr.json` response for a given `name` and `domain`,
+  caching the result to avoid repeated network requests.
+
+  ## Examples
+
+      iex> NostrBackend.Nip05.get_cached_well_known("alice", "example.com")
+      {:ok, %{"names" => %{"alice" => "npub123..."}}}
+
+      iex> NostrBackend.Nip05.get_cached_well_known("unknown", "example.com")
+      {:error, "NIP-05 data not found on domain"}
+  """
+  def get_cached_well_known(name, domain) do
+    cache_key = "#{domain}/#{name}"
+
+    case Cachex.get(@cache_name, cache_key) do
+      {:ok, nil} ->
+        # If not in cache, fetch and cache the response
+        case fetch_well_known(name, domain) do
+          {:ok, response} ->
+            Cachex.put(@cache_name, cache_key, response, ttl: @cache_ttl)
+            {:ok, response}
+
+          error ->
+            error
+        end
+
+      {:ok, response} ->
+        {:ok, response}
+
+      {:error, reason} ->
+        {:error, "Cache error: #{inspect(reason)}"}
+    end
+  end
+
+  defp fetch_well_known(name, domain) do
+    url = "https://#{domain}/.well-known/nostr.json?name=#{name}"
+
+    case HTTPoison.get(url, [], follow_redirect: true) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        case Jason.decode(body) do
+          {:ok, data} -> {:ok, data}
+          {:error, reason} -> {:error, "Invalid JSON: #{inspect(reason)}"}
+        end
+
+      {:ok, %HTTPoison.Response{status_code: status}} when status in [404, 400] ->
+        {:error, "NIP-05 data not found on domain"}
+
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        {:error, "HTTP request failed: #{inspect(reason)}"}
+    end
+  end
+
   @doc """
   Retrieves the public key and relay URLs for a given `name` and `domain`
   by performing an HTTP request to the domain as per the NIP-05 specification.
@@ -44,34 +100,27 @@ defmodule NostrBackend.Nip05 do
       {:error, "Public key and relays not found for name and domain"}
   """
   def get_pubkey_and_relays(name, domain) when is_binary(name) and is_binary(domain) do
-    url = "https://#{domain}/.well-known/nostr.json?name=#{name}"
+    case fetch_well_known(name, domain) do
+      {:ok, %{"names" => names} = data} ->
+        case Map.get(names, name) do
+          nil ->
+            {:error, "Public key and relays not found for name and domain"}
 
-    case HTTPoison.get(url, [], follow_redirect: true) do
-      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
-        with {:ok, data} <- Jason.decode(body),
-             %{"names" => names} <- data,
-             public_key when is_binary(public_key) <- Map.get(names, name) do
-          relays = data["relays"]
+          public_key when is_binary(public_key) ->
+            relays =
+              case Map.get(data, "relays") do
+                nil -> []
+                relay_map -> Map.get(relay_map, public_key, [])
+              end
 
-          relay_urls =
-            if relays != nil do
-              Map.get(relays, public_key, [])
-            else
-              []
-            end
-
-          {:ok, public_key, relay_urls}
-        else
-          _ -> {:error, "Public key and relays not found for name and domain"}
+            {:ok, public_key, relays}
         end
 
-      {:ok, %HTTPoison.Response{status_code: status}} when status in [404, 400] ->
-        {:error, "NIP-05 data not found on domain"}
-
-      {:error, %HTTPoison.Error{reason: reason}} ->
-        {:error, "HTTP request failed: #{inspect(reason)}"}
+      {:error, reason} ->
+        {:error, reason}
     end
   end
+
 
   @doc """
   Parses a NIP-05 identifier and returns the public key and relays if available.

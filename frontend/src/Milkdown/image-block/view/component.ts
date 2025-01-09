@@ -7,6 +7,7 @@ import { useBlockEffect } from './event'
 
 export interface Attrs {
   src: string
+  alt: string
   caption: string
   ratio: number
 }
@@ -23,6 +24,7 @@ let timer: number = 0
 export const imageComponent: Component<ImageComponentProps> = ({
   src = '',
   caption = '',
+  alt = '',
   ratio = 1,
   selected = false,
   readonly = false,
@@ -121,11 +123,13 @@ export const imageComponent: Component<ImageComponentProps> = ({
     e.stopPropagation()
     e.preventDefault()
 
-    const url = await config?.onClickUploader()
-    if (!url)
+    const imageData = await config?.onClickUploader()
+    if (!imageData)
       return
 
-    setAttr?.('src', url)
+    setAttr?.('src', imageData.url)
+    setAttr?.('caption', imageData.caption)
+    setAttr?.('alt', imageData.alt)
     setHidePlaceholder(true)
   }
 
@@ -186,6 +190,7 @@ export const imageComponent: Component<ImageComponentProps> = ({
 imageComponent.props = {
   src: String,
   caption: String,
+  alt: String,
   ratio: Number,
   selected: Boolean,
   readonly: Boolean,

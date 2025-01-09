@@ -2,13 +2,16 @@
    "about": {
       "about page title": "Über",
       "supported kinds title": "Unterstützte Nostr \"kinds\"",
+      "supported nips title": "Unterstützte NIPs",
       "supported web targets title": "Unterstützte Web-Ziele",
       "publish handler information button title": "Handler-Information veröffentlichen",
       "publish profile button title": "Profil veröffentlichen",
       "recomendation explanation": "Das ist eine tolle App. Alle sollten davon wissen!",
       "recommend client button title": "Pareto-Client empfehlen",
       "about frontend text": "Der Pareto Client wurde entwickelt mit",
-      "about backend text": "Das Pareto Backend wurde entwickelt mit",
+      "about frontend text 2": " in der Programmiersprache ",
+      "about frontend text 3": ".",
+      "about backend text": "Das Pareto Backend wurde entwickelt mit dem",
       "source code text": "Der Quellcode des Pareto Clients wird bald veröffentlicht."
    },
    "article page": {
@@ -38,11 +41,8 @@
       "configure server button title": "Pareto Medien-Server konfigurieren",
       "select image dialog title": "Bild auswählen"
    },
-   "read": {
-      "followed feed category": "Gefolgt",
-      "global feed category": "Global",
-      "pareto feed category": "Pareto",
-      "highlighter feed category": "Highlighter"
+   "message dialog": {
+      "warning": "Warnung"
    },
    "posts": {
       "posts title": "Artikel",
@@ -50,6 +50,13 @@
       "drafts category": "Entwürfe",
       "edit draft button label": "Bearbeiten",
       "delete draft button label": "Löschen"
+   },
+   "profile": {
+      "follow button title": "Folgen",
+      "unfollow button title": "Entfolgen",
+      "mute button title": "Stumm",
+      "public menu item text": "Öffentlich",
+      "private menu item text": "Privat"
    },
    "publish article dialog": {
       "dialog title": "Artikel veröffentlichen",
@@ -62,6 +69,13 @@
       "no relays configured text": "Möchtest du ein paar Standard-Relays einrichten?",
       "configure relays button title": "Relays konfigurieren"
    },
+   "read": {
+      "followed feed category": "Gefolgt",
+      "global feed category": "Global",
+      "pareto feed category": "Pareto",
+      "rss feed category": "Andere",
+      "highlighter feed category": "Highlighter"
+   },
    "relay status component": {
       "relay state unknown": "unbekannt",
       "relay disconnected": "getrennt",
@@ -73,7 +87,12 @@
       "loading profile": "Lade Profil ..."
    },
    "search": {
-      "page title": "Suchen"
+      "page title": "Suchen",
+      "explanation 1": "Füge eine Nostr-ID (npub, nprofile, nevent oder naddr), Nostr-Adresse (tony@pareto.space) oder eine URL mit einer Nostr-ID ein",
+      "explanation 2": "Hashtags werden unterstützt, setze ein # vor einen Begriff, um nach Hashtags zu filtern."
+   },
+   "search bar": {
+      "placeholder": "URL, Nostr-ID oder Nostr-Adresse"
    },
    "sidebar": {
       "reader client role text": "Leser",
@@ -83,7 +102,7 @@
       "get started button text": "Anmelden",
       "media menu item text": "Bilder",
       "messages menu item text": "Nachrichten",
-      "notifications menu item text": "Benachrichtigungen",
+      "notifications menu item text": "Benachr.",
       "posts menu item text": "Posts",
       "read menu item text": "Lesen",
       "search menu item text": "Suche",
@@ -128,11 +147,15 @@
       "editor subtitle placeholder text": "Füge eine Zusammenfassung hinzu ...",
       "page title": "Artikel schreiben",
       "publish button title": "Veröffentlichen ...",
+      "preview button title": "Vorschau",
+      "edit button title": "Weiter bearbeiten",
       "save draft button title": "Entwurf speichern",
       "summary text": "Zusammenfassung",
       "tags label text": "Schlüsselwörter",
       "tags placeholder text": "Schlüsselwörter, mit Komma getrennt",
       "upload button title": "Hochladen",
+      "article published message box title": "Artikel veröffentlicht",
+      "article published message box text": "Der Artikel wurde veröffentlicht.",
       "article modified state": "Artikel geändert",
       "article loading draft state": "Lade Entwurf ...",
       "article loading draft error": "Fehler beim Laden des Entwurfs",
@@ -144,5 +167,11 @@
       "article published state": "Artikel wurde veröffentlicht",
       "article publishing error": "Fehler beim Veröffentlichen des Artikels",
       "article deleting draft state": "Lösche Entwurf nach Veröffentlichung ..."
+   },
+   "zap dialog": {
+      "dialog title": "Zap",
+      "comment placeholder": "Kommentar (optional)",
+      "close button title": "Schließen",
+      "zap button title": "Zap"
    }
 }

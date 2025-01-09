@@ -1,19 +1,23 @@
-module Nostr.Nip27 exposing (collectNostrLinks, subsituteNostrLinks)
+module Nostr.Nip27 exposing (GetProfileFunction, collectNostrLinks, subsituteNostrLinks)
 
 import Html.Styled as Html exposing (Html, text, a)
 import Html.Styled.Attributes exposing (href)
 import Nostr.Nip19 as Nip19
+import Nostr.Profile exposing (Profile)
+import Nostr.Types exposing (PubKey)
 import Regex exposing (Regex)
 import String
+import Ui.Profile exposing (profileDisplayName)
 import Ui.Styles exposing (Styles)
-import Nostr.Nip19 as Nip19
 
 
+type alias GetProfileFunction =
+    PubKey -> Maybe Profile
 
 -- Main function to parse text and substitute nostr links
-subsituteNostrLinks : Styles msg -> String -> Html msg
-subsituteNostrLinks styles text =
-    case parseHelper styles text [] of
+subsituteNostrLinks : Styles msg -> GetProfileFunction -> String -> Html msg
+subsituteNostrLinks styles fnGetProfile text =
+    case parseHelper styles fnGetProfile text [] of
         [] ->
             Html.text text
 
@@ -40,8 +44,8 @@ collectNostrLinks input =
 
 
 -- Helper function to recursively parse the text
-parseHelper : Styles msg -> String -> List (Html msg) -> List (Html msg)
-parseHelper styles remainingText acc =
+parseHelper : Styles msg -> GetProfileFunction -> String -> List (Html msg) -> List (Html msg)
+parseHelper styles fnGetProfile remainingText acc =
     case String.indexes "nostr:" remainingText |> List.head of
         Nothing ->
             -- No more nostr links
@@ -53,8 +57,10 @@ parseHelper styles remainingText acc =
                 before = String.left index remainingText
                 afterNostr = String.dropLeft index remainingText
 
-                -- Extract the nostr link and the rest of the text
-                (nostrLink, rest) = extractNostrLink afterNostr
+                -- Drop the "nostr:" prefix before extracting the link
+                afterPrefix = String.dropLeft 6 afterNostr
+
+                (nostrLink, rest) = extractNostrLink afterPrefix
 
                 -- Build the Html elements
                 newAcc =
@@ -63,26 +69,55 @@ parseHelper styles remainingText acc =
                     else
                         text before :: acc
 
-                linkHtml = generateNostrLink styles nostrLink
+                -- Reconstruct the full matched link string: "nostr:" ++ nostrLink
+                fullNostrLink = "nostr:" ++ nostrLink
+
+                linkHtml = generateNostrLink styles fnGetProfile fullNostrLink
             in
-            parseHelper styles rest (linkHtml :: newAcc)
+            parseHelper styles fnGetProfile rest (linkHtml :: newAcc)
 
 
 -- Function to extract the nostr link and the rest of the text
 extractNostrLink : String -> (String, String)
 extractNostrLink str =
     let
-        extractHelper acc remaining =
+        -- Bech32 data characters
+        bech32Chars = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+
+        -- HRP can be lowercase alphanumeric
+        isHrpChar c =
+            Char.isAlpha c && Char.isLower c || Char.isDigit c
+
+        isDataChar c =
+            String.contains (String.fromChar c) bech32Chars
+
+        extractHelper acc seenOne remaining =
             case String.uncons remaining of
                 Nothing ->
                     (String.fromList (List.reverse acc), "")
+
                 Just (c, rest) ->
                     if isWhitespace c then
+                        -- Stop at whitespace
                         (String.fromList (List.reverse acc), remaining)
+                    else if seenOne then
+                        -- We're past the '1'; only bech32 chars allowed
+                        if isDataChar c then
+                            extractHelper (c :: acc) True rest
+                        else
+                            (String.fromList (List.reverse acc), remaining)
                     else
-                        extractHelper (c :: acc) rest
+                        -- Before we hit '1', we allow HRP chars + '1'
+                        if c == '1' then
+                            -- Now we start strict bech32 data mode
+                            extractHelper (c :: acc) True rest
+                        else if isHrpChar c then
+                            extractHelper (c :: acc) False rest
+                        else
+                            -- Invalid HRP char
+                            (String.fromList (List.reverse acc), remaining)
     in
-    extractHelper [] str
+    extractHelper [] False str
 
 
 -- Helper function to check for whitespace characters
@@ -92,25 +127,62 @@ isWhitespace c =
 
 
 -- Function to generate the Html link based on the nostr link type
-generateNostrLink : Styles msg -> String -> Html msg
-generateNostrLink styles nostrLink =
+generateNostrLink : Styles msg -> GetProfileFunction -> String -> Html msg
+generateNostrLink styles fnGetProfile nostrLink =
     let
         -- Remove the "nostr:" prefix
         linkContent = String.dropLeft 6 nostrLink
 
-        -- Determine the type and corresponding path
-        (linkType, path) =
-            if String.startsWith "nprofile" linkContent then
-                ( "nprofile", "/p/" ++ linkContent )
-            else if String.startsWith "naddr" linkContent then
-                ( "naddr", "/a/" ++ linkContent )
-            else if String.startsWith "nevent" linkContent then
-                ( "nevent", "/e/" ++ linkContent )
-            else
-                ( "", "" )
+        linkData =
+            case Nip19.decode linkContent of
+                Ok (Nip19.NAddr _) ->
+                    Just ( shortenedLinkText linkContent, "/a/" ++ linkContent)
+        
+                Ok (Nip19.NEvent noteId) ->
+                    Just ( shortenedLinkText linkContent, "/a/" ++ linkContent)
+
+                Ok (Nip19.Note noteId) ->
+                    Just ( shortenedLinkText linkContent, "/a/" ++ linkContent)
+
+                Ok (Nip19.Npub pubKey) ->
+                    case fnGetProfile pubKey of
+                        Just profile ->
+                            Just ( Ui.Profile.profileDisplayName pubKey profile , "/p/" ++ linkContent)
+
+                        Nothing ->
+                            Just ( shortenedLinkText linkContent, "/p/" ++ linkContent)
+
+                Ok (Nip19.NProfile { pubKey }) ->
+                    case fnGetProfile pubKey of
+                        Just profile ->
+                            Just ( Ui.Profile.profileDisplayName pubKey profile , "/p/" ++ linkContent)
+
+                        Nothing ->
+                            Just ( shortenedLinkText linkContent, "/p/" ++ linkContent)
+
+                Ok (Nip19.Nsec _) ->
+                    Nothing
+
+                Ok (Nip19.NRelay _) ->
+                    Nothing
+
+                Ok (Nip19.Unknown _) ->
+                    Nothing
+
+                Err _ ->
+                    Nothing
     in
-    if linkType == "" then
-        -- Not a recognized link type; output as text
-        text nostrLink
-    else
-        a (styles.textStyleLinks ++ [ href path ]) [ text nostrLink ]
+        case linkData of
+            Just (linkText, linkUrl) ->
+                a
+                    (styles.textStyleLinks ++ styles.colorStyleLinks ++
+                    [ href linkUrl ]
+                    )
+                    [ text <| linkText ]
+
+            Nothing ->
+                Html.text "<invalid reference>"
+
+shortenedLinkText : String -> String
+shortenedLinkText linkText =
+    String.left 9 linkText ++ "..." ++ String.right 6 linkText

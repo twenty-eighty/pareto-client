@@ -41,6 +41,12 @@ defmodule NostrBackend.Application do
         {Cachex, name: :note_cache, ttl_interval: :timer.minutes(1440)},
         id: :note_cache
       ),
+
+      # Cache for oembed calls
+      Supervisor.child_spec(
+        {Cachex, name: :oembed_cache, ttl_interval: :timer.minutes(1440)},
+        id: :oembed_cache
+      ),
       NostrBackend.PostHogBuffer,
 
       # Start a worker by calling: NostrBackend.Worker.start_link(arg)

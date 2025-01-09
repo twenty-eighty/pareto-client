@@ -3,8 +3,8 @@ import { Crepe } from '@milkdown/crepe';
 // import { ImageBlockFeatureConfig } from './feature/index';
 import { imageBlockComponent } from './image-block';
 import { imageBlockConfig } from './image-block/config'
-import "@milkdown/crepe/theme/frame.css";
 import "@milkdown/crepe/theme/common/style.css";
+import "@milkdown/crepe/theme/frame.css";
 
 /*
 import { defaultValueCtx, Editor, rootCtx } from '@milkdown/kit/core';
@@ -48,7 +48,10 @@ class ElmMilkdownEditor extends HTMLElement {
         this._editor = null;
         this._element = null;
         this._content = this.getAttribute('content') || '';
+        this._caption = '';
+        this._alt = '';
         this._imageSelectedResolve = null;
+        this._theme = 'nord';
     }
 
     connectedCallback() {
@@ -81,9 +84,14 @@ class ElmMilkdownEditor extends HTMLElement {
             this._content = newValue;
             this._setContent(newValue);
         } else if (attrName === 'selectedfile') {
-            if (newValue != "") {
-                console.log("Selected file ", newValue)
-                this._imageSelectedResolve(newValue);
+            const decoded = JSON.parse(newValue)
+            const url = decoded.url;
+            if (url != undefined) {
+                console.log("Selected file ", decoded);
+                const caption = decoded.caption;
+                const alt = decoded.alt;
+
+                this._imageSelectedResolve({ url: url, caption: caption, alt: alt });
                 this.dispatchEvent(new CustomEvent('receivedSelectedFile'));
             }
         } else if (attrName === 'height') {
@@ -91,9 +99,7 @@ class ElmMilkdownEditor extends HTMLElement {
                 this._element.style.height = newValue;
             }
         } else if (attrName === 'theme') {
-            if (this._element) {
-                this._setTheme(newValue);
-            }
+            this._setTheme(newValue);
         } else if (attrName === 'destroy') {
             if (newValue === 'true' && this._editor) {
                 this._editor.destroy();
@@ -153,6 +159,8 @@ class ElmMilkdownEditor extends HTMLElement {
             .use(commonmark)
             .use(listener)
             .use(imageBlockComponent);
+
+        // crepe.theme(this._theme)
 
         crepe.create().then((editor) => {
 
@@ -227,8 +235,14 @@ class ElmMilkdownEditor extends HTMLElement {
         if (theme !== 'nord' && theme !== 'nord-dark') {
             theme = 'nord';
         }
-        this._element.setAttribute('data-theme', theme);
-        this.crepe._setTheme(theme);
+        this._theme = theme;
+
+        if (this._element) {
+            this._element.setAttribute('data-theme', theme);
+        }
+        if (this.crepe) {
+            this.crepe._setTheme(theme);
+        }
     }
 }
 

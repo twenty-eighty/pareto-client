@@ -25,6 +25,17 @@ defmodule NostrBackendWeb.Router do
   end
 
   scope "/", NostrBackendWeb do
+    pipe_through([])
+
+    # Catch typical WordPress paths and respond with 404
+    get "/wp-admin/*path", NotFoundController, :index
+    get "/wp-content/*path", NotFoundController, :index
+    get "/wp-includes/*path", NotFoundController, :index
+    get "/xmlrpc.php", NotFoundController, :index
+    get "/index.php", NotFoundController, :index
+  end
+
+  scope "/", NostrBackendWeb do
     pipe_through([:browser, :posthog])
 
     get("/de", PageController, :landing_page_de)
@@ -55,6 +66,16 @@ defmodule NostrBackendWeb.Router do
   scope "/.well-known", NostrBackendWeb do
     get("/nostr.json", NostrController, :nip05)
     get("/nostr/nip96.json", NostrController, :nip96)
+  end
+
+  scope "/api", NostrBackendWeb do
+    pipe_through :api
+
+    get "/nip05/validate", NostrController, :validate_nip05_handle
+    # get "/opengraph", OpenGraphController, :fetch_metadata
+    get "/oembed", OembedController, :fetch_oembed
+    get "/opengraph/image", OpenGraphController, :fetch_metadata_image
+    get "/rumble/embed", RumbleController, :fetch_embed_url
   end
 
   # Enable LiveDashboard in development

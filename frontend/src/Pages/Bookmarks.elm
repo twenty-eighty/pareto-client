@@ -12,7 +12,7 @@ import Json.Decode as Decode
 import Layouts
 import Nostr exposing (getBookmarks)
 import Nostr.BookmarkList exposing (BookmarkList, BookmarkType(..), bookmarkListFromEvent, bookmarksCount, emptyBookmarkList)
-import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..))
+import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (IncomingMessage, PubKey)
@@ -83,13 +83,10 @@ requestForBookmarkContent nostr bookmarkType bookmarkList =
                     Nostr.getArticle nostr addressComponents == Nothing
                 )
             |> List.map (\(kind, pubKey, identifier) ->
-                { authors = Just [ pubKey ]
-                , ids = Nothing
+                { emptyEventFilter
+                | authors = Just [ pubKey ]
                 , kinds = Just [ kind ]
                 , tagReferences = Just [ TagReferenceIdentifier identifier ]
-                , limit = Nothing
-                , since = Nothing
-                , until = Nothing
                 }
                 |> RequestArticlesFeed 
                 |> Nostr.createRequest nostr "Bookmark articles" [KindUserMetadata]
@@ -275,6 +272,7 @@ viewArticleBookmarks : Auth.User -> Shared.Model -> Model -> List AddressCompone
 viewArticleBookmarks user shared model addressComponents =
     addressComponents
     |> List.filterMap (Nostr.getArticle shared.nostr)
+    |> Nostr.sortArticlesByDate
     |> Ui.View.viewArticlePreviews
         ArticlePreviewList
             { theme = shared.theme
@@ -282,6 +280,8 @@ viewArticleBookmarks user shared model addressComponents =
             , nostr = shared.nostr
             , userPubKey = Just user.pubKey
             , onBookmark = Just (AddArticleBookmark user.pubKey, RemoveArticleBookmark user.pubKey)
+            , onReaction = Nothing
+            , onZap = Nothing
             }
 
 viewHashtagBookmarks user shared model hashtags =

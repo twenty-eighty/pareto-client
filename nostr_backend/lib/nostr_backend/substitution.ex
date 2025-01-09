@@ -115,6 +115,8 @@ defmodule NostrBackend.Substitution do
   - First, attempts to replace entire words (e.g., "VII").
   - If no word match is found, substitutes characters individually if possible.
   """
+  def replace_randomly(nil), do: nil
+
   def replace_randomly(text) do
     text
     |> substitute_words()

@@ -18,7 +18,7 @@ import Route exposing (Route)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Ui.Profile
+import Ui.Profile exposing (FollowType(..))
 import Ui.Styles exposing (Styles, Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
@@ -135,7 +135,15 @@ view shared model =
 viewProfile : Shared.Model -> Profile -> Html Msg
 viewProfile shared profile =
     div []
-        [ Ui.Profile.viewProfile shared.theme profile (Nostr.getProfileValidationStatus shared.nostr profile.pubKey |> Maybe.withDefault ValidationUnknown)
+        [ Ui.Profile.viewProfile
+            profile
+            { browserEnv = shared.browserEnv
+            , following = UnknownFollowing
+            , theme = shared.theme
+            , validation =
+                Nostr.getProfileValidationStatus shared.nostr profile.pubKey
+                    |> Maybe.withDefault ValidationUnknown
+            }
         , Nostr.getArticlesForAuthor shared.nostr profile.pubKey 
         |> Ui.View.viewArticlePreviews
                 ArticlePreviewList 
@@ -144,5 +152,7 @@ viewProfile shared profile =
                     , nostr = shared.nostr
                     , userPubKey = Shared.loggedInPubKey shared.loginStatus
                     , onBookmark = Nothing
+                    , onReaction = Nothing
+                    , onZap = Nothing
                     }
         ]

@@ -2,12 +2,15 @@
    "about": {
       "about page title": "About",
       "supported kinds title": "Supported kinds",
+      "supported nips title": "Supported NIPs",
       "supported web targets title": "Supported web targets",
       "publish handler information button title": "Publish handler information",
       "publish profile button title": "Publish profile",
       "recomendation explanation": "Yes, I like this application. The whole world should know about it!",
       "recommend client button title": "Recommend Pareto client",
       "about frontend text": "The Pareto client was developed using",
+      "about frontend text 2": " using the ",
+      "about frontend text 3": " programming language.",
       "about backend text": "The Pareto backend was developed using the",
       "source code text": "The source code of the Pareto client will be released soon."
    },
@@ -38,11 +41,8 @@
       "configure server button title": "Configure Pareto media server",
       "select image dialog title": "Select image"
    },
-   "read": {
-      "followed feed category": "Followed",
-      "global feed category": "Global",
-      "pareto feed category": "Pareto",
-      "highlighter feed category": "Highlighter"
+   "message dialog": {
+      "warning": "Warning"
    },
    "posts": {
       "posts title": "Posts",
@@ -50,6 +50,13 @@
       "drafts category": "Drafts",
       "edit draft button label": "Edit",
       "delete draft button label": "Delete"
+   },
+   "profile": {
+      "follow button title": "Follow",
+      "unfollow button title": "Unfollow",
+      "mute button title": "Stumm",
+      "public menu item text": "Public",
+      "private menu item text": "Private"
    },
    "publish article dialog": {
       "dialog title": "Publish article",
@@ -62,6 +69,13 @@
       "no relays configured text": "Do you want to configure some default relays?",
       "configure relays button title": "Configure relays"
    },
+   "read": {
+      "followed feed category": "Followed",
+      "global feed category": "Global",
+      "pareto feed category": "Pareto",
+      "rss feed category": "Others",
+      "highlighter feed category": "Highlighter"
+   },
    "relay status component": {
       "relay state unknown": "unknown",
       "relay disconnected": "disconnected",
@@ -73,7 +87,12 @@
       "loading profile": "Loading profile..."
    },
    "search": {
-      "page title": "Search"
+      "page title": "Search",
+      "explanation 1": "",
+      "explanation 2": ""
+   },
+   "search bar": {
+      "placeholder": "URL, Nostr ID, or Nostr Address"
    },
    "sidebar": {
       "reader client role text": "Reader",
@@ -128,11 +147,15 @@
       "editor subtitle placeholder text": "Add a summary...",
       "page title": "Write article",
       "publish button title": "Publish...",
+      "preview button title": "Preview",
+      "edit button title": "Continue Editing",
       "save draft button title": "Save draft",
       "summary text": "Summary",
       "tags label text": "Tags",
       "tags placeholder text": "Tags, comma separated",
       "upload button title": "Upload",
+      "article published message box title": "Article published",
+      "article published message box text": "The article has been published.",
       "article modified state": "Article modified",
       "article loading draft state": "Loading draft...",
       "article loading draft error": "Error loading draft",
@@ -144,5 +167,11 @@
       "article published state": "Article published",
       "article publishing error": "Error publishing article",
       "article deleting draft state": "Deleting draft after publishing..."
+   },
+   "zap dialog": {
+      "dialog title": "Zap",
+      "comment placeholder": "Comment (optional)",
+      "close button title": "Close",
+      "zap button title": "Zap"
    }
 }

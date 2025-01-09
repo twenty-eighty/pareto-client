@@ -100,6 +100,38 @@ bookmarkListWithoutArticle bookmarks addressComponents =
     { bookmarks | articles = articlesWithoutAddress }
 
 
+bookmarkListWithShortNote : BookmarkList -> EventId -> BookmarkList
+bookmarkListWithShortNote bookmarks eventId =
+    let
+        listContainsNote =
+            bookmarks.notes
+            |> List.filter (\referencedAddressComponents ->
+                referencedAddressComponents == eventId
+                )
+            |> List.isEmpty
+            |> not
+
+        -- don't duplicate entry
+        notesWithEventId =
+            if not listContainsNote then
+                bookmarks.notes ++ [ eventId ]
+            else
+                bookmarks.notes
+
+    in
+    { bookmarks | notes = notesWithEventId }
+
+
+bookmarkListWithoutShortNote : BookmarkList -> EventId -> BookmarkList
+bookmarkListWithoutShortNote bookmarks eventId =
+    let
+        notesWithoutAddress =
+            bookmarks.notes
+            |> List.filter (\referencedEventId -> referencedEventId /= eventId)
+    in
+    { bookmarks | notes = notesWithoutAddress }
+
+
 bookmarkListEvent : PubKey -> BookmarkList -> Event
 bookmarkListEvent pubKey list =
     let

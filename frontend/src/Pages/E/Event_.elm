@@ -7,6 +7,7 @@ import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 import Layouts
+import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), eventFilterForNip19, informationForKind, kindFromNumber)
@@ -16,10 +17,12 @@ import Nostr.Types exposing (IncomingMessage, RelayUrl)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
+import Set
 import Shared
 import Shared.Model
 import Shared.Msg
 import Translations.Sidebar as Translations
+import Ui.ShortNote
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (viewRelayStatus)
 import Url
@@ -54,6 +57,7 @@ type ContentToView
 
 type alias Model =
     { contentToView : ContentToView
+    , loadedContent : LoadedContent Msg
     , requestId : Maybe RequestId
     }
 
@@ -133,6 +137,7 @@ init shared route () =
                     ( Effect.none, Nothing )
     in
     ( { contentToView = contentToView
+      , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
       , requestId = requestId
       }
     , effect
@@ -153,6 +158,7 @@ decodedTagParam tag =
 
 type Msg
     = OpenGetStarted
+    | AddLoadedContent String
     | ReceivedMessage IncomingMessage
     | NostrMsg Nostr.Msg
 
@@ -164,6 +170,9 @@ update shared msg model =
             ( model
             , Effect.sendCmd <| Ports.requestUser
             )
+
+        AddLoadedContent url ->
+            ( { model | loadedContent = LinkPreview.addLoadedContent model.loadedContent url}, Effect.none )
 
         ReceivedMessage message ->
             ( model, Effect.none )
@@ -211,7 +220,34 @@ viewContent shared model =
     case model.contentToView of
         ShortNote noteId ->
             Nostr.getShortNoteById shared.nostr noteId
-            |> Maybe.map (Ui.View.viewShortNote (styles) shared.browserEnv shared.nostr)
+            |> Maybe.map (\shortNote ->
+                    Ui.ShortNote.viewShortNote 
+                        { theme = shared.theme
+                        , browserEnv = shared.browserEnv
+                        , nostr = shared.nostr
+                        , userPubKey = Nothing
+                        , onBookmark = Nothing
+                        }
+                        { author = Nostr.getAuthor shared.nostr shortNote.pubKey
+                        , actions =
+                            { addBookmark = Nothing
+                            , removeBookmark = Nothing
+                            , addReaction = Nothing
+                            , removeReaction = Nothing
+                            }
+                        , interactions = 
+                            { zaps = Nothing
+                            , highlights = Nothing
+                            , reactions = Nothing
+                            , reposts = Nothing
+                            , notes = Nothing
+                            , bookmarks = Nothing
+                            , isBookmarked = False
+                            , reaction = Nothing
+                            }
+                        }
+                        shortNote
+                )
             |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingNote model.requestId)
 
         Article addressComponents relays ->
@@ -223,7 +259,10 @@ viewContent shared model =
                     , nostr = shared.nostr
                     , userPubKey = Shared.loggedInPubKey shared.loginStatus
                     , onBookmark = Nothing
+                    , onReaction = Nothing
+                    , onZap = Nothing
                     }
+                    (Just model.loadedContent)
                 )
             |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle model.requestId)
 

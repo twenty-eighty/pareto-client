@@ -10,8 +10,9 @@ import Layouts
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), emptyEventFilter)
+import Nostr.FollowList exposing (Following(..))
 import Nostr.Nip19 as Nip19
-import Nostr.Profile exposing (Profile)
+import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Types exposing (PubKey)
 import Page exposing (Page)
@@ -20,11 +21,10 @@ import Shared
 import Shared.Model
 import Shared.Msg
 import Translations.Sidebar as Translations
-import Ui.Profile
+import Ui.Profile exposing (FollowType(..))
 import Ui.Styles exposing (Styles, Theme)
 import Ui.View exposing (ArticlePreviewType(..), viewRelayStatus)
 import View exposing (View)
-import Nostr.Profile exposing (ProfileValidation(..))
 
 
 page : Shared.Model -> Route { profile : String } -> Page Model Msg
@@ -129,14 +129,20 @@ decodeParam profile =
 
 
 type Msg
-    = NoOp
+    = Follow PubKey PubKey
+    | Unfollow PubKey PubKey
 
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
-        NoOp ->
+        Follow pubKeyUser pubKeyToBeFollowed ->
             ( model, Effect.none)
+
+        Unfollow pubKeyUser pubKeyToBeUnfollowed ->
+            ( model
+            , Effect.none
+            )
 
 
 -- SUBSCRIPTIONS
@@ -159,11 +165,14 @@ view shared model =
     in
     { title = Translations.readMenuItemText [ shared.browserEnv.translations ]
     , body =
-        [ case maybeProfile of
-            Just profile ->
+        [ case (maybeProfile, model.pubKey) of
+            (Just profile, _) ->
                 viewProfile shared profile
 
-            Nothing ->
+            (Nothing, Just pubKey) ->
+                viewArticles shared pubKey
+
+            (Nothing, Nothing) ->
                 viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingProfile model.requestId
         ]
     }
@@ -171,14 +180,53 @@ view shared model =
 viewProfile : Shared.Model -> Profile -> Html Msg
 viewProfile shared profile =
     div []
-        [ Ui.Profile.viewProfile shared.theme profile (Nostr.getProfileValidationStatus shared.nostr profile.pubKey |> Maybe.withDefault ValidationUnknown)
-        , Nostr.getArticlesForAuthor shared.nostr profile.pubKey
-        |> Ui.View.viewArticlePreviews
-                ArticlePreviewList 
-                    { theme = shared.theme
-                    , browserEnv = shared.browserEnv
-                    , nostr = shared.nostr
-                    , userPubKey = Shared.loggedInPubKey shared.loginStatus
-                    , onBookmark = Nothing
-                    }
+        [ Ui.Profile.viewProfile
+              profile
+                { browserEnv = shared.browserEnv
+                , following = followingProfile shared.nostr profile.pubKey (Shared.loggedInPubKey shared.loginStatus)
+                , theme = shared.theme
+                , validation =
+                    Nostr.getProfileValidationStatus shared.nostr profile.pubKey
+                        |> Maybe.withDefault ValidationUnknown
+                }
+        , viewArticles shared profile.pubKey
         ]
+
+viewArticles : Shared.Model -> PubKey -> Html Msg
+viewArticles shared pubKey =
+    Nostr.getArticlesForAuthor shared.nostr pubKey
+    |> Ui.View.viewArticlePreviews
+        ArticlePreviewList 
+            { theme = shared.theme
+            , browserEnv = shared.browserEnv
+            , nostr = shared.nostr
+            , userPubKey = Shared.loggedInPubKey shared.loginStatus
+            , onBookmark = Nothing
+            , onReaction = Nothing
+            , onZap = Nothing
+            }
+
+followingProfile : Nostr.Model -> PubKey -> Maybe PubKey -> FollowType Msg
+followingProfile nostr profilePubKey maybePubKey =
+    case maybePubKey of
+        Just userPubKey ->
+            Nostr.getFollowsList nostr userPubKey
+            |> Maybe.andThen (\followList ->
+                followList
+                |> List.filterMap (\following ->
+                    case following of
+                        FollowingPubKey { pubKey } ->
+                            if profilePubKey == pubKey then
+                                Just (Following (Unfollow userPubKey))
+                            else
+                                Nothing
+
+                        FollowingHashtag _ ->
+                            Nothing
+                    )
+                |> List.head
+                )
+            |> Maybe.withDefault (NotFollowing (Follow userPubKey))
+
+        Nothing ->
+            UnknownFollowing

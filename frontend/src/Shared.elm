@@ -82,7 +82,7 @@ init flagsResult route =
                 -- request bookmark list of Pareto creators
                 -- as well as bookmark sets for different purposes
                 (nostr, nostrRequestCmd) =
-                    { emptyEventFilter | authors = Just [ Pareto.authorsKey ], kinds = Just [ KindFollows, KindFollowSets ] }
+                    { emptyEventFilter | authors = Just [ Pareto.authorsKey, Pareto.rssAuthorsKey, Pareto.editorKey ], kinds = Just [ KindFollows, KindFollowSets ] }
                     |> RequestFollowSets
                     |> Nostr.createRequest nostrInit "Follow list/sets of Pareto user" []
                     |> Nostr.doRequest nostrInit
@@ -130,6 +130,7 @@ portHooks =
     , receiveMessage = Ports.receiveMessage
     , requestBlossomAuth = Ports.requestBlossomAuth
     , requestNip96Auth = Ports.requestNip96Auth
+    , searchEvents = Ports.searchEvents
     , sendEvent = Ports.sendEvent
     }
 
@@ -181,6 +182,14 @@ update route msg model =
             , Effect.sendCmd <| Cmd.map Shared.Msg.NostrMsg nostrCmd
             )
 
+        ResetArticles ->
+            let
+                newNostr =
+                    Nostr.resetArticles model.nostr
+            in
+            ( { model | nostr = newNostr }
+            , Effect.none
+            )
         
         SendNostrEvent sendRequest ->
             let

@@ -3,30 +3,34 @@ module Pages.A.Addr_ exposing (..)
 import Browser.Dom
 import BrowserEnv exposing (BrowserEnv)
 import Components.RelayStatus exposing (Purpose(..))
+import Components.ZapDialog as ZapDialog
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html)
+import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes as Attr exposing (css)
 import Layouts
+import LinkPreview exposing (LoadedContent)
 import Nostr
+import Nostr.Article exposing (addressComponentsForArticle)
 import Nostr.Event as Event
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
-import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..))
+import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
+import Nostr.Send exposing (SendRequest(..))
+import Nostr.Types exposing (EventId, PubKey)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
+import Set
 import Shared
 import Shared.Msg
 import Shared.Model
 import Tailwind.Utilities as Tw
 import Task
 import Translations.ArticlePage as Translations
-import Ui.Styles exposing (Theme)
+import Ui.Styles exposing (Theme, stylesForTheme)
 import Ui.View exposing (viewRelayStatus)
 import Url
 import View exposing (View)
-import Html.Styled exposing (div)
-import Ui.Styles exposing (stylesForTheme)
 
 
 page : Shared.Model -> Route { addr : String } -> Page Model Msg
@@ -49,12 +53,16 @@ toLayout theme model =
 
 
 type Model
-    = Nip19Model
-        { nip19 : NIP19Type
-        , requestId : RequestId
-        }
+    = Nip19Model Nip19ModelData
     | ErrorModel String
 
+
+type alias Nip19ModelData =
+    { loadedContent : LoadedContent Msg
+    , nip19 : NIP19Type
+    , requestId : RequestId
+    , zapDialog : ZapDialog.Model Msg
+    }
 
 init : Shared.Model -> Route { addr : String } -> () -> ( Model, Effect Msg )
 init shared route () =
@@ -66,8 +74,10 @@ init shared route () =
             case decoded of
                 Ok nip19 ->
                     ( Nip19Model
-                        { nip19 = nip19
+                        { loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
+                        , nip19 = nip19
                         , requestId = Nostr.getLastRequestId shared.nostr
+                        , zapDialog = ZapDialog.init {}
                         }
                     , Nostr.getArticleForNip19 shared.nostr nip19
                     )
@@ -111,6 +121,12 @@ decodedTagParam tag =
 
 type Msg
     = OpenGetStarted
+    | AddArticleBookmark PubKey AddressComponents
+    | RemoveArticleBookmark PubKey AddressComponents
+    | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
+    | AddLoadedContent String
+    | ZapReaction PubKey (List ZapDialog.Recipient)
+    | ZapDialogSent (ZapDialog.Msg Msg)
     | NoOp
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -119,8 +135,70 @@ update shared msg model =
         OpenGetStarted ->
             ( model, Effect.sendCmd <| Ports.requestUser)
 
+        AddArticleBookmark pubKey addressComponents ->
+            ( model
+            , SendBookmarkListWithArticle pubKey addressComponents
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        RemoveArticleBookmark pubKey addressComponents ->
+            ( model
+            , SendBookmarkListWithoutArticle pubKey addressComponents
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        AddArticleReaction userPubKey eventId articlePubKey addressComponents ->
+            ( model
+            , SendReaction userPubKey eventId articlePubKey addressComponents
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        AddLoadedContent url ->
+            case model of
+                Nip19Model nip19ModelData ->
+                    ( Nip19Model { nip19ModelData | loadedContent = LinkPreview.addLoadedContent nip19ModelData.loadedContent url}, Effect.none )
+
+                _ ->
+                    ( model, Effect.none )
+
+        ZapReaction userPubKey recipients ->
+            case model of
+                Nip19Model nip19ModelData ->
+                    showZapDialog nip19ModelData recipients
+
+                _ ->
+                    ( model, Effect.none )
+
+        ZapDialogSent innerMsg ->
+            case model of
+                Nip19Model nip19ModelData ->
+                    ZapDialog.update
+                        { nostr = shared.nostr
+                        , msg = innerMsg
+                        , model = nip19ModelData.zapDialog
+                        , toModel = \zapDialog -> Nip19Model { nip19ModelData | zapDialog = zapDialog}
+                        , toMsg = ZapDialogSent
+                        }
+
+                _ ->
+                    ( model, Effect.none )
+
         NoOp ->
             ( model, Effect.none )
+
+showZapDialog : Nip19ModelData -> List ZapDialog.Recipient -> (Model, Effect Msg)
+showZapDialog nip19ModelData recipients =
+    let
+        (zapDialogModel, effect) =
+            ZapDialog.show nip19ModelData.zapDialog ZapDialogSent recipients
+    in
+    ( Nip19Model { nip19ModelData | zapDialog = zapDialogModel }
+    , effect
+    )
+
 
 -- SUBSCRIPTIONS
 
@@ -137,17 +215,24 @@ subscriptions model =
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     case model of
-        Nip19Model { nip19, requestId } ->
-            viewContent shared nip19 requestId
+        Nip19Model { loadedContent, nip19, requestId } ->
+            viewContent shared nip19 loadedContent requestId
 
         ErrorModel error ->
             viewError shared error
 
-viewContent : Shared.Model -> NIP19Type -> RequestId -> View Msg
-viewContent shared nip19 requestId =
+viewContent : Shared.Model -> NIP19Type -> LoadedContent Msg -> RequestId -> View Msg
+viewContent shared nip19 loadedContent requestId =
     let
         maybeArticle =
             Nostr.getArticleForNip19 shared.nostr nip19
+
+        addressComponents =
+            maybeArticle
+            |> Maybe.andThen addressComponentsForArticle
+
+        userPubKey =
+            Shared.loggedInPubKey shared.loginStatus
     in
     { title =
         maybeArticle
@@ -161,8 +246,11 @@ viewContent shared nip19 requestId =
                     , browserEnv = shared.browserEnv
                     , nostr = shared.nostr
                     , userPubKey = Shared.loggedInPubKey shared.loginStatus
-                    , onBookmark = Nothing
+                    , onBookmark = Maybe.map (\pubKey -> (AddArticleBookmark pubKey, RemoveArticleBookmark pubKey)) userPubKey
+                    , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) userPubKey
+                    , onZap = Maybe.map (\pubKey -> ZapReaction pubKey) userPubKey
                     }
+                    (Just loadedContent)
                 )
             |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle (Just requestId))
         ]

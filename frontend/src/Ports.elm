@@ -42,6 +42,20 @@ requestEvents description closeOnEose requestId relays filter =
                 ]
         }
 
+searchEvents : String -> Bool -> RequestId -> List String -> List EventFilter -> Cmd msg
+searchEvents description closeOnEose requestId relays filters =
+    sendCommand
+        { command = "searchEvents"
+        , value = 
+            Encode.object
+                [ ("requestId", Encode.int requestId)
+                , ("filters", Encode.list encodeEventFilter filters)
+                , ("closeOnEose", Encode.bool closeOnEose)
+                , ("description", Encode.string description)
+                , ("relays", Encode.list Encode.string relays)
+                ]
+        }
+
 requestBlossomAuth : RequestId -> String -> String -> HttpRequestMethod -> Cmd msg
 requestBlossomAuth requestId server content method =
     sendCommand

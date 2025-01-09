@@ -1,6 +1,8 @@
 module Ui.Profile exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
+import Components.Button as Button
+import Components.Icon as Icon
 import Graphics
 import Html.Styled as Html exposing (Html, Attribute, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
@@ -13,14 +15,31 @@ import Nostr.Types exposing (PubKey)
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Translations.Profile as Translations
 import Time
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
+import Components.Icon exposing (Icon(..))
+import FeatherIcons
+import Components.Icon exposing (MaterialIcon(..))
+import Color
+import BrowserEnv exposing (Msg)
 
 defaultProfileImage : String
 defaultProfileImage =
     "/images/avatars/placeholder_01.png"
 
+type alias ProfileViewData msg =
+    { browserEnv : BrowserEnv
+    , following : FollowType msg
+    , theme : Theme 
+    , validation : ProfileValidation
+    }
+
+type FollowType msg
+    = Following (PubKey -> msg)     -- unfollow msg
+    | NotFollowing (PubKey -> msg)  -- follow msg
+    | UnknownFollowing
 
 viewProfileSmall : Profile -> ProfileValidation -> Html msg
 viewProfileSmall profile validationStatus =
@@ -41,7 +60,7 @@ viewProfileSmall profile validationStatus =
                     , Tw.mb_4
                     ]
                 ]
-                [ viewProfileImageSmall (linkElementForProfile profile) profile.picture validationStatus
+                [ viewProfileImageSmall (linkElementForProfile profile validationStatus) profile.picture validationStatus
                 , h2
                     [ css
                         [ Tw.text_sm
@@ -55,17 +74,18 @@ viewProfileSmall profile validationStatus =
 
 
 
-viewProfile : Theme -> Profile -> ProfileValidation -> Html msg
-viewProfile theme profile validationStatus =
+viewProfile : Profile -> ProfileViewData msg -> Html msg
+viewProfile profile profileViewData =
     let
         styles =
-            stylesForTheme theme
+            stylesForTheme profileViewData.theme
     in
     div
         [ css
             [ Tw.flex
             , Tw.flex_col
             , Tw.space_y_2
+            , Tw.mx_4
             , Tw.mb_4
             ]
         ]
@@ -74,12 +94,12 @@ viewProfile theme profile validationStatus =
             [ css
                 [ Tw.flex
                 , Tw.flex_row
-                , Tw.items_center
+                , Tw.items_start
                 , Tw.space_x_4
                 , Tw.mb_4
                 ]
             ]
-            [ viewProfileImage (div [ css [ Tw.flex_none ]]) profile.picture validationStatus
+            [ viewProfileImage (div [ css [ Tw.flex_none ]]) profile.picture profileViewData.validation
             , div
                 [ css
                     [ Tw.flex
@@ -99,8 +119,39 @@ viewProfile theme profile validationStatus =
                 , viewNip05 styles profile
                 , viewNpub styles profile
                 ]
+            , div
+                [ css
+                    [ 
+                    ]
+                ]
+                [ -- followButton profileViewData.theme profileViewData.browserEnv profile.pubKey profileViewData.following
+                ]
             ]
         ]
+
+
+followButton : Theme -> BrowserEnv -> PubKey -> FollowType msg -> Html msg
+followButton theme browserEnv profilePubKey following =
+    case following of
+        Following msg ->
+            Button.new
+                { label = Translations.unfollowButtonTitle [ browserEnv.translations ]
+                , onClick = Just (msg profilePubKey)
+                , theme = theme
+                }
+                |> Button.withIconLeft (Icon.MaterialIcon MaterialCheck 24 (Icon.Color (Color.fromRgba { red = 0.28, green = 0.73, blue = 0.47, alpha = 1.0 })))
+                |> Button.view
+
+        NotFollowing msg ->
+            Button.new
+                { label = Translations.followButtonTitle [ browserEnv.translations ]
+                , onClick = Just (msg profilePubKey)
+                , theme = theme
+                }
+                |> Button.view
+
+        UnknownFollowing ->
+            div [][]
 
 viewWebsite : Styles msg -> Profile -> Html msg
 viewWebsite styles profile =
@@ -108,12 +159,20 @@ viewWebsite styles profile =
         Just website ->
             a
                 (styles.colorStyleLinks ++ styles.textStyleLinks ++
-                [ Attr.href website
+                [ Attr.href (websiteLink website)
                 ])
                 [ text website ]
 
         Nothing ->
             div [][]
+
+websiteLink : String -> String
+websiteLink url =
+    if not (String.startsWith "http" url) then
+        "https://" ++ url
+    else
+        url
+
 
 viewNip05 : Styles msg -> Profile -> Html msg
 viewNip05 styles profile =

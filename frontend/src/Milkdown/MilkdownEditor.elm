@@ -23,6 +23,7 @@ import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes exposing (attribute, style)
 import Html.Styled.Events exposing (on)
 import Json.Decode as JD
+import Json.Encode as JE
 
 
 -- TYPES
@@ -137,14 +138,24 @@ contentAttr val =
     [ attribute "content" val ]
 
 
-selectedFileAttr : Maybe String -> List (Html.Attribute msg)
+selectedFileAttr : Maybe (String, String, Maybe String) -> List (Html.Attribute msg)
 selectedFileAttr selectedFile =
     case selectedFile of
-        Just url ->
-            [ attribute "selectedfile" url ]
+        Just (url, caption, maybeAlt) ->
+            let
+                value =
+                    JE.object
+                        [ ( "url", JE.string url )
+                        , ( "caption", JE.string caption )
+                        , ( "alt", JE.string (Maybe.withDefault "" maybeAlt))
+                        ]
+                        |> JE.encode 0
+            in
+            [ attribute "selectedfile" value
+            ]
 
         Nothing ->
-            [ attribute "selectedfile" "" ]
+            [ attribute "selectedfile" "{}" ]
 
 themeAttr : DarkMode -> List (Html.Attribute msg)
 themeAttr darkMode =
@@ -215,7 +226,7 @@ decodeContent toMsg =
 
 type alias Model =
     { content : Content
-    , selectedFile : Maybe String
+    , selectedFile : Maybe (String, String, Maybe String) -- url, caption, alt
     }
 
 
@@ -259,6 +270,6 @@ update msg model =
             ( { model | selectedFile = Nothing }, Cmd.none )
 
 
-setSelectedImage : Model -> String -> Model
-setSelectedImage model url =
-    { model | selectedFile = Just url }
+setSelectedImage : Model -> String -> String -> Maybe String -> Model
+setSelectedImage model url caption alt =
+    { model | selectedFile = Just (url, caption, alt) }

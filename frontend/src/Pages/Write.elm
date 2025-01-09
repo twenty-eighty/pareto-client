@@ -4,22 +4,22 @@ import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
+import Components.MessageDialog as MessageDialog
 import Components.PublishArticleDialog as PublishArticleDialog exposing (PublishArticleDialog)
 import Css
 import Dict exposing (Dict)
 import Effect exposing (Effect)
-import Hex
 import Html.Styled as Html exposing (Html, a, aside, button, code, div, h2, h3, h4, img, input, label, node, p, span, text, textarea)
 import Html.Styled.Attributes as Attr exposing (class, css, style)
 import Html.Styled.Events as Events exposing (..)
 import Json.Decode as Decode
 import Layouts
+import LinkPreview exposing (LoadedContent)
 import Milkdown.MilkdownEditor as Milkdown
-import Murmur3
 import Nostr
 import Nostr.Article exposing (Article, articleFromEvent)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
-import Nostr.Event as Event exposing (Event, Kind(..), Tag(..), buildAddress)
+import Nostr.Event as Event exposing (Event, Kind(..), Tag(..), numberForKind)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Request exposing (RequestId, RequestData(..))
 import Nostr.Send exposing (SendRequestId, SendRequest(..))
@@ -30,14 +30,18 @@ import Ports
 import Route exposing (Route)
 import Shared
 import Shared.Msg
+import Svg.Loaders as Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Time
 import Translations.Write as Translations
-import Ui.Styles exposing (Theme)
+import Ui.Styles exposing (Theme, stylesForTheme)
 import View exposing (View)
-import Json.Decode as Decode
+import Nostr.Nip19 as Nip19
+import Nostr.Nip19 as Nip19
+import Ui.Article
+import Set
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
@@ -75,7 +79,18 @@ type alias Model =
     , imageSelection : Maybe ImageSelection
     , publishArticleDialog : PublishArticleDialog.Model Msg
     , articleState : ArticleState
+    , editorMode : EditorMode
+    , loadedContent : LoadedContent Msg
+    , modalDialog : ModalDialog
     }
+
+type EditorMode
+    = Editor
+    | Preview
+
+type ModalDialog
+    = NoModalDialog
+    | PublishedDialog
 
 type ArticleState
     = ArticleEmpty
@@ -167,6 +182,9 @@ init user shared route () =
                     , imageSelection = Nothing
                     , publishArticleDialog = publishArticleDialog
                     , articleState = ArticleDraftSaved
+                    , editorMode = Editor
+                    , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
+                    , modalDialog = NoModalDialog
                     }
 
                 Nothing ->
@@ -185,6 +203,9 @@ init user shared route () =
                     , imageSelection = Nothing
                     , publishArticleDialog = publishArticleDialog
                     , articleState = ArticleEmpty
+                    , editorMode = Editor
+                    , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
+                    , modalDialog = NoModalDialog
                     }
     in
     ( model
@@ -225,6 +246,8 @@ type Msg
     | EditorFocused
     | EditorBlurred
     | EditorLoaded
+    | ToggleEditorMode
+    | AddLoadedContent String
     | UpdateTitle String
     | UpdateSubtitle String
     | UpdateTags String
@@ -239,6 +262,10 @@ type Msg
     | ReceivedPortMessage IncomingMessage
     | MilkdownSent (Milkdown.Msg Msg)
     | PublishArticleDialogSent (PublishArticleDialog.Msg Msg)
+    | PublishedDialogButtonClicked PublishedDialogButton
+
+type PublishedDialogButton
+    = OkButton
 
 
 update : Shared.Model -> Auth.User -> Msg -> Model -> ( Model, Effect Msg )
@@ -258,6 +285,17 @@ update shared user msg model =
 
         EditorLoaded ->
             ( model, Effect.none )
+
+        ToggleEditorMode ->
+            case model.editorMode of
+                Editor ->
+                    ( { model | editorMode = Preview }, Effect.none )
+
+                Preview ->
+                    ( { model | editorMode = Editor }, Effect.none )
+
+        AddLoadedContent url ->
+            ( { model | loadedContent = LinkPreview.addLoadedContent model.loadedContent url}, Effect.none )
 
         UpdateTitle title ->
             if title == "" then
@@ -297,12 +335,17 @@ update shared user msg model =
                 MarkdownImageSelection ->
                     case uploadedFile of
                         BlossomFile blobDescriptor ->
-                            ( { model | milkdown = Milkdown.setSelectedImage model.milkdown blobDescriptor.url }, Effect.none )
+                            case blobDescriptor.nip94 of
+                                Just fileMetadata ->
+                                    ( { model | milkdown = Milkdown.setSelectedImage model.milkdown blobDescriptor.url fileMetadata.content fileMetadata.alt }, Effect.none )
+
+                                Nothing ->
+                                    ( { model | milkdown = Milkdown.setSelectedImage model.milkdown blobDescriptor.url "" Nothing }, Effect.none )
 
                         Nip96File fileMetadata ->
                             case fileMetadata.url of
                                 Just url ->
-                                    ( { model | milkdown = Milkdown.setSelectedImage model.milkdown url }, Effect.none )
+                                    ( { model | milkdown = Milkdown.setSelectedImage model.milkdown url fileMetadata.content fileMetadata.alt }, Effect.none )
 
                                 Nothing ->
                                     ( model, Effect.none )
@@ -365,6 +408,10 @@ update shared user msg model =
                 , nostr = shared.nostr
                 , pubKey = user.pubKey
                 }
+
+        PublishedDialogButtonClicked _ ->
+            ( { model | modalDialog = NoModalDialog }, Effect.none )
+
 
 updateWithPortMessage : Shared.Model -> Model -> Auth.User -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage shared model user portMessage =
@@ -463,6 +510,7 @@ updateWithPublishedResults shared model user value =
                         ( { model
                             | articleState = ArticlePublished
                             , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                            , modalDialog = PublishedDialog
                         }
                         , Effect.none
                         )
@@ -474,6 +522,7 @@ updateWithPublishedResults shared model user value =
                 ( { model
                     | articleState = ArticlePublished
                     , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                    , modalDialog = PublishedDialog
                   }
                 , Effect.none
                 )
@@ -525,11 +574,29 @@ eventWithContent shared model user kind =
         |> Event.addTagTags model.tags
         |> Event.addZapTags model.zapWeights
         |> Event.addClientTag Pareto.client Pareto.paretoPubKey Pareto.handlerIdentifier Pareto.paretoRelay
+        |> Event.addAltTag (altText model.identifier user.pubKey kind [ Pareto.paretoRelay ] )
+
     , content = model.content |> Maybe.withDefault ""
     , id = ""
     , sig = Nothing
     , relay = Nothing
     }
+
+altText : Maybe String -> PubKey -> Kind -> List String -> String
+altText maybeIdentifier pubKey kind relays =
+    case (maybeIdentifier) of
+        ( Just identifier ) ->
+            case Nip19.encode (Nip19.NAddr { identifier = identifier, pubKey = pubKey, kind = numberForKind kind, relays = relays }) of
+                Ok nip19 ->
+                    "This is a long form article, you can read it in " ++ Pareto.applicationUrl ++ "/a/" ++ nip19
+
+                Err _ ->
+                    "This is a long form article, you can read it on " ++ Pareto.applicationUrl
+
+        Nothing ->
+            "This is a long form article, you can read it on " ++ Pareto.applicationUrl
+
+
 
 filterTitleChars : String -> String
 filterTitleChars title =
@@ -584,8 +651,8 @@ view user shared model =
                         , Tw.w_full
                         ]
                     ]
-                    [ viewTitle shared.browserEnv model
-                    , viewSubtitle shared.browserEnv model
+                    [ viewTitle shared.theme shared.browserEnv model
+                    , viewSubtitle  shared.theme shared.browserEnv model
                     ]
                 , div
                     [ css
@@ -597,8 +664,8 @@ view user shared model =
                     [ viewImage model
                     ]
                 ]
-            , viewEditor shared.browserEnv model
-            , viewTags  shared.browserEnv model
+            , viewEditor shared.theme shared.browserEnv model
+            , viewTags shared.theme shared.browserEnv model
             , viewArticleState shared.browserEnv shared.theme model.articleState
             , saveButtons shared.browserEnv shared.theme model
             , viewMediaSelector user shared model
@@ -613,26 +680,66 @@ view user shared model =
             , theme = shared.theme
             }
             |> PublishArticleDialog.view
+        , viewModalDialog shared.theme shared.browserEnv model.modalDialog
         ]
     }
+
+viewModalDialog : Theme -> BrowserEnv -> ModalDialog -> Html Msg
+viewModalDialog theme browserEnv modalDialog =
+    case modalDialog of
+        NoModalDialog ->
+            div [][]
+
+        PublishedDialog ->
+            MessageDialog.new
+                { onClick = PublishedDialogButtonClicked
+                , onClose = PublishedDialogButtonClicked OkButton
+                , title = Translations.articlePublishedMessageBoxTitle [ browserEnv.translations ]
+                , content = div [][ text <| Translations.articlePublishedMessageBoxText [ browserEnv.translations ] ]
+                , buttons = [ 
+                        { style = MessageDialog.PrimaryButton
+                        , title = "Ok"
+                        , identifier = OkButton
+                        }
+                    ]
+                , theme = theme
+                }
+                |> MessageDialog.view
 
 viewArticleState : BrowserEnv -> Theme -> ArticleState -> Html Msg
 viewArticleState browserEnv theme articleState =
     let
         styles =
-            Ui.Styles.stylesForTheme theme
+            stylesForTheme theme
     in
-    case articleStateToString browserEnv articleState of
-        Just articleStateString ->
+    case (articleStateToString browserEnv articleState, articleStateProcessIndicator articleState) of
+        (Just articleStateString, Just processIndicator) ->
+            div
+                (styles.colorStyleGrayscaleMuted ++ styles.textStyle14 ++
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_row
+                    , Tw.items_center
+                    ]
+                ])
+                [ processIndicator
+                , text articleStateString
+                ]
+
+        (Just articleStateString, Nothing) ->
             div
                 (styles.colorStyleGrayscaleMuted ++ styles.textStyle14 ++
                 [
                 ])
-                [ text articleStateString ]
+                [ text articleStateString
+                ]
 
-        Nothing ->
+        (Nothing, Just processIndicator) ->
+            processIndicator
+
+        (Nothing, Nothing) ->
             div [][]
-    
+
 articleStateToString : BrowserEnv -> ArticleState -> Maybe String
 articleStateToString browserEnv articleState =
     case articleState of
@@ -669,6 +776,44 @@ articleStateToString browserEnv articleState =
         ArticleDeletingDraft _ ->
             Just <| Translations.articleDeletingDraftState [ browserEnv.translations ]
 
+
+articleStateProcessIndicator : ArticleState -> Maybe (Html Msg)
+articleStateProcessIndicator articleState =
+    case articleState of
+        ArticleEmpty ->
+            Nothing
+
+        ArticleModified ->
+            Nothing
+
+        ArticleLoadingDraft _ ->
+            Just <| (Loaders.rings [] |> Html.fromUnstyled)
+
+        ArticleLoadingDraftError error ->
+            Nothing
+
+        ArticleSavingDraft _ ->
+            Just <| (Loaders.rings [] |> Html.fromUnstyled)
+
+        ArticleDraftSaved ->
+            Nothing
+
+        ArticleDraftSaveError error ->
+            Nothing
+
+        ArticlePublishing _ ->
+            Just <| (Loaders.rings [] |> Html.fromUnstyled)
+
+        ArticlePublishingError error ->
+            Nothing
+
+        ArticlePublished ->
+            Nothing
+
+        ArticleDeletingDraft _ ->
+            Just <| (Loaders.rings [] |> Html.fromUnstyled)
+
+
 viewMediaSelector : Auth.User -> Shared.Model -> Model -> Html Msg
 viewMediaSelector user shared model =
     case model.imageSelection of
@@ -686,8 +831,15 @@ viewMediaSelector user shared model =
         Nothing ->
             div [][]
 
-viewTitle : BrowserEnv -> Model -> Html Msg
-viewTitle browserEnv model =
+viewTitle : Theme -> BrowserEnv -> Model -> Html Msg
+viewTitle theme browserEnv model =
+    let
+        (foreground, background) =
+            if browserEnv.darkMode then
+                ("white", "black")
+            else
+                ("black", "white")
+    in
     div
         [ css
             [ Tw.w_full
@@ -695,7 +847,8 @@ viewTitle browserEnv model =
         ]
         [ node "auto-resize-textarea"
             [ Attr.attribute "value" (model.title |> Maybe.withDefault "")
-            , Attr.attribute "color" "rgb(55,55,55)"
+            , Attr.attribute "color" foreground
+            , Attr.attribute "backgroundcolor" background
             , Attr.attribute "fontfamily" "Inter"
             , Attr.attribute "fontsize" "36px"
             , Attr.attribute "fontWeight" "700"
@@ -706,8 +859,15 @@ viewTitle browserEnv model =
         ]
     
 
-viewSubtitle : BrowserEnv -> Model -> Html Msg
-viewSubtitle browserEnv model =
+viewSubtitle : Theme -> BrowserEnv -> Model -> Html Msg
+viewSubtitle theme browserEnv model =
+    let
+        (foreground, background) =
+            if browserEnv.darkMode then
+                ("white", "black")
+            else
+                ("black", "white")
+    in
     div
         [ css
             [ Tw.w_full
@@ -715,7 +875,8 @@ viewSubtitle browserEnv model =
         ]
         [ node "auto-resize-textarea"
             [ Attr.attribute "value" (model.summary |> Maybe.withDefault "")
-            , Attr.attribute "color" "rgb(55,55,55)"
+            , Attr.attribute "color" foreground
+            , Attr.attribute "backgroundcolor" background
             , Attr.attribute "fontfamily" "Inter"
             , Attr.attribute "fontsize" "19px"
             , Attr.attribute "fontWeight" "700"
@@ -757,8 +918,10 @@ viewImage model =
                 ]
                 []
 
-viewEditor : BrowserEnv -> Model -> Html Msg
-viewEditor browserEnv model =
+viewEditor : Theme -> BrowserEnv -> Model -> Html Msg
+viewEditor theme browserEnv model =
+    case model.editorMode of
+        Editor ->
             div
                 [ css
                     [ Tw.w_full
@@ -767,32 +930,13 @@ viewEditor browserEnv model =
                 [ milkdownEditor model.milkdown browserEnv (model.content |> Maybe.withDefault "")
                 ]
 
-statusDiv : Model -> Html msg
-statusDiv model =
-    div []
-        [ code
-            [ style "color" "#017575"
-            , style "font-family" "Monaco"
-            , style "font-weight" ""
-            , style "font-size" "12px"
-            , style "border-radius" "4px"
-            , style "margin-left" "16px"
-            ]
-            [ text (modelToStatusString model) ]
-        ]
+        Preview ->
+            let
+                styles =
+                    stylesForTheme theme
+            in
+            Ui.Article.viewContentMarkdown styles (Just model.loadedContent) (\_ -> Nothing) (Maybe.withDefault "" model.content)
 
-modelToStatusString : Model -> String
-modelToStatusString model =
-    model.content
-    |> Maybe.map hexHash
-    |> Maybe.withDefault ""
-
-hexHash : Milkdown.Content -> String
-hexHash str =
-    str
-        |> Murmur3.hashString 1234
-        |> Hex.toString
-        |> (++) "0x"
 
 
 milkdownEditor : Milkdown.Model -> BrowserEnv -> Milkdown.Content -> Html Msg
@@ -818,31 +962,12 @@ milkDownDarkMode darkModeActive =
     else
         Milkdown.Light
 
-sampleDoc : String
-sampleDoc =
-    """
-# heading 1
-
-some text
-
-## heading 2
-
-* a **list**
-* **another** item
-* *third*
-
-> quote
-> me
-> on
-
-```python
-for x in range(100):
-    print(x)
-
-```"""
-
-viewTags : BrowserEnv -> Model -> Html Msg
-viewTags browserEnv model =
+viewTags : Theme -> BrowserEnv -> Model -> Html Msg
+viewTags theme browserEnv model =
+    let
+        styles =
+            stylesForTheme theme
+    in
     div
         [ css
             [ Tw.w_full
@@ -863,6 +988,7 @@ viewTags browserEnv model =
             ]
         ,         {- Input Field -}
         input
+            (styles.colorStyleBackground ++
             [ Attr.type_ "text"
             , Attr.id "entry-field"
             , Attr.placeholder <| Translations.tagsPlaceholderText [ browserEnv.translations ]
@@ -884,7 +1010,7 @@ viewTags browserEnv model =
                     , Tw.border_color Theme.blue_500
                     ]
                 ]
-            ]
+            ])
             []
         ]
     
@@ -900,7 +1026,8 @@ saveButtons browserEnv theme model =
             , Tw.mb_10
             ]
         ]
-        [ saveDraftButton browserEnv model theme
+        [ previewButton browserEnv model theme
+        , saveDraftButton browserEnv model theme
         , publishButton browserEnv model theme
         ]
 
@@ -925,6 +1052,27 @@ articleReadyForPublishing model =
     model.image /= Nothing &&
     model.identifier /= Nothing
 
+
+previewButton : BrowserEnv -> Model -> Theme -> Html Msg
+previewButton browserEnv model theme =
+    let
+        buttonTitle =
+            case model.editorMode of
+                Editor ->
+                    Translations.previewButtonTitle [ browserEnv.translations ]
+
+                Preview ->
+                    Translations.editButtonTitle [ browserEnv.translations ]
+
+    in
+    Button.new
+        { label = buttonTitle
+        , onClick = Just ToggleEditorMode
+        , theme = theme
+        }
+        |> Button.withDisabled (model.content == Nothing)
+        |> Button.withTypeSecondary
+        |> Button.view
 
 saveDraftButton : BrowserEnv -> Model -> Theme -> Html Msg
 saveDraftButton browserEnv model theme =

@@ -6,6 +6,7 @@ import Effect exposing (Effect)
 import FeatherIcons exposing (user)
 import Html.Styled as Html exposing (Html)
 import Layouts
+import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
@@ -13,6 +14,7 @@ import Nostr.Nip05 as Nip05
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Page exposing (Page)
 import Route exposing (Route)
+import Set
 import Shared
 import Shared.Msg
 import Task
@@ -42,8 +44,9 @@ toLayout theme model =
 
 
 type alias Model =
-    { nip05 : Maybe Nip05.Nip05
+    { loadedContent : LoadedContent Msg
     , identifier : String
+    , nip05 : Maybe Nip05.Nip05
     , requestId : Maybe RequestId
     }
 
@@ -52,8 +55,9 @@ init : Shared.Model -> Route { user : String, identifier : String } -> () -> ( M
 init shared route () =
     let
         model =
-            { nip05 = Nip05.parseNip05 route.params.user
-            , identifier = route.params.identifier
+            { identifier = route.params.identifier
+            , nip05 = Nip05.parseNip05 route.params.user
+            , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
             , requestId = Nothing
             }
 
@@ -106,16 +110,17 @@ init shared route () =
 
 type Msg
     = NoOp
+    | AddLoadedContent String
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
         NoOp ->
-            ( model
-            , Effect.none
-            )
+            ( model, Effect.none )
 
+        AddLoadedContent url ->
+            ( { model | loadedContent = LinkPreview.addLoadedContent model.loadedContent url}, Effect.none )
 
 
 -- SUBSCRIPTIONS
@@ -153,7 +158,10 @@ viewArticle shared model maybeArticle =
                 , nostr = shared.nostr
                 , userPubKey = Shared.loggedInPubKey shared.loginStatus
                 , onBookmark = Nothing
+                , onReaction = Nothing
+                , onZap = Nothing
                 }
+                (Just model.loadedContent)
                 article
 
         Nothing ->

@@ -5,18 +5,19 @@ import Components.Button as Button
 import Components.Icon as Icon exposing (Icon)
 import Css
 import Dict
-import FeatherIcons
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, label, main_, p, span, summary, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
+import LinkPreview exposing (LoadedContent)
 import Markdown
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), numberForKind)
 import Nostr.Nip19 as Nip19
+import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author, Profile, ProfileValidation(..))
-import Nostr.Reactions exposing (Interactions)
-import Nostr.Types exposing (PubKey)
+import Nostr.Reactions exposing (Interactions, Reaction)
+import Nostr.Types exposing (EventId, PubKey)
 import Route
 import Route.Path
 import Tailwind.Breakpoints as Bp
@@ -27,15 +28,39 @@ import Time
 import Translations.Posts
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
+import Ui.Shared exposing (Actions)
 import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded, stylesForTheme)
+import Components.ZapDialog as ZapDialog
+
+type alias ArticlePreviewsData msg =
+    { theme : Theme
+    , browserEnv : BrowserEnv
+    , nostr : Nostr.Model
+    , userPubKey : Maybe PubKey
+    , onBookmark : Maybe ((AddressComponents -> msg), (AddressComponents -> msg)) -- msgs for adding/removing a bookmark
+    , onReaction : Maybe (EventId -> PubKey -> AddressComponents -> msg)
+    , onZap : Maybe (List ZapDialog.Recipient -> msg)
+    }
+
+type alias ArticlePreviewData msg =
+    { author : Author
+    , actions : Actions msg
+    , interactions : Interactions
+    , displayAuthor : Bool
+    , loadedContent : Maybe (LoadedContent msg)
+    }
+
 
 -- single article
 
-viewArticle : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
+viewArticle : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
 viewArticle articlePreviewsData articlePreviewData article =
     let
         styles =
             Ui.Styles.stylesForTheme articlePreviewsData.theme
+
+        getProfile =
+            Nostr.getProfile articlePreviewsData.nostr
 
         contentMargins =
             [ css
@@ -149,9 +174,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                     , Tw.mb_4
                     ]
                 ] ++ contentMargins)
-                [ viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.interactions
-                , viewContent styles article.content
-                , viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.interactions
+                [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions
+                , viewContent styles articlePreviewData.loadedContent getProfile article.content
+                , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions
                 ]
             ]
         -- , viewArticleComments styles
@@ -224,11 +249,18 @@ viewSummary styles maybeSummary =
 viewTags : Styles msg -> Article -> Html msg
 viewTags styles article =
     article.hashtags
+    |> List.map removeHashTag
     |> List.intersperse " / "
     |> List.map viewTag
     |> div
         (styles.textStyleArticleHashtags ++ styles.colorStyleArticleHashtags)
 
+removeHashTag : String -> String
+removeHashTag hashTag =
+    if String.startsWith "#" hashTag then
+        String.dropLeft 1 hashTag
+    else
+        hashTag
 
 viewTag : String -> Html msg
 viewTag tag =
@@ -237,63 +269,6 @@ viewTag tag =
         ]
         [ text tag ]
 
-
-viewInteractions : Styles msg -> BrowserEnv -> Interactions -> Html msg
-viewInteractions styles browserEnv interactions =
-    let
-        bookmarkIcon =
-            if interactions.isBookmarked then
-                Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdded 30 Icon.Inherit
-            else
-                Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdd 30 Icon.Inherit
-    in
-    div
-        [ css
-            [ Tw.justify_start
-            , Tw.items_start
-            , Tw.gap_6
-            , Tw.inline_flex
-            ]
-        ]
-        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) (Maybe.map String.fromInt interactions.notes)
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.edit) (Maybe.map String.fromInt interactions.reactions)
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.repeat) (Maybe.map String.fromInt interactions.reposts)
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) (Maybe.map (formatZapNum browserEnv) interactions.zaps)
-        , viewReactions styles bookmarkIcon (Maybe.map String.fromInt interactions.bookmarks)
-        ]
-                
-
-viewReactions : Styles msg -> Icon -> Maybe String -> Html msg
-viewReactions styles icon maybeCount =
-    div
-        (styles.colorStyleLabel ++
-        [ css
-            [ Tw.rounded_3xl
-            , Tw.justify_center
-            , Tw.items_center
-            , Tw.gap_1
-            , Tw.flex
-            ]
-        ])
-        [ div
-            [ css
-                [ Tw.w_5
-                , Tw.h_5
-                , Tw.px_0_dot_5
-                , Tw.py_0_dot_5
-                , Tw.justify_center
-                , Tw.items_center
-                , Tw.flex
-                ]
-            ]
-            [ Icon.view icon]
-        , div
-            [ ] [ text (maybeCount |> Maybe.withDefault "0" ) ]
-        ]
-
-formatZapNum : BrowserEnv -> Int -> String
-formatZapNum browserEnv bigNum =
-    browserEnv.formatNumber "0 a" <| toFloat bigNum
 
 viewAuthorAndDate : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Nostr.Profile.Author -> Html msg
 viewAuthorAndDate styles browserEnv published createdAt author =
@@ -348,7 +323,7 @@ viewArticleProfileSmall profile validationStatus =
             |> Maybe.withDefault Ui.Profile.defaultProfileImage
 
         linkElement =
-            linkElementForProfile profile
+            linkElementForProfile profile validationStatus
     in
     div
         [ css
@@ -402,8 +377,8 @@ viewArticleTime styles browserEnv maybePublishedAt createdAt =
         Nothing ->
             div [][]
 
-viewContent : Styles msg -> String -> Html msg
-viewContent styles content =
+viewContent : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Html msg
+viewContent styles loadedContent fnGetProfile content =
     article
         [ css
             [ Tw.flex_col
@@ -415,17 +390,17 @@ viewContent styles content =
                 ]
             ]
         ]
-        [ viewContentMarkdown styles content 
+        [ viewContentMarkdown styles loadedContent fnGetProfile content 
         ]
 
-viewContentMarkdown : Styles msg -> String -> Html msg
-viewContentMarkdown styles content =
-    case Markdown.markdownViewHtml styles content of
+viewContentMarkdown : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Html msg
+viewContentMarkdown styles loadedContent fnGetProfile content =
+    case Markdown.markdownViewHtml styles loadedContent fnGetProfile content of
         Ok html ->
             html
 
         Err error ->
-            div [][]
+            div [][ text <| "Error rendering Markdown: " ++ error]
 
 
 viewArticleComments : Styles msg -> Html msg
@@ -521,8 +496,8 @@ viewArticleComments styles =
                 ]
             ]
 
-viewArticleInternal : Styles msg -> BrowserEnv -> Article -> Html msg
-viewArticleInternal styles browserEnv article =
+viewArticleInternal : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> BrowserEnv -> Article -> Html msg
+viewArticleInternal styles loadedContent fnGetProfile browserEnv article =
     div
         [ css
             [ Tw.flex
@@ -563,27 +538,13 @@ viewArticleInternal styles browserEnv article =
                     ]
                 ])
                 [ text <| Maybe.withDefault "" article.summary ]
-            , viewContent styles article.content
+            , viewContent styles loadedContent fnGetProfile article.content
             ]
         ]
 
 -- article previews
 
-type alias ArticlePreviewsData msg =
-    { theme : Theme
-    , browserEnv : BrowserEnv
-    , nostr : Nostr.Model
-    , userPubKey : Maybe PubKey
-    , onBookmark : Maybe ((AddressComponents -> msg), (AddressComponents -> msg)) -- msgs for adding/removing a bookmark
-    }
-
-type alias ArticlePreviewData =
-    { author : Author
-    , interactions : Interactions
-    , displayAuthor : Bool
-    }
-
-viewArticlePreviewList : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
+viewArticlePreviewList : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
 viewArticlePreviewList articlePreviewsData articlePreviewData article =
     let
         styles =
@@ -814,7 +775,7 @@ viewHashTag styles hashTag =
             [ text hashTag ]
         ]
 
-viewArticlePreviewBigPicture : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
+viewArticlePreviewBigPicture : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
 viewArticlePreviewBigPicture articlePreviewsData articlePreviewData article =
     let
         styles =
@@ -922,7 +883,7 @@ previewBigPictureImage article =
                 ]
                 []
 
-viewAuthorAndDatePreview : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
+viewAuthorAndDatePreview : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
 viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
     let
         styles =
@@ -959,7 +920,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                         , Tw.inline_flex
                         ]
                     ]
-                    [ viewProfileImageSmall (linkElementForProfile profile) profile.picture validationStatus
+                    [ viewProfileImageSmall (linkElementForProfile profile validationStatus) profile.picture validationStatus
                     , div
                         [ css
                             [ Tw.justify_start
@@ -992,7 +953,7 @@ viewArticleEditButton articlePreviewsData article articleAuthorPubKey =
         div [][]
 
 
-viewArticleBookmarkButton : ArticlePreviewsData msg -> ArticlePreviewData -> Article -> Html msg
+viewArticleBookmarkButton : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
 viewArticleBookmarkButton articlePreviewsData articlePreviewData article =
     case
         ( articlePreviewsData.onBookmark

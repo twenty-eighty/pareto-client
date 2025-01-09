@@ -276,7 +276,7 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_description, article.description || @meta_description)
     |> assign(
       :meta_image,
-      article.image_url || @sharing_image
+      article.image_url |> force_https() || @sharing_image
     )
   end
 
@@ -288,7 +288,7 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_title, community.name <> " | Pareto")
     |> assign(:meta_url, Endpoint.url() <> conn.request_path)
     |> assign(:meta_description, community.description)
-    |> assign(:meta_image, community.image || @sharing_image)
+    |> assign(:meta_image, community.image |> force_https() || @sharing_image)
   end
 
   defp conn_with_profile_meta(conn, profile) do
@@ -301,7 +301,8 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_description, profile.about)
     |> assign(
       :meta_image,
-      profile.image || profile.picture || profile.banner || @sharing_image
+      profile.image |> force_https() || profile.picture |> force_https() ||
+        profile.banner |> force_https() || @sharing_image
     )
   end
 
@@ -313,8 +314,20 @@ defmodule NostrBackendWeb.ContentController do
       :meta_description,
       "An open source publishing ecosystem for uncensorable, citizen journalism powered by Nostr, Lightning and eCash."
     )
-    |> assign(:meta_image, "/images/pareto_banner.png")
+    |> assign(:meta_image, @sharing_image)
     |> assign(:meta_url, Endpoint.url() <> conn.request_path)
     |> assign(:article, nil)
+  end
+
+  def force_https(nil), do: nil
+
+  def force_https(url) do
+    uri = URI.parse(url)
+
+    # Update the scheme to "https"
+    updated_uri = %URI{uri | scheme: "https"}
+
+    # Convert back to string
+    URI.to_string(updated_uri)
   end
 end

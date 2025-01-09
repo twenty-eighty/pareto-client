@@ -3,10 +3,12 @@ module Markdown exposing (markdownViewHtml, summaryFromContent)
 -- import Html exposing (Attribute, Html)
 
 import Html.Styled as Html exposing (..)
+import LinkPreview exposing (LoadedContent)
 import Markdown.Block as Block exposing (Block, Inline, ListItem(..), Task(..))
 import Markdown.Block exposing (Block(..))
 import Markdown.Parser
 import Markdown.Renderer as Renderer
+import Nostr.Nip27 exposing (GetProfileFunction)
 import Parser
 import Parser.Advanced as Advanced
 import Regex exposing (Regex)
@@ -92,6 +94,25 @@ replaceImgTags input =
         Nothing ->
             input
 
+-- Replace broken HTML col tags from Primal
+replaceBrokenColTag : String -> String
+replaceBrokenColTag input =
+    String.replace "<colgroup><col></colgroup>" "<colgroup><col></col></colgroup>" input
+
+-- A regex to match http:// or https:// followed by one or more non-whitespace chars
+urlRegex : Regex
+urlRegex =
+    Regex.fromString "(https?://[^\\s]+)"
+        |> Maybe.withDefault Regex.never
+
+
+-- Replace all HTTP(S) URLs with Markdown links.
+-- If no match exists, the string is unchanged.
+substituteHttpLinks : String -> String
+substituteHttpLinks text =
+    Regex.replace urlRegex
+        (\match -> "[" ++ match.match ++ "](" ++ match.match ++ ")")
+        text
 
 deadEndsToString : List (Advanced.DeadEnd String Parser.Problem) -> String
 deadEndsToString deadEnds =
@@ -100,18 +121,19 @@ deadEndsToString deadEnds =
         |> String.join "\n"
 
 
-markdownViewHtml : Styles msg -> String -> Result String (Html msg)
-markdownViewHtml styles markdown =
-    render styles markdown
+markdownViewHtml : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Result String (Html msg)
+markdownViewHtml styles loadedContent fnGetProfile markdown =
+    render styles loadedContent fnGetProfile markdown
         |> Result.map elementFromHtmlList
 
-render : Styles msg -> String -> Result String (List (Html msg))
-render styles markdown =
+render : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction-> String -> Result String (List (Html msg))
+render styles loadedContent fnGetProfile markdown =
     markdown
         |> replaceImgTags
+        |> replaceBrokenColTag
         |> Markdown.Parser.parse
         |> Result.mapError deadEndsToString
-        |> Result.andThen (\ast -> Renderer.render (TailwindMarkdownRenderer.renderer styles) ast)
+        |> Result.andThen (\ast -> Renderer.render (TailwindMarkdownRenderer.renderer styles loadedContent fnGetProfile) ast)
 
 
 
