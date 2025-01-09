@@ -30,12 +30,16 @@ defaultProfileImage =
     "/images/avatars/placeholder_01.png"
 
 type alias ProfileViewData msg =
-    { follow : FollowType msg
+    { browserEnv : BrowserEnv
+    , following : FollowType msg
+    , theme : Theme 
+    , validation : ProfileValidation
     }
 
 type FollowType msg
-    = Following msg         -- unfollow msg
-    | NotFollowing msg      -- follow msg
+    = Following (PubKey -> msg)     -- unfollow msg
+    | NotFollowing (PubKey -> msg)  -- follow msg
+    | UnknownFollowing
 
 viewProfileSmall : Profile -> ProfileValidation -> Html msg
 viewProfileSmall profile validationStatus =
@@ -56,7 +60,7 @@ viewProfileSmall profile validationStatus =
                     , Tw.mb_4
                     ]
                 ]
-                [ viewProfileImageSmall (linkElementForProfile profile) profile.picture validationStatus
+                [ viewProfileImageSmall (linkElementForProfile profile validationStatus) profile.picture validationStatus
                 , h2
                     [ css
                         [ Tw.text_sm
@@ -70,11 +74,11 @@ viewProfileSmall profile validationStatus =
 
 
 
-viewProfile : Theme -> BrowserEnv -> Profile -> ProfileValidation -> Html msg
-viewProfile theme browserEnv profile validationStatus =
+viewProfile : Profile -> ProfileViewData msg -> Html msg
+viewProfile profile profileViewData =
     let
         styles =
-            stylesForTheme theme
+            stylesForTheme profileViewData.theme
     in
     div
         [ css
@@ -95,7 +99,7 @@ viewProfile theme browserEnv profile validationStatus =
                 , Tw.mb_4
                 ]
             ]
-            [ viewProfileImage (div [ css [ Tw.flex_none ]]) profile.picture validationStatus
+            [ viewProfileImage (div [ css [ Tw.flex_none ]]) profile.picture profileViewData.validation
             , div
                 [ css
                     [ Tw.flex
@@ -120,31 +124,34 @@ viewProfile theme browserEnv profile validationStatus =
                     [ 
                     ]
                 ]
-                [ -- followButton theme browserEnv True
+                [ -- followButton profileViewData.theme profileViewData.browserEnv profile.pubKey profileViewData.following
                 ]
             ]
         ]
 
-followButton : Theme -> BrowserEnv -> Bool -> Html msg
-followButton theme browserEnv following =
-    let
-        (buttonText, modifiers) =
-            if following then
-                ( Translations.unfollowButtonTitle [ browserEnv.translations ]
-                , Button.withIconLeft (Icon.MaterialIcon MaterialCheck 24 (Icon.Color (Color.fromRgba { red = 0.28, green = 0.73, blue = 0.47, alpha = 1.0 })))
-                )
-            else
-                ( Translations.followButtonTitle [ browserEnv.translations ]
-                , identity
-                )
-    in
-    Button.new
-        { label = buttonText
-        , onClick = Nothing
-        , theme = theme
-        }
-        |> modifiers
-        |> Button.view
+
+followButton : Theme -> BrowserEnv -> PubKey -> FollowType msg -> Html msg
+followButton theme browserEnv profilePubKey following =
+    case following of
+        Following msg ->
+            Button.new
+                { label = Translations.unfollowButtonTitle [ browserEnv.translations ]
+                , onClick = Just (msg profilePubKey)
+                , theme = theme
+                }
+                |> Button.withIconLeft (Icon.MaterialIcon MaterialCheck 24 (Icon.Color (Color.fromRgba { red = 0.28, green = 0.73, blue = 0.47, alpha = 1.0 })))
+                |> Button.view
+
+        NotFollowing msg ->
+            Button.new
+                { label = Translations.followButtonTitle [ browserEnv.translations ]
+                , onClick = Just (msg profilePubKey)
+                , theme = theme
+                }
+                |> Button.view
+
+        UnknownFollowing ->
+            div [][]
 
 viewWebsite : Styles msg -> Profile -> Html msg
 viewWebsite styles profile =
@@ -152,12 +159,20 @@ viewWebsite styles profile =
         Just website ->
             a
                 (styles.colorStyleLinks ++ styles.textStyleLinks ++
-                [ Attr.href website
+                [ Attr.href (websiteLink website)
                 ])
                 [ text website ]
 
         Nothing ->
             div [][]
+
+websiteLink : String -> String
+websiteLink url =
+    if not (String.startsWith "http" url) then
+        "https://" ++ url
+    else
+        url
+
 
 viewNip05 : Styles msg -> Profile -> Html msg
 viewNip05 styles profile =

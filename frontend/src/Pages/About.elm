@@ -24,7 +24,7 @@ import Shared.Model exposing (LoginStatus(..))
 import Shared.Msg
 import Tailwind.Utilities as Tw
 import Translations.About as Translations
-import Ui.Profile
+import Ui.Profile exposing (FollowType(..))
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 import View exposing (View)
 import Time
@@ -165,31 +165,19 @@ viewHandlerInformation theme browserEnv loginStatus nostr handlerInformation =
             ]
         ]
         [ Ui.Profile.viewProfile
-            theme
-            browserEnv
             handlerInformation.profile
-            (Nostr.getProfileValidationStatus nostr handlerInformation.pubKey
-                |> Maybe.withDefault ValidationUnknown
-            )
+            { browserEnv = browserEnv
+            , following = UnknownFollowing
+            , theme = theme 
+            , validation =
+                Nostr.getProfileValidationStatus nostr handlerInformation.pubKey
+                    |> Maybe.withDefault ValidationUnknown
+            }
         , viewActionButtons theme browserEnv handlerInformation loginStatus
         , viewWebTargets theme browserEnv handlerInformation.webTargets
         , viewSupportedKinds theme browserEnv handlerInformation.kinds
         ]
 
-{-
-applicationInformationEvent time =
-    { alt = paretoAltText
-    , handlerIdentifier = handlerIdentifier
-    , hashtags = paretoHashtags
-    , kinds = supportedKinds
-    , pubKey = paretoPubKey
-    , profile = paretoProfile
-    , references = paretoReferences
-    , time = time
-    , webTargets = paretoWebTargets
-    , zapTargets = paretoZapTargets
-    }
--}
 
 viewActionButtons : Theme -> BrowserEnv -> HandlerInformation -> LoginStatus -> Html Msg
 viewActionButtons theme browserEnv handlerInformation loginStatus =
