@@ -137,12 +137,6 @@ defmodule NostrBackendWeb.OembedController do
     end
   end
 
-  defp transform_xml_to_map(xml_nodes) do
-    Enum.reduce(xml_nodes, %{}, fn %{tag: tag, content: content}, acc ->
-      Map.put(acc, tag, content)
-    end)
-  end
-
   defp get_content_type(headers) do
     headers
     |> Enum.find_value("", fn {key, value} ->

@@ -323,7 +323,7 @@ viewArticleProfileSmall profile validationStatus =
             |> Maybe.withDefault Ui.Profile.defaultProfileImage
 
         linkElement =
-            linkElementForProfile profile
+            linkElementForProfile profile validationStatus
     in
     div
         [ css
@@ -920,7 +920,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                         , Tw.inline_flex
                         ]
                     ]
-                    [ viewProfileImageSmall (linkElementForProfile profile) profile.picture validationStatus
+                    [ viewProfileImageSmall (linkElementForProfile profile validationStatus) profile.picture validationStatus
                     , div
                         [ css
                             [ Tw.justify_start

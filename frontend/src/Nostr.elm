@@ -1047,6 +1047,8 @@ update msg model =
         Nip05FetchedForNip05 requestId nip05 (Ok nip05Data) ->
             updateModelWithNip05Data model requestId nip05 nip05Data
 
+--       Nip05FetchedForNip05 requestId nip05 (Err (Http.BadStatus 404)) ->
+--           ( model, fetchNip05InfoDirectly (Nip05FetchedForNip05 requestId nip05) nip05 )
 
         Nip05FetchedForNip05 requestId nip05 (Err error) ->
             ( { model | errors = ("Error fetching NIP05 data for " ++ nip05ToString nip05 ++ ": " ++ httpErrorToString error) :: model.errors}, Cmd.none )

@@ -3,22 +3,22 @@ module Ui.Links exposing (..)
 import Html.Styled as Html exposing (Html, Attribute, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Nostr.Nip19 as Nip19
-import Nostr.Profile exposing (Author(..), Profile)
+import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..))
 import Nostr.Types exposing (PubKey)
 import Nostr.Nip05 as Nip05
 
-linkElementForAuthor : Author -> (List (Html msg) -> Html msg)
-linkElementForAuthor author =
-    case linkToAuthor author of
+linkElementForAuthor : Author -> ProfileValidation -> (List (Html msg) -> Html msg)
+linkElementForAuthor author validation =
+    case linkToAuthor author validation of
         Just url ->
             a [ href url ]
 
         Nothing ->
             div []
 
-linkElementForProfile : Profile -> (List (Html msg) -> Html msg)
-linkElementForProfile profile =
-    case linkToProfile profile of
+linkElementForProfile : Profile -> ProfileValidation -> (List (Html msg) -> Html msg)
+linkElementForProfile profile validation =
+    case linkToProfile profile validation of
         Just url ->
             a [ href url ]
 
@@ -34,23 +34,25 @@ linkElementForProfilePubKey pubKey =
         Nothing ->
             div []
 
-linkToAuthor : Author -> Maybe String
-linkToAuthor author =
+linkToAuthor : Author -> ProfileValidation -> Maybe String
+linkToAuthor author validation =
     case author of
         AuthorPubkey pubKey ->
             linkToProfilePubKey pubKey
 
         AuthorProfile profile _ ->
-            linkToProfile profile
+            linkToProfile profile validation
 
 
-linkToProfile : Profile -> Maybe String
-linkToProfile profile =
-    case profile.nip05 of
-        Just nip05 ->
+linkToProfile : Profile -> ProfileValidation -> Maybe String
+linkToProfile profile validation =
+    case (validation, profile.nip05) of
+        (ValidationSucceeded, Just nip05) ->
+            -- only link to NIP-05 if profile was validated
+            -- otherwise the page may not be loadable
             Just <| "/u/" ++ Nip05.nip05ToString nip05
 
-        Nothing ->
+        (_, _) ->
             linkToProfilePubKey profile.pubKey
 
 linkToProfilePubKey : PubKey -> Maybe String

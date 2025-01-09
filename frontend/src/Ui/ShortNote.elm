@@ -118,7 +118,7 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
                         , Tw.border_0
                         ]
                     ]
-                    [ Ui.Profile.viewProfileImageSmall (linkElementForAuthor shortNoteViewData.author) profileImage validationStatus
+                    [ Ui.Profile.viewProfileImageSmall (linkElementForAuthor shortNoteViewData.author validationStatus) profileImage validationStatus
                     {-
                     a
                         [ Attr.href "/utxo"
