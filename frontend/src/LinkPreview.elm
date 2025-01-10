@@ -316,7 +316,8 @@ generateYouTubePreview : Maybe (LoadedContent msg) -> Url -> String -> String ->
 generateYouTubePreview maybeLoadedContent url urlString videoId =
     let
         thumbnailUrl =
-            "https://img.youtube.com/vi/" ++ videoId ++ "/0.jpg"
+            -- "https://img.youtube.com/vi/" ++ videoId ++ "/0.jpg"
+            "https://yewtu.be/vi/" ++ videoId ++ "/maxres.jpg"
 
         (showEmbedded, linkElement, clickAttr) =
             case maybeLoadedContent of
