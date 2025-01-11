@@ -132,10 +132,70 @@ render styles loadedContent fnGetProfile markdown =
         |> replaceImgTags
         |> replaceBrokenColTag
         |> Markdown.Parser.parse
+        |> Result.map determmineBlockTypes
         |> Result.mapError deadEndsToString
-        |> Result.andThen (\ast -> Renderer.render (TailwindMarkdownRenderer.renderer styles loadedContent fnGetProfile) ast)
+        |> Result.andThen
+            (\ast ->
+                ast
+                |> Renderer.renderWithMeta
+                    (\blockType ->
+                        rendererForBlockType styles loadedContent fnGetProfile blockType
+                    )
+            )
+
+type BlockType
+    = DefaultBlock
+    | EmbedBlock
+
+determmineBlockTypes : List Block -> List (Block, BlockType)
+determmineBlockTypes blocks =
+    blocks
+    |> List.map
+        (\block ->
+            case block of
+                Paragraph inlines ->
+                    if generateEmbedForParagraph inlines  then
+                        (block, EmbedBlock)
+                    else
+                        (block, DefaultBlock)
+
+                _ ->
+                    (block, DefaultBlock)
+        )
+
+-- in case there's only one link in a paragraph
+-- it should be transformed to an embedded object/preview
+generateEmbedForParagraph : List Markdown.Block.Inline -> Bool
+generateEmbedForParagraph inlines =
+    case inlines of
+        [ Markdown.Block.Link _ _ _ ] ->
+            True
+
+        _ ->
+            False
 
 
+rendererForBlockType : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction-> BlockType -> Renderer.Renderer (Html msg)
+rendererForBlockType styles loadedContent fnGetProfile blockType =
+    let
+        defaultRenderer =
+            TailwindMarkdownRenderer.renderer styles loadedContent fnGetProfile
+    in
+    case blockType of
+        DefaultBlock ->
+            defaultRenderer   
+
+        EmbedBlock ->
+            { defaultRenderer | link = embedPreview styles loadedContent }
+        
+
+embedPreview : Styles msg -> Maybe (LoadedContent msg) -> { title: Maybe String, destination : String } -> List (Html msg) -> Html msg
+embedPreview styles loadedContent { destination } body =
+    LinkPreview.generatePreviewHtml
+        loadedContent
+        destination
+        (styles.textStyleLinks ++ styles.colorStyleLinks)
+        body
 
 elementFromHtmlList : List (Html msg) -> Html msg
 elementFromHtmlList htmlList =

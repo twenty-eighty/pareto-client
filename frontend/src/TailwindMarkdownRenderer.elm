@@ -10,7 +10,6 @@ import Markdown.Renderer
 import Nostr.Nip27 exposing (GetProfileFunction, subsituteNostrLinks)
 import Parser
 import SyntaxHighlight
-import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Nostr.Shared exposing (ensureHttps)
@@ -58,7 +57,7 @@ renderer styles loadedContent fnGetProfile =
 
     --, codeSpan = code
     , link =
-        formatLink styles loadedContent
+        formatLink styles
     , hardLineBreak = Html.br [] []
     , image =
         \image ->
@@ -477,10 +476,10 @@ defaultFormatCodeBlock body =
         [ Html.code [] [ Html.text body ] ]
 
 
-formatLink : Styles msg -> Maybe (LoadedContent msg) -> { title: Maybe String, destination : String } -> List (Html msg) -> Html msg
-formatLink styles loadedContent { destination } body =
-    LinkPreview.generatePreviewHtml
-        loadedContent
-        destination
-        (styles.textStyleLinks ++ styles.colorStyleLinks)
+formatLink : Styles msg -> { title: Maybe String, destination : String } -> List (Html msg) -> Html msg
+formatLink styles { title, destination } body =
+    Html.a
+        ( styles.colorStyleLinks ++ styles.textStyleLinks ++
+        [ Attr.href destination ]
+        )
         body
