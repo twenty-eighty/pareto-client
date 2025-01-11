@@ -14,6 +14,7 @@ import Nostr.FollowList exposing (Following(..))
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
+import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
 import Page exposing (Page)
 import Route exposing (Route)
@@ -137,11 +138,17 @@ update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
         Follow pubKeyUser pubKeyToBeFollowed ->
-            ( model, Effect.none)
+            ( model
+            , SendFollowListWithPubKey pubKeyUser pubKeyToBeFollowed
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
 
         Unfollow pubKeyUser pubKeyToBeUnfollowed ->
             ( model
-            , Effect.none
+            , SendFollowListWithoutPubKey pubKeyUser pubKeyToBeUnfollowed
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
             )
 
 

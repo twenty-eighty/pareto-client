@@ -124,7 +124,7 @@ viewProfile profile profileViewData =
                     [ 
                     ]
                 ]
-                [ -- followButton profileViewData.theme profileViewData.browserEnv profile.pubKey profileViewData.following
+                [ followButton profileViewData.theme profileViewData.browserEnv profile.pubKey profileViewData.following
                 ]
             ]
         ]
@@ -152,6 +152,7 @@ followButton theme browserEnv profilePubKey following =
 
         UnknownFollowing ->
             div [][]
+
 
 viewWebsite : Styles msg -> Profile -> Html msg
 viewWebsite styles profile =

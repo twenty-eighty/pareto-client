@@ -21,6 +21,7 @@ import Ui.ShortNote
 import Ui.Styles exposing (Styles, Theme)
 import I18Next
 
+
 type ArticlePreviewType
     = ArticlePreviewList
     | ArticlePreviewBigPicture

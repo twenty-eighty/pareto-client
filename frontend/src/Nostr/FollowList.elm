@@ -1,8 +1,7 @@
 module Nostr.FollowList exposing (..)
 
 import Json.Decode as Decode exposing (Decoder)
-import Json.Decode.Pipeline as DecodePipeline
-import Nostr.Event exposing (Event, Tag(..))
+import Nostr.Event exposing (Event, Kind(..), Tag(..), emptyEvent)
 import Nostr.Types exposing (PubKey)
 
 
@@ -18,6 +17,46 @@ type Following
         , petname : Maybe String
         }
     | FollowingHashtag String
+
+emptyFollowList : List Following
+emptyFollowList =
+    []
+
+followListWithPubKey : List Following -> PubKey -> List Following
+followListWithPubKey followList pubKey =
+    let
+        listContainsPubKey =
+            followList
+            |> List.filter (\following ->
+                case followingPubKey following of
+                    Just pubKeyFollowing ->
+                        pubKeyFollowing == pubKey
+
+                    _ ->
+                        False
+                )
+            |> List.isEmpty
+            |> not
+    in
+    -- don't duplicate entry
+    if not listContainsPubKey then
+        followList ++ [ FollowingPubKey { pubKey = pubKey, relay = Nothing, petname = Nothing } ]
+    else
+        followList
+
+
+followListWithoutPubKey : List Following -> PubKey -> List Following
+followListWithoutPubKey followList pubKey =
+    followList
+    |> List.filter
+        (\following ->
+            case followingPubKey following of
+                Just pubKeyFollowing ->
+                    pubKeyFollowing /= pubKey
+
+                Nothing ->
+                    True
+        )
 
 
 followingPubKey : Following -> Maybe PubKey
@@ -50,3 +89,32 @@ followListFromEvent event =
                 }
     in
     followList
+
+followListEvent : PubKey -> List Following -> Event
+followListEvent pubKey list =
+    let
+        event = 
+            emptyEvent pubKey KindFollows
+
+    in
+    { event
+        | tags =
+            []
+            |> addFollowsTags list
+    }
+
+addFollowsTags : List Following -> List Tag -> List Tag
+addFollowsTags followsList tags =
+    followsList
+    |> List.map followsTag
+    |> List.append tags
+
+
+followsTag : Following -> Tag
+followsTag following =
+    case following of
+        FollowingPubKey { pubKey , relay , petname } ->
+            PublicKeyTag pubKey relay petname
+
+        FollowingHashtag hashtag ->
+            HashTag hashtag

@@ -14,7 +14,7 @@ import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
 import Nostr.DeletionRequest exposing (DeletionRequest, deletionRequestFromEvent)
 import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress, emptyEvent, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
-import Nostr.FollowList exposing (Following, followListFromEvent)
+import Nostr.FollowList exposing (Following, emptyFollowList, followListEvent, followListFromEvent, followListWithPubKey, followListWithoutPubKey)
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
 import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05Info, nip05ToString) 
 import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
@@ -289,6 +289,34 @@ send model sendRequest =
         SendClientRecommendation relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
             , model.hooks.sendEvent model.lastSendRequestId relays event
+            )
+
+        SendFollowListWithPubKey userPubKey toBeFollowedPubKey ->
+            let
+                followList =
+                    getFollowsList model userPubKey
+                    |> Maybe.withDefault emptyFollowList
+
+                event =
+                    followListWithPubKey followList toBeFollowedPubKey
+                    |> followListEvent userPubKey
+            in
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model userPubKey) event
+            )
+
+        SendFollowListWithoutPubKey userPubKey toBeUnfollowedPubKey ->
+            let
+                followList =
+                    getFollowsList model userPubKey
+                    |> Maybe.withDefault emptyFollowList
+
+                event =
+                    followListWithoutPubKey followList toBeUnfollowedPubKey
+                    |> followListEvent userPubKey
+            in
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model userPubKey) event
             )
 
         SendHandlerInformation relays event ->

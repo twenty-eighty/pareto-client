@@ -13,6 +13,8 @@ type SendRequest
     | SendBookmarkListWithoutShortNote PubKey EventId
     | SendDeletionRequest (List RelayUrl) Event
     | SendFileStorageServerList (List RelayUrl) Event
+    | SendFollowListWithPubKey PubKey PubKey
+    | SendFollowListWithoutPubKey PubKey PubKey
     | SendHandlerInformation (List RelayUrl) Event
     | SendLongFormDraft (List RelayUrl) Event
     | SendLongFormArticle (List RelayUrl) Event
