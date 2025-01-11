@@ -103,4 +103,3 @@ fetchNip05InfoViaProxy toMsg nip05 =
         , tracker = Nothing
         }
 
-

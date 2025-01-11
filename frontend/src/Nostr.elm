@@ -16,7 +16,7 @@ import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Ta
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.FollowList exposing (Following, followListFromEvent)
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
-import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05InfoDirectly, fetchNip05InfoViaProxy, nip05ToString) 
+import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05Info, nip05ToString) 
 import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
 import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileFromEvent)
@@ -201,13 +201,13 @@ performRequest model description requestId requestData =
 
         RequestNip05AndArticle nip05 _ ->
             -- identifier not needed here, only after getting nip05 data
-            ( model, fetchNip05InfoViaProxy (Nip05FetchedForNip05 requestId nip05) nip05 )
+            ( model, fetchNip05Info (Nip05FetchedForNip05 requestId nip05) nip05 )
 
         RequestProfile relays eventFilter ->
             ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) eventFilter)
 
         RequestProfileByNip05 nip05 ->
-            ( model, fetchNip05InfoViaProxy (Nip05FetchedForNip05 requestId nip05) nip05 )
+            ( model, fetchNip05Info (Nip05FetchedForNip05 requestId nip05) nip05 )
 
         RequestReactions eventFilter ->
             ( model, model.hooks.requestEvents description False requestId configuredRelays eventFilter)
@@ -1655,7 +1655,7 @@ updateModelWithUserMetadata model requestId events =
         nip05Requests =
             profiles
             |> List.filterMap (\profile ->
-                    Maybe.map (\nip05 -> fetchNip05InfoViaProxy (Nip05FetchedForPubKey profile.pubKey nip05) nip05) profile.nip05
+                    Maybe.map (\nip05 -> fetchNip05Info (Nip05FetchedForPubKey profile.pubKey nip05) nip05) profile.nip05
                 )
 
         relatedKinds =
@@ -1862,11 +1862,10 @@ updateProfileWithValidationStatus model pubKey valid =
 updateWithPubkeyProfiles : Model -> List Nostr.Profile.PubkeyProfile -> (Model, Cmd Msg)
 updateWithPubkeyProfiles model pubkeyProfiles =
     let
-
         nip05Requests =
             pubkeyProfiles
             |> List.filterMap (\{ pubKey, profile } ->
-                    Maybe.map (\nip05 -> fetchNip05InfoViaProxy (Nip05FetchedForPubKey pubKey nip05) nip05) profile.nip05
+                    Maybe.map (\nip05 -> fetchNip05Info (Nip05FetchedForPubKey pubKey nip05) nip05) profile.nip05
                 )
             |> Cmd.batch
 
