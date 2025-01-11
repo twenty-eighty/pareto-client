@@ -74,7 +74,10 @@ init shared route () =
             case decoded of
                 Ok nip19 ->
                     ( Nip19Model
-                        { loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
+                        { loadedContent =
+                            { loadedUrls = Set.empty
+                            , addLoadedContentFunction = AddLoadedContent
+                            }
                         , nip19 = nip19
                         , requestId = Nostr.getLastRequestId shared.nostr
                         , zapDialog = ZapDialog.init {}

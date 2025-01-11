@@ -26,6 +26,18 @@ addLoadedContent : LoadedContent msg -> String -> LoadedContent msg
 addLoadedContent loadedContent url =
     { loadedContent | loadedUrls = Set.insert url loadedContent.loadedUrls }
 
+type LinkType
+    = YouTubeVideo String
+    | OdyseeVideo String
+    | RumbleVideo String
+    | TwitterTweet String
+    | VideoLink String
+    | AudioLink String
+    | ObjectLink String
+    | PlainLink
+    | OtherLink
+
+
 -- Function to generate preview HTML based on the link type
 generatePreviewHtml : Maybe (LoadedContent msg) -> String -> List (Html.Attribute msg) -> List (Html msg) -> Html msg
 generatePreviewHtml loadedContent urlString linkAttr body =
@@ -53,6 +65,9 @@ generatePreviewHtml loadedContent urlString linkAttr body =
                 ObjectLink mimeType ->
                     generateObjectElement loadedContent url urlString mimeType
 
+                PlainLink ->
+                    a (linkAttr ++ [ href urlString ]) body
+
                 OtherLink ->
                     -- If URL parsing fails, try with oEmbed
                     case Oembed.view oemProviders (Just { maxWidth = 300 , maxHeight = 600 }) urlString of
@@ -72,21 +87,6 @@ generatePreviewHtml loadedContent urlString linkAttr body =
 
         Nothing ->
             a (linkAttr ++ [ href urlString ]) body
-
-
--- Define the types of links we can encounter
-
-
--- Define the types of links we can encounter
-type LinkType
-    = YouTubeVideo String
-    | OdyseeVideo String
-    | RumbleVideo String
-    | TwitterTweet String
-    | VideoLink String
-    | AudioLink String
-    | ObjectLink String
-    | OtherLink
 
 
 -- Function to detect the type of link and extract necessary IDs
@@ -146,6 +146,9 @@ detectLinkType url =
             Nothing ->
                 OtherLink
 
+    else if isPlainLinkkUrl url then
+        PlainLink
+
     else
         OtherLink
 
@@ -159,6 +162,14 @@ isYouTubeWatchUrl url =
             [ "www.youtube.com", "youtube.com", "m.youtube.com" ]
     in
     List.member url.host hosts && url.path == "/watch"
+
+isPlainLinkkUrl : Url -> Bool
+isPlainLinkkUrl url =
+    let
+        hosts =
+            [ "www.facebook.com" ]
+    in
+    List.member url.host hosts
 
 
 isVideohUrl : Url -> Bool
@@ -432,7 +443,7 @@ videoThumbnailPreview linkElement clickAttr thumbnailUrl =
             [ Tw.relative
             , Tw.block
             , Tw.h_40
-            , Tw.w_64
+            , Tw.w_60
             ]
         
         ] ++ clickAttr)
@@ -488,6 +499,16 @@ oemProviders : List Oembed.Provider
 oemProviders =
     [ { url = "https://publish.x.com/oembed"
       , schemes = [ regex "https://x\\.com/.*/status/.*", regex "https://.*\\.x\\.com/.*/status/.*" ]
+      }
+    -- see https://developers.facebook.com/docs/plugins/oembed
+    , { url = "https://www.facebook.com/oembed_page"
+      , schemes = [ regex "https://www\\.facebook\\.com/" ]
+      }
+     , { url = "https://www.facebook.com/oembed_post"
+      , schemes = [ regex "https://www\\.facebook\\.com/.*/posts/.*", regex "https://www\\.facebook\\.com/photos/.*", regex "https://www\\.facebook\\.com/.*/photos/.*", regex "https://www\\.facebook\\.com/photo\\.php.*", regex "https://www\\.facebook\\.com/photo\\.php", regex "https://www\\.facebook\\.com/.*/activity/.*", regex "https://www\\.facebook\\.com/permalink\\.php", regex "https://www\\.facebook\\.com/media/set\\?set=.*", regex "https://www\\.facebook\\.com/questions/.*", regex "https://www\\.facebook\\.com/notes/.*/.*/.*" ]
+      }
+    , { url = "https://www.facebook.com/oembed_video"
+      , schemes = [ regex "https://www\\.facebook\\.com/.*/videos/.*", regex "https://www\\.facebook\\.com/video\\.php" ]
       }
     ]
 
