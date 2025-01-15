@@ -20,7 +20,7 @@ export const flags = ({ env }) => {
     darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
     isLoggedIn: JSON.parse(localStorage.getItem('isLoggedIn')) || false,
     locale: navigator.language,
-    sharingAvailable: (navigator.share != undefined)
+    nativeSharingAvailable: (navigator.share != undefined)
   }
 }
 

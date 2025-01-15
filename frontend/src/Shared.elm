@@ -40,7 +40,7 @@ type alias Flags =
     { darkMode : Bool
     , isLoggedIn : Bool
     , locale : String
-    , sharingAvailable : Bool
+    , nativeSharingAvailable : Bool
     }
 
 
@@ -51,7 +51,7 @@ decoder =
         (Json.Decode.field "darkMode" Json.Decode.bool)
         (Json.Decode.field "isLoggedIn" Json.Decode.bool)
         (Json.Decode.field "locale" Json.Decode.string)
-        (Json.Decode.field "sharingAvailable" Json.Decode.bool)
+        (Json.Decode.field "nativeSharingAvailable" Json.Decode.bool)
 
 -- INIT
 
@@ -73,7 +73,7 @@ init flagsResult route =
                         , darkMode = flags.darkMode
                         , frontendUrl = ""
                         , locale = flags.locale
-                        , sharingAvailable = flags.sharingAvailable
+                        , nativeSharingAvailable = flags.nativeSharingAvailable
                         }
 
                 (nostrInit, nostrInitCmd) =
@@ -110,7 +110,7 @@ init flagsResult route =
                         , darkMode = False
                         , frontendUrl = ""
                         , locale = ""
-                        , sharingAvailable = False
+                        , nativeSharingAvailable = False
                         }
             in
             
