@@ -36,7 +36,7 @@ import View exposing (View)
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
 page user shared route =
     Page.new
-        { init = init shared
+        { init = init user shared
         , update = update user shared
         , subscriptions = subscriptions
         , view = view shared user
@@ -71,9 +71,10 @@ availableCategories translations =
     ]
 
 
-init : Shared.Model -> () -> ( Model, Effect Msg )
-init shared () =
+init : Auth.User -> Shared.Model -> () -> ( Model, Effect Msg )
+init user shared () =
     updateModelWithCategory
+        user
         shared
         { categories = Components.Categories.init { selected = Published } }
         Published
@@ -91,7 +92,7 @@ update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update user shared msg model =
     case msg of
         CategorySelected category ->
-            updateModelWithCategory shared model category
+            updateModelWithCategory user shared model category
 
         CategoriesSent innerMsg ->
             Components.Categories.update
@@ -113,19 +114,16 @@ update user shared msg model =
             (model, Effect.pushRoute { path = Route.Path.Write, query = Dict.singleton "a" nip19, hash = Nothing } )
 
 
-updateModelWithCategory : Shared.Model -> Model -> Category -> (Model, Effect Msg)
-updateModelWithCategory shared model category =
+updateModelWithCategory : Auth.User -> Shared.Model -> Model -> Category -> (Model, Effect Msg)
+updateModelWithCategory user shared model category =
     let
         filter =
-            case (shared.loginStatus, category) of
-                (Shared.Model.LoggedIn pubKey, Published) ->
-                    { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [pubKey], limit = Just 20 }
+            case category of
+                Published ->
+                    { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ user.pubKey ], limit = Just 20 }
 
-                (Shared.Model.LoggedIn pubKey, Drafts) ->
-                    { emptyEventFilter | kinds = Just [ KindDraftLongFormContent, KindDraft ], authors = Just [pubKey], limit = Just 20 }
-
-                (_, _) ->
-                    emptyEventFilter
+                Drafts ->
+                    { emptyEventFilter | kinds = Just [ KindDraftLongFormContent, KindDraft ], authors = Just [ user.pubKey ], limit = Just 20 }
     in
     ( model
     , RequestArticlesFeed filter
