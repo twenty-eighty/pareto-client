@@ -138,15 +138,19 @@ viewCategory styles toMsg onSelect active data =
         onClickCategory =
             toMsg (SelectedItem { category = data.category, onSelect = onSelect data.category })
 
-        attrs =
+        (element, attrs) =
             if active then
-                styles.colorStyleCategoryActiveBackground ++
-                styles.colorStyleCategoryActive ++
-                styles.colorStyleCategoryActiveBorder
+                ( div
+                , styles.colorStyleCategoryActiveBackground ++
+                    styles.colorStyleCategoryActive ++
+                    styles.colorStyleCategoryActiveBorder
+                )
             else
-                styles.colorStyleCategoryInactiveBackground ++ styles.colorStyleGrayscaleText
+                ( button
+                , styles.colorStyleCategoryInactiveBackground ++ styles.colorStyleGrayscaleText
+                )
     in
-    button
+    element
         ([ css
             [ Tw.px_4
             , Tw.py_2
