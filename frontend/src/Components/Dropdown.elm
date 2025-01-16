@@ -261,6 +261,7 @@ view (Settings settings) =
                         , Tw.cursor_pointer
                         , Tw.mt_2
                         , Tw.w_min
+                        , Tw.z_10
                         , Tw.bg_color Theme.white
                         , Tw.border
                         , Tw.border_color Theme.gray_200
