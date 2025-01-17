@@ -2,6 +2,7 @@
 import "./Milkdown/MilkdownEditor.js";
 
 import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
+import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
 import { BlossomClient } from "blossom-client-sdk/client";
 import { init as initNostrLogin, launch as launchNostrLoginDialog } from "nostr-login"
 import "./clipboard-component.js";
@@ -128,7 +129,8 @@ export const onReady = ({ app, env }) => {
 
   function connect(app, relays) {
     debugLog('connect to relays', relays);
-    window.ndk = new NDK({ explicitRelayUrls: relays, debug: debugLog });
+    const dexieAdapter = new NDKCacheAdapterDexie({ dbName: 'pareto-ndk-cache' });
+    window.ndk = new NDK({ enableOutboxModel: true, cacheAdapter: dexieAdapter, explicitRelayUrls: relays, debug: debugLog });
 
     // sign in if a relay requests authorization
     window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk });
