@@ -269,10 +269,10 @@ viewRelays shared model user relaysModel =
             stylesForTheme shared.theme
 
         outboxRelays =
-            Nostr.getWriteRelaysForPubKey shared.nostr user.pubKey
+            Nostr.getNip65WriteRelaysForPubKey shared.nostr user.pubKey
 
         inboxRelays =
-            Nostr.getReadRelaysForPubKey shared.nostr user.pubKey
+            Nostr.getNip65ReadRelaysForPubKey shared.nostr user.pubKey
 
         searchRelays =
             Nostr.getSearchRelaysForPubKey shared.nostr user.pubKey
@@ -304,6 +304,11 @@ viewRelays shared model user relaysModel =
         -- , viewRelayList searchRelays
         -- , addRelayBox shared.theme shared.browserEnv.translations relaysModel.searchRelay (updateRelayModelSearch relaysModel) (AddSearchRelay user.pubKey)
         ]
+
+
+missingRelays : List Relay -> List Relay -> List Relay
+missingRelays addedRelays recommendedRelays =
+    recommendedRelays
 
 
 updateRelayModelOutbox : RelaysModel -> Maybe String -> RelaysModel
@@ -404,13 +409,15 @@ viewRelay removeMsg relay =
         [ css
             [ Tw.flex
             , Tw.flex_row
+            , Tw.items_center
             , Tw.gap_2
             , Tw.p_2
             , Tw.border_b_2
             , Tw.w_96
             ]
         ]
-        [ viewRelayImage (Relay.iconUrl relay)
+        [ viewRelayConnectionIndicator relay
+        , viewRelayImage (Relay.iconUrl relay)
         , div
             [ css
                 [ Tw.grow
@@ -421,6 +428,49 @@ viewRelay removeMsg relay =
             ]
         , removeRelayButton relay removeMsg
         ]
+
+
+viewRelayConnectionIndicator : Relay -> Html Msg
+viewRelayConnectionIndicator relay =
+    let
+        ( bgColor, borderColor ) =
+            case ( relay.nip11, relay.state ) of
+                ( Just _, RelayReady ) ->
+                    ( Theme.green_500, Theme.blue_500 )
+
+                ( Just _, RelayConnected ) ->
+                    ( Theme.green_500, Theme.green_500 )
+
+                ( Just _, RelayConnecting ) ->
+                    ( Theme.green_500, Theme.orange_500 )
+
+                ( Just _, RelayDisconnected ) ->
+                    ( Theme.green_500, Theme.red_500 )
+
+                -- actually an impossible state - can't have NIP-11 data with failed request
+                ( Just _, RelayStateNip11RequestFailed _ ) ->
+                    ( Theme.black, Theme.black )
+
+                ( Just _, RelayStateUnknown ) ->
+                    ( Theme.green_500, Theme.orange_500 )
+
+                ( Nothing, RelayStateNip11RequestFailed _ ) ->
+                    ( Theme.black, Theme.black )
+
+                ( Nothing, _ ) ->
+                    ( Theme.red_900, Theme.black )
+    in
+    div
+        [ css
+            [ Tw.w_3
+            , Tw.h_3
+            , Tw.rounded_full
+            , Tw.border_2
+            , Tw.bg_color bgColor
+            , Tw.border_color borderColor
+            ]
+        ]
+        []
 
 
 removeRelayButton : Relay -> (String -> Msg) -> Html Msg
