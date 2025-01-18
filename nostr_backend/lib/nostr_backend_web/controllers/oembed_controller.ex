@@ -6,7 +6,8 @@ defmodule NostrBackendWeb.OembedController do
 
   @allowed_origins [
     "https://pareto.space",
-    "http://localhost:1234"
+    "http://localhost:1234",
+    "http://localhost:4000"
   ]
 
   def fetch_oembed(conn, %{"url" => oembed_url}) do
@@ -113,8 +114,8 @@ defmodule NostrBackendWeb.OembedController do
     parse_xml_to_json(body)
   end
 
-  defp handle_body_by_content_type(_, _body) do
-    {:error, "Unsupported Content-Type"}
+  defp handle_body_by_content_type(actual_content_type, _body) do
+    {:error, "Unsupported Content-Type: #{actual_content_type}" }
   end
 
   defp parse_xml_to_json(xml_body) do
@@ -145,8 +146,13 @@ defmodule NostrBackendWeb.OembedController do
   defp get_content_type(headers) do
     headers
     |> Enum.find_value("", fn {key, value} ->
-      if String.downcase(key) == "content-type", do: String.split(value, ";") |> List.first()
+      if String.downcase(key) == "content-type", do: value
     end)
+    |> case do
+      value when is_binary(value) -> String.split(value, ";") |> List.first()
+      [value] when is_binary(value) -> String.split(value, ";") |> List.first()
+      _ -> ""
+    end
   end
 
   defp default_headers do

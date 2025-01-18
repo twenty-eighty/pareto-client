@@ -2,29 +2,33 @@ module LinkPreview exposing (LoadedContent, addLoadedContent, generatePreviewHtm
 
 import Dict exposing (Dict)
 import Graphics
-import Html.Styled as Html exposing (Html, div, img, a, text)
-import Html.Styled.Attributes as Attr exposing (controls, css, href, src, alt, style, type_)
+import Html.Styled as Html exposing (Html, a, div, img, text)
+import Html.Styled.Attributes as Attr exposing (alt, controls, css, href, src, style, type_)
 import Html.Styled.Events as Events
 import Oembed
 import Regex exposing (Regex)
 import Set exposing (Set)
-import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
 import Ui.Styles exposing (Styles)
 import Url exposing (Url)
-import Url.Parser exposing (Parser, (</>), s, string, parse)
+import Url.Parser exposing ((</>), Parser, parse, s, string)
+
 
 type alias LoadedContent msg =
     { loadedUrls : Set String
     , addLoadedContentFunction : AddLoadedContent msg
     }
 
+
 type alias AddLoadedContent msg =
     String -> msg
+
 
 addLoadedContent : LoadedContent msg -> String -> LoadedContent msg
 addLoadedContent loadedContent url =
     { loadedContent | loadedUrls = Set.insert url loadedContent.loadedUrls }
+
 
 type LinkType
     = YouTubeVideo String
@@ -38,7 +42,10 @@ type LinkType
     | OtherLink
 
 
+
 -- Function to generate preview HTML based on the link type
+
+
 generatePreviewHtml : Maybe (LoadedContent msg) -> String -> List (Html.Attribute msg) -> List (Html msg) -> Html msg
 generatePreviewHtml loadedContent urlString linkAttr body =
     case Url.fromString urlString of
@@ -70,7 +77,7 @@ generatePreviewHtml loadedContent urlString linkAttr body =
 
                 OtherLink ->
                     -- If URL parsing fails, try with oEmbed
-                    case Oembed.view oemProviders (Just { maxWidth = 300 , maxHeight = 600 }) urlString of
+                    case Oembed.view oemProviders (Just { maxWidth = 300, maxHeight = 600 }) urlString of
                         Just embedHtml ->
                             div
                                 [ css
@@ -89,7 +96,10 @@ generatePreviewHtml loadedContent urlString linkAttr body =
             a (linkAttr ++ [ href urlString ]) body
 
 
+
 -- Function to detect the type of link and extract necessary IDs
+
+
 detectLinkType : Url -> LinkType
 detectLinkType url =
     if isYouTubeWatchUrl url then
@@ -126,7 +136,7 @@ detectLinkType url =
         case getVideoMimeTypeFromUrl url.path of
             Just mimeType ->
                 VideoLink mimeType
-            
+
             Nothing ->
                 OtherLink
 
@@ -134,7 +144,7 @@ detectLinkType url =
         case getAudioMimeTypeFromUrl url.path of
             Just mimeType ->
                 AudioLink mimeType
-            
+
             Nothing ->
                 OtherLink
 
@@ -142,7 +152,7 @@ detectLinkType url =
         case getObjectMimeTypeFromUrl url.path of
             Just mimeType ->
                 ObjectLink mimeType
-            
+
             Nothing ->
                 OtherLink
 
@@ -153,7 +163,9 @@ detectLinkType url =
         OtherLink
 
 
+
 -- Helper functions to identify and extract data from URLs
+
 
 isYouTubeWatchUrl : Url -> Bool
 isYouTubeWatchUrl url =
@@ -162,6 +174,7 @@ isYouTubeWatchUrl url =
             [ "www.youtube.com", "youtube.com", "m.youtube.com" ]
     in
     List.member url.host hosts && url.path == "/watch"
+
 
 isPlainLinkkUrl : Url -> Bool
 isPlainLinkkUrl url =
@@ -176,6 +189,7 @@ isVideohUrl : Url -> Bool
 isVideohUrl url =
     getVideoMimeTypeFromUrl url.path /= Nothing
 
+
 getVideoMimeTypeFromUrl : String -> Maybe String
 getVideoMimeTypeFromUrl urlPath =
     [ ( "mp4", "video/mp4" )
@@ -185,17 +199,21 @@ getVideoMimeTypeFromUrl urlPath =
     , ( "m4v", "video/x-m4v" )
     , ( "webm", "video/webm" )
     ]
-    |> List.filterMap (\(extension, mimeType) ->
-        if String.endsWith extension urlPath then
-            Just mimeType
-        else
-            Nothing
-    )
-    |> List.head
+        |> List.filterMap
+            (\( extension, mimeType ) ->
+                if String.endsWith extension urlPath then
+                    Just mimeType
+
+                else
+                    Nothing
+            )
+        |> List.head
+
 
 isAudioUrl : Url -> Bool
 isAudioUrl url =
     getAudioMimeTypeFromUrl url.path /= Nothing
+
 
 getAudioMimeTypeFromUrl : String -> Maybe String
 getAudioMimeTypeFromUrl urlPath =
@@ -203,29 +221,36 @@ getAudioMimeTypeFromUrl urlPath =
     , ( "wav", "audio/wav" )
     , ( "ogg", "audio/ogg" )
     ]
-    |> List.filterMap (\(extension, mimeType) ->
-        if String.endsWith extension urlPath then
-            Just mimeType
-        else
-            Nothing
-    )
-    |> List.head
+        |> List.filterMap
+            (\( extension, mimeType ) ->
+                if String.endsWith extension urlPath then
+                    Just mimeType
+
+                else
+                    Nothing
+            )
+        |> List.head
+
 
 isObjectUrl : Url -> Bool
 isObjectUrl url =
     getObjectMimeTypeFromUrl url.path /= Nothing
 
+
 getObjectMimeTypeFromUrl : String -> Maybe String
 getObjectMimeTypeFromUrl urlPath =
     [ ( "pdf", "application/pdf" )
     ]
-    |> List.filterMap (\(extension, mimeType) ->
-        if String.endsWith extension urlPath then
-            Just mimeType
-        else
-            Nothing
-    )
-    |> List.head
+        |> List.filterMap
+            (\( extension, mimeType ) ->
+                if String.endsWith extension urlPath then
+                    Just mimeType
+
+                else
+                    Nothing
+            )
+        |> List.head
+
 
 getYouTubeVideoIdFromQuery : Maybe String -> Maybe String
 getYouTubeVideoIdFromQuery maybeQuery =
@@ -250,9 +275,11 @@ isOdyseeUrl : Url -> Bool
 isOdyseeUrl url =
     url.host == "odysee.com"
 
+
 isRumbleUrl : Url -> Bool
 isRumbleUrl url =
     url.host == "rumble.com"
+
 
 getYouTubeVideoIdFromPath : String -> Maybe String
 getYouTubeVideoIdFromPath path =
@@ -268,7 +295,6 @@ getYouTubeVideoIdFromPath path =
             Nothing
 
 
-
 isTwitterStatusUrl : Url -> Bool
 isTwitterStatusUrl url =
     let
@@ -276,7 +302,6 @@ isTwitterStatusUrl url =
             [ "twitter.com", "www.twitter.com", "x.com", "www.x.com" ]
     in
     List.member url.host hosts
-
 
 
 getTweetIdFromPath : String -> Maybe String
@@ -293,36 +318,47 @@ getTweetIdFromPath path =
             Nothing
 
 
+
 -- Helper function to remove leading slashes
+
+
 removeLeadingSlashes : String -> String
 removeLeadingSlashes str =
     case String.uncons str of
         Just ( '/', rest ) ->
             removeLeadingSlashes rest
+
         _ ->
             str
 
 
+
 -- Function to parse the query string into a Dict
+
+
 parseQueryString : String -> Dict String String
 parseQueryString queryString =
     queryString
         |> String.split "&"
-        |> List.filterMap (\param ->
-            case String.split "=" param of
-                [ key, value ] ->
-                    Just ( key, value )
+        |> List.filterMap
+            (\param ->
+                case String.split "=" param of
+                    [ key, value ] ->
+                        Just ( key, value )
 
-                [ key ] ->
-                    Just ( key, "" )
+                    [ key ] ->
+                        Just ( key, "" )
 
-                _ ->
-                    Nothing
-           )
+                    _ ->
+                        Nothing
+            )
         |> Dict.fromList
 
 
+
 -- Function to generate YouTube preview HTML with a play button
+
+
 generateYouTubePreview : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
 generateYouTubePreview maybeLoadedContent url urlString videoId =
     let
@@ -330,10 +366,10 @@ generateYouTubePreview maybeLoadedContent url urlString videoId =
             -- "https://img.youtube.com/vi/" ++ videoId ++ "/0.jpg"
             "https://yewtu.be/vi/" ++ videoId ++ "/maxres.jpg"
 
-        (showEmbedded, linkElement, clickAttr) =
+        ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
                 Just loadedContent ->
-                    (Set.member urlString loadedContent.loadedUrls
+                    ( Set.member urlString loadedContent.loadedUrls
                     , Html.div
                     , [ Events.onClick (loadedContent.addLoadedContentFunction urlString)
                       , css
@@ -343,12 +379,13 @@ generateYouTubePreview maybeLoadedContent url urlString videoId =
                     )
 
                 Nothing ->
-                    (False, Html.a, [ href urlString ])
+                    ( False, Html.a, [ href urlString ] )
     in
     if showEmbedded then
         Html.iframe
             [ Attr.width 560
             , Attr.height 315
+
             -- yewtu.be allows watching even with VPN and less data for YouTube.
             -- however, it's not very reliable
             -- , Attr.src <| "https://yewtu.be/embed/" ++ videoId
@@ -364,19 +401,21 @@ generateYouTubePreview maybeLoadedContent url urlString videoId =
     else
         videoThumbnailPreview linkElement clickAttr thumbnailUrl
 
-     
+
+
 -- Function to generate Odysee preview HTML with a play button
+
+
 generateOdyseePreview : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
 generateOdyseePreview maybeLoadedContent url urlString path =
     let
         thumbnailUrl =
             "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
 
-
-        (showEmbedded, linkElement, clickAttr) =
+        ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
                 Just loadedContent ->
-                    (Set.member urlString loadedContent.loadedUrls
+                    ( Set.member urlString loadedContent.loadedUrls
                     , Html.div
                     , [ Events.onClick (loadedContent.addLoadedContentFunction urlString)
                       , css
@@ -386,7 +425,7 @@ generateOdyseePreview maybeLoadedContent url urlString path =
                     )
 
                 Nothing ->
-                    (False, Html.a, [ href urlString ])
+                    ( False, Html.a, [ href urlString ] )
     in
     if showEmbedded then
         Html.iframe
@@ -399,20 +438,22 @@ generateOdyseePreview maybeLoadedContent url urlString path =
 
     else
         videoThumbnailPreview linkElement clickAttr thumbnailUrl
-    
+
+
 
 -- Function to generate Rumble preview HTML with a play button
+
+
 generateRumblePreview : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
 generateRumblePreview maybeLoadedContent url urlString path =
     let
         thumbnailUrl =
             "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
 
-
-        (showEmbedded, linkElement, clickAttr) =
+        ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
                 Just loadedContent ->
-                    (Set.member urlString loadedContent.loadedUrls
+                    ( Set.member urlString loadedContent.loadedUrls
                     , Html.div
                     , [ Events.onClick (loadedContent.addLoadedContentFunction urlString)
                       , css
@@ -422,7 +463,7 @@ generateRumblePreview maybeLoadedContent url urlString path =
                     )
 
                 Nothing ->
-                    (False, Html.a, [ href urlString ])
+                    ( False, Html.a, [ href urlString ] )
     in
     if showEmbedded then
         Html.iframe
@@ -435,7 +476,7 @@ generateRumblePreview maybeLoadedContent url urlString path =
 
     else
         videoThumbnailPreview linkElement clickAttr thumbnailUrl
-    
+
 
 videoThumbnailPreview : (List (Html.Attribute msg) -> List (Html msg) -> Html msg) -> List (Html.Attribute msg) -> String -> Html msg
 videoThumbnailPreview linkElement clickAttr thumbnailUrl =
@@ -446,9 +487,10 @@ videoThumbnailPreview linkElement clickAttr thumbnailUrl =
             , Tw.h_40
             , Tw.w_60
             ]
-        
-        ] ++ clickAttr)
-        [ div 
+         ]
+            ++ clickAttr
+        )
+        [ div
             [ css
                 [ Tw.absolute
                 , Tw.inset_0
@@ -459,7 +501,8 @@ videoThumbnailPreview linkElement clickAttr thumbnailUrl =
                 [ src thumbnailUrl
                 , alt "YouTube Video"
                 , style "display" "block"
-                ] []
+                ]
+                []
             ]
         , div
             [ css
@@ -477,10 +520,13 @@ videoThumbnailPreview linkElement clickAttr thumbnailUrl =
         ]
 
 
+
 -- Function to generate Twitter preview HTML
+
+
 generateTwitterPreview : String -> String -> List (Html msg) -> Html msg
 generateTwitterPreview url _ body =
-    case Oembed.view oemProviders (Just { maxWidth = 300 , maxHeight = 600 }) url of
+    case Oembed.view oemProviders (Just { maxWidth = 300, maxHeight = 600 }) url of
         Just tweetHtml ->
             div
                 [ css
@@ -496,22 +542,28 @@ generateTwitterPreview url _ body =
             a [ href url ]
                 body
 
+
 oemProviders : List Oembed.Provider
 oemProviders =
     [ { url = "https://publish.x.com/oembed"
       , schemes = [ regex "https://x\\.com/.*/status/.*", regex "https://.*\\.x\\.com/.*/status/.*" ]
       }
+    , { url = "https://tube.theplattform.net/services/oembed"
+      , schemes = [ regex "https://tube\\.theplattform\\.net" ]
+      }
+
     -- see https://developers.facebook.com/docs/plugins/oembed
     , { url = "https://www.facebook.com/oembed_page"
       , schemes = [ regex "https://www\\.facebook\\.com/" ]
       }
-     , { url = "https://www.facebook.com/oembed_post"
+    , { url = "https://www.facebook.com/oembed_post"
       , schemes = [ regex "https://www\\.facebook\\.com/.*/posts/.*", regex "https://www\\.facebook\\.com/photos/.*", regex "https://www\\.facebook\\.com/.*/photos/.*", regex "https://www\\.facebook\\.com/photo\\.php.*", regex "https://www\\.facebook\\.com/photo\\.php", regex "https://www\\.facebook\\.com/.*/activity/.*", regex "https://www\\.facebook\\.com/permalink\\.php", regex "https://www\\.facebook\\.com/media/set\\?set=.*", regex "https://www\\.facebook\\.com/questions/.*", regex "https://www\\.facebook\\.com/notes/.*/.*/.*" ]
       }
     , { url = "https://www.facebook.com/oembed_video"
       , schemes = [ regex "https://www\\.facebook\\.com/.*/videos/.*", regex "https://www\\.facebook\\.com/video\\.php" ]
       }
     ]
+
 
 regex : String -> Regex
 regex string =
@@ -523,10 +575,10 @@ regex string =
 generateVideoElement : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
 generateVideoElement maybeLoadedContent url urlString mimeType =
     let
-        (showEmbedded, linkElement, clickAttr) =
+        ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
                 Just loadedContent ->
-                    (Set.member urlString loadedContent.loadedUrls
+                    ( Set.member urlString loadedContent.loadedUrls
                     , Html.div
                     , [ Events.onClick (loadedContent.addLoadedContentFunction urlString)
                       , css
@@ -536,7 +588,7 @@ generateVideoElement maybeLoadedContent url urlString mimeType =
                     )
 
                 Nothing ->
-                    (False, Html.a, [ href urlString ])
+                    ( False, Html.a, [ href urlString ] )
     in
     if showEmbedded then
         Html.video
@@ -549,16 +601,18 @@ generateVideoElement maybeLoadedContent url urlString mimeType =
                 []
             , text "Your browser doesn't support the HTML video tag"
             ]
+
     else
         videoThumbnailPreview linkElement clickAttr "/images/video-placeholder.jpeg"
+
 
 generateAudioElement : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
 generateAudioElement maybeLoadedContent url urlString mimeType =
     let
-        (showEmbedded, linkElement, clickAttr) =
+        ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
                 Just loadedContent ->
-                    (Set.member urlString loadedContent.loadedUrls
+                    ( Set.member urlString loadedContent.loadedUrls
                     , Html.div
                     , [ Events.onClick (loadedContent.addLoadedContentFunction urlString)
                       , css
@@ -568,7 +622,7 @@ generateAudioElement maybeLoadedContent url urlString mimeType =
                     )
 
                 Nothing ->
-                    (False, Html.a, [ href urlString ])
+                    ( False, Html.a, [ href urlString ] )
     in
     if showEmbedded then
         Html.audio
@@ -581,16 +635,18 @@ generateAudioElement maybeLoadedContent url urlString mimeType =
                 []
             , text "Your browser doesn't support the HTML audio tag"
             ]
+
     else
         genericThumbnailPreview linkElement clickAttr "/images/audio-placeholder.jpeg"
+
 
 generateObjectElement : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
 generateObjectElement maybeLoadedContent url urlString mimeType =
     let
-        (showEmbedded, linkElement, clickAttr) =
+        ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
                 Just loadedContent ->
-                    (Set.member urlString loadedContent.loadedUrls
+                    ( Set.member urlString loadedContent.loadedUrls
                     , Html.div
                     , [ Events.onClick (loadedContent.addLoadedContentFunction urlString)
                       , css
@@ -600,7 +656,7 @@ generateObjectElement maybeLoadedContent url urlString mimeType =
                     )
 
                 Nothing ->
-                    (False, Html.a, [ href urlString ])
+                    ( False, Html.a, [ href urlString ] )
     in
     if showEmbedded then
         Html.object
@@ -622,8 +678,10 @@ generateObjectElement maybeLoadedContent url urlString mimeType =
                 , text "."
                 ]
             ]
+
     else
         genericThumbnailPreview linkElement clickAttr "/images/pdf-placeholder.jpeg"
+
 
 genericThumbnailPreview : (List (Html.Attribute msg) -> List (Html msg) -> Html msg) -> List (Html.Attribute msg) -> String -> Html msg
 genericThumbnailPreview linkElement clickAttr thumbnailUrl =
@@ -634,9 +692,10 @@ genericThumbnailPreview linkElement clickAttr thumbnailUrl =
             , Tw.h_40
             , Tw.w_64
             ]
-        
-        ] ++ clickAttr)
-        [ div 
+         ]
+            ++ clickAttr
+        )
+        [ div
             [ css
                 [ Tw.absolute
                 , Tw.inset_0
@@ -647,7 +706,8 @@ genericThumbnailPreview linkElement clickAttr thumbnailUrl =
                 [ src thumbnailUrl
                 , alt "YouTube Video"
                 , style "display" "block"
-                ] []
+                ]
+                []
             ]
         , div
             [ css
