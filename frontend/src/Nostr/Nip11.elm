@@ -117,6 +117,8 @@ relayFeatureFromNip nip =
 
 fetchNip11 : (Result Http.Error Nip11Info -> msg) -> String -> Cmd msg
 fetchNip11 toMsg urlWithoutProtocol =
+    -- experimental: the request via proxy should avoid CORS errors
+    -- requesting NIP-11 data to relays
     fetchNip11Proxy toMsg urlWithoutProtocol
 
 

@@ -7,19 +7,20 @@ import Components.Icon as Icon
 import Css
 import Effect exposing (Effect)
 import FeatherIcons
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, text)
+import Html.Styled as Html exposing (Html, a, article, aside, button, datalist, div, h2, h3, h4, img, input, label, main_, option, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
 import Layouts
 import Nostr
 import Nostr.Event exposing (EventFilter, Kind(..), emptyEventFilter)
-import Nostr.Relay as Relay exposing (Relay, RelayState(..))
+import Nostr.Relay as Relay exposing (Relay, RelayState(..), hostWithoutProtocol)
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList, removeFromRelayList)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey, RelayRole(..), RelayUrl)
 import Page exposing (Page)
+import Pareto
 import Route exposing (Route)
 import Shared
 import Shared.Msg
@@ -149,14 +150,14 @@ update user shared msg model =
         AddOutboxRelay pubKey relayUrl ->
             ( { model | categories = Categories.select model.categories (Relays emptyRelaysModel) }
             , Nostr.getRelayListForPubKey shared.nostr pubKey
-                |> extendRelayList [ { url = relayUrl, role = WriteRelay } ]
+                |> extendRelayList [ { url = hostWithoutProtocol relayUrl, role = WriteRelay } ]
                 |> sendRelayListCmd pubKey
             )
 
         AddInboxRelay pubKey relayUrl ->
             ( { model | categories = Categories.select model.categories (Relays emptyRelaysModel) }
             , Nostr.getRelayListForPubKey shared.nostr pubKey
-                |> extendRelayList [ { url = relayUrl, role = ReadRelay } ]
+                |> extendRelayList [ { url = hostWithoutProtocol relayUrl, role = ReadRelay } ]
                 |> sendRelayListCmd pubKey
             )
 
@@ -262,6 +263,12 @@ viewCategory shared model user =
             viewMediaServers shared model user mediaServersModel
 
 
+type alias RelaySuggestions =
+    { identifier : String
+    , suggestions : List String
+    }
+
+
 viewRelays : Shared.Model -> Model -> Auth.User -> RelaysModel -> Html Msg
 viewRelays shared model user relaysModel =
     let
@@ -271,11 +278,29 @@ viewRelays shared model user relaysModel =
         outboxRelays =
             Nostr.getNip65WriteRelaysForPubKey shared.nostr user.pubKey
 
+        outboxRelaySuggestions =
+            { identifier = "outbox-relay-suggestions"
+            , suggestions =
+                missingRelays outboxRelays Pareto.paretoRelays
+            }
+
         inboxRelays =
             Nostr.getNip65ReadRelaysForPubKey shared.nostr user.pubKey
 
+        inboxRelaySuggestions =
+            { identifier = "inbox-relay-suggestions"
+            , suggestions =
+                missingRelays inboxRelays Pareto.paretoRelays
+            }
+
         searchRelays =
             Nostr.getSearchRelaysForPubKey shared.nostr user.pubKey
+
+        searchRelaySuggestions =
+            { identifier = "search-relay-suggestions"
+            , suggestions =
+                missingRelays inboxRelays Pareto.defaultSearchRelays
+            }
     in
     div
         [ css
@@ -290,7 +315,7 @@ viewRelays shared model user relaysModel =
             [ text <| Translations.outboxSectionTitle [ shared.browserEnv.translations ] ]
         , p [] [ text <| Translations.outboxRelaysDescription [ shared.browserEnv.translations ] ]
         , viewRelayList (RemoveRelay user.pubKey WriteRelay) outboxRelays
-        , addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey)
+        , addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay outboxRelaySuggestions (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey)
         , h3
             (styles.colorStyleGrayscaleTitle
                 ++ styles.textStyleH3
@@ -299,16 +324,25 @@ viewRelays shared model user relaysModel =
             [ text <| Translations.inboxSectionTitle [ shared.browserEnv.translations ] ]
         , p [] [ text <| Translations.inboxRelaysDescription [ shared.browserEnv.translations ] ]
         , viewRelayList (RemoveRelay user.pubKey ReadRelay) inboxRelays
-        , addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey)
+        , addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay inboxRelaySuggestions (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey)
 
         -- , viewRelayList searchRelays
         -- , addRelayBox shared.theme shared.browserEnv.translations relaysModel.searchRelay (updateRelayModelSearch relaysModel) (AddSearchRelay user.pubKey)
         ]
 
 
-missingRelays : List Relay -> List Relay -> List Relay
+missingRelays : List Relay -> List String -> List String
 missingRelays addedRelays recommendedRelays =
     recommendedRelays
+        |> List.filter
+            (\relayUrl ->
+                addedRelays
+                    |> List.filter
+                        (\addedRelay ->
+                            addedRelay.urlWithoutProtocol == hostWithoutProtocol relayUrl
+                        )
+                    |> List.isEmpty
+            )
 
 
 updateRelayModelOutbox : RelaysModel -> Maybe String -> RelaysModel
@@ -326,11 +360,16 @@ updateRelayModelSearch relaysModel value =
     { relaysModel | searchRelay = value }
 
 
-addRelayBox : Theme -> I18Next.Translations -> Maybe String -> (Maybe String -> RelaysModel) -> (String -> Msg) -> Html Msg
-addRelayBox theme translations maybeValue updateFn addRelayMsg =
+addRelayBox : Theme -> I18Next.Translations -> Maybe String -> RelaySuggestions -> (Maybe String -> RelaysModel) -> (String -> Msg) -> Html Msg
+addRelayBox theme translations maybeValue relaySuggestions updateFn addRelayMsg =
     let
         styles =
             stylesForTheme theme
+
+        showProtocolPrefix =
+            maybeValue
+                |> Maybe.map (\value -> not <| String.startsWith "wss://" value || String.startsWith "ws://" value)
+                |> Maybe.withDefault True
     in
     div
         [ css
@@ -350,13 +389,38 @@ addRelayBox theme translations maybeValue updateFn addRelayMsg =
                     ]
                 ]
             ]
-            [ input
+            [ div
+                (styles.colorStyleGrayscaleMuted
+                    ++ [ css
+                            [ Tw.flex
+                            , Tw.absolute
+                            , Tw.leading_6
+                            , Tw.w_10
+                            , Tw.h_10
+                            , Tw.items_center
+                            , Tw.justify_center
+                            , Tw.left_2
+                            , Tw.top_0
+                            , Tw.pointer_events_none
+                            ]
+                       ]
+                )
+                [ if showProtocolPrefix then
+                    text "wss://"
+
+                  else
+                    text ""
+                ]
+            , input
                 [ Attr.placeholder <| Translations.addRelayPlaceholder [ translations ]
                 , Attr.value (Maybe.withDefault "" maybeValue)
+                , Attr.type_ "url"
+                , Attr.spellcheck False
+                , Attr.list relaySuggestions.identifier
                 , Events.onInput
                     (\relayText ->
                         if relayText /= "" then
-                            UpdateRelayModel <| updateFn (Just relayText)
+                            UpdateRelayModel <| updateFn (Just <| relayText)
 
                         else
                             UpdateRelayModel <| updateFn Nothing
@@ -370,24 +434,48 @@ addRelayBox theme translations maybeValue updateFn addRelayMsg =
                     , Tw.box_border
                     , Tw.cursor_text
                     , Tw.block
-                    , Tw.ps_2
+                    , Tw.ps_14
                     , Tw.pe_16
-                    , Tw.pl_2
+                    , Tw.pl_14
                     , Tw.pr_16
                     , Tw.h_10
                     , Tw.w_full
                     ]
                 ]
                 []
+            , relaySuggestionDataList relaySuggestions
             ]
         , Button.new
             { label = Translations.addRelayButtonTitle [ translations ]
             , onClick = Maybe.map addRelayMsg maybeValue
             , theme = theme
             }
-            |> Button.withDisabled (maybeValue == Nothing)
+            |> Button.withDisabled (not <| relayUrlValid maybeValue)
             |> Button.view
         ]
+
+
+relaySuggestionDataList : RelaySuggestions -> Html Msg
+relaySuggestionDataList relaySuggestions =
+    datalist
+        [ Attr.id relaySuggestions.identifier
+        ]
+        (relaySuggestions.suggestions
+            |> List.map
+                (\relayUrl ->
+                    option [ Attr.value relayUrl ] []
+                )
+        )
+
+
+relayUrlValid : Maybe String -> Bool
+relayUrlValid maybeRelayUrl =
+    case maybeRelayUrl of
+        Just relayUrl ->
+            True
+
+        Nothing ->
+            False
 
 
 viewRelayList : (String -> Msg) -> List Relay -> Html Msg

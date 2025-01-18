@@ -88,6 +88,9 @@ hostWithoutProtocol url =
             if String.startsWith "wss://" url then
                 String.dropLeft 6 url
 
+            else if String.startsWith "ws://" url then
+                String.dropLeft 5 url
+
             else
                 url
     in

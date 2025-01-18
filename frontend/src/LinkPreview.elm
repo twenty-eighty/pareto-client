@@ -176,6 +176,10 @@ isYouTubeWatchUrl url =
     List.member url.host hosts && url.path == "/watch"
 
 
+
+-- don't embed Facebook content - requires App registration to use oEmbed
+
+
 isPlainLinkkUrl : Url -> Bool
 isPlainLinkkUrl url =
     let
