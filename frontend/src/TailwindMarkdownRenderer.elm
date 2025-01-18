@@ -8,11 +8,11 @@ import Markdown.Block as Block
 import Markdown.Html
 import Markdown.Renderer
 import Nostr.Nip27 exposing (GetProfileFunction, subsituteNostrLinks)
+import Nostr.Shared exposing (ensureHttps)
 import Parser
 import SyntaxHighlight
-import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-import Nostr.Shared exposing (ensureHttps)
+import Tailwind.Utilities as Tw
 import Ui.Styles exposing (Styles)
 
 
@@ -21,15 +21,15 @@ renderer styles loadedContent fnGetProfile =
     { heading = heading styles
     , paragraph =
         Html.p
-            (styles.textStyleBody ++ styles.colorStyleGrayscaleText ++
-            [ css
-                [ Tw.mb_6
-                , Css.property "overflow-wrap" "break-word"
-                , Css.property "word-break" "break-word"
-                ]
-            ]
+            (styles.textStyleBody
+                ++ styles.colorStyleGrayscaleText
+                ++ [ css
+                        [ Tw.mb_6
+                        , Css.property "overflow-wrap" "break-word"
+                        , Css.property "word-break" "break-word"
+                        ]
+                   ]
             )
-
     , thematicBreak =
         Html.hr
             [ css
@@ -37,7 +37,7 @@ renderer styles loadedContent fnGetProfile =
                 ]
             ]
             []
-    , text = (subsituteNostrLinks styles fnGetProfile)
+    , text = subsituteNostrLinks styles fnGetProfile
     , strong = \content -> Html.strong [ css [ Tw.font_bold ] ] content
     , emphasis = \content -> Html.em [ css [ Tw.italic ] ] content
     , blockQuote =
@@ -65,13 +65,13 @@ renderer styles loadedContent fnGetProfile =
                 Just title ->
                     Html.figure
                         [ css
-                            [ 
-                            ]
+                            []
                         ]
                         [ Html.img
                             [ Attr.src (ensureHttps image.src)
                             , Attr.alt image.alt
-                            ] []
+                            ]
+                            []
                         , Html.figcaption
                             []
                             [ Html.text title ]
@@ -82,9 +82,10 @@ renderer styles loadedContent fnGetProfile =
                         [ Attr.src (ensureHttps image.src)
                         , Attr.alt image.alt
                         , css
-                            [Tw.max_h_96
+                            [ Tw.max_h_96
                             ]
-                        ] []
+                        ]
+                        []
     , unorderedList =
         \items ->
             Html.ul (styles.textStyleBody ++ styles.colorStyleGrayscaleText)
@@ -129,22 +130,23 @@ renderer styles loadedContent fnGetProfile =
             Html.ol
                 (case startingIndex of
                     1 ->
-                        (styles.textStyleBody ++ styles.colorStyleGrayscaleText ++
-                        [ Attr.start startingIndex
-                        , css
-                            [ Tw.list_decimal
-                            , Tw.ps_6
-                            ]
-                        ]
-                        )
+                        styles.textStyleBody
+                            ++ styles.colorStyleGrayscaleText
+                            ++ [ Attr.start startingIndex
+                               , css
+                                    [ Tw.list_decimal
+                                    , Tw.ps_6
+                                    ]
+                               ]
 
                     _ ->
-                        (styles.textStyleBody ++ styles.colorStyleGrayscaleText ++
-                        [ css
-                            [ Tw.list_decimal
-                            , Tw.ps_6
-                            ]
-                        ])
+                        styles.textStyleBody
+                            ++ styles.colorStyleGrayscaleText
+                            ++ [ css
+                                    [ Tw.list_decimal
+                                    , Tw.ps_6
+                                    ]
+                               ]
                 )
                 (items
                     |> List.map
@@ -258,25 +260,28 @@ heading styles { level, rawText, children } =
     case level of
         Block.H1 ->
             Html.h1
-                (styles.textStyleH1Article ++ styles.colorStyleGrayscaleText ++
-                [ css
-                    [ Tw.mt_2
-                    , Tw.mb_4
-                    ]
-                ])
+                (styles.textStyleH1Article
+                    ++ styles.colorStyleGrayscaleText
+                    ++ [ css
+                            [ Tw.mt_2
+                            , Tw.mb_4
+                            ]
+                       ]
+                )
                 children
 
         Block.H2 ->
             Html.h2
-                (styles.textStyleH2 ++ styles.colorStyleGrayscaleText ++
-                [ Attr.id (rawTextToId rawText)
-                , Attr.attribute "name" (rawTextToId rawText)
-                , css
-                    [ Tw.mt_10
-                    , Tw.pb_1
-                    , Tw.border_b
-                    ]
-                ]
+                (styles.textStyleH2
+                    ++ styles.colorStyleGrayscaleText
+                    ++ [ Attr.id (rawTextToId rawText)
+                       , Attr.attribute "name" (rawTextToId rawText)
+                       , css
+                            [ Tw.mt_10
+                            , Tw.pb_1
+                            , Tw.border_b
+                            ]
+                       ]
                 )
                 [ Html.a
                     [ Attr.href <| "#" ++ rawTextToId rawText
@@ -285,17 +290,18 @@ heading styles { level, rawText, children } =
                         ]
                     ]
                     children
-                    
                 ]
 
         Block.H3 ->
             Html.h3
-                (styles.textStyleH3 ++ styles.colorStyleGrayscaleText ++
-                [ css
-                    [ Tw.mt_10
-                    , Tw.mb_4
-                    ]
-                ])
+                (styles.textStyleH3
+                    ++ styles.colorStyleGrayscaleText
+                    ++ [ css
+                            [ Tw.mt_10
+                            , Tw.mb_4
+                            ]
+                       ]
+                )
                 children
 
         _ ->
@@ -342,10 +348,12 @@ heading styles { level, rawText, children } =
 --
 --
 
+
 htmlBlock : Markdown.Html.Renderer (List (Html msg) -> Html msg)
 htmlBlock =
     Markdown.Html.oneOf
-        [ htmlCiteElement
+        [ htmlAElement
+        , htmlCiteElement
         , htmlImgElement
         , htmlPElement
         , htmlStrongElement
@@ -357,6 +365,7 @@ htmlBlock =
         , htmlGenericElement "tr"
         ]
 
+
 htmlImgElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
 htmlImgElement =
     Markdown.Html.tag "img"
@@ -366,6 +375,16 @@ htmlImgElement =
         |> Markdown.Html.withAttribute "src"
         |> Markdown.Html.withOptionalAttribute "alt"
 
+
+htmlAElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlAElement =
+    Markdown.Html.tag "a"
+        (\maybeHref ->
+            renderHtmlAElement maybeHref
+        )
+        |> Markdown.Html.withOptionalAttribute "href"
+
+
 htmlCiteElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
 htmlCiteElement =
     Markdown.Html.tag "cite"
@@ -374,56 +393,82 @@ htmlCiteElement =
         )
         |> Markdown.Html.withOptionalAttribute "src"
 
+
 htmlPElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
 htmlPElement =
     Markdown.Html.tag "p" (\children -> Html.p [] children)
+
 
 htmlStrongElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
 htmlStrongElement =
     Markdown.Html.tag "strong" (\children -> Html.strong [] children)
 
+
 htmlGenericElement : String -> Markdown.Html.Renderer (List (Html msg) -> Html msg)
 htmlGenericElement tagName =
-    Markdown.Html.tag tagName (\ children -> Html.div [] children)
+    Markdown.Html.tag tagName (\children -> Html.div [] children)
+
+
+renderHtmlAElement : Maybe String -> (List (Html msg) -> Html msg)
+renderHtmlAElement maybeHref children =
+    let
+        srcAttr =
+            maybeHref
+                |> Maybe.map (\href -> [ Attr.href href ])
+                |> Maybe.withDefault []
+    in
+    Html.a
+        ([ css
+            []
+         ]
+            ++ srcAttr
+        )
+        children
+
 
 renderHtmlCiteElement : Maybe String -> (List (Html msg) -> Html msg)
 renderHtmlCiteElement maybeSrc children =
     let
         srcAttr =
             maybeSrc
-            |> Maybe.map (\src -> [ Attr.src src ])
-            |> Maybe.withDefault []
+                |> Maybe.map (\src -> [ Attr.src src ])
+                |> Maybe.withDefault []
     in
     Html.cite
         ([ css
-            [
-            ]
-        ] ++ srcAttr)
+            []
+         ]
+            ++ srcAttr
+        )
         children
+
 
 renderHtmlImgElement : String -> Maybe String -> (List (Html msg) -> Html msg)
 renderHtmlImgElement src maybeAlt children =
     let
         altAttr =
             maybeAlt
-            |> Maybe.map (\alt -> [ Attr.alt alt ])
-            |> Maybe.withDefault []
+                |> Maybe.map (\alt -> [ Attr.alt alt ])
+                |> Maybe.withDefault []
     in
     Html.img
         -- don't reference unsafe (http) resources
         -- as this might display our site as unsafe
         ([ Attr.src (ensureHttps src)
-        , css
-            [Tw.max_h_96
+         , css
+            [ Tw.max_h_96
             ]
-        ] ++ altAttr)
+         ]
+            ++ altAttr
+        )
         children
+
 
 codeBlock : { body : String, language : Maybe String } -> Html msg
 codeBlock details =
     case details.language of
         Just language ->
-            (codeParsingFunction language) details.body
+            codeParsingFunction language details.body
                 |> Result.map (SyntaxHighlight.toBlockHtml (Just 1))
                 |> Result.map Html.fromUnstyled
                 |> Result.withDefault (defaultFormatCodeBlock details.body)
@@ -431,12 +476,13 @@ codeBlock details =
         Nothing ->
             defaultFormatCodeBlock details.body
 
+
 codeParsingFunction : String -> (String -> Result (List Parser.DeadEnd) SyntaxHighlight.HCode)
 codeParsingFunction language =
     case language of
         "css" ->
             SyntaxHighlight.css
-        
+
         "elm" ->
             SyntaxHighlight.elm
 
@@ -461,6 +507,7 @@ codeParsingFunction language =
         _ ->
             SyntaxHighlight.noLang
 
+
 defaultFormatCodeBlock body =
     Html.pre
         [ css
@@ -476,10 +523,11 @@ defaultFormatCodeBlock body =
         [ Html.code [] [ Html.text body ] ]
 
 
-formatLink : Styles msg -> { title: Maybe String, destination : String } -> List (Html msg) -> Html msg
+formatLink : Styles msg -> { title : Maybe String, destination : String } -> List (Html msg) -> Html msg
 formatLink styles { title, destination } body =
     Html.a
-        ( styles.colorStyleLinks ++ styles.textStyleLinks ++
-        [ Attr.href destination ]
+        (styles.colorStyleLinks
+            ++ styles.textStyleLinks
+            ++ [ Attr.href destination ]
         )
         body
