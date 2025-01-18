@@ -4,6 +4,8 @@ import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as Pipeline
 import Time
+import Url
+
 
 type alias Nip11Info =
     { name : Maybe String
@@ -25,6 +27,7 @@ type alias Nip11Fees =
     , period : Int
     }
 
+
 type alias Nip11Limitations =
     { authRequired : Maybe Bool
     , createdAtLowerLimit : Maybe Time.Posix
@@ -40,6 +43,7 @@ type alias Nip11Limitations =
     , paymentRequired : Maybe Bool
     , restrictedWrites : Maybe Bool
     }
+
 
 type RelayFeature
     = RelayAuth
@@ -88,12 +92,11 @@ decodeUnixTime =
         |> Decode.map (\unixTime -> Time.millisToPosix (unixTime * 1000))
 
 
-
 relayFeatures : Nip11Info -> List RelayFeature
 relayFeatures nip11Info =
     case nip11Info.supportedNips of
         Just supportedNips ->
-            List.filterMap relayFeatureFromNip supportedNips 
+            List.filterMap relayFeatureFromNip supportedNips
 
         Nothing ->
             []
@@ -107,21 +110,47 @@ relayFeatureFromNip nip =
 
         40 ->
             Just RelayDelete
-        
+
         _ ->
             Nothing
 
+
 fetchNip11 : (Result Http.Error Nip11Info -> msg) -> String -> Cmd msg
 fetchNip11 toMsg urlWithoutProtocol =
-     Http.request
+    fetchNip11Proxy toMsg urlWithoutProtocol
+
+
+fetchNip11Directly : (Result Http.Error Nip11Info -> msg) -> String -> Cmd msg
+fetchNip11Directly toMsg urlWithoutProtocol =
+    Http.request
         { method = "GET"
         , headers =
             [ Http.header "Accept" "application/nostr+json"
             ]
-        , url = "https://" ++ urlWithoutProtocol -- ++ "/.well-known/nostr.json"
+        , url = "https://" ++ urlWithoutProtocol
         , body = Http.emptyBody
         , expect = Http.expectJson toMsg nip11Decoder
         , timeout = Nothing
         , tracker = Nothing
         }
 
+
+fetchNip11Proxy : (Result Http.Error Nip11Info -> msg) -> String -> Cmd msg
+fetchNip11Proxy toMsg urlWithoutProtocol =
+    let
+        apiUrl =
+            "https://pareto.space"
+
+        -- "http://localhost:4000"
+    in
+    Http.request
+        { method = "GET"
+        , headers =
+            [ Http.header "Accept" "application/nostr+json"
+            ]
+        , url = apiUrl ++ "/api/nip11?url=" ++ (Url.percentEncode <| "https://" ++ urlWithoutProtocol)
+        , body = Http.emptyBody
+        , expect = Http.expectJson toMsg nip11Decoder
+        , timeout = Nothing
+        , tracker = Nothing
+        }
