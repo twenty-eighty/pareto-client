@@ -5,7 +5,8 @@ defmodule NostrBackendWeb.OembedController do
   import SweetXml
 
   @allowed_origins [
-    "https://pareto.space", "http://localhost:1234"
+    "https://pareto.space",
+    "http://localhost:1234"
   ]
 
   def fetch_oembed(conn, %{"url" => oembed_url}) do
@@ -65,7 +66,7 @@ defmodule NostrBackendWeb.OembedController do
     end
   end
 
- defp fetch_and_cache_oembed(conn, oembed_url) do
+  defp fetch_and_cache_oembed(conn, oembed_url) do
     case Req.get(oembed_url, headers: default_headers()) do
       {:ok, %Req.Response{status: 200, body: body, headers: headers}} ->
         content_type = get_content_type(headers)
@@ -79,6 +80,7 @@ defmodule NostrBackendWeb.OembedController do
           {:error, reason} ->
             IO.inspect(reason, label: "ERROR REASON")
             IO.inspect(body, label: "BODY")
+
             conn
             |> put_status(:unprocessable_entity)
             |> text("Failed to process oEmbed response: #{reason}")
@@ -92,7 +94,8 @@ defmodule NostrBackendWeb.OembedController do
   end
 
   defp handle_body_by_content_type("application/json", body) when is_map(body) do
-    {:ok, body} # JSON is already parsed
+    # JSON is already parsed
+    {:ok, body}
   end
 
   defp handle_body_by_content_type("application/json", body) do
@@ -117,8 +120,10 @@ defmodule NostrBackendWeb.OembedController do
   defp parse_xml_to_json(xml_body) do
     try do
       xml_body
-      |> SweetXml.parse() # Parse the raw XML string
-      |> xpath(~x"//oembed/*"l) # Select all child nodes of <oembed>
+      # Parse the raw XML string
+      |> SweetXml.parse()
+      # Select all child nodes of <oembed>
+      |> xpath(~x"//oembed/*"l)
       |> Enum.reduce(%{}, fn element, acc ->
         # Extract tag name
         key = element |> SweetXml.xpath(~x"local-name(.)"s)

@@ -73,6 +73,7 @@ defmodule NostrBackendWeb.Router do
     pipe_through :api
 
     get "/nip05/validate", NostrController, :validate_nip05_handle
+    get "/nip11", Nip11Controller, :fetch_nip11
     # get "/opengraph", OpenGraphController, :fetch_metadata
     get "/oembed", OembedController, :fetch_oembed
     get "/opengraph/image", OpenGraphController, :fetch_metadata_image

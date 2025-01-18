@@ -123,7 +123,6 @@ defmodule NostrBackendWeb.NostrController do
     |> json(@nostr_data)
   end
 
-
   def validate_nip05_handle(conn, %{"handle" => handle}) do
     conn =
       put_same_domain_headers(conn)
@@ -137,6 +136,7 @@ defmodule NostrBackendWeb.NostrController do
 
           {:error, message} ->
             IO.inspect(message, label: "Error")
+
             conn
             |> put_status(:not_found)
             |> text(message)
@@ -164,7 +164,7 @@ defmodule NostrBackendWeb.NostrController do
   defp put_same_domain_headers(conn) do
     conn
     # change this to pareto.space in case the API endpoint is (mis)used by other Nostr applications
-#   |> put_resp_header("Access-Control-Allow-Origin", "pareto.space")
+    #   |> put_resp_header("Access-Control-Allow-Origin", "pareto.space")
     |> put_resp_header("Access-Control-Allow-Origin", "*")
     |> put_resp_header("Access-Control-Allow-Methods", "GET, OPTIONS")
   end

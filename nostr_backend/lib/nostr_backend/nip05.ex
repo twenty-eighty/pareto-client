@@ -2,7 +2,8 @@ defmodule NostrBackend.Nip05 do
   use HTTPoison.Base
 
   @cache_name :nip05_cache
-  @cache_ttl 86_400 # 24 hours in seconds
+  # 24 hours in seconds
+  @cache_ttl 86_400
 
   @moduledoc """
   Provides functions for handling NIP-05 identifiers, parsing them,
@@ -34,7 +35,7 @@ defmodule NostrBackend.Nip05 do
     end
   end
 
-    @doc """
+  @doc """
   Retrieves the raw `.well-known/nostr.json` response for a given `name` and `domain`,
   caching the result to avoid repeated network requests.
 
@@ -120,7 +121,6 @@ defmodule NostrBackend.Nip05 do
         {:error, reason}
     end
   end
-
 
   @doc """
   Parses a NIP-05 identifier and returns the public key and relays if available.
