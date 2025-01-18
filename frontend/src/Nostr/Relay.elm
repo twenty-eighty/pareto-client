@@ -1,6 +1,7 @@
 module Nostr.Relay exposing (..)
 
 import Dict exposing (Dict)
+import Http
 import Json.Decode as Decode
 import Nostr.Nip11 exposing (Nip11Info)
 import Nostr.Types exposing (RelayUrl)
@@ -16,6 +17,7 @@ type alias Relay =
 
 type RelayState
     = RelayStateUnknown
+    | RelayStateNip11RequestFailed Http.Error
     | RelayDisconnected
     | RelayConnecting
     | RelayConnected

@@ -166,6 +166,9 @@ relayStateInfo translations state =
         RelayStateUnknown ->
             ( Translations.relayStateUnknown [ translations ], Theme.gray_400 )
 
+        RelayStateNip11RequestFailed _ ->
+            ( Translations.nip11RequestFailed [ translations ], Theme.black )
+
         RelayDisconnected ->
             ( Translations.relayDisconnected [ translations ], Theme.red_500 )
 

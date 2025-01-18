@@ -607,6 +607,49 @@ getRelayListForPubKey model pubKey =
         |> Maybe.withDefault []
 
 
+getNip65RelaysForPubKey : Model -> PubKey -> List ( RelayRole, Relay )
+getNip65RelaysForPubKey model pubKey =
+    Dict.get pubKey model.relayMetadataLists
+        |> Maybe.map
+            (\relayList ->
+                relayList
+                    |> relayMetadataListWithUniqueEntries
+                    |> List.filterMap
+                        (\{ role, url } ->
+                            Maybe.map
+                                (\relay -> ( role, relay ))
+                                (Dict.get url model.relays)
+                        )
+            )
+        |> Maybe.withDefault []
+
+
+getNip65ReadRelaysForPubKey : Model -> PubKey -> List Relay
+getNip65ReadRelaysForPubKey model pubKey =
+    getNip65RelaysForPubKey model pubKey
+        |> List.filterMap
+            (\( role, relay ) ->
+                if role == ReadRelay || role == ReadWriteRelay then
+                    Just relay
+
+                else
+                    Nothing
+            )
+
+
+getNip65WriteRelaysForPubKey : Model -> PubKey -> List Relay
+getNip65WriteRelaysForPubKey model pubKey =
+    getNip65RelaysForPubKey model pubKey
+        |> List.filterMap
+            (\( role, relay ) ->
+                if role == WriteRelay || role == ReadWriteRelay then
+                    Just relay
+
+                else
+                    Nothing
+            )
+
+
 getReadRelaysForPubKey : Model -> PubKey -> List Relay
 getReadRelaysForPubKey model pubKey =
     getRelaysForPubKey model pubKey
@@ -1220,8 +1263,22 @@ update msg model =
             ( { model | relays = Dict.insert urlWithoutProtocol updatedRelay model.relays }, Cmd.none )
 
         Nip11Fetched urlWithoutProtocol (Err err) ->
-            -- Handle error, e.g., log it, retry, or display to user
-            ( { model | errors = ("Error fetching NIP11 data for " ++ urlWithoutProtocol ++ ": " ++ httpErrorToString err) :: model.errors }, Cmd.none )
+            let
+                updatedRelay =
+                    Dict.get urlWithoutProtocol model.relays
+                        |> Maybe.map (\relay -> { relay | state = RelayStateNip11RequestFailed err })
+                        |> Maybe.withDefault
+                            { urlWithoutProtocol = urlWithoutProtocol
+                            , state = RelayStateNip11RequestFailed err
+                            , nip11 = Nothing
+                            }
+            in
+            ( { model
+                | errors = ("Error fetching NIP11 data for " ++ urlWithoutProtocol ++ ": " ++ httpErrorToString err) :: model.errors
+                , relays = Dict.insert urlWithoutProtocol updatedRelay model.relays
+              }
+            , Cmd.none
+            )
 
 
 updateModelWithEvents : Model -> Int -> Kind -> List Event -> ( Model, Cmd Msg )
@@ -1925,10 +1982,20 @@ updateModelWithRelayListMetadata model events =
                         not <| Dict.member relay model.relays
                     )
 
+        -- insert dummy entries in relays dict
+        -- should be updated with NIP-11 data
+        relays =
+            unknownRelays
+                |> List.foldl
+                    (\unknownRelay acc ->
+                        Dict.insert unknownRelay { nip11 = Nothing, state = RelayStateUnknown, urlWithoutProtocol = unknownRelay } acc
+                    )
+                    model.relays
+
         requestNip11Cmd =
             requestRelayNip11 unknownRelays
     in
-    ( { model | relayMetadataLists = relayListDict }, requestNip11Cmd )
+    ( { model | relayMetadataLists = relayListDict, relays = relays }, requestNip11Cmd )
 
 
 relayUrlListWithUniqueEntries : List RelayUrl -> List RelayUrl

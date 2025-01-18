@@ -83,6 +83,7 @@
       "relay connecting": "connecting...",
       "relay connected": "connected",
       "relay ready": "ready",
+      "nip11 request failed": "NIP-11 request failed",
       "loading article": "Loading article...",
       "loading note": "Loading note...",
       "loading profile": "Loading profile..."
