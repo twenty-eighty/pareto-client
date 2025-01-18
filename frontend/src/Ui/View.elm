@@ -6,6 +6,9 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.RelayStatus as RelayStatus exposing (Purpose(..))
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
+import Html.Styled.Keyed as Keyed
+import Html.Styled.Lazy as Lazy
+import I18Next
 import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, nip19ForArticle)
@@ -19,7 +22,6 @@ import Ui.Community
 import Ui.Shared exposing (Actions)
 import Ui.ShortNote
 import Ui.Styles exposing (Styles, Theme)
-import I18Next
 
 
 type ArticlePreviewType
@@ -39,6 +41,7 @@ viewArticle articlePreviewsData loadedContent article =
         }
         article
 
+
 actionsFromArticlePreviewsData : ArticlePreviewsData msg -> Article -> Actions msg
 actionsFromArticlePreviewsData articlePreviewsData article =
     let
@@ -46,26 +49,28 @@ actionsFromArticlePreviewsData articlePreviewsData article =
             addressComponentsForArticle article
 
         addReactionMsg =
-            Maybe.map2 (\addReaction addressComponents ->
-                addReaction article.id article.author addressComponents
+            Maybe.map2
+                (\addReaction addressComponents ->
+                    addReaction article.id article.author addressComponents
                 )
                 articlePreviewsData.onReaction
                 maybeAddressComponents
     in
-    case (articlePreviewsData.onBookmark, maybeAddressComponents) of
-        (Just (addArticleBookmark, removeArticleBookmark), Just addressComponents) ->
+    case ( articlePreviewsData.onBookmark, maybeAddressComponents ) of
+        ( Just ( addArticleBookmark, removeArticleBookmark ), Just addressComponents ) ->
             { addBookmark = Just <| addArticleBookmark addressComponents
             , removeBookmark = Just <| removeArticleBookmark addressComponents
             , addReaction = addReactionMsg
             , removeReaction = Nothing
             }
 
-        (_, _) ->
+        ( _, _ ) ->
             { addBookmark = Nothing
             , removeBookmark = Nothing
             , addReaction = Nothing
             , removeReaction = Nothing
             }
+
 
 viewArticlePreviews : ArticlePreviewType -> ArticlePreviewsData msg -> List Article -> Html msg
 viewArticlePreviews previewType articlePreviewsData articles =
@@ -76,6 +81,7 @@ viewArticlePreviews previewType articlePreviewsData articles =
         ArticlePreviewBigPicture ->
             viewArticlePreviewsBigPicture articlePreviewsData articles
 
+
 viewArticlePreviewsList : ArticlePreviewsData msg -> List Article -> Html msg
 viewArticlePreviewsList articlePreviewsData articles =
     div
@@ -84,29 +90,35 @@ viewArticlePreviewsList articlePreviewsData articles =
             , Tw.justify_center
             ]
         ]
-        [ div
+        [ Keyed.node "div"
             [ css
                 [ Tw.flex
                 , Tw.flex_col
                 , Tw.gap_8
                 ]
             ]
-            ( articles
-            |> List.map (\article ->
-                Ui.Article.viewArticlePreviewList
-                    articlePreviewsData
-                        { author = Nostr.getAuthor articlePreviewsData.nostr article.author
-                        , actions =
-                            actionsFromArticlePreviewsData articlePreviewsData article
-                        , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
-                        , displayAuthor = True
-                        , loadedContent = Nothing
-                        }
-                        article
-                )
+            (articles
+                |> List.map
+                    (\article ->
+                        ( -- unique identifier for Keyed.node
+                          article.id
+                        , Lazy.lazy3
+                            Ui.Article.viewArticlePreviewList
+                            articlePreviewsData
+                            { author = Nostr.getAuthor articlePreviewsData.nostr article.author
+                            , actions =
+                                actionsFromArticlePreviewsData articlePreviewsData article
+                            , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
+                            , displayAuthor = True
+                            , loadedContent = Nothing
+                            }
+                            article
+                        )
+                    )
             )
         ]
-    
+
+
 viewArticlePreviewsBigPicture : ArticlePreviewsData msg -> List Article -> Html msg
 viewArticlePreviewsBigPicture articlePreviewsData articles =
     div
@@ -118,21 +130,23 @@ viewArticlePreviewsBigPicture articlePreviewsData articles =
             , Tw.inline_flex
             ]
         ]
-        ( articles
-        |> List.take 20
-        |> List.map (\article ->
-                Ui.Article.viewArticlePreviewBigPicture
-                    articlePreviewsData
-                    { author = Nostr.getAuthor articlePreviewsData.nostr article.author
-                    , actions =
-                        actionsFromArticlePreviewsData articlePreviewsData article
-                    , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
-                    , displayAuthor = True
-                    , loadedContent = Nothing
-                    }
-                    article
-            )
+        (articles
+            |> List.take 20
+            |> List.map
+                (\article ->
+                    Ui.Article.viewArticlePreviewBigPicture
+                        articlePreviewsData
+                        { author = Nostr.getAuthor articlePreviewsData.nostr article.author
+                        , actions =
+                            actionsFromArticlePreviewsData articlePreviewsData article
+                        , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
+                        , displayAuthor = True
+                        , loadedContent = Nothing
+                        }
+                        article
+                )
         )
+
 
 viewCommunity : BrowserEnv -> Nostr.Model -> Community -> Html msg
 viewCommunity browserEnv nostr community =
@@ -144,7 +158,7 @@ viewRelayStatus theme translations nostr purpose requestId =
     let
         relays =
             Nostr.getRelaysForRequest nostr requestId
-            |> List.filterMap (Nostr.getRelayData nostr)
+                |> List.filterMap (Nostr.getRelayData nostr)
     in
     RelayStatus.new
         { relays = relays
@@ -153,4 +167,3 @@ viewRelayStatus theme translations nostr purpose requestId =
         , purpose = purpose
         }
         |> RelayStatus.view
-        
