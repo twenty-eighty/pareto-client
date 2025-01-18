@@ -68,6 +68,12 @@ type alias SidebarItemData =
     }
 
 
+routePathIsInList : Route.Path.Path -> ClientRole -> Bool
+routePathIsInList path clientRole =
+    sidebarItems clientRole I18Next.initialTranslations
+        |> List.any (\item -> item.path == path)
+
+
 sidebarItems : ClientRole -> I18Next.Translations -> List SidebarItemData
 sidebarItems clientRole translations =
     case clientRole of
@@ -138,7 +144,7 @@ type Msg
     | OpenProfileMenu
     | CloseModal
     | LoginDialogSent OnboardingDialog.Msg
-    | SwitchClientRole Bool
+    | SwitchClientRole Bool Bool
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -174,8 +180,8 @@ update shared msg model =
                     , Effect.none
                     )
 
-        SwitchClientRole state ->
-            ( model, Effect.sendSharedMsg Shared.Msg.SwitchClientRole )
+        SwitchClientRole changePath _ ->
+            ( model, Effect.sendSharedMsg <| Shared.Msg.SwitchClientRole changePath )
 
 
 subscriptions : Model -> Sub Msg
@@ -295,7 +301,7 @@ viewSidebar styles shared currentPath toContentMsg content =
                     ]
                     [ -- viewBanner
                       if roleSwitchButtonEnabled shared.nostr shared.loginStatus then
-                        clientRoleSwitch shared.browserEnv.translations shared.role
+                        clientRoleSwitch shared.browserEnv.translations shared.role currentPath
 
                       else
                         div [] []
@@ -432,8 +438,17 @@ roleSwitchButtonEnabled nostr loginStatus =
             False
 
 
-clientRoleSwitch : I18Next.Translations -> ClientRole -> Html Msg
-clientRoleSwitch translations clientRole =
+clientRoleSwitch : I18Next.Translations -> ClientRole -> Route.Path.Path -> Html Msg
+clientRoleSwitch translations clientRole currentPath =
+    let
+        currentPathPresentForOtherRole =
+            case clientRole of
+                ClientReader ->
+                    routePathIsInList currentPath ClientCreator
+
+                ClientCreator ->
+                    routePathIsInList currentPath ClientReader
+    in
     {- Switch Container -}
     div
         [ css
@@ -468,7 +483,7 @@ clientRoleSwitch translations clientRole =
               input
                 [ Attr.type_ "checkbox"
                 , Attr.id "toggle-switch"
-                , Events.onCheck SwitchClientRole
+                , Events.onCheck <| SwitchClientRole (not currentPathPresentForOtherRole)
                 , css
                     [ Tw.sr_only
                     ]
