@@ -715,6 +715,7 @@ view (Settings settings) =
 
         DisplayModalDialog True ->
             Ui.Shared.modalDialog
+                settings.theme
                 (Translations.selectImageDialogTitle [ settings.browserEnv.translations ])
                 [ viewMediaSelector (Settings settings) ]
                 (settings.toMsg CloseDialog)
@@ -887,7 +888,7 @@ viewImages (Settings settings) filesToShow =
                                 uniqueIdForUploadedFile fileToShow
                         in
                         ( uniqueFileId
-                        , Lazy.lazy4 imagePreview settings.onSelected model.displayType uniqueFileId fileToShow
+                        , Lazy.lazy5 imagePreview settings.browserEnv.translations settings.onSelected model.displayType uniqueFileId fileToShow
                             |> Html.map settings.toMsg
                         )
                     ) 
@@ -1001,8 +1002,8 @@ uploadedNip96ImageFiles uploadedNip96Files serverUrl =
     |> Maybe.withDefault []
 
 
-imagePreview : Maybe (UploadedFile -> msg) -> DisplayType -> String -> UploadedFile -> Html (Msg msg)
-imagePreview onSelected displayType uniqueFileId uploadedFile =
+imagePreview : I18Next.Translations -> Maybe (UploadedFile -> msg) -> DisplayType -> String -> UploadedFile -> Html (Msg msg)
+imagePreview translations onSelected displayType uniqueFileId uploadedFile =
     let
         commonAttributes =
             [ css
@@ -1039,7 +1040,7 @@ imagePreview onSelected displayType uniqueFileId uploadedFile =
                     , Attr.src (Maybe.withDefault "" nip96File.url ++ "?w=" ++ String.fromInt imageWidth) -- NIP-96 servers can return scaled versions of images
                     ])
                     [ ]
-                , viewCopyButton displayType (Maybe.withDefault "" nip96File.url) uniqueFileId
+                , viewCopyButton translations displayType (Maybe.withDefault "" nip96File.url) uniqueFileId
                 ]
 
         BlossomFile blobDescriptor ->
@@ -1055,18 +1056,18 @@ imagePreview onSelected displayType uniqueFileId uploadedFile =
                     , Attr.src blobDescriptor.url
                     ])
                     [ ]
-                , viewCopyButton displayType blobDescriptor.url uniqueFileId
+                , viewCopyButton translations displayType blobDescriptor.url uniqueFileId
                 ]
 
 -- display copy to clipboard button only in embedded mode, not in small dialog
-viewCopyButton : DisplayType -> String -> String -> Html (Msg msg)
-viewCopyButton displayType url uniqueId =
+viewCopyButton : I18Next.Translations -> DisplayType -> String -> String -> Html (Msg msg)
+viewCopyButton translations displayType url uniqueId =
     case displayType of
         DisplayModalDialog _ ->
             div [][]
 
         DisplayEmbedded ->
-            copyButton url uniqueId
+            copyButton translations url uniqueId
 
 
 uniqueIdForUploadedFile : UploadedFile -> String
@@ -1084,8 +1085,8 @@ uniqueIdForFileMetadata fileMetadata =
     |> Maybe.withDefault (String.fromInt fileMetadata.createdAt)
 
 
-copyButton : String -> String -> Html (Msg msg)
-copyButton copyText uniqueId =
+copyButton : I18Next.Translations -> String -> String -> Html (Msg msg)
+copyButton translations copyText uniqueId =
     let
         elementId =
             clipboardElementId ++ "-" ++ uniqueId
@@ -1116,7 +1117,7 @@ copyButton copyText uniqueId =
         , Html.node "js-clipboard-component"
             [ Attr.property "buttonId" (Encode.string elementId)
             , Attr.property "copyContent" (Encode.string copyText)
-            , Events.on "copiedToClipboard" (Decode.succeed (ShowMessage "Copied link to clipboard"))
+            , Events.on "copiedToClipboard" (Decode.succeed (ShowMessage <| Translations.copiedLinkAlertMessage [ translations ]))
             ]
             []
         ]

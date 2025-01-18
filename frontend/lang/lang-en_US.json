@@ -39,7 +39,8 @@
       "no server listbox entry": "No server configured",
       "no server configured message": "You seem to have no media servers configured. Do you want to use the Pareto media server?",
       "configure server button title": "Configure Pareto media server",
-      "select image dialog title": "Select image"
+      "select image dialog title": "Select image",
+      "copied link alert message": "Copied link to clipboard"
    },
    "message dialog": {
       "warning": "Warning"
@@ -93,6 +94,19 @@
    },
    "search bar": {
       "placeholder": "URL, Nostr ID, or Nostr Address"
+   },
+   "settings": {
+      "page title": "Settings",
+      "relays category": "Relays",
+      "media servers category": "Media Servers",
+      "outbox section title": "Public Outbox/Home Relays",
+      "outbox relays description": "This relay type stores all your content.",
+      "inbox section title": "Public Inbox Relays",
+      "inbox relays description": "This relay type receives all replies, comments, likes, and zaps to your posts.",
+      "add relay button title": "Add",
+      "add relay placeholder": "Enter a relay URL",
+      "add nip-96 media server placeholder": "NIP-96 server URL",
+      "add blossom media server placeholder": "Blossom server URL"
    },
    "sidebar": {
       "reader client role text": "Reader",

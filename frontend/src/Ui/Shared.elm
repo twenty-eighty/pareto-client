@@ -1,6 +1,7 @@
 module Ui.Shared exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
+import Color
 import Components.Icon as Icon exposing (Icon)
 import Css
 import Css.Media
@@ -13,8 +14,6 @@ import Svg.Loaders
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
 import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded, stylesForTheme)
-import BrowserEnv exposing (Msg)
-import Color exposing (fromRgba)
 
 pageLoadingIndicator : Html msg
 pageLoadingIndicator =
@@ -54,8 +53,12 @@ linkButton title url =
         [ text title ]
 
 
-modalDialog : String -> List (Html msg) -> msg -> Html msg
-modalDialog title content onClose =
+modalDialog : Theme -> String -> List (Html msg) -> msg -> Html msg
+modalDialog theme title content onClose =
+    let
+        styles =
+            stylesForTheme theme
+    in
     div
         [ css
             [ Tw.fixed
@@ -69,14 +72,15 @@ modalDialog title content onClose =
             ]
         ]
         [ div
+            (styles.colorStyleBackground ++
             [ css
-                [ Tw.bg_color Theme.white
-                , Tw.rounded_lg
+                [ Tw.rounded_lg
                 , Tw.shadow_lg
                 , Tw.p_8
                 , Tw.w_96
                 ]
             ]
+            )
             [ div
                 [ css
                     [ Tw.flex

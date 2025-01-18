@@ -1,9 +1,12 @@
 module Components.SearchBar exposing
-    ( SearchBar, new
-    , Model, init
-    , Msg, update
-    , view
+    ( Model
+    , Msg
+    , SearchBar
+    , init
+    , new
     , subscribe
+    , update
+    , view
     )
 
 import BrowserEnv exposing (BrowserEnv)
@@ -24,13 +27,15 @@ import Time
 import Translations.SearchBar as Translations
 import Ui.Styles exposing (Styles)
 
+
 type SearchBar msg
-     = Settings
+    = Settings
         { model : Model
         , toMsg : Msg msg -> msg
         , browserEnv : BrowserEnv
         , styles : Styles msg
         }
+
 
 new :
     { model : Model
@@ -48,12 +53,13 @@ new props =
         }
 
 
-type Model 
+type Model
     = Model
         { searchText : Maybe String
         , lastSearchText : Maybe String
         , debounceStatus : DebounceStatus
         }
+
 
 type DebounceStatus
     = Inactive
@@ -68,6 +74,7 @@ init props =
         , debounceStatus = Inactive
         }
 
+
 type Msg msg
     = QueryUpdated (Maybe String)
     | TriggerSearch { onSearch : msg }
@@ -77,7 +84,7 @@ type Msg msg
 update :
     { msg : Msg msg
     , model : Model
-    , toModel : Model-> model
+    , toModel : Model -> model
     , toMsg : Msg msg -> msg
     , onSearch : Maybe String -> msg
     }
@@ -97,7 +104,7 @@ update props =
         case props.msg of
             TriggerSearch data ->
                 ( Model model
-                , Effect.sendMsg data.onSearch 
+                , Effect.sendMsg data.onSearch
                 )
 
             QueryUpdated newQuery ->
@@ -118,10 +125,12 @@ update props =
                                 ( Model { model | lastSearchText = model.searchText, debounceStatus = Inactive }
                                 , Effect.sendMsg (props.onSearch model.searchText)
                                 )
+
                             else
                                 ( Model model
                                 , Effect.none
                                 )
+
                         else
                             -- Decrease remaining time
                             ( Model { model | debounceStatus = Active (remainingTime - 100) }
@@ -129,23 +138,23 @@ update props =
                             )
 
 
-
 view : SearchBar msg -> Html msg
 view settings =
     viewSearch settings
+
 
 viewSearch : SearchBar msg -> Html msg
 viewSearch (Settings settings) =
     let
         (Model model) =
-            (settings.model)
+            settings.model
 
         attrs =
-                settings.styles.colorStyleCategoryActiveBackground ++
-                settings.styles.colorStyleCategoryActive ++
-                settings.styles.colorStyleCategoryActiveBorder
+            settings.styles.colorStyleCategoryActiveBackground
+                ++ settings.styles.colorStyleCategoryActive
+                ++ settings.styles.colorStyleCategoryActiveBorder
     in
-        div
+    div
         [ css
             [ Tw.flex
             , Tw.flex_row
@@ -163,31 +172,34 @@ viewSearch (Settings settings) =
             ]
         ]
         [ div
-            (settings.styles.colorStyleGrayscaleMuted ++
-            [css
-                [ Tw.flex
-                , Tw.absolute
-                , Tw.leading_6
-                , Tw.w_10
-                , Tw.h_10
-                , Tw.items_center
-                , Tw.justify_center
-                , Tw.left_0
-                , Tw.top_0
-                , Tw.pointer_events_none
-                ]
-            ])
+            (settings.styles.colorStyleGrayscaleMuted
+                ++ [ css
+                        [ Tw.flex
+                        , Tw.absolute
+                        , Tw.leading_6
+                        , Tw.w_10
+                        , Tw.h_10
+                        , Tw.items_center
+                        , Tw.justify_center
+                        , Tw.left_0
+                        , Tw.top_0
+                        , Tw.pointer_events_none
+                        ]
+                   ]
+            )
             [ Icon.FeatherIcon FeatherIcons.search
                 |> Icon.view
             ]
         , input
             [ Attr.placeholder <| Translations.placeholder [ settings.browserEnv.translations ]
             , Attr.value (Maybe.withDefault "" model.searchText)
-            , Events.onInput (\searchText ->
-                if searchText /= "" then
-                    QueryUpdated (Just searchText)
-                else
-                    QueryUpdated Nothing
+            , Events.onInput
+                (\searchText ->
+                    if searchText /= "" then
+                        QueryUpdated (Just searchText)
+
+                    else
+                        QueryUpdated Nothing
                 )
             , css
                 [ Tw.appearance_none
@@ -209,7 +221,6 @@ viewSearch (Settings settings) =
             []
             |> Html.map settings.toMsg
         ]
-    
 
 
 subscribe : Model -> Sub (Msg msg)

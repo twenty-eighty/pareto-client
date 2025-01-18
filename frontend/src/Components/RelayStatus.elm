@@ -6,12 +6,14 @@ module Components.RelayStatus exposing
 
 {-|
 
+
 ## Basic usage
 
 @docs RelayStatus, new
 @docs view
 
 -}
+
 import Components.Icon exposing (Icon)
 import Css
 import Html.Styled as Html exposing (..)
@@ -20,10 +22,12 @@ import Html.Styled.Events as Events
 import I18Next
 import Nostr.Relay exposing (Relay, RelayState(..))
 import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
 import Translations.RelayStatusComponent as Translations
 import Ui.Styles
+
+
 
 -- SETTINGS
 
@@ -36,7 +40,11 @@ type RelayStatus msg
         , purpose : Purpose
         }
 
+
+
 -- purpose for connecting to relays
+
+
 type Purpose
     = LoadingArticle
     | LoadingNote
@@ -53,6 +61,7 @@ new props =
         }
 
 
+
 -- VIEW
 
 
@@ -61,7 +70,7 @@ view (Settings settings) =
     let
         styles =
             Ui.Styles.stylesForTheme settings.theme
-        
+
         headline =
             textForPurpose settings.translations settings.purpose
     in
@@ -74,9 +83,10 @@ view (Settings settings) =
             ]
         ]
         [ h3
-            ( styles.textStyleH3 ++ styles.colorStyleGrayscaleTitle ++
-            [ 
-            ])
+            (styles.textStyleH3
+                ++ styles.colorStyleGrayscaleTitle
+                ++ []
+            )
             [ text headline
             ]
         , ul
@@ -94,10 +104,11 @@ view (Settings settings) =
             (List.map (viewRelay settings.translations) settings.relays)
         ]
 
+
 viewRelay : I18Next.Translations -> Relay -> Html msg
 viewRelay translations relay =
     let
-        (statusText, statusColor) =
+        ( statusText, statusColor ) =
             relayStateInfo translations relay.state
     in
     li
@@ -148,23 +159,25 @@ viewRelay translations relay =
             [ text relay.urlWithoutProtocol ]
         ]
 
-relayStateInfo : I18Next.Translations -> RelayState -> (String, Theme.Color)
+
+relayStateInfo : I18Next.Translations -> RelayState -> ( String, Theme.Color )
 relayStateInfo translations state =
     case state of
         RelayStateUnknown ->
-            (Translations.relayStateUnknown [ translations ], Theme.gray_400)
+            ( Translations.relayStateUnknown [ translations ], Theme.gray_400 )
 
         RelayDisconnected ->
-            (Translations.relayDisconnected [ translations ], Theme.red_500)
+            ( Translations.relayDisconnected [ translations ], Theme.red_500 )
 
         RelayConnecting ->
-            (Translations.relayConnecting [ translations ], Theme.yellow_500)
+            ( Translations.relayConnecting [ translations ], Theme.yellow_500 )
 
         RelayConnected ->
-            (Translations.relayConnected [ translations ], Theme.green_500)
+            ( Translations.relayConnected [ translations ], Theme.green_500 )
 
         RelayReady ->
-            (Translations.relayReady [ translations ], Theme.blue_500)
+            ( Translations.relayReady [ translations ], Theme.blue_500 )
+
 
 textForPurpose : I18Next.Translations -> Purpose -> String
 textForPurpose translations purpose =

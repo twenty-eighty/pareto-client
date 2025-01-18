@@ -58,11 +58,15 @@ Make sure you display all log levels in the console in order to see debug messag
 For development purposes you don't need Docker. The Docker setup is mainly intended for deployment.
 
 1. Setup the latest versions of Elm, Elixir and Erlang (OTP). One of the best options is [asdf](https://github.com/asdf-vm/asdf)
-2. When using [VSCodium](https://vscodium.com/), install Elm, Elm Land, and Elixir support
-3. Open the frontend and backend separately (`frontend` and `nostr_backend` directories)
+2. Install Elm Land (https://elm.land/)
+3. When using [VSCodium](https://vscodium.com/), install Elm, Elm Land, and Elixir plugins
+4. Open the frontend and backend separately (`frontend` and `nostr_backend` directories)
 
 ## Frontend
-Simply run `./run.sh` in the frontend directory.
+1. run ./generate\_tailwind\_modules.sh (only needed once)
+2. run ./gentranslations.sh to generate the code for the English language version
+3. run `./run.sh` in the frontend directory.
+
 On http://localhost:1234/read you'll find the Pareto client.
 
 You'll notice a small rect bottom/right of the screen that allows to open the Elm debugger.
@@ -70,4 +74,5 @@ You'll notice a small rect bottom/right of the screen that allows to open the El
 ## Backend
 The backend can be started locally with `./run.sh` in the `nostr_backend` directory. This includes building of the frontend.
 To run the backend without building the frontend execute `./dev.sh`.
+If you want to test single functions use `iex -S mix`
 

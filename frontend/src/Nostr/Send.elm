@@ -3,7 +3,10 @@ module Nostr.Send exposing (..)
 import Nostr.Event exposing (AddressComponents, Event)
 import Nostr.Types exposing (EventId, PubKey, RelayUrl)
 
-type alias SendRequestId = Int
+
+type alias SendRequestId =
+    Int
+
 
 type SendRequest
     = SendClientRecommendation (List RelayUrl) Event

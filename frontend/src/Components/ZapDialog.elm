@@ -175,6 +175,7 @@ view dialog =
 
         ZapAmountSelection zapAmountSelectionData ->
             Ui.Shared.modalDialog
+                settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
                 [ viewZapDialog dialog zapAmountSelectionData]
                 CloseDialog

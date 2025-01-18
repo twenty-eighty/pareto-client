@@ -80,6 +80,7 @@ view (Settings settings) =
             ]
     in
     modalDialog
+        settings.theme
         settings.title
         content
         settings.onClose

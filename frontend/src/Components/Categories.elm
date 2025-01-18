@@ -1,11 +1,15 @@
 module Components.Categories exposing
-    ( Categories, new
+    ( Categories
     , CategoryData
-    , Model, init
-    , Msg, update
+    , Model
+    , Msg
+    , init
+    , new
+    , select
     , selected
-    , view
     , subscribe
+    , update
+    , view
     )
 
 import Auth
@@ -18,14 +22,12 @@ import Nostr.Blossom as Blossom exposing (BlobDescriptor)
 import Nostr.Nip96 as Nip96 exposing (extendRelativeServerDescriptorUrls)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
-import Svg.Loaders
-import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
-import Tailwind.Theme as Theme
 import Ui.Styles exposing (Styles)
 
+
 type Categories category msg
-     = Settings
+    = Settings
         { model : Model category
         , toMsg : Msg category msg -> msg
         , onSelect : category -> msg
@@ -34,9 +36,16 @@ type Categories category msg
         , styles : Styles msg
         }
 
+
+select : Model category -> category -> Model category
+select (Model model) newCategory =
+    Model { model | selected = newCategory }
+
+
 selected : Model category -> category
 selected (Model model) =
     model.selected
+
 
 new :
     { model : Model category
@@ -63,8 +72,9 @@ type Model category
         { selected : category
         }
 
+
 type alias CategoryData category =
-    { category :  category
+    { category : category
     , title : String
     }
 
@@ -74,6 +84,7 @@ init props =
     Model
         { selected = props.selected
         }
+
 
 type Msg category msg
     = SelectedItem
@@ -85,7 +96,7 @@ type Msg category msg
 update :
     { msg : Msg category msg
     , model : Model category
-    , toModel : Model category-> model
+    , toModel : Model category -> model
     , toMsg : Msg category msg -> msg
     }
     -> ( model, Effect msg )
@@ -103,11 +114,11 @@ update props =
     toParentModel <|
         case props.msg of
             SelectedItem data ->
-                ( Model 
+                ( Model
                     { model
                         | selected = data.category
                     }
-                , Effect.sendMsg data.onSelect 
+                , Effect.sendMsg data.onSelect
                 )
 
 
@@ -115,22 +126,24 @@ view : Categories category msg -> Html msg
 view categories =
     viewCategories categories
 
+
 viewCategories : Categories category msg -> Html msg
 viewCategories (Settings settings) =
     let
         (Model model) =
-            (settings.model)
+            settings.model
     in
     settings.categories
-    |> List.map (\categoryData -> viewCategory settings.styles settings.toMsg settings.onSelect (model.selected == categoryData.category) categoryData)
-    |> div
-        [ css
-            [ Tw.flex
-            , Tw.space_x_4
-            , Tw.mb_10
-            , Tw.px_4
+        |> List.map (\categoryData -> viewCategory settings.styles settings.toMsg settings.onSelect (model.selected == categoryData.category) categoryData)
+        |> div
+            [ css
+                [ Tw.flex
+                , Tw.space_x_4
+                , Tw.mb_10
+                , Tw.px_4
+                ]
             ]
-        ]
+
 
 viewCategory : Styles msg -> (Msg category msg -> msg) -> (category -> msg) -> Bool -> CategoryData category -> Html msg
 viewCategory styles toMsg onSelect active data =
@@ -138,13 +151,14 @@ viewCategory styles toMsg onSelect active data =
         onClickCategory =
             toMsg (SelectedItem { category = data.category, onSelect = onSelect data.category })
 
-        (element, attrs) =
+        ( element, attrs ) =
             if active then
                 ( div
-                , styles.colorStyleCategoryActiveBackground ++
-                    styles.colorStyleCategoryActive ++
-                    styles.colorStyleCategoryActiveBorder
+                , styles.colorStyleCategoryActiveBackground
+                    ++ styles.colorStyleCategoryActive
+                    ++ styles.colorStyleCategoryActiveBorder
                 )
+
             else
                 ( button
                 , styles.colorStyleCategoryInactiveBackground ++ styles.colorStyleGrayscaleText
@@ -156,8 +170,10 @@ viewCategory styles toMsg onSelect active data =
             , Tw.py_2
             , Tw.rounded_full
             ]
-        , Events.onClick onClickCategory
-        ] ++ attrs)
+         , Events.onClick onClickCategory
+         ]
+            ++ attrs
+        )
         [ text data.title ]
 
 

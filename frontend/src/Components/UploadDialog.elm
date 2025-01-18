@@ -930,6 +930,7 @@ viewWaitingForFiles (Settings settings) =
             settings.model
     in
     modalDialog
+        settings.theme
         (Translations.dialogTitle [ settings.browserEnv.translations ])
         [ Components.Dropdown.new
             { model = model.serverSelectionDropdown
@@ -1006,6 +1007,7 @@ viewMetadataDialog (Settings settings) (fileId, fileUpload) =
             settings.model
     in
     modalDialog
+        settings.theme
         (Translations.editMetadataDialogTitle [ settings.browserEnv.translations ])
         [ div
             [ css 
@@ -1026,6 +1028,7 @@ viewUploadingDialog (Settings settings) =
             settings.model
     in
     modalDialog
+        settings.theme
         (Translations.uploadingStateText [ settings.browserEnv.translations ])
         [ div
             [ css 
@@ -1047,6 +1050,7 @@ viewFinishedDialog (Settings settings) =
             settings.model
     in
     modalDialog
+        settings.theme
         (Translations.dialogTitle [ settings.browserEnv.translations ])
         [ div [ class "p-4" ]
             [ div []

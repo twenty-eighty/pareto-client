@@ -4,8 +4,12 @@ import Nostr.Event exposing (EventFilter, Kind)
 import Nostr.Nip05 exposing (Nip05)
 import Nostr.Types exposing (RelayUrl)
 
+
+
 -- one request can lead to subsequent requests for related kinds
 -- for each RequestData is tracked if it is sent already
+
+
 type alias Request =
     { id : RequestId
     , relatedKinds : List Kind
@@ -13,11 +17,15 @@ type alias Request =
     , description : String
     }
 
+
 type RequestState
     = RequestCreated RequestData
     | RequestSent RequestData
 
-type alias RequestId = Int
+
+type alias RequestId =
+    Int
+
 
 type RequestData
     = RequestArticle (Maybe (List RelayUrl)) EventFilter
@@ -28,15 +36,18 @@ type RequestData
     | RequestCommunity (Maybe (List RelayUrl)) EventFilter
     | RequestDeletionRequests EventFilter
     | RequestFollowSets EventFilter
+    | RequestMediaServerLists EventFilter
     | RequestNip05AndArticle Nip05 String
-    | RequestProfile  (Maybe (List RelayUrl)) EventFilter
+    | RequestProfile (Maybe (List RelayUrl)) EventFilter
     | RequestProfileByNip05 Nip05
     | RequestReactions EventFilter
+    | RequestRelayLists EventFilter
     | RequestUserData EventFilter
     | RequestBlossomAuth String String HttpRequestMethod
     | RequestNip98Auth String String HttpRequestMethod
     | RequestSearchResults (List EventFilter)
     | RequestShortNote EventFilter
+
 
 type HttpRequestMethod
     = GetRequest
@@ -46,12 +57,12 @@ type HttpRequestMethod
     | PutRequest Int String
 
 
-
 relatedKindsForRequest : Maybe Request -> List Kind
 relatedKindsForRequest maybeRequest =
     maybeRequest
-    |> Maybe.map .relatedKinds
-    |> Maybe.withDefault []
+        |> Maybe.map .relatedKinds
+        |> Maybe.withDefault []
+
 
 relaysOfRequest : Request -> Maybe (List RelayUrl)
 relaysOfRequest request =
@@ -63,7 +74,7 @@ relaysOfRequest request =
 
                 Just (RequestSent requestData) ->
                     Just requestData
-                
+
                 Nothing ->
                     Nothing
     in
@@ -98,6 +109,9 @@ relaysOfRequest request =
         Just (RequestFollowSets _) ->
             Nothing
 
+        Just (RequestMediaServerLists _) ->
+            Nothing
+
         Just (RequestNip05AndArticle _ _) ->
             Nothing
 
@@ -111,6 +125,9 @@ relaysOfRequest request =
             Nothing
 
         Just (RequestReactions _) ->
+            Nothing
+
+        Just (RequestRelayLists _) ->
             Nothing
 
         Just (RequestUserData _) ->

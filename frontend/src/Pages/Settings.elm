@@ -1,29 +1,52 @@
 module Pages.Settings exposing (Model, Msg, page)
 
+import Auth
+import Components.Button as Button
+import Components.Categories as Categories
+import Components.Icon as Icon
+import Css
 import Effect exposing (Effect)
-import Route exposing (Route)
-import Html
+import FeatherIcons
+import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, text)
+import Html.Styled.Attributes as Attr exposing (class, css)
+import Html.Styled.Events as Events exposing (..)
+import I18Next
 import Layouts
+import Nostr
+import Nostr.Event exposing (EventFilter, Kind(..), emptyEventFilter)
+import Nostr.Relay as Relay exposing (Relay, RelayState(..))
+import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList, removeFromRelayList)
+import Nostr.Request exposing (RequestData(..))
+import Nostr.Send exposing (SendRequest(..))
+import Nostr.Types exposing (PubKey, RelayRole(..), RelayUrl)
 import Page exposing (Page)
+import Route exposing (Route)
 import Shared
+import Shared.Msg
+import Tailwind.Breakpoints as Bp
+import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
+import Translations.Settings as Translations
+import Ui.Relay exposing (viewRelayImage)
+import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 import View exposing (View)
-import Ui.Styles exposing (Theme)
 
 
-page : Shared.Model -> Route () -> Page Model Msg
-page shared route =
+page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
+page user shared route =
     Page.new
-        { init = init
-        , update = update
+        { init = init user shared
+        , update = update user shared
         , subscriptions = subscriptions
-        , view = view
+        , view = view user shared
         }
         |> Page.withLayout (toLayout shared.theme)
+
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme model =
     Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+        { styles = stylesForTheme theme }
 
 
 
@@ -31,14 +54,65 @@ toLayout theme model =
 
 
 type alias Model =
-    {}
+    { categories : Categories.Model Category
+    }
 
 
-init : () -> ( Model, Effect Msg )
-init () =
-    ( {}
-    , Effect.none
-    )
+type alias RelaysModel =
+    { outboxRelay : Maybe String
+    , inboxRelay : Maybe String
+    , searchRelay : Maybe String
+    }
+
+
+type alias MediaServersModel =
+    { nip96Server : Maybe String
+    , blossomServer : Maybe String
+    }
+
+
+emptyRelaysModel =
+    { outboxRelay = Nothing
+    , inboxRelay = Nothing
+    , searchRelay = Nothing
+    }
+
+
+emptyMediaServersModel =
+    { nip96Server = Nothing
+    , blossomServer = Nothing
+    }
+
+
+type Category
+    = Relays RelaysModel
+    | MediaServers MediaServersModel
+
+
+availableCategories : I18Next.Translations -> List (Categories.CategoryData Category)
+availableCategories translations =
+    [ { category = Relays emptyRelaysModel
+      , title = Translations.relaysCategory [ translations ]
+      }
+
+    --   , { category = MediaServers emptyMediaServersModel
+    --     , title = Translations.mediaServersCategory [ translations ]
+    --     }
+    ]
+
+
+init : Auth.User -> Shared.Model -> () -> ( Model, Effect Msg )
+init user shared () =
+    let
+        initialCategory =
+            Relays emptyRelaysModel
+    in
+    updateModelWithCategory
+        user
+        shared
+        { categories = Categories.init { selected = initialCategory }
+        }
+        initialCategory
 
 
 
@@ -46,16 +120,105 @@ init () =
 
 
 type Msg
-    = NoOp
+    = CategorySelected Category
+    | CategoriesSent (Categories.Msg Category Msg)
+    | UpdateRelayModel RelaysModel
+    | AddOutboxRelay PubKey RelayUrl
+    | AddInboxRelay PubKey RelayUrl
+    | AddSearchRelay PubKey RelayUrl
+    | RemoveRelay PubKey RelayRole RelayUrl
 
 
-update : Msg -> Model -> ( Model, Effect Msg )
-update msg model =
+update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
+update user shared msg model =
     case msg of
-        NoOp ->
-            ( model
-            , Effect.none
+        CategorySelected category ->
+            updateModelWithCategory user shared model category
+
+        CategoriesSent innerMsg ->
+            Categories.update
+                { msg = innerMsg
+                , model = model.categories
+                , toModel = \categories -> { model | categories = categories }
+                , toMsg = CategoriesSent
+                }
+
+        UpdateRelayModel relaysModel ->
+            ( { model | categories = Categories.select model.categories (Relays relaysModel) }, Effect.none )
+
+        AddOutboxRelay pubKey relayUrl ->
+            ( { model | categories = Categories.select model.categories (Relays emptyRelaysModel) }
+            , Nostr.getRelayListForPubKey shared.nostr pubKey
+                |> extendRelayList [ { url = relayUrl, role = WriteRelay } ]
+                |> sendRelayListCmd pubKey
             )
+
+        AddInboxRelay pubKey relayUrl ->
+            ( { model | categories = Categories.select model.categories (Relays emptyRelaysModel) }
+            , Nostr.getRelayListForPubKey shared.nostr pubKey
+                |> extendRelayList [ { url = relayUrl, role = ReadRelay } ]
+                |> sendRelayListCmd pubKey
+            )
+
+        AddSearchRelay pubKey relayUrl ->
+            ( model, Effect.none )
+
+        RemoveRelay pubKey relayRole relayUrl ->
+            ( model
+            , Nostr.getRelayListForPubKey shared.nostr pubKey
+                |> removeFromRelayList { url = relayUrl, role = relayRole }
+                |> sendRelayListCmd pubKey
+            )
+
+
+sendRelayListCmd : PubKey -> List RelayMetadata -> Effect msg
+sendRelayListCmd pubKey relays =
+    let
+        relaysWithProtocol =
+            relays
+                |> List.map
+                    (\relay ->
+                        { relay | url = "wss://" ++ relay.url }
+                    )
+
+        relayUrls =
+            relays
+                |> List.filterMap
+                    (\relay ->
+                        if relay.role == WriteRelay || relay.role == ReadWriteRelay then
+                            Just relay.url
+
+                        else
+                            Nothing
+                    )
+    in
+    eventWithRelayList pubKey relaysWithProtocol
+        |> SendRelayList relayUrls
+        |> Shared.Msg.SendNostrEvent
+        |> Effect.sendSharedMsg
+
+
+updateModelWithCategory : Auth.User -> Shared.Model -> Model -> Category -> ( Model, Effect Msg )
+updateModelWithCategory user shared model category =
+    let
+        ( request, requestDescription ) =
+            case category of
+                Relays _ ->
+                    ( RequestRelayLists { emptyEventFilter | kinds = Just [ KindRelayListMetadata, KindBlockedRelaysList, KindSearchRelaysList, KindPrivateRelayList, KindRelayListForDMs ], authors = Just [ user.pubKey ] }
+                    , "Relay lists of user"
+                    )
+
+                MediaServers _ ->
+                    ( RequestMediaServerLists { emptyEventFilter | kinds = Just [ KindUserServerList, KindFileStorageServerList ], authors = Just [ user.pubKey ] }
+                    , "Media server lists of user"
+                    )
+    in
+    ( model
+    , request
+        |> Nostr.createRequest shared.nostr requestDescription []
+        |> Shared.Msg.RequestNostrEvents
+        |> Effect.sendSharedMsg
+    )
 
 
 
@@ -71,6 +234,263 @@ subscriptions model =
 -- VIEW
 
 
-view : Model -> View Msg
-view model =
-    View.fromString "Pages.Search"
+view : Auth.User -> Shared.Model -> Model -> View Msg
+view user shared model =
+    { title = Translations.pageTitle [ shared.browserEnv.translations ]
+    , body =
+        [ Categories.new
+            { model = model.categories
+            , toMsg = CategoriesSent
+            , onSelect = CategorySelected
+            , categories = availableCategories shared.browserEnv.translations
+            , browserEnv = shared.browserEnv
+            , styles = stylesForTheme shared.theme
+            }
+            |> Categories.view
+        , viewCategory shared model user
+        ]
+    }
+
+
+viewCategory : Shared.Model -> Model -> Auth.User -> Html Msg
+viewCategory shared model user =
+    case Categories.selected model.categories of
+        Relays relaysModel ->
+            viewRelays shared model user relaysModel
+
+        MediaServers mediaServersModel ->
+            viewMediaServers shared model user mediaServersModel
+
+
+viewRelays : Shared.Model -> Model -> Auth.User -> RelaysModel -> Html Msg
+viewRelays shared model user relaysModel =
+    let
+        styles =
+            stylesForTheme shared.theme
+
+        outboxRelays =
+            Nostr.getWriteRelaysForPubKey shared.nostr user.pubKey
+
+        inboxRelays =
+            Nostr.getReadRelaysForPubKey shared.nostr user.pubKey
+
+        searchRelays =
+            Nostr.getSearchRelaysForPubKey shared.nostr user.pubKey
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.gap_2
+            , Tw.m_6
+            ]
+        ]
+        [ h3
+            (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
+            [ text <| Translations.outboxSectionTitle [ shared.browserEnv.translations ] ]
+        , p [] [ text <| Translations.outboxRelaysDescription [ shared.browserEnv.translations ] ]
+        , viewRelayList (RemoveRelay user.pubKey WriteRelay) outboxRelays
+        , addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey)
+        , h3
+            (styles.colorStyleGrayscaleTitle
+                ++ styles.textStyleH3
+                ++ [ css [ Tw.mt_3 ] ]
+            )
+            [ text <| Translations.inboxSectionTitle [ shared.browserEnv.translations ] ]
+        , p [] [ text <| Translations.inboxRelaysDescription [ shared.browserEnv.translations ] ]
+        , viewRelayList (RemoveRelay user.pubKey ReadRelay) inboxRelays
+        , addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey)
+
+        -- , viewRelayList searchRelays
+        -- , addRelayBox shared.theme shared.browserEnv.translations relaysModel.searchRelay (updateRelayModelSearch relaysModel) (AddSearchRelay user.pubKey)
+        ]
+
+
+updateRelayModelOutbox : RelaysModel -> Maybe String -> RelaysModel
+updateRelayModelOutbox relaysModel value =
+    { relaysModel | outboxRelay = value }
+
+
+updateRelayModelInbox : RelaysModel -> Maybe String -> RelaysModel
+updateRelayModelInbox relaysModel value =
+    { relaysModel | inboxRelay = value }
+
+
+updateRelayModelSearch : RelaysModel -> Maybe String -> RelaysModel
+updateRelayModelSearch relaysModel value =
+    { relaysModel | searchRelay = value }
+
+
+addRelayBox : Theme -> I18Next.Translations -> Maybe String -> (Maybe String -> RelaysModel) -> (String -> Msg) -> Html Msg
+addRelayBox theme translations maybeValue updateFn addRelayMsg =
+    let
+        styles =
+            stylesForTheme theme
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_row
+            , Tw.gap_2
+            ]
+        ]
+        [ div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.relative
+                , Tw.w_full
+                , Bp.sm
+                    [ Css.property "width" "400px"
+                    ]
+                ]
+            ]
+            [ input
+                [ Attr.placeholder <| Translations.addRelayPlaceholder [ translations ]
+                , Attr.value (Maybe.withDefault "" maybeValue)
+                , Events.onInput
+                    (\relayText ->
+                        if relayText /= "" then
+                            UpdateRelayModel <| updateFn (Just relayText)
+
+                        else
+                            UpdateRelayModel <| updateFn Nothing
+                    )
+                , css
+                    [ Tw.appearance_none
+                    , Tw.bg_scroll
+                    , Tw.bg_clip_border
+                    , Tw.rounded_md
+                    , Tw.border_2
+                    , Tw.box_border
+                    , Tw.cursor_text
+                    , Tw.block
+                    , Tw.ps_2
+                    , Tw.pe_16
+                    , Tw.pl_2
+                    , Tw.pr_16
+                    , Tw.h_10
+                    , Tw.w_full
+                    ]
+                ]
+                []
+            ]
+        , Button.new
+            { label = Translations.addRelayButtonTitle [ translations ]
+            , onClick = Maybe.map addRelayMsg maybeValue
+            , theme = theme
+            }
+            |> Button.withDisabled (maybeValue == Nothing)
+            |> Button.view
+        ]
+
+
+viewRelayList : (String -> Msg) -> List Relay -> Html Msg
+viewRelayList removeMsg relays =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.my_2
+            , Tw.gap_2
+            ]
+        ]
+        (List.map (viewRelay removeMsg) relays)
+
+
+viewRelay : (String -> Msg) -> Relay -> Html Msg
+viewRelay removeMsg relay =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_row
+            , Tw.gap_2
+            , Tw.p_2
+            , Tw.border_b_2
+            , Tw.w_96
+            ]
+        ]
+        [ viewRelayImage (Relay.iconUrl relay)
+        , div
+            [ css
+                [ Tw.grow
+                , Tw.w_96
+                ]
+            ]
+            [ text relay.urlWithoutProtocol
+            ]
+        , removeRelayButton relay removeMsg
+        ]
+
+
+removeRelayButton : Relay -> (String -> Msg) -> Html Msg
+removeRelayButton relay removeMsg =
+    div
+        [ css
+            [ Tw.text_color Theme.slate_500
+            , Tw.cursor_pointer
+            ]
+        , Events.onClick (removeMsg relay.urlWithoutProtocol)
+        ]
+        [ Icon.FeatherIcon FeatherIcons.delete
+            |> Icon.view
+        ]
+
+
+viewMediaServers : Shared.Model -> Model -> Auth.User -> MediaServersModel -> Html Msg
+viewMediaServers shared model user mediaServersModel =
+    let
+        styles =
+            stylesForTheme shared.theme
+
+        blossomServers =
+            Nostr.getBlossomServers shared.nostr user.pubKey
+
+        nip96Servers =
+            Nostr.getNip96Servers shared.nostr user.pubKey
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            ]
+        ]
+        [ div
+            [ css
+                [ Tw.flex
+                , Tw.flex_col
+                ]
+            ]
+            ([ text "NIP-96 Servers" ]
+                ++ (nip96Servers
+                        |> List.map viewNip96Server
+                   )
+            )
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.flex_col
+                ]
+            ]
+            ([ text "Blossom Servers" ]
+                ++ (blossomServers
+                        |> List.map viewBlossomServer
+                   )
+            )
+        ]
+
+
+viewNip96Server : String -> Html Msg
+viewNip96Server urlWithoutProtocol =
+    div
+        []
+        [ text urlWithoutProtocol
+        ]
+
+
+viewBlossomServer : String -> Html Msg
+viewBlossomServer urlWithoutProtocol =
+    div
+        []
+        [ text urlWithoutProtocol
+        ]
