@@ -76,23 +76,10 @@ generatePreviewHtml loadedContent urlString linkAttr body =
                     a (linkAttr ++ [ href urlString ]) body
 
                 OtherLink ->
-                    -- If URL parsing fails, try with oEmbed
-                    case Oembed.view oemProviders (Just { maxWidth = 300, maxHeight = 600 }) urlString of
-                        Just embedHtml ->
-                            div
-                                [ css
-                                    [ Tw.w_96
-                                    , Tw.h_full
-                                    ]
-                                ]
-                                [ embedHtml
-                                    |> Html.fromUnstyled
-                                ]
-
-                        Nothing ->
-                            a (linkAttr ++ [ href urlString ]) body
+                    generateGenericPreview loadedContent url urlString linkAttr body
 
         Nothing ->
+            -- If URL parsing fails, show regular link
             a (linkAttr ++ [ href urlString ]) body
 
 
@@ -439,6 +426,51 @@ generateOdyseePreview maybeLoadedContent url urlString path =
             , Attr.attribute "allowfullscreen" ""
             ]
             []
+
+    else
+        videoThumbnailPreview linkElement clickAttr thumbnailUrl
+
+
+
+-- Function to generate generic oEmbed preview HTML with a play button
+
+
+generateGenericPreview : Maybe (LoadedContent msg) -> Url -> String -> List (Html.Attribute msg) -> List (Html msg) -> Html msg
+generateGenericPreview maybeLoadedContent url urlString linkAttr body =
+    let
+        thumbnailUrl =
+            "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
+
+        ( showEmbedded, linkElement, clickAttr ) =
+            case maybeLoadedContent of
+                Just loadedContent ->
+                    ( Set.member urlString loadedContent.loadedUrls
+                    , Html.div
+                    , [ Events.onClick (loadedContent.addLoadedContentFunction urlString)
+                      , css
+                            [ Tw.cursor_pointer
+                            ]
+                      ]
+                    )
+
+                Nothing ->
+                    ( False, Html.a, [ href urlString ] )
+    in
+    if showEmbedded then
+        case Oembed.view oemProviders (Just { maxWidth = 300, maxHeight = 600 }) urlString of
+            Just embedHtml ->
+                div
+                    [ css
+                        [ Tw.w_96
+                        , Tw.h_full
+                        ]
+                    ]
+                    [ embedHtml
+                        |> Html.fromUnstyled
+                    ]
+
+            Nothing ->
+                a (linkAttr ++ [ href urlString ]) body
 
     else
         videoThumbnailPreview linkElement clickAttr thumbnailUrl
