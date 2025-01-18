@@ -16,18 +16,18 @@ import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), empt
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (IncomingMessage, PubKey)
-import Route exposing (Route)
-import Route.Path
 import Page exposing (Page)
 import Ports
+import Route exposing (Route)
+import Route.Path
 import Shared
 import Shared.Model
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
 import Translations.Bookmarks as Translations
-import Ui.Styles exposing (Theme, fontFamilyUnbounded, fontFamilyInter)
+import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 
@@ -42,11 +42,11 @@ page user shared route =
         }
         |> Page.withLayout (toLayout shared.theme)
 
+
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme model =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
-
 
 
 
@@ -64,8 +64,8 @@ init shared user () =
     let
         contentRequest =
             Nostr.getBookmarks shared.nostr user.pubKey
-            |> Maybe.map (requestForBookmarkContent shared.nostr ArticleBookmark)
-            |> Maybe.withDefault Effect.none
+                |> Maybe.map (requestForBookmarkContent shared.nostr ArticleBookmark)
+                |> Maybe.withDefault Effect.none
     in
     ( { categories = Categories.init { selected = ArticleBookmark }
       , selectedBookmarkType = ArticleBookmark
@@ -73,27 +73,30 @@ init shared user () =
     , contentRequest
     )
 
+
 requestForBookmarkContent : Nostr.Model -> BookmarkType -> BookmarkList -> Effect Msg
 requestForBookmarkContent nostr bookmarkType bookmarkList =
     case bookmarkType of
         ArticleBookmark ->
             bookmarkList.articles
-            |> List.filter (\addressComponents ->
-                    -- only request articles we don't have yet
-                    Nostr.getArticle nostr addressComponents == Nothing
-                )
-            |> List.map (\(kind, pubKey, identifier) ->
-                { emptyEventFilter
-                | authors = Just [ pubKey ]
-                , kinds = Just [ kind ]
-                , tagReferences = Just [ TagReferenceIdentifier identifier ]
-                }
-                |> RequestArticlesFeed 
-                |> Nostr.createRequest nostr "Bookmark articles" [KindUserMetadata]
-                |> Shared.Msg.RequestNostrEvents
-                |> Effect.sendSharedMsg
-            )
-            |> Effect.batch
+                |> List.filter
+                    (\addressComponents ->
+                        -- only request articles we don't have yet
+                        Nostr.getArticle nostr addressComponents == Nothing
+                    )
+                |> List.map
+                    (\( kind, pubKey, identifier ) ->
+                        { emptyEventFilter
+                            | authors = Just [ pubKey ]
+                            , kinds = Just [ kind ]
+                            , tagReferences = Just [ TagReferenceIdentifier identifier ]
+                        }
+                            |> RequestArticlesFeed
+                            |> Nostr.createRequest nostr "Bookmark articles" [ KindUserMetadata ]
+                            |> Shared.Msg.RequestNostrEvents
+                            |> Effect.sendSharedMsg
+                    )
+                |> Effect.batch
 
         HashtagBookmark ->
             -- { authors = Nothing
@@ -132,11 +135,12 @@ requestForBookmarkContent nostr bookmarkType bookmarkList =
 
 
 type Msg
-    =  ReceivedMessage IncomingMessage
+    = ReceivedMessage IncomingMessage
     | CategoriesSent (Categories.Msg BookmarkType Msg)
     | CategorySelected BookmarkType
     | AddArticleBookmark PubKey AddressComponents
     | RemoveArticleBookmark PubKey AddressComponents
+
 
 update : Auth.User -> Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
 update user shared msg model =
@@ -148,7 +152,7 @@ update user shared msg model =
             Categories.update
                 { msg = innerMsg
                 , model = model.categories
-                , toModel = \categories -> { model | categories = categories}
+                , toModel = \categories -> { model | categories = categories }
                 , toMsg = CategoriesSent
                 }
 
@@ -166,13 +170,14 @@ update user shared msg model =
             let
                 numberOfBookmarks =
                     Nostr.getBookmarks shared.nostr user.pubKey
-                    |> Maybe.map bookmarksCount
-                    |> Maybe.withDefault 0
+                        |> Maybe.map bookmarksCount
+                        |> Maybe.withDefault 0
 
                 redirectForEmptyList =
                     if numberOfBookmarks <= 1 then
                         -- assume that we're about to delete the last bookmark
-                        Effect.replaceRoute { hash = Nothing , path = Route.Path.Read , query = Dict.empty }
+                        Effect.replaceRoute { hash = Nothing, path = Route.Path.Read, query = Dict.empty }
+
                     else
                         Effect.none
             in
@@ -185,27 +190,30 @@ update user shared msg model =
                 ]
             )
 
-updateWithMessage : Auth.User -> Shared.Model.Model -> Model -> IncomingMessage -> (Model, Effect Msg)
+
+updateWithMessage : Auth.User -> Shared.Model.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithMessage user shared model message =
     case message.messageType of
         "events" ->
-            case (Decode.decodeValue (Decode.field "kind" Nostr.Event.kindDecoder) message.value) of
+            case Decode.decodeValue (Decode.field "kind" Nostr.Event.kindDecoder) message.value of
                 Ok KindBookmarkList ->
-                    case (Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) message.value) of
+                    case Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) message.value of
                         Ok events ->
                             let
                                 requestEffect =
                                     events
-                                    |> List.map bookmarkListFromEvent
-                                    |> List.filterMap (\(pubKey, bookmarkList) ->
-                                            if pubKey == user.pubKey then
-                                                Just bookmarkList
-                                            else
-                                                Nothing
-                                        )
-                                    |> List.head
-                                    |> Maybe.map (requestForBookmarkContent shared.nostr model.selectedBookmarkType)
-                                    |> Maybe.withDefault Effect.none
+                                        |> List.map bookmarkListFromEvent
+                                        |> List.filterMap
+                                            (\( pubKey, bookmarkList ) ->
+                                                if pubKey == user.pubKey then
+                                                    Just bookmarkList
+
+                                                else
+                                                    Nothing
+                                            )
+                                        |> List.head
+                                        |> Maybe.map (requestForBookmarkContent shared.nostr model.selectedBookmarkType)
+                                        |> Maybe.withDefault Effect.none
                             in
                             ( model, requestEffect )
 
@@ -218,6 +226,8 @@ updateWithMessage user shared model message =
         _ ->
             ( model, Effect.none )
 
+
+
 -- SUBSCRIPTIONS
 
 
@@ -226,7 +236,9 @@ subscriptions model =
     Ports.receiveMessage ReceivedMessage
 
 
+
 -- VIEW
+
 
 view : Auth.User -> Shared.Model -> Model -> View Msg
 view user shared model =
@@ -236,7 +248,7 @@ view user shared model =
 
         bookmarkList =
             Nostr.getBookmarks shared.nostr user.pubKey
-            |> Maybe.withDefault emptyBookmarkList
+                |> Maybe.withDefault emptyBookmarkList
     in
     { title = Translations.bookmarksTitle [ shared.browserEnv.translations ]
     , body =
@@ -244,6 +256,7 @@ view user shared model =
             { model = model.categories
             , toMsg = CategoriesSent
             , onSelect = CategorySelected
+            , equals = \category1 category2 -> category1 == category2
             , categories = availableCategories bookmarkList shared.browserEnv.translations
             , browserEnv = shared.browserEnv
             , styles = styles
@@ -252,6 +265,7 @@ view user shared model =
         , viewBookmarks user shared model bookmarkList
         ]
     }
+
 
 viewBookmarks : Auth.User -> Shared.Model -> Model -> BookmarkList -> Html Msg
 viewBookmarks user shared model bookmarkList =
@@ -268,55 +282,64 @@ viewBookmarks user shared model bookmarkList =
         UrlBookmark ->
             viewUrlBookmarks user shared model bookmarkList.urls
 
+
 viewArticleBookmarks : Auth.User -> Shared.Model -> Model -> List AddressComponents -> Html Msg
 viewArticleBookmarks user shared model addressComponents =
     addressComponents
-    |> List.filterMap (Nostr.getArticle shared.nostr)
-    |> Nostr.sortArticlesByDate
-    |> Ui.View.viewArticlePreviews
-        ArticlePreviewList
+        |> List.filterMap (Nostr.getArticle shared.nostr)
+        |> Nostr.sortArticlesByDate
+        |> Ui.View.viewArticlePreviews
+            ArticlePreviewList
             { theme = shared.theme
             , browserEnv = shared.browserEnv
             , nostr = shared.nostr
             , userPubKey = Just user.pubKey
-            , onBookmark = Just (AddArticleBookmark user.pubKey, RemoveArticleBookmark user.pubKey)
+            , onBookmark = Just ( AddArticleBookmark user.pubKey, RemoveArticleBookmark user.pubKey )
             , onReaction = Nothing
             , onZap = Nothing
             }
 
+
 viewHashtagBookmarks user shared model hashtags =
-    div [][]
+    div [] []
+
 
 viewNoteBookmarks user shared model notes =
-    div [][]
+    div [] []
+
 
 viewUrlBookmarks user shared model urls =
-    div [][]
+    div [] []
+
 
 availableCategories : BookmarkList -> I18Next.Translations -> List (Categories.CategoryData BookmarkType)
 availableCategories bookmarkList translations =
     let
         articleBookmarkCategory =
             if List.length bookmarkList.articles > 0 then
-                [ { category = ArticleBookmark , title = Translations.articlesTitle [ translations ] } ]
+                [ { category = ArticleBookmark, title = Translations.articlesTitle [ translations ] } ]
+
             else
                 []
 
         hashtagBookmarkCategory =
             if List.length bookmarkList.hashtags > 0 then
                 [ { category = HashtagBookmark, title = Translations.hashtagsTitle [ translations ] } ]
+
             else
                 []
 
         urlBookmarkCategory =
             if List.length bookmarkList.urls > 0 then
                 [ { category = UrlBookmark, title = Translations.urlsTitle [ translations ] } ]
+
             else
                 []
 
         noteBookmarkCategory =
             if List.length bookmarkList.notes > 0 then
                 [ { category = NoteBookmark, title = Translations.notesTitle [ translations ] } ]
+
             else
                 []
     in

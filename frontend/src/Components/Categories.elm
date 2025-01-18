@@ -31,6 +31,7 @@ type Categories category msg
         { model : Model category
         , toMsg : Msg category msg -> msg
         , onSelect : category -> msg
+        , equals : category -> category -> Bool
         , categories : List (CategoryData category)
         , browserEnv : BrowserEnv
         , styles : Styles msg
@@ -51,6 +52,7 @@ new :
     { model : Model category
     , toMsg : Msg category msg -> msg
     , onSelect : category -> msg
+    , equals : category -> category -> Bool
     , categories : List (CategoryData category)
     , browserEnv : BrowserEnv
     , styles : Styles msg
@@ -61,6 +63,7 @@ new props =
         { model = props.model
         , toMsg = props.toMsg
         , onSelect = props.onSelect
+        , equals = props.equals
         , categories = props.categories
         , browserEnv = props.browserEnv
         , styles = props.styles
@@ -134,7 +137,7 @@ viewCategories (Settings settings) =
             settings.model
     in
     settings.categories
-        |> List.map (\categoryData -> viewCategory settings.styles settings.toMsg settings.onSelect (model.selected == categoryData.category) categoryData)
+        |> List.map (\categoryData -> viewCategory settings.styles settings.toMsg settings.onSelect (settings.equals model.selected categoryData.category) categoryData)
         |> div
             [ css
                 [ Tw.flex

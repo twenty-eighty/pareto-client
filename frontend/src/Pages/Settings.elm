@@ -7,7 +7,7 @@ import Components.Icon as Icon
 import Css
 import Effect exposing (Effect)
 import FeatherIcons
-import Html.Styled as Html exposing (Html, a, article, aside, button, datalist, div, h2, h3, h4, img, input, label, main_, option, p, span, text)
+import Html.Styled as Html exposing (Html, a, datalist, div, h3, input, li, option, p, text, ul)
 import Html.Styled.Attributes as Attr exposing (class, css)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
@@ -88,6 +88,7 @@ emptyMediaServersModel =
 type Category
     = Relays RelaysModel
     | MediaServers MediaServersModel
+    | Profile
 
 
 availableCategories : I18Next.Translations -> List (Categories.CategoryData Category)
@@ -99,6 +100,9 @@ availableCategories translations =
     --   , { category = MediaServers emptyMediaServersModel
     --     , title = Translations.mediaServersCategory [ translations ]
     --     }
+    , { category = Profile
+      , title = Translations.profileCategory [ translations ]
+      }
     ]
 
 
@@ -213,6 +217,11 @@ updateModelWithCategory user shared model category =
                     ( RequestMediaServerLists { emptyEventFilter | kinds = Just [ KindUserServerList, KindFileStorageServerList ], authors = Just [ user.pubKey ] }
                     , "Media server lists of user"
                     )
+
+                Profile ->
+                    ( RequestUserData { emptyEventFilter | kinds = Just [ KindUserMetadata ], authors = Just [ user.pubKey ] }
+                    , "Profile of user"
+                    )
     in
     ( model
     , request
@@ -243,6 +252,7 @@ view user shared model =
             { model = model.categories
             , toMsg = CategoriesSent
             , onSelect = CategorySelected
+            , equals = categoryEquals
             , categories = availableCategories shared.browserEnv.translations
             , browserEnv = shared.browserEnv
             , styles = stylesForTheme shared.theme
@@ -253,6 +263,31 @@ view user shared model =
     }
 
 
+categoryEquals : Category -> Category -> Bool
+categoryEquals category1 category2 =
+    case ( category1, category2 ) of
+        ( Relays _, Relays _ ) ->
+            True
+
+        ( Relays _, _ ) ->
+            False
+
+        ( _, Relays _ ) ->
+            False
+
+        ( MediaServers _, MediaServers _ ) ->
+            True
+
+        ( MediaServers _, _ ) ->
+            False
+
+        ( _, MediaServers _ ) ->
+            False
+
+        ( Profile, Profile ) ->
+            True
+
+
 viewCategory : Shared.Model -> Model -> Auth.User -> Html Msg
 viewCategory shared model user =
     case Categories.selected model.categories of
@@ -261,6 +296,9 @@ viewCategory shared model user =
 
         MediaServers mediaServersModel ->
             viewMediaServers shared model user mediaServersModel
+
+        Profile ->
+            viewProfile shared model user
 
 
 type alias RelaySuggestions =
@@ -631,4 +669,54 @@ viewBlossomServer urlWithoutProtocol =
     div
         []
         [ text urlWithoutProtocol
+        ]
+
+
+viewProfile : Shared.Model -> Model -> Auth.User -> Html Msg
+viewProfile shared model user =
+    let
+        styles =
+            stylesForTheme shared.theme
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.gap_2
+            , Tw.m_6
+            ]
+        ]
+        [ div
+            (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
+            [ text <| Translations.profileEditorTitle [ shared.browserEnv.translations ] ]
+        , p [] [ text <| Translations.profileEditorNotImplementedText [ shared.browserEnv.translations ] ]
+        , ul []
+            (List.map (viewRecommendedProfileEditor styles) recommendedProfileEditors)
+        ]
+
+
+type alias RecommendedProfileEditor =
+    { title : String
+    , url : String
+    }
+
+
+recommendedProfileEditors : List RecommendedProfileEditor
+recommendedProfileEditors =
+    [ { url = "https://metadata.nostr.com/", title = "Nostr Profile Manager" }
+    , { url = "https://nosta.me/", title = "Nosta.me" }
+    ]
+
+
+viewRecommendedProfileEditor : Styles Msg -> RecommendedProfileEditor -> Html Msg
+viewRecommendedProfileEditor styles recommendedProfileEditor =
+    li []
+        [ a
+            (styles.colorStyleLinks
+                ++ [ Attr.href recommendedProfileEditor.url
+                   , Attr.target "_blank"
+                   , Attr.rel "noopener noreferrer"
+                   ]
+            )
+            [ text recommendedProfileEditor.title ]
         ]

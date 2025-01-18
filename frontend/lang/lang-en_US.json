@@ -99,15 +99,18 @@
    "settings": {
       "page title": "Settings",
       "relays category": "Relays",
-      "media servers category": "Media Servers",
       "outbox section title": "Public Outbox/Home Relays",
       "outbox relays description": "This relay type stores all your content.",
       "inbox section title": "Public Inbox Relays",
       "inbox relays description": "This relay type receives all replies, comments, likes, and zaps to your posts.",
       "add relay button title": "Add",
       "add relay placeholder": "Enter a relay URL",
+      "media servers category": "Media Servers",
       "add nip-96 media server placeholder": "NIP-96 server URL",
-      "add blossom media server placeholder": "Blossom server URL"
+      "add blossom media server placeholder": "Blossom server URL",
+      "profile category": "Profile",
+      "profile editor title": "Profile Editor",
+      "profile editor not implemented text": "The profile editor is not yet implemented. Please use one of the existing alternatives."
    },
    "sidebar": {
       "reader client role text": "Reader",
