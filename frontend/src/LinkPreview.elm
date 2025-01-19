@@ -37,6 +37,7 @@ type LinkType
     | TwitterTweet String
     | VideoLink String
     | AudioLink String
+    | PodBeanLink String
     | ObjectLink String
     | PlainLink
     | OtherLink
@@ -68,6 +69,9 @@ generatePreviewHtml loadedContent urlString linkAttr body =
 
                 AudioLink mimeType ->
                     generateAudioElement loadedContent url urlString mimeType
+
+                PodBeanLink iFrameUrl ->
+                    generatePodbeanPreview loadedContent url urlString iFrameUrl
 
                 ObjectLink mimeType ->
                     generateObjectElement loadedContent url urlString mimeType
@@ -131,6 +135,14 @@ detectLinkType url =
         case getAudioMimeTypeFromUrl url.path of
             Just mimeType ->
                 AudioLink mimeType
+
+            Nothing ->
+                OtherLink
+
+    else if isPodBeanUrl url then
+        case parsePodbeanUrl url of
+            Just iFrameUrl ->
+                PodBeanLink iFrameUrl
 
             Nothing ->
                 OtherLink
@@ -265,6 +277,11 @@ isYouTubeShortUrl url =
 isOdyseeUrl : Url -> Bool
 isOdyseeUrl url =
     url.host == "odysee.com"
+
+
+isPodBeanUrl : Url -> Bool
+isPodBeanUrl url =
+    url.host == "www.podbean.com"
 
 
 isRumbleUrl : Url -> Bool
@@ -429,6 +446,83 @@ generateOdyseePreview maybeLoadedContent url urlString path =
 
     else
         videoThumbnailPreview linkElement clickAttr thumbnailUrl
+
+
+
+-- Function to generate Podbean preview HTML with a play button
+
+
+generatePodbeanPreview : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
+generatePodbeanPreview maybeLoadedContent url urlString iFrameUrl =
+    let
+        thumbnailUrl =
+            "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
+
+        ( showEmbedded, linkElement, clickAttr ) =
+            case maybeLoadedContent of
+                Just loadedContent ->
+                    ( Set.member urlString loadedContent.loadedUrls
+                    , Html.div
+                    , [ Events.onClick (loadedContent.addLoadedContentFunction urlString)
+                      , css
+                            [ Tw.cursor_pointer
+                            ]
+                      ]
+                    )
+
+                Nothing ->
+                    ( False, Html.a, [ href urlString ] )
+    in
+    if showEmbedded then
+        Html.iframe
+            [ Attr.attribute "allowtransparency" "true"
+            , Attr.height 300
+            , Attr.style "border" "none"
+            , Attr.style "min-width" "min(100%, 430px)"
+            , Attr.style "height" "300px"
+            , Attr.attribute "scrolling" "no"
+            , Attr.attribute "data-name" "pb-iframe-player"
+            , Attr.src iFrameUrl
+            , Attr.attribute "loading" "lazy"
+            , Attr.attribute "allowfullscreen" ""
+            ]
+            []
+
+    else
+        videoThumbnailPreview linkElement clickAttr thumbnailUrl
+
+
+parsePodbeanUrl : Url -> Maybe String
+parsePodbeanUrl inputUrl =
+    extractPodcastId inputUrl.path
+        |> Maybe.map buildPodBeanIframeUrl
+
+
+extractPodcastId : String -> Maybe String
+extractPodcastId path =
+    let
+        podBeanRegex =
+            regex "pb-([a-zA-Z0-9]+-[a-zA-Z0-9]+)"
+    in
+    case Regex.find podBeanRegex path of
+        match :: _ ->
+            -- Remove the leading "pb-" by taking only the captured group
+            case List.head match.submatches of
+                Just (Just id) ->
+                    Just (id ++ "-pb")
+
+                _ ->
+                    Nothing
+
+        _ ->
+            Nothing
+
+
+buildPodBeanIframeUrl : String -> String
+buildPodBeanIframeUrl podcastId =
+    "https://www.podbean.com/player-v2/?from=embed&i="
+        ++ podcastId
+        ++ "&square=1&share=1&download=1&fonts=Courier%20New&skin=1&font-color=&rtl=0&logo_link=&btn-skin=ff6d00&size=300"
 
 
 
