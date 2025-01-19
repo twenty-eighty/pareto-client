@@ -8,7 +8,9 @@
         "debugger": false
       }
     },
-    "env": [],
+    "env": [
+      "ELM_ENV"
+    ],
     "html": {
       "attributes": {
         "html": {

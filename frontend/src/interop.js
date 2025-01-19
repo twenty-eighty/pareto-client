@@ -19,6 +19,7 @@ import debug from 'debug';
 // into your `Shared.init` function.
 export const flags = ({ env }) => {
   return {
+    environment: env.ELM_ENV,
     darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
     isLoggedIn: JSON.parse(localStorage.getItem('isLoggedIn')) || false,
     locale: navigator.language,

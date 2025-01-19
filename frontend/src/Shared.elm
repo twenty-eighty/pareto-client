@@ -40,6 +40,7 @@ type alias Model =
 
 type alias Flags =
     { darkMode : Bool
+    , environment : Maybe String
     , isLoggedIn : Bool
     , locale : String
     , nativeSharingAvailable : Bool
@@ -48,8 +49,9 @@ type alias Flags =
 
 decoder : Json.Decode.Decoder Flags
 decoder =
-    Json.Decode.map4 Flags
+    Json.Decode.map5 Flags
         (Json.Decode.field "darkMode" Json.Decode.bool)
+        (Json.Decode.field "environment" (Json.Decode.maybe Json.Decode.string))
         (Json.Decode.field "isLoggedIn" Json.Decode.bool)
         (Json.Decode.field "locale" Json.Decode.string)
         (Json.Decode.field "nativeSharingAvailable" Json.Decode.bool)
@@ -75,6 +77,7 @@ init flagsResult route =
                     BrowserEnv.init
                         { backendUrl = ""
                         , darkMode = flags.darkMode
+                        , environment = flags.environment
                         , frontendUrl = ""
                         , locale = flags.locale
                         , nativeSharingAvailable = flags.nativeSharingAvailable
@@ -111,6 +114,7 @@ init flagsResult route =
                     BrowserEnv.init
                         { backendUrl = ""
                         , darkMode = False
+                        , environment = Nothing
                         , frontendUrl = ""
                         , locale = ""
                         , nativeSharingAvailable = False
