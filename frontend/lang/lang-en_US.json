@@ -30,7 +30,12 @@
       "communities title": "Communities",
       "my communities title": "My communities",
       "no communities text": "Looks like you don't follow any communities yet. Don't worry, you can browse them and start following them below.",
-      "browsee communities text": "Browse communities"
+      "browse communities text": "Browse communities"
+   },
+   "email subscription dialog": {
+      "dialog title": "Subscribe with Email",
+      "subscribe button title": "Subscribe with Email",
+      "close button title": "Subscribe with Email"
    },
    "media selector": {
       "Upload files": "Select image",
@@ -57,7 +62,8 @@
       "unfollow button title": "Unfollow",
       "mute button title": "Stumm",
       "public menu item text": "Public",
-      "private menu item text": "Private"
+      "private menu item text": "Private",
+      "subscribe button title": "Subscribe"
    },
    "publish article dialog": {
       "dialog title": "Publish article",

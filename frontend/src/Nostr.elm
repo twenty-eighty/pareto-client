@@ -101,6 +101,13 @@ type Msg
     | Nip11Fetched String (Result Http.Error Nip11Info)
 
 
+isAuthor : Model -> PubKey -> Bool
+isAuthor model userPubKey =
+    getFollowsList model Pareto.authorsKey
+        |> Maybe.map (pubKeyIsFollower userPubKey)
+        |> Maybe.withDefault False
+
+
 isEditor : Model -> PubKey -> Bool
 isEditor model userPubKey =
     getFollowsList model Pareto.editorKey

@@ -1,4 +1,4 @@
-module BrowserEnv exposing (BrowserEnv, Msg(..), formatDate, init, subscriptions, update, updateTimeZone)
+module BrowserEnv exposing (BrowserEnv, Environment(..), Msg(..), formatDate, init, subscriptions, update, updateTimeZone)
 
 import DateFormat
 import DateFormat.Language

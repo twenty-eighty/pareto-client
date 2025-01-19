@@ -30,7 +30,12 @@
       "communities title": "Communities",
       "my communities title": "Meine Communities",
       "no communities text": "Anscheinend folgst du noch keinen Communities. Kein Problem, schau dir die Liste unten an und folge denen, die dich interessieren.",
-      "browsee communities text": "Communities durchsuchen"
+      "browse communities text": "Communities durchsuchen"
+   },
+   "email subscription dialog": {
+      "dialog title": "Subscribe with Email",
+      "subscribe button title": "Subscribe with Email",
+      "close button title": "Subscribe with Email"
    },
    "media selector": {
       "Select image": "Bild auswählen",
@@ -57,7 +62,8 @@
       "unfollow button title": "Entfolgen",
       "mute button title": "Stumm",
       "public menu item text": "Öffentlich",
-      "private menu item text": "Privat"
+      "private menu item text": "Privat",
+      "subscribe button title": "Abonnieren"
    },
    "publish article dialog": {
       "dialog title": "Artikel veröffentlichen",

@@ -16,18 +16,18 @@ import Nostr.Profile exposing (Profile, ProfileValidation(..), profileToJson)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
-import Pareto
 import Page exposing (Page)
+import Pareto
 import Route exposing (Route)
 import Shared
 import Shared.Model exposing (LoginStatus(..))
 import Shared.Msg
 import Tailwind.Utilities as Tw
+import Time
 import Translations.About as Translations
 import Ui.Profile exposing (FollowType(..))
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 import View exposing (View)
-import Time
 
 
 page : Shared.Model -> Route () -> Page Model Msg
@@ -40,21 +40,25 @@ page shared route =
         }
         |> Page.withLayout (toLayout shared.theme)
 
+
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme model =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
 
+
 -- INIT
 
 
 type alias Model =
-    { }
+    {}
+
 
 init : Shared.Model -> () -> ( Model, Effect Msg )
 init shared () =
-    ( {}, Effect.none)
+    ( {}, Effect.none )
+
 
 
 -- UPDATE
@@ -84,6 +88,7 @@ update shared msg model =
             , sendClientProfile shared.nostr pubKey handlerInformation.profile
             )
 
+
 sendClientRecommendation : Nostr.Model -> PubKey -> HandlerInformation -> Effect Msg
 sendClientRecommendation nostr pubKey handlerInformation =
     { pubKey = pubKey
@@ -91,23 +96,24 @@ sendClientRecommendation nostr pubKey handlerInformation =
     , kind = KindHandlerRecommendation
     , tags =
         [ EventDelegationTag (numberForKind KindLongFormContent |> String.fromInt)
-        , GenericTag4 "a" (buildAddress (KindHandlerInformation, handlerInformation.pubKey, handlerInformation.handlerIdentifier)) Pareto.paretoRelay "web"
+        , GenericTag4 "a" (buildAddress ( KindHandlerInformation, handlerInformation.pubKey, handlerInformation.handlerIdentifier )) Pareto.paretoRelay "web"
         ]
     , content = ""
     , id = ""
     , sig = Nothing
     , relay = Nothing
     }
-    |> SendClientRecommendation (Nostr.getWriteRelayUrlsForPubKey nostr pubKey)
-    |> Shared.Msg.SendNostrEvent
-    |> Effect.sendSharedMsg
+        |> SendClientRecommendation (Nostr.getWriteRelayUrlsForPubKey nostr pubKey)
+        |> Shared.Msg.SendNostrEvent
+        |> Effect.sendSharedMsg
+
 
 sendHandlerInformation : Nostr.Model -> PubKey -> HandlerInformation -> Effect Msg
 sendHandlerInformation nostr pubKey handlerInformation =
     buildHandlerInformation handlerInformation
-    |> SendHandlerInformation (Nostr.getWriteRelayUrlsForPubKey nostr pubKey)
-    |> Shared.Msg.SendNostrEvent
-    |> Effect.sendSharedMsg
+        |> SendHandlerInformation (Nostr.getWriteRelayUrlsForPubKey nostr pubKey)
+        |> Shared.Msg.SendNostrEvent
+        |> Effect.sendSharedMsg
 
 
 sendClientProfile : Nostr.Model -> PubKey -> Profile -> Effect Msg
@@ -115,15 +121,16 @@ sendClientProfile nostr pubKey profile =
     { pubKey = pubKey
     , createdAt = Time.millisToPosix 0
     , kind = KindUserMetadata
-    , tags = [ ]
+    , tags = []
     , content = profileToJson profile
     , id = ""
     , sig = Nothing
     , relay = Nothing
     }
-    |> SendProfile (Nostr.getWriteRelayUrlsForPubKey nostr pubKey)
-    |> Shared.Msg.SendNostrEvent
-    |> Effect.sendSharedMsg
+        |> SendProfile (Nostr.getWriteRelayUrlsForPubKey nostr pubKey)
+        |> Shared.Msg.SendNostrEvent
+        |> Effect.sendSharedMsg
+
 
 
 -- SUBSCRIPTIONS
@@ -140,7 +147,7 @@ subscriptions model =
 
 view : Shared.Model -> Model -> View Msg
 view shared model =
-    { title = Translations.aboutPageTitle [shared.browserEnv.translations]
+    { title = Translations.aboutPageTitle [ shared.browserEnv.translations ]
     , body =
         [ div
             [ css
@@ -168,7 +175,9 @@ viewHandlerInformation theme browserEnv loginStatus nostr handlerInformation =
             handlerInformation.profile
             { browserEnv = browserEnv
             , following = UnknownFollowing
-            , theme = theme 
+            , isAuthor = False
+            , subscribe = Nothing
+            , theme = theme
             , validation =
                 Nostr.getProfileValidationStatus nostr handlerInformation.pubKey
                     |> Maybe.withDefault ValidationUnknown
@@ -209,7 +218,8 @@ viewActionButtons theme browserEnv handlerInformation loginStatus =
                 ]
 
         _ ->
-            div [][]
+            div [] []
+
 
 viewPublishProfileButton : Theme -> BrowserEnv -> PubKey -> HandlerInformation -> Html Msg
 viewPublishProfileButton theme browserEnv pubKey handlerInformation =
@@ -220,8 +230,10 @@ viewPublishProfileButton theme browserEnv pubKey handlerInformation =
             , theme = theme
             }
             |> Button.view
+
     else
-        div [][]
+        div [] []
+
 
 viewPublishHandlerInformationButton : Theme -> BrowserEnv -> PubKey -> HandlerInformation -> Html Msg
 viewPublishHandlerInformationButton theme browserEnv pubKey handlerInformation =
@@ -232,8 +244,9 @@ viewPublishHandlerInformationButton theme browserEnv pubKey handlerInformation =
             , theme = theme
             }
             |> Button.view
+
     else
-        div [][]
+        div [] []
 
 
 viewSupportedKinds : Theme -> BrowserEnv -> List Kind -> Html Msg
@@ -243,16 +256,15 @@ viewSupportedKinds theme browserEnv kinds =
             Ui.Styles.stylesForTheme theme
     in
     Html.div
-        [
-        ]
+        []
         [ Html.h3 (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
             [ text <| Translations.supportedKindsTitle [ browserEnv.translations ]
             ]
         , Html.ul
-            [
-            ]
+            []
             (List.map (viewSupportedKind theme) kinds)
         ]
+
 
 viewSupportedKind : Theme -> Kind -> Html Msg
 viewSupportedKind theme kind =
@@ -264,12 +276,12 @@ viewSupportedKind theme kind =
             informationForKind kind
     in
     Html.li
-        [
-        ]
+        []
         [ text <| String.fromInt (numberForKind kind) ++ ": " ++ kindInfo.description ++ " ("
         , viewKindLink styles kindInfo.link
         , text ")"
         ]
+
 
 viewKindLink : Styles Msg -> Maybe KindInformationLink -> Html Msg
 viewKindLink styles link =
@@ -286,21 +298,23 @@ viewKindLink styles link =
 
         Just (LinkToNips nipNumbers) ->
             nipNumbers
-            |> List.map (\nipNumber -> viewKindLink styles (Just <| LinkToNip nipNumber))
-            |> List.intersperse (Html.span [][ text ", "])
-            |> Html.span []
+                |> List.map (\nipNumber -> viewKindLink styles (Just <| LinkToNip nipNumber))
+                |> List.intersperse (Html.span [] [ text ", " ])
+                |> Html.span []
 
         Just (OtherLink title url) ->
-            a  
-                (styles.textStyleLinks ++ styles.colorStyleArticleHashtags ++
-                [ Attr.href url
-                ])
+            a
+                (styles.textStyleLinks
+                    ++ styles.colorStyleArticleHashtags
+                    ++ [ Attr.href url
+                       ]
+                )
                 [ text title
                 ]
 
         Nothing ->
-            span [][]
-        
+            span [] []
+
 
 viewWebTargets : Theme -> BrowserEnv -> List WebTarget -> Html Msg
 viewWebTargets theme browserEnv webTargets =
@@ -309,19 +323,18 @@ viewWebTargets theme browserEnv webTargets =
             Ui.Styles.stylesForTheme theme
     in
     Html.div
-        [
-        ]
+        []
         [ Html.h3 (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
             [ text <| Translations.supportedWebTargetsTitle [ browserEnv.translations ]
             ]
         , Html.ul
-            [
-            ]
+            []
             (List.map (viewWebTarget theme) webTargets)
         ]
 
+
 viewWebTarget : Theme -> WebTarget -> Html Msg
-viewWebTarget theme (target, maybeType) =
+viewWebTarget theme ( target, maybeType ) =
     let
         webTargetType =
             case maybeType of
@@ -332,10 +345,10 @@ viewWebTarget theme (target, maybeType) =
                     ""
     in
     Html.li
-        [
-        ]
+        []
         [ text <| target ++ webTargetType
         ]
+
 
 viewSupportedNips : Theme -> BrowserEnv -> List String -> Html Msg
 viewSupportedNips theme browserEnv supportedNips =
@@ -352,10 +365,10 @@ viewSupportedNips theme browserEnv supportedNips =
             [ text <| Translations.supportedNipsTitle [ browserEnv.translations ]
             ]
         , Html.ul
-            [
-            ]
+            []
             (List.map (viewNip theme) supportedNips)
         ]
+
 
 viewNip : Theme -> String -> Html Msg
 viewNip theme nip =
@@ -373,15 +386,17 @@ viewNip theme nip =
                     "https://nips.nostr.com/" ++ nip
     in
     Html.li
-        [
-        ]
+        []
         [ Html.a
-            (styles.textStyleLinks ++ styles.colorStyleArticleHashtags ++
-            [ href nipLink
-            ])
+            (styles.textStyleLinks
+                ++ styles.colorStyleArticleHashtags
+                ++ [ href nipLink
+                   ]
+            )
             [ text <| "NIP-" ++ nip ++ nipInfoText nip
             ]
         ]
+
 
 nipInfoText : String -> String
 nipInfoText nip =
@@ -391,6 +406,7 @@ nipInfoText nip =
 
         Nothing ->
             ""
+
 
 viewFooter : Theme -> BrowserEnv -> Html Msg
 viewFooter theme browserEnv =
@@ -407,36 +423,39 @@ viewFooter theme browserEnv =
             ]
         ]
         [ span
-            [
-            ]
+            []
             [ text <| Translations.aboutFrontendText [ browserEnv.translations ] ++ " "
             , a
-                (styles.textStyleLinks ++ styles.colorStyleArticleHashtags ++
-                [ Attr.href "https://elm.land/"
-                ])
+                (styles.textStyleLinks
+                    ++ styles.colorStyleArticleHashtags
+                    ++ [ Attr.href "https://elm.land/"
+                       ]
+                )
                 [ text "Elm Land"
                 ]
             , text <| Translations.aboutFrontendText2 [ browserEnv.translations ] ++ " "
             , a
-                (styles.textStyleLinks ++ styles.colorStyleArticleHashtags ++
-                [ Attr.href "https://elm-lang.org/"
-                ])
+                (styles.textStyleLinks
+                    ++ styles.colorStyleArticleHashtags
+                    ++ [ Attr.href "https://elm-lang.org/"
+                       ]
+                )
                 [ text "Elm"
                 ]
             , text <| Translations.aboutFrontendText3 [ browserEnv.translations ] ++ " "
             ]
         , span
-            [
-            ]
+            []
             [ text <| Translations.aboutBackendText [ browserEnv.translations ] ++ " "
             , a
-                (styles.textStyleLinks ++ styles.colorStyleArticleHashtags ++
-                [ Attr.href "https://www.phoenixframework.org/"
-                ])
+                (styles.textStyleLinks
+                    ++ styles.colorStyleArticleHashtags
+                    ++ [ Attr.href "https://www.phoenixframework.org/"
+                       ]
+                )
                 [ text "Phoenix Framework"
                 ]
             , text "."
             ]
-
         , text <| Translations.sourceCodeText [ browserEnv.translations ]
         ]

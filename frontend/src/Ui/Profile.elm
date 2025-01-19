@@ -1,10 +1,12 @@
 module Ui.Profile exposing (..)
 
-import BrowserEnv exposing (BrowserEnv)
+import BrowserEnv exposing (BrowserEnv, Msg)
+import Color
 import Components.Button as Button
-import Components.Icon as Icon
+import Components.Icon as Icon exposing (Icon(..), MaterialIcon(..))
+import FeatherIcons
 import Graphics
-import Html.Styled as Html exposing (Html, Attribute, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
+import Html.Styled as Html exposing (Attribute, Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 import Nostr.Nip05 as Nip05
@@ -13,65 +15,65 @@ import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
 import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-import Translations.Profile as Translations
+import Tailwind.Utilities as Tw
 import Time
+import Translations.Profile as Translations
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
-import Components.Icon exposing (Icon(..))
-import FeatherIcons
-import Components.Icon exposing (MaterialIcon(..))
-import Color
-import BrowserEnv exposing (Msg)
+
 
 defaultProfileImage : String
 defaultProfileImage =
     "/images/avatars/placeholder_01.png"
 
+
 type alias ProfileViewData msg =
     { browserEnv : BrowserEnv
     , following : FollowType msg
-    , theme : Theme 
+    , isAuthor : Bool
+    , subscribe : Maybe msg
+    , theme : Theme
     , validation : ProfileValidation
     }
 
+
 type FollowType msg
-    = Following (PubKey -> msg)     -- unfollow msg
-    | NotFollowing (PubKey -> msg)  -- follow msg
+    = Following (PubKey -> msg) -- unfollow msg
+    | NotFollowing (PubKey -> msg) -- follow msg
     | UnknownFollowing
+
 
 viewProfileSmall : Profile -> ProfileValidation -> Html msg
 viewProfileSmall profile validationStatus =
-        div
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.space_y_2
+            , Tw.mb_4
+            ]
+        ]
+        [ div
             [ css
                 [ Tw.flex
-                , Tw.flex_col
-                , Tw.space_y_2
+                , Tw.flex_row
+                , Tw.items_center
+                , Tw.space_x_2
                 , Tw.mb_4
                 ]
             ]
-            [ div
+            [ viewProfileImageSmall (linkElementForProfile profile validationStatus) profile.picture validationStatus
+            , h2
                 [ css
-                    [ Tw.flex
-                    , Tw.flex_row
-                    , Tw.items_center
-                    , Tw.space_x_2
-                    , Tw.mb_4
+                    [ Tw.text_sm
+                    , Tw.font_semibold
+                    , Tw.text_color Theme.gray_800
                     ]
                 ]
-                [ viewProfileImageSmall (linkElementForProfile profile validationStatus) profile.picture validationStatus
-                , h2
-                    [ css
-                        [ Tw.text_sm
-                        , Tw.font_semibold
-                        , Tw.text_color Theme.gray_800
-                        ]
-                    ]
-                    [ text (profileDisplayName profile.pubKey profile) ]
-                ]
+                [ text (profileDisplayName profile.pubKey profile) ]
             ]
-
+        ]
 
 
 viewProfile : Profile -> ProfileViewData msg -> Html msg
@@ -99,7 +101,7 @@ viewProfile profile profileViewData =
                 , Tw.mb_4
                 ]
             ]
-            [ viewProfileImage (div [ css [ Tw.flex_none ]]) profile.picture profileViewData.validation
+            [ viewProfileImage (div [ css [ Tw.flex_none ] ]) profile.picture profileViewData.validation
             , div
                 [ css
                     [ Tw.flex
@@ -121,13 +123,36 @@ viewProfile profile profileViewData =
                 ]
             , div
                 [ css
-                    [ 
+                    [ Tw.flex
+                    , Tw.flex_row
+                    , Tw.gap_2
                     ]
                 ]
-                [ followButton profileViewData.theme profileViewData.browserEnv profile.pubKey profileViewData.following
+                [ viewSubscriptionButton profile profileViewData
+                , followButton profileViewData.theme profileViewData.browserEnv profile.pubKey profileViewData.following
                 ]
             ]
         ]
+
+
+
+-- so far only displayed in dev mode until release
+
+
+viewSubscriptionButton : Profile -> ProfileViewData msg -> Html msg
+viewSubscriptionButton profile profileViewData =
+    case ( profileViewData.browserEnv.environment, profileViewData.isAuthor, profileViewData.subscribe ) of
+        ( BrowserEnv.Development, True, Just subscribeMsg ) ->
+            Button.new
+                { label = Translations.subscribeButtonTitle [ profileViewData.browserEnv.translations ]
+                , onClick = Just subscribeMsg
+                , theme = profileViewData.theme
+                }
+                |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.mail)
+                |> Button.view
+
+        ( _, _, _ ) ->
+            div [] []
 
 
 followButton : Theme -> BrowserEnv -> PubKey -> FollowType msg -> Html msg
@@ -151,7 +176,7 @@ followButton theme browserEnv profilePubKey following =
                 |> Button.view
 
         UnknownFollowing ->
-            div [][]
+            div [] []
 
 
 viewWebsite : Styles msg -> Profile -> Html msg
@@ -159,18 +184,22 @@ viewWebsite styles profile =
     case profile.website of
         Just website ->
             a
-                (styles.colorStyleLinks ++ styles.textStyleLinks ++
-                [ Attr.href (websiteLink website)
-                ])
+                (styles.colorStyleLinks
+                    ++ styles.textStyleLinks
+                    ++ [ Attr.href (websiteLink website)
+                       ]
+                )
                 [ text website ]
 
         Nothing ->
-            div [][]
+            div [] []
+
 
 websiteLink : String -> String
 websiteLink url =
     if not (String.startsWith "http" url) then
         "https://" ++ url
+
     else
         url
 
@@ -184,15 +213,16 @@ viewNip05 styles profile =
                 [ text <| Nip05.nip05ToDisplayString nip05 ]
 
         Nothing ->
-            div [][]
+            div [] []
+
 
 viewNpub : Styles msg -> Profile -> Html msg
 viewNpub styles profile =
     let
         maybeNip19 =
             Nip19.Npub profile.pubKey
-            |> Nip19.encode
-            |> Result.toMaybe
+                |> Nip19.encode
+                |> Result.toMaybe
     in
     case maybeNip19 of
         Just nip19 ->
@@ -201,7 +231,8 @@ viewNpub styles profile =
                 [ text nip19 ]
 
         Nothing ->
-            div [][]
+            div [] []
+
 
 viewBanner : Maybe String -> Html msg
 viewBanner maybeImage =
@@ -226,35 +257,37 @@ viewBanner maybeImage =
                 ]
 
         Nothing ->
-            div [][]
+            div [] []
+
 
 viewProfilePubKey : PubKey -> Html msg
 viewProfilePubKey pubKey =
-            div
-                [ css
-                    [ Tw.flex
-                    , Tw.items_center
-                    , Tw.space_x_2
-                    , Tw.mb_4
-                    ]
+    div
+        [ css
+            [ Tw.flex
+            , Tw.items_center
+            , Tw.space_x_2
+            , Tw.mb_4
+            ]
+        ]
+        [ viewProfileImage (linkElementForProfilePubKey pubKey) (Just defaultProfileImage) ValidationUnknown
+        , h2
+            [ css
+                [ Tw.text_sm
+                , Tw.font_semibold
+                , Tw.text_color Theme.gray_800
                 ]
-                [ viewProfileImage (linkElementForProfilePubKey pubKey) (Just defaultProfileImage) ValidationUnknown
-                , h2
-                    [ css
-                        [ Tw.text_sm
-                        , Tw.font_semibold
-                        , Tw.text_color Theme.gray_800
-                        ]
-                    ]
-                    [ text pubKey ]
-                ]
+            ]
+            [ text pubKey ]
+        ]
+
 
 viewProfileImage : (List (Html msg) -> Html msg) -> Maybe String -> ProfileValidation -> Html msg
 viewProfileImage linkElement maybeImage validationStatus =
     let
         image =
             maybeImage
-            |> Maybe.withDefault defaultProfileImage
+                |> Maybe.withDefault defaultProfileImage
     in
     div
         [ css
@@ -276,9 +309,9 @@ viewProfileImage linkElement maybeImage validationStatus =
                 ]
                 []
             ]
-        , div 
+        , div
             [ css
-                [  Tw.absolute
+                [ Tw.absolute
                 , Tw.top_0
                 , Tw.right_0
                 , Tw.text_color Theme.gray_400
@@ -290,11 +323,12 @@ viewProfileImage linkElement maybeImage validationStatus =
             ]
         ]
 
+
 validationIcon : Int -> ProfileValidation -> Html msg
 validationIcon width validation =
     case validation of
         ValidationUnknown ->
-            div [][]
+            div [] []
 
         ValidationPending ->
             Graphics.featherMehIcon width
@@ -339,7 +373,7 @@ viewProfileImageSmall linkElement maybeImage validationStatus =
     let
         image =
             maybeImage
-            |> Maybe.withDefault defaultProfileImage
+                |> Maybe.withDefault defaultProfileImage
     in
     div
         [ css
@@ -359,7 +393,7 @@ viewProfileImageSmall linkElement maybeImage validationStatus =
                 ]
                 []
             ]
-        , div 
+        , div
             [ css
                 [ Tw.absolute
                 , Tw.top_0
@@ -372,6 +406,7 @@ viewProfileImageSmall linkElement maybeImage validationStatus =
             [ validationIcon 16 validationStatus
             ]
         ]
+
 
 timeParagraph : BrowserEnv -> Maybe Time.Posix -> Html msg
 timeParagraph browserEnv maybePublishedAt =
@@ -386,19 +421,24 @@ timeParagraph browserEnv maybePublishedAt =
                 [ text <| BrowserEnv.formatDate browserEnv publishedAt ]
 
         Nothing ->
-            div [][]
+            div [] []
+
 
 profileDisplayName : PubKey -> Profile -> String
 profileDisplayName pubKey profile =
-    case (profile.displayName, profile.name, profile.nip05) of
-        (Just displayName, _, _) ->
+    case ( profile.displayName, profile.name, profile.nip05 ) of
+        ( Just displayName, _, _ ) ->
             displayName
-        (Nothing, Just name, _) ->
+
+        ( Nothing, Just name, _ ) ->
             name
-        (Nothing, Nothing, Just nip05) ->
+
+        ( Nothing, Nothing, Just nip05 ) ->
             Nip05.nip05ToDisplayString nip05
-        (Nothing, Nothing, Nothing) ->
+
+        ( Nothing, Nothing, Nothing ) ->
             shortenedPubKey pubKey
+
 
 shortenedPubKey : String -> String
 shortenedPubKey pubKey =
