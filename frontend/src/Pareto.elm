@@ -58,6 +58,7 @@ paretoRelay =
     "wss://nostr." ++ applicationDomain
 
 
+paretoRelays : List String
 paretoRelays =
     [ paretoRelay
     , "wss://pareto.nostr1.com"
@@ -74,17 +75,35 @@ teamRelay =
     "team-relay.pareto.space"
 
 
-defaultRelays : List String
-defaultRelays =
+paretoOutboxRelays : List String
+paretoOutboxRelays =
     [ "nostr.pareto.space"
     , "pareto.nostr1.com"
-    , "relay.snort.social"
+    ]
+
+
+recommendedOutboxRelays : List String
+recommendedOutboxRelays =
+    [ "relay.snort.social"
     , "relay.nostr.band"
     , "relay.damus.io"
     , "nos.lol"
     , "offchain.pub"
     , "nostr.wine"
     ]
+
+
+recommendedInboxRelays : List String
+recommendedInboxRelays =
+    [ "nostr.pareto.space"
+    , "pareto.nostr1.com"
+    ]
+        ++ recommendedOutboxRelays
+
+
+defaultRelays : List String
+defaultRelays =
+    recommendedInboxRelays
 
 
 defaultSearchRelays : List String

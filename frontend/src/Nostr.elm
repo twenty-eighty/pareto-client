@@ -15,7 +15,7 @@ import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
 import Nostr.DeletionRequest exposing (DeletionRequest, deletionRequestFromEvent)
 import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress, emptyEvent, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
-import Nostr.FollowList exposing (Following, emptyFollowList, followListEvent, followListFromEvent, followListWithPubKey, followListWithoutPubKey)
+import Nostr.FollowList exposing (Following, emptyFollowList, followListEvent, followListFromEvent, followListWithPubKey, followListWithoutPubKey, pubKeyIsFollower)
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
 import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05Info, nip05ToString)
 import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
@@ -99,6 +99,13 @@ type Msg
     | Nip05FetchedForPubKey PubKey Nip05 (Result Http.Error Nip05.Nip05Data)
     | Nip05FetchedForNip05 RequestId Nip05 (Result Http.Error Nip05.Nip05Data)
     | Nip11Fetched String (Result Http.Error Nip11Info)
+
+
+isEditor : Model -> PubKey -> Bool
+isEditor model userPubKey =
+    getFollowsList model Pareto.editorKey
+        |> Maybe.map (pubKeyIsFollower userPubKey)
+        |> Maybe.withDefault False
 
 
 

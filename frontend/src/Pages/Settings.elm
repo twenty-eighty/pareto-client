@@ -319,7 +319,7 @@ viewRelays shared model user relaysModel =
         outboxRelaySuggestions =
             { identifier = "outbox-relay-suggestions"
             , suggestions =
-                missingRelays outboxRelays Pareto.paretoRelays
+                missingRelays outboxRelays (suggestedOutboxRelays shared user.pubKey)
             }
 
         inboxRelays =
@@ -328,7 +328,7 @@ viewRelays shared model user relaysModel =
         inboxRelaySuggestions =
             { identifier = "inbox-relay-suggestions"
             , suggestions =
-                missingRelays inboxRelays Pareto.paretoRelays
+                missingRelays inboxRelays Pareto.recommendedInboxRelays
             }
 
         searchRelays =
@@ -367,6 +367,19 @@ viewRelays shared model user relaysModel =
         -- , viewRelayList searchRelays
         -- , addRelayBox shared.theme shared.browserEnv.translations relaysModel.searchRelay (updateRelayModelSearch relaysModel) (AddSearchRelay user.pubKey)
         ]
+
+
+
+-- users must be whitelisted for Pareto outbox relays
+
+
+suggestedOutboxRelays : Shared.Model -> PubKey -> List RelayUrl
+suggestedOutboxRelays shared pubKey =
+    if Nostr.isEditor shared.nostr pubKey then
+        Pareto.paretoOutboxRelays ++ Pareto.recommendedOutboxRelays
+
+    else
+        Pareto.recommendedOutboxRelays
 
 
 missingRelays : List Relay -> List String -> List String

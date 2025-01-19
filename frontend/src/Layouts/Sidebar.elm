@@ -419,20 +419,7 @@ roleSwitchButtonEnabled : Nostr.Model -> LoginStatus -> Bool
 roleSwitchButtonEnabled nostr loginStatus =
     case loginStatus of
         LoggedIn userPubKey ->
-            Nostr.getFollowsList nostr Pareto.editorKey
-                |> Maybe.map
-                    (List.filter
-                        (\follows ->
-                            case follows of
-                                FollowingPubKey { pubKey } ->
-                                    userPubKey == pubKey
-
-                                _ ->
-                                    False
-                        )
-                    )
-                |> Maybe.map (not << List.isEmpty)
-                |> Maybe.withDefault False
+            Nostr.isEditor nostr userPubKey
 
         _ ->
             False
