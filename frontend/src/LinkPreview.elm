@@ -461,7 +461,7 @@ generateGenericPreview maybeLoadedContent url urlString linkAttr body =
             Just embedHtml ->
                 div
                     [ css
-                        [ Tw.w_96
+                        [ Tw.w_full
                         , Tw.h_full
                         ]
                     ]
