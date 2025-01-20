@@ -58,11 +58,13 @@ Make sure you display all log levels in the console in order to see debug messag
 For development purposes you don't need Docker. The Docker setup is mainly intended for deployment.
 
 1. Setup the latest versions of Elm, Elixir and Erlang (OTP). One of the best options is [asdf](https://github.com/asdf-vm/asdf)
-2. Install Elm Land (https://elm.land/)
+2. Install Elm Land (https://elm.land/): `npm install -g elm-land@latest`
 3. When using [VSCodium](https://vscodium.com/), install Elm, Elm Land, and Elixir plugins
 4. Open the frontend and backend separately (`frontend` and `nostr_backend` directories)
 
 ## Frontend
+Change to the `frontend` directory for the following commands.
+
 1. run ./build.sh (only needed once to generate the code for translations and Tailwind CSS modules)
 2. run `./run.sh` in the frontend directory.
 
@@ -74,7 +76,12 @@ In case you get a build error make sure that the following line is present in th
 You'll notice a small rect bottom/right of the screen that allows to open the Elm debugger.
 
 ## Backend
-The backend can be started locally with `./run.sh` in the `nostr_backend` directory. This includes building of the frontend.
+Change to the `nostr\_backend` directory for the following commands.
+
+1. run `mix deps.get` to load externally referenced modules.
+2. The backend can be started locally with `./run.sh`. This includes building of the frontend.
+
 To run the backend without building the frontend execute `./dev.sh`.
+
 If you want to test single functions use `iex -S mix`
 
