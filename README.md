@@ -63,11 +63,13 @@ For development purposes you don't need Docker. The Docker setup is mainly inten
 4. Open the frontend and backend separately (`frontend` and `nostr_backend` directories)
 
 ## Frontend
-1. run ./generate\_tailwind\_modules.sh (only needed once)
-2. run ./gentranslations.sh to generate the code for the English language version
-3. run `./run.sh` in the frontend directory.
+1. run ./build.sh (only needed once to generate the code for translations and Tailwind CSS modules)
+2. run `./run.sh` in the frontend directory.
 
 On http://localhost:1234/read you'll find the Pareto client.
+
+In case you get a build error make sure that the following line is present in the file `~/.tool-versions`:
+`elm 0.19.1`
 
 You'll notice a small rect bottom/right of the screen that allows to open the Elm debugger.
 
