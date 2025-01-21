@@ -50,6 +50,7 @@ defmodule NostrBackendWeb.Router do
     get("/notifications", PageController, :notifications)
     get("/posts", PageController, :posts)
     get("/read", PageController, :read)
+    get("/settings", PageController, :settings)
     get("/sign-in", PageController, :sign_in)
     get("/write", PageController, :write)
 
@@ -72,6 +73,7 @@ defmodule NostrBackendWeb.Router do
     pipe_through :api
 
     get "/nip05/validate", NostrController, :validate_nip05_handle
+    get "/nip11", Nip11Controller, :fetch_nip11
     # get "/opengraph", OpenGraphController, :fetch_metadata
     get "/oembed", OembedController, :fetch_oembed
     get "/opengraph/image", OpenGraphController, :fetch_metadata_image

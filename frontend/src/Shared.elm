@@ -16,42 +16,47 @@ module Shared exposing
 import BrowserEnv exposing (BrowserEnv)
 import Effect exposing (Effect)
 import Json.Decode
-import Json.Decode as Decode
 import Nostr
 import Nostr.Event exposing (Kind(..), emptyEventFilter)
 import Nostr.Profile exposing (Profile)
 import Nostr.Request exposing (Request, RequestData(..))
-import Nostr.Types exposing (PubKey, IncomingMessage)
+import Nostr.Types exposing (IncomingMessage, PubKey)
 import Pareto
 import Ports
 import Route exposing (Route)
 import Route.Path
-import Shared.Model exposing (LoginStatus(..))
+import Shared.Model exposing (ClientRole(..), LoginStatus(..))
 import Shared.Msg exposing (Msg(..))
-import Shared.Model exposing (ClientRole(..))
 import Ui.Styles exposing (Theme(..))
 
-type alias Model = Shared.Model.Model
+
+type alias Model =
+    Shared.Model.Model
+
 
 
 -- FLAGS
 
+
 type alias Flags =
     { darkMode : Bool
+    , environment : Maybe String
     , isLoggedIn : Bool
     , locale : String
-    , sharingAvailable : Bool
+    , nativeSharingAvailable : Bool
     }
 
 
--- Define a decoder for the 'isLoggedIn' field
 decoder : Json.Decode.Decoder Flags
 decoder =
-    Json.Decode.map4 Flags
+    Json.Decode.map5 Flags
         (Json.Decode.field "darkMode" Json.Decode.bool)
+        (Json.Decode.field "environment" (Json.Decode.maybe Json.Decode.string))
         (Json.Decode.field "isLoggedIn" Json.Decode.bool)
         (Json.Decode.field "locale" Json.Decode.string)
-        (Json.Decode.field "sharingAvailable" Json.Decode.bool)
+        (Json.Decode.field "nativeSharingAvailable" Json.Decode.bool)
+
+
 
 -- INIT
 
@@ -61,32 +66,33 @@ init flagsResult route =
     case flagsResult of
         Ok flags ->
             let
-                (loginStatus, effect) =
+                ( loginStatus, effect ) =
                     if flags.isLoggedIn then
-                        (Shared.Model.LoggedInUnknown, Effect.sendCmd <| Ports.requestUser)
-                    else
-                        (Shared.Model.LoggedOut, Effect.none )
+                        ( Shared.Model.LoggedInUnknown, Effect.sendCmd <| Ports.requestUser )
 
-                (browserEnv, browserEnvCmd) =
+                    else
+                        ( Shared.Model.LoggedOut, Effect.none )
+
+                ( browserEnv, browserEnvCmd ) =
                     BrowserEnv.init
                         { backendUrl = ""
                         , darkMode = flags.darkMode
+                        , environment = flags.environment
                         , frontendUrl = ""
                         , locale = flags.locale
-                        , sharingAvailable = flags.sharingAvailable
+                        , nativeSharingAvailable = flags.nativeSharingAvailable
                         }
 
-                (nostrInit, nostrInitCmd) =
+                ( nostrInit, nostrInitCmd ) =
                     Nostr.init portHooks Pareto.defaultRelays
 
                 -- request bookmark list of Pareto creators
                 -- as well as bookmark sets for different purposes
-                (nostr, nostrRequestCmd) =
+                ( nostr, nostrRequestCmd ) =
                     { emptyEventFilter | authors = Just [ Pareto.authorsKey, Pareto.rssAuthorsKey, Pareto.editorKey ], kinds = Just [ KindFollows, KindFollowSets ] }
-                    |> RequestFollowSets
-                    |> Nostr.createRequest nostrInit "Follow list/sets of Pareto user" []
-                    |> Nostr.doRequest nostrInit
-
+                        |> RequestFollowSets
+                        |> Nostr.createRequest nostrInit "Follow list/sets of Pareto user" []
+                        |> Nostr.doRequest nostrInit
             in
             ( { loginStatus = loginStatus
               , browserEnv = browserEnv
@@ -104,16 +110,16 @@ init flagsResult route =
 
         Err _ ->
             let
-                (browserEnv, _) =
+                ( browserEnv, _ ) =
                     BrowserEnv.init
                         { backendUrl = ""
                         , darkMode = False
+                        , environment = Nothing
                         , frontendUrl = ""
                         , locale = ""
-                        , sharingAvailable = False
+                        , nativeSharingAvailable = False
                         }
             in
-            
             ( { loginStatus = Shared.Model.LoggedOut
               , browserEnv = browserEnv
               , nostr = Nostr.empty
@@ -122,6 +128,7 @@ init flagsResult route =
               }
             , Effect.none
             )
+
 
 portHooks : Nostr.Hooks
 portHooks =
@@ -143,7 +150,6 @@ type alias Msg =
     Shared.Msg.Msg
 
 
-
 update : Route () -> Msg -> Model -> ( Model, Effect Msg )
 update route msg model =
     case msg of
@@ -152,21 +158,21 @@ update route msg model =
             , Effect.sendCmd <| Ports.requestUser
             )
 
-        ReceivedPortMessage portMessage -> 
+        ReceivedPortMessage portMessage ->
             updateWithPortMessage model portMessage
 
         BrowserEnvMsg browserEnvMsg ->
             let
-                (newBrowserEnv, browserEnvCmd) =
+                ( newBrowserEnv, browserEnvCmd ) =
                     BrowserEnv.update browserEnvMsg model.browserEnv
             in
             ( { model | browserEnv = newBrowserEnv }
-            , Effect.sendCmd <| Cmd.map Shared.Msg.BrowserEnvMsg browserEnvCmd)
-
+            , Effect.sendCmd <| Cmd.map Shared.Msg.BrowserEnvMsg browserEnvCmd
+            )
 
         NostrMsg nostrMsg ->
             let
-                (newNostr, nostrCmd) =
+                ( newNostr, nostrCmd ) =
                     Nostr.update nostrMsg model.nostr
             in
             ( { model | nostr = newNostr }
@@ -175,7 +181,7 @@ update route msg model =
 
         RequestNostrEvents request ->
             let
-                (newNostr, nostrCmd) =
+                ( newNostr, nostrCmd ) =
                     Nostr.doRequest model.nostr request
             in
             ( { model | nostr = newNostr }
@@ -190,61 +196,78 @@ update route msg model =
             ( { model | nostr = newNostr }
             , Effect.none
             )
-        
+
         SendNostrEvent sendRequest ->
             let
-                (newNostr, nostrCmd) =
+                ( newNostr, nostrCmd ) =
                     Nostr.send model.nostr sendRequest
             in
             ( { model | nostr = newNostr }
             , Effect.sendCmd <| Cmd.map Shared.Msg.NostrMsg nostrCmd
             )
 
-        SwitchClientRole ->
+        SwitchClientRole changePath ->
             if model.role == ClientReader then
-                ( { model | role = ClientCreator }, Effect.pushRoutePath Route.Path.Posts )
+                ( { model | role = ClientCreator }
+                , if changePath then
+                    Effect.pushRoutePath Route.Path.Posts
+
+                  else
+                    Effect.none
+                )
+
             else
-                ( { model | role = ClientReader }, Effect.pushRoutePath Route.Path.Home_ )
+                ( { model | role = ClientReader }
+                , if changePath then
+                    Effect.pushRoutePath Route.Path.Read
+
+                  else
+                    Effect.none
+                )
 
         SetClientRole clientRole ->
             ( { model | role = clientRole }, Effect.none )
+
 
 updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage model portMessage =
     case portMessage.messageType of
         "user" ->
             updateWithUserValue model portMessage.value
-        
-        _ -> 
+
+        _ ->
             ( model, Effect.none )
 
-updateWithUserValue : Model -> Decode.Value -> ( Model, Effect Msg )
+
+updateWithUserValue : Model -> Json.Decode.Value -> ( Model, Effect Msg )
 updateWithUserValue model value =
-    case (Json.Decode.decodeValue pubkeyDecoder value, model.loginStatus) of
-        (Ok pubKeyNew, Shared.Model.LoggedIn pubKeyLoggedIn) ->
+    case ( Json.Decode.decodeValue pubkeyDecoder value, model.loginStatus ) of
+        ( Ok pubKeyNew, Shared.Model.LoggedIn pubKeyLoggedIn ) ->
             let
-                (nostr, cmd) =
+                ( nostr, cmd ) =
                     if pubKeyNew /= pubKeyLoggedIn then
                         Nostr.requestUserData model.nostr pubKeyNew
+
                     else
                         -- ignore messages that don't change user
-                        (model.nostr, Cmd.none)
+                        ( model.nostr, Cmd.none )
             in
             ( { model | loginStatus = Shared.Model.LoggedIn pubKeyNew, nostr = nostr }
             , Effect.sendCmd (Cmd.map Shared.Msg.NostrMsg cmd)
             )
 
-        (Ok pubKeyNew, _) ->
+        ( Ok pubKeyNew, _ ) ->
             let
-                (nostr, cmd) =
+                ( nostr, cmd ) =
                     Nostr.requestUserData model.nostr pubKeyNew
             in
             ( { model | loginStatus = Shared.Model.LoggedIn pubKeyNew, nostr = nostr }
             , Effect.sendCmd (Cmd.map Shared.Msg.NostrMsg cmd)
             )
 
-        (Err error, _) ->
-            ( model , Effect.none )
+        ( Err error, _ ) ->
+            ( model, Effect.none )
+
 
 loggedIn : Model -> Bool
 loggedIn model =
@@ -258,6 +281,7 @@ loggedIn model =
         LoggedIn _ ->
             True
 
+
 loggedInPubKey : Shared.Model.LoginStatus -> Maybe PubKey
 loggedInPubKey loginStatus =
     case loginStatus of
@@ -266,13 +290,16 @@ loggedInPubKey loginStatus =
 
         _ ->
             Nothing
-        
+
 
 pubkeyDecoder : Json.Decode.Decoder PubKey
 pubkeyDecoder =
-    Json.Decode.at ["pubKey"] Json.Decode.string
+    Json.Decode.at [ "pubKey" ] Json.Decode.string
+
+
 
 -- SUBSCRIPTIONS
+
 
 subscriptions : Route () -> Model -> Sub Msg
 subscriptions route model =

@@ -123,11 +123,11 @@ function tryRenderingHtml(shadow, response) {
           if (response.width.endsWith("%")) {
             width = response.width;
           } else {
-            width = parseInt(response.width) + 20;
+            width = parseInt(response.width);
           }
         }
       } else {
-        width = iframe.contentWindow.document.body.scrollWidth + 10;
+        width = iframe.contentWindow.document.body.scrollWidth;
       }
       var height = null;
       if (response.height) {
@@ -137,23 +137,23 @@ function tryRenderingHtml(shadow, response) {
           if (response.height.endsWith("%")) {
             height = response.height;
           } else {
-            height = parseInt(response.height) + 20;
+            height = parseInt(response.height);
           }
         }
       } else {
-        height = iframe.contentWindow.document.body.scrollHeight + 10;
+        height = iframe.contentWindow.document.body.scrollHeight;
       }
       if (refetchedIframe) {
         refetchedIframe.setAttribute(
           "height",
           // @ts-ignore
-          height.toString()
+          (height + 20).toString()
         );
 
         refetchedIframe.setAttribute(
           "width",
           // @ts-ignore
-          width.toString()
+          (width + 20).toString()
         );
       }
     }

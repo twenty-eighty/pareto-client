@@ -14,7 +14,7 @@ import Layouts
 import Nostr
 import Nostr.Article exposing (Article, nip19ForArticle)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
-import Nostr.Event exposing (EventFilter, Kind(..), kindDecoder, emptyEventFilter)
+import Nostr.Event exposing (EventFilter, Kind(..), emptyEventFilter, kindDecoder)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
@@ -36,17 +36,19 @@ import View exposing (View)
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
 page user shared route =
     Page.new
-        { init = init shared
+        { init = init user shared
         , update = update user shared
         , subscriptions = subscriptions
         , view = view shared user
         }
         |> Page.withLayout (toLayout shared.theme)
 
+
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme model =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
+
 
 
 -- INIT
@@ -56,9 +58,11 @@ type alias Model =
     { categories : Components.Categories.Model Category
     }
 
+
 type Category
     = Published
     | Drafts
+
 
 availableCategories : I18Next.Translations -> List (Components.Categories.CategoryData Category)
 availableCategories translations =
@@ -71,12 +75,15 @@ availableCategories translations =
     ]
 
 
-init : Shared.Model -> () -> ( Model, Effect Msg )
-init shared () =
+init : Auth.User -> Shared.Model -> () -> ( Model, Effect Msg )
+init user shared () =
     updateModelWithCategory
+        user
         shared
         { categories = Components.Categories.init { selected = Published } }
         Published
+
+
 
 -- UPDATE
 
@@ -87,17 +94,18 @@ type Msg
     | DeleteDraft String (Maybe String) -- draft event id
     | EditDraft String
 
+
 update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update user shared msg model =
     case msg of
         CategorySelected category ->
-            updateModelWithCategory shared model category
+            updateModelWithCategory user shared model category
 
         CategoriesSent innerMsg ->
             Components.Categories.update
                 { msg = innerMsg
                 , model = model.categories
-                , toModel = \categories -> { model | categories = categories}
+                , toModel = \categories -> { model | categories = categories }
                 , toMsg = CategoriesSent
                 }
 
@@ -110,29 +118,28 @@ update user shared msg model =
             )
 
         EditDraft nip19 ->
-            (model, Effect.pushRoute { path = Route.Path.Write, query = Dict.singleton "a" nip19, hash = Nothing } )
+            ( model, Effect.pushRoute { path = Route.Path.Write, query = Dict.singleton "a" nip19, hash = Nothing } )
 
 
-updateModelWithCategory : Shared.Model -> Model -> Category -> (Model, Effect Msg)
-updateModelWithCategory shared model category =
+updateModelWithCategory : Auth.User -> Shared.Model -> Model -> Category -> ( Model, Effect Msg )
+updateModelWithCategory user shared model category =
     let
         filter =
-            case (shared.loginStatus, category) of
-                (Shared.Model.LoggedIn pubKey, Published) ->
-                    { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [pubKey], limit = Just 20 }
+            case category of
+                Published ->
+                    { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ user.pubKey ], limit = Just 20 }
 
-                (Shared.Model.LoggedIn pubKey, Drafts) ->
-                    { emptyEventFilter | kinds = Just [ KindDraftLongFormContent, KindDraft ], authors = Just [pubKey], limit = Just 20 }
-
-                (_, _) ->
-                    emptyEventFilter
+                Drafts ->
+                    { emptyEventFilter | kinds = Just [ KindDraftLongFormContent, KindDraft ], authors = Just [ user.pubKey ], limit = Just 20 }
     in
     ( model
     , RequestArticlesFeed filter
-      |> Nostr.createRequest shared.nostr "Posts of user" [KindUserMetadata]
-      |> Shared.Msg.RequestNostrEvents
-      |> Effect.sendSharedMsg
+        |> Nostr.createRequest shared.nostr "Posts of user" [ KindUserMetadata ]
+        |> Shared.Msg.RequestNostrEvents
+        |> Effect.sendSharedMsg
     )
+
+
 
 -- SUBSCRIPTIONS
 
@@ -148,12 +155,13 @@ subscriptions model =
 
 view : Shared.Model.Model -> Auth.User -> Model -> View Msg
 view shared user model =
-    { title = Translations.Sidebar.postsMenuItemText [shared.browserEnv.translations]
+    { title = Translations.Sidebar.postsMenuItemText [ shared.browserEnv.translations ]
     , body =
         [ Components.Categories.new
             { model = model.categories
             , toMsg = CategoriesSent
             , onSelect = CategorySelected
+            , equals = \category1 category2 -> category1 == category2
             , categories = availableCategories shared.browserEnv.translations
             , browserEnv = shared.browserEnv
             , styles = Ui.Styles.stylesForTheme shared.theme
@@ -163,32 +171,34 @@ view shared user model =
         ]
     }
 
+
 viewArticles : Shared.Model -> Model -> PubKey -> Html Msg
 viewArticles shared model userPubKey =
     case Components.Categories.selected model.categories of
         Published ->
             Nostr.getArticlesByDate shared.nostr
-            |> Ui.View.viewArticlePreviews
-                    ArticlePreviewList 
-                        { theme = shared.theme
-                        , browserEnv = shared.browserEnv
-                        , nostr = shared.nostr
-                        , userPubKey = Just userPubKey
-                        , onBookmark = Nothing
-                        , onReaction = Nothing
-                        , onZap = Nothing
-                        }
+                |> Ui.View.viewArticlePreviews
+                    ArticlePreviewList
+                    { theme = shared.theme
+                    , browserEnv = shared.browserEnv
+                    , nostr = shared.nostr
+                    , userPubKey = Just userPubKey
+                    , onBookmark = Nothing
+                    , onReaction = Nothing
+                    , onZap = Nothing
+                    }
 
         Drafts ->
             Nostr.getArticleDraftsByDate shared.nostr
-            |> viewArticleDraftPreviews shared.theme shared.browserEnv shared.nostr
+                |> viewArticleDraftPreviews shared.theme shared.browserEnv shared.nostr
+
 
 viewArticleDraftPreviews : Theme -> BrowserEnv -> Nostr.Model -> List Article -> Html Msg
 viewArticleDraftPreviews theme browserEnv nostr articles =
     articles
-    |> List.take 20
-    |> List.map (\article -> viewArticleDraftPreview theme browserEnv article)
-    |> div []
+        |> List.take 20
+        |> List.map (\article -> viewArticleDraftPreview theme browserEnv article)
+        |> div []
 
 
 viewArticleDraftPreview : Ui.Styles.Theme -> BrowserEnv -> Article -> Html Msg
@@ -223,8 +233,8 @@ viewArticleDraftPreview theme browserEnv article =
                     ]
                 ]
                 [ Ui.Article.timeParagraph styles browserEnv article.publishedAt article.createdAt
-                , deleteDraftButton theme (Translations.deleteDraftButtonLabel [browserEnv.translations]) article
-                , editDraftButton theme (Translations.editDraftButtonLabel [browserEnv.translations]) article
+                , deleteDraftButton theme (Translations.deleteDraftButtonLabel [ browserEnv.translations ]) article
+                , editDraftButton theme (Translations.editDraftButtonLabel [ browserEnv.translations ]) article
                 ]
             , Ui.Article.viewTitleSummaryImagePreview styles article
             , Ui.Article.viewTags styles article
@@ -251,4 +261,3 @@ editDraftButton theme label article =
         , theme = theme
         }
         |> Button.view
-

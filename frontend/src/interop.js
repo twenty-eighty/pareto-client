@@ -2,8 +2,10 @@
 import "./Milkdown/MilkdownEditor.js";
 
 import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
+import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
 import { BlossomClient } from "blossom-client-sdk/client";
 import { init as initNostrLogin, launch as launchNostrLoginDialog } from "nostr-login"
+import "./clipboard-component.js";
 import "./elm-oembed.js";
 import debug from 'debug';
 
@@ -17,10 +19,11 @@ import debug from 'debug';
 // into your `Shared.init` function.
 export const flags = ({ env }) => {
   return {
+    environment: env.ELM_ENV,
     darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
     isLoggedIn: JSON.parse(localStorage.getItem('isLoggedIn')) || false,
     locale: navigator.language,
-    sharingAvailable: (navigator.share != undefined)
+    nativeSharingAvailable: (navigator.share != undefined)
   }
 }
 
@@ -127,7 +130,8 @@ export const onReady = ({ app, env }) => {
 
   function connect(app, relays) {
     debugLog('connect to relays', relays);
-    window.ndk = new NDK({ explicitRelayUrls: relays, debug: debugLog });
+    const dexieAdapter = new NDKCacheAdapterDexie({ dbName: 'pareto-ndk-cache' });
+    window.ndk = new NDK({ enableOutboxModel: true, cacheAdapter: dexieAdapter, explicitRelayUrls: relays, debug: debugLog });
 
     // sign in if a relay requests authorization
     window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk });

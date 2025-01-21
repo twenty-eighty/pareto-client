@@ -42,6 +42,12 @@ defmodule NostrBackend.Application do
         id: :note_cache
       ),
 
+      # Cache for NIP-11 calls
+      Supervisor.child_spec(
+        {Cachex, name: :nip11_cache, ttl_interval: :timer.minutes(1440)},
+        id: :nip11_cache
+      ),
+
       # Cache for oembed calls
       Supervisor.child_spec(
         {Cachex, name: :oembed_cache, ttl_interval: :timer.minutes(1440)},

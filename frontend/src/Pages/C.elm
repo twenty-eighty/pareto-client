@@ -1,29 +1,27 @@
 module Pages.C exposing (Model, Msg, page)
 
-import Json.Decode as Decode
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h1, h2, h3, h4, img, main_, p, span, text)
+import Html.Styled as Html exposing (Html, a, article, aside, button, div, h1, h2, h3, h4, img, input, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
+import Json.Decode as Decode
 import Layouts
 import Nostr
-import Nostr.Nip19 as Nip19
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), decodeEvent, emptyEventFilter, numberForKind)
-import Nostr.Types exposing (PubKey, IncomingMessage)
+import Nostr.Nip19 as Nip19
+import Nostr.Types exposing (IncomingMessage, PubKey)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
 import Shared
 import Shared.Model exposing (LoginStatus(..))
 import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
 import Translations.Communities as Translations
-import Ui.Styles exposing (Theme, fontFamilyUnbounded, fontFamilyInter)
+import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
 import View exposing (View)
-import Html.Styled exposing (input)
-import Shared.Model exposing (LoginStatus(..))
 
 
 page : Shared.Model -> Route () -> Page Model Msg
@@ -35,6 +33,7 @@ page shared route =
         , view = view shared
         }
         |> Page.withLayout (toLayout shared.theme)
+
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme model =
@@ -61,13 +60,13 @@ init () =
       }
     , Effect.sendCmd <|
         Ports.requestEvents "Communities" False -1 [] communitiesFilter
-            
     )
+
 
 communitiesFilter : EventFilter
 communitiesFilter =
     { emptyEventFilter
-    | kinds = Just [ KindCommunityDefinition ]
+        | kinds = Just [ KindCommunityDefinition ]
     }
 
 
@@ -88,11 +87,13 @@ update shared msg model =
 
         UpdateSearch searchString ->
             if searchString == "" then
-                ({ model | searchString = Nothing, searchStringLowerCase = Nothing }, Effect.none)
-            else    
-                ({ model | searchString = Just searchString, searchStringLowerCase = Just <| String.toLower searchString }, Effect.none)
+                ( { model | searchString = Nothing, searchStringLowerCase = Nothing }, Effect.none )
 
-updateWithMessage : Shared.Model -> Model -> IncomingMessage -> (Model, Effect Msg)
+            else
+                ( { model | searchString = Just searchString, searchStringLowerCase = Just <| String.toLower searchString }, Effect.none )
+
+
+updateWithMessage : Shared.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithMessage shared model message =
     case message.messageType of
         "events" ->
@@ -101,15 +102,17 @@ updateWithMessage shared model message =
                     let
                         communities =
                             events
-                            |> List.map communityDefinitionFromEvent
+                                |> List.map communityDefinitionFromEvent
                     in
-                    ({ model | communities = Just communities }, Effect.none )
+                    ( { model | communities = Just communities }, Effect.none )
 
                 Err error ->
                     ( model, Effect.none )
 
         _ ->
             ( model, Effect.none )
+
+
 
 -- SUBSCRIPTIONS
 
@@ -178,7 +181,7 @@ view shared model =
                         ]
                     , fontFamilyUnbounded
                     ]
-                    [ text <| Translations.browseeCommunitiesText [ shared.browserEnv.translations ]
+                    [ text <| Translations.browseCommunitiesText [ shared.browserEnv.translations ]
                     ]
                 , viewSearchBar model
                 , viewCommunities model
@@ -187,39 +190,42 @@ view shared model =
         ]
     }
 
+
 viewFollowedCommunities : Shared.Model -> Model -> Html Msg
 viewFollowedCommunities shared model =
-    case (shared.loginStatus, model.communities) of
-        (LoggedIn pubKey, Just communities) ->
+    case ( shared.loginStatus, model.communities ) of
+        ( LoggedIn pubKey, Just communities ) ->
             Nostr.getCommunityList shared.nostr pubKey
-            |> Maybe.withDefault []
-            |> List.filterMap (\communityRef ->
-                communityForRef communities communityRef.identifier communityRef.pubKey
-                )
-            |> List.map (viewCommunityPreview model)
-            |> div 
-                [ css
-                    [ Tw.space_y_2
+                |> Maybe.withDefault []
+                |> List.filterMap
+                    (\communityRef ->
+                        communityForRef communities communityRef.identifier communityRef.pubKey
+                    )
+                |> List.map (viewCommunityPreview model)
+                |> div
+                    [ css
+                        [ Tw.space_y_2
+                        ]
                     ]
-                ]
 
         _ ->
-                 p
-                    [ css
-                        [  Tw.text_color Theme.gray_900
-                        , Tw.mb_2
-                        ]
-                    , fontFamilyInter
+            p
+                [ css
+                    [ Tw.text_color Theme.gray_900
+                    , Tw.mb_2
                     ]
-                    [ text <| Translations.noCommunitiesText [ shared.browserEnv.translations ]
-                    ]
+                , fontFamilyInter
+                ]
+                [ text <| Translations.noCommunitiesText [ shared.browserEnv.translations ]
+                ]
 
 
 communityForRef : List Community -> String -> PubKey -> Maybe Community
 communityForRef communities identifier pubKey =
     communities
-    |> List.filter (\community -> community.dtag == Just identifier && community.pubKey == pubKey)
-    |> List.head
+        |> List.filter (\community -> community.dtag == Just identifier && community.pubKey == pubKey)
+        |> List.head
+
 
 viewSearchBar : Model -> Html Msg
 viewSearchBar model =
@@ -251,34 +257,37 @@ viewSearchBar model =
             []
         ]
 
+
 viewCommunities : Model -> Html Msg
 viewCommunities model =
     case model.communities of
         Just communities ->
             communities
-            |> List.filter (filteredCommunity model.searchStringLowerCase)
-            |> List.map (viewCommunityPreview model)
-            |> div 
-                [ css
-                    [ Tw.space_y_2
+                |> List.filter (filteredCommunity model.searchStringLowerCase)
+                |> List.map (viewCommunityPreview model)
+                |> div
+                    [ css
+                        [ Tw.space_y_2
+                        ]
                     ]
-                ]
 
         Nothing ->
             div
                 []
                 []
 
+
 filteredCommunity : Maybe String -> Community -> Bool
 filteredCommunity maybeSearchString community =
     maybeSearchString
-    |> Maybe.map (\searchString ->
-        String.contains searchString (String.toLower (Maybe.withDefault "" community.dtag)) ||
-        String.contains searchString (String.toLower <| Maybe.withDefault "" community.name) ||
-        String.contains searchString (String.toLower <| Maybe.withDefault "" community.description) 
-        )
-    |> Maybe.withDefault True
-        
+        |> Maybe.map
+            (\searchString ->
+                String.contains searchString (String.toLower (Maybe.withDefault "" community.dtag))
+                    || String.contains searchString (String.toLower <| Maybe.withDefault "" community.name)
+                    || String.contains searchString (String.toLower <| Maybe.withDefault "" community.description)
+            )
+        |> Maybe.withDefault True
+
 
 viewCommunityPreview : Model -> Community -> Html Msg
 viewCommunityPreview model community =
@@ -315,7 +324,8 @@ viewCommunityPreview model community =
                 , fontFamilyUnbounded
                 ]
                 [ linkElement community
-                    [][ text <| Nostr.Community.communityName community ]
+                    []
+                    [ text <| Nostr.Community.communityName community ]
                 ]
             , p
                 [ css
@@ -328,6 +338,7 @@ viewCommunityPreview model community =
                 ]
             ]
         ]
+
 
 viewImagePreview : Community -> Html msg
 viewImagePreview community =
@@ -353,16 +364,18 @@ viewImagePreview community =
                 ]
 
         Nothing ->
-            div [][]
+            div [] []
+
 
 linkElement : Community -> List (Html.Attribute msg) -> List (Html msg) -> Html msg
 linkElement community attrs content =
-            case linkToCommunity community of
-                Just url ->
-                    a (attrs ++ [ Attr.href url ]) content
-                
-                Nothing ->
-                    div attrs content
+    case linkToCommunity community of
+        Just url ->
+            a (attrs ++ [ Attr.href url ]) content
+
+        Nothing ->
+            div attrs content
+
 
 linkToCommunity : Community -> Maybe String
 linkToCommunity community =
@@ -370,8 +383,8 @@ linkToCommunity community =
         { kind = KindCommunityDefinition |> numberForKind
         , pubKey = community.pubKey
         , identifier = Maybe.withDefault "" community.dtag
-        , relays = Maybe.map List.singleton community.relay |> Maybe.withDefault [ ]
+        , relays = Maybe.map List.singleton community.relay |> Maybe.withDefault []
         }
-    |> Nip19.encode
-    |> Result.toMaybe
-    |> Maybe.map (\naddr -> "/c/" ++ naddr)
+        |> Nip19.encode
+        |> Result.toMaybe
+        |> Maybe.map (\naddr -> "/c/" ++ naddr)

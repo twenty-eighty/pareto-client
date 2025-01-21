@@ -58,3 +58,4 @@ npm-debug.log
 /nostr_backend/assets/node_modules/
 
 
+frontend/.vscode/settings.json

@@ -1,6 +1,5 @@
 module Shared.Msg exposing (Msg(..))
 
-
 {-| -}
 
 import BrowserEnv
@@ -26,5 +25,5 @@ type Msg
     | RequestNostrEvents Request
     | ResetArticles
     | SendNostrEvent SendRequest
-    | SwitchClientRole
+    | SwitchClientRole Bool
     | SetClientRole ClientRole

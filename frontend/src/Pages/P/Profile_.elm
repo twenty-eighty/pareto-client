@@ -14,6 +14,7 @@ import Nostr.FollowList exposing (Following(..))
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
+import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
 import Page exposing (Page)
 import Route exposing (Route)
@@ -37,10 +38,12 @@ page shared route =
         }
         |> Page.withLayout (toLayout shared.theme)
 
+
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme model =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
+
 
 
 -- INIT
@@ -58,64 +61,69 @@ init shared route () =
     let
         model =
             decodeParam route.params.profile
-            |> Maybe.map (\(pubKey, relays) ->
-                { pubKey = Just pubKey
-                , relays = relays
-                , requestId = Nothing
-                }
-            )
-            |> Maybe.withDefault { pubKey = Nothing, relays = [], requestId = Nothing }
+                |> Maybe.map
+                    (\( pubKey, relays ) ->
+                        { pubKey = Just pubKey
+                        , relays = relays
+                        , requestId = Nothing
+                        }
+                    )
+                |> Maybe.withDefault { pubKey = Nothing, relays = [], requestId = Nothing }
 
         ( requestProfileEffect, requestId ) =
             model.pubKey
-            |> Maybe.map (\pubKey ->
-                case Nostr.getProfile shared.nostr pubKey of
-                    Just _ ->
-                        (Effect.none, Nothing)
+                |> Maybe.map
+                    (\pubKey ->
+                        case Nostr.getProfile shared.nostr pubKey of
+                            Just _ ->
+                                ( Effect.none, Nothing )
 
-                    Nothing ->
-                        ( filterForAuthor pubKey
-                            |> RequestProfile Nothing
-                            |> Nostr.createRequest shared.nostr "Profile" [KindLongFormContent]
-                            |> Shared.Msg.RequestNostrEvents
-                            |> Effect.sendSharedMsg
-                        , Just <| Nostr.getLastRequestId shared.nostr
-                        )
-            )
-            |> Maybe.withDefault (Effect.none, Nothing)
+                            Nothing ->
+                                ( filterForAuthor pubKey
+                                    |> RequestProfile Nothing
+                                    |> Nostr.createRequest shared.nostr "Profile" [ KindLongFormContent ]
+                                    |> Shared.Msg.RequestNostrEvents
+                                    |> Effect.sendSharedMsg
+                                , Just <| Nostr.getLastRequestId shared.nostr
+                                )
+                    )
+                |> Maybe.withDefault ( Effect.none, Nothing )
 
         requestArticlesEffect =
             model.pubKey
-            |> Maybe.map (buildRequestArticlesEffect shared.nostr)
-            |> Maybe.withDefault Effect.none
+                |> Maybe.map (buildRequestArticlesEffect shared.nostr)
+                |> Maybe.withDefault Effect.none
     in
     ( { model | requestId = requestId }
     , Effect.batch
         [ requestProfileEffect
         , requestArticlesEffect
-        ] 
+        ]
     )
+
 
 buildRequestArticlesEffect : Nostr.Model -> PubKey -> Effect Msg
 buildRequestArticlesEffect nostr pubKey =
-    { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just [pubKey], limit = Just 20 }
-    |> RequestArticlesFeed 
-    |> Nostr.createRequest nostr "Posts of user" [KindUserMetadata]
-    |> Shared.Msg.RequestNostrEvents
-    |> Effect.sendSharedMsg
+    { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ pubKey ], limit = Just 20 }
+        |> RequestArticlesFeed
+        |> Nostr.createRequest nostr "Posts of user" [ KindUserMetadata ]
+        |> Shared.Msg.RequestNostrEvents
+        |> Effect.sendSharedMsg
+
 
 filterForAuthor : PubKey -> EventFilter
 filterForAuthor author =
-            { emptyEventFilter | authors = Just [author], kinds = Just [ KindUserMetadata ], limit = Just 1 }
+    { emptyEventFilter | authors = Just [ author ], kinds = Just [ KindUserMetadata ], limit = Just 1 }
 
-decodeParam : String -> Maybe (PubKey, List String)
+
+decodeParam : String -> Maybe ( PubKey, List String )
 decodeParam profile =
     case Nip19.decode profile of
         Ok (Nip19.NProfile { pubKey, relays }) ->
-            Just (pubKey, relays)
+            Just ( pubKey, relays )
 
         Ok (Nip19.Npub pubKey) ->
-            Just (pubKey, [])
+            Just ( pubKey, [] )
 
         Ok _ ->
             -- unexpected NIP-19 value
@@ -123,6 +131,7 @@ decodeParam profile =
 
         Err _ ->
             Nothing
+
 
 
 -- UPDATE
@@ -137,12 +146,19 @@ update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
         Follow pubKeyUser pubKeyToBeFollowed ->
-            ( model, Effect.none)
+            ( model
+            , SendFollowListWithPubKey pubKeyUser pubKeyToBeFollowed
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
 
         Unfollow pubKeyUser pubKeyToBeUnfollowed ->
             ( model
-            , Effect.none
+            , SendFollowListWithoutPubKey pubKeyUser pubKeyToBeUnfollowed
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
             )
+
 
 
 -- SUBSCRIPTIONS
@@ -153,6 +169,7 @@ subscriptions model =
     Sub.none
 
 
+
 -- VIEW
 
 
@@ -161,42 +178,46 @@ view shared model =
     let
         maybeProfile =
             model.pubKey
-            |> Maybe.andThen (Nostr.getProfile shared.nostr)
+                |> Maybe.andThen (Nostr.getProfile shared.nostr)
     in
     { title = Translations.readMenuItemText [ shared.browserEnv.translations ]
     , body =
-        [ case (maybeProfile, model.pubKey) of
-            (Just profile, _) ->
+        [ case ( maybeProfile, model.pubKey ) of
+            ( Just profile, _ ) ->
                 viewProfile shared profile
 
-            (Nothing, Just pubKey) ->
+            ( Nothing, Just pubKey ) ->
                 viewArticles shared pubKey
 
-            (Nothing, Nothing) ->
+            ( Nothing, Nothing ) ->
                 viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingProfile model.requestId
         ]
     }
+
 
 viewProfile : Shared.Model -> Profile -> Html Msg
 viewProfile shared profile =
     div []
         [ Ui.Profile.viewProfile
-              profile
-                { browserEnv = shared.browserEnv
-                , following = followingProfile shared.nostr profile.pubKey (Shared.loggedInPubKey shared.loginStatus)
-                , theme = shared.theme
-                , validation =
-                    Nostr.getProfileValidationStatus shared.nostr profile.pubKey
-                        |> Maybe.withDefault ValidationUnknown
-                }
+            profile
+            { browserEnv = shared.browserEnv
+            , following = followingProfile shared.nostr profile.pubKey (Shared.loggedInPubKey shared.loginStatus)
+            , isAuthor = Nostr.isAuthor shared.nostr profile.pubKey
+            , subscribe = Nothing
+            , theme = shared.theme
+            , validation =
+                Nostr.getProfileValidationStatus shared.nostr profile.pubKey
+                    |> Maybe.withDefault ValidationUnknown
+            }
         , viewArticles shared profile.pubKey
         ]
+
 
 viewArticles : Shared.Model -> PubKey -> Html Msg
 viewArticles shared pubKey =
     Nostr.getArticlesForAuthor shared.nostr pubKey
-    |> Ui.View.viewArticlePreviews
-        ArticlePreviewList 
+        |> Ui.View.viewArticlePreviews
+            ArticlePreviewList
             { theme = shared.theme
             , browserEnv = shared.browserEnv
             , nostr = shared.nostr
@@ -206,27 +227,31 @@ viewArticles shared pubKey =
             , onZap = Nothing
             }
 
+
 followingProfile : Nostr.Model -> PubKey -> Maybe PubKey -> FollowType Msg
 followingProfile nostr profilePubKey maybePubKey =
     case maybePubKey of
         Just userPubKey ->
             Nostr.getFollowsList nostr userPubKey
-            |> Maybe.andThen (\followList ->
-                followList
-                |> List.filterMap (\following ->
-                    case following of
-                        FollowingPubKey { pubKey } ->
-                            if profilePubKey == pubKey then
-                                Just (Following (Unfollow userPubKey))
-                            else
-                                Nothing
+                |> Maybe.andThen
+                    (\followList ->
+                        followList
+                            |> List.filterMap
+                                (\following ->
+                                    case following of
+                                        FollowingPubKey { pubKey } ->
+                                            if profilePubKey == pubKey then
+                                                Just (Following (Unfollow userPubKey))
 
-                        FollowingHashtag _ ->
-                            Nothing
+                                            else
+                                                Nothing
+
+                                        FollowingHashtag _ ->
+                                            Nothing
+                                )
+                            |> List.head
                     )
-                |> List.head
-                )
-            |> Maybe.withDefault (NotFollowing (Follow userPubKey))
+                |> Maybe.withDefault (NotFollowing (Follow userPubKey))
 
         Nothing ->
             UnknownFollowing

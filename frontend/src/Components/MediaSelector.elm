@@ -8,6 +8,7 @@ module Components.MediaSelector exposing
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
+import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button as Button
 import Components.Dropdown
 import Components.Icon as Icon
@@ -18,6 +19,8 @@ import FeatherIcons
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, strong, text)
 import Html.Styled.Attributes as Attr exposing (class, classList, css, disabled, href, type_)
 import Html.Styled.Events as Events exposing (..)
+import Html.Styled.Keyed as Keyed
+import Html.Styled.Lazy as Lazy
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Http
@@ -25,7 +28,7 @@ import Nostr
 import Nostr.Blossom as Blossom exposing (BlobDescriptor, userServerListFromEvent)
 import Nostr.Event exposing (Event, Kind(..))
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
-import Nostr.Nip94 as Nip94
+import Nostr.Nip94 as Nip94 exposing (FileMetadata)
 import Nostr.Nip96 as Nip96 exposing (extendRelativeServerDescriptorUrls)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
@@ -90,6 +93,7 @@ type Model
         , uploadedNip96Files : Dict ServerUrl (List UploadedFile)
         , uploadDialog : UploadDialog.Model
         , errors : List String
+        , alertTimerMessage : AlertTimerMessage.Model
         }
 
 type MediaServer
@@ -143,6 +147,7 @@ init props =
             { toMsg = UploadDialogSent
             }
         , errors = []
+        , alertTimerMessage = AlertTimerMessage.init {}
         }
     , Effect.batch
         [ requestBlossomListAuths props.blossomServers
@@ -186,6 +191,8 @@ show (Model model) =
 type Msg msg
     = FocusedDropdown
     | BlurredDropdown
+    | ShowMessage String
+    | AlertSent AlertTimerMessage.Msg
     | CloseDialog
     | DropdownSent (Components.Dropdown.Msg MediaServer (Msg msg))
     | ChangedSelectedServer MediaServer
@@ -224,16 +231,30 @@ update props =
             , effect
             )
     in
-    toParentModel <|
         case props.msg of
             FocusedDropdown ->
-                ( Model { model | displayType = DisplayModalDialog True } , Effect.none)
+                ( Model { model | displayType = DisplayModalDialog True }, Effect.none)
+                |> toParentModel
 
             BlurredDropdown ->
-                ( Model { model | displayType = DisplayModalDialog False } , Effect.none)
+                ( Model { model | displayType = DisplayModalDialog False }, Effect.none)
+                |> toParentModel
+
+            ShowMessage message ->
+                update { props | msg = AlertSent (AlertTimerMessage.AddMessage message 1000 ) }
+
+            AlertSent innerMsg ->
+                AlertTimerMessage.update
+                    { msg = innerMsg
+                    , model = model.alertTimerMessage
+                    , toModel = \alertTimerMessage -> Model { model | alertTimerMessage = alertTimerMessage }
+                    , toMsg = (props.toMsg << AlertSent)
+                    }
+                |> toParentModel
 
             CloseDialog ->
-                ( Model { model | displayType = DisplayModalDialog False } , Effect.none)
+                ( Model { model | displayType = DisplayModalDialog False }, Effect.none)
+                |> toParentModel
 
             DropdownSent innerMsg ->
                 let
@@ -246,6 +267,7 @@ update props =
                             }
                 in
                 (newModel, Effect.map props.toMsg effect)
+                |> toParentModel
 
             ChangedSelectedServer selectedServer ->
                 let
@@ -280,6 +302,7 @@ update props =
                     }
                 , Effect.none
                 )
+                |> toParentModel
 
             ConfigureDefaultMediaServer ->
                 ( Model model
@@ -288,12 +311,15 @@ update props =
                     ]
                   |> Effect.map props.toMsg
                 )
+                |> toParentModel
 
             Upload ->
                 ( Model { model | uploadDialog = UploadDialog.show model.uploadDialog }, Effect.none)
+                |> toParentModel
 
             Uploaded uploadResponse ->
                 modelWithUploadedFile props.model uploadResponse
+                |> toParentModel
 
             UploadDialogSent innerMsg ->
                 UploadDialog.update
@@ -306,9 +332,11 @@ update props =
                     , nostr = props.nostr
                     , browserEnv = props.browserEnv
                     }
+                |> toParentModel
 
             IncomingMessage { messageType, value } ->
                 processIncomingMessage props.user props.model messageType props.toMsg value
+                |> toParentModel
 
             SelectedItem data ->
                 case data.onSelected of
@@ -320,16 +348,19 @@ update props =
                             }
                         , Effect.sendMsg (onSelected data.item)
                         )
+                        |> toParentModel
 
                     Nothing ->
                         ( Model { model | selected = Just 1 }
                         , Effect.none
                         )
+                        |> toParentModel
 
             ReceivedBlossomFileList serverUrl result ->
                 case result of
                     Ok fileList ->
                         ( updateModelWithBlossomFileList (Model model) serverUrl fileList, Effect.none )
+                        |> toParentModel
 
                     Err error ->
                         (Model
@@ -338,6 +369,7 @@ update props =
                             }
                         , Effect.none
                         )
+                        |> toParentModel
 
 
             ReceivedNip96ServerDesc serverUrl result ->
@@ -350,6 +382,7 @@ update props =
                         , Effect.sendCmd (Nip96.fetchServerSpec (ReceivedNip96ServerDesc serverUrl) serverRedirection.delegated_to_url)
                         |> Effect.map props.toMsg
                         )
+                        |> toParentModel
 
                     Ok (Nip96.ServerDescriptor serverDescriptorData) ->
                         let
@@ -366,6 +399,7 @@ update props =
                             |> Shared.Msg.RequestNostrEvents
                             |> Effect.sendSharedMsg
                         )
+                        |> toParentModel
 
                     Err error ->
                         (Model
@@ -374,11 +408,13 @@ update props =
                             }
                         , Effect.none
                         )
+                        |> toParentModel
 
             ReceivedNip96FileList serverUrl result ->
                 case result of
                     Ok fileList ->
                         ( updateModelWithNip96FileList (Model model) serverUrl fileList, Effect.none )
+                        |> toParentModel
 
                     Err error ->
                         (Model
@@ -387,6 +423,7 @@ update props =
                             }
                         , Effect.none
                         )
+                        |> toParentModel
 
 sendNip96ServerListCmd : BrowserEnv -> Auth.User -> String -> List ServerUrl -> Effect msg
 sendNip96ServerListCmd browserEnv user serverUrl relays =
@@ -678,6 +715,7 @@ view (Settings settings) =
 
         DisplayModalDialog True ->
             Ui.Shared.modalDialog
+                settings.theme
                 (Translations.selectImageDialogTitle [ settings.browserEnv.translations ])
                 [ viewMediaSelector (Settings settings) ]
                 (settings.toMsg CloseDialog)
@@ -762,6 +800,11 @@ viewMediaSelector (Settings settings) =
             }
             |> UploadDialog.view
             |> Html.map settings.toMsg
+        , AlertTimerMessage.new
+            { model = model.alertTimerMessage
+            , theme = settings.theme
+            }
+            |> AlertTimerMessage.view
         ]
 
 viewConfigureMediaServerMessage : MediaSelector msg -> Html msg
@@ -828,7 +871,8 @@ viewImages (Settings settings) filesToShow =
                     ]
 
     in
-        div
+
+        Keyed.node "div"
             [ css
                 (dialogAttributes ++ 
                 [ Tw.grid
@@ -836,8 +880,18 @@ viewImages (Settings settings) filesToShow =
                 , Tw.mt_4
                 ])
             ]
-            (List.map (imagePreview settings.onSelected) filesToShow
-            |> List.map (Html.map settings.toMsg)
+            (filesToShow
+                |> List.map
+                    (\fileToShow ->
+                        let
+                            uniqueFileId =
+                                uniqueIdForUploadedFile fileToShow
+                        in
+                        ( uniqueFileId
+                        , Lazy.lazy5 imagePreview settings.browserEnv.translations settings.onSelected model.displayType uniqueFileId fileToShow
+                            |> Html.map settings.toMsg
+                        )
+                    ) 
             )
 
 preferredUploadServer : Model -> Maybe UploadServer
@@ -948,8 +1002,8 @@ uploadedNip96ImageFiles uploadedNip96Files serverUrl =
     |> Maybe.withDefault []
 
 
-imagePreview : Maybe (UploadedFile -> msg) -> UploadedFile -> Html (Msg msg)
-imagePreview onSelected uploadedFile =
+imagePreview : I18Next.Translations -> Maybe (UploadedFile -> msg) -> DisplayType -> String -> UploadedFile -> Html (Msg msg)
+imagePreview translations onSelected displayType uniqueFileId uploadedFile =
     let
         commonAttributes =
             [ css
@@ -972,23 +1026,107 @@ imagePreview onSelected uploadedFile =
                 imageWidth =
                     200
             in
-            img
-                (commonAttributes ++
+            div
                 [ css
+                    [  Tw.relative
+                    ]
+                ]
+                [ img
+                    (commonAttributes ++
+                    [ css
+                        [ 
+                        ]
+                    , Attr.alt <| Maybe.withDefault "" nip96File.alt
+                    , Attr.src (Maybe.withDefault "" nip96File.url ++ "?w=" ++ String.fromInt imageWidth) -- NIP-96 servers can return scaled versions of images
+                    ])
                     [ ]
-                , Attr.alt <| Maybe.withDefault "" nip96File.alt
-                , Attr.src (Maybe.withDefault "" nip96File.url ++ "?w=" ++ String.fromInt imageWidth) -- NIP-96 servers can return scaled versions of images
-                ])
-                [ ]
+                , viewCopyButton translations displayType (Maybe.withDefault "" nip96File.url) uniqueFileId
+                ]
 
         BlossomFile blobDescriptor ->
-            img
-                (commonAttributes ++
+            div
                 [ css
+                    [  Tw.relative
+                    ]
+                ]
+                [ img
+                    (commonAttributes ++
+                    [ css
+                        [ ]
+                    , Attr.src blobDescriptor.url
+                    ])
                     [ ]
-                , Attr.src blobDescriptor.url
-                ])
-                [ ]
+                , viewCopyButton translations displayType blobDescriptor.url uniqueFileId
+                ]
+
+-- display copy to clipboard button only in embedded mode, not in small dialog
+viewCopyButton : I18Next.Translations -> DisplayType -> String -> String -> Html (Msg msg)
+viewCopyButton translations displayType url uniqueId =
+    case displayType of
+        DisplayModalDialog _ ->
+            div [][]
+
+        DisplayEmbedded ->
+            copyButton translations url uniqueId
+
+
+uniqueIdForUploadedFile : UploadedFile -> String
+uniqueIdForUploadedFile uploadedFile =
+    case uploadedFile of
+        Nip96File nip96File ->
+            uniqueIdForFileMetadata nip96File
+
+        BlossomFile blobDescriptor ->
+            blobDescriptor.sha256
+
+uniqueIdForFileMetadata : FileMetadata -> String
+uniqueIdForFileMetadata fileMetadata =
+    fileMetadata.xHash
+    |> Maybe.withDefault (String.fromInt fileMetadata.createdAt)
+
+
+copyButton : I18Next.Translations -> String -> String -> Html (Msg msg)
+copyButton translations copyText uniqueId =
+    let
+        elementId =
+            clipboardElementId ++ "-" ++ uniqueId
+    in
+    div
+        [ css
+            [ Tw.absolute
+            , Tw.top_0
+            , Tw.right_0
+            , Tw.p_3
+            , Tw.text_color Theme.white
+            , Tw.bg_color Theme.black
+            , Tw.bg_opacity_50
+            , Tw.rounded_md
+            ]
+        ]
+        [ div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.cursor_pointer
+                ]
+            , Attr.id elementId
+            ]
+            [ Icon.FeatherIcon FeatherIcons.clipboard 
+                |> Icon.view
+            ]
+        , Html.node "js-clipboard-component"
+            [ Attr.property "buttonId" (Encode.string elementId)
+            , Attr.property "copyContent" (Encode.string copyText)
+            , Events.on "copiedToClipboard" (Decode.succeed (ShowMessage <| Translations.copiedLinkAlertMessage [ translations ]))
+            ]
+            []
+        ]
+
+
+clipboardElementId : String
+clipboardElementId =
+    "copy-to-clipboard"
+
 
 subscribe : Model -> Sub (Msg msg)
 subscribe (Model model) =

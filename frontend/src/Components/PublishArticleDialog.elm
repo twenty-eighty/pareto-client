@@ -1,4 +1,4 @@
-module Components.PublishArticleDialog exposing (PublishArticleDialog, Model, Msg, new, init, update, view, show, hide)
+module Components.PublishArticleDialog exposing (Model, Msg, PublishArticleDialog, hide, init, new, show, update, view)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
@@ -11,22 +11,20 @@ import Html.Styled as Html exposing (Html, a, button, div, form, h2, img, input,
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Nostr
-import Nostr.Relay exposing (Relay)
+import Nostr.Relay as Relay exposing (Relay)
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (PubKey, RelayUrl)
+import Nostr.Types exposing (PubKey, RelayRole(..), RelayUrl)
 import Pareto
-import Svg.Styled as Svg exposing (svg, path)
-import Tailwind.Utilities as Tw
-import Tailwind.Theme as Theme
-import Translations.PublishArticleDialog as Translations
-import Shared.Msg exposing (Msg)
 import Shared.Model exposing (Model)
+import Shared.Msg exposing (Msg)
+import Svg.Styled as Svg exposing (path, svg)
+import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
+import Translations.PublishArticleDialog as Translations
 import Ui.Shared
-import Ui.Styles exposing (Theme, fontFamilyUnbounded, fontFamilyInter)
-import Nostr exposing (getReadRelayUrlsForPubKey)
-import Css exposing (readWrite)
-import Nostr.Types exposing (RelayRole(..))
+import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
+
 
 type Msg msg
     = CloseDialog
@@ -35,15 +33,17 @@ type Msg msg
     | ToggleRelay RelayUrl Bool
 
 
-type Model msg =
-    Model
+type Model msg
+    = Model
         { state : DialogState
         , relayStates : Dict RelayUrl Bool
         }
 
+
 type DialogState
     = DialogHidden
     | DialogVisible
+
 
 type PublishArticleDialog msg
     = Settings
@@ -55,6 +55,7 @@ type PublishArticleDialog msg
         , browserEnv : BrowserEnv
         , theme : Theme
         }
+
 
 new :
     { model : Model msg
@@ -77,21 +78,26 @@ new props =
         , theme = props.theme
         }
 
-init : { } -> Model msg
+
+init : {} -> Model msg
 init props =
     Model
         { state = DialogHidden
+
         -- authors shouldn't publish on team relay as normal users can't read from it
         , relayStates = Dict.singleton Pareto.teamRelay False
         }
+
 
 show : Model msg -> Model msg
 show (Model model) =
     Model { model | state = DialogVisible }
 
+
 hide : Model msg -> Model msg
 hide (Model model) =
     Model { model | state = DialogHidden }
+
 
 update :
     { msg : Msg msg
@@ -102,12 +108,12 @@ update :
     , pubKey : PubKey
     }
     -> ( model, Effect msg )
-update props  = 
+update props =
     let
         (Model model) =
             props.model
 
-        toParentModel : (Model msg, Effect msg) -> (model, Effect msg)
+        toParentModel : ( Model msg, Effect msg ) -> ( model, Effect msg )
         toParentModel ( innerModel, effect ) =
             ( props.toModel innerModel
             , effect
@@ -125,9 +131,9 @@ update props  =
 
             ConfigureRelaysClicked ->
                 let
-                    allListRelays = 
+                    allListRelays =
                         Nostr.getRelayListForPubKey props.nostr props.pubKey
-                        |> extendRelayList Pareto.defaultOutboxRelays
+                            |> extendRelayList Pareto.defaultOutboxRelays
                 in
                 ( Model model
                 , sendRelayListCmd props.pubKey allListRelays
@@ -140,46 +146,52 @@ update props  =
                     -- init call
                     relayUrls =
                         Nostr.getWriteRelaysForPubKey props.nostr props.pubKey
-                        |> List.filterMap (\relay ->
-                                case Dict.get relay.urlWithoutProtocol model.relayStates of
-                                    Just False ->
-                                        Nothing
+                            |> List.filterMap
+                                (\relay ->
+                                    case Dict.get relay.urlWithoutProtocol model.relayStates of
+                                        Just False ->
+                                            Nothing
 
-                                    _ ->
-                                        Just relay.urlWithoutProtocol
-                            )
+                                        _ ->
+                                            Just relay.urlWithoutProtocol
+                                )
                 in
                 ( Model model
-                , Effect.sendMsg ( msg relayUrls )
+                , Effect.sendMsg (msg relayUrls)
                 )
+
 
 sendRelayListCmd : PubKey -> List RelayMetadata -> Effect msg
 sendRelayListCmd pubKey relays =
     let
         relaysWithProtocol =
             relays
-            |> List.map (\relay ->
-                    { relay | url = "wss://" ++ relay.url}
-                )
+                |> List.map
+                    (\relay ->
+                        { relay | url = "wss://" ++ relay.url }
+                    )
 
         relayUrls =
             relays
-            |> List.filterMap (\relay ->
-                if relay.role == WriteRelay || relay.role == ReadWriteRelay then
-                    Just relay.url
-                else
-                    Nothing
-            )
+                |> List.filterMap
+                    (\relay ->
+                        if relay.role == WriteRelay || relay.role == ReadWriteRelay then
+                            Just relay.url
+
+                        else
+                            Nothing
+                    )
     in
     eventWithRelayList pubKey relaysWithProtocol
-    |> SendRelayList relayUrls
-    |> Shared.Msg.SendNostrEvent
-    |> Effect.sendSharedMsg
+        |> SendRelayList relayUrls
+        |> Shared.Msg.SendNostrEvent
+        |> Effect.sendSharedMsg
 
 
-updateRelayChecked : Model msg -> RelayUrl -> Bool -> (Model msg, Effect msg)
+updateRelayChecked : Model msg -> RelayUrl -> Bool -> ( Model msg, Effect msg )
 updateRelayChecked (Model model) relayUrl newChecked =
-    (Model { model | relayStates = Dict.insert relayUrl newChecked model.relayStates }, Effect.none)
+    ( Model { model | relayStates = Dict.insert relayUrl newChecked model.relayStates }, Effect.none )
+
 
 view : PublishArticleDialog msg -> Html msg
 view dialog =
@@ -192,16 +204,17 @@ view dialog =
     in
     case model.state of
         DialogHidden ->
-            div [][]
+            div [] []
 
         DialogVisible ->
             Ui.Shared.modalDialog
+                settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
                 [ viewPublishArticleDialog dialog ]
                 CloseDialog
-            |> Html.map settings.toMsg 
-        
-    
+                |> Html.map settings.toMsg
+
+
 viewPublishArticleDialog : PublishArticleDialog msg -> Html (Msg msg)
 viewPublishArticleDialog (Settings settings) =
     let
@@ -211,7 +224,8 @@ viewPublishArticleDialog (Settings settings) =
         relays =
             Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
     in
-    div [ css
+    div
+        [ css
             [ Tw.my_4
             , Tw.flex
             , Tw.flex_col
@@ -220,6 +234,7 @@ viewPublishArticleDialog (Settings settings) =
             ]
         ]
         [ relaysSection (Settings settings) relays
+
         -- , zapSplitSection (Settings settings)
         , Button.new
             { label = Translations.publishButtonTitle [ settings.browserEnv.translations ]
@@ -231,11 +246,13 @@ viewPublishArticleDialog (Settings settings) =
             |> Button.view
         ]
 
+
 numberOfCheckedRelays : Model msg -> List Relay -> Int
 numberOfCheckedRelays (Model model) relays =
     relays
-    |> List.filter (\relay -> Dict.get relay.urlWithoutProtocol model.relayStates /= Just False)
-    |> List.length
+        |> List.filter (\relay -> Dict.get relay.urlWithoutProtocol model.relayStates /= Just False)
+        |> List.length
+
 
 relaysSection : PublishArticleDialog msg -> List Relay -> Html (Msg msg)
 relaysSection (Settings settings) relays =
@@ -245,19 +262,22 @@ relaysSection (Settings settings) relays =
 
         relaysStates =
             relays
-            |> List.map (\relay ->
-                    (relay, Dict.get relay.urlWithoutProtocol model.relayStates /= Just False)
-                )
+                |> List.map
+                    (\relay ->
+                        ( relay, Dict.get relay.urlWithoutProtocol model.relayStates /= Just False )
+                    )
 
         styles =
             Ui.Styles.stylesForTheme settings.theme
     in
     if List.length relays > 0 then
         viewRelays (Settings settings) relaysStates
+
     else
         viewNoRelaysConfigured (Settings settings) styles
 
-viewRelays : PublishArticleDialog msg -> List (Relay, Bool) -> Html (Msg msg)
+
+viewRelays : PublishArticleDialog msg -> List ( Relay, Bool ) -> Html (Msg msg)
 viewRelays (Settings settings) relays =
     div []
         [ div
@@ -309,8 +329,9 @@ viewRelays (Settings settings) relays =
             (List.map (viewRelayCheckbox settings.theme) relays)
         ]
 
+
 viewNoRelaysConfigured : PublishArticleDialog msg -> Ui.Styles.Styles (Msg msg) -> Html (Msg msg)
-viewNoRelaysConfigured  (Settings settings) styles =
+viewNoRelaysConfigured (Settings settings) styles =
     div
         [ css
             [ Tw.flex
@@ -337,8 +358,9 @@ viewNoRelaysConfigured  (Settings settings) styles =
             |> Button.view
         ]
 
-viewRelayCheckbox : Theme -> (Relay, Bool) -> Html (Msg msg)
-viewRelayCheckbox theme (relay, checked) =
+
+viewRelayCheckbox : Theme -> ( Relay, Bool ) -> Html (Msg msg)
+viewRelayCheckbox theme ( relay, checked ) =
     li
         [ css
             [ Tw.list_none
@@ -354,22 +376,15 @@ viewRelayCheckbox theme (relay, checked) =
             , onClick = ToggleRelay relay.urlWithoutProtocol
             , theme = theme
             }
-            |> Checkbox.withImage (relayIcon relay)
+            |> Checkbox.withImage (Relay.iconUrl relay)
             |> Checkbox.view
         ]
-
-relayIcon : Relay -> String
-relayIcon relay =
-    relay.nip11
-    |> Maybe.andThen .icon
-    |> Maybe.withDefault ("https://" ++ relay.urlWithoutProtocol ++ "/favicon.ico")
 
 
 zapSplitSection : PublishArticleDialog msg -> Html (Msg msg)
 zapSplitSection (Settings settings) =
     div []
-        [
-        div
+        [ div
             [ css
                 [ Tw.flex
                 , Tw.justify_between

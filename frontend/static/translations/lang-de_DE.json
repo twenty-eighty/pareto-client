@@ -30,7 +30,12 @@
       "communities title": "Communities",
       "my communities title": "Meine Communities",
       "no communities text": "Anscheinend folgst du noch keinen Communities. Kein Problem, schau dir die Liste unten an und folge denen, die dich interessieren.",
-      "browsee communities text": "Communities durchsuchen"
+      "browse communities text": "Communities durchsuchen"
+   },
+   "email subscription dialog": {
+      "dialog title": "Subscribe with Email",
+      "subscribe button title": "Subscribe with Email",
+      "close button title": "Subscribe with Email"
    },
    "media selector": {
       "Select image": "Bild auswählen",
@@ -39,7 +44,8 @@
       "no server listbox entry": "Kein Server konfiguriert",
       "no server configured message": "Anscheinend wurde noch kein Medien-Server eingerichtet. Soll der Medienserver des Pareto Projekts verwendet werden?",
       "configure server button title": "Pareto Medien-Server konfigurieren",
-      "select image dialog title": "Bild auswählen"
+      "select image dialog title": "Bild auswählen",
+      "copied link alert message": "Link wurde kopiert"
    },
    "message dialog": {
       "warning": "Warnung"
@@ -56,7 +62,8 @@
       "unfollow button title": "Entfolgen",
       "mute button title": "Stumm",
       "public menu item text": "Öffentlich",
-      "private menu item text": "Privat"
+      "private menu item text": "Privat",
+      "subscribe button title": "Abonnieren"
    },
    "publish article dialog": {
       "dialog title": "Artikel veröffentlichen",
@@ -82,6 +89,7 @@
       "relay connecting": "verbinden ...",
       "relay connected": "verbunden",
       "relay ready": "bereit",
+      "nip11 request failed": "NIP-11-Abfrage fehlgeschlagen",
       "loading article": "Lade Artikel ...",
       "loading note": "Lade Notiz ...",
       "loading profile": "Lade Profil ..."
@@ -93,6 +101,22 @@
    },
    "search bar": {
       "placeholder": "URL, Nostr-ID oder Nostr-Adresse"
+   },
+   "settings": {
+      "page title": "Einstellungen",
+      "relays category": "Relays",
+      "outbox section title": "Öffentliche Outbox/Home-Relays",
+      "outbox relays description": "Dieser Relay-Typ speichert alle deine Inhalte.",
+      "inbox section title": "Öffentliche Inbox-Relays",
+      "inbox relays description": "Dieser Relaytyp erhält alle Antworten, Kommentare, Likes und Zaps zu deinen Posts.",
+      "add relay button title": "Hinzufügen",
+      "add relay placeholder": "Gib die URL eines Relays ein",
+      "media server category": "Medien-Server",
+      "add nip-96 media server placeholder": "Gib die URL eines NIP-96-Servers ein",
+      "add blossom media server placeholder": "Gib die URL eines Blossom-Servers ein",
+      "profile category": "Profile",
+      "profile editor title": "Profil-Editor",
+      "profile editor not implemented text": "Der Profil-Editor ist noch nicht implementiert. Bitte benutze eine der bestehenden Alternativen."
    },
    "sidebar": {
       "reader client role text": "Leser",

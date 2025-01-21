@@ -40,6 +40,7 @@ defmodule NostrBackend.MixProject do
       {:phoenix_live_view, "~> 1.0.0-rc.1", override: true},
       {:phoenix_live_dashboard, "~> 0.8.3"},
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 0.20"},
@@ -56,7 +57,7 @@ defmodule NostrBackend.MixProject do
       {:ua_inspector, "~> 3.0"},
       {:remote_ip, "~> 1.2"},
       {:posthog, "~> 0.1"},
-      {:req, "~> 0.3.0"},
+      {:req, "~> 0.4.0"},
       {:floki, "~> 0.37.0"},
       {:sweet_xml, "~> 0.7.5"}
     ]

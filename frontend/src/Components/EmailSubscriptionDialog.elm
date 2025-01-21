@@ -1,4 +1,4 @@
-module Components.ZapDialog exposing (ZapDialog, Recipient, Model, Msg, new, init, update, view, show, hide)
+module Components.EmailSubscriptionDialog exposing (EmailSubscriptionDialog, Model, Msg, Recipient, hide, init, new, show, update, view)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
@@ -16,30 +16,33 @@ import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey, RelayUrl)
 import Nostr.Zaps exposing (Lud16, PayRequest, fetchPayRequest)
 import Pareto
-import Svg.Styled as Svg exposing (svg, path)
-import Tailwind.Utilities as Tw
-import Tailwind.Theme as Theme
-import Translations.ZapDialog as Translations
-import Shared.Msg exposing (Msg)
 import Shared.Model exposing (Model)
+import Shared.Msg exposing (Msg)
+import Svg.Styled as Svg exposing (path, svg)
+import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
+import Translations.EmailSubscriptionDialog as Translations
 import Ui.Shared
-import Ui.Styles exposing (Theme, fontFamilyUnbounded, fontFamilyInter)
+import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
+
 
 type Msg msg
     = CloseDialog
     | ConfigureRelaysClicked
-    | PublishClicked (List RelayUrl -> msg)
+    | SubscribeClicked
     | ReceivedPayRequest (Result Http.Error PayRequest)
 
 
-type Model msg =
-    Model
+type Model
+    = Model
         { state : DialogState
         }
 
+
 type DialogState
     = DialogHidden
-    | ZapAmountSelection ZapAmountSelectionData
+    | DialogVisible EmailSubscriptionData
+
 
 type alias Recipient =
     { imageUrl : String
@@ -48,85 +51,84 @@ type alias Recipient =
     , lud16 : Lud16
     }
 
-type alias ZapAmountSelectionData =
-    { amount : Int
-    , comment : String
-    , recipients : List Recipient
+
+type alias EmailSubscriptionData =
+    { email : Maybe String
     }
 
-type ZapDialog msg
+
+type EmailSubscriptionDialog msg
     = Settings
-        { model : Model msg
+        { model : Model
         , toMsg : Msg msg -> msg
-        , onPublish : List RelayUrl -> msg
         , nostr : Nostr.Model
         , pubKey : PubKey
         , browserEnv : BrowserEnv
         , theme : Theme
         }
 
+
 new :
-    { model : Model msg
+    { model : Model
     , toMsg : Msg msg -> msg
-    , onPublish : List RelayUrl -> msg
     , nostr : Nostr.Model
     , pubKey : PubKey
     , browserEnv : BrowserEnv
     , theme : Theme
     }
-    -> ZapDialog msg
+    -> EmailSubscriptionDialog msg
 new props =
     Settings
         { model = props.model
         , toMsg = props.toMsg
-        , onPublish = props.onPublish
         , nostr = props.nostr
         , pubKey = props.pubKey
         , browserEnv = props.browserEnv
         , theme = props.theme
         }
-    
 
-init : { } -> Model msg
+
+init : {} -> Model
 init props =
     Model
         { state = DialogHidden
         }
 
-show : Model msg -> (Msg msg -> msg) -> List Recipient -> (Model msg, Effect msg)
-show (Model model) toMsg recipients =
-    ( Model { model | state = ZapAmountSelection { amount = 21, comment = "", recipients = recipients } }
-    , requestPayRequests recipients
-        |> Effect.sendCmd
-        |> Effect.map toMsg
-    )
+
+show : Model -> Model
+show (Model model)  =
+    Model { model | state = DialogVisible { email = Nothing } }
+
 
 requestPayRequests : List Recipient -> Cmd (Msg msg)
 requestPayRequests recipients =
     recipients
-    |> List.map (\recipient ->
-            fetchPayRequest ReceivedPayRequest recipient.lud16
-        )
-    |> Cmd.batch
+        |> List.map
+            (\recipient ->
+                fetchPayRequest ReceivedPayRequest recipient.lud16
+            )
+        |> Cmd.batch
 
-hide : Model msg -> Model msg
+
+hide : Model -> Model
 hide (Model model) =
     Model { model | state = DialogHidden }
 
+
 update :
     { msg : Msg msg
-    , model : Model msg
-    , toModel : Model msg -> model
+    , model : Model
+    , toModel : Model -> model
     , toMsg : Msg msg -> msg
     , nostr : Nostr.Model
     }
     -> ( model, Effect msg )
-update props  = 
+update props =
     let
         (Model model) =
             props.model
 
-        toParentModel : (Model msg, Effect msg) -> (model, Effect msg)
+        toParentModel : ( Model, Effect msg ) -> ( model, Effect msg )
         toParentModel ( innerModel, effect ) =
             ( props.toModel innerModel
             , effect
@@ -144,7 +146,7 @@ update props  =
                 , Effect.none
                 )
 
-            PublishClicked msg ->
+            SubscribeClicked ->
                 ( Model model
                 , Effect.none
                 )
@@ -160,7 +162,7 @@ update props  =
                 )
 
 
-view : ZapDialog msg -> Html msg
+view : EmailSubscriptionDialog msg -> Html msg
 view dialog =
     let
         (Settings settings) =
@@ -171,18 +173,18 @@ view dialog =
     in
     case model.state of
         DialogHidden ->
-            div [][]
+            div [] []
 
-        ZapAmountSelection zapAmountSelectionData ->
+        DialogVisible emailSubscriptionData ->
             Ui.Shared.modalDialog
                 settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
-                [ viewZapDialog dialog zapAmountSelectionData]
+                [ viewZapDialog dialog emailSubscriptionData]
                 CloseDialog
-            |> Html.map settings.toMsg 
-        
-    
-viewZapDialog : ZapDialog msg -> ZapAmountSelectionData -> Html (Msg msg)
+                |> Html.map settings.toMsg
+
+
+viewZapDialog : EmailSubscriptionDialog msg -> EmailSubscriptionData -> Html (Msg msg)
 viewZapDialog (Settings settings) data =
     let
         (Model model) =
@@ -191,7 +193,8 @@ viewZapDialog (Settings settings) data =
         relays =
             Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
     in
-    div [ css
+    div
+        [ css
             [ Tw.my_4
             , Tw.flex
             , Tw.flex_col
@@ -199,10 +202,9 @@ viewZapDialog (Settings settings) data =
             , Tw.gap_2
             ]
         ]
-        [ recipientsSection (Settings settings) data.recipients
+        [ recipientsSection (Settings settings)
         , div
-            [
-            ]
+            []
             [ Button.new
                 { label = Translations.closeButtonTitle [ settings.browserEnv.translations ]
                 , onClick = Just CloseDialog
@@ -211,8 +213,8 @@ viewZapDialog (Settings settings) data =
                 |> Button.withTypeSecondary
                 |> Button.view
             , Button.new
-                { label = Translations.zapButtonTitle [ settings.browserEnv.translations ]
-                , onClick = Just <| PublishClicked settings.onPublish
+                { label = Translations.subscribeButtonTitle [ settings.browserEnv.translations ]
+                , onClick = Just <| SubscribeClicked 
                 , theme = settings.theme
                 }
                 |> Button.withTypePrimary
@@ -220,8 +222,9 @@ viewZapDialog (Settings settings) data =
             ]
         ]
 
-recipientsSection : ZapDialog msg -> List Recipient -> Html (Msg msg)
-recipientsSection (Settings settings) recipients =
+
+recipientsSection : EmailSubscriptionDialog msg -> Html (Msg msg)
+recipientsSection (Settings settings) =
     let
         (Model model) =
             settings.model
@@ -229,9 +232,11 @@ recipientsSection (Settings settings) recipients =
         styles =
             Ui.Styles.stylesForTheme settings.theme
     in
-    viewRecipients (Settings settings) recipients
+    div [][]
+    -- viewRecipients (Settings settings) recipients
 
-viewRecipients : ZapDialog msg -> List Recipient -> Html (Msg msg)
+
+viewRecipients : EmailSubscriptionDialog msg -> List Recipient -> Html (Msg msg)
 viewRecipients (Settings settings) recipients =
     div []
         [ ul
@@ -247,6 +252,7 @@ viewRecipients (Settings settings) recipients =
             ]
             (List.map (viewRecipient settings.theme) recipients)
         ]
+
 
 viewRecipient : Theme -> Recipient -> Html (Msg msg)
 viewRecipient theme recipient =

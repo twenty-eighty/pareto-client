@@ -49,6 +49,13 @@ import Url
 import Nostr.Nip96 exposing (ServerDescriptorData)
 import Components.Dropdown as Dropdown
 
+supportedMimeTypes : List String
+supportedMimeTypes =
+    [ "image/png"
+    , "image/jpg"
+    -- , "application/pdf"
+    ]
+
 type UploadDialog msg
      = Settings
         { model : Model 
@@ -246,7 +253,7 @@ update props =
                 ( Model model
                 -- multi file selection temporarily disabled
                 -- TODO need to improve the metadata editor for multi file
-                , FileSelect.files ["image/png", "image/jpg"] FilesSelected
+                , FileSelect.files supportedMimeTypes FilesSelected
                 -- , FileSelect.file ["image/png", "image/jpg"] (\file -> FilesSelected file [])
                 |> Cmd.map props.toMsg
                 |> Effect.sendCmd
@@ -923,6 +930,7 @@ viewWaitingForFiles (Settings settings) =
             settings.model
     in
     modalDialog
+        settings.theme
         (Translations.dialogTitle [ settings.browserEnv.translations ])
         [ Components.Dropdown.new
             { model = model.serverSelectionDropdown
@@ -999,6 +1007,7 @@ viewMetadataDialog (Settings settings) (fileId, fileUpload) =
             settings.model
     in
     modalDialog
+        settings.theme
         (Translations.editMetadataDialogTitle [ settings.browserEnv.translations ])
         [ div
             [ css 
@@ -1019,6 +1028,7 @@ viewUploadingDialog (Settings settings) =
             settings.model
     in
     modalDialog
+        settings.theme
         (Translations.uploadingStateText [ settings.browserEnv.translations ])
         [ div
             [ css 
@@ -1040,6 +1050,7 @@ viewFinishedDialog (Settings settings) =
             settings.model
     in
     modalDialog
+        settings.theme
         (Translations.dialogTitle [ settings.browserEnv.translations ])
         [ div [ class "p-4" ]
             [ div []

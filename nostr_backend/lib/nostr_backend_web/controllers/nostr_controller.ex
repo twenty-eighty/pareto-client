@@ -19,7 +19,8 @@ defmodule NostrBackendWeb.NostrController do
       "client" => "0f479c7dff7bb53dae53f3bb32ad1109edbb07ba562bdd5168044b3f4364e7b5",
       "christof_weber" => "79271c81ef2fd4994c20d73b0555a3e58d7ee9caaa2328082e3a336de18d9066",
       "michael_meyen" => "044da3442a54bd55202b66ca0c4f5fd58cbb158b67f2fb067cc0467c073a8a0e",
-      "janosch" => "89bae92f9d9b0f6d97a300496cfb0b73c92a74c9675a724c0689975f8074dc01"
+      "janosch" => "89bae92f9d9b0f6d97a300496cfb0b73c92a74c9675a724c0689975f8074dc01",
+      "j1000" => "135f20a6f142a3f8a6c3fde48772bd6cffece0fc3aa31bef6f12c99b3937e969"
     },
     "relays" => %{
       "2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" => [
@@ -79,6 +80,10 @@ defmodule NostrBackendWeb.NostrController do
       "89bae92f9d9b0f6d97a300496cfb0b73c92a74c9675a724c0689975f8074dc01" => [
         "wss://nostr.pareto.space",
         "wss://pareto.nostr1.com"
+      ],
+      "135f20a6f142a3f8a6c3fde48772bd6cffece0fc3aa31bef6f12c99b3937e969" => [
+        "wss://nostr.pareto.space",
+        "wss://pareto.nostr1.com"
       ]
     }
   }
@@ -118,7 +123,6 @@ defmodule NostrBackendWeb.NostrController do
     |> json(@nostr_data)
   end
 
-
   def validate_nip05_handle(conn, %{"handle" => handle}) do
     conn =
       put_same_domain_headers(conn)
@@ -132,6 +136,7 @@ defmodule NostrBackendWeb.NostrController do
 
           {:error, message} ->
             IO.inspect(message, label: "Error")
+
             conn
             |> put_status(:not_found)
             |> text(message)
@@ -159,7 +164,7 @@ defmodule NostrBackendWeb.NostrController do
   defp put_same_domain_headers(conn) do
     conn
     # change this to pareto.space in case the API endpoint is (mis)used by other Nostr applications
-#   |> put_resp_header("Access-Control-Allow-Origin", "pareto.space")
+    #   |> put_resp_header("Access-Control-Allow-Origin", "pareto.space")
     |> put_resp_header("Access-Control-Allow-Origin", "*")
     |> put_resp_header("Access-Control-Allow-Methods", "GET, OPTIONS")
   end

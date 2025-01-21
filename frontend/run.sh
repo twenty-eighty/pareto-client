@@ -1,3 +1,3 @@
 #!/bin/bash
 
-elm-land server
+ELM_ENV=dev elm-land server

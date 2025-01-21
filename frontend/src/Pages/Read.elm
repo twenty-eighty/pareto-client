@@ -1,4 +1,4 @@
-module Pages.Read exposing (Model, Msg, page, init, update, view, subscriptions)
+module Pages.Read exposing (Model, Msg, init, page, subscriptions, update, view)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Categories
@@ -9,15 +9,18 @@ import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
 import Layouts
+import Material.Icons exposing (category)
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, nip19ForArticle)
-import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), kindDecoder, emptyEventFilter)
+import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), emptyEventFilter, kindDecoder)
 import Nostr.FollowList exposing (followingPubKey)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.ShortNote exposing (ShortNote)
 import Nostr.Types exposing (EventId, PubKey)
 import Page exposing (Page)
+import Pareto
+import Ports
 import Route exposing (Route)
 import Route.Path
 import Shared
@@ -25,14 +28,10 @@ import Shared.Model
 import Shared.Msg
 import Translations.Read
 import Translations.Sidebar
-import Ui.ShortNote exposing (ShortNotesViewData)
+import Ui.ShortNote as ShortNote exposing (ShortNotesViewData)
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
-import Ports
-import Pareto
-import Material.Icons exposing (category)
-import Ui.ShortNote as ShortNote
 
 
 page : Shared.Model -> Route () -> Page Model Msg
@@ -45,10 +44,12 @@ page shared route =
         }
         |> Page.withLayout (toLayout shared.theme)
 
+
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme model =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
+
 
 
 -- INIT
@@ -59,6 +60,7 @@ type alias Model =
     , path : Route.Path.Path
     }
 
+
 type Category
     = Global
     | Pareto
@@ -66,7 +68,8 @@ type Category
     | Highlighter
     | Rss
 
-stringFromCategory : Category -> String 
+
+stringFromCategory : Category -> String
 stringFromCategory category =
     case category of
         Global ->
@@ -103,29 +106,33 @@ categoryFromString categoryString =
         _ ->
             Nothing
 
+
 categoryParamName : String
 categoryParamName =
     "category"
+
 
 init : Shared.Model -> Route () -> () -> ( Model, Effect Msg )
 init shared route () =
     let
         category =
             Dict.get categoryParamName route.query
-            |> Maybe.andThen categoryFromString
-            |> Maybe.withDefault Global
+                |> Maybe.andThen categoryFromString
+                |> Maybe.withDefault Global
 
         correctedCategory =
             case category of
                 Pareto ->
-                    if (paretoFollowsList shared.nostr) == [] then
+                    if paretoFollowsList shared.nostr == [] then
                         Global
+
                     else
                         category
 
                 Followed ->
-                    if (userFollowsList shared.nostr shared.loginStatus) == [] then
+                    if userFollowsList shared.nostr shared.loginStatus == [] then
                         Global
+
                     else
                         category
 
@@ -135,6 +142,7 @@ init shared route () =
         changeCategoryEffect =
             if correctedCategory /= category then
                 Effect.replaceRoute { path = route.path, query = Dict.singleton categoryParamName (stringFromCategory correctedCategory), hash = Nothing }
+
             else
                 Effect.none
     in
@@ -144,7 +152,7 @@ init shared route () =
     , Effect.batch
         [ changeCategoryEffect
         , RequestArticlesFeed (filterForCategory shared correctedCategory)
-            |> Nostr.createRequest shared.nostr "Long-form articles" [KindUserMetadata, KindEventDeletionRequest]
+            |> Nostr.createRequest shared.nostr "Long-form articles" [ KindUserMetadata, KindEventDeletionRequest ]
             |> Shared.Msg.RequestNostrEvents
             |> Effect.sendSharedMsg
         ]
@@ -162,7 +170,7 @@ type Msg
     | AddArticleBookmark PubKey AddressComponents
     | RemoveArticleBookmark PubKey AddressComponents
     | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
-    | RemoveArticleReaction PubKey EventId  -- event ID of like
+    | RemoveArticleReaction PubKey EventId -- event ID of like
     | AddShortNoteBookmark PubKey EventId
     | RemoveShortNoteBookmark PubKey EventId
 
@@ -171,7 +179,8 @@ update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
         OpenGetStarted ->
-            ( model, Effect.sendCmd <| Ports.requestUser
+            ( model
+            , Effect.sendCmd <| Ports.requestUser
             )
 
         CategorySelected category ->
@@ -181,7 +190,7 @@ update shared msg model =
             Components.Categories.update
                 { msg = innerMsg
                 , model = model.categories
-                , toModel = \categories -> { model | categories = categories}
+                , toModel = \categories -> { model | categories = categories }
                 , toMsg = CategoriesSent
                 }
 
@@ -223,55 +232,60 @@ update shared msg model =
                 |> Effect.sendSharedMsg
             )
 
-updateModelWithCategory : Shared.Model -> Model -> Category -> (Model, Effect Msg)
+
+updateModelWithCategory : Shared.Model -> Model -> Category -> ( Model, Effect Msg )
 updateModelWithCategory shared model category =
     ( model
     , Effect.batch
         [ Effect.replaceRoute { path = model.path, query = Dict.singleton categoryParamName (stringFromCategory category), hash = Nothing }
         , RequestArticlesFeed (filterForCategory shared category)
-            |> Nostr.createRequest shared.nostr "Long-form articles" [KindUserMetadata, KindEventDeletionRequest]
+            |> Nostr.createRequest shared.nostr "Long-form articles" [ KindUserMetadata, KindEventDeletionRequest ]
             |> Shared.Msg.RequestNostrEvents
             |> Effect.sendSharedMsg
         ]
     )
 
+
 filterForCategory : Shared.Model -> Category -> EventFilter
 filterForCategory shared category =
     case category of
         Global ->
-            { emptyEventFilter | kinds = Just [KindLongFormContent], limit = Just 20 }
+            { emptyEventFilter | kinds = Just [ KindLongFormContent ], limit = Just 20 }
 
         Pareto ->
-            { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just (paretoFollowsList shared.nostr) , limit = Just 20 }
+            { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (paretoFollowsList shared.nostr), limit = Just 20 }
 
         Followed ->
-            { emptyEventFilter | kinds = Just [KindLongFormContent], authors = Just (userFollowsList shared.nostr shared.loginStatus) , limit = Just 20 }
+            { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (userFollowsList shared.nostr shared.loginStatus), limit = Just 20 }
 
         Highlighter ->
-            { emptyEventFilter | kinds = Just [KindLongFormContent], limit = Just 20 }
+            { emptyEventFilter | kinds = Just [ KindLongFormContent ], limit = Just 20 }
 
         Rss ->
-            { emptyEventFilter | kinds = Just [KindShortTextNote], authors = Just (paretoRssFollowsList shared.nostr) , limit = Just 20 }
+            { emptyEventFilter | kinds = Just [ KindShortTextNote ], authors = Just (paretoRssFollowsList shared.nostr), limit = Just 20 }
+
 
 paretoFollowsList : Nostr.Model -> List PubKey
 paretoFollowsList nostr =
     case Nostr.getFollowsList nostr Pareto.authorsKey of
         Just followsList ->
             followsList
-            |> List.filterMap followingPubKey
+                |> List.filterMap followingPubKey
 
         Nothing ->
             []
+
 
 paretoRssFollowsList : Nostr.Model -> List PubKey
 paretoRssFollowsList nostr =
     case Nostr.getFollowsList nostr Pareto.rssAuthorsKey of
         Just followsList ->
             followsList
-            |> List.filterMap followingPubKey
+                |> List.filterMap followingPubKey
 
         Nothing ->
             []
+
 
 userFollowsList : Nostr.Model -> Shared.Model.LoginStatus -> List PubKey
 userFollowsList nostr loginStatus =
@@ -280,13 +294,15 @@ userFollowsList nostr loginStatus =
             case Nostr.getFollowsList nostr pubKey of
                 Just followsList ->
                     followsList
-                    |> List.filterMap followingPubKey
+                        |> List.filterMap followingPubKey
 
                 Nothing ->
                     []
 
         _ ->
             []
+
+
 
 -- SUBSCRIPTIONS
 
@@ -306,29 +322,36 @@ availableCategories nostr loginStatus translations =
         paretoCategories =
             if paretoFollowsList nostr /= [] then
                 [ paretoCategory translations ]
+
             else
                 []
 
         paretoRssCategories =
             if paretoRssFollowsList nostr /= [] then
                 [ paretoRssCategory translations ]
+
             else
                 []
 
         followedCategories =
             if userFollowsList nostr loginStatus /= [] then
                 [ followedCategory translations ]
+
             else
                 []
     in
-    followedCategories ++ paretoCategories ++ -- paretoRssCategories ++
-    [ { category = Global
-      , title = Translations.Read.globalFeedCategory [ translations ]
-      }
---   , { category = Highlighter
---     , title = Translations.Read.highlighterFeedCategory [ translations ]
---     }
-    ]
+    followedCategories
+        ++ paretoCategories
+        ++ -- paretoRssCategories ++
+           [ { category = Global
+             , title = Translations.Read.globalFeedCategory [ translations ]
+             }
+
+           --   , { category = Highlighter
+           --     , title = Translations.Read.highlighterFeedCategory [ translations ]
+           --     }
+           ]
+
 
 paretoCategory : I18Next.Translations -> Components.Categories.CategoryData Category
 paretoCategory translations =
@@ -336,17 +359,20 @@ paretoCategory translations =
     , title = Translations.Read.paretoFeedCategory [ translations ]
     }
 
+
 paretoRssCategory : I18Next.Translations -> Components.Categories.CategoryData Category
 paretoRssCategory translations =
     { category = Rss
     , title = Translations.Read.rssFeedCategory [ translations ]
     }
 
+
 followedCategory : I18Next.Translations -> Components.Categories.CategoryData Category
 followedCategory translations =
     { category = Followed
     , title = Translations.Read.followedFeedCategory [ translations ]
     }
+
 
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
@@ -357,20 +383,23 @@ view shared model =
         userPubKey =
             Shared.loggedInPubKey shared.loginStatus
     in
-    { title = Translations.Sidebar.readMenuItemText [shared.browserEnv.translations]
-    , body = [                                  {- Main Content -}
-            Components.Categories.new
-                { model = model.categories
-                , toMsg = CategoriesSent
-                , onSelect = CategorySelected
-                , categories = availableCategories shared.nostr shared.loginStatus shared.browserEnv.translations
-                , browserEnv = shared.browserEnv
-                , styles = styles
-                }
-                |> Components.Categories.view
-            , viewContent shared model userPubKey
-            ]
+    { title = Translations.Sidebar.readMenuItemText [ shared.browserEnv.translations ]
+    , body =
+        [ {- Main Content -}
+          Components.Categories.new
+            { model = model.categories
+            , toMsg = CategoriesSent
+            , onSelect = CategorySelected
+            , equals = \category1 category2 -> category1 == category2
+            , categories = availableCategories shared.nostr shared.loginStatus shared.browserEnv.translations
+            , browserEnv = shared.browserEnv
+            , styles = styles
+            }
+            |> Components.Categories.view
+        , viewContent shared model userPubKey
+        ]
     }
+
 
 viewContent : Shared.Model -> Model -> Maybe PubKey -> Html Msg
 viewContent shared model userPubKey =
@@ -379,66 +408,67 @@ viewContent shared model userPubKey =
             Nostr.getArticlesByDate shared.nostr
                 |> Ui.View.viewArticlePreviews
                     ArticlePreviewList
-                        { theme = shared.theme
-                        , browserEnv = shared.browserEnv
-                        , nostr = shared.nostr
-                        , userPubKey = userPubKey
-                        , onBookmark = Maybe.map (\pubKey -> (AddArticleBookmark pubKey, RemoveArticleBookmark pubKey)) userPubKey
-                        , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) userPubKey
-                        , onZap = Nothing
-                        }
+                    { theme = shared.theme
+                    , browserEnv = shared.browserEnv
+                    , nostr = shared.nostr
+                    , userPubKey = userPubKey
+                    , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) userPubKey
+                    , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) userPubKey
+                    , onZap = Nothing
+                    }
 
         viewNotes =
             Nostr.getShortNotes shared.nostr
-            |> viewShortNotes
-                { theme = shared.theme
-                , browserEnv = shared.browserEnv
-                , nostr = shared.nostr
-                , userPubKey = userPubKey
-                , onBookmark = Maybe.map (\pubKey -> (AddShortNoteBookmark pubKey, RemoveShortNoteBookmark pubKey)) userPubKey
-                }
-
+                |> viewShortNotes
+                    { theme = shared.theme
+                    , browserEnv = shared.browserEnv
+                    , nostr = shared.nostr
+                    , userPubKey = userPubKey
+                    , onBookmark = Maybe.map (\pubKey -> ( AddShortNoteBookmark pubKey, RemoveShortNoteBookmark pubKey )) userPubKey
+                    }
     in
     case Components.Categories.selected model.categories of
         Global ->
             viewArticles
-            
+
         Pareto ->
             viewArticles
-            
+
         Followed ->
             viewArticles
-            
+
         Highlighter ->
             viewArticles
-            
+
         Rss ->
             viewNotes
+
 
 viewShortNotes : ShortNotesViewData Msg -> List ShortNote -> Html Msg
 viewShortNotes shortNotesViewData shortNotes =
     shortNotes
-    |> List.map (\shortNote ->
-        ShortNote.viewShortNote
-            shortNotesViewData
-            { author = Nostr.getAuthor shortNotesViewData.nostr shortNote.pubKey
-            , actions =
-                { addBookmark = Nothing
-                , removeBookmark = Nothing
-                , addReaction = Nothing
-                , removeReaction = Nothing
-                }
-            , interactions = 
-                { zaps = Nothing
-                , highlights = Nothing
-                , reactions = Nothing
-                , reposts = Nothing
-                , notes = Nothing
-                , bookmarks = Nothing
-                , isBookmarked = False
-                , reaction = Nothing
-                }
-            }
-            shortNote
-    )
-    |> div []
+        |> List.map
+            (\shortNote ->
+                ShortNote.viewShortNote
+                    shortNotesViewData
+                    { author = Nostr.getAuthor shortNotesViewData.nostr shortNote.pubKey
+                    , actions =
+                        { addBookmark = Nothing
+                        , removeBookmark = Nothing
+                        , addReaction = Nothing
+                        , removeReaction = Nothing
+                        }
+                    , interactions =
+                        { zaps = Nothing
+                        , highlights = Nothing
+                        , reactions = Nothing
+                        , reposts = Nothing
+                        , notes = Nothing
+                        , bookmarks = Nothing
+                        , isBookmarked = False
+                        , reaction = Nothing
+                        }
+                    }
+                    shortNote
+            )
+        |> div []
