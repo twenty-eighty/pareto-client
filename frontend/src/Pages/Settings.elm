@@ -131,6 +131,8 @@ type Msg
     | AddOutboxRelay PubKey RelayUrl
     | AddInboxRelay PubKey RelayUrl
     | AddSearchRelay PubKey RelayUrl
+    | AddDefaultOutboxRelays (List RelayUrl)
+    | AddDefaultInboxRelays (List RelayUrl)
     | RemoveRelay PubKey RelayRole RelayUrl
 
 
@@ -154,25 +156,48 @@ update user shared msg model =
         AddOutboxRelay pubKey relayUrl ->
             ( { model | categories = Categories.select model.categories (Relays emptyRelaysModel) }
             , Nostr.getRelayListForPubKey shared.nostr pubKey
-                |> extendRelayList [ { url = hostWithoutProtocol relayUrl, role = WriteRelay } ]
+                |> extendRelayList (relayListWithRole [ relayUrl ] WriteRelay)
                 |> sendRelayListCmd pubKey
             )
 
         AddInboxRelay pubKey relayUrl ->
             ( { model | categories = Categories.select model.categories (Relays emptyRelaysModel) }
             , Nostr.getRelayListForPubKey shared.nostr pubKey
-                |> extendRelayList [ { url = hostWithoutProtocol relayUrl, role = ReadRelay } ]
+                |> extendRelayList (relayListWithRole [ relayUrl ] ReadRelay)
                 |> sendRelayListCmd pubKey
             )
 
         AddSearchRelay pubKey relayUrl ->
             ( model, Effect.none )
 
+        AddDefaultOutboxRelays relayUrls ->
+            ( model
+            , Nostr.getRelayListForPubKey shared.nostr user.pubKey
+                |> extendRelayList (relayListWithRole relayUrls WriteRelay)
+                |> sendRelayListCmd user.pubKey
+            )
+
+        AddDefaultInboxRelays relayUrls ->
+            ( model
+            , Nostr.getRelayListForPubKey shared.nostr user.pubKey
+                |> extendRelayList (relayListWithRole relayUrls ReadRelay)
+                |> sendRelayListCmd user.pubKey
+            )
+
         RemoveRelay pubKey relayRole relayUrl ->
             ( model
             , Nostr.getRelayListForPubKey shared.nostr pubKey
                 |> removeFromRelayList { url = relayUrl, role = relayRole }
                 |> sendRelayListCmd pubKey
+            )
+
+
+relayListWithRole : List RelayUrl -> RelayRole -> List RelayMetadata
+relayListWithRole relayUrls role =
+    relayUrls
+        |> List.map
+            (\relayUrl ->
+                { url = hostWithoutProtocol relayUrl, role = role }
             )
 
 
@@ -316,19 +341,25 @@ viewRelays shared model user relaysModel =
         outboxRelays =
             Nostr.getNip65WriteRelaysForPubKey shared.nostr user.pubKey
 
+        suggestedOutboxRelays =
+            suggestedRelays shared user.pubKey WriteRelay
+
         outboxRelaySuggestions =
             { identifier = "outbox-relay-suggestions"
             , suggestions =
-                missingRelays outboxRelays (suggestedOutboxRelays shared user.pubKey)
+                missingRelays outboxRelays suggestedOutboxRelays
             }
 
         inboxRelays =
             Nostr.getNip65ReadRelaysForPubKey shared.nostr user.pubKey
 
+        suggestedInboxRelays =
+            suggestedRelays shared user.pubKey ReadRelay
+
         inboxRelaySuggestions =
             { identifier = "inbox-relay-suggestions"
             , suggestions =
-                missingRelays inboxRelays Pareto.recommendedInboxRelays
+                missingRelays inboxRelays suggestedInboxRelays
             }
 
         searchRelays =
@@ -352,7 +383,7 @@ viewRelays shared model user relaysModel =
             (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
             [ text <| Translations.outboxSectionTitle [ shared.browserEnv.translations ] ]
         , p [] [ text <| Translations.outboxRelaysDescription [ shared.browserEnv.translations ] ]
-        , viewRelayList (RemoveRelay user.pubKey WriteRelay) outboxRelays
+        , viewRelayList shared.theme shared.browserEnv.translations (AddDefaultOutboxRelays suggestedOutboxRelays) (RemoveRelay user.pubKey WriteRelay) outboxRelays
         , addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay outboxRelaySuggestions (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey)
         , h3
             (styles.colorStyleGrayscaleTitle
@@ -361,7 +392,7 @@ viewRelays shared model user relaysModel =
             )
             [ text <| Translations.inboxSectionTitle [ shared.browserEnv.translations ] ]
         , p [] [ text <| Translations.inboxRelaysDescription [ shared.browserEnv.translations ] ]
-        , viewRelayList (RemoveRelay user.pubKey ReadRelay) inboxRelays
+        , viewRelayList shared.theme shared.browserEnv.translations (AddDefaultInboxRelays suggestedInboxRelays) (RemoveRelay user.pubKey ReadRelay) inboxRelays
         , addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay inboxRelaySuggestions (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey)
 
         -- , viewRelayList searchRelays
@@ -373,13 +404,21 @@ viewRelays shared model user relaysModel =
 -- users must be whitelisted for Pareto outbox relays
 
 
-suggestedOutboxRelays : Shared.Model -> PubKey -> List RelayUrl
-suggestedOutboxRelays shared pubKey =
-    if Nostr.isEditor shared.nostr pubKey then
-        Pareto.paretoOutboxRelays ++ Pareto.recommendedOutboxRelays
+suggestedRelays : Shared.Model -> PubKey -> RelayRole -> List RelayUrl
+suggestedRelays shared pubKey role =
+    case role of
+        WriteRelay ->
+            if Nostr.isEditor shared.nostr pubKey then
+                Pareto.paretoOutboxRelays ++ Pareto.recommendedOutboxRelays
 
-    else
-        Pareto.recommendedOutboxRelays
+            else
+                Pareto.recommendedOutboxRelays
+
+        ReadRelay ->
+            Pareto.recommendedInboxRelays
+
+        ReadWriteRelay ->
+            []
 
 
 missingRelays : List Relay -> List String -> List String
@@ -529,17 +568,35 @@ relayUrlValid maybeRelayUrl =
             False
 
 
-viewRelayList : (String -> Msg) -> List Relay -> Html Msg
-viewRelayList removeMsg relays =
-    div
-        [ css
-            [ Tw.flex
-            , Tw.flex_col
-            , Tw.my_2
-            , Tw.gap_2
+viewRelayList : Theme -> I18Next.Translations -> Msg -> (String -> Msg) -> List Relay -> Html Msg
+viewRelayList theme translations addDefaultRelaysMsg removeMsg relays =
+    if List.length relays > 0 then
+        div
+            [ css
+                [ Tw.flex
+                , Tw.flex_col
+                , Tw.my_2
+                , Tw.gap_2
+                ]
             ]
-        ]
-        (List.map (viewRelay removeMsg) relays)
+            (List.map (viewRelay removeMsg) relays)
+
+    else
+        div
+            [ css
+                [ Tw.flex
+                , Tw.flex_col
+                , Tw.gap_2
+                ]
+            ]
+            [ text <| Translations.noRelaysConfiguredText [ translations ]
+            , Button.new
+                { label = Translations.addDefaultRelaysButtonTitle [ translations ]
+                , onClick = Just addDefaultRelaysMsg
+                , theme = theme
+                }
+                |> Button.view
+            ]
 
 
 viewRelay : (String -> Msg) -> Relay -> Html Msg

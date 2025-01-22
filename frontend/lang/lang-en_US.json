@@ -32,10 +32,15 @@
       "no communities text": "Looks like you don't follow any communities yet. Don't worry, you can browse them and start following them below.",
       "browse communities text": "Browse communities"
    },
+   "email import dialog": {
+      "dialog title": "Import Email List",
+      "import button title": "Import",
+      "close button title": "Close"
+   },
    "email subscription dialog": {
       "dialog title": "Subscribe with Email",
-      "subscribe button title": "Subscribe with Email",
-      "close button title": "Subscribe with Email"
+      "subscribe button title": "Subscribe",
+      "close button title": "Close"
    },
    "media selector": {
       "Upload files": "Select image",
@@ -111,6 +116,8 @@
       "inbox relays description": "This relay type receives all replies, comments, likes, and zaps to your posts.",
       "add relay button title": "Add",
       "add relay placeholder": "Enter a relay URL",
+      "no relays configured text": "You seem to have no relays configured. Do you want to a add some?",
+      "add default relays button title": "Add default relays",
       "media servers category": "Media Servers",
       "add nip-96 media server placeholder": "NIP-96 server URL",
       "add blossom media server placeholder": "Blossom server URL",
@@ -131,6 +138,7 @@
       "read menu item text": "Read",
       "search menu item text": "Search",
       "settings menu item text": "Settings",
+      "subscribers menu item text": "Subscribers",
       "write menu item text": "Write",
       "about menu item text": "About"
    },
@@ -138,6 +146,10 @@
       "page title": "Sign in/up",
       "sign-in request": "Please sign up/in to access the page",
       "continue without signing in message": "Continue without signing up/in..."
+   },
+   "subscribers": {
+      "page title": "Subscribers",
+      "import button title": "Import"
    },
    "upload dialog": {
       "dialog title": "Upload",
