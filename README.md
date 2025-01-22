@@ -68,10 +68,12 @@ Change to the `frontend` directory for the following commands.
 1. run ./build.sh (only needed once to generate the code for translations and Tailwind CSS modules)
 2. run `./run.sh` in the frontend directory.
 
-On http://localhost:1234/read you'll find the Pareto client.
-
 In case you get a build error make sure that the following line is present in the file `~/.tool-versions`:
 `elm 0.19.1`
+
+After changes to the English language file `lang/lang-en\_US.json` you need to generate the related Elm code with `./gentranslations.sh`.
+
+On http://localhost:1234/read you'll find the Pareto client.
 
 You'll notice a small rect bottom/right of the screen that allows to open the Elm debugger.
 

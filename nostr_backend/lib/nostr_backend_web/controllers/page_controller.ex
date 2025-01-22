@@ -123,6 +123,12 @@ defmodule NostrBackendWeb.PageController do
     |> render(:settings)
   end
 
+  def subscribers(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:subscribers)
+  end
+
   def sign_in(conn, _params) do
     conn
     |> add_meta_tags
