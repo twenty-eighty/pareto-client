@@ -891,6 +891,7 @@ previewListImage article =
                     , Attr.style "height" "100%"
                     , Attr.style "position" "absolute"
                     , Attr.style "transform" "translate(-50%, -50%)"
+                    , Attr.attribute "loading" "lazy"
                     ]
                     []
                 ]
@@ -922,6 +923,7 @@ previewBigPictureImage article =
                     , Attr.style "height" "100%"
                     , Attr.style "position" "absolute"
                     , Attr.style "transform" "translate(-50%, -50%)"
+                    , Attr.attribute "loading" "lazy"
                     ]
                     []
                 ]
@@ -1212,6 +1214,7 @@ viewProfileImageSmall linkElement maybeImage validationStatus =
                     ]
                 , Attr.src image
                 , Attr.alt "profile image"
+                , Attr.attribute "loading" "lazy"
                 ]
                 []
             ]
