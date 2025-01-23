@@ -7,8 +7,8 @@ import Nostr.Types exposing (PubKey)
 import Route exposing (Route)
 import Route.Path
 import Shared
-import View exposing (View)
 import Shared.Model exposing (LoginStatus(..))
+import View exposing (View)
 
 
 type alias User =
@@ -25,12 +25,13 @@ onPageLoad shared route =
             Auth.Action.loadPageWithUser
                 { pubKey = pubKey
                 }
+
         _ ->
             Auth.Action.pushRoute
                 { path = Route.Path.SignIn
                 , query =
                     Dict.fromList
-                        [ ("from", route.url.path)
+                        [ ( "from", route.url.path )
                         ]
                 , hash = Nothing
                 }

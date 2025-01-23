@@ -16,10 +16,9 @@ import Browser
 import Css.Global
 import Html.Styled as Html exposing (Html)
 import Route exposing (Route)
-import Shared.Model
-import Tailwind.Utilities exposing (globalStyles)
 import Shared exposing (Msg)
 import Shared.Model
+import Tailwind.Utilities exposing (globalStyles)
 
 
 type alias View msg =
@@ -39,9 +38,12 @@ toBrowserDocument :
     -> Browser.Document msg
 toBrowserDocument { shared, view } =
     { title = view.title
-    , body = Css.Global.global globalStyles :: view.body
-        |> List.map Html.toUnstyled 
+    , body =
+        Css.Global.global globalStyles
+            :: view.body
+            |> List.map Html.toUnstyled
     }
+
 
 {-| Used internally by Elm Land to connect your pages together.
 -}

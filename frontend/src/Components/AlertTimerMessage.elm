@@ -1,7 +1,10 @@
 module Components.AlertTimerMessage exposing
-    ( AlertTimerMessage, new
-    , Model, init
-    , Msg(..), update
+    ( AlertTimerMessage
+    , Model
+    , Msg(..)
+    , init
+    , new
+    , update
     , view
     )
 
@@ -14,11 +17,13 @@ import Tailwind.Utilities as Tw
 import Task
 import Ui.Styles exposing (Theme, stylesForTheme)
 
+
 type AlertTimerMessage
-     = Settings
+    = Settings
         { model : Model
         , theme : Theme
         }
+
 
 new :
     { model : Model
@@ -31,6 +36,7 @@ new props =
         , theme = props.theme
         }
 
+
 type alias Message =
     { message : String
     , timeout : Int
@@ -42,11 +48,13 @@ type Model
         { messages : List Message
         }
 
-init : {  } -> Model
+
+init : {} -> Model
 init props =
     Model
         { messages = []
         }
+
 
 type Msg
     = AddMessage String Int
@@ -88,28 +96,27 @@ update props =
 
             RemoveMessage ->
                 case model.messages of
-                    [ ] ->
+                    [] ->
                         ( Model model
-                        , Effect.none 
+                        , Effect.none
                         )
 
                     [ message ] ->
                         ( Model { model | messages = [] }
-                        , Effect.none 
+                        , Effect.none
                         )
 
                     message :: remaining ->
                         ( Model { model | messages = remaining }
-                        , remaining 
+                        , remaining
                             |> List.head
-                            |> Maybe.map (\firstMessage ->
-                                delay firstMessage.timeout RemoveMessage
-                                |> Effect.map props.toMsg
-                            )
+                            |> Maybe.map
+                                (\firstMessage ->
+                                    delay firstMessage.timeout RemoveMessage
+                                        |> Effect.map props.toMsg
+                                )
                             |> Maybe.withDefault Effect.none
                         )
-                
-
 
 
 delay : Int -> msg -> Effect msg
@@ -128,7 +135,6 @@ view (Settings settings) =
 
         maybeMessage =
             List.head model.messages
-
     in
     case maybeMessage of
         Just message ->
@@ -137,20 +143,21 @@ view (Settings settings) =
                     stylesForTheme settings.theme
             in
             div
-                (styles.colorStyleBackground ++ styles.colorStyleGrayscaleText ++
-                [ css
-                    [ Tw.fixed
-                    , Tw.top_2
-                    , Tw.right_2
-                    , Tw.border_2
-                    , Tw.rounded_md
-                    , Tw.px_4
-                    , Tw.py_2
-                    ]
-                ]
+                (styles.colorStyleBackground
+                    ++ styles.colorStyleGrayscaleText
+                    ++ [ css
+                            [ Tw.fixed
+                            , Tw.top_2
+                            , Tw.right_2
+                            , Tw.border_2
+                            , Tw.rounded_md
+                            , Tw.px_4
+                            , Tw.py_2
+                            ]
+                       ]
                 )
                 [ text message.message
                 ]
 
         Nothing ->
-            div [][]    
+            div [] []

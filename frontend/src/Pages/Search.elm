@@ -3,11 +3,12 @@ module Pages.Search exposing (Model, Msg, page)
 import Components.SearchBar as SearchBar exposing (SearchBar)
 import Dict
 import Effect exposing (Effect)
+import FeatherIcons exposing (search)
 import Html.Styled as Html exposing (Html, div, p)
 import Html.Styled.Attributes exposing (css)
 import Layouts
-import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), kindDecoder, emptyEventFilter)
 import Nostr
+import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), emptyEventFilter, kindDecoder)
 import Nostr.Request exposing (RequestData(..))
 import Page exposing (Page)
 import Route exposing (Route)
@@ -18,9 +19,8 @@ import Tailwind.Utilities as Tw
 import Translations.Search as Translations
 import Ui.Styles exposing (Theme, stylesForTheme)
 import Ui.View exposing (ArticlePreviewType(..))
-import View exposing (View)
-import FeatherIcons exposing (search)
 import Url
+import View exposing (View)
 
 
 page : Shared.Model -> Route () -> Page Model Msg
@@ -32,6 +32,7 @@ page shared route =
         , view = view shared
         }
         |> Page.withLayout (toLayout shared.theme)
+
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme model =
@@ -47,27 +48,30 @@ type alias Model =
     { searchBar : SearchBar.Model
     }
 
+
 queryDictKey : String
 queryDictKey =
     "query"
+
 
 init : Shared.Model -> Route () -> () -> ( Model, Effect Msg )
 init shared route () =
     let
         maybeSearchText =
             Dict.get queryDictKey route.query
-            |> Maybe.andThen Url.percentDecode
+                |> Maybe.andThen Url.percentDecode
     in
     case maybeSearchText of
         Just searchText ->
             ( { searchBar = SearchBar.init { searchText = Just searchText } }
             , searchEffect shared searchText
             )
-        
+
         Nothing ->
-            ( { searchBar = SearchBar.init { searchText = Nothing} }
+            ( { searchBar = SearchBar.init { searchText = Nothing } }
             , Effect.sendSharedMsg Shared.Msg.ResetArticles
             )
+
 
 
 -- UPDATE
@@ -103,18 +107,23 @@ update shared msg model =
                 , onSearch = Search
                 }
 
+
 searchEffect : Shared.Model -> String -> Effect Msg
 searchEffect shared searchText =
     RequestSearchResults (searchEventFilters searchText)
-    |> Nostr.createRequest shared.nostr "Search" []
-    |> Shared.Msg.RequestNostrEvents
-    |> Effect.sendSharedMsg
+        |> Nostr.createRequest shared.nostr "Search" []
+        |> Shared.Msg.RequestNostrEvents
+        |> Effect.sendSharedMsg
+
+
 
 -- Nostr.getSearchRelayUrls model maybePubKey
+
 
 searchEventFilters : String -> List EventFilter
 searchEventFilters searchText =
     [ { emptyEventFilter | kinds = Just [ KindLongFormContent ], search = Just searchText, limit = Just 20 } ]
+
 
 
 -- SUBSCRIPTIONS
@@ -134,7 +143,7 @@ view shared model =
     { title = Translations.pageTitle [ shared.browserEnv.translations ]
     , body =
         [ viewSearch shared model
-        ] 
+        ]
     }
 
 
@@ -180,16 +189,17 @@ viewSearch shared model =
         , viewArticles shared
         ]
 
+
 viewArticles : Shared.Model -> Html Msg
 viewArticles shared =
-            Nostr.getArticlesByDate shared.nostr
-            |> Ui.View.viewArticlePreviews
-                    ArticlePreviewList 
-                        { theme = shared.theme
-                        , browserEnv = shared.browserEnv
-                        , nostr = shared.nostr
-                        , userPubKey = Shared.loggedInPubKey shared.loginStatus
-                        , onBookmark = Nothing
-                        , onReaction = Nothing
-                        , onZap = Nothing
-                        }
+    Nostr.getArticlesByDate shared.nostr
+        |> Ui.View.viewArticlePreviews
+            ArticlePreviewList
+            { theme = shared.theme
+            , browserEnv = shared.browserEnv
+            , nostr = shared.nostr
+            , userPubKey = Shared.loggedInPubKey shared.loginStatus
+            , onBookmark = Nothing
+            , onReaction = Nothing
+            , onZap = Nothing
+            }

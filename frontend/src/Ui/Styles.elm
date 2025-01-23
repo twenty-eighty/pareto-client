@@ -2,37 +2,43 @@ module Ui.Styles exposing (..)
 
 import Css
 import Css.Media
+import Html.Attributes
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h1, h2, h3, h4, img, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
-
 import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-import Html.Attributes
+import Tailwind.Utilities as Tw
+
 
 fontFamilyInter : Html.Attribute msg
 fontFamilyInter =
     Attr.style "font-family" "Inter, sans-serif"
 
+
 fontFamilyRobotoMono : Html.Attribute msg
 fontFamilyRobotoMono =
     Attr.style "font-family" "Roboto Mono, monospaced"
+
 
 fontFamilyUnbounded : Html.Attribute msg
 fontFamilyUnbounded =
     Attr.style "font-family" "Unbounded"
 
+
 fontFamilySourceSerifPro : Html.Attribute msg
 fontFamilySourceSerifPro =
     Attr.style "font-family" "Source Serif Pro"
+
 
 type Theme
     = ReferenceStyleTheme
     | ParetoTheme
 
+
 type alias StyleBundle msg =
     List (Html.Attribute msg)
+
 
 stylesForTheme : Theme -> Styles msg
 stylesForTheme theme =
@@ -43,10 +49,12 @@ stylesForTheme theme =
         ParetoTheme ->
             paretoThemeStyles
 
+
 mapStyleBundle : (msg1 -> msg2) -> StyleBundle msg1 -> StyleBundle msg2
 mapStyleBundle toMsg styles =
     styles
-    |> List.map (\style -> Attr.map toMsg style)
+        |> List.map (\style -> Attr.map toMsg style)
+
 
 map : (msg1 -> msg2) -> Styles msg1 -> Styles msg2
 map toMsg props =
@@ -63,7 +71,7 @@ map toMsg props =
     , textStyleH4 = mapStyleBundle toMsg props.textStyleH4
     , textStyleH4Article = mapStyleBundle toMsg props.textStyleH4Article
     , textStyle14 = mapStyleBundle toMsg props.textStyle14
-    , textStyleArticleHashtags = mapStyleBundle toMsg props.textStyleArticleHashtags 
+    , textStyleArticleHashtags = mapStyleBundle toMsg props.textStyleArticleHashtags
     , textStyleArticleAuthor = mapStyleBundle toMsg props.textStyleArticleAuthor
     , textStyleArticleCode = mapStyleBundle toMsg props.textStyleArticleCode
     , textStyleArticleDate = mapStyleBundle toMsg props.textStyleArticleDate
@@ -77,10 +85,10 @@ map toMsg props =
     , colorStyleIcons = mapStyleBundle toMsg props.colorStyleIcons
     , colorStyleGreen = mapStyleBundle toMsg props.colorStyleGreen
     , colorStyleCover = mapStyleBundle toMsg props.colorStyleCover
-    , colorStyleGrayscaleTitle = mapStyleBundle toMsg props.colorStyleGrayscaleTitle 
-    , colorStyleGrayscaleMuted = mapStyleBundle toMsg props.colorStyleGrayscaleMuted 
+    , colorStyleGrayscaleTitle = mapStyleBundle toMsg props.colorStyleGrayscaleTitle
+    , colorStyleGrayscaleMuted = mapStyleBundle toMsg props.colorStyleGrayscaleMuted
     , colorStyleGrayscaleText = mapStyleBundle toMsg props.colorStyleGrayscaleText
-    , colorStyleGrayscaleMedia = mapStyleBundle toMsg props.colorStyleGrayscaleMedia 
+    , colorStyleGrayscaleMedia = mapStyleBundle toMsg props.colorStyleGrayscaleMedia
     , colorStyleGrayscaleDisabled = mapStyleBundle toMsg props.colorStyleGrayscaleDisabled
     , colorStyleArticleHashtags = mapStyleBundle toMsg props.colorStyleArticleHashtags
     , colorStyleRegularButtonText = mapStyleBundle toMsg props.colorStyleRegularButtonText
@@ -174,6 +182,7 @@ type alias Styles msg =
     , effectStyleButtonHover : StyleBundle msg
     }
 
+
 referenceDesignThemeStyles : Styles msg
 referenceDesignThemeStyles =
     { textStyleReactions =
@@ -200,6 +209,7 @@ referenceDesignThemeStyles =
             , Tw.font_normal
             , Tw.leading_6
             , Tw.tracking_normal
+
             -- , Tw.leading_relaxed
             ]
         , fontFamilyInter
@@ -337,7 +347,7 @@ referenceDesignThemeStyles =
                 ]
             ]
         ]
-    , colorStyleLabel = 
+    , colorStyleLabel =
         [ css
             [ Tw.text_color Theme.slate_600 -- should be #565C70
             , darkMode
@@ -345,7 +355,7 @@ referenceDesignThemeStyles =
                 ]
             ]
         ]
-    , colorStyleLinks = 
+    , colorStyleLinks =
         [ css
             [ Tw.text_color Theme.blue_600
             , darkMode
@@ -397,8 +407,7 @@ referenceDesignThemeStyles =
         [ css
             [ Tw.text_opacity_70
             , darkMode
-                [ 
-                ]
+                []
             ]
         ]
     , colorStyleGrayscaleTitle =
@@ -697,6 +706,7 @@ paretoThemeStyles =
             , Tw.font_normal
             , Tw.leading_6
             , Tw.tracking_normal
+
             -- , Tw.leading_relaxed
             ]
         , fontFamilyInter
@@ -835,7 +845,7 @@ paretoThemeStyles =
                 ]
             ]
         ]
-    , colorStyleLabel = 
+    , colorStyleLabel =
         [ css
             [ Tw.text_color Theme.slate_600 -- should be #565C70
             , darkMode
@@ -843,7 +853,7 @@ paretoThemeStyles =
                 ]
             ]
         ]
-    , colorStyleLinks = 
+    , colorStyleLinks =
         [ css
             [ Tw.text_color Theme.blue_600
             , darkMode
@@ -895,8 +905,7 @@ paretoThemeStyles =
         [ css
             [ Tw.text_opacity_70
             , darkMode
-                [ 
-                ]
+                []
             ]
         ]
     , colorStyleGrayscaleTitle =
@@ -1066,8 +1075,7 @@ paretoThemeStyles =
         ]
     , colorStyleSitebarItemActiveBorder =
         [ css
-            [ 
-            ]
+            []
         ]
     , colorStyleSitebarItemInactiveBackground =
         [ css
@@ -1170,7 +1178,7 @@ paretoThemeStyles =
         ]
     }
 
+
 darkMode : List Css.Style -> Css.Style
 darkMode =
     Css.Media.withMediaQuery [ "(prefers-color-scheme: dark)" ]
-

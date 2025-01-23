@@ -1,15 +1,16 @@
 module Components.Dropdown exposing (..)
 
-
 import Css
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, li, main_, p, span, strong, text, ul)
 import Html.Styled.Attributes as Attr exposing (class, classList, css, disabled, type_)
 import Html.Styled.Events as Events exposing (..)
 import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
 import Ui.Styles exposing (darkMode, fontFamilyInter)
+
+
 
 -- SETTINGS
 
@@ -24,7 +25,6 @@ type Dropdown item msg
         , isDisabled : Bool
         , onChange : Maybe (item -> msg)
         }
-        
 
 
 new :
@@ -44,6 +44,7 @@ new props =
         , isDisabled = False
         , onChange = Nothing
         }
+
 
 
 --- MODIFIERS
@@ -72,6 +73,7 @@ withOnChange onChange (Settings settings) =
     Settings { settings | onChange = Just onChange }
 
 
+
 -- MODEL
 
 
@@ -92,6 +94,7 @@ init props =
         }
 
 
+
 -- UPDATE
 
 
@@ -105,17 +108,21 @@ type Msg item msg
         , onChange : Maybe msg
         }
 
-close : Model item  -> Model item
+
+close : Model item -> Model item
 close (Model model) =
     Model { model | isMenuOpen = False }
+
 
 selectItem : Model item -> Maybe item -> Model item
 selectItem (Model model) maybeitem =
     Model { model | selected = maybeitem }
 
+
 selectedItem : Model item -> Maybe item
 selectedItem (Model model) =
     model.selected
+
 
 update :
     { msg : Msg item msg
@@ -152,14 +159,13 @@ update props =
                 , Effect.none
                 )
 
-
             UpdatedSearchInput value ->
                 ( Model { model | search = value }
                 , Effect.none
                 )
 
             SelectedItem data ->
-                ( Model 
+                ( Model
                     { model
                         | search = ""
                         , isMenuOpen = False
@@ -168,10 +174,11 @@ update props =
                 , case data.onChange of
                     Just onChange ->
                         Effect.sendMsg onChange
-                    
+
                     Nothing ->
                         Effect.none
                 )
+
 
 
 -- VIEW
@@ -190,14 +197,16 @@ view (Settings settings) =
         dropdownClickMsg =
             if model.isMenuOpen then
                 CloseDropdown
+
             else
                 FocusedDropdown
 
-        -- View the input of the dropdown, that opens the 
+        -- View the input of the dropdown, that opens the
         -- menu when focused, and displays the search query
         viewDropdownInput : Html msg
         viewDropdownInput =
-            div [ class "dropdown__toggle"
+            div
+                [ class "dropdown__toggle"
                 , css
                     [ Tw.w_full
                     , Tw.text_left
@@ -225,21 +234,23 @@ view (Settings settings) =
                 , onClick (settings.toMsg dropdownClickMsg)
                 ]
                 [ {- input
-                    [ class "dropdown__input"
-                    , type_ "search"
-                    , disabled settings.isDisabled
-                    , onInput onSearchInput
-                    , onFocus (settings.toMsg FocusedDropdown)
-                    , onBlur (settings.toMsg BlurredDropdown)
-                    ]
-                    []
-                , -} viewSelectedValueOverlay
+                         [ class "dropdown__input"
+                         , type_ "search"
+                         , disabled settings.isDisabled
+                         , onInput onSearchInput
+                         , onFocus (settings.toMsg FocusedDropdown)
+                         , onBlur (settings.toMsg BlurredDropdown)
+                         ]
+                         []
+                     ,
+                  -}
+                  viewSelectedValueOverlay
                 ]
 
         -- If a value is selected, this overlay should
         -- appear over our input field when the menu is closed
         viewSelectedValueOverlay : Html msg
-        viewSelectedValueOverlay = 
+        viewSelectedValueOverlay =
             case model.selected of
                 Nothing ->
                     text ""
@@ -249,7 +260,6 @@ view (Settings settings) =
                         [ class "dropdown__selected"
                         ]
                         [ text (settings.toLabel item) ]
-
 
         viewDropdownMenu : Html msg
         viewDropdownMenu =
@@ -286,44 +296,44 @@ view (Settings settings) =
 
             else
                 text ""
-    
 
         viewDropdownMenuItem : item -> Html msg
         viewDropdownMenuItem item =
-                        li [ onClick (onMenuItemClick item)
-                            , css
-                                [ Tw.block
-                                , Tw.px_4
-                                , Tw.py_2
-                                , Css.hover
-                                    [ Tw.bg_color Theme.blue_100
-                                    , darkMode
-                                        [ Tw.bg_color Theme.blue_900
-                                        ]
-                                    ]
-                                ]
+            li
+                [ onClick (onMenuItemClick item)
+                , css
+                    [ Tw.block
+                    , Tw.px_4
+                    , Tw.py_2
+                    , Css.hover
+                        [ Tw.bg_color Theme.blue_100
+                        , darkMode
+                            [ Tw.bg_color Theme.blue_900
                             ]
-                            [ text (settings.toLabel item)
-                            ]
+                        ]
+                    ]
+                ]
+                [ text (settings.toLabel item)
+                ]
 
         onMenuItemClick : item -> msg
         onMenuItemClick item =
-            settings.toMsg  <|
+            settings.toMsg <|
                 case settings.onChange of
                     Just onChange ->
                         SelectedItem
                             { item = item
                             , onChange = Just (onChange item)
                             }
-                    
+
                     Nothing ->
                         SelectedItem
                             { item = item
                             , onChange = Nothing
                             }
-
     in
-    div [ class "dropdown"
+    div
+        [ class "dropdown"
         , fontFamilyInter
         , classList
             [ ( "dropdown--small", settings.size == Small )

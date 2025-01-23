@@ -2,10 +2,10 @@ module Nostr.Nip94 exposing (..)
 
 import Dict exposing (Dict)
 import Http
-import Json.Decode exposing (Decoder, andThen, bool, dict, fail, field, float, int, list, maybe, string, succeed)
-import Json.Decode.Pipeline exposing (required, optional)
-import Json.Decode as Decode
+import Json.Decode as Decode exposing (Decoder, andThen, bool, dict, fail, field, float, int, list, maybe, string, succeed)
+import Json.Decode.Pipeline exposing (optional, required)
 import Url
+
 
 
 -- Type Definitions
@@ -36,24 +36,32 @@ type alias Media =
     , hash : Maybe String
     }
 
+
 type alias Nip94Event =
     { tags : List (List String)
     , content : String
     }
 
+
 isImage : FileMetadata -> Bool
 isImage metaData =
     case metaData.mimeType of
         Just mimeType ->
-            String.startsWith "image/" mimeType ||
-            "avatar" == mimeType ||
-            "banner" == mimeType ||
-            "" == mimeType
-        
+            String.startsWith "image/" mimeType
+                || "avatar"
+                == mimeType
+                || "banner"
+                == mimeType
+                || ""
+                == mimeType
+
         _ ->
             True
 
+
+
 -- Decoders
+
 
 fileMetadataDecoder : Decoder FileMetadata
 fileMetadataDecoder =
@@ -182,6 +190,8 @@ parseDimensions dimValue file =
 
         _ ->
             file
+
+
 
 -- JSON DECODERS
 

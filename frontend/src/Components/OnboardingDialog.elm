@@ -1,4 +1,4 @@
-module Components.OnboardingDialog exposing (Model, Msg, new, init, update, view, OnboardingDialog)
+module Components.OnboardingDialog exposing (Model, Msg, OnboardingDialog, init, new, update, view)
 
 import Css
 import Effect exposing (Effect)
@@ -6,14 +6,15 @@ import Html.Styled as Html exposing (Html, a, button, div, form, h2, input, labe
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Ports
-import Svg.Styled as Svg exposing (svg, path)
+import Shared.Model exposing (Model)
+import Shared.Msg exposing (Msg)
+import Svg.Styled as Svg exposing (path, svg)
 import Svg.Styled.Attributes as SvgAttr
 import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
-import Shared.Msg exposing (Msg)
-import Shared.Model exposing (Model)
-import Ui.Styles exposing (fontFamilyUnbounded, fontFamilyInter)
+import Tailwind.Utilities as Tw
+import Ui.Styles exposing (fontFamilyInter, fontFamilyUnbounded)
+
 
 type Msg
     = CloseDialog
@@ -22,21 +23,24 @@ type Msg
     | CreateAccountClicked
 
 
-type Model msg =
-    Model
+type Model msg
+    = Model
         { state : DialogState
         , onClose : msg
         }
 
+
 type DialogState
     = LoginOrCreateAccountSelection
     | LoginSelection
+
 
 type OnboardingDialog msg
     = Settings
         { model : Model msg
         , toMsg : Msg -> msg
         }
+
 
 new :
     { model : Model msg
@@ -49,13 +53,14 @@ new props =
         , toMsg = props.toMsg
         }
 
+
 init : { onClose : msg } -> Model msg
 init props =
     Model
         { state = LoginOrCreateAccountSelection
         , onClose = props.onClose
-
         }
+
 
 update :
     { msg : Msg
@@ -64,12 +69,12 @@ update :
     , toMsg : Msg -> msg
     }
     -> ( model, Effect msg )
-update props  = 
+update props =
     let
         (Model model) =
             props.model
 
-        toParentModel : (Model msg, Effect msg) -> (model, Effect msg)
+        toParentModel : ( Model msg, Effect msg ) -> ( model, Effect msg )
         toParentModel ( innerModel, effect ) =
             ( props.toModel innerModel
             , effect
@@ -78,7 +83,7 @@ update props  =
     toParentModel <|
         case props.msg of
             CloseDialog ->
-                ( Model  model
+                ( Model model
                 , Effect.sendMsg model.onClose
                 )
 
@@ -93,9 +98,10 @@ update props  =
                 )
 
             CreateAccountClicked ->
-                ( Model  model
+                ( Model model
                 , Effect.none
                 )
+
 
 view : OnboardingDialog msg -> Html msg
 view dialog =
@@ -114,7 +120,7 @@ view dialog =
                 LoginSelection ->
                     viewLoginSelection dialog
     in
-        {- Dimmed Background -}
+    {- Dimmed Background -}
     div
         [ css
             [ Tw.fixed
@@ -126,8 +132,8 @@ view dialog =
             , Tw.items_center
             ]
         ]
-        [         {- Modal Container -}
-        div
+        [ {- Modal Container -}
+          div
             [ css
                 [ Tw.bg_color Theme.white
                 , Tw.rounded_lg
@@ -138,469 +144,468 @@ view dialog =
             ]
             [ content ]
         ]
-    
+
+
 viewLoginOrCreateAccountSelection : OnboardingDialog msg -> Html msg
 viewLoginOrCreateAccountSelection (Settings settings) =
-        div []
-            [
-            {- Modal Header -}
-            div
-                [ css
-                    [ Tw.flex
-                    , Tw.justify_between
-                    , Tw.items_center
-                    , Tw.mb_6
-                    ]
+    div []
+        [ {- Modal Header -}
+          div
+            [ css
+                [ Tw.flex
+                , Tw.justify_between
+                , Tw.items_center
+                , Tw.mb_6
                 ]
-                [ h2
-                    [ css
-                        [ Tw.text_xl
-                        , Tw.text_color Theme.gray_600
-                        , Tw.font_semibold
-                        ]
-                    , fontFamilyInter
-                    ]
-                    [ text "Get Started" ]
-                , button
-                    [ css
-                        [ Tw.text_color Theme.gray_800
-                        , Tw.w_8
-                        , Tw.h_8
-                        , Tw.grid
-                        , Tw.place_content_center
-                        , Css.hover
-                            [ Tw.bg_color Theme.gray_100
-                            , Tw.rounded_lg
-                            ]
-                        ]
-                    , Events.onClick (CloseDialog |> settings.toMsg)
-                    ]
-                    [ div
-                        [
-                        css
-                            [ Tw.w_3
-                            , Tw.text_color Theme.gray_800
-                            ]
-                        ]
-                        [ closeButtonSvg ]
-                    ]
-                ]
-            , div
-                [ css
-                    [ Tw.flex
-                    , Tw.justify_between
-                    , Tw.items_center
-                    , Tw.mb_2
-                    ]
-                ]
-                [ h2
-                    [ css
-                        [ Tw.text_lg
-                        , Tw.text_color Theme.gray_800
-                        , Tw.font_bold
-                        ]
-                    , fontFamilyUnbounded
-                    ]
-                    [ text "I already have an account" ]
-                ]
-            , div
-                [ css
-                    [ Tw.flex
-                    , Tw.justify_between
-                    , Tw.items_center
-                    , Tw.mb_6
-                    ]
-                ]
-                [ h2
-                    [ css
-                        [ Tw.text_base
-                        , Tw.text_color Theme.gray_800
-                        ]
-                    , fontFamilyInter
-                    ]
-                    [ text "If you already have a nostr account you can log in with your preferred method." ]
-                ]
-            , fullWidthButton settings "Log In" LoginClicked
-            , div
-                [ css
-                    [ Tw.flex
-                    , Tw.justify_between
-                    , Tw.items_center
-                    , Tw.mt_8
-                    , Tw.mb_2
-                    ]
-                ]
-                [ h2
-                    [ css
-                        [ Tw.text_lg
-                        , Tw.text_color Theme.gray_800
-                        , Tw.font_bold
-                        ]
-                    , fontFamilyUnbounded
-                    ]
-                    [ text "Create account" ]
-                ]
-            , div
-                [ css
-                    [ Tw.flex
-                    , Tw.justify_between
-                    , Tw.items_center
-                    , Tw.mb_6
-                    ]
-                ]
-                [ h2
-                    [ css
-                        [ Tw.text_base
-                        , Tw.text_color Theme.gray_800
-                        ]
-                    , fontFamilyInter
-                    ]
-                    [ text "You don't have a nostr account? No problem! We can create one in a minute." ]
-                ]
-            , fullWidthButton settings "Create account" CreateAccountClicked
             ]
+            [ h2
+                [ css
+                    [ Tw.text_xl
+                    , Tw.text_color Theme.gray_600
+                    , Tw.font_semibold
+                    ]
+                , fontFamilyInter
+                ]
+                [ text "Get Started" ]
+            , button
+                [ css
+                    [ Tw.text_color Theme.gray_800
+                    , Tw.w_8
+                    , Tw.h_8
+                    , Tw.grid
+                    , Tw.place_content_center
+                    , Css.hover
+                        [ Tw.bg_color Theme.gray_100
+                        , Tw.rounded_lg
+                        ]
+                    ]
+                , Events.onClick (CloseDialog |> settings.toMsg)
+                ]
+                [ div
+                    [ css
+                        [ Tw.w_3
+                        , Tw.text_color Theme.gray_800
+                        ]
+                    ]
+                    [ closeButtonSvg ]
+                ]
+            ]
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.justify_between
+                , Tw.items_center
+                , Tw.mb_2
+                ]
+            ]
+            [ h2
+                [ css
+                    [ Tw.text_lg
+                    , Tw.text_color Theme.gray_800
+                    , Tw.font_bold
+                    ]
+                , fontFamilyUnbounded
+                ]
+                [ text "I already have an account" ]
+            ]
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.justify_between
+                , Tw.items_center
+                , Tw.mb_6
+                ]
+            ]
+            [ h2
+                [ css
+                    [ Tw.text_base
+                    , Tw.text_color Theme.gray_800
+                    ]
+                , fontFamilyInter
+                ]
+                [ text "If you already have a nostr account you can log in with your preferred method." ]
+            ]
+        , fullWidthButton settings "Log In" LoginClicked
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.justify_between
+                , Tw.items_center
+                , Tw.mt_8
+                , Tw.mb_2
+                ]
+            ]
+            [ h2
+                [ css
+                    [ Tw.text_lg
+                    , Tw.text_color Theme.gray_800
+                    , Tw.font_bold
+                    ]
+                , fontFamilyUnbounded
+                ]
+                [ text "Create account" ]
+            ]
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.justify_between
+                , Tw.items_center
+                , Tw.mb_6
+                ]
+            ]
+            [ h2
+                [ css
+                    [ Tw.text_base
+                    , Tw.text_color Theme.gray_800
+                    ]
+                , fontFamilyInter
+                ]
+                [ text "You don't have a nostr account? No problem! We can create one in a minute." ]
+            ]
+        , fullWidthButton settings "Create account" CreateAccountClicked
+        ]
+
 
 viewLoginSelection : OnboardingDialog msg -> Html msg
 viewLoginSelection (Settings settings) =
-        div []
-            [
-            {- Modal Header -}
-            div
-                [ css
-                    [ Tw.flex
-                    , Tw.justify_between
-                    , Tw.items_center
-                    , Tw.mb_6
-                    ]
+    div []
+        [ {- Modal Header -}
+          div
+            [ css
+                [ Tw.flex
+                , Tw.justify_between
+                , Tw.items_center
+                , Tw.mb_6
                 ]
-                [ h2
-                    [ css
-                        [ Tw.text_xl
-                        , Tw.text_color Theme.gray_600
-                        , Tw.font_semibold
-                        ]
-                    , fontFamilyInter
-                    ]
-                    [ text "Log In" ]
-                , button
-                    [ css
-                        [ Tw.text_color Theme.gray_800
-                        , Tw.w_8
-                        , Tw.h_8
-                        , Tw.grid
-                        , Tw.place_content_center
-                        , Css.hover
-                            [ Tw.bg_color Theme.gray_100
-                            , Tw.rounded_lg
-                            ]
-                        ]
-                    , Events.onClick (CloseDialog |> settings.toMsg)
-                    ]
-                    [ div
-                        [
-                        css
-                            [ Tw.w_3
-                            , Tw.text_color Theme.gray_800
-                            ]
-                        ]
-                        [ closeButtonSvg ]
-                    ]
-                ]
-            , div
-                [ css
-                    [ Tw.flex
-                    , Tw.justify_between
-                    , Tw.items_center
-                    , Tw.mb_2
-                    ]
-                ]
-                [ h2
-                    [ css
-                        [ Tw.text_lg
-                        , Tw.text_color Theme.gray_800
-                        , Tw.font_bold
-                        ]
-                    , fontFamilyUnbounded
-                    ]
-                    [ text "Extension" ]
-                ]
-            , div
-                [ css
-                    [ Tw.flex
-                    , Tw.justify_between
-                    , Tw.items_center
-                    , Tw.mb_2
-                    ]
-                ]
-                [ h2
-                    [ css
-                        [ Tw.text_base
-                        , Tw.text_color Theme.gray_800
-                        ]
-                    , fontFamilyInter
-                    ]
-                    [ text "Use a nostr extension for logging in." ]
-                ]
-            , ul
-                [ Attr.style "list-style-type" "disc"
-                , css
-                    [ Tw.text_base
-                    , Tw.text_color Theme.purple_900
-                    , Tw.mb_2
-                    ]
-                ]
-                [ li
-                    [ css
-                        [ Tw.items_center
-                        , Tw.mb_2
-                        ]
-                    ]
-                    [ a
-                        [ css
-                            [
-                            ]
-                        , fontFamilyInter
-                        , Attr.href "https://getalby.com/"
-                        ]
-                        [ text "Alby" ]
-                    ]
-                ,  li
-                    [ css
-                        [ Tw.items_center
-                        , Tw.mb_3
-                        ]
-                    ]
-                    [ a
-                        [ css
-                            [ 
-                            ]
-                        , fontFamilyInter
-                        , Attr.href "https://chrome.google.com/webstore/detail/nos2x/kpgefcfmnafjgpblomihpgmejjdanjjp"
-                        ]
-                        [ text "nos2x" ]
-                    ]
-                ]
-            , halfWidthButton settings "Log In" ExtensionLoginClicked
-            , div
-                [ css
-                    [ Tw.flex
-                    , Tw.justify_between
-                    , Tw.items_center
-                    , Tw.mt_8
-                    , Tw.mb_2
-                    ]
-                ]
-                [ h2
-                    [ css
-                        [ Tw.text_lg
-                        , Tw.text_color Theme.gray_800
-                        , Tw.font_bold
-                        ]
-                    , fontFamilyUnbounded
-                    ]
-                    [ text "Create account" ]
-                ]
-            , div
-                [ css
-                    [ Tw.flex
-                    , Tw.justify_between
-                    , Tw.items_center
-                    , Tw.mb_6
-                    ]
-                ]
-                [ h2
-                    [ css
-                        [ Tw.text_base
-                        , Tw.text_color Theme.gray_800
-                        ]
-                    , fontFamilyInter
-                    ]
-                    [ text "You don't have a nostr account? No problem! We can create one in a minute." ]
-                ]
-            , fullWidthButton settings "Create account" CreateAccountClicked
             ]
-
-loginForm =
-    [
-                         {- Login Form -}
-            form
-                [ Attr.action "#"
-                , Attr.method "POST"
-                ]
-                [                 {- Email Input -}
-                div
-                    [ css
-                        [ Tw.mb_4
-                        ]
-                    ]
-                    [ label
-                        [ Attr.for "email"
-                        , css
-                            [ Tw.block
-                            , Tw.text_sm
-                            , Tw.font_medium
-                            , Tw.text_color Theme.gray_700
-                            , Tw.mb_1
-                            ]
-                        ]
-                        [ text "Email" ]
-                    , input
-                        [ Attr.type_ "email"
-                        , Attr.id "email"
-                        , Attr.name "email"
-                        , css
-                            [ Tw.w_full
-                            , Tw.px_4
-                            , Tw.py_2
-                            , Tw.border
-                            , Tw.rounded_lg
-                            , Css.focus
-                                [ Tw.outline_none
-                                , Tw.ring_2
-                                , Tw.ring_color Theme.indigo_500
-                                , Tw.border_color Theme.indigo_500
-                                ]
-                            ]
-                        , Attr.placeholder "Enter your email"
-                        ]
-                        []
-                    ]
-                ,                 {- Password Input -}
-                div
-                    [ css
-                        [ Tw.mb_6
-                        ]
-                    ]
-                    [ label
-                        [ Attr.for "password"
-                        , css
-                            [ Tw.block
-                            , Tw.text_sm
-                            , Tw.font_medium
-                            , Tw.text_color Theme.gray_700
-                            , Tw.mb_1
-                            ]
-                        ]
-                        [ text "Password" ]
-                    , input
-                        [ Attr.type_ "password"
-                        , Attr.id "password"
-                        , Attr.name "password"
-                        , css
-                            [ Tw.w_full
-                            , Tw.px_4
-                            , Tw.py_2
-                            , Tw.border
-                            , Tw.rounded_lg
-                            , Css.focus
-                                [ Tw.outline_none
-                                , Tw.ring_2
-                                , Tw.ring_color Theme.indigo_500
-                                , Tw.border_color Theme.indigo_500
-                                ]
-                            ]
-                        , Attr.placeholder "Enter your password"
-                        ]
-                        []
-                    ]
-                ,                 {- Submit Button -}
-                div
-                    [ css
-                        [ Tw.mb_4
-                        ]
-                    ]
-                    [ button
-                        [ Attr.type_ "submit"
-                        , css
-                            [ Tw.w_full
-                            , Tw.bg_color Theme.indigo_600
-                            , Tw.text_color Theme.white
-                            , Tw.font_bold
-                            , Tw.py_2
-                            , Tw.px_4
-                            , Tw.rounded_lg
-                            , Css.focus
-                                [ Tw.outline_none
-                                , Tw.ring_2
-                                , Tw.ring_color Theme.indigo_500
-                                ]
-                            , Css.hover
-                                [ Tw.bg_color Theme.indigo_700
-                                ]
-                            ]
-                        ]
-                        [ text " Login " ]
-                    ]
-                ]
-            ,             {- Additional Options -}
-            div
+            [ h2
                 [ css
-                    [ Tw.flex
-                    , Tw.justify_between
-                    , Tw.items_center
+                    [ Tw.text_xl
+                    , Tw.text_color Theme.gray_600
+                    , Tw.font_semibold
+                    ]
+                , fontFamilyInter
+                ]
+                [ text "Log In" ]
+            , button
+                [ css
+                    [ Tw.text_color Theme.gray_800
+                    , Tw.w_8
+                    , Tw.h_8
+                    , Tw.grid
+                    , Tw.place_content_center
+                    , Css.hover
+                        [ Tw.bg_color Theme.gray_100
+                        , Tw.rounded_lg
+                        ]
+                    ]
+                , Events.onClick (CloseDialog |> settings.toMsg)
+                ]
+                [ div
+                    [ css
+                        [ Tw.w_3
+                        , Tw.text_color Theme.gray_800
+                        ]
+                    ]
+                    [ closeButtonSvg ]
+                ]
+            ]
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.justify_between
+                , Tw.items_center
+                , Tw.mb_2
+                ]
+            ]
+            [ h2
+                [ css
+                    [ Tw.text_lg
+                    , Tw.text_color Theme.gray_800
+                    , Tw.font_bold
+                    ]
+                , fontFamilyUnbounded
+                ]
+                [ text "Extension" ]
+            ]
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.justify_between
+                , Tw.items_center
+                , Tw.mb_2
+                ]
+            ]
+            [ h2
+                [ css
+                    [ Tw.text_base
+                    , Tw.text_color Theme.gray_800
+                    ]
+                , fontFamilyInter
+                ]
+                [ text "Use a nostr extension for logging in." ]
+            ]
+        , ul
+            [ Attr.style "list-style-type" "disc"
+            , css
+                [ Tw.text_base
+                , Tw.text_color Theme.purple_900
+                , Tw.mb_2
+                ]
+            ]
+            [ li
+                [ css
+                    [ Tw.items_center
+                    , Tw.mb_2
                     ]
                 ]
                 [ a
-                    [ Attr.href "#"
-                    , css
-                        [ Tw.text_sm
-                        , Tw.text_color Theme.indigo_600
-                        , Css.hover
-                            [ Tw.text_color Theme.indigo_800
-                            ]
-                        ]
+                    [ css
+                        []
+                    , fontFamilyInter
+                    , Attr.href "https://getalby.com/"
                     ]
-                    [ text "Forgot Password?" ]
-                , a
-                    [ Attr.href "#"
-                    , css
-                        [ Tw.text_sm
-                        , Tw.text_color Theme.gray_600
-                        , Css.hover
-                            [ Tw.text_color Theme.gray_800
-                            ]
-                        ]
+                    [ text "Alby" ]
+                ]
+            , li
+                [ css
+                    [ Tw.items_center
+                    , Tw.mb_3
                     ]
-                    [ text "Sign Up" ]
+                ]
+                [ a
+                    [ css
+                        []
+                    , fontFamilyInter
+                    , Attr.href "https://chrome.google.com/webstore/detail/nos2x/kpgefcfmnafjgpblomihpgmejjdanjjp"
+                    ]
+                    [ text "nos2x" ]
                 ]
             ]
-
-fullWidthButton settings title event =
-             button
+        , halfWidthButton settings "Log In" ExtensionLoginClicked
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.justify_between
+                , Tw.items_center
+                , Tw.mt_8
+                , Tw.mb_2
+                ]
+            ]
+            [ h2
                 [ css
-                    [ Css.hover
-                        [ Tw.bg_color Theme.gray_300
-                        ]
-                    , Tw.bg_color Theme.gray_200
+                    [ Tw.text_lg
                     , Tw.text_color Theme.gray_800
+                    , Tw.font_bold
+                    ]
+                , fontFamilyUnbounded
+                ]
+                [ text "Create account" ]
+            ]
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.justify_between
+                , Tw.items_center
+                , Tw.mb_6
+                ]
+            ]
+            [ h2
+                [ css
+                    [ Tw.text_base
+                    , Tw.text_color Theme.gray_800
+                    ]
+                , fontFamilyInter
+                ]
+                [ text "You don't have a nostr account? No problem! We can create one in a minute." ]
+            ]
+        , fullWidthButton settings "Create account" CreateAccountClicked
+        ]
+
+
+loginForm =
+    [ {- Login Form -}
+      form
+        [ Attr.action "#"
+        , Attr.method "POST"
+        ]
+        [ {- Email Input -}
+          div
+            [ css
+                [ Tw.mb_4
+                ]
+            ]
+            [ label
+                [ Attr.for "email"
+                , css
+                    [ Tw.block
+                    , Tw.text_sm
+                    , Tw.font_medium
+                    , Tw.text_color Theme.gray_700
+                    , Tw.mb_1
+                    ]
+                ]
+                [ text "Email" ]
+            , input
+                [ Attr.type_ "email"
+                , Attr.id "email"
+                , Attr.name "email"
+                , css
+                    [ Tw.w_full
+                    , Tw.px_4
+                    , Tw.py_2
+                    , Tw.border
+                    , Tw.rounded_lg
+                    , Css.focus
+                        [ Tw.outline_none
+                        , Tw.ring_2
+                        , Tw.ring_color Theme.indigo_500
+                        , Tw.border_color Theme.indigo_500
+                        ]
+                    ]
+                , Attr.placeholder "Enter your email"
+                ]
+                []
+            ]
+        , {- Password Input -}
+          div
+            [ css
+                [ Tw.mb_6
+                ]
+            ]
+            [ label
+                [ Attr.for "password"
+                , css
+                    [ Tw.block
+                    , Tw.text_sm
+                    , Tw.font_medium
+                    , Tw.text_color Theme.gray_700
+                    , Tw.mb_1
+                    ]
+                ]
+                [ text "Password" ]
+            , input
+                [ Attr.type_ "password"
+                , Attr.id "password"
+                , Attr.name "password"
+                , css
+                    [ Tw.w_full
+                    , Tw.px_4
+                    , Tw.py_2
+                    , Tw.border
+                    , Tw.rounded_lg
+                    , Css.focus
+                        [ Tw.outline_none
+                        , Tw.ring_2
+                        , Tw.ring_color Theme.indigo_500
+                        , Tw.border_color Theme.indigo_500
+                        ]
+                    ]
+                , Attr.placeholder "Enter your password"
+                ]
+                []
+            ]
+        , {- Submit Button -}
+          div
+            [ css
+                [ Tw.mb_4
+                ]
+            ]
+            [ button
+                [ Attr.type_ "submit"
+                , css
+                    [ Tw.w_full
+                    , Tw.bg_color Theme.indigo_600
+                    , Tw.text_color Theme.white
+                    , Tw.font_bold
                     , Tw.py_2
                     , Tw.px_4
-                    , Tw.w_full
-                    , Tw.rounded_full
-                    , Tw.font_semibold
+                    , Tw.rounded_lg
+                    , Css.focus
+                        [ Tw.outline_none
+                        , Tw.ring_2
+                        , Tw.ring_color Theme.indigo_500
+                        ]
+                    , Css.hover
+                        [ Tw.bg_color Theme.indigo_700
+                        ]
                     ]
-                , fontFamilyInter
-                , Events.onClick (event |> settings.toMsg)
                 ]
-                [ text title ]
+                [ text " Login " ]
+            ]
+        ]
+    , {- Additional Options -}
+      div
+        [ css
+            [ Tw.flex
+            , Tw.justify_between
+            , Tw.items_center
+            ]
+        ]
+        [ a
+            [ Attr.href "#"
+            , css
+                [ Tw.text_sm
+                , Tw.text_color Theme.indigo_600
+                , Css.hover
+                    [ Tw.text_color Theme.indigo_800
+                    ]
+                ]
+            ]
+            [ text "Forgot Password?" ]
+        , a
+            [ Attr.href "#"
+            , css
+                [ Tw.text_sm
+                , Tw.text_color Theme.gray_600
+                , Css.hover
+                    [ Tw.text_color Theme.gray_800
+                    ]
+                ]
+            ]
+            [ text "Sign Up" ]
+        ]
+    ]
+
+
+fullWidthButton settings title event =
+    button
+        [ css
+            [ Css.hover
+                [ Tw.bg_color Theme.gray_300
+                ]
+            , Tw.bg_color Theme.gray_200
+            , Tw.text_color Theme.gray_800
+            , Tw.py_2
+            , Tw.px_4
+            , Tw.w_full
+            , Tw.rounded_full
+            , Tw.font_semibold
+            ]
+        , fontFamilyInter
+        , Events.onClick (event |> settings.toMsg)
+        ]
+        [ text title ]
+
 
 halfWidthButton settings title event =
-             button
-                [ css
-                    [ Css.hover
-                        [ Tw.bg_color Theme.orange_700
-                        ]
-                    , Tw.bg_color Theme.orange_500
-                    , Tw.text_color Theme.white
-                    , Tw.py_2
-                    , Tw.px_20
-                    , Tw.rounded_full
-                    , Tw.font_semibold
-                    ]
-                , fontFamilyInter
-                , Events.onClick (event |> settings.toMsg)
+    button
+        [ css
+            [ Css.hover
+                [ Tw.bg_color Theme.orange_700
                 ]
-                [ text title ]
+            , Tw.bg_color Theme.orange_500
+            , Tw.text_color Theme.white
+            , Tw.py_2
+            , Tw.px_20
+            , Tw.rounded_full
+            , Tw.font_semibold
+            ]
+        , fontFamilyInter
+        , Events.onClick (event |> settings.toMsg)
+        ]
+        [ text title ]
+
 
 closeButtonSvg =
     svg
@@ -614,4 +619,3 @@ closeButtonSvg =
             ]
             []
         ]
-    

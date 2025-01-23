@@ -2,12 +2,12 @@ module Pages.T.Tag_ exposing (Model, Msg, page)
 
 import BrowserEnv exposing (BrowserEnv)
 import Css
-import Json.Decode as Decode
 import Effect exposing (Effect)
 import Graphics
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
+import Json.Decode as Decode
 import Layouts
 import Layouts.Sidebar
 import Nostr
@@ -21,13 +21,13 @@ import Shared
 import Shared.Model
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
+import Time exposing (Month(..))
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import Url
 import View exposing (View)
-import Time exposing (Month(..))
 
 
 page : Shared.Model -> Route { tag : String } -> Page Model Msg
@@ -40,10 +40,12 @@ page shared route =
         }
         |> Page.withLayout (toLayout shared.theme)
 
+
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme model =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
+
 
 
 -- INIT
@@ -61,31 +63,34 @@ init shared route () =
     let
         decodedParam =
             Url.percentDecode route.params.tag
-            |> Maybe.withDefault route.params.tag
+                |> Maybe.withDefault route.params.tag
 
         filter =
-            { emptyEventFilter | kinds = Just [KindLongFormContent], tagReferences = tagReferencesForParam decodedParam, limit = Just 20 }
+            { emptyEventFilter | kinds = Just [ KindLongFormContent ], tagReferences = tagReferencesForParam decodedParam, limit = Just 20 }
     in
     ( { tag = decodedParam
       , articles = []
       , filter = filter
       }
     , RequestArticlesFeed filter
-      |> Nostr.createRequest shared.nostr ("Articles for hashtag " ++ route.params.tag) [KindUserMetadata] 
-      |> Shared.Msg.RequestNostrEvents
-      |> Effect.sendSharedMsg
+        |> Nostr.createRequest shared.nostr ("Articles for hashtag " ++ route.params.tag) [ KindUserMetadata ]
+        |> Shared.Msg.RequestNostrEvents
+        |> Effect.sendSharedMsg
     )
 
 
 tagReferencesForParam : String -> Maybe (List TagReference)
 tagReferencesForParam tag =
     decodedTagParam tag
-    |> Maybe.map TagReferenceTag
-    |> Maybe.map (List.singleton)
+        |> Maybe.map TagReferenceTag
+        |> Maybe.map List.singleton
+
 
 decodedTagParam : String -> Maybe String
 decodedTagParam tag =
     Url.percentDecode tag
+
+
 
 -- UPDATE
 
@@ -101,6 +106,7 @@ update shared msg model =
             ( model
             , Effect.sendCmd <| Ports.requestUser
             )
+
 
 
 -- SUBSCRIPTIONS
@@ -140,16 +146,18 @@ view shared model =
                     ]
                 ]
                 [ h3
-                    (styles.textStyleHashtagLarge ++ styles.colorStyleGrayscaleTitle ++
-                    [ css
-                        [ Tw.mb_4
-                        ]
-                    ])
+                    (styles.textStyleHashtagLarge
+                        ++ styles.colorStyleGrayscaleTitle
+                        ++ [ css
+                                [ Tw.mb_4
+                                ]
+                           ]
+                    )
                     [ text <| "#" ++ model.tag
                     ]
                 , Nostr.getArticlesByDate shared.nostr
-                |> Ui.View.viewArticlePreviews
-                        ArticlePreviewList 
+                    |> Ui.View.viewArticlePreviews
+                        ArticlePreviewList
                         { theme = shared.theme
                         , browserEnv = shared.browserEnv
                         , nostr = shared.nostr

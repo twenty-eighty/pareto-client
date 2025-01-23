@@ -13,35 +13,38 @@ type alias BookmarkSet =
     , urls : List String
     }
 
-{-
--}
 
-bookmarkSetFromEvent : Event -> (PubKey, BookmarkSet)
+
+{- -}
+
+
+bookmarkSetFromEvent : Event -> ( PubKey, BookmarkSet )
 bookmarkSetFromEvent event =
     let
         bookmarkSet =
             event.tags
-            |> List.foldl (\tag bml ->
-                case tag of 
-                    AddressTag addressComponents ->
-                        { bml | articles = bml.articles ++ [ addressComponents ] }
+                |> List.foldl
+                    (\tag bml ->
+                        case tag of
+                            AddressTag addressComponents ->
+                                { bml | articles = bml.articles ++ [ addressComponents ] }
 
-                    HashTag hashtag ->
-                        { bml | hashtags = hashtag :: bml.hashtags }
+                            HashTag hashtag ->
+                                { bml | hashtags = hashtag :: bml.hashtags }
 
-                    EventDelegationTag identifier ->
-                        { bml | notes = identifier :: bml.notes }
+                            EventDelegationTag identifier ->
+                                { bml | notes = identifier :: bml.notes }
 
-                    UrlTag urls _ ->
-                        { bml | urls = urls :: bml.urls }
+                            UrlTag urls _ ->
+                                { bml | urls = urls :: bml.urls }
 
-                    _ ->
-                        bml
+                            _ ->
+                                bml
                     )
-                { notes = []
-                , articles = []
-                , hashtags = []
-                , urls = []
-                }
+                    { notes = []
+                    , articles = []
+                    , hashtags = []
+                    , urls = []
+                    }
     in
-    (event.pubKey, bookmarkSet )
+    ( event.pubKey, bookmarkSet )

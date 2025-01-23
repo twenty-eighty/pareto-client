@@ -2,8 +2,9 @@ module Graphics exposing (..)
 
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css)
-import Svg.Styled as Svg exposing (svg, path)
+import Svg.Styled as Svg exposing (path, svg)
 import Svg.Styled.Attributes as SvgAttr
+
 
 readIcon : Html msg
 readIcon =
@@ -24,7 +25,8 @@ readIcon =
             ]
             []
         ]
-    
+
+
 searchIcon : Html msg
 searchIcon =
     svg
@@ -44,7 +46,8 @@ searchIcon =
             ]
             []
         ]
-    
+
+
 worldIcon : Html msg
 worldIcon =
     svg
@@ -64,7 +67,8 @@ worldIcon =
             ]
             []
         ]
-    
+
+
 bookmarkIcon : Html msg
 bookmarkIcon =
     svg
@@ -84,7 +88,8 @@ bookmarkIcon =
             ]
             []
         ]
- 
+
+
 writeIcon : Html msg
 writeIcon =
     svg
@@ -105,6 +110,7 @@ writeIcon =
             []
         ]
 
+
 chakraIcon : Html msg
 chakraIcon =
     svg
@@ -119,6 +125,7 @@ chakraIcon =
             []
         ]
 
+
 atIcon =
     svg
         [ SvgAttr.viewBox "0 0 24 24"
@@ -131,9 +138,10 @@ atIcon =
             ]
             []
         ]
- 
+
+
 aboutIcon =
-     svg
+    svg
         [ SvgAttr.width "24"
         , SvgAttr.height "24"
         , SvgAttr.viewBox "0 0 24 24"
@@ -164,6 +172,7 @@ aboutIcon =
             []
         ]
 
+
 smallBookmarkIcon =
     svg
         [ SvgAttr.width "16"
@@ -182,7 +191,7 @@ smallBookmarkIcon =
             ]
             []
         ]
-    
+
 
 commentsIcon =
     svg
@@ -202,7 +211,7 @@ commentsIcon =
             ]
             []
         ]
-    
+
 
 likeIcon =
     svg
@@ -228,8 +237,7 @@ likeIcon =
                 []
             ]
         ]
-    
-    
+
 
 repostIcon =
     svg
@@ -249,7 +257,7 @@ repostIcon =
             ]
             []
         ]
-    
+
 
 zapIcon =
     svg
@@ -269,7 +277,7 @@ zapIcon =
             ]
             []
         ]
-    
+
 
 settingsIcon =
     svg
@@ -297,7 +305,8 @@ settingsIcon =
             ]
             []
         ]
-    
+
+
 relaysIcon =
     svg
         [ SvgAttr.width "24"
@@ -316,7 +325,8 @@ relaysIcon =
             ]
             []
         ]
-    
+
+
 moderationIcon =
     svg
         [ SvgAttr.viewBox "0 0 24 24"
@@ -336,7 +346,8 @@ moderationIcon =
                 []
             ]
         ]
-    
+
+
 logoutIcon =
     svg
         [ SvgAttr.viewBox "0 0 24 24"
@@ -349,7 +360,8 @@ logoutIcon =
             ]
             []
         ]
-    
+
+
 checkIcon =
     svg
         [ SvgAttr.viewBox "0 0 14 14"
@@ -364,6 +376,7 @@ checkIcon =
                 []
             ]
         ]
+
 
 featherSmileIcon width =
     svg
@@ -401,8 +414,8 @@ featherSmileIcon width =
             ]
             []
         ]
-    
-    
+
+
 featherFrownIcon width =
     svg
         [ SvgAttr.width <| String.fromInt width
@@ -439,12 +452,12 @@ featherFrownIcon width =
             ]
             []
         ]
-    
-    
+
+
 featherMehIcon width =
     svg
         [ SvgAttr.width <| String.fromInt width
-        , SvgAttr.height  <| String.fromInt width
+        , SvgAttr.height <| String.fromInt width
         , SvgAttr.viewBox "0 0 24 24"
         , SvgAttr.fill "none"
         , SvgAttr.stroke "currentColor"
@@ -480,8 +493,11 @@ featherMehIcon width =
             ]
             []
         ]
-    
+
+
+
 -- landing page
+
 
 keyboardIcon =
     svg
@@ -533,7 +549,8 @@ keyboardIcon =
             ]
             []
         ]
-    
+
+
 listSearchIcon =
     svg
         [ SvgAttr.width "24"
@@ -572,7 +589,8 @@ listSearchIcon =
             ]
             []
         ]
-    
+
+
 mailIcon =
     svg
         [ SvgAttr.width "24"
@@ -599,7 +617,8 @@ mailIcon =
             ]
             []
         ]
-    
+
+
 speakerPhoneIcon =
     svg
         [ SvgAttr.width "24"
@@ -630,7 +649,8 @@ speakerPhoneIcon =
             ]
             []
         ]
-    
+
+
 sunIcon =
     svg
         [ SvgAttr.width "24"
@@ -657,7 +677,8 @@ sunIcon =
             ]
             []
         ]
-    
+
+
 topologyStar3Icon =
     svg
         [ SvgAttr.width "24"
@@ -728,7 +749,8 @@ topologyStar3Icon =
             ]
             []
         ]
-    
+
+
 plant2Icon =
     svg
         [ SvgAttr.width "24"
@@ -767,7 +789,8 @@ plant2Icon =
             ]
             []
         ]
-    
+
+
 infinityIcon =
     svg
         [ SvgAttr.width "24"
@@ -790,7 +813,8 @@ infinityIcon =
             ]
             []
         ]
-    
+
+
 roadmapCheckIcon =
     svg
         [ SvgAttr.viewBox "0 0 24 24"
@@ -814,7 +838,8 @@ roadmapCheckIcon =
                 []
             ]
         ]
-    
+
+
 plusIcon =
     svg
         [ SvgAttr.viewBox "0 0 24 24"
@@ -831,7 +856,8 @@ plusIcon =
             ]
             []
         ]
-    
+
+
 minusIcon =
     svg
         [ SvgAttr.viewBox "0 0 24 24"
@@ -848,7 +874,8 @@ minusIcon =
             ]
             []
         ]
-    
+
+
 videoPlayIcon width =
     svg
         [ SvgAttr.fill "none"
@@ -865,7 +892,8 @@ videoPlayIcon width =
             ]
             []
         ]
-    
+
+
 checkboxCheckMark : Int -> Html msg
 checkboxCheckMark width =
     svg
@@ -879,7 +907,8 @@ checkboxCheckMark width =
             ]
             []
         ]
-    
+
+
 defaultRelayImage : Int -> Html msg
 defaultRelayImage width =
     svg
@@ -896,4 +925,3 @@ defaultRelayImage width =
             ]
             []
         ]
-    
