@@ -2,14 +2,25 @@ module Nostr.Shared exposing (..)
 
 import Http
 
+
 httpErrorToString : Http.Error -> String
 httpErrorToString error =
     case error of
-        Http.BadUrl url -> "Bad URL: " ++ url
-        Http.Timeout -> "Network timeout"
-        Http.NetworkError -> "Network error"
-        Http.BadStatus status -> "Bad status: " ++ String.fromInt status ++ " (" ++ httpTextForStatus status ++ ")"
-        Http.BadBody errString -> "Bad body: " ++ errString
+        Http.BadUrl url ->
+            "Bad URL: " ++ url
+
+        Http.Timeout ->
+            "Network timeout"
+
+        Http.NetworkError ->
+            "Network error"
+
+        Http.BadStatus status ->
+            "Bad status: " ++ String.fromInt status ++ " (" ++ httpTextForStatus status ++ ")"
+
+        Http.BadBody errString ->
+            "Bad body: " ++ errString
+
 
 httpTextForStatus : Int -> String
 httpTextForStatus status =
@@ -85,7 +96,7 @@ httpTextForStatus status =
 
         400 ->
             "Bad Request"
-        
+
         401 ->
             "Unauthorized"
 
@@ -112,7 +123,7 @@ httpTextForStatus status =
 
         409 ->
             "Conflict"
-        
+
         410 ->
             "Gone"
 
@@ -148,7 +159,7 @@ httpTextForStatus status =
 
         421 ->
             "Misdirected Request"
-        
+
         422 ->
             "Unprocessable Content"
 
@@ -200,37 +211,37 @@ httpTextForStatus status =
         499 ->
             "Client Closed Request"
 
-        500 -> 
+        500 ->
             "Internal Server Error"
 
-        501 -> 
+        501 ->
             "Not Implemented"
 
-        502 -> 
+        502 ->
             "Bad Gateway"
 
-        503 -> 
+        503 ->
             "Service Unavailable"
 
-        504 -> 
+        504 ->
             "Gateway Timeout"
 
-        505 -> 
+        505 ->
             "HTTP Version Not Supported"
 
-        506 -> 
+        506 ->
             "Variant Also Negotiates"
 
-        507 -> 
+        507 ->
             "Insufficient Storage"
 
-        508 -> 
+        508 ->
             "Loop Detected"
 
-        510 -> 
+        510 ->
             "Not Extended"
 
-        511 -> 
+        511 ->
             "Network Authentication Required"
 
         520 ->
@@ -272,9 +283,11 @@ httpTextForStatus status =
         _ ->
             "Unknown status code"
 
+
 ensureHttps : String -> String
 ensureHttps url =
     if String.startsWith "http://" url then
         "https://" ++ String.dropLeft 7 url
+
     else
         url

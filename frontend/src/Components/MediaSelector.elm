@@ -1,9 +1,15 @@
 module Components.MediaSelector exposing
-    ( MediaSelector, new
-    , Model, init, DisplayType(..), UploadedFile(..)
-    , Msg, update, show
-    , view
+    ( DisplayType(..)
+    , MediaSelector
+    , Model
+    , Msg
+    , UploadedFile(..)
+    , init
+    , new
+    , show
     , subscribe
+    , update
+    , view
     )
 
 import Auth
@@ -12,7 +18,7 @@ import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button as Button
 import Components.Dropdown
 import Components.Icon as Icon
-import Components.UploadDialog as UploadDialog exposing (UploadResponse(..))
+import Components.UploadDialog as UploadDialog exposing (UploadResponse(..), UploadServer)
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import FeatherIcons
@@ -21,9 +27,10 @@ import Html.Styled.Attributes as Attr exposing (class, classList, css, disabled,
 import Html.Styled.Events as Events exposing (..)
 import Html.Styled.Keyed as Keyed
 import Html.Styled.Lazy as Lazy
+import Http
+import I18Next
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Http
 import Nostr
 import Nostr.Blossom as Blossom exposing (BlobDescriptor, userServerListFromEvent)
 import Nostr.Event exposing (Event, Kind(..))
@@ -39,18 +46,16 @@ import Ports
 import Shared.Msg
 import Svg.Loaders
 import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
 import Translations.MediaSelector as Translations
-import Ui.Styles exposing (Styles, Theme)
 import Ui.Shared
+import Ui.Styles exposing (Styles, Theme)
 import Url
-import I18Next
-import Components.UploadDialog exposing (UploadServer)
 
 
 type MediaSelector msg
-     = Settings
+    = Settings
         { model : Model
         , toMsg : Msg msg -> msg
         , onSelected : Maybe (UploadedFile -> msg)
@@ -58,6 +63,7 @@ type MediaSelector msg
         , browserEnv : BrowserEnv
         , theme : Theme
         }
+
 
 new :
     { model : Model
@@ -96,18 +102,22 @@ type Model
         , alertTimerMessage : AlertTimerMessage.Model
         }
 
+
 type MediaServer
     = BlossomMediaServer ServerUrl
     | Nip96MediaServer ServerUrl
     | NoMediaServer
     | AllMediaServers
 
-type alias ServerUrl = String
+
+type alias ServerUrl =
+    String
 
 
 type DisplayType
     = DisplayModalDialog Bool
     | DisplayEmbedded
+
 
 type ServerState
     = ServerStateUnknown
@@ -117,6 +127,7 @@ type ServerState
     | ServerFileListFailed Http.Error
     | ServerDescFailed Http.Error
     | ServerHttpError Http.Error
+
 
 type UploadedFile
     = BlossomFile Blossom.BlobDescriptor
@@ -130,7 +141,7 @@ init :
     , nip96Servers : List String
     , displayType : DisplayType
     }
-     -> ( Model, Effect msg )
+    -> ( Model, Effect msg )
 init props =
     ( Model
         { selected = Just 0
@@ -143,9 +154,10 @@ init props =
         , authHeader = Nothing
         , uploadedBlossomFiles = Dict.empty
         , uploadedNip96Files = Dict.empty
-        , uploadDialog = UploadDialog.init
-            { toMsg = UploadDialogSent
-            }
+        , uploadDialog =
+            UploadDialog.init
+                { toMsg = UploadDialogSent
+                }
         , errors = []
         , alertTimerMessage = AlertTimerMessage.init {}
         }
@@ -153,40 +165,48 @@ init props =
         [ requestBlossomListAuths props.blossomServers
         , requestNip96ServerSpecs props.nip96Servers
         ]
-    |> Effect.map props.toMsg
+        |> Effect.map props.toMsg
     )
+
 
 serversWithUnknownState : Dict String ServerState -> List String -> Dict String ServerState
 serversWithUnknownState dict serverUrls =
     serverUrls
-    |> List.foldl (\serverUrl acc ->
-        if Dict.member serverUrl acc then
-            acc
-        else
-            Dict.insert serverUrl ServerStateUnknown acc
-        ) dict
+        |> List.foldl
+            (\serverUrl acc ->
+                if Dict.member serverUrl acc then
+                    acc
+
+                else
+                    Dict.insert serverUrl ServerStateUnknown acc
+            )
+            dict
 
 
 requestBlossomListAuths : List String -> Effect (Msg msg)
 requestBlossomListAuths blossomServers =
     blossomServers
-    |> List.map (\blossomServer ->
-        Effect.sendCmd <| Ports.requestBlossomAuth 1 blossomServer "List Blobs" GetRequest
-    )
-    |> Effect.batch
+        |> List.map
+            (\blossomServer ->
+                Effect.sendCmd <| Ports.requestBlossomAuth 1 blossomServer "List Blobs" GetRequest
+            )
+        |> Effect.batch
 
-requestNip96ServerSpecs :  List String -> Effect (Msg msg)
+
+requestNip96ServerSpecs : List String -> Effect (Msg msg)
 requestNip96ServerSpecs nip96Servers =
     nip96Servers
-    |> List.map (\nip96Server ->
-        Effect.sendCmd (Nip96.fetchServerSpec (ReceivedNip96ServerDesc nip96Server) nip96Server)
-    )
-    |> Effect.batch
+        |> List.map
+            (\nip96Server ->
+                Effect.sendCmd (Nip96.fetchServerSpec (ReceivedNip96ServerDesc nip96Server) nip96Server)
+            )
+        |> Effect.batch
 
 
 show : Model -> Model
 show (Model model) =
     Model { model | displayType = DisplayModalDialog True }
+
 
 type Msg msg
     = FocusedDropdown
@@ -199,8 +219,8 @@ type Msg msg
     | ConfigureDefaultMediaServer
     | Upload
     | Uploaded UploadDialog.UploadResponse
-    | UploadDialogSent UploadDialog.Msg 
-    | IncomingMessage { messageType : String , value : Encode.Value }
+    | UploadDialogSent UploadDialog.Msg
+    | IncomingMessage { messageType : String, value : Encode.Value }
     | ReceivedBlossomFileList String (Result Http.Error (List BlobDescriptor))
     | ReceivedNip96ServerDesc String (Result Http.Error Nip96.ServerDescResponse)
     | ReceivedNip96FileList String (Result Http.Error Nip96.FileList)
@@ -231,206 +251,212 @@ update props =
             , effect
             )
     in
-        case props.msg of
-            FocusedDropdown ->
-                ( Model { model | displayType = DisplayModalDialog True }, Effect.none)
+    case props.msg of
+        FocusedDropdown ->
+            ( Model { model | displayType = DisplayModalDialog True }, Effect.none )
                 |> toParentModel
 
-            BlurredDropdown ->
-                ( Model { model | displayType = DisplayModalDialog False }, Effect.none)
+        BlurredDropdown ->
+            ( Model { model | displayType = DisplayModalDialog False }, Effect.none )
                 |> toParentModel
 
-            ShowMessage message ->
-                update { props | msg = AlertSent (AlertTimerMessage.AddMessage message 1000 ) }
+        ShowMessage message ->
+            update { props | msg = AlertSent (AlertTimerMessage.AddMessage message 1000) }
 
-            AlertSent innerMsg ->
-                AlertTimerMessage.update
-                    { msg = innerMsg
-                    , model = model.alertTimerMessage
-                    , toModel = \alertTimerMessage -> Model { model | alertTimerMessage = alertTimerMessage }
-                    , toMsg = (props.toMsg << AlertSent)
-                    }
+        AlertSent innerMsg ->
+            AlertTimerMessage.update
+                { msg = innerMsg
+                , model = model.alertTimerMessage
+                , toModel = \alertTimerMessage -> Model { model | alertTimerMessage = alertTimerMessage }
+                , toMsg = props.toMsg << AlertSent
+                }
                 |> toParentModel
 
-            CloseDialog ->
-                ( Model { model | displayType = DisplayModalDialog False }, Effect.none)
+        CloseDialog ->
+            ( Model { model | displayType = DisplayModalDialog False }, Effect.none )
                 |> toParentModel
 
-            DropdownSent innerMsg ->
-                let
-                    (newModel, effect) =
-                        Components.Dropdown.update
-                            { msg = innerMsg
-                            , model = model.serverSelectionDropdown
-                            , toModel = \dropdown -> Model { model | serverSelectionDropdown = dropdown }
-                            , toMsg = (DropdownSent)
-                            }
-                in
-                (newModel, Effect.map props.toMsg effect)
+        DropdownSent innerMsg ->
+            let
+                ( newModel, effect ) =
+                    Components.Dropdown.update
+                        { msg = innerMsg
+                        , model = model.serverSelectionDropdown
+                        , toModel = \dropdown -> Model { model | serverSelectionDropdown = dropdown }
+                        , toMsg = DropdownSent
+                        }
+            in
+            ( newModel, Effect.map props.toMsg effect )
                 |> toParentModel
 
-            ChangedSelectedServer selectedServer ->
-                let
-                    uploadServer =
-                        case selectedServer of
-                            BlossomMediaServer serverUrl ->
-                                Just <| UploadDialog.UploadServerBlossom serverUrl
+        ChangedSelectedServer selectedServer ->
+            let
+                uploadServer =
+                    case selectedServer of
+                        BlossomMediaServer serverUrl ->
+                            Just <| UploadDialog.UploadServerBlossom serverUrl
 
-                            Nip96MediaServer serverUrl ->
-                                case Dict.get serverUrl model.nip96ServerDescResponses of
-                                    Just (Nip96.ServerDescriptor serverDescriptorData) ->
-                                        Just <| UploadDialog.UploadServerNip96 serverUrl serverDescriptorData
+                        Nip96MediaServer serverUrl ->
+                            case Dict.get serverUrl model.nip96ServerDescResponses of
+                                Just (Nip96.ServerDescriptor serverDescriptorData) ->
+                                    Just <| UploadDialog.UploadServerNip96 serverUrl serverDescriptorData
 
-                                    Just (Nip96.ServerRedirect _) ->
-                                        Nothing
+                                Just (Nip96.ServerRedirect _) ->
+                                    Nothing
 
-                                    Nothing ->
-                                        Nothing
+                                Nothing ->
+                                    Nothing
 
-                            NoMediaServer ->
-                                Nothing
+                        NoMediaServer ->
+                            Nothing
 
-                            AllMediaServers ->
-                                preferredUploadServer (Model model)
-                in
-                ( Model
-                    { model
+                        AllMediaServers ->
+                            preferredUploadServer (Model model)
+            in
+            ( Model
+                { model
                     | serverSelectionDropdown =
                         Components.Dropdown.selectItem model.serverSelectionDropdown (Just selectedServer)
                     , uploadDialog =
                         UploadDialog.selectServer model.uploadDialog uploadServer
-                    }
-                , Effect.none
-                )
+                }
+            , Effect.none
+            )
                 |> toParentModel
 
-            ConfigureDefaultMediaServer ->
-                ( Model model
-                , Effect.batch
-                    [ sendNip96ServerListCmd props.browserEnv props.user Pareto.defaultNip96Server Pareto.defaultRelays
-                    ]
-                  |> Effect.map props.toMsg
-                )
+        ConfigureDefaultMediaServer ->
+            ( Model model
+            , Effect.batch
+                [ sendNip96ServerListCmd props.browserEnv props.user Pareto.defaultNip96Server Pareto.defaultRelays
+                ]
+                |> Effect.map props.toMsg
+            )
                 |> toParentModel
 
-            Upload ->
-                ( Model { model | uploadDialog = UploadDialog.show model.uploadDialog }, Effect.none)
+        Upload ->
+            ( Model { model | uploadDialog = UploadDialog.show model.uploadDialog }, Effect.none )
                 |> toParentModel
 
-            Uploaded uploadResponse ->
-                modelWithUploadedFile props.model uploadResponse
+        Uploaded uploadResponse ->
+            modelWithUploadedFile props.model uploadResponse
                 |> toParentModel
 
-            UploadDialogSent innerMsg ->
-                UploadDialog.update
-                    { msg = innerMsg
-                    , model = model.uploadDialog
-                    , toModel = \uploadDialog -> Model { model | uploadDialog = uploadDialog }
-                    , toMsg = (props.toMsg << UploadDialogSent)
-                    , onUploaded = (props.toMsg << Uploaded)
-                    , user = props.user
-                    , nostr = props.nostr
-                    , browserEnv = props.browserEnv
-                    }
+        UploadDialogSent innerMsg ->
+            UploadDialog.update
+                { msg = innerMsg
+                , model = model.uploadDialog
+                , toModel = \uploadDialog -> Model { model | uploadDialog = uploadDialog }
+                , toMsg = props.toMsg << UploadDialogSent
+                , onUploaded = props.toMsg << Uploaded
+                , user = props.user
+                , nostr = props.nostr
+                , browserEnv = props.browserEnv
+                }
                 |> toParentModel
 
-            IncomingMessage { messageType, value } ->
-                processIncomingMessage props.user props.model messageType props.toMsg value
+        IncomingMessage { messageType, value } ->
+            processIncomingMessage props.user props.model messageType props.toMsg value
                 |> toParentModel
 
-            SelectedItem data ->
-                case data.onSelected of
-                    Just onSelected ->
-                        ( Model 
-                            { model
-                                | selected = Just 1
-                                , displayType = DisplayModalDialog False
-                            }
-                        , Effect.sendMsg (onSelected data.item)
-                        )
+        SelectedItem data ->
+            case data.onSelected of
+                Just onSelected ->
+                    ( Model
+                        { model
+                            | selected = Just 1
+                            , displayType = DisplayModalDialog False
+                        }
+                    , Effect.sendMsg (onSelected data.item)
+                    )
                         |> toParentModel
 
-                    Nothing ->
-                        ( Model { model | selected = Just 1 }
-                        , Effect.none
-                        )
+                Nothing ->
+                    ( Model { model | selected = Just 1 }
+                    , Effect.none
+                    )
                         |> toParentModel
 
-            ReceivedBlossomFileList serverUrl result ->
-                case result of
-                    Ok fileList ->
-                        ( updateModelWithBlossomFileList (Model model) serverUrl fileList, Effect.none )
+        ReceivedBlossomFileList serverUrl result ->
+            case result of
+                Ok fileList ->
+                    ( updateModelWithBlossomFileList (Model model) serverUrl fileList, Effect.none )
                         |> toParentModel
 
-                    Err error ->
-                        (Model
-                            { model | errors = model.errors ++ [ serverUrl ++ " (Blossom): " ++ httpErrorToString error ]
+                Err error ->
+                    ( Model
+                        { model
+                            | errors = model.errors ++ [ serverUrl ++ " (Blossom): " ++ httpErrorToString error ]
                             , blossomServers = updateServerState model.blossomServers serverUrl (ServerFileListFailed error)
-                            }
-                        , Effect.none
-                        )
+                        }
+                    , Effect.none
+                    )
                         |> toParentModel
 
-
-            ReceivedNip96ServerDesc serverUrl result ->
-                case result of
-                    Ok (Nip96.ServerRedirect serverRedirection) ->
-                        ( Model
-                            { model | nip96ServerDescResponses = Dict.insert serverUrl (Nip96.ServerRedirect serverRedirection) model.nip96ServerDescResponses
+        ReceivedNip96ServerDesc serverUrl result ->
+            case result of
+                Ok (Nip96.ServerRedirect serverRedirection) ->
+                    ( Model
+                        { model
+                            | nip96ServerDescResponses = Dict.insert serverUrl (Nip96.ServerRedirect serverRedirection) model.nip96ServerDescResponses
                             , nip96Servers = updateServerState model.nip96Servers serverUrl (ServerRedirected serverRedirection.delegated_to_url)
-                            }
-                        , Effect.sendCmd (Nip96.fetchServerSpec (ReceivedNip96ServerDesc serverUrl) serverRedirection.delegated_to_url)
+                        }
+                    , Effect.sendCmd (Nip96.fetchServerSpec (ReceivedNip96ServerDesc serverUrl) serverRedirection.delegated_to_url)
                         |> Effect.map props.toMsg
-                        )
+                    )
                         |> toParentModel
 
-                    Ok (Nip96.ServerDescriptor serverDescriptorData) ->
-                        let
-                            serverDescWithExtendedUrls =
-                                extendRelativeServerDescriptorUrls serverUrl serverDescriptorData
-                        in
-                        ( Model
-                            { model | nip96ServerDescResponses = Dict.insert serverUrl (Nip96.ServerDescriptor serverDescWithExtendedUrls) model.nip96ServerDescResponses
+                Ok (Nip96.ServerDescriptor serverDescriptorData) ->
+                    let
+                        serverDescWithExtendedUrls =
+                            extendRelativeServerDescriptorUrls serverUrl serverDescriptorData
+                    in
+                    ( Model
+                        { model
+                            | nip96ServerDescResponses = Dict.insert serverUrl (Nip96.ServerDescriptor serverDescWithExtendedUrls) model.nip96ServerDescResponses
                             , nip96Servers = updateServerState model.nip96Servers serverUrl ServerFunctioning
-                            }
-                        , GetRequest
-                            |> RequestNip98Auth serverUrl serverDescWithExtendedUrls.apiUrl
-                            |> Nostr.createRequest props.nostr "NIP-96 auth request for file list of server" []
-                            |> Shared.Msg.RequestNostrEvents
-                            |> Effect.sendSharedMsg
-                        )
+                        }
+                    , GetRequest
+                        |> RequestNip98Auth serverUrl serverDescWithExtendedUrls.apiUrl
+                        |> Nostr.createRequest props.nostr "NIP-96 auth request for file list of server" []
+                        |> Shared.Msg.RequestNostrEvents
+                        |> Effect.sendSharedMsg
+                    )
                         |> toParentModel
 
-                    Err error ->
-                        (Model
-                            { model | errors = model.errors ++ [ serverUrl ++ " (NIP-96): " ++ httpErrorToString error ]
+                Err error ->
+                    ( Model
+                        { model
+                            | errors = model.errors ++ [ serverUrl ++ " (NIP-96): " ++ httpErrorToString error ]
                             , nip96Servers = updateServerState model.nip96Servers serverUrl (ServerDescFailed error)
-                            }
-                        , Effect.none
-                        )
+                        }
+                    , Effect.none
+                    )
                         |> toParentModel
 
-            ReceivedNip96FileList serverUrl result ->
-                case result of
-                    Ok fileList ->
-                        ( updateModelWithNip96FileList (Model model) serverUrl fileList, Effect.none )
+        ReceivedNip96FileList serverUrl result ->
+            case result of
+                Ok fileList ->
+                    ( updateModelWithNip96FileList (Model model) serverUrl fileList, Effect.none )
                         |> toParentModel
 
-                    Err error ->
-                        (Model
-                            { model | errors = model.errors ++ [ serverUrl ++ " (NIP-96): " ++ httpErrorToString error ]
+                Err error ->
+                    ( Model
+                        { model
+                            | errors = model.errors ++ [ serverUrl ++ " (NIP-96): " ++ httpErrorToString error ]
                             , nip96Servers = updateServerState model.nip96Servers serverUrl (ServerFileListFailed error)
-                            }
-                        , Effect.none
-                        )
+                        }
+                    , Effect.none
+                    )
                         |> toParentModel
+
 
 sendNip96ServerListCmd : BrowserEnv -> Auth.User -> String -> List ServerUrl -> Effect msg
 sendNip96ServerListCmd browserEnv user serverUrl relays =
     eventWithNip96ServerList browserEnv user serverUrl
-    |> SendFileStorageServerList relays
-    |> Shared.Msg.SendNostrEvent
-    |> Effect.sendSharedMsg
+        |> SendFileStorageServerList relays
+        |> Shared.Msg.SendNostrEvent
+        |> Effect.sendSharedMsg
+
 
 eventWithNip96ServerList : BrowserEnv -> Auth.User -> ServerUrl -> Event
 eventWithNip96ServerList browserEnv user serverUrl =
@@ -438,8 +464,8 @@ eventWithNip96ServerList browserEnv user serverUrl =
     , createdAt = browserEnv.now
     , kind = KindFileStorageServerList
     , tags =
-        [ ]
-        |> Nostr.Event.addServerTag serverUrl
+        []
+            |> Nostr.Event.addServerTag serverUrl
     , content = ""
     , id = ""
     , sig = Nothing
@@ -447,7 +473,7 @@ eventWithNip96ServerList browserEnv user serverUrl =
     }
 
 
-modelWithUploadedFile : Model -> UploadResponse -> (Model, Effect msg)
+modelWithUploadedFile : Model -> UploadResponse -> ( Model, Effect msg )
 modelWithUploadedFile model uploadResponse =
     case uploadResponse of
         UploadResponseBlossom apiUrl fileMetadata ->
@@ -456,7 +482,8 @@ modelWithUploadedFile model uploadResponse =
         UploadResponseNip96 apiUrl fileMetadata ->
             modelWithUploadedNip96File model apiUrl fileMetadata
 
-modelWithUploadedBlossomFile : Model -> String -> Blossom.BlobDescriptor -> (Model, Effect msg)
+
+modelWithUploadedBlossomFile : Model -> String -> Blossom.BlobDescriptor -> ( Model, Effect msg )
 modelWithUploadedBlossomFile (Model model) apiUrl blobDescriptor =
     let
         uploadedFile =
@@ -470,12 +497,14 @@ modelWithUploadedBlossomFile (Model model) apiUrl blobDescriptor =
                             Just <| uploadedFile :: fileList
 
                         Nothing ->
-                            Just [uploadedFile]
-                ) model.uploadedBlossomFiles
+                            Just [ uploadedFile ]
+                )
+                model.uploadedBlossomFiles
     in
-    ( Model { model | uploadedBlossomFiles = uploadedBlossomFiles }, Effect.none)
+    ( Model { model | uploadedBlossomFiles = uploadedBlossomFiles }, Effect.none )
 
-modelWithUploadedNip96File : Model -> String -> Nip94.FileMetadata -> (Model, Effect msg)
+
+modelWithUploadedNip96File : Model -> String -> Nip94.FileMetadata -> ( Model, Effect msg )
 modelWithUploadedNip96File (Model model) apiUrl fileMetadata =
     let
         uploadedFile =
@@ -489,10 +518,12 @@ modelWithUploadedNip96File (Model model) apiUrl fileMetadata =
                             Just <| uploadedFile :: fileList
 
                         Nothing ->
-                            Just [uploadedFile]
-                ) model.uploadedNip96Files
+                            Just [ uploadedFile ]
+                )
+                model.uploadedNip96Files
     in
-    ( Model { model | uploadedNip96Files = uploadedNip96Files }, Effect.none)
+    ( Model { model | uploadedNip96Files = uploadedNip96Files }, Effect.none )
+
 
 updateModelWithBlossomFileList : Model -> String -> List Blossom.BlobDescriptor -> Model
 updateModelWithBlossomFileList (Model model) serverUrl fileList =
@@ -511,47 +542,54 @@ updateModelWithBlossomFileList (Model model) serverUrl fileList =
         { modelWithServerList
             | serverSelectionDropdown =
                 selectableMediaServers (Model modelWithServerList)
-                |> List.head
-                |> Maybe.withDefault NoMediaServer
-                |> Just
-                |> Components.Dropdown.selectItem model.serverSelectionDropdown
+                    |> List.head
+                    |> Maybe.withDefault NoMediaServer
+                    |> Just
+                    |> Components.Dropdown.selectItem model.serverSelectionDropdown
         }
+
 
 updateUploadDialogServerList : Dict String Nip96.ServerDescResponse -> UploadDialog.Model -> Dict String ServerState -> Dict String ServerState -> UploadDialog.Model
 updateUploadDialogServerList nip96ServerDescResponses uploadDialogModel blossomServers nip96Servers =
     let
         workingBlossomServers =
             blossomServers
-            |> Dict.toList
-            |> List.filterMap (\(url, status) ->
-                -- only consider servers that delivered a file list eligible for uploading files
-                if status == ServerFileListReceived then
-                    Just url
-                else
-                    Nothing
-            )
-            |> List.map UploadDialog.UploadServerBlossom
+                |> Dict.toList
+                |> List.filterMap
+                    (\( url, status ) ->
+                        -- only consider servers that delivered a file list eligible for uploading files
+                        if status == ServerFileListReceived then
+                            Just url
+
+                        else
+                            Nothing
+                    )
+                |> List.map UploadDialog.UploadServerBlossom
 
         workingNip96Servers =
             nip96Servers
-            |> Dict.toList
-            |> List.filterMap (\(url, status) ->
-                -- only consider servers that delivered a file list eligible for uploading files
-                if status == ServerFileListReceived then
-                    Just url
-                else
-                    Nothing
-            )
-            |> List.filterMap (\serverUrl ->
-                case Dict.get serverUrl nip96ServerDescResponses of
-                    Just (Nip96.ServerDescriptor serverDescriptorData) ->
-                        Just (UploadDialog.UploadServerNip96 serverUrl serverDescriptorData)
+                |> Dict.toList
+                |> List.filterMap
+                    (\( url, status ) ->
+                        -- only consider servers that delivered a file list eligible for uploading files
+                        if status == ServerFileListReceived then
+                            Just url
 
-                    _ ->
-                        Nothing
-            )
+                        else
+                            Nothing
+                    )
+                |> List.filterMap
+                    (\serverUrl ->
+                        case Dict.get serverUrl nip96ServerDescResponses of
+                            Just (Nip96.ServerDescriptor serverDescriptorData) ->
+                                Just (UploadDialog.UploadServerNip96 serverUrl serverDescriptorData)
+
+                            _ ->
+                                Nothing
+                    )
     in
     UploadDialog.updateServerList uploadDialogModel (workingNip96Servers ++ workingBlossomServers)
+
 
 updateModelWithNip96FileList : Model -> String -> Nip96.FileList -> Model
 updateModelWithNip96FileList (Model model) serverUrl fileList =
@@ -570,69 +608,74 @@ updateModelWithNip96FileList (Model model) serverUrl fileList =
         { modelWithServerList
             | serverSelectionDropdown =
                 selectableMediaServers (Model modelWithServerList)
-                |> List.head
-                |> Maybe.withDefault NoMediaServer
-                |> Just
-                |> Components.Dropdown.selectItem model.serverSelectionDropdown
+                    |> List.head
+                    |> Maybe.withDefault NoMediaServer
+                    |> Just
+                    |> Components.Dropdown.selectItem model.serverSelectionDropdown
         }
+
 
 updateServerState : Dict String ServerState -> String -> ServerState -> Dict String ServerState
 updateServerState dict serverUrl state =
     Dict.insert serverUrl state dict
 
 
-processIncomingMessage : Auth.User -> Model -> String -> (Msg msg -> msg) -> Encode.Value -> (Model, Effect msg)
+processIncomingMessage : Auth.User -> Model -> String -> (Msg msg -> msg) -> Encode.Value -> ( Model, Effect msg )
 processIncomingMessage user xModel messageType toMsg value =
     let
         (Model model) =
             xModel
     in
-
     case messageType of
         "blossomAuthHeader" ->
-            case (Decode.decodeValue decodeAuthHeaderReceived value) of
+            case Decode.decodeValue decodeAuthHeaderReceived value of
                 Ok decoded ->
                     ( Model { model | authHeader = Just decoded.authHeader }
                     , Blossom.fetchFileList (ReceivedBlossomFileList decoded.serverUrl) decoded.authHeader decoded.serverUrl user.pubKey
-                     |> Cmd.map toMsg
-                     |> Effect.sendCmd
+                        |> Cmd.map toMsg
+                        |> Effect.sendCmd
                     )
 
-                (Err error) ->
-                    ( Model { model | errors = model.errors ++ [ Decode.errorToString error ]}, Effect.none)
+                Err error ->
+                    ( Model { model | errors = model.errors ++ [ Decode.errorToString error ] }, Effect.none )
 
         "nip98AuthHeader" ->
-            case (Decode.decodeValue decodeAuthHeaderReceived value) of
+            case Decode.decodeValue decodeAuthHeaderReceived value of
                 Ok decoded ->
                     if decoded.method == "GET" then
                         ( Model { model | authHeader = Just decoded.authHeader }
                         , Nip96.fetchFileList (ReceivedNip96FileList decoded.serverUrl) decoded.authHeader decoded.apiUrl
-                        |> Cmd.map toMsg
-                        |> Effect.sendCmd
+                            |> Cmd.map toMsg
+                            |> Effect.sendCmd
                         )
+
                     else
-                        ((Model model), Effect.none)
+                        ( Model model, Effect.none )
 
                 Err error ->
-                    ( Model { model | errors = model.errors ++ [ "Error decoding NIP-98 auth header: " ++ Decode.errorToString error ]}, Effect.none)
+                    ( Model { model | errors = model.errors ++ [ "Error decoding NIP-98 auth header: " ++ Decode.errorToString error ] }, Effect.none )
 
         -- the file server lists may appear after the media selector is instantiated
         -- so we have to process them when arriving
         "events" ->
-            case (Decode.decodeValue (Decode.field "kind" Nostr.Event.kindDecoder) value,
-                  Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) value) of
-                (Ok KindUserServerList, Ok events) ->
+            case
+                ( Decode.decodeValue (Decode.field "kind" Nostr.Event.kindDecoder) value
+                , Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) value
+                )
+            of
+                ( Ok KindUserServerList, Ok events ) ->
                     -- list with Blossom servers
                     updateModelWithUserServerLists (Model model) user toMsg events
 
-                (Ok KindFileStorageServerList, Ok events) ->
+                ( Ok KindFileStorageServerList, Ok events ) ->
                     -- list with NIP-96 servers
                     updateModelWithFileStorageServerLists (Model model) user toMsg events
 
                 _ ->
-                    ((Model model), Effect.none)
+                    ( Model model, Effect.none )
+
         _ ->
-            ( Model model, Effect.none)
+            ( Model model, Effect.none )
 
 
 decodeAuthHeaderReceived : Decode.Decoder AuthHeaderReceived
@@ -653,54 +696,61 @@ type alias AuthHeaderReceived =
     , apiUrl : String
     }
 
-updateModelWithUserServerLists : Model -> Auth.User -> (Msg msg -> msg) -> List Event -> (Model, Effect msg)
+
+updateModelWithUserServerLists : Model -> Auth.User -> (Msg msg -> msg) -> List Event -> ( Model, Effect msg )
 updateModelWithUserServerLists (Model model) user toMsg events =
     let
         -- usually there should be only one for the logged-in user
         newUserServers =
             events
-            |> List.filter (\event -> user.pubKey == event.pubKey)
-            |> List.map userServerListFromEvent
-            |> List.foldl (\(_, userServerList) servers ->
-                servers ++ userServerList
-                ) []
-            |> List.filter (\server ->
-                    not <| Dict.member server model.blossomServers
-                )
+                |> List.filter (\event -> user.pubKey == event.pubKey)
+                |> List.map userServerListFromEvent
+                |> List.foldl
+                    (\( _, userServerList ) servers ->
+                        servers ++ userServerList
+                    )
+                    []
+                |> List.filter
+                    (\server ->
+                        not <| Dict.member server model.blossomServers
+                    )
 
         newServerDict =
             serversWithUnknownState model.blossomServers newUserServers
-        
-        listAuthRequests = 
+
+        listAuthRequests =
             requestBlossomListAuths newUserServers
-            |> Effect.map toMsg
-
+                |> Effect.map toMsg
     in
-    ( Model {model | blossomServers = newServerDict }, listAuthRequests)
+    ( Model { model | blossomServers = newServerDict }, listAuthRequests )
 
-updateModelWithFileStorageServerLists : Model -> Auth.User -> (Msg msg -> msg) -> List Event -> (Model, Effect msg)
+
+updateModelWithFileStorageServerLists : Model -> Auth.User -> (Msg msg -> msg) -> List Event -> ( Model, Effect msg )
 updateModelWithFileStorageServerLists (Model model) user toMsg events =
     let
         -- usually there should be only one for the logged-in user
         newFileStorageServers =
             events
-            |> List.filter (\event -> user.pubKey == event.pubKey)
-            |> List.map fileStorageServerListFromEvent
-            |> List.foldl (\(_, fileStorageServerList) servers ->
-                servers ++ fileStorageServerList
-                ) []
-            |> List.filter (\server ->
-                    not <| Dict.member server model.nip96Servers
-                )
+                |> List.filter (\event -> user.pubKey == event.pubKey)
+                |> List.map fileStorageServerListFromEvent
+                |> List.foldl
+                    (\( _, fileStorageServerList ) servers ->
+                        servers ++ fileStorageServerList
+                    )
+                    []
+                |> List.filter
+                    (\server ->
+                        not <| Dict.member server model.nip96Servers
+                    )
 
         newServerDict =
             serversWithUnknownState model.nip96Servers newFileStorageServers
-        
-        serverSpecRequests = 
+
+        serverSpecRequests =
             requestNip96ServerSpecs newFileStorageServers
-            |> Effect.map toMsg
+                |> Effect.map toMsg
     in
-    ( Model { model | nip96Servers = newServerDict}, serverSpecRequests)
+    ( Model { model | nip96Servers = newServerDict }, serverSpecRequests )
 
 
 view : MediaSelector msg -> Html msg
@@ -711,7 +761,7 @@ view (Settings settings) =
     in
     case model.displayType of
         DisplayModalDialog False ->
-            div [][]
+            div [] []
 
         DisplayModalDialog True ->
             Ui.Shared.modalDialog
@@ -723,7 +773,8 @@ view (Settings settings) =
         DisplayEmbedded ->
             viewMediaSelector (Settings settings)
 
-viewMediaSelector : MediaSelector msg -> Html msg 
+
+viewMediaSelector : MediaSelector msg -> Html msg
 viewMediaSelector (Settings settings) =
     let
         (Model model) =
@@ -735,30 +786,28 @@ viewMediaSelector (Settings settings) =
         filesToShow =
             case Components.Dropdown.selectedItem model.serverSelectionDropdown of
                 Just (Nip96MediaServer serverUrl) ->
-                    (uploadedNip96ImageFiles model.uploadedNip96Files serverUrl)
+                    uploadedNip96ImageFiles model.uploadedNip96Files serverUrl
 
                 Just (BlossomMediaServer serverUrl) ->
-                    (Dict.get serverUrl model.uploadedBlossomFiles
-                    |> Maybe.withDefault [])
+                    Dict.get serverUrl model.uploadedBlossomFiles
+                        |> Maybe.withDefault []
 
                 Just AllMediaServers ->
                     -- respect order of server list
                     (Dict.keys model.blossomServers
-                    |> List.filterMap (\blossomServer -> Dict.get blossomServer model.uploadedBlossomFiles)
-                    |> List.concat
+                        |> List.filterMap (\blossomServer -> Dict.get blossomServer model.uploadedBlossomFiles)
+                        |> List.concat
                     )
-                    ++
-                    (Dict.keys model.nip96Servers
-                    |> List.map (uploadedNip96ImageFiles model.uploadedNip96Files)
-                    |> List.concat
-                    )
+                        ++ (Dict.keys model.nip96Servers
+                                |> List.map (uploadedNip96ImageFiles model.uploadedNip96Files)
+                                |> List.concat
+                           )
 
                 Just NoMediaServer ->
                     []
 
                 Nothing ->
                     []
-
     in
     div []
         [ div
@@ -807,6 +856,7 @@ viewMediaSelector (Settings settings) =
             |> AlertTimerMessage.view
         ]
 
+
 viewConfigureMediaServerMessage : MediaSelector msg -> Html msg
 viewConfigureMediaServerMessage (Settings settings) =
     let
@@ -834,8 +884,10 @@ viewConfigureMediaServerMessage (Settings settings) =
                 |> Button.view
                 |> Html.map settings.toMsg
             ]
+
     else
-        div [][]
+        div [] []
+
 
 viewImages : MediaSelector msg -> List UploadedFile -> Html msg
 viewImages (Settings settings) filesToShow =
@@ -869,53 +921,57 @@ viewImages (Settings settings) filesToShow =
                         ]
                     , Tw.grid_cols_1
                     ]
-
     in
-
-        Keyed.node "div"
-            [ css
-                (dialogAttributes ++ 
-                [ Tw.grid
-                , Tw.gap_4
-                , Tw.mt_4
-                ])
-            ]
-            (filesToShow
-                |> List.map
-                    (\fileToShow ->
-                        let
-                            uniqueFileId =
-                                uniqueIdForUploadedFile fileToShow
-                        in
-                        ( uniqueFileId
-                        , Lazy.lazy5 imagePreview settings.browserEnv.translations settings.onSelected model.displayType uniqueFileId fileToShow
-                            |> Html.map settings.toMsg
-                        )
-                    ) 
+    Keyed.node "div"
+        [ css
+            (dialogAttributes
+                ++ [ Tw.grid
+                   , Tw.gap_4
+                   , Tw.mt_4
+                   ]
             )
+        ]
+        (filesToShow
+            |> List.map
+                (\fileToShow ->
+                    let
+                        uniqueFileId =
+                            uniqueIdForUploadedFile fileToShow
+                    in
+                    ( uniqueFileId
+                    , Lazy.lazy5 imagePreview settings.browserEnv.translations settings.onSelected model.displayType uniqueFileId fileToShow
+                        |> Html.map settings.toMsg
+                    )
+                )
+        )
+
 
 preferredUploadServer : Model -> Maybe UploadServer
 preferredUploadServer (Model model) =
     availableMediaServers (Model model)
-    |> List.head
-    |> Maybe.andThen (\mediaServer ->
-        case mediaServer of
-            BlossomMediaServer serverUrl ->
-                (Just <| UploadDialog.UploadServerBlossom serverUrl)
+        |> List.head
+        |> Maybe.andThen
+            (\mediaServer ->
+                case mediaServer of
+                    BlossomMediaServer serverUrl ->
+                        Just <| UploadDialog.UploadServerBlossom serverUrl
 
-            Nip96MediaServer serverUrl ->
-                Dict.get serverUrl model.nip96ServerDescResponses
-                |> Maybe.andThen (\serverDescResponse ->
-                    case serverDescResponse of
-                        Nip96.ServerDescriptor serverDescriptorData ->
-                            (Just <| UploadDialog.UploadServerNip96 serverUrl serverDescriptorData)
+                    Nip96MediaServer serverUrl ->
+                        Dict.get serverUrl model.nip96ServerDescResponses
+                            |> Maybe.andThen
+                                (\serverDescResponse ->
+                                    case serverDescResponse of
+                                        Nip96.ServerDescriptor serverDescriptorData ->
+                                            Just <| UploadDialog.UploadServerNip96 serverUrl serverDescriptorData
 
-                        _ ->
-                            Nothing
-                )
-            _ ->
-                Nothing
-    )
+                                        _ ->
+                                            Nothing
+                                )
+
+                    _ ->
+                        Nothing
+            )
+
 
 selectableMediaServers : Model -> List MediaServer
 selectableMediaServers (Model model) =
@@ -933,30 +989,36 @@ selectableMediaServers (Model model) =
         _ ->
             AllMediaServers :: servers
 
+
 availableMediaServers : Model -> List MediaServer
 availableMediaServers (Model model) =
     let
         selectableBlossomServers =
             model.blossomServers
-            |> Dict.toList
-            |> List.filterMap (\(serverUrl, state) ->
-                    if state == ServerFileListReceived then
-                        Just (BlossomMediaServer serverUrl)
-                    else
-                        Nothing
-                )
+                |> Dict.toList
+                |> List.filterMap
+                    (\( serverUrl, state ) ->
+                        if state == ServerFileListReceived then
+                            Just (BlossomMediaServer serverUrl)
+
+                        else
+                            Nothing
+                    )
 
         selectableNip96Servers =
             model.nip96Servers
-            |> Dict.toList
-            |> List.filterMap (\(serverUrl, state) ->
-                    if state == ServerFileListReceived then
-                        Just (Nip96MediaServer serverUrl)
-                    else
-                        Nothing
-                )
+                |> Dict.toList
+                |> List.filterMap
+                    (\( serverUrl, state ) ->
+                        if state == ServerFileListReceived then
+                            Just (Nip96MediaServer serverUrl)
+
+                        else
+                            Nothing
+                    )
     in
     selectableNip96Servers ++ selectableBlossomServers
+
 
 mediaServerToString : I18Next.Translations -> MediaServer -> String
 mediaServerToString translations mediaServer =
@@ -973,33 +1035,37 @@ mediaServerToString translations mediaServer =
         Nip96MediaServer serverUrl ->
             hostOfUrl serverUrl ++ " (NIP-96)"
 
+
 hostOfUrl : String -> String
 hostOfUrl url =
     case Url.fromString url of
         Just { host } ->
             host
-        
+
         Nothing ->
             url
+
 
 uploadedNip96ImageFiles : Dict String (List UploadedFile) -> String -> List UploadedFile
 uploadedNip96ImageFiles uploadedNip96Files serverUrl =
     -- filter non-image files
     -- later we could add displaying of video or audio files
     Dict.get serverUrl uploadedNip96Files
-    |> Maybe.map (\uploadedFiles ->
-        uploadedFiles
-        |> List.filter (\uploadedFile ->
-            case uploadedFile of
-                Nip96File fileMetadata ->
-                    Nip94.isImage fileMetadata
+        |> Maybe.map
+            (\uploadedFiles ->
+                uploadedFiles
+                    |> List.filter
+                        (\uploadedFile ->
+                            case uploadedFile of
+                                Nip96File fileMetadata ->
+                                    Nip94.isImage fileMetadata
 
-                BlossomFile _ ->
-                    -- don't know what type blossom file is
-                    True
+                                BlossomFile _ ->
+                                    -- don't know what type blossom file is
+                                    True
+                        )
             )
-        ) 
-    |> Maybe.withDefault []
+        |> Maybe.withDefault []
 
 
 imagePreview : I18Next.Translations -> Maybe (UploadedFile -> msg) -> DisplayType -> String -> UploadedFile -> Html (Msg msg)
@@ -1028,43 +1094,48 @@ imagePreview translations onSelected displayType uniqueFileId uploadedFile =
             in
             div
                 [ css
-                    [  Tw.relative
+                    [ Tw.relative
                     ]
                 ]
                 [ img
-                    (commonAttributes ++
-                    [ css
-                        [ 
-                        ]
-                    , Attr.alt <| Maybe.withDefault "" nip96File.alt
-                    , Attr.src (Maybe.withDefault "" nip96File.url ++ "?w=" ++ String.fromInt imageWidth) -- NIP-96 servers can return scaled versions of images
-                    ])
-                    [ ]
+                    (commonAttributes
+                        ++ [ css
+                                []
+                           , Attr.alt <| Maybe.withDefault "" nip96File.alt
+                           , Attr.src (Maybe.withDefault "" nip96File.url ++ "?w=" ++ String.fromInt imageWidth) -- NIP-96 servers can return scaled versions of images
+                           ]
+                    )
+                    []
                 , viewCopyButton translations displayType (Maybe.withDefault "" nip96File.url) uniqueFileId
                 ]
 
         BlossomFile blobDescriptor ->
             div
                 [ css
-                    [  Tw.relative
+                    [ Tw.relative
                     ]
                 ]
                 [ img
-                    (commonAttributes ++
-                    [ css
-                        [ ]
-                    , Attr.src blobDescriptor.url
-                    ])
-                    [ ]
+                    (commonAttributes
+                        ++ [ css
+                                []
+                           , Attr.src blobDescriptor.url
+                           ]
+                    )
+                    []
                 , viewCopyButton translations displayType blobDescriptor.url uniqueFileId
                 ]
 
+
+
 -- display copy to clipboard button only in embedded mode, not in small dialog
+
+
 viewCopyButton : I18Next.Translations -> DisplayType -> String -> String -> Html (Msg msg)
 viewCopyButton translations displayType url uniqueId =
     case displayType of
         DisplayModalDialog _ ->
-            div [][]
+            div [] []
 
         DisplayEmbedded ->
             copyButton translations url uniqueId
@@ -1079,10 +1150,11 @@ uniqueIdForUploadedFile uploadedFile =
         BlossomFile blobDescriptor ->
             blobDescriptor.sha256
 
+
 uniqueIdForFileMetadata : FileMetadata -> String
 uniqueIdForFileMetadata fileMetadata =
     fileMetadata.xHash
-    |> Maybe.withDefault (String.fromInt fileMetadata.createdAt)
+        |> Maybe.withDefault (String.fromInt fileMetadata.createdAt)
 
 
 copyButton : I18Next.Translations -> String -> String -> Html (Msg msg)
@@ -1111,7 +1183,7 @@ copyButton translations copyText uniqueId =
                 ]
             , Attr.id elementId
             ]
-            [ Icon.FeatherIcon FeatherIcons.clipboard 
+            [ Icon.FeatherIcon FeatherIcons.clipboard
                 |> Icon.view
             ]
         , Html.node "js-clipboard-component"

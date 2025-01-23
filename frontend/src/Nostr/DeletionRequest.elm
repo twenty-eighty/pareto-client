@@ -8,7 +8,10 @@ import Nostr.Types exposing (EventId, PubKey, RelayUrl)
 import Set exposing (Set)
 import Time
 
+
+
 -- NIP-09
+
 
 type alias DeletionRequest =
     { eventIds : Set EventId
@@ -17,22 +20,26 @@ type alias DeletionRequest =
     , reason : String
     }
 
+
 deletionRequestFromEvent : Event -> DeletionRequest
 deletionRequestFromEvent event =
     event.tags
-    |> List.foldl (\tag acc ->
-        case tag of 
-            AddressTag addressComponents ->
-                {acc | addresses = Set.insert (buildAddress addressComponents) acc.addresses }
+        |> List.foldl
+            (\tag acc ->
+                case tag of
+                    AddressTag addressComponents ->
+                        { acc | addresses = Set.insert (buildAddress addressComponents) acc.addresses }
 
-            EventIdTag eventId ->
-                {acc | eventIds = Set.insert eventId acc.eventIds }
+                    EventIdTag eventId ->
+                        { acc | eventIds = Set.insert eventId acc.eventIds }
 
-            KindTag kind ->
-                {acc | kinds = Set.insert (Nostr.Event.numberForKind kind) acc.kinds }
-            _ ->
-                acc
-            ) { eventIds = Set.empty, addresses = Set.empty, reason = event.content, kinds = Set.empty }
+                    KindTag kind ->
+                        { acc | kinds = Set.insert (Nostr.Event.numberForKind kind) acc.kinds }
+
+                    _ ->
+                        acc
+            )
+            { eventIds = Set.empty, addresses = Set.empty, reason = event.content, kinds = Set.empty }
 
 
 draftDeletionEvent : PubKey -> Time.Posix -> EventId -> String -> Maybe String -> Event
@@ -41,21 +48,21 @@ draftDeletionEvent pubKey createdAt draftEventId content maybeIdentifier =
         addIdentifer =
             case maybeIdentifier of
                 Just identifier ->
-                    addAddressTag (KindDraftLongFormContent, pubKey, identifier)
+                    addAddressTag ( KindDraftLongFormContent, pubKey, identifier )
 
                 Nothing ->
                     identity
     in
-            { pubKey = pubKey
-            , createdAt = createdAt
-            , kind = KindEventDeletionRequest
-            , tags =
-                [ ]
-                |> addIdentifer
-                |> addKindTag KindDraftLongFormContent
-                |> addKindTag KindDraft
-            , content = content
-            , id = ""
-            , sig = Nothing
-            , relay = Nothing
-            }
+    { pubKey = pubKey
+    , createdAt = createdAt
+    , kind = KindEventDeletionRequest
+    , tags =
+        []
+            |> addIdentifer
+            |> addKindTag KindDraftLongFormContent
+            |> addKindTag KindDraft
+    , content = content
+    , id = ""
+    , sig = Nothing
+    , relay = Nothing
+    }

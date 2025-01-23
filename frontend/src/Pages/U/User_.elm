@@ -124,7 +124,8 @@ update shared msg model =
 
         OpenSubscribeDialog ->
             ( { model | emailSubscriptionDialog = EmailSubscriptionDialog.show model.emailSubscriptionDialog }
-            , Effect.none )
+            , Effect.none
+            )
 
         EmailSubscriptionDialogSent innerMsg ->
             EmailSubscriptionDialog.update
@@ -199,6 +200,7 @@ viewProfile shared model profile =
         , viewEmailSubscriptionDialog shared model profile
         ]
 
+
 viewEmailSubscriptionDialog : Shared.Model -> Model -> Profile -> Html Msg
 viewEmailSubscriptionDialog shared model profile =
     case Shared.loggedInPubKey shared.loginStatus of
@@ -214,7 +216,7 @@ viewEmailSubscriptionDialog shared model profile =
                 |> EmailSubscriptionDialog.view
 
         Nothing ->
-            div [][]
+            div [] []
 
 
 followingProfile : Nostr.Model -> PubKey -> Maybe PubKey -> FollowType Msg

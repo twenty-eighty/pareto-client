@@ -13,6 +13,7 @@ import Nostr.Article exposing (Article)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), eventFilterForNip19, informationForKind, kindFromNumber)
 import Nostr.Nip19 as Nip19
 import Nostr.Request exposing (RequestData(..), RequestId)
+import Nostr.ShortNote exposing (ShortNote)
 import Nostr.Types exposing (IncomingMessage, RelayUrl)
 import Page exposing (Page)
 import Ports
@@ -27,7 +28,6 @@ import Ui.Styles exposing (Theme)
 import Ui.View exposing (viewRelayStatus)
 import Url
 import View exposing (View)
-import Nostr.ShortNote exposing (ShortNote)
 
 
 page : Shared.Model -> Route { event : String } -> Page Model Msg
@@ -40,13 +40,16 @@ page shared route =
         }
         |> Page.withLayout (toLayout shared.theme)
 
+
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme model =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
 
+
 -- INIT
+
 
 type ContentToView
     = ShortNote String
@@ -54,6 +57,7 @@ type ContentToView
     | NonSupportedNip19 String
     | NonSupportedKind Kind
     | DecodingError String
+
 
 type alias Model =
     { contentToView : ContentToView
@@ -76,7 +80,7 @@ init shared route () =
                 Ok (Nip19.NAddr { identifier, pubKey, kind, relays }) ->
                     case kindFromNumber kind of
                         KindLongFormContent ->
-                            Article (kindFromNumber kind, pubKey, identifier) relays 
+                            Article ( kindFromNumber kind, pubKey, identifier ) relays
 
                         _ ->
                             NonSupportedKind (kindFromNumber kind)
@@ -87,53 +91,57 @@ init shared route () =
                 Err error ->
                     DecodingError ("Error decoding " ++ route.params.event ++ "(" ++ error ++ ")")
 
-        (effect, requestId) =
-            case (contentToView, Result.toMaybe decoded |> Maybe.andThen eventFilterForNip19 ) of
+        ( effect, requestId ) =
+            case ( contentToView, Result.toMaybe decoded |> Maybe.andThen eventFilterForNip19 ) of
                 ( ShortNote noteId, Just eventFilter ) ->
                     ( eventFilter
                         |> RequestShortNote
-                        |> Nostr.createRequest shared.nostr ("NIP-19 note " ++ route.params.event) [ KindUserMetadata]
+                        |> Nostr.createRequest shared.nostr ("NIP-19 note " ++ route.params.event) [ KindUserMetadata ]
                         |> Shared.Msg.RequestNostrEvents
                         |> Effect.sendSharedMsg
                     , Just <| Nostr.getLastRequestId shared.nostr
                     )
 
                 ( ShortNote _, Nothing ) ->
-                    ( Effect.none, Nothing
+                    ( Effect.none
+                    , Nothing
                     )
 
                 ( Article _ relays, Just eventFilter ) ->
                     ( eventFilter
                         |> RequestArticle (Just relays)
-                        |> Nostr.createRequest shared.nostr ("NIP-19 article " ++ route.params.event) [ KindUserMetadata]
+                        |> Nostr.createRequest shared.nostr ("NIP-19 article " ++ route.params.event) [ KindUserMetadata ]
                         |> Shared.Msg.RequestNostrEvents
                         |> Effect.sendSharedMsg
                     , Just <| Nostr.getLastRequestId shared.nostr
                     )
 
                 ( Article _ _, Nothing ) ->
-                    ( Effect.none, Nothing
+                    ( Effect.none
+                    , Nothing
                     )
 
                 ( NonSupportedNip19 _, Just eventFilter ) ->
                     -- request event so we can implement test with it
                     ( eventFilter
                         |> RequestArticle Nothing
-                        |> Nostr.createRequest shared.nostr ("NIP-19 event " ++ route.params.event) [ KindUserMetadata]
+                        |> Nostr.createRequest shared.nostr ("NIP-19 event " ++ route.params.event) [ KindUserMetadata ]
                         |> Shared.Msg.RequestNostrEvents
                         |> Effect.sendSharedMsg
                     , Just <| Nostr.getLastRequestId shared.nostr
                     )
 
                 ( NonSupportedNip19 _, _ ) ->
-                    ( Effect.none, Nothing
+                    ( Effect.none
+                    , Nothing
                     )
 
                 ( NonSupportedKind _, _ ) ->
-                    ( Effect.none, Nothing
+                    ( Effect.none
+                    , Nothing
                     )
 
-                ( DecodingError _, _) ->
+                ( DecodingError _, _ ) ->
                     ( Effect.none, Nothing )
     in
     ( { contentToView = contentToView
@@ -143,15 +151,19 @@ init shared route () =
     , effect
     )
 
+
 tagReferencesForParam : String -> Maybe (List TagReference)
 tagReferencesForParam tag =
     decodedTagParam tag
-    |> Maybe.map TagReferenceEventId
-    |> Maybe.map (List.singleton)
+        |> Maybe.map TagReferenceEventId
+        |> Maybe.map List.singleton
+
 
 decodedTagParam : String -> Maybe String
 decodedTagParam tag =
     Url.percentDecode tag
+
+
 
 -- UPDATE
 
@@ -172,7 +184,7 @@ update shared msg model =
             )
 
         AddLoadedContent url ->
-            ( { model | loadedContent = LinkPreview.addLoadedContent model.loadedContent url}, Effect.none )
+            ( { model | loadedContent = LinkPreview.addLoadedContent model.loadedContent url }, Effect.none )
 
         ReceivedMessage message ->
             ( model, Effect.none )
@@ -180,16 +192,21 @@ update shared msg model =
         NostrMsg _ ->
             ( model, Effect.none )
 
+
 addArticle : List Article -> Article -> List Article
 addArticle articleList newArticle =
     if List.any (isArticleWithIdAndAuthor newArticle.author newArticle.id) articleList then
         newArticle :: articleList
+
     else
         newArticle :: articleList
+
 
 isArticleWithIdAndAuthor : String -> String -> Article -> Bool
 isArticleWithIdAndAuthor author articleId article =
     article.author == author && article.id == articleId
+
+
 
 -- SUBSCRIPTIONS
 
@@ -211,6 +228,7 @@ view shared model =
         ]
     }
 
+
 viewContent : Shared.Model -> Model -> Html Msg
 viewContent shared model =
     let
@@ -220,56 +238,56 @@ viewContent shared model =
     case model.contentToView of
         ShortNote noteId ->
             Nostr.getShortNoteById shared.nostr noteId
-            |> Maybe.map (\shortNote ->
-                    Ui.ShortNote.viewShortNote 
-                        { theme = shared.theme
-                        , browserEnv = shared.browserEnv
-                        , nostr = shared.nostr
-                        , userPubKey = Nothing
-                        , onBookmark = Nothing
-                        }
-                        { author = Nostr.getAuthor shared.nostr shortNote.pubKey
-                        , actions =
-                            { addBookmark = Nothing
-                            , removeBookmark = Nothing
-                            , addReaction = Nothing
-                            , removeReaction = Nothing
+                |> Maybe.map
+                    (\shortNote ->
+                        Ui.ShortNote.viewShortNote
+                            { theme = shared.theme
+                            , browserEnv = shared.browserEnv
+                            , nostr = shared.nostr
+                            , userPubKey = Nothing
+                            , onBookmark = Nothing
                             }
-                        , interactions = 
-                            { zaps = Nothing
-                            , highlights = Nothing
-                            , reactions = Nothing
-                            , reposts = Nothing
-                            , notes = Nothing
-                            , bookmarks = Nothing
-                            , isBookmarked = False
-                            , reaction = Nothing
+                            { author = Nostr.getAuthor shared.nostr shortNote.pubKey
+                            , actions =
+                                { addBookmark = Nothing
+                                , removeBookmark = Nothing
+                                , addReaction = Nothing
+                                , removeReaction = Nothing
+                                }
+                            , interactions =
+                                { zaps = Nothing
+                                , highlights = Nothing
+                                , reactions = Nothing
+                                , reposts = Nothing
+                                , notes = Nothing
+                                , bookmarks = Nothing
+                                , isBookmarked = False
+                                , reaction = Nothing
+                                }
                             }
-                        }
-                        shortNote
-                )
-            |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingNote model.requestId)
+                            shortNote
+                    )
+                |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingNote model.requestId)
 
         Article addressComponents relays ->
             Nostr.getArticleForAddressComponents shared.nostr addressComponents
-            |> Maybe.map
-                (Ui.View.viewArticle 
-                    { theme = shared.theme
-                    , browserEnv = shared.browserEnv
-                    , nostr = shared.nostr
-                    , userPubKey = Shared.loggedInPubKey shared.loginStatus
-                    , onBookmark = Nothing
-                    , onReaction = Nothing
-                    , onZap = Nothing
-                    }
-                    (Just model.loadedContent)
-                )
-            |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle model.requestId)
+                |> Maybe.map
+                    (Ui.View.viewArticle
+                        { theme = shared.theme
+                        , browserEnv = shared.browserEnv
+                        , nostr = shared.nostr
+                        , userPubKey = Shared.loggedInPubKey shared.loginStatus
+                        , onBookmark = Nothing
+                        , onReaction = Nothing
+                        , onZap = Nothing
+                        }
+                        (Just model.loadedContent)
+                    )
+                |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle model.requestId)
 
         NonSupportedNip19 parameter ->
             div
-                [
-                ]
+                []
                 [ text <| "Non-supported NIP-19 parameter: " ++ parameter
                 ]
 
@@ -279,15 +297,12 @@ viewContent shared model =
                     informationForKind kind
             in
             div
-                [
-                ]
+                []
                 [ text <| "Non-supported kind: " ++ info.description
                 ]
 
         DecodingError error ->
             div
-                [
-                ]
+                []
                 [ text <| "Error decoding NIP-19 parameter " ++ error
                 ]
-

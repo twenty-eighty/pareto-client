@@ -1,4 +1,4 @@
-module Components.ZapDialog exposing (ZapDialog, Recipient, Model, Msg, new, init, update, view, show, hide)
+module Components.ZapDialog exposing (Model, Msg, Recipient, ZapDialog, hide, init, new, show, update, view)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
@@ -16,14 +16,15 @@ import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey, RelayUrl)
 import Nostr.Zaps exposing (Lud16, PayRequest, fetchPayRequest)
 import Pareto
-import Svg.Styled as Svg exposing (svg, path)
-import Tailwind.Utilities as Tw
-import Tailwind.Theme as Theme
-import Translations.ZapDialog as Translations
-import Shared.Msg exposing (Msg)
 import Shared.Model exposing (Model)
+import Shared.Msg exposing (Msg)
+import Svg.Styled as Svg exposing (path, svg)
+import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
+import Translations.ZapDialog as Translations
 import Ui.Shared
-import Ui.Styles exposing (Theme, fontFamilyUnbounded, fontFamilyInter)
+import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
+
 
 type Msg msg
     = CloseDialog
@@ -32,14 +33,16 @@ type Msg msg
     | ReceivedPayRequest (Result Http.Error PayRequest)
 
 
-type Model msg =
-    Model
+type Model msg
+    = Model
         { state : DialogState
         }
+
 
 type DialogState
     = DialogHidden
     | ZapAmountSelection ZapAmountSelectionData
+
 
 type alias Recipient =
     { imageUrl : String
@@ -48,11 +51,13 @@ type alias Recipient =
     , lud16 : Lud16
     }
 
+
 type alias ZapAmountSelectionData =
     { amount : Int
     , comment : String
     , recipients : List Recipient
     }
+
 
 type ZapDialog msg
     = Settings
@@ -64,6 +69,7 @@ type ZapDialog msg
         , browserEnv : BrowserEnv
         , theme : Theme
         }
+
 
 new :
     { model : Model msg
@@ -85,15 +91,16 @@ new props =
         , browserEnv = props.browserEnv
         , theme = props.theme
         }
-    
 
-init : { } -> Model msg
+
+init : {} -> Model msg
 init props =
     Model
         { state = DialogHidden
         }
 
-show : Model msg -> (Msg msg -> msg) -> List Recipient -> (Model msg, Effect msg)
+
+show : Model msg -> (Msg msg -> msg) -> List Recipient -> ( Model msg, Effect msg )
 show (Model model) toMsg recipients =
     ( Model { model | state = ZapAmountSelection { amount = 21, comment = "", recipients = recipients } }
     , requestPayRequests recipients
@@ -101,17 +108,21 @@ show (Model model) toMsg recipients =
         |> Effect.map toMsg
     )
 
+
 requestPayRequests : List Recipient -> Cmd (Msg msg)
 requestPayRequests recipients =
     recipients
-    |> List.map (\recipient ->
-            fetchPayRequest ReceivedPayRequest recipient.lud16
-        )
-    |> Cmd.batch
+        |> List.map
+            (\recipient ->
+                fetchPayRequest ReceivedPayRequest recipient.lud16
+            )
+        |> Cmd.batch
+
 
 hide : Model msg -> Model msg
 hide (Model model) =
     Model { model | state = DialogHidden }
+
 
 update :
     { msg : Msg msg
@@ -121,12 +132,12 @@ update :
     , nostr : Nostr.Model
     }
     -> ( model, Effect msg )
-update props  = 
+update props =
     let
         (Model model) =
             props.model
 
-        toParentModel : (Model msg, Effect msg) -> (model, Effect msg)
+        toParentModel : ( Model msg, Effect msg ) -> ( model, Effect msg )
         toParentModel ( innerModel, effect ) =
             ( props.toModel innerModel
             , effect
@@ -171,17 +182,17 @@ view dialog =
     in
     case model.state of
         DialogHidden ->
-            div [][]
+            div [] []
 
         ZapAmountSelection zapAmountSelectionData ->
             Ui.Shared.modalDialog
                 settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
-                [ viewZapDialog dialog zapAmountSelectionData]
+                [ viewZapDialog dialog zapAmountSelectionData ]
                 CloseDialog
-            |> Html.map settings.toMsg 
-        
-    
+                |> Html.map settings.toMsg
+
+
 viewZapDialog : ZapDialog msg -> ZapAmountSelectionData -> Html (Msg msg)
 viewZapDialog (Settings settings) data =
     let
@@ -191,7 +202,8 @@ viewZapDialog (Settings settings) data =
         relays =
             Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
     in
-    div [ css
+    div
+        [ css
             [ Tw.my_4
             , Tw.flex
             , Tw.flex_col
@@ -201,8 +213,7 @@ viewZapDialog (Settings settings) data =
         ]
         [ recipientsSection (Settings settings) data.recipients
         , div
-            [
-            ]
+            []
             [ Button.new
                 { label = Translations.closeButtonTitle [ settings.browserEnv.translations ]
                 , onClick = Just CloseDialog
@@ -220,6 +231,7 @@ viewZapDialog (Settings settings) data =
             ]
         ]
 
+
 recipientsSection : ZapDialog msg -> List Recipient -> Html (Msg msg)
 recipientsSection (Settings settings) recipients =
     let
@@ -230,6 +242,7 @@ recipientsSection (Settings settings) recipients =
             Ui.Styles.stylesForTheme settings.theme
     in
     viewRecipients (Settings settings) recipients
+
 
 viewRecipients : ZapDialog msg -> List Recipient -> Html (Msg msg)
 viewRecipients (Settings settings) recipients =
@@ -247,6 +260,7 @@ viewRecipients (Settings settings) recipients =
             ]
             (List.map (viewRecipient settings.theme) recipients)
         ]
+
 
 viewRecipient : Theme -> Recipient -> Html (Msg msg)
 viewRecipient theme recipient =

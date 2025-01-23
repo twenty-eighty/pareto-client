@@ -1,20 +1,21 @@
 module Components.Button exposing
     ( Button, new
     , view
-    , withLink
-    , withTypePrimary, withTypeSecondary
     , withStyleSuccess, withStyleWarning, withStyleDanger
     , withSizeSmall
     , withIconLeft, withIconRight
     , withDisabled
+    , withLink, withTypePrimary, withTypeSecondary
     )
 
 {-|
+
 
 ## Basic usage
 
 @docs Button, new
 @docs view
+
 
 ## Modifiers
 
@@ -24,16 +25,19 @@ module Components.Button exposing
 @docs withDisabled
 
 -}
+
 import Components.Icon exposing (Icon)
 import Css
+import Html
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events as Events
 import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
 import Ui.Styles
-import Html
+
+
 
 -- SETTINGS
 
@@ -74,6 +78,7 @@ new props =
 
 -- MODIFIERS
 
+
 withLink : Maybe String -> Button msg -> Button msg
 withLink link (Settings settings) =
     Settings { settings | link = link }
@@ -93,7 +98,6 @@ withTypePrimary (Settings settings) =
 withTypeSecondary : Button msg -> Button msg
 withTypeSecondary (Settings settings) =
     Settings { settings | type_ = SecondaryButton }
-
 
 
 type Style
@@ -162,16 +166,16 @@ view (Settings settings) =
                 Nothing ->
                     text ""
 
-        (element, onClickAttr) =
-            case (settings.isDisabled, settings.onClick, settings.link) of
-                (False, Just onClick, _) ->
-                    (button, [ Events.onClick onClick ])
+        ( element, onClickAttr ) =
+            case ( settings.isDisabled, settings.onClick, settings.link ) of
+                ( False, Just onClick, _ ) ->
+                    ( button, [ Events.onClick onClick ] )
 
-                (False, Nothing, Just link) ->
-                    (a, [ href link ])
+                ( False, Nothing, Just link ) ->
+                    ( a, [ href link ] )
 
-                (_, _, _) ->
-                    (div, [ disabled True ])
+                ( _, _, _ ) ->
+                    ( div, [ disabled True ] )
     in
     div
         [ css
@@ -181,30 +185,32 @@ view (Settings settings) =
             ]
         ]
         [ element
-            ( buttonStyles ++ onClickAttr ++
-            [ css
-                [ Tw.py_2
-                , Tw.px_4
-                , Tw.flex
-                , Tw.flex_row
-                , Tw.gap_2
-                , Tw.rounded_full
-                , Css.hover
-                    [ 
-                    ]
-                ]
-            , classList
-                [ ( "is-success", settings.style == Success )
-                , ( "is-warning", settings.style == Warning )
-                , ( "is-danger", settings.style == Danger )
-                , ( "is-small", settings.size == Small )
-                ]
-            ])
+            (buttonStyles
+                ++ onClickAttr
+                ++ [ css
+                        [ Tw.py_2
+                        , Tw.px_4
+                        , Tw.flex
+                        , Tw.flex_row
+                        , Tw.gap_2
+                        , Tw.rounded_full
+                        , Css.hover
+                            []
+                        ]
+                   , classList
+                        [ ( "is-success", settings.style == Success )
+                        , ( "is-warning", settings.style == Warning )
+                        , ( "is-danger", settings.style == Danger )
+                        , ( "is-small", settings.size == Small )
+                        ]
+                   ]
+            )
             [ viewOptionalIcon settings.iconLeft
             , text settings.label
             , viewOptionalIcon settings.iconRight
             ]
         ]
+
 
 stylesForTheme : Button msg -> List (Attribute msg)
 stylesForTheme (Settings settings) =
@@ -213,25 +219,28 @@ stylesForTheme (Settings settings) =
             Ui.Styles.stylesForTheme settings.theme
 
         -- TODO: use style (Default | Success | Warning | Danger)
-        (foregroundStyles, backgroundStyles) =
+        ( foregroundStyles, backgroundStyles ) =
             case settings.type_ of
                 RegularButton ->
                     if settings.isDisabled then
-                        (styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground)
+                        ( styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground )
+
                     else
-                        (styles.colorStyleRegularButtonText, styles.colorStyleRegularButtonBackground)
+                        ( styles.colorStyleRegularButtonText, styles.colorStyleRegularButtonBackground )
 
                 PrimaryButton ->
                     if settings.isDisabled then
-                        (styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground)
+                        ( styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground )
+
                     else
-                        (styles.colorStylePrimaryButtonText, styles.colorStylePrimaryButtonBackground)
+                        ( styles.colorStylePrimaryButtonText, styles.colorStylePrimaryButtonBackground )
 
                 SecondaryButton ->
                     if settings.isDisabled then
-                        (styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground)
+                        ( styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground )
+
                     else
-                        (styles.colorStyleSecondaryButtonText, styles.colorStyleSecondaryButtonBackground)
+                        ( styles.colorStyleSecondaryButtonText, styles.colorStyleSecondaryButtonBackground )
 
         attributes =
             foregroundStyles ++ backgroundStyles

@@ -3,14 +3,15 @@ module Nostr.Nip96 exposing (..)
 import Dict exposing (Dict)
 import File exposing (File)
 import Http
-import Json.Decode exposing (Decoder, andThen, bool, dict, fail, field, float, int, list, maybe, string, succeed)
-import Json.Decode.Pipeline exposing (required, optional)
-import Json.Decode as Decode
+import Json.Decode as Decode exposing (Decoder, andThen, bool, dict, fail, field, float, int, list, maybe, string, succeed)
+import Json.Decode.Pipeline exposing (optional, required)
 import Nostr.Nip94 as Nip94
 import Url
 
 
+
 -- Type Definitions
+
 
 type alias MediaTransformations =
     { image : List String
@@ -37,20 +38,25 @@ type alias ServerDescriptorData =
     , plans : Dict String Plan
     }
 
+
 type alias ServerRedirection =
     { apiUrl : Maybe String
     , delegated_to_url : String
     }
 
+
 type ServerDescResponse
     = ServerRedirect ServerRedirection
     | ServerDescriptor ServerDescriptorData
 
+
+
 -- fetch server definition
+
 
 fetchServerSpec : (Result Http.Error ServerDescResponse -> msg) -> String -> Cmd msg
 fetchServerSpec toMsg url =
-     Http.request
+    Http.request
         { method = "GET"
         , headers =
             [ Http.header "Accept" "application/json"
@@ -62,44 +68,52 @@ fetchServerSpec toMsg url =
         , tracker = Nothing
         }
 
+
 extendRelativeServerDescriptorUrls : String -> ServerDescriptorData -> ServerDescriptorData
 extendRelativeServerDescriptorUrls url serverDesc =
     let
         extendedApiUrl =
             serverDesc.apiUrl
-            |> extendRelativeUrl url
+                |> extendRelativeUrl url
 
         extendedDownloadUrl =
             serverDesc.downloadUrl
-            |> extendRelativeUrl url
+                |> extendRelativeUrl url
 
         extendedTosUrl =
             serverDesc.tosUrl
-            |> Maybe.map (extendRelativeUrl url)
+                |> Maybe.map (extendRelativeUrl url)
     in
     { serverDesc | apiUrl = extendedApiUrl, downloadUrl = extendedDownloadUrl, tosUrl = extendedTosUrl }
+
 
 extendRelativeUrl : String -> String -> String
 extendRelativeUrl url path =
     let
         urlIsRelative =
             Url.fromString path
-            |> Maybe.map (\_ -> False)
-            |> Maybe.withDefault True
+                |> Maybe.map (\_ -> False)
+                |> Maybe.withDefault True
     in
     if urlIsRelative then
         urlWithoutTrailingSlash url ++ path
+
     else
         path
+
 
 urlWithoutTrailingSlash : String -> String
 urlWithoutTrailingSlash url =
     if String.endsWith "/" url then
         String.dropRight 1 url
+
     else
         url
 
+
+
 -- Decoders
+
 
 mediaTransformationsDecoder : Decoder (Dict String (List String))
 mediaTransformationsDecoder =
@@ -130,6 +144,7 @@ planDecoder =
         |> optional "file_expiration" (maybe fileExpirationDecoder) Nothing
         |> optional "media_transformations" (maybe mediaTransformationsDecoder) Nothing
 
+
 plansDecoder : Decoder (Dict String Plan)
 plansDecoder =
     dict planDecoder
@@ -141,6 +156,7 @@ serverSpecOrDelegationDecoder =
         [ serverSpecDecoder |> Decode.map ServerDescriptor
         , serverRedirectionDecoder |> Decode.map ServerRedirect
         ]
+
 
 serverSpecDecoder : Decoder ServerDescriptorData
 serverSpecDecoder =
@@ -160,11 +176,13 @@ serverRedirectionDecoder =
         |> required "delegated_to_url" string
 
 
+
 -- file list
+
 
 fetchFileList : (Result Http.Error FileList -> msg) -> String -> String -> Cmd msg
 fetchFileList toMsg authHeader url =
-     Http.request
+    Http.request
         { method = "GET"
         , headers =
             [ Http.header "Accept" "application/json"
@@ -178,7 +196,9 @@ fetchFileList toMsg authHeader url =
         }
 
 
+
 -- Type Definitions
+
 
 type alias FileList =
     { count : Int
@@ -188,7 +208,9 @@ type alias FileList =
     }
 
 
+
 -- Uploads
+
 
 type alias FileUpload =
     { file : File
@@ -200,12 +222,14 @@ type alias FileUpload =
     , uploadResponse : Maybe UploadResponse
     }
 
+
 type alias UploadResponse =
     { status : String
     , message : Maybe String
     , processingUrl : Maybe String
     , fileMetadata : Maybe Nip94.FileMetadata
     }
+
 
 type UploadStatus
     = Selected
@@ -215,8 +239,6 @@ type UploadStatus
     | Uploading Float -- Progress percentage
     | Uploaded
     | Failed String -- Error message
-
-
 
 
 uploadFile : String -> Int -> FileUpload -> (Result Http.Error UploadResponse -> msg) -> String -> Cmd msg
@@ -237,8 +259,9 @@ multipartBody : FileUpload -> Http.Body
 multipartBody upload =
     let
         expirationString =
-            "" -- Empty string for no expiration
+            ""
 
+        -- Empty string for no expiration
         -- Collect form fields
         formFields =
             [ Http.filePart "file" upload.file
@@ -246,12 +269,13 @@ multipartBody upload =
             , Http.stringPart "content_type" (File.mime upload.file)
             , Http.stringPart "expiration" expirationString
             ]
-            |> appendStringField "media_type" upload.mediaType
-            |> appendStringField "alt" upload.alt
-            |> appendStringField "caption" upload.caption
-            |> appendBooleanField "no_transform" upload.noTransform
+                |> appendStringField "media_type" upload.mediaType
+                |> appendStringField "alt" upload.alt
+                |> appendStringField "caption" upload.caption
+                |> appendBooleanField "no_transform" upload.noTransform
     in
     Http.multipartBody formFields
+
 
 appendStringField : String -> Maybe String -> List Http.Part -> List Http.Part
 appendStringField fieldName maybeFieldValue fields =
@@ -261,6 +285,7 @@ appendStringField fieldName maybeFieldValue fields =
 
         Nothing ->
             fields
+
 
 appendBooleanField : String -> Maybe Bool -> List Http.Part -> List Http.Part
 appendBooleanField fieldName maybeFieldValue fields =
@@ -275,7 +300,9 @@ appendBooleanField fieldName maybeFieldValue fields =
             fields
 
 
+
 -- Decoders
+
 
 fileListDecoder : Decoder FileList
 fileListDecoder =

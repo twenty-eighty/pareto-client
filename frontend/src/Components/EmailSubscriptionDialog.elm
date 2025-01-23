@@ -96,7 +96,7 @@ init props =
 
 
 show : Model -> Model
-show (Model model)  =
+show (Model model) =
     Model { model | state = DialogVisible { email = Nothing } }
 
 
@@ -179,7 +179,7 @@ view dialog =
             Ui.Shared.modalDialog
                 settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
-                [ viewZapDialog dialog emailSubscriptionData]
+                [ viewZapDialog dialog emailSubscriptionData ]
                 CloseDialog
                 |> Html.map settings.toMsg
 
@@ -214,7 +214,7 @@ viewZapDialog (Settings settings) data =
                 |> Button.view
             , Button.new
                 { label = Translations.subscribeButtonTitle [ settings.browserEnv.translations ]
-                , onClick = Just <| SubscribeClicked 
+                , onClick = Just <| SubscribeClicked
                 , theme = settings.theme
                 }
                 |> Button.withTypePrimary
@@ -232,8 +232,11 @@ recipientsSection (Settings settings) =
         styles =
             Ui.Styles.stylesForTheme settings.theme
     in
-    div [][]
-    -- viewRecipients (Settings settings) recipients
+    div [] []
+
+
+
+-- viewRecipients (Settings settings) recipients
 
 
 viewRecipients : EmailSubscriptionDialog msg -> List Recipient -> Html (Msg msg)

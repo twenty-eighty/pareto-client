@@ -15,28 +15,31 @@ type alias ShortNote =
     , subject : Maybe String
     }
 
-{-
--}
+
+
+{- -}
+
 
 shortNoteFromEvent : Event -> ShortNote
 shortNoteFromEvent event =
     event.tags
-    |> List.foldl (\tag acc ->
-        case tag of 
-            SubjectTag subject ->
-                { acc | subject = Just subject }
+        |> List.foldl
+            (\tag acc ->
+                case tag of
+                    SubjectTag subject ->
+                        { acc | subject = Just subject }
 
-            _ ->
-                acc
+                    _ ->
+                        acc
             )
-        { id = event.id
-        , content = Just event.content
-        , createdAt = event.createdAt
-        , pubKey = event.pubKey
-        , subject = Nothing
-        }
+            { id = event.id
+            , content = Just event.content
+            , createdAt = event.createdAt
+            , pubKey = event.pubKey
+            , subject = Nothing
+            }
+
 
 tagReference : ShortNote -> TagReference
 tagReference shortNote =
     TagReferenceEventId shortNote.id
-

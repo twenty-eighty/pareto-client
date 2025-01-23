@@ -2,9 +2,9 @@ module Pages.Home_ exposing (Model, Msg, page)
 
 import Layouts
 import Page exposing (Page)
+import Pages.Read as Implementation
 import Route exposing (Route)
 import Shared
-import Pages.Read as Implementation
 import Ui.Styles exposing (Theme)
 
 
@@ -18,10 +18,16 @@ page shared route =
         }
         |> Page.withLayout (toLayout shared.theme)
 
+
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
-type alias Model = Implementation.Model
-type alias Msg = Implementation.Msg
+
+type alias Model =
+    Implementation.Model
+
+
+type alias Msg =
+    Implementation.Msg

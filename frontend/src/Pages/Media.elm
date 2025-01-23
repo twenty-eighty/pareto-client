@@ -25,8 +25,8 @@ import Route exposing (Route)
 import Shared
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
 import Time
 import Translations.Write
 import Ui.Styles exposing (Theme)
@@ -43,10 +43,12 @@ page user shared route =
         }
         |> Page.withLayout (toLayout shared.theme)
 
+
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme model =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
+
 
 
 -- INIT
@@ -56,10 +58,11 @@ type alias Model =
     { mediaSelector : MediaSelector.Model
     }
 
+
 init : Auth.User -> Shared.Model -> Route () -> () -> ( Model, Effect Msg )
 init user shared route () =
     let
-        (mediaSelector, mediaSelectorEffect) =
+        ( mediaSelector, mediaSelectorEffect ) =
             MediaSelector.init
                 { selected = Nothing
                 , toMsg = MediaSelectorSent
@@ -67,9 +70,9 @@ init user shared route () =
                 , nip96Servers = Nostr.getNip96Servers shared.nostr user.pubKey
                 , displayType = MediaSelector.DisplayEmbedded
                 }
-
     in
     ( { mediaSelector = mediaSelector }, mediaSelectorEffect )
+
 
 
 -- UPDATE
@@ -101,6 +104,7 @@ update shared user msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.map MediaSelectorSent (MediaSelector.subscribe model.mediaSelector)
+
 
 
 -- VIEW

@@ -1,6 +1,7 @@
 module Components.MessageDialog exposing
-    ( MessageDialog, new
-    , ButtonStyle(..)
+    ( ButtonStyle(..)
+    , MessageDialog
+    , new
     , view
     )
 
@@ -14,8 +15,9 @@ import Translations.MessageDialog as Translations
 import Ui.Shared exposing (modalDialog)
 import Ui.Styles exposing (Styles, Theme)
 
+
 type MessageDialog identifier msg
-     = Settings
+    = Settings
         { onClick : identifier -> msg
         , onClose : msg
         , title : String
@@ -24,16 +26,17 @@ type MessageDialog identifier msg
         , theme : Theme
         }
 
+
 type alias ButtonData identifier =
     { style : ButtonStyle
     , title : String
     , identifier : identifier
     }
 
+
 type ButtonStyle
     = PrimaryButton
     | SecondaryButton
-
 
 
 new :
@@ -61,12 +64,11 @@ view (Settings settings) =
     let
         buttons =
             settings.buttons
-            |> List.map (buttonFromDescription settings.theme settings.onClick)
-            |> div []
+                |> List.map (buttonFromDescription settings.theme settings.onClick)
+                |> div []
 
         content =
-            [
-            div
+            [ div
                 [ css
                     [ Tw.flex
                     , Tw.flex_col
@@ -84,6 +86,7 @@ view (Settings settings) =
         settings.title
         content
         settings.onClose
+
 
 buttonFromDescription : Theme -> (identifier -> msg) -> ButtonData identifier -> Html msg
 buttonFromDescription theme onClick buttonData =
