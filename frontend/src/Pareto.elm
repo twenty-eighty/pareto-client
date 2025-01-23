@@ -162,6 +162,7 @@ bootstrapAuthorsList =
     , ( "NACHHALL", "712db8c83700aca0ffa1c3b759929e18d26fcc2b6eeb07305bdf33760b42cbce" )
     , ( "bitcoinlighthouse@nsec.app", "638384700918e6a472477045dbcc229362ac0e64a48d927c48af609a956b9348" )
     , ( "Aron Morhoff", "9f94e6cc5ce50dcaccfc42b18029aba0ac9215d673197a40172896d3f3472946" )
+    , ( "blingbling@pareto.town", "b8af284d20a109766c55cc5d4aea27f9c3df20f68f8d0eb5b5de3349f82c91dd" )
     ]
 
 
