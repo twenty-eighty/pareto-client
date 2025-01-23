@@ -125,13 +125,46 @@ defaultRelayUrls =
         |> List.map (String.append "wss://")
 
 
-paretoNpub : String
-paretoNpub =
+
+-- list of authors for Pareto category
+-- the list is replaced after the follow list of above key authorsKey has been loaded
+
+
+bootstrapAuthorsList : List PubKey
+bootstrapAuthorsList =
+    [ ( "milosz@pareto.space", "2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" )
+    , ( "ashoka@pareto.space", "e373ca4101e25a4d4fcb2a53473fa4113b91dba2c2e451d039d8528eb82abcc5" )
+    , ( "roland@pareto.space", "cff1720e77bb068f0ebbd389dcd50822dd1ac8d2ac0b0f5f0800ae9e15c7e2b2" )
+    , ( "janosch@pareto.space", "89bae92f9d9b0f6d97a300496cfb0b73c92a74c9675a724c0689975f8074dc01" )
+    , ( "arottmann@grooveix.com", "a95c624384c60902aaac9de52ab0fce39a9e8daa3d2b14236573a093d345522c" )
+    , ( "denkbar@grooveix.com", "c631e26716c6b1a404dac828be44fdd403e65a0e5d05af00e24c3524c2b78d3e" )
+    , ( "psychobabble@pareto.town", "6734e11d8d67d9ca4dedb920f81182ded2bca918e3e0f3528bd5f4c4c7e34e8f" )
+    , ( "walter_siegrist@pareto.space", "78c90fc422bdadafb4df0de5d1ed87133265f896949705bebc61aee44bff983c" )
+    , ( "_@pareto.space", "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84" )
+    , ( "martin@enlund.org", "4234223996ce6549720e66dd6bc4bb7efb9f25c60c4816d7bc47a65e1d80db24" )
+    , ( "christof_weber@pareto.space", "79271c81ef2fd4994c20d73b0555a3e58d7ee9caaa2328082e3a336de18d9066" )
+    , ( "jklnz@getalby.com", "a38a5cd0ec24d3f20c4870a032c1989109bf107c4ce8648fdc5a9c4492b1b8f0" )
+    , ( "rp@pareto.town", "2fb77d268b93380a7c3152c610bb373165569a664d445a33140ac048c47a6ee1" )
+    , ( "marcel@pareto.town", "7f29628df734cf02f3407580184af73d941e940f4a91c61d1e15aa08e160cccc" )
+    , ( "peter@pareto.town", "c3b2802bd061e0ea1c670604f87ad4d7ab8b487f01ccb417224baedb4850599c" )
+    , ( "michael_meyen@pareto.town", "044da3442a54bd55202b66ca0c4f5fd58cbb158b67f2fb067cc0467c073a8a0e" )
+    , ( "Genexyz", "2063cd7955cffdca0cc4ae20f77b2b1eb053010e534c18e8ca70222157bd1320" )
+    , ( "te@pareto.town", "fe02e8ece33b9e01b4225a01bb373552dc6f78744ad8121698c30bfaf07fbe0b" )
+    , ( "Paul Andersson", "2516d14559174be1a2e578c333ef584e2f32b45931bddb624d0178e4070c8fa1" )
+    , ( "Eva Schmidt", "1731c73ccb388c5574b97d349c22c5f34271cef841129eb719e418cc1bca4ecc" )
+    , ( "simon.kramer@sk-nostr.ch", "e77fe29e0868513a47b68b5941332139432b8e600140791163173b636fe8bc9d" )
+    , ( "NACHHALL", "712db8c83700aca0ffa1c3b759929e18d26fcc2b6eeb07305bdf33760b42cbce" )
+    ]
+        |> List.map (\( _, pubKey ) -> pubKey)
+
+
+paretoClientNpub : String
+paretoClientNpub =
     "npub1parecl0l0w6nmtjn7wan9tg3p8kmkpa62c4a65tgq39n7smyu76sht8cm5"
 
 
-paretoPubKey : PubKey
-paretoPubKey =
+paretoClientPubKey : PubKey
+paretoClientPubKey =
     "0f479c7dff7bb53dae53f3bb32ad1109edbb07ba562bdd5168044b3f4364e7b5"
 
 
@@ -212,9 +245,9 @@ paretoProfile =
     , banner = Just "https://image.nostr.build/ddc8d30046efb51767c3db33cc9edafb83bd0a61142bd84c4d1e55705b96c819.png"
     , website = Just applicationUrl
     , bot = Nothing
-    , npub = Just paretoNpub
+    , npub = Just paretoClientNpub
     , createdAt = Nothing
-    , pubKey = paretoPubKey
+    , pubKey = paretoClientPubKey
     , identities = []
     }
 
@@ -236,7 +269,7 @@ paretoWebTargets =
 
 paretoZapTargets : List ( PubKey, RelayUrl, Maybe Int )
 paretoZapTargets =
-    [ ( paretoPubKey, paretoRelay, Just 1 )
+    [ ( paretoClientPubKey, paretoRelay, Just 1 )
     ]
 
 
@@ -251,7 +284,7 @@ applicationInformation time =
     , handlerIdentifier = handlerIdentifier
     , hashtags = paretoHashtags
     , kinds = supportedKinds
-    , pubKey = paretoPubKey
+    , pubKey = paretoClientPubKey
     , profile = paretoProfile
     , references = paretoReferences
     , time = time

@@ -118,16 +118,13 @@ init shared route () =
         category =
             Dict.get categoryParamName route.query
                 |> Maybe.andThen categoryFromString
-                |> Maybe.withDefault Global
+                |> Maybe.withDefault Pareto
 
         correctedCategory =
             case category of
                 Pareto ->
-                    if paretoFollowsList shared.nostr == [] then
-                        Global
-
-                    else
-                        category
+                    -- a fixed authors list will be used for bootstrapping so Pareto can be the initial category
+                    category
 
                 Followed ->
                     if userFollowsList shared.nostr shared.loginStatus == [] then
@@ -253,7 +250,18 @@ filterForCategory shared category =
             { emptyEventFilter | kinds = Just [ KindLongFormContent ], limit = Just 20 }
 
         Pareto ->
-            { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (paretoFollowsList shared.nostr), limit = Just 20 }
+            let
+                loadedAuthorsList =
+                    paretoFollowsList shared.nostr
+
+                authorsList =
+                    if List.length loadedAuthorsList > 0 then
+                        loadedAuthorsList
+
+                    else
+                        Pareto.bootstrapAuthorsList
+            in
+            { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just authorsList, limit = Just 20 }
 
         Followed ->
             { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (userFollowsList shared.nostr shared.loginStatus), limit = Just 20 }
@@ -320,11 +328,7 @@ availableCategories : Nostr.Model -> Shared.Model.LoginStatus -> I18Next.Transla
 availableCategories nostr loginStatus translations =
     let
         paretoCategories =
-            if paretoFollowsList nostr /= [] then
-                [ paretoCategory translations ]
-
-            else
-                []
+            [ paretoCategory translations ]
 
         paretoRssCategories =
             if paretoRssFollowsList nostr /= [] then
@@ -340,10 +344,8 @@ availableCategories nostr loginStatus translations =
             else
                 []
     in
-    followedCategories
-        ++ paretoCategories
-        ++ -- paretoRssCategories ++
-           [ { category = Global
+    paretoCategories
+        ++ [ { category = Global
              , title = Translations.Read.globalFeedCategory [ translations ]
              }
 
@@ -351,6 +353,7 @@ availableCategories nostr loginStatus translations =
            --     , title = Translations.Read.highlighterFeedCategory [ translations ]
            --     }
            ]
+        ++ followedCategories
 
 
 paretoCategory : I18Next.Translations -> Components.Categories.CategoryData Category
