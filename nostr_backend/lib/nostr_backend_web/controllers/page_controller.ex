@@ -111,6 +111,12 @@ defmodule NostrBackendWeb.PageController do
     |> render(:posts)
   end
 
+  def privacy(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:privacy)
+  end
+
   def read(conn, _params) do
     conn
     |> add_meta_tags

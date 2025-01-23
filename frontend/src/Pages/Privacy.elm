@@ -113,6 +113,7 @@ view shared model =
                         [ Tw.flex
                         , Tw.flex_col
                         , Tw.gap_3
+                        , Tw.m_10
                         ]
                    ]
             )

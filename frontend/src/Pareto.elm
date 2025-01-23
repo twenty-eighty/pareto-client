@@ -48,7 +48,7 @@ applicationUrl =
 
 privacyPolicyGerman : String
 privacyPolicyGerman =
-    applicationUrl ++ "/privacy-de.md"
+    "/md/privacy-de.md"
 
 
 paretoNip05 : Nip05.Nip05
