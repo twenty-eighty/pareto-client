@@ -334,26 +334,6 @@ viewMainContent content =
         content
 
 
-viewBanner : Html contentMsg
-viewBanner =
-    div
-        [ css
-            [ Tw.flex
-            , Tw.items_center
-            , Tw.space_x_4
-            ]
-        ]
-        [ img
-            [ Attr.src "/images/pareto-banner.png"
-            , Attr.alt "Banner"
-            , css
-                [ Tw.h_16
-                ]
-            ]
-            []
-        ]
-
-
 viewBannerSmall : BrowserEnv -> Html contentMsg
 viewBannerSmall browserEnv =
     let
@@ -700,21 +680,20 @@ viewSidebarItem styles currentPath itemData =
                 )
     in
     a
-        (linkAttr
-            ++ [ css
-                    [ Tw.py_2
-                    , Tw.w_10
-                    , Bp.xl
-                        [ Tw.w_40
-                        , Tw.flex
-                        , Tw.flex_row
-                        ]
-                    , Bp.sm
-                        [ Tw.rounded_full
-                        , Tw.h_10
-                        ]
-                    ]
-               ]
+        (css
+            [ Tw.py_2
+            , Tw.w_10
+            , Bp.xl
+                [ Tw.w_40
+                , Tw.flex
+                , Tw.flex_row
+                ]
+            , Bp.sm
+                [ Tw.rounded_full
+                , Tw.h_10
+                ]
+            ]
+            :: linkAttr
             ++ background
             ++ foreground
         )
@@ -730,14 +709,13 @@ viewSidebarItem styles currentPath itemData =
             ]
             [ Icon.view itemData.icon ]
         , span
-            ([ css
+            (css
                 [ Tw.hidden
                 , Bp.xl
                     [ Tw.inline
                     ]
                 ]
-             ]
-                ++ foreground
+                :: foreground
             )
             [ text itemData.title ]
         ]

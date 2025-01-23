@@ -1,27 +1,19 @@
 module Pages.Privacy exposing (Model, Msg, init, page, subscriptions, update, view)
 
-import Dict
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled as Html exposing (div, text)
+import Html.Styled.Attributes exposing (css)
 import Http
 import Layouts
 import Locale exposing (Language(..))
 import Markdown
-import Nostr.Types exposing (IncomingMessage)
 import Page exposing (Page)
 import Pareto
-import Ports
 import Route exposing (Route)
-import Route.Path
 import Shared
 import Shared.Model exposing (ClientRole(..))
-import Shared.Msg
-import Tailwind.Breakpoints as Bp
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Translations.SignIn as Translations
+import Translations.Privacy as Translations
 import Ui.Styles exposing (Theme)
 import View exposing (View)
 

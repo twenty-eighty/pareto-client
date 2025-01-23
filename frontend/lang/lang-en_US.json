@@ -64,6 +64,9 @@
       "edit draft button label": "Edit",
       "delete draft button label": "Delete"
    },
+   "privacy": {
+      "page title": "Privacy Policy"
+   },
    "profile": {
       "follow button title": "Follow",
       "unfollow button title": "Unfollow",
