@@ -37,6 +37,19 @@ languageFromLocale locale =
             English "GB"
 
 
+showLanguage : Language -> String
+showLanguage language =
+    case language of
+        English _ ->
+            "English"
+
+        German _ ->
+            "Deutsch"
+
+        _ ->
+            "Not supported yet"
+
+
 dateFormatFromLanguage : Language -> ( DateFormat.Language.Language, List DateFormat.Token, List DateFormat.Token )
 dateFormatFromLanguage language =
     case language of

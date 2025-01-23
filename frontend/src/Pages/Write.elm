@@ -3,6 +3,7 @@ module Pages.Write exposing (Model, Msg, page)
 import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
+import Components.Dropdown
 import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
 import Components.MessageDialog as MessageDialog
 import Components.PublishArticleDialog as PublishArticleDialog exposing (PublishArticleDialog)
@@ -15,6 +16,7 @@ import Html.Styled.Events as Events exposing (..)
 import Json.Decode as Decode
 import Layouts
 import LinkPreview exposing (LoadedContent)
+import Locale exposing (Language(..), showLanguage)
 import Milkdown.MilkdownEditor as Milkdown
 import Nostr
 import Nostr.Article exposing (Article, articleFromEvent)
@@ -82,6 +84,7 @@ type alias Model =
     , editorMode : EditorMode
     , loadedContent : LoadedContent Msg
     , modalDialog : ModalDialog
+    , languageSelection : Components.Dropdown.Model Language
     }
 
 
@@ -192,6 +195,7 @@ init user shared route () =
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
                     , modalDialog = NoModalDialog
+                    , languageSelection = Components.Dropdown.init { selected = Just (English "US") }
                     }
 
                 Nothing ->
@@ -213,6 +217,7 @@ init user shared route () =
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
                     , modalDialog = NoModalDialog
+                    , languageSelection = Components.Dropdown.init { selected = Nothing }
                     }
     in
     ( model
@@ -274,6 +279,7 @@ type Msg
     | MilkdownSent (Milkdown.Msg Msg)
     | PublishArticleDialogSent (PublishArticleDialog.Msg Msg)
     | PublishedDialogButtonClicked PublishedDialogButton
+    | DropdownSent (Components.Dropdown.Msg Language Msg)
 
 
 type PublishedDialogButton
@@ -431,6 +437,14 @@ update shared user msg model =
 
         PublishedDialogButtonClicked _ ->
             ( { model | modalDialog = NoModalDialog }, Effect.none )
+
+        DropdownSent innerMsg ->
+            Components.Dropdown.update
+                { msg = innerMsg
+                , model = model.languageSelection
+                , toModel = \dropdown -> { model | languageSelection = dropdown }
+                , toMsg = DropdownSent
+                }
 
 
 updateWithPortMessage : Shared.Model -> Model -> Auth.User -> IncomingMessage -> ( Model, Effect Msg )
@@ -698,6 +712,13 @@ view user shared model =
                     ]
                 ]
             , viewEditor shared.theme shared.browserEnv model
+            , Components.Dropdown.new
+                { model = model.languageSelection
+                , toMsg = DropdownSent
+                , choices = [ English "US", German "DE" ]
+                , toLabel = showLanguage
+                }
+                |> Components.Dropdown.view
             , viewTags shared.theme shared.browserEnv model
             , viewArticleState shared.browserEnv shared.theme model.articleState
             , saveButtons shared.browserEnv shared.theme model
