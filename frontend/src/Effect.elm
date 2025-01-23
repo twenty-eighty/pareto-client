@@ -1,12 +1,12 @@
 module Effect exposing
     ( Effect
     , none, batch
-    , openOnboardingDialog
-    , sendCmd, sendMsg, sendSharedMsg
+    , sendCmd, sendMsg
     , pushRoute, replaceRoute
     , pushRoutePath, replaceRoutePath
     , loadExternalUrl, back
     , map, toCmd
+    , openOnboardingDialog, sendSharedMsg
     )
 
 {-|
@@ -66,9 +66,11 @@ batch : List (Effect msg) -> Effect msg
 batch =
     Batch
 
+
 openOnboardingDialog : Effect msg
 openOnboardingDialog =
     OpenOnboardingDialog
+
 
 {-| Send a normal `Cmd msg` as an effect, something like `Http.get` or `Random.generate`.
 -}
@@ -89,6 +91,7 @@ sendMsg msg =
 sendSharedMsg : Shared.Msg.Msg -> Effect msg
 sendSharedMsg =
     SendSharedMsg
+
 
 
 -- ROUTING
@@ -183,6 +186,7 @@ map fn effect =
 
         OpenOnboardingDialog ->
             OpenOnboardingDialog
+
 
 {-| Elm Land depends on this function to perform your effects.
 -}

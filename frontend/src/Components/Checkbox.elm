@@ -1,16 +1,18 @@
 module Components.Checkbox exposing
     ( Checkbox, new
     , view
-    , withImage
     , withDisabled
+    , withImage
     )
 
 {-|
+
 
 ## Basic usage
 
 @docs Checkbox, new
 @docs view
+
 
 ## Modifiers
 
@@ -20,15 +22,18 @@ module Components.Checkbox exposing
 @docs withDisabled
 
 -}
+
 import Components.Icon exposing (Icon)
 import Css
+import Graphics
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events as Events
-import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
 import Ui.Styles
-import Graphics
+
+
 
 -- SETTINGS
 
@@ -60,6 +65,7 @@ new props =
 
 
 -- MODIFIERS
+
 
 withImage : String -> Checkbox msg -> Checkbox msg
 withImage imageUrl (Settings settings) =
@@ -114,8 +120,7 @@ view (Settings settings) =
                 Nothing ->
                     text ""
     in
--- ( styles.colorStyleButtonText ++ styles.colorStyleButtonBackground ++
-
+    -- ( styles.colorStyleButtonText ++ styles.colorStyleButtonBackground ++
     label
         [ Attr.css
             [ Tw.flex
@@ -134,7 +139,7 @@ view (Settings settings) =
                 , Tw.h_px
                 ]
             ]
-            [ ]
+            []
         , span
             [ Attr.css
                 [ Tw.border_2
@@ -151,7 +156,7 @@ view (Settings settings) =
                 ]
             ]
             [ if settings.checked then
-                 div
+                div
                     [ Attr.css
                         [ Tw.flex
                         , Tw.items_center
@@ -160,8 +165,9 @@ view (Settings settings) =
                         ]
                     ]
                     [ Graphics.checkboxCheckMark 10 ]
-                else
-                    div [][]
+
+              else
+                div [] []
             ]
         , span
             [ Attr.css
@@ -190,8 +196,7 @@ view (Settings settings) =
                     [ viewOptionalImage settings.imageUrl
                     ]
                 , p
-                    [
-                    ]
+                    []
                     [ text settings.label
                     ]
                 ]

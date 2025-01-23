@@ -1,10 +1,9 @@
 module Nostr.BookmarkList exposing (..)
 
 import Dict exposing (Dict)
-import Json.Decode as Decode exposing (Decoder)
+import Json.Decode as Decode exposing (Decoder, list)
 import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), TagReference(..), addAddressTags, emptyEvent, parseAddress)
 import Nostr.Types exposing (EventId, PubKey)
-import Json.Decode exposing (list)
 
 
 type alias BookmarkList =
@@ -14,6 +13,7 @@ type alias BookmarkList =
     , urls : List String
     }
 
+
 type BookmarkType
     = ArticleBookmark
     | HashtagBookmark
@@ -21,8 +21,10 @@ type BookmarkType
     | UrlBookmark
 
 
-{-
--}
+
+{-  -}
+
+
 emptyBookmarkList : BookmarkList
 emptyBookmarkList =
     { notes = []
@@ -31,61 +33,66 @@ emptyBookmarkList =
     , urls = []
     }
 
+
 bookmarksCount : BookmarkList -> Int
 bookmarksCount bookmarks =
-    List.length bookmarks.notes +
-    List.length bookmarks.articles +
-    List.length bookmarks.hashtags +
-    List.length bookmarks.urls
+    List.length bookmarks.notes
+        + List.length bookmarks.articles
+        + List.length bookmarks.hashtags
+        + List.length bookmarks.urls
 
-bookmarkListFromEvent : Event -> (PubKey, BookmarkList)
+
+bookmarkListFromEvent : Event -> ( PubKey, BookmarkList )
 bookmarkListFromEvent event =
     let
         bookmarkList =
             event.tags
-            |> List.foldl (\tag bml ->
-                case tag of 
-                    AddressTag addressComponents ->
-                        { bml | articles = bml.articles ++ [ addressComponents ] }
+                |> List.foldl
+                    (\tag bml ->
+                        case tag of
+                            AddressTag addressComponents ->
+                                { bml | articles = bml.articles ++ [ addressComponents ] }
 
-                    HashTag hashtag ->
-                        { bml | hashtags = hashtag :: bml.hashtags }
+                            HashTag hashtag ->
+                                { bml | hashtags = hashtag :: bml.hashtags }
 
-                    EventDelegationTag identifier ->
-                        { bml | notes = identifier :: bml.notes }
+                            EventDelegationTag identifier ->
+                                { bml | notes = identifier :: bml.notes }
 
-                    UrlTag urls _ ->
-                        { bml | urls = urls :: bml.urls }
+                            UrlTag urls _ ->
+                                { bml | urls = urls :: bml.urls }
 
-                    _ ->
-                        bml
+                            _ ->
+                                bml
                     )
-                { notes = []
-                , articles = []
-                , hashtags = []
-                , urls = []
-                }
+                    { notes = []
+                    , articles = []
+                    , hashtags = []
+                    , urls = []
+                    }
     in
-    (event.pubKey, bookmarkList )
+    ( event.pubKey, bookmarkList )
+
 
 bookmarkListWithArticle : BookmarkList -> AddressComponents -> BookmarkList
 bookmarkListWithArticle bookmarks addressComponents =
     let
         listContainsArticle =
             bookmarks.articles
-            |> List.filter (\referencedAddressComponents ->
-                referencedAddressComponents == addressComponents
-                )
-            |> List.isEmpty
-            |> not
+                |> List.filter
+                    (\referencedAddressComponents ->
+                        referencedAddressComponents == addressComponents
+                    )
+                |> List.isEmpty
+                |> not
 
         -- don't duplicate entry
         articlesWithAddress =
             if not listContainsArticle then
                 bookmarks.articles ++ [ addressComponents ]
+
             else
                 bookmarks.articles
-
     in
     { bookmarks | articles = articlesWithAddress }
 
@@ -95,7 +102,7 @@ bookmarkListWithoutArticle bookmarks addressComponents =
     let
         articlesWithoutAddress =
             bookmarks.articles
-            |> List.filter (\referencedAddressComponents -> referencedAddressComponents /= addressComponents)
+                |> List.filter (\referencedAddressComponents -> referencedAddressComponents /= addressComponents)
     in
     { bookmarks | articles = articlesWithoutAddress }
 
@@ -105,19 +112,20 @@ bookmarkListWithShortNote bookmarks eventId =
     let
         listContainsNote =
             bookmarks.notes
-            |> List.filter (\referencedAddressComponents ->
-                referencedAddressComponents == eventId
-                )
-            |> List.isEmpty
-            |> not
+                |> List.filter
+                    (\referencedAddressComponents ->
+                        referencedAddressComponents == eventId
+                    )
+                |> List.isEmpty
+                |> not
 
         -- don't duplicate entry
         notesWithEventId =
             if not listContainsNote then
                 bookmarks.notes ++ [ eventId ]
+
             else
                 bookmarks.notes
-
     in
     { bookmarks | notes = notesWithEventId }
 
@@ -127,7 +135,7 @@ bookmarkListWithoutShortNote bookmarks eventId =
     let
         notesWithoutAddress =
             bookmarks.notes
-            |> List.filter (\referencedEventId -> referencedEventId /= eventId)
+                |> List.filter (\referencedEventId -> referencedEventId /= eventId)
     in
     { bookmarks | notes = notesWithoutAddress }
 
@@ -135,12 +143,11 @@ bookmarkListWithoutShortNote bookmarks eventId =
 bookmarkListEvent : PubKey -> BookmarkList -> Event
 bookmarkListEvent pubKey list =
     let
-        event = 
+        event =
             emptyEvent pubKey KindBookmarkList
-
     in
     { event
         | tags =
             []
-            |> addAddressTags list.articles
+                |> addAddressTags list.articles
     }

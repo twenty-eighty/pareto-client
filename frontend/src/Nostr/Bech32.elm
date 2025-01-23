@@ -1,20 +1,25 @@
-module Nostr.Bech32 exposing (encode, decode, convertBits, Encoding(..))
+module Nostr.Bech32 exposing (Encoding(..), convertBits, decode, encode)
 
-import UInt64 exposing (UInt64)
-import UInt64 exposing (and, xor, shiftLeftBy, shiftRightZfBy, isZero, fromInt, toString)
 import Bitwise as BW
 import Char
 import List exposing (foldl)
 import String
+import UInt64 exposing (UInt64, and, fromInt, isZero, shiftLeftBy, shiftRightZfBy, toString, xor)
+
 
 
 -- Define the encoding types
+
+
 type Encoding
     = BECH32
     | BECH32M
 
 
+
 -- Constants
+
+
 separator : Char
 separator =
     '1'
@@ -22,28 +27,60 @@ separator =
 
 charset : List String
 charset =
-    [ "q", "p", "z", "r", "y", "9", "x", "8"
-    , "g", "f", "2", "t", "v", "d", "w", "0"
-    , "s", "3", "j", "n", "5", "4", "k", "h"
-    , "c", "e", "6", "m", "u", "a", "7", "l"
+    [ "q"
+    , "p"
+    , "z"
+    , "r"
+    , "y"
+    , "9"
+    , "x"
+    , "8"
+    , "g"
+    , "f"
+    , "2"
+    , "t"
+    , "v"
+    , "d"
+    , "w"
+    , "0"
+    , "s"
+    , "3"
+    , "j"
+    , "n"
+    , "5"
+    , "4"
+    , "k"
+    , "h"
+    , "c"
+    , "e"
+    , "6"
+    , "m"
+    , "u"
+    , "a"
+    , "7"
+    , "l"
     ]
 
 
 bech32mConst : UInt64
 bech32mConst =
-    UInt64.fromInt 0x2bc830a3
+    UInt64.fromInt 0x2BC830A3
+
 
 bech32Const : UInt64
 bech32Const =
     UInt64.fromInt 1
 
 
+
 -- Helper functions
+
 
 getAt : Int -> List a -> Maybe a
 getAt index list =
     if index < 0 then
         Nothing
+
     else
         list |> List.drop index |> List.head
 
@@ -51,6 +88,7 @@ getAt index list =
 findIndex : (a -> Bool) -> List a -> Maybe Int
 findIndex predicate list =
     findIndexHelper predicate list 0
+
 
 findIndexHelper : (a -> Bool) -> List a -> Int -> Maybe Int
 findIndexHelper predicate list index =
@@ -61,6 +99,7 @@ findIndexHelper predicate list index =
         x :: xs ->
             if predicate x then
                 Just index
+
             else
                 findIndexHelper predicate xs (index + 1)
 
@@ -73,6 +112,7 @@ dropRight n list =
     in
     if n >= len then
         []
+
     else
         List.take (len - n) list
 
@@ -91,13 +131,15 @@ lastIndexOf substring string =
             Nothing
 
 
+
 -- Encode function
+
+
 encode : String -> List Int -> Encoding -> String
 encode hrp dataList spec =
     let
         checksummed =
             dataList ++ createChecksum spec hrp dataList
-
 
         checksummedStr =
             String.join "" (List.map getCharsetChar checksummed)
@@ -124,7 +166,8 @@ createChecksum encoding hrp dataPart =
         const : UInt64
         const =
             if encoding == BECH32M then
-                UInt64.fromInt 0x2bc830a3
+                UInt64.fromInt 0x2BC830A3
+
             else
                 UInt64.fromInt 1
 
@@ -133,15 +176,18 @@ createChecksum encoding hrp dataPart =
             UInt64.xor (polymod values) const
 
         checksumInts =
-            List.map (\i ->
-                UInt64.and
-                    (UInt64.shiftRightZfBy ((5 * (5 - i))) polymodValue)
-                    (UInt64.fromInt 31)
-                    |> UInt64.toInt31
-                    |> Maybe.withDefault 0
-            ) (List.range 0 5)
+            List.map
+                (\i ->
+                    UInt64.and
+                        (UInt64.shiftRightZfBy (5 * (5 - i)) polymodValue)
+                        (UInt64.fromInt 31)
+                        |> UInt64.toInt31
+                        |> Maybe.withDefault 0
+                )
+                (List.range 0 5)
     in
     checksumInts
+
 
 expandHrp : String -> List Int
 expandHrp hrp =
@@ -150,7 +196,7 @@ expandHrp hrp =
             String.toList hrp
 
         hrp1 =
-            List.map (\c -> (Char.toCode c) // 32) hrpChars
+            List.map (\c -> Char.toCode c // 32) hrpChars
 
         hrp2 =
             List.map (\c -> modBy 32 (Char.toCode c)) hrpChars
@@ -163,11 +209,11 @@ polymod values =
     let
         generator : List UInt64
         generator =
-            [ UInt64.fromInt 0x3b6a57b2
-            , UInt64.fromInt 0x26508e6d
-            , UInt64.fromInt 0x1ea119fa
-            , UInt64.fromInt 0x3d4233dd
-            , UInt64.fromInt 0x2a1462b3
+            [ UInt64.fromInt 0x3B6A57B2
+            , UInt64.fromInt 0x26508E6D
+            , UInt64.fromInt 0x1EA119FA
+            , UInt64.fromInt 0x3D4233DD
+            , UInt64.fromInt 0x2A1462B3
             ]
 
         step : Int -> UInt64 -> UInt64
@@ -180,15 +226,16 @@ polymod values =
                 chk1 : UInt64
                 chk1 =
                     UInt64.xor
-                        (UInt64.shiftLeftBy 5 (UInt64.and chk (UInt64.fromInt 0x1ffffff)))
+                        (UInt64.shiftLeftBy 5 (UInt64.and chk (UInt64.fromInt 0x01FFFFFF)))
                         (UInt64.fromInt v)
 
                 chkNew : UInt64
                 chkNew =
                     List.foldl
-                        (\(i, g) acc ->
+                        (\( i, g ) acc ->
                             if not (UInt64.isZero (UInt64.and b (UInt64.shiftLeftBy i UInt64.one))) then
                                 UInt64.xor acc g
+
                             else
                                 acc
                         )
@@ -200,7 +247,10 @@ polymod values =
     List.foldl step (UInt64.fromInt 1) values
 
 
+
 -- Decode function
+
+
 decode : String -> Maybe ( String, List Int, Encoding )
 decode bech =
     let
@@ -264,7 +314,7 @@ decode bech =
                                 String.toList dataPart
 
                             dataInts =
-                                List.map (\c -> findIndex ((==) (String.fromChar c)) charset |> Maybe.withDefault (-1)) dataChars
+                                List.map (\c -> findIndex ((==) (String.fromChar c)) charset |> Maybe.withDefault -1) dataChars
 
                             maybeEncoding =
                                 verifyChecksum hrp dataInts
@@ -301,15 +351,18 @@ verifyChecksum hrp dataList =
         Nothing
 
 
+
 -- Convert bits function
+
+
 convertBits : List Int -> Int -> Int -> Bool -> Maybe (List Int)
 convertBits dataList fromBits toBits padding =
     let
         maxv =
-            (BW.shiftLeftBy toBits 1) - 1
+            BW.shiftLeftBy toBits 1 - 1
 
         maxAcc =
-            (BW.shiftLeftBy (fromBits + toBits - 1) 1) - 1
+            BW.shiftLeftBy (fromBits + toBits - 1) 1 - 1
 
         processBits bitsValue accValue resultValue =
             if bitsValue >= toBits then
@@ -363,6 +416,7 @@ convertBits dataList fromBits toBits padding =
                         convert acc2 bits2 result2 vs
     in
     convert 0 0 [] dataList
+
 
 equal : UInt64 -> UInt64 -> Bool
 equal a b =

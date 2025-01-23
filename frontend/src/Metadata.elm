@@ -3,6 +3,7 @@ module Metadata exposing (..)
 import Http
 import Json.Decode exposing (Decoder, field, map3, maybe, string)
 
+
 type alias OpenGraphMetadata =
     { title : Maybe String
     , description : Maybe String

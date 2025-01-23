@@ -5,14 +5,15 @@ import Dict exposing (Dict)
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h1, h3, h4, img, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
-import Nostr.Community exposing (Community, Moderator, Image, communityName)
+import Nostr.Community exposing (Community, Image, Moderator, communityName)
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Types exposing (PubKey)
 import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
 import Ui.Profile exposing (defaultProfileImage, profileDisplayName, validationIcon)
-import Ui.Styles exposing (fontFamilyUnbounded, fontFamilyInter)
+import Ui.Styles exposing (fontFamilyInter, fontFamilyUnbounded)
+
 
 viewCommunity : BrowserEnv -> Dict PubKey Profile -> Community -> Html msg
 viewCommunity browserEnv profiles community =
@@ -42,6 +43,7 @@ viewCommunity browserEnv profiles community =
             ]
         ]
 
+
 viewImage : Maybe Image -> Html msg
 viewImage maybeImage =
     case maybeImage of
@@ -65,7 +67,8 @@ viewImage maybeImage =
                 ]
 
         Nothing ->
-            div [][]
+            div [] []
+
 
 viewName : String -> Html msg
 viewName name =
@@ -81,6 +84,7 @@ viewName name =
         [ text name
         ]
 
+
 viewSummary : Maybe String -> Html msg
 viewSummary maybeDescription =
     case maybeDescription of
@@ -93,8 +97,10 @@ viewSummary maybeDescription =
                     ]
                 ]
                 [ text description ]
+
         Nothing ->
-            div [][]
+            div [] []
+
 
 viewModerators : BrowserEnv -> Dict PubKey Profile -> List Moderator -> Html msg
 viewModerators browserEnv profiles moderators =
@@ -109,12 +115,15 @@ viewModerators browserEnv profiles moderators =
             , fontFamilyUnbounded
             ]
             [ text "Moderators"
-            -- TODO: get actual validation status 
+
+            -- TODO: get actual validation status
             , List.map (\moderator -> viewModerator (Dict.get moderator.pubKey profiles) ValidationUnknown moderator) moderators
                 |> div []
             ]
+
     else
-        div [][]
+        div [] []
+
 
 viewModerator : Maybe Profile -> ProfileValidation -> Moderator -> Html msg
 viewModerator maybeProfile validationStatus moderator =
@@ -124,6 +133,7 @@ viewModerator maybeProfile validationStatus moderator =
 
         Nothing ->
             viewPubKey moderator.pubKey
+
 
 viewProfile : Profile -> ProfileValidation -> Moderator -> Html msg
 viewProfile profile validationStatus moderator =

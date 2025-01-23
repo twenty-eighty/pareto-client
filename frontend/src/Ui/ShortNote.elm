@@ -7,19 +7,19 @@ import Html.Styled as Html exposing (Html, a, article, aside, br, button, div, h
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 import Nostr
+import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..))
 import Nostr.Reactions exposing (Interactions)
 import Nostr.ShortNote exposing (ShortNote)
 import Nostr.Types exposing (EventId, PubKey)
 import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
 import Ui.Links exposing (linkElementForAuthor, linkElementForProfilePubKey)
 import Ui.Profile exposing (defaultProfileImage, profileDisplayName, validationIcon)
 import Ui.Shared exposing (Actions)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 import Url
-import Nostr.Nip19 as Nip19
 
 
 type alias ShortNotesViewData msg =
@@ -27,8 +27,9 @@ type alias ShortNotesViewData msg =
     , browserEnv : BrowserEnv
     , nostr : Nostr.Model
     , userPubKey : Maybe PubKey
-    , onBookmark : Maybe ((EventId -> msg), (EventId -> msg)) -- msgs for adding/removing a bookmark
+    , onBookmark : Maybe ( EventId -> msg, EventId -> msg ) -- msgs for adding/removing a bookmark
     }
+
 
 type alias ShortNoteViewData msg =
     { author : Author
@@ -43,20 +44,20 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
         styles =
             stylesForTheme shortNotesViewData.theme
 
-        (authorText, profileImage, validationStatus) =
+        ( authorText, profileImage, validationStatus ) =
             case shortNoteViewData.author of
                 AuthorPubkey pubKey ->
                     ( pubKey, Nothing, ValidationUnknown )
 
                 AuthorProfile profile profileValidation ->
-                    (profileDisplayName profile.pubKey profile, profile.picture, profileValidation )
-                
+                    ( profileDisplayName profile.pubKey profile, profile.picture, profileValidation )
+
         noteUrl =
             shortNote.id
-            |> Nip19.Note
-            |> Nip19.encode
-            |> Result.toMaybe
-            |> Maybe.withDefault ""
+                |> Nip19.Note
+                |> Nip19.encode
+                |> Result.toMaybe
+                |> Maybe.withDefault ""
     in
     div
         [ Attr.class "animated"
@@ -119,54 +120,55 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
                         ]
                     ]
                     [ Ui.Profile.viewProfileImageSmall (linkElementForAuthor shortNoteViewData.author validationStatus) profileImage validationStatus
+
                     {-
-                    a
-                        [ Attr.href "/utxo"
-                        , Attr.class "inactive"
-                        , Attr.attribute "link" ""
-                        ]
-                        [ div
-                            [ Attr.class "_vsAvatar_1sd2j_321   "
-                            , Attr.attribute "data-user" "e2ccf7cf20403f3f2a4a55b328f0de3be38558a7d5f33632fdaaefc726c1c8eb"
-                            , css
-                                [ Tw.relative
-                                , Tw.box_border
-                                , Tw.cursor_pointer
-                                , Tw.block
-                                , Tw.w_11
-                                , Tw.h_11
-                                , Tw.p_1
-                                , Tw.border_0
-                                ]
-                            ]
-                            [ div
-                                [ Attr.class "_missingBack_1sd2j_118 "
-                                , css
-                                    [ Tw.box_border
-                                    , Tw.cursor_pointer
-                                    , Tw.block
-                                    , Tw.w_10
-                                    , Tw.h_10
-                                    , Tw.border_0
-                                    ]
-                                ]
-                                [ img
-                                    [ Attr.alt "avatar"
-                                    , Attr.src "https://primal.b-cdn.net/media-cache?s=s&a=1&u=https%3A%2F%2Fi.nostr.build%2F6G6wW.gif"
-                                    , css
-                                        [ Tw.rounded_full
-                                        , Tw.object_cover
-                                        , Tw.box_content
-                                        , Tw.overflow_hidden
-                                        , Tw.w_10
-                                        , Tw.h_10
-                                        , Tw.border_0
-                                        ]
-                                    ]
-                                    []
-                                ]
-                            ]
-                        ]
+                       a
+                           [ Attr.href "/utxo"
+                           , Attr.class "inactive"
+                           , Attr.attribute "link" ""
+                           ]
+                           [ div
+                               [ Attr.class "_vsAvatar_1sd2j_321   "
+                               , Attr.attribute "data-user" "e2ccf7cf20403f3f2a4a55b328f0de3be38558a7d5f33632fdaaefc726c1c8eb"
+                               , css
+                                   [ Tw.relative
+                                   , Tw.box_border
+                                   , Tw.cursor_pointer
+                                   , Tw.block
+                                   , Tw.w_11
+                                   , Tw.h_11
+                                   , Tw.p_1
+                                   , Tw.border_0
+                                   ]
+                               ]
+                               [ div
+                                   [ Attr.class "_missingBack_1sd2j_118 "
+                                   , css
+                                       [ Tw.box_border
+                                       , Tw.cursor_pointer
+                                       , Tw.block
+                                       , Tw.w_10
+                                       , Tw.h_10
+                                       , Tw.border_0
+                                       ]
+                                   ]
+                                   [ img
+                                       [ Attr.alt "avatar"
+                                       , Attr.src "https://primal.b-cdn.net/media-cache?s=s&a=1&u=https%3A%2F%2Fi.nostr.build%2F6G6wW.gif"
+                                       , css
+                                           [ Tw.rounded_full
+                                           , Tw.object_cover
+                                           , Tw.box_content
+                                           , Tw.overflow_hidden
+                                           , Tw.w_10
+                                           , Tw.h_10
+                                           , Tw.border_0
+                                           ]
+                                       ]
+                                       []
+                                   ]
+                               ]
+                           ]
                     -}
                     ]
                 , div
@@ -203,7 +205,8 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
                                 [ Attr.class "_ellipsisIcon_qj1dj_264"
                                 ]
                                 []
-                            , text <| BrowserEnv.formatDate shortNotesViewData.browserEnv shortNote.createdAt ]
+                            , text <| BrowserEnv.formatDate shortNotesViewData.browserEnv shortNote.createdAt
+                            ]
                         ]
                     , div
                         [ Attr.class "_upRightFloater_qj1dj_107"
@@ -240,46 +243,52 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
             ]
         ]
 
+
 viewContent : Styles msg -> Maybe String -> Html msg
 viewContent styles maybeDescription =
     case maybeDescription of
         Just description ->
             p
-                (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++
-                [ css
-                    [ Tw.mb_4
-                    ]
-                ])
-                ( formattedContent description )
+                (styles.colorStyleGrayscaleText
+                    ++ styles.textStyleBody
+                    ++ [ css
+                            [ Tw.mb_4
+                            ]
+                       ]
+                )
+                (formattedContent description)
 
         Nothing ->
-            div [][]
+            div [] []
 
 
 formattedContent : String -> List (Html msg)
 formattedContent content =
     content
-    |> String.split "\n"
-    |> List.map (\line ->
-        if isImageUrl line then 
-            Html.img
-                [ Attr.src line
-                ]
-                []
+        |> String.split "\n"
+        |> List.map
+            (\line ->
+                if isImageUrl line then
+                    Html.img
+                        [ Attr.src line
+                        ]
+                        []
 
-        else
-            text line
-        ) 
-    |> List.intersperse (br [][])
+                else
+                    text line
+            )
+        |> List.intersperse (br [] [])
+
 
 isImageUrl : String -> Bool
 isImageUrl line =
     line
-    |> Url.fromString
-    |> Maybe.map (\url ->
-            String.endsWith "jpeg" url.path ||
-            String.endsWith "jpg" url.path ||
-            String.endsWith "png" url.path ||
-            String.endsWith "webp" url.path
-        )
-    |> Maybe.withDefault False
+        |> Url.fromString
+        |> Maybe.map
+            (\url ->
+                String.endsWith "jpeg" url.path
+                    || String.endsWith "jpg" url.path
+                    || String.endsWith "png" url.path
+                    || String.endsWith "webp" url.path
+            )
+        |> Maybe.withDefault False

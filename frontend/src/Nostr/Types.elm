@@ -26,15 +26,6 @@ type RelayRole
     | ReadWriteRelay
 
 
-type Following
-    = FollowingPubKey
-        { pubKey : PubKey
-        , relay : Maybe String
-        , petname : Maybe String
-        }
-    | FollowingHashtag String
-
-
 type alias OutgoingCommand =
     { command : String
     , value : Encode.Value

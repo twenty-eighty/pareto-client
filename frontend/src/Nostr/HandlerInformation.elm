@@ -5,6 +5,7 @@ import Nostr.Profile exposing (Profile, profileToJson)
 import Nostr.Types exposing (PubKey, RelayUrl)
 import Time
 
+
 type alias HandlerInformation =
     { alt : String
     , handlerIdentifier : String
@@ -12,15 +13,20 @@ type alias HandlerInformation =
     , kinds : List Kind
     , pubKey : PubKey
     , profile : Profile
-    , references : List (String, Maybe String)
+    , references : List ( String, Maybe String )
     , time : Time.Posix
     , webTargets : List WebTarget
     , zapTargets : List ZapTarget
     }
 
-type alias WebTarget = (String, Maybe String)
 
-type alias ZapTarget = (PubKey, RelayUrl, Maybe Int)
+type alias WebTarget =
+    ( String, Maybe String )
+
+
+type alias ZapTarget =
+    ( PubKey, RelayUrl, Maybe Int )
+
 
 buildHandlerInformation : HandlerInformation -> Event
 buildHandlerInformation info =
@@ -29,19 +35,21 @@ buildHandlerInformation info =
     , kind = KindHandlerInformation
     , tags =
         []
-        |> Event.addDTag info.handlerIdentifier
-        |> Event.addPublishedAtTag info.time
-        |> Event.addHashtagTags info.hashtags
-        |> Event.addAltTag info.alt
-        |> Event.addReferenceTags info.references
-        |> Event.addKindTags info.kinds
-        |> Event.addWebTargetTags info.webTargets
-        |> Event.addZapTags info.zapTargets
+            |> Event.addDTag info.handlerIdentifier
+            |> Event.addPublishedAtTag info.time
+            |> Event.addHashtagTags info.hashtags
+            |> Event.addAltTag info.alt
+            |> Event.addReferenceTags info.references
+            |> Event.addKindTags info.kinds
+            |> Event.addWebTargetTags info.webTargets
+            |> Event.addZapTags info.zapTargets
     , content = profileToJson info.profile
     , id = ""
     , sig = Nothing
     , relay = Nothing
     }
+
+
 
 --      [ EventDelegationTag handlerInformation.handlerIdentifier
 --      , KindTag KindLongFormContent

@@ -1,10 +1,11 @@
 module Components.ContextMenu exposing (..)
 
-
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css)
 import Html.Styled.Events as Events exposing (..)
+
+
 
 -- SETTINGS
 
@@ -19,7 +20,6 @@ type Dropdown item msg
         , isDisabled : Bool
         , onChange : Maybe (item -> msg)
         }
-        
 
 
 new :
@@ -39,6 +39,8 @@ new props =
         , isDisabled = False
         , onChange = Nothing
         }
+
+
 
 --- MODIFIERS
 
@@ -66,6 +68,7 @@ withOnChange onChange (Settings settings) =
     Settings { settings | onChange = Just onChange }
 
 
+
 -- MODEL
 
 
@@ -84,6 +87,8 @@ init props =
         , search = ""
         , isMenuOpen = False
         }
+
+
 
 -- UPDATE
 
@@ -134,7 +139,7 @@ update props =
                 )
 
             SelectedItem data ->
-                ( Model 
+                ( Model
                     { model
                         | search = ""
                         , isMenuOpen = False
@@ -143,10 +148,12 @@ update props =
                 , case data.onChange of
                     Just onChange ->
                         Effect.sendMsg onChange
-                    
+
                     Nothing ->
                         Effect.none
                 )
+
+
 
 -- VIEW
 
@@ -161,7 +168,7 @@ view (Settings settings) =
         onSearchInput value =
             settings.toMsg (UpdatedSearchInput value)
 
-        -- View the input of the dropdown, that opens the 
+        -- View the input of the dropdown, that opens the
         -- menu when focused, and displays the search query
         viewDropdownInput : Html msg
         viewDropdownInput =
@@ -180,7 +187,7 @@ view (Settings settings) =
         -- If a value is selected, this overlay should
         -- appear over our input field when the menu is closed
         viewSelectedValueOverlay : Html msg
-        viewSelectedValueOverlay = 
+        viewSelectedValueOverlay =
             case model.selected of
                 Nothing ->
                     text ""
@@ -193,7 +200,6 @@ view (Settings settings) =
                         Html.strong
                             [ class "dropdown__selected" ]
                             [ text (settings.toLabel item) ]
-
 
         viewDropdownMenu : Html msg
         viewDropdownMenu =
@@ -215,22 +221,22 @@ view (Settings settings) =
 
         onMenuItemClick : item -> msg
         onMenuItemClick item =
-            settings.toMsg  <|
+            settings.toMsg <|
                 case settings.onChange of
                     Just onChange ->
                         SelectedItem
                             { item = item
                             , onChange = Just (onChange item)
                             }
-                    
+
                     Nothing ->
                         SelectedItem
                             { item = item
                             , onChange = Nothing
                             }
-
     in
-    div [ class "dropdown"
+    div
+        [ class "dropdown"
         , Attr.classList
             [ ( "dropdown--small", settings.size == Small )
             ]
