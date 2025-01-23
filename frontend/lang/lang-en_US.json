@@ -4,6 +4,7 @@
       "supported kinds title": "Supported kinds",
       "supported nips title": "Supported NIPs",
       "supported web targets title": "Supported web targets",
+      "publish authors list button title": "Publish authors list",
       "publish handler information button title": "Publish handler information",
       "publish profile button title": "Publish profile",
       "recomendation explanation": "Yes, I like this application. The whole world should know about it!",
@@ -12,7 +13,8 @@
       "about frontend text 2": " using the ",
       "about frontend text 3": " programming language.",
       "about backend text": "The Pareto backend was developed using the",
-      "source code text": "The source code of the Pareto client will be released soon."
+      "source code text": "The source code of the Pareto client will be released soon.",
+      "privacy policy link text": "Privacy Policy"
    },
    "article page": {
       "default page title": "Article"
@@ -149,7 +151,8 @@
    },
    "subscribers": {
       "page title": "Subscribers",
-      "import button title": "Import"
+      "import button title": "Import",
+      "no subscribers text": "No subscribers found."
    },
    "upload dialog": {
       "dialog title": "Upload",

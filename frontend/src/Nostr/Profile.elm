@@ -1,6 +1,5 @@
 module Nostr.Profile exposing (..)
 
-import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as DecodePipeline

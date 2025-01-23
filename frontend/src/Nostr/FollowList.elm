@@ -1,6 +1,5 @@
 module Nostr.FollowList exposing (..)
 
-import Json.Decode as Decode exposing (Decoder)
 import Nostr.Event exposing (Event, Kind(..), Tag(..), emptyEvent)
 import Nostr.Types exposing (Following(..), PubKey)
 

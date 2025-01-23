@@ -4,10 +4,12 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, a, div, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href, style)
+import Html.Styled.Attributes as Attr exposing (css, href)
+import I18Next
 import Layouts
+import Locale exposing (Language(..))
 import Nostr
-import Nostr.Event exposing (Kind(..), KindInformationLink(..), Tag(..), TagReference(..), buildAddress, emptyEventFilter, informationForKind, numberForKind)
+import Nostr.Event exposing (Kind(..), KindInformationLink(..), Tag(..), TagReference(..), buildAddress, informationForKind, numberForKind)
 import Nostr.HandlerInformation exposing (HandlerInformation, WebTarget, buildHandlerInformation)
 import Nostr.Nips exposing (descriptionForNip)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileToJson)
@@ -17,6 +19,7 @@ import Nostr.Types exposing (Following(..), PubKey)
 import Page exposing (Page)
 import Pareto
 import Route exposing (Route)
+import Route.Path
 import Shared
 import Shared.Model exposing (LoginStatus(..))
 import Shared.Msg
@@ -29,7 +32,7 @@ import View exposing (View)
 
 
 page : Shared.Model -> Route () -> Page Model Msg
-page shared route =
+page shared _ =
     Page.new
         { init = init shared
         , update = update shared
@@ -40,7 +43,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -54,7 +57,7 @@ type alias Model =
 
 
 init : Shared.Model -> () -> ( Model, Effect Msg )
-init shared () =
+init _ () =
     ( {}, Effect.none )
 
 
@@ -155,7 +158,7 @@ sendClientProfile nostr pubKey profile =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -164,7 +167,7 @@ subscriptions model =
 
 
 view : Shared.Model -> Model -> View Msg
-view shared model =
+view shared _ =
     { title = Translations.aboutPageTitle [ shared.browserEnv.translations ]
     , body =
         [ div
@@ -367,7 +370,7 @@ viewWebTargets theme browserEnv webTargets =
 
 
 viewWebTarget : Theme -> WebTarget -> Html Msg
-viewWebTarget theme ( target, maybeType ) =
+viewWebTarget _ ( target, maybeType ) =
     let
         webTargetType =
             case maybeType of
@@ -452,7 +455,8 @@ viewFooter theme browserEnv =
             [ Tw.my_4
             , Tw.flex
             , Tw.flex_col
-            , Tw.gap_2
+            , Tw.gap_3
+            , Tw.mb_4
             ]
         ]
         [ span
@@ -491,4 +495,22 @@ viewFooter theme browserEnv =
             , text "."
             ]
         , text <| Translations.sourceCodeText [ browserEnv.translations ]
+        , viewPrivacyPolicyLink styles browserEnv.translations browserEnv.language
         ]
+
+
+viewPrivacyPolicyLink : Styles Msg -> I18Next.Translations -> Language -> Html Msg
+viewPrivacyPolicyLink styles translations language =
+    case language of
+        German _ ->
+            a
+                (styles.textStyleLinks
+                    ++ styles.colorStyleArticleHashtags
+                    ++ [ Attr.href <| Route.Path.toString Route.Path.Privacy
+                       ]
+                )
+                [ text <| Translations.privacyPolicyLinkText [ translations ]
+                ]
+
+        _ ->
+            div [] []

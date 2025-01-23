@@ -4,7 +4,7 @@ import DateFormat
 import DateFormat.Language
 import DateFormat.Relative exposing (RelativeTimeOptions)
 import DefaultLanguage
-import Dict exposing (Dict)
+import Dict
 import Http
 import I18Next
 import Json.Decode as Decode
@@ -237,16 +237,6 @@ httpError error =
             "Bad body: " ++ body
 
 
-modelWithTranslations : BrowserEnv -> Decode.Value -> ( BrowserEnv, Cmd Msg )
-modelWithTranslations browserEnv translationsValue =
-    case Decode.decodeValue I18Next.translationsDecoder translationsValue of
-        Ok translations ->
-            ( { browserEnv | translations = translations }, Cmd.none )
-
-        Err error ->
-            ( { browserEnv | errors = Decode.errorToString error :: browserEnv.errors }, Cmd.none )
-
-
 updateLocale : String -> BrowserEnv -> ( BrowserEnv, Cmd Msg )
 updateLocale locale browserEnv =
     let
@@ -279,22 +269,19 @@ updateLocale locale browserEnv =
 --                      Derberos.Date.L10n.EN_US.config
 --      in
 --      { config | getCommonFormatTime = getShortFormatTime }
-
-
-getShortFormatTime : Time.Zone -> Posix -> String
-getShortFormatTime tz time =
-    let
-        hour =
-            Time.toHour tz time
-                |> String.fromInt
-                |> String.padLeft 2 '0'
-
-        minute =
-            Time.toMinute tz time
-                |> String.fromInt
-                |> String.padLeft 2 '0'
-    in
-    hour ++ ":" ++ minute
+--   getShortFormatTime : Time.Zone -> Posix -> String
+--   getShortFormatTime tz time =
+--       let
+--           hour =
+--               Time.toHour tz time
+--                   |> String.fromInt
+--                   |> String.padLeft 2 '0'
+--           minute =
+--               Time.toMinute tz time
+--                   |> String.fromInt
+--                   |> String.padLeft 2 '0'
+--       in
+--       hour ++ ":" ++ minute
 
 
 updateTimeZone : String -> BrowserEnv -> BrowserEnv
@@ -308,7 +295,7 @@ updateTimeZone zoneName browserEnv =
 
 
 subscriptions : BrowserEnv -> Sub Msg
-subscriptions browserEnv =
+subscriptions _ =
     Sub.batch
         [ Ports.receiveMessage ReceivedPortMessage
 

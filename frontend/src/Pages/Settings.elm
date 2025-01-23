@@ -707,8 +707,8 @@ viewMediaServers shared model user mediaServersModel =
                 , Tw.flex_col
                 ]
             ]
-            ([ text "NIP-96 Servers" ]
-                ++ (nip96Servers
+            (text "NIP-96 Servers"
+                :: (nip96Servers
                         |> List.map viewNip96Server
                    )
             )
@@ -718,8 +718,8 @@ viewMediaServers shared model user mediaServersModel =
                 , Tw.flex_col
                 ]
             ]
-            ([ text "Blossom Servers" ]
-                ++ (blossomServers
+            (text "Blossom Servers"
+                :: (blossomServers
                         |> List.map viewBlossomServer
                    )
             )

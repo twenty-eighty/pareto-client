@@ -1,18 +1,14 @@
 module Pages.Read exposing (Model, Msg, init, page, subscriptions, update, view)
 
-import BrowserEnv exposing (BrowserEnv)
 import Components.Categories
 import Dict
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled as Html exposing (Html, div)
 import I18Next
 import Layouts
 import Material.Icons exposing (category)
 import Nostr
-import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, nip19ForArticle)
-import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), emptyEventFilter, kindDecoder)
+import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), emptyEventFilter)
 import Nostr.FollowList exposing (followingPubKey)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))

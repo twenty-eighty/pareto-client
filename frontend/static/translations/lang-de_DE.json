@@ -4,6 +4,7 @@
       "supported kinds title": "Unterstützte Nostr \"kinds\"",
       "supported nips title": "Unterstützte NIPs",
       "supported web targets title": "Unterstützte Web-Ziele",
+      "publish authors list button title": "Autorenliste veröffentlichen",
       "publish handler information button title": "Handler-Information veröffentlichen",
       "publish profile button title": "Profil veröffentlichen",
       "recomendation explanation": "Das ist eine tolle App. Alle sollten davon wissen!",
@@ -12,7 +13,8 @@
       "about frontend text 2": " in der Programmiersprache ",
       "about frontend text 3": ".",
       "about backend text": "Das Pareto Backend wurde entwickelt mit dem",
-      "source code text": "Der Quellcode des Pareto Clients wird bald veröffentlicht."
+      "source code text": "Der Quellcode des Pareto Clients wird bald veröffentlicht.",
+      "privacy policy link text": "Datenschutzerklärung"
    },
    "article page": {
       "default page title": "Artikel"
@@ -149,7 +151,8 @@
    },
    "subscribers": {
       "page title": "Abonnenten",
-      "import button title": "Importieren"
+      "import button title": "Importieren",
+      "no subscribers text": "Keine Abonnenten gefunden."
    },
    "upload dialog": {
       "dialog title": "Hochladen",

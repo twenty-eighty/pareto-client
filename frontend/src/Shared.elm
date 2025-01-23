@@ -13,13 +13,13 @@ module Shared exposing
 
 -}
 
-import BrowserEnv exposing (BrowserEnv)
+import BrowserEnv
 import Effect exposing (Effect)
 import Json.Decode
 import Nostr
 import Nostr.Event exposing (Kind(..), emptyEventFilter)
-import Nostr.Profile exposing (Profile)
-import Nostr.Request exposing (Request, RequestData(..))
+import Nostr.Profile
+import Nostr.Request exposing (RequestData(..))
 import Nostr.Types exposing (IncomingMessage, PubKey)
 import Pareto
 import Ports

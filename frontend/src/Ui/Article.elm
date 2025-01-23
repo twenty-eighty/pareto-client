@@ -6,8 +6,8 @@ import Components.Icon as Icon exposing (Icon)
 import Components.ZapDialog as ZapDialog
 import Css
 import Dict
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, label, main_, p, span, summary, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
+import Html.Styled as Html exposing (Html, a, article, div, h2, h3, img, summary, text)
+import Html.Styled.Attributes as Attr exposing (css, href)
 import Html.Styled.Events as Events exposing (..)
 import LinkPreview exposing (LoadedContent)
 import Markdown
@@ -17,20 +17,19 @@ import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), numb
 import Nostr.Nip19 as Nip19
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author, Profile, ProfileValidation(..))
-import Nostr.Reactions exposing (Interactions, Reaction)
+import Nostr.Reactions exposing (Interactions)
 import Nostr.Types exposing (EventId, PubKey)
 import Route
 import Route.Path
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import TailwindExtensions exposing (bp_xsl)
 import Time
 import Translations.Posts
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
 import Ui.Shared exposing (Actions)
-import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded, stylesForTheme)
+import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded)
 
 
 type alias ArticlePreviewsData msg =
@@ -123,15 +122,14 @@ viewArticle articlePreviewsData articlePreviewData article =
                 ]
             ]
             [ div
-                ([ css
+                (css
                     [ Tw.flex_col
                     , Tw.justify_start
                     , Tw.items_start
                     , Tw.gap_4
                     , Tw.inline_flex
                     ]
-                 ]
-                    ++ contentMargins
+                    :: contentMargins
                 )
                 [ viewTags styles article
                 , div
@@ -173,17 +171,16 @@ viewArticle articlePreviewsData articlePreviewData article =
                 ]
             , viewArticleImage article.image
             , div
-                (styles.colorStyleGrayscaleMuted
+                (css
+                    [ Tw.flex_col
+                    , Tw.justify_start
+                    , Tw.items_start
+                    , Tw.gap_4
+                    , Tw.flex
+                    , Tw.mb_20
+                    ]
+                    :: styles.colorStyleGrayscaleMuted
                     ++ styles.textStyleReactions
-                    ++ [ css
-                            [ Tw.flex_col
-                            , Tw.justify_start
-                            , Tw.items_start
-                            , Tw.gap_4
-                            , Tw.flex
-                            , Tw.mb_20
-                            ]
-                       ]
                     ++ contentMargins
                 )
                 [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions
@@ -526,7 +523,7 @@ viewArticleComments styles =
 
 
 viewArticleInternal : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> BrowserEnv -> Article -> Html msg
-viewArticleInternal styles loadedContent fnGetProfile browserEnv article =
+viewArticleInternal styles loadedContent fnGetProfile _ article =
     div
         [ css
             [ Tw.flex
@@ -756,10 +753,7 @@ viewTitlePreview styles maybeTitle maybeLinkTarget textWidthAttr =
                 (styles.colorStyleGrayscaleTitle
                     ++ styles.textStyleH2
                     ++ [ css
-                            ([ Tw.line_clamp_2
-                             ]
-                                ++ textWidthAttr
-                            )
+                            (Tw.line_clamp_2 :: textWidthAttr)
                        , href linkUrl
                        ]
                 )
@@ -770,10 +764,7 @@ viewTitlePreview styles maybeTitle maybeLinkTarget textWidthAttr =
                 (styles.colorStyleGrayscaleTitle
                     ++ styles.textStyleH2
                     ++ [ css
-                            ([ Tw.line_clamp_2
-                             ]
-                                ++ textWidthAttr
-                            )
+                            (Tw.line_clamp_2 :: textWidthAttr)
                        ]
                 )
                 [ text title ]

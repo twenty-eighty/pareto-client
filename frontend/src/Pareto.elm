@@ -46,6 +46,11 @@ applicationUrl =
     "https://" ++ applicationDomain
 
 
+privacyPolicyGerman : String
+privacyPolicyGerman =
+    applicationUrl ++ "/privacy-de.md"
+
+
 paretoNip05 : Nip05.Nip05
 paretoNip05 =
     { user = "client"
@@ -244,7 +249,7 @@ paretoProfile =
     , displayName = Just client
     , about = Just paretoAbout
     , picture = Just "https://pfp.nostr.build/4fbcbefaee70ba58804014760d6408adf2e544e4f2d2f7c3be063db8e6ae8f0e.png"
-    , banner = Just "https://image.nostr.build/ddc8d30046efb51767c3db33cc9edafb83bd0a61142bd84c4d1e55705b96c819.png"
+    , banner = Nothing
     , website = Just applicationUrl
     , bot = Nothing
     , npub = Just paretoClientNpub

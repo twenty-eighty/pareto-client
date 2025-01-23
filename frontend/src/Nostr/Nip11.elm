@@ -1,7 +1,7 @@
 module Nostr.Nip11 exposing (..)
 
 import Http
-import Json.Decode as Decode exposing (Decoder)
+import Json.Decode as Decode
 import Json.Decode.Pipeline as Pipeline
 import Time
 import Url

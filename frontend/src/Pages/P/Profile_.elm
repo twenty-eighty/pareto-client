@@ -1,14 +1,10 @@
 module Pages.P.Profile_ exposing (Model, Msg, page)
 
-import BrowserEnv exposing (BrowserEnv)
 import Components.RelayStatus exposing (Purpose(..))
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled as Html exposing (Html, div)
 import Layouts
 import Nostr
-import Nostr.Article exposing (Article)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
@@ -22,7 +18,7 @@ import Shared.Model
 import Shared.Msg
 import Translations.Sidebar as Translations
 import Ui.Profile exposing (FollowType(..))
-import Ui.Styles exposing (Styles, Theme)
+import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..), viewRelayStatus)
 import View exposing (View)
 
