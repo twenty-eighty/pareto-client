@@ -260,6 +260,7 @@ filterForCategory shared category =
 
                     else
                         Pareto.bootstrapAuthorsList
+                            |> List.map (\( _, authorPubKey ) -> authorPubKey)
             in
             { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just authorsList, limit = Just 20 }
 

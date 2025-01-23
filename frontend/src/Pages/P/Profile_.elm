@@ -10,12 +10,11 @@ import Layouts
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), emptyEventFilter)
-import Nostr.FollowList exposing (Following(..))
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (Following(..), PubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared

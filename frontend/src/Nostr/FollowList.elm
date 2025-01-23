@@ -2,22 +2,13 @@ module Nostr.FollowList exposing (..)
 
 import Json.Decode as Decode exposing (Decoder)
 import Nostr.Event exposing (Event, Kind(..), Tag(..), emptyEvent)
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (Following(..), PubKey)
 
 
 type alias PubKeyFollowList =
     { pubKey : PubKey
     , following : List Following
     }
-
-
-type Following
-    = FollowingPubKey
-        { pubKey : PubKey
-        , relay : Maybe String
-        , petname : Maybe String
-        }
-    | FollowingHashtag String
 
 
 emptyFollowList : List Following

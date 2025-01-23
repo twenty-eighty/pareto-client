@@ -10,12 +10,11 @@ import Layouts
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), emptyEventFilter)
-import Nostr.FollowList exposing (Following(..))
 import Nostr.Nip05 as Nip05 exposing (Nip05, nip05ToString)
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (Following(..), PubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
@@ -124,7 +123,8 @@ update shared msg model =
 
         OpenSubscribeDialog ->
             ( { model | emailSubscriptionDialog = EmailSubscriptionDialog.show model.emailSubscriptionDialog }
-            , Effect.none )
+            , Effect.none
+            )
 
         EmailSubscriptionDialogSent innerMsg ->
             EmailSubscriptionDialog.update
@@ -199,6 +199,7 @@ viewProfile shared model profile =
         , viewEmailSubscriptionDialog shared model profile
         ]
 
+
 viewEmailSubscriptionDialog : Shared.Model -> Model -> Profile -> Html Msg
 viewEmailSubscriptionDialog shared model profile =
     case Shared.loggedInPubKey shared.loginStatus of
@@ -214,7 +215,7 @@ viewEmailSubscriptionDialog shared model profile =
                 |> EmailSubscriptionDialog.view
 
         Nothing ->
-            div [][]
+            div [] []
 
 
 followingProfile : Nostr.Model -> PubKey -> Maybe PubKey -> FollowType Msg

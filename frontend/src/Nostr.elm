@@ -15,7 +15,7 @@ import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
 import Nostr.DeletionRequest exposing (DeletionRequest, deletionRequestFromEvent)
 import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress, emptyEvent, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
-import Nostr.FollowList exposing (Following, emptyFollowList, followListEvent, followListFromEvent, followListWithPubKey, followListWithoutPubKey, pubKeyIsFollower)
+import Nostr.FollowList exposing (emptyFollowList, followListEvent, followListFromEvent, followListWithPubKey, followListWithoutPubKey, pubKeyIsFollower)
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
 import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05Info, nip05ToString)
 import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
@@ -30,7 +30,7 @@ import Nostr.Request as Request exposing (HttpRequestMethod, Request, RequestDat
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
-import Nostr.Types exposing (Address, EventId, IncomingMessage, PubKey, RelayRole(..), RelayUrl)
+import Nostr.Types exposing (Address, EventId, Following, IncomingMessage, PubKey, RelayRole(..), RelayUrl)
 import Nostr.Zaps exposing (ZapReceipt)
 import Pareto
 import Set exposing (Set)
@@ -329,6 +329,16 @@ send model sendRequest =
         SendClientRecommendation relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
             , model.hooks.sendEvent model.lastSendRequestId relays event
+            )
+
+        SendFollowList userPubKey followList ->
+            let
+                event =
+                    followList
+                        |> followListEvent userPubKey
+            in
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model userPubKey) event
             )
 
         SendFollowListWithPubKey userPubKey toBeFollowedPubKey ->

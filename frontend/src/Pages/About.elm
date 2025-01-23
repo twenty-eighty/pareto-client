@@ -3,19 +3,17 @@ module Pages.About exposing (Model, Msg, page)
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, code, div, h2, h3, h4, img, input, label, node, p, span, text, textarea)
+import Html.Styled as Html exposing (Html, a, div, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, href, style)
-import Html.Styled.Events as Events exposing (..)
 import Layouts
 import Nostr
-import Nostr.Article exposing (Article)
 import Nostr.Event exposing (Kind(..), KindInformationLink(..), Tag(..), TagReference(..), buildAddress, emptyEventFilter, informationForKind, numberForKind)
 import Nostr.HandlerInformation exposing (HandlerInformation, WebTarget, buildHandlerInformation)
 import Nostr.Nips exposing (descriptionForNip)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileToJson)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (Following(..), PubKey)
 import Page exposing (Page)
 import Pareto
 import Route exposing (Route)
@@ -68,6 +66,7 @@ type Msg
     = RecommendClient PubKey HandlerInformation
     | PublishHandlerInformation PubKey HandlerInformation
     | PublishClientProfile PubKey HandlerInformation
+    | PublishAuthorsList PubKey
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -86,6 +85,25 @@ update shared msg model =
         PublishClientProfile pubKey handlerInformation ->
             ( model
             , sendClientProfile shared.nostr pubKey handlerInformation.profile
+            )
+
+        PublishAuthorsList pubKey ->
+            let
+                authorsFollowList =
+                    Pareto.bootstrapAuthorsList
+                        |> List.map
+                            (\( nip05, authorPubKey ) ->
+                                FollowingPubKey
+                                    { pubKey = authorPubKey
+                                    , relay = Just Pareto.paretoRelay
+                                    , petname = Just nip05
+                                    }
+                            )
+            in
+            ( model
+            , SendFollowList pubKey authorsFollowList
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
             )
 
 
@@ -215,10 +233,25 @@ viewActionButtons theme browserEnv handlerInformation loginStatus =
                     |> Button.view
                 , viewPublishProfileButton theme browserEnv pubKey handlerInformation
                 , viewPublishHandlerInformationButton theme browserEnv pubKey handlerInformation
+                , viewPublishAuthorsListButton theme browserEnv pubKey
                 ]
 
         _ ->
             div [] []
+
+
+viewPublishAuthorsListButton : Theme -> BrowserEnv -> PubKey -> Html Msg
+viewPublishAuthorsListButton theme browserEnv pubKey =
+    if pubKey == Pareto.authorsKey then
+        Button.new
+            { label = Translations.publishAuthorsListButtonTitle [ browserEnv.translations ]
+            , onClick = Just <| PublishAuthorsList pubKey
+            , theme = theme
+            }
+            |> Button.view
+
+    else
+        div [] []
 
 
 viewPublishProfileButton : Theme -> BrowserEnv -> PubKey -> HandlerInformation -> Html Msg
