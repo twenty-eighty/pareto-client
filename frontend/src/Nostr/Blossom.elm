@@ -118,7 +118,7 @@ metadataDecoder : Decode.Decoder FileMetadata
 metadataDecoder =
     Decode.succeed Nip94.FileMetadata
         |> Pipeline.hardcoded Nothing
-        |> Pipeline.hardcoded ""
+        |> Pipeline.hardcoded Nothing
         |> Pipeline.hardcoded 0
         |> Pipeline.optional "url" (Decode.map Just Decode.string) Nothing
         |> Pipeline.optional "mimeType" (Decode.map Just Decode.string) Nothing

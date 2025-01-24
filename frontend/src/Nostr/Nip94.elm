@@ -2,7 +2,7 @@ module Nostr.Nip94 exposing (..)
 
 import Dict exposing (Dict)
 import Http
-import Json.Decode as Decode exposing (Decoder, andThen, bool, dict, fail, field, float, int, list, maybe, string, succeed)
+import Json.Decode as Decode exposing (Decoder, andThen, bool, dict, fail, field, float, int, list, maybe, nullable, string, succeed)
 import Json.Decode.Pipeline exposing (optional, required)
 import Url
 
@@ -13,7 +13,7 @@ import Url
 
 type alias FileMetadata =
     { kind : Maybe Int
-    , content : String
+    , content : Maybe String
     , createdAt : Int
     , url : Maybe String
     , mimeType : Maybe String
@@ -71,7 +71,7 @@ fileMetadataDecoder =
 
 type alias RawEvent =
     { kind : Maybe Int
-    , content : String
+    , content : Maybe String
     , createdAt : Int
     , tags : List (List String)
     }
@@ -81,7 +81,7 @@ decodeRawEvent : Decoder RawEvent
 decodeRawEvent =
     succeed RawEvent
         |> optional "kind" (maybe int) Nothing
-        |> required "content" string
+        |> required "content" (nullable string)
         |> required "created_at" int
         |> required "tags" (list (list string))
 

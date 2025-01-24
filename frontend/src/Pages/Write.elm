@@ -358,7 +358,7 @@ update shared user msg model =
                                     ( { model | milkdown = Milkdown.setSelectedImage model.milkdown blobDescriptor.url fileMetadata.content fileMetadata.alt }, Effect.none )
 
                                 Nothing ->
-                                    ( { model | milkdown = Milkdown.setSelectedImage model.milkdown blobDescriptor.url "" Nothing }, Effect.none )
+                                    ( { model | milkdown = Milkdown.setSelectedImage model.milkdown blobDescriptor.url Nothing Nothing }, Effect.none )
 
                         Nip96File fileMetadata ->
                             case fileMetadata.url of
