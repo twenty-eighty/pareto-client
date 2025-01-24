@@ -95,7 +95,7 @@ uploadFile toMsg authHeader url file =
             --, Http.header "Content-length" (contentLength |> String.fromInt)
             , Http.header "Content-type" (File.mime file)
             ]
-        , url = url ++ "/upload"
+        , url = urlWithoutTrailingSlash url ++ "/upload"
         , body = Http.fileBody file
         , expect = Http.expectJson toMsg blobDescriptorDecoder
         , timeout = Nothing
