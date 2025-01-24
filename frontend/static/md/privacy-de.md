@@ -1,6 +1,6 @@
 # Datenschutzerklärung des Vereins Amici della Verità/pareto\.space
 
-*Version vom 1.12.2024*
+*Version vom 23.01.2025*
 
 In dieser Datenschutzerklärung erläutern wir, der Verein „Amici della Verità“ als Träger des Pareto-Projekts, wie wir Personendaten erheben und sonst bearbeiten. Diese Datenschutzerklärung ist auf die Anforderungen der EU-Datenschutz-Grundverordnung («**DSGVO**»), das Schweizer Datenschutzgesetz («**DSG**») und das revidierte Schweizer Datenschutzgesetz («**revDSG**») ausgelegt. Ob und inwieweit diese Gesetze anwendbar sind, hängt jedoch vom Einzelfall ab.
 
@@ -8,7 +8,7 @@ Verantwortlich für die Datenbearbeitungen, die wir hier beschreiben, ist der Ve
 
 Dies ist auch die Adresse des Datenschutzbeauftragten nach Art. 37 DSGVO (Dr. Milosz Matuschek)
 
-Mail: [milosz@pareto.space](mailto:milosz@pareto.space)
+E-Mail: [privacy@pareto.space](mailto:privacy@pareto.space)
 
 ## O. Vorbemerkung
 
@@ -26,7 +26,7 @@ Wir geben generell Daten nicht an Dritte weiter, es sei denn es handelt sich um 
 
 Wir bearbeiten und speichern in erster Linie die Personendaten, die wir im Rahmen unserer Geschäftsbeziehung mit unseren Kunden und anderen Geschäftspartnern von diesen und weiteren daran beteiligten Personen erhalten oder die wir beim Betrieb unserer Websites, Apps und weiteren Anwendungen von deren Nutzern erheben.
 
-Dazu gehören Daten im Zusammenhang mit der Benutzung der Website (z.B. IP-Adresse, MAC-Adresse des Smartphones oder Computers, Angaben zu Ihrem Gerät und Einstellungen, Datum und Zeit des Besuchs, abgerufene Seiten und Inhalte, benutzte Funktionen, verweisende Website, Standortangaben. Diese Daten sind für uns über den EU-basierten Cloudservice [eu.posthog.com](http://eu.posthog.com/) einsehbar.
+Dazu gehören Daten im Zusammenhang mit der Benutzung der Website: Wir sehen die IP-Adresse, Angaben zum Gerät, die der Browser übermittelt (wir machen selbst kein Fingerprinting) und erfassen nur die Webseite des Clients (nicht die sonstigen Aktivitäten darauf), ferner die verweisende Website, Standortangaben (soweit aus IP-Adresse ableitbar). Diese Daten sind für uns über den EU-basierten Cloudservice [eu.posthog.com](http://eu.posthog.com/) einsehbar.
 
 ## 2. Zwecke der Datenbearbeitung und Rechtsgrundlagen
 
@@ -46,7 +46,7 @@ Wir setzen auf unseren Websites ferner sog. Plug-Ins von sozialen Netzwerken wie
 
 ## 3. Dauer der Aufbewahrung von Personendaten
 
-Wir verarbeiten und speichern Ihre Personendaten, solange es für die Erfüllung unserer vertraglichen und gesetzlichen Pflichten oder sonst die mit der Bearbeitung verfolgten Zwecke erforderlich ist, d.h. also zum Beispiel für die Dauer der gesamten Geschäftsbeziehung (von der Anbahnung, Abwicklung bis zur Beendigung eines Vertrags) sowie darüber hinaus gemäss den gesetzlichen Aufbewahrungs- und Dokumentationspflichten. Dabei ist es möglich, dass Personendaten für die Zeit aufbewahrt werden, in der Ansprüche gegen unser Unternehmen geltend gemacht werden können und soweit wir anderweitig gesetzlich dazu verpflichtet sind oder berechtigte Geschäftsinteressen dies erfordern (z.B. für Beweis- und Dokumentationszwecke). Sobald Ihre Personendaten für die oben genannten Zwecke nicht mehr erforderlich sind, werden sie grundsätzlich und soweit möglich gelöscht oder anonymisiert. Für betriebliche Daten (z.B. Systemprotokolle, Logs), gelten grundsätzliche kürzere Aufbewahrungsfristen von zwölf Monaten oder weniger.
+Wir verarbeiten und speichern Ihre Personendaten, solange es für die Erfüllung unserer vertraglichen und gesetzlichen Pflichten oder sonst die mit der Bearbeitung verfolgten Zwecke erforderlich ist, d.h. also zum Beispiel für die Dauer der gesamten Geschäftsbeziehung (von der Anbahnung, Abwicklung bis zur Beendigung eines Vertrags) sowie darüber hinaus gemäss den gesetzlichen Aufbewahrungs- und Dokumentationspflichten. Dabei ist es möglich, dass Personendaten für die Zeit aufbewahrt werden, in der Ansprüche gegen unseren Verein geltend gemacht werden können und soweit wir anderweitig gesetzlich dazu verpflichtet sind oder berechtigte Geschäftsinteressen dies erfordern (z.B. für Beweis- und Dokumentationszwecke). Sobald Ihre Personendaten für die oben genannten Zwecke nicht mehr erforderlich sind, werden sie grundsätzlich und soweit möglich gelöscht oder anonymisiert. Für betriebliche Daten (z.B. Systemprotokolle, Logs), gelten grundsätzliche kürzere Aufbewahrungsfristen von zwölf Monaten oder weniger.
 
 ## 4. Datensicherheit
 
@@ -60,7 +60,7 @@ Wir benutzen weder Profiling noch automatisierte Entscheidfindung.
 
 Sie haben im Rahmen des auf Sie anwendbaren Datenschutzrechts und soweit darin vorgesehen (wie etwa im Falle der DSGVO) das Recht auf Auskunft, Berichtigung, Löschung, das Recht auf Einschränkung der Datenbearbeitung sowie auf Herausgabe gewisser Personendaten (sofern überhaupt erhoben) zwecks Übertragung an eine andere Stelle (sog. Datenportabilität).
 
-Bitte beachten Sie aber, dass wir uns vorbehalten, unsererseits die gesetzlich vorgesehenen Einschränkungen geltend zu machen, etwa wenn wir zur Aufbewahrung oder Bearbeitung gewisser Daten verpflichtet sind, daran ein überwiegendes Interesse haben (soweit wir uns darauf berufen dürfen) oder sie für die Geltendmachung von Ansprüchen benötigen. Falls für Sie Kosten anfallen, werden wir Sie vorab informieren. Über die Möglichkeit, Ihre Einwilligung zu widerrufen, haben wir bereits in Ziff. [3](#Ref514335291) informiert. Beachten Sie, dass die Ausübung dieser Rechte im Konflikt zu vertraglichen Abmachungen stehen kann und dies Folgen wie z.B. die vorzeitige Vertragsauflösung oder Kostenfolgen haben kann. Wir werden Sie diesfalls vorgängig informieren, wo dies nicht bereits vertraglich geregelt ist.
+Bitte beachten Sie aber, dass wir uns vorbehalten, unsererseits die gesetzlich vorgesehenen Einschränkungen geltend zu machen, etwa wenn wir zur Aufbewahrung oder Bearbeitung gewisser Daten verpflichtet sind, daran ein überwiegendes Interesse haben (soweit wir uns darauf berufen dürfen) oder sie für die Geltendmachung von Ansprüchen benötigen. Falls für Sie Kosten anfallen, werden wir Sie vorab informieren. Über die Möglichkeit, Ihre Einwilligung zu widerrufen, haben wir bereits in Ziff. 3 informiert. Beachten Sie, dass die Ausübung dieser Rechte im Konflikt zu vertraglichen Abmachungen stehen kann und dies Folgen wie z.B. die vorzeitige Vertragsauflösung oder Kostenfolgen haben kann. Wir werden Sie diesfalls vorgängig informieren, wo dies nicht bereits vertraglich geregelt ist.
 
 Jede betroffene Person hat überdies das Recht, ihre Ansprüche gerichtlich durchzusetzen oder bei der zuständigen Datenschutzbehörde eine Beschwerde einzureichen. Die zuständige Datenschutzbehörde der Schweiz ist der Eidgenössische Datenschutz- und Öffentlichkeitsbeauftragte (http\://www\.edoeb.admin.ch).
 
