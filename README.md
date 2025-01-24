@@ -22,6 +22,12 @@ This API call proxies OEMBED calls in order to avoid CORS issues (Twitter/X):
 Another API endpoint helps embed Rumble videos in articles:
 /api/rumble/embed
 
+NIP-05 validation JSON is served on this route:
+/.well-known/nostr.json?user=\<user\>
+
+LNURL Pay JSON data is served on this route:
+/.well-known/lnurlp/\<user\>
+
 ## Backend configuration
 
 These environment variables need to be set

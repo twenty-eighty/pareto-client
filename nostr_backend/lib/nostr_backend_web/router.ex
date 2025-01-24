@@ -69,6 +69,7 @@ defmodule NostrBackendWeb.Router do
   scope "/.well-known", NostrBackendWeb do
     get("/nostr.json", NostrController, :nip05)
     get("/nostr/nip96.json", NostrController, :nip96)
+    get "/lnurlp/:username", LightningController, :lnurlp
   end
 
   scope "/api", NostrBackendWeb do
