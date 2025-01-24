@@ -164,6 +164,7 @@ bootstrapAuthorsList =
     , ( "Aron Morhoff", "9f94e6cc5ce50dcaccfc42b18029aba0ac9215d673197a40172896d3f3472946" )
     , ( "blingbling@pareto.town", "b8af284d20a109766c55cc5d4aea27f9c3df20f68f8d0eb5b5de3349f82c91dd" )
     , ( "snicklink@pareto.town", "d898c64d7901515fbe9d54c64d740713a92e5b4c1783a16e37ff1c531298b265" )
+    , ( "1bis19@pareto.town", "df32e891bfcbe0aed4518b21466c1807ea68394fe4f1fcd8c826a3ca1ed0b7e7" )
     ]
 
 
