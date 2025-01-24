@@ -276,19 +276,19 @@ type Msg msg
 update : Msg msg -> Model -> ( Model, Cmd msg )
 update msg model =
     case msg of
-        OnLoad userMsg ->
+        OnLoad _ ->
             ( model, Cmd.none )
 
         OnChange newContent ->
             ( { model | content = newContent }, Cmd.none )
 
-        OnFocus userMsg ->
+        OnFocus _ ->
             ( model, Cmd.none )
 
-        OnBlur userMsg ->
+        OnBlur _ ->
             ( model, Cmd.none )
 
-        OnFileRequest userMsg ->
+        OnFileRequest _ ->
             ( model, Cmd.none )
 
         OnReceivedSelectedFile ->
