@@ -1634,7 +1634,7 @@ decodeTag =
                     "k" ->
                         Decode.map KindTag (Decode.index 1 kindStringDecoder)
 
-                    "l" ->
+                    "location" ->
                         Decode.map2 LocationTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
                     "m" ->
@@ -1819,10 +1819,10 @@ tagToList tag =
         LocationTag value1 maybeValue2 ->
             case maybeValue2 of
                 Just value2 ->
-                    [ "l", value1, value2 ]
+                    [ "location", value1, value2 ]
 
                 Nothing ->
-                    [ "l", value1 ]
+                    [ "location", value1 ]
 
         MentionTag pubKey ->
             [ "m", pubKey ]
@@ -2319,16 +2319,16 @@ addPublishedTag maybeTime tags =
         |> Maybe.withDefault tags
 
 
-addHashtagTags : List String -> List Tag -> List Tag
-addHashtagTags hashtags tags =
+addHashtagListToTags : List String -> List Tag -> List Tag
+addHashtagListToTags hashtags tags =
     hashtags
         |> List.map String.trim
         |> List.map HashTag
         |> List.append tags
 
 
-addTagTags : Maybe String -> List Tag -> List Tag
-addTagTags maybeTags tags =
+addHashtagsToTags : Maybe String -> List Tag -> List Tag
+addHashtagsToTags maybeTags tags =
     maybeTags
         |> Maybe.map
             (\tagsString ->

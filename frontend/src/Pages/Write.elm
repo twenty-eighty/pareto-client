@@ -617,7 +617,7 @@ eventWithContent shared model user kind =
             |> Event.addSummaryTag model.summary
             |> Event.addImageTag model.image
             |> Event.addIdentifierTag model.identifier
-            |> Event.addTagTags model.tags
+            |> Event.addHashtagsToTags model.tags
             |> Event.addZapTags model.zapWeights
             |> Event.addClientTag Pareto.client Pareto.paretoPubKey Pareto.handlerIdentifier Pareto.paretoRelay
             |> Event.addAltTag (altText model.identifier user.pubKey kind [ Pareto.paretoRelay ])
