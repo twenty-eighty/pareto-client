@@ -3,17 +3,10 @@ defmodule NostrBackendWeb.LightningController do
 
   # Define the LNURL-P data for usernames
   @lnurlp_data %{
-    "rohe" => %{
+    "roland" => %{
       "nostrPubkey" => "79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f432",
       "callback" => "https://getalby.com/lnurlp/rohe/callback",
       "metadata" => "[[\"text/identifier\",\"rohe@getalby.com\"],[\"text/plain\",\"Sats for Separate money from state!\"]]",
-      "minSendable" => 1000,
-      "maxSendable" => 10000000000
-    },
-    "efgh" => %{
-      "nostrPubkey" => "a9eac87b1cfa56743c94f2e34d7b97e8c3d8368c4c58744eaaac50f934cf73cf",
-      "callback" => "https://getalby.com/lnurlp/efgh/callback",
-      "metadata" => "[[\"text/identifier\",\"efgh@getalby.com\"],[\"text/plain\",\"Money Flow\"]]",
       "minSendable" => 1000,
       "maxSendable" => 10000000000
     }
