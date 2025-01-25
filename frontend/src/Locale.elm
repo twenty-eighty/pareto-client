@@ -38,8 +38,8 @@ languageFromLocale locale =
             English "GB"
 
 
-showLanguage : Language -> String
-showLanguage language =
+languageToString : Language -> String
+languageToString language =
     case language of
         English _ ->
             "English"
