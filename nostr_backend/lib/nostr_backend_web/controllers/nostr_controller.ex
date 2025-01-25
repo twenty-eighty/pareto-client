@@ -125,7 +125,7 @@ defmodule NostrBackendWeb.NostrController do
   def nip05(conn, _params) do
     conn
     |> put_required_headers()
-    |> json(@nostr_data)
+    |> json(@empty_data)
   end
 
   def validate_nip05_handle(conn, %{"handle" => handle}) do
