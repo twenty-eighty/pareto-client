@@ -1,10 +1,7 @@
 module Nostr.FollowSet exposing (..)
 
-import Dict exposing (Dict)
-import Json.Decode as Decode exposing (Decoder)
 import Nostr.Event exposing (Event, Kind(..), Tag(..))
-import Nostr.FollowList exposing (Following(..))
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (Following(..), PubKey)
 
 
 type alias FollowSet =
@@ -17,7 +14,7 @@ type alias FollowSet =
 
 
 
-{-  -}
+{- -}
 
 
 followSetFromEvent : Event -> Maybe ( PubKey, FollowSet )

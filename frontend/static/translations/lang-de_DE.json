@@ -4,6 +4,7 @@
       "supported kinds title": "Unterstützte Nostr \"kinds\"",
       "supported nips title": "Unterstützte NIPs",
       "supported web targets title": "Unterstützte Web-Ziele",
+      "publish authors list button title": "Autorenliste veröffentlichen",
       "publish handler information button title": "Handler-Information veröffentlichen",
       "publish profile button title": "Profil veröffentlichen",
       "recomendation explanation": "Das ist eine tolle App. Alle sollten davon wissen!",
@@ -12,7 +13,8 @@
       "about frontend text 2": " in der Programmiersprache ",
       "about frontend text 3": ".",
       "about backend text": "Das Pareto Backend wurde entwickelt mit dem",
-      "source code text": "Der Quellcode des Pareto Clients wird bald veröffentlicht."
+      "source code text": "Der Quellcode des Pareto Clients wird bald veröffentlicht.",
+      "privacy policy link text": "Datenschutzerklärung"
    },
    "article page": {
       "default page title": "Artikel"
@@ -32,10 +34,15 @@
       "no communities text": "Anscheinend folgst du noch keinen Communities. Kein Problem, schau dir die Liste unten an und folge denen, die dich interessieren.",
       "browse communities text": "Communities durchsuchen"
    },
+   "email import dialog": {
+      "dialog title": "E-Mail-Liste importieren",
+      "import button title": "Importieren",
+      "close button title": "Schließen"
+   },
    "email subscription dialog": {
-      "dialog title": "Subscribe with Email",
-      "subscribe button title": "Subscribe with Email",
-      "close button title": "Subscribe with Email"
+      "dialog title": "Mit E-Mail abonnieren",
+      "subscribe button title": "Abonnieren",
+      "close button title": "Schließen"
    },
    "media selector": {
       "Select image": "Bild auswählen",
@@ -56,6 +63,9 @@
       "drafts category": "Entwürfe",
       "edit draft button label": "Bearbeiten",
       "delete draft button label": "Löschen"
+   },
+   "privacy": {
+      "page title": "Datenschutzerklärung"
    },
    "profile": {
       "follow button title": "Folgen",
@@ -111,6 +121,8 @@
       "inbox relays description": "Dieser Relaytyp erhält alle Antworten, Kommentare, Likes und Zaps zu deinen Posts.",
       "add relay button title": "Hinzufügen",
       "add relay placeholder": "Gib die URL eines Relays ein",
+      "no relays configured text": "Anscheinend hast du keine Relays konfiguriert. Möchtest du ein paar hinzufügen?",
+      "add default relays button title": "Relays hinzufügen",
       "media server category": "Medien-Server",
       "add nip-96 media server placeholder": "Gib die URL eines NIP-96-Servers ein",
       "add blossom media server placeholder": "Gib die URL eines Blossom-Servers ein",
@@ -131,6 +143,7 @@
       "read menu item text": "Lesen",
       "search menu item text": "Suche",
       "settings menu item text": "Einstellungen",
+      "subscribers menu item text": "Abonnenten",
       "write menu item text": "Schreiben",
       "about menu item text": "Über"
    },
@@ -138,6 +151,11 @@
       "page title": "Anmelden/Konto anlegen",
       "sign-in request": "Bitte melden Sie sich an oder erstellen ein Konto, um auf die Seite zuzugreifen",
       "continue without signing in message": "Ohne Konto fortfahren ..."
+   },
+   "subscribers": {
+      "page title": "Abonnenten",
+      "import button title": "Importieren",
+      "no subscribers text": "Keine Abonnenten gefunden."
    },
    "upload dialog": {
       "dialog title": "Hochladen",

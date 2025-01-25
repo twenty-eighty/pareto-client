@@ -1,7 +1,6 @@
 module Nostr.Event exposing (..)
 
-import Dict exposing (Dict)
-import Json.Decode as Decode exposing (Decoder, maybe)
+import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
 import Nostr.Nip19 as Nip19 exposing (NAddrData, NIP19Type(..))
@@ -1169,7 +1168,7 @@ numberForKind kind =
             1622
 
         KindStatus num ->
-            1630
+            num
 
         KindProblemTracker ->
             1971
@@ -1217,7 +1216,7 @@ numberForKind kind =
             7376
 
         KindGroupControlEvent num ->
-            9000
+            num
 
         KindZapGoal ->
             9041
@@ -1572,7 +1571,7 @@ eventFilterForNip19 nip19 =
 
 
 eventFilterForNaddr : NAddrData -> EventFilter
-eventFilterForNaddr { identifier, kind, pubKey, relays } =
+eventFilterForNaddr { identifier, kind, pubKey } =
     { emptyEventFilter
         | authors = Just [ pubKey ]
         , kinds = Just [ kindFromNumber kind ]
@@ -1845,7 +1844,15 @@ tagToList tag =
             [ "name", value ]
 
         PublicKeyTag pubKey maybeRelay maybePetName ->
-            [ "p", pubKey ]
+            case ( maybeRelay, maybePetName ) of
+                ( Just relay, Just petName ) ->
+                    [ "p", pubKey, relay, petName ]
+
+                ( Just relay, Nothing ) ->
+                    [ "p", pubKey, relay ]
+
+                _ ->
+                    [ "p", pubKey ]
 
         PublishedAtTag time ->
             [ "published_at", Time.posixToMillis time |> String.fromInt ]

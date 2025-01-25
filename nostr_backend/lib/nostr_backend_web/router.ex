@@ -49,9 +49,11 @@ defmodule NostrBackendWeb.Router do
     get("/messages", PageController, :messages)
     get("/notifications", PageController, :notifications)
     get("/posts", PageController, :posts)
+    get("/privacy", PageController, :privacy)
     get("/read", PageController, :read)
     get("/settings", PageController, :settings)
     get("/sign-in", PageController, :sign_in)
+    get("/subscribers", PageController, :subscribers)
     get("/write", PageController, :write)
 
     get("/a/:article_id", ContentController, :article)
@@ -67,6 +69,7 @@ defmodule NostrBackendWeb.Router do
   scope "/.well-known", NostrBackendWeb do
     get("/nostr.json", NostrController, :nip05)
     get("/nostr/nip96.json", NostrController, :nip96)
+    get "/lnurlp/:username", LightningController, :lnurlp
   end
 
   scope "/api", NostrBackendWeb do

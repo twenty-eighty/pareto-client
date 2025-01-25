@@ -95,7 +95,7 @@ uploadFile toMsg authHeader url file =
             --, Http.header "Content-length" (contentLength |> String.fromInt)
             , Http.header "Content-type" (File.mime file)
             ]
-        , url = url ++ "/upload"
+        , url = urlWithoutTrailingSlash url ++ "/upload"
         , body = Http.fileBody file
         , expect = Http.expectJson toMsg blobDescriptorDecoder
         , timeout = Nothing
@@ -118,7 +118,7 @@ metadataDecoder : Decode.Decoder FileMetadata
 metadataDecoder =
     Decode.succeed Nip94.FileMetadata
         |> Pipeline.hardcoded Nothing
-        |> Pipeline.hardcoded ""
+        |> Pipeline.hardcoded Nothing
         |> Pipeline.hardcoded 0
         |> Pipeline.optional "url" (Decode.map Just Decode.string) Nothing
         |> Pipeline.optional "mimeType" (Decode.map Just Decode.string) Nothing

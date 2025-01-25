@@ -1,21 +1,18 @@
 module Nostr exposing (..)
 
-import BrowserEnv exposing (BrowserEnv)
 import Dict exposing (Dict)
-import Html.Attributes exposing (kind)
-import Html.Styled as Html exposing (Html, div)
 import Http
-import Json.Decode as Decode exposing (Decoder)
+import Json.Decode as Decode
 import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, tagReference)
 import Nostr.Blossom exposing (userServerListFromEvent)
 import Nostr.BookmarkList exposing (BookmarkList, bookmarkListEvent, bookmarkListFromEvent, bookmarkListWithArticle, bookmarkListWithShortNote, bookmarkListWithoutArticle, bookmarkListWithoutShortNote, emptyBookmarkList)
 import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
-import Nostr.DeletionRequest exposing (DeletionRequest, deletionRequestFromEvent)
+import Nostr.DeletionRequest exposing (deletionRequestFromEvent)
 import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress, emptyEvent, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
-import Nostr.FollowList exposing (Following, emptyFollowList, followListEvent, followListFromEvent, followListWithPubKey, followListWithoutPubKey, pubKeyIsFollower)
+import Nostr.FollowList exposing (emptyFollowList, followListEvent, followListFromEvent, followListWithPubKey, followListWithoutPubKey, pubKeyIsFollower)
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
 import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05Info, nip05ToString)
 import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
@@ -25,12 +22,12 @@ import Nostr.Reactions exposing (Reaction, reactionFromEvent)
 import Nostr.Relay exposing (Relay, RelayState(..), hostWithoutProtocol, relayUrlDecoder)
 import Nostr.RelayList exposing (relayListFromEvent)
 import Nostr.RelayListMetadata exposing (RelayMetadata, relayMetadataListFromEvent)
-import Nostr.Repost exposing (Repost, repostFromEvent)
+import Nostr.Repost exposing (Repost)
 import Nostr.Request as Request exposing (HttpRequestMethod, Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
-import Nostr.Types exposing (Address, EventId, IncomingMessage, PubKey, RelayRole(..), RelayUrl)
+import Nostr.Types exposing (Address, EventId, Following, IncomingMessage, PubKey, RelayRole(..), RelayUrl)
 import Nostr.Zaps exposing (ZapReceipt)
 import Pareto
 import Set exposing (Set)
@@ -331,6 +328,16 @@ send model sendRequest =
             , model.hooks.sendEvent model.lastSendRequestId relays event
             )
 
+        SendFollowList userPubKey followList ->
+            let
+                event =
+                    followList
+                        |> followListEvent userPubKey
+            in
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model userPubKey) event
+            )
+
         SendFollowListWithPubKey userPubKey toBeFollowedPubKey ->
             let
                 followList =
@@ -555,7 +562,7 @@ filterArticlesWithIdentifier identifier articles =
 getCommunityForNip19 : Model -> NIP19Type -> Maybe Community
 getCommunityForNip19 model nip19 =
     case nip19 of
-        NAddr { identifier, kind, pubKey, relays } ->
+        NAddr { identifier, pubKey } ->
             model.communities
                 |> Dict.get pubKey
                 |> Maybe.andThen (filterCommunitiesWithIdentifier identifier)

@@ -6,12 +6,12 @@ import Components.Button as Button
 import Components.Dropdown
 import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
 import Components.MessageDialog as MessageDialog
-import Components.PublishArticleDialog as PublishArticleDialog exposing (PublishArticleDialog)
+import Components.PublishArticleDialog as PublishArticleDialog
 import Css
 import Dict exposing (Dict)
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, aside, button, code, div, h2, h3, h4, img, input, label, node, p, span, text, textarea)
-import Html.Styled.Attributes as Attr exposing (class, css, style)
+import Html.Styled as Html exposing (Html, div, img, input, label, node, text)
+import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Json.Decode as Decode
 import Layouts
@@ -19,7 +19,7 @@ import LinkPreview exposing (LoadedContent)
 import Locale exposing (Language(..), showLanguage)
 import Milkdown.MilkdownEditor as Milkdown
 import Nostr
-import Nostr.Article exposing (Article, articleFromEvent)
+import Nostr.Article exposing (articleFromEvent)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
 import Nostr.Event as Event exposing (Event, Kind(..), Tag(..), numberForKind)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
@@ -230,13 +230,13 @@ init user shared route () =
 
 defaultZapWeights : PubKey -> List ( PubKey, RelayUrl, Maybe Int )
 defaultZapWeights pubKey =
-    if pubKey == Pareto.paretoPubKey then
-        [ ( Pareto.paretoPubKey, Pareto.paretoRelay, Just 1 )
+    if pubKey == Pareto.paretoClientPubKey then
+        [ ( Pareto.paretoClientPubKey, Pareto.paretoRelay, Just 1 )
         ]
 
     else
         [ ( pubKey, Pareto.paretoRelay, Just 80 )
-        , ( Pareto.paretoPubKey, Pareto.paretoRelay, Just 20 )
+        , ( Pareto.paretoClientPubKey, Pareto.paretoRelay, Just 20 )
         ]
 
 
@@ -364,7 +364,7 @@ update shared user msg model =
                                     ( { model | milkdown = Milkdown.setSelectedImage model.milkdown blobDescriptor.url fileMetadata.content fileMetadata.alt }, Effect.none )
 
                                 Nothing ->
-                                    ( { model | milkdown = Milkdown.setSelectedImage model.milkdown blobDescriptor.url "" Nothing }, Effect.none )
+                                    ( { model | milkdown = Milkdown.setSelectedImage model.milkdown blobDescriptor.url Nothing Nothing }, Effect.none )
 
                         Nip96File fileMetadata ->
                             case fileMetadata.url of
@@ -619,7 +619,7 @@ eventWithContent shared model user kind =
             |> Event.addIdentifierTag model.identifier
             |> Event.addHashtagsToTags model.tags
             |> Event.addZapTags model.zapWeights
-            |> Event.addClientTag Pareto.client Pareto.paretoPubKey Pareto.handlerIdentifier Pareto.paretoRelay
+            |> Event.addClientTag Pareto.client Pareto.paretoClientPubKey Pareto.handlerIdentifier Pareto.paretoRelay
             |> Event.addAltTag (altText model.identifier user.pubKey kind [ Pareto.paretoRelay ])
     , content = model.content |> Maybe.withDefault ""
     , id = ""

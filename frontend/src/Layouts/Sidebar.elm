@@ -17,9 +17,8 @@ import Layout exposing (Layout)
 import ModalDialog exposing (ModalDialog)
 import Nostr
 import Nostr.BookmarkList exposing (bookmarksCount)
-import Nostr.FollowList exposing (Following(..))
 import Nostr.Profile exposing (Profile)
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (Following(..), PubKey)
 import Pareto
 import Ports
 import Route exposing (Route)
@@ -46,9 +45,9 @@ map toMsg props =
     }
 
 
-clientRoleForRoutePath : Route.Path.Path -> ClientRole
-clientRoleForRoutePath path =
-    sidebarItems ClientReader I18Next.initialTranslations
+clientRoleForRoutePath : BrowserEnv.Environment -> Route.Path.Path -> ClientRole
+clientRoleForRoutePath environment path =
+    sidebarItems environment ClientReader I18Next.initialTranslations
         |> List.any (\item -> item.path == path)
         |> (\isInReaderList ->
                 if isInReaderList then
@@ -68,14 +67,18 @@ type alias SidebarItemData =
     }
 
 
-routePathIsInList : Route.Path.Path -> ClientRole -> Bool
-routePathIsInList path clientRole =
-    sidebarItems clientRole I18Next.initialTranslations
+routePathIsInList : BrowserEnv.Environment -> Route.Path.Path -> ClientRole -> Bool
+routePathIsInList environment path clientRole =
+    sidebarItems environment clientRole I18Next.initialTranslations
         |> List.any (\item -> item.path == path)
 
 
-sidebarItems : ClientRole -> I18Next.Translations -> List SidebarItemData
-sidebarItems clientRole translations =
+sidebarItems : BrowserEnv.Environment -> ClientRole -> I18Next.Translations -> List SidebarItemData
+sidebarItems environment clientRole translations =
+    let
+        subscribersDisabled =
+            environment /= BrowserEnv.Development
+    in
     case clientRole of
         ClientReader ->
             [ { path = Route.Path.Read, title = Translations.readMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bookOpen, requiresLogin = False, disabled = False }
@@ -93,6 +96,7 @@ sidebarItems clientRole translations =
         ClientCreator ->
             [ { path = Route.Path.Posts, title = Translations.postsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.fileText, requiresLogin = True, disabled = False }
             , { path = Route.Path.Write, title = Translations.writeMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.feather, requiresLogin = True, disabled = False }
+            , { path = Route.Path.Subscribers, title = Translations.subscribersMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.users, requiresLogin = True, disabled = subscribersDisabled }
             , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, disabled = False }
             , { path = Route.Path.Media, title = Translations.mediaMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.image, requiresLogin = False, disabled = False }
 
@@ -301,7 +305,7 @@ viewSidebar styles shared currentPath toContentMsg content =
                     ]
                     [ -- viewBanner
                       if roleSwitchButtonEnabled shared.nostr shared.loginStatus then
-                        clientRoleSwitch shared.browserEnv.translations shared.role currentPath
+                        clientRoleSwitch shared.browserEnv.environment shared.browserEnv.translations shared.role currentPath
 
                       else
                         div [] []
@@ -328,26 +332,6 @@ viewMainContent content =
             []
         ]
         content
-
-
-viewBanner : Html contentMsg
-viewBanner =
-    div
-        [ css
-            [ Tw.flex
-            , Tw.items_center
-            , Tw.space_x_4
-            ]
-        ]
-        [ img
-            [ Attr.src "/images/pareto-banner.png"
-            , Attr.alt "Banner"
-            , css
-                [ Tw.h_16
-                ]
-            ]
-            []
-        ]
 
 
 viewBannerSmall : BrowserEnv -> Html contentMsg
@@ -425,16 +409,16 @@ roleSwitchButtonEnabled nostr loginStatus =
             False
 
 
-clientRoleSwitch : I18Next.Translations -> ClientRole -> Route.Path.Path -> Html Msg
-clientRoleSwitch translations clientRole currentPath =
+clientRoleSwitch : BrowserEnv.Environment -> I18Next.Translations -> ClientRole -> Route.Path.Path -> Html Msg
+clientRoleSwitch environment translations clientRole currentPath =
     let
         currentPathPresentForOtherRole =
             case clientRole of
                 ClientReader ->
-                    routePathIsInList currentPath ClientCreator
+                    routePathIsInList environment currentPath ClientCreator
 
                 ClientCreator ->
-                    routePathIsInList currentPath ClientReader
+                    routePathIsInList environment currentPath ClientReader
     in
     {- Switch Container -}
     div
@@ -562,7 +546,7 @@ viewSidebarItems : Styles contentMsg -> BrowserEnv -> ClientRole -> Bool -> Mayb
 viewSidebarItems styles browserEnv clientRole loggedIn maybeBookmarksCount currentPath =
     let
         visibleSidebarItems =
-            sidebarItems clientRole browserEnv.translations
+            sidebarItems browserEnv.environment clientRole browserEnv.translations
                 |> List.filter (sidebarItemVisible loggedIn)
                 |> List.filterMap
                     (\sidebarItem ->
@@ -696,21 +680,20 @@ viewSidebarItem styles currentPath itemData =
                 )
     in
     a
-        (linkAttr
-            ++ [ css
-                    [ Tw.py_2
-                    , Tw.w_10
-                    , Bp.xl
-                        [ Tw.w_40
-                        , Tw.flex
-                        , Tw.flex_row
-                        ]
-                    , Bp.sm
-                        [ Tw.rounded_full
-                        , Tw.h_10
-                        ]
-                    ]
-               ]
+        (css
+            [ Tw.py_2
+            , Tw.w_10
+            , Bp.xl
+                [ Tw.w_40
+                , Tw.flex
+                , Tw.flex_row
+                ]
+            , Bp.sm
+                [ Tw.rounded_full
+                , Tw.h_10
+                ]
+            ]
+            :: linkAttr
             ++ background
             ++ foreground
         )
@@ -726,14 +709,13 @@ viewSidebarItem styles currentPath itemData =
             ]
             [ Icon.view itemData.icon ]
         , span
-            ([ css
+            (css
                 [ Tw.hidden
                 , Bp.xl
                     [ Tw.inline
                     ]
                 ]
-             ]
-                ++ foreground
+                :: foreground
             )
             [ text itemData.title ]
         ]

@@ -1,18 +1,14 @@
 module Pages.Read exposing (Model, Msg, init, page, subscriptions, update, view)
 
-import BrowserEnv exposing (BrowserEnv)
 import Components.Categories
 import Dict
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled as Html exposing (Html, div)
 import I18Next
 import Layouts
 import Material.Icons exposing (category)
 import Nostr
-import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, nip19ForArticle)
-import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), emptyEventFilter, kindDecoder)
+import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), emptyEventFilter)
 import Nostr.FollowList exposing (followingPubKey)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
@@ -118,16 +114,13 @@ init shared route () =
         category =
             Dict.get categoryParamName route.query
                 |> Maybe.andThen categoryFromString
-                |> Maybe.withDefault Global
+                |> Maybe.withDefault Pareto
 
         correctedCategory =
             case category of
                 Pareto ->
-                    if paretoFollowsList shared.nostr == [] then
-                        Global
-
-                    else
-                        category
+                    -- a fixed authors list will be used for bootstrapping so Pareto can be the initial category
+                    category
 
                 Followed ->
                     if userFollowsList shared.nostr shared.loginStatus == [] then
@@ -253,7 +246,19 @@ filterForCategory shared category =
             { emptyEventFilter | kinds = Just [ KindLongFormContent ], limit = Just 20 }
 
         Pareto ->
-            { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (paretoFollowsList shared.nostr), limit = Just 20 }
+            let
+                loadedAuthorsList =
+                    paretoFollowsList shared.nostr
+
+                authorsList =
+                    if List.length loadedAuthorsList > 0 then
+                        loadedAuthorsList
+
+                    else
+                        Pareto.bootstrapAuthorsList
+                            |> List.map (\( _, authorPubKey ) -> authorPubKey)
+            in
+            { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just authorsList, limit = Just 20 }
 
         Followed ->
             { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (userFollowsList shared.nostr shared.loginStatus), limit = Just 20 }
@@ -320,11 +325,7 @@ availableCategories : Nostr.Model -> Shared.Model.LoginStatus -> I18Next.Transla
 availableCategories nostr loginStatus translations =
     let
         paretoCategories =
-            if paretoFollowsList nostr /= [] then
-                [ paretoCategory translations ]
-
-            else
-                []
+            [ paretoCategory translations ]
 
         paretoRssCategories =
             if paretoRssFollowsList nostr /= [] then
@@ -340,10 +341,8 @@ availableCategories nostr loginStatus translations =
             else
                 []
     in
-    followedCategories
-        ++ paretoCategories
-        ++ -- paretoRssCategories ++
-           [ { category = Global
+    paretoCategories
+        ++ [ { category = Global
              , title = Translations.Read.globalFeedCategory [ translations ]
              }
 
@@ -351,6 +350,7 @@ availableCategories nostr loginStatus translations =
            --     , title = Translations.Read.highlighterFeedCategory [ translations ]
            --     }
            ]
+        ++ followedCategories
 
 
 paretoCategory : I18Next.Translations -> Components.Categories.CategoryData Category

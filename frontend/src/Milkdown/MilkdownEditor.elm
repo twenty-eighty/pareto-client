@@ -8,15 +8,15 @@ module Milkdown.MilkdownEditor exposing
     , init
     , onBlur
     , onChange
+    , onFileRequest
     , onFocus
     , onLoad
-    , onFileRequest
     , setSelectedImage
     , update
     , view
     , withContent
-    , withHeight
     , withDarkMode
+    , withHeight
     )
 
 import Html.Styled as Html exposing (Html)
@@ -26,7 +26,9 @@ import Json.Decode as JD
 import Json.Encode as JE
 
 
+
 -- TYPES
+
 
 type alias Content =
     String
@@ -50,7 +52,9 @@ type alias Options msg =
     }
 
 
+
 -- DEFAULT OPTIONS
+
 
 defaults : Options msg
 defaults =
@@ -66,7 +70,9 @@ defaults =
     }
 
 
+
 -- OPTION SETTERS
+
 
 withContent : String -> Options msg -> Options msg
 withContent value options =
@@ -113,7 +119,9 @@ destroy shouldDestroy options =
     { options | destroy = shouldDestroy }
 
 
+
 -- VIEW
+
 
 view : (Msg msg -> msg) -> Options msg -> Model -> Html msg
 view toMsg options model =
@@ -131,23 +139,25 @@ view toMsg options model =
         []
 
 
+
 -- ATTRIBUTE HELPERS
+
 
 contentAttr : String -> List (Html.Attribute msg)
 contentAttr val =
     [ attribute "content" val ]
 
 
-selectedFileAttr : Maybe (String, String, Maybe String) -> List (Html.Attribute msg)
+selectedFileAttr : Maybe ( String, Maybe String, Maybe String ) -> List (Html.Attribute msg)
 selectedFileAttr selectedFile =
     case selectedFile of
-        Just (url, caption, maybeAlt) ->
+        Just ( url, caption, maybeAlt ) ->
             let
                 value =
                     JE.object
                         [ ( "url", JE.string url )
-                        , ( "caption", JE.string caption )
-                        , ( "alt", JE.string (Maybe.withDefault "" maybeAlt))
+                        , ( "caption", JE.string (Maybe.withDefault "" caption) )
+                        , ( "alt", JE.string (Maybe.withDefault "" maybeAlt) )
                         ]
                         |> JE.encode 0
             in
@@ -157,22 +167,35 @@ selectedFileAttr selectedFile =
         Nothing ->
             [ attribute "selectedfile" "{}" ]
 
+
 themeAttr : DarkMode -> List (Html.Attribute msg)
 themeAttr darkMode =
-    [ attribute "theme" (case darkMode of
-                            Light -> "nord"
-                            Dark -> "nord-dark"
-                        )
-    ]
+    [ attribute "theme"
+        (case darkMode of
+            Light ->
+                "nord"
 
+            Dark ->
+                "nord-dark"
+        )
+    ]
 
 
 destroyAttr : Bool -> List (Html.Attribute msg)
 destroyAttr shouldDestroy =
-    [ attribute "destroy" (if shouldDestroy then "true" else "false") ]
+    [ attribute "destroy"
+        (if shouldDestroy then
+            "true"
+
+         else
+            "false"
+        )
+    ]
+
 
 
 -- EVENT HANDLERS
+
 
 eventHandlers : Options msg -> List (Html.Attribute msg)
 eventHandlers options =
@@ -183,28 +206,24 @@ eventHandlers options =
 
             Nothing ->
                 []
-
         , case options.onfocus of
             Just handler ->
                 [ on "focus" (JD.succeed handler) ]
 
             Nothing ->
                 []
-
         , case options.onblur of
             Just handler ->
                 [ on "blur" (JD.succeed handler) ]
 
             Nothing ->
                 []
-
         , case options.onload of
             Just handler ->
                 [ on "load" (JD.succeed handler) ]
 
             Nothing ->
                 []
-
         , case options.onfilerequest of
             Just handler ->
                 [ on "filerequest" (JD.succeed handler) ]
@@ -214,7 +233,9 @@ eventHandlers options =
         ]
 
 
+
 -- DECODERS
+
 
 decodeContent : (Content -> msg) -> JD.Decoder msg
 decodeContent toMsg =
@@ -222,11 +243,13 @@ decodeContent toMsg =
         |> JD.map toMsg
 
 
+
 -- INITIAL MODEL
+
 
 type alias Model =
     { content : Content
-    , selectedFile : Maybe (String, String, Maybe String) -- url, caption, alt
+    , selectedFile : Maybe ( String, Maybe String, Maybe String ) -- url, caption, alt
     }
 
 
@@ -237,7 +260,9 @@ init =
     }
 
 
+
 -- UPDATE
+
 
 type Msg msg
     = OnLoad msg
@@ -251,25 +276,25 @@ type Msg msg
 update : Msg msg -> Model -> ( Model, Cmd msg )
 update msg model =
     case msg of
-        OnLoad userMsg ->
+        OnLoad _ ->
             ( model, Cmd.none )
 
         OnChange newContent ->
             ( { model | content = newContent }, Cmd.none )
 
-        OnFocus userMsg ->
+        OnFocus _ ->
             ( model, Cmd.none )
 
-        OnBlur userMsg ->
+        OnBlur _ ->
             ( model, Cmd.none )
 
-        OnFileRequest userMsg ->
+        OnFileRequest _ ->
             ( model, Cmd.none )
 
         OnReceivedSelectedFile ->
             ( { model | selectedFile = Nothing }, Cmd.none )
 
 
-setSelectedImage : Model -> String -> String -> Maybe String -> Model
+setSelectedImage : Model -> String -> Maybe String -> Maybe String -> Model
 setSelectedImage model url caption alt =
-    { model | selectedFile = Just (url, caption, alt) }
+    { model | selectedFile = Just ( url, caption, alt ) }

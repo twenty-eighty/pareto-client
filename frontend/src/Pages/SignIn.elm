@@ -26,7 +26,7 @@ import View exposing (View)
 page : Shared.Model -> Route () -> Page Model Msg
 page shared route =
     Page.new
-        { init = init route
+        { init = init shared route
         , update = update shared
         , subscriptions = subscriptions
         , view = view shared
@@ -46,8 +46,8 @@ type alias Model =
     }
 
 
-init : Route () -> () -> ( Model, Effect Msg )
-init route () =
+init : Shared.Model -> Route () -> () -> ( Model, Effect Msg )
+init shared route () =
     let
         from =
             Dict.get "from" route.query
@@ -57,7 +57,7 @@ init route () =
             from
       , clientRole =
             from
-                |> Maybe.map Layouts.Sidebar.clientRoleForRoutePath
+                |> Maybe.map (Layouts.Sidebar.clientRoleForRoutePath shared.browserEnv.environment)
       }
     , Effect.sendCmd Ports.loginSignUp
     )
