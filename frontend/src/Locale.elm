@@ -30,6 +30,7 @@ languageFromLocale locale =
         "de" ->
             German "DE"
 
+        -- TODO: This case is impossible here after `String.left 2 locale`
         "en_US" ->
             English "US"
 
@@ -48,6 +49,19 @@ showLanguage language =
 
         _ ->
             "Not supported yet"
+
+
+languageFromISOCode : String -> Language
+languageFromISOCode code =
+    case code of
+        "de" ->
+            German "DE"
+
+        "us" ->
+            English "US"
+
+        _ ->
+            English "GB"
 
 
 dateFormatFromLanguage : Language -> ( DateFormat.Language.Language, List DateFormat.Token, List DateFormat.Token )

@@ -1,7 +1,7 @@
 module Nostr.Event exposing (..)
 
 import Dict exposing (Dict)
-import Json.Decode as Decode exposing (Decoder)
+import Json.Decode as Decode exposing (Decoder, maybe)
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
 import Nostr.Nip19 as Nip19 exposing (NAddrData, NIP19Type(..))
@@ -31,6 +31,8 @@ type Tag
     | KindTag Kind
     | ImageTag String (Maybe ImageSize)
     | LocationTag String (Maybe String)
+    | LabelNamespaceTag String
+    | LabelTag String String
     | MentionTag PubKey
     | NameTag String
     | PublicKeyTag PubKey (Maybe String) (Maybe String)
@@ -1637,6 +1639,12 @@ decodeTag =
                     "location" ->
                         Decode.map2 LocationTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
+                    "L" ->
+                        Decode.map LabelNamespaceTag (Decode.index 1 Decode.string)
+
+                    "l" ->
+                        Decode.map2 LocationTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
+
                     "m" ->
                         Decode.map MentionTag (Decode.index 1 Decode.string)
 
@@ -1823,6 +1831,12 @@ tagToList tag =
 
                 Nothing ->
                     [ "location", value1 ]
+
+        LabelNamespaceTag value ->
+            [ "L", value ]
+
+        LabelTag value ns ->
+            [ "l", value, ns ]
 
         MentionTag pubKey ->
             [ "m", pubKey ]

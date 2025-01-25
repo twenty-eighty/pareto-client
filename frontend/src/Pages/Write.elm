@@ -195,7 +195,7 @@ init user shared route () =
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
                     , modalDialog = NoModalDialog
-                    , languageSelection = Components.Dropdown.init { selected = Just (English "US") }
+                    , languageSelection = Components.Dropdown.init { selected = article.language }
                     }
 
                 Nothing ->

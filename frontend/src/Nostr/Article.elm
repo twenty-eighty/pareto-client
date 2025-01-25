@@ -1,7 +1,7 @@
 module Nostr.Article exposing (..)
 
 import Json.Decode as Decode exposing (Decoder)
-import Json.Decode.Pipeline as DecodePipeline
+import Locale exposing (Language, languageFromISOCode)
 import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress)
 import Nostr.Nip19 as Nip19
 import Nostr.Nip27 as Nip27
@@ -10,7 +10,6 @@ import Nostr.Shared
 import Nostr.Types exposing (Address, EventId, PubKey, RelayUrl)
 import Set
 import Time
-import Ui.Profile exposing (defaultProfileImage)
 
 
 type alias Article =
@@ -28,6 +27,7 @@ type alias Article =
     , title : Maybe String
     , url : Maybe String
     , identifier : Maybe String
+    , language : Maybe Language
     , hashtags : List String
     , zapWeights : List ( PubKey, RelayUrl, Maybe Int )
     , otherTags : List Tag
@@ -56,6 +56,7 @@ emptyArticle author eventId kind createdAt content relayUrl =
     , title = Nothing
     , url = Nothing
     , identifier = Nothing
+    , language = Nothing
     , hashtags = []
     , zapWeights = []
     , otherTags = []
@@ -129,6 +130,9 @@ articleFromEvent event =
 
                             TitleTag title ->
                                 ( { article | title = Just title }, errors )
+
+                            LabelTag lang "ISO-639-1" ->
+                                ( { article | language = Just (languageFromISOCode lang) }, errors )
 
                             ZapTag pubKey relayUrl maybeWeight ->
                                 ( { article | zapWeights = article.zapWeights ++ [ ( pubKey, relayUrl, maybeWeight ) ] }, errors )
