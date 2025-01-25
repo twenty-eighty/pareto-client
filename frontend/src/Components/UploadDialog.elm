@@ -55,8 +55,11 @@ import Url
 
 supportedMimeTypes : List String
 supportedMimeTypes =
-    [ "image/png"
+    [ "image/gif"
     , "image/jpg"
+    , "image/png"
+    , "image/svg+xml"
+    , "image/webp"
 
     -- , "application/pdf"
     ]
@@ -726,9 +729,9 @@ processIncomingMessage user (Model model) messageType toMsg value =
                                 -- Start the upload
                                 effect =
                                     case Dict.get fileId updatedFiles of
-                                        Just (FileUploadBlossom maybePreviewLink upload) ->
+                                        Just (FileUploadBlossom _ upload) ->
                                             case upload.status of
-                                                Blossom.ReadyToUpload hash authHeader ->
+                                                Blossom.ReadyToUpload _ authHeader ->
                                                     let
                                                         apiUrl =
                                                             case Dropdown.selectedItem model.serverSelectionDropdown of
@@ -785,11 +788,11 @@ processIncomingMessage user (Model model) messageType toMsg value =
                                 -- Start the upload
                                 effect =
                                     case Dict.get fileId updatedFiles of
-                                        Just (FileUploadNip96 maybePreviewLink upload) ->
+                                        Just (FileUploadNip96 _ upload) ->
                                             case upload.status of
-                                                Nip96.ReadyToUpload hash authHeader ->
+                                                Nip96.ReadyToUpload _ authHeader ->
                                                     let
-                                                        ( apiUrl, serverUrl ) =
+                                                        ( apiUrl, _ ) =
                                                             case Dropdown.selectedItem model.serverSelectionDropdown of
                                                                 Just (UploadServerNip96 nip96ServerUrl serverDescriptorData) ->
                                                                     ( serverDescriptorData.apiUrl, nip96ServerUrl )
