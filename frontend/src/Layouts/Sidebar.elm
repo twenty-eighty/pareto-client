@@ -403,7 +403,8 @@ roleSwitchButtonEnabled : Nostr.Model -> LoginStatus -> Bool
 roleSwitchButtonEnabled nostr loginStatus =
     case loginStatus of
         LoggedIn userPubKey ->
-            Nostr.isEditor nostr userPubKey
+            -- check here also for author because authors list is available immediately after starting
+            Nostr.isAuthor nostr userPubKey || Nostr.isEditor nostr userPubKey
 
         _ ->
             False

@@ -27,7 +27,7 @@ import Nostr.Request as Request exposing (HttpRequestMethod, Request, RequestDat
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
-import Nostr.Types exposing (Address, EventId, Following, IncomingMessage, PubKey, RelayRole(..), RelayUrl)
+import Nostr.Types exposing (Address, EventId, Following(..), IncomingMessage, PubKey, RelayRole(..), RelayUrl)
 import Nostr.Zaps exposing (ZapReceipt)
 import Pareto
 import Set exposing (Set)
@@ -1090,7 +1090,7 @@ empty =
         }
     , pubKeyByNip05 = Dict.empty
     , poolState = RelayStateUnknown
-    , followLists = Dict.empty
+    , followLists = Dict.singleton Pareto.authorsKey paretoAuthorsFollowList
     , followSets = Dict.empty
     , profiles = Dict.empty
     , profileValidations = Dict.empty
@@ -1112,6 +1112,19 @@ empty =
     , lastSendId = 0
     , lastSendRequestId = 0
     }
+
+
+paretoAuthorsFollowList : List Following
+paretoAuthorsFollowList =
+    Pareto.bootstrapAuthorsList
+        |> List.map
+            (\( nip05, authorPubKey ) ->
+                FollowingPubKey
+                    { pubKey = authorPubKey
+                    , relay = Just Pareto.paretoRelay
+                    , petname = Just nip05
+                    }
+            )
 
 
 init : Hooks -> List String -> ( Model, Cmd Msg )

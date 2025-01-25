@@ -246,19 +246,7 @@ filterForCategory shared category =
             { emptyEventFilter | kinds = Just [ KindLongFormContent ], limit = Just 20 }
 
         Pareto ->
-            let
-                loadedAuthorsList =
-                    paretoFollowsList shared.nostr
-
-                authorsList =
-                    if List.length loadedAuthorsList > 0 then
-                        loadedAuthorsList
-
-                    else
-                        Pareto.bootstrapAuthorsList
-                            |> List.map (\( _, authorPubKey ) -> authorPubKey)
-            in
-            { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just authorsList, limit = Just 20 }
+            { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (paretoFollowsList shared.nostr), limit = Just 20 }
 
         Followed ->
             { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (userFollowsList shared.nostr shared.loginStatus), limit = Just 20 }
