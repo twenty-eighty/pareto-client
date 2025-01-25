@@ -299,5 +299,6 @@ subscriptions _ =
     Sub.batch
         [ Ports.receiveMessage ReceivedPortMessage
 
-        --, Time.every 1000 Now
+        -- update time once a minute to update relative time text like "published 14 mins ago"
+        , Time.every (1000 * 60) Now
         ]
