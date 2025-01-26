@@ -12,7 +12,7 @@ import Html.Styled.Events as Events exposing (..)
 import LinkPreview exposing (LoadedContent)
 import Markdown
 import Nostr
-import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle)
+import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), numberForKind)
 import Nostr.Nip19 as Nip19
 import Nostr.Nip27 exposing (GetProfileFunction)
@@ -1100,23 +1100,6 @@ timeParagraph styles browserEnv maybePublishedAt createdAt =
     div
         (styles.colorStyleGrayscaleMuted ++ styles.textStyle14)
         [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
-
-
-publishedTime : Time.Posix -> Maybe Time.Posix -> Time.Posix
-publishedTime createdAt maybePublishedAt =
-    case maybePublishedAt of
-        Just publishedAt ->
-            -- some clients produce(d) wrong article dates > year 55000.
-            -- maybe missed a conversion from milliseconds to seconds
-            if Time.toYear Time.utc publishedAt > 50000 then
-                -- show event creation time in this case
-                createdAt
-
-            else
-                publishedAt
-
-        Nothing ->
-            createdAt
 
 
 viewProfilePubKey : PubKey -> Html msg

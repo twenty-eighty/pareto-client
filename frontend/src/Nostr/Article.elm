@@ -146,6 +146,23 @@ articleFromEvent event =
             Err errors
 
 
+publishedTime : Time.Posix -> Maybe Time.Posix -> Time.Posix
+publishedTime createdAt maybePublishedAt =
+    case maybePublishedAt of
+        Just publishedAt ->
+            -- some clients produce(d) wrong article dates > year 55000.
+            -- maybe missed a conversion from milliseconds to seconds
+            if Time.toYear Time.utc publishedAt > 50000 then
+                -- show event creation time in this case
+                createdAt
+
+            else
+                publishedAt
+
+        Nothing ->
+            createdAt
+
+
 tagReference : Article -> TagReference
 tagReference article =
     case article.identifier of
