@@ -1,6 +1,6 @@
 module Ui.Profile exposing (..)
 
-import BrowserEnv exposing (BrowserEnv, Msg)
+import BrowserEnv exposing (BrowserEnv)
 import Color
 import Components.Button as Button
 import Components.Icon as Icon exposing (Icon(..), MaterialIcon(..))

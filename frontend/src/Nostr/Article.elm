@@ -1,7 +1,6 @@
 module Nostr.Article exposing (..)
 
 import Json.Decode as Decode exposing (Decoder)
-import Json.Decode.Pipeline as DecodePipeline
 import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress)
 import Nostr.Nip19 as Nip19
 import Nostr.Nip27 as Nip27
@@ -10,7 +9,6 @@ import Nostr.Shared
 import Nostr.Types exposing (Address, EventId, PubKey, RelayUrl)
 import Set
 import Time
-import Ui.Profile exposing (defaultProfileImage)
 
 
 type alias Article =

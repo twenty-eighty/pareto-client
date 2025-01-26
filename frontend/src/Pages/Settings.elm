@@ -8,7 +8,7 @@ import Css
 import Effect exposing (Effect)
 import FeatherIcons
 import Html.Styled as Html exposing (Html, a, datalist, div, h3, input, li, option, p, text, ul)
-import Html.Styled.Attributes as Attr exposing (class, css)
+import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
 import Layouts
@@ -81,10 +81,12 @@ emptyRelaysModel =
     }
 
 
-emptyMediaServersModel =
-    { nip96Server = Nothing
-    , blossomServer = Nothing
-    }
+
+--   emptyMediaServersModel : MediaServersModel
+--   emptyMediaServersModel =
+--       { nip96Server = Nothing
+--       , blossomServer = Nothing
+--       }
 
 
 type Category
@@ -449,9 +451,10 @@ updateRelayModelInbox relaysModel value =
     { relaysModel | inboxRelay = value }
 
 
-updateRelayModelSearch : RelaysModel -> Maybe String -> RelaysModel
-updateRelayModelSearch relaysModel value =
-    { relaysModel | searchRelay = value }
+
+--   updateRelayModelSearch : RelaysModel -> Maybe String -> RelaysModel
+--   updateRelayModelSearch relaysModel value =
+--       { relaysModel | searchRelay = value }
 
 
 addRelayBox : Theme -> I18Next.Translations -> Maybe String -> RelaySuggestions -> (Maybe String -> RelaysModel) -> (String -> Msg) -> Html Msg
@@ -506,36 +509,39 @@ addRelayBox theme translations maybeValue relaySuggestions updateFn addRelayMsg 
                     text ""
                 ]
             , input
-                [ Attr.placeholder <| Translations.addRelayPlaceholder [ translations ]
-                , Attr.value (Maybe.withDefault "" maybeValue)
-                , Attr.type_ "url"
-                , Attr.spellcheck False
-                , Attr.list relaySuggestions.identifier
-                , Events.onInput
-                    (\relayText ->
-                        if relayText /= "" then
-                            UpdateRelayModel <| updateFn (Just <| relayText)
+                (styles.colorStyleBackground
+                    ++ styles.colorStyleGrayscaleText
+                    ++ [ Attr.placeholder <| Translations.addRelayPlaceholder [ translations ]
+                       , Attr.value (Maybe.withDefault "" maybeValue)
+                       , Attr.type_ "url"
+                       , Attr.spellcheck False
+                       , Attr.list relaySuggestions.identifier
+                       , Events.onInput
+                            (\relayText ->
+                                if relayText /= "" then
+                                    UpdateRelayModel <| updateFn (Just <| relayText)
 
-                        else
-                            UpdateRelayModel <| updateFn Nothing
-                    )
-                , css
-                    [ Tw.appearance_none
-                    , Tw.bg_scroll
-                    , Tw.bg_clip_border
-                    , Tw.rounded_md
-                    , Tw.border_2
-                    , Tw.box_border
-                    , Tw.cursor_text
-                    , Tw.block
-                    , Tw.ps_14
-                    , Tw.pe_16
-                    , Tw.pl_14
-                    , Tw.pr_16
-                    , Tw.h_10
-                    , Tw.w_full
-                    ]
-                ]
+                                else
+                                    UpdateRelayModel <| updateFn Nothing
+                            )
+                       , css
+                            [ Tw.appearance_none
+                            , Tw.bg_scroll
+                            , Tw.bg_clip_border
+                            , Tw.rounded_md
+                            , Tw.border_2
+                            , Tw.box_border
+                            , Tw.cursor_text
+                            , Tw.block
+                            , Tw.ps_14
+                            , Tw.pe_16
+                            , Tw.pl_14
+                            , Tw.pr_16
+                            , Tw.h_10
+                            , Tw.w_full
+                            ]
+                       ]
+                )
                 []
             , relaySuggestionDataList relaySuggestions
             ]

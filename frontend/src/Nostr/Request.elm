@@ -68,82 +68,84 @@ relaysOfRequest : Request -> Maybe (List RelayUrl)
 relaysOfRequest request =
     let
         maybeData =
-            case List.head request.states of
-                Just (RequestCreated requestData) ->
-                    Just requestData
+            List.head request.states
+                |> Maybe.andThen
+                    (\state ->
+                        case state of
+                            RequestCreated requestData ->
+                                Just requestData
 
-                Just (RequestSent requestData) ->
-                    Just requestData
-
-                Nothing ->
-                    Nothing
+                            RequestSent requestData ->
+                                Just requestData
+                    )
     in
-    case maybeData of
-        Just (RequestArticle (Just relayList) _) ->
-            Just relayList
+    maybeData
+        |> Maybe.andThen
+            (\data ->
+                case data of
+                    RequestArticle (Just relayList) _ ->
+                        Just relayList
 
-        Just (RequestArticle Nothing _) ->
-            Nothing
+                    RequestArticle Nothing _ ->
+                        Nothing
 
-        Just (RequestArticles _) ->
-            Nothing
+                    RequestArticles _ ->
+                        Nothing
 
-        Just (RequestArticlesFeed _) ->
-            Nothing
+                    RequestArticlesFeed _ ->
+                        Nothing
 
-        Just (RequestArticleDrafts _) ->
-            Nothing
+                    RequestArticleDrafts _ ->
+                        Nothing
 
-        Just (RequestBookmarks _) ->
-            Nothing
+                    RequestBookmarks _ ->
+                        Nothing
 
-        Just (RequestCommunity (Just relayList) _) ->
-            Just relayList
+                    RequestCommunity (Just relayList) _ ->
+                        Just relayList
 
-        Just (RequestCommunity Nothing _) ->
-            Nothing
+                    RequestCommunity Nothing _ ->
+                        Nothing
 
-        Just (RequestDeletionRequests _) ->
-            Nothing
+                    RequestDeletionRequests _ ->
+                        Nothing
 
-        Just (RequestFollowSets _) ->
-            Nothing
+                    RequestFollowSets _ ->
+                        Nothing
 
-        Just (RequestMediaServerLists _) ->
-            Nothing
+                    RequestMediaServerLists _ ->
+                        Nothing
 
-        Just (RequestNip05AndArticle _ _) ->
-            Nothing
+                    RequestNip05AndArticle _ _ ->
+                        Nothing
 
-        Just (RequestProfile (Just relayList) _) ->
-            Just relayList
+                    RequestProfile (Just relayList) _ ->
+                        Just relayList
 
-        Just (RequestProfile Nothing _) ->
-            Nothing
+                    RequestProfile Nothing _ ->
+                        Nothing
 
-        Just (RequestProfileByNip05 _) ->
-            Nothing
+                    RequestProfileByNip05 _ ->
+                        Nothing
 
-        Just (RequestReactions _) ->
-            Nothing
+                    RequestReactions _ ->
+                        Nothing
 
-        Just (RequestRelayLists _) ->
-            Nothing
+                    RequestRelayLists _ ->
+                        Nothing
 
-        Just (RequestUserData _) ->
-            Nothing
+                    RequestUserData _ ->
+                        Nothing
 
-        Just (RequestBlossomAuth _ _ _) ->
-            Nothing
+                    RequestBlossomAuth _ _ _ ->
+                        Nothing
 
-        Just (RequestNip98Auth _ _ _) ->
-            Nothing
+                    RequestNip98Auth _ _ _ ->
+                        Nothing
 
-        Just (RequestSearchResults _) ->
-            Nothing
+                    RequestSearchResults _ ->
+                        Nothing
 
-        Just (RequestShortNote _) ->
-            Nothing
-
-        Nothing ->
-            Nothing
+                    RequestShortNote _ ->
+                        Nothing
+            )

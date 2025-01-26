@@ -2,7 +2,7 @@ module Ui.Article exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
-import Components.Icon as Icon exposing (Icon)
+import Components.Icon as Icon
 import Components.ZapDialog as ZapDialog
 import Css
 import Dict
