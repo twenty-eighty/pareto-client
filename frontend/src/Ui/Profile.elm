@@ -6,15 +6,13 @@ import Components.Button as Button
 import Components.Icon as Icon exposing (Icon(..), MaterialIcon(..))
 import FeatherIcons
 import Graphics
-import Html.Styled as Html exposing (Attribute, Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled as Html exposing (Html, a, div, h2, img, p, text)
+import Html.Styled.Attributes as Attr exposing (css)
 import Nostr.Nip05 as Nip05
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
-import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Time
@@ -140,7 +138,7 @@ viewProfile profile profileViewData =
 
 
 viewSubscriptionButton : Profile -> ProfileViewData msg -> Html msg
-viewSubscriptionButton profile profileViewData =
+viewSubscriptionButton _ profileViewData =
     case ( profileViewData.browserEnv.environment, profileViewData.isAuthor, profileViewData.subscribe ) of
         ( BrowserEnv.Development, True, Just subscribeMsg ) ->
             Button.new
