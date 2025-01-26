@@ -700,6 +700,9 @@ defaultNoTransformForFile file =
         "image/webp" ->
             Just True
 
+        "image/svg+xml" ->
+            Just True
+
         _ ->
             Nothing
 
