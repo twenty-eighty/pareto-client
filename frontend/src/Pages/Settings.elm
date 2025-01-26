@@ -382,7 +382,7 @@ viewRelays shared _ user relaysModel =
             [ Tw.flex
             , Tw.flex_col
             , Tw.gap_2
-            , Tw.m_6
+            , Tw.m_20
             ]
         ]
         [ h3
@@ -779,7 +779,7 @@ viewProfile shared _ user =
             [ Tw.flex
             , Tw.flex_col
             , Tw.gap_2
-            , Tw.m_6
+            , Tw.m_20
             ]
         ]
         [ viewUserProfile
