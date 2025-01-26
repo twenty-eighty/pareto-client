@@ -18,7 +18,6 @@ import Effect exposing (Effect)
 import Json.Decode
 import Nostr
 import Nostr.Event exposing (Kind(..), emptyEventFilter)
-import Nostr.Profile
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Types exposing (IncomingMessage, PubKey)
 import Pareto
@@ -62,7 +61,7 @@ decoder =
 
 
 init : Result Json.Decode.Error Flags -> Route () -> ( Model, Effect Msg )
-init flagsResult route =
+init flagsResult _ =
     case flagsResult of
         Ok flags ->
             let
@@ -151,7 +150,7 @@ type alias Msg =
 
 
 update : Route () -> Msg -> Model -> ( Model, Effect Msg )
-update route msg model =
+update _ msg model =
     case msg of
         TriggerLogin ->
             ( model
@@ -265,7 +264,7 @@ updateWithUserValue model value =
             , Effect.sendCmd (Cmd.map Shared.Msg.NostrMsg cmd)
             )
 
-        ( Err error, _ ) ->
+        ( Err _, _ ) ->
             ( model, Effect.none )
 
 
@@ -302,7 +301,7 @@ pubkeyDecoder =
 
 
 subscriptions : Route () -> Model -> Sub Msg
-subscriptions route model =
+subscriptions _ model =
     Sub.batch
         [ Ports.receiveMessage Shared.Msg.ReceivedPortMessage
         , Sub.map Shared.Msg.BrowserEnvMsg (BrowserEnv.subscriptions model.browserEnv)

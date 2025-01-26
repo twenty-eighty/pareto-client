@@ -2,8 +2,8 @@ module Pages.SignIn exposing (Model, Msg, init, page, subscriptions, update, vie
 
 import Dict
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css)
+import Html.Styled as Html exposing (a, div, text)
+import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Layouts
 import Layouts.Sidebar
@@ -15,8 +15,6 @@ import Route.Path
 import Shared
 import Shared.Model exposing (ClientRole(..))
 import Shared.Msg
-import Tailwind.Breakpoints as Bp
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.SignIn as Translations
 import Ui.Styles exposing (Theme)
@@ -35,7 +33,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -79,7 +77,7 @@ update shared msg model =
 
 
 updateWithPortMessage : Shared.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
-updateWithPortMessage shared model portMessage =
+updateWithPortMessage _ model portMessage =
     case portMessage.messageType of
         "user" ->
             case ( model.from, model.clientRole ) of
@@ -99,12 +97,12 @@ updateWithPortMessage shared model portMessage =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Ports.receiveMessage ReceivedPortMessage
 
 
 view : Shared.Model -> Model -> View Msg
-view shared model =
+view shared _ =
     let
         styles =
             Ui.Styles.stylesForTheme shared.theme

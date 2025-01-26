@@ -9,7 +9,7 @@ import Dict
 import Effect exposing (Effect)
 import FeatherIcons
 import Graphics
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, text)
+import Html.Styled as Html exposing (Html, a, aside, button, div, img, input, label, main_, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
@@ -18,7 +18,7 @@ import ModalDialog exposing (ModalDialog)
 import Nostr
 import Nostr.BookmarkList exposing (bookmarksCount)
 import Nostr.Profile exposing (Profile)
-import Nostr.Types exposing (Following(..), PubKey)
+import Nostr.Types exposing (Following(..))
 import Ports
 import Route exposing (Route)
 import Route.Path
@@ -29,7 +29,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
-import Ui.Styles exposing (Styles, darkMode)
+import Ui.Styles exposing (Styles)
 import View exposing (View)
 
 
@@ -101,14 +101,12 @@ sidebarItems { isAuthor, isLoggedIn, environment, clientRole, translations, mayb
                 -- item-specific adaptions
                 case sidebarItem.path of
                     Route.Path.Bookmarks ->
-                        case maybeBookmarksCount of
-                            Just bookmarksCount ->
-                                -- add bookmarks count to title
-                                Just { sidebarItem | title = sidebarItem.title ++ "\u{00A0}" ++ countBadge bookmarksCount }
-
-                            Nothing ->
-                                -- filter bookmarks sidebar item
-                                Nothing
+                        maybeBookmarksCount
+                            |> Maybe.map
+                                (\bookmarksCount ->
+                                    -- add bookmarks count to title
+                                    { sidebarItem | title = sidebarItem.title ++ "\u{00A0}" ++ countBadge bookmarksCount }
+                                )
 
                     Route.Path.Subscribers ->
                         -- currently in development
@@ -194,7 +192,7 @@ type Msg
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
-update shared msg model =
+update _ msg model =
     case msg of
         OpenGetStarted ->
             ( model
@@ -231,7 +229,7 @@ update shared msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -692,7 +690,7 @@ countBadge count =
             "⑳"
 
         otherNumber ->
-            "(" ++ String.fromInt count ++ ")"
+            "(" ++ String.fromInt otherNumber ++ ")"
 
 
 sidebarItemVisible : Bool -> Bool -> SidebarItemData -> Bool
@@ -774,7 +772,7 @@ viewSidebarItem styles currentPath itemData =
 loginButton : Shared.Model -> Maybe Profile -> Html Msg
 loginButton shared maybeProfile =
     case shared.loginStatus of
-        Shared.Model.LoggedIn pubKey ->
+        Shared.Model.LoggedIn _ ->
             loggedInButton maybeProfile
 
         _ ->
