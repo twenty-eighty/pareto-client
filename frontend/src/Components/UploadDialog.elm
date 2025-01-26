@@ -298,7 +298,7 @@ update props =
                                                     , caption = Nothing
                                                     , alt = Nothing
                                                     , mediaType = Nothing
-                                                    , noTransform = Nothing
+                                                    , noTransform = defaultNoTransformForFile fileToUpload
                                                     , uploadResponse = Nothing
                                                     }
                                                     |> Just
@@ -440,11 +440,8 @@ update props =
                                             Just True ->
                                                 Just <| FileUploadNip96 maybePreviewLink { upload | noTransform = Just False }
 
-                                            Just False ->
+                                            _ ->
                                                 Just <| FileUploadNip96 maybePreviewLink { upload | noTransform = Just True }
-
-                                            Nothing ->
-                                                Just <| FileUploadNip96 maybePreviewLink { upload | noTransform = Nothing }
 
                                     Nothing ->
                                         Nothing
@@ -692,6 +689,19 @@ update props =
 
             ErrorOccurred errorMsg ->
                 ( Model { model | errors = model.errors ++ [ errorMsg ] }, Effect.none )
+
+
+defaultNoTransformForFile : File -> Maybe Bool
+defaultNoTransformForFile file =
+    case File.mime file of
+        "image/gif" ->
+            Just True
+
+        "image/webp" ->
+            Just True
+
+        _ ->
+            Nothing
 
 
 processIncomingMessage : Auth.User -> Model -> String -> (Msg -> msg) -> Encode.Value -> ( Model, Effect msg )
