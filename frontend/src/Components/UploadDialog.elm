@@ -133,7 +133,7 @@ init props =
 
 show : Model -> Model
 show (Model model) =
-    Model { model | state = DialogVisible }
+    Model { model | state = DialogVisible, errors = [] }
 
 
 selectServer : Model -> Maybe UploadServer -> Model
