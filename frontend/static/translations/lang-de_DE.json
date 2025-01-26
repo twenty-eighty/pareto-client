@@ -42,7 +42,8 @@
    "email subscription dialog": {
       "dialog title": "Mit E-Mail abonnieren",
       "subscribe button title": "Abonnieren",
-      "close button title": "Schließen"
+      "close button title": "Schließen",
+      "next button title": "Weiter"
    },
    "media selector": {
       "Select image": "Bild auswählen",

@@ -70,24 +70,37 @@ paretoRelays =
     ]
 
 
-defaultNip96Server : String
-defaultNip96Server =
-    "https://route96.pareto.space"
+defaultNip96ServersAuthors : List String
+defaultNip96ServersAuthors =
+    [ "https://route96.pareto.space"
+    ]
 
 
-teamRelay : String
+defaultNip96ServersPublic : List String
+defaultNip96ServersPublic =
+    [ "https://void.cat"
+    ]
+
+
+applicationDataRelays : List RelayUrl
+applicationDataRelays =
+    [ "cool-darkness-73116.pktriot.net"
+    ]
+
+
+teamRelay : RelayUrl
 teamRelay =
     "team-relay.pareto.space"
 
 
-paretoOutboxRelays : List String
+paretoOutboxRelays : List RelayUrl
 paretoOutboxRelays =
     [ "nostr.pareto.space"
     , "pareto.nostr1.com"
     ]
 
 
-recommendedOutboxRelays : List String
+recommendedOutboxRelays : List RelayUrl
 recommendedOutboxRelays =
     [ "relay.snort.social"
     , "relay.nostr.band"
@@ -98,7 +111,7 @@ recommendedOutboxRelays =
     ]
 
 
-recommendedInboxRelays : List String
+recommendedInboxRelays : List RelayUrl
 recommendedInboxRelays =
     [ "nostr.pareto.space"
     , "pareto.nostr1.com"
@@ -106,25 +119,25 @@ recommendedInboxRelays =
         ++ recommendedOutboxRelays
 
 
-defaultRelays : List String
+defaultRelays : List RelayUrl
 defaultRelays =
     recommendedInboxRelays
 
 
-defaultSearchRelays : List String
+defaultSearchRelays : List RelayUrl
 defaultSearchRelays =
     [ "relay.nostr.band"
     , "nostr.wine"
     ]
 
 
-defaultOutboxRelays : List { url : String, role : RelayRole }
+defaultOutboxRelays : List { url : RelayUrl, role : RelayRole }
 defaultOutboxRelays =
     defaultRelays
         |> List.map (\relayUrl -> { url = relayUrl, role = ReadWriteRelay })
 
 
-defaultRelayUrls : List String
+defaultRelayUrls : List RelayUrl
 defaultRelayUrls =
     defaultRelays
         |> List.map (String.append "wss://")

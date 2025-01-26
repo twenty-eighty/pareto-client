@@ -2,33 +2,30 @@ module Components.EmailImportDialog exposing (EmailImportDialog, Model, Msg, Sub
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
-import Components.Icon as Icon
-import Dict exposing (Dict)
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, button, div, form, h2, img, input, label, li, p, span, text, textarea, ul)
+import Email
+import Html.Styled as Html exposing (Html, div, text, textarea, ul)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
-import Http
 import Nostr
-import Nostr.Relay exposing (Relay)
-import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList)
+import Nostr.Event exposing (Event, Kind(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (PubKey, RelayUrl)
+import Nostr.Types exposing (PubKey)
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
-import Svg.Styled as Svg exposing (path, svg)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.EmailImportDialog as Translations
 import Ui.Shared
-import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
+import Ui.Styles exposing (Theme)
 
 
 type Msg msg
     = CloseDialog
     | ConfigureRelaysClicked
-    | ImportClicked
+    | ImportClicked (List Subscriber)
     | UpdateEmailData String
+    | ProcessEnteredData String
 
 
 type Model
@@ -40,7 +37,7 @@ type Model
 type DialogState
     = DialogHidden
     | DialogVisibleImport EmailImportData
-    | DialogVisibleImported EmailSubscriptionData
+    | DialogVisibleProcessed EmailProcessedData
 
 
 type alias EmailImportData =
@@ -48,7 +45,7 @@ type alias EmailImportData =
     }
 
 
-type alias EmailSubscriptionData =
+type alias EmailProcessedData =
     { subscribers : List Subscriber
     }
 
@@ -91,7 +88,7 @@ new props =
 
 
 init : {} -> Model
-init props =
+init _ =
     Model
         { state = DialogHidden
         }
@@ -99,7 +96,7 @@ init props =
 
 show : Model -> Model
 show (Model model) =
-    Model { model | state = DialogVisibleImport { enteredEmails = "" } }
+    Model { model | state = DialogVisibleImport { enteredEmails = "test1@email.com, test2@email.org" } }
 
 
 hide : Model -> Model
@@ -112,7 +109,9 @@ update :
     , model : Model
     , toModel : Model -> model
     , toMsg : Msg msg -> msg
+    , browserEnv : BrowserEnv
     , nostr : Nostr.Model
+    , pubKey : PubKey
     }
     -> ( model, Effect msg )
 update props =
@@ -138,9 +137,12 @@ update props =
                 , Effect.none
                 )
 
-            ImportClicked ->
+            ImportClicked subscribers ->
                 ( Model model
-                , Effect.none
+                , subscriberDataEvent props.browserEnv props.pubKey subscribers
+                    |> SendApplicationData
+                    |> Shared.Msg.SendNostrEvent
+                    |> Effect.sendSharedMsg
                 )
 
             UpdateEmailData enteredEmails ->
@@ -156,6 +158,48 @@ update props =
 
                     _ ->
                         ( Model model, Effect.none )
+
+            ProcessEnteredData emailData ->
+                let
+                    processedData =
+                        { subscribers =
+                            emailData
+                                |> String.split ","
+                                |> List.map String.trim
+                                |> List.map Email.parse
+                                |> List.filterMap
+                                    (\parsingResult ->
+                                        case parsingResult of
+                                            Ok email ->
+                                                Just { email = Email.toString email, name = Nothing }
+
+                                            Err _ ->
+                                                Nothing
+                                    )
+                        }
+                in
+                ( Model { model | state = DialogVisibleProcessed processedData }, Effect.none )
+
+
+subscriberDataEvent : BrowserEnv -> PubKey -> List Subscriber -> Event
+subscriberDataEvent browserEnv pubKey subscribers =
+    { pubKey = pubKey
+    , createdAt = browserEnv.now
+    , kind = KindApplicationSpecificData
+    , tags =
+        []
+
+    -- |> Event.addAddressTag model.title
+    , content = subscribersToJson subscribers
+    , id = ""
+    , sig = Nothing
+    , relay = Nothing
+    }
+
+
+subscribersToJson : List Subscriber -> String
+subscribersToJson subscribers =
+    ""
 
 
 view : EmailImportDialog msg -> Html msg
@@ -179,11 +223,11 @@ view dialog =
                 CloseDialog
                 |> Html.map settings.toMsg
 
-        DialogVisibleImported emailSubscriptionData ->
+        DialogVisibleProcessed emailProcessedData ->
             Ui.Shared.modalDialog
                 settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
-                [ viewImportedDialog dialog emailSubscriptionData ]
+                [ viewProcessedDialog dialog emailProcessedData ]
                 CloseDialog
                 |> Html.map settings.toMsg
 
@@ -228,8 +272,8 @@ viewImportDialog (Settings settings) data =
                 |> Button.withTypeSecondary
                 |> Button.view
             , Button.new
-                { label = Translations.importButtonTitle [ settings.browserEnv.translations ]
-                , onClick = Just <| ImportClicked
+                { label = Translations.nextButtonTitle [ settings.browserEnv.translations ]
+                , onClick = Just <| ProcessEnteredData data.enteredEmails
                 , theme = settings.theme
                 }
                 |> Button.withTypePrimary
@@ -238,8 +282,8 @@ viewImportDialog (Settings settings) data =
         ]
 
 
-viewImportedDialog : EmailImportDialog msg -> EmailSubscriptionData -> Html (Msg msg)
-viewImportedDialog (Settings settings) data =
+viewProcessedDialog : EmailImportDialog msg -> EmailProcessedData -> Html (Msg msg)
+viewProcessedDialog (Settings settings) data =
     let
         (Model model) =
             settings.model
@@ -253,7 +297,7 @@ viewImportedDialog (Settings settings) data =
             , Tw.gap_2
             ]
         ]
-        [ recipientsSection (Settings settings)
+        [ subscriberssSection (Settings settings) data.subscribers
         , div
             [ css
                 [ Tw.flex
@@ -270,7 +314,7 @@ viewImportedDialog (Settings settings) data =
                 |> Button.view
             , Button.new
                 { label = Translations.importButtonTitle [ settings.browserEnv.translations ]
-                , onClick = Just <| ImportClicked
+                , onClick = Just <| ImportClicked data.subscribers
                 , theme = settings.theme
                 }
                 |> Button.withTypePrimary
@@ -279,8 +323,8 @@ viewImportedDialog (Settings settings) data =
         ]
 
 
-recipientsSection : EmailImportDialog msg -> Html (Msg msg)
-recipientsSection (Settings settings) =
+subscriberssSection : EmailImportDialog msg -> List Subscriber -> Html (Msg msg)
+subscriberssSection (Settings settings) subscribers =
     let
         (Model model) =
             settings.model
@@ -288,7 +332,10 @@ recipientsSection (Settings settings) =
         styles =
             Ui.Styles.stylesForTheme settings.theme
     in
-    div [] []
+    div
+        []
+        [ viewSubscribers (Settings settings) subscribers
+        ]
 
 
 viewSubscribers : EmailImportDialog msg -> List Subscriber -> Html (Msg msg)
@@ -313,4 +360,5 @@ viewSubscriber : Theme -> Subscriber -> Html (Msg msg)
 viewSubscriber theme subscriber =
     div
         []
-        []
+        [ text subscriber.email
+        ]

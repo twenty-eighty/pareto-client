@@ -37,7 +37,8 @@
    "email import dialog": {
       "dialog title": "Import Email List",
       "import button title": "Import",
-      "close button title": "Close"
+      "close button title": "Close",
+      "next button title": "Next"
    },
    "email subscription dialog": {
       "dialog title": "Subscribe with Email",

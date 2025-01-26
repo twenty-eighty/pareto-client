@@ -3,7 +3,7 @@ module Nostr exposing (..)
 import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode
-import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, tagReference)
+import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, publishedTime, tagReference)
 import Nostr.Blossom exposing (userServerListFromEvent)
 import Nostr.BookmarkList exposing (BookmarkList, bookmarkListEvent, bookmarkListFromEvent, bookmarkListWithArticle, bookmarkListWithShortNote, bookmarkListWithoutArticle, bookmarkListWithoutShortNote, emptyBookmarkList)
 import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
@@ -267,6 +267,11 @@ performRequest model description requestId requestData =
 send : Model -> SendRequest -> ( Model, Cmd Msg )
 send model sendRequest =
     case sendRequest of
+        SendApplicationData event ->
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId Pareto.applicationDataRelays event
+            )
+
         SendBookmarkListWithArticle pubKey address ->
             let
                 bookmarkList =
@@ -533,6 +538,15 @@ getBlossomServers model pubKey =
     model.userServerLists
         |> Dict.get pubKey
         |> Maybe.withDefault []
+
+
+getDefaultNip96Servers : Model -> PubKey -> List String
+getDefaultNip96Servers model pubKey =
+    if isAuthor model pubKey then
+        Pareto.defaultNip96ServersAuthors
+
+    else
+        Pareto.defaultNip96ServersPublic
 
 
 getNip96Servers : Model -> PubKey -> List String
@@ -1567,9 +1581,9 @@ sortArticlesByDate articles =
     articles
         |> List.sortBy
             (\article ->
-                article.publishedAt
-                    |> Maybe.map (\publishedAt -> Time.posixToMillis publishedAt * -1)
-                    |> Maybe.withDefault (Time.posixToMillis article.createdAt * -1)
+                publishedTime article.createdAt article.publishedAt
+                    |> Time.posixToMillis
+                    |> (*) -1
             )
 
 

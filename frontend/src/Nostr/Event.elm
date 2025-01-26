@@ -2298,6 +2298,13 @@ addServerTag serverUrl tags =
     ServerTag serverUrl :: tags
 
 
+addServerTags : List String -> List Tag -> List Tag
+addServerTags serverUrls tags =
+    serverUrls
+        |> List.map ServerTag
+        |> List.append tags
+
+
 addSummaryTag : Maybe String -> List Tag -> List Tag
 addSummaryTag maybeSummary tags =
     maybeSummary

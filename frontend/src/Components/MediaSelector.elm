@@ -22,8 +22,8 @@ import Components.UploadDialog as UploadDialog exposing (UploadResponse(..), Upl
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import FeatherIcons
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, strong, text)
-import Html.Styled.Attributes as Attr exposing (class, classList, css, disabled, href, type_)
+import Html.Styled as Html exposing (Html, div, img, text)
+import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Html.Styled.Keyed as Keyed
 import Html.Styled.Lazy as Lazy
@@ -44,13 +44,12 @@ import Nostr.Types exposing (PubKey)
 import Pareto
 import Ports
 import Shared.Msg
-import Svg.Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.MediaSelector as Translations
 import Ui.Shared
-import Ui.Styles exposing (Styles, Theme)
+import Ui.Styles exposing (Theme)
 import Url
 
 
@@ -126,7 +125,6 @@ type ServerState
     | ServerFunctioning
     | ServerFileListFailed Http.Error
     | ServerDescFailed Http.Error
-    | ServerHttpError Http.Error
 
 
 type UploadedFile
@@ -297,15 +295,16 @@ update props =
                             Just <| UploadDialog.UploadServerBlossom serverUrl
 
                         Nip96MediaServer serverUrl ->
-                            case Dict.get serverUrl model.nip96ServerDescResponses of
-                                Just (Nip96.ServerDescriptor serverDescriptorData) ->
-                                    Just <| UploadDialog.UploadServerNip96 serverUrl serverDescriptorData
+                            Dict.get serverUrl model.nip96ServerDescResponses
+                                |> Maybe.andThen
+                                    (\nip96ServerDescResponse ->
+                                        case nip96ServerDescResponse of
+                                            Nip96.ServerDescriptor serverDescriptorData ->
+                                                Just <| UploadDialog.UploadServerNip96 serverUrl serverDescriptorData
 
-                                Just (Nip96.ServerRedirect _) ->
-                                    Nothing
-
-                                Nothing ->
-                                    Nothing
+                                            Nip96.ServerRedirect _ ->
+                                                Nothing
+                                    )
 
                         NoMediaServer ->
                             Nothing
@@ -327,7 +326,7 @@ update props =
         ConfigureDefaultMediaServer ->
             ( Model model
             , Effect.batch
-                [ sendNip96ServerListCmd props.browserEnv props.user Pareto.defaultNip96Server Pareto.defaultRelays
+                [ sendNip96ServerListCmd props.browserEnv props.user (Nostr.getDefaultNip96Servers props.nostr props.user.pubKey) Pareto.defaultRelays
                 ]
                 |> Effect.map props.toMsg
             )
@@ -450,22 +449,22 @@ update props =
                         |> toParentModel
 
 
-sendNip96ServerListCmd : BrowserEnv -> Auth.User -> String -> List ServerUrl -> Effect msg
-sendNip96ServerListCmd browserEnv user serverUrl relays =
-    eventWithNip96ServerList browserEnv user serverUrl
+sendNip96ServerListCmd : BrowserEnv -> Auth.User -> List String -> List ServerUrl -> Effect msg
+sendNip96ServerListCmd browserEnv user serverUrls relays =
+    eventWithNip96ServerList browserEnv user serverUrls
         |> SendFileStorageServerList relays
         |> Shared.Msg.SendNostrEvent
         |> Effect.sendSharedMsg
 
 
-eventWithNip96ServerList : BrowserEnv -> Auth.User -> ServerUrl -> Event
-eventWithNip96ServerList browserEnv user serverUrl =
+eventWithNip96ServerList : BrowserEnv -> Auth.User -> List ServerUrl -> Event
+eventWithNip96ServerList browserEnv user serverUrls =
     { pubKey = user.pubKey
     , createdAt = browserEnv.now
     , kind = KindFileStorageServerList
     , tags =
         []
-            |> Nostr.Event.addServerTag serverUrl
+            |> Nostr.Event.addServerTags serverUrls
     , content = ""
     , id = ""
     , sig = Nothing
