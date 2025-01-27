@@ -10,9 +10,8 @@ import Regex exposing (Regex)
 import Set exposing (Set)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Ui.Styles exposing (Styles)
 import Url exposing (Url)
-import Url.Parser exposing ((</>), Parser, parse, s, string)
+import Url.Parser exposing ((</>), string)
 
 
 type alias LoadedContent msg =
@@ -33,7 +32,7 @@ addLoadedContent loadedContent url =
 type LinkType
     = YouTubeVideo String
     | OdyseeVideo String
-    | RumbleVideo String
+    | RumbleVideo
     | TwitterTweet String
     | VideoLink String
     | AudioLink String
@@ -53,13 +52,13 @@ generatePreviewHtml loadedContent urlString linkAttr body =
         Just url ->
             case detectLinkType url of
                 YouTubeVideo videoId ->
-                    generateYouTubePreview loadedContent url urlString videoId
+                    generateYouTubePreview loadedContent urlString videoId
 
                 OdyseeVideo path ->
-                    generateOdyseePreview loadedContent url urlString path
+                    generateOdyseePreview loadedContent urlString path
 
-                RumbleVideo path ->
-                    generateRumblePreview loadedContent url urlString path
+                RumbleVideo ->
+                    generateRumblePreview loadedContent urlString
 
                 TwitterTweet tweetId ->
                     generateTwitterPreview urlString tweetId body
@@ -71,7 +70,7 @@ generatePreviewHtml loadedContent urlString linkAttr body =
                     generateAudioElement loadedContent url urlString mimeType
 
                 PodBeanLink iFrameUrl ->
-                    generatePodbeanPreview loadedContent url urlString iFrameUrl
+                    generatePodbeanPreview loadedContent urlString iFrameUrl
 
                 ObjectLink mimeType ->
                     generateObjectElement loadedContent url urlString mimeType
@@ -80,7 +79,7 @@ generatePreviewHtml loadedContent urlString linkAttr body =
                     a (linkAttr ++ [ href urlString ]) body
 
                 OtherLink ->
-                    generateGenericPreview loadedContent url urlString linkAttr body
+                    generateGenericPreview loadedContent urlString linkAttr body
 
         Nothing ->
             -- If URL parsing fails, show regular link
@@ -113,7 +112,7 @@ detectLinkType url =
         OdyseeVideo url.path
 
     else if isRumbleUrl url then
-        RumbleVideo url.path
+        RumbleVideo
 
     else if isTwitterStatusUrl url then
         case getTweetIdFromPath url.path of
@@ -257,16 +256,12 @@ getObjectMimeTypeFromUrl urlPath =
 
 getYouTubeVideoIdFromQuery : Maybe String -> Maybe String
 getYouTubeVideoIdFromQuery maybeQuery =
-    case maybeQuery of
-        Just queryString ->
-            let
-                params =
-                    parseQueryString queryString
-            in
-            Dict.get "v" params
-
-        Nothing ->
-            Nothing
+    maybeQuery
+        |> Maybe.andThen
+            (\queryString ->
+                parseQueryString queryString
+                    |> Dict.get "v"
+            )
 
 
 isYouTubeShortUrl : Url -> Bool
@@ -367,8 +362,8 @@ parseQueryString queryString =
 -- Function to generate YouTube preview HTML with a play button
 
 
-generateYouTubePreview : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
-generateYouTubePreview maybeLoadedContent url urlString videoId =
+generateYouTubePreview : Maybe (LoadedContent msg) -> String -> String -> Html msg
+generateYouTubePreview maybeLoadedContent urlString videoId =
     let
         thumbnailUrl =
             "https://img.youtube.com/vi/" ++ videoId ++ "/0.jpg"
@@ -415,8 +410,8 @@ generateYouTubePreview maybeLoadedContent url urlString videoId =
 -- Function to generate Odysee preview HTML with a play button
 
 
-generateOdyseePreview : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
-generateOdyseePreview maybeLoadedContent url urlString path =
+generateOdyseePreview : Maybe (LoadedContent msg) -> String -> String -> Html msg
+generateOdyseePreview maybeLoadedContent urlString path =
     let
         thumbnailUrl =
             "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
@@ -453,8 +448,8 @@ generateOdyseePreview maybeLoadedContent url urlString path =
 -- Function to generate Podbean preview HTML with a play button
 
 
-generatePodbeanPreview : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
-generatePodbeanPreview maybeLoadedContent url urlString iFrameUrl =
+generatePodbeanPreview : Maybe (LoadedContent msg) -> String -> String -> Html msg
+generatePodbeanPreview maybeLoadedContent urlString iFrameUrl =
     let
         thumbnailUrl =
             "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
@@ -530,8 +525,8 @@ buildPodBeanIframeUrl podcastId =
 -- Function to generate generic oEmbed preview HTML with a play button
 
 
-generateGenericPreview : Maybe (LoadedContent msg) -> Url -> String -> List (Html.Attribute msg) -> List (Html msg) -> Html msg
-generateGenericPreview maybeLoadedContent url urlString linkAttr body =
+generateGenericPreview : Maybe (LoadedContent msg) -> String -> List (Html.Attribute msg) -> List (Html msg) -> Html msg
+generateGenericPreview maybeLoadedContent urlString linkAttr body =
     let
         thumbnailUrl =
             "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
@@ -575,8 +570,8 @@ generateGenericPreview maybeLoadedContent url urlString linkAttr body =
 -- Function to generate Rumble preview HTML with a play button
 
 
-generateRumblePreview : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
-generateRumblePreview maybeLoadedContent url urlString path =
+generateRumblePreview : Maybe (LoadedContent msg) -> String -> Html msg
+generateRumblePreview maybeLoadedContent urlString =
     let
         thumbnailUrl =
             "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
@@ -612,14 +607,13 @@ generateRumblePreview maybeLoadedContent url urlString path =
 videoThumbnailPreview : (List (Html.Attribute msg) -> List (Html msg) -> Html msg) -> List (Html.Attribute msg) -> String -> Html msg
 videoThumbnailPreview linkElement clickAttr thumbnailUrl =
     linkElement
-        ([ css
+        (css
             [ Tw.relative
             , Tw.block
             , Tw.h_40
             , Tw.w_60
             ]
-         ]
-            ++ clickAttr
+            :: clickAttr
         )
         [ div
             [ css
@@ -817,14 +811,13 @@ generateObjectElement maybeLoadedContent url urlString mimeType =
 genericThumbnailPreview : (List (Html.Attribute msg) -> List (Html msg) -> Html msg) -> List (Html.Attribute msg) -> String -> Html msg
 genericThumbnailPreview linkElement clickAttr thumbnailUrl =
     linkElement
-        ([ css
+        (css
             [ Tw.relative
             , Tw.block
             , Tw.h_40
             , Tw.w_64
             ]
-         ]
-            ++ clickAttr
+            :: clickAttr
         )
         [ div
             [ css
