@@ -1642,7 +1642,7 @@ decodeTag =
                         Decode.map LabelNamespaceTag (Decode.index 1 Decode.string)
 
                     "l" ->
-                        Decode.map2 LocationTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
+                        Decode.map2 LabelTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string)
 
                     "m" ->
                         Decode.map MentionTag (Decode.index 1 Decode.string)
@@ -2380,3 +2380,8 @@ addZapTags zapWeights tags =
                     )
     in
     tags ++ zapTags
+
+
+addLabelTags : String -> String -> List Tag -> List Tag
+addLabelTags label ns tags =
+    LabelNamespaceTag ns :: LabelTag label ns :: tags

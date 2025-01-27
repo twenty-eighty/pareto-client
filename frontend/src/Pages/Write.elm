@@ -17,7 +17,7 @@ import Html.Styled.Events as Events exposing (..)
 import Json.Decode as Decode
 import Layouts
 import LinkPreview exposing (LoadedContent)
-import Locale exposing (Language(..), languageToString)
+import Locale exposing (Language(..), languageToISOCode, languageToString)
 import Milkdown.MilkdownEditor as Milkdown
 import Nostr
 import Nostr.Article exposing (articleFromEvent)
@@ -218,7 +218,7 @@ init user shared route () =
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
                     , modalDialog = NoModalDialog
-                    , languageSelection = Dropdown.init { selected = Nothing }
+                    , languageSelection = Dropdown.init { selected = Just shared.browserEnv.language }
                     }
     in
     ( model
@@ -443,7 +443,7 @@ update shared user msg model =
             Dropdown.update
                 { msg = innerMsg
                 , model = model.languageSelection
-                , toModel = \dropdown -> { model | languageSelection = dropdown }
+                , toModel = \dropdown -> { model | languageSelection = dropdown, articleState = ArticleModified }
                 , toMsg = DropdownSent
                 }
 
@@ -619,6 +619,7 @@ eventWithContent shared model user kind =
             |> Event.addImageTag model.image
             |> Event.addIdentifierTag model.identifier
             |> Event.addHashtagsToTags model.tags
+            |> Event.addLabelTags (languageISOCode model) "ISO-639-1"
             |> Event.addZapTags model.zapWeights
             |> Event.addClientTag Pareto.client Pareto.paretoClientPubKey Pareto.handlerIdentifier Pareto.paretoRelay
             |> Event.addAltTag (altText model.identifier user.pubKey kind [ Pareto.paretoRelay ])
@@ -627,6 +628,11 @@ eventWithContent shared model user kind =
     , sig = Nothing
     , relay = Nothing
     }
+
+
+languageISOCode : Model -> String
+languageISOCode model =
+    Dropdown.selectedItem model.languageSelection |> Maybe.map languageToISOCode |> Maybe.withDefault "en"
 
 
 altText : Maybe String -> PubKey -> Kind -> List String -> String

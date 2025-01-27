@@ -5,6 +5,7 @@ import DateFormat.Language
 import DateFormat.Relative exposing (RelativeTimeOptions)
 import Languages.English
 import Languages.German
+import Material.Icons exposing (language)
 import Numeral
 import Time exposing (Month(..), Posix, Weekday(..))
 
@@ -57,11 +58,21 @@ languageFromISOCode code =
         "de" ->
             German "DE"
 
-        "us" ->
+        "en" ->
             English "US"
 
         _ ->
             English "GB"
+
+
+languageToISOCode : Language -> String
+languageToISOCode language =
+    case language of
+        German _ ->
+            "de"
+
+        _ ->
+            "en"
 
 
 dateFormatFromLanguage : Language -> ( DateFormat.Language.Language, List DateFormat.Token, List DateFormat.Token )
