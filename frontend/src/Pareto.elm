@@ -178,6 +178,10 @@ bootstrapAuthorsList =
     , ( "blingbling@pareto.town", "b8af284d20a109766c55cc5d4aea27f9c3df20f68f8d0eb5b5de3349f82c91dd" )
     , ( "snicklink@pareto.town", "d898c64d7901515fbe9d54c64d740713a92e5b4c1783a16e37ff1c531298b265" )
     , ( "1bis19@pareto.town", "df32e891bfcbe0aed4518b21466c1807ea68394fe4f1fcd8c826a3ca1ed0b7e7" )
+    , ( "minjun@nostrplebs.com", "10057360336a78d58503ead8f5993cf8f970e1cd66dc4058c33ec508d01ac746" )
+    , ( "berny91@nostrpurple.com", "6a90a94022b752923114c0564b640021258850a0b0b6b7db2a366b7ff83e8bd9" )
+    , ( "madmunky@nostrplebs.com", "3eacaa768326d7dce80f6ee17ada199bebe7eb3c1a60b39b14e0a58bbac66fe4" )
+    , ( "pavlenex@iris.to", "175f568d77fb0cb7400f0ddd8aed1738cd797532b314ef053a1669d4dba7433a" )
     ]
 
 
