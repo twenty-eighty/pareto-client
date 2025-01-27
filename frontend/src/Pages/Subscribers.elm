@@ -1,7 +1,7 @@
 module Pages.Subscribers exposing (Model, Msg, page)
 
 import Auth
-import Components.Button as Button exposing (Button)
+import Components.Button as Button
 import Components.EmailImportDialog as EmailImportDialog
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div, text)
@@ -24,7 +24,7 @@ import View exposing (View)
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
-page user shared route =
+page user shared _ =
     Page.new
         { init = init user shared
         , update = update user shared
@@ -35,7 +35,7 @@ page user shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -50,7 +50,7 @@ type alias Model =
 
 
 init : Auth.User -> Shared.Model -> () -> ( Model, Effect Msg )
-init user shared () =
+init _ _ () =
     ( { emailImportDialog = EmailImportDialog.init {}
       }
     , loadSubscribers
@@ -81,7 +81,9 @@ update user shared msg model =
             EmailImportDialog.update
                 { msg = innerMsg
                 , model = model.emailImportDialog
+                , browserEnv = shared.browserEnv
                 , nostr = shared.nostr
+                , pubKey = user.pubKey
                 , toModel = \emailImportDialog -> { model | emailImportDialog = emailImportDialog }
                 , toMsg = EmailImportDialogSent
                 }
@@ -92,7 +94,7 @@ update user shared msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -135,7 +137,7 @@ view user shared model =
 
 
 viewSubscribers : PubKey -> Shared.Model -> Html Msg
-viewSubscribers userPubKey shared =
+viewSubscribers _ shared =
     div
         []
         [ text <| Translations.noSubscribersText [ shared.browserEnv.translations ]

@@ -2,7 +2,7 @@ module Ui.Article exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
-import Components.Icon as Icon exposing (Icon)
+import Components.Icon as Icon
 import Components.ZapDialog as ZapDialog
 import Css
 import Dict
@@ -12,7 +12,7 @@ import Html.Styled.Events as Events exposing (..)
 import LinkPreview exposing (LoadedContent)
 import Markdown
 import Nostr
-import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle)
+import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), numberForKind)
 import Nostr.Nip19 as Nip19
 import Nostr.Nip27 exposing (GetProfileFunction)
@@ -241,7 +241,7 @@ viewTitle maybeTitle =
 
 
 viewSummary : Styles msg -> Maybe String -> Html msg
-viewSummary styles maybeSummary =
+viewSummary _ maybeSummary =
     case maybeSummary of
         Just summary ->
             Html.summary
@@ -382,21 +382,16 @@ viewArticleProfileSmall profile validationStatus =
 
 viewArticleTime : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg
 viewArticleTime styles browserEnv maybePublishedAt createdAt =
-    case maybePublishedAt of
-        Just publishedAt ->
-            div
-                (styles.textStyleArticleDate
-                    ++ styles.colorStyleGrayscaleMuted
-                    ++ [ css
-                            [ Tw.left_0
-                            , Tw.top_5
-                            ]
-                       ]
-                )
-                [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
-
-        Nothing ->
-            div [] []
+    div
+        (styles.textStyleArticleDate
+            ++ styles.colorStyleGrayscaleMuted
+            ++ [ css
+                    [ Tw.left_0
+                    , Tw.top_5
+                    ]
+               ]
+        )
+        [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
 
 
 viewContent : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Html msg
@@ -741,7 +736,7 @@ linkToArticle article =
         Ok encodedCoordinates ->
             Just <| "/a/" ++ encodedCoordinates
 
-        Err error ->
+        Err _ ->
             Nothing
 
 
@@ -1012,7 +1007,7 @@ viewArticleBookmarkButton articlePreviewsData articlePreviewData article =
         , addressComponentsForArticle article
         )
     of
-        ( Just ( onAddBookmark, onRemoveBookmark ), Just userPubKey, Just addressComponents ) ->
+        ( Just ( onAddBookmark, onRemoveBookmark ), Just _, Just addressComponents ) ->
             let
                 ( bookmarkMsg, bookmarkIcon ) =
                     if articlePreviewData.interactions.isBookmarked then
@@ -1041,82 +1036,11 @@ editLink article =
         |> Maybe.map (\nip19 -> Route.toString { path = Route.Path.Write, query = Dict.singleton "a" nip19, hash = Nothing })
 
 
-viewProfileSmall : Profile -> ProfileValidation -> Html msg
-viewProfileSmall profile validationStatus =
-    div
-        [ css
-            [ Tw.h_8
-            , Tw.justify_start
-            , Tw.items_center
-            , Tw.gap_2
-            , Tw.inline_flex
-            ]
-        ]
-        [ img
-            [ css
-                [ Tw.w_8
-                , Tw.h_8
-                , Tw.rounded_3xl
-                ]
-
-            --            , Attr.src image
-            , Attr.alt "Profile image"
-            ]
-            []
-        , div
-            [ css
-                [ Tw.justify_start
-                , Tw.items_start
-                , Tw.gap_2
-                , Tw.flex
-                ]
-            ]
-            [ div
-                [ css
-                    [ Tw.text_color Theme.gray_500
-                    , Tw.text_sm
-                    , Tw.font_normal
-
-                    --                    , Tw.font_['Inter']
-                    ]
-                ]
-                [ text "Vortex-948" ]
-            , div
-                [ css
-                    [ Tw.text_color Theme.gray_400
-                    , Tw.text_sm
-                    , Tw.font_normal
-
-                    --                    , Tw.font_['Inter']
-                    ]
-                ]
-                [ text "Apr. 15" ]
-            ]
-        ]
-
-
 timeParagraph : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg
 timeParagraph styles browserEnv maybePublishedAt createdAt =
     div
         (styles.colorStyleGrayscaleMuted ++ styles.textStyle14)
         [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
-
-
-publishedTime : Time.Posix -> Maybe Time.Posix -> Time.Posix
-publishedTime createdAt maybePublishedAt =
-    case maybePublishedAt of
-        Just publishedAt ->
-            -- some clients produce(d) wrong article dates > year 55000.
-            -- maybe missed a conversion from milliseconds to seconds
-            if Time.toYear Time.utc publishedAt > 50000 then
-                -- show event creation time in this case
-                createdAt
-
-            else
-                publishedAt
-
-        Nothing ->
-            createdAt
 
 
 viewProfilePubKey : PubKey -> Html msg
@@ -1138,7 +1062,7 @@ viewProfilePubKey pubKey =
                 , Tw.truncate
                 ]
             ]
-            [ text <| shortenedPubKey pubKey ]
+            [ text <| shortenedPubKey 6 pubKey ]
         ]
 
 

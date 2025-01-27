@@ -19,44 +19,44 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Dropdown as Dropdown
 import Components.Icon as Icon
-import Css
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import FeatherIcons
 import File exposing (File)
 import File.Select as FileSelect
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, li, main_, option, p, progress, select, span, strong, text, textarea, ul)
-import Html.Styled.Attributes as Attr exposing (checked, class, classList, css, disabled, href, type_, value)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled as Html exposing (Html, button, div, img, input, label, li, option, progress, select, span, text, textarea, ul)
+import Html.Styled.Attributes as Attr exposing (checked, class, css, type_, value)
+import Html.Styled.Events exposing (onClick, onInput, preventDefaultOn)
 import Http
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Nostr
-import Nostr.Blossom as Blossom exposing (BlobDescriptor)
+import Nostr.Blossom as Blossom
 import Nostr.Nip94 as Nip94
-import Nostr.Nip96 as Nip96 exposing (ServerDescriptorData, extendRelativeServerDescriptorUrls)
+import Nostr.Nip96 as Nip96
 import Nostr.Request exposing (HttpRequestMethod(..), RequestData(..))
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
 import Ports
 import SHA256
 import Shared.Msg
-import Svg.Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Task exposing (Task)
-import Time exposing (Posix, millisToPosix, posixToMillis)
 import Translations.UploadDialog as Translations
 import Ui.Shared exposing (modalDialog)
-import Ui.Styles exposing (Styles)
+import Ui.Styles exposing (stylesForTheme)
 import Url
 
 
 supportedMimeTypes : List String
 supportedMimeTypes =
-    [ "image/png"
+    [ "image/gif"
     , "image/jpg"
+    , "image/png"
+    , "image/svg+xml"
+    , "image/webp"
 
     -- , "application/pdf"
     ]
@@ -133,7 +133,7 @@ init props =
 
 show : Model -> Model
 show (Model model) =
-    Model { model | state = DialogVisible }
+    Model { model | state = DialogVisible, errors = [] }
 
 
 selectServer : Model -> Maybe UploadServer -> Model
@@ -298,7 +298,7 @@ update props =
                                                     , caption = Nothing
                                                     , alt = Nothing
                                                     , mediaType = Nothing
-                                                    , noTransform = Nothing
+                                                    , noTransform = defaultNoTransformForFile fileToUpload
                                                     , uploadResponse = Nothing
                                                     }
                                                     |> Just
@@ -440,11 +440,8 @@ update props =
                                             Just True ->
                                                 Just <| FileUploadNip96 maybePreviewLink { upload | noTransform = Just False }
 
-                                            Just False ->
+                                            _ ->
                                                 Just <| FileUploadNip96 maybePreviewLink { upload | noTransform = Just True }
-
-                                            Nothing ->
-                                                Just <| FileUploadNip96 maybePreviewLink { upload | noTransform = Nothing }
 
                                     Nothing ->
                                         Nothing
@@ -694,6 +691,22 @@ update props =
                 ( Model { model | errors = model.errors ++ [ errorMsg ] }, Effect.none )
 
 
+defaultNoTransformForFile : File -> Maybe Bool
+defaultNoTransformForFile file =
+    case File.mime file of
+        "image/gif" ->
+            Just True
+
+        "image/webp" ->
+            Just True
+
+        "image/svg+xml" ->
+            Just True
+
+        _ ->
+            Nothing
+
+
 processIncomingMessage : Auth.User -> Model -> String -> (Msg -> msg) -> Encode.Value -> ( Model, Effect msg )
 processIncomingMessage user (Model model) messageType toMsg value =
     case messageType of
@@ -726,9 +739,9 @@ processIncomingMessage user (Model model) messageType toMsg value =
                                 -- Start the upload
                                 effect =
                                     case Dict.get fileId updatedFiles of
-                                        Just (FileUploadBlossom maybePreviewLink upload) ->
+                                        Just (FileUploadBlossom _ upload) ->
                                             case upload.status of
-                                                Blossom.ReadyToUpload hash authHeader ->
+                                                Blossom.ReadyToUpload _ authHeader ->
                                                     let
                                                         apiUrl =
                                                             case Dropdown.selectedItem model.serverSelectionDropdown of
@@ -785,11 +798,11 @@ processIncomingMessage user (Model model) messageType toMsg value =
                                 -- Start the upload
                                 effect =
                                     case Dict.get fileId updatedFiles of
-                                        Just (FileUploadNip96 maybePreviewLink upload) ->
+                                        Just (FileUploadNip96 _ upload) ->
                                             case upload.status of
-                                                Nip96.ReadyToUpload hash authHeader ->
+                                                Nip96.ReadyToUpload _ authHeader ->
                                                     let
-                                                        ( apiUrl, serverUrl ) =
+                                                        ( apiUrl, _ ) =
                                                             case Dropdown.selectedItem model.serverSelectionDropdown of
                                                                 Just (UploadServerNip96 nip96ServerUrl serverDescriptorData) ->
                                                                     ( serverDescriptorData.apiUrl, nip96ServerUrl )
@@ -1050,7 +1063,11 @@ viewMetadataDialog (Settings settings) ( fileId, fileUpload ) =
         (Translations.editMetadataDialogTitle [ settings.browserEnv.translations ])
         [ div
             [ css
-                []
+                [ Tw.w_80
+                , Bp.sm
+                    [ Tw.w_96
+                    ]
+                ]
             ]
             [ viewFileUpload settings.theme settings.browserEnv ( fileId, fileUpload )
             ]
@@ -1122,6 +1139,9 @@ viewFileUpload theme browserEnv ( fileId, fileUpload ) =
 viewFileUploadBlossom : Ui.Styles.Theme -> BrowserEnv -> Maybe String -> ( Int, Blossom.FileUpload ) -> Html Msg
 viewFileUploadBlossom theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
     let
+        styles =
+            stylesForTheme theme
+
         fileName =
             File.name <| fileUpload.file
 
@@ -1153,13 +1173,23 @@ viewFileUploadBlossom theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                     [ css
                                         [ Tw.flex
                                         , Tw.flex_row
+                                        , Tw.gap_2
                                         ]
                                     ]
                                     [ label [] [ text <| Translations.imageCaptionFormLabel [ browserEnv.translations ] ]
                                     , textarea
-                                        [ onInput (UpdateCaption fileId)
-                                        , class "w-full border rounded p-2 mb-2"
-                                        ]
+                                        (styles.colorStyleBackground
+                                            ++ styles.colorStyleGrayscaleText
+                                            ++ [ onInput (UpdateCaption fileId)
+                                               , css
+                                                    [ Tw.w_full
+                                                    , Tw.border
+                                                    , Tw.rounded
+                                                    , Tw.p_2
+                                                    , Tw.mb_2
+                                                    ]
+                                               ]
+                                        )
                                         [ text <| Maybe.withDefault "" fileUpload.caption ]
                                     ]
                                 ]
@@ -1240,6 +1270,9 @@ viewFileUploadBlossom theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
 viewFileUploadNip96 : Ui.Styles.Theme -> BrowserEnv -> Maybe String -> ( Int, Nip96.FileUpload ) -> Html Msg
 viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
     let
+        styles =
+            stylesForTheme theme
+
         fileName =
             File.name <| fileUpload.file
 
@@ -1251,6 +1284,10 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                             [ Tw.flex
                             , Tw.flex_col
                             , Tw.gap_3
+                            , Tw.min_w_80
+                            , Bp.sm
+                                [ Tw.min_w_96
+                                ]
                             ]
                         ]
                         [ div
@@ -1258,6 +1295,7 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                 [ Tw.flex
                                 , Tw.flex_row
                                 , Tw.gap_3
+                                , Tw.w_full
                                 ]
                             ]
                             [ div
@@ -1271,39 +1309,69 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                     [ css
                                         [ Tw.flex
                                         , Tw.flex_row
+                                        , Tw.gap_2
                                         ]
                                     ]
                                     [ label [] [ text <| Translations.imageCaptionFormLabel [ browserEnv.translations ] ]
-                                    , textarea
-                                        [ onInput (UpdateCaption fileId)
-                                        , class "w-full border rounded p-2 mb-2"
-                                        ]
+                                    , input
+                                        (styles.colorStyleBackground
+                                            ++ styles.colorStyleGrayscaleText
+                                            ++ [ onInput (UpdateCaption fileId)
+                                               , css
+                                                    [ Tw.w_full
+                                                    , Tw.border
+                                                    , Tw.rounded
+                                                    , Tw.p_2
+                                                    , Tw.mb_2
+                                                    ]
+                                               ]
+                                        )
                                         [ text <| Maybe.withDefault "" fileUpload.caption ]
                                     ]
                                 , div
                                     [ css
                                         [ Tw.flex
                                         , Tw.flex_row
+                                        , Tw.gap_2
                                         ]
                                     ]
                                     [ label [] [ text <| Translations.imageAltTextFormLabel [ browserEnv.translations ] ]
-                                    , textarea
-                                        [ onInput (UpdateAltText fileId)
-                                        , class "w-full border rounded p-2 mb-2"
-                                        ]
+                                    , input
+                                        (styles.colorStyleBackground
+                                            ++ styles.colorStyleGrayscaleText
+                                            ++ [ onInput (UpdateAltText fileId)
+                                               , css
+                                                    [ Tw.w_full
+                                                    , Tw.border
+                                                    , Tw.rounded
+                                                    , Tw.p_2
+                                                    , Tw.mb_2
+                                                    ]
+                                               ]
+                                        )
                                         [ text <| Maybe.withDefault "" fileUpload.alt ]
                                     ]
                                 , div
                                     [ css
                                         [ Tw.flex
                                         , Tw.flex_row
+                                        , Tw.gap_2
                                         ]
                                     ]
                                     [ label [] [ text <| Translations.mediaTypeFormLabel [ browserEnv.translations ] ]
                                     , select
-                                        [ onInput (UpdateMediaType fileId)
-                                        , class "w-full border rounded p-2 mb-2"
-                                        ]
+                                        (styles.colorStyleBackground
+                                            ++ styles.colorStyleGrayscaleText
+                                            ++ [ onInput (UpdateMediaType fileId)
+                                               , css
+                                                    [ Tw.w_full
+                                                    , Tw.border
+                                                    , Tw.rounded
+                                                    , Tw.p_2
+                                                    , Tw.mb_2
+                                                    ]
+                                               ]
+                                        )
                                         [ option [ value "" ] [ text <| Translations.mediaTypeExplanationText [ browserEnv.translations ] ]
                                         , option [ value "avatar" ] [ text <| Translations.avatarMediaType [ browserEnv.translations ] ]
                                         , option [ value "banner" ] [ text <| Translations.bannerMediaType [ browserEnv.translations ] ]

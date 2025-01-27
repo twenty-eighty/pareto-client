@@ -1,20 +1,18 @@
 module Ui.Profile exposing (..)
 
-import BrowserEnv exposing (BrowserEnv, Msg)
+import BrowserEnv exposing (BrowserEnv)
 import Color
 import Components.Button as Button
 import Components.Icon as Icon exposing (Icon(..), MaterialIcon(..))
 import FeatherIcons
 import Graphics
-import Html.Styled as Html exposing (Attribute, Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled as Html exposing (Html, a, div, h2, img, p, text)
+import Html.Styled.Attributes as Attr exposing (css)
 import Nostr.Nip05 as Nip05
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
-import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Time
@@ -140,7 +138,7 @@ viewProfile profile profileViewData =
 
 
 viewSubscriptionButton : Profile -> ProfileViewData msg -> Html msg
-viewSubscriptionButton profile profileViewData =
+viewSubscriptionButton _ profileViewData =
     case ( profileViewData.browserEnv.environment, profileViewData.isAuthor, profileViewData.subscribe ) of
         ( BrowserEnv.Development, True, Just subscribeMsg ) ->
             Button.new
@@ -228,7 +226,7 @@ viewNpub styles profile =
         Just nip19 ->
             p
                 (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
-                [ text nip19 ]
+                [ text <| shortenedPubKey 11 nip19 ]
 
         Nothing ->
             div [] []
@@ -437,9 +435,9 @@ profileDisplayName pubKey profile =
             Nip05.nip05ToDisplayString nip05
 
         ( Nothing, Nothing, Nothing ) ->
-            shortenedPubKey pubKey
+            shortenedPubKey 6 pubKey
 
 
-shortenedPubKey : String -> String
-shortenedPubKey pubKey =
-    String.left 6 pubKey ++ "..." ++ String.right 6 pubKey
+shortenedPubKey : Int -> String -> String
+shortenedPubKey count pubKey =
+    String.left count pubKey ++ "..." ++ String.right count pubKey

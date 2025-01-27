@@ -46,6 +46,11 @@ applicationUrl =
     "https://" ++ applicationDomain
 
 
+supportEmail : String
+supportEmail =
+    "support@" ++ applicationDomain
+
+
 privacyPolicyGerman : String
 privacyPolicyGerman =
     "/md/privacy-de.md"
@@ -70,24 +75,37 @@ paretoRelays =
     ]
 
 
-defaultNip96Server : String
-defaultNip96Server =
-    "https://route96.pareto.space"
+defaultNip96ServersAuthors : List String
+defaultNip96ServersAuthors =
+    [ "https://route96.pareto.space"
+    ]
 
 
-teamRelay : String
+defaultNip96ServersPublic : List String
+defaultNip96ServersPublic =
+    [ "https://void.cat"
+    ]
+
+
+applicationDataRelays : List RelayUrl
+applicationDataRelays =
+    [ "cool-darkness-73116.pktriot.net"
+    ]
+
+
+teamRelay : RelayUrl
 teamRelay =
     "team-relay.pareto.space"
 
 
-paretoOutboxRelays : List String
+paretoOutboxRelays : List RelayUrl
 paretoOutboxRelays =
     [ "nostr.pareto.space"
     , "pareto.nostr1.com"
     ]
 
 
-recommendedOutboxRelays : List String
+recommendedOutboxRelays : List RelayUrl
 recommendedOutboxRelays =
     [ "relay.snort.social"
     , "relay.nostr.band"
@@ -98,7 +116,7 @@ recommendedOutboxRelays =
     ]
 
 
-recommendedInboxRelays : List String
+recommendedInboxRelays : List RelayUrl
 recommendedInboxRelays =
     [ "nostr.pareto.space"
     , "pareto.nostr1.com"
@@ -106,25 +124,25 @@ recommendedInboxRelays =
         ++ recommendedOutboxRelays
 
 
-defaultRelays : List String
+defaultRelays : List RelayUrl
 defaultRelays =
     recommendedInboxRelays
 
 
-defaultSearchRelays : List String
+defaultSearchRelays : List RelayUrl
 defaultSearchRelays =
     [ "relay.nostr.band"
     , "nostr.wine"
     ]
 
 
-defaultOutboxRelays : List { url : String, role : RelayRole }
+defaultOutboxRelays : List { url : RelayUrl, role : RelayRole }
 defaultOutboxRelays =
     defaultRelays
         |> List.map (\relayUrl -> { url = relayUrl, role = ReadWriteRelay })
 
 
-defaultRelayUrls : List String
+defaultRelayUrls : List RelayUrl
 defaultRelayUrls =
     defaultRelays
         |> List.map (String.append "wss://")
@@ -165,6 +183,11 @@ bootstrapAuthorsList =
     , ( "blingbling@pareto.town", "b8af284d20a109766c55cc5d4aea27f9c3df20f68f8d0eb5b5de3349f82c91dd" )
     , ( "snicklink@pareto.town", "d898c64d7901515fbe9d54c64d740713a92e5b4c1783a16e37ff1c531298b265" )
     , ( "1bis19@pareto.town", "df32e891bfcbe0aed4518b21466c1807ea68394fe4f1fcd8c826a3ca1ed0b7e7" )
+    , ( "minjun@nostrplebs.com", "10057360336a78d58503ead8f5993cf8f970e1cd66dc4058c33ec508d01ac746" )
+    , ( "berny91@nostrpurple.com", "6a90a94022b752923114c0564b640021258850a0b0b6b7db2a366b7ff83e8bd9" )
+    , ( "madmunky@nostrplebs.com", "3eacaa768326d7dce80f6ee17ada199bebe7eb3c1a60b39b14e0a58bbac66fe4" )
+    , ( "pavlenex@iris.to", "175f568d77fb0cb7400f0ddd8aed1738cd797532b314ef053a1669d4dba7433a" )
+    , ( "barbouille@pareto.town", "68c969eafadfc88d5937770d81031fb314b1bb1c201671403de6d930ab67edb9" )
     ]
 
 
@@ -251,7 +274,7 @@ paretoProfile =
     , name = Just <| String.toLower client
     , displayName = Just client
     , about = Just paretoAbout
-    , picture = Just "https://pfp.nostr.build/4fbcbefaee70ba58804014760d6408adf2e544e4f2d2f7c3be063db8e6ae8f0e.png"
+    , picture = Just "https://route96.pareto.space/2f792072b0a16feffef970fcdbe6454bea9cabec03fe6ea55a17b91e2a985e3a.webp"
     , banner = Nothing
     , website = Just applicationUrl
     , bot = Nothing

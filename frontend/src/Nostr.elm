@@ -3,7 +3,7 @@ module Nostr exposing (..)
 import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode
-import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, tagReference)
+import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, publishedTime, tagReference)
 import Nostr.Blossom exposing (userServerListFromEvent)
 import Nostr.BookmarkList exposing (BookmarkList, bookmarkListEvent, bookmarkListFromEvent, bookmarkListWithArticle, bookmarkListWithShortNote, bookmarkListWithoutArticle, bookmarkListWithoutShortNote, emptyBookmarkList)
 import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
@@ -27,7 +27,7 @@ import Nostr.Request as Request exposing (HttpRequestMethod, Request, RequestDat
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
-import Nostr.Types exposing (Address, EventId, Following, IncomingMessage, PubKey, RelayRole(..), RelayUrl)
+import Nostr.Types exposing (Address, EventId, Following(..), IncomingMessage, PubKey, RelayRole(..), RelayUrl)
 import Nostr.Zaps exposing (ZapReceipt)
 import Pareto
 import Set exposing (Set)
@@ -267,6 +267,11 @@ performRequest model description requestId requestData =
 send : Model -> SendRequest -> ( Model, Cmd Msg )
 send model sendRequest =
     case sendRequest of
+        SendApplicationData event ->
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , model.hooks.sendEvent model.lastSendRequestId Pareto.applicationDataRelays event
+            )
+
         SendBookmarkListWithArticle pubKey address ->
             let
                 bookmarkList =
@@ -535,6 +540,15 @@ getBlossomServers model pubKey =
         |> Maybe.withDefault []
 
 
+getDefaultNip96Servers : Model -> PubKey -> List String
+getDefaultNip96Servers model pubKey =
+    if isAuthor model pubKey then
+        Pareto.defaultNip96ServersAuthors
+
+    else
+        Pareto.defaultNip96ServersPublic
+
+
 getNip96Servers : Model -> PubKey -> List String
 getNip96Servers model pubKey =
     model.fileStorageServerLists
@@ -761,21 +775,19 @@ relaysWithSearchCapability model =
         |> Dict.values
         |> List.filterMap
             (\relay ->
-                case relay.nip11 of
-                    Just nip11 ->
-                        case nip11.supportedNips of
-                            Just supportedNips ->
-                                if List.member 50 supportedNips then
-                                    Just relay.urlWithoutProtocol
+                relay.nip11
+                    |> Maybe.andThen
+                        (\nip11 ->
+                            nip11.supportedNips
+                                |> Maybe.andThen
+                                    (\supportedNips ->
+                                        if List.member 50 supportedNips then
+                                            Just relay.urlWithoutProtocol
 
-                                else
-                                    Nothing
-
-                            Nothing ->
-                                Nothing
-
-                    Nothing ->
-                        Nothing
+                                        else
+                                            Nothing
+                                    )
+                        )
             )
 
 
@@ -981,14 +993,13 @@ isArticleBookmarked model article pubKey =
 
 getZapReceiptsCountForArticle : Model -> Article -> Maybe Int
 getZapReceiptsCountForArticle model article =
-    case getZapReceiptsForArticle model article of
-        Just receiptsDict ->
-            Dict.values receiptsDict
-                |> List.foldl addZapAmount 0
-                |> Just
-
-        Nothing ->
-            Nothing
+    getZapReceiptsForArticle model article
+        |> Maybe.andThen
+            (\receiptsDict ->
+                Dict.values receiptsDict
+                    |> List.foldl addZapAmount 0
+                    |> Just
+            )
 
 
 addZapAmount : ZapReceipt -> Int -> Int
@@ -1051,8 +1062,8 @@ eventFilterForReactions tagReferences =
             }
 
 
-articleFromList : Model -> EventFilter -> List Article -> Maybe Article
-articleFromList model filter articles =
+articleFromList : EventFilter -> List Article -> Maybe Article
+articleFromList filter articles =
     articles
         |> List.filter (filterMatchesArticle filter)
         |> List.head
@@ -1090,7 +1101,7 @@ empty =
         }
     , pubKeyByNip05 = Dict.empty
     , poolState = RelayStateUnknown
-    , followLists = Dict.empty
+    , followLists = Dict.singleton Pareto.authorsKey paretoAuthorsFollowList
     , followSets = Dict.empty
     , profiles = Dict.empty
     , profileValidations = Dict.empty
@@ -1112,6 +1123,19 @@ empty =
     , lastSendId = 0
     , lastSendRequestId = 0
     }
+
+
+paretoAuthorsFollowList : List Following
+paretoAuthorsFollowList =
+    Pareto.bootstrapAuthorsList
+        |> List.map
+            (\( nip05, authorPubKey ) ->
+                FollowingPubKey
+                    { pubKey = authorPubKey
+                    , relay = Just Pareto.paretoRelay
+                    , petname = Just nip05
+                    }
+            )
 
 
 init : Hooks -> List String -> ( Model, Cmd Msg )
@@ -1267,7 +1291,7 @@ update msg model =
 
         --       Nip05FetchedForNip05 requestId nip05 (Err (Http.BadStatus 404)) ->
         --           ( model, fetchNip05InfoDirectly (Nip05FetchedForNip05 requestId nip05) nip05 )
-        Nip05FetchedForNip05 requestId nip05 (Err error) ->
+        Nip05FetchedForNip05 _ nip05 (Err error) ->
             ( { model | errors = ("Error fetching NIP05 data for " ++ nip05ToString nip05 ++ ": " ++ httpErrorToString error) :: model.errors }, Cmd.none )
 
         Nip11Fetched urlWithoutProtocol (Ok info) ->
@@ -1443,7 +1467,7 @@ updateModelWithDeletionRequests model events =
 
 
 updateModelWithUserServerLists : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
-updateModelWithUserServerLists model requestId events =
+updateModelWithUserServerLists model _ events =
     let
         -- usually there should be only one for the logged-in user
         userServerLists =
@@ -1459,7 +1483,7 @@ updateModelWithUserServerLists model requestId events =
 
 
 updateModelWithFileStorageServerLists : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
-updateModelWithFileStorageServerLists model requestId events =
+updateModelWithFileStorageServerLists model _ events =
     let
         -- usually there should be only one for the logged-in user
         fileStorageServerLists =
@@ -1557,9 +1581,9 @@ sortArticlesByDate articles =
     articles
         |> List.sortBy
             (\article ->
-                article.publishedAt
-                    |> Maybe.map (\publishedAt -> Time.posixToMillis publishedAt * -1)
-                    |> Maybe.withDefault (Time.posixToMillis article.createdAt * -1)
+                publishedTime article.createdAt article.publishedAt
+                    |> Time.posixToMillis
+                    |> (*) -1
             )
 
 
@@ -1725,7 +1749,7 @@ appendNip27ProfileRequests model request nip19List =
                             Note _ ->
                                 Nothing
 
-                            NProfile { pubKey, relays } ->
+                            NProfile { pubKey } ->
                                 Just pubKey
 
                             NEvent _ ->
@@ -1760,7 +1784,7 @@ appendNip27ProfileRequests model request nip19List =
 
 
 updateModelWithSearchRelays : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
-updateModelWithSearchRelays model requestId events =
+updateModelWithSearchRelays model _ events =
     let
         -- usually there should be only one for the logged-in user
         searchRelaysLists =
@@ -1777,7 +1801,7 @@ updateModelWithSearchRelays model requestId events =
 
         unknownRelays =
             searchRelaysLists
-                |> List.map (\( pubKey, relayMetadataList ) -> relayMetadataList)
+                |> List.map (\( _, relayMetadataList ) -> relayMetadataList)
                 |> List.concat
                 |> List.map (\url -> Nostr.Relay.hostWithoutProtocol url)
                 |> List.filter
@@ -1792,7 +1816,7 @@ updateModelWithSearchRelays model requestId events =
 
 
 updateModelWithReactions : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
-updateModelWithReactions model requestId events =
+updateModelWithReactions model _ events =
     let
         reactions =
             events
@@ -1995,7 +2019,7 @@ updateModelWithRelayListMetadata model events =
 
         unknownRelays =
             relayLists
-                |> List.map (\( pubKey, relayMetadataList ) -> relayMetadataList)
+                |> List.map (\( _, relayMetadataList ) -> relayMetadataList)
                 |> List.concat
                 |> List.map (\{ url } -> Nostr.Relay.hostWithoutProtocol url)
                 |> List.filter
@@ -2100,13 +2124,12 @@ updateModelWithNip05Data model requestId nip05 nip05Data =
             getRequest model requestId
 
         maybeRelays =
-            case nip05Data.relays of
-                Just relayDict ->
-                    maybePubKey
-                        |> Maybe.andThen (\pubKey -> Dict.get pubKey relayDict)
-
-                Nothing ->
-                    Nothing
+            nip05Data.relays
+                |> Maybe.andThen
+                    (\relayDict ->
+                        maybePubKey
+                            |> Maybe.andThen (\pubKey -> Dict.get pubKey relayDict)
+                    )
 
         ( requestModel, requestProfileCmd ) =
             case ( loadedProfile, maybeRequest, maybePubKey ) of
@@ -2150,11 +2173,12 @@ validateNip05 model nip05 nip05Data =
                     -- name missing in response
                     ( Nothing, ValidationNameMissing )
     in
-    updateProfileWithValidationStatus model "1234" validationStatus
+    case pubKeyForUpdate of
+        Just pubKey ->
+            updateProfileWithValidationStatus model pubKey validationStatus
 
-
-
--- updateProfileWithValidationStatus model profile.pubKey validationStatus
+        Nothing ->
+            model
 
 
 updateProfileWithValidationStatus : Model -> PubKey -> ProfileValidation -> Model
@@ -2204,12 +2228,11 @@ updateWithZapReceipts model zapReceipts =
             zapReceipts
                 |> List.filterMap
                     (\receipt ->
-                        case receipt.address of
-                            Just address ->
-                                Just ( address, receipt )
-
-                            Nothing ->
-                                Nothing
+                        receipt.address
+                            |> Maybe.andThen
+                                (\address ->
+                                    Just ( address, receipt )
+                                )
                     )
                 |> List.foldl addToZapReceiptDict model.zapReceiptsAddress
 
@@ -2217,12 +2240,11 @@ updateWithZapReceipts model zapReceipts =
             zapReceipts
                 |> List.filterMap
                     (\receipt ->
-                        case receipt.event of
-                            Just event ->
-                                Just ( event, receipt )
-
-                            Nothing ->
-                                Nothing
+                        receipt.event
+                            |> Maybe.andThen
+                                (\event ->
+                                    Just ( event, receipt )
+                                )
                     )
                 |> List.foldl addToZapReceiptDict model.zapReceiptsEvents
     in

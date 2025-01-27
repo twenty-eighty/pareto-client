@@ -4,16 +4,16 @@ import BrowserEnv exposing (BrowserEnv)
 import Color
 import Components.Icon as Icon exposing (Icon)
 import Css
-import Css.Media
 import FeatherIcons
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
+import Html.Styled as Html exposing (Html, a, button, div, h2, text)
+import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Nostr.Reactions exposing (Interactions)
 import Svg.Loaders
+import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded, stylesForTheme)
+import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 
 
 pageLoadingIndicator : Html msg
@@ -80,7 +80,13 @@ modalDialog theme title content onClose =
                         [ Tw.rounded_lg
                         , Tw.shadow_lg
                         , Tw.p_8
-                        , Tw.w_96
+                        , Tw.max_w_sm
+                        , Bp.sm
+                            [ Tw.max_w_md
+                            ]
+                        , Bp.md
+                            [ Tw.max_w_lg
+                            ]
                         ]
                    ]
             )

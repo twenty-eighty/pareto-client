@@ -8,12 +8,13 @@ import Css
 import Effect exposing (Effect)
 import FeatherIcons
 import Html.Styled as Html exposing (Html, a, datalist, div, h3, input, li, option, p, text, ul)
-import Html.Styled.Attributes as Attr exposing (class, css)
+import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
 import Layouts
 import Nostr
-import Nostr.Event exposing (EventFilter, Kind(..), emptyEventFilter)
+import Nostr.Event exposing (Kind(..), emptyEventFilter)
+import Nostr.Profile exposing (ProfileValidation(..))
 import Nostr.Relay as Relay exposing (Relay, RelayState(..), hostWithoutProtocol)
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList, removeFromRelayList)
 import Nostr.Request exposing (RequestData(..))
@@ -28,13 +29,14 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Settings as Translations
+import Ui.Profile exposing (FollowType(..))
 import Ui.Relay exposing (viewRelayImage)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 import View exposing (View)
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
-page user shared route =
+page user shared _ =
     Page.new
         { init = init user shared
         , update = update user shared
@@ -45,7 +47,7 @@ page user shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = stylesForTheme theme }
 
@@ -79,10 +81,12 @@ emptyRelaysModel =
     }
 
 
-emptyMediaServersModel =
-    { nip96Server = Nothing
-    , blossomServer = Nothing
-    }
+
+--   emptyMediaServersModel : MediaServersModel
+--   emptyMediaServersModel =
+--       { nip96Server = Nothing
+--       , blossomServer = Nothing
+--       }
 
 
 type Category
@@ -167,7 +171,7 @@ update user shared msg model =
                 |> sendRelayListCmd pubKey
             )
 
-        AddSearchRelay pubKey relayUrl ->
+        AddSearchRelay _ _ ->
             ( model, Effect.none )
 
         AddDefaultOutboxRelays relayUrls ->
@@ -261,7 +265,7 @@ updateModelWithCategory user shared model category =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -333,7 +337,7 @@ type alias RelaySuggestions =
 
 
 viewRelays : Shared.Model -> Model -> Auth.User -> RelaysModel -> Html Msg
-viewRelays shared model user relaysModel =
+viewRelays shared _ user relaysModel =
     let
         styles =
             stylesForTheme shared.theme
@@ -362,21 +366,23 @@ viewRelays shared model user relaysModel =
                 missingRelays inboxRelays suggestedInboxRelays
             }
 
-        searchRelays =
-            Nostr.getSearchRelaysForPubKey shared.nostr user.pubKey
+        {-
+           searchRelays =
+               Nostr.getSearchRelaysForPubKey shared.nostr user.pubKey
 
-        searchRelaySuggestions =
-            { identifier = "search-relay-suggestions"
-            , suggestions =
-                missingRelays inboxRelays Pareto.defaultSearchRelays
-            }
+           searchRelaySuggestions =
+               { identifier = "search-relay-suggestions"
+               , suggestions =
+                   missingRelays inboxRelays Pareto.defaultSearchRelays
+               }
+        -}
     in
     div
         [ css
             [ Tw.flex
             , Tw.flex_col
             , Tw.gap_2
-            , Tw.m_6
+            , Tw.m_20
             ]
         ]
         [ h3
@@ -445,9 +451,10 @@ updateRelayModelInbox relaysModel value =
     { relaysModel | inboxRelay = value }
 
 
-updateRelayModelSearch : RelaysModel -> Maybe String -> RelaysModel
-updateRelayModelSearch relaysModel value =
-    { relaysModel | searchRelay = value }
+
+--   updateRelayModelSearch : RelaysModel -> Maybe String -> RelaysModel
+--   updateRelayModelSearch relaysModel value =
+--       { relaysModel | searchRelay = value }
 
 
 addRelayBox : Theme -> I18Next.Translations -> Maybe String -> RelaySuggestions -> (Maybe String -> RelaysModel) -> (String -> Msg) -> Html Msg
@@ -502,36 +509,39 @@ addRelayBox theme translations maybeValue relaySuggestions updateFn addRelayMsg 
                     text ""
                 ]
             , input
-                [ Attr.placeholder <| Translations.addRelayPlaceholder [ translations ]
-                , Attr.value (Maybe.withDefault "" maybeValue)
-                , Attr.type_ "url"
-                , Attr.spellcheck False
-                , Attr.list relaySuggestions.identifier
-                , Events.onInput
-                    (\relayText ->
-                        if relayText /= "" then
-                            UpdateRelayModel <| updateFn (Just <| relayText)
+                (styles.colorStyleBackground
+                    ++ styles.colorStyleGrayscaleText
+                    ++ [ Attr.placeholder <| Translations.addRelayPlaceholder [ translations ]
+                       , Attr.value (Maybe.withDefault "" maybeValue)
+                       , Attr.type_ "url"
+                       , Attr.spellcheck False
+                       , Attr.list relaySuggestions.identifier
+                       , Events.onInput
+                            (\relayText ->
+                                if relayText /= "" then
+                                    UpdateRelayModel <| updateFn (Just <| relayText)
 
-                        else
-                            UpdateRelayModel <| updateFn Nothing
-                    )
-                , css
-                    [ Tw.appearance_none
-                    , Tw.bg_scroll
-                    , Tw.bg_clip_border
-                    , Tw.rounded_md
-                    , Tw.border_2
-                    , Tw.box_border
-                    , Tw.cursor_text
-                    , Tw.block
-                    , Tw.ps_14
-                    , Tw.pe_16
-                    , Tw.pl_14
-                    , Tw.pr_16
-                    , Tw.h_10
-                    , Tw.w_full
-                    ]
-                ]
+                                else
+                                    UpdateRelayModel <| updateFn Nothing
+                            )
+                       , css
+                            [ Tw.appearance_none
+                            , Tw.bg_scroll
+                            , Tw.bg_clip_border
+                            , Tw.rounded_md
+                            , Tw.border_2
+                            , Tw.box_border
+                            , Tw.cursor_text
+                            , Tw.block
+                            , Tw.ps_14
+                            , Tw.pe_16
+                            , Tw.pl_14
+                            , Tw.pr_16
+                            , Tw.h_10
+                            , Tw.w_full
+                            ]
+                       ]
+                )
                 []
             , relaySuggestionDataList relaySuggestions
             ]
@@ -561,7 +571,8 @@ relaySuggestionDataList relaySuggestions =
 relayUrlValid : Maybe String -> Bool
 relayUrlValid maybeRelayUrl =
     case maybeRelayUrl of
-        Just relayUrl ->
+        -- TODO: check here for valid
+        Just _ ->
             True
 
         Nothing ->
@@ -684,11 +695,8 @@ removeRelayButton relay removeMsg =
 
 
 viewMediaServers : Shared.Model -> Model -> Auth.User -> MediaServersModel -> Html Msg
-viewMediaServers shared model user mediaServersModel =
+viewMediaServers shared _ user _ =
     let
-        styles =
-            stylesForTheme shared.theme
-
         blossomServers =
             Nostr.getBlossomServers shared.nostr user.pubKey
 
@@ -743,20 +751,39 @@ viewBlossomServer urlWithoutProtocol =
 
 
 viewProfile : Shared.Model -> Model -> Auth.User -> Html Msg
-viewProfile shared model user =
+viewProfile shared _ user =
     let
         styles =
             stylesForTheme shared.theme
+
+        viewUserProfile =
+            Nostr.getProfile shared.nostr user.pubKey
+                |> Maybe.map
+                    (\profile ->
+                        Ui.Profile.viewProfile
+                            profile
+                            { browserEnv = shared.browserEnv
+                            , following = UnknownFollowing
+                            , isAuthor = Nostr.isAuthor shared.nostr user.pubKey
+                            , subscribe = Nothing
+                            , theme = shared.theme
+                            , validation =
+                                Nostr.getProfileValidationStatus shared.nostr user.pubKey
+                                    |> Maybe.withDefault ValidationUnknown
+                            }
+                    )
+                |> Maybe.withDefault (div [] [])
     in
     div
         [ css
             [ Tw.flex
             , Tw.flex_col
             , Tw.gap_2
-            , Tw.m_6
+            , Tw.m_20
             ]
         ]
-        [ div
+        [ viewUserProfile
+        , div
             (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
             [ text <| Translations.profileEditorTitle [ shared.browserEnv.translations ] ]
         , p [] [ text <| Translations.profileEditorNotImplementedText [ shared.browserEnv.translations ] ]
