@@ -46,6 +46,11 @@ applicationUrl =
     "https://" ++ applicationDomain
 
 
+supportEmail : String
+supportEmail =
+    "support@" ++ applicationDomain
+
+
 privacyPolicyGerman : String
 privacyPolicyGerman =
     "/md/privacy-de.md"
@@ -269,7 +274,7 @@ paretoProfile =
     , name = Just <| String.toLower client
     , displayName = Just client
     , about = Just paretoAbout
-    , picture = Just "https://pfp.nostr.build/4fbcbefaee70ba58804014760d6408adf2e544e4f2d2f7c3be063db8e6ae8f0e.png"
+    , picture = Just "https://route96.pareto.space/2f792072b0a16feffef970fcdbe6454bea9cabec03fe6ea55a17b91e2a985e3a.webp"
     , banner = Nothing
     , website = Just applicationUrl
     , bot = Nothing
