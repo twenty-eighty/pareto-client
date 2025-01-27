@@ -7,7 +7,7 @@ import Nostr.Profile exposing (Profile)
 import Nostr.Types exposing (PubKey)
 import Regex exposing (Regex)
 import String
-import Ui.Profile exposing (profileDisplayName)
+import Ui.Profile
 import Ui.Styles exposing (Styles)
 
 
@@ -178,10 +178,10 @@ generateNostrLink styles fnGetProfile nostrLink =
                 Ok (Nip19.NAddr _) ->
                     Just ( shortenedLinkText linkContent, "/a/" ++ linkContent )
 
-                Ok (Nip19.NEvent noteId) ->
+                Ok (Nip19.NEvent _) ->
                     Just ( shortenedLinkText linkContent, "/a/" ++ linkContent )
 
-                Ok (Nip19.Note noteId) ->
+                Ok (Nip19.Note _) ->
                     Just ( shortenedLinkText linkContent, "/a/" ++ linkContent )
 
                 Ok (Nip19.Npub pubKey) ->
