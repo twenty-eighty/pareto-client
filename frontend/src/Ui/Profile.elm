@@ -226,7 +226,7 @@ viewNpub styles profile =
         Just nip19 ->
             p
                 (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
-                [ text nip19 ]
+                [ text <| shortenedPubKey 11 nip19 ]
 
         Nothing ->
             div [] []
@@ -435,9 +435,9 @@ profileDisplayName pubKey profile =
             Nip05.nip05ToDisplayString nip05
 
         ( Nothing, Nothing, Nothing ) ->
-            shortenedPubKey pubKey
+            shortenedPubKey 6 pubKey
 
 
-shortenedPubKey : String -> String
-shortenedPubKey pubKey =
-    String.left 6 pubKey ++ "..." ++ String.right 6 pubKey
+shortenedPubKey : Int -> String -> String
+shortenedPubKey count pubKey =
+    String.left count pubKey ++ "..." ++ String.right count pubKey

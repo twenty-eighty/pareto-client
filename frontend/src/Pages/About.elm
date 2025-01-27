@@ -3,7 +3,7 @@ module Pages.About exposing (Model, Msg, page)
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, div, span, text)
+import Html.Styled as Html exposing (Html, a, div, text)
 import Html.Styled.Attributes as Attr exposing (css, href)
 import I18Next
 import Layouts
@@ -183,6 +183,29 @@ view shared _ =
     }
 
 
+viewSupportInformation : Theme -> Html Msg
+viewSupportInformation theme =
+    let
+        styles =
+            stylesForTheme theme
+    in
+    Html.p
+        [ css
+            [ Tw.my_4
+            ]
+        ]
+        [ text "You found a bug or want to give feedback? Please write an email to "
+        , a
+            (styles.textStyleLinks
+                ++ styles.colorStyleArticleHashtags
+                ++ [ Attr.href <| "mailto:" ++ Pareto.supportEmail
+                   ]
+            )
+            [ text Pareto.supportEmail
+            ]
+        ]
+
+
 viewHandlerInformation : Theme -> BrowserEnv -> LoginStatus -> Nostr.Model -> HandlerInformation -> Html Msg
 viewHandlerInformation theme browserEnv loginStatus nostr handlerInformation =
     div
@@ -203,6 +226,7 @@ viewHandlerInformation theme browserEnv loginStatus nostr handlerInformation =
                 Nostr.getProfileValidationStatus nostr handlerInformation.pubKey
                     |> Maybe.withDefault ValidationUnknown
             }
+        , viewSupportInformation theme
         , viewActionButtons theme browserEnv handlerInformation loginStatus
         , viewWebTargets theme browserEnv handlerInformation.webTargets
         , viewSupportedKinds theme browserEnv handlerInformation.kinds
@@ -349,7 +373,7 @@ viewKindLink styles link =
                 ]
 
         Nothing ->
-            span [] []
+            Html.span [] []
 
 
 viewWebTargets : Theme -> BrowserEnv -> List WebTarget -> Html Msg
@@ -459,7 +483,7 @@ viewFooter theme browserEnv =
             , Tw.mb_4
             ]
         ]
-        [ span
+        [ Html.span
             []
             [ text <| Translations.aboutFrontendText [ browserEnv.translations ] ++ " "
             , a
@@ -481,7 +505,7 @@ viewFooter theme browserEnv =
                 ]
             , text <| Translations.aboutFrontendText3 [ browserEnv.translations ] ++ " "
             ]
-        , span
+        , Html.span
             []
             [ text <| Translations.aboutBackendText [ browserEnv.translations ] ++ " "
             , a

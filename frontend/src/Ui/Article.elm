@@ -1062,7 +1062,7 @@ viewProfilePubKey pubKey =
                 , Tw.truncate
                 ]
             ]
-            [ text <| shortenedPubKey pubKey ]
+            [ text <| shortenedPubKey 6 pubKey ]
         ]
 
 
