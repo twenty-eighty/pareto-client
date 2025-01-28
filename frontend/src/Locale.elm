@@ -3,10 +3,13 @@ module Locale exposing (..)
 import DateFormat
 import DateFormat.Language
 import DateFormat.Relative exposing (RelativeTimeOptions)
+import I18Next exposing (Translations)
 import Languages.English
 import Languages.German
+import Material.Icons exposing (language)
 import Numeral
 import Time exposing (Month(..), Posix, Weekday(..))
+import Translations.Locale as Translations
 
 
 type Language
@@ -27,14 +30,114 @@ type Language
 languageFromLocale : String -> Language
 languageFromLocale locale =
     case String.left 2 locale of
+        -- TODO: Refactor design to distinguish between locale and language properly`
+        "en" ->
+            English "US"
+
+        "fr" ->
+            French
+
         "de" ->
             German "DE"
 
-        "en_US" ->
-            English "US"
+        "it" ->
+            Italian
+
+        "pt" ->
+            Portuguese
+
+        "es" ->
+            Spanish
+
+        "sv" ->
+            Swedish
 
         _ ->
             English "GB"
+
+
+languageToString : Translations -> Language -> String
+languageToString translations language =
+    case language of
+        English "US" ->
+            Translations.englishText [ translations ]
+
+        French ->
+            Translations.frenchText [ translations ]
+
+        German _ ->
+            Translations.germanText [ translations ]
+
+        Italian ->
+            Translations.italianText [ translations ]
+
+        Portuguese ->
+            Translations.portugueseText [ translations ]
+
+        Spanish ->
+            Translations.spanishText [ translations ]
+
+        Swedish ->
+            Translations.swedishText [ translations ]
+
+        _ ->
+            "Not supported yet"
+
+
+languageFromISOCode : String -> Language
+languageFromISOCode code =
+    case code of
+        "en" ->
+            English "US"
+
+        "fr" ->
+            French
+
+        "de" ->
+            German "DE"
+
+        "it" ->
+            Italian
+
+        "pt" ->
+            Portuguese
+
+        "es" ->
+            Spanish
+
+        "sv" ->
+            Swedish
+
+        _ ->
+            English "GB"
+
+
+languageToISOCode : Language -> String
+languageToISOCode language =
+    case language of
+        English "US" ->
+            "en"
+
+        French ->
+            "fr"
+
+        German _ ->
+            "de"
+
+        Italian ->
+            "it"
+
+        Portuguese ->
+            "pt"
+
+        Spanish ->
+            "es"
+
+        Swedish ->
+            "sv"
+
+        _ ->
+            "en"
 
 
 dateFormatFromLanguage : Language -> ( DateFormat.Language.Language, List DateFormat.Token, List DateFormat.Token )

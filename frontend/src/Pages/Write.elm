@@ -3,18 +3,21 @@ module Pages.Write exposing (Model, Msg, page)
 import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
+import Components.Dropdown as Dropdown
 import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
 import Components.MessageDialog as MessageDialog
 import Components.PublishArticleDialog as PublishArticleDialog
 import Css
 import Dict exposing (Dict)
 import Effect exposing (Effect)
+import FeatherIcons exposing (share)
 import Html.Styled as Html exposing (Html, div, img, input, label, node, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Json.Decode as Decode
 import Layouts
 import LinkPreview exposing (LoadedContent)
+import Locale exposing (Language(..), languageToISOCode, languageToString)
 import Milkdown.MilkdownEditor as Milkdown
 import Nostr
 import Nostr.Article exposing (articleFromEvent)
@@ -82,6 +85,7 @@ type alias Model =
     , editorMode : EditorMode
     , loadedContent : LoadedContent Msg
     , modalDialog : ModalDialog
+    , languageSelection : Dropdown.Model Language
     }
 
 
@@ -192,6 +196,7 @@ init user shared route () =
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
                     , modalDialog = NoModalDialog
+                    , languageSelection = Dropdown.init { selected = article.language }
                     }
 
                 Nothing ->
@@ -213,6 +218,7 @@ init user shared route () =
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
                     , modalDialog = NoModalDialog
+                    , languageSelection = Dropdown.init { selected = Nothing }
                     }
     in
     ( model
@@ -274,6 +280,7 @@ type Msg
     | MilkdownSent (Milkdown.Msg Msg)
     | PublishArticleDialogSent (PublishArticleDialog.Msg Msg)
     | PublishedDialogButtonClicked PublishedDialogButton
+    | DropdownSent (Dropdown.Msg Language Msg)
 
 
 type PublishedDialogButton
@@ -431,6 +438,14 @@ update shared user msg model =
 
         PublishedDialogButtonClicked _ ->
             ( { model | modalDialog = NoModalDialog }, Effect.none )
+
+        DropdownSent innerMsg ->
+            Dropdown.update
+                { msg = innerMsg
+                , model = model.languageSelection
+                , toModel = \dropdown -> { model | languageSelection = dropdown, articleState = ArticleModified }
+                , toMsg = DropdownSent
+                }
 
 
 updateWithPortMessage : Shared.Model -> Model -> Auth.User -> IncomingMessage -> ( Model, Effect Msg )
@@ -603,7 +618,8 @@ eventWithContent shared model user kind =
             |> Event.addSummaryTag model.summary
             |> Event.addImageTag model.image
             |> Event.addIdentifierTag model.identifier
-            |> Event.addTagTags model.tags
+            |> Event.addHashtagsToTags model.tags
+            |> Maybe.withDefault identity (languageISOCode model |> Maybe.map (Event.addLabelTags "ISO-639-1"))
             |> Event.addZapTags model.zapWeights
             |> Event.addClientTag Pareto.client Pareto.paretoClientPubKey Pareto.handlerIdentifier Pareto.paretoRelay
             |> Event.addAltTag (altText model.identifier user.pubKey kind [ Pareto.paretoRelay ])
@@ -612,6 +628,11 @@ eventWithContent shared model user kind =
     , sig = Nothing
     , relay = Nothing
     }
+
+
+languageISOCode : Model -> Maybe String
+languageISOCode model =
+    Dropdown.selectedItem model.languageSelection |> Maybe.map languageToISOCode
 
 
 altText : Maybe String -> PubKey -> Kind -> List String -> String
@@ -698,6 +719,7 @@ view user shared model =
                     ]
                 ]
             , viewEditor shared.theme shared.browserEnv model
+            , viewLanguage shared.browserEnv model
             , viewTags shared.theme shared.browserEnv model
             , viewArticleState shared.browserEnv shared.theme model.articleState
             , saveButtons shared.browserEnv shared.theme model
@@ -1006,6 +1028,37 @@ milkDownDarkMode darkModeActive =
 
     else
         Milkdown.Light
+
+
+viewLanguage : BrowserEnv -> Model -> Html Msg
+viewLanguage browserEnv model =
+    div
+        [ css
+            [ Tw.w_full
+            ]
+        ]
+        [ {- Label -}
+          label
+            [ Attr.for "dropdownMenu"
+            , css
+                [ Tw.block
+                , Tw.text_color Theme.gray_700
+                , Tw.text_sm
+                , Tw.font_medium
+                , Tw.mb_2
+                ]
+            ]
+            [ text <| Translations.languageSelectionLabel [ browserEnv.translations ]
+            ]
+        , {- Dropdown -}
+          Dropdown.new
+            { model = model.languageSelection
+            , toMsg = DropdownSent
+            , choices = [ English "US", French, German "DE", Italian, Portuguese, Spanish, Swedish ]
+            , toLabel = languageToString browserEnv.translations
+            }
+            |> Dropdown.view
+        ]
 
 
 viewTags : Theme -> BrowserEnv -> Model -> Html Msg

@@ -30,6 +30,8 @@ type Tag
     | KindTag Kind
     | ImageTag String (Maybe ImageSize)
     | LocationTag String (Maybe String)
+    | LabelNamespaceTag String
+    | LabelTag String String
     | MentionTag PubKey
     | NameTag String
     | PublicKeyTag PubKey (Maybe String) (Maybe String)
@@ -1633,8 +1635,14 @@ decodeTag =
                     "k" ->
                         Decode.map KindTag (Decode.index 1 kindStringDecoder)
 
-                    "l" ->
+                    "location" ->
                         Decode.map2 LocationTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
+
+                    "L" ->
+                        Decode.map LabelNamespaceTag (Decode.index 1 Decode.string)
+
+                    "l" ->
+                        Decode.map2 LabelTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string)
 
                     "m" ->
                         Decode.map MentionTag (Decode.index 1 Decode.string)
@@ -1818,10 +1826,16 @@ tagToList tag =
         LocationTag value1 maybeValue2 ->
             case maybeValue2 of
                 Just value2 ->
-                    [ "l", value1, value2 ]
+                    [ "location", value1, value2 ]
 
                 Nothing ->
-                    [ "l", value1 ]
+                    [ "location", value1 ]
+
+        LabelNamespaceTag value ->
+            [ "L", value ]
+
+        LabelTag value ns ->
+            [ "l", value, ns ]
 
         MentionTag pubKey ->
             [ "m", pubKey ]
@@ -2333,16 +2347,16 @@ addPublishedTag maybeTime tags =
         |> Maybe.withDefault tags
 
 
-addHashtagTags : List String -> List Tag -> List Tag
-addHashtagTags hashtags tags =
+addHashtagListToTags : List String -> List Tag -> List Tag
+addHashtagListToTags hashtags tags =
     hashtags
         |> List.map String.trim
         |> List.map HashTag
         |> List.append tags
 
 
-addTagTags : Maybe String -> List Tag -> List Tag
-addTagTags maybeTags tags =
+addHashtagsToTags : Maybe String -> List Tag -> List Tag
+addHashtagsToTags maybeTags tags =
     maybeTags
         |> Maybe.map
             (\tagsString ->
@@ -2373,3 +2387,8 @@ addZapTags zapWeights tags =
                     )
     in
     tags ++ zapTags
+
+
+addLabelTags : String -> String -> List Tag -> List Tag
+addLabelTags ns label tags =
+    LabelNamespaceTag ns :: LabelTag label ns :: tags
