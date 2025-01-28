@@ -3,11 +3,13 @@ module Locale exposing (..)
 import DateFormat
 import DateFormat.Language
 import DateFormat.Relative exposing (RelativeTimeOptions)
+import I18Next exposing (Translations)
 import Languages.English
 import Languages.German
 import Material.Icons exposing (language)
 import Numeral
 import Time exposing (Month(..), Posix, Weekday(..))
+import Translations.Locale as Translations
 
 
 type Language
@@ -54,29 +56,29 @@ languageFromLocale locale =
             English "GB"
 
 
-languageToString : Language -> String
-languageToString language =
+languageToString : Translations -> Language -> String
+languageToString translations language =
     case language of
         English "US" ->
-            "English"
+            Translations.englishText [ translations ]
 
         French ->
-            "French"
+            Translations.frenchText [ translations ]
 
         German _ ->
-            "Deutsch"
+            Translations.germanText [ translations ]
 
         Italian ->
-            "Italian"
+            Translations.italianText [ translations ]
 
         Portuguese ->
-            "Portuguese"
+            Translations.portugueseText [ translations ]
 
         Spanish ->
-            "Spanish"
+            Translations.spanishText [ translations ]
 
         Swedish ->
-            "Swedish"
+            Translations.swedishText [ translations ]
 
         _ ->
             "Not supported yet"

@@ -46,6 +46,15 @@
       "close button title": "Schließen",
       "next button title": "Weiter"
    },
+   "locale": {
+      "english text": "Englisch",
+      "french text": "Französisch",
+      "german text": "Deutsch",
+      "italian text": "Italienisch",
+      "portuguese text": "Portugiesich",
+      "spanish text": "Spanisch",
+      "swedish text": "Schwedisch"
+   },
    "media selector": {
       "Select image": "Bild auswählen",
       "Upload button title": "Bilder hochladen",

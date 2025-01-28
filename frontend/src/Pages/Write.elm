@@ -1055,7 +1055,7 @@ viewLanguage browserEnv model =
             { model = model.languageSelection
             , toMsg = DropdownSent
             , choices = [ English "US", French, German "DE", Italian, Portuguese, Spanish, Swedish ]
-            , toLabel = languageToString
+            , toLabel = languageToString browserEnv.translations
             }
             |> Dropdown.view
         ]
