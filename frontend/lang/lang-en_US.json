@@ -46,6 +46,15 @@
       "subscribe button title": "Subscribe",
       "close button title": "Close"
    },
+   "locale": {
+      "english text": "English",
+      "french text": "French",
+      "german text": "German",
+      "italian text": "Italian",
+      "portuguese text": "Portuguese",
+      "spanish text": "Spanish",
+      "swedish text": "Swedish"
+   },
    "media selector": {
       "Upload files": "Select image",
       "Upload button title": "Upload images",
@@ -195,6 +204,7 @@
       "edit button title": "Continue Editing",
       "save draft button title": "Save draft",
       "summary text": "Summary",
+      "language selection label": "Article Language",
       "tags label text": "Tags",
       "tags placeholder text": "Tags, comma separated",
       "upload button title": "Upload",

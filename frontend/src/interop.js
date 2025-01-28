@@ -305,7 +305,9 @@ export const onReady = ({ app, env }) => {
         case 31234: // draft event (NIP-37)
           {
             unwrapDraftEvent(ndkEvent).then(event => {
-              app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
+              if (event) {
+                app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
+              }
             });
             break;
           }
@@ -494,8 +496,12 @@ export const onReady = ({ app, env }) => {
 
   async function unwrapDraftEvent(ndkEvent) {
     const stringifiedEvent = await window.ndk.signer.nip44Decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
-    const event = JSON.parse(stringifiedEvent);
-    return event;
+    if (stringifiedEvent) {
+      const event = JSON.parse(stringifiedEvent);
+      return event;
+    } else {
+      console.log("Unable to decrypt draft event. Ignoring the event.")
+    } 
   }
 
   function firstTag(event, tagName) {

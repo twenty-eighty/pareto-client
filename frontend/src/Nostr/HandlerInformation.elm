@@ -37,7 +37,7 @@ buildHandlerInformation info =
         []
             |> Event.addDTag info.handlerIdentifier
             |> Event.addPublishedAtTag info.time
-            |> Event.addHashtagTags info.hashtags
+            |> Event.addHashtagListToTags info.hashtags
             |> Event.addAltTag info.alt
             |> Event.addReferenceTags info.references
             |> Event.addKindTags info.kinds
