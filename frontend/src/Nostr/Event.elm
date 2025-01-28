@@ -2390,5 +2390,5 @@ addZapTags zapWeights tags =
 
 
 addLabelTags : String -> String -> List Tag -> List Tag
-addLabelTags label ns tags =
+addLabelTags ns label tags =
     LabelNamespaceTag ns :: LabelTag label ns :: tags

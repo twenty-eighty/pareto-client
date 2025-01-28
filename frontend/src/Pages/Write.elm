@@ -218,7 +218,7 @@ init user shared route () =
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
                     , modalDialog = NoModalDialog
-                    , languageSelection = Dropdown.init { selected = Just shared.browserEnv.language }
+                    , languageSelection = Dropdown.init { selected = Nothing }
                     }
     in
     ( model
@@ -619,7 +619,7 @@ eventWithContent shared model user kind =
             |> Event.addImageTag model.image
             |> Event.addIdentifierTag model.identifier
             |> Event.addHashtagsToTags model.tags
-            |> Event.addLabelTags (languageISOCode model) "ISO-639-1"
+            |> Maybe.withDefault identity (languageISOCode model |> Maybe.map (Event.addLabelTags "ISO-639-1"))
             |> Event.addZapTags model.zapWeights
             |> Event.addClientTag Pareto.client Pareto.paretoClientPubKey Pareto.handlerIdentifier Pareto.paretoRelay
             |> Event.addAltTag (altText model.identifier user.pubKey kind [ Pareto.paretoRelay ])
@@ -630,9 +630,9 @@ eventWithContent shared model user kind =
     }
 
 
-languageISOCode : Model -> String
+languageISOCode : Model -> Maybe String
 languageISOCode model =
-    Dropdown.selectedItem model.languageSelection |> Maybe.map languageToISOCode |> Maybe.withDefault "en"
+    Dropdown.selectedItem model.languageSelection |> Maybe.map languageToISOCode
 
 
 altText : Maybe String -> PubKey -> Kind -> List String -> String
@@ -1054,7 +1054,7 @@ viewLanguage browserEnv model =
           Dropdown.new
             { model = model.languageSelection
             , toMsg = DropdownSent
-            , choices = [ English "US", German "DE" ]
+            , choices = [ English "US", French, German "DE", Italian, Portuguese, Spanish, Swedish ]
             , toLabel = languageToString
             }
             |> Dropdown.view

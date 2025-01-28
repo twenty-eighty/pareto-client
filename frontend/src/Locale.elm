@@ -28,12 +28,27 @@ type Language
 languageFromLocale : String -> Language
 languageFromLocale locale =
     case String.left 2 locale of
+        -- TODO: Refactor design to distinguish between locale and language properly`
+        "en" ->
+            English "US"
+
+        "fr" ->
+            French
+
         "de" ->
             German "DE"
 
-        -- TODO: This case is impossible here after `String.left 2 locale`
-        "en_US" ->
-            English "US"
+        "it" ->
+            Italian
+
+        "pt" ->
+            Portuguese
+
+        "es" ->
+            Spanish
+
+        "sv" ->
+            Swedish
 
         _ ->
             English "GB"
@@ -42,11 +57,26 @@ languageFromLocale locale =
 languageToString : Language -> String
 languageToString language =
     case language of
-        English _ ->
+        English "US" ->
             "English"
+
+        French ->
+            "French"
 
         German _ ->
             "Deutsch"
+
+        Italian ->
+            "Italian"
+
+        Portuguese ->
+            "Portuguese"
+
+        Spanish ->
+            "Spanish"
+
+        Swedish ->
+            "Swedish"
 
         _ ->
             "Not supported yet"
@@ -55,11 +85,26 @@ languageToString language =
 languageFromISOCode : String -> Language
 languageFromISOCode code =
     case code of
+        "en" ->
+            English "US"
+
+        "fr" ->
+            French
+
         "de" ->
             German "DE"
 
-        "en" ->
-            English "US"
+        "it" ->
+            Italian
+
+        "pt" ->
+            Portuguese
+
+        "es" ->
+            Spanish
+
+        "sv" ->
+            Swedish
 
         _ ->
             English "GB"
@@ -68,8 +113,26 @@ languageFromISOCode code =
 languageToISOCode : Language -> String
 languageToISOCode language =
     case language of
+        English "US" ->
+            "en"
+
+        French ->
+            "fr"
+
         German _ ->
             "de"
+
+        Italian ->
+            "it"
+
+        Portuguese ->
+            "pt"
+
+        Spanish ->
+            "es"
+
+        Swedish ->
+            "sv"
 
         _ ->
             "en"
