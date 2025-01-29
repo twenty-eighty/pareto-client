@@ -9,7 +9,7 @@ import Dict
 import Effect exposing (Effect)
 import FeatherIcons
 import Graphics
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, text)
+import Html.Styled as Html exposing (Html, a, aside, button, div, img, input, label, main_, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
@@ -17,10 +17,8 @@ import Layout exposing (Layout)
 import ModalDialog exposing (ModalDialog)
 import Nostr
 import Nostr.BookmarkList exposing (bookmarksCount)
-import Nostr.FollowList exposing (Following(..))
 import Nostr.Profile exposing (Profile)
-import Nostr.Types exposing (PubKey)
-import Pareto
+import Nostr.Types exposing (Following(..))
 import Ports
 import Route exposing (Route)
 import Route.Path
@@ -31,7 +29,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
-import Ui.Styles exposing (Styles, darkMode)
+import Ui.Styles exposing (Styles)
 import View exposing (View)
 
 
@@ -46,9 +44,17 @@ map toMsg props =
     }
 
 
-clientRoleForRoutePath : Route.Path.Path -> ClientRole
-clientRoleForRoutePath path =
-    sidebarItems ClientReader I18Next.initialTranslations
+clientRoleForRoutePath : BrowserEnv.Environment -> Route.Path.Path -> ClientRole
+clientRoleForRoutePath environment path =
+    sidebarItems
+        { isAuthor = False
+        , isLoggedIn = False
+        , environment = environment
+        , clientRole = ClientReader
+        , translations = I18Next.initialTranslations
+        , maybeBookmarksCount = Nothing
+        , currentPath = path
+        }
         |> List.any (\item -> item.path == path)
         |> (\isInReaderList ->
                 if isInReaderList then
@@ -64,41 +70,79 @@ type alias SidebarItemData =
     , title : String
     , icon : Icon
     , requiresLogin : Bool
+    , requiresAuthor : Bool
     , disabled : Bool
     }
 
 
-routePathIsInList : Route.Path.Path -> ClientRole -> Bool
-routePathIsInList path clientRole =
-    sidebarItems clientRole I18Next.initialTranslations
-        |> List.any (\item -> item.path == path)
+type alias SidebarItemParams =
+    { isAuthor : Bool
+    , isLoggedIn : Bool
+    , environment : BrowserEnv.Environment
+    , clientRole : ClientRole
+    , translations : I18Next.Translations
+    , maybeBookmarksCount : Maybe Int
+    , currentPath : Route.Path.Path
+    }
 
 
-sidebarItems : ClientRole -> I18Next.Translations -> List SidebarItemData
-sidebarItems clientRole translations =
+routePathIsInList : SidebarItemParams -> Bool
+routePathIsInList sidebarItemParams =
+    sidebarItems sidebarItemParams
+        |> List.any (\item -> item.path == sidebarItemParams.currentPath)
+
+
+sidebarItems : SidebarItemParams -> List SidebarItemData
+sidebarItems { isAuthor, isLoggedIn, environment, clientRole, translations, maybeBookmarksCount } =
+    rawSidebarItems clientRole translations
+        |> List.filter (sidebarItemVisible isLoggedIn isAuthor)
+        |> List.filterMap
+            (\sidebarItem ->
+                -- item-specific adaptions
+                case sidebarItem.path of
+                    Route.Path.Bookmarks ->
+                        maybeBookmarksCount
+                            |> Maybe.map
+                                (\bookmarksCount ->
+                                    -- add bookmarks count to title
+                                    { sidebarItem | title = sidebarItem.title ++ "\u{00A0}" ++ countBadge bookmarksCount }
+                                )
+
+                    Route.Path.Subscribers ->
+                        -- currently in development
+                        Just { sidebarItem | disabled = environment /= BrowserEnv.Development }
+
+                    _ ->
+                        Just sidebarItem
+            )
+
+
+rawSidebarItems : ClientRole -> I18Next.Translations -> List SidebarItemData
+rawSidebarItems clientRole translations =
     case clientRole of
         ClientReader ->
-            [ { path = Route.Path.Read, title = Translations.readMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bookOpen, requiresLogin = False, disabled = False }
-            , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, disabled = False }
+            [ { path = Route.Path.Read, title = Translations.readMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bookOpen, requiresLogin = False, requiresAuthor = False, disabled = False }
+            , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, requiresAuthor = False, disabled = False }
 
-            --, { path = Route.Path.Communities, title = Translations.communitiesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.globe, requiresLogin = False, disabled = False }
-            , { path = Route.Path.Bookmarks, title = Translations.bookmarksMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bookmark, requiresLogin = True, disabled = False }
+            --, { path = Route.Path.Communities, title = Translations.communitiesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.globe, requiresLogin = False, requiresAuthor = False, disabled = False }
+            , { path = Route.Path.Bookmarks, title = Translations.bookmarksMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bookmark, requiresLogin = True, requiresAuthor = False, disabled = False }
 
-            --, { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, disabled = True }
-            --, { path = Route.Path.Notifications, title = Translations.notificationsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bell, requiresLogin = True, disabled = True }
-            , { path = Route.Path.Settings, title = Translations.settingsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.settings, requiresLogin = True, disabled = False }
-            , { path = Route.Path.About, title = Translations.aboutMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.helpCircle, requiresLogin = False, disabled = False }
+            --, { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, requiresAuthor = False, disabled = True }
+            --, { path = Route.Path.Notifications, title = Translations.notificationsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bell, requiresLogin = True, requiresAuthor = False, disabled = True }
+            , { path = Route.Path.Settings, title = Translations.settingsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.settings, requiresLogin = True, requiresAuthor = False, disabled = False }
+            , { path = Route.Path.About, title = Translations.aboutMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.helpCircle, requiresLogin = False, requiresAuthor = False, disabled = False }
             ]
 
         ClientCreator ->
-            [ { path = Route.Path.Posts, title = Translations.postsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.fileText, requiresLogin = True, disabled = False }
-            , { path = Route.Path.Write, title = Translations.writeMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.feather, requiresLogin = True, disabled = False }
-            , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, disabled = False }
-            , { path = Route.Path.Media, title = Translations.mediaMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.image, requiresLogin = False, disabled = False }
+            [ { path = Route.Path.Posts, title = Translations.postsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.fileText, requiresLogin = True, requiresAuthor = False, disabled = False }
+            , { path = Route.Path.Write, title = Translations.writeMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.feather, requiresLogin = True, requiresAuthor = False, disabled = False }
+            , { path = Route.Path.Subscribers, title = Translations.subscribersMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.users, requiresLogin = True, requiresAuthor = True, disabled = False }
+            , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, requiresAuthor = False, disabled = False }
+            , { path = Route.Path.Media, title = Translations.mediaMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.image, requiresLogin = False, requiresAuthor = False, disabled = False }
 
-            --, { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, disabled = True }
-            --, { path = Route.Path.Notifications, title = Translations.notificationsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bell, requiresLogin = True, disabled = True }
-            , { path = Route.Path.Settings, title = Translations.settingsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.settings, requiresLogin = True, disabled = False }
+            --, { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, requiresAuthor = False, disabled = True }
+            --, { path = Route.Path.Notifications, title = Translations.notificationsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bell, requiresLogin = True, requiresAuthor = False, disabled = True }
+            , { path = Route.Path.Settings, title = Translations.settingsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.settings, requiresLogin = True, requiresAuthor = False, disabled = False }
             ]
 
 
@@ -148,7 +192,7 @@ type Msg
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
-update shared msg model =
+update _ msg model =
     case msg of
         OpenGetStarted ->
             ( model
@@ -185,7 +229,7 @@ update shared msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -238,6 +282,20 @@ viewSidebar styles shared currentPath toContentMsg content =
                         else
                             Nothing
                     )
+
+        sidebarItemParams =
+            { isAuthor =
+                Shared.loggedInPubKey shared.loginStatus
+                    |> Maybe.map (Nostr.isAuthor shared.nostr)
+                    |> Maybe.withDefault False
+            , isLoggedIn =
+                Shared.loggedIn shared
+            , environment = shared.browserEnv.environment
+            , clientRole = shared.role
+            , translations = shared.browserEnv.translations
+            , maybeBookmarksCount = maybeBookmarksCount
+            , currentPath = currentPath
+            }
     in
     Html.div
         (styles.colorStyleGrayscaleTitle
@@ -281,7 +339,7 @@ viewSidebar styles shared currentPath toContentMsg content =
                        ]
                 )
                 [ viewBannerSmall shared.browserEnv
-                , viewSidebarItems styles shared.browserEnv shared.role (Shared.loggedIn shared) maybeBookmarksCount currentPath
+                , viewSidebarItems styles sidebarItemParams
                 ]
             , div
                 [ css
@@ -301,7 +359,7 @@ viewSidebar styles shared currentPath toContentMsg content =
                     ]
                     [ -- viewBanner
                       if roleSwitchButtonEnabled shared.nostr shared.loginStatus then
-                        clientRoleSwitch shared.browserEnv.translations shared.role currentPath
+                        clientRoleSwitch sidebarItemParams
 
                       else
                         div [] []
@@ -328,26 +386,6 @@ viewMainContent content =
             []
         ]
         content
-
-
-viewBanner : Html contentMsg
-viewBanner =
-    div
-        [ css
-            [ Tw.flex
-            , Tw.items_center
-            , Tw.space_x_4
-            ]
-        ]
-        [ img
-            [ Attr.src "/images/pareto-banner.png"
-            , Attr.alt "Banner"
-            , css
-                [ Tw.h_16
-                ]
-            ]
-            []
-        ]
 
 
 viewBannerSmall : BrowserEnv -> Html contentMsg
@@ -419,22 +457,25 @@ roleSwitchButtonEnabled : Nostr.Model -> LoginStatus -> Bool
 roleSwitchButtonEnabled nostr loginStatus =
     case loginStatus of
         LoggedIn userPubKey ->
-            Nostr.isEditor nostr userPubKey
+            -- check here also for author because authors list is available immediately when the client starts
+            Nostr.isAuthor nostr userPubKey || Nostr.isEditor nostr userPubKey
 
         _ ->
             False
 
 
-clientRoleSwitch : I18Next.Translations -> ClientRole -> Route.Path.Path -> Html Msg
-clientRoleSwitch translations clientRole currentPath =
+clientRoleSwitch : SidebarItemParams -> Html Msg
+clientRoleSwitch sidebarItemParams =
     let
         currentPathPresentForOtherRole =
-            case clientRole of
+            case sidebarItemParams.clientRole of
                 ClientReader ->
-                    routePathIsInList currentPath ClientCreator
+                    routePathIsInList
+                        { sidebarItemParams | clientRole = ClientCreator }
 
                 ClientCreator ->
-                    routePathIsInList currentPath ClientReader
+                    routePathIsInList
+                        { sidebarItemParams | clientRole = ClientReader }
     in
     {- Switch Container -}
     div
@@ -452,11 +493,11 @@ clientRoleSwitch translations clientRole currentPath =
                 , Tw.font_medium
                 ]
             ]
-            [ if clientRole == ClientReader then
-                text <| Translations.readerClientRoleText [ translations ]
+            [ if sidebarItemParams.clientRole == ClientReader then
+                text <| Translations.readerClientRoleText [ sidebarItemParams.translations ]
 
               else
-                text <| Translations.creatorClientRoleText [ translations ]
+                text <| Translations.creatorClientRoleText [ sidebarItemParams.translations ]
             ]
         , {- Switch -}
           label
@@ -477,7 +518,7 @@ clientRoleSwitch translations clientRole currentPath =
                 ]
                 []
             , {- Switch Background -}
-              if clientRole == ClientReader then
+              if sidebarItemParams.clientRole == ClientReader then
                 div
                     [ Attr.id "switch-background"
                     , css
@@ -505,7 +546,7 @@ clientRoleSwitch translations clientRole currentPath =
                     ]
                     []
             , {- Switch Knob -}
-              if clientRole == ClientReader then
+              if sidebarItemParams.clientRole == ClientReader then
                 div
                     [ Attr.id "switch-knob"
                     , css
@@ -558,27 +599,11 @@ profileForUser shared loggedIn =
             Nothing
 
 
-viewSidebarItems : Styles contentMsg -> BrowserEnv -> ClientRole -> Bool -> Maybe Int -> Route.Path.Path -> Html contentMsg
-viewSidebarItems styles browserEnv clientRole loggedIn maybeBookmarksCount currentPath =
+viewSidebarItems : Styles contentMsg -> SidebarItemParams -> Html contentMsg
+viewSidebarItems styles sidebarItemParams =
     let
         visibleSidebarItems =
-            sidebarItems clientRole browserEnv.translations
-                |> List.filter (sidebarItemVisible loggedIn)
-                |> List.filterMap
-                    (\sidebarItem ->
-                        if sidebarItem.path /= Route.Path.Bookmarks then
-                            Just sidebarItem
-
-                        else
-                            case maybeBookmarksCount of
-                                Just bookmarksCount ->
-                                    -- add bookmarks count to title
-                                    Just { sidebarItem | title = sidebarItem.title ++ "\u{00A0}" ++ countBadge bookmarksCount }
-
-                                Nothing ->
-                                    -- filter bookmarks sidebar item
-                                    Nothing
-                    )
+            sidebarItems sidebarItemParams
     in
     div
         [ css
@@ -598,7 +623,7 @@ viewSidebarItems styles browserEnv clientRole loggedIn maybeBookmarksCount curre
                 ]
             ]
         ]
-        (List.map (viewSidebarItem styles currentPath) visibleSidebarItems)
+        (List.map (viewSidebarItem styles sidebarItemParams.currentPath) visibleSidebarItems)
 
 
 countBadge : Int -> String
@@ -665,12 +690,19 @@ countBadge count =
             "⑳"
 
         otherNumber ->
-            "(" ++ String.fromInt count ++ ")"
+            "(" ++ String.fromInt otherNumber ++ ")"
 
 
-sidebarItemVisible : Bool -> SidebarItemData -> Bool
-sidebarItemVisible loggedIn sidebarItem =
-    loggedIn || not sidebarItem.requiresLogin
+sidebarItemVisible : Bool -> Bool -> SidebarItemData -> Bool
+sidebarItemVisible isLoggedIn isAuthor sidebarItem =
+    if sidebarItem.requiresAuthor then
+        isAuthor
+
+    else if sidebarItem.requiresLogin then
+        isLoggedIn
+
+    else
+        True
 
 
 viewSidebarItem : Styles contentMsg -> Route.Path.Path -> SidebarItemData -> Html contentMsg
@@ -696,21 +728,20 @@ viewSidebarItem styles currentPath itemData =
                 )
     in
     a
-        (linkAttr
-            ++ [ css
-                    [ Tw.py_2
-                    , Tw.w_10
-                    , Bp.xl
-                        [ Tw.w_40
-                        , Tw.flex
-                        , Tw.flex_row
-                        ]
-                    , Bp.sm
-                        [ Tw.rounded_full
-                        , Tw.h_10
-                        ]
-                    ]
-               ]
+        (css
+            [ Tw.py_2
+            , Tw.w_10
+            , Bp.xl
+                [ Tw.w_40
+                , Tw.flex
+                , Tw.flex_row
+                ]
+            , Bp.sm
+                [ Tw.rounded_full
+                , Tw.h_10
+                ]
+            ]
+            :: linkAttr
             ++ background
             ++ foreground
         )
@@ -726,14 +757,13 @@ viewSidebarItem styles currentPath itemData =
             ]
             [ Icon.view itemData.icon ]
         , span
-            ([ css
+            (css
                 [ Tw.hidden
                 , Bp.xl
                     [ Tw.inline
                     ]
                 ]
-             ]
-                ++ foreground
+                :: foreground
             )
             [ text itemData.title ]
         ]
@@ -742,7 +772,7 @@ viewSidebarItem styles currentPath itemData =
 loginButton : Shared.Model -> Maybe Profile -> Html Msg
 loginButton shared maybeProfile =
     case shared.loginStatus of
-        Shared.Model.LoggedIn pubKey ->
+        Shared.Model.LoggedIn _ ->
             loggedInButton maybeProfile
 
         _ ->

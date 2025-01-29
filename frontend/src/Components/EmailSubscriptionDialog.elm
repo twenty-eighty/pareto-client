@@ -2,35 +2,25 @@ module Components.EmailSubscriptionDialog exposing (EmailSubscriptionDialog, Mod
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
-import Components.Icon as Icon
-import Dict exposing (Dict)
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, button, div, form, h2, img, input, label, li, p, span, text, ul)
+import Html.Styled as Html exposing (Html, div, ul)
 import Html.Styled.Attributes as Attr exposing (css)
-import Html.Styled.Events as Events exposing (..)
-import Http
 import Nostr
-import Nostr.Relay exposing (Relay)
-import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (PubKey, RelayUrl)
-import Nostr.Zaps exposing (Lud16, PayRequest, fetchPayRequest)
-import Pareto
+import Nostr.Types exposing (PubKey)
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
-import Svg.Styled as Svg exposing (path, svg)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.EmailSubscriptionDialog as Translations
 import Ui.Shared
-import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
+import Ui.Styles exposing (Theme)
 
 
 type Msg msg
     = CloseDialog
     | ConfigureRelaysClicked
     | SubscribeClicked
-    | ReceivedPayRequest (Result Http.Error PayRequest)
 
 
 type Model
@@ -45,10 +35,8 @@ type DialogState
 
 
 type alias Recipient =
-    { imageUrl : String
-    , name : String
-    , part : Int
-    , lud16 : Lud16
+    { email : String
+    , name : Maybe String
     }
 
 
@@ -89,25 +77,15 @@ new props =
 
 
 init : {} -> Model
-init props =
+init _ =
     Model
         { state = DialogHidden
         }
 
 
 show : Model -> Model
-show (Model model)  =
+show (Model model) =
     Model { model | state = DialogVisible { email = Nothing } }
-
-
-requestPayRequests : List Recipient -> Cmd (Msg msg)
-requestPayRequests recipients =
-    recipients
-        |> List.map
-            (\recipient ->
-                fetchPayRequest ReceivedPayRequest recipient.lud16
-            )
-        |> Cmd.batch
 
 
 hide : Model -> Model
@@ -151,16 +129,6 @@ update props =
                 , Effect.none
                 )
 
-            ReceivedPayRequest (Ok payRequest) ->
-                ( Model model
-                , Effect.none
-                )
-
-            ReceivedPayRequest (Err httpError) ->
-                ( Model model
-                , Effect.none
-                )
-
 
 view : EmailSubscriptionDialog msg -> Html msg
 view dialog =
@@ -179,13 +147,13 @@ view dialog =
             Ui.Shared.modalDialog
                 settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
-                [ viewZapDialog dialog emailSubscriptionData]
+                [ viewSubscribeDialog dialog emailSubscriptionData ]
                 CloseDialog
                 |> Html.map settings.toMsg
 
 
-viewZapDialog : EmailSubscriptionDialog msg -> EmailSubscriptionData -> Html (Msg msg)
-viewZapDialog (Settings settings) data =
+viewSubscribeDialog : EmailSubscriptionDialog msg -> EmailSubscriptionData -> Html (Msg msg)
+viewSubscribeDialog (Settings settings) data =
     let
         (Model model) =
             settings.model
@@ -214,7 +182,7 @@ viewZapDialog (Settings settings) data =
                 |> Button.view
             , Button.new
                 { label = Translations.subscribeButtonTitle [ settings.browserEnv.translations ]
-                , onClick = Just <| SubscribeClicked 
+                , onClick = Just <| SubscribeClicked
                 , theme = settings.theme
                 }
                 |> Button.withTypePrimary
@@ -232,12 +200,17 @@ recipientsSection (Settings settings) =
         styles =
             Ui.Styles.stylesForTheme settings.theme
     in
-    div [][]
-    -- viewRecipients (Settings settings) recipients
+    div []
+        [ viewSubscribers (Settings settings) []
+        ]
 
 
-viewRecipients : EmailSubscriptionDialog msg -> List Recipient -> Html (Msg msg)
-viewRecipients (Settings settings) recipients =
+
+-- viewRecipients (Settings settings) recipients
+
+
+viewSubscribers : EmailSubscriptionDialog msg -> List Recipient -> Html (Msg msg)
+viewSubscribers (Settings settings) recipients =
     div []
         [ ul
             [ Attr.style "list-style-type" "disc"

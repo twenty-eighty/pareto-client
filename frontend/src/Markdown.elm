@@ -4,7 +4,7 @@ module Markdown exposing (markdownViewHtml, summaryFromContent)
 
 import Html.Styled as Html exposing (..)
 import LinkPreview exposing (LoadedContent)
-import Markdown.Block exposing (Block(..), Inline, ListItem(..), Task(..))
+import Markdown.Block exposing (Block(..), ListItem(..), Task(..))
 import Markdown.Parser
 import Markdown.Renderer as Renderer
 import Nostr.Nip27 exposing (GetProfileFunction)
@@ -116,24 +116,17 @@ replaceBrokenColTag input =
 
 
 -- A regex to match http:// or https:// followed by one or more non-whitespace chars
-
-
-urlRegex : Regex
-urlRegex =
-    Regex.fromString "(https?://[^\\s]+)"
-        |> Maybe.withDefault Regex.never
-
-
-
+--   urlRegex : Regex
+--   urlRegex =
+--       Regex.fromString "(https?://[^\\s]+)"
+--           |> Maybe.withDefault Regex.never
 -- Replace all HTTP(S) URLs with Markdown links.
 -- If no match exists, the string is unchanged.
-
-
-substituteHttpLinks : String -> String
-substituteHttpLinks text =
-    Regex.replace urlRegex
-        (\match -> "[" ++ match.match ++ "](" ++ match.match ++ ")")
-        text
+--   substituteHttpLinks : String -> String
+--   substituteHttpLinks text =
+--       Regex.replace urlRegex
+--           (\match -> "[" ++ match.match ++ "](" ++ match.match ++ ")")
+--           text
 
 
 deadEndsToString : List (Advanced.DeadEnd String Parser.Problem) -> String

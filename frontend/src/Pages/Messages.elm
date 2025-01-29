@@ -1,13 +1,13 @@
 module Pages.Messages exposing (Model, Msg, page)
 
 import Effect exposing (Effect)
-import Route exposing (Route)
 import Html
 import Layouts
 import Page exposing (Page)
+import Route exposing (Route)
 import Shared
-import View exposing (View)
 import Ui.Styles exposing (Theme)
+import View exposing (View)
 
 
 page : Shared.Model -> Route () -> Page Model Msg
@@ -19,6 +19,7 @@ page shared route =
         , view = view
         }
         |> Page.withLayout (toLayout shared.theme)
+
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme model =

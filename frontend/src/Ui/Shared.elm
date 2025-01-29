@@ -4,21 +4,23 @@ import BrowserEnv exposing (BrowserEnv)
 import Color
 import Components.Icon as Icon exposing (Icon)
 import Css
-import Css.Media
 import FeatherIcons
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
+import Html.Styled as Html exposing (Html, a, button, div, h2, text)
+import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Nostr.Reactions exposing (Interactions)
 import Svg.Loaders
-import Tailwind.Utilities as Tw
+import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
-import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded, stylesForTheme)
+import Tailwind.Utilities as Tw
+import Ui.Styles exposing (Styles, Theme, stylesForTheme)
+
 
 pageLoadingIndicator : Html msg
 pageLoadingIndicator =
     Svg.Loaders.rings []
-    |> Html.fromUnstyled
+        |> Html.fromUnstyled
+
 
 thinBorderButton : msg -> String -> Html msg
 thinBorderButton onClickMsg title =
@@ -35,6 +37,7 @@ thinBorderButton onClickMsg title =
         , Events.onClick onClickMsg
         ]
         [ text title ]
+
 
 linkButton : String -> String -> Html msg
 linkButton title url =
@@ -72,14 +75,20 @@ modalDialog theme title content onClose =
             ]
         ]
         [ div
-            (styles.colorStyleBackground ++
-            [ css
-                [ Tw.rounded_lg
-                , Tw.shadow_lg
-                , Tw.p_8
-                , Tw.w_96
-                ]
-            ]
+            (styles.colorStyleBackground
+                ++ [ css
+                        [ Tw.rounded_lg
+                        , Tw.shadow_lg
+                        , Tw.p_8
+                        , Tw.max_w_sm
+                        , Bp.sm
+                            [ Tw.max_w_md
+                            ]
+                        , Bp.md
+                            [ Tw.max_w_lg
+                            ]
+                        ]
+                   ]
             )
             [ div
                 [ css
@@ -116,6 +125,7 @@ modalDialog theme title content onClose =
             ]
         ]
 
+
 type alias Actions msg =
     { addBookmark : Maybe msg
     , removeBookmark : Maybe msg
@@ -123,22 +133,24 @@ type alias Actions msg =
     , removeReaction : Maybe msg
     }
 
+
 viewInteractions : Styles msg -> BrowserEnv -> Actions msg -> Interactions -> Html msg
 viewInteractions styles browserEnv actions interactions =
     let
-        (bookmarkIcon, bookmarkMsg) =
+        ( bookmarkIcon, bookmarkMsg ) =
             if interactions.isBookmarked then
-                (Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdded 30 Icon.Inherit, actions.removeBookmark)
-            else
-                (Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdd 30 Icon.Inherit, actions.addBookmark)
+                ( Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdded 30 Icon.Inherit, actions.removeBookmark )
 
-        (reactionIcon, reactionMsg) =
+            else
+                ( Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdd 30 Icon.Inherit, actions.addBookmark )
+
+        ( reactionIcon, reactionMsg ) =
             case interactions.reaction of
                 Just _ ->
-                    (Icon.MaterialIcon Icon.MaterialFavorite 30 (Icon.Color (Color.fromRgba { red = 1.0, green = 0.0, blue = 0.0, alpha = 1.0 })), actions.removeReaction)
+                    ( Icon.MaterialIcon Icon.MaterialFavorite 30 (Icon.Color (Color.fromRgba { red = 1.0, green = 0.0, blue = 0.0, alpha = 1.0 })), actions.removeReaction )
 
                 Nothing ->
-                    (Icon.MaterialIcon Icon.MaterialFavoriteBorder 30 Icon.Inherit, actions.addReaction)
+                    ( Icon.MaterialIcon Icon.MaterialFavoriteBorder 30 Icon.Inherit, actions.addReaction )
     in
     div
         [ css
@@ -154,7 +166,8 @@ viewInteractions styles browserEnv actions interactions =
         , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps)
         , viewReactions styles bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks)
         ]
-                
+
+
 viewReactions : Styles msg -> Icon -> Maybe msg -> Maybe String -> Html msg
 viewReactions styles icon maybeMsg maybeCount =
     let
@@ -165,34 +178,37 @@ viewReactions styles icon maybeMsg maybeCount =
 
                 Nothing ->
                     []
-
     in
     div
-        (styles.colorStyleLabel ++
-        [ css
-            [ Tw.rounded_3xl
-            , Tw.justify_center
-            , Tw.items_center
-            , Tw.gap_1
-            , Tw.flex
-            ]
-        ])
+        (styles.colorStyleLabel
+            ++ [ css
+                    [ Tw.rounded_3xl
+                    , Tw.justify_center
+                    , Tw.items_center
+                    , Tw.gap_1
+                    , Tw.flex
+                    ]
+               ]
+        )
         [ div
-            ( onClickAttr ++
-            [ css
-                [ Tw.w_5
-                , Tw.h_5
-                , Tw.px_0_dot_5
-                , Tw.py_0_dot_5
-                , Tw.justify_center
-                , Tw.items_center
-                , Tw.flex
-                ]
-            ])
-            [ Icon.view icon]
+            (onClickAttr
+                ++ [ css
+                        [ Tw.w_5
+                        , Tw.h_5
+                        , Tw.px_0_dot_5
+                        , Tw.py_0_dot_5
+                        , Tw.justify_center
+                        , Tw.items_center
+                        , Tw.flex
+                        ]
+                   ]
+            )
+            [ Icon.view icon ]
         , div
-            [ ] [ text (maybeCount |> Maybe.withDefault "0" ) ]
+            []
+            [ text (maybeCount |> Maybe.withDefault "0") ]
         ]
+
 
 formatZapNum : BrowserEnv -> Int -> String
 formatZapNum browserEnv milliSats =

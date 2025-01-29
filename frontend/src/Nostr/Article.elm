@@ -1,7 +1,7 @@
 module Nostr.Article exposing (..)
 
 import Json.Decode as Decode exposing (Decoder)
-import Json.Decode.Pipeline as DecodePipeline
+import Locale exposing (Language, languageFromISOCode)
 import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress)
 import Nostr.Nip19 as Nip19
 import Nostr.Nip27 as Nip27
@@ -10,14 +10,14 @@ import Nostr.Shared
 import Nostr.Types exposing (Address, EventId, PubKey, RelayUrl)
 import Set
 import Time
-import Ui.Profile exposing (defaultProfileImage)
+
 
 type alias Article =
     { author : String
     , id : EventId
     , kind : Kind
     , alt : Maybe String
-    , client : Maybe (String, Maybe String, Maybe String)
+    , client : Maybe ( String, Maybe String, Maybe String )
     , content : String
     , createdAt : Time.Posix
     , image : Maybe String
@@ -27,14 +27,19 @@ type alias Article =
     , title : Maybe String
     , url : Maybe String
     , identifier : Maybe String
+    , language : Maybe Language
     , hashtags : List String
-    , zapWeights : List (PubKey, RelayUrl, Maybe Int)
+    , zapWeights : List ( PubKey, RelayUrl, Maybe Int )
     , otherTags : List Tag
     , relay : Maybe RelayUrl
     , nip27References : List Nip19.NIP19Type
     }
 
+
+
 -- assume published date is event creation date unless specified explicitely in publishedAt tag
+
+
 emptyArticle : PubKey -> EventId -> Kind -> Time.Posix -> String -> Maybe RelayUrl -> Article
 emptyArticle author eventId kind createdAt content relayUrl =
     { author = author
@@ -51,37 +56,43 @@ emptyArticle author eventId kind createdAt content relayUrl =
     , title = Nothing
     , url = Nothing
     , identifier = Nothing
+    , language = Nothing
     , hashtags = []
     , zapWeights = []
     , otherTags = []
     , relay = relayUrl
-    , nip27References = 
+    , nip27References =
         Nip27.collectNostrLinks content
     }
 
+
 nip19ForArticle : Article -> Maybe String
 nip19ForArticle article =
-    Nip19.NAddr 
+    Nip19.NAddr
         { identifier = article.identifier |> Maybe.withDefault ""
         , pubKey = article.author
         , kind = Nostr.Event.numberForKind article.kind
         , relays = []
         }
-    |> Nip19.encode
-    |> Result.toMaybe
+        |> Nip19.encode
+        |> Result.toMaybe
+
 
 addressForArticle : Article -> Maybe Address
 addressForArticle article =
     article
-    |> addressComponentsForArticle
-    |> Maybe.map buildAddress 
+        |> addressComponentsForArticle
+        |> Maybe.map buildAddress
+
 
 addressComponentsForArticle : Article -> Maybe AddressComponents
 addressComponentsForArticle article =
     article.identifier
-    |> Maybe.map (\identifier ->
-        (article.kind, article.author, identifier)
-    )
+        |> Maybe.map
+            (\identifier ->
+                ( article.kind, article.author, identifier )
+            )
+
 
 articleFromEvent : Event -> Result (List String) Article
 articleFromEvent event =
@@ -89,56 +100,78 @@ articleFromEvent event =
         articleWithoutTags =
             emptyArticle event.pubKey event.id event.kind event.createdAt event.content event.relay
 
-        (builtArticle, buildingErrors) =
+        ( builtArticle, buildingErrors ) =
             event.tags
-            |> List.foldl (\tag (article, errors) ->
-                case tag of 
-                    HashTag hashtag ->
-                        ({ article | hashtags = article.hashtags ++ [hashtag] }, errors)
+                |> List.foldl
+                    (\tag ( article, errors ) ->
+                        case tag of
+                            HashTag hashtag ->
+                                ( { article | hashtags = article.hashtags ++ [ hashtag ] }, errors )
 
-                    AltTag alt ->
-                        ({ article | alt = Just alt }, errors)
+                            AltTag alt ->
+                                ( { article | alt = Just alt }, errors )
 
-                    ClientTag client maybeAddress maybeRelay ->
-                        ({ article | client = Just (client, maybeAddress, maybeRelay) }, errors)
+                            ClientTag client maybeAddress maybeRelay ->
+                                ( { article | client = Just ( client, maybeAddress, maybeRelay ) }, errors )
 
-                    EventDelegationTag identifier ->
-                        ({ article | identifier = Just identifier }, errors)
+                            EventDelegationTag identifier ->
+                                ( { article | identifier = Just identifier }, errors )
 
-                    ImageTag image _ ->
-                        -- HTTP images make the client appear unsafe
-                        -- all images should be served with HTTPS in 2024
-                        ({ article | image = Just <| Nostr.Shared.ensureHttps image }, errors)
+                            ImageTag image _ ->
+                                -- HTTP images make the client appear unsafe
+                                -- all images should be served with HTTPS in 2024
+                                ( { article | image = Just <| Nostr.Shared.ensureHttps image }, errors )
 
-                    PublishedAtTag publishedAt ->
-                        ({ article | publishedAt = Just publishedAt }, errors)
+                            PublishedAtTag publishedAt ->
+                                ( { article | publishedAt = Just publishedAt }, errors )
 
-                    SummaryTag summary ->
-                        ({ article | summary = Just summary }, errors)
+                            SummaryTag summary ->
+                                ( { article | summary = Just summary }, errors )
 
-                    TitleTag title ->
-                        ({ article | title = Just title }, errors)
+                            TitleTag title ->
+                                ( { article | title = Just title }, errors )
 
-                    ZapTag pubKey relayUrl maybeWeight ->
-                        ({ article | zapWeights = article.zapWeights ++ [(pubKey, relayUrl, maybeWeight)] }, errors)
+                            LabelTag lang "ISO-639-1" ->
+                                ( { article | language = Just (languageFromISOCode lang) }, errors )
 
-                    _ ->
-                        ({ article | otherTags = article.otherTags ++ [ tag ] }, errors)
-                    ) (articleWithoutTags, [])
+                            ZapTag pubKey relayUrl maybeWeight ->
+                                ( { article | zapWeights = article.zapWeights ++ [ ( pubKey, relayUrl, maybeWeight ) ] }, errors )
+
+                            _ ->
+                                ( { article | otherTags = article.otherTags ++ [ tag ] }, errors )
+                    )
+                    ( articleWithoutTags, [] )
     in
-    case (builtArticle, buildingErrors) of
-        (article, []) ->
+    case ( builtArticle, buildingErrors ) of
+        ( article, [] ) ->
             Ok article
-        
-        (_, errors) ->
+
+        ( _, errors ) ->
             Err errors
+
+
+publishedTime : Time.Posix -> Maybe Time.Posix -> Time.Posix
+publishedTime createdAt maybePublishedAt =
+    case maybePublishedAt of
+        Just publishedAt ->
+            -- some clients produce(d) wrong article dates > year 55000.
+            -- maybe missed a conversion from milliseconds to seconds
+            if Time.toYear Time.utc publishedAt > 50000 then
+                -- show event creation time in this case
+                createdAt
+
+            else
+                publishedAt
+
+        Nothing ->
+            createdAt
 
 
 tagReference : Article -> TagReference
 tagReference article =
     case article.identifier of
         Just identifier ->
-            TagReferenceCode (KindLongFormContent, article.author, identifier)
+            TagReferenceCode ( KindLongFormContent, article.author, identifier )
 
         Nothing ->
             TagReferenceEventId article.id
@@ -147,60 +180,75 @@ tagReference article =
 filterMatchesArticle : EventFilter -> Article -> Bool
 filterMatchesArticle filter article =
     True
-    |> filterMatchesAuthor filter article
-    -- TODO: implement for other filter criteria
+        |> filterMatchesAuthor filter article
+
+
+
+-- TODO: implement for other filter criteria
 
 
 filterMatchesAuthor : EventFilter -> Article -> Bool -> Bool
 filterMatchesAuthor filter article result =
     if result then
         filter.authors
-        |> Maybe.map (List.member article.author)
-        |> Maybe.withDefault True
+            |> Maybe.map (List.member article.author)
+            |> Maybe.withDefault True
+
     else
         False
+
 
 removeLeadingHash : String -> String
 removeLeadingHash tag =
     if String.startsWith "#" tag then
         String.dropLeft 1 tag
+
     else
         tag
+
 
 uniqueArticleAuthors : List Article -> List String
 uniqueArticleAuthors articles =
     articles
-    |> List.map (\article ->
-        article.author :: zapPubKeysFromWeights article.zapWeights
-    )
-    |> List.concat
-    |> Set.fromList
-    |> Set.toList
+        |> List.map
+            (\article ->
+                article.author :: zapPubKeysFromWeights article.zapWeights
+            )
+        |> List.concat
+        |> Set.fromList
+        |> Set.toList
 
-zapPubKeysFromWeights : List (PubKey, RelayUrl, Maybe Int) -> List PubKey
+
+zapPubKeysFromWeights : List ( PubKey, RelayUrl, Maybe Int ) -> List PubKey
 zapPubKeysFromWeights weights =
     weights
-    |> List.map (\(pubKey, _, _) ->
-            pubKey
-        )
+        |> List.map
+            (\( pubKey, _, _ ) ->
+                pubKey
+            )
+
 
 addArticles : List Article -> List Article -> List Article
 addArticles articleList newArticles =
     List.foldl addArticle articleList newArticles
 
+
 addArticle : Article -> List Article -> List Article
 addArticle newArticle articleList =
     if List.any (isArticleWithIdAndAuthor newArticle.author newArticle.id) articleList then
         newArticle :: articleList
+
     else
         newArticle :: articleList
+
 
 isArticleWithIdAndAuthor : PubKey -> EventId -> Article -> Bool
 isArticleWithIdAndAuthor author articleId article =
     article.author == author && article.id == articleId
 
+
 decodeUnixTime : Decoder Time.Posix
 decodeUnixTime =
-    Decode.int 
-        |> Decode.map (\timeInt -> Time.millisToPosix (timeInt * 1000)
-        )
+    Decode.int
+        |> Decode.map
+            (\timeInt -> Time.millisToPosix (timeInt * 1000))

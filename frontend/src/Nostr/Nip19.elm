@@ -1,15 +1,18 @@
-module Nostr.Nip19 exposing (NIP19Type(..), NAddrData, encode, decode)
+module Nostr.Nip19 exposing (NAddrData, NIP19Type(..), decode, encode)
 
-import Nostr.Bech32 as Bech32
-import Bitwise exposing (shiftLeftBy, shiftRightBy, or)
-import String exposing (fromList, join)
+import Bitwise exposing (or, shiftLeftBy, shiftRightBy)
 import Char exposing (fromCode)
-import Maybe exposing (withDefault)
 import Html exposing (text)
+import Maybe exposing (withDefault)
+import Nostr.Bech32 as Bech32
 import Parser exposing (number)
+import String exposing (fromList, join)
+
 
 
 -- Define the type that covers all possible NIP-19 types
+
+
 type NIP19Type
     = Npub String
     | Nsec String
@@ -21,7 +24,10 @@ type NIP19Type
     | Unknown String
 
 
+
 -- Define types for each NIP-19 entity
+
+
 type alias NProfileData =
     { pubKey : String
     , relays : List String
@@ -44,7 +50,10 @@ type alias NAddrData =
     }
 
 
+
 -- Define the TLV type for structured data
+
+
 type alias TLV =
     { type_ : Int
     , length : Int
@@ -52,14 +61,17 @@ type alias TLV =
     }
 
 
+
 -- Decode a NIP-19 string based on the Bech32 output
+
+
 decode : String -> Result String NIP19Type
 decode input =
     case Bech32.decode input of
         Nothing ->
             Err "Bech32 decoding failed"
 
-        Just (prefix, data, encoding) ->
+        Just ( prefix, data, encoding ) ->
             case Bech32.convertBits data 5 8 False of
                 Nothing ->
                     Err "Failed to convert data bits"
@@ -91,7 +103,10 @@ decode input =
                             Err "Unknown NIP-19 prefix"
 
 
+
 -- Decode nprofile data
+
+
 decodeNProfile : List Int -> Result String NIP19Type
 decodeNProfile dataBytes =
     case parseTLV dataBytes of
@@ -107,7 +122,10 @@ decodeNProfile dataBytes =
             Err ("Failed to decode TLV data: " ++ err)
 
 
+
 -- Decode nevent data
+
+
 decodeNEvent : List Int -> Result String NIP19Type
 decodeNEvent dataBytes =
     case parseTLV dataBytes of
@@ -123,7 +141,10 @@ decodeNEvent dataBytes =
             Err ("Failed to decode TLV data: " ++ err)
 
 
+
 -- Decode naddr data
+
+
 decodeNAddr : List Int -> Result String NIP19Type
 decodeNAddr dataBytes =
     case parseTLV dataBytes of
@@ -139,7 +160,10 @@ decodeNAddr dataBytes =
             Err ("Failed to decode TLV data: " ++ err)
 
 
+
 -- Extract NProfileData from TLVs
+
+
 extractNProfileData : List TLV -> Result String NProfileData
 extractNProfileData tlvs =
     let
@@ -168,7 +192,10 @@ extractNProfileData tlvs =
             Err "Missing required pubkey TLV for nprofile"
 
 
+
 -- Extract NEventData from TLVs
+
+
 extractNEventData : List TLV -> Result String NEventData
 extractNEventData tlvs =
     let
@@ -215,7 +242,10 @@ extractNEventData tlvs =
             Err "Missing required event id TLV for nevent"
 
 
+
 -- Extract NAddrData from TLVs
+
+
 extractNAddrData : List TLV -> Result String NAddrData
 extractNAddrData tlvs =
     let
@@ -242,8 +272,8 @@ extractNAddrData tlvs =
             relayTLVs
                 |> List.map (\tlv -> bytesToAsciiString tlv.value)
     in
-    case (identifierTLV, pubKeyTLV, kindTLV) of
-        (Just idTlv, Just pkTlv, Just kindTlv) ->
+    case ( identifierTLV, pubKeyTLV, kindTLV ) of
+        ( Just idTlv, Just pkTlv, Just kindTlv ) ->
             let
                 identifier =
                     bytesToAsciiString idTlv.value
@@ -260,7 +290,10 @@ extractNAddrData tlvs =
             Err "Missing required TLV(s) for naddr"
 
 
+
 -- Helper function to decode bytes to hex string
+
+
 bytesToHex : List Int -> String
 bytesToHex bytes =
     bytes
@@ -271,18 +304,28 @@ bytesToHex bytes =
 byteToHex : Int -> String
 byteToHex byte =
     let
-        hexChars = "0123456789abcdef"
+        hexChars =
+            "0123456789abcdef"
 
-        highNibble = byte // 16
-        lowNibble = modBy 16 byte
+        highNibble =
+            byte // 16
 
-        highChar = String.fromChar (String.uncons (String.dropLeft highNibble hexChars) |> Maybe.map Tuple.first |> withDefault '0')
-        lowChar = String.fromChar (String.uncons (String.dropLeft lowNibble hexChars) |> Maybe.map Tuple.first |> withDefault '0')
+        lowNibble =
+            modBy 16 byte
+
+        highChar =
+            String.fromChar (String.uncons (String.dropLeft highNibble hexChars) |> Maybe.map Tuple.first |> withDefault '0')
+
+        lowChar =
+            String.fromChar (String.uncons (String.dropLeft lowNibble hexChars) |> Maybe.map Tuple.first |> withDefault '0')
     in
     highChar ++ lowChar
 
 
+
 -- Convert bytes to ASCII string
+
+
 bytesToAsciiString : List Int -> String
 bytesToAsciiString bytes =
     bytes
@@ -290,14 +333,20 @@ bytesToAsciiString bytes =
         |> fromList
 
 
+
 -- Convert list of bytes to Int (big-endian)
+
+
 bytesToInt : List Int -> Int
 bytesToInt bytes =
     bytes
-        |> List.foldl (\byte acc -> (shiftLeftBy 8 acc) |> or byte) 0
+        |> List.foldl (\byte acc -> shiftLeftBy 8 acc |> or byte) 0
+
 
 
 -- Parse TLV formatted data
+
+
 parseTLV : List Int -> Result String (List TLV)
 parseTLV rawData =
     let
@@ -309,10 +358,14 @@ parseTLV rawData =
                 typeByte :: lengthByte :: rest ->
                     if List.length rest < lengthByte then
                         Err "TLV length mismatch"
+
                     else
                         let
-                            (value, remainingData) = splitAt lengthByte rest
-                            tlv = { type_ = typeByte, length = lengthByte, value = value }
+                            ( value, remainingData ) =
+                                splitAt lengthByte rest
+
+                            tlv =
+                                { type_ = typeByte, length = lengthByte, value = value }
                         in
                         parseTlvHelp remainingData (tlv :: tlvs)
 
@@ -322,28 +375,33 @@ parseTLV rawData =
     parseTlvHelp rawData []
 
 
-splitAt : Int -> List a -> (List a, List a)
+splitAt : Int -> List a -> ( List a, List a )
 splitAt n list =
     if n <= 0 then
-        ([], list)
+        ( [], list )
+
     else
         splitAtHelper n list []
 
 
-splitAtHelper : Int -> List a -> List a -> (List a, List a)
+splitAtHelper : Int -> List a -> List a -> ( List a, List a )
 splitAtHelper n remaining acc =
     case remaining of
         [] ->
-            (List.reverse acc, [])
+            ( List.reverse acc, [] )
 
         x :: xs ->
             if n == 1 then
-                (List.reverse (x :: acc), xs)
+                ( List.reverse (x :: acc), xs )
+
             else
                 splitAtHelper (n - 1) xs (x :: acc)
 
 
+
 -- Encode a NIP19Type entity into a NIP-19 string
+
+
 encode : NIP19Type -> Result String String
 encode entity =
     case entity of
@@ -372,7 +430,10 @@ encode entity =
             Err "Cannot encode unknown NIP-19 entity"
 
 
+
 -- Helper function to encode simple entities
+
+
 encodeSimple : String -> String -> Result String String
 encodeSimple prefix hexData =
     case hexToBytes hexData of
@@ -388,7 +449,10 @@ encodeSimple prefix hexData =
             Err "Invalid hex data"
 
 
+
 -- Encode nprofile data
+
+
 encodeNProfile : NProfileData -> Result String String
 encodeNProfile profileData =
     let
@@ -397,24 +461,30 @@ encodeNProfile profileData =
 
         relayTLVs =
             profileData.relays
-                |> List.map (\relayUrl ->
-                    let
-                        value = asciiStringToBytes relayUrl
-                    in
-                    { type_ = 1, length = List.length value, value = value }
-                )
+                |> List.map
+                    (\relayUrl ->
+                        let
+                            value =
+                                asciiStringToBytes relayUrl
+                        in
+                        { type_ = 1, length = List.length value, value = value }
+                    )
 
         pubKeyTLV =
             pubKeyBytes
-                |> Maybe.map (\bytes ->
-                    { type_ = 0, length = List.length bytes, value = bytes }
-                )
+                |> Maybe.map
+                    (\bytes ->
+                        { type_ = 0, length = List.length bytes, value = bytes }
+                    )
     in
     case pubKeyTLV of
         Just pkTlv ->
             let
-                tlvs = pkTlv :: relayTLVs
-                dataBytes = tlvsToBytes tlvs
+                tlvs =
+                    pkTlv :: relayTLVs
+
+                dataBytes =
+                    tlvsToBytes tlvs
             in
             case Bech32.convertBits dataBytes 8 5 True of
                 Just data5Bit ->
@@ -427,7 +497,10 @@ encodeNProfile profileData =
             Err "Invalid pubkey hex data"
 
 
+
 -- Encode nevent data
+
+
 encodeNEvent : NEventData -> Result String String
 encodeNEvent eventData =
     let
@@ -436,36 +509,43 @@ encodeNEvent eventData =
 
         authorTLV =
             eventData.author
-                |> Maybe.andThen (\authorHex ->
-                    hexToBytes authorHex
-                        |> Maybe.map (\bytes ->
-                            { type_ = 2, length = List.length bytes, value = bytes }
-                        )
-                )
+                |> Maybe.andThen
+                    (\authorHex ->
+                        hexToBytes authorHex
+                            |> Maybe.map
+                                (\bytes ->
+                                    { type_ = 2, length = List.length bytes, value = bytes }
+                                )
+                    )
 
         kindTLV =
             eventData.kind
-                |> Maybe.map (\kindInt ->
-                    let
-                        bytes = intToBytes kindInt 4
-                    in
-                    { type_ = 3, length = List.length bytes, value = bytes }
-                )
+                |> Maybe.map
+                    (\kindInt ->
+                        let
+                            bytes =
+                                intToBytes kindInt 4
+                        in
+                        { type_ = 3, length = List.length bytes, value = bytes }
+                    )
 
         relayTLVs =
             eventData.relays
-                |> List.map (\relayUrl ->
-                    let
-                        value = asciiStringToBytes relayUrl
-                    in
-                    { type_ = 1, length = List.length value, value = value }
-                )
+                |> List.map
+                    (\relayUrl ->
+                        let
+                            value =
+                                asciiStringToBytes relayUrl
+                        in
+                        { type_ = 1, length = List.length value, value = value }
+                    )
 
         idTLV =
             idBytes
-                |> Maybe.map (\bytes ->
-                    { type_ = 0, length = List.length bytes, value = bytes }
-                )
+                |> Maybe.map
+                    (\bytes ->
+                        { type_ = 0, length = List.length bytes, value = bytes }
+                    )
     in
     case idTLV of
         Just idTlv ->
@@ -476,7 +556,8 @@ encodeNEvent eventData =
                         ++ maybeToList kindTLV
                         ++ relayTLVs
 
-                dataBytes = tlvsToBytes tlvs
+                dataBytes =
+                    tlvsToBytes tlvs
             in
             case Bech32.convertBits dataBytes 8 5 True of
                 Just data5Bit ->
@@ -489,7 +570,10 @@ encodeNEvent eventData =
             Err "Invalid event id hex data"
 
 
+
 -- Encode naddr data
+
+
 encodeNAddr : NAddrData -> Result String String
 encodeNAddr addrData =
     let
@@ -507,21 +591,24 @@ encodeNAddr addrData =
 
         pubKeyTLV =
             pubKeyBytes
-                |> Maybe.map (\bytes ->
-                    { type_ = 2, length = List.length bytes, value = bytes }
-                )
+                |> Maybe.map
+                    (\bytes ->
+                        { type_ = 2, length = List.length bytes, value = bytes }
+                    )
 
         kindTLV =
             { type_ = 3, length = List.length kindBytes, value = kindBytes }
 
         relayTLVs =
             addrData.relays
-                |> List.map (\relayUrl ->
-                    let
-                        value = asciiStringToBytes relayUrl
-                    in
-                    { type_ = 1, length = List.length value, value = value }
-                )
+                |> List.map
+                    (\relayUrl ->
+                        let
+                            value =
+                                asciiStringToBytes relayUrl
+                        in
+                        { type_ = 1, length = List.length value, value = value }
+                    )
 
         tlvs =
             [ identifierTLV ]
@@ -540,26 +627,37 @@ encodeNAddr addrData =
             Err "Failed to convert data bits to 5-bit"
 
 
+
 -- Convert TLVs to bytes
+
+
 tlvsToBytes : List TLV -> List Int
 tlvsToBytes tlvs =
     List.concatMap (\tlv -> [ tlv.type_, tlv.length ] ++ tlv.value) tlvs
 
 
+
 -- Helper function to convert hex string to bytes
+
+
 hexToBytes : String -> Maybe (List Int)
 hexToBytes hexStr =
     let
-        hexChars = String.toList hexStr
+        hexChars =
+            String.toList hexStr
 
         toByte highChar lowChar =
             let
-                highNibble = hexCharToInt highChar
-                lowNibble = hexCharToInt lowChar
+                highNibble =
+                    hexCharToInt highChar
+
+                lowNibble =
+                    hexCharToInt lowChar
             in
             case ( highNibble, lowNibble ) of
                 ( Just hi, Just lo ) ->
                     Just ((hi * 16) + lo)
+
                 _ ->
                     Nothing
 
@@ -569,17 +667,24 @@ hexToBytes hexStr =
                     case toByte highChar lowChar of
                         Just byte ->
                             processChars rest (byte :: acc)
+
                         Nothing ->
                             Nothing
+
                 [] ->
                     Just (List.reverse acc)
+
                 _ ->
                     -- Odd number of characters
                     Nothing
     in
     processChars hexChars []
 
+
+
 -- Convert an ASCII string to bytes
+
+
 asciiStringToBytes : String -> List Int
 asciiStringToBytes str =
     str
@@ -587,19 +692,27 @@ asciiStringToBytes str =
         |> List.map Char.toCode
 
 
+
 -- Convert an integer to bytes (big-endian)
+
+
 intToBytes : Int -> Int -> List Int
 intToBytes value numBytes =
     if numBytes <= 0 then
         []
+
     else
         let
-            byte = shiftRightBy ((numBytes - 1) * 8) value |> modBy 256
+            byte =
+                shiftRightBy ((numBytes - 1) * 8) value |> modBy 256
         in
         byte :: intToBytes value (numBytes - 1)
 
 
+
 -- Helper function to convert a hex character to an integer
+
+
 hexCharToInt : Char -> Maybe Int
 hexCharToInt c =
     case c of
@@ -673,7 +786,10 @@ hexCharToInt c =
             Nothing
 
 
+
 -- Helper function to convert an ASCII string to hex string
+
+
 asciiStringToHex : String -> String
 asciiStringToHex str =
     str

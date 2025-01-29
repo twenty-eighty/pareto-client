@@ -1,9 +1,10 @@
-module Shared.Model exposing (Model, LoginStatus(..), ClientRole(..))
+module Shared.Model exposing (ClientRole(..), LoginStatus(..), Model)
 
 import BrowserEnv exposing (BrowserEnv)
 import Nostr
 import Nostr.Types exposing (PubKey)
 import Ui.Styles exposing (Theme)
+
 
 {-| Normally, this value would live in "Shared.elm"
 but that would lead to a circular dependency import cycle.
@@ -20,10 +21,12 @@ type alias Model =
     , theme : Theme
     }
 
+
 type LoginStatus
     = LoggedOut
     | LoggedInUnknown
     | LoggedIn PubKey
+
 
 type ClientRole
     = ClientReader

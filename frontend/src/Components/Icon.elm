@@ -3,17 +3,17 @@ module Components.Icon exposing (Coloring(..), Icon(..), MaterialIcon(..), view)
 import Color exposing (Color)
 import FeatherIcons
 import Html.Styled as Html exposing (Html, div)
-import Svg as UnstyledSvg
 import Material.Icons
 import Material.Icons.Outlined
 import Material.Icons.Types
+import Svg as UnstyledSvg
+
 
 type Icon
     = FeatherIcon FeatherIcons.Icon
     | MaterialIcon MaterialIcon Int Coloring
-    | DummyIcon
-        {
-        }
+    | DummyIcon {}
+
 
 type Coloring
     = Color Color
@@ -31,19 +31,20 @@ type MaterialIcon
     | MaterialOutlineBookmarkAdd
     | MaterialOutlineBookmarkAdded
 
+
 view : Icon -> Html msg
 view icon =
     case icon of
         FeatherIcon featherIcon ->
             featherIcon
-            |> FeatherIcons.toHtml []
-            |> Html.fromUnstyled
+                |> FeatherIcons.toHtml []
+                |> Html.fromUnstyled
 
         MaterialIcon materialIcon size coloring ->
             viewMaterialIcon materialIcon size coloring
 
         DummyIcon _ ->
-            div [][]
+            div [] []
 
 
 viewMaterialIcon : MaterialIcon -> Int -> Coloring -> Html msg
@@ -57,8 +58,9 @@ viewMaterialIcon materialIcon size coloring =
                 Inherit ->
                     Material.Icons.Types.Inherit
     in
-    (svgForMaterialIcon materialIcon) size materialColoring
-    |> Html.fromUnstyled
+    svgForMaterialIcon materialIcon size materialColoring
+        |> Html.fromUnstyled
+
 
 svgForMaterialIcon : MaterialIcon -> (Int -> Material.Icons.Types.Coloring -> UnstyledSvg.Svg msg)
 svgForMaterialIcon materialIcon =

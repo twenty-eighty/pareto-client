@@ -19,7 +19,7 @@ defmodule NostrBackendWeb do
 
   def static_paths,
     do:
-      ~w(assets fonts images lp translations js styles favicon.ico robots.txt manifest.webmanifest)
+      ~w(assets fonts images lp md translations js styles favicon.ico robots.txt manifest.webmanifest)
 
   def router do
     quote do

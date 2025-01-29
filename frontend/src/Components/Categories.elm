@@ -12,16 +12,11 @@ module Components.Categories exposing
     , view
     )
 
-import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, strong, text)
-import Html.Styled.Attributes as Attr exposing (class, classList, css, disabled, href, type_)
+import Html.Styled as Html exposing (Html, button, div, text)
+import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events as Events exposing (..)
-import Nostr.Blossom as Blossom exposing (BlobDescriptor)
-import Nostr.Nip96 as Nip96 exposing (extendRelativeServerDescriptorUrls)
-import Nostr.Shared exposing (httpErrorToString)
-import Nostr.Types exposing (PubKey)
 import Tailwind.Utilities as Tw
 import Ui.Styles exposing (Styles)
 
@@ -181,5 +176,5 @@ viewCategory styles toMsg onSelect active data =
 
 
 subscribe : Model category -> Sub (Msg category msg)
-subscribe model =
+subscribe _ =
     Sub.none

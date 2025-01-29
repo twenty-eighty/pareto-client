@@ -2,10 +2,10 @@ module Nostr.Nip94 exposing (..)
 
 import Dict exposing (Dict)
 import Http
-import Json.Decode exposing (Decoder, andThen, bool, dict, fail, field, float, int, list, maybe, string, succeed)
-import Json.Decode.Pipeline exposing (required, optional)
-import Json.Decode as Decode
+import Json.Decode as Decode exposing (Decoder, andThen, bool, dict, fail, field, float, int, list, maybe, nullable, string, succeed)
+import Json.Decode.Pipeline exposing (optional, required)
 import Url
+
 
 
 -- Type Definitions
@@ -13,7 +13,7 @@ import Url
 
 type alias FileMetadata =
     { kind : Maybe Int
-    , content : String
+    , content : Maybe String
     , createdAt : Int
     , url : Maybe String
     , mimeType : Maybe String
@@ -36,24 +36,32 @@ type alias Media =
     , hash : Maybe String
     }
 
+
 type alias Nip94Event =
     { tags : List (List String)
     , content : String
     }
 
+
 isImage : FileMetadata -> Bool
 isImage metaData =
     case metaData.mimeType of
         Just mimeType ->
-            String.startsWith "image/" mimeType ||
-            "avatar" == mimeType ||
-            "banner" == mimeType ||
-            "" == mimeType
-        
+            String.startsWith "image/" mimeType
+                || "avatar"
+                == mimeType
+                || "banner"
+                == mimeType
+                || ""
+                == mimeType
+
         _ ->
             True
 
+
+
 -- Decoders
+
 
 fileMetadataDecoder : Decoder FileMetadata
 fileMetadataDecoder =
@@ -63,7 +71,7 @@ fileMetadataDecoder =
 
 type alias RawEvent =
     { kind : Maybe Int
-    , content : String
+    , content : Maybe String
     , createdAt : Int
     , tags : List (List String)
     }
@@ -73,7 +81,7 @@ decodeRawEvent : Decoder RawEvent
 decodeRawEvent =
     succeed RawEvent
         |> optional "kind" (maybe int) Nothing
-        |> required "content" string
+        |> required "content" (nullable string)
         |> required "created_at" int
         |> required "tags" (list (list string))
 
@@ -182,6 +190,8 @@ parseDimensions dimValue file =
 
         _ ->
             file
+
+
 
 -- JSON DECODERS
 

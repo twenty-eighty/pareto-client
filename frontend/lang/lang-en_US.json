@@ -4,6 +4,7 @@
       "supported kinds title": "Supported kinds",
       "supported nips title": "Supported NIPs",
       "supported web targets title": "Supported web targets",
+      "publish authors list button title": "Publish authors list",
       "publish handler information button title": "Publish handler information",
       "publish profile button title": "Publish profile",
       "recomendation explanation": "Yes, I like this application. The whole world should know about it!",
@@ -12,7 +13,9 @@
       "about frontend text 2": " using the ",
       "about frontend text 3": " programming language.",
       "about backend text": "The Pareto backend was developed using the",
-      "source code text": "The source code of the Pareto client will be released soon."
+      "source code text": "The source code of the Pareto client will be released soon.",
+      "feedback text": "You found a bug or want to give feedback? Please write an email to ",
+      "privacy policy link text": "Privacy Policy"
    },
    "article page": {
       "default page title": "Article"
@@ -32,10 +35,25 @@
       "no communities text": "Looks like you don't follow any communities yet. Don't worry, you can browse them and start following them below.",
       "browse communities text": "Browse communities"
    },
+   "email import dialog": {
+      "dialog title": "Import Email List",
+      "import button title": "Import",
+      "close button title": "Close",
+      "next button title": "Next"
+   },
    "email subscription dialog": {
       "dialog title": "Subscribe with Email",
-      "subscribe button title": "Subscribe with Email",
-      "close button title": "Subscribe with Email"
+      "subscribe button title": "Subscribe",
+      "close button title": "Close"
+   },
+   "locale": {
+      "english text": "English",
+      "french text": "French",
+      "german text": "German",
+      "italian text": "Italian",
+      "portuguese text": "Portuguese",
+      "spanish text": "Spanish",
+      "swedish text": "Swedish"
    },
    "media selector": {
       "Upload files": "Select image",
@@ -56,6 +74,9 @@
       "drafts category": "Drafts",
       "edit draft button label": "Edit",
       "delete draft button label": "Delete"
+   },
+   "privacy": {
+      "page title": "Privacy Policy"
    },
    "profile": {
       "follow button title": "Follow",
@@ -111,6 +132,8 @@
       "inbox relays description": "This relay type receives all replies, comments, likes, and zaps to your posts.",
       "add relay button title": "Add",
       "add relay placeholder": "Enter a relay URL",
+      "no relays configured text": "You seem to have no relays configured. Do you want to a add some?",
+      "add default relays button title": "Add default relays",
       "media servers category": "Media Servers",
       "add nip-96 media server placeholder": "NIP-96 server URL",
       "add blossom media server placeholder": "Blossom server URL",
@@ -131,6 +154,7 @@
       "read menu item text": "Read",
       "search menu item text": "Search",
       "settings menu item text": "Settings",
+      "subscribers menu item text": "Subscribers",
       "write menu item text": "Write",
       "about menu item text": "About"
    },
@@ -138,6 +162,11 @@
       "page title": "Sign in/up",
       "sign-in request": "Please sign up/in to access the page",
       "continue without signing in message": "Continue without signing up/in..."
+   },
+   "subscribers": {
+      "page title": "Subscribers",
+      "import button title": "Import",
+      "no subscribers text": "No subscribers found."
    },
    "upload dialog": {
       "dialog title": "Upload",
@@ -175,6 +204,7 @@
       "edit button title": "Continue Editing",
       "save draft button title": "Save draft",
       "summary text": "Summary",
+      "language selection label": "Article Language",
       "tags label text": "Tags",
       "tags placeholder text": "Tags, comma separated",
       "upload button title": "Upload",
