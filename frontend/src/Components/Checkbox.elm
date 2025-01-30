@@ -23,8 +23,6 @@ module Components.Checkbox exposing
 
 -}
 
-import Components.Icon exposing (Icon)
-import Css
 import Graphics
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr
@@ -84,36 +82,44 @@ withDisabled isDisabled (Settings settings) =
 view : Checkbox msg -> Html msg
 view (Settings settings) =
     let
-        styles =
-            Ui.Styles.stylesForTheme settings.theme
-
         viewOptionalImage : Maybe String -> Html msg
         viewOptionalImage maybeImage =
             case maybeImage of
                 Just imageUrl ->
-                    object
-                        [ Attr.attribute "data" imageUrl
-                        , Attr.css
-                            [ Tw.h_5
-                            , Tw.w_5
-                            , Tw.object_cover
-                            , Tw.overflow_clip
+                    span
+                        [ Attr.css
+                            [ Tw.flex
+                            , Tw.items_center
+                            , Tw.w_6
+                            , Tw.h_6
+                            , Tw.rounded_full
+                            , Tw.bg_clip_border
                             ]
                         ]
-                        [ div
-                            [ Attr.css
-                                [ Tw.text_color Theme.white
-                                , Tw.bg_color Theme.slate_300
-                                , Tw.items_center
-                                , Tw.bg_clip_border
-                                , Tw.rounded_full
-                                , Tw.h_5
+                        [ object
+                            [ Attr.attribute "data" imageUrl
+                            , Attr.css
+                                [ Tw.h_5
                                 , Tw.w_5
-                                , Tw.flex
-                                , Tw.justify_center
+                                , Tw.object_cover
+                                , Tw.overflow_clip
                                 ]
                             ]
-                            [ Graphics.defaultRelayImage 14
+                            [ div
+                                [ Attr.css
+                                    [ Tw.text_color Theme.white
+                                    , Tw.bg_color Theme.slate_300
+                                    , Tw.items_center
+                                    , Tw.bg_clip_border
+                                    , Tw.rounded_full
+                                    , Tw.h_5
+                                    , Tw.w_5
+                                    , Tw.flex
+                                    , Tw.justify_center
+                                    ]
+                                ]
+                                [ Graphics.defaultRelayImage 14
+                                ]
                             ]
                         ]
 
@@ -173,6 +179,7 @@ view (Settings settings) =
             [ Attr.css
                 [ Tw.w_4
                 , Tw.ms_2
+                , Tw.w_auto
                 , Tw.leading_6
                 ]
             ]
@@ -180,23 +187,16 @@ view (Settings settings) =
                 [ Attr.css
                     [ Tw.flex
                     , Tw.items_center
+                    , Tw.w_auto
                     , Tw.gap_2
                     ]
                 ]
-                [ span
+                [ viewOptionalImage settings.imageUrl
+                , p
                     [ Attr.css
-                        [ Tw.flex
-                        , Tw.items_center
-                        , Tw.w_6
-                        , Tw.h_6
-                        , Tw.rounded_full
-                        , Tw.bg_clip_border
+                        [ Tw.w_auto
                         ]
                     ]
-                    [ viewOptionalImage settings.imageUrl
-                    ]
-                , p
-                    []
                     [ text settings.label
                     ]
                 ]
