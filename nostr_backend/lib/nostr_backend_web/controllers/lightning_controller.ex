@@ -24,6 +24,13 @@ defmodule NostrBackendWeb.LightningController do
       "minSendable" => 1000,
       "maxSendable" => 10000000000
     },
+    "nachteule" => %{
+      "nostrPubkey" => "9c8096eb84d574ca29eb0077d615a2b12c0113064faeac9f72e464a066e47555",
+      "callback" => "https://getalby.com/lnurlp/brokendarkness103/callback",
+      "metadata" => "[[\"text/identifier\",\"brokendarkness103@getalby.com\"],[\"text/plain\",\"Sats for Nachteule\"]]",
+      "minSendable" => 1000,
+      "maxSendable" => 10000000000
+    },
     "kalle" => %{
       "nostrPubkey" => "08d79c2e514edd4634ea92bbfe1ec089730a049216be9d28c77c4c1c7733f518",
       "callback" => "https://livingroomofsatoshi.com/api/v1/lnurl/payreq/4ad194e0-2904-43c4-b6ea-295daeb7ca28",
