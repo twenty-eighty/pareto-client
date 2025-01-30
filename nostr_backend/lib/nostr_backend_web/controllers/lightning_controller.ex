@@ -10,6 +10,13 @@ defmodule NostrBackendWeb.LightningController do
       "minSendable" => 1000,
       "maxSendable" => 10000000000
     },
+    "rodant" => %{
+      "nostrPubkey" => "71df211931d26ee41121d295bd43cbc7e382505e333b5c13d4016ced9542d9d7",
+      "callback" => "https://getalby.com/lnurlp/vntonior7z/callback",
+      "metadata" => "[[\"text/identifier\",\"vntonior7z@getalby.com\"],[\"text/plain\",\"Sats for VntonIO\"]]",
+      "minSendable" => 1000,
+      "maxSendable" => 10000000000
+    },
     "janosch" => %{
       "nostrPubkey" => "89bae92f9d9b0f6d97a300496cfb0b73c92a74c9675a724c0689975f8074dc01",
       "callback" => "https://getalby.com/lnurlp/smilefeisty787560/callback",

@@ -188,6 +188,7 @@ bootstrapAuthorsList =
     , ( "madmunky@nostrplebs.com", "3eacaa768326d7dce80f6ee17ada199bebe7eb3c1a60b39b14e0a58bbac66fe4" )
     , ( "pavlenex@iris.to", "175f568d77fb0cb7400f0ddd8aed1738cd797532b314ef053a1669d4dba7433a" )
     , ( "barbouille@pareto.town", "68c969eafadfc88d5937770d81031fb314b1bb1c201671403de6d930ab67edb9" )
+    , ( "free-cities@pareto.town", "fc2470ed196801ddace5c2bcb14a53fa5ee9f81ee365bf4958f94c6117d9ee27" )
     ]
 
 
