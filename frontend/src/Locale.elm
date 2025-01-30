@@ -8,7 +8,7 @@ import Languages.English
 import Languages.German
 import Material.Icons exposing (language)
 import Numeral
-import Time exposing (Month(..), Posix, Weekday(..))
+import Time exposing (Month(..), Weekday(..))
 import Translations.Locale as Translations
 
 
