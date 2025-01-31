@@ -165,7 +165,9 @@
    },
    "subscribers": {
       "page title": "Subscribers",
+      "export button title": "Export",
       "import button title": "Import",
+      "save button title": "Save",
       "no subscribers text": "No subscribers found."
    },
    "upload dialog": {

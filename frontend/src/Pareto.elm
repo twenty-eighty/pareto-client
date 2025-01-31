@@ -89,7 +89,7 @@ defaultNip96ServersPublic =
 
 applicationDataRelays : List RelayUrl
 applicationDataRelays =
-    [ "cool-darkness-73116.pktriot.net"
+    [ "wss://cool-darkness-73116.pktriot.net"
     ]
 
 

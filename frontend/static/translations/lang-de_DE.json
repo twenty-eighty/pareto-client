@@ -165,7 +165,9 @@
    },
    "subscribers": {
       "page title": "Abonnenten",
+      "export button title": "Exportieren",
       "import button title": "Importieren",
+      "save button title": "Speichern",
       "no subscribers text": "Keine Abonnenten gefunden."
    },
    "upload dialog": {

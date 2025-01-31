@@ -42,6 +42,7 @@ type RequestData
     | RequestProfileByNip05 Nip05
     | RequestReactions EventFilter
     | RequestRelayLists EventFilter
+    | RequestSubscribers EventFilter
     | RequestUserData EventFilter
     | RequestBlossomAuth String String HttpRequestMethod
     | RequestNip98Auth String String HttpRequestMethod
@@ -132,6 +133,9 @@ relaysOfRequest request =
                         Nothing
 
                     RequestRelayLists _ ->
+                        Nothing
+
+                    RequestSubscribers _ ->
                         Nothing
 
                     RequestUserData _ ->

@@ -248,6 +248,9 @@ performRequest model description requestId requestData =
         RequestRelayLists eventFilter ->
             ( model, model.hooks.requestEvents description False requestId configuredRelays eventFilter )
 
+        RequestSubscribers eventFilter ->
+            ( model, model.hooks.requestEvents description False requestId Pareto.applicationDataRelays eventFilter )
+
         RequestUserData eventFilter ->
             ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter )
 

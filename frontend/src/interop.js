@@ -302,6 +302,16 @@ export const onReady = ({ app, env }) => {
             break;
           }
 
+        case 30078: // application-specific event
+          {
+            unwrapApplicationSpecificEvent(ndkEvent).then(event => {
+              if (event) {
+                app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
+              }
+            });
+            break;
+          }
+
         case 31234: // draft event (NIP-37)
           {
             unwrapDraftEvent(ndkEvent).then(event => {
@@ -444,12 +454,20 @@ export const onReady = ({ app, env }) => {
 
     if (event.kind == 30024) {  // draft event
       ndkEvent = await encapsulateDraftEvent(ndkEvent);
+    } else if (event.kind == 30078) {  // application-specific event
+      ndkEvent = await encapsulateApplicationSpecificEvent(ndkEvent);
     }
 
     ndkEvent.sign().then(() => {
       debugLog('signed event ' + sendId, ndkEvent);
 
-      var relaysWithProtocol = relays.map(relay => "wss://" + relay);
+      var relaysWithProtocol = relays.map(relay => {
+        if (!relay.startsWith("wss://") && !relay.startsWith("ws://")) {
+          return "wss://" + relay
+        } else {
+          return relay
+        }
+      });
 
       if (relaysWithProtocol.length === 0) {
         relaysWithProtocol = ["wss://pareto.nostr1.com"];
@@ -488,9 +506,30 @@ export const onReady = ({ app, env }) => {
     return ndkEvent;
   }
 
+  // https://nips.nostr.com/78
+  async function encapsulateApplicationSpecificEvent(ndkEvent) {
+    const encrypted = await window.ndk.signer.nip44Encrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    if (encrypted) {
+      ndkEvent.content = encrypted;
+      return ndkEvent;
+    }
+    // don't send unencrypted event
+    return null;
+  }
+
   async function unwrapPrivateRelayListEvent(ndkEvent) {
     const stringifiedRelayTags = await window.ndk.signer.nip44Decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
     ndkEvent.tags = JSON.parse(stringifiedEvent);
+    return ndkEvent;
+  }
+
+  async function unwrapApplicationSpecificEvent(ndkEvent) {
+    const content = await window.ndk.signer.nip44Decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    if (content) {
+      ndkEvent.content = content;
+    } else {
+      console.log("Unable to decrypt application-specific event. Ignoring the event.")
+    }
     return ndkEvent;
   }
 
@@ -501,7 +540,7 @@ export const onReady = ({ app, env }) => {
       return event;
     } else {
       console.log("Unable to decrypt draft event. Ignoring the event.")
-    } 
+    }
   }
 
   function firstTag(event, tagName) {
