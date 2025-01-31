@@ -10,7 +10,7 @@ import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
 import Nostr.DeletionRequest exposing (deletionRequestFromEvent)
-import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress, emptyEvent, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
+import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress, emptyEvent, emptyEventFilter, informationForKind, kindFromNumber, numberForKind, tagReferenceToString)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.FollowList exposing (emptyFollowList, followListEvent, followListFromEvent, followListWithPubKey, followListWithoutPubKey, pubKeyIsFollower)
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
@@ -1224,17 +1224,35 @@ update msg model =
                     case
                         ( Decode.decodeValue (Decode.field "requestId" Decode.int) message.value
                         , Decode.decodeValue (Decode.field "kind" Decode.int) message.value
-                        , Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) message.value
                         )
                     of
-                        ( Ok requestId, Ok kindNum, Ok events ) ->
-                            updateModelWithEvents model requestId (kindFromNumber kindNum) events
+                        ( Ok requestId, Ok kindNum ) ->
+                            case Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) message.value of
+                                Ok events ->
+                                    updateModelWithEvents model requestId (kindFromNumber kindNum) events
 
-                        ( _, _, Ok _ ) ->
+                                Err errorDecodingEvents ->
+                                    let
+                                        kindDesc =
+                                            kindNum
+                                                |> kindFromNumber
+                                                |> informationForKind
+                                                |> .description
+
+                                        errorMessage =
+                                            "Error decoding events of kind "
+                                                ++ String.fromInt kindNum
+                                                ++ " ("
+                                                ++ kindDesc
+                                                ++ ") - request ID "
+                                                ++ String.fromInt requestId
+                                                ++ ": "
+                                                ++ Decode.errorToString errorDecodingEvents
+                                    in
+                                    ( { model | errors = errorMessage :: model.errors }, Cmd.none )
+
+                        ( _, _ ) ->
                             ( { model | errors = "Error decoding request ID or kind" :: model.errors }, Cmd.none )
-
-                        ( _, _, Err errorDecodingEvents ) ->
-                            ( { model | errors = Decode.errorToString errorDecodingEvents :: model.errors }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
