@@ -175,6 +175,14 @@ updateWithMessage user shared model message =
                 _ ->
                     ( model, Effect.none )
 
+        "published" ->
+            -- currently this page only publishes the list of subscribers so we don't have to check details
+            ( { model | state = Saved }, Effect.none )
+
+        "error" ->
+            -- currently this page only publishes the list of subscribers so we don't have to check details
+            ( { model | state = Modified }, Effect.none )
+
         _ ->
             ( model, Effect.none )
 

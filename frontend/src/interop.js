@@ -458,6 +458,12 @@ export const onReady = ({ app, env }) => {
       ndkEvent = await encapsulateApplicationSpecificEvent(ndkEvent);
     }
 
+    if (!ndkEvent) {
+      debugLog('failed to send event ' + sendId, event, 'relays: ', relays);
+      app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: "failed to encapsulate event" } });
+      return;
+    }
+
     ndkEvent.sign().then(() => {
       debugLog('signed event ' + sendId, ndkEvent);
 
