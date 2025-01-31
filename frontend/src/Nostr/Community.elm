@@ -1,12 +1,10 @@
 module Nostr.Community exposing (..)
 
-import BrowserEnv exposing (BrowserEnv)
-import Dict exposing (Dict)
-import Json.Decode as Decode exposing (Decoder, fail, list, maybe, nullable, string, succeed)
+import Json.Decode as Decode exposing (Decoder, maybe, string, succeed)
 import Json.Decode.Pipeline exposing (optional, required)
-import Nostr.Event exposing (Event, EventFilter, ImageSize, Kind, Tag(..), imageSizeDecoder)
-import Nostr.Profile exposing (Profile, ProfileValidation(..))
-import Nostr.Types exposing (EventId, PubKey, RelayUrl)
+import Nostr.Event exposing (Event, EventFilter, ImageSize, Tag(..), imageSizeDecoder)
+import Nostr.Profile exposing (ProfileValidation(..))
+import Nostr.Types exposing (PubKey, RelayUrl)
 import Time exposing (Month(..))
 
 
@@ -92,8 +90,8 @@ emptyCommunity pubKey relay =
 
 
 communityMatchesFilter : EventFilter -> Community -> Bool
-communityMatchesFilter filter community =
-    True
+communityMatchesFilter _ _ =
+    False
 
 
 communityName : Community -> String

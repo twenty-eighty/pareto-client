@@ -19,7 +19,6 @@ import Ports
 import Route exposing (Route)
 import Route.Path
 import Shared
-import Shared.Model
 import Shared.Msg
 import Translations.Bookmarks as Translations
 import Ui.Styles exposing (Theme)
@@ -137,7 +136,7 @@ type Msg
     | RemoveArticleBookmark PubKey AddressComponents
 
 
-update : Auth.User -> Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
+update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update user shared msg model =
     case msg of
         ReceivedMessage message ->
@@ -186,7 +185,7 @@ update user shared msg model =
             )
 
 
-updateWithMessage : Auth.User -> Shared.Model.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
+updateWithMessage : Auth.User -> Shared.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithMessage user shared model message =
     case message.messageType of
         "events" ->
