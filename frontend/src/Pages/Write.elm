@@ -14,6 +14,7 @@ import FeatherIcons exposing (share)
 import Html.Styled as Html exposing (Html, div, img, input, label, node, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
+import I18Next exposing (Translations)
 import Json.Decode as Decode
 import Layouts
 import LinkPreview exposing (LoadedContent)
@@ -1055,10 +1056,22 @@ viewLanguage browserEnv model =
             { model = model.languageSelection
             , toMsg = DropdownSent
             , choices = [ English "US", French, German "DE", Italian, Portuguese, Spanish, Swedish ]
-            , toLabel = languageToString browserEnv.translations
+            , allowNoSelection = True
+            , toLabel = toLabel browserEnv.translations
             }
             |> Dropdown.view
         ]
+
+
+toLabel : Translations -> Maybe Language -> String
+toLabel translations maybeLanguage =
+    case maybeLanguage of
+        Just language ->
+            languageToString translations language
+
+        Nothing ->
+            -- TODO: use a translation
+            "No language"
 
 
 viewTags : Theme -> BrowserEnv -> Model -> Html Msg
