@@ -2288,6 +2288,11 @@ addKindTags kinds tags =
         |> List.append tags
 
 
+addPubKeyTag : PubKey -> Maybe String -> Maybe String -> List Tag -> List Tag
+addPubKeyTag pubKey maybeRelay maybePetName tags =
+    PublicKeyTag pubKey maybeRelay maybePetName :: tags
+
+
 addPublishedAtTag : Time.Posix -> List Tag -> List Tag
 addPublishedAtTag time tags =
     PublishedAtTag time :: tags

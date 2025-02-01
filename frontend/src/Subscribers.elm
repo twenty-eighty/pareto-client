@@ -153,7 +153,7 @@ newsletterSubscribersEvent browserEnv pubKey articleAddressComponents subscriber
             -- reference article to be sent as newsletter
             |> Event.addAddressTag articleAddressComponents
             -- reference email gateway as encryption target
-            |> Event.addPubKeyTag Pareto.emailGatewayKey
+            |> Event.addPubKeyTag Pareto.emailGatewayKey Nothing Nothing
     , content = subscribersToJson subscribers
     , id = ""
     , sig = Nothing
