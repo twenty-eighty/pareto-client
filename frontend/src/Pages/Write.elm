@@ -1070,8 +1070,7 @@ toLabel translations maybeLanguage =
             languageToString translations language
 
         Nothing ->
-            -- TODO: use a translation
-            "No language"
+            Translations.noLanguageText [ translations ]
 
 
 viewTags : Theme -> BrowserEnv -> Model -> Html Msg
