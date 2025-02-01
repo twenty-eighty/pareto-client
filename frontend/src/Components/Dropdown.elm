@@ -235,18 +235,7 @@ view (Settings settings) =
                     ]
                 , onClick (settings.toMsg dropdownClickMsg)
                 ]
-                [ {- input
-                         [ class "dropdown__input"
-                         , type_ "search"
-                         , disabled settings.isDisabled
-                         , onInput onSearchInput
-                         , onFocus (settings.toMsg FocusedDropdown)
-                         , onBlur (settings.toMsg BlurredDropdown)
-                         ]
-                         []
-                     ,
-                  -}
-                  viewSelectedValueOverlay
+                [ viewSelectedValueOverlay
                 ]
 
         -- If a value is selected, this overlay should
@@ -295,6 +284,7 @@ view (Settings settings) =
                                 [ Tw.text_color Theme.gray_300
                                 ]
                             ]
+                        , onBlur (settings.toMsg BlurredDropdown)
                         ]
                         (List.map viewDropdownMenuItem choices)
                     ]
