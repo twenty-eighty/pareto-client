@@ -95,7 +95,9 @@
       "publish button title": "Publish article",
       "no relays configured title": "No relays configured",
       "no relays configured text": "Do you want to configure some default relays?",
-      "configure relays button title": "Configure relays"
+      "configure relays button title": "Configure relays",
+      "delivery title": "Delivery",
+      "send also via email checkbox text": "Send also via email"
    },
    "read": {
       "followed feed category": "Followed",
@@ -222,6 +224,7 @@
       "article publishing state": "Publishing article...",
       "article published state": "Article published",
       "article publishing error": "Error publishing article",
+      "article sending newsletter state": "Sending newsletter...",
       "article deleting draft state": "Deleting draft after publishing..."
    },
    "zap dialog": {

@@ -23,6 +23,7 @@ import Nostr
 import Nostr.Article exposing (articleFromEvent)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
 import Nostr.Event as Event exposing (Event, Kind(..), Tag(..), numberForKind)
+import Nostr.External
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
@@ -34,6 +35,7 @@ import Route exposing (Route)
 import Set
 import Shared
 import Shared.Msg
+import Subscribers exposing (Subscriber)
 import Svg.Loaders as Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
@@ -107,10 +109,11 @@ type ArticleState
     | ArticleSavingDraft SendRequestId
     | ArticleDraftSaveError String
     | ArticleDraftSaved
-    | ArticlePublishing SendRequestId
+    | ArticlePublishing SendRequestId (Maybe (List Subscriber))
     | ArticlePublishingError String
+    | ArticleSendingNewsletter Int
     | ArticlePublished
-    | ArticleDeletingDraft SendRequestId
+    | ArticleDeletingDraft SendRequestId (Maybe (List Subscriber))
 
 
 type ImageSelection
@@ -271,7 +274,7 @@ type Msg
     | SelectImage ImageSelection
     | ImageSelected ImageSelection MediaSelector.UploadedFile
     | Publish
-    | PublishArticle (List RelayUrl)
+    | PublishArticle (List RelayUrl) (Maybe (List Subscriber))
     | SaveDraft
     | Now Time.Posix
     | OpenMediaSelector
@@ -376,10 +379,10 @@ update shared user msg model =
                                     ( model, Effect.none )
 
         Publish ->
-            ( { model | publishArticleDialog = PublishArticleDialog.show model.publishArticleDialog }, Effect.none )
+            update shared user (PublishArticleDialogSent PublishArticleDialog.ShowDialog) model
 
-        PublishArticle relayUrls ->
-            ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) }, sendPublishCmd shared model user relayUrls )
+        PublishArticle relayUrls maybeSubscribers ->
+            ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) maybeSubscribers }, sendPublishCmd shared model user relayUrls )
 
         SaveDraft ->
             ( { model | articleState = ArticleSavingDraft (Nostr.getLastSendRequestId shared.nostr) }, sendDraftCmd shared model user )
@@ -460,7 +463,7 @@ updateWithPortMessage shared model user portMessage =
             -- in the article should appear here
             case
                 ( Decode.decodeValue (Decode.field "requestId" Decode.int) portMessage.value
-                , Decode.decodeValue (Decode.field "kind" Event.kindDecoder) portMessage.value
+                , Nostr.External.decodeEventsKind portMessage.value
                 , model.articleState
                 )
             of
@@ -480,7 +483,7 @@ updateWithPortMessage shared model user portMessage =
 
 updateModelWithDraftRequest : Model -> Decode.Value -> ( Model, Effect Msg )
 updateModelWithDraftRequest model value =
-    case Decode.decodeValue (Decode.field "events" (Decode.list Event.decodeEvent)) value of
+    case Nostr.External.decodeEvents value of
         Ok draftEvents ->
             let
                 maybeDraft =
@@ -538,18 +541,26 @@ updateWithPublishedResults shared model user value =
             else
                 ( model, Effect.none )
 
-        ArticlePublishing sendRequestId ->
+        ArticlePublishing sendRequestId maybeSubscribers ->
             if Just sendRequestId == receivedSendRequestId then
-                case model.draftEventId of
-                    Just _ ->
+                case ( model.draftEventId, maybeSubscribers ) of
+                    ( Just _, _ ) ->
                         ( { model
-                            | articleState = ArticleDeletingDraft (Nostr.getLastSendRequestId shared.nostr)
+                            | articleState = ArticleDeletingDraft (Nostr.getLastSendRequestId shared.nostr) maybeSubscribers
                           }
                           -- after publishing article, delete draft
                         , sendDraftDeletionCmd shared model user
                         )
 
-                    Nothing ->
+                    ( Nothing, Just subscribers ) ->
+                        ( { model | articleState = ArticleSendingNewsletter (List.length subscribers) }
+                        , Subscribers.newsletterSubscribersEvent shared.browserEnv user.pubKey ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier ) subscribers
+                            |> SendApplicationData
+                            |> Shared.Msg.SendNostrEvent
+                            |> Effect.sendSharedMsg
+                        )
+
+                    ( Nothing, Nothing ) ->
                         ( { model
                             | articleState = ArticlePublished
                             , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
@@ -561,7 +572,7 @@ updateWithPublishedResults shared model user value =
             else
                 ( model, Effect.none )
 
-        ArticleDeletingDraft sendRequestId ->
+        ArticleDeletingDraft sendRequestId maybeSubscribers ->
             if Just sendRequestId == receivedSendRequestId then
                 ( { model
                     | articleState = ArticlePublished
@@ -641,7 +652,7 @@ altText maybeIdentifier pubKey kind relays =
         Just identifier ->
             case Nip19.encode (Nip19.NAddr { identifier = identifier, pubKey = pubKey, kind = numberForKind kind, relays = relays }) of
                 Ok nip19 ->
-                    "This is a long form article, you can read it in " ++ Pareto.applicationUrl ++ "/a/" ++ nip19
+                    "This is a long form article, you can read it on " ++ Pareto.applicationUrl ++ "/a/" ++ nip19
 
                 Err _ ->
                     "This is a long form article, you can read it on " ++ Pareto.applicationUrl
@@ -667,6 +678,7 @@ subscriptions model =
         [ Time.every 1000 Now
         , Sub.map MediaSelectorSent (MediaSelector.subscribe model.mediaSelector)
         , Ports.receiveMessage ReceivedPortMessage
+        , PublishArticleDialog.subscriptions model.publishArticleDialog PublishArticleDialogSent
         ]
 
 
@@ -825,16 +837,19 @@ articleStateToString browserEnv articleState =
         ArticleDraftSaveError error ->
             Just <| Translations.articleDraftSaveError [ browserEnv.translations ] ++ ": " ++ error
 
-        ArticlePublishing _ ->
+        ArticlePublishing _ _ ->
             Just <| Translations.articlePublishingState [ browserEnv.translations ]
 
         ArticlePublishingError error ->
             Just <| Translations.articlePublishingError [ browserEnv.translations ] ++ ": " ++ error
 
+        ArticleSendingNewsletter _ ->
+            Just <| Translations.articleSendingNewsletterState [ browserEnv.translations ]
+
         ArticlePublished ->
             Just <| Translations.articlePublishedState [ browserEnv.translations ]
 
-        ArticleDeletingDraft _ ->
+        ArticleDeletingDraft _ _ ->
             Just <| Translations.articleDeletingDraftState [ browserEnv.translations ]
 
 
@@ -862,16 +877,19 @@ articleStateProcessIndicator articleState =
         ArticleDraftSaveError error ->
             Nothing
 
-        ArticlePublishing _ ->
+        ArticlePublishing _ _ ->
             Just <| (Loaders.rings [] |> Html.fromUnstyled)
 
-        ArticlePublishingError error ->
+        ArticlePublishingError _ ->
             Nothing
+
+        ArticleSendingNewsletter _ ->
+            Just <| (Loaders.rings [] |> Html.fromUnstyled)
 
         ArticlePublished ->
             Nothing
 
-        ArticleDeletingDraft _ ->
+        ArticleDeletingDraft _ _ ->
             Just <| (Loaders.rings [] |> Html.fromUnstyled)
 
 

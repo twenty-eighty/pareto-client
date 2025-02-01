@@ -1,24 +1,27 @@
-module Components.PublishArticleDialog exposing (Model, Msg, PublishArticleDialog, hide, init, new, show, update, view)
+module Components.PublishArticleDialog exposing (Model, Msg(..), PublishArticleDialog, hide, init, new, subscriptions, update, view)
 
-import BrowserEnv exposing (BrowserEnv)
+import BrowserEnv exposing (BrowserEnv, Environment(..))
 import Components.Button as Button
 import Components.Checkbox as Checkbox
 import Components.Icon as Icon
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import FeatherIcons
-import Html.Styled as Html exposing (Html, a, button, div, form, h2, img, input, label, li, p, span, text, ul)
+import Html.Styled as Html exposing (Html, div, h2, li, p, text, ul)
 import Html.Styled.Attributes as Attr exposing (css)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled.Events exposing (..)
 import Nostr
+import Nostr.Event exposing (Kind(..))
+import Nostr.External
 import Nostr.Relay as Relay exposing (Relay)
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (PubKey, RelayRole(..), RelayUrl)
+import Nostr.Types exposing (IncomingMessage, PubKey, RelayRole(..), RelayUrl)
 import Pareto
+import Ports
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
-import Svg.Styled as Svg exposing (path, svg)
+import Subscribers exposing (Subscriber)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.PublishArticleDialog as Translations
@@ -27,16 +30,22 @@ import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
 
 
 type Msg msg
-    = CloseDialog
+    = ShowDialog
+    | CloseDialog
     | ConfigureRelaysClicked
-    | PublishClicked (List RelayUrl -> msg)
+    | PublishClicked (List RelayUrl -> Maybe (List Subscriber) -> msg)
     | ToggleRelay RelayUrl Bool
+    | UpdateSendViaEmail Bool
+    | ReceivedMessage IncomingMessage
 
 
 type Model msg
     = Model
-        { state : DialogState
+        { errors : List String
         , relayStates : Dict RelayUrl Bool
+        , sendViaEmail : Bool
+        , state : DialogState
+        , subscribers : List Subscriber
         }
 
 
@@ -49,7 +58,7 @@ type PublishArticleDialog msg
     = Settings
         { model : Model msg
         , toMsg : Msg msg -> msg
-        , onPublish : List RelayUrl -> msg
+        , onPublish : List RelayUrl -> Maybe (List Subscriber) -> msg
         , nostr : Nostr.Model
         , pubKey : PubKey
         , browserEnv : BrowserEnv
@@ -60,7 +69,7 @@ type PublishArticleDialog msg
 new :
     { model : Model msg
     , toMsg : Msg msg -> msg
-    , onPublish : List RelayUrl -> msg
+    , onPublish : List RelayUrl -> Maybe (List Subscriber) -> msg
     , nostr : Nostr.Model
     , pubKey : PubKey
     , browserEnv : BrowserEnv
@@ -80,18 +89,16 @@ new props =
 
 
 init : {} -> Model msg
-init props =
+init _ =
     Model
-        { state = DialogHidden
+        { errors = []
+        , state = DialogHidden
+        , sendViaEmail = False
 
         -- authors shouldn't publish on team relay as normal users can't read from it
         , relayStates = Dict.singleton Pareto.teamRelay False
+        , subscribers = []
         }
-
-
-show : Model msg -> Model msg
-show (Model model) =
-    Model { model | state = DialogVisible }
 
 
 hide : Model msg -> Model msg
@@ -121,6 +128,12 @@ update props =
     in
     toParentModel <|
         case props.msg of
+            ShowDialog ->
+                ( Model { model | state = DialogVisible }
+                , Subscribers.load props.nostr props.pubKey
+                    |> Effect.sendSharedMsg
+                )
+
             CloseDialog ->
                 ( Model { model | state = DialogHidden }
                 , Effect.none
@@ -128,6 +141,9 @@ update props =
 
             ToggleRelay relayUrl checked ->
                 updateRelayChecked (Model model) relayUrl checked
+
+            UpdateSendViaEmail newState ->
+                ( Model { model | sendViaEmail = newState }, Effect.none )
 
             ConfigureRelaysClicked ->
                 let
@@ -155,10 +171,20 @@ update props =
                                         _ ->
                                             Just relay.urlWithoutProtocol
                                 )
+
+                    emailSubscribers =
+                        if model.sendViaEmail then
+                            Just model.subscribers
+
+                        else
+                            Nothing
                 in
                 ( Model model
-                , Effect.sendMsg (msg relayUrls)
+                , Effect.sendMsg (msg relayUrls emailSubscribers)
                 )
+
+            ReceivedMessage message ->
+                updateWithMessage (Model model) message
 
 
 sendRelayListCmd : PubKey -> List RelayMetadata -> Effect msg
@@ -193,6 +219,44 @@ updateRelayChecked (Model model) relayUrl newChecked =
     ( Model { model | relayStates = Dict.insert relayUrl newChecked model.relayStates }, Effect.none )
 
 
+updateWithMessage : Model msg -> IncomingMessage -> ( Model msg, Effect msg )
+updateWithMessage (Model model) message =
+    case message.messageType of
+        "events" ->
+            case Nostr.External.decodeEventsKind message.value of
+                Ok KindApplicationSpecificData ->
+                    case Nostr.External.decodeEvents message.value of
+                        Ok events ->
+                            let
+                                ( subscribers, errors ) =
+                                    Subscribers.processEvents events
+                            in
+                            ( Model { model | subscribers = subscribers, errors = model.errors ++ errors }, Effect.none )
+
+                        _ ->
+                            ( Model model, Effect.none )
+
+                _ ->
+                    ( Model model, Effect.none )
+
+        _ ->
+            ( Model model, Effect.none )
+
+
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : Model msg -> (Msg msg -> msg) -> Sub msg
+subscriptions _ toMsg =
+    Ports.receiveMessage ReceivedMessage
+        |> Sub.map toMsg
+
+
+
+-- VIEW
+
+
 view : PublishArticleDialog msg -> Html msg
 view dialog =
     let
@@ -223,6 +287,13 @@ viewPublishArticleDialog (Settings settings) =
 
         relays =
             Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
+
+        optionalDeliverySection =
+            if List.length model.subscribers > 0 then
+                deliverySection (Settings settings)
+
+            else
+                div [] []
     in
     div
         [ css
@@ -234,6 +305,7 @@ viewPublishArticleDialog (Settings settings) =
             ]
         ]
         [ relaysSection (Settings settings) relays
+        , optionalDeliverySection
 
         -- , zapSplitSection (Settings settings)
         , Button.new
@@ -377,6 +449,41 @@ viewRelayCheckbox theme ( relay, checked ) =
             , theme = theme
             }
             |> Checkbox.withImage (Relay.iconUrl relay)
+            |> Checkbox.view
+        ]
+
+
+deliverySection : PublishArticleDialog msg -> Html (Msg msg)
+deliverySection (Settings settings) =
+    let
+        (Model model) =
+            settings.model
+    in
+    div []
+        [ div
+            [ css
+                [ Tw.flex
+                , Tw.justify_between
+                , Tw.items_center
+                , Tw.mb_2
+                ]
+            ]
+            [ h2
+                [ css
+                    [ Tw.text_lg
+                    , Tw.text_color Theme.gray_800
+                    , Tw.font_bold
+                    ]
+                , fontFamilyUnbounded
+                ]
+                [ text <| Translations.deliveryTitle [ settings.browserEnv.translations ] ]
+            ]
+        , Checkbox.new
+            { label = Translations.sendAlsoViaEmailCheckboxText [ settings.browserEnv.translations ]
+            , checked = model.sendViaEmail
+            , onClick = UpdateSendViaEmail
+            , theme = settings.theme
+            }
             |> Checkbox.view
         ]
 

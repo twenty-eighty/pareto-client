@@ -94,7 +94,7 @@ update shared msg model =
 
 
 updateWithMessage : Shared.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
-updateWithMessage shared model message =
+updateWithMessage _ model message =
     case message.messageType of
         "events" ->
             case Decode.decodeValue (Decode.list decodeEvent) message.value of
@@ -106,7 +106,7 @@ updateWithMessage shared model message =
                     in
                     ( { model | communities = Just communities }, Effect.none )
 
-                Err error ->
+                Err _ ->
                     ( model, Effect.none )
 
         _ ->

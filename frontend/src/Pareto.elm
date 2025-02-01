@@ -27,6 +27,11 @@ editorKey =
     "0f479cb726c1578ca765d5ff6a0c58855263977d5d7cf7b4cea23d42d557c611"
 
 
+emailGatewayKey : PubKey
+emailGatewayKey =
+    "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345"
+
+
 
 -- name of client in "client" tag when publishing articles
 

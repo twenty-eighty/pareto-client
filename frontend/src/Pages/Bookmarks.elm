@@ -6,11 +6,11 @@ import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
 import I18Next
-import Json.Decode as Decode
 import Layouts
 import Nostr
 import Nostr.BookmarkList exposing (BookmarkList, BookmarkType(..), bookmarkListFromEvent, bookmarksCount, emptyBookmarkList)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
+import Nostr.External
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (IncomingMessage, PubKey)
@@ -189,9 +189,9 @@ updateWithMessage : Auth.User -> Shared.Model -> Model -> IncomingMessage -> ( M
 updateWithMessage user shared model message =
     case message.messageType of
         "events" ->
-            case Decode.decodeValue (Decode.field "kind" Nostr.Event.kindDecoder) message.value of
+            case Nostr.External.decodeEventsKind message.value of
                 Ok KindBookmarkList ->
-                    case Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) message.value of
+                    case Nostr.External.decodeEvents message.value of
                         Ok events ->
                             let
                                 requestEffect =

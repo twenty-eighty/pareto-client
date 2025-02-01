@@ -11,6 +11,7 @@ import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
 import Nostr.DeletionRequest exposing (deletionRequestFromEvent)
 import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress, emptyEvent, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
+import Nostr.External exposing (Hooks)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.FollowList exposing (emptyFollowList, followListEvent, followListFromEvent, followListWithPubKey, followListWithoutPubKey, pubKeyIsFollower)
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
@@ -23,7 +24,7 @@ import Nostr.Relay exposing (Relay, RelayState(..), hostWithoutProtocol, relayUr
 import Nostr.RelayList exposing (relayListFromEvent)
 import Nostr.RelayListMetadata exposing (RelayMetadata, relayMetadataListFromEvent)
 import Nostr.Repost exposing (Repost)
-import Nostr.Request as Request exposing (HttpRequestMethod, Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
+import Nostr.Request as Request exposing (Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
@@ -32,17 +33,6 @@ import Nostr.Zaps exposing (ZapReceipt)
 import Pareto
 import Set exposing (Set)
 import Time
-
-
-type alias Hooks =
-    { connect : List String -> Cmd Msg
-    , receiveMessage : (IncomingMessage -> Msg) -> Sub Msg
-    , requestEvents : String -> Bool -> RequestId -> List RelayUrl -> EventFilter -> Cmd Msg
-    , requestBlossomAuth : RequestId -> String -> String -> HttpRequestMethod -> Cmd Msg
-    , requestNip96Auth : RequestId -> String -> String -> HttpRequestMethod -> Cmd Msg
-    , searchEvents : String -> Bool -> RequestId -> List RelayUrl -> List EventFilter -> Cmd Msg
-    , sendEvent : SendId -> List String -> Event -> Cmd Msg
-    }
 
 
 type alias Model =
@@ -77,7 +67,7 @@ type alias Model =
     , userServerLists : Dict PubKey (List String)
     , zapReceiptsAddress : Dict String (Dict String Nostr.Zaps.ZapReceipt)
     , zapReceiptsEvents : Dict String (Dict String Nostr.Zaps.ZapReceipt)
-    , hooks : Hooks
+    , hooks : Hooks Msg
     , errors : List String
     , requests : Dict RequestId Request
     , sendRequests : Dict SendRequestId SendRequest
@@ -85,10 +75,6 @@ type alias Model =
     , lastSendId : RequestId
     , lastSendRequestId : SendRequestId
     }
-
-
-type alias SendId =
-    Int
 
 
 type Msg
@@ -1141,7 +1127,7 @@ paretoAuthorsFollowList =
             )
 
 
-init : Hooks -> List String -> ( Model, Cmd Msg )
+init : Hooks Msg -> List String -> ( Model, Cmd Msg )
 init hooks relayUrls =
     ( { empty
         | hooks = hooks
@@ -1227,7 +1213,7 @@ update msg model =
                     case
                         ( Decode.decodeValue (Decode.field "requestId" Decode.int) message.value
                         , Decode.decodeValue (Decode.field "kind" Decode.int) message.value
-                        , Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) message.value
+                        , Nostr.External.decodeEvents message.value
                         )
                     of
                         ( Ok requestId, Ok kindNum, Ok events ) ->

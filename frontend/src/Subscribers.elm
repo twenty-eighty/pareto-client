@@ -5,9 +5,13 @@ import Dict
 import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
 import Json.Encode as Encode
-import Nostr.Event as Event exposing (Event, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
+import Nostr
+import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
+import Nostr.Request exposing (RequestData(..))
 import Nostr.Types exposing (PubKey)
 import Pareto
+import Shared.Msg
+import Time
 
 
 type alias Subscriber =
@@ -19,7 +23,20 @@ type alias Subscriber =
 
 subscribersDTag : String
 subscribersDTag =
-    "pareto:subscribers"
+    "pareto-subscribers"
+
+
+newsletterDTag : String
+newsletterDTag =
+    "pareto-newsletter-"
+
+
+load : Nostr.Model -> PubKey -> Shared.Msg.Msg
+load nostr userPubKey =
+    eventFilter userPubKey
+        |> RequestSubscribers
+        |> Nostr.createRequest nostr "Load subscribers" []
+        |> Shared.Msg.RequestNostrEvents
 
 
 merge : Bool -> List Subscriber -> List Subscriber -> List Subscriber
@@ -53,6 +70,22 @@ eventFilter pubKey =
         , kinds = Just [ KindApplicationSpecificData ]
         , tagReferences = Just [ TagReferenceIdentifier subscribersDTag ]
     }
+
+
+processEvents : List Event -> ( List Subscriber, List String )
+processEvents events =
+    events
+        |> List.map fromEvent
+        |> List.foldl
+            (\result ( subscriberList, errorList ) ->
+                case result of
+                    Ok decodedSubscribers ->
+                        ( subscriberList ++ decodedSubscribers, errorList )
+
+                    Err error ->
+                        ( subscriberList, errorList ++ [ Decode.errorToString error ] )
+            )
+            ( [], [] )
 
 
 fromEvent : Event -> Result Decode.Error (List Subscriber)
@@ -101,6 +134,26 @@ subscriberDataEvent browserEnv pubKey subscribers =
     , tags =
         []
             |> Event.addDTag subscribersDTag
+    , content = subscribersToJson subscribers
+    , id = ""
+    , sig = Nothing
+    , relay = Pareto.applicationDataRelays |> List.head
+    }
+
+
+newsletterSubscribersEvent : BrowserEnv -> PubKey -> AddressComponents -> List Subscriber -> Event
+newsletterSubscribersEvent browserEnv pubKey articleAddressComponents subscribers =
+    { pubKey = pubKey
+    , createdAt = browserEnv.now
+    , kind = KindApplicationSpecificData
+    , tags =
+        []
+            -- create unique identifier for every newsletter
+            |> Event.addDTag (newsletterDTag ++ String.fromInt (Time.posixToMillis browserEnv.now))
+            -- reference article to be sent as newsletter
+            |> Event.addAddressTag articleAddressComponents
+            -- reference email gateway as encryption target
+            |> Event.addPubKeyTag Pareto.emailGatewayKey
     , content = subscribersToJson subscribers
     , id = ""
     , sig = Nothing

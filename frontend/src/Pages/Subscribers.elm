@@ -2,20 +2,18 @@ module Pages.Subscribers exposing (Model, Msg, page)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
+import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button as Button
 import Components.EmailImportDialog as EmailImportDialog
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div, text)
 import Html.Styled.Attributes exposing (css)
-import Json.Decode as Decode
-import Json.Encode as Encode
 import Layouts
-import Material.Icons exposing (error)
-import Nostr
-import Nostr.Event exposing (Kind(..), emptyEventFilter)
+import Nostr.Event exposing (Kind(..))
+import Nostr.External
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (IncomingMessage, PubKey)
+import Nostr.Types exposing (IncomingMessage)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
@@ -53,7 +51,8 @@ toLayout theme _ =
 
 
 type alias Model =
-    { emailImportDialog : EmailImportDialog.Model
+    { alertTimerMessage : AlertTimerMessage.Model
+    , emailImportDialog : EmailImportDialog.Model
     , errors : List String
     , state : ModelState
     , subscribers : List Subscriber
@@ -70,22 +69,15 @@ type ModelState
 
 init : Auth.User -> Shared.Model -> () -> ( Model, Effect Msg )
 init user shared () =
-    ( { emailImportDialog = EmailImportDialog.init {}
+    ( { alertTimerMessage = AlertTimerMessage.init {}
+      , emailImportDialog = EmailImportDialog.init {}
       , errors = []
       , state = Loading
       , subscribers = []
       }
-    , loadSubscribers shared.nostr user.pubKey
-    )
-
-
-loadSubscribers : Nostr.Model -> PubKey -> Effect Msg
-loadSubscribers nostr userPubKey =
-    Subscribers.eventFilter userPubKey
-        |> RequestSubscribers
-        |> Nostr.createRequest nostr "Load subscribers" []
-        |> Shared.Msg.RequestNostrEvents
+    , Subscribers.load shared.nostr user.pubKey
         |> Effect.sendSharedMsg
+    )
 
 
 
@@ -96,6 +88,7 @@ type Msg
     = ImportClicked
     | ExportClicked
     | SaveClicked
+    | AlertTimerMessageSent AlertTimerMessage.Msg
     | EmailImportDialogSent (EmailImportDialog.Msg Msg)
     | AddSubscribers (List Subscriber) Bool
     | ReceivedMessage IncomingMessage
@@ -118,6 +111,14 @@ update user shared msg model =
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
+
+        AlertTimerMessageSent innerMsg ->
+            AlertTimerMessage.update
+                { msg = innerMsg
+                , model = model.alertTimerMessage
+                , toModel = \alertTimerMessage -> { model | alertTimerMessage = alertTimerMessage }
+                , toMsg = AlertTimerMessageSent
+                }
 
         EmailImportDialogSent innerMsg ->
             EmailImportDialog.update
@@ -148,24 +149,13 @@ updateWithMessage : Auth.User -> Shared.Model.Model -> Model -> IncomingMessage 
 updateWithMessage user shared model message =
     case message.messageType of
         "events" ->
-            case Decode.decodeValue (Decode.field "kind" Nostr.Event.kindDecoder) message.value of
+            case Nostr.External.decodeEventsKind message.value of
                 Ok KindApplicationSpecificData ->
-                    case Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) message.value of
+                    case Nostr.External.decodeEvents message.value of
                         Ok events ->
                             let
                                 ( subscribers, errors ) =
-                                    events
-                                        |> List.map Subscribers.fromEvent
-                                        |> List.foldl
-                                            (\result ( subscriberList, errorList ) ->
-                                                case result of
-                                                    Ok decodedSubscribers ->
-                                                        ( subscriberList ++ decodedSubscribers, errorList )
-
-                                                    Err error ->
-                                                        ( subscriberList, errorList ++ [ Decode.errorToString error ] )
-                                            )
-                                            ( [], [] )
+                                    Subscribers.processEvents events
                             in
                             ( { model | subscribers = subscribers, errors = model.errors ++ errors }, Effect.none )
 
@@ -177,11 +167,11 @@ updateWithMessage user shared model message =
 
         "published" ->
             -- currently this page only publishes the list of subscribers so we don't have to check details
-            ( { model | state = Saved }, Effect.none )
+            update user shared (AlertTimerMessageSent (AlertTimerMessage.AddMessage "saved subscribers sucessfully" 1000)) { model | state = Saved }
 
         "error" ->
             -- currently this page only publishes the list of subscribers so we don't have to check details
-            ( { model | state = Modified }, Effect.none )
+            update user shared (AlertTimerMessageSent (AlertTimerMessage.AddMessage "error saving subscribers" 2000)) { model | state = Modified }
 
         _ ->
             ( model, Effect.none )
@@ -254,6 +244,11 @@ view user shared model =
                 , theme = shared.theme
                 }
                 |> EmailImportDialog.view
+            , AlertTimerMessage.new
+                { model = model.alertTimerMessage
+                , theme = shared.theme
+                }
+                |> AlertTimerMessage.view
             ]
         ]
     }

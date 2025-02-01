@@ -18,6 +18,7 @@ import Effect exposing (Effect)
 import Json.Decode
 import Nostr
 import Nostr.Event exposing (Kind(..), emptyEventFilter)
+import Nostr.External
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Types exposing (IncomingMessage, PubKey)
 import Pareto
@@ -129,7 +130,7 @@ init flagsResult _ =
             )
 
 
-portHooks : Nostr.Hooks
+portHooks : Nostr.External.Hooks msg
 portHooks =
     { connect = Ports.connect
     , requestEvents = Ports.requestEvents
