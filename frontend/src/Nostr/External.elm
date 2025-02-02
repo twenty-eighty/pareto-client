@@ -26,3 +26,8 @@ decodeEvents value =
 decodeEventsKind : Decode.Value -> Result Decode.Error Kind
 decodeEventsKind value =
     Decode.decodeValue (Decode.field "kind" Nostr.Event.kindDecoder) value
+
+
+decodeRequestId : Decode.Value -> Result Decode.Error RequestId
+decodeRequestId value =
+    Decode.decodeValue (Decode.field "requestId" Decode.int) value

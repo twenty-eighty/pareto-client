@@ -1211,13 +1211,13 @@ update msg model =
 
                 "events" ->
                     case
-                        ( Decode.decodeValue (Decode.field "requestId" Decode.int) message.value
-                        , Decode.decodeValue (Decode.field "kind" Decode.int) message.value
+                        ( Nostr.External.decodeRequestId message.value
+                        , Nostr.External.decodeEventsKind message.value
                         , Nostr.External.decodeEvents message.value
                         )
                     of
-                        ( Ok requestId, Ok kindNum, Ok events ) ->
-                            updateModelWithEvents model requestId (kindFromNumber kindNum) events
+                        ( Ok requestId, Ok kind, Ok events ) ->
+                            updateModelWithEvents model requestId kind events
 
                         ( _, _, Ok _ ) ->
                             ( { model | errors = "Error decoding request ID or kind" :: model.errors }, Cmd.none )

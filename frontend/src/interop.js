@@ -222,6 +222,12 @@ export const onReady = ({ app, env }) => {
 
   function processEvents(app, requestId, description, ndkEvents) {
 
+    if (ndkEvents.size == 0) {
+      // report back to the application that there are no events
+      app.ports.receiveMessage.send({ messageType: 'events', value: { kind: 0, events: [], requestId: requestId } });
+      return;
+    }
+
     var eventsSortedByKind = {};
     var highlights = [];
     var zapReceipts = [];

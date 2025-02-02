@@ -462,7 +462,7 @@ updateWithPortMessage shared model user portMessage =
             -- is lost while logging in. After preserving the query parameters while logging
             -- in the article should appear here
             case
-                ( Decode.decodeValue (Decode.field "requestId" Decode.int) portMessage.value
+                ( Nostr.External.decodeRequestId portMessage.value
                 , Nostr.External.decodeEventsKind portMessage.value
                 , model.articleState
                 )
