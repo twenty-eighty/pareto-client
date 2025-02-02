@@ -222,13 +222,7 @@ export const onReady = ({ app, env }) => {
 
   function processEvents(app, requestId, description, ndkEvents) {
 
-    var articles = [];
-    var communities = [];
     var eventsSortedByKind = {};
-    var followlists = [];
-    var profiles = [];
-    var reposts = [];
-    var shortNotes = [];
     var highlights = [];
     var zapReceipts = [];
 
@@ -297,7 +291,7 @@ export const onReady = ({ app, env }) => {
         case 10013: // relay list for private content
           {
             unwrapPrivateRelayListEvent(ndkEvent).then(event => {
-              app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
+              eventsSortedByKind = addEvent(eventsSortedByKind, event);
             });
             break;
           }
@@ -306,7 +300,7 @@ export const onReady = ({ app, env }) => {
           {
             unwrapApplicationSpecificEvent(ndkEvent).then(event => {
               if (event) {
-                app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
+                eventsSortedByKind = addEvent(eventsSortedByKind, event);
               }
             });
             break;
@@ -329,36 +323,12 @@ export const onReady = ({ app, env }) => {
       }
     });
 
-    if (articles.length > 0) {
-      debugLog("Articles: ", articles.length);
-      app.ports.receiveMessage.send({ messageType: 'articles', value: articles });
-    }
-    if (communities.length > 0) {
-      debugLog("Communities: ", communities.length);
-      app.ports.receiveMessage.send({ messageType: 'communities', value: communities });
-    }
     for (const kind in eventsSortedByKind) {
       const events = eventsSortedByKind[kind]
       debugLog("Events of kind " + kind + ": ", events.length);
       app.ports.receiveMessage.send({ messageType: 'events', value: { kind: parseInt(kind), events: events, requestId: requestId } });
     }
 
-    if (followlists.length > 0) {
-      debugLog("Follow lists: ", followlists.length);
-      app.ports.receiveMessage.send({ messageType: 'followlists', value: followlists });
-    }
-    if (profiles.length > 0) {
-      debugLog("Profiles: ", profiles.length);
-      app.ports.receiveMessage.send({ messageType: 'profiles', value: profiles });
-    }
-    if (reposts.length > 0) {
-      debugLog("Reposts: ", reposts.length);
-      app.ports.receiveMessage.send({ messageType: 'reposts', value: reposts });
-    }
-    if (shortNotes.length > 0) {
-      debugLog("Short notes: ", shortNotes.length);
-      app.ports.receiveMessage.send({ messageType: 'short_notes', value: shortNotes });
-    }
     if (highlights.length > 0) {
       debugLog("Highlights: ", highlights.length);
       app.ports.receiveMessage.send({ messageType: 'highlights', value: highlights });
