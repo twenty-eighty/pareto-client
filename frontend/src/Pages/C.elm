@@ -383,7 +383,7 @@ linkToCommunity community =
         { kind = KindCommunityDefinition |> numberForKind
         , pubKey = community.pubKey
         , identifier = Maybe.withDefault "" community.dtag
-        , relays = Maybe.map List.singleton community.relay |> Maybe.withDefault []
+        , relays = Maybe.map List.singleton Nothing |> Maybe.withDefault []
         }
         |> Nip19.encode
         |> Result.toMaybe

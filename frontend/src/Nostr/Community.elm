@@ -47,7 +47,6 @@ type alias Community =
     , description : Maybe String
     , image : Maybe Image
     , moderators : List Moderator
-    , relay : Maybe RelayUrl -- the relay this event was loaded from
     , relays : List Relay
     }
 
@@ -73,18 +72,17 @@ communityDefinitionFromEvent event =
                     _ ->
                         acc
             )
-            (emptyCommunity event.pubKey event.relay)
+            (emptyCommunity event.pubKey)
 
 
-emptyCommunity : PubKey -> Maybe RelayUrl -> Community
-emptyCommunity pubKey relay =
+emptyCommunity : PubKey -> Community
+emptyCommunity pubKey =
     { dtag = Nothing
     , pubKey = pubKey
     , name = Nothing
     , description = Nothing
     , image = Nothing
     , moderators = []
-    , relay = relay
     , relays = []
     }
 

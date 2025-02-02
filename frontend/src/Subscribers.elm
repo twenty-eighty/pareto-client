@@ -150,7 +150,7 @@ subscriberDataEvent browserEnv pubKey subscribers =
     , content = subscribersToJson subscribers
     , id = ""
     , sig = Nothing
-    , relay = Pareto.applicationDataRelays |> List.head
+    , relays = Nothing
     }
 
 
@@ -204,7 +204,7 @@ newsletterSubscribersEvent shared pubKey articleAddressComponents subscribers =
     , content = emailSendRequestToJson senderProfileName subscribers
     , id = ""
     , sig = Nothing
-    , relay = Pareto.applicationDataRelays |> List.head
+    , relays = Nothing
     }
 
 

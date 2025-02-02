@@ -657,7 +657,7 @@ eventWithContent shared model user kind =
     , content = model.content |> Maybe.withDefault ""
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }
 
 

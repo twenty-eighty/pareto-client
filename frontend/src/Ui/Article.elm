@@ -730,7 +730,17 @@ linkToArticle article =
                 { identifier = article.identifier |> Maybe.withDefault ""
                 , pubKey = article.author
                 , kind = numberForKind article.kind
-                , relays = Maybe.map (\urlWithoutProtocol -> [ "wss://" ++ urlWithoutProtocol ]) article.relay |> Maybe.withDefault []
+                , relays =
+                    Maybe.map
+                        (\urlsWithoutProtocol ->
+                            urlsWithoutProtocol
+                                |> List.map
+                                    (\urlWithoutProtocol ->
+                                        "wss://" ++ urlWithoutProtocol
+                                    )
+                        )
+                        article.relays
+                        |> Maybe.withDefault []
                 }
     of
         Ok encodedCoordinates ->

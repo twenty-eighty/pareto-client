@@ -69,7 +69,7 @@ type alias Event =
     , content : String
     , id : String
     , sig : Maybe String
-    , relay : Maybe RelayUrl
+    , relays : Maybe (List RelayUrl)
     }
 
 
@@ -1473,7 +1473,7 @@ emptyEvent pubKey kind =
     , content = ""
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }
 
 
@@ -1554,7 +1554,7 @@ decodeEvent =
         |> Pipeline.required "content" Decode.string
         |> Pipeline.required "id" Decode.string
         |> Pipeline.optional "sig" (Decode.maybe Decode.string) Nothing
-        |> Pipeline.optional "relay" (Decode.maybe Nostr.Relay.relayUrlDecoder) Nothing
+        |> Pipeline.optional "onRelays" (Decode.maybe (Decode.list Nostr.Relay.relayUrlDecoder)) Nothing
 
 
 eventFilterForNip19 : NIP19Type -> Maybe EventFilter

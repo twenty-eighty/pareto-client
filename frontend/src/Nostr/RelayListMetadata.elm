@@ -135,7 +135,7 @@ eventWithRelayList pubKey relays =
     , content = ""
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }
 
 

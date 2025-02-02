@@ -64,5 +64,5 @@ draftDeletionEvent pubKey createdAt draftEventId content maybeIdentifier =
     , content = content
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }

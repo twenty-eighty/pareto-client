@@ -469,7 +469,7 @@ eventWithNip96ServerList browserEnv user serverUrls =
     , content = ""
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }
 
 
