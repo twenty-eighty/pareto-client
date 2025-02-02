@@ -1622,10 +1622,10 @@ updateModelWithLongFormContentDraft model requestId events =
                     (\article acc ->
                         case ( article.relays, Dict.get article.id acc ) of
                             ( Just relayUrls, Just relaySet ) ->
-                                Dict.insert article.id (Set.union (Set.fromList relayUrls) relaySet) acc
+                                Dict.insert article.id (Set.union relayUrls relaySet) acc
 
                             ( Just relayUrls, Nothing ) ->
-                                Dict.insert article.id (Set.fromList relayUrls) acc
+                                Dict.insert article.id relayUrls acc
 
                             ( Nothing, _ ) ->
                                 -- usually we should get a relay URL so this branch shouldn't be run through

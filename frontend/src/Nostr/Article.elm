@@ -8,7 +8,7 @@ import Nostr.Nip27 as Nip27
 import Nostr.Profile exposing (ProfileValidation(..))
 import Nostr.Shared
 import Nostr.Types exposing (Address, EventId, PubKey, RelayUrl)
-import Set
+import Set exposing (Set)
 import Time
 
 
@@ -31,7 +31,7 @@ type alias Article =
     , hashtags : List String
     , zapWeights : List ( PubKey, RelayUrl, Maybe Int )
     , otherTags : List Tag
-    , relays : Maybe (List RelayUrl)
+    , relays : Maybe (Set String)
     , nip27References : List Nip19.NIP19Type
     }
 
@@ -60,7 +60,7 @@ emptyArticle author eventId kind createdAt content relayUrls =
     , hashtags = []
     , zapWeights = []
     , otherTags = []
-    , relays = relayUrls
+    , relays = Maybe.map Set.fromList relayUrls
     , nip27References =
         Nip27.collectNostrLinks content
     }

@@ -21,6 +21,7 @@ import Nostr.Reactions exposing (Interactions)
 import Nostr.Types exposing (EventId, PubKey)
 import Route
 import Route.Path
+import Set
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
@@ -731,15 +732,16 @@ linkToArticle article =
                 , pubKey = article.author
                 , kind = numberForKind article.kind
                 , relays =
-                    Maybe.map
-                        (\urlsWithoutProtocol ->
-                            urlsWithoutProtocol
-                                |> List.map
-                                    (\urlWithoutProtocol ->
-                                        "wss://" ++ urlWithoutProtocol
-                                    )
-                        )
-                        article.relays
+                    article.relays
+                        |> Maybe.map
+                            (\urlsWithoutProtocol ->
+                                urlsWithoutProtocol
+                                    |> Set.toList
+                                    |> List.map
+                                        (\urlWithoutProtocol ->
+                                            "wss://" ++ urlWithoutProtocol
+                                        )
+                            )
                         |> Maybe.withDefault []
                 }
     of
