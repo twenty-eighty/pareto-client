@@ -514,7 +514,13 @@ export const onReady = ({ app, env }) => {
 
   // https://nips.nostr.com/78
   async function encapsulateApplicationSpecificEvent(ndkEvent) {
-    const encrypted = await window.ndk.signer.nip44Encrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    // if target pubkey is not specified as a tag, use the pubkey of the event
+    var encryptForPubKey = firstTag(ndkEvent, "p");
+    if (!encryptForPubKey) {
+      encryptForPubKey = ndkEvent.pubkey;
+    }
+    console.log('encrypt for key', encryptForPubKey);
+    const encrypted = await window.ndk.signer.nip44Encrypt({ pubkey: encryptForPubKey }, ndkEvent.content);
     if (encrypted) {
       ndkEvent.content = encrypted;
       return ndkEvent;
@@ -530,7 +536,14 @@ export const onReady = ({ app, env }) => {
   }
 
   async function unwrapApplicationSpecificEvent(ndkEvent) {
-    const content = await window.ndk.signer.nip44Decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    var encryptedForPubKey = firstTag(ndkEvent, "p");
+    if (encryptedForPubKey == null) {
+      encryptedForPubKey = ndkEvent.pubkey;
+    } else if (encryptedForPubKey != ndkEvent.pubkey) {
+      debugLog('event not for us');
+      return ndkEvent;
+    }
+    const content = await window.ndk.signer.nip44Decrypt({ pubkey: encryptedForPubKey }, ndkEvent.content);
     if (content) {
       ndkEvent.content = content;
     } else {

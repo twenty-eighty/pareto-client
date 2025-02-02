@@ -574,16 +574,36 @@ updateWithPublishedResults shared model user value =
 
         ArticleDeletingDraft sendRequestId maybeSubscribers ->
             if Just sendRequestId == receivedSendRequestId then
-                ( { model
-                    | articleState = ArticlePublished
-                    , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
-                    , modalDialog = PublishedDialog
-                  }
-                , Effect.none
-                )
+                case maybeSubscribers of
+                    Just subscribers ->
+                        ( { model | articleState = ArticleSendingNewsletter (List.length subscribers) }
+                        , Subscribers.newsletterSubscribersEvent shared.browserEnv user.pubKey ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier ) subscribers
+                            |> SendApplicationData
+                            |> Shared.Msg.SendNostrEvent
+                            |> Effect.sendSharedMsg
+                        )
+
+                    Nothing ->
+                        -- no newsletter to be sent
+                        ( { model
+                            | articleState = ArticlePublished
+                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                            , modalDialog = PublishedDialog
+                          }
+                        , Effect.none
+                        )
 
             else
                 ( model, Effect.none )
+
+        ArticleSendingNewsletter _ ->
+            ( { model
+                | articleState = ArticlePublished
+                , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                , modalDialog = PublishedDialog
+              }
+            , Effect.none
+            )
 
         _ ->
             ( model, Effect.none )

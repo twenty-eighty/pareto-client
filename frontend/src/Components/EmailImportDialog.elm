@@ -93,7 +93,7 @@ init _ =
 
 show : Model -> Model
 show (Model model) =
-    Model { model | state = DialogVisibleImport { enteredEmails = "test1@email.com, test2@email.org" } }
+    Model { model | state = DialogVisibleImport { enteredEmails = "nostr-email@xn--y9a.net" } }
 
 
 hide : Model -> Model
@@ -180,7 +180,7 @@ update props =
                                     (\parsingResult ->
                                         case parsingResult of
                                             Ok email ->
-                                                Just { email = Email.toString email, name = Nothing, tags = [] }
+                                                Just { dnd = Nothing, email = Email.toString email, name = Nothing, tags = Nothing }
 
                                             Err _ ->
                                                 Nothing
@@ -288,7 +288,7 @@ viewProcessedDialog (Settings settings) data =
             , Tw.min_w_80
             ]
         ]
-        [ subscriberssSection (Settings settings) data.subscribers
+        [ subscribersSection (Settings settings) data.subscribers
         , Checkbox.new
             { label = "Overwrite existing?"
             , onClick = OverwriteExistingClicked
@@ -321,8 +321,8 @@ viewProcessedDialog (Settings settings) data =
         ]
 
 
-subscriberssSection : EmailImportDialog msg -> List Subscriber -> Html (Msg msg)
-subscriberssSection (Settings settings) subscribers =
+subscribersSection : EmailImportDialog msg -> List Subscriber -> Html (Msg msg)
+subscribersSection (Settings settings) subscribers =
     let
         (Model model) =
             settings.model

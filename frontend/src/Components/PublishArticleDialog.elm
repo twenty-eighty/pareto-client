@@ -458,6 +458,16 @@ deliverySection (Settings settings) =
     let
         (Model model) =
             settings.model
+
+        subscriberCount =
+            List.length model.subscribers
+
+        checkboxText =
+            if subscriberCount == 1 then
+                Translations.sendAlsoViaEmailSingularCheckboxText [ settings.browserEnv.translations ]
+
+            else
+                Translations.sendAlsoViaEmailPluralCheckboxText [ settings.browserEnv.translations ] { recipientCount = String.fromInt subscriberCount }
     in
     div []
         [ div
@@ -479,7 +489,7 @@ deliverySection (Settings settings) =
                 [ text <| Translations.deliveryTitle [ settings.browserEnv.translations ] ]
             ]
         , Checkbox.new
-            { label = Translations.sendAlsoViaEmailCheckboxText [ settings.browserEnv.translations ]
+            { label = checkboxText
             , checked = model.sendViaEmail
             , onClick = UpdateSendViaEmail
             , theme = settings.theme

@@ -97,7 +97,8 @@
       "no relays configured text": "Do you want to configure some default relays?",
       "configure relays button title": "Configure relays",
       "delivery title": "Delivery",
-      "send also via email checkbox text": "Send also via email"
+      "send also via email singular checkbox text": "Send also via email to one recipient",
+      "send also via email plural checkbox text": "Send also via email to {{recipientCount}} recipients"
    },
    "read": {
       "followed feed category": "Followed",

@@ -5,9 +5,13 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button as Button
 import Components.EmailImportDialog as EmailImportDialog
+import Components.Icon as Icon
 import Effect exposing (Effect)
+import FeatherIcons
 import Html.Styled as Html exposing (Html, div, text)
 import Html.Styled.Attributes exposing (css)
+import Html.Styled.Events as Events
+import Json.Decode as Decode
 import Layouts
 import Nostr.Event exposing (Kind(..))
 import Nostr.External
@@ -21,6 +25,8 @@ import Shared
 import Shared.Model
 import Shared.Msg
 import Subscribers exposing (Subscriber)
+import Svg.Loaders as Loaders
+import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Sidebar
 import Translations.Subscribers as Translations
@@ -62,6 +68,7 @@ type alias Model =
 type ModelState
     = Loading
     | Loaded
+    | ErrorLoadingSubscribers String
     | Modified
     | Saving
     | Saved
@@ -91,6 +98,7 @@ type Msg
     | AlertTimerMessageSent AlertTimerMessage.Msg
     | EmailImportDialogSent (EmailImportDialog.Msg Msg)
     | AddSubscribers (List Subscriber) Bool
+    | RemoveSubscriber String
     | ReceivedMessage IncomingMessage
 
 
@@ -141,6 +149,14 @@ update user shared msg model =
             , Effect.none
             )
 
+        RemoveSubscriber email ->
+            ( { model
+                | state = Modified
+                , subscribers = Subscribers.remove model.subscribers [ email ]
+              }
+            , Effect.none
+            )
+
         ReceivedMessage message ->
             updateWithMessage user shared model message
 
@@ -157,10 +173,10 @@ updateWithMessage user shared model message =
                                 ( subscribers, errors ) =
                                     Subscribers.processEvents events
                             in
-                            ( { model | subscribers = subscribers, errors = model.errors ++ errors }, Effect.none )
+                            ( { model | state = Loaded, subscribers = subscribers, errors = model.errors ++ errors }, Effect.none )
 
-                        _ ->
-                            ( model, Effect.none )
+                        Err error ->
+                            ( { model | state = ErrorLoadingSubscribers (Decode.errorToString error) }, Effect.none )
 
                 _ ->
                     ( model, Effect.none )
@@ -234,7 +250,7 @@ view user shared model =
                     |> Button.withDisabled (model.state /= Modified)
                     |> Button.view
                 ]
-            , viewSubscribers shared.browserEnv model.subscribers
+            , viewSubscribers shared.browserEnv model
             , EmailImportDialog.new
                 { model = model.emailImportDialog
                 , toMsg = EmailImportDialogSent
@@ -254,20 +270,47 @@ view user shared model =
     }
 
 
-viewSubscribers : BrowserEnv -> List Subscriber -> Html Msg
-viewSubscribers browserEnv subscribers =
-    case subscribers of
-        [] ->
+viewSubscribers : BrowserEnv -> Model -> Html Msg
+viewSubscribers browserEnv model =
+    case ( model.state, model.subscribers ) of
+        ( Loading, _ ) ->
+            div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_row
+                    , Tw.gap_2
+                    , Tw.m_2
+                    ]
+                ]
+                [ text "Loading subscribers..."
+                , Loaders.rings [] |> Html.fromUnstyled
+                ]
+
+        ( ErrorLoadingSubscribers error, _ ) ->
+            div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_row
+                    , Tw.gap_2
+                    , Tw.m_2
+                    ]
+                ]
+                [ text "Loading subscribers..."
+                , Loaders.rings [] |> Html.fromUnstyled
+                ]
+
+        ( _, [] ) ->
             div
                 []
                 [ text <| Translations.noSubscribersText [ browserEnv.translations ]
                 ]
 
-        _ ->
+        ( _, subscribers ) ->
             div
                 [ css
                     [ Tw.flex
                     , Tw.flex_col
+                    , Tw.m_2
                     ]
                 ]
                 (List.map viewSubscriber subscribers)
@@ -279,6 +322,23 @@ viewSubscriber subscriber =
         [ css
             [ Tw.flex
             , Tw.flex_row
+            , Tw.gap_2
             ]
         ]
-        [ text subscriber.email ]
+        [ text subscriber.email
+        , removeSubscriberButton (RemoveSubscriber subscriber.email)
+        ]
+
+
+removeSubscriberButton : Msg -> Html Msg
+removeSubscriberButton removeMsg =
+    div
+        [ css
+            [ Tw.text_color Theme.slate_500
+            , Tw.cursor_pointer
+            ]
+        , Events.onClick removeMsg
+        ]
+        [ Icon.FeatherIcon FeatherIcons.delete
+            |> Icon.view
+        ]

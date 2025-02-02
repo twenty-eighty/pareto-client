@@ -15,9 +15,10 @@ import Time
 
 
 type alias Subscriber =
-    { email : String
+    { dnd : Maybe Bool
+    , email : String
     , name : Maybe String
-    , tags : List String
+    , tags : Maybe (List String)
     }
 
 
@@ -63,6 +64,15 @@ merge overwriteExisting existingSubscribers newSubscribers =
         |> Dict.values
 
 
+remove : List Subscriber -> List String -> List Subscriber
+remove existingSubscribers toBeRemovedEmails =
+    existingSubscribers
+        |> List.filter
+            (\subscriber ->
+                not <| List.member subscriber.email toBeRemovedEmails
+            )
+
+
 eventFilter : PubKey -> EventFilter
 eventFilter pubKey =
     { emptyEventFilter
@@ -101,9 +111,10 @@ subscribersDecoder =
 subscriberDecoder : Decode.Decoder Subscriber
 subscriberDecoder =
     Decode.succeed Subscriber
+        |> optional "dnd" (Decode.maybe Decode.bool) Nothing
         |> required "email" Decode.string
         |> optional "name" (Decode.maybe Decode.string) Nothing
-        |> optional "tags" (Decode.list Decode.string) []
+        |> optional "tags" (Decode.maybe (Decode.list Decode.string)) Nothing
 
 
 toCSV : List Subscriber -> String
@@ -119,8 +130,9 @@ subscriberToCsv subscriber =
     [ subscriber.email
     , Maybe.withDefault "" subscriber.name
     , subscriber.tags
-        |> String.join ","
-        |> (\tagString -> "\"" ++ tagString ++ "\"")
+        |> Maybe.map (String.join ",")
+        |> Maybe.map (\tagString -> "\"" ++ tagString ++ "\"")
+        |> Maybe.withDefault ""
     ]
         |> String.join ","
         |> String.append "\n"
@@ -134,26 +146,6 @@ subscriberDataEvent browserEnv pubKey subscribers =
     , tags =
         []
             |> Event.addDTag subscribersDTag
-    , content = subscribersToJson subscribers
-    , id = ""
-    , sig = Nothing
-    , relay = Pareto.applicationDataRelays |> List.head
-    }
-
-
-newsletterSubscribersEvent : BrowserEnv -> PubKey -> AddressComponents -> List Subscriber -> Event
-newsletterSubscribersEvent browserEnv pubKey articleAddressComponents subscribers =
-    { pubKey = pubKey
-    , createdAt = browserEnv.now
-    , kind = KindApplicationSpecificData
-    , tags =
-        []
-            -- create unique identifier for every newsletter
-            |> Event.addDTag (newsletterDTag ++ String.fromInt (Time.posixToMillis browserEnv.now))
-            -- reference article to be sent as newsletter
-            |> Event.addAddressTag articleAddressComponents
-            -- reference email gateway as encryption target
-            |> Event.addPubKeyTag Pareto.emailGatewayKey Nothing Nothing
     , content = subscribersToJson subscribers
     , id = ""
     , sig = Nothing
@@ -180,5 +172,90 @@ encodeSubscribers subscribers =
 
 encodeSubscriber : Subscriber -> List ( String, Encode.Value )
 encodeSubscriber subscriber =
+    [ ( "email", Encode.string subscriber.email )
+    ]
+        |> addBoolToObject "dnd" subscriber.dnd
+        |> addStringToObject "name" subscriber.name
+        |> addStringListToObject "tags" subscriber.tags
+
+
+addBoolToObject : String -> Maybe Bool -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
+addBoolToObject key maybeValue acc =
+    case maybeValue of
+        Just value ->
+            acc ++ [ ( key, Encode.bool value ) ]
+
+        Nothing ->
+            acc
+
+
+addStringToObject : String -> Maybe String -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
+addStringToObject key maybeValue acc =
+    case maybeValue of
+        Just value ->
+            acc ++ [ ( key, Encode.string value ) ]
+
+        Nothing ->
+            acc
+
+
+addStringListToObject : String -> Maybe (List String) -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
+addStringListToObject key maybeValues acc =
+    case maybeValues of
+        Just values ->
+            acc ++ [ ( key, Encode.list Encode.string values ) ]
+
+        Nothing ->
+            acc
+
+
+newsletterSubscribersEvent : BrowserEnv -> PubKey -> AddressComponents -> List Subscriber -> Event
+newsletterSubscribersEvent browserEnv pubKey articleAddressComponents subscribers =
+    let
+        ( _, _, identifier ) =
+            articleAddressComponents
+    in
+    { pubKey = pubKey
+    , createdAt = browserEnv.now
+    , kind = KindApplicationSpecificData
+    , tags =
+        []
+            -- create unique identifier for every newsletter
+            |> Event.addDTag (newsletterDTag ++ identifier)
+            -- reference article to be sent as newsletter
+            |> Event.addAddressTag articleAddressComponents
+            -- reference email gateway as encryption target
+            |> Event.addPubKeyTag Pareto.emailGatewayKey Nothing Nothing
+    , content = emailSendRequestToJson subscribers
+    , id = ""
+    , sig = Nothing
+    , relay = Pareto.applicationDataRelays |> List.head
+    }
+
+
+emailSendRequestToJson : List Subscriber -> String
+emailSendRequestToJson subscribers =
+    let
+        recipients =
+            subscribers
+                |> List.filter (\subscriber -> subscriber.dnd /= Just True)
+    in
+    [ ( "recipients"
+      , encodeSubscribers recipients
+      )
+    ]
+        |> Encode.object
+        |> Encode.encode 0
+
+
+encodeRecipients : List Subscriber -> Encode.Value
+encodeRecipients recipients =
+    recipients
+        |> List.map encodeRecipient
+        |> Encode.list Encode.object
+
+
+encodeRecipient : Subscriber -> List ( String, Encode.Value )
+encodeRecipient subscriber =
     [ ( "email", Encode.string subscriber.email )
     ]
