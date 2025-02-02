@@ -219,7 +219,7 @@ init user shared route () =
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
                     , modalDialog = NoModalDialog
-                    , languageSelection = Dropdown.init { selected = Nothing }
+                    , languageSelection = Dropdown.init { selected = Just shared.browserEnv.language }
                     }
     in
     ( model
