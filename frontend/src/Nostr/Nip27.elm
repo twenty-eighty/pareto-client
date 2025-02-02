@@ -3,11 +3,10 @@ module Nostr.Nip27 exposing (GetProfileFunction, collectNostrLinks, subsituteNos
 import Html.Styled as Html exposing (Html, a, text)
 import Html.Styled.Attributes exposing (href)
 import Nostr.Nip19 as Nip19
-import Nostr.Profile exposing (Profile)
+import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName)
 import Nostr.Types exposing (PubKey)
 import Regex exposing (Regex)
 import String
-import Ui.Profile
 import Ui.Styles exposing (Styles)
 
 
@@ -187,7 +186,7 @@ generateNostrLink styles fnGetProfile nostrLink =
                 Ok (Nip19.Npub pubKey) ->
                     case fnGetProfile pubKey of
                         Just profile ->
-                            Just ( Ui.Profile.profileDisplayName pubKey profile, "/p/" ++ linkContent )
+                            Just ( profileDisplayName pubKey profile, "/p/" ++ linkContent )
 
                         Nothing ->
                             Just ( shortenedLinkText linkContent, "/p/" ++ linkContent )
@@ -195,7 +194,7 @@ generateNostrLink styles fnGetProfile nostrLink =
                 Ok (Nip19.NProfile { pubKey }) ->
                     case fnGetProfile pubKey of
                         Just profile ->
-                            Just ( Ui.Profile.profileDisplayName pubKey profile, "/p/" ++ linkContent )
+                            Just ( profileDisplayName pubKey profile, "/p/" ++ linkContent )
 
                         Nothing ->
                             Just ( shortenedLinkText linkContent, "/p/" ++ linkContent )

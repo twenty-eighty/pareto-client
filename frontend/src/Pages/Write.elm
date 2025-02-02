@@ -554,7 +554,7 @@ updateWithPublishedResults shared model user value =
 
                     ( Nothing, Just subscribers ) ->
                         ( { model | articleState = ArticleSendingNewsletter (List.length subscribers) }
-                        , Subscribers.newsletterSubscribersEvent shared.browserEnv user.pubKey ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier ) subscribers
+                        , Subscribers.newsletterSubscribersEvent shared user.pubKey ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier ) subscribers
                             |> SendApplicationData
                             |> Shared.Msg.SendNostrEvent
                             |> Effect.sendSharedMsg
@@ -577,7 +577,7 @@ updateWithPublishedResults shared model user value =
                 case maybeSubscribers of
                     Just subscribers ->
                         ( { model | articleState = ArticleSendingNewsletter (List.length subscribers) }
-                        , Subscribers.newsletterSubscribersEvent shared.browserEnv user.pubKey ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier ) subscribers
+                        , Subscribers.newsletterSubscribersEvent shared user.pubKey ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier ) subscribers
                             |> SendApplicationData
                             |> Shared.Msg.SendNostrEvent
                             |> Effect.sendSharedMsg

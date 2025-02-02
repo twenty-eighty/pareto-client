@@ -130,6 +130,27 @@ profileFromEvent event =
 -}
 
 
+profileDisplayName : PubKey -> Profile -> String
+profileDisplayName pubKey profile =
+    case ( profile.displayName, profile.name, profile.nip05 ) of
+        ( Just displayName, _, _ ) ->
+            displayName
+
+        ( Nothing, Just name, _ ) ->
+            name
+
+        ( Nothing, Nothing, Just nip05 ) ->
+            Nip05.nip05ToDisplayString nip05
+
+        ( Nothing, Nothing, Nothing ) ->
+            shortenedPubKey 6 pubKey
+
+
+shortenedPubKey : Int -> String -> String
+shortenedPubKey count pubKey =
+    String.left count pubKey ++ "..." ++ String.right count pubKey
+
+
 type alias PubkeyProfile =
     { pubKey : String
     , profile : Profile

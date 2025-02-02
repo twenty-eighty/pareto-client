@@ -7,11 +7,12 @@ import Json.Decode.Pipeline exposing (optional, required)
 import Json.Encode as Encode
 import Nostr
 import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
+import Nostr.Profile exposing (profileDisplayName)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Types exposing (PubKey)
 import Pareto
+import Shared
 import Shared.Msg
-import Time
 
 
 type alias Subscriber =
@@ -179,6 +180,61 @@ encodeSubscriber subscriber =
         |> addStringListToObject "tags" subscriber.tags
 
 
+newsletterSubscribersEvent : Shared.Model -> PubKey -> AddressComponents -> List Subscriber -> Event
+newsletterSubscribersEvent shared pubKey articleAddressComponents subscribers =
+    let
+        ( _, _, identifier ) =
+            articleAddressComponents
+
+        senderProfileName =
+            Nostr.getProfile shared.nostr pubKey
+                |> Maybe.map (profileDisplayName pubKey)
+    in
+    { pubKey = pubKey
+    , createdAt = shared.browserEnv.now
+    , kind = KindApplicationSpecificData
+    , tags =
+        []
+            -- create unique identifier for every newsletter
+            |> Event.addDTag (newsletterDTag ++ identifier)
+            -- reference article to be sent as newsletter
+            |> Event.addAddressTag articleAddressComponents
+            -- reference email gateway as encryption target
+            |> Event.addPubKeyTag Pareto.emailGatewayKey Nothing Nothing
+    , content = emailSendRequestToJson senderProfileName subscribers
+    , id = ""
+    , sig = Nothing
+    , relay = Pareto.applicationDataRelays |> List.head
+    }
+
+
+emailSendRequestToJson : Maybe String -> List Subscriber -> String
+emailSendRequestToJson maybeSenderName subscribers =
+    let
+        recipients =
+            subscribers
+                |> List.filter (\subscriber -> subscriber.dnd /= Just True)
+    in
+    [ ( "recipients", encodeSubscribers recipients )
+    ]
+        |> addStringToObject "senderName" maybeSenderName
+        |> Encode.object
+        |> Encode.encode 0
+
+
+encodeRecipients : List Subscriber -> Encode.Value
+encodeRecipients recipients =
+    recipients
+        |> List.map encodeRecipient
+        |> Encode.list Encode.object
+
+
+encodeRecipient : Subscriber -> List ( String, Encode.Value )
+encodeRecipient subscriber =
+    [ ( "email", Encode.string subscriber.email )
+    ]
+
+
 addBoolToObject : String -> Maybe Bool -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
 addBoolToObject key maybeValue acc =
     case maybeValue of
@@ -207,55 +263,3 @@ addStringListToObject key maybeValues acc =
 
         Nothing ->
             acc
-
-
-newsletterSubscribersEvent : BrowserEnv -> PubKey -> AddressComponents -> List Subscriber -> Event
-newsletterSubscribersEvent browserEnv pubKey articleAddressComponents subscribers =
-    let
-        ( _, _, identifier ) =
-            articleAddressComponents
-    in
-    { pubKey = pubKey
-    , createdAt = browserEnv.now
-    , kind = KindApplicationSpecificData
-    , tags =
-        []
-            -- create unique identifier for every newsletter
-            |> Event.addDTag (newsletterDTag ++ identifier)
-            -- reference article to be sent as newsletter
-            |> Event.addAddressTag articleAddressComponents
-            -- reference email gateway as encryption target
-            |> Event.addPubKeyTag Pareto.emailGatewayKey Nothing Nothing
-    , content = emailSendRequestToJson subscribers
-    , id = ""
-    , sig = Nothing
-    , relay = Pareto.applicationDataRelays |> List.head
-    }
-
-
-emailSendRequestToJson : List Subscriber -> String
-emailSendRequestToJson subscribers =
-    let
-        recipients =
-            subscribers
-                |> List.filter (\subscriber -> subscriber.dnd /= Just True)
-    in
-    [ ( "recipients"
-      , encodeSubscribers recipients
-      )
-    ]
-        |> Encode.object
-        |> Encode.encode 0
-
-
-encodeRecipients : List Subscriber -> Encode.Value
-encodeRecipients recipients =
-    recipients
-        |> List.map encodeRecipient
-        |> Encode.list Encode.object
-
-
-encodeRecipient : Subscriber -> List ( String, Encode.Value )
-encodeRecipient subscriber =
-    [ ( "email", Encode.string subscriber.email )
-    ]

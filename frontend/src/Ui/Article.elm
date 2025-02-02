@@ -16,7 +16,7 @@ import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArt
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), numberForKind)
 import Nostr.Nip19 as Nip19
 import Nostr.Nip27 exposing (GetProfileFunction)
-import Nostr.Profile exposing (Author, Profile, ProfileValidation(..))
+import Nostr.Profile exposing (Author, Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Types exposing (EventId, PubKey)
 import Route
@@ -27,7 +27,7 @@ import Tailwind.Utilities as Tw
 import Time
 import Translations.Posts
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
-import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
+import Ui.Profile
 import Ui.Shared exposing (Actions)
 import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded)
 

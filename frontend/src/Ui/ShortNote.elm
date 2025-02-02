@@ -1,22 +1,17 @@
 module Ui.ShortNote exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
-import Components.Icon as Icon exposing (Icon)
-import Dict exposing (Dict)
-import Html.Styled as Html exposing (Html, a, article, aside, br, button, div, h1, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled as Html exposing (Html, a, br, button, div, p, span, text)
+import Html.Styled.Attributes as Attr exposing (css)
 import Nostr
 import Nostr.Nip19 as Nip19
-import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..))
+import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
 import Nostr.Reactions exposing (Interactions)
 import Nostr.ShortNote exposing (ShortNote)
 import Nostr.Types exposing (EventId, PubKey)
-import Tailwind.Breakpoints as Bp
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Ui.Links exposing (linkElementForAuthor, linkElementForProfilePubKey)
-import Ui.Profile exposing (defaultProfileImage, profileDisplayName, validationIcon)
+import Ui.Links exposing (linkElementForAuthor)
+import Ui.Profile
 import Ui.Shared exposing (Actions)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 import Url
