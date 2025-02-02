@@ -295,8 +295,7 @@ viewSubscribers browserEnv model =
                     , Tw.m_2
                     ]
                 ]
-                [ text "Loading subscribers..."
-                , Loaders.rings [] |> Html.fromUnstyled
+                [ text <| "Error loading subscribers: " ++ error
                 ]
 
         ( _, [] ) ->
