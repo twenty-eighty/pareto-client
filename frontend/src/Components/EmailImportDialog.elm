@@ -9,7 +9,7 @@ import Html.Styled as Html exposing (Html, div, text, textarea, ul)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Nostr
-import Nostr.Event exposing (Event, Kind(..))
+import Nostr.Event exposing (Kind(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
 import Shared.Model exposing (Model)
@@ -223,10 +223,6 @@ view dialog =
 
 viewImportDialog : EmailImportDialog msg -> EmailImportData -> Html (Msg msg)
 viewImportDialog (Settings settings) data =
-    let
-        (Model model) =
-            settings.model
-    in
     div
         [ css
             [ Tw.my_4
@@ -273,10 +269,6 @@ viewImportDialog (Settings settings) data =
 
 viewProcessedDialog : EmailImportDialog msg -> EmailProcessedData -> Html (Msg msg)
 viewProcessedDialog (Settings settings) data =
-    let
-        (Model model) =
-            settings.model
-    in
     div
         [ css
             [ Tw.my_4
@@ -323,13 +315,6 @@ viewProcessedDialog (Settings settings) data =
 
 subscribersSection : EmailImportDialog msg -> List Subscriber -> Html (Msg msg)
 subscribersSection (Settings settings) subscribers =
-    let
-        (Model model) =
-            settings.model
-
-        styles =
-            Ui.Styles.stylesForTheme settings.theme
-    in
     div
         []
         [ viewSubscribers (Settings settings) subscribers
@@ -355,7 +340,7 @@ viewSubscribers (Settings settings) subscribers =
 
 
 viewSubscriber : Theme -> Subscriber -> Html (Msg msg)
-viewSubscriber theme subscriber =
+viewSubscriber _ subscriber =
     div
         []
         [ text subscriber.email

@@ -498,43 +498,46 @@ deliverySection (Settings settings) =
         ]
 
 
-zapSplitSection : PublishArticleDialog msg -> Html (Msg msg)
-zapSplitSection (Settings settings) =
-    div []
-        [ div
-            [ css
-                [ Tw.flex
-                , Tw.justify_between
-                , Tw.items_center
-                , Tw.mt_8
-                , Tw.mb_2
-                ]
-            ]
-            [ h2
-                [ css
-                    [ Tw.text_lg
-                    , Tw.text_color Theme.gray_800
-                    , Tw.font_bold
-                    ]
-                , fontFamilyUnbounded
-                ]
-                [ text <| Translations.revenueTitle [ settings.browserEnv.translations ] ]
-            ]
-        , div
-            [ css
-                [ Tw.flex
-                , Tw.justify_between
-                , Tw.items_center
-                , Tw.mb_6
-                ]
-            ]
-            [ h2
-                [ css
-                    [ Tw.text_base
-                    , Tw.text_color Theme.gray_800
-                    ]
-                , fontFamilyInter
-                ]
-                [ text <| Translations.revenueDescription [ settings.browserEnv.translations ] ]
-            ]
-        ]
+
+{-
+   zapSplitSection : PublishArticleDialog msg -> Html (Msg msg)
+   zapSplitSection (Settings settings) =
+       div []
+           [ div
+               [ css
+                   [ Tw.flex
+                   , Tw.justify_between
+                   , Tw.items_center
+                   , Tw.mt_8
+                   , Tw.mb_2
+                   ]
+               ]
+               [ h2
+                   [ css
+                       [ Tw.text_lg
+                       , Tw.text_color Theme.gray_800
+                       , Tw.font_bold
+                       ]
+                   , fontFamilyUnbounded
+                   ]
+                   [ text <| Translations.revenueTitle [ settings.browserEnv.translations ] ]
+               ]
+           , div
+               [ css
+                   [ Tw.flex
+                   , Tw.justify_between
+                   , Tw.items_center
+                   , Tw.mb_6
+                   ]
+               ]
+               [ h2
+                   [ css
+                       [ Tw.text_base
+                       , Tw.text_color Theme.gray_800
+                       ]
+                   , fontFamilyInter
+                   ]
+                   [ text <| Translations.revenueDescription [ settings.browserEnv.translations ] ]
+               ]
+           ]
+-}
