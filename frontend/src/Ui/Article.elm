@@ -16,18 +16,19 @@ import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArt
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), numberForKind)
 import Nostr.Nip19 as Nip19
 import Nostr.Nip27 exposing (GetProfileFunction)
-import Nostr.Profile exposing (Author, Profile, ProfileValidation(..))
+import Nostr.Profile exposing (Author, Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Types exposing (EventId, PubKey)
 import Route
 import Route.Path
+import Set
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Time
 import Translations.Posts
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
-import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
+import Ui.Profile
 import Ui.Shared exposing (Actions)
 import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded)
 
@@ -730,7 +731,18 @@ linkToArticle article =
                 { identifier = article.identifier |> Maybe.withDefault ""
                 , pubKey = article.author
                 , kind = numberForKind article.kind
-                , relays = Maybe.map (\urlWithoutProtocol -> [ "wss://" ++ urlWithoutProtocol ]) article.relay |> Maybe.withDefault []
+                , relays =
+                    article.relays
+                        |> Maybe.map
+                            (\urlsWithoutProtocol ->
+                                urlsWithoutProtocol
+                                    |> Set.toList
+                                    |> List.map
+                                        (\urlWithoutProtocol ->
+                                            "wss://" ++ urlWithoutProtocol
+                                        )
+                            )
+                        |> Maybe.withDefault []
                 }
     of
         Ok encodedCoordinates ->

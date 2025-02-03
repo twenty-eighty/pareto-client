@@ -4,15 +4,13 @@ import Auth
 import Components.Categories as Categories
 import Dict
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h1, h2, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled as Html exposing (Html, div)
 import I18Next
-import Json.Decode as Decode
 import Layouts
-import Nostr exposing (getBookmarks)
+import Nostr
 import Nostr.BookmarkList exposing (BookmarkList, BookmarkType(..), bookmarkListFromEvent, bookmarksCount, emptyBookmarkList)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
+import Nostr.External
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (IncomingMessage, PubKey)
@@ -21,19 +19,15 @@ import Ports
 import Route exposing (Route)
 import Route.Path
 import Shared
-import Shared.Model
 import Shared.Msg
-import Tailwind.Breakpoints as Bp
-import Tailwind.Theme as Theme
-import Tailwind.Utilities as Tw
 import Translations.Bookmarks as Translations
-import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
+import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
-page user shared route =
+page user shared _ =
     Page.new
         { init = init shared user
         , update = update user shared
@@ -44,7 +38,7 @@ page user shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -142,7 +136,7 @@ type Msg
     | RemoveArticleBookmark PubKey AddressComponents
 
 
-update : Auth.User -> Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
+update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update user shared msg model =
     case msg of
         ReceivedMessage message ->
@@ -191,13 +185,13 @@ update user shared msg model =
             )
 
 
-updateWithMessage : Auth.User -> Shared.Model.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
+updateWithMessage : Auth.User -> Shared.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithMessage user shared model message =
     case message.messageType of
         "events" ->
-            case Decode.decodeValue (Decode.field "kind" Nostr.Event.kindDecoder) message.value of
+            case Nostr.External.decodeEventsKind message.value of
                 Ok KindBookmarkList ->
-                    case Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) message.value of
+                    case Nostr.External.decodeEvents message.value of
                         Ok events ->
                             let
                                 requestEffect =
@@ -232,7 +226,7 @@ updateWithMessage user shared model message =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Ports.receiveMessage ReceivedMessage
 
 
@@ -284,7 +278,7 @@ viewBookmarks user shared model bookmarkList =
 
 
 viewArticleBookmarks : Auth.User -> Shared.Model -> Model -> List AddressComponents -> Html Msg
-viewArticleBookmarks user shared model addressComponents =
+viewArticleBookmarks user shared _ addressComponents =
     addressComponents
         |> List.filterMap (Nostr.getArticle shared.nostr)
         |> Nostr.sortArticlesByDate

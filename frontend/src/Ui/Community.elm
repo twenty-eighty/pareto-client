@@ -6,13 +6,13 @@ import Html.Styled as Html exposing (Html, a, article, aside, button, div, h1, h
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 import Nostr.Community exposing (Community, Image, Moderator, communityName)
-import Nostr.Profile exposing (Profile, ProfileValidation(..))
+import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName)
 import Nostr.Types exposing (PubKey)
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Ui.Profile exposing (defaultProfileImage, profileDisplayName, validationIcon)
-import Ui.Styles exposing (fontFamilyInter, fontFamilyUnbounded)
+import Ui.Profile
+import Ui.Styles exposing (fontFamilyUnbounded)
 
 
 viewCommunity : BrowserEnv -> Dict PubKey Profile -> Community -> Html msg

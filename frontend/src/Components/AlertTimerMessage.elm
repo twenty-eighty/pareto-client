@@ -9,9 +9,9 @@ module Components.AlertTimerMessage exposing
     )
 
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, strong, text)
-import Html.Styled.Attributes as Attr exposing (class, classList, css, disabled, href, type_)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled as Html exposing (Html, div, text)
+import Html.Styled.Attributes exposing (css)
+import Html.Styled.Events exposing (..)
 import Process
 import Tailwind.Utilities as Tw
 import Task
@@ -50,7 +50,7 @@ type Model
 
 
 init : {} -> Model
-init props =
+init _ =
     Model
         { messages = []
         }
@@ -101,12 +101,12 @@ update props =
                         , Effect.none
                         )
 
-                    [ message ] ->
+                    [ _ ] ->
                         ( Model { model | messages = [] }
                         , Effect.none
                         )
 
-                    message :: remaining ->
+                    _ :: remaining ->
                         ( Model { model | messages = remaining }
                         , remaining
                             |> List.head

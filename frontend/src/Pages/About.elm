@@ -122,7 +122,7 @@ sendClientRecommendation nostr pubKey handlerInformation =
     , content = ""
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }
         |> SendClientRecommendation (Nostr.getWriteRelayUrlsForPubKey nostr pubKey)
         |> Shared.Msg.SendNostrEvent
@@ -146,7 +146,7 @@ sendClientProfile nostr pubKey profile =
     , content = profileToJson profile
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }
         |> SendProfile (Nostr.getWriteRelayUrlsForPubKey nostr pubKey)
         |> Shared.Msg.SendNostrEvent

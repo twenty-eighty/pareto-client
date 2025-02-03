@@ -28,12 +28,9 @@ module Components.Button exposing
 
 import Components.Icon exposing (Icon)
 import Css
-import Html
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events as Events
-import Tailwind.Breakpoints as Bp
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Ui.Styles
 

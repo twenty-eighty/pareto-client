@@ -69,7 +69,7 @@ type alias Event =
     , content : String
     , id : String
     , sig : Maybe String
-    , relay : Maybe RelayUrl
+    , relays : Maybe (List RelayUrl)
     }
 
 
@@ -89,6 +89,7 @@ type TagReference
     = TagReferenceEventId EventId
     | TagReferenceCode AddressComponents
     | TagReferenceIdentifier String
+    | TagReferencePubKey PubKey
     | TagReferenceTag String
 
 
@@ -1473,7 +1474,7 @@ emptyEvent pubKey kind =
     , content = ""
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }
 
 
@@ -1488,6 +1489,9 @@ tagReferenceToString tagRef =
 
         TagReferenceIdentifier identifier ->
             identifier
+
+        TagReferencePubKey pubKey ->
+            pubKey
 
         TagReferenceTag tag ->
             tag
@@ -1554,7 +1558,7 @@ decodeEvent =
         |> Pipeline.required "content" Decode.string
         |> Pipeline.required "id" Decode.string
         |> Pipeline.optional "sig" (Decode.maybe Decode.string) Nothing
-        |> Pipeline.optional "relay" (Decode.maybe Nostr.Relay.relayUrlDecoder) Nothing
+        |> Pipeline.optional "onRelays" (Decode.maybe (Decode.list Nostr.Relay.relayUrlDecoder)) Nothing
 
 
 eventFilterForNip19 : NIP19Type -> Maybe EventFilter
@@ -2086,6 +2090,9 @@ appendTagReferenceList maybeTagRefList encodeList =
                                     TagReferenceIdentifier _ ->
                                         Nothing
 
+                                    TagReferencePubKey _ ->
+                                        Nothing
+
                                     TagReferenceTag _ ->
                                         Nothing
                             )
@@ -2109,6 +2116,9 @@ appendTagReferenceList maybeTagRefList encodeList =
                                         Nothing
 
                                     TagReferenceIdentifier _ ->
+                                        Nothing
+
+                                    TagReferencePubKey _ ->
                                         Nothing
 
                                     TagReferenceTag _ ->
@@ -2136,6 +2146,37 @@ appendTagReferenceList maybeTagRefList encodeList =
                                     TagReferenceIdentifier identifier ->
                                         Just identifier
 
+                                    TagReferencePubKey _ ->
+                                        Nothing
+
+                                    TagReferenceTag _ ->
+                                        Nothing
+                            )
+                        |> (\list ->
+                                if List.isEmpty list then
+                                    Nothing
+
+                                else
+                                    Just list
+                           )
+
+                maybePubKeyList =
+                    tagRefList
+                        |> List.filterMap
+                            (\tagRef ->
+                                case tagRef of
+                                    TagReferenceEventId _ ->
+                                        Nothing
+
+                                    TagReferenceCode _ ->
+                                        Nothing
+
+                                    TagReferenceIdentifier _ ->
+                                        Nothing
+
+                                    TagReferencePubKey pubKey ->
+                                        Just pubKey
+
                                     TagReferenceTag _ ->
                                         Nothing
                             )
@@ -2161,6 +2202,9 @@ appendTagReferenceList maybeTagRefList encodeList =
                                     TagReferenceIdentifier _ ->
                                         Nothing
 
+                                    TagReferencePubKey _ ->
+                                        Nothing
+
                                     TagReferenceTag tag ->
                                         Just tag
                             )
@@ -2176,6 +2220,7 @@ appendTagReferenceList maybeTagRefList encodeList =
                 |> appendStringList "#a" maybeDcodeList
                 |> appendStringList "#d" maybeIdentifierList
                 |> appendStringList "#e" maybeEventIdList
+                |> appendStringList "#p" maybePubKeyList
                 |> appendStringList "#t" maybeTagList
 
         Nothing ->
@@ -2286,6 +2331,11 @@ addKindTags kinds tags =
     kinds
         |> List.map KindTag
         |> List.append tags
+
+
+addPubKeyTag : PubKey -> Maybe String -> Maybe String -> List Tag -> List Tag
+addPubKeyTag pubKey maybeRelay maybePetName tags =
+    PublicKeyTag pubKey maybeRelay maybePetName :: tags
 
 
 addPublishedAtTag : Time.Posix -> List Tag -> List Tag

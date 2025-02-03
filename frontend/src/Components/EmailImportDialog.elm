@@ -1,7 +1,8 @@
-module Components.EmailImportDialog exposing (EmailImportDialog, Model, Msg, Subscriber, hide, init, new, show, update, view)
+module Components.EmailImportDialog exposing (EmailImportDialog, Model, Msg, hide, init, new, show, update, view)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
+import Components.Checkbox as Checkbox
 import Effect exposing (Effect)
 import Email
 import Html.Styled as Html exposing (Html, div, text, textarea, ul)
@@ -12,7 +13,7 @@ import Nostr.Event exposing (Event, Kind(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
 import Shared.Model exposing (Model)
-import Shared.Msg exposing (Msg)
+import Subscribers exposing (Subscriber)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.EmailImportDialog as Translations
@@ -23,7 +24,8 @@ import Ui.Styles exposing (Theme)
 type Msg msg
     = CloseDialog
     | ConfigureRelaysClicked
-    | ImportClicked (List Subscriber)
+    | ImportClicked (List Subscriber) Bool
+    | OverwriteExistingClicked Bool
     | UpdateEmailData String
     | ProcessEnteredData String
 
@@ -47,12 +49,7 @@ type alias EmailImportData =
 
 type alias EmailProcessedData =
     { subscribers : List Subscriber
-    }
-
-
-type alias Subscriber =
-    { email : String
-    , name : Maybe String
+    , overwriteExisting : Bool
     }
 
 
@@ -96,7 +93,7 @@ init _ =
 
 show : Model -> Model
 show (Model model) =
-    Model { model | state = DialogVisibleImport { enteredEmails = "test1@email.com, test2@email.org" } }
+    Model { model | state = DialogVisibleImport { enteredEmails = "nostr-email@xn--y9a.net" } }
 
 
 hide : Model -> Model
@@ -109,6 +106,7 @@ update :
     , model : Model
     , toModel : Model -> model
     , toMsg : Msg msg -> msg
+    , onImport : List Subscriber -> Bool -> msg
     , browserEnv : BrowserEnv
     , nostr : Nostr.Model
     , pubKey : PubKey
@@ -137,12 +135,23 @@ update props =
                 , Effect.none
                 )
 
-            ImportClicked subscribers ->
+            OverwriteExistingClicked overwriteExisting ->
+                case model.state of
+                    DialogVisibleProcessed emailProcessedData ->
+                        let
+                            dataWithUpdate =
+                                { emailProcessedData | overwriteExisting = overwriteExisting }
+                        in
+                        ( Model { model | state = DialogVisibleProcessed dataWithUpdate }
+                        , Effect.none
+                        )
+
+                    _ ->
+                        ( Model model, Effect.none )
+
+            ImportClicked subscribers overwriteExisting ->
                 ( Model model
-                , subscriberDataEvent props.browserEnv props.pubKey subscribers
-                    |> SendApplicationData
-                    |> Shared.Msg.SendNostrEvent
-                    |> Effect.sendSharedMsg
+                , Effect.sendMsg <| props.onImport subscribers overwriteExisting
                 )
 
             UpdateEmailData enteredEmails ->
@@ -171,35 +180,15 @@ update props =
                                     (\parsingResult ->
                                         case parsingResult of
                                             Ok email ->
-                                                Just { email = Email.toString email, name = Nothing }
+                                                Just { dnd = Nothing, email = Email.toString email, name = Nothing, tags = Nothing }
 
                                             Err _ ->
                                                 Nothing
                                     )
+                        , overwriteExisting = False
                         }
                 in
                 ( Model { model | state = DialogVisibleProcessed processedData }, Effect.none )
-
-
-subscriberDataEvent : BrowserEnv -> PubKey -> List Subscriber -> Event
-subscriberDataEvent browserEnv pubKey subscribers =
-    { pubKey = pubKey
-    , createdAt = browserEnv.now
-    , kind = KindApplicationSpecificData
-    , tags =
-        []
-
-    -- |> Event.addAddressTag model.title
-    , content = subscribersToJson subscribers
-    , id = ""
-    , sig = Nothing
-    , relay = Nothing
-    }
-
-
-subscribersToJson : List Subscriber -> String
-subscribersToJson subscribers =
-    ""
 
 
 view : EmailImportDialog msg -> Html msg
@@ -295,9 +284,18 @@ viewProcessedDialog (Settings settings) data =
             , Tw.flex_col
             , Tw.justify_start
             , Tw.gap_2
+            , Tw.w_auto
+            , Tw.min_w_80
             ]
         ]
-        [ subscriberssSection (Settings settings) data.subscribers
+        [ subscribersSection (Settings settings) data.subscribers
+        , Checkbox.new
+            { label = "Overwrite existing?"
+            , onClick = OverwriteExistingClicked
+            , checked = data.overwriteExisting
+            , theme = settings.theme
+            }
+            |> Checkbox.view
         , div
             [ css
                 [ Tw.flex
@@ -314,7 +312,7 @@ viewProcessedDialog (Settings settings) data =
                 |> Button.view
             , Button.new
                 { label = Translations.importButtonTitle [ settings.browserEnv.translations ]
-                , onClick = Just <| ImportClicked data.subscribers
+                , onClick = Just <| ImportClicked data.subscribers data.overwriteExisting
                 , theme = settings.theme
                 }
                 |> Button.withTypePrimary
@@ -323,8 +321,8 @@ viewProcessedDialog (Settings settings) data =
         ]
 
 
-subscriberssSection : EmailImportDialog msg -> List Subscriber -> Html (Msg msg)
-subscriberssSection (Settings settings) subscribers =
+subscribersSection : EmailImportDialog msg -> List Subscriber -> Html (Msg msg)
+subscribersSection (Settings settings) subscribers =
     let
         (Model model) =
             settings.model

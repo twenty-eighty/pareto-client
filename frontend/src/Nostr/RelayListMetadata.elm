@@ -1,8 +1,7 @@
 module Nostr.RelayListMetadata exposing (..)
 
-import Dict exposing (Dict)
-import Nostr.Event exposing (Event, Kind(..), Tag(..), TagReference, parseAddress)
-import Nostr.Types exposing (PubKey, RelayRole(..), relayRoleFromString)
+import Nostr.Event exposing (Event, Kind(..), Tag(..))
+import Nostr.Types exposing (PubKey, RelayRole(..))
 import Time
 
 
@@ -135,7 +134,7 @@ eventWithRelayList pubKey relays =
     , content = ""
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }
 
 

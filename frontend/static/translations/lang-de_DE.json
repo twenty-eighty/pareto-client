@@ -95,7 +95,10 @@
       "publish button title": "Artikel veröffentlichen",
       "no relays configured title": "Keine Relays konfiguriert",
       "no relays configured text": "Möchtest du ein paar Standard-Relays einrichten?",
-      "configure relays button title": "Relays konfigurieren"
+      "configure relays button title": "Relays konfigurieren",
+      "delivery title": "Verteilung",
+      "send also via email singular checkbox text": "Auch als E-Mail an einen Empfänger versenden",
+      "send also via email plural checkbox text": "Auch als E-Mail an {{recipientCount}} Empfänger versenden"
    },
    "read": {
       "followed feed category": "Gefolgt",
@@ -165,7 +168,10 @@
    },
    "subscribers": {
       "page title": "Abonnenten",
+      "export button title": "Exportieren",
       "import button title": "Importieren",
+      "save button title": "Speichern",
+      "process modifications button title": "Verarbeiten",
       "no subscribers text": "Keine Abonnenten gefunden."
    },
    "upload dialog": {
@@ -221,6 +227,7 @@
       "article publishing state": "Artikel wird veröffentlicht ...",
       "article published state": "Artikel wurde veröffentlicht",
       "article publishing error": "Fehler beim Veröffentlichen des Artikels",
+      "article sending newsletter state": "Sende Newsletter ...",
       "article deleting draft state": "Lösche Entwurf nach Veröffentlichung ..."
    },
    "zap dialog": {

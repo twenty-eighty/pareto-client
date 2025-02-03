@@ -46,7 +46,7 @@ buildHandlerInformation info =
     , content = profileToJson info.profile
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }
 
 

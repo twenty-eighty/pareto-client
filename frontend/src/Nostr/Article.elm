@@ -8,7 +8,7 @@ import Nostr.Nip27 as Nip27
 import Nostr.Profile exposing (ProfileValidation(..))
 import Nostr.Shared
 import Nostr.Types exposing (Address, EventId, PubKey, RelayUrl)
-import Set
+import Set exposing (Set)
 import Time
 
 
@@ -31,7 +31,7 @@ type alias Article =
     , hashtags : List String
     , zapWeights : List ( PubKey, RelayUrl, Maybe Int )
     , otherTags : List Tag
-    , relay : Maybe RelayUrl
+    , relays : Maybe (Set String)
     , nip27References : List Nip19.NIP19Type
     }
 
@@ -40,8 +40,8 @@ type alias Article =
 -- assume published date is event creation date unless specified explicitely in publishedAt tag
 
 
-emptyArticle : PubKey -> EventId -> Kind -> Time.Posix -> String -> Maybe RelayUrl -> Article
-emptyArticle author eventId kind createdAt content relayUrl =
+emptyArticle : PubKey -> EventId -> Kind -> Time.Posix -> String -> Maybe (List RelayUrl) -> Article
+emptyArticle author eventId kind createdAt content relayUrls =
     { author = author
     , id = eventId
     , kind = kind
@@ -60,7 +60,7 @@ emptyArticle author eventId kind createdAt content relayUrl =
     , hashtags = []
     , zapWeights = []
     , otherTags = []
-    , relay = relayUrl
+    , relays = Maybe.map Set.fromList relayUrls
     , nip27References =
         Nip27.collectNostrLinks content
     }
@@ -98,7 +98,7 @@ articleFromEvent : Event -> Result (List String) Article
 articleFromEvent event =
     let
         articleWithoutTags =
-            emptyArticle event.pubKey event.id event.kind event.createdAt event.content event.relay
+            emptyArticle event.pubKey event.id event.kind event.createdAt event.content event.relays
 
         ( builtArticle, buildingErrors ) =
             event.tags

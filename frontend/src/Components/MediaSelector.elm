@@ -34,6 +34,7 @@ import Json.Encode as Encode
 import Nostr
 import Nostr.Blossom as Blossom exposing (BlobDescriptor, userServerListFromEvent)
 import Nostr.Event exposing (Event, Kind(..))
+import Nostr.External
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.Nip94 as Nip94 exposing (FileMetadata)
 import Nostr.Nip96 as Nip96 exposing (extendRelativeServerDescriptorUrls)
@@ -468,7 +469,7 @@ eventWithNip96ServerList browserEnv user serverUrls =
     , content = ""
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }
 
 
@@ -658,8 +659,8 @@ processIncomingMessage user xModel messageType toMsg value =
         -- so we have to process them when arriving
         "events" ->
             case
-                ( Decode.decodeValue (Decode.field "kind" Nostr.Event.kindDecoder) value
-                , Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) value
+                ( Nostr.External.decodeEventsKind value
+                , Nostr.External.decodeEvents value
                 )
             of
                 ( Ok KindUserServerList, Ok events ) ->

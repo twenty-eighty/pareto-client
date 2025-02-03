@@ -222,13 +222,13 @@ export const onReady = ({ app, env }) => {
 
   function processEvents(app, requestId, description, ndkEvents) {
 
-    var articles = [];
-    var communities = [];
+    if (ndkEvents.size == 0) {
+      // report back to the application that there are no events
+      app.ports.receiveMessage.send({ messageType: 'events', value: { kind: 0, events: [], requestId: requestId } });
+      return;
+    }
+
     var eventsSortedByKind = {};
-    var followlists = [];
-    var profiles = [];
-    var reposts = [];
-    var shortNotes = [];
     var highlights = [];
     var zapReceipts = [];
 
@@ -302,6 +302,16 @@ export const onReady = ({ app, env }) => {
             break;
           }
 
+        case 30078: // application-specific event
+          {
+            unwrapApplicationSpecificEvent(ndkEvent).then(event => {
+              if (event) {
+                app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
+              }
+            });
+            break;
+          }
+
         case 31234: // draft event (NIP-37)
           {
             unwrapDraftEvent(ndkEvent).then(event => {
@@ -319,36 +329,12 @@ export const onReady = ({ app, env }) => {
       }
     });
 
-    if (articles.length > 0) {
-      debugLog("Articles: ", articles.length);
-      app.ports.receiveMessage.send({ messageType: 'articles', value: articles });
-    }
-    if (communities.length > 0) {
-      debugLog("Communities: ", communities.length);
-      app.ports.receiveMessage.send({ messageType: 'communities', value: communities });
-    }
     for (const kind in eventsSortedByKind) {
       const events = eventsSortedByKind[kind]
       debugLog("Events of kind " + kind + ": ", events.length);
       app.ports.receiveMessage.send({ messageType: 'events', value: { kind: parseInt(kind), events: events, requestId: requestId } });
     }
 
-    if (followlists.length > 0) {
-      debugLog("Follow lists: ", followlists.length);
-      app.ports.receiveMessage.send({ messageType: 'followlists', value: followlists });
-    }
-    if (profiles.length > 0) {
-      debugLog("Profiles: ", profiles.length);
-      app.ports.receiveMessage.send({ messageType: 'profiles', value: profiles });
-    }
-    if (reposts.length > 0) {
-      debugLog("Reposts: ", reposts.length);
-      app.ports.receiveMessage.send({ messageType: 'reposts', value: reposts });
-    }
-    if (shortNotes.length > 0) {
-      debugLog("Short notes: ", shortNotes.length);
-      app.ports.receiveMessage.send({ messageType: 'short_notes', value: shortNotes });
-    }
     if (highlights.length > 0) {
       debugLog("Highlights: ", highlights.length);
       app.ports.receiveMessage.send({ messageType: 'highlights', value: highlights });
@@ -444,12 +430,26 @@ export const onReady = ({ app, env }) => {
 
     if (event.kind == 30024) {  // draft event
       ndkEvent = await encapsulateDraftEvent(ndkEvent);
+    } else if (event.kind == 30078) {  // application-specific event
+      ndkEvent = await encapsulateApplicationSpecificEvent(ndkEvent);
+    }
+
+    if (!ndkEvent) {
+      debugLog('failed to send event ' + sendId, event, 'relays: ', relays);
+      app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: "failed to encapsulate event" } });
+      return;
     }
 
     ndkEvent.sign().then(() => {
       debugLog('signed event ' + sendId, ndkEvent);
 
-      var relaysWithProtocol = relays.map(relay => "wss://" + relay);
+      var relaysWithProtocol = relays.map(relay => {
+        if (!relay.startsWith("wss://") && !relay.startsWith("ws://")) {
+          return "wss://" + relay
+        } else {
+          return relay
+        }
+      });
 
       if (relaysWithProtocol.length === 0) {
         relaysWithProtocol = ["wss://pareto.nostr1.com"];
@@ -488,9 +488,36 @@ export const onReady = ({ app, env }) => {
     return ndkEvent;
   }
 
+  // https://nips.nostr.com/78
+  async function encapsulateApplicationSpecificEvent(ndkEvent) {
+    // if target pubkey is not specified as a tag, use the pubkey of the event
+    var encryptForPubKey = firstTag(ndkEvent, "p");
+    if (!encryptForPubKey) {
+      encryptForPubKey = ndkEvent.pubkey;
+    }
+    console.log('encrypt for key', encryptForPubKey);
+    const encrypted = await window.ndk.signer.nip44Encrypt({ pubkey: encryptForPubKey }, ndkEvent.content);
+    if (encrypted) {
+      ndkEvent.content = encrypted;
+      return ndkEvent;
+    }
+    // don't send unencrypted event
+    return null;
+  }
+
   async function unwrapPrivateRelayListEvent(ndkEvent) {
     const stringifiedRelayTags = await window.ndk.signer.nip44Decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
     ndkEvent.tags = JSON.parse(stringifiedEvent);
+    return ndkEvent;
+  }
+
+  async function unwrapApplicationSpecificEvent(ndkEvent) {
+    const content = await window.ndk.signer.nip44Decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    if (content) {
+      ndkEvent.content = content;
+    } else {
+      console.log("Unable to decrypt application-specific event. Ignoring the event.")
+    }
     return ndkEvent;
   }
 
@@ -501,7 +528,7 @@ export const onReady = ({ app, env }) => {
       return event;
     } else {
       console.log("Unable to decrypt draft event. Ignoring the event.")
-    } 
+    }
   }
 
   function firstTag(event, tagName) {

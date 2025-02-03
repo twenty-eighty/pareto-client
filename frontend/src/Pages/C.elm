@@ -1,8 +1,8 @@
 module Pages.C exposing (Model, Msg, page)
 
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h1, h2, h3, h4, img, input, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
+import Html.Styled as Html exposing (Html, a, div, h1, h3, img, input, p, text)
+import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Json.Decode as Decode
 import Layouts
@@ -16,7 +16,6 @@ import Ports
 import Route exposing (Route)
 import Shared
 import Shared.Model exposing (LoginStatus(..))
-import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Communities as Translations
@@ -25,7 +24,7 @@ import View exposing (View)
 
 
 page : Shared.Model -> Route () -> Page Model Msg
-page shared route =
+page shared _ =
     Page.new
         { init = init
         , update = update shared
@@ -36,7 +35,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -94,7 +93,7 @@ update shared msg model =
 
 
 updateWithMessage : Shared.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
-updateWithMessage shared model message =
+updateWithMessage _ model message =
     case message.messageType of
         "events" ->
             case Decode.decodeValue (Decode.list decodeEvent) message.value of
@@ -106,7 +105,7 @@ updateWithMessage shared model message =
                     in
                     ( { model | communities = Just communities }, Effect.none )
 
-                Err error ->
+                Err _ ->
                     ( model, Effect.none )
 
         _ ->
@@ -118,7 +117,7 @@ updateWithMessage shared model message =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Ports.receiveMessage ReceivedMessage
 
 
@@ -290,7 +289,7 @@ filteredCommunity maybeSearchString community =
 
 
 viewCommunityPreview : Model -> Community -> Html Msg
-viewCommunityPreview model community =
+viewCommunityPreview _ community =
     div
         [ css
             [ Tw.bg_color Theme.white
@@ -383,7 +382,7 @@ linkToCommunity community =
         { kind = KindCommunityDefinition |> numberForKind
         , pubKey = community.pubKey
         , identifier = Maybe.withDefault "" community.dtag
-        , relays = Maybe.map List.singleton community.relay |> Maybe.withDefault []
+        , relays = Maybe.map List.singleton Nothing |> Maybe.withDefault []
         }
         |> Nip19.encode
         |> Result.toMaybe

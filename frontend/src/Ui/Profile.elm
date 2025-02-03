@@ -10,7 +10,7 @@ import Html.Styled as Html exposing (Html, a, div, h2, img, p, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Nostr.Nip05 as Nip05
 import Nostr.Nip19 as Nip19
-import Nostr.Profile exposing (Profile, ProfileValidation(..))
+import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
 import Tailwind.Theme as Theme
@@ -420,24 +420,3 @@ timeParagraph browserEnv maybePublishedAt =
 
         Nothing ->
             div [] []
-
-
-profileDisplayName : PubKey -> Profile -> String
-profileDisplayName pubKey profile =
-    case ( profile.displayName, profile.name, profile.nip05 ) of
-        ( Just displayName, _, _ ) ->
-            displayName
-
-        ( Nothing, Just name, _ ) ->
-            name
-
-        ( Nothing, Nothing, Just nip05 ) ->
-            Nip05.nip05ToDisplayString nip05
-
-        ( Nothing, Nothing, Nothing ) ->
-            shortenedPubKey 6 pubKey
-
-
-shortenedPubKey : Int -> String -> String
-shortenedPubKey count pubKey =
-    String.left count pubKey ++ "..." ++ String.right count pubKey

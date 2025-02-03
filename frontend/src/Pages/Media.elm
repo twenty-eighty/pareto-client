@@ -1,34 +1,20 @@
 module Pages.Media exposing (Model, Msg, page)
 
 import Auth
-import BrowserEnv exposing (BrowserEnv)
 import Components.MediaSelector as MediaSelector
-import Css
-import Dict exposing (Dict)
 import Effect exposing (Effect)
-import Hex
-import Html.Styled as Html exposing (Html, a, aside, button, code, div, h2, h3, h4, img, input, label, node, p, span, text, textarea)
-import Html.Styled.Attributes as Attr exposing (class, css, style)
-import Html.Styled.Events as Events exposing (..)
-import Json.Decode as Decode
+import Html.Styled as Html exposing (div)
+import Html.Styled.Attributes exposing (css)
 import Layouts
-import Milkdown.MilkdownEditor as Milkdown
-import Murmur3
 import Nostr
-import Nostr.Event as Event exposing (Event, Kind(..), Tag(..))
-import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
+import Nostr.Event exposing (Kind(..), Tag(..))
+import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Page exposing (Page)
-import Pareto
 import Route exposing (Route)
 import Shared
-import Shared.Msg
-import Tailwind.Breakpoints as Bp
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Time
-import Translations.Write
 import Ui.Styles exposing (Theme)
 import View exposing (View)
 
@@ -45,7 +31,7 @@ page user shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -60,7 +46,7 @@ type alias Model =
 
 
 init : Auth.User -> Shared.Model -> Route () -> () -> ( Model, Effect Msg )
-init user shared route () =
+init user shared _ () =
     let
         ( mediaSelector, mediaSelectorEffect ) =
             MediaSelector.init

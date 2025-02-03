@@ -42,7 +42,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -208,7 +208,8 @@ update shared msg model =
                 |> Effect.sendSharedMsg
             )
 
-        RemoveArticleReaction pubKey eventId ->
+        RemoveArticleReaction _ _ ->
+            -- TODO: Delete like
             ( model, Effect.none )
 
         AddShortNoteBookmark pubKey eventId ->
@@ -301,7 +302,7 @@ userFollowsList nostr loginStatus =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -315,13 +316,14 @@ availableCategories nostr loginStatus translations =
         paretoCategories =
             [ paretoCategory translations ]
 
-        paretoRssCategories =
-            if paretoRssFollowsList nostr /= [] then
-                [ paretoRssCategory translations ]
+        {-
+           paretoRssCategories =
+               if paretoRssFollowsList nostr /= [] then
+                   [ paretoRssCategory translations ]
 
-            else
-                []
-
+               else
+                   []
+        -}
         followedCategories =
             if userFollowsList nostr loginStatus /= [] then
                 [ followedCategory translations ]
@@ -348,11 +350,14 @@ paretoCategory translations =
     }
 
 
-paretoRssCategory : I18Next.Translations -> Components.Categories.CategoryData Category
-paretoRssCategory translations =
-    { category = Rss
-    , title = Translations.Read.rssFeedCategory [ translations ]
-    }
+
+{-
+   paretoRssCategory : I18Next.Translations -> Components.Categories.CategoryData Category
+   paretoRssCategory translations =
+       { category = Rss
+       , title = Translations.Read.rssFeedCategory [ translations ]
+       }
+-}
 
 
 followedCategory : I18Next.Translations -> Components.Categories.CategoryData Category
