@@ -13,6 +13,7 @@
             "MartinSStewart/elm-uint64": "2.0.0",
             "NoRedInk/elm-json-decode-pipeline": "1.0.1",
             "avh4/elm-color": "1.0.0",
+            "commonmind/elm-csv-encode": "1.2.0",
             "dillonkearns/elm-markdown": "7.0.1",
             "dillonkearns/elm-oembed": "1.0.0",
             "elm/browser": "1.0.2",

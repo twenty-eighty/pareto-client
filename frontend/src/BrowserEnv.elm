@@ -1,4 +1,4 @@
-module BrowserEnv exposing (BrowserEnv, Environment(..), Msg(..), formatDate, init, subscriptions, update, updateTimeZone)
+module BrowserEnv exposing (BrowserEnv, Environment(..), Msg(..), formatDate, formatIsoDate, init, subscriptions, update, updateTimeZone)
 
 import DateFormat
 import DateFormat.Language
@@ -140,6 +140,25 @@ formatDate browserEnv time =
 
     else
         DateFormat.Relative.relativeTimeWithOptions browserEnv.dateFormatRelativeTimeOptions browserEnv.now time
+
+
+formatIsoDate : BrowserEnv -> Posix -> String
+formatIsoDate browserEnv time =
+    DateFormat.formatWithLanguage
+        browserEnv.dateFormatLanguage
+        isoDateTokens
+        browserEnv.zone
+        time
+
+
+isoDateTokens : List DateFormat.Token
+isoDateTokens =
+    [ DateFormat.yearNumber
+    , DateFormat.text "-"
+    , DateFormat.monthFixed
+    , DateFormat.text "-"
+    , DateFormat.dayOfMonthFixed
+    ]
 
 
 differsByMoreThan24Hours : Posix -> Posix -> Bool

@@ -1,6 +1,7 @@
 module Subscribers exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
+import Csv.Encode
 import Dict exposing (Dict)
 import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
@@ -75,6 +76,27 @@ loadModifications nostr userPubKey =
         |> RequestSubscribers
         |> Nostr.createRequest nostr "Load subscribers" []
         |> Shared.Msg.RequestNostrEvents
+
+
+toCsv : List Subscriber -> Csv.Encode.Csv
+toCsv subscribers =
+    { headers = [ "email", "name", "tags", "dnd" ]
+    , records =
+        subscribers
+            |> List.map
+                (\subscriber ->
+                    [ subscriber.email, Maybe.withDefault "" subscriber.name, Maybe.map (String.join ",") subscriber.tags |> Maybe.withDefault "", Maybe.withDefault False subscriber.dnd |> boolToString ]
+                )
+    }
+
+
+boolToString : Bool -> String
+boolToString value =
+    if value then
+        "true"
+
+    else
+        "false"
 
 
 processModifications : Dict Email Subscriber -> List Modification -> Dict Email Subscriber

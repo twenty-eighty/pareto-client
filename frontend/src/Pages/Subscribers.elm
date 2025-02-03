@@ -6,9 +6,11 @@ import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button as Button
 import Components.EmailImportDialog as EmailImportDialog
 import Components.Icon as Icon
+import Csv.Encode
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import FeatherIcons
+import File.Download
 import Html.Styled as Html exposing (Html, b, div, li, text, ul)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events as Events
@@ -119,8 +121,14 @@ update user shared msg model =
             ( { model | emailImportDialog = EmailImportDialog.show model.emailImportDialog }, Effect.none )
 
         ExportClicked ->
-            -- TODO: not yet implemented
-            ( model, Effect.none )
+            ( model
+            , model.subscribers
+                |> Dict.values
+                |> Subscribers.toCsv
+                |> Csv.Encode.toBytes
+                |> File.Download.bytes (csvDownloadFileName shared.browserEnv) "text/csv"
+                |> Effect.sendCmd
+            )
 
         SaveClicked ->
             ( { model | state = Saving }
@@ -172,6 +180,13 @@ update user shared msg model =
 
         ReceivedMessage message ->
             updateWithMessage user shared model message
+
+
+csvDownloadFileName : BrowserEnv -> String
+csvDownloadFileName browserEnv =
+    "subscribers_"
+        ++ BrowserEnv.formatIsoDate browserEnv browserEnv.now
+        ++ ".csv"
 
 
 updateWithMessage : Auth.User -> Shared.Model.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
@@ -264,7 +279,7 @@ view user shared model =
                     , theme = shared.theme
                     }
                     |> Button.withTypePrimary
-                    |> Button.withDisabled True
+                    |> Button.withDisabled (Dict.size model.subscribers < 1)
                     |> Button.view
                 , Button.new
                     { label = Translations.saveButtonTitle [ shared.browserEnv.translations ]
@@ -407,7 +422,9 @@ viewModifications theme browserEnv model =
                 |> Button.withTypeSecondary
                 |> Button.view
             , ul
-                []
+                [ css
+                    []
+                ]
                 (List.map viewModification unprocessedModifications)
             ]
 
@@ -419,7 +436,11 @@ viewModification : Modification -> Html Msg
 viewModification modification =
     case modification of
         Subscription subscriber ->
-            text <| modificationToString modification ++ ": " ++ subscriber.email
+            li []
+                [ text <| modificationToString modification ++ ": " ++ subscriber.email
+                ]
 
         Unsubscription subscriber ->
-            text <| modificationToString modification ++ ": " ++ subscriber.email
+            li []
+                [ text <| modificationToString modification ++ ": " ++ subscriber.email
+                ]
