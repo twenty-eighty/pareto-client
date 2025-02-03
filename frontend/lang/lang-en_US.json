@@ -171,6 +171,7 @@
       "export button title": "Export",
       "import button title": "Import",
       "save button title": "Save",
+      "process modifications button title": "Process",
       "no subscribers text": "No subscribers found."
    },
    "upload dialog": {

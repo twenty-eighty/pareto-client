@@ -297,7 +297,7 @@ export const onReady = ({ app, env }) => {
         case 10013: // relay list for private content
           {
             unwrapPrivateRelayListEvent(ndkEvent).then(event => {
-              eventsSortedByKind = addEvent(eventsSortedByKind, event);
+              app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
             });
             break;
           }
@@ -306,7 +306,7 @@ export const onReady = ({ app, env }) => {
           {
             unwrapApplicationSpecificEvent(ndkEvent).then(event => {
               if (event) {
-                eventsSortedByKind = addEvent(eventsSortedByKind, event);
+                app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
               }
             });
             break;
@@ -512,14 +512,7 @@ export const onReady = ({ app, env }) => {
   }
 
   async function unwrapApplicationSpecificEvent(ndkEvent) {
-    var encryptedForPubKey = firstTag(ndkEvent, "p");
-    if (encryptedForPubKey == null) {
-      encryptedForPubKey = ndkEvent.pubkey;
-    } else if (encryptedForPubKey != ndkEvent.pubkey) {
-      debugLog('event not for us');
-      return ndkEvent;
-    }
-    const content = await window.ndk.signer.nip44Decrypt({ pubkey: encryptedForPubKey }, ndkEvent.content);
+    const content = await window.ndk.signer.nip44Decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
     if (content) {
       ndkEvent.content = content;
     } else {

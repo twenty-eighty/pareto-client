@@ -21,7 +21,7 @@ import Pareto
 import Ports
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
-import Subscribers exposing (Subscriber)
+import Subscribers exposing (Email, Subscriber)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.PublishArticleDialog as Translations
@@ -45,7 +45,7 @@ type Model msg
         , relayStates : Dict RelayUrl Bool
         , sendViaEmail : Bool
         , state : DialogState
-        , subscribers : List Subscriber
+        , subscribers : Dict Email Subscriber
         }
 
 
@@ -97,7 +97,7 @@ init _ =
 
         -- authors shouldn't publish on team relay as normal users can't read from it
         , relayStates = Dict.singleton Pareto.teamRelay False
-        , subscribers = []
+        , subscribers = Dict.empty
         }
 
 
@@ -180,11 +180,11 @@ update props =
                             Nothing
                 in
                 ( Model model
-                , Effect.sendMsg (msg relayUrls emailSubscribers)
+                , Effect.sendMsg (msg relayUrls (Maybe.map Dict.values emailSubscribers))
                 )
 
             ReceivedMessage message ->
-                updateWithMessage (Model model) message
+                updateWithMessage (Model model) props.pubKey message
 
 
 sendRelayListCmd : PubKey -> List RelayMetadata -> Effect msg
@@ -219,8 +219,8 @@ updateRelayChecked (Model model) relayUrl newChecked =
     ( Model { model | relayStates = Dict.insert relayUrl newChecked model.relayStates }, Effect.none )
 
 
-updateWithMessage : Model msg -> IncomingMessage -> ( Model msg, Effect msg )
-updateWithMessage (Model model) message =
+updateWithMessage : Model msg -> PubKey -> IncomingMessage -> ( Model msg, Effect msg )
+updateWithMessage (Model model) userPubKey message =
     case message.messageType of
         "events" ->
             case Nostr.External.decodeEventsKind message.value of
@@ -228,8 +228,8 @@ updateWithMessage (Model model) message =
                     case Nostr.External.decodeEvents message.value of
                         Ok events ->
                             let
-                                ( subscribers, errors ) =
-                                    Subscribers.processEvents events
+                                ( subscribers, _, errors ) =
+                                    Subscribers.processEvents userPubKey model.subscribers [] events
                             in
                             ( Model { model | subscribers = subscribers, errors = model.errors ++ errors }, Effect.none )
 
@@ -289,7 +289,7 @@ viewPublishArticleDialog (Settings settings) =
             Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
 
         optionalDeliverySection =
-            if List.length model.subscribers > 0 then
+            if Dict.size model.subscribers > 0 then
                 deliverySection (Settings settings)
 
             else
@@ -460,7 +460,7 @@ deliverySection (Settings settings) =
             settings.model
 
         subscriberCount =
-            List.length model.subscribers
+            Dict.size model.subscribers
 
         checkboxText =
             if subscriberCount == 1 then

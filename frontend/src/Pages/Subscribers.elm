@@ -6,16 +6,18 @@ import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button as Button
 import Components.EmailImportDialog as EmailImportDialog
 import Components.Icon as Icon
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import FeatherIcons
-import Html.Styled as Html exposing (Html, div, text)
+import Html.Styled as Html exposing (Html, b, div, li, text, ul)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events as Events
 import Json.Decode as Decode
 import Layouts
+import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.External
-import Nostr.Request exposing (RequestData(..))
+import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (IncomingMessage)
 import Page exposing (Page)
@@ -24,7 +26,7 @@ import Route exposing (Route)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Subscribers exposing (Subscriber)
+import Subscribers exposing (Email, Modification(..), Subscriber, modificationToString)
 import Svg.Loaders as Loaders
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
@@ -60,8 +62,10 @@ type alias Model =
     { alertTimerMessage : AlertTimerMessage.Model
     , emailImportDialog : EmailImportDialog.Model
     , errors : List String
+    , modifications : List Modification
+    , requestId : RequestId
     , state : ModelState
-    , subscribers : List Subscriber
+    , subscribers : Dict Email Subscriber
     }
 
 
@@ -79,11 +83,16 @@ init user shared () =
     ( { alertTimerMessage = AlertTimerMessage.init {}
       , emailImportDialog = EmailImportDialog.init {}
       , errors = []
+      , modifications = []
+      , requestId = Nostr.getLastRequestId shared.nostr
       , state = Loading
-      , subscribers = []
+      , subscribers = Dict.empty
       }
-    , Subscribers.load shared.nostr user.pubKey
-        |> Effect.sendSharedMsg
+    , [ Subscribers.load shared.nostr user.pubKey
+      , Subscribers.loadModifications shared.nostr user.pubKey
+      ]
+        |> List.map Effect.sendSharedMsg
+        |> Effect.batch
     )
 
 
@@ -95,6 +104,7 @@ type Msg
     = ImportClicked
     | ExportClicked
     | SaveClicked
+    | ProcessModificationsClicked
     | AlertTimerMessageSent AlertTimerMessage.Msg
     | EmailImportDialogSent (EmailImportDialog.Msg Msg)
     | AddSubscribers (List Subscriber) Bool
@@ -114,11 +124,14 @@ update user shared msg model =
 
         SaveClicked ->
             ( { model | state = Saving }
-            , Subscribers.subscriberDataEvent shared.browserEnv user.pubKey model.subscribers
+            , Subscribers.subscriberDataEvent shared.browserEnv user.pubKey (Dict.values model.subscribers)
                 |> SendApplicationData
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
+
+        ProcessModificationsClicked ->
+            ( { model | state = Modified, subscribers = Subscribers.processModifications model.subscribers model.modifications }, Effect.none )
 
         AlertTimerMessageSent innerMsg ->
             AlertTimerMessage.update
@@ -165,18 +178,30 @@ updateWithMessage : Auth.User -> Shared.Model.Model -> Model -> IncomingMessage 
 updateWithMessage user shared model message =
     case message.messageType of
         "events" ->
-            case Nostr.External.decodeEventsKind message.value of
-                Ok KindApplicationSpecificData ->
-                    case Nostr.External.decodeEvents message.value of
-                        Ok events ->
-                            let
-                                ( subscribers, errors ) =
-                                    Subscribers.processEvents events
-                            in
-                            ( { model | state = Loaded, subscribers = subscribers, errors = model.errors ++ errors }, Effect.none )
+            case Nostr.External.decodeRequestId message.value of
+                Ok incomingRequestId ->
+                    if model.requestId == incomingRequestId then
+                        case Nostr.External.decodeEvents message.value of
+                            Ok [] ->
+                                ( { model | state = Loaded }, Effect.none )
 
-                        Err error ->
-                            ( { model | state = ErrorLoadingSubscribers (Decode.errorToString error) }, Effect.none )
+                            Ok events ->
+                                case Nostr.External.decodeEventsKind message.value of
+                                    Ok KindApplicationSpecificData ->
+                                        let
+                                            ( subscribers, modifications, errors ) =
+                                                Subscribers.processEvents user.pubKey model.subscribers model.modifications events
+                                        in
+                                        ( { model | state = Loaded, modifications = modifications, subscribers = subscribers, errors = model.errors ++ errors }, Effect.none )
+
+                                    _ ->
+                                        ( model, Effect.none )
+
+                            Err error ->
+                                ( { model | state = ErrorLoadingSubscribers (Decode.errorToString error) }, Effect.none )
+
+                    else
+                        ( model, Effect.none )
 
                 _ ->
                     ( model, Effect.none )
@@ -251,6 +276,7 @@ view user shared model =
                     |> Button.view
                 ]
             , viewSubscribers shared.browserEnv model
+            , viewModifications shared.theme shared.browserEnv model
             , EmailImportDialog.new
                 { model = model.emailImportDialog
                 , toMsg = EmailImportDialogSent
@@ -272,7 +298,7 @@ view user shared model =
 
 viewSubscribers : BrowserEnv -> Model -> Html Msg
 viewSubscribers browserEnv model =
-    case ( model.state, model.subscribers ) of
+    case ( model.state, Dict.size model.subscribers ) of
         ( Loading, _ ) ->
             div
                 [ css
@@ -298,26 +324,29 @@ viewSubscribers browserEnv model =
                 [ text <| "Error loading subscribers: " ++ error
                 ]
 
-        ( _, [] ) ->
+        ( _, 0 ) ->
             div
                 []
                 [ text <| Translations.noSubscribersText [ browserEnv.translations ]
                 ]
 
-        ( _, subscribers ) ->
-            div
+        ( _, _ ) ->
+            ul
                 [ css
                     [ Tw.flex
                     , Tw.flex_col
                     , Tw.m_2
                     ]
                 ]
-                (List.map viewSubscriber subscribers)
+                (model.subscribers
+                    |> Dict.values
+                    |> List.map viewSubscriber
+                )
 
 
 viewSubscriber : Subscriber -> Html Msg
 viewSubscriber subscriber =
-    div
+    li
         [ css
             [ Tw.flex
             , Tw.flex_row
@@ -341,3 +370,56 @@ removeSubscriberButton removeMsg =
         [ Icon.FeatherIcon FeatherIcons.delete
             |> Icon.view
         ]
+
+
+viewModifications : Theme -> BrowserEnv -> Model -> Html Msg
+viewModifications theme browserEnv model =
+    let
+        unprocessedModifications =
+            model.modifications
+                |> List.filter
+                    (\modification ->
+                        case modification of
+                            Subscription { email } ->
+                                not <| Dict.member email model.subscribers
+
+                            Unsubscription { email } ->
+                                Dict.member email model.subscribers
+                    )
+    in
+    if List.length unprocessedModifications > 0 then
+        div
+            [ css
+                [ Tw.flex
+                , Tw.flex_col
+                , Tw.gap_2
+                , Tw.m_2
+                ]
+            ]
+            [ b
+                []
+                [ text "Requested modifications" ]
+            , Button.new
+                { label = Translations.processModificationsButtonTitle [ browserEnv.translations ]
+                , onClick = Just <| ProcessModificationsClicked
+                , theme = theme
+                }
+                |> Button.withTypeSecondary
+                |> Button.view
+            , ul
+                []
+                (List.map viewModification unprocessedModifications)
+            ]
+
+    else
+        div [] []
+
+
+viewModification : Modification -> Html Msg
+viewModification modification =
+    case modification of
+        Subscription subscriber ->
+            text <| modificationToString modification ++ ": " ++ subscriber.email
+
+        Unsubscription subscriber ->
+            text <| modificationToString modification ++ ": " ++ subscriber.email

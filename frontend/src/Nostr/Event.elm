@@ -89,6 +89,7 @@ type TagReference
     = TagReferenceEventId EventId
     | TagReferenceCode AddressComponents
     | TagReferenceIdentifier String
+    | TagReferencePubKey PubKey
     | TagReferenceTag String
 
 
@@ -1489,6 +1490,9 @@ tagReferenceToString tagRef =
         TagReferenceIdentifier identifier ->
             identifier
 
+        TagReferencePubKey pubKey ->
+            pubKey
+
         TagReferenceTag tag ->
             tag
 
@@ -2086,6 +2090,9 @@ appendTagReferenceList maybeTagRefList encodeList =
                                     TagReferenceIdentifier _ ->
                                         Nothing
 
+                                    TagReferencePubKey _ ->
+                                        Nothing
+
                                     TagReferenceTag _ ->
                                         Nothing
                             )
@@ -2109,6 +2116,9 @@ appendTagReferenceList maybeTagRefList encodeList =
                                         Nothing
 
                                     TagReferenceIdentifier _ ->
+                                        Nothing
+
+                                    TagReferencePubKey _ ->
                                         Nothing
 
                                     TagReferenceTag _ ->
@@ -2136,6 +2146,37 @@ appendTagReferenceList maybeTagRefList encodeList =
                                     TagReferenceIdentifier identifier ->
                                         Just identifier
 
+                                    TagReferencePubKey _ ->
+                                        Nothing
+
+                                    TagReferenceTag _ ->
+                                        Nothing
+                            )
+                        |> (\list ->
+                                if List.isEmpty list then
+                                    Nothing
+
+                                else
+                                    Just list
+                           )
+
+                maybePubKeyList =
+                    tagRefList
+                        |> List.filterMap
+                            (\tagRef ->
+                                case tagRef of
+                                    TagReferenceEventId _ ->
+                                        Nothing
+
+                                    TagReferenceCode _ ->
+                                        Nothing
+
+                                    TagReferenceIdentifier _ ->
+                                        Nothing
+
+                                    TagReferencePubKey pubKey ->
+                                        Just pubKey
+
                                     TagReferenceTag _ ->
                                         Nothing
                             )
@@ -2161,6 +2202,9 @@ appendTagReferenceList maybeTagRefList encodeList =
                                     TagReferenceIdentifier _ ->
                                         Nothing
 
+                                    TagReferencePubKey _ ->
+                                        Nothing
+
                                     TagReferenceTag tag ->
                                         Just tag
                             )
@@ -2176,6 +2220,7 @@ appendTagReferenceList maybeTagRefList encodeList =
                 |> appendStringList "#a" maybeDcodeList
                 |> appendStringList "#d" maybeIdentifierList
                 |> appendStringList "#e" maybeEventIdList
+                |> appendStringList "#p" maybePubKeyList
                 |> appendStringList "#t" maybeTagList
 
         Nothing ->

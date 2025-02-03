@@ -1,7 +1,7 @@
 module Subscribers exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
-import Dict
+import Dict exposing (Dict)
 import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
 import Json.Encode as Encode
@@ -23,6 +23,15 @@ type alias Subscriber =
     }
 
 
+type alias Email =
+    String
+
+
+type Modification
+    = Subscription Subscriber
+    | Unsubscription Subscriber
+
+
 subscribersDTag : String
 subscribersDTag =
     "pareto-subscribers"
@@ -33,22 +42,58 @@ newsletterDTag =
     "pareto-newsletter-"
 
 
+modificationToString : Modification -> String
+modificationToString modification =
+    case modification of
+        Subscription _ ->
+            "subscribed"
+
+        Unsubscription _ ->
+            "unsubscribed"
+
+
+emptySubscriber : Email -> Subscriber
+emptySubscriber email =
+    { dnd = Nothing
+    , email = email
+    , name = Nothing
+    , tags = Nothing
+    }
+
+
 load : Nostr.Model -> PubKey -> Shared.Msg.Msg
 load nostr userPubKey =
-    eventFilter userPubKey
+    subscribersEventFilter userPubKey
         |> RequestSubscribers
         |> Nostr.createRequest nostr "Load subscribers" []
         |> Shared.Msg.RequestNostrEvents
 
 
-merge : Bool -> List Subscriber -> List Subscriber -> List Subscriber
+loadModifications : Nostr.Model -> PubKey -> Shared.Msg.Msg
+loadModifications nostr userPubKey =
+    modificationsEventFilter userPubKey
+        |> RequestSubscribers
+        |> Nostr.createRequest nostr "Load subscribers" []
+        |> Shared.Msg.RequestNostrEvents
+
+
+processModifications : Dict Email Subscriber -> List Modification -> Dict Email Subscriber
+processModifications subscribers modifications =
+    modifications
+        |> List.foldl
+            (\modification acc ->
+                case modification of
+                    Subscription subscriber ->
+                        Dict.insert subscriber.email subscriber acc
+
+                    Unsubscription subscriber ->
+                        Dict.remove subscriber.email acc
+            )
+            subscribers
+
+
+merge : Bool -> Dict Email Subscriber -> List Subscriber -> Dict Email Subscriber
 merge overwriteExisting existingSubscribers newSubscribers =
-    let
-        existingDict =
-            existingSubscribers
-                |> List.map (\subscriber -> ( subscriber.email, subscriber ))
-                |> Dict.fromList
-    in
     newSubscribers
         |> List.foldr
             (\newSubscriber acc ->
@@ -61,21 +106,21 @@ merge overwriteExisting existingSubscribers newSubscribers =
                 else
                     Dict.insert newSubscriber.email newSubscriber acc
             )
-            existingDict
-        |> Dict.values
+            existingSubscribers
 
 
-remove : List Subscriber -> List String -> List Subscriber
+remove : Dict Email Subscriber -> List Email -> Dict Email Subscriber
 remove existingSubscribers toBeRemovedEmails =
-    existingSubscribers
-        |> List.filter
-            (\subscriber ->
-                not <| List.member subscriber.email toBeRemovedEmails
+    toBeRemovedEmails
+        |> List.foldl
+            (\subscriberEmail acc ->
+                Dict.remove subscriberEmail acc
             )
+            existingSubscribers
 
 
-eventFilter : PubKey -> EventFilter
-eventFilter pubKey =
+subscribersEventFilter : PubKey -> EventFilter
+subscribersEventFilter pubKey =
     { emptyEventFilter
         | authors = Just [ pubKey ]
         , kinds = Just [ KindApplicationSpecificData ]
@@ -83,25 +128,107 @@ eventFilter pubKey =
     }
 
 
-processEvents : List Event -> ( List Subscriber, List String )
-processEvents events =
-    events
-        |> List.map fromEvent
-        |> List.foldl
-            (\result ( subscriberList, errorList ) ->
-                case result of
-                    Ok decodedSubscribers ->
-                        ( subscriberList ++ decodedSubscribers, errorList )
-
-                    Err error ->
-                        ( subscriberList, errorList ++ [ Decode.errorToString error ] )
-            )
-            ( [], [] )
+modificationsEventFilter : PubKey -> EventFilter
+modificationsEventFilter pubKey =
+    { emptyEventFilter
+        | authors = Just [ Pareto.subscriptionServerKey ]
+        , kinds = Just [ KindApplicationSpecificData ]
+        , tagReferences = Just [ TagReferencePubKey pubKey ]
+    }
 
 
-fromEvent : Event -> Result Decode.Error (List Subscriber)
-fromEvent event =
+processEvents : PubKey -> Dict Email Subscriber -> List Modification -> List Event -> ( Dict Email Subscriber, List Modification, List String )
+processEvents userPubKey existingSubscribers existingModifications events =
+    let
+        subscriberEvents =
+            events
+                |> List.filter (\event -> event.pubKey == userPubKey)
+
+        modificationEvents =
+            events
+                |> List.filter (\event -> event.pubKey == Pareto.subscriptionServerKey)
+
+        ( subscribersDict, decodingErrors1 ) =
+            subscriberEvents
+                |> List.map subscribersFromEvent
+                |> List.foldl
+                    (\result ( subscriberDict, errorList ) ->
+                        case result of
+                            Ok decodedSubscribers ->
+                                let
+                                    decodedSubscribersDict =
+                                        decodedSubscribers
+                                            |> List.map (\decodedSubscriber -> ( decodedSubscriber.email, decodedSubscriber ))
+                                            |> Dict.fromList
+                                in
+                                ( Dict.union subscriberDict decodedSubscribersDict, errorList )
+
+                            Err error ->
+                                ( subscriberDict, errorList ++ [ Decode.errorToString error ] )
+                    )
+                    ( existingSubscribers, [] )
+
+        ( modifications, decodingErrors2 ) =
+            modificationEvents
+                |> List.map modificationsFromEvent
+                |> List.foldl
+                    (\result ( modificationsAcc, errorList ) ->
+                        case result of
+                            Ok decodedModifications ->
+                                ( modificationsAcc ++ decodedModifications, errorList )
+
+                            Err error ->
+                                ( modificationsAcc, errorList ++ [ Decode.errorToString error ] )
+                    )
+                    ( existingModifications, [] )
+    in
+    ( subscribersDict, modifications, decodingErrors1 ++ decodingErrors2 )
+
+
+subscribersFromEvent : Event -> Result Decode.Error (List Subscriber)
+subscribersFromEvent event =
     Decode.decodeString (Decode.field "subscribers" subscribersDecoder) event.content
+
+
+modificationsFromEvent : Event -> Result Decode.Error (List Modification)
+modificationsFromEvent event =
+    Decode.decodeString modificationsDecoder event.content
+
+
+modificationsDecoder : Decode.Decoder (List Modification)
+modificationsDecoder =
+    Decode.oneOf
+        [ Decode.field "subscribe" subscribesDecoder
+        , Decode.field "unsubscribe" unsubscribesDecoder
+        ]
+
+
+subscribesDecoder : Decode.Decoder (List Modification)
+subscribesDecoder =
+    Decode.list subscribeDecoder
+
+
+subscribeDecoder : Decode.Decoder Modification
+subscribeDecoder =
+    Decode.field "email" Decode.string
+        |> Decode.andThen
+            (\email ->
+                Decode.succeed <| Subscription (emptySubscriber email)
+            )
+
+
+unsubscribesDecoder : Decode.Decoder (List Modification)
+unsubscribesDecoder =
+    Decode.list unsubscribeDecoder
+
+
+unsubscribeDecoder : Decode.Decoder Modification
+unsubscribeDecoder =
+    Decode.field "email" Decode.string
+        |> Decode.andThen
+            (\email ->
+                Decode.succeed <| Unsubscription (emptySubscriber email)
+            )
 
 
 subscribersDecoder : Decode.Decoder (List Subscriber)

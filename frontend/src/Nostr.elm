@@ -836,6 +836,9 @@ getZapReceiptsForArticle model article =
         TagReferenceIdentifier _ ->
             Nothing
 
+        TagReferencePubKey _ ->
+            Nothing
+
         TagReferenceTag _ ->
             Nothing
 
