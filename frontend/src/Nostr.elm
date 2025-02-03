@@ -1218,22 +1218,21 @@ update msg model =
                         , Nostr.External.decodeEventsKind message.value
                         )
                     of
-                        ( Ok requestId, Ok kindNum ) ->
+                        ( Ok requestId, Ok kind ) ->
                             case Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) message.value of
                                 Ok events ->
-                                    updateModelWithEvents model requestId (kindFromNumber kindNum) events
+                                    updateModelWithEvents model requestId kind events
 
                                 Err errorDecodingEvents ->
                                     let
                                         kindDesc =
-                                            kindNum
-                                                |> kindFromNumber
+                                            kind
                                                 |> informationForKind
                                                 |> .description
 
                                         errorMessage =
                                             "Error decoding events of kind "
-                                                ++ String.fromInt kindNum
+                                                ++ String.fromInt (numberForKind kind)
                                                 ++ " ("
                                                 ++ kindDesc
                                                 ++ ") - request ID "
