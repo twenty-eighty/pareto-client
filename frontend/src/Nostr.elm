@@ -98,6 +98,13 @@ isEditor model userPubKey =
         |> Maybe.withDefault False
 
 
+isBetaTester : Model -> PubKey -> Bool
+isBetaTester model userPubKey =
+    getFollowsList model Pareto.betaTestKey
+        |> Maybe.map (pubKeyIsFollower userPubKey)
+        |> Maybe.withDefault False
+
+
 
 -- the request ID will be incremented only in request when sending
 

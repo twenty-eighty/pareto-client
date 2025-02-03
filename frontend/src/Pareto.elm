@@ -37,6 +37,11 @@ subscriptionServerKey =
     "f7721f8728935c943710a2f06288cbd56da7ab20b43400a16d26ac58880e0087"
 
 
+betaTestKey : PubKey
+betaTestKey =
+    "0f479ef1a8870a917afbae778ea75fedb5db4cb64501e0e64a6d2010a2908e64"
+
+
 
 -- name of client in "client" tag when publishing articles
 

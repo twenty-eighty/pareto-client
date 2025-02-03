@@ -48,6 +48,7 @@ clientRoleForRoutePath : BrowserEnv.Environment -> Route.Path.Path -> ClientRole
 clientRoleForRoutePath environment path =
     sidebarItems
         { isAuthor = False
+        , isBetaTester = False
         , isLoggedIn = False
         , environment = environment
         , clientRole = ClientReader
@@ -77,6 +78,7 @@ type alias SidebarItemData =
 
 type alias SidebarItemParams =
     { isAuthor : Bool
+    , isBetaTester : Bool
     , isLoggedIn : Bool
     , environment : BrowserEnv.Environment
     , clientRole : ClientRole
@@ -93,9 +95,9 @@ routePathIsInList sidebarItemParams =
 
 
 sidebarItems : SidebarItemParams -> List SidebarItemData
-sidebarItems { isAuthor, isLoggedIn, environment, clientRole, translations, maybeBookmarksCount } =
+sidebarItems { isAuthor, isBetaTester, isLoggedIn, environment, clientRole, translations, maybeBookmarksCount } =
     rawSidebarItems clientRole translations
-        |> List.filter (sidebarItemVisible isLoggedIn isAuthor)
+        |> List.filter (sidebarItemVisible isLoggedIn isAuthor isBetaTester)
         |> List.filterMap
             (\sidebarItem ->
                 -- item-specific adaptions
@@ -110,7 +112,7 @@ sidebarItems { isAuthor, isLoggedIn, environment, clientRole, translations, mayb
 
                     Route.Path.Subscribers ->
                         -- currently in development
-                        Just { sidebarItem | disabled = environment /= BrowserEnv.Development }
+                        Just { sidebarItem | disabled = environment /= BrowserEnv.Development && not isBetaTester }
 
                     _ ->
                         Just sidebarItem
@@ -283,10 +285,17 @@ viewSidebar styles shared currentPath toContentMsg content =
                             Nothing
                     )
 
+        maybeUserPubKey =
+            Shared.loggedInPubKey shared.loginStatus
+
         sidebarItemParams =
             { isAuthor =
-                Shared.loggedInPubKey shared.loginStatus
+                maybeUserPubKey
                     |> Maybe.map (Nostr.isAuthor shared.nostr)
+                    |> Maybe.withDefault False
+            , isBetaTester =
+                maybeUserPubKey
+                    |> Maybe.map (Nostr.isBetaTester shared.nostr)
                     |> Maybe.withDefault False
             , isLoggedIn =
                 Shared.loggedIn shared
@@ -693,9 +702,12 @@ countBadge count =
             "(" ++ String.fromInt otherNumber ++ ")"
 
 
-sidebarItemVisible : Bool -> Bool -> SidebarItemData -> Bool
-sidebarItemVisible isLoggedIn isAuthor sidebarItem =
-    if sidebarItem.requiresAuthor then
+sidebarItemVisible : Bool -> Bool -> Bool -> SidebarItemData -> Bool
+sidebarItemVisible isLoggedIn isAuthor isBetaTester sidebarItem =
+    if isBetaTester then
+        True
+
+    else if sidebarItem.requiresAuthor then
         isAuthor
 
     else if sidebarItem.requiresLogin then
