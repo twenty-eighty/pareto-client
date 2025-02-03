@@ -823,9 +823,10 @@ viewMediaSelector (Settings settings) =
                 { model = model.serverSelectionDropdown
                 , toMsg = DropdownSent
                 , choices = selectableServers
-                , toLabel = mediaServerToString settings.browserEnv.translations
+                , allowNoSelection = False
+                , toLabel = mediaServerToString settings.browserEnv.translations << Maybe.withDefault NoMediaServer
                 }
-                |> Components.Dropdown.withOnChange ChangedSelectedServer
+                |> Components.Dropdown.withOnChange (ChangedSelectedServer << Maybe.withDefault NoMediaServer)
                 |> Components.Dropdown.view
                 |> Html.map settings.toMsg
             , Button.new

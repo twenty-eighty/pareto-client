@@ -120,7 +120,7 @@ init :
     { toMsg : Msg -> msg
     }
     -> Model
-init props =
+init _ =
     Model
         { state = DialogClosed
         , serverSelectionDropdown = Dropdown.init { selected = Nothing }
@@ -564,7 +564,7 @@ update props =
                 , Effect.sendMsg <| props.onUploaded (UploadResponseBlossom apiUrl blobDescriptor)
                 )
 
-            UploadResultBlossom fileId apiUrl (Err error) ->
+            UploadResultBlossom fileId _ (Err error) ->
                 let
                     updatedFiles =
                         Dict.update fileId
@@ -981,9 +981,10 @@ viewWaitingForFiles (Settings settings) =
             { model = model.serverSelectionDropdown
             , toMsg = DropdownSent
             , choices = model.uploadServers
-            , toLabel = uploadServerToString
+            , allowNoSelection = False
+            , toLabel = uploadServerToString << Maybe.withDefault (UploadServerBlossom "No server")
             }
-            |> Dropdown.withOnChange ChangedSelectedServer
+            |> Dropdown.withOnChange (ChangedSelectedServer << Maybe.withDefault (UploadServerBlossom "No server"))
             |> Dropdown.view
         , div
             [ css
@@ -1054,10 +1055,6 @@ hijack msg =
 
 viewMetadataDialog : UploadDialog msg -> ( Int, FileUpload ) -> Html msg
 viewMetadataDialog (Settings settings) ( fileId, fileUpload ) =
-    let
-        (Model model) =
-            settings.model
-    in
     modalDialog
         settings.theme
         (Translations.editMetadataDialogTitle [ settings.browserEnv.translations ])

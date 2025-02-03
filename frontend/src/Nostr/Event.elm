@@ -31,7 +31,7 @@ type Tag
     | ImageTag String (Maybe ImageSize)
     | LocationTag String (Maybe String)
     | LabelNamespaceTag String
-    | LabelTag String String
+    | LabelTag String (Maybe String)
     | MentionTag PubKey
     | NameTag String
     | PublicKeyTag PubKey (Maybe String) (Maybe String)
@@ -1646,7 +1646,7 @@ decodeTag =
                         Decode.map LabelNamespaceTag (Decode.index 1 Decode.string)
 
                     "l" ->
-                        Decode.map2 LabelTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string)
+                        Decode.map2 LabelTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
                     "m" ->
                         Decode.map MentionTag (Decode.index 1 Decode.string)
@@ -1838,8 +1838,8 @@ tagToList tag =
         LabelNamespaceTag value ->
             [ "L", value ]
 
-        LabelTag value ns ->
-            [ "l", value, ns ]
+        LabelTag value maybeNS ->
+            List.append [ "l", value ] (Maybe.map List.singleton maybeNS |> Maybe.withDefault [ "ugc" ])
 
         MentionTag pubKey ->
             [ "m", pubKey ]
@@ -2441,4 +2441,4 @@ addZapTags zapWeights tags =
 
 addLabelTags : String -> String -> List Tag -> List Tag
 addLabelTags ns label tags =
-    LabelNamespaceTag ns :: LabelTag label ns :: tags
+    LabelNamespaceTag ns :: LabelTag label (Just ns) :: tags
