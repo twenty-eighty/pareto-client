@@ -1,5 +1,6 @@
 module Pareto exposing (..)
 
+import Locale exposing (Language(..))
 import Nostr.Event exposing (Kind(..))
 import Nostr.HandlerInformation exposing (HandlerInformation)
 import Nostr.Nip05 as Nip05
@@ -64,6 +65,17 @@ applicationUrl =
 supportEmail : String
 supportEmail =
     "support@" ++ applicationDomain
+
+
+privacyPolicy : Language -> Maybe String
+privacyPolicy language =
+    case language of
+        German _ ->
+            Just privacyPolicyGerman
+
+        _ ->
+            -- TODO: Add here additional language versions
+            Nothing
 
 
 privacyPolicyGerman : String

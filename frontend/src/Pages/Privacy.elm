@@ -30,7 +30,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -43,28 +43,19 @@ type alias Model =
 init : Shared.Model -> Route () -> () -> ( Model, Effect Msg )
 init shared _ () =
     ( { privacyPolicyMarkdown = Nothing }
-    , requestMarkdown shared.browserEnv.language
+    , Pareto.privacyPolicy shared.browserEnv.language
+        |> Maybe.withDefault Pareto.privacyPolicyGerman
+        |> requestMarkdown
         |> Effect.sendCmd
     )
 
 
-requestMarkdown : Language -> Cmd Msg
-requestMarkdown language =
+requestMarkdown : String -> Cmd Msg
+requestMarkdown url =
     Http.get
-        { url = markdownUrl language
+        { url = url
         , expect = Http.expectString ReceivedMarkdown
         }
-
-
-markdownUrl : Language -> String
-markdownUrl language =
-    case language of
-        German _ ->
-            Pareto.privacyPolicyGerman
-
-        -- extend here for other versions
-        _ ->
-            Pareto.privacyPolicyGerman
 
 
 type Msg
@@ -73,7 +64,7 @@ type Msg
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
-update shared msg model =
+update _ msg model =
     case msg of
         ReceivedMarkdown (Ok markdown) ->
             ( { model | privacyPolicyMarkdown = Just markdown }, Effect.none )

@@ -537,8 +537,8 @@ viewFooter theme browserEnv =
 
 viewPrivacyPolicyLink : Styles Msg -> I18Next.Translations -> Language -> Html Msg
 viewPrivacyPolicyLink styles translations language =
-    case language of
-        German _ ->
+    case Pareto.privacyPolicy language of
+        Just _ ->
             a
                 (styles.textStyleLinks
                     ++ styles.colorStyleArticleHashtags
