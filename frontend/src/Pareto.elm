@@ -71,6 +71,11 @@ privacyPolicyGerman =
     "/md/privacy-de.md"
 
 
+source : String
+source =
+    "https://github.com/twenty-eighty/pareto-client"
+
+
 paretoNip05 : Nip05.Nip05
 paretoNip05 =
     { user = "client"

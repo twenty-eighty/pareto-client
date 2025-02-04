@@ -518,7 +518,19 @@ viewFooter theme browserEnv =
                 ]
             , text "."
             ]
-        , text <| Translations.sourceCodeText [ browserEnv.translations ]
+        , Html.span
+            []
+            [ text <| Translations.sourceCodeText [ browserEnv.translations ] ++ " "
+            , a
+                (styles.textStyleLinks
+                    ++ styles.colorStyleArticleHashtags
+                    ++ [ Attr.href Pareto.source
+                       ]
+                )
+                [ text Pareto.source
+                ]
+            , text "."
+            ]
         , viewPrivacyPolicyLink styles browserEnv.translations browserEnv.language
         ]
 
