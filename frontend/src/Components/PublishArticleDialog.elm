@@ -157,20 +157,27 @@ update props =
 
             PublishClicked msg ->
                 let
+                    isBetaTester =
+                        Nostr.isBetaTester props.nostr props.pubKey
+
                     -- the list of relays is not stored in the model
                     -- because there may appear more relays after
                     -- init call
                     relayUrls =
-                        Nostr.getWriteRelaysForPubKey props.nostr props.pubKey
-                            |> List.filterMap
-                                (\relay ->
-                                    case Dict.get relay.urlWithoutProtocol model.relayStates of
-                                        Just False ->
-                                            Nothing
+                        if isBetaTester && model.sendViaEmail then
+                            Pareto.applicationDataRelays
 
-                                        _ ->
-                                            Just relay.urlWithoutProtocol
-                                )
+                        else
+                            Nostr.getWriteRelaysForPubKey props.nostr props.pubKey
+                                |> List.filterMap
+                                    (\relay ->
+                                        case Dict.get relay.urlWithoutProtocol model.relayStates of
+                                            Just False ->
+                                                Nothing
+
+                                            _ ->
+                                                Just relay.urlWithoutProtocol
+                                    )
 
                     emailSubscribers =
                         if model.sendViaEmail then
@@ -332,12 +339,29 @@ relaysSection (Settings settings) relays =
         (Model model) =
             settings.model
 
+        isBetaTester =
+            Nostr.isBetaTester settings.nostr settings.pubKey
+
         relaysStates =
-            relays
-                |> List.map
-                    (\relay ->
-                        ( relay, Dict.get relay.urlWithoutProtocol model.relayStates /= Just False )
-                    )
+            -- TODO: This branch is only for test purposes
+            if isBetaTester && model.sendViaEmail then
+                Pareto.applicationDataRelays
+                    |> List.map
+                        (\relayUrl ->
+                            ( { urlWithoutProtocol = relayUrl
+                              , nip11 = Nothing
+                              , state = Relay.RelayStateUnknown
+                              }
+                            , True
+                            )
+                        )
+
+            else
+                relays
+                    |> List.map
+                        (\relay ->
+                            ( relay, Dict.get relay.urlWithoutProtocol model.relayStates /= Just False )
+                        )
 
         styles =
             Ui.Styles.stylesForTheme settings.theme
@@ -473,8 +497,8 @@ deliverySection (Settings settings) =
         [ div
             [ css
                 [ Tw.flex
+                , Tw.flex_col
                 , Tw.justify_between
-                , Tw.items_center
                 , Tw.mb_2
                 ]
             ]
@@ -487,6 +511,13 @@ deliverySection (Settings settings) =
                 , fontFamilyUnbounded
                 ]
                 [ text <| Translations.deliveryTitle [ settings.browserEnv.translations ] ]
+            , div
+                [ css
+                    [ Tw.font_bold
+                    ]
+                ]
+                [ text "TEST MODE: when sending article via emails, it will only be published to a test relay."
+                ]
             ]
         , Checkbox.new
             { label = checkboxText
