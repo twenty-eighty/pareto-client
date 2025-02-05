@@ -13,6 +13,9 @@ port sendCommand : OutgoingCommand -> Cmd msg
 port receiveMessage : (IncomingMessage -> msg) -> Sub msg
 
 
+port addScript : String -> Cmd msg
+
+
 connect : List String -> Cmd msg
 connect relays =
     sendCommand { command = "connect", value = Encode.list Encode.string relays }

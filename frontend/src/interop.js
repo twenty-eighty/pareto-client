@@ -61,6 +61,22 @@ export const onReady = ({ app, env }) => {
     }
   });
 
+  app.ports.addScript.subscribe(url => {
+    const scripts = document.getElementsByTagName("script");
+    const myScripts = Array.from(scripts).filter(elem => elem.getAttribute("src") === url);
+    for (const script of myScripts) {
+      document.body.removeChild(script);
+    }
+    const newScript = document.createElement('script');
+    newScript.src = url;
+    document.body.appendChild(newScript);
+    console.log("Added script element");
+    // TODO: this doesn't work when refreshing an article in the reader
+    if (window.nostrZap) {
+      window.nostrZap.initTargets();
+    }
+  });
+
   window.onload = function () {
     const nostrLoginOptions = {
     };

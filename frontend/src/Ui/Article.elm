@@ -14,9 +14,9 @@ import Markdown
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), numberForKind)
-import Nostr.Nip19 as Nip19
+import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip27 exposing (GetProfileFunction)
-import Nostr.Profile exposing (Author, Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
+import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Types exposing (EventId, PubKey)
 import Route
@@ -86,6 +86,14 @@ viewArticle articlePreviewsData articlePreviewData article =
                     ]
                 ]
             ]
+
+        maybeTarget =
+            case Nip19.encode (Npub article.author) of
+                Ok npub ->
+                    Just { author = npub, id = article.id, relays = Maybe.withDefault Set.empty article.relays }
+
+                Err err ->
+                    Debug.todo "branch 'Err _' not implemented"
     in
     div
         [ css
@@ -184,9 +192,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                     ++ styles.textStyleReactions
                     ++ contentMargins
                 )
-                [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions
+                [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions maybeTarget
                 , viewContent styles articlePreviewData.loadedContent getProfile article.content
-                , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions
+                , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions maybeTarget
                 ]
             ]
 

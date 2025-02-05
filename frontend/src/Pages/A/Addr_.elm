@@ -1,12 +1,11 @@
 module Pages.A.Addr_ exposing (..)
 
 import Browser.Dom
-import BrowserEnv exposing (BrowserEnv)
 import Components.RelayStatus exposing (Purpose(..))
 import Components.ZapDialog as ZapDialog
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, div)
-import Html.Styled.Attributes as Attr exposing (css)
+import Html.Styled as Html exposing (div)
+import Html.Styled.Attributes exposing (css)
 import Layouts
 import LinkPreview exposing (LoadedContent)
 import Nostr
@@ -17,7 +16,7 @@ import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (EventId, PubKey)
 import Page exposing (Page)
-import Ports
+import Ports exposing (addScript)
 import Route exposing (Route)
 import Set
 import Shared
@@ -44,7 +43,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -92,7 +91,7 @@ init shared route () =
 
         effect =
             case ( maybeArticle, model ) of
-                ( Nothing, Nip19Model { nip19, requestId } ) ->
+                ( Nothing, Nip19Model { nip19 } ) ->
                     -- article not loaded yet, request it now
                     case nip19 of
                         NAddr naddrData ->
@@ -180,7 +179,7 @@ update shared msg model =
                 _ ->
                     ( model, Effect.none )
 
-        ZapReaction userPubKey recipients ->
+        ZapReaction _ recipients ->
             case model of
                 Nip19Model nip19ModelData ->
                     showZapDialog nip19ModelData recipients
@@ -203,7 +202,7 @@ update shared msg model =
                     ( model, Effect.none )
 
         NoOp ->
-            ( model, Effect.none )
+            ( model, Effect.sendCmd (addScript "/node_modules/nostr-zap/dist/main.js") )
 
 
 showZapDialog : Nip19ModelData -> List ZapDialog.Recipient -> ( Model, Effect Msg )
@@ -222,7 +221,7 @@ showZapDialog nip19ModelData recipients =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -246,7 +245,7 @@ viewContent shared nip19 loadedContent requestId =
         maybeArticle =
             Nostr.getArticleForNip19 shared.nostr nip19
 
-        addressComponents =
+        _ =
             maybeArticle
                 |> Maybe.andThen addressComponentsForArticle
 

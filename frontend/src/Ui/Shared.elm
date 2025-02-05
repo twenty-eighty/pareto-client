@@ -9,6 +9,8 @@ import Html.Styled as Html exposing (Html, a, button, div, h2, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Nostr.Reactions exposing (Interactions)
+import Nostr.Types exposing (EventId)
+import Set exposing (Set)
 import Svg.Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
@@ -134,8 +136,12 @@ type alias Actions msg =
     }
 
 
-viewInteractions : Styles msg -> BrowserEnv -> Actions msg -> Interactions -> Html msg
-viewInteractions styles browserEnv actions interactions =
+type alias InteractionsTarget =
+    { author : String, id : EventId, relays : Set String }
+
+
+viewInteractions : Styles msg -> BrowserEnv -> Actions msg -> Interactions -> Maybe InteractionsTarget -> Html msg
+viewInteractions styles browserEnv actions interactions maybeTarget =
     let
         ( bookmarkIcon, bookmarkMsg ) =
             if interactions.isBookmarked then
@@ -160,16 +166,16 @@ viewInteractions styles browserEnv actions interactions =
             , Tw.inline_flex
             ]
         ]
-        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) Nothing (Maybe.map String.fromInt interactions.notes)
-        , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions)
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.repeat) Nothing (Maybe.map String.fromInt interactions.reposts)
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps)
-        , viewReactions styles bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks)
+        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) Nothing (Maybe.map String.fromInt interactions.notes) maybeTarget
+        , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) maybeTarget
+        , viewReactions styles (Icon.FeatherIcon FeatherIcons.repeat) Nothing (Maybe.map String.fromInt interactions.reposts) maybeTarget
+        , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) maybeTarget
+        , viewReactions styles bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks) maybeTarget
         ]
 
 
-viewReactions : Styles msg -> Icon -> Maybe msg -> Maybe String -> Html msg
-viewReactions styles icon maybeMsg maybeCount =
+viewReactions : Styles msg -> Icon -> Maybe msg -> Maybe String -> Maybe InteractionsTarget -> Html msg
+viewReactions styles icon maybeMsg maybeCount maybeTarget =
     let
         onClickAttr =
             case maybeMsg of
@@ -178,6 +184,29 @@ viewReactions styles icon maybeMsg maybeCount =
 
                 Nothing ->
                     []
+
+        nostrZapAttrs =
+            Maybe.map
+                (\target ->
+                    case icon of
+                        Icon.FeatherIcon featherIcon ->
+                            if featherIcon == FeatherIcons.zap then
+                                [ Attr.attribute "data-npub" target.author
+
+                                --, Attr.attribute "data-note-id" target.id
+                                , Attr.attribute "data-relays" (Set.foldl (\r acc -> r ++ "," ++ acc) "" target.relays)
+                                , Attr.attribute "data-button-color" "#334155"
+                                , css [ Tw.cursor_pointer ]
+                                ]
+
+                            else
+                                []
+
+                        _ ->
+                            []
+                )
+                maybeTarget
+                |> Maybe.withDefault []
     in
     div
         (styles.colorStyleLabel
@@ -192,16 +221,16 @@ viewReactions styles icon maybeMsg maybeCount =
         )
         [ div
             (onClickAttr
-                ++ [ css
-                        [ Tw.w_5
-                        , Tw.h_5
-                        , Tw.px_0_dot_5
-                        , Tw.py_0_dot_5
-                        , Tw.justify_center
-                        , Tw.items_center
-                        , Tw.flex
-                        ]
-                   ]
+                ++ css
+                    [ Tw.w_5
+                    , Tw.h_5
+                    , Tw.px_0_dot_5
+                    , Tw.py_0_dot_5
+                    , Tw.justify_center
+                    , Tw.items_center
+                    , Tw.flex
+                    ]
+                :: nostrZapAttrs
             )
             [ Icon.view icon ]
         , div

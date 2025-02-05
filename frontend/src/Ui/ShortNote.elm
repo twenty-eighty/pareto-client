@@ -4,11 +4,12 @@ import BrowserEnv exposing (BrowserEnv)
 import Html.Styled as Html exposing (Html, a, br, button, div, p, span, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Nostr
-import Nostr.Nip19 as Nip19
+import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
 import Nostr.Reactions exposing (Interactions)
 import Nostr.ShortNote exposing (ShortNote)
 import Nostr.Types exposing (EventId, PubKey)
+import Set
 import Tailwind.Utilities as Tw
 import Ui.Links exposing (linkElementForAuthor)
 import Ui.Profile
@@ -53,6 +54,14 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
                 |> Nip19.encode
                 |> Result.toMaybe
                 |> Maybe.withDefault ""
+
+        maybeTarget =
+            case Nip19.encode (Npub shortNote.pubKey) of
+                Ok npub ->
+                    Just { author = npub, id = shortNote.id, relays = Set.empty }
+
+                Err err ->
+                    Debug.todo "branch 'Err _' not implemented"
     in
     div
         [ Attr.class "animated"
@@ -231,7 +240,7 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
                     , div
                         [ Attr.class "_footer_qj1dj_448"
                         ]
-                        [ Ui.Shared.viewInteractions styles shortNotesViewData.browserEnv shortNoteViewData.actions shortNoteViewData.interactions
+                        [ Ui.Shared.viewInteractions styles shortNotesViewData.browserEnv shortNoteViewData.actions shortNoteViewData.interactions maybeTarget
                         ]
                     ]
                 ]
