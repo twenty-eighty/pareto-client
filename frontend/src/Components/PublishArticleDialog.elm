@@ -516,7 +516,7 @@ deliverySection (Settings settings) =
                     [ Tw.font_bold
                     ]
                 ]
-                [ text "TEST MODE: when sending article via emails, it will only be published to a test relay."
+                [ text "TEST MODE: when sending article via email it will only be published to a test relay."
                 ]
             ]
         , Checkbox.new

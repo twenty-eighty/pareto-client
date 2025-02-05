@@ -38,7 +38,8 @@
    "email import dialog": {
       "dialog title": "E-Mail-Liste importieren",
       "import button title": "Importieren",
-      "close button title": "Schließen"
+      "close button title": "Schließen",
+      "next button title": "Weiter"
    },
    "email subscription dialog": {
       "dialog title": "Mit E-Mail abonnieren",
