@@ -56,12 +56,20 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
                 |> Maybe.withDefault ""
 
         maybeTarget =
-            case Nip19.encode (Npub shortNote.pubKey) of
-                Ok npub ->
-                    Just { author = npub, id = shortNote.id, relays = Set.empty }
+            Nip19.encode (Npub shortNote.pubKey)
+                |> Result.map
+                    (\npub ->
+                        { author = npub
+                        , maybeNoteId =
+                            if noteUrl /= "" then
+                                Just noteUrl
 
-                Err err ->
-                    Debug.todo "branch 'Err _' not implemented"
+                            else
+                                Nothing
+                        , relays = Set.empty
+                        }
+                    )
+                |> Result.toMaybe
     in
     div
         [ Attr.class "animated"

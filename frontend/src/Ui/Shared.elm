@@ -9,7 +9,6 @@ import Html.Styled as Html exposing (Html, a, button, div, h2, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Nostr.Reactions exposing (Interactions)
-import Nostr.Types exposing (EventId)
 import Set exposing (Set)
 import Svg.Loaders
 import Tailwind.Breakpoints as Bp
@@ -137,7 +136,7 @@ type alias Actions msg =
 
 
 type alias InteractionsTarget =
-    { author : String, id : EventId, relays : Set String }
+    { author : String, maybeNoteId : Maybe String, relays : Set String }
 
 
 viewInteractions : Styles msg -> BrowserEnv -> Actions msg -> Interactions -> Maybe InteractionsTarget -> Html msg
@@ -192,12 +191,11 @@ viewReactions styles icon maybeMsg maybeCount maybeTarget =
                         Icon.FeatherIcon featherIcon ->
                             if featherIcon == FeatherIcons.zap then
                                 [ Attr.attribute "data-npub" target.author
-
-                                --, Attr.attribute "data-note-id" target.id
                                 , Attr.attribute "data-relays" (Set.foldl (\r acc -> r ++ "," ++ acc) "" target.relays)
                                 , Attr.attribute "data-button-color" "#334155"
                                 , css [ Tw.cursor_pointer ]
                                 ]
+                                    ++ Maybe.withDefault [] (Maybe.map (\noteId -> [ Attr.attribute "data-note-id" noteId ]) target.maybeNoteId)
 
                             else
                                 []

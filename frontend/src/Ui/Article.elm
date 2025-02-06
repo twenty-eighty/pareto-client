@@ -87,13 +87,16 @@ viewArticle articlePreviewsData articlePreviewData article =
                 ]
             ]
 
-        maybeTarget =
-            case Nip19.encode (Npub article.author) of
-                Ok npub ->
-                    Just { author = npub, id = article.id, relays = Maybe.withDefault Set.empty article.relays }
+        maybeNoteId =
+            Result.toMaybe (Nip19.encode (Note article.id))
 
-                Err err ->
-                    Debug.todo "branch 'Err _' not implemented"
+        maybeTarget =
+            Nip19.encode (Npub article.author)
+                |> Result.map
+                    (\npub ->
+                        { author = npub, maybeNoteId = maybeNoteId, relays = Maybe.withDefault Set.empty article.relays }
+                    )
+                |> Result.toMaybe
     in
     div
         [ css
