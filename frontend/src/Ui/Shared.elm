@@ -8,7 +8,9 @@ import FeatherIcons
 import Html.Styled as Html exposing (Html, a, button, div, h2, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
+import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Reactions exposing (Interactions)
+import Nostr.Types exposing (PubKey)
 import Set exposing (Set)
 import Svg.Loaders
 import Tailwind.Breakpoints as Bp
@@ -135,13 +137,24 @@ type alias Actions msg =
     }
 
 
-type alias InteractionsTarget =
-    { author : String, maybeNoteId : Maybe String, relays : Set String }
+type alias PreviewData msg =
+    { pubKey : PubKey
+    , noteId : Maybe String
+    , relays : Set String
+    , actions : Actions msg
+    , interactions : Interactions
+    }
 
 
-viewInteractions : Styles msg -> BrowserEnv -> Actions msg -> Interactions -> Maybe InteractionsTarget -> Html msg
-viewInteractions styles browserEnv actions interactions maybeTarget =
+viewInteractions : Styles msg -> BrowserEnv -> PreviewData msg -> Html msg
+viewInteractions styles browserEnv previewData =
     let
+        actions =
+            previewData.actions
+
+        interactions =
+            previewData.interactions
+
         ( bookmarkIcon, bookmarkMsg ) =
             if interactions.isBookmarked then
                 ( Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdded 30 Icon.Inherit, actions.removeBookmark )
@@ -165,16 +178,16 @@ viewInteractions styles browserEnv actions interactions maybeTarget =
             , Tw.inline_flex
             ]
         ]
-        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) Nothing (Maybe.map String.fromInt interactions.notes) maybeTarget
-        , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) maybeTarget
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.repeat) Nothing (Maybe.map String.fromInt interactions.reposts) maybeTarget
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) maybeTarget
-        , viewReactions styles bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks) maybeTarget
+        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) Nothing (Maybe.map String.fromInt interactions.notes) previewData
+        , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) previewData
+        , viewReactions styles (Icon.FeatherIcon FeatherIcons.repeat) Nothing (Maybe.map String.fromInt interactions.reposts) previewData
+        , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) previewData
+        , viewReactions styles bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks) previewData
         ]
 
 
-viewReactions : Styles msg -> Icon -> Maybe msg -> Maybe String -> Maybe InteractionsTarget -> Html msg
-viewReactions styles icon maybeMsg maybeCount maybeTarget =
+viewReactions : Styles msg -> Icon -> Maybe msg -> Maybe String -> PreviewData msg -> Html msg
+viewReactions styles icon maybeMsg maybeCount previewData =
     let
         onClickAttr =
             case maybeMsg of
@@ -184,27 +197,26 @@ viewReactions styles icon maybeMsg maybeCount maybeTarget =
                 Nothing ->
                     []
 
+        maybeNpub =
+            Nip19.encode (Npub previewData.pubKey)
+                |> Result.toMaybe
+
         nostrZapAttrs =
-            Maybe.map
-                (\target ->
-                    case icon of
-                        Icon.FeatherIcon featherIcon ->
-                            if featherIcon == FeatherIcons.zap then
-                                [ Attr.attribute "data-npub" target.author
-                                , Attr.attribute "data-relays" (Set.foldl (\r acc -> r ++ "," ++ acc) "" target.relays)
-                                , Attr.attribute "data-button-color" "#334155"
-                                , css [ Tw.cursor_pointer ]
-                                ]
-                                    ++ Maybe.withDefault [] (Maybe.map (\noteId -> [ Attr.attribute "data-note-id" noteId ]) target.maybeNoteId)
+            case ( icon, maybeNpub ) of
+                ( Icon.FeatherIcon featherIcon, Just npub ) ->
+                    if featherIcon == FeatherIcons.zap then
+                        [ Attr.attribute "data-npub" npub
+                        , Attr.attribute "data-relays" (Set.foldl (\r acc -> r ++ "," ++ acc) "" previewData.relays)
+                        , Attr.attribute "data-button-color" "#334155"
+                        , css [ Tw.cursor_pointer ]
+                        ]
+                            ++ Maybe.withDefault [] (Maybe.map (\noteId -> [ Attr.attribute "data-note-id" noteId ]) previewData.noteId)
 
-                            else
-                                []
+                    else
+                        []
 
-                        _ ->
-                            []
-                )
-                maybeTarget
-                |> Maybe.withDefault []
+                _ ->
+                    []
     in
     div
         (styles.colorStyleLabel

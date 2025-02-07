@@ -5,23 +5,20 @@ module Ui.View exposing (..)
 import BrowserEnv exposing (BrowserEnv)
 import Components.RelayStatus as RelayStatus exposing (Purpose(..))
 import Html.Styled as Html exposing (Html, div)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
+import Html.Styled.Attributes exposing (css)
 import Html.Styled.Keyed as Keyed
 import Html.Styled.Lazy as Lazy
 import I18Next
 import LinkPreview exposing (LoadedContent)
 import Nostr
-import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, nip19ForArticle)
+import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Community exposing (Community)
 import Nostr.Request exposing (RequestId)
-import Nostr.ShortNote exposing (ShortNote)
-import Nostr.Types exposing (PubKey)
 import Tailwind.Utilities as Tw
-import Ui.Article exposing (ArticlePreviewData, ArticlePreviewsData)
+import Ui.Article exposing (ArticlePreviewsData)
 import Ui.Community
 import Ui.Shared exposing (Actions)
-import Ui.ShortNote
-import Ui.Styles exposing (Styles, Theme)
+import Ui.Styles exposing (Theme)
 
 
 type ArticlePreviewType

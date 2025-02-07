@@ -90,13 +90,14 @@ viewArticle articlePreviewsData articlePreviewData article =
         maybeNoteId =
             Result.toMaybe (Nip19.encode (Note article.id))
 
-        maybeTarget =
-            Nip19.encode (Npub article.author)
-                |> Result.map
-                    (\npub ->
-                        { author = npub, maybeNoteId = maybeNoteId, relays = Maybe.withDefault Set.empty article.relays }
-                    )
-                |> Result.toMaybe
+        previewData =
+            { pubKey = article.author
+            , noteId =
+                maybeNoteId
+            , relays = Maybe.withDefault Set.empty article.relays
+            , actions = articlePreviewData.actions
+            , interactions = articlePreviewData.interactions
+            }
     in
     div
         [ css
@@ -195,9 +196,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                     ++ styles.textStyleReactions
                     ++ contentMargins
                 )
-                [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions maybeTarget
+                [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData
                 , viewContent styles articlePreviewData.loadedContent getProfile article.content
-                , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions maybeTarget
+                , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData
                 ]
             ]
 

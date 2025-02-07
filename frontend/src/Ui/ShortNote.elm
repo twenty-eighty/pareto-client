@@ -48,34 +48,26 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
                 AuthorProfile profile profileValidation ->
                     ( profileDisplayName profile.pubKey profile, profile.picture, profileValidation )
 
-        noteUrl =
+        maybeNoteId =
             shortNote.id
                 |> Nip19.Note
                 |> Nip19.encode
                 |> Result.toMaybe
-                |> Maybe.withDefault ""
 
-        maybeTarget =
-            Nip19.encode (Npub shortNote.pubKey)
-                |> Result.map
-                    (\npub ->
-                        { author = npub
-                        , maybeNoteId =
-                            if noteUrl /= "" then
-                                Just noteUrl
-
-                            else
-                                Nothing
-                        , relays = Set.empty
-                        }
-                    )
-                |> Result.toMaybe
+        previewData =
+            { pubKey = shortNote.pubKey
+            , noteId =
+                maybeNoteId
+            , relays = Set.empty
+            , actions = shortNoteViewData.actions
+            , interactions = shortNoteViewData.interactions
+            }
     in
     div
         [ Attr.class "animated"
         ]
         [ a
-            [ Attr.href noteUrl
+            [ Attr.href (Maybe.withDefault "" maybeNoteId)
             , Attr.attribute "link" ""
             , css
                 [ Tw.relative
@@ -248,7 +240,7 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
                     , div
                         [ Attr.class "_footer_qj1dj_448"
                         ]
-                        [ Ui.Shared.viewInteractions styles shortNotesViewData.browserEnv shortNoteViewData.actions shortNoteViewData.interactions maybeTarget
+                        [ Ui.Shared.viewInteractions styles shortNotesViewData.browserEnv previewData
                         ]
                     ]
                 ]
