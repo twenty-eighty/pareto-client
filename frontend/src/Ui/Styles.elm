@@ -696,7 +696,9 @@ paretoThemeStyles =
             , Tw.font_medium
             , Tw.leading_6
             , Tw.tracking_normal
+            , Tw.decoration_auto
             , Tw.underline
+            , Tw.decoration_dotted
             ]
         , fontFamilyInter
         ]
@@ -855,10 +857,8 @@ paretoThemeStyles =
         ]
     , colorStyleLinks =
         [ css
-            [ Tw.text_color Theme.blue_600
-            , darkMode
-                [ Tw.text_color Theme.blue_400
-                ]
+            [ darkMode
+                []
             ]
         ]
     , colorStyleMedia =

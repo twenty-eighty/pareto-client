@@ -3,8 +3,11 @@ module Components.EmailImportDialog exposing (EmailImportDialog, Model, Msg, hid
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Checkbox as Checkbox
+import Csv as CsvParser
 import Effect exposing (Effect)
 import Email
+import File exposing (File)
+import File.Select as FileSelect
 import Html.Styled as Html exposing (Html, div, text, textarea, ul)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
@@ -13,9 +16,10 @@ import Nostr.Event exposing (Kind(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
 import Shared.Model exposing (Model)
-import Subscribers exposing (Subscriber)
+import Subscribers exposing (Subscriber, emptySubscriber)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
+import Task
 import Translations.EmailImportDialog as Translations
 import Ui.Shared
 import Ui.Styles exposing (Theme)
@@ -24,10 +28,14 @@ import Ui.Styles exposing (Theme)
 type Msg msg
     = CloseDialog
     | ConfigureRelaysClicked
+    | ImportSingleEmails
     | ImportClicked (List Subscriber) Bool
     | OverwriteExistingClicked Bool
     | UpdateEmailData String
     | ProcessEnteredData String
+    | CsvRequested
+    | CsvSelected File
+    | CsvLoaded String
 
 
 type Model
@@ -38,12 +46,19 @@ type Model
 
 type DialogState
     = DialogHidden
-    | DialogVisibleImport EmailImportData
-    | DialogVisibleProcessed EmailProcessedData
+    | DialogSelection
+    | DialogImport EmailImportData
+    | DialogCsvLoaded CsvLoadedData
+    | DialogProcessed EmailProcessedData
 
 
 type alias EmailImportData =
     { enteredEmails : String
+    }
+
+
+type alias CsvLoadedData =
+    { csvData : List (List String)
     }
 
 
@@ -93,7 +108,7 @@ init _ =
 
 show : Model -> Model
 show (Model model) =
-    Model { model | state = DialogVisibleImport { enteredEmails = "nostr-email@xn--y9a.net" } }
+    Model { model | state = DialogSelection }
 
 
 hide : Model -> Model
@@ -137,17 +152,22 @@ update props =
 
             OverwriteExistingClicked overwriteExisting ->
                 case model.state of
-                    DialogVisibleProcessed emailProcessedData ->
+                    DialogProcessed emailProcessedData ->
                         let
                             dataWithUpdate =
                                 { emailProcessedData | overwriteExisting = overwriteExisting }
                         in
-                        ( Model { model | state = DialogVisibleProcessed dataWithUpdate }
+                        ( Model { model | state = DialogProcessed dataWithUpdate }
                         , Effect.none
                         )
 
                     _ ->
                         ( Model model, Effect.none )
+
+            ImportSingleEmails ->
+                ( Model { model | state = DialogImport { enteredEmails = "" } }
+                , Effect.none
+                )
 
             ImportClicked subscribers overwriteExisting ->
                 ( Model model
@@ -156,12 +176,12 @@ update props =
 
             UpdateEmailData enteredEmails ->
                 case model.state of
-                    DialogVisibleImport emailImportData ->
+                    DialogImport emailImportData ->
                         let
                             dataWithUpdate =
                                 { emailImportData | enteredEmails = enteredEmails }
                         in
-                        ( Model { model | state = DialogVisibleImport dataWithUpdate }
+                        ( Model { model | state = DialogImport dataWithUpdate }
                         , Effect.none
                         )
 
@@ -180,7 +200,7 @@ update props =
                                     (\parsingResult ->
                                         case parsingResult of
                                             Ok email ->
-                                                Just { dnd = Nothing, email = Email.toString email, name = Nothing, tags = Nothing }
+                                                Just (emptySubscriber (Email.toString email))
 
                                             Err _ ->
                                                 Nothing
@@ -188,7 +208,31 @@ update props =
                         , overwriteExisting = False
                         }
                 in
-                ( Model { model | state = DialogVisibleProcessed processedData }, Effect.none )
+                ( Model { model | state = DialogProcessed processedData }, Effect.none )
+
+            CsvRequested ->
+                ( Model model
+                , FileSelect.file [ "text/csv" ] CsvSelected
+                    |> Cmd.map props.toMsg
+                    |> Effect.sendCmd
+                )
+
+            CsvSelected file ->
+                ( Model model
+                , Task.perform CsvLoaded (File.toString file)
+                    |> Cmd.map props.toMsg
+                    |> Effect.sendCmd
+                )
+
+            CsvLoaded content ->
+                case CsvParser.parseRows content of
+                    Ok csvData ->
+                        ( Model { model | state = DialogCsvLoaded { csvData = csvData } }
+                        , Effect.none
+                        )
+
+                    Err error ->
+                        ( Model model, Effect.none )
 
 
 view : EmailImportDialog msg -> Html msg
@@ -204,7 +248,15 @@ view dialog =
         DialogHidden ->
             div [] []
 
-        DialogVisibleImport emailImportData ->
+        DialogSelection ->
+            Ui.Shared.modalDialog
+                settings.theme
+                (Translations.dialogTitle [ settings.browserEnv.translations ])
+                [ viewSelectionDialog dialog ]
+                CloseDialog
+                |> Html.map settings.toMsg
+
+        DialogImport emailImportData ->
             Ui.Shared.modalDialog
                 settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
@@ -212,13 +264,59 @@ view dialog =
                 CloseDialog
                 |> Html.map settings.toMsg
 
-        DialogVisibleProcessed emailProcessedData ->
+        DialogCsvLoaded csvLoadedData ->
+            Ui.Shared.modalDialog
+                settings.theme
+                (Translations.dialogTitle [ settings.browserEnv.translations ])
+                [ viewCsvLoadedDialog dialog csvLoadedData ]
+                CloseDialog
+                |> Html.map settings.toMsg
+
+        DialogProcessed emailProcessedData ->
             Ui.Shared.modalDialog
                 settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
                 [ viewProcessedDialog dialog emailProcessedData ]
                 CloseDialog
                 |> Html.map settings.toMsg
+
+
+viewSelectionDialog : EmailImportDialog msg -> Html (Msg msg)
+viewSelectionDialog (Settings settings) =
+    div
+        [ css
+            [ Tw.my_4
+            , Tw.flex
+            , Tw.flex_col
+            , Tw.justify_start
+            , Tw.gap_2
+            ]
+        ]
+        [ div [ css [ Tw.my_2 ] ] [ text <| Translations.importSelectionExplanation [ settings.browserEnv.translations ] ]
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.gap_2
+                ]
+            ]
+            [ Button.new
+                { label = Translations.singleEmailsButtonTitle [ settings.browserEnv.translations ]
+                , onClick = Just ImportSingleEmails
+                , theme = settings.theme
+                }
+                |> Button.withTypePrimary
+                |> Button.view
+            , Button.new
+                { label = Translations.uploadCsvButtonTitle [ settings.browserEnv.translations ]
+                , onClick = Just <| CsvRequested
+                , theme = settings.theme
+                }
+                |> Button.withTypePrimary
+                |> Button.withDisabled (settings.browserEnv.environment == BrowserEnv.Production)
+                |> Button.view
+            ]
+        ]
 
 
 viewImportDialog : EmailImportDialog msg -> EmailImportData -> Html (Msg msg)
@@ -239,6 +337,7 @@ viewImportDialog (Settings settings) data =
                 , Tw.h_40
                 ]
             , Attr.value data.enteredEmails
+            , Attr.placeholder <| Translations.emailTextareaPlaceholderText [ settings.browserEnv.translations ]
             , Events.onInput UpdateEmailData
             ]
             []
@@ -261,9 +360,57 @@ viewImportDialog (Settings settings) data =
                 , onClick = Just <| ProcessEnteredData data.enteredEmails
                 , theme = settings.theme
                 }
+                |> Button.withDisabled (data.enteredEmails == "")
                 |> Button.withTypePrimary
                 |> Button.view
             ]
+        ]
+
+
+viewCsvLoadedDialog : EmailImportDialog msg -> CsvLoadedData -> Html (Msg msg)
+viewCsvLoadedDialog (Settings settings) data =
+    div
+        [ css
+            [ Tw.my_4
+            , Tw.flex
+            , Tw.flex_col
+            , Tw.justify_start
+            , Tw.gap_2
+            , Tw.w_auto
+            , Tw.min_w_80
+            ]
+        ]
+        [{- subscribersSection (Settings settings) data.subscribers
+            , Checkbox.new
+                { label = "Overwrite existing?"
+                , onClick = OverwriteExistingClicked
+                , checked = data.overwriteExisting
+                , theme = settings.theme
+                }
+                |> Checkbox.view
+            , div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_row
+                    , Tw.gap_2
+                    ]
+                ]
+                [ Button.new
+                    { label = Translations.closeButtonTitle [ settings.browserEnv.translations ]
+                    , onClick = Just CloseDialog
+                    , theme = settings.theme
+                    }
+                    |> Button.withTypeSecondary
+                    |> Button.view
+                , Button.new
+                    { label = Translations.importButtonTitle [ settings.browserEnv.translations ]
+                    , onClick = Just <| ImportClicked data.subscribers data.overwriteExisting
+                    , theme = settings.theme
+                    }
+                    |> Button.withTypePrimary
+                    |> Button.view
+                ]
+         -}
         ]
 
 
@@ -282,7 +429,7 @@ viewProcessedDialog (Settings settings) data =
         ]
         [ subscribersSection (Settings settings) data.subscribers
         , Checkbox.new
-            { label = "Overwrite existing?"
+            { label = Translations.overwriteExistingCheckboxLabel [ settings.browserEnv.translations ]
             , onClick = OverwriteExistingClicked
             , checked = data.overwriteExisting
             , theme = settings.theme
@@ -293,6 +440,7 @@ viewProcessedDialog (Settings settings) data =
                 [ Tw.flex
                 , Tw.flex_row
                 , Tw.gap_2
+                , Tw.mt_3
                 ]
             ]
             [ Button.new

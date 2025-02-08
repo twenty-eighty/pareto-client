@@ -39,7 +39,12 @@
       "dialog title": "Import Email List",
       "import button title": "Import",
       "close button title": "Close",
-      "next button title": "Next"
+      "next button title": "Next",
+      "upload csv button title": "Upload",
+      "single emails button title": "Single emails",
+      "email textarea placeholder text": "Comma-separated email addresses",
+      "import selection explanation": "You can either upload a CSV file or add a list of comma-separated email addresses.",
+      "overwrite existing checkbox label": "Overwrite existing?"
    },
    "email subscription dialog": {
       "dialog title": "Subscribe with Email",

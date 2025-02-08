@@ -737,6 +737,8 @@ linkToArticle article =
                             (\urlsWithoutProtocol ->
                                 urlsWithoutProtocol
                                     |> Set.toList
+                                    -- append max 5 relays so the link doesn't get infinitely long
+                                    |> List.take 5
                                     |> List.map
                                         (\urlWithoutProtocol ->
                                             "wss://" ++ urlWithoutProtocol
