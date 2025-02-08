@@ -16,6 +16,7 @@ import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events as Events
 import Json.Decode as Decode
 import Layouts
+import Material.Icons exposing (email)
 import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.External
@@ -30,6 +31,7 @@ import Shared.Model
 import Shared.Msg
 import Subscribers exposing (Email, Modification(..), Subscriber, modificationToString)
 import Svg.Loaders as Loaders
+import Table.Paginated as Table exposing (defaultCustomizations)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Sidebar
@@ -68,6 +70,7 @@ type alias Model =
     , requestId : RequestId
     , state : ModelState
     , subscribers : Dict Email Subscriber
+    , subscriberTable : Table.State
     }
 
 
@@ -89,6 +92,7 @@ init user shared () =
       , requestId = Nostr.getLastRequestId shared.nostr
       , state = Loading
       , subscribers = Dict.empty
+      , subscriberTable = Table.initialState emailColumnName 25
       }
     , [ Subscribers.load shared.nostr user.pubKey
       , Subscribers.loadModifications shared.nostr user.pubKey
@@ -111,6 +115,7 @@ type Msg
     | EmailImportDialogSent (EmailImportDialog.Msg Msg)
     | AddSubscribers (List Subscriber) Bool
     | RemoveSubscriber String
+    | NewTableState Table.State
     | ReceivedMessage IncomingMessage
 
 
@@ -178,6 +183,9 @@ update user shared msg model =
             , Effect.none
             )
 
+        NewTableState tableState ->
+            ( { model | subscriberTable = tableState }, Effect.none )
+
         ReceivedMessage message ->
             updateWithMessage user shared model message
 
@@ -207,7 +215,15 @@ updateWithMessage user shared model message =
                                             ( subscribers, modifications, errors ) =
                                                 Subscribers.processEvents user.pubKey model.subscribers model.modifications events
                                         in
-                                        ( { model | state = Loaded, modifications = modifications, subscribers = subscribers, errors = model.errors ++ errors }, Effect.none )
+                                        ( { model
+                                            | state = Loaded
+                                            , modifications = modifications
+                                            , subscribers = subscribers
+                                            , subscriberTable = Table.setTotal (Dict.size subscribers) model.subscriberTable
+                                            , errors = model.errors ++ errors
+                                          }
+                                        , Effect.none
+                                        )
 
                                     _ ->
                                         ( model, Effect.none )
@@ -244,6 +260,32 @@ subscriptions _ =
 
 
 -- VIEW
+
+
+subscribersTableConfig : Table.Config Subscriber Msg
+subscribersTableConfig =
+    Table.customConfig
+        { toId = .email
+        , toMsg = NewTableState
+        , columns =
+            [ Table.stringColumn emailColumnName emailColumnName .email
+            , Table.stringColumn nameColumnName nameColumnName (\subscriber -> subscriber.name |> Maybe.withDefault "")
+            ]
+        , customizations =
+            { defaultCustomizations
+                | tableAttrs = Table.defaultCustomizations.tableAttrs
+            }
+        }
+
+
+emailColumnName : String
+emailColumnName =
+    "email"
+
+
+nameColumnName : String
+nameColumnName =
+    "name"
 
 
 view : Auth.User -> Shared.Model.Model -> Model -> View Msg
@@ -346,17 +388,33 @@ viewSubscribers browserEnv model =
                 ]
 
         ( _, _ ) ->
-            ul
+            div
                 [ css
-                    [ Tw.flex
-                    , Tw.flex_col
-                    , Tw.m_2
+                    [ Tw.m_2
                     ]
                 ]
-                (model.subscribers
-                    |> Dict.values
-                    |> List.map viewSubscriber
-                )
+                [ Table.view
+                    subscribersTableConfig
+                    model.subscriberTable
+                    (Dict.values model.subscribers)
+                    |> Html.fromUnstyled
+                ]
+
+
+
+{-
+   ul
+       [ css
+           [ Tw.flex
+           , Tw.flex_col
+           , Tw.m_2
+           ]
+       ]
+       (model.subscribers
+           |> Dict.values
+           |> List.map viewSubscriber
+       )
+-}
 
 
 viewSubscriber : Subscriber -> Html Msg

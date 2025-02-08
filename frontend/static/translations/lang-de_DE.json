@@ -39,7 +39,12 @@
       "dialog title": "E-Mail-Liste importieren",
       "import button title": "Importieren",
       "close button title": "Schließen",
-      "next button title": "Weiter"
+      "next button title": "Weiter",
+      "upload csv button title": "Hochladen",
+      "single emails button title": "Einzelne E-Mails",
+      "email textarea placeholder text": "Mit Komma getrennte E-Mail-Adressen",
+      "import selection explanation": "Du kannst entweder eine CSV-Datei hochladen oder mehrere kommaseparierte E-Mail-Adressen hinzufügen.",
+      "overwrite existing checkbox label": "Bestehende überschreiben?"
    },
    "email subscription dialog": {
       "dialog title": "Mit E-Mail abonnieren",

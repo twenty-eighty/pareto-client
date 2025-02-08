@@ -194,6 +194,12 @@ generateEmbedForParagraph inlines =
         [ Markdown.Block.Link _ _ _ ] ->
             True
 
+        [ Markdown.Block.Link _ _ _, Markdown.Block.Text txt ] ->
+            -- tolerate whitespace after link
+            txt
+                |> String.trim
+                |> String.isEmpty
+
         _ ->
             False
 
@@ -202,7 +208,7 @@ rendererForBlockType : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunc
 rendererForBlockType styles loadedContent fnGetProfile blockType =
     let
         defaultRenderer =
-            TailwindMarkdownRenderer.renderer styles loadedContent fnGetProfile
+            TailwindMarkdownRenderer.renderer styles fnGetProfile
     in
     case blockType of
         DefaultBlock ->
