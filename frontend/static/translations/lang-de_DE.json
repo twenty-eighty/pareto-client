@@ -15,7 +15,9 @@
       "about backend text": "Das Pareto Backend wurde entwickelt mit dem",
       "source code text": "Der Quellcode des Pareto Clients is verfügbar unter",
       "feedback text": "Du hast einen Fehler gefunden oder möchtest uns etwas mitteilen? Bitte schreibe eine E-Mail an ",
-      "privacy policy link text": "Datenschutzerklärung"
+      "privacy policy link text": "Datenschutzerklärung",
+      "feedback email info text": "Du hast einen Fehler gefunden oder möchtest einfach Rückmeldung geben? Schreibe einfach eine E-Mail an ",
+      "donation info text": "Unterstütze die Weiterentwicklung des Pareto Projekts unter "
    },
    "article page": {
       "default page title": "Artikel"

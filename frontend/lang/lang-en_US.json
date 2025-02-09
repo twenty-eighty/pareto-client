@@ -15,7 +15,9 @@
       "about backend text": "The Pareto backend was developed using the",
       "source code text": "The source code of the Pareto client is available on",
       "feedback text": "You found a bug or want to give feedback? Please write an email to ",
-      "privacy policy link text": "Privacy Policy"
+      "privacy policy link text": "Privacy Policy",
+      "feedback email info text": "You found a bug or want to give feedback? Please write an email to ",
+      "donation info text": "Support the further development of the Pareto project on "
    },
    "article page": {
       "default page title": "Article"
