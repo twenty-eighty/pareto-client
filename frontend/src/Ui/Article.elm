@@ -196,9 +196,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                     ++ styles.textStyleReactions
                     ++ contentMargins
                 )
-                [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData
+                [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "1"
                 , viewContent styles articlePreviewData.loadedContent getProfile article.content
-                , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData
+                , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "2"
                 ]
             ]
 

@@ -240,7 +240,7 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
                     , div
                         [ Attr.class "_footer_qj1dj_448"
                         ]
-                        [ Ui.Shared.viewInteractions styles shortNotesViewData.browserEnv previewData
+                        [ Ui.Shared.viewInteractions styles shortNotesViewData.browserEnv previewData "1"
                         ]
                     ]
                 ]

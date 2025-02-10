@@ -147,8 +147,8 @@ type alias PreviewData msg =
     }
 
 
-viewInteractions : Styles msg -> BrowserEnv -> PreviewData msg -> Html msg
-viewInteractions styles browserEnv previewData =
+viewInteractions : Styles msg -> BrowserEnv -> PreviewData msg -> String -> Html msg
+viewInteractions styles browserEnv previewData instanceId =
     let
         actions =
             previewData.actions
@@ -179,16 +179,16 @@ viewInteractions styles browserEnv previewData =
             , Tw.inline_flex
             ]
         ]
-        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) Nothing (Maybe.map String.fromInt interactions.notes) previewData
-        , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) previewData
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.repeat) Nothing (Maybe.map String.fromInt interactions.reposts) previewData
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) previewData
-        , viewReactions styles bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks) previewData
+        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) Nothing (Maybe.map String.fromInt interactions.notes) previewData instanceId
+        , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) previewData instanceId
+        , viewReactions styles (Icon.FeatherIcon FeatherIcons.repeat) Nothing (Maybe.map String.fromInt interactions.reposts) previewData instanceId
+        , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) previewData instanceId
+        , viewReactions styles bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks) previewData instanceId
         ]
 
 
-viewReactions : Styles msg -> Icon -> Maybe msg -> Maybe String -> PreviewData msg -> Html msg
-viewReactions styles icon maybeMsg maybeCount previewData =
+viewReactions : Styles msg -> Icon -> Maybe msg -> Maybe String -> PreviewData msg -> String -> Html msg
+viewReactions styles icon maybeMsg maybeCount previewData instanceId =
     let
         onClickAttr =
             case maybeMsg of
@@ -202,23 +202,30 @@ viewReactions styles icon maybeMsg maybeCount previewData =
             Nip19.encode (Npub previewData.pubKey)
                 |> Result.toMaybe
 
-        nostrZapAttrs =
+        ( nostrZapAttrs, maybeZapComponent ) =
             case ( icon, maybeNpub ) of
                 ( Icon.FeatherIcon featherIcon, Just npub ) ->
                     if featherIcon == FeatherIcons.zap then
-                        [ Attr.id ("zap-button-" ++ npub)
-                        , Attr.attribute "data-npub" npub
-                        , Attr.attribute "data-relays" (Set.foldl (\r acc -> r ++ "," ++ acc) "" previewData.relays)
-                        , Attr.attribute "data-button-color" "#334155"
-                        , css [ Tw.cursor_pointer ]
-                        ]
+                        ( [ Attr.id ("zap-button-" ++ instanceId)
+                          , Attr.attribute "data-npub" npub
+                          , Attr.attribute "data-relays" (Set.foldl (\r acc -> r ++ "," ++ acc) "" previewData.relays)
+                          , Attr.attribute "data-button-color" "#334155"
+                          , css [ Tw.cursor_pointer ]
+                          ]
                             ++ Maybe.withDefault [] (Maybe.map (\noteId -> [ Attr.attribute "data-note-id" noteId ]) previewData.noteId)
+                        , Just
+                            (Html.node "js-zap-component"
+                                [ Attr.property "buttonId" (Encode.string ("zap-button-" ++ instanceId))
+                                ]
+                                []
+                            )
+                        )
 
                     else
-                        []
+                        ( [], Nothing )
 
                 _ ->
-                    []
+                    ( [], Nothing )
     in
     div
         (styles.colorStyleLabel
@@ -246,19 +253,7 @@ viewReactions styles icon maybeMsg maybeCount previewData =
                         ]
                    ]
             )
-            [ Icon.view icon
-            , Html.node "js-zap-component"
-                ((maybeNpub
-                    |> Maybe.map
-                        (\npub ->
-                            [ Attr.property "buttonId" (Encode.string ("zap-button-" ++ npub))
-                            ]
-                        )
-                 )
-                    |> Maybe.withDefault [ Attr.hidden True ]
-                )
-                []
-            ]
+            [ Icon.view icon, maybeZapComponent |> Maybe.withDefault (div [] []) ]
         , div
             []
             [ text (maybeCount |> Maybe.withDefault "0") ]
