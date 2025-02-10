@@ -16,11 +16,12 @@ import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
+import Process
 import Shared.Model exposing (Model)
-import Subscribers exposing (Modification(..), Subscriber, SubscriberField(..), emptySubscriber, translatedFieldName)
+import Subscribers exposing (CsvColumnNameMap, Modification(..), Subscriber, SubscriberField(..), emptySubscriber, translatedFieldName)
 import Table.Paginated as Table exposing (defaultCustomizations)
 import Tailwind.Utilities as Tw
-import Task
+import Task exposing (Task)
 import Translations.EmailImportDialog as Translations
 import Ui.Shared
 import Ui.Styles exposing (Theme)
@@ -38,6 +39,8 @@ type Msg msg
     | CsvRequested
     | CsvSelected File
     | CsvLoaded String
+    | CsvParsed (Result ProcessingError CsvData)
+    | CsvProcessed (Result ProcessingError (List Subscriber))
 
 
 type Model
@@ -50,9 +53,15 @@ type DialogState
     = DialogHidden
     | DialogSelection
     | DialogImport EmailImportData
-    | DialogCsvLoaded CsvLoadedData
-    | DialogCsvParsingError String
+    | DialogCsvMapping CsvMappingData
+    | DialogCsvProcessingError ProcessingError
     | DialogProcessed EmailProcessedData
+    | DialogProcessing String
+
+
+type ProcessingError
+    = CsvParsingError
+    | CsvMappingError
 
 
 type alias EmailImportData =
@@ -60,9 +69,14 @@ type alias EmailImportData =
     }
 
 
-type alias CsvLoadedData =
-    { csvData : List (List String)
+type alias CsvMappingData =
+    { csvData : CsvData
+    , mappingTable : Table.State
     }
+
+
+type alias CsvData =
+    List (List String)
 
 
 type alias EmailProcessedData =
@@ -206,7 +220,7 @@ update props =
                                             email
                                                 |> Email.toString
                                                 |> emptySubscriber
-                                                |> (\subscriber -> { subscriber | source = Just "manual" })
+                                                |> (\subscriber -> { subscriber | source = Just "manual", dateSubscription = Just props.browserEnv.now })
                                                 |> Just
 
                                         Err _ ->
@@ -246,21 +260,46 @@ update props =
                 )
 
             CsvLoaded content ->
-                case CsvParser.parseRows content of
+                ( Model { model | state = DialogProcessing "Parsing CSV file" }
+                , Task.attempt CsvParsed (parseCsvTask content)
+                    |> Cmd.map props.toMsg
+                    |> Effect.sendCmd
+                )
+
+            CsvParsed csvParsingResult ->
+                case csvParsingResult of
                     Ok csvData ->
                         let
-                            subscribers =
-                                List.head csvData
-                                    |> Maybe.map (Subscribers.buildCsvColumnIndexMap Subscribers.substackCsvColumnNameMap)
-                                    |> Maybe.map
-                                        (\csvColumnIndexMap ->
-                                            csvData
-                                                -- skip column names
-                                                |> List.drop 1
-                                                |> List.filterMap (Subscribers.buildSubscriberFromCsvRecord csvColumnIndexMap)
-                                        )
-                                    |> Maybe.withDefault []
+                            csvColumnCount =
+                                csvData
+                                    |> List.head
+                                    |> Maybe.map List.length
+                                    |> Maybe.withDefault 0
+                        in
+                        ( Model
+                            { model
+                                | state =
+                                    DialogCsvMapping
+                                        { csvData = csvData
+                                        , mappingTable =
+                                            Table.initialState "field" 25
+                                                |> Table.setTotal csvColumnCount
+                                        }
+                            }
+                        , Task.attempt CsvProcessed (mapCsvTask Subscribers.substackCsvColumnNameMap csvData)
+                            |> Cmd.map props.toMsg
+                            |> Effect.sendCmd
+                        )
 
+                    Err error ->
+                        ( Model { model | state = DialogCsvProcessingError error }
+                        , Effect.none
+                        )
+
+            CsvProcessed processingResult ->
+                case processingResult of
+                    Ok subscribers ->
+                        let
                             processedData =
                                 { subscribers = subscribers
                                 , subscriberTable =
@@ -276,13 +315,33 @@ update props =
                         , Effect.none
                         )
 
-                    {-
-                       ( Model { model | state = DialogCsvLoaded { csvData = csvData } }
-                       , Effect.none
-                       )
-                    -}
                     Err error ->
-                        ( Model { model | state = DialogCsvParsingError error }, Effect.none )
+                        ( Model { model | state = DialogCsvProcessingError error }, Effect.none )
+
+
+parseCsvTask : String -> Task ProcessingError CsvData
+parseCsvTask content =
+    case CsvParser.parseRows content of
+        Ok csvData ->
+            Task.succeed csvData
+
+        Err _ ->
+            Task.fail CsvParsingError
+
+
+mapCsvTask : CsvColumnNameMap -> CsvData -> Task ProcessingError (List Subscriber)
+mapCsvTask csvColumnNameMap csvData =
+    List.head csvData
+        |> Maybe.map (Subscribers.buildCsvColumnIndexMap csvColumnNameMap)
+        |> Maybe.map
+            (\csvColumnIndexMap ->
+                csvData
+                    -- skip column names
+                    |> List.drop 1
+                    |> List.filterMap (Subscribers.buildSubscriberFromCsvRecord csvColumnIndexMap)
+                    |> Task.succeed
+            )
+        |> Maybe.withDefault (Task.fail CsvMappingError)
 
 
 view : EmailImportDialog msg -> Html msg
@@ -314,19 +373,19 @@ view dialog =
                 CloseDialog
                 |> Html.map settings.toMsg
 
-        DialogCsvLoaded csvLoadedData ->
+        DialogCsvMapping csvMappingData ->
             Ui.Shared.modalDialog
                 settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
-                [ viewCsvLoadedDialog dialog csvLoadedData ]
+                [ viewCsvMappingDialog dialog csvMappingData ]
                 CloseDialog
                 |> Html.map settings.toMsg
 
-        DialogCsvParsingError error ->
+        DialogCsvProcessingError error ->
             Ui.Shared.modalDialog
                 settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
-                [ viewCsvParsingErrorDialog dialog error ]
+                [ viewCsvProcessingErrorDialog dialog error ]
                 CloseDialog
                 |> Html.map settings.toMsg
 
@@ -335,6 +394,14 @@ view dialog =
                 settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
                 [ viewProcessedDialog dialog emailProcessedData ]
+                CloseDialog
+                |> Html.map settings.toMsg
+
+        DialogProcessing message ->
+            Ui.Shared.modalDialog
+                settings.theme
+                (Translations.dialogTitle [ settings.browserEnv.translations ])
+                [ viewProcessingDialog dialog message ]
                 CloseDialog
                 |> Html.map settings.toMsg
 
@@ -425,8 +492,8 @@ viewImportDialog (Settings settings) data =
         ]
 
 
-viewCsvLoadedDialog : EmailImportDialog msg -> CsvLoadedData -> Html (Msg msg)
-viewCsvLoadedDialog (Settings settings) data =
+viewCsvMappingDialog : EmailImportDialog msg -> CsvMappingData -> Html (Msg msg)
+viewCsvMappingDialog (Settings settings) data =
     -- TODO: Implement CSV mapping table here...
     div
         [ css
@@ -473,8 +540,8 @@ viewCsvLoadedDialog (Settings settings) data =
         ]
 
 
-viewCsvParsingErrorDialog : EmailImportDialog msg -> String -> Html (Msg msg)
-viewCsvParsingErrorDialog (Settings settings) error =
+viewCsvProcessingErrorDialog : EmailImportDialog msg -> ProcessingError -> Html (Msg msg)
+viewCsvProcessingErrorDialog (Settings settings) error =
     div
         [ css
             [ Tw.my_4
@@ -486,7 +553,7 @@ viewCsvParsingErrorDialog (Settings settings) error =
             , Tw.min_w_80
             ]
         ]
-        [ text <| Translations.csvParsingErrorMessage [ settings.browserEnv.translations ] ++ error
+        [ text <| Translations.csvProcessingErrorMessage [ settings.browserEnv.translations ] ++ processingErrorToString error
         , div
             [ css
                 [ Tw.flex
@@ -503,6 +570,16 @@ viewCsvParsingErrorDialog (Settings settings) error =
                 |> Button.view
             ]
         ]
+
+
+processingErrorToString : ProcessingError -> String
+processingErrorToString error =
+    case error of
+        CsvParsingError ->
+            "Error parsing CSV file"
+
+        CsvMappingError ->
+            "Error mapping CSV file"
 
 
 viewProcessedDialog : EmailImportDialog msg -> EmailProcessedData -> Html (Msg msg)
@@ -549,6 +626,23 @@ viewProcessedDialog (Settings settings) data =
                 |> Button.withTypePrimary
                 |> Button.view
             ]
+        ]
+
+
+viewProcessingDialog : EmailImportDialog msg -> String -> Html (Msg msg)
+viewProcessingDialog (Settings settings) processingMessage =
+    div
+        [ css
+            [ Tw.my_4
+            , Tw.flex
+            , Tw.flex_col
+            , Tw.justify_start
+            , Tw.gap_2
+            , Tw.w_auto
+            , Tw.min_w_80
+            ]
+        ]
+        [ text processingMessage
         ]
 
 
