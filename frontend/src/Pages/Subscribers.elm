@@ -455,10 +455,18 @@ viewModifications theme browserEnv model =
                     (\modification ->
                         case modification of
                             Subscription { email } ->
-                                not <| Dict.member email model.subscribers
+                                Dict.get email model.subscribers
+                                    -- subscriber is unsubscribed - allow to resubscribe
+                                    |> Maybe.map (\subscriber -> subscriber.dateUnsubscription /= Nothing)
+                                    -- subscriber doesn't exist
+                                    |> Maybe.withDefault True
 
                             Unsubscription { email } ->
-                                Dict.member email model.subscribers
+                                Dict.get email model.subscribers
+                                    -- subscriber is already unsubscribed
+                                    |> Maybe.map (\subscriber -> subscriber.dateUnsubscription == Nothing)
+                                    -- subscriber doesn't exist - ignore unsubscription
+                                    |> Maybe.withDefault False
                     )
     in
     if List.length unprocessedModifications > 0 then
@@ -484,22 +492,40 @@ viewModifications theme browserEnv model =
                 [ css
                     []
                 ]
-                (List.map viewModification unprocessedModifications)
+                (List.map (viewModification browserEnv) unprocessedModifications)
             ]
 
     else
         div [] []
 
 
-viewModification : Modification -> Html Msg
-viewModification modification =
+viewModification : BrowserEnv -> Modification -> Html Msg
+viewModification browserEnv modification =
     case modification of
         Subscription subscriber ->
+            let
+                dateSuffix =
+                    subscriber.dateSubscription
+                        |> Maybe.map
+                            (\date ->
+                                " (" ++ BrowserEnv.formatDate browserEnv date ++ ")"
+                            )
+                        |> Maybe.withDefault ""
+            in
             li []
-                [ text <| modificationToString modification ++ ": " ++ subscriber.email
+                [ text <| modificationToString modification ++ ": " ++ subscriber.email ++ dateSuffix
                 ]
 
         Unsubscription subscriber ->
+            let
+                dateSuffix =
+                    subscriber.dateUnsubscription
+                        |> Maybe.map
+                            (\date ->
+                                " (" ++ BrowserEnv.formatDate browserEnv date ++ ")"
+                            )
+                        |> Maybe.withDefault ""
+            in
             li []
-                [ text <| modificationToString modification ++ ": " ++ subscriber.email
+                [ text <| modificationToString modification ++ ": " ++ subscriber.email ++ dateSuffix
                 ]
