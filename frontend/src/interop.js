@@ -6,6 +6,7 @@ import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
 import { BlossomClient } from "blossom-client-sdk/client";
 import { init as initNostrLogin, launch as launchNostrLoginDialog } from "nostr-login"
 import "./clipboard-component.js";
+import "./zap-component.js";
 import "./elm-oembed.js";
 import debug from 'debug';
 
@@ -58,22 +59,6 @@ export const onReady = ({ app, env }) => {
     } else {
       storedCommands.push({ command: command, value: value });
       debugLog('store command', command);
-    }
-  });
-
-  app.ports.addScript.subscribe(url => {
-    const scripts = document.getElementsByTagName("script");
-    const myScripts = Array.from(scripts).filter(elem => elem.getAttribute("src") === url);
-    for (const script of myScripts) {
-      document.body.removeChild(script);
-    }
-    const newScript = document.createElement('script');
-    newScript.src = url;
-    document.body.appendChild(newScript);
-    console.log("Added script element");
-    // TODO: this doesn't work when refreshing an article in the reader
-    if (window.nostrZap) {
-      window.nostrZap.initTargets();
     }
   });
 

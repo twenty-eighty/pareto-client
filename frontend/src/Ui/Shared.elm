@@ -8,6 +8,7 @@ import FeatherIcons
 import Html.Styled as Html exposing (Html, a, button, div, h2, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
+import Json.Encode as Encode
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Types exposing (PubKey)
@@ -205,7 +206,8 @@ viewReactions styles icon maybeMsg maybeCount previewData =
             case ( icon, maybeNpub ) of
                 ( Icon.FeatherIcon featherIcon, Just npub ) ->
                     if featherIcon == FeatherIcons.zap then
-                        [ Attr.attribute "data-npub" npub
+                        [ Attr.id ("zap-button-" ++ npub)
+                        , Attr.attribute "data-npub" npub
                         , Attr.attribute "data-relays" (Set.foldl (\r acc -> r ++ "," ++ acc) "" previewData.relays)
                         , Attr.attribute "data-button-color" "#334155"
                         , css [ Tw.cursor_pointer ]
@@ -231,18 +233,32 @@ viewReactions styles icon maybeMsg maybeCount previewData =
         )
         [ div
             (onClickAttr
-                ++ css
-                    [ Tw.w_5
-                    , Tw.h_5
-                    , Tw.px_0_dot_5
-                    , Tw.py_0_dot_5
-                    , Tw.justify_center
-                    , Tw.items_center
-                    , Tw.flex
-                    ]
-                :: nostrZapAttrs
+                ++ nostrZapAttrs
+                ++ [ css
+                        [ Tw.w_5
+                        , Tw.h_5
+                        , Tw.px_0_dot_5
+                        , Tw.py_0_dot_5
+                        , Tw.justify_center
+                        , Tw.items_center
+                        , Tw.flex
+                        , Tw.cursor_pointer
+                        ]
+                   ]
             )
-            [ Icon.view icon ]
+            [ Icon.view icon
+            , Html.node "js-zap-component"
+                ((maybeNpub
+                    |> Maybe.map
+                        (\npub ->
+                            [ Attr.property "buttonId" (Encode.string ("zap-button-" ++ npub))
+                            ]
+                        )
+                 )
+                    |> Maybe.withDefault [ Attr.hidden True ]
+                )
+                []
+            ]
         , div
             []
             [ text (maybeCount |> Maybe.withDefault "0") ]

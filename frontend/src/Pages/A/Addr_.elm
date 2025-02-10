@@ -16,7 +16,7 @@ import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (EventId, PubKey)
 import Page exposing (Page)
-import Ports exposing (addScript)
+import Ports
 import Route exposing (Route)
 import Set
 import Shared
@@ -202,7 +202,7 @@ update shared msg model =
                     ( model, Effect.none )
 
         NoOp ->
-            ( model, Effect.sendCmd (addScript "/node_modules/nostr-zap/dist/main.js") )
+            ( model, Effect.none )
 
 
 showZapDialog : Nip19ModelData -> List ZapDialog.Recipient -> ( Model, Effect Msg )
