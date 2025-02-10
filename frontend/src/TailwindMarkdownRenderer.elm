@@ -60,13 +60,17 @@ renderer styles fnGetProfile =
     , hardLineBreak = Html.br [] []
     , image =
         \image ->
-            case image.title of
-                Just "1.00" ->
+            case ( image.title, image.src ) of
+                ( _, "" ) ->
+                    -- ignore images without src attribute
+                    Html.div [] []
+
+                ( Just "1.00", src ) ->
                     -- dirty fix - route96 server delivers caption as "1.00" even if it wasn't set explicitly
                     Html.node "center"
                         []
                         [ Html.img
-                            [ Attr.src (ensureHttps image.src)
+                            [ Attr.src (ensureHttps src)
                             , Attr.alt image.alt
                             , css
                                 [ Tw.max_h_96
@@ -75,7 +79,7 @@ renderer styles fnGetProfile =
                             []
                         ]
 
-                Just title ->
+                ( Just title, src ) ->
                     Html.node "center"
                         []
                         [ Html.figure
@@ -83,7 +87,7 @@ renderer styles fnGetProfile =
                                 []
                             ]
                             [ Html.img
-                                [ Attr.src (ensureHttps image.src)
+                                [ Attr.src (ensureHttps src)
                                 , Attr.alt image.alt
                                 ]
                                 []
@@ -93,11 +97,11 @@ renderer styles fnGetProfile =
                             ]
                         ]
 
-                Nothing ->
+                ( Nothing, src ) ->
                     Html.node "center"
                         []
                         [ Html.img
-                            [ Attr.src (ensureHttps image.src)
+                            [ Attr.src (ensureHttps src)
                             , Attr.alt image.alt
                             , css
                                 [ Tw.max_h_96
