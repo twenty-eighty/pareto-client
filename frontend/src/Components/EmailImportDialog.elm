@@ -612,10 +612,12 @@ mappingTableConfig translations csvMappingData =
         { toId = identity
         , toMsg = NewMappingTableState
         , columns =
-            [ Table.stringColumn
-                (mappingColumnName MappingTableColumnName)
-                (translatedMappingColumnName translations MappingTableColumnName)
-                identity
+            [ Table.customColumn
+                { id = mappingColumnName MappingTableColumnName
+                , name = translatedMappingColumnName translations MappingTableColumnName
+                , viewData = identity
+                , sorter = Table.unsortable
+                }
             , fieldSelectionDropdownColumn translations csvMappingData
             ]
         , customizations =
@@ -655,18 +657,24 @@ viewFieldSelectionDropdown translations mappingSelectionDropdowns rowValue =
                             )
                             Subscribers.allSubscriberFields
             in
-            [ Dropdown.new
-                { model = dropdownModel
-                , toMsg = MappingDropdownSent rowValue
-                , choices = availableChoices
-                , allowNoSelection = True
-                , toLabel =
-                    \maybeField ->
-                        maybeField
-                            |> Maybe.map (Subscribers.translatedFieldName translations)
-                            |> Maybe.withDefault (Translations.unmappedColumnDropdownValue [ translations ])
-                }
-                |> Dropdown.view
+            [ div
+                [ css
+                    [ Tw.ml_2
+                    ]
+                ]
+                [ Dropdown.new
+                    { model = dropdownModel
+                    , toMsg = MappingDropdownSent rowValue
+                    , choices = availableChoices
+                    , allowNoSelection = True
+                    , toLabel =
+                        \maybeField ->
+                            maybeField
+                                |> Maybe.map (Subscribers.translatedFieldName translations)
+                                |> Maybe.withDefault (Translations.unmappedColumnDropdownValue [ translations ])
+                    }
+                    |> Dropdown.view
+                ]
                 |> Html.toUnstyled
             ]
                 |> Table.HtmlDetails []
