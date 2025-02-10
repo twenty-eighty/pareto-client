@@ -14,10 +14,12 @@ import Html.Styled as Html exposing (Html, div, text, textarea)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
+import List.Extra
 import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
+import Set
 import Shared.Model exposing (Model)
 import Subscribers exposing (CsvColumnNameMap, CsvData, Modification(..), Subscriber, SubscriberField(..), emptySubscriber, translatedFieldName)
 import Table.Paginated as Table exposing (defaultCustomizations)
@@ -637,10 +639,26 @@ viewFieldSelectionDropdown : I18Next.Translations -> Dict String (Dropdown.Model
 viewFieldSelectionDropdown translations mappingSelectionDropdowns rowValue =
     case Dict.get rowValue mappingSelectionDropdowns of
         Just dropdownModel ->
+            let
+                -- a field should only be selected by one dropdown listbox.
+                fieldsSelectedInOtherDropdownListboxes =
+                    mappingSelectionDropdowns
+                        |> Dict.values
+                        |> List.filterMap Dropdown.selectedItem
+                        |> List.filter (\field -> Just field /= Dropdown.selectedItem dropdownModel)
+
+                availableChoices =
+                    fieldsSelectedInOtherDropdownListboxes
+                        |> List.foldl
+                            (\availableInOther acc ->
+                                List.Extra.remove availableInOther acc
+                            )
+                            Subscribers.allSubscriberFields
+            in
             [ Dropdown.new
                 { model = dropdownModel
                 , toMsg = MappingDropdownSent rowValue
-                , choices = Subscribers.allSubscriberFields
+                , choices = availableChoices
                 , allowNoSelection = True
                 , toLabel =
                     \maybeField ->
