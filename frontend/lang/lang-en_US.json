@@ -46,7 +46,8 @@
       "single emails button title": "Single emails",
       "email textarea placeholder text": "Comma-separated email addresses",
       "import selection explanation": "You can either upload a CSV file or add a list of comma-separated email addresses.",
-      "overwrite existing checkbox label": "Overwrite existing?"
+      "overwrite existing checkbox label": "Overwrite existing?",
+      "csv parsing error message": "Error parsing CSV file: "
    },
    "email subscription dialog": {
       "dialog title": "Subscribe with Email",
@@ -179,7 +180,17 @@
       "import button title": "Import",
       "save button title": "Save",
       "process modifications button title": "Process",
-      "no subscribers text": "No subscribers found."
+      "loading subscribers text": "Loading subscribers...",
+      "error loading subscribers text": "Error loading subscribers",
+      "no subscribers text": "No subscribers found.",
+      "dnd field name": "Do not disturb",
+      "email field name": "Email",
+      "name field name": "Name",
+      "pubkey field name": "Pubkey",
+      "source field name": "Source",
+      "datesub field name": "Subscription date",
+      "dateunsub field name": "Unsubscription date",
+      "tags field name": "Tags"
    },
    "upload dialog": {
       "dialog title": "Upload",
