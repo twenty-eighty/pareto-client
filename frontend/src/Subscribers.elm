@@ -3,6 +3,7 @@ module Subscribers exposing (..)
 import BrowserEnv exposing (BrowserEnv)
 import Csv.Encode
 import Dict exposing (Dict)
+import I18Next
 import Iso8601
 import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
@@ -16,6 +17,7 @@ import Pareto
 import Shared
 import Shared.Msg
 import Time
+import Translations.Subscribers as Translations
 
 
 type alias Subscriber =
@@ -39,6 +41,101 @@ type SubscriberField
     | FieldDateSubscription
     | FieldDateUnsubscription
     | FieldTags
+
+
+type alias CsvColumnNameMap =
+    Dict String SubscriberField
+
+
+type alias CsvColumnIndexMap =
+    List ( Int, SubscriberField )
+
+
+substackCsvColumnNameMap : CsvColumnNameMap
+substackCsvColumnNameMap =
+    [ ( "Email", FieldEmail )
+    , ( "Name", FieldName )
+    , ( "Subscription date", FieldDateSubscription )
+    ]
+        |> Dict.fromList
+
+
+buildCsvColumnIndexMap : CsvColumnNameMap -> List String -> CsvColumnIndexMap
+buildCsvColumnIndexMap nameMap columnNames =
+    columnNames
+        |> List.indexedMap Tuple.pair
+        |> List.filterMap
+            (\( index, columnName ) ->
+                Dict.get columnName nameMap
+                    |> Maybe.map
+                        (\subscriberField ->
+                            ( index, subscriberField )
+                        )
+            )
+
+
+buildSubscriberFromCsvRecord : CsvColumnIndexMap -> List String -> Maybe Subscriber
+buildSubscriberFromCsvRecord columnIndexMap csvLine =
+    let
+        presetEmail =
+            -- only needed to initialize subscriber and check if email was set with meaningful value
+            "this-is-not-an-email"
+    in
+    csvLine
+        |> List.indexedMap Tuple.pair
+        |> List.foldl
+            (\( index, value ) ( remainingFields, subscriber ) ->
+                case List.head remainingFields of
+                    Just ( mappedIndex, subscriberField ) ->
+                        if index == mappedIndex then
+                            -- add field to subscriber and advance in mapping list
+                            ( List.drop 1 remainingFields, setSubscriberField subscriberField value subscriber )
+
+                        else
+                            -- column not mapped, simply continue
+                            ( remainingFields, subscriber )
+
+                    Nothing ->
+                        -- no more mapping entries
+                        ( [], subscriber )
+            )
+            ( columnIndexMap, emptySubscriber presetEmail )
+        |> Tuple.second
+        |> (\subscriber ->
+                if subscriber.email == presetEmail then
+                    Nothing
+
+                else
+                    Just { subscriber | source = Just "CSV" }
+           )
+
+
+setSubscriberField : SubscriberField -> String -> Subscriber -> Subscriber
+setSubscriberField field value subscriber =
+    case field of
+        FieldDnd ->
+            { subscriber | dnd = stringToBool value }
+
+        FieldEmail ->
+            { subscriber | email = value }
+
+        FieldName ->
+            { subscriber | name = Just value }
+
+        FieldPubKey ->
+            { subscriber | pubKey = Just value }
+
+        FieldSource ->
+            { subscriber | source = Just value }
+
+        FieldDateSubscription ->
+            { subscriber | dateSubscription = Iso8601.toTime value |> Result.toMaybe }
+
+        FieldDateUnsubscription ->
+            { subscriber | dateUnsubscription = Iso8601.toTime value |> Result.toMaybe }
+
+        FieldTags ->
+            { subscriber | tags = String.split "," value |> Just }
 
 
 fieldName : SubscriberField -> String
@@ -67,6 +164,34 @@ fieldName field =
 
         FieldTags ->
             "tags"
+
+
+translatedFieldName : I18Next.Translations -> SubscriberField -> String
+translatedFieldName translations field =
+    case field of
+        FieldDnd ->
+            Translations.dndFieldName [ translations ]
+
+        FieldEmail ->
+            Translations.emailFieldName [ translations ]
+
+        FieldName ->
+            Translations.nameFieldName [ translations ]
+
+        FieldPubKey ->
+            Translations.pubkeyFieldName [ translations ]
+
+        FieldSource ->
+            Translations.sourceFieldName [ translations ]
+
+        FieldDateSubscription ->
+            Translations.datesubFieldName [ translations ]
+
+        FieldDateUnsubscription ->
+            Translations.dateunsubFieldName [ translations ]
+
+        FieldTags ->
+            Translations.tagsFieldName [ translations ]
 
 
 type alias Email =
@@ -163,6 +288,31 @@ boolToString value =
 
     else
         "false"
+
+
+stringToBool : String -> Maybe Bool
+stringToBool value =
+    case String.toLower value of
+        "true" ->
+            Just True
+
+        "yes" ->
+            Just True
+
+        "1" ->
+            Just True
+
+        "false" ->
+            Just False
+
+        "no" ->
+            Just False
+
+        "0" ->
+            Just False
+
+        _ ->
+            Nothing
 
 
 timeToString : Time.Posix -> String

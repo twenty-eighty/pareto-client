@@ -44,7 +44,8 @@
       "single emails button title": "Einzelne E-Mails",
       "email textarea placeholder text": "Mit Komma getrennte E-Mail-Adressen",
       "import selection explanation": "Du kannst entweder eine CSV-Datei hochladen oder mehrere kommaseparierte E-Mail-Adressen hinzufügen.",
-      "overwrite existing checkbox label": "Bestehende überschreiben?"
+      "overwrite existing checkbox label": "Bestehende überschreiben?",
+      "csv parsing error message": "Fehler beim Verarbeiten der CSV-Datei: "
    },
    "email subscription dialog": {
       "dialog title": "Mit E-Mail abonnieren",
@@ -178,7 +179,17 @@
       "import button title": "Importieren",
       "save button title": "Speichern",
       "process modifications button title": "Verarbeiten",
-      "no subscribers text": "Keine Abonnenten gefunden."
+      "loading subscribers text": "Lade Abonnenten ...",
+      "error loading subscribers text": "Fehler beim Laden der Abonnenten",
+      "no subscribers text": "Keine Abonnenten gefunden.",
+      "dnd field name": "Nicht stören",
+      "email field name": "E-Mail",
+      "name field name": "Name",
+      "pubkey field name": "Pubkey",
+      "source field name": "Quelle",
+      "datesub field name": "Start Abonnement",
+      "dateunsub field name": "Ende Abonnement",
+      "tags field name": "Tags"
    },
    "upload dialog": {
       "dialog title": "Hochladen",

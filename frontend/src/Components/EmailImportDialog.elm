@@ -8,16 +8,17 @@ import Effect exposing (Effect)
 import Email
 import File exposing (File)
 import File.Select as FileSelect
-import Html.Styled as Html exposing (Html, div, text, textarea, ul)
+import Html.Styled as Html exposing (Html, div, text, textarea)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
+import I18Next
 import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
 import Shared.Model exposing (Model)
-import Subscribers exposing (Subscriber, emptySubscriber)
-import Tailwind.Theme as Theme
+import Subscribers exposing (Modification(..), Subscriber, SubscriberField(..), emptySubscriber, translatedFieldName)
+import Table.Paginated as Table exposing (defaultCustomizations)
 import Tailwind.Utilities as Tw
 import Task
 import Translations.EmailImportDialog as Translations
@@ -33,6 +34,7 @@ type Msg msg
     | OverwriteExistingClicked Bool
     | UpdateEmailData String
     | ProcessEnteredData String
+    | NewTableState Table.State
     | CsvRequested
     | CsvSelected File
     | CsvLoaded String
@@ -49,6 +51,7 @@ type DialogState
     | DialogSelection
     | DialogImport EmailImportData
     | DialogCsvLoaded CsvLoadedData
+    | DialogCsvParsingError String
     | DialogProcessed EmailProcessedData
 
 
@@ -64,6 +67,7 @@ type alias CsvLoadedData =
 
 type alias EmailProcessedData =
     { subscribers : List Subscriber
+    , subscriberTable : Table.State
     , overwriteExisting : Bool
     }
 
@@ -190,25 +194,42 @@ update props =
 
             ProcessEnteredData emailData ->
                 let
-                    processedData =
-                        { subscribers =
-                            emailData
-                                |> String.split ","
-                                |> List.map String.trim
-                                |> List.map Email.parse
-                                |> List.filterMap
-                                    (\parsingResult ->
-                                        case parsingResult of
-                                            Ok email ->
-                                                Just (emptySubscriber (Email.toString email))
+                    subscribers =
+                        emailData
+                            |> String.split ","
+                            |> List.map String.trim
+                            |> List.map Email.parse
+                            |> List.filterMap
+                                (\parsingResult ->
+                                    case parsingResult of
+                                        Ok email ->
+                                            email
+                                                |> Email.toString
+                                                |> emptySubscriber
+                                                |> (\subscriber -> { subscriber | source = Just "manual" })
+                                                |> Just
 
-                                            Err _ ->
-                                                Nothing
-                                    )
+                                        Err _ ->
+                                            Nothing
+                                )
+
+                    processedData =
+                        { subscribers = subscribers
+                        , subscriberTable =
+                            Table.initialState (Subscribers.fieldName FieldEmail) 25
+                                |> Table.setTotal (List.length subscribers)
                         , overwriteExisting = False
                         }
                 in
                 ( Model { model | state = DialogProcessed processedData }, Effect.none )
+
+            NewTableState tableState ->
+                case model.state of
+                    DialogProcessed processedData ->
+                        ( Model { model | state = DialogProcessed { processedData | subscriberTable = tableState } }, Effect.none )
+
+                    _ ->
+                        ( Model model, Effect.none )
 
             CsvRequested ->
                 ( Model model
@@ -227,12 +248,41 @@ update props =
             CsvLoaded content ->
                 case CsvParser.parseRows content of
                     Ok csvData ->
-                        ( Model { model | state = DialogCsvLoaded { csvData = csvData } }
+                        let
+                            subscribers =
+                                List.head csvData
+                                    |> Maybe.map (Subscribers.buildCsvColumnIndexMap Subscribers.substackCsvColumnNameMap)
+                                    |> Maybe.map
+                                        (\csvColumnIndexMap ->
+                                            csvData
+                                                -- skip column names
+                                                |> List.drop 1
+                                                |> List.filterMap (Subscribers.buildSubscriberFromCsvRecord csvColumnIndexMap)
+                                        )
+                                    |> Maybe.withDefault []
+
+                            processedData =
+                                { subscribers = subscribers
+                                , subscriberTable =
+                                    Table.initialState (Subscribers.fieldName FieldEmail) 25
+                                        |> Table.setTotal (List.length subscribers)
+                                , overwriteExisting = False
+                                }
+                        in
+                        ( Model
+                            { model
+                                | state = DialogProcessed processedData
+                            }
                         , Effect.none
                         )
 
+                    {-
+                       ( Model { model | state = DialogCsvLoaded { csvData = csvData } }
+                       , Effect.none
+                       )
+                    -}
                     Err error ->
-                        ( Model model, Effect.none )
+                        ( Model { model | state = DialogCsvParsingError error }, Effect.none )
 
 
 view : EmailImportDialog msg -> Html msg
@@ -269,6 +319,14 @@ view dialog =
                 settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
                 [ viewCsvLoadedDialog dialog csvLoadedData ]
+                CloseDialog
+                |> Html.map settings.toMsg
+
+        DialogCsvParsingError error ->
+            Ui.Shared.modalDialog
+                settings.theme
+                (Translations.dialogTitle [ settings.browserEnv.translations ])
+                [ viewCsvParsingErrorDialog dialog error ]
                 CloseDialog
                 |> Html.map settings.toMsg
 
@@ -369,6 +427,7 @@ viewImportDialog (Settings settings) data =
 
 viewCsvLoadedDialog : EmailImportDialog msg -> CsvLoadedData -> Html (Msg msg)
 viewCsvLoadedDialog (Settings settings) data =
+    -- TODO: Implement CSV mapping table here...
     div
         [ css
             [ Tw.my_4
@@ -414,6 +473,38 @@ viewCsvLoadedDialog (Settings settings) data =
         ]
 
 
+viewCsvParsingErrorDialog : EmailImportDialog msg -> String -> Html (Msg msg)
+viewCsvParsingErrorDialog (Settings settings) error =
+    div
+        [ css
+            [ Tw.my_4
+            , Tw.flex
+            , Tw.flex_col
+            , Tw.justify_start
+            , Tw.gap_2
+            , Tw.w_auto
+            , Tw.min_w_80
+            ]
+        ]
+        [ text <| Translations.csvParsingErrorMessage [ settings.browserEnv.translations ] ++ error
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.gap_2
+                ]
+            ]
+            [ Button.new
+                { label = Translations.closeButtonTitle [ settings.browserEnv.translations ]
+                , onClick = Just CloseDialog
+                , theme = settings.theme
+                }
+                |> Button.withTypeSecondary
+                |> Button.view
+            ]
+        ]
+
+
 viewProcessedDialog : EmailImportDialog msg -> EmailProcessedData -> Html (Msg msg)
 viewProcessedDialog (Settings settings) data =
     div
@@ -427,7 +518,7 @@ viewProcessedDialog (Settings settings) data =
             , Tw.min_w_80
             ]
         ]
-        [ subscribersSection (Settings settings) data.subscribers
+        [ subscribersSection (Settings settings) data
         , Checkbox.new
             { label = Translations.overwriteExistingCheckboxLabel [ settings.browserEnv.translations ]
             , onClick = OverwriteExistingClicked
@@ -461,35 +552,29 @@ viewProcessedDialog (Settings settings) data =
         ]
 
 
-subscribersSection : EmailImportDialog msg -> List Subscriber -> Html (Msg msg)
-subscribersSection (Settings settings) subscribers =
+subscribersSection : EmailImportDialog msg -> EmailProcessedData -> Html (Msg msg)
+subscribersSection (Settings settings) data =
     div
         []
-        [ viewSubscribers (Settings settings) subscribers
+        [ Table.view
+            (subscribersTableConfig settings.browserEnv.translations)
+            data.subscriberTable
+            data.subscribers
+            |> Html.fromUnstyled
         ]
 
 
-viewSubscribers : EmailImportDialog msg -> List Subscriber -> Html (Msg msg)
-viewSubscribers (Settings settings) subscribers =
-    div []
-        [ ul
-            [ Attr.style "list-style-type" "disc"
-            , css
-                [ Tw.text_base
-                , Tw.text_color Theme.purple_900
-                , Tw.mb_2
-                , Tw.flex
-                , Tw.flex_col
-                , Tw.gap_y_2
-                ]
+subscribersTableConfig : I18Next.Translations -> Table.Config Subscriber (Msg msg)
+subscribersTableConfig translations =
+    Table.customConfig
+        { toId = .email
+        , toMsg = NewTableState
+        , columns =
+            [ Table.stringColumn (Subscribers.fieldName FieldEmail) (translatedFieldName translations FieldEmail) .email
+            , Table.stringColumn (Subscribers.fieldName FieldName) (translatedFieldName translations FieldName) (\subscriber -> subscriber.name |> Maybe.withDefault "")
             ]
-            (List.map (viewSubscriber settings.theme) subscribers)
-        ]
-
-
-viewSubscriber : Theme -> Subscriber -> Html (Msg msg)
-viewSubscriber _ subscriber =
-    div
-        []
-        [ text subscriber.email
-        ]
+        , customizations =
+            { defaultCustomizations
+                | tableAttrs = Table.defaultCustomizations.tableAttrs
+            }
+        }
