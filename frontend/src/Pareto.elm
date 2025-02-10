@@ -222,6 +222,7 @@ bootstrapAuthorsList =
     , ( "barbouille@pareto.town", "68c969eafadfc88d5937770d81031fb314b1bb1c201671403de6d930ab67edb9" )
     , ( "free-cities@pareto.town", "fc2470ed196801ddace5c2bcb14a53fa5ee9f81ee365bf4958f94c6117d9ee27" )
     , ( "mathias-broeckers@pareto.town", "1a8c788d6f0d3730fb8671cab1b11620f97f49a317bf5ec2620b236ad0b0f11b" )
+    , ( "quillie@nostria.space", "6c2d68ba016c291417fd18ea7c06b737ec143f7d56d78fdd44a5b248846525ec" )
     , ( "rbm@pareto.town", "04cb16e4a61034bc4212af6814bb909bcb3b4915f08ff77d50440a102ec3e5d5" )
     ]
 
