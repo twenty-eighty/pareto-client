@@ -192,10 +192,6 @@ view (Settings settings) =
         (Model model) =
             settings.model
 
-        onSearchInput : String -> msg
-        onSearchInput value =
-            settings.toMsg (UpdatedSearchInput value)
-
         dropdownClickMsg =
             if model.isMenuOpen then
                 CloseDropdown

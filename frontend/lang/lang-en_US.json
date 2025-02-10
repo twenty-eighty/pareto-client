@@ -41,11 +41,15 @@
       "close button title": "Close",
       "next button title": "Next",
       "upload csv button title": "Upload",
+      "process button title": "Process",
       "single emails button title": "Single emails",
       "email textarea placeholder text": "Comma-separated email addresses",
       "import selection explanation": "You can either upload a CSV file or add a list of comma-separated email addresses.",
       "overwrite existing checkbox label": "Overwrite existing?",
-      "csv processing error message": "Error processing CSV file: "
+      "csv processing error message": "Error processing CSV file: ",
+      "name column header in csv column mapping table": "Column name",
+      "field column header in csv column mapping table": "Subscriber field",
+      "unmapped column dropdown value": "<unmapped column>"
    },
    "email subscription dialog": {
       "dialog title": "Subscribe with Email",

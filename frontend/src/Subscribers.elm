@@ -47,6 +47,21 @@ type SubscriberField
     | FieldLocale
 
 
+allSubscriberFields : List SubscriberField
+allSubscriberFields =
+    [ FieldDnd
+    , FieldEmail
+    , FieldName
+    , FieldPubKey
+    , FieldSource
+    , FieldDateSubscription
+    , FieldDateUnsubscription
+    , FieldTags
+    , FieldUndeliverable
+    , FieldLocale
+    ]
+
+
 type alias CsvColumnNameMap =
     Dict String SubscriberField
 
@@ -55,13 +70,32 @@ type alias CsvColumnIndexMap =
     List ( Int, SubscriberField )
 
 
+type alias CsvData =
+    List (List String)
+
+
 substackCsvColumnNameMap : CsvColumnNameMap
 substackCsvColumnNameMap =
-    [ ( "Email", FieldEmail )
-    , ( "Name", FieldName )
-    , ( "Subscription date", FieldDateSubscription )
+    [ ( "email", FieldEmail )
+    , ( "name", FieldName )
+    , ( "subscription date", FieldDateSubscription )
     ]
         |> Dict.fromList
+
+
+buildColumnNameMap : List String -> CsvColumnNameMap
+buildColumnNameMap csvColumnNames =
+    csvColumnNames
+        |> List.foldl
+            (\columnName acc ->
+                case Dict.get (String.toLower columnName) substackCsvColumnNameMap of
+                    Just subscriberField ->
+                        Dict.insert columnName subscriberField acc
+
+                    Nothing ->
+                        acc
+            )
+            Dict.empty
 
 
 buildCsvColumnIndexMap : CsvColumnNameMap -> List String -> CsvColumnIndexMap
