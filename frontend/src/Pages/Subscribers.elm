@@ -29,7 +29,7 @@ import Route exposing (Route)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Subscribers exposing (Email, Modification(..), Subscriber, modificationToString)
+import Subscribers exposing (Email, Modification(..), Subscriber, SubscriberField(..), modificationToString, translatedFieldName)
 import Svg.Loaders as Loaders
 import Table.Paginated as Table exposing (defaultCustomizations)
 import Tailwind.Theme as Theme
@@ -92,7 +92,7 @@ init user shared () =
       , requestId = Nostr.getLastRequestId shared.nostr
       , state = Loading
       , subscribers = Dict.empty
-      , subscriberTable = Table.initialState emailColumnName 25
+      , subscriberTable = Table.initialState (Subscribers.fieldName FieldEmail) 25
       }
     , [ Subscribers.load shared.nostr user.pubKey
       , Subscribers.loadModifications shared.nostr user.pubKey
@@ -166,19 +166,29 @@ update user shared msg model =
                 , toMsg = EmailImportDialogSent
                 }
 
-        AddSubscribers subscribers overwriteExisting ->
+        AddSubscribers newSubscribers overwriteExisting ->
+            let
+                subscribers =
+                    Subscribers.merge overwriteExisting model.subscribers newSubscribers
+            in
             ( { model
                 | emailImportDialog = EmailImportDialog.hide model.emailImportDialog
                 , state = Modified
-                , subscribers = Subscribers.merge overwriteExisting model.subscribers subscribers
+                , subscribers = subscribers
+                , subscriberTable = Table.setTotal (Dict.size subscribers) model.subscriberTable
               }
             , Effect.none
             )
 
         RemoveSubscriber email ->
+            let
+                subscribers =
+                    Subscribers.remove model.subscribers [ email ]
+            in
             ( { model
                 | state = Modified
-                , subscribers = Subscribers.remove model.subscribers [ email ]
+                , subscribers = subscribers
+                , subscriberTable = Table.setTotal (Dict.size subscribers) model.subscriberTable
               }
             , Effect.none
             )
@@ -262,14 +272,24 @@ subscriptions _ =
 -- VIEW
 
 
-subscribersTableConfig : Table.Config Subscriber Msg
-subscribersTableConfig =
+subscribersTableConfig : BrowserEnv -> Table.Config Subscriber Msg
+subscribersTableConfig browserEnv =
     Table.customConfig
         { toId = .email
         , toMsg = NewTableState
         , columns =
-            [ Table.stringColumn emailColumnName emailColumnName .email
-            , Table.stringColumn nameColumnName nameColumnName (\subscriber -> subscriber.name |> Maybe.withDefault "")
+            [ Table.stringColumn (Subscribers.fieldName FieldEmail) (translatedFieldName browserEnv.translations FieldEmail) .email
+            , Table.stringColumn (Subscribers.fieldName FieldName) (translatedFieldName browserEnv.translations FieldName) (\subscriber -> subscriber.name |> Maybe.withDefault "")
+            , Table.stringColumn (Subscribers.fieldName FieldTags) (translatedFieldName browserEnv.translations FieldTags) (\subscriber -> subscriber.tags |> Maybe.map (String.join ", ") |> Maybe.withDefault "")
+            , Table.stringColumn (Subscribers.fieldName FieldDateSubscription) (translatedFieldName browserEnv.translations FieldDateSubscription) (\subscriber -> subscriber.dateSubscription |> Maybe.map (BrowserEnv.formatDate browserEnv) |> Maybe.withDefault "")
+            , Table.stringColumn (Subscribers.fieldName FieldDateUnsubscription) (translatedFieldName browserEnv.translations FieldDateUnsubscription) (\subscriber -> subscriber.dateUnsubscription |> Maybe.map (BrowserEnv.formatDate browserEnv) |> Maybe.withDefault "")
+            , Table.stringColumn (Subscribers.fieldName FieldSource) (translatedFieldName browserEnv.translations FieldSource) (\subscriber -> subscriber.source |> Maybe.withDefault "")
+            , Table.veryCustomColumn
+                { id = "delete_entry"
+                , name = ""
+                , viewData = \subscriber -> removeSubscriberButton (RemoveSubscriber subscriber.email)
+                , sorter = Table.unsortable
+                }
             ]
         , customizations =
             { defaultCustomizations
@@ -278,14 +298,21 @@ subscribersTableConfig =
         }
 
 
-emailColumnName : String
-emailColumnName =
-    "email"
-
-
-nameColumnName : String
-nameColumnName =
-    "name"
+removeSubscriberButton : Msg -> Table.HtmlDetails Msg
+removeSubscriberButton removeMsg =
+    Table.HtmlDetails []
+        [ div
+            [ css
+                [ Tw.text_color Theme.slate_500
+                , Tw.cursor_pointer
+                ]
+            , Events.onClick removeMsg
+            ]
+            [ Icon.FeatherIcon FeatherIcons.delete
+                |> Icon.view
+            ]
+            |> Html.toUnstyled
+        ]
 
 
 view : Auth.User -> Shared.Model.Model -> Model -> View Msg
@@ -365,7 +392,7 @@ viewSubscribers browserEnv model =
                     , Tw.m_2
                     ]
                 ]
-                [ text "Loading subscribers..."
+                [ text <| Translations.loadingSubscribersText [ browserEnv.translations ]
                 , Loaders.rings [] |> Html.fromUnstyled
                 ]
 
@@ -378,7 +405,7 @@ viewSubscribers browserEnv model =
                     , Tw.m_2
                     ]
                 ]
-                [ text <| "Error loading subscribers: " ++ error
+                [ text <| Translations.errorLoadingSubscribersText [ browserEnv.translations ] ++ ": " ++ error
                 ]
 
         ( _, 0 ) ->
@@ -394,7 +421,7 @@ viewSubscribers browserEnv model =
                     ]
                 ]
                 [ Table.view
-                    subscribersTableConfig
+                    (subscribersTableConfig browserEnv)
                     model.subscriberTable
                     (Dict.values model.subscribers)
                     |> Html.fromUnstyled
@@ -415,34 +442,6 @@ viewSubscribers browserEnv model =
            |> List.map viewSubscriber
        )
 -}
-
-
-viewSubscriber : Subscriber -> Html Msg
-viewSubscriber subscriber =
-    li
-        [ css
-            [ Tw.flex
-            , Tw.flex_row
-            , Tw.gap_2
-            ]
-        ]
-        [ text subscriber.email
-        , removeSubscriberButton (RemoveSubscriber subscriber.email)
-        ]
-
-
-removeSubscriberButton : Msg -> Html Msg
-removeSubscriberButton removeMsg =
-    div
-        [ css
-            [ Tw.text_color Theme.slate_500
-            , Tw.cursor_pointer
-            ]
-        , Events.onClick removeMsg
-        ]
-        [ Icon.FeatherIcon FeatherIcons.delete
-            |> Icon.view
-        ]
 
 
 viewModifications : Theme -> BrowserEnv -> Model -> Html Msg
