@@ -29,6 +29,8 @@ type alias Subscriber =
     , dateSubscription : Maybe Time.Posix
     , dateUnsubscription : Maybe Time.Posix
     , tags : Maybe (List String)
+    , undeliverable : Maybe String
+    , locale : Maybe String
     }
 
 
@@ -41,6 +43,8 @@ type SubscriberField
     | FieldDateSubscription
     | FieldDateUnsubscription
     | FieldTags
+    | FieldUndeliverable
+    | FieldLocale
 
 
 type alias CsvColumnNameMap =
@@ -137,6 +141,12 @@ setSubscriberField field value subscriber =
         FieldTags ->
             { subscriber | tags = String.split "," value |> Just }
 
+        FieldUndeliverable ->
+            { subscriber | undeliverable = Just value }
+
+        FieldLocale ->
+            { subscriber | locale = Just value }
+
 
 fieldName : SubscriberField -> String
 fieldName field =
@@ -165,6 +175,12 @@ fieldName field =
         FieldTags ->
             "tags"
 
+        FieldUndeliverable ->
+            "undeliverable"
+
+        FieldLocale ->
+            "locale"
+
 
 translatedFieldName : I18Next.Translations -> SubscriberField -> String
 translatedFieldName translations field =
@@ -192,6 +208,12 @@ translatedFieldName translations field =
 
         FieldTags ->
             Translations.tagsFieldName [ translations ]
+
+        FieldUndeliverable ->
+            Translations.undeliverableFieldName [ translations ]
+
+        FieldLocale ->
+            Translations.localeFieldName [ translations ]
 
 
 type alias Email =
@@ -233,6 +255,8 @@ emptySubscriber email =
     , dateSubscription = Nothing
     , dateUnsubscription = Nothing
     , tags = Nothing
+    , undeliverable = Nothing
+    , locale = Nothing
     }
 
 
@@ -328,11 +352,18 @@ processModifications subscribers modifications =
         |> List.foldl
             (\modification acc ->
                 case modification of
-                    Subscription subscriber ->
-                        Dict.insert subscriber.email subscriber acc
+                    Subscription newsubscriber ->
+                        Dict.insert newsubscriber.email newsubscriber acc
 
-                    Unsubscription subscriber ->
-                        Dict.remove subscriber.email acc
+                    Unsubscription unsubscribed ->
+                        Dict.update
+                            unsubscribed.email
+                            (Maybe.map
+                                (\subscriber ->
+                                    { subscriber | dnd = unsubscribed.dnd, dateUnsubscription = unsubscribed.dateUnsubscription }
+                                )
+                            )
+                            acc
             )
             subscribers
 
@@ -438,6 +469,19 @@ subscribersFromEvent event =
 modificationsFromEvent : Event -> Result Decode.Error (List Modification)
 modificationsFromEvent event =
     Decode.decodeString modificationsDecoder event.content
+        |> Result.map
+            (\modifications ->
+                modifications
+                    |> List.map
+                        (\modification ->
+                            case modification of
+                                Subscription subscriber ->
+                                    Subscription { subscriber | dnd = Just False, dateSubscription = Just event.createdAt }
+
+                                Unsubscription subscriber ->
+                                    Unsubscription { subscriber | dnd = Just True, dateUnsubscription = Just event.createdAt }
+                        )
+            )
 
 
 modificationsDecoder : Decode.Decoder (List Modification)
@@ -492,6 +536,8 @@ subscriberDecoder =
         |> optional (fieldName FieldDateSubscription) (Decode.maybe decodePosixTime) Nothing
         |> optional (fieldName FieldDateUnsubscription) (Decode.maybe decodePosixTime) Nothing
         |> optional (fieldName FieldTags) (Decode.maybe (Decode.list Decode.string)) Nothing
+        |> optional (fieldName FieldUndeliverable) (Decode.maybe Decode.string) Nothing
+        |> optional (fieldName FieldLocale) (Decode.maybe Decode.string) Nothing
 
 
 decodePosixTime : Decode.Decoder Time.Posix

@@ -189,7 +189,9 @@
       "source field name": "Quelle",
       "datesub field name": "Start Abonnement",
       "dateunsub field name": "Ende Abonnement",
-      "tags field name": "Tags"
+      "tags field name": "Tags",
+      "undeliverable field name": "Unzustellbar",
+      "locale field name": "Sprache"
    },
    "upload dialog": {
       "dialog title": "Hochladen",

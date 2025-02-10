@@ -188,7 +188,9 @@
       "source field name": "Source",
       "datesub field name": "Subscription date",
       "dateunsub field name": "Unsubscription date",
-      "tags field name": "Tags"
+      "tags field name": "Tags",
+      "undeliverable field name": "Undeliverable",
+      "locale field name": "Locale"
    },
    "upload dialog": {
       "dialog title": "Upload",
