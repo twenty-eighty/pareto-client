@@ -1,12 +1,14 @@
 module Components.Dropdown exposing (..)
 
+import Browser.Dom as Dom
 import Css
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, div, li, strong, text, ul)
+import Html.Styled as Html exposing (Html, button, div, li, strong, text, ul)
 import Html.Styled.Attributes as Attr exposing (class, classList, css)
 import Html.Styled.Events exposing (..)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
+import Task
 import Ui.Styles exposing (darkMode, fontFamilyInter)
 
 
@@ -103,12 +105,14 @@ init props =
 type Msg item msg
     = FocusedDropdown
     | BlurredDropdown
+    | OpenDropdown
     | CloseDropdown
     | UpdatedSearchInput String
     | SelectedItem
         { item : Maybe item
         , onChange : Maybe msg
         }
+    | NoOp
 
 
 close : Model item -> Model item
@@ -147,13 +151,20 @@ update props =
     toParentModel <|
         case props.msg of
             FocusedDropdown ->
-                ( Model { model | isMenuOpen = True }
+                ( Model model
                 , Effect.none
                 )
 
             BlurredDropdown ->
                 ( Model { model | search = "", isMenuOpen = False }
                 , Effect.none
+                )
+
+            OpenDropdown ->
+                ( Model { model | isMenuOpen = True }
+                , Task.attempt (\_ -> NoOp) (Dom.focus "dropdownMenu")
+                    |> Cmd.map props.toMsg
+                    |> Effect.sendCmd
                 )
 
             CloseDropdown ->
@@ -181,6 +192,9 @@ update props =
                         Effect.none
                 )
 
+            NoOp ->
+                ( Model model, Effect.none )
+
 
 
 -- VIEW
@@ -197,13 +211,13 @@ view (Settings settings) =
                 CloseDropdown
 
             else
-                FocusedDropdown
+                OpenDropdown
 
         -- View the input of the dropdown, that opens the
         -- menu when focused, and displays the search query
         viewDropdownInput : Html msg
         viewDropdownInput =
-            div
+            button
                 [ class "dropdown__toggle"
                 , css
                     [ Tw.w_full
@@ -229,6 +243,8 @@ view (Settings settings) =
                         , Tw.bg_color Theme.black
                         ]
                     ]
+
+                -- , onBlur (settings.toMsg BlurredDropdown)
                 , onClick (settings.toMsg dropdownClickMsg)
                 ]
                 [ viewSelectedValueOverlay
@@ -253,9 +269,28 @@ view (Settings settings) =
 
                         else
                             settings.choices |> List.map Just
+
+                    selectedIndex =
+                        choices
+                            |> List.indexedMap Tuple.pair
+                            |> List.filterMap
+                                (\( index, value ) ->
+                                    if model.selected == value then
+                                        Just index
+
+                                    else
+                                        Nothing
+                                )
+                            |> List.head
+                            |> Maybe.withDefault 0
                 in
                 div
                     [ Attr.id "dropdownMenu"
+                    , Attr.tabindex 1
+
+                    -- position listbox on top of dropdown element, approx. so that selected element is on top of dropdown
+                    , Attr.style "top" (String.fromInt (selectedIndex * -40 - 15) ++ "px")
+                    , onBlur (settings.toMsg BlurredDropdown)
                     , css
                         [ Tw.absolute
                         , Tw.cursor_pointer
@@ -280,7 +315,6 @@ view (Settings settings) =
                                 [ Tw.text_color Theme.gray_300
                                 ]
                             ]
-                        , onBlur (settings.toMsg BlurredDropdown)
                         ]
                         (List.map viewDropdownMenuItem choices)
                     ]
@@ -328,6 +362,9 @@ view (Settings settings) =
         , fontFamilyInter
         , classList
             [ ( "dropdown--small", settings.size == Small )
+            ]
+        , css
+            [ Tw.relative
             ]
         ]
         [ viewDropdownInput

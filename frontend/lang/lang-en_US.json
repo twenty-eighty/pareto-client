@@ -49,7 +49,7 @@
       "csv processing error message": "Error processing CSV file: ",
       "name column header in csv column mapping table": "Column name",
       "field column header in csv column mapping table": "Subscriber field",
-      "unmapped column dropdown value": "<unmapped column>"
+      "unmapped column dropdown value": "<unmapped>"
    },
    "email subscription dialog": {
       "dialog title": "Subscribe with Email",
