@@ -83,6 +83,7 @@ type alias Model =
     , mediaSelector : MediaSelector.Model
     , imageSelection : Maybe ImageSelection
     , publishArticleDialog : PublishArticleDialog.Model Msg
+    , publishedAt : Maybe Time.Posix
     , articleState : ArticleState
     , editorMode : EditorMode
     , loadedContent : LoadedContent Msg
@@ -164,6 +165,20 @@ init user shared route () =
         model =
             case maybeArticle of
                 Just article ->
+                    let
+                        publishedAt =
+                            if article.kind == KindDraftLongFormContent then
+                                -- output fresh published date when publishing article
+                                Nothing
+
+                            else if article.publishedAt /= Nothing then
+                                -- keep published date if present
+                                article.publishedAt
+
+                            else
+                                -- assume published date equals creation date of article event
+                                Just article.createdAt
+                    in
                     { draftEventId = Just article.id
                     , title = article.title
                     , summary = article.summary
@@ -183,6 +198,7 @@ init user shared route () =
                     , mediaSelector = mediaSelector
                     , imageSelection = Nothing
                     , publishArticleDialog = publishArticleDialog
+                    , publishedAt = publishedAt
                     , articleState = ArticleDraftSaved
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
@@ -205,6 +221,7 @@ init user shared route () =
                     , mediaSelector = mediaSelector
                     , imageSelection = Nothing
                     , publishArticleDialog = publishArticleDialog
+                    , publishedAt = Nothing
                     , articleState = ArticleEmpty
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
@@ -628,6 +645,11 @@ sendDraftDeletionCmd shared model user =
 
 eventWithContent : Shared.Model -> Model -> Auth.User -> Kind -> Event
 eventWithContent shared model user kind =
+    let
+        publishedAt =
+            model.publishedAt
+                |> Maybe.withDefault model.now
+    in
     { pubKey = user.pubKey
     , createdAt = shared.browserEnv.now
     , kind = kind
@@ -638,6 +660,7 @@ eventWithContent shared model user kind =
             |> Event.addImageTag model.image
             |> Event.addIdentifierTag model.identifier
             |> Event.addHashtagsToTags model.tags
+            |> Event.addPublishedAtTag publishedAt
             |> Maybe.withDefault identity (languageISOCode model |> Maybe.map (Event.addLabelTags "ISO-639-1"))
             |> Event.addZapTags model.zapWeights
             |> Event.addClientTag Pareto.client Pareto.paretoClientPubKey Pareto.handlerIdentifier Pareto.paretoRelay
