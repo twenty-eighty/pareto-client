@@ -249,7 +249,6 @@ viewReactions styles icon maybeMsg maybeCount previewData instanceId =
                         , Tw.justify_center
                         , Tw.items_center
                         , Tw.flex
-                        , Tw.cursor_pointer
                         ]
                    ]
             )
