@@ -93,6 +93,12 @@ defmodule NostrBackendWeb.PageController do
     |> render(:messages)
   end
 
+  def newsletters(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:newsletters)
+  end
+
   def notifications(conn, _params) do
     conn
     |> add_meta_tags
