@@ -74,9 +74,10 @@ type alias CsvData =
     List (List String)
 
 
-substackCsvColumnNameMap : CsvColumnNameMap
-substackCsvColumnNameMap =
+defaultCsvColumnNameMap : CsvColumnNameMap
+defaultCsvColumnNameMap =
     [ ( "email", FieldEmail )
+    , ( "e-mail", FieldEmail )
     , ( "name", FieldName )
     , ( "subscription date", FieldDateSubscription )
     ]
@@ -88,7 +89,7 @@ buildColumnNameMap csvColumnNames =
     csvColumnNames
         |> List.foldl
             (\columnName acc ->
-                case Dict.get (String.toLower columnName) substackCsvColumnNameMap of
+                case Dict.get (String.toLower columnName) defaultCsvColumnNameMap of
                     Just subscriberField ->
                         Dict.insert columnName subscriberField acc
 

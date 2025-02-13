@@ -22,6 +22,7 @@ import Nostr.Types exposing (PubKey)
 import Shared.Model exposing (Model)
 import Subscribers exposing (CsvColumnNameMap, CsvData, Modification(..), Subscriber, SubscriberField(..), emptySubscriber, translatedFieldName)
 import Table.Paginated as Table exposing (defaultCustomizations)
+import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Task exposing (Task)
 import Time
@@ -543,6 +544,14 @@ viewImportDialog (Settings settings) data =
 
 viewCsvMappingDialog : EmailImportDialog msg -> CsvMappingData -> Html (Msg msg)
 viewCsvMappingDialog (Settings settings) data =
+    let
+        emailNotMapped =
+            data.mappingSelectionDropdowns
+                |> Dict.values
+                |> List.map Dropdown.selectedItem
+                |> List.filter (\subscriberField -> subscriberField == Just FieldEmail)
+                |> List.isEmpty
+    in
     div
         [ css
             [ Tw.my_4
@@ -567,6 +576,7 @@ viewCsvMappingDialog (Settings settings) data =
                 data.header
                 |> Html.fromUnstyled
             ]
+        , viewMappingError settings.browserEnv.translations emailNotMapped
         , div
             [ css
                 [ Tw.flex
@@ -587,9 +597,25 @@ viewCsvMappingDialog (Settings settings) data =
                 , theme = settings.theme
                 }
                 |> Button.withTypePrimary
+                |> Button.withDisabled emailNotMapped
                 |> Button.view
             ]
         ]
+
+
+viewMappingError : I18Next.Translations -> Bool -> Html msg
+viewMappingError translations emailNotMapped =
+    if emailNotMapped then
+        div
+            [ css
+                [ Tw.text_color Theme.red_500
+                ]
+            ]
+            [ text <| Translations.emailNotMappedErrorMessage [ translations ]
+            ]
+
+    else
+        div [] []
 
 
 
@@ -690,18 +716,6 @@ viewFieldSelectionDropdown translations mappingSelectionDropdowns rowValue =
                 |> Html.toUnstyled
             ]
                 |> Table.HtmlDetails []
-
-
-
-{-
-   dropdownChoices : List
-                   (\columnName ->
-                       columnNameMap
-                           |> Dict.get columnName
-                           |> Maybe.map (Subscribers.translatedFieldName translations)
-                           |> Maybe.withDefault "<unmapped>"
-                   )
--}
 
 
 type MappingTableColumn
