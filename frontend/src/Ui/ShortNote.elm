@@ -13,7 +13,7 @@ import Set
 import Tailwind.Utilities as Tw
 import Ui.Links exposing (linkElementForAuthor)
 import Ui.Profile
-import Ui.Shared exposing (Actions)
+import Ui.Shared exposing (Actions, extendedZapRelays)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 import Url
 
@@ -58,7 +58,7 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
             { pubKey = shortNote.pubKey
             , noteId =
                 maybeNoteId
-            , relays = Set.empty
+            , zapRelays = extendedZapRelays Set.empty shortNotesViewData.userPubKey shortNotesViewData.nostr
             , actions = shortNoteViewData.actions
             , interactions = shortNoteViewData.interactions
             }

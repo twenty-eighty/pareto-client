@@ -9,9 +9,12 @@ import Html.Styled as Html exposing (Html, a, button, div, h2, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Json.Encode as Encode
+import Nostr
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Reactions exposing (Interactions)
+import Nostr.Relay exposing (websocketUrl)
 import Nostr.Types exposing (PubKey)
+import Pareto exposing (defaultRelayUrls)
 import Set exposing (Set)
 import Svg.Loaders
 import Tailwind.Breakpoints as Bp
@@ -141,10 +144,24 @@ type alias Actions msg =
 type alias PreviewData msg =
     { pubKey : PubKey
     , noteId : Maybe String
-    , relays : Set String
+    , zapRelays : Set String
     , actions : Actions msg
     , interactions : Interactions
     }
+
+
+extendedZapRelays : Set String -> Maybe PubKey -> Nostr.Model -> Set String
+extendedZapRelays zapRelays maybePubKey nostrModel =
+    let
+        userInboxRelays =
+            maybePubKey
+                |> Maybe.map
+                    (Nostr.getNip65ReadRelaysForPubKey nostrModel)
+                |> Maybe.withDefault []
+                |> List.map (\relay -> websocketUrl relay.urlWithoutProtocol)
+                |> Set.fromList
+    in
+    Set.fromList defaultRelayUrls |> Set.union zapRelays |> Set.union userInboxRelays
 
 
 viewInteractions : Styles msg -> BrowserEnv -> PreviewData msg -> String -> Html msg
@@ -208,7 +225,7 @@ viewReactions styles icon maybeMsg maybeCount previewData instanceId =
                     if featherIcon == FeatherIcons.zap then
                         ( [ Attr.id ("zap-button-" ++ instanceId)
                           , Attr.attribute "data-npub" npub
-                          , Attr.attribute "data-relays" (Set.foldl (\r acc -> r ++ "," ++ acc) "" previewData.relays)
+                          , Attr.attribute "data-relays" (Set.foldl (\r acc -> r ++ "," ++ acc) "" previewData.zapRelays)
                           , Attr.attribute "data-button-color" "#334155"
                           , css [ Tw.cursor_pointer ]
                           ]

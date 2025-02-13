@@ -18,6 +18,7 @@ import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Reactions exposing (Interactions)
+import Nostr.Relay exposing (websocketUrl)
 import Nostr.Types exposing (EventId, PubKey)
 import Route
 import Route.Path
@@ -29,7 +30,7 @@ import Time
 import Translations.Posts
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
-import Ui.Shared exposing (Actions)
+import Ui.Shared exposing (Actions, extendedZapRelays)
 import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded)
 
 
@@ -90,11 +91,14 @@ viewArticle articlePreviewsData articlePreviewData article =
         maybeNoteId =
             Result.toMaybe (Nip19.encode (Note article.id))
 
+        articleRelays =
+            Maybe.withDefault Set.empty article.relays |> Set.map websocketUrl
+
         previewData =
             { pubKey = article.author
             , noteId =
                 maybeNoteId
-            , relays = Maybe.withDefault Set.empty article.relays
+            , zapRelays = extendedZapRelays articleRelays articlePreviewsData.userPubKey articlePreviewsData.nostr
             , actions = articlePreviewData.actions
             , interactions = articlePreviewData.interactions
             }
