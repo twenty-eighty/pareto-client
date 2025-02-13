@@ -24,6 +24,7 @@ import Subscribers exposing (CsvColumnNameMap, CsvData, Modification(..), Subscr
 import Table.Paginated as Table exposing (defaultCustomizations)
 import Tailwind.Utilities as Tw
 import Task exposing (Task)
+import Time
 import Translations.EmailImportDialog as Translations
 import Ui.Shared
 import Ui.Styles exposing (Theme)
@@ -348,7 +349,7 @@ update props =
             CsvProcess header csvData csvColumnNameMap ->
                 ( Model
                     { model | state = DialogProcessing <| Translations.csvProcessingStatusMessage [ props.browserEnv.translations ] }
-                , Task.perform CsvProcessed (mapCsvTask csvColumnNameMap header csvData)
+                , Task.perform CsvProcessed (mapCsvTask props.browserEnv.now csvColumnNameMap header csvData)
                     |> Cmd.map props.toMsg
                     |> Effect.sendCmd
                 )
@@ -381,15 +382,15 @@ parseCsvTask content =
             Task.fail (CsvParsingError error)
 
 
-mapCsvTask : CsvColumnNameMap -> List String -> CsvData -> Task Never (List Subscriber)
-mapCsvTask csvColumnNameMap header csvData =
+mapCsvTask : Time.Posix -> CsvColumnNameMap -> List String -> CsvData -> Task Never (List Subscriber)
+mapCsvTask now csvColumnNameMap header csvData =
     let
         csvColumnIndexMap =
             header
                 |> Subscribers.buildCsvColumnIndexMap csvColumnNameMap
     in
     csvData
-        |> List.filterMap (Subscribers.buildSubscriberFromCsvRecord csvColumnIndexMap)
+        |> List.filterMap (Subscribers.buildSubscriberFromCsvRecord now csvColumnIndexMap)
         |> Task.succeed
 
 

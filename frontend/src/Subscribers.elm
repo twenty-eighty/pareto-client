@@ -112,8 +112,8 @@ buildCsvColumnIndexMap nameMap columnNames =
             )
 
 
-buildSubscriberFromCsvRecord : CsvColumnIndexMap -> List String -> Maybe Subscriber
-buildSubscriberFromCsvRecord columnIndexMap csvLine =
+buildSubscriberFromCsvRecord : Time.Posix -> CsvColumnIndexMap -> List String -> Maybe Subscriber
+buildSubscriberFromCsvRecord now columnIndexMap csvLine =
     let
         presetEmail =
             -- only needed to initialize subscriber and check if email was set with meaningful value
@@ -144,7 +144,7 @@ buildSubscriberFromCsvRecord columnIndexMap csvLine =
                     Nothing
 
                 else
-                    Just { subscriber | source = Just "CSV" }
+                    Just { subscriber | source = Just "CSV", dateSubscription = now }
            )
 
 
