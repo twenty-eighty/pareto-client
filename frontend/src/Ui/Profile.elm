@@ -21,9 +21,16 @@ import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 
 
-defaultProfileImage : String
-defaultProfileImage =
+defaultProfilePicture : String
+defaultProfilePicture =
     "/images/avatars/placeholder_01.png"
+
+
+profilePicture : Maybe Profile -> String
+profilePicture maybeProfile =
+    maybeProfile
+        |> Maybe.andThen .picture
+        |> Maybe.withDefault defaultProfilePicture
 
 
 type alias ProfileViewData msg =
@@ -61,7 +68,7 @@ viewProfileSmall profile validationStatus =
                 , Tw.mb_4
                 ]
             ]
-            [ viewProfileImageSmall (linkElementForProfile profile validationStatus) profile.picture validationStatus
+            [ viewProfileImageSmall (linkElementForProfile profile validationStatus) (Just profile) validationStatus
             , h2
                 [ css
                     [ Tw.text_sm
@@ -99,7 +106,7 @@ viewProfile profile profileViewData =
                 , Tw.mb_4
                 ]
             ]
-            [ viewProfileImage (div [ css [ Tw.flex_none ] ]) profile.picture profileViewData.validation
+            [ viewProfileImage (div [ css [ Tw.flex_none ] ]) (Just profile) profileViewData.validation
             , div
                 [ css
                     [ Tw.flex
@@ -268,7 +275,7 @@ viewProfilePubKey pubKey =
             , Tw.mb_4
             ]
         ]
-        [ viewProfileImage (linkElementForProfilePubKey pubKey) (Just defaultProfileImage) ValidationUnknown
+        [ viewProfileImage (linkElementForProfilePubKey pubKey) Nothing ValidationUnknown
         , h2
             [ css
                 [ Tw.text_sm
@@ -280,13 +287,8 @@ viewProfilePubKey pubKey =
         ]
 
 
-viewProfileImage : (List (Html msg) -> Html msg) -> Maybe String -> ProfileValidation -> Html msg
-viewProfileImage linkElement maybeImage validationStatus =
-    let
-        image =
-            maybeImage
-                |> Maybe.withDefault defaultProfileImage
-    in
+viewProfileImage : (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
+viewProfileImage linkElement maybeProfile validationStatus =
     div
         [ css
             [ Tw.relative
@@ -294,7 +296,7 @@ viewProfileImage linkElement maybeImage validationStatus =
         ]
         [ linkElement
             [ img
-                [ Attr.src image
+                [ Attr.src <| profilePicture maybeProfile
                 , Attr.alt "Avatar"
                 , css
                     [ Tw.min_w_28
@@ -366,13 +368,8 @@ validationTooltipText status =
             "Profile validated successfully"
 
 
-viewProfileImageSmall : (List (Html msg) -> Html msg) -> Maybe String -> ProfileValidation -> Html msg
-viewProfileImageSmall linkElement maybeImage validationStatus =
-    let
-        image =
-            maybeImage
-                |> Maybe.withDefault defaultProfileImage
-    in
+viewProfileImageSmall : (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
+viewProfileImageSmall linkElement maybeProfile validationStatus =
     div
         [ css
             [ Tw.relative
@@ -380,7 +377,7 @@ viewProfileImageSmall linkElement maybeImage validationStatus =
         ]
         [ linkElement
             [ img
-                [ Attr.src image
+                [ Attr.src <| profilePicture maybeProfile
                 , Attr.alt "Avatar"
                 , css
                     [ Tw.w_10

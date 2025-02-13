@@ -145,7 +145,7 @@ viewProfile profile validationStatus moderator =
             , Tw.mb_4
             ]
         ]
-        [ Ui.Profile.viewProfileImage (div []) profile.picture validationStatus
+        [ Ui.Profile.viewProfileImage (div []) (Just profile) validationStatus
         , div []
             [ h4
                 [ css

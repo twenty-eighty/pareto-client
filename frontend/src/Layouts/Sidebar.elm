@@ -8,7 +8,6 @@ import Css
 import Dict
 import Effect exposing (Effect)
 import FeatherIcons
-import Graphics
 import Html.Styled as Html exposing (Html, a, aside, button, div, img, input, label, main_, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css)
 import Html.Styled.Events as Events exposing (..)
@@ -798,58 +797,29 @@ loggedInButton maybeProfile =
             [ Tw.bg_color Theme.gray_100
             , Tw.text_color Theme.white
             , Tw.py_2
-            , Tw.px_4
+            , Tw.px_2
             , Tw.rounded_full
             , Tw.border_hidden
-            , Tw.space_x_2
-            , Tw.flex
-            , Tw.flex_row
-            , Css.hover
-                [ Tw.bg_color Theme.gray_300
-                ]
             ]
         , Events.onClick OpenProfileMenu
         ]
         [ img
             [ Attr.src <| profileImage maybeProfile
             , css
-                [ Tw.py_1
-                , Tw.px_1
-                , Tw.w_14
+                [ Tw.w_14
                 , Tw.h_14
                 , Tw.border_hidden
                 , Tw.rounded_full
                 ]
             ]
             []
-        , div
-            [ css
-                [ Tw.py_1
-                , Tw.px_1
-                , Tw.w_8
-                , Tw.h_14
-                , Tw.border_hidden
-                , Tw.text_color Theme.gray_900
-                , Tw.grid
-                ]
-            ]
-            [ div
-                [ css
-                    [ Tw.w_8
-                    , Tw.h_8
-                    , Tw.place_self_center
-                    ]
-                ]
-                [ Graphics.chakraIcon
-                ]
-            ]
         ]
 
 
 profileImage : Maybe Profile -> String
 profileImage maybeProfile =
     maybeProfile
-        |> Maybe.andThen (\profile -> profile.picture)
+        |> Maybe.andThen .picture
         |> Maybe.withDefault "/images/avatars/placeholder_01.png"
 
 

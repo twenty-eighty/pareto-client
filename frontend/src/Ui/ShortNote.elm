@@ -39,13 +39,13 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
         styles =
             stylesForTheme shortNotesViewData.theme
 
-        ( authorText, profileImage, validationStatus ) =
+        ( authorText, maybeProfile, validationStatus ) =
             case shortNoteViewData.author of
                 AuthorPubkey pubKey ->
                     ( pubKey, Nothing, ValidationUnknown )
 
                 AuthorProfile profile profileValidation ->
-                    ( profileDisplayName profile.pubKey profile, profile.picture, profileValidation )
+                    ( profileDisplayName profile.pubKey profile, Just profile, profileValidation )
 
         noteUrl =
             shortNote.id
@@ -114,7 +114,7 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
                         , Tw.border_0
                         ]
                     ]
-                    [ Ui.Profile.viewProfileImageSmall (linkElementForAuthor shortNoteViewData.author validationStatus) profileImage validationStatus
+                    [ Ui.Profile.viewProfileImageSmall (linkElementForAuthor shortNoteViewData.author validationStatus) maybeProfile validationStatus
 
                     {-
                        a
