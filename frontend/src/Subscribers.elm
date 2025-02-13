@@ -26,7 +26,7 @@ type alias Subscriber =
     , name : Maybe String
     , pubKey : Maybe PubKey
     , source : Maybe String
-    , dateSubscription : Maybe Time.Posix
+    , dateSubscription : Time.Posix
     , dateUnsubscription : Maybe Time.Posix
     , tags : Maybe (List String)
     , undeliverable : Maybe String
@@ -167,7 +167,7 @@ setSubscriberField field value subscriber =
             { subscriber | source = Just value }
 
         FieldDateSubscription ->
-            { subscriber | dateSubscription = Iso8601.toTime value |> Result.toMaybe }
+            { subscriber | dateSubscription = Iso8601.toTime value |> Result.toMaybe |> Maybe.withDefault (Time.millisToPosix 0) }
 
         FieldDateUnsubscription ->
             { subscriber | dateUnsubscription = Iso8601.toTime value |> Result.toMaybe }
@@ -286,7 +286,7 @@ emptySubscriber email =
     , name = Nothing
     , pubKey = Nothing
     , source = Nothing
-    , dateSubscription = Nothing
+    , dateSubscription = Time.millisToPosix 0
     , dateUnsubscription = Nothing
     , tags = Nothing
     , undeliverable = Nothing
@@ -331,7 +331,7 @@ toCsv subscribers =
                     , subscriber.name |> Maybe.withDefault ""
                     , subscriber.pubKey |> Maybe.withDefault ""
                     , subscriber.source |> Maybe.withDefault ""
-                    , subscriber.dateSubscription |> Maybe.map Iso8601.fromTime |> Maybe.withDefault ""
+                    , subscriber.dateSubscription |> Iso8601.fromTime
                     , subscriber.dateUnsubscription |> Maybe.map Iso8601.fromTime |> Maybe.withDefault ""
                     , subscriber.tags |> Maybe.map (String.join ",") |> Maybe.withDefault ""
                     ]
@@ -510,7 +510,7 @@ modificationsFromEvent event =
                         (\modification ->
                             case modification of
                                 Subscription subscriber ->
-                                    Subscription { subscriber | dnd = Just False, dateSubscription = Just event.createdAt }
+                                    Subscription { subscriber | dnd = Just False, dateSubscription = event.createdAt }
 
                                 Unsubscription subscriber ->
                                     Unsubscription { subscriber | dnd = Just True, dateUnsubscription = Just event.createdAt }
@@ -567,7 +567,7 @@ subscriberDecoder =
         |> optional (fieldName FieldName) (Decode.maybe Decode.string) Nothing
         |> optional (fieldName FieldPubKey) (Decode.maybe Decode.string) Nothing
         |> optional (fieldName FieldSource) (Decode.maybe Decode.string) Nothing
-        |> optional (fieldName FieldDateSubscription) (Decode.maybe decodePosixTime) Nothing
+        |> required (fieldName FieldDateSubscription) decodePosixTime
         |> optional (fieldName FieldDateUnsubscription) (Decode.maybe decodePosixTime) Nothing
         |> optional (fieldName FieldTags) (Decode.maybe (Decode.list Decode.string)) Nothing
         |> optional (fieldName FieldUndeliverable) (Decode.maybe Decode.string) Nothing
@@ -613,7 +613,7 @@ subscriberToCsv subscriber =
     , subscriber.name |> Maybe.withDefault ""
     , subscriber.pubKey |> Maybe.withDefault ""
     , subscriber.source |> Maybe.withDefault ""
-    , subscriber.dateSubscription |> Maybe.map timeToString |> Maybe.withDefault ""
+    , subscriber.dateSubscription |> timeToString
     , subscriber.dateUnsubscription |> Maybe.map timeToString |> Maybe.withDefault ""
     , subscriber.tags
         |> Maybe.map (String.join ",")
@@ -659,12 +659,12 @@ encodeSubscribers subscribers =
 encodeSubscriber : Subscriber -> List ( String, Encode.Value )
 encodeSubscriber subscriber =
     [ ( fieldName FieldEmail, Encode.string subscriber.email )
+    , ( fieldName FieldDateSubscription, Encode.int <| Time.posixToMillis subscriber.dateSubscription )
     ]
         |> addBoolToObject FieldDnd subscriber.dnd
         |> addStringToObject FieldName subscriber.name
         |> addStringToObject FieldPubKey subscriber.pubKey
         |> addStringToObject FieldSource subscriber.source
-        |> addDateToObject FieldDateSubscription subscriber.dateSubscription
         |> addDateToObject FieldDateUnsubscription subscriber.dateUnsubscription
         |> addStringListToObject FieldTags subscriber.tags
 

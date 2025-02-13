@@ -244,15 +244,12 @@ updateWithMessage (Model model) userPubKey message =
                                         |> Dict.toList
                                         |> List.filter
                                             (\( _, subscriber ) ->
-                                                case ( subscriber.dateSubscription, subscriber.dateUnsubscription ) of
-                                                    ( Just dateSubscription, Just dateUnsubscription ) ->
+                                                case subscriber.dateUnsubscription of
+                                                    Just dateUnsubscription ->
                                                         -- resubscription
-                                                        Time.posixToMillis dateSubscription > Time.posixToMillis dateUnsubscription
+                                                        Time.posixToMillis subscriber.dateSubscription > Time.posixToMillis dateUnsubscription
 
-                                                    ( Nothing, Just _ ) ->
-                                                        False
-
-                                                    ( _, _ ) ->
+                                                    Nothing ->
                                                         True
                                             )
                                         |> Dict.fromList

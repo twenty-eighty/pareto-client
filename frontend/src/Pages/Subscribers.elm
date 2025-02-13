@@ -281,7 +281,7 @@ subscribersTableConfig browserEnv =
             [ Table.stringColumn (Subscribers.fieldName FieldEmail) (translatedFieldName browserEnv.translations FieldEmail) .email
             , Table.stringColumn (Subscribers.fieldName FieldName) (translatedFieldName browserEnv.translations FieldName) (\subscriber -> subscriber.name |> Maybe.withDefault "")
             , Table.stringColumn (Subscribers.fieldName FieldTags) (translatedFieldName browserEnv.translations FieldTags) (\subscriber -> subscriber.tags |> Maybe.map (String.join ", ") |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldDateSubscription) (translatedFieldName browserEnv.translations FieldDateSubscription) (\subscriber -> subscriber.dateSubscription |> Maybe.map (BrowserEnv.formatDate browserEnv) |> Maybe.withDefault "")
+            , Table.stringColumn (Subscribers.fieldName FieldDateSubscription) (translatedFieldName browserEnv.translations FieldDateSubscription) (\subscriber -> subscriber.dateSubscription |> BrowserEnv.formatDate browserEnv)
             , Table.stringColumn (Subscribers.fieldName FieldDateUnsubscription) (translatedFieldName browserEnv.translations FieldDateUnsubscription) (\subscriber -> subscriber.dateUnsubscription |> Maybe.map (BrowserEnv.formatDate browserEnv) |> Maybe.withDefault "")
             , Table.stringColumn (Subscribers.fieldName FieldSource) (translatedFieldName browserEnv.translations FieldSource) (\subscriber -> subscriber.source |> Maybe.withDefault "")
             , Table.stringColumn (Subscribers.fieldName FieldUndeliverable) (translatedFieldName browserEnv.translations FieldUndeliverable) (\subscriber -> subscriber.undeliverable |> Maybe.withDefault "")
@@ -503,17 +503,8 @@ viewModification : BrowserEnv -> Modification -> Html Msg
 viewModification browserEnv modification =
     case modification of
         Subscription subscriber ->
-            let
-                dateSuffix =
-                    subscriber.dateSubscription
-                        |> Maybe.map
-                            (\date ->
-                                " (" ++ BrowserEnv.formatDate browserEnv date ++ ")"
-                            )
-                        |> Maybe.withDefault ""
-            in
             li []
-                [ text <| modificationToString modification ++ ": " ++ subscriber.email ++ dateSuffix
+                [ text <| modificationToString modification ++ ": " ++ subscriber.email ++ " (" ++ BrowserEnv.formatDate browserEnv subscriber.dateSubscription ++ ")"
                 ]
 
         Unsubscription subscriber ->
