@@ -2,6 +2,7 @@ defmodule NostrBackendWeb.LightningController do
   use NostrBackendWeb, :controller
 
   # Define the LNURL-P data for usernames
+  # Download https://<domain>/.well-known/lnurlp/<username> to get the relevant data
   @lnurlp_data %{
     "roland" => %{
       "nostrPubkey" => "79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f432",
