@@ -556,11 +556,17 @@ viewCsvMappingDialog (Settings settings) data =
             , Tw.overflow_auto
             ]
         ]
-        [ Table.view
-            (mappingTableConfig settings.browserEnv.translations data)
-            data.mappingTable
-            data.header
-            |> Html.fromUnstyled
+        [ div
+            [ css
+                [ Tw.max_w_96
+                ]
+            ]
+            [ Table.view
+                (mappingTableConfig settings.browserEnv.translations data)
+                data.mappingTable
+                data.header
+                |> Html.fromUnstyled
+            ]
         , div
             [ css
                 [ Tw.flex
@@ -829,7 +835,11 @@ viewProcessingDialog _ processingMessage =
 subscribersSection : EmailImportDialog msg -> EmailProcessedData -> Html (Msg msg)
 subscribersSection (Settings settings) data =
     div
-        []
+        [ css
+            [ Tw.max_h_96
+            , Tw.overflow_auto
+            ]
+        ]
         [ Table.view
             (subscribersTableConfig settings.browserEnv.translations)
             data.subscriberTable
