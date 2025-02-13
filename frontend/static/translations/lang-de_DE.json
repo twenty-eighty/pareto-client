@@ -43,11 +43,15 @@
       "close button title": "Schließen",
       "next button title": "Weiter",
       "upload csv button title": "Hochladen",
+      "process button title": "Verarbeiten",
       "single emails button title": "Einzelne E-Mails",
       "email textarea placeholder text": "Mit Komma getrennte E-Mail-Adressen",
       "import selection explanation": "Du kannst entweder eine CSV-Datei hochladen oder mehrere kommaseparierte E-Mail-Adressen hinzufügen.",
       "overwrite existing checkbox label": "Bestehende überschreiben?",
-      "csv parsing error message": "Fehler beim Verarbeiten der CSV-Datei: "
+      "csv processing error message": "Fehler beim Verarbeiten der CSV-Datei: ",
+      "name column header in csv column mapping table": "Spaltenname",
+      "field column header in csv column mapping table": "Feld",
+      "unmapped column dropdown value": "<nicht zugeordnet>"
    },
    "email subscription dialog": {
       "dialog title": "Mit E-Mail abonnieren",
@@ -191,7 +195,9 @@
       "source field name": "Quelle",
       "datesub field name": "Start Abonnement",
       "dateunsub field name": "Ende Abonnement",
-      "tags field name": "Tags"
+      "tags field name": "Tags",
+      "undeliverable field name": "Unzustellbar",
+      "locale field name": "Sprache"
    },
    "upload dialog": {
       "dialog title": "Hochladen",

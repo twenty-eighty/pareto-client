@@ -24,6 +24,7 @@ import Shared.Msg exposing (Msg)
 import Subscribers exposing (Email, Subscriber)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
+import Time
 import Translations.PublishArticleDialog as Translations
 import Ui.Shared
 import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
@@ -237,8 +238,26 @@ updateWithMessage (Model model) userPubKey message =
                             let
                                 ( subscribers, _, errors ) =
                                     Subscribers.processEvents userPubKey model.subscribers [] events
+
+                                activeSubscribers =
+                                    subscribers
+                                        |> Dict.toList
+                                        |> List.filter
+                                            (\( _, subscriber ) ->
+                                                case ( subscriber.dateSubscription, subscriber.dateUnsubscription ) of
+                                                    ( Just dateSubscription, Just dateUnsubscription ) ->
+                                                        -- resubscription
+                                                        Time.posixToMillis dateSubscription > Time.posixToMillis dateUnsubscription
+
+                                                    ( Nothing, Just _ ) ->
+                                                        False
+
+                                                    ( _, _ ) ->
+                                                        True
+                                            )
+                                        |> Dict.fromList
                             in
-                            ( Model { model | subscribers = subscribers, errors = model.errors ++ errors }, Effect.none )
+                            ( Model { model | subscribers = activeSubscribers, errors = model.errors ++ errors }, Effect.none )
 
                         _ ->
                             ( Model model, Effect.none )

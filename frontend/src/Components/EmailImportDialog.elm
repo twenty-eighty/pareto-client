@@ -3,7 +3,9 @@ module Components.EmailImportDialog exposing (EmailImportDialog, Model, Msg, hid
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Checkbox as Checkbox
+import Components.Dropdown as Dropdown
 import Csv as CsvParser
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Email
 import File exposing (File)
@@ -12,15 +14,17 @@ import Html.Styled as Html exposing (Html, div, text, textarea)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
+import List.Extra
 import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
+import Set
 import Shared.Model exposing (Model)
-import Subscribers exposing (Modification(..), Subscriber, SubscriberField(..), emptySubscriber, translatedFieldName)
+import Subscribers exposing (CsvColumnNameMap, CsvData, Modification(..), Subscriber, SubscriberField(..), emptySubscriber, translatedFieldName)
 import Table.Paginated as Table exposing (defaultCustomizations)
 import Tailwind.Utilities as Tw
-import Task
+import Task exposing (Task)
 import Translations.EmailImportDialog as Translations
 import Ui.Shared
 import Ui.Styles exposing (Theme)
@@ -35,9 +39,14 @@ type Msg msg
     | UpdateEmailData String
     | ProcessEnteredData String
     | NewTableState Table.State
+    | NewMappingTableState Table.State
+    | MappingDropdownSent String (Dropdown.Msg SubscriberField (Msg msg))
     | CsvRequested
     | CsvSelected File
     | CsvLoaded String
+    | CsvParsed (Result ProcessingError CsvData)
+    | CsvProcess (List String) CsvData CsvColumnNameMap
+    | CsvProcessed (List Subscriber)
 
 
 type Model
@@ -50,9 +59,15 @@ type DialogState
     = DialogHidden
     | DialogSelection
     | DialogImport EmailImportData
-    | DialogCsvLoaded CsvLoadedData
-    | DialogCsvParsingError String
+    | DialogCsvMapping CsvMappingData
+    | DialogCsvProcessingError ProcessingError
     | DialogProcessed EmailProcessedData
+    | DialogProcessing String
+
+
+type ProcessingError
+    = CsvParsingError
+    | CsvMappingError
 
 
 type alias EmailImportData =
@@ -60,8 +75,12 @@ type alias EmailImportData =
     }
 
 
-type alias CsvLoadedData =
-    { csvData : List (List String)
+type alias CsvMappingData =
+    { -- CSV data without header
+      csvData : CsvData
+    , header : List String
+    , mappingTable : Table.State
+    , mappingSelectionDropdowns : Dict String (Dropdown.Model SubscriberField)
     }
 
 
@@ -206,7 +225,7 @@ update props =
                                             email
                                                 |> Email.toString
                                                 |> emptySubscriber
-                                                |> (\subscriber -> { subscriber | source = Just "manual" })
+                                                |> (\subscriber -> { subscriber | source = Just "manual", dateSubscription = Just props.browserEnv.now })
                                                 |> Just
 
                                         Err _ ->
@@ -231,6 +250,37 @@ update props =
                     _ ->
                         ( Model model, Effect.none )
 
+            NewMappingTableState tableState ->
+                case model.state of
+                    DialogCsvMapping mappingData ->
+                        ( Model { model | state = DialogCsvMapping { mappingData | mappingTable = tableState } }, Effect.none )
+
+                    _ ->
+                        ( Model model, Effect.none )
+
+            MappingDropdownSent columnName innerMsg ->
+                case model.state of
+                    DialogCsvMapping mappingData ->
+                        case Dict.get columnName mappingData.mappingSelectionDropdowns of
+                            Just dropdownModel ->
+                                let
+                                    ( newModel, effect ) =
+                                        Dropdown.update
+                                            { msg = innerMsg
+                                            , model = dropdownModel
+                                            , toModel = \dropdown -> Model { model | state = DialogCsvMapping { mappingData | mappingSelectionDropdowns = Dict.insert columnName dropdown mappingData.mappingSelectionDropdowns } }
+                                            , toMsg = MappingDropdownSent columnName
+                                            }
+                                in
+                                ( newModel, Effect.map props.toMsg effect )
+
+                            Nothing ->
+                                -- this case shouldn't occur as there should be a dropdown listbox model for each column
+                                ( Model model, Effect.none )
+
+                    _ ->
+                        ( Model model, Effect.none )
+
             CsvRequested ->
                 ( Model model
                 , FileSelect.file [ "text/csv" ] CsvSelected
@@ -246,43 +296,103 @@ update props =
                 )
 
             CsvLoaded content ->
-                case CsvParser.parseRows content of
-                    Ok csvData ->
-                        let
-                            subscribers =
-                                List.head csvData
-                                    |> Maybe.map (Subscribers.buildCsvColumnIndexMap Subscribers.substackCsvColumnNameMap)
-                                    |> Maybe.map
-                                        (\csvColumnIndexMap ->
-                                            csvData
-                                                -- skip column names
-                                                |> List.drop 1
-                                                |> List.filterMap (Subscribers.buildSubscriberFromCsvRecord csvColumnIndexMap)
-                                        )
-                                    |> Maybe.withDefault []
+                ( Model { model | state = DialogProcessing "Parsing CSV file" }
+                , Task.attempt CsvParsed (parseCsvTask content)
+                    |> Cmd.map props.toMsg
+                    |> Effect.sendCmd
+                )
 
-                            processedData =
-                                { subscribers = subscribers
-                                , subscriberTable =
-                                    Table.initialState (Subscribers.fieldName FieldEmail) 25
-                                        |> Table.setTotal (List.length subscribers)
-                                , overwriteExisting = False
-                                }
+            CsvParsed csvParsingResult ->
+                case csvParsingResult of
+                    -- separate header from data
+                    Ok (header :: csvData) ->
+                        let
+                            csvColumnCount =
+                                header
+                                    |> List.length
                         in
                         ( Model
                             { model
-                                | state = DialogProcessed processedData
+                                | state =
+                                    DialogCsvMapping
+                                        { csvData = csvData
+                                        , header = header
+                                        , mappingTable =
+                                            Table.initialState (mappingColumnName MappingTableColumnName) csvColumnCount
+                                                |> Table.setTotal csvColumnCount
+                                        , mappingSelectionDropdowns =
+                                            let
+                                                columnNameMap =
+                                                    Subscribers.buildColumnNameMap header
+                                            in
+                                            -- create a dropdown listbox for each CSV column
+                                            header
+                                                |> List.map
+                                                    (\fieldName ->
+                                                        ( fieldName, Dropdown.init { selected = Dict.get fieldName columnNameMap } )
+                                                    )
+                                                |> Dict.fromList
+                                        }
                             }
                         , Effect.none
                         )
 
-                    {-
-                       ( Model { model | state = DialogCsvLoaded { csvData = csvData } }
-                       , Effect.none
-                       )
-                    -}
+                    Ok [] ->
+                        ( Model { model | state = DialogCsvProcessingError CsvParsingError }
+                        , Effect.none
+                        )
+
                     Err error ->
-                        ( Model { model | state = DialogCsvParsingError error }, Effect.none )
+                        ( Model { model | state = DialogCsvProcessingError error }
+                        , Effect.none
+                        )
+
+            CsvProcess header csvData csvColumnNameMap ->
+                ( Model
+                    { model | state = DialogProcessing "Processing CSV data..." }
+                , Task.perform CsvProcessed (mapCsvTask csvColumnNameMap header csvData)
+                    |> Cmd.map props.toMsg
+                    |> Effect.sendCmd
+                )
+
+            CsvProcessed subscribers ->
+                let
+                    processedData =
+                        { subscribers = subscribers
+                        , subscriberTable =
+                            Table.initialState (Subscribers.fieldName FieldEmail) 25
+                                |> Table.setTotal (List.length subscribers)
+                        , overwriteExisting = False
+                        }
+                in
+                ( Model
+                    { model
+                        | state = DialogProcessed processedData
+                    }
+                , Effect.none
+                )
+
+
+parseCsvTask : String -> Task ProcessingError CsvData
+parseCsvTask content =
+    case CsvParser.parseRows content of
+        Ok csvData ->
+            Task.succeed csvData
+
+        Err _ ->
+            Task.fail CsvParsingError
+
+
+mapCsvTask : CsvColumnNameMap -> List String -> CsvData -> Task Never (List Subscriber)
+mapCsvTask csvColumnNameMap header csvData =
+    let
+        csvColumnIndexMap =
+            header
+                |> Subscribers.buildCsvColumnIndexMap csvColumnNameMap
+    in
+    csvData
+        |> List.filterMap (Subscribers.buildSubscriberFromCsvRecord csvColumnIndexMap)
+        |> Task.succeed
 
 
 view : EmailImportDialog msg -> Html msg
@@ -314,19 +424,19 @@ view dialog =
                 CloseDialog
                 |> Html.map settings.toMsg
 
-        DialogCsvLoaded csvLoadedData ->
+        DialogCsvMapping csvMappingData ->
             Ui.Shared.modalDialog
                 settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
-                [ viewCsvLoadedDialog dialog csvLoadedData ]
+                [ viewCsvMappingDialog dialog csvMappingData ]
                 CloseDialog
                 |> Html.map settings.toMsg
 
-        DialogCsvParsingError error ->
+        DialogCsvProcessingError error ->
             Ui.Shared.modalDialog
                 settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
-                [ viewCsvParsingErrorDialog dialog error ]
+                [ viewCsvProcessingErrorDialog dialog error ]
                 CloseDialog
                 |> Html.map settings.toMsg
 
@@ -335,6 +445,14 @@ view dialog =
                 settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
                 [ viewProcessedDialog dialog emailProcessedData ]
+                CloseDialog
+                |> Html.map settings.toMsg
+
+        DialogProcessing message ->
+            Ui.Shared.modalDialog
+                settings.theme
+                (Translations.dialogTitle [ settings.browserEnv.translations ])
+                [ viewProcessingDialog dialog message ]
                 CloseDialog
                 |> Html.map settings.toMsg
 
@@ -371,7 +489,6 @@ viewSelectionDialog (Settings settings) =
                 , theme = settings.theme
                 }
                 |> Button.withTypePrimary
-                |> Button.withDisabled (settings.browserEnv.environment == BrowserEnv.Production)
                 |> Button.view
             ]
         ]
@@ -425,9 +542,8 @@ viewImportDialog (Settings settings) data =
         ]
 
 
-viewCsvLoadedDialog : EmailImportDialog msg -> CsvLoadedData -> Html (Msg msg)
-viewCsvLoadedDialog (Settings settings) data =
-    -- TODO: Implement CSV mapping table here...
+viewCsvMappingDialog : EmailImportDialog msg -> CsvMappingData -> Html (Msg msg)
+viewCsvMappingDialog (Settings settings) data =
     div
         [ css
             [ Tw.my_4
@@ -437,44 +553,179 @@ viewCsvLoadedDialog (Settings settings) data =
             , Tw.gap_2
             , Tw.w_auto
             , Tw.min_w_80
+            , Tw.max_h_96
+            , Tw.overflow_auto
             ]
         ]
-        [{- subscribersSection (Settings settings) data.subscribers
-            , Checkbox.new
-                { label = "Overwrite existing?"
-                , onClick = OverwriteExistingClicked
-                , checked = data.overwriteExisting
+        [ Table.view
+            (mappingTableConfig settings.browserEnv.translations data)
+            data.mappingTable
+            data.header
+            |> Html.fromUnstyled
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.gap_2
+                ]
+            ]
+            [ Button.new
+                { label = Translations.closeButtonTitle [ settings.browserEnv.translations ]
+                , onClick = Just CloseDialog
                 , theme = settings.theme
                 }
-                |> Checkbox.view
-            , div
-                [ css
-                    [ Tw.flex
-                    , Tw.flex_row
-                    , Tw.gap_2
-                    ]
-                ]
-                [ Button.new
-                    { label = Translations.closeButtonTitle [ settings.browserEnv.translations ]
-                    , onClick = Just CloseDialog
-                    , theme = settings.theme
-                    }
-                    |> Button.withTypeSecondary
-                    |> Button.view
-                , Button.new
-                    { label = Translations.importButtonTitle [ settings.browserEnv.translations ]
-                    , onClick = Just <| ImportClicked data.subscribers data.overwriteExisting
-                    , theme = settings.theme
-                    }
-                    |> Button.withTypePrimary
-                    |> Button.view
-                ]
-         -}
+                |> Button.withTypeSecondary
+                |> Button.view
+            , Button.new
+                { label = Translations.processButtonTitle [ settings.browserEnv.translations ]
+                , onClick = Just <| CsvProcess data.header data.csvData (buildColumnNameMap data)
+                , theme = settings.theme
+                }
+                |> Button.withTypePrimary
+                |> Button.view
+            ]
         ]
 
 
-viewCsvParsingErrorDialog : EmailImportDialog msg -> String -> Html (Msg msg)
-viewCsvParsingErrorDialog (Settings settings) error =
+
+-- derive column name mapping from state stored in dropdown listboxes
+
+
+buildColumnNameMap : CsvMappingData -> CsvColumnNameMap
+buildColumnNameMap csvMappingData =
+    csvMappingData.mappingSelectionDropdowns
+        |> Dict.toList
+        |> List.filterMap
+            (\( fieldName, dropdown ) ->
+                Dropdown.selectedItem dropdown
+                    |> Maybe.map
+                        (\selectedField ->
+                            ( fieldName, selectedField )
+                        )
+            )
+        |> Dict.fromList
+
+
+mappingTableConfig : I18Next.Translations -> CsvMappingData -> Table.Config String (Msg msg)
+mappingTableConfig translations csvMappingData =
+    Table.customConfig
+        { toId = identity
+        , toMsg = NewMappingTableState
+        , columns =
+            [ Table.customColumn
+                { id = mappingColumnName MappingTableColumnName
+                , name = translatedMappingColumnName translations MappingTableColumnName
+                , viewData = identity
+                , sorter = Table.unsortable
+                }
+            , fieldSelectionDropdownColumn translations csvMappingData
+            ]
+        , customizations =
+            { defaultCustomizations
+                | tableAttrs = Table.defaultCustomizations.tableAttrs
+            }
+        }
+
+
+fieldSelectionDropdownColumn : I18Next.Translations -> CsvMappingData -> Table.Column String (Msg msg)
+fieldSelectionDropdownColumn translations csvMappingData =
+    { id = mappingColumnName MappingTableColumnField
+    , name = translatedMappingColumnName translations MappingTableColumnField
+    , viewData = viewFieldSelectionDropdown translations csvMappingData.mappingSelectionDropdowns
+    , sorter = Table.unsortable
+    }
+        |> Table.veryCustomColumn
+
+
+viewFieldSelectionDropdown : I18Next.Translations -> Dict String (Dropdown.Model SubscriberField) -> String -> Table.HtmlDetails (Msg msg)
+viewFieldSelectionDropdown translations mappingSelectionDropdowns rowValue =
+    case Dict.get rowValue mappingSelectionDropdowns of
+        Just dropdownModel ->
+            let
+                -- a field should only be selected by one dropdown listbox.
+                fieldsSelectedInOtherDropdownListboxes =
+                    mappingSelectionDropdowns
+                        |> Dict.values
+                        |> List.filterMap Dropdown.selectedItem
+                        |> List.filter (\field -> Just field /= Dropdown.selectedItem dropdownModel)
+
+                availableChoices =
+                    fieldsSelectedInOtherDropdownListboxes
+                        |> List.foldl
+                            (\availableInOther acc ->
+                                List.Extra.remove availableInOther acc
+                            )
+                            Subscribers.allSubscriberFields
+            in
+            [ div
+                [ css
+                    [ Tw.ml_2
+                    ]
+                ]
+                [ Dropdown.new
+                    { model = dropdownModel
+                    , toMsg = MappingDropdownSent rowValue
+                    , choices = availableChoices
+                    , allowNoSelection = True
+                    , toLabel =
+                        \maybeField ->
+                            maybeField
+                                |> Maybe.map (Subscribers.translatedFieldName translations)
+                                |> Maybe.withDefault (Translations.unmappedColumnDropdownValue [ translations ])
+                    }
+                    |> Dropdown.view
+                ]
+                |> Html.toUnstyled
+            ]
+                |> Table.HtmlDetails []
+
+        Nothing ->
+            [ div []
+                []
+                |> Html.toUnstyled
+            ]
+                |> Table.HtmlDetails []
+
+
+
+{-
+   dropdownChoices : List
+                   (\columnName ->
+                       columnNameMap
+                           |> Dict.get columnName
+                           |> Maybe.map (Subscribers.translatedFieldName translations)
+                           |> Maybe.withDefault "<unmapped>"
+                   )
+-}
+
+
+type MappingTableColumn
+    = MappingTableColumnName
+    | MappingTableColumnField
+
+
+mappingColumnName : MappingTableColumn -> String
+mappingColumnName column =
+    case column of
+        MappingTableColumnName ->
+            "columnName"
+
+        MappingTableColumnField ->
+            "subscriberField"
+
+
+translatedMappingColumnName : I18Next.Translations -> MappingTableColumn -> String
+translatedMappingColumnName translations column =
+    case column of
+        MappingTableColumnName ->
+            Translations.nameColumnHeaderInCsvColumnMappingTable [ translations ]
+
+        MappingTableColumnField ->
+            Translations.fieldColumnHeaderInCsvColumnMappingTable [ translations ]
+
+
+viewCsvProcessingErrorDialog : EmailImportDialog msg -> ProcessingError -> Html (Msg msg)
+viewCsvProcessingErrorDialog (Settings settings) error =
     div
         [ css
             [ Tw.my_4
@@ -486,7 +737,7 @@ viewCsvParsingErrorDialog (Settings settings) error =
             , Tw.min_w_80
             ]
         ]
-        [ text <| Translations.csvParsingErrorMessage [ settings.browserEnv.translations ] ++ error
+        [ text <| Translations.csvProcessingErrorMessage [ settings.browserEnv.translations ] ++ processingErrorToString error
         , div
             [ css
                 [ Tw.flex
@@ -503,6 +754,16 @@ viewCsvParsingErrorDialog (Settings settings) error =
                 |> Button.view
             ]
         ]
+
+
+processingErrorToString : ProcessingError -> String
+processingErrorToString error =
+    case error of
+        CsvParsingError ->
+            "Error parsing CSV file"
+
+        CsvMappingError ->
+            "Error mapping CSV file"
 
 
 viewProcessedDialog : EmailImportDialog msg -> EmailProcessedData -> Html (Msg msg)
@@ -549,6 +810,23 @@ viewProcessedDialog (Settings settings) data =
                 |> Button.withTypePrimary
                 |> Button.view
             ]
+        ]
+
+
+viewProcessingDialog : EmailImportDialog msg -> String -> Html (Msg msg)
+viewProcessingDialog (Settings settings) processingMessage =
+    div
+        [ css
+            [ Tw.my_4
+            , Tw.flex
+            , Tw.flex_col
+            , Tw.justify_start
+            , Tw.gap_2
+            , Tw.w_auto
+            , Tw.min_w_80
+            ]
+        ]
+        [ text processingMessage
         ]
 
 
