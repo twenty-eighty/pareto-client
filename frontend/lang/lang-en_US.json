@@ -47,6 +47,9 @@
       "import selection explanation": "You can either upload a CSV file or add a list of comma-separated email addresses.",
       "overwrite existing checkbox label": "Overwrite existing?",
       "csv processing error message": "Error processing CSV file: ",
+      "csv file empty error message": "The CSV file is empty",
+      "csv processing status message": "Processing CSV file...",
+      "csv parsing status message": "Parsing CSV file...",
       "name column header in csv column mapping table": "Column name",
       "field column header in csv column mapping table": "Subscriber field",
       "unmapped column dropdown value": "<unmapped>"
@@ -162,6 +165,7 @@
       "get started button text": "Sign in/up",
       "media menu item text": "Media",
       "messages menu item text": "Messages",
+      "newsletters menu item text": "Newsletters",
       "notifications menu item text": "Notifications",
       "posts menu item text": "Posts",
       "read menu item text": "Read",

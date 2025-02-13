@@ -110,6 +110,10 @@ sidebarItems { isAuthor, isBetaTester, isLoggedIn, environment, clientRole, tran
                                     { sidebarItem | title = sidebarItem.title ++ "\u{00A0}" ++ countBadge bookmarksCount }
                                 )
 
+                    Route.Path.Newsletters ->
+                        -- currently in development
+                        Just { sidebarItem | disabled = environment /= BrowserEnv.Development }
+
                     Route.Path.Subscribers ->
                         -- currently in development
                         Just { sidebarItem | disabled = environment /= BrowserEnv.Development && not isBetaTester }
@@ -139,6 +143,7 @@ rawSidebarItems clientRole translations =
             [ { path = Route.Path.Posts, title = Translations.postsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.fileText, requiresLogin = True, requiresAuthor = False, disabled = False }
             , { path = Route.Path.Write, title = Translations.writeMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.feather, requiresLogin = True, requiresAuthor = False, disabled = False }
             , { path = Route.Path.Subscribers, title = Translations.subscribersMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.users, requiresLogin = True, requiresAuthor = True, disabled = False }
+            , { path = Route.Path.Newsletters, title = Translations.newslettersMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, requiresAuthor = True, disabled = False }
             , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, requiresAuthor = False, disabled = False }
             , { path = Route.Path.Media, title = Translations.mediaMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.image, requiresLogin = False, requiresAuthor = False, disabled = False }
 

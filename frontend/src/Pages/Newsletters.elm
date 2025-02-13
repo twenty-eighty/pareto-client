@@ -1,4 +1,4 @@
-module Pages.Subscribers exposing (Model, Msg, page)
+module Pages.Newsletters exposing (Model, Msg, page)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
@@ -18,12 +18,13 @@ import Json.Decode as Decode
 import Layouts
 import Material.Icons exposing (email)
 import Nostr
-import Nostr.Event exposing (Kind(..))
+import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.External
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (IncomingMessage)
+import Nostr.Types exposing (IncomingMessage, PubKey)
 import Page exposing (Page)
+import Pareto
 import Ports
 import Route exposing (Route)
 import Shared
@@ -94,12 +95,28 @@ init user shared () =
       , subscribers = Dict.empty
       , subscriberTable = Table.initialState (Subscribers.fieldName FieldEmail) 25
       }
-    , [ Subscribers.load shared.nostr user.pubKey
-      , Subscribers.loadModifications shared.nostr user.pubKey
+    , [ loadNewsletters shared.nostr user.pubKey
       ]
         |> List.map Effect.sendSharedMsg
         |> Effect.batch
     )
+
+
+loadNewsletters : Nostr.Model -> PubKey -> Shared.Msg.Msg
+loadNewsletters nostr userPubKey =
+    newslettersEventFilter userPubKey
+        |> RequestSubscribers
+        |> Nostr.createRequest nostr "Load newsletters" []
+        |> Shared.Msg.RequestNostrEvents
+
+
+newslettersEventFilter : PubKey -> EventFilter
+newslettersEventFilter pubKey =
+    { emptyEventFilter
+        | authors = Just [ Pareto.emailGatewayKey ]
+        , kinds = Just [ KindApplicationSpecificData ]
+        , tagReferences = Just [ TagReferencePubKey pubKey ]
+    }
 
 
 

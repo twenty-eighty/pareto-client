@@ -19,7 +19,6 @@ import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
-import Set
 import Shared.Model exposing (Model)
 import Subscribers exposing (CsvColumnNameMap, CsvData, Modification(..), Subscriber, SubscriberField(..), emptySubscriber, translatedFieldName)
 import Table.Paginated as Table exposing (defaultCustomizations)
@@ -66,8 +65,7 @@ type DialogState
 
 
 type ProcessingError
-    = CsvParsingError
-    | CsvMappingError
+    = CsvParsingError String
 
 
 type alias EmailImportData =
@@ -225,7 +223,7 @@ update props =
                                             email
                                                 |> Email.toString
                                                 |> emptySubscriber
-                                                |> (\subscriber -> { subscriber | source = Just "manual", dateSubscription = Just props.browserEnv.now })
+                                                |> (\subscriber -> { subscriber | source = Just "manual", dateSubscription = props.browserEnv.now })
                                                 |> Just
 
                                         Err _ ->
@@ -296,7 +294,7 @@ update props =
                 )
 
             CsvLoaded content ->
-                ( Model { model | state = DialogProcessing "Parsing CSV file" }
+                ( Model { model | state = DialogProcessing <| Translations.csvParsingStatusMessage [ props.browserEnv.translations ] }
                 , Task.attempt CsvParsed (parseCsvTask content)
                     |> Cmd.map props.toMsg
                     |> Effect.sendCmd
@@ -338,7 +336,7 @@ update props =
                         )
 
                     Ok [] ->
-                        ( Model { model | state = DialogCsvProcessingError CsvParsingError }
+                        ( Model { model | state = DialogCsvProcessingError (CsvParsingError <| Translations.csvFileEmptyErrorMessage [ props.browserEnv.translations ]) }
                         , Effect.none
                         )
 
@@ -349,7 +347,7 @@ update props =
 
             CsvProcess header csvData csvColumnNameMap ->
                 ( Model
-                    { model | state = DialogProcessing "Processing CSV data..." }
+                    { model | state = DialogProcessing <| Translations.csvProcessingStatusMessage [ props.browserEnv.translations ] }
                 , Task.perform CsvProcessed (mapCsvTask csvColumnNameMap header csvData)
                     |> Cmd.map props.toMsg
                     |> Effect.sendCmd
@@ -379,8 +377,8 @@ parseCsvTask content =
         Ok csvData ->
             Task.succeed csvData
 
-        Err _ ->
-            Task.fail CsvParsingError
+        Err error ->
+            Task.fail (CsvParsingError error)
 
 
 mapCsvTask : CsvColumnNameMap -> List String -> CsvData -> Task Never (List Subscriber)
@@ -759,11 +757,8 @@ viewCsvProcessingErrorDialog (Settings settings) error =
 processingErrorToString : ProcessingError -> String
 processingErrorToString error =
     case error of
-        CsvParsingError ->
-            "Error parsing CSV file"
-
-        CsvMappingError ->
-            "Error mapping CSV file"
+        CsvParsingError message ->
+            message
 
 
 viewProcessedDialog : EmailImportDialog msg -> EmailProcessedData -> Html (Msg msg)
@@ -814,7 +809,7 @@ viewProcessedDialog (Settings settings) data =
 
 
 viewProcessingDialog : EmailImportDialog msg -> String -> Html (Msg msg)
-viewProcessingDialog (Settings settings) processingMessage =
+viewProcessingDialog _ processingMessage =
     div
         [ css
             [ Tw.my_4
