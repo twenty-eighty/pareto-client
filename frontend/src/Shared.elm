@@ -89,7 +89,7 @@ init flagsResult _ =
                 -- request bookmark list of Pareto creators
                 -- as well as bookmark sets for different purposes
                 ( nostr, nostrRequestCmd ) =
-                    { emptyEventFilter | authors = Just [ Pareto.authorsKey, Pareto.rssAuthorsKey, Pareto.editorKey ], kinds = Just [ KindFollows, KindFollowSets ] }
+                    { emptyEventFilter | authors = Just [ Pareto.authorsKey, Pareto.rssAuthorsKey, Pareto.betaTestKey, Pareto.editorKey ], kinds = Just [ KindFollows, KindFollowSets ] }
                         |> RequestFollowSets
                         |> Nostr.createRequest nostrInit "Follow list/sets of Pareto user" []
                         |> Nostr.doRequest nostrInit

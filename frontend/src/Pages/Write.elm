@@ -8,9 +8,8 @@ import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
 import Components.MessageDialog as MessageDialog
 import Components.PublishArticleDialog as PublishArticleDialog
 import Css
-import Dict exposing (Dict)
+import Dict
 import Effect exposing (Effect)
-import FeatherIcons exposing (share)
 import Html.Styled as Html exposing (Html, div, img, input, label, node, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
@@ -60,7 +59,7 @@ page user shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -84,6 +83,7 @@ type alias Model =
     , mediaSelector : MediaSelector.Model
     , imageSelection : Maybe ImageSelection
     , publishArticleDialog : PublishArticleDialog.Model Msg
+    , publishedAt : Maybe Time.Posix
     , articleState : ArticleState
     , editorMode : EditorMode
     , loadedContent : LoadedContent Msg
@@ -126,24 +126,12 @@ init : Auth.User -> Shared.Model -> Route () -> () -> ( Model, Effect Msg )
 init user shared route () =
     let
         maybeNip19 =
-            case Dict.get "a" route.query of
-                Just address ->
-                    Nip19.decode address
-                        |> Result.toMaybe
-
-                Nothing ->
-                    Nothing
-
-        maybeDraftId =
-            maybeNip19
+            Dict.get "a" route.query
                 |> Maybe.andThen
-                    (\nip19 ->
-                        case nip19 of
-                            NAddr addrData ->
-                                Just addrData
-
-                            _ ->
-                                Nothing
+                    (\address ->
+                        address
+                            |> Nip19.decode
+                            |> Result.toMaybe
                     )
 
         maybeArticle =
@@ -177,6 +165,20 @@ init user shared route () =
         model =
             case maybeArticle of
                 Just article ->
+                    let
+                        publishedAt =
+                            if article.kind == KindDraftLongFormContent then
+                                -- output fresh published date when publishing article
+                                Nothing
+
+                            else if article.publishedAt /= Nothing then
+                                -- keep published date if present
+                                article.publishedAt
+
+                            else
+                                -- assume published date equals creation date of article event
+                                Just article.createdAt
+                    in
                     { draftEventId = Just article.id
                     , title = article.title
                     , summary = article.summary
@@ -196,6 +198,7 @@ init user shared route () =
                     , mediaSelector = mediaSelector
                     , imageSelection = Nothing
                     , publishArticleDialog = publishArticleDialog
+                    , publishedAt = publishedAt
                     , articleState = ArticleDraftSaved
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
@@ -218,6 +221,7 @@ init user shared route () =
                     , mediaSelector = mediaSelector
                     , imageSelection = Nothing
                     , publishArticleDialog = publishArticleDialog
+                    , publishedAt = Nothing
                     , articleState = ArticleEmpty
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
@@ -641,6 +645,11 @@ sendDraftDeletionCmd shared model user =
 
 eventWithContent : Shared.Model -> Model -> Auth.User -> Kind -> Event
 eventWithContent shared model user kind =
+    let
+        publishedAt =
+            model.publishedAt
+                |> Maybe.withDefault model.now
+    in
     { pubKey = user.pubKey
     , createdAt = shared.browserEnv.now
     , kind = kind
@@ -651,6 +660,7 @@ eventWithContent shared model user kind =
             |> Event.addImageTag model.image
             |> Event.addIdentifierTag model.identifier
             |> Event.addHashtagsToTags model.tags
+            |> Event.addPublishedAtTag publishedAt
             |> Maybe.withDefault identity (languageISOCode model |> Maybe.map (Event.addLabelTags "ISO-639-1"))
             |> Event.addZapTags model.zapWeights
             |> Event.addClientTag Pareto.client Pareto.paretoClientPubKey Pareto.handlerIdentifier Pareto.paretoRelay
@@ -886,7 +896,7 @@ articleStateProcessIndicator articleState =
         ArticleLoadingDraft _ ->
             Just <| (Loaders.rings [] |> Html.fromUnstyled)
 
-        ArticleLoadingDraftError error ->
+        ArticleLoadingDraftError _ ->
             Nothing
 
         ArticleSavingDraft _ ->
@@ -895,7 +905,7 @@ articleStateProcessIndicator articleState =
         ArticleDraftSaved ->
             Nothing
 
-        ArticleDraftSaveError error ->
+        ArticleDraftSaveError _ ->
             Nothing
 
         ArticlePublishing _ _ ->
@@ -933,7 +943,7 @@ viewMediaSelector user shared model =
 
 
 viewTitle : Theme -> BrowserEnv -> Model -> Html Msg
-viewTitle theme browserEnv model =
+viewTitle _ browserEnv model =
     let
         ( foreground, background ) =
             if browserEnv.darkMode then
@@ -962,7 +972,7 @@ viewTitle theme browserEnv model =
 
 
 viewSubtitle : Theme -> BrowserEnv -> Model -> Html Msg
-viewSubtitle theme browserEnv model =
+viewSubtitle _ browserEnv model =
     let
         ( foreground, background ) =
             if browserEnv.darkMode then

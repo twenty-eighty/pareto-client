@@ -353,10 +353,6 @@ viewAuthorAndDate styles browserEnv published createdAt author =
 viewArticleProfileSmall : Profile -> ProfileValidation -> Html msg
 viewArticleProfileSmall profile validationStatus =
     let
-        image =
-            profile.picture
-                |> Maybe.withDefault Ui.Profile.defaultProfileImage
-
         linkElement =
             linkElementForProfile profile validationStatus
     in
@@ -369,7 +365,7 @@ viewArticleProfileSmall profile validationStatus =
             [ div
                 []
                 [ img
-                    [ Attr.src image
+                    [ Attr.src <| Ui.Profile.profilePicture (Just profile)
                     , Attr.alt "Avatar"
                     , css
                         [ Tw.min_w_12
@@ -753,6 +749,8 @@ linkToArticle article =
                             (\urlsWithoutProtocol ->
                                 urlsWithoutProtocol
                                     |> Set.toList
+                                    -- append max 5 relays so the link doesn't get infinitely long
+                                    |> List.take 5
                                     |> List.map
                                         (\urlWithoutProtocol ->
                                             "wss://" ++ urlWithoutProtocol
@@ -992,7 +990,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                         , Tw.inline_flex
                         ]
                     ]
-                    [ viewProfileImageSmall (linkElementForProfile profile validationStatus) profile.picture validationStatus
+                    [ viewProfileImageSmall (linkElementForProfile profile validationStatus) (Just profile) validationStatus
                     , div
                         [ css
                             [ Tw.justify_start
@@ -1081,7 +1079,7 @@ viewProfilePubKey pubKey =
             , Tw.mb_4
             ]
         ]
-        [ viewProfileImageSmall (linkElementForProfilePubKey pubKey) (Just Ui.Profile.defaultProfileImage) ValidationUnknown
+        [ viewProfileImageSmall (linkElementForProfilePubKey pubKey) Nothing ValidationUnknown
         , h2
             [ css
                 [ Tw.text_sm
@@ -1094,13 +1092,8 @@ viewProfilePubKey pubKey =
         ]
 
 
-viewProfileImage : (List (Html msg) -> Html msg) -> Maybe String -> ProfileValidation -> Html msg
-viewProfileImage linkElement maybeImage validationStatus =
-    let
-        image =
-            maybeImage
-                |> Maybe.withDefault Ui.Profile.defaultProfileImage
-    in
+viewProfileImage : (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
+viewProfileImage linkElement maybeProfile validationStatus =
     div
         [ css
             [ Tw.relative
@@ -1108,7 +1101,7 @@ viewProfileImage linkElement maybeImage validationStatus =
         ]
         [ linkElement
             [ img
-                [ Attr.src image
+                [ Attr.src <| Ui.Profile.profilePicture maybeProfile
                 , Attr.alt "Avatar"
                 , css
                     [ Tw.min_w_28
@@ -1136,13 +1129,8 @@ viewProfileImage linkElement maybeImage validationStatus =
         ]
 
 
-viewProfileImageSmall : (List (Html msg) -> Html msg) -> Maybe String -> ProfileValidation -> Html msg
-viewProfileImageSmall linkElement maybeImage validationStatus =
-    let
-        image =
-            maybeImage
-                |> Maybe.withDefault Ui.Profile.defaultProfileImage
-    in
+viewProfileImageSmall : (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
+viewProfileImageSmall linkElement maybeProfile validationStatus =
     div
         [ css
             [ Tw.relative
@@ -1155,7 +1143,7 @@ viewProfileImageSmall linkElement maybeImage validationStatus =
                     , Tw.h_8
                     , Tw.rounded_3xl
                     ]
-                , Attr.src image
+                , Attr.src <| Ui.Profile.profilePicture maybeProfile
                 , Attr.alt "profile image"
                 , Attr.attribute "loading" "lazy"
                 ]

@@ -1,16 +1,18 @@
 module LinkPreview exposing (LoadedContent, addLoadedContent, generatePreviewHtml)
 
-import Dict exposing (Dict)
+import Erl
 import Graphics
 import Html.Styled as Html exposing (Html, a, div, img, text)
-import Html.Styled.Attributes as Attr exposing (alt, controls, css, href, src, style, type_)
+import Html.Styled.Attributes as Attr exposing (alt, controls, css, href, src, style, type_, value)
 import Html.Styled.Events as Events
+import List.Extra
 import Oembed
+import Oembed.ProviderTemp
 import Regex exposing (Regex)
 import Set exposing (Set)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Url exposing (Url)
+import Url
 import Url.Parser exposing ((</>), string)
 
 
@@ -31,7 +33,7 @@ addLoadedContent loadedContent url =
 
 type LinkType
     = YouTubeVideo String
-    | OdyseeVideo String
+    | OdyseeVideo
     | RumbleVideo
     | TwitterTweet String
     | VideoLink String
@@ -39,7 +41,7 @@ type LinkType
     | PodBeanLink String
     | ObjectLink String
     | PlainLink
-    | OtherLink
+    | EmbeddableLink
 
 
 
@@ -48,14 +50,22 @@ type LinkType
 
 generatePreviewHtml : Maybe (LoadedContent msg) -> String -> List (Html.Attribute msg) -> List (Html msg) -> Html msg
 generatePreviewHtml loadedContent urlString linkAttr body =
+    let
+        parsed =
+            urlString
+                |> Erl.parse
+
+        sanitizedUrl =
+            filterTrackingParams parsed
+    in
     case Url.fromString urlString of
-        Just url ->
-            case detectLinkType url of
+        Just _ ->
+            case detectLinkType sanitizedUrl of
                 YouTubeVideo videoId ->
                     generateYouTubePreview loadedContent urlString videoId
 
-                OdyseeVideo path ->
-                    generateOdyseePreview loadedContent urlString path
+                OdyseeVideo ->
+                    generateOdyseePreview loadedContent urlString
 
                 RumbleVideo ->
                     generateRumblePreview loadedContent urlString
@@ -64,21 +74,21 @@ generatePreviewHtml loadedContent urlString linkAttr body =
                     generateTwitterPreview urlString tweetId body
 
                 VideoLink mimeType ->
-                    generateVideoElement loadedContent url urlString mimeType
+                    generateVideoElement loadedContent sanitizedUrl urlString mimeType
 
                 AudioLink mimeType ->
-                    generateAudioElement loadedContent url urlString mimeType
+                    generateAudioElement loadedContent sanitizedUrl urlString mimeType
 
                 PodBeanLink iFrameUrl ->
                     generatePodbeanPreview loadedContent urlString iFrameUrl
 
                 ObjectLink mimeType ->
-                    generateObjectElement loadedContent url urlString mimeType
+                    generateObjectElement loadedContent sanitizedUrl urlString mimeType
 
                 PlainLink ->
-                    a (linkAttr ++ [ href urlString ]) body
+                    a (linkAttr ++ [ href <| Erl.toString sanitizedUrl ]) body
 
-                OtherLink ->
+                EmbeddableLink ->
                     generateGenericPreview loadedContent urlString linkAttr body
 
         Nothing ->
@@ -90,7 +100,7 @@ generatePreviewHtml loadedContent urlString linkAttr body =
 -- Function to detect the type of link and extract necessary IDs
 
 
-detectLinkType : Url -> LinkType
+detectLinkType : Erl.Url -> LinkType
 detectLinkType url =
     if isYouTubeWatchUrl url then
         case getYouTubeVideoIdFromQuery url.query of
@@ -98,7 +108,7 @@ detectLinkType url =
                 YouTubeVideo videoId
 
             Nothing ->
-                OtherLink
+                PlainLink
 
     else if isYouTubeShortUrl url then
         case getYouTubeVideoIdFromPath url.path of
@@ -106,10 +116,10 @@ detectLinkType url =
                 YouTubeVideo videoId
 
             Nothing ->
-                OtherLink
+                PlainLink
 
     else if isOdyseeUrl url then
-        OdyseeVideo url.path
+        OdyseeVideo
 
     else if isRumbleUrl url then
         RumbleVideo
@@ -120,7 +130,7 @@ detectLinkType url =
                 TwitterTweet tweetId
 
             Nothing ->
-                OtherLink
+                PlainLink
 
     else if isVideohUrl url then
         case getVideoMimeTypeFromUrl url.path of
@@ -128,7 +138,7 @@ detectLinkType url =
                 VideoLink mimeType
 
             Nothing ->
-                OtherLink
+                PlainLink
 
     else if isAudioUrl url then
         case getAudioMimeTypeFromUrl url.path of
@@ -136,7 +146,7 @@ detectLinkType url =
                 AudioLink mimeType
 
             Nothing ->
-                OtherLink
+                PlainLink
 
     else if isPodBeanUrl url then
         case parsePodbeanUrl url of
@@ -144,7 +154,7 @@ detectLinkType url =
                 PodBeanLink iFrameUrl
 
             Nothing ->
-                OtherLink
+                PlainLink
 
     else if isObjectUrl url then
         case getObjectMimeTypeFromUrl url.path of
@@ -152,47 +162,103 @@ detectLinkType url =
                 ObjectLink mimeType
 
             Nothing ->
-                OtherLink
+                PlainLink
 
     else if isPlainLinkkUrl url then
+        -- plain link must be tested before embeddable link to avoid trying Facebook links to embed
         PlainLink
 
+    else if isEmbeddable url then
+        EmbeddableLink
+
     else
-        OtherLink
+        PlainLink
+
+
+filterTrackingParams : Erl.Url -> Erl.Url
+filterTrackingParams url =
+    let
+        filteredQuery =
+            url.query
+                |> List.filter
+                    (\( key, _ ) ->
+                        not (Set.member key filteredParams)
+                    )
+    in
+    { url | query = filteredQuery }
+
+
+filteredParams : Set String
+filteredParams =
+    Set.fromList
+        [ "dmcid"
+        , "fbclid" -- Facebook
+        , "fbc" -- Facebook
+        , "f_tid"
+        , "igshid" -- Instagram
+        , "originalReferrer"
+        , "ref_src" -- Twitter
+        , "utm_source" -- Google
+        , "utm_medium" -- Google
+        , "utm_campaign" -- Google
+        , "utm_term" -- Google
+        , "utm_content" -- Google
+        , "wt_zmc" -- Zeit
+        , "xing_share" -- Xing
+        ]
 
 
 
 -- Helper functions to identify and extract data from URLs
 
 
-isYouTubeWatchUrl : Url -> Bool
+isYouTubeWatchUrl : Erl.Url -> Bool
 isYouTubeWatchUrl url =
     let
         hosts =
-            [ "www.youtube.com", "youtube.com", "m.youtube.com" ]
+            [ [ "www", "youtube", "com" ]
+            , [ "youtube", "com" ]
+            , [ "m", "youtube", "com" ]
+            ]
     in
-    List.member url.host hosts && url.path == "/watch"
+    List.member url.host hosts && url.path == [ "watch" ]
 
 
 
 -- don't embed Facebook content - requires App registration to use oEmbed
 
 
-isPlainLinkkUrl : Url -> Bool
+isPlainLinkkUrl : Erl.Url -> Bool
 isPlainLinkkUrl url =
     let
         hosts =
-            [ "www.facebook.com" ]
+            [ [ "www", "facebook", "com" ] ]
     in
     List.member url.host hosts
 
 
-isVideohUrl : Url -> Bool
+isEmbeddable : Erl.Url -> Bool
+isEmbeddable url =
+    url
+        |> Erl.toString
+        |> Oembed.ProviderTemp.hardcodedMatches
+
+
+type alias DetectMimeTypeFromPathFunction =
+    List String -> Maybe String
+
+
+urlHasKnownMimeType : Erl.Url -> DetectMimeTypeFromPathFunction -> Bool
+urlHasKnownMimeType url detectFn =
+    detectFn url.path /= Nothing
+
+
+isVideohUrl : Erl.Url -> Bool
 isVideohUrl url =
-    getVideoMimeTypeFromUrl url.path /= Nothing
+    urlHasKnownMimeType url getVideoMimeTypeFromUrl
 
 
-getVideoMimeTypeFromUrl : String -> Maybe String
+getVideoMimeTypeFromUrl : DetectMimeTypeFromPathFunction
 getVideoMimeTypeFromUrl urlPath =
     [ ( "mp4", "video/mp4" )
     , ( "mov", "video/quicktime" )
@@ -201,52 +267,65 @@ getVideoMimeTypeFromUrl urlPath =
     , ( "m4v", "video/x-m4v" )
     , ( "webm", "video/webm" )
     ]
-        |> List.filterMap
-            (\( extension, mimeType ) ->
-                if String.endsWith extension urlPath then
-                    Just mimeType
+        |> getMimeTypeFromUrl urlPath
 
-                else
-                    Nothing
+
+getMimeTypeFromUrl : List String -> List ( String, String ) -> Maybe String
+getMimeTypeFromUrl urlPath mimeMappingList =
+    let
+        maybeLastPathComponent =
+            urlPath
+                |> List.Extra.last
+    in
+    maybeLastPathComponent
+        |> Maybe.andThen
+            (\lastPathComponent ->
+                mimeMappingList
+                    |> List.filterMap
+                        (\( extension, mimeType ) ->
+                            if String.endsWith extension lastPathComponent then
+                                Just mimeType
+
+                            else
+                                Nothing
+                        )
+                    |> List.head
             )
-        |> List.head
 
 
-isAudioUrl : Url -> Bool
+isAudioUrl : Erl.Url -> Bool
 isAudioUrl url =
-    getAudioMimeTypeFromUrl url.path /= Nothing
+    urlHasKnownMimeType url getAudioMimeTypeFromUrl
 
 
-getAudioMimeTypeFromUrl : String -> Maybe String
+getAudioMimeTypeFromUrl : DetectMimeTypeFromPathFunction
 getAudioMimeTypeFromUrl urlPath =
     [ ( "mp3", "audio/mpeg" )
     , ( "wav", "audio/wav" )
     , ( "ogg", "audio/ogg" )
     ]
-        |> List.filterMap
-            (\( extension, mimeType ) ->
-                if String.endsWith extension urlPath then
-                    Just mimeType
-
-                else
-                    Nothing
-            )
-        |> List.head
+        |> getMimeTypeFromUrl urlPath
 
 
-isObjectUrl : Url -> Bool
+isObjectUrl : Erl.Url -> Bool
 isObjectUrl url =
-    getObjectMimeTypeFromUrl url.path /= Nothing
+    urlHasKnownMimeType url getObjectMimeTypeFromUrl
 
 
-getObjectMimeTypeFromUrl : String -> Maybe String
+getObjectMimeTypeFromUrl : DetectMimeTypeFromPathFunction
 getObjectMimeTypeFromUrl urlPath =
     [ ( "pdf", "application/pdf" )
     ]
+        |> getMimeTypeFromUrl urlPath
+
+
+getYouTubeVideoIdFromQuery : List ( String, String ) -> Maybe String
+getYouTubeVideoIdFromQuery query =
+    query
         |> List.filterMap
-            (\( extension, mimeType ) ->
-                if String.endsWith extension urlPath then
-                    Just mimeType
+            (\( key, value ) ->
+                if key == "v" then
+                    Just value
 
                 else
                     Nothing
@@ -254,43 +333,29 @@ getObjectMimeTypeFromUrl urlPath =
         |> List.head
 
 
-getYouTubeVideoIdFromQuery : Maybe String -> Maybe String
-getYouTubeVideoIdFromQuery maybeQuery =
-    maybeQuery
-        |> Maybe.andThen
-            (\queryString ->
-                parseQueryString queryString
-                    |> Dict.get "v"
-            )
-
-
-isYouTubeShortUrl : Url -> Bool
+isYouTubeShortUrl : Erl.Url -> Bool
 isYouTubeShortUrl url =
-    url.host == "youtu.be"
+    url.host == [ "youtu", "be" ]
 
 
-isOdyseeUrl : Url -> Bool
+isOdyseeUrl : Erl.Url -> Bool
 isOdyseeUrl url =
-    url.host == "odysee.com"
+    url.host == [ "odysee", "com" ]
 
 
-isPodBeanUrl : Url -> Bool
+isPodBeanUrl : Erl.Url -> Bool
 isPodBeanUrl url =
-    url.host == "www.podbean.com"
+    url.host == [ "www", "podbean", "com" ]
 
 
-isRumbleUrl : Url -> Bool
+isRumbleUrl : Erl.Url -> Bool
 isRumbleUrl url =
-    url.host == "rumble.com"
+    url.host == [ "rumble", "com" ]
 
 
-getYouTubeVideoIdFromPath : String -> Maybe String
+getYouTubeVideoIdFromPath : List String -> Maybe String
 getYouTubeVideoIdFromPath path =
-    let
-        pathSegments =
-            String.split "/" (removeLeadingSlashes path)
-    in
-    case pathSegments of
+    case path of
         [ videoId ] ->
             Just videoId
 
@@ -298,64 +363,27 @@ getYouTubeVideoIdFromPath path =
             Nothing
 
 
-isTwitterStatusUrl : Url -> Bool
+isTwitterStatusUrl : Erl.Url -> Bool
 isTwitterStatusUrl url =
     let
         hosts =
-            [ "twitter.com", "www.twitter.com", "x.com", "www.x.com" ]
+            [ [ "twitter", "com" ]
+            , [ "www", "twitter", "com" ]
+            , [ "x", "com" ]
+            , [ "www", "x", "com" ]
+            ]
     in
     List.member url.host hosts
 
 
-getTweetIdFromPath : String -> Maybe String
+getTweetIdFromPath : List String -> Maybe String
 getTweetIdFromPath path =
-    let
-        pathSegments =
-            String.split "/" (removeLeadingSlashes path)
-    in
-    case pathSegments of
+    case path of
         _ :: "status" :: tweetId :: _ ->
             Just tweetId
 
         _ ->
             Nothing
-
-
-
--- Helper function to remove leading slashes
-
-
-removeLeadingSlashes : String -> String
-removeLeadingSlashes str =
-    case String.uncons str of
-        Just ( '/', rest ) ->
-            removeLeadingSlashes rest
-
-        _ ->
-            str
-
-
-
--- Function to parse the query string into a Dict
-
-
-parseQueryString : String -> Dict String String
-parseQueryString queryString =
-    queryString
-        |> String.split "&"
-        |> List.filterMap
-            (\param ->
-                case String.split "=" param of
-                    [ key, value ] ->
-                        Just ( key, value )
-
-                    [ key ] ->
-                        Just ( key, "" )
-
-                    _ ->
-                        Nothing
-            )
-        |> Dict.fromList
 
 
 
@@ -410,12 +438,9 @@ generateYouTubePreview maybeLoadedContent urlString videoId =
 -- Function to generate Odysee preview HTML with a play button
 
 
-generateOdyseePreview : Maybe (LoadedContent msg) -> String -> String -> Html msg
-generateOdyseePreview maybeLoadedContent urlString path =
+generateOdyseePreview : Maybe (LoadedContent msg) -> String -> Html msg
+generateOdyseePreview maybeLoadedContent urlString =
     let
-        thumbnailUrl =
-            "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
-
         ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
                 Just loadedContent ->
@@ -431,17 +456,20 @@ generateOdyseePreview maybeLoadedContent urlString path =
                 Nothing ->
                     ( False, Html.a, [ href urlString ] )
     in
-    if showEmbedded then
-        Html.iframe
-            [ Attr.width 560
-            , Attr.height 315
-            , Attr.src <| "https://odysee.com/$/embed" ++ path
-            , Attr.attribute "allowfullscreen" ""
-            ]
-            []
+    case ( showEmbedded, Url.fromString urlString ) of
+        -- The Erl URL parser apparently doesn't deliver the correct path for Odysee URLS with path segments like "@abcd:7" - the ":7" is missing
+        -- once this is fixed we could avoid parsing the URL here (again)
+        ( True, Just url ) ->
+            Html.iframe
+                [ Attr.width 560
+                , Attr.height 315
+                , Attr.src <| "https://odysee.com/$/embed" ++ url.path
+                , Attr.attribute "allowfullscreen" ""
+                ]
+                []
 
-    else
-        videoThumbnailPreview linkElement clickAttr thumbnailUrl
+        ( _, _ ) ->
+            videoThumbnailPreview linkElement clickAttr ("https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString)
 
 
 
@@ -488,9 +516,11 @@ generatePodbeanPreview maybeLoadedContent urlString iFrameUrl =
         videoThumbnailPreview linkElement clickAttr thumbnailUrl
 
 
-parsePodbeanUrl : Url -> Maybe String
+parsePodbeanUrl : Erl.Url -> Maybe String
 parsePodbeanUrl inputUrl =
-    extractPodcastId inputUrl.path
+    inputUrl.path
+        |> String.join "/"
+        |> extractPodcastId
         |> Maybe.map buildPodBeanIframeUrl
 
 
@@ -624,7 +654,7 @@ videoThumbnailPreview linkElement clickAttr thumbnailUrl =
             ]
             [ img
                 [ src thumbnailUrl
-                , alt "YouTube Video"
+                , alt "Video Thumbnail"
                 , style "display" "block"
                 ]
                 []
@@ -697,7 +727,7 @@ regex string =
         |> Maybe.withDefault Regex.never
 
 
-generateVideoElement : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
+generateVideoElement : Maybe (LoadedContent msg) -> Erl.Url -> String -> String -> Html msg
 generateVideoElement maybeLoadedContent url urlString mimeType =
     let
         ( showEmbedded, linkElement, clickAttr ) =
@@ -720,7 +750,7 @@ generateVideoElement maybeLoadedContent url urlString mimeType =
             [ controls True
             ]
             [ Html.source
-                [ src <| Url.toString url
+                [ src <| Erl.toString url
                 , type_ mimeType
                 ]
                 []
@@ -731,7 +761,7 @@ generateVideoElement maybeLoadedContent url urlString mimeType =
         videoThumbnailPreview linkElement clickAttr "/images/video-placeholder.jpeg"
 
 
-generateAudioElement : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
+generateAudioElement : Maybe (LoadedContent msg) -> Erl.Url -> String -> String -> Html msg
 generateAudioElement maybeLoadedContent url urlString mimeType =
     let
         ( showEmbedded, linkElement, clickAttr ) =
@@ -754,7 +784,7 @@ generateAudioElement maybeLoadedContent url urlString mimeType =
             [ controls True
             ]
             [ Html.source
-                [ src <| Url.toString url
+                [ src <| Erl.toString url
                 , type_ mimeType
                 ]
                 []
@@ -765,7 +795,7 @@ generateAudioElement maybeLoadedContent url urlString mimeType =
         genericThumbnailPreview linkElement clickAttr "/images/audio-placeholder.jpeg"
 
 
-generateObjectElement : Maybe (LoadedContent msg) -> Url -> String -> String -> Html msg
+generateObjectElement : Maybe (LoadedContent msg) -> Erl.Url -> String -> String -> Html msg
 generateObjectElement maybeLoadedContent url urlString mimeType =
     let
         ( showEmbedded, linkElement, clickAttr ) =
@@ -785,7 +815,7 @@ generateObjectElement maybeLoadedContent url urlString mimeType =
     in
     if showEmbedded then
         Html.object
-            [ Attr.attribute "data" <| Url.toString url
+            [ Attr.attribute "data" <| Erl.toString url
             , type_ mimeType
             , css
                 [ Tw.w_full
@@ -796,7 +826,7 @@ generateObjectElement maybeLoadedContent url urlString mimeType =
                 []
                 [ text "Your browser doesn't support PDFs. You can download the PDF "
                 , Html.a
-                    [ href <| Url.toString url
+                    [ href <| Erl.toString url
                     ]
                     [ text "here"
                     ]

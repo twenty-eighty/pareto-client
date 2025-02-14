@@ -1859,7 +1859,8 @@ tagToList tag =
                     [ "p", pubKey ]
 
         PublishedAtTag time ->
-            [ "published_at", Time.posixToMillis time |> String.fromInt ]
+            -- Nostr works with seconds, not milliseconds
+            [ "published_at", Time.posixToMillis time // 1000 |> String.fromInt ]
 
         QuotedEventTag eventId ->
             [ "q", eventId ]
@@ -2025,6 +2026,7 @@ decodeUnixTimeString =
             (\unixTimeString ->
                 case String.toInt unixTimeString of
                     Just unixTime ->
+                        -- Nostr expects values in seconds, not milliseconds
                         Time.millisToPosix (unixTime * 1000)
 
                     Nothing ->

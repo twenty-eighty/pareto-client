@@ -13,9 +13,11 @@
       "about frontend text 2": " in der Programmiersprache ",
       "about frontend text 3": ".",
       "about backend text": "Das Pareto Backend wurde entwickelt mit dem",
-      "source code text": "Der Quellcode des Pareto Clients wird bald veröffentlicht.",
+      "source code text": "Der Quellcode des Pareto Clients is verfügbar unter",
       "feedback text": "Du hast einen Fehler gefunden oder möchtest uns etwas mitteilen? Bitte schreibe eine E-Mail an ",
-      "privacy policy link text": "Datenschutzerklärung"
+      "privacy policy link text": "Datenschutzerklärung",
+      "feedback email info text": "Du hast einen Fehler gefunden oder möchtest einfach Rückmeldung geben? Schreibe einfach eine E-Mail an ",
+      "donation info text": "Unterstütze die Weiterentwicklung des Pareto Projekts unter "
    },
    "article page": {
       "default page title": "Artikel"
@@ -38,7 +40,22 @@
    "email import dialog": {
       "dialog title": "E-Mail-Liste importieren",
       "import button title": "Importieren",
-      "close button title": "Schließen"
+      "close button title": "Schließen",
+      "next button title": "Weiter",
+      "upload csv button title": "Hochladen",
+      "process button title": "Verarbeiten",
+      "single emails button title": "Einzelne E-Mails",
+      "email textarea placeholder text": "Mit Komma getrennte E-Mail-Adressen",
+      "import selection explanation": "Du kannst entweder eine CSV-Datei hochladen oder mehrere kommaseparierte E-Mail-Adressen hinzufügen.",
+      "overwrite existing checkbox label": "Bestehende überschreiben?",
+      "csv processing error message": "Fehler beim Einlesen der CSV-Datei: ",
+      "csv file empty error message": "Die CSV-Datei ist leer",
+      "csv processing status message": "Verarbeite CSV-Datei ...",
+      "csv parsing status message": "Lese CSV-Datei ...",
+      "name column header in csv column mapping table": "Spaltenname",
+      "field column header in csv column mapping table": "Feld",
+      "unmapped column dropdown value": "<nicht zugeordnet>",
+      "email not mapped error message": "Das E-Mail-Feld muss zugeordnet sein"
    },
    "email subscription dialog": {
       "dialog title": "Mit E-Mail abonnieren",
@@ -152,6 +169,7 @@
       "get started button text": "Anmelden",
       "media menu item text": "Bilder",
       "messages menu item text": "Nachrichten",
+      "newsletters menu item text": "Newsletter",
       "notifications menu item text": "Benachr.",
       "posts menu item text": "Posts",
       "read menu item text": "Lesen",
@@ -172,7 +190,19 @@
       "import button title": "Importieren",
       "save button title": "Speichern",
       "process modifications button title": "Verarbeiten",
-      "no subscribers text": "Keine Abonnenten gefunden."
+      "loading subscribers text": "Lade Abonnenten ...",
+      "error loading subscribers text": "Fehler beim Laden der Abonnenten",
+      "no subscribers text": "Keine Abonnenten gefunden.",
+      "dnd field name": "Nicht stören",
+      "email field name": "E-Mail",
+      "name field name": "Name",
+      "pubkey field name": "Pubkey",
+      "source field name": "Quelle",
+      "datesub field name": "Start Abonnement",
+      "dateunsub field name": "Ende Abonnement",
+      "tags field name": "Tags",
+      "undeliverable field name": "Unzustellbar",
+      "locale field name": "Sprache"
    },
    "upload dialog": {
       "dialog title": "Hochladen",

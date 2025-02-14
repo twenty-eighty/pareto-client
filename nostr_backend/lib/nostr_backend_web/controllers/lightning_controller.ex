@@ -2,6 +2,7 @@ defmodule NostrBackendWeb.LightningController do
   use NostrBackendWeb, :controller
 
   # Define the LNURL-P data for usernames
+  # Download https://<domain>/.well-known/lnurlp/<username> to get the relevant data
   @lnurlp_data %{
     "roland" => %{
       "nostrPubkey" => "79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f432",
@@ -19,8 +20,8 @@ defmodule NostrBackendWeb.LightningController do
     },
     "janosch" => %{
       "nostrPubkey" => "89bae92f9d9b0f6d97a300496cfb0b73c92a74c9675a724c0689975f8074dc01",
-      "callback" => "https://getalby.com/lnurlp/smilefeisty787560/callback",
-      "metadata" => "[[\"text/identifier\",\"smilefeisty787560@getalby.com\"],[\"text/plain\",\"Sats for smilefeisty787560!\"]]",
+      "callback" => "https://livingroomofsatoshi.com/api/v1/lnurl/payreq/4845dac6-5b78-439d-9ab1-90e18bacbef6",
+      "metadata" => "[[\"text/plain\",\"Pay to Wallet of Satoshi user: restfulbench94\"],[\"text/identifier\",\"restfulbench94@walletofsatoshi.com\"]]",
       "minSendable" => 1000,
       "maxSendable" => 10000000000
     },

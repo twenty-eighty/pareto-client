@@ -8,7 +8,6 @@ import Css
 import Dict
 import Effect exposing (Effect)
 import FeatherIcons
-import Graphics
 import Html.Styled as Html exposing (Html, a, aside, button, div, img, input, label, main_, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css)
 import Html.Styled.Events as Events exposing (..)
@@ -48,6 +47,7 @@ clientRoleForRoutePath : BrowserEnv.Environment -> Route.Path.Path -> ClientRole
 clientRoleForRoutePath environment path =
     sidebarItems
         { isAuthor = False
+        , isBetaTester = False
         , isLoggedIn = False
         , environment = environment
         , clientRole = ClientReader
@@ -77,6 +77,7 @@ type alias SidebarItemData =
 
 type alias SidebarItemParams =
     { isAuthor : Bool
+    , isBetaTester : Bool
     , isLoggedIn : Bool
     , environment : BrowserEnv.Environment
     , clientRole : ClientRole
@@ -93,9 +94,9 @@ routePathIsInList sidebarItemParams =
 
 
 sidebarItems : SidebarItemParams -> List SidebarItemData
-sidebarItems { isAuthor, isLoggedIn, environment, clientRole, translations, maybeBookmarksCount } =
+sidebarItems { isAuthor, isBetaTester, isLoggedIn, environment, clientRole, translations, maybeBookmarksCount } =
     rawSidebarItems clientRole translations
-        |> List.filter (sidebarItemVisible isLoggedIn isAuthor)
+        |> List.filter (sidebarItemVisible isLoggedIn isAuthor isBetaTester)
         |> List.filterMap
             (\sidebarItem ->
                 -- item-specific adaptions
@@ -108,9 +109,13 @@ sidebarItems { isAuthor, isLoggedIn, environment, clientRole, translations, mayb
                                     { sidebarItem | title = sidebarItem.title ++ "\u{00A0}" ++ countBadge bookmarksCount }
                                 )
 
-                    Route.Path.Subscribers ->
+                    Route.Path.Newsletters ->
                         -- currently in development
                         Just { sidebarItem | disabled = environment /= BrowserEnv.Development }
+
+                    Route.Path.Subscribers ->
+                        -- currently in development
+                        Just { sidebarItem | disabled = environment /= BrowserEnv.Development && not isBetaTester }
 
                     _ ->
                         Just sidebarItem
@@ -137,6 +142,7 @@ rawSidebarItems clientRole translations =
             [ { path = Route.Path.Posts, title = Translations.postsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.fileText, requiresLogin = True, requiresAuthor = False, disabled = False }
             , { path = Route.Path.Write, title = Translations.writeMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.feather, requiresLogin = True, requiresAuthor = False, disabled = False }
             , { path = Route.Path.Subscribers, title = Translations.subscribersMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.users, requiresLogin = True, requiresAuthor = True, disabled = False }
+            , { path = Route.Path.Newsletters, title = Translations.newslettersMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, requiresAuthor = True, disabled = False }
             , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, requiresAuthor = False, disabled = False }
             , { path = Route.Path.Media, title = Translations.mediaMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.image, requiresLogin = False, requiresAuthor = False, disabled = False }
 
@@ -283,10 +289,17 @@ viewSidebar styles shared currentPath toContentMsg content =
                             Nothing
                     )
 
+        maybeUserPubKey =
+            Shared.loggedInPubKey shared.loginStatus
+
         sidebarItemParams =
             { isAuthor =
-                Shared.loggedInPubKey shared.loginStatus
+                maybeUserPubKey
                     |> Maybe.map (Nostr.isAuthor shared.nostr)
+                    |> Maybe.withDefault False
+            , isBetaTester =
+                maybeUserPubKey
+                    |> Maybe.map (Nostr.isBetaTester shared.nostr)
                     |> Maybe.withDefault False
             , isLoggedIn =
                 Shared.loggedIn shared
@@ -693,9 +706,12 @@ countBadge count =
             "(" ++ String.fromInt otherNumber ++ ")"
 
 
-sidebarItemVisible : Bool -> Bool -> SidebarItemData -> Bool
-sidebarItemVisible isLoggedIn isAuthor sidebarItem =
-    if sidebarItem.requiresAuthor then
+sidebarItemVisible : Bool -> Bool -> Bool -> SidebarItemData -> Bool
+sidebarItemVisible isLoggedIn isAuthor isBetaTester sidebarItem =
+    if isBetaTester then
+        True
+
+    else if sidebarItem.requiresAuthor then
         isAuthor
 
     else if sidebarItem.requiresLogin then
@@ -786,58 +802,29 @@ loggedInButton maybeProfile =
             [ Tw.bg_color Theme.gray_100
             , Tw.text_color Theme.white
             , Tw.py_2
-            , Tw.px_4
+            , Tw.px_2
             , Tw.rounded_full
             , Tw.border_hidden
-            , Tw.space_x_2
-            , Tw.flex
-            , Tw.flex_row
-            , Css.hover
-                [ Tw.bg_color Theme.gray_300
-                ]
             ]
         , Events.onClick OpenProfileMenu
         ]
         [ img
             [ Attr.src <| profileImage maybeProfile
             , css
-                [ Tw.py_1
-                , Tw.px_1
-                , Tw.w_14
+                [ Tw.w_14
                 , Tw.h_14
                 , Tw.border_hidden
                 , Tw.rounded_full
                 ]
             ]
             []
-        , div
-            [ css
-                [ Tw.py_1
-                , Tw.px_1
-                , Tw.w_8
-                , Tw.h_14
-                , Tw.border_hidden
-                , Tw.text_color Theme.gray_900
-                , Tw.grid
-                ]
-            ]
-            [ div
-                [ css
-                    [ Tw.w_8
-                    , Tw.h_8
-                    , Tw.place_self_center
-                    ]
-                ]
-                [ Graphics.chakraIcon
-                ]
-            ]
         ]
 
 
 profileImage : Maybe Profile -> String
 profileImage maybeProfile =
     maybeProfile
-        |> Maybe.andThen (\profile -> profile.picture)
+        |> Maybe.andThen .picture
         |> Maybe.withDefault "/images/avatars/placeholder_01.png"
 
 

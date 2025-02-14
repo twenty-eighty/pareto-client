@@ -1,4 +1,4 @@
-module Pages.Subscribers exposing (Model, Msg, page)
+module Pages.Newsletters exposing (Model, Msg, page)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
@@ -18,12 +18,13 @@ import Json.Decode as Decode
 import Layouts
 import Material.Icons exposing (email)
 import Nostr
-import Nostr.Event exposing (Kind(..))
+import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.External
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (IncomingMessage)
+import Nostr.Types exposing (IncomingMessage, PubKey)
 import Page exposing (Page)
+import Pareto
 import Ports
 import Route exposing (Route)
 import Shared
@@ -94,12 +95,28 @@ init user shared () =
       , subscribers = Dict.empty
       , subscriberTable = Table.initialState (Subscribers.fieldName FieldEmail) 25
       }
-    , [ Subscribers.load shared.nostr user.pubKey
-      , Subscribers.loadModifications shared.nostr user.pubKey
+    , [ loadNewsletters shared.nostr user.pubKey
       ]
         |> List.map Effect.sendSharedMsg
         |> Effect.batch
     )
+
+
+loadNewsletters : Nostr.Model -> PubKey -> Shared.Msg.Msg
+loadNewsletters nostr userPubKey =
+    newslettersEventFilter userPubKey
+        |> RequestSubscribers
+        |> Nostr.createRequest nostr "Load newsletters" []
+        |> Shared.Msg.RequestNostrEvents
+
+
+newslettersEventFilter : PubKey -> EventFilter
+newslettersEventFilter pubKey =
+    { emptyEventFilter
+        | authors = Just [ Pareto.emailGatewayKey ]
+        , kinds = Just [ KindApplicationSpecificData ]
+        , tagReferences = Just [ TagReferencePubKey pubKey ]
+    }
 
 
 
@@ -270,34 +287,34 @@ subscriptions _ =
 
 
 -- VIEW
-
-
-subscribersTableConfig : BrowserEnv -> Table.Config Subscriber Msg
-subscribersTableConfig browserEnv =
-    Table.customConfig
-        { toId = .email
-        , toMsg = NewTableState
-        , columns =
-            [ Table.stringColumn (Subscribers.fieldName FieldEmail) (translatedFieldName browserEnv.translations FieldEmail) .email
-            , Table.stringColumn (Subscribers.fieldName FieldName) (translatedFieldName browserEnv.translations FieldName) (\subscriber -> subscriber.name |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldTags) (translatedFieldName browserEnv.translations FieldTags) (\subscriber -> subscriber.tags |> Maybe.map (String.join ", ") |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldDateSubscription) (translatedFieldName browserEnv.translations FieldDateSubscription) (\subscriber -> subscriber.dateSubscription |> BrowserEnv.formatDate browserEnv)
-            , Table.stringColumn (Subscribers.fieldName FieldDateUnsubscription) (translatedFieldName browserEnv.translations FieldDateUnsubscription) (\subscriber -> subscriber.dateUnsubscription |> Maybe.map (BrowserEnv.formatDate browserEnv) |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldSource) (translatedFieldName browserEnv.translations FieldSource) (\subscriber -> subscriber.source |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldUndeliverable) (translatedFieldName browserEnv.translations FieldUndeliverable) (\subscriber -> subscriber.undeliverable |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldLocale) (translatedFieldName browserEnv.translations FieldLocale) (\subscriber -> subscriber.locale |> Maybe.withDefault "")
-            , Table.veryCustomColumn
-                { id = "delete_entry"
-                , name = ""
-                , viewData = \subscriber -> removeSubscriberButton (RemoveSubscriber subscriber.email)
-                , sorter = Table.unsortable
-                }
-            ]
-        , customizations =
-            { defaultCustomizations
-                | tableAttrs = Table.defaultCustomizations.tableAttrs
-            }
-        }
+{-
+   newslettersTableConfig : BrowserEnv -> Table.Config Subscriber Msg
+   newslettersTableConfig browserEnv =
+       Table.customConfig
+           { toId = .email
+           , toMsg = NewTableState
+           , columns =
+               [ Table.stringColumn (Subscribers.fieldName FieldEmail) (translatedFieldName browserEnv.translations FieldEmail) .email
+               , Table.stringColumn (Subscribers.fieldName FieldName) (translatedFieldName browserEnv.translations FieldName) (\subscriber -> subscriber.name |> Maybe.withDefault "")
+               , Table.stringColumn (Subscribers.fieldName FieldTags) (translatedFieldName browserEnv.translations FieldTags) (\subscriber -> subscriber.tags |> Maybe.map (String.join ", ") |> Maybe.withDefault "")
+               , Table.stringColumn (Subscribers.fieldName FieldDateSubscription) (translatedFieldName browserEnv.translations FieldDateSubscription) (\subscriber -> subscriber.dateSubscription |> BrowserEnv.formatDate browserEnv)
+               , Table.stringColumn (Subscribers.fieldName FieldDateUnsubscription) (translatedFieldName browserEnv.translations FieldDateUnsubscription) (\subscriber -> subscriber.dateUnsubscription |> Maybe.map (BrowserEnv.formatDate browserEnv) |> Maybe.withDefault "")
+               , Table.stringColumn (Subscribers.fieldName FieldSource) (translatedFieldName browserEnv.translations FieldSource) (\subscriber -> subscriber.source |> Maybe.withDefault "")
+               , Table.stringColumn (Subscribers.fieldName FieldUndeliverable) (translatedFieldName browserEnv.translations FieldUndeliverable) (\subscriber -> subscriber.undeliverable |> Maybe.withDefault "")
+               , Table.stringColumn (Subscribers.fieldName FieldLocale) (translatedFieldName browserEnv.translations FieldLocale) (\subscriber -> subscriber.locale |> Maybe.withDefault "")
+               , Table.veryCustomColumn
+                   { id = "delete_entry"
+                   , name = ""
+                   , viewData = \subscriber -> removeSubscriberButton (RemoveSubscriber subscriber.email)
+                   , sorter = Table.unsortable
+                   }
+               ]
+           , customizations =
+               { defaultCustomizations
+                   | tableAttrs = Table.defaultCustomizations.tableAttrs
+               }
+           }
+-}
 
 
 removeSubscriberButton : Msg -> Table.HtmlDetails Msg
@@ -362,7 +379,6 @@ view user shared model =
                     |> Button.view
                 ]
             , viewSubscribers shared.browserEnv model
-            , viewModifications shared.theme shared.browserEnv model
             , EmailImportDialog.new
                 { model = model.emailImportDialog
                 , toMsg = EmailImportDialogSent
@@ -422,11 +438,12 @@ viewSubscribers browserEnv model =
                     [ Tw.m_2
                     ]
                 ]
-                [ Table.view
-                    (subscribersTableConfig browserEnv)
+                [{- Table.view
+                    (newslettersTableConfig browserEnv)
                     model.subscriberTable
                     (Dict.values model.subscribers)
                     |> Html.fromUnstyled
+                 -}
                 ]
 
 
@@ -444,79 +461,3 @@ viewSubscribers browserEnv model =
            |> List.map viewSubscriber
        )
 -}
-
-
-viewModifications : Theme -> BrowserEnv -> Model -> Html Msg
-viewModifications theme browserEnv model =
-    let
-        unprocessedModifications =
-            model.modifications
-                |> List.filter
-                    (\modification ->
-                        case modification of
-                            Subscription { email } ->
-                                Dict.get email model.subscribers
-                                    -- subscriber is unsubscribed - allow to resubscribe
-                                    |> Maybe.map (\subscriber -> subscriber.dateUnsubscription /= Nothing)
-                                    -- subscriber doesn't exist
-                                    |> Maybe.withDefault True
-
-                            Unsubscription { email } ->
-                                Dict.get email model.subscribers
-                                    -- subscriber is already unsubscribed
-                                    |> Maybe.map (\subscriber -> subscriber.dateUnsubscription == Nothing)
-                                    -- subscriber doesn't exist - ignore unsubscription
-                                    |> Maybe.withDefault False
-                    )
-    in
-    if List.length unprocessedModifications > 0 then
-        div
-            [ css
-                [ Tw.flex
-                , Tw.flex_col
-                , Tw.gap_2
-                , Tw.m_2
-                ]
-            ]
-            [ b
-                []
-                [ text "Requested modifications" ]
-            , Button.new
-                { label = Translations.processModificationsButtonTitle [ browserEnv.translations ]
-                , onClick = Just <| ProcessModificationsClicked
-                , theme = theme
-                }
-                |> Button.withTypeSecondary
-                |> Button.view
-            , ul
-                [ css
-                    []
-                ]
-                (List.map (viewModification browserEnv) unprocessedModifications)
-            ]
-
-    else
-        div [] []
-
-
-viewModification : BrowserEnv -> Modification -> Html Msg
-viewModification browserEnv modification =
-    case modification of
-        Subscription subscriber ->
-            li []
-                [ text <| modificationToString modification ++ ": " ++ subscriber.email ++ " (" ++ BrowserEnv.formatDate browserEnv subscriber.dateSubscription ++ ")"
-                ]
-
-        Unsubscription subscriber ->
-            let
-                dateSuffix =
-                    subscriber.dateUnsubscription
-                        |> Maybe.map
-                            (\date ->
-                                " (" ++ BrowserEnv.formatDate browserEnv date ++ ")"
-                            )
-                        |> Maybe.withDefault ""
-            in
-            li []
-                [ text <| modificationToString modification ++ ": " ++ subscriber.email ++ dateSuffix
-                ]

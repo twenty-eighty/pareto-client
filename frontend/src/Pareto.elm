@@ -1,5 +1,6 @@
 module Pareto exposing (..)
 
+import Locale exposing (Language(..))
 import Nostr.Event exposing (Kind(..))
 import Nostr.HandlerInformation exposing (HandlerInformation)
 import Nostr.Nip05 as Nip05
@@ -37,6 +38,11 @@ subscriptionServerKey =
     "f7721f8728935c943710a2f06288cbd56da7ab20b43400a16d26ac58880e0087"
 
 
+betaTestKey : PubKey
+betaTestKey =
+    "0f479ef1a8870a917afbae778ea75fedb5db4cb64501e0e64a6d2010a2908e64"
+
+
 
 -- name of client in "client" tag when publishing articles
 
@@ -61,9 +67,25 @@ supportEmail =
     "support@" ++ applicationDomain
 
 
+privacyPolicy : Language -> Maybe String
+privacyPolicy language =
+    case language of
+        German _ ->
+            Just privacyPolicyGerman
+
+        _ ->
+            -- TODO: Add here additional language versions
+            Nothing
+
+
 privacyPolicyGerman : String
 privacyPolicyGerman =
     "/md/privacy-de.md"
+
+
+source : String
+source =
+    "https://github.com/twenty-eighty/pareto-client"
 
 
 paretoNip05 : Nip05.Nip05
@@ -200,6 +222,9 @@ bootstrapAuthorsList =
     , ( "barbouille@pareto.town", "68c969eafadfc88d5937770d81031fb314b1bb1c201671403de6d930ab67edb9" )
     , ( "free-cities@pareto.town", "fc2470ed196801ddace5c2bcb14a53fa5ee9f81ee365bf4958f94c6117d9ee27" )
     , ( "mathias-broeckers@pareto.town", "1a8c788d6f0d3730fb8671cab1b11620f97f49a317bf5ec2620b236ad0b0f11b" )
+    , ( "quillie@nostria.space", "6c2d68ba016c291417fd18ea7c06b737ec143f7d56d78fdd44a5b248846525ec" )
+    , ( "rbm@pareto.town", "04cb16e4a61034bc4212af6814bb909bcb3b4915f08ff77d50440a102ec3e5d5" )
+    , ( "nexus@pareto.town", "d1d190fa3ecb81a45669bd343d3b9952eb73611cb3cb4c4349980e4de4ce6a6a" )
     ]
 
 

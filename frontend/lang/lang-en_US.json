@@ -13,9 +13,11 @@
       "about frontend text 2": " using the ",
       "about frontend text 3": " programming language.",
       "about backend text": "The Pareto backend was developed using the",
-      "source code text": "The source code of the Pareto client will be released soon.",
+      "source code text": "The source code of the Pareto client is available on",
       "feedback text": "You found a bug or want to give feedback? Please write an email to ",
-      "privacy policy link text": "Privacy Policy"
+      "privacy policy link text": "Privacy Policy",
+      "feedback email info text": "You found a bug or want to give feedback? Please write an email to ",
+      "donation info text": "Support the further development of the Pareto project on "
    },
    "article page": {
       "default page title": "Article"
@@ -39,7 +41,21 @@
       "dialog title": "Import Email List",
       "import button title": "Import",
       "close button title": "Close",
-      "next button title": "Next"
+      "next button title": "Next",
+      "upload csv button title": "Upload",
+      "process button title": "Process",
+      "single emails button title": "Single emails",
+      "email textarea placeholder text": "Comma-separated email addresses",
+      "import selection explanation": "You can either upload a CSV file or add a list of comma-separated email addresses.",
+      "overwrite existing checkbox label": "Overwrite existing?",
+      "csv processing error message": "Error processing CSV file: ",
+      "csv file empty error message": "The CSV file is empty",
+      "csv processing status message": "Processing CSV file...",
+      "csv parsing status message": "Parsing CSV file...",
+      "name column header in csv column mapping table": "Column name",
+      "field column header in csv column mapping table": "Subscriber field",
+      "unmapped column dropdown value": "<unmapped>",
+      "email not mapped error message": "At least the email field must be mapped"
    },
    "email subscription dialog": {
       "dialog title": "Subscribe with Email",
@@ -152,6 +168,7 @@
       "get started button text": "Sign in/up",
       "media menu item text": "Media",
       "messages menu item text": "Messages",
+      "newsletters menu item text": "Newsletters",
       "notifications menu item text": "Notifications",
       "posts menu item text": "Posts",
       "read menu item text": "Read",
@@ -172,7 +189,19 @@
       "import button title": "Import",
       "save button title": "Save",
       "process modifications button title": "Process",
-      "no subscribers text": "No subscribers found."
+      "loading subscribers text": "Loading subscribers...",
+      "error loading subscribers text": "Error loading subscribers",
+      "no subscribers text": "No subscribers found.",
+      "dnd field name": "Do not disturb",
+      "email field name": "Email",
+      "name field name": "Name",
+      "pubkey field name": "Pubkey",
+      "source field name": "Source",
+      "datesub field name": "Subscription date",
+      "dateunsub field name": "Unsubscription date",
+      "tags field name": "Tags",
+      "undeliverable field name": "Undeliverable",
+      "locale field name": "Locale"
    },
    "upload dialog": {
       "dialog title": "Upload",

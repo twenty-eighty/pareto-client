@@ -3,8 +3,8 @@ module Pages.About exposing (Model, Msg, page)
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, div, text)
-import Html.Styled.Attributes as Attr exposing (css, href)
+import Html.Styled as Html exposing (Html, a, div, img, text)
+import Html.Styled.Attributes as Attr exposing (css, href, src, target, width)
 import I18Next
 import Layouts
 import Locale exposing (Language(..))
@@ -183,25 +183,59 @@ view shared _ =
     }
 
 
-viewSupportInformation : Theme -> Html Msg
-viewSupportInformation theme =
+viewSupportInformation : Theme -> I18Next.Translations -> Html Msg
+viewSupportInformation theme translations =
     let
         styles =
             stylesForTheme theme
     in
     Html.p
-        [ css
-            [ Tw.my_4
-            ]
-        ]
-        [ text "You found a bug or want to give feedback? Please write an email to "
+        (styles.textStyleBody
+            ++ styles.colorStyleGrayscaleText
+            ++ [ css
+                    [ Tw.my_4
+                    ]
+               ]
+        )
+        [ text <| Translations.feedbackEmailInfoText [ translations ]
         , a
             (styles.textStyleLinks
-                ++ styles.colorStyleArticleHashtags
+                ++ styles.colorStyleLinks
                 ++ [ Attr.href <| "mailto:" ++ Pareto.supportEmail
                    ]
             )
             [ text Pareto.supportEmail
+            ]
+        ]
+
+
+viewDonationInformation : Theme -> I18Next.Translations -> Html Msg
+viewDonationInformation theme translations =
+    let
+        styles =
+            stylesForTheme theme
+    in
+    Html.p
+        (styles.textStyleBody
+            ++ styles.colorStyleGrayscaleText
+            ++ [ css
+                    [ Tw.my_4
+                    ]
+               ]
+        )
+        [ text <| Translations.donationInfoText [ translations ]
+        , a
+            (styles.textStyleLinks
+                ++ styles.colorStyleLinks
+                ++ [ Attr.href <| "https://geyser.fund/project/pareto"
+                   , target "_blank"
+                   ]
+            )
+            [ img
+                [ src "https://storage.googleapis.com/geyser-projects-media/app/logo-name-dark.svg"
+                , width 200
+                ]
+                []
             ]
         ]
 
@@ -226,7 +260,8 @@ viewHandlerInformation theme browserEnv loginStatus nostr handlerInformation =
                 Nostr.getProfileValidationStatus nostr handlerInformation.pubKey
                     |> Maybe.withDefault ValidationUnknown
             }
-        , viewSupportInformation theme
+        , viewSupportInformation theme browserEnv.translations
+        , viewDonationInformation theme browserEnv.translations
         , viewActionButtons theme browserEnv handlerInformation loginStatus
         , viewWebTargets theme browserEnv handlerInformation.webTargets
         , viewSupportedKinds theme browserEnv handlerInformation.kinds
@@ -518,15 +553,27 @@ viewFooter theme browserEnv =
                 ]
             , text "."
             ]
-        , text <| Translations.sourceCodeText [ browserEnv.translations ]
+        , Html.span
+            []
+            [ text <| Translations.sourceCodeText [ browserEnv.translations ] ++ " "
+            , a
+                (styles.textStyleLinks
+                    ++ styles.colorStyleArticleHashtags
+                    ++ [ Attr.href Pareto.source
+                       ]
+                )
+                [ text Pareto.source
+                ]
+            , text "."
+            ]
         , viewPrivacyPolicyLink styles browserEnv.translations browserEnv.language
         ]
 
 
 viewPrivacyPolicyLink : Styles Msg -> I18Next.Translations -> Language -> Html Msg
 viewPrivacyPolicyLink styles translations language =
-    case language of
-        German _ ->
+    case Pareto.privacyPolicy language of
+        Just _ ->
             a
                 (styles.textStyleLinks
                     ++ styles.colorStyleArticleHashtags

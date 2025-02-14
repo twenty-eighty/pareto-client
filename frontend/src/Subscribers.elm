@@ -1,7 +1,10 @@
 module Subscribers exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
+import Csv.Encode
 import Dict exposing (Dict)
+import I18Next
+import Iso8601
 import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
 import Json.Encode as Encode
@@ -13,14 +16,239 @@ import Nostr.Types exposing (PubKey)
 import Pareto
 import Shared
 import Shared.Msg
+import Time
+import Translations.Subscribers as Translations
 
 
 type alias Subscriber =
     { dnd : Maybe Bool
     , email : String
     , name : Maybe String
+    , pubKey : Maybe PubKey
+    , source : Maybe String
+    , dateSubscription : Time.Posix
+    , dateUnsubscription : Maybe Time.Posix
     , tags : Maybe (List String)
+    , undeliverable : Maybe String
+    , locale : Maybe String
     }
+
+
+type SubscriberField
+    = FieldDnd
+    | FieldEmail
+    | FieldName
+    | FieldPubKey
+    | FieldSource
+    | FieldDateSubscription
+    | FieldDateUnsubscription
+    | FieldTags
+    | FieldUndeliverable
+    | FieldLocale
+
+
+allSubscriberFields : List SubscriberField
+allSubscriberFields =
+    [ FieldDnd
+    , FieldEmail
+    , FieldName
+    , FieldPubKey
+    , FieldSource
+    , FieldDateSubscription
+    , FieldDateUnsubscription
+    , FieldTags
+    , FieldUndeliverable
+    , FieldLocale
+    ]
+
+
+type alias CsvColumnNameMap =
+    Dict String SubscriberField
+
+
+type alias CsvColumnIndexMap =
+    List ( Int, SubscriberField )
+
+
+type alias CsvData =
+    List (List String)
+
+
+defaultCsvColumnNameMap : CsvColumnNameMap
+defaultCsvColumnNameMap =
+    [ ( "email", FieldEmail )
+    , ( "e-mail", FieldEmail )
+    , ( "name", FieldName )
+    , ( "subscription date", FieldDateSubscription )
+    ]
+        |> Dict.fromList
+
+
+buildColumnNameMap : List String -> CsvColumnNameMap
+buildColumnNameMap csvColumnNames =
+    csvColumnNames
+        |> List.foldl
+            (\columnName acc ->
+                case Dict.get (String.toLower columnName) defaultCsvColumnNameMap of
+                    Just subscriberField ->
+                        Dict.insert columnName subscriberField acc
+
+                    Nothing ->
+                        acc
+            )
+            Dict.empty
+
+
+buildCsvColumnIndexMap : CsvColumnNameMap -> List String -> CsvColumnIndexMap
+buildCsvColumnIndexMap nameMap columnNames =
+    columnNames
+        |> List.indexedMap Tuple.pair
+        |> List.filterMap
+            (\( index, columnName ) ->
+                Dict.get columnName nameMap
+                    |> Maybe.map
+                        (\subscriberField ->
+                            ( index, subscriberField )
+                        )
+            )
+
+
+buildSubscriberFromCsvRecord : Time.Posix -> CsvColumnIndexMap -> List String -> Maybe Subscriber
+buildSubscriberFromCsvRecord now columnIndexMap csvLine =
+    let
+        presetEmail =
+            -- only needed to initialize subscriber and check if email was set with meaningful value
+            "this-is-not-an-email"
+    in
+    csvLine
+        |> List.indexedMap Tuple.pair
+        |> List.foldl
+            (\( index, value ) ( remainingFields, subscriber ) ->
+                case List.head remainingFields of
+                    Just ( mappedIndex, subscriberField ) ->
+                        if index == mappedIndex then
+                            -- add field to subscriber and advance in mapping list
+                            ( List.drop 1 remainingFields, setSubscriberField subscriberField value subscriber )
+
+                        else
+                            -- column not mapped, simply continue
+                            ( remainingFields, subscriber )
+
+                    Nothing ->
+                        -- no more mapping entries
+                        ( [], subscriber )
+            )
+            ( columnIndexMap, emptySubscriber presetEmail )
+        |> Tuple.second
+        |> (\subscriber ->
+                if subscriber.email == presetEmail then
+                    Nothing
+
+                else
+                    Just { subscriber | source = Just "CSV", dateSubscription = now }
+           )
+
+
+setSubscriberField : SubscriberField -> String -> Subscriber -> Subscriber
+setSubscriberField field value subscriber =
+    case field of
+        FieldDnd ->
+            { subscriber | dnd = stringToBool value }
+
+        FieldEmail ->
+            { subscriber | email = value }
+
+        FieldName ->
+            { subscriber | name = Just value }
+
+        FieldPubKey ->
+            { subscriber | pubKey = Just value }
+
+        FieldSource ->
+            { subscriber | source = Just value }
+
+        FieldDateSubscription ->
+            { subscriber | dateSubscription = Iso8601.toTime value |> Result.toMaybe |> Maybe.withDefault (Time.millisToPosix 0) }
+
+        FieldDateUnsubscription ->
+            { subscriber | dateUnsubscription = Iso8601.toTime value |> Result.toMaybe }
+
+        FieldTags ->
+            { subscriber | tags = String.split "," value |> Just }
+
+        FieldUndeliverable ->
+            { subscriber | undeliverable = Just value }
+
+        FieldLocale ->
+            { subscriber | locale = Just value }
+
+
+fieldName : SubscriberField -> String
+fieldName field =
+    case field of
+        FieldDnd ->
+            "dnd"
+
+        FieldEmail ->
+            "email"
+
+        FieldName ->
+            "name"
+
+        FieldPubKey ->
+            "pubkey"
+
+        FieldSource ->
+            "source"
+
+        FieldDateSubscription ->
+            "datesub"
+
+        FieldDateUnsubscription ->
+            "dateunsub"
+
+        FieldTags ->
+            "tags"
+
+        FieldUndeliverable ->
+            "undeliverable"
+
+        FieldLocale ->
+            "locale"
+
+
+translatedFieldName : I18Next.Translations -> SubscriberField -> String
+translatedFieldName translations field =
+    case field of
+        FieldDnd ->
+            Translations.dndFieldName [ translations ]
+
+        FieldEmail ->
+            Translations.emailFieldName [ translations ]
+
+        FieldName ->
+            Translations.nameFieldName [ translations ]
+
+        FieldPubKey ->
+            Translations.pubkeyFieldName [ translations ]
+
+        FieldSource ->
+            Translations.sourceFieldName [ translations ]
+
+        FieldDateSubscription ->
+            Translations.datesubFieldName [ translations ]
+
+        FieldDateUnsubscription ->
+            Translations.dateunsubFieldName [ translations ]
+
+        FieldTags ->
+            Translations.tagsFieldName [ translations ]
+
+        FieldUndeliverable ->
+            Translations.undeliverableFieldName [ translations ]
+
+        FieldLocale ->
+            Translations.localeFieldName [ translations ]
 
 
 type alias Email =
@@ -57,7 +285,13 @@ emptySubscriber email =
     { dnd = Nothing
     , email = email
     , name = Nothing
+    , pubKey = Nothing
+    , source = Nothing
+    , dateSubscription = Time.millisToPosix 0
+    , dateUnsubscription = Nothing
     , tags = Nothing
+    , undeliverable = Nothing
+    , locale = Nothing
     }
 
 
@@ -77,17 +311,94 @@ loadModifications nostr userPubKey =
         |> Shared.Msg.RequestNostrEvents
 
 
+toCsv : List Subscriber -> Csv.Encode.Csv
+toCsv subscribers =
+    { headers =
+        [ fieldName FieldDnd
+        , fieldName FieldEmail
+        , fieldName FieldName
+        , fieldName FieldPubKey
+        , fieldName FieldSource
+        , fieldName FieldDateSubscription
+        , fieldName FieldDateUnsubscription
+        , fieldName FieldTags
+        ]
+    , records =
+        subscribers
+            |> List.map
+                (\subscriber ->
+                    [ Maybe.withDefault False subscriber.dnd |> boolToString
+                    , subscriber.email
+                    , subscriber.name |> Maybe.withDefault ""
+                    , subscriber.pubKey |> Maybe.withDefault ""
+                    , subscriber.source |> Maybe.withDefault ""
+                    , subscriber.dateSubscription |> Iso8601.fromTime
+                    , subscriber.dateUnsubscription |> Maybe.map Iso8601.fromTime |> Maybe.withDefault ""
+                    , subscriber.tags |> Maybe.map (String.join ",") |> Maybe.withDefault ""
+                    ]
+                )
+    }
+
+
+boolToString : Bool -> String
+boolToString value =
+    if value then
+        "true"
+
+    else
+        "false"
+
+
+stringToBool : String -> Maybe Bool
+stringToBool value =
+    case String.toLower value of
+        "true" ->
+            Just True
+
+        "yes" ->
+            Just True
+
+        "1" ->
+            Just True
+
+        "false" ->
+            Just False
+
+        "no" ->
+            Just False
+
+        "0" ->
+            Just False
+
+        _ ->
+            Nothing
+
+
+timeToString : Time.Posix -> String
+timeToString value =
+    value
+        |> Time.posixToMillis
+        |> String.fromInt
+
+
 processModifications : Dict Email Subscriber -> List Modification -> Dict Email Subscriber
 processModifications subscribers modifications =
     modifications
         |> List.foldl
             (\modification acc ->
                 case modification of
-                    Subscription subscriber ->
-                        Dict.insert subscriber.email subscriber acc
+                    Subscription newsubscriber ->
+                        Dict.insert newsubscriber.email newsubscriber acc
 
-                    Unsubscription subscriber ->
-                        Dict.remove subscriber.email acc
+                    Unsubscription unsubscribed ->
+                        Dict.update
+                            unsubscribed.email
+                            (Maybe.map
+                                (\subscriber ->
+                                    { subscriber | dnd = unsubscribed.dnd, dateUnsubscription = unsubscribed.dateUnsubscription }
+                                )
+                            )
+                            acc
             )
             subscribers
 
@@ -193,6 +504,19 @@ subscribersFromEvent event =
 modificationsFromEvent : Event -> Result Decode.Error (List Modification)
 modificationsFromEvent event =
     Decode.decodeString modificationsDecoder event.content
+        |> Result.map
+            (\modifications ->
+                modifications
+                    |> List.map
+                        (\modification ->
+                            case modification of
+                                Subscription subscriber ->
+                                    Subscription { subscriber | dnd = Just False, dateSubscription = event.createdAt }
+
+                                Unsubscription subscriber ->
+                                    Unsubscription { subscriber | dnd = Just True, dateUnsubscription = Just event.createdAt }
+                        )
+            )
 
 
 modificationsDecoder : Decode.Decoder (List Modification)
@@ -210,7 +534,7 @@ subscribesDecoder =
 
 subscribeDecoder : Decode.Decoder Modification
 subscribeDecoder =
-    Decode.field "email" Decode.string
+    Decode.field (fieldName FieldEmail) Decode.string
         |> Decode.andThen
             (\email ->
                 Decode.succeed <| Subscription (emptySubscriber email)
@@ -224,7 +548,7 @@ unsubscribesDecoder =
 
 unsubscribeDecoder : Decode.Decoder Modification
 unsubscribeDecoder =
-    Decode.field "email" Decode.string
+    Decode.field (fieldName FieldEmail) Decode.string
         |> Decode.andThen
             (\email ->
                 Decode.succeed <| Unsubscription (emptySubscriber email)
@@ -239,24 +563,59 @@ subscribersDecoder =
 subscriberDecoder : Decode.Decoder Subscriber
 subscriberDecoder =
     Decode.succeed Subscriber
-        |> optional "dnd" (Decode.maybe Decode.bool) Nothing
-        |> required "email" Decode.string
-        |> optional "name" (Decode.maybe Decode.string) Nothing
-        |> optional "tags" (Decode.maybe (Decode.list Decode.string)) Nothing
+        |> optional (fieldName FieldDnd) (Decode.maybe Decode.bool) Nothing
+        |> required (fieldName FieldEmail) Decode.string
+        |> optional (fieldName FieldName) (Decode.maybe Decode.string) Nothing
+        |> optional (fieldName FieldPubKey) (Decode.maybe Decode.string) Nothing
+        |> optional (fieldName FieldSource) (Decode.maybe Decode.string) Nothing
+        |> required (fieldName FieldDateSubscription) decodePosixTime
+        |> optional (fieldName FieldDateUnsubscription) (Decode.maybe decodePosixTime) Nothing
+        |> optional (fieldName FieldTags) (Decode.maybe (Decode.list Decode.string)) Nothing
+        |> optional (fieldName FieldUndeliverable) (Decode.maybe Decode.string) Nothing
+        |> optional (fieldName FieldLocale) (Decode.maybe Decode.string) Nothing
+
+
+decodePosixTime : Decode.Decoder Time.Posix
+decodePosixTime =
+    Decode.int
+        |> Decode.andThen
+            (\millis ->
+                millis
+                    |> Time.millisToPosix
+                    |> Decode.succeed
+            )
 
 
 toCSV : List Subscriber -> String
 toCSV subscribers =
-    "email,name,tags\n"
-        ++ (List.map subscriberToCsv subscribers
-                |> String.concat
+    [ fieldName FieldDnd
+    , fieldName FieldEmail
+    , fieldName FieldName
+    , fieldName FieldPubKey
+    , fieldName FieldSource
+    , fieldName FieldDateSubscription
+    , fieldName FieldDateUnsubscription
+    , fieldName FieldTags
+    ]
+        |> String.join ","
+        |> (\fieldnames ->
+                fieldnames
+                    ++ "\n"
+                    ++ (List.map subscriberToCsv subscribers
+                            |> String.concat
+                       )
            )
 
 
 subscriberToCsv : Subscriber -> String
 subscriberToCsv subscriber =
-    [ subscriber.email
-    , Maybe.withDefault "" subscriber.name
+    [ subscriber.dnd |> Maybe.map boolToString |> Maybe.withDefault ""
+    , subscriber.email
+    , subscriber.name |> Maybe.withDefault ""
+    , subscriber.pubKey |> Maybe.withDefault ""
+    , subscriber.source |> Maybe.withDefault ""
+    , subscriber.dateSubscription |> timeToString
+    , subscriber.dateUnsubscription |> Maybe.map timeToString |> Maybe.withDefault ""
     , subscriber.tags
         |> Maybe.map (String.join ",")
         |> Maybe.map (\tagString -> "\"" ++ tagString ++ "\"")
@@ -300,11 +659,15 @@ encodeSubscribers subscribers =
 
 encodeSubscriber : Subscriber -> List ( String, Encode.Value )
 encodeSubscriber subscriber =
-    [ ( "email", Encode.string subscriber.email )
+    [ ( fieldName FieldEmail, Encode.string subscriber.email )
+    , ( fieldName FieldDateSubscription, Encode.int <| Time.posixToMillis subscriber.dateSubscription )
     ]
-        |> addBoolToObject "dnd" subscriber.dnd
-        |> addStringToObject "name" subscriber.name
-        |> addStringListToObject "tags" subscriber.tags
+        |> addBoolToObject FieldDnd subscriber.dnd
+        |> addStringToObject FieldName subscriber.name
+        |> addStringToObject FieldPubKey subscriber.pubKey
+        |> addStringToObject FieldSource subscriber.source
+        |> addDateToObject FieldDateUnsubscription subscriber.dateUnsubscription
+        |> addStringListToObject FieldTags subscriber.tags
 
 
 newsletterSubscribersEvent : Shared.Model -> PubKey -> AddressComponents -> List Subscriber -> Event
@@ -344,7 +707,7 @@ emailSendRequestToJson maybeSenderName subscribers =
     in
     [ ( "recipients", encodeSubscribers recipients )
     ]
-        |> addStringToObject "senderName" maybeSenderName
+        |> addStringToObject FieldName maybeSenderName
         |> Encode.object
         |> Encode.encode 0
 
@@ -362,31 +725,41 @@ encodeRecipient subscriber =
     ]
 
 
-addBoolToObject : String -> Maybe Bool -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
-addBoolToObject key maybeValue acc =
+addBoolToObject : SubscriberField -> Maybe Bool -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
+addBoolToObject field maybeValue acc =
     case maybeValue of
         Just value ->
-            acc ++ [ ( key, Encode.bool value ) ]
+            acc ++ [ ( fieldName field, Encode.bool value ) ]
 
         Nothing ->
             acc
 
 
-addStringToObject : String -> Maybe String -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
-addStringToObject key maybeValue acc =
+addStringToObject : SubscriberField -> Maybe String -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
+addStringToObject field maybeValue acc =
     case maybeValue of
         Just value ->
-            acc ++ [ ( key, Encode.string value ) ]
+            acc ++ [ ( fieldName field, Encode.string value ) ]
 
         Nothing ->
             acc
 
 
-addStringListToObject : String -> Maybe (List String) -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
-addStringListToObject key maybeValues acc =
+addDateToObject : SubscriberField -> Maybe Time.Posix -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
+addDateToObject field maybeValue acc =
+    case maybeValue of
+        Just value ->
+            acc ++ [ ( fieldName field, Encode.int <| Time.posixToMillis value ) ]
+
+        Nothing ->
+            acc
+
+
+addStringListToObject : SubscriberField -> Maybe (List String) -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
+addStringListToObject field maybeValues acc =
     case maybeValues of
         Just values ->
-            acc ++ [ ( key, Encode.list Encode.string values ) ]
+            acc ++ [ ( fieldName field, Encode.list Encode.string values ) ]
 
         Nothing ->
             acc

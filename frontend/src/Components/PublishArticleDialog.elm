@@ -24,6 +24,7 @@ import Shared.Msg exposing (Msg)
 import Subscribers exposing (Email, Subscriber)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
+import Time
 import Translations.PublishArticleDialog as Translations
 import Ui.Shared
 import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
@@ -157,20 +158,27 @@ update props =
 
             PublishClicked msg ->
                 let
+                    isBetaTester =
+                        Nostr.isBetaTester props.nostr props.pubKey
+
                     -- the list of relays is not stored in the model
                     -- because there may appear more relays after
                     -- init call
                     relayUrls =
-                        Nostr.getWriteRelaysForPubKey props.nostr props.pubKey
-                            |> List.filterMap
-                                (\relay ->
-                                    case Dict.get relay.urlWithoutProtocol model.relayStates of
-                                        Just False ->
-                                            Nothing
+                        if isBetaTester && model.sendViaEmail then
+                            Pareto.applicationDataRelays
 
-                                        _ ->
-                                            Just relay.urlWithoutProtocol
-                                )
+                        else
+                            Nostr.getWriteRelaysForPubKey props.nostr props.pubKey
+                                |> List.filterMap
+                                    (\relay ->
+                                        case Dict.get relay.urlWithoutProtocol model.relayStates of
+                                            Just False ->
+                                                Nothing
+
+                                            _ ->
+                                                Just relay.urlWithoutProtocol
+                                    )
 
                     emailSubscribers =
                         if model.sendViaEmail then
@@ -230,8 +238,23 @@ updateWithMessage (Model model) userPubKey message =
                             let
                                 ( subscribers, _, errors ) =
                                     Subscribers.processEvents userPubKey model.subscribers [] events
+
+                                activeSubscribers =
+                                    subscribers
+                                        |> Dict.toList
+                                        |> List.filter
+                                            (\( _, subscriber ) ->
+                                                case subscriber.dateUnsubscription of
+                                                    Just dateUnsubscription ->
+                                                        -- resubscription
+                                                        Time.posixToMillis subscriber.dateSubscription > Time.posixToMillis dateUnsubscription
+
+                                                    Nothing ->
+                                                        True
+                                            )
+                                        |> Dict.fromList
                             in
-                            ( Model { model | subscribers = subscribers, errors = model.errors ++ errors }, Effect.none )
+                            ( Model { model | subscribers = activeSubscribers, errors = model.errors ++ errors }, Effect.none )
 
                         _ ->
                             ( Model model, Effect.none )
@@ -332,12 +355,29 @@ relaysSection (Settings settings) relays =
         (Model model) =
             settings.model
 
+        isBetaTester =
+            Nostr.isBetaTester settings.nostr settings.pubKey
+
         relaysStates =
-            relays
-                |> List.map
-                    (\relay ->
-                        ( relay, Dict.get relay.urlWithoutProtocol model.relayStates /= Just False )
-                    )
+            -- TODO: This branch is only for test purposes
+            if isBetaTester && model.sendViaEmail then
+                Pareto.applicationDataRelays
+                    |> List.map
+                        (\relayUrl ->
+                            ( { urlWithoutProtocol = relayUrl
+                              , nip11 = Nothing
+                              , state = Relay.RelayStateUnknown
+                              }
+                            , True
+                            )
+                        )
+
+            else
+                relays
+                    |> List.map
+                        (\relay ->
+                            ( relay, Dict.get relay.urlWithoutProtocol model.relayStates /= Just False )
+                        )
 
         styles =
             Ui.Styles.stylesForTheme settings.theme
@@ -473,8 +513,8 @@ deliverySection (Settings settings) =
         [ div
             [ css
                 [ Tw.flex
+                , Tw.flex_col
                 , Tw.justify_between
-                , Tw.items_center
                 , Tw.mb_2
                 ]
             ]
@@ -487,6 +527,13 @@ deliverySection (Settings settings) =
                 , fontFamilyUnbounded
                 ]
                 [ text <| Translations.deliveryTitle [ settings.browserEnv.translations ] ]
+            , div
+                [ css
+                    [ Tw.font_bold
+                    ]
+                ]
+                [ text "TEST MODE: when sending article via email it will only be published to a test relay."
+                ]
             ]
         , Checkbox.new
             { label = checkboxText
@@ -498,43 +545,46 @@ deliverySection (Settings settings) =
         ]
 
 
-zapSplitSection : PublishArticleDialog msg -> Html (Msg msg)
-zapSplitSection (Settings settings) =
-    div []
-        [ div
-            [ css
-                [ Tw.flex
-                , Tw.justify_between
-                , Tw.items_center
-                , Tw.mt_8
-                , Tw.mb_2
-                ]
-            ]
-            [ h2
-                [ css
-                    [ Tw.text_lg
-                    , Tw.text_color Theme.gray_800
-                    , Tw.font_bold
-                    ]
-                , fontFamilyUnbounded
-                ]
-                [ text <| Translations.revenueTitle [ settings.browserEnv.translations ] ]
-            ]
-        , div
-            [ css
-                [ Tw.flex
-                , Tw.justify_between
-                , Tw.items_center
-                , Tw.mb_6
-                ]
-            ]
-            [ h2
-                [ css
-                    [ Tw.text_base
-                    , Tw.text_color Theme.gray_800
-                    ]
-                , fontFamilyInter
-                ]
-                [ text <| Translations.revenueDescription [ settings.browserEnv.translations ] ]
-            ]
-        ]
+
+{-
+   zapSplitSection : PublishArticleDialog msg -> Html (Msg msg)
+   zapSplitSection (Settings settings) =
+       div []
+           [ div
+               [ css
+                   [ Tw.flex
+                   , Tw.justify_between
+                   , Tw.items_center
+                   , Tw.mt_8
+                   , Tw.mb_2
+                   ]
+               ]
+               [ h2
+                   [ css
+                       [ Tw.text_lg
+                       , Tw.text_color Theme.gray_800
+                       , Tw.font_bold
+                       ]
+                   , fontFamilyUnbounded
+                   ]
+                   [ text <| Translations.revenueTitle [ settings.browserEnv.translations ] ]
+               ]
+           , div
+               [ css
+                   [ Tw.flex
+                   , Tw.justify_between
+                   , Tw.items_center
+                   , Tw.mb_6
+                   ]
+               ]
+               [ h2
+                   [ css
+                       [ Tw.text_base
+                       , Tw.text_color Theme.gray_800
+                       ]
+                   , fontFamilyInter
+                   ]
+                   [ text <| Translations.revenueDescription [ settings.browserEnv.translations ] ]
+               ]
+           ]
+-}
