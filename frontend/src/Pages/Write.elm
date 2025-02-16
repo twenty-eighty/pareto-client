@@ -663,7 +663,6 @@ eventWithContent shared model user kind =
             |> Event.addPublishedAtTag publishedAt
             |> Maybe.withDefault identity (languageISOCode model |> Maybe.map (Event.addLabelTags "ISO-639-1"))
             |> Event.addZapTags model.zapWeights
-            |> Event.addClientTag Pareto.client Pareto.paretoClientPubKey Pareto.handlerIdentifier Pareto.paretoRelay
             |> Event.addAltTag (altText model.identifier user.pubKey kind [ Pareto.paretoRelay ])
     , content = model.content |> Maybe.withDefault ""
     , id = ""

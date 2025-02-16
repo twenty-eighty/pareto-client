@@ -1,10 +1,11 @@
 port module Ports exposing (..)
 
 import Json.Encode as Encode
-import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), encodeEvent, encodeEventFilter)
+import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), buildAddress, encodeEvent, encodeEventFilter)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestId)
 import Nostr.Send exposing (SendRequestId)
 import Nostr.Types exposing (IncomingMessage, OutgoingCommand)
+import Pareto
 
 
 port sendCommand : OutgoingCommand -> Cmd msg
@@ -15,7 +16,15 @@ port receiveMessage : (IncomingMessage -> msg) -> Sub msg
 
 connect : List String -> Cmd msg
 connect relays =
-    sendCommand { command = "connect", value = Encode.list Encode.string relays }
+    sendCommand
+        { command = "connect"
+        , value =
+            Encode.object
+                [ ( "client", Encode.string Pareto.client )
+                , ( "nip89", Encode.string <| buildAddress ( KindHandlerInformation, Pareto.paretoClientPubKey, Pareto.handlerIdentifier ) )
+                , ( "relays", Encode.list Encode.string relays )
+                ]
+        }
 
 
 loginWithExtension : Cmd msg
