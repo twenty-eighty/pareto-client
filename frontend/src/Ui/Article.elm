@@ -88,17 +88,24 @@ viewArticle articlePreviewsData articlePreviewData article =
                 ]
             ]
 
-        maybeNoteId =
-            Result.toMaybe (Nip19.encode (Note article.id))
+        maybeNaddrData =
+            article.relays
+                |> (article.identifier |> Maybe.map2 (\identifier relays -> { identifier = identifier, pubKey = article.author, kind = numberForKind article.kind, relays = Set.toList relays }))
+
+        maybeAddress =
+            maybeNaddrData
+                |> Maybe.andThen
+                    (\naddrData ->
+                        Result.toMaybe (Nip19.encode (NAddr naddrData))
+                    )
 
         articleRelays =
             Maybe.withDefault Set.empty article.relays |> Set.map websocketUrl
 
         previewData =
             { pubKey = article.author
-            , noteId =
-                maybeNoteId
-            , zapRelays = extendedZapRelays articleRelays articlePreviewsData.userPubKey articlePreviewsData.nostr
+            , maybeNip19Target = maybeAddress
+            , zapRelays = extendedZapRelays articleRelays articlePreviewsData.nostr articlePreviewsData.userPubKey
             , actions = articlePreviewData.actions
             , interactions = articlePreviewData.interactions
             }

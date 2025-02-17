@@ -9,11 +9,10 @@ import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplay
 import Nostr.Reactions exposing (Interactions)
 import Nostr.ShortNote exposing (ShortNote)
 import Nostr.Types exposing (EventId, PubKey)
-import Set
 import Tailwind.Utilities as Tw
 import Ui.Links exposing (linkElementForAuthor)
 import Ui.Profile
-import Ui.Shared exposing (Actions, extendedZapRelays)
+import Ui.Shared exposing (Actions, extendedZapRelays, pubkeyInboxRelays)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 import Url
 
@@ -48,6 +47,17 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
                 AuthorProfile profile profileValidation ->
                     ( profileDisplayName profile.pubKey profile, Just profile, profileValidation )
 
+        authorPubKey =
+            case shortNoteViewData.author of
+                AuthorPubkey pubKey ->
+                    pubKey
+
+                AuthorProfile profile _ ->
+                    profile.pubKey
+
+        authorInboxRelays =
+            pubkeyInboxRelays shortNotesViewData.nostr authorPubKey
+
         maybeNoteId =
             shortNote.id
                 |> Nip19.Note
@@ -56,9 +66,8 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
 
         previewData =
             { pubKey = shortNote.pubKey
-            , noteId =
-                maybeNoteId
-            , zapRelays = extendedZapRelays Set.empty shortNotesViewData.userPubKey shortNotesViewData.nostr
+            , maybeNip19Target = maybeNoteId
+            , zapRelays = extendedZapRelays authorInboxRelays shortNotesViewData.nostr shortNotesViewData.userPubKey
             , actions = shortNoteViewData.actions
             , interactions = shortNoteViewData.interactions
             }

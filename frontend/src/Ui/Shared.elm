@@ -14,7 +14,6 @@ import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Relay exposing (websocketUrl)
 import Nostr.Types exposing (PubKey)
-import Pareto exposing (defaultRelayUrls)
 import Set exposing (Set)
 import Svg.Loaders
 import Tailwind.Breakpoints as Bp
@@ -143,25 +142,36 @@ type alias Actions msg =
 
 type alias PreviewData msg =
     { pubKey : PubKey
-    , noteId : Maybe String
+    , maybeNip19Target : Maybe String
     , zapRelays : Set String
     , actions : Actions msg
     , interactions : Interactions
     }
 
 
-extendedZapRelays : Set String -> Maybe PubKey -> Nostr.Model -> Set String
-extendedZapRelays zapRelays maybePubKey nostrModel =
+
+{-
+   Extends the given relays with the inbox relays of the pub-key.
+-}
+
+
+extendedZapRelays : Set String -> Nostr.Model -> Maybe PubKey -> Set String
+extendedZapRelays zapRelays nostrModel maybePubKey =
     let
-        userInboxRelays =
+        inboxRelays =
             maybePubKey
-                |> Maybe.map
-                    (Nostr.getNip65ReadRelaysForPubKey nostrModel)
-                |> Maybe.withDefault []
-                |> List.map (\relay -> websocketUrl relay.urlWithoutProtocol)
-                |> Set.fromList
+                |> Maybe.map (pubkeyInboxRelays nostrModel)
+                |> Maybe.withDefault Set.empty
     in
-    Set.fromList defaultRelayUrls |> Set.union zapRelays |> Set.union userInboxRelays
+    zapRelays |> Set.union inboxRelays
+
+
+pubkeyInboxRelays : Nostr.Model -> PubKey -> Set String
+pubkeyInboxRelays nostrModel pubKey =
+    pubKey
+        |> Nostr.getNip65ReadRelaysForPubKey nostrModel
+        |> List.map (\relay -> websocketUrl relay.urlWithoutProtocol)
+        |> Set.fromList
 
 
 viewInteractions : Styles msg -> BrowserEnv -> PreviewData msg -> String -> Html msg
@@ -219,6 +229,17 @@ viewReactions styles icon maybeMsg maybeCount previewData instanceId =
             Nip19.encode (Npub previewData.pubKey)
                 |> Result.toMaybe
 
+        maybeNip19TargetAttr =
+            previewData.maybeNip19Target
+                |> Maybe.map
+                    (\nip19Target ->
+                        if String.startsWith "note" nip19Target then
+                            [ Attr.attribute "data-note-id" nip19Target ]
+
+                        else
+                            [ Attr.attribute "data-naddr" nip19Target ]
+                    )
+
         ( nostrZapAttrs, maybeZapComponent ) =
             case ( icon, maybeNpub ) of
                 ( Icon.FeatherIcon featherIcon, Just npub ) ->
@@ -229,7 +250,7 @@ viewReactions styles icon maybeMsg maybeCount previewData instanceId =
                           , Attr.attribute "data-button-color" "#334155"
                           , css [ Tw.cursor_pointer ]
                           ]
-                            ++ Maybe.withDefault [] (Maybe.map (\noteId -> [ Attr.attribute "data-note-id" noteId ]) previewData.noteId)
+                            ++ Maybe.withDefault [] maybeNip19TargetAttr
                         , Just
                             (Html.node "js-zap-component"
                                 [ Attr.property "buttonId" (Encode.string ("zap-button-" ++ instanceId))
