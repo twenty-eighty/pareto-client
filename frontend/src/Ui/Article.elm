@@ -88,9 +88,11 @@ viewArticle articlePreviewsData articlePreviewData article =
                 ]
             ]
 
+        articleRelays =
+            article.relays |> Set.map websocketUrl
+
         maybeNaddrData =
-            article.relays
-                |> (article.identifier |> Maybe.map2 (\identifier relays -> { identifier = identifier, pubKey = article.author, kind = numberForKind article.kind, relays = Set.toList relays }))
+            article.identifier |> Maybe.map (\identifier -> { identifier = identifier, pubKey = article.author, kind = numberForKind article.kind, relays = Set.toList articleRelays })
 
         maybeAddress =
             maybeNaddrData
@@ -98,9 +100,6 @@ viewArticle articlePreviewsData articlePreviewData article =
                     (\naddrData ->
                         Result.toMaybe (Nip19.encode (NAddr naddrData))
                     )
-
-        articleRelays =
-            Maybe.withDefault Set.empty article.relays |> Set.map websocketUrl
 
         previewData =
             { pubKey = article.author
@@ -752,18 +751,10 @@ linkToArticle article =
                 , kind = numberForKind article.kind
                 , relays =
                     article.relays
-                        |> Maybe.map
-                            (\urlsWithoutProtocol ->
-                                urlsWithoutProtocol
-                                    |> Set.toList
-                                    -- append max 5 relays so the link doesn't get infinitely long
-                                    |> List.take 5
-                                    |> List.map
-                                        (\urlWithoutProtocol ->
-                                            "wss://" ++ urlWithoutProtocol
-                                        )
-                            )
-                        |> Maybe.withDefault []
+                        |> Set.toList
+                        -- append max 5 relays so the link doesn't get infinitely long
+                        |> List.take 5
+                        |> List.map websocketUrl
                 }
     of
         Ok encodedCoordinates ->
