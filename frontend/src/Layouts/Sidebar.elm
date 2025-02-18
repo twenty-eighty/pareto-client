@@ -28,6 +28,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
+import Ui.Profile
 import Ui.Styles exposing (Styles)
 import View exposing (View)
 
@@ -809,7 +810,7 @@ loggedInButton maybeProfile =
         , Events.onClick OpenProfileMenu
         ]
         [ img
-            [ Attr.src <| profileImage maybeProfile
+            [ Attr.src <| Ui.Profile.profilePicture 56 maybeProfile
             , css
                 [ Tw.w_14
                 , Tw.h_14
@@ -819,13 +820,6 @@ loggedInButton maybeProfile =
             ]
             []
         ]
-
-
-profileImage : Maybe Profile -> String
-profileImage maybeProfile =
-    maybeProfile
-        |> Maybe.andThen .picture
-        |> Maybe.withDefault "/images/avatars/placeholder_01.png"
 
 
 getStartedButton : Ui.Styles.Theme -> BrowserEnv -> Html Msg

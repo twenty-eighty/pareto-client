@@ -205,7 +205,7 @@ viewArticleImage maybeImage =
                     ]
                 ]
                 [ img
-                    [ Attr.src image
+                    [ Attr.src (Ui.Shared.extendUrlForScaling 384 image)
                     , Attr.alt "Post Image"
                     , css
                         [ Tw.rounded_lg
@@ -349,7 +349,7 @@ viewArticleProfileSmall profile validationStatus =
             [ div
                 []
                 [ img
-                    [ Attr.src <| Ui.Profile.profilePicture (Just profile)
+                    [ Attr.src <| Ui.Profile.profilePicture 48 (Just profile)
                     , Attr.alt "Avatar"
                     , css
                         [ Tw.min_w_12
@@ -879,7 +879,7 @@ previewListImage article =
                     ]
                 ]
                 [ img
-                    [ Attr.src image
+                    [ Attr.src (Ui.Shared.extendUrlForScaling 384 image)
                     , Attr.style "top" "50%"
                     , Attr.style "left" "50%"
                     , Attr.style "object-fit" "cover"
@@ -1085,7 +1085,7 @@ viewProfileImage linkElement maybeProfile validationStatus =
         ]
         [ linkElement
             [ img
-                [ Attr.src <| Ui.Profile.profilePicture maybeProfile
+                [ Attr.src <| Ui.Profile.profilePicture 112 maybeProfile
                 , Attr.alt "Avatar"
                 , css
                     [ Tw.min_w_28
@@ -1127,7 +1127,7 @@ viewProfileImageSmall linkElement maybeProfile validationStatus =
                     , Tw.h_8
                     , Tw.rounded_3xl
                     ]
-                , Attr.src <| Ui.Profile.profilePicture maybeProfile
+                , Attr.src <| Ui.Profile.profilePicture 32 maybeProfile
                 , Attr.alt "profile image"
                 , Attr.attribute "loading" "lazy"
                 ]

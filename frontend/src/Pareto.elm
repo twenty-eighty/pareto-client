@@ -107,9 +107,14 @@ paretoRelays =
     ]
 
 
+paretoNip96Server : String
+paretoNip96Server =
+    "route96.pareto.space"
+
+
 defaultNip96ServersAuthors : List String
 defaultNip96ServersAuthors =
-    [ "https://route96.pareto.space"
+    [ "https://" ++ paretoNip96Server
     ]
 
 
