@@ -112,7 +112,7 @@ sidebarItems { isAuthor, isBetaTester, isLoggedIn, environment, clientRole, tran
 
                     Route.Path.Newsletters ->
                         -- currently in development
-                        Just { sidebarItem | disabled = environment /= BrowserEnv.Development }
+                        Just { sidebarItem | disabled = environment /= BrowserEnv.Development && not isBetaTester }
 
                     Route.Path.Subscribers ->
                         -- currently in development

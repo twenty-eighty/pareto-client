@@ -89,6 +89,17 @@
    "message dialog": {
       "warning": "Warnung"
    },
+   "newsletters": {
+      "newsletters title": "Newsletter",
+      "loading newsletters text": "Lade Newsletter ...",
+      "error loading newsletters text": "Fehler beim Laden der Newsletter",
+      "no newsletters text": "Keine Newsletter gefunden",
+      "date column name": "Datum",
+      "status column name": "Status",
+      "processed column name": "Verarbeitet",
+      "total column name": "Gesamt",
+      "error column name": "Fehler"
+   },
    "posts": {
       "posts title": "Artikel",
       "published category": "Veröffentlicht",
