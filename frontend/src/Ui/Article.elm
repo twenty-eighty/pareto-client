@@ -91,19 +91,9 @@ viewArticle articlePreviewsData articlePreviewData article =
         articleRelays =
             article.relays |> Set.map websocketUrl
 
-        maybeNaddrData =
-            article.identifier |> Maybe.map (\identifier -> { identifier = identifier, pubKey = article.author, kind = numberForKind article.kind, relays = Set.toList articleRelays })
-
-        maybeAddress =
-            maybeNaddrData
-                |> Maybe.andThen
-                    (\naddrData ->
-                        Result.toMaybe (Nip19.encode (NAddr naddrData))
-                    )
-
         previewData =
             { pubKey = article.author
-            , maybeNip19Target = maybeAddress
+            , maybeNip19Target = articleAddress article
             , zapRelays = extendedZapRelays articleRelays articlePreviewsData.nostr articlePreviewsData.userPubKey
             , actions = articlePreviewData.actions
             , interactions = articlePreviewData.interactions
@@ -741,9 +731,9 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
         ]
 
 
-linkToArticle : Article -> Maybe String
-linkToArticle article =
-    case
+articleAddress : Article -> Maybe String
+articleAddress article =
+    Result.toMaybe <|
         Nip19.encode <|
             Nip19.NAddr
                 { identifier = article.identifier |> Maybe.withDefault ""
@@ -756,12 +746,11 @@ linkToArticle article =
                         |> List.take 5
                         |> List.map websocketUrl
                 }
-    of
-        Ok encodedCoordinates ->
-            Just <| "/a/" ++ encodedCoordinates
 
-        Err _ ->
-            Nothing
+
+linkToArticle : Article -> Maybe String
+linkToArticle article =
+    articleAddress article |> Maybe.map (\naddr -> "/a/" ++ naddr)
 
 
 viewTitlePreview : Styles msg -> Maybe String -> Maybe String -> List Css.Style -> Html msg
