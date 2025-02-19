@@ -57,7 +57,9 @@
       "unmapped column dropdown value": "<nicht zugeordnet>",
       "email not mapped error message": "Das E-Mail-Feld muss zugeordnet sein",
       "skip rows field label": "Zeilen überspringen",
-      "column name": "Spalte"
+      "column name": "Spalte",
+      "configure CSV import dialog title": "CSV-Import konfigurieren",
+      "map CSV fields dialog title": "CSV-Felder zuordnen"
    },
    "email subscription dialog": {
       "dialog title": "Mit E-Mail abonnieren",

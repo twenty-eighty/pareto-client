@@ -57,7 +57,9 @@
       "unmapped column dropdown value": "<unmapped>",
       "email not mapped error message": "At least the email field must be mapped",
       "skip rows field label": "Skip rows",
-      "column name": "Column"
+      "column name": "Column",
+      "configure CSV import dialog title": "Configure CSV import",
+      "map CSV fields dialog title": "Map CSV fields"
    },
    "email subscription dialog": {
       "dialog title": "Subscribe with Email",

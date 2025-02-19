@@ -499,7 +499,7 @@ view dialog =
         DialogCsvConfiguration csvConfigurationData ->
             Ui.Shared.modalDialog
                 settings.theme
-                (Translations.dialogTitle [ settings.browserEnv.translations ])
+                (Translations.configureCsvImportDialogTitle [ settings.browserEnv.translations ])
                 [ viewCsvConfigurationDialog dialog csvConfigurationData ]
                 CloseDialog
                 |> Html.map settings.toMsg
@@ -507,7 +507,7 @@ view dialog =
         DialogCsvMapping csvMappingData ->
             Ui.Shared.modalDialog
                 settings.theme
-                (Translations.dialogTitle [ settings.browserEnv.translations ])
+                (Translations.mapCsvFieldsDialogTitle [ settings.browserEnv.translations ])
                 [ viewCsvMappingDialog dialog csvMappingData ]
                 CloseDialog
                 |> Html.map settings.toMsg
@@ -694,7 +694,7 @@ viewCsvConfigurationDialog (Settings settings) data =
                 |> Button.withTypeSecondary
                 |> Button.view
             , Button.new
-                { label = Translations.processButtonTitle [ settings.browserEnv.translations ]
+                { label = Translations.nextButtonTitle [ settings.browserEnv.translations ]
                 , onClick = Maybe.map2 CsvConfigured maybeHeader maybeData
                 , theme = settings.theme
                 }
@@ -759,7 +759,11 @@ columnValue skipRows columnIndex ( rowIndex, row ) =
                             ]
 
                     else if skipRows == rowIndex then
-                        Html.b []
+                        Html.b
+                            [ css
+                                [ Tw.font_bold
+                                ]
+                            ]
                             [ Html.text value
                             ]
 
