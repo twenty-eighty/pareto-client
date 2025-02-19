@@ -55,7 +55,9 @@
       "name column header in csv column mapping table": "Column name",
       "field column header in csv column mapping table": "Subscriber field",
       "unmapped column dropdown value": "<unmapped>",
-      "email not mapped error message": "At least the email field must be mapped"
+      "email not mapped error message": "At least the email field must be mapped",
+      "skip rows field label": "Skip rows",
+      "column name": "Column"
    },
    "email subscription dialog": {
       "dialog title": "Subscribe with Email",
