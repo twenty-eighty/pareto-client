@@ -246,8 +246,8 @@ viewLNAddress styles profile zapRelays =
         |> Maybe.map
             (\lud16 ->
                 p
-                    (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
-                    [ text <| lud16, zapButton maybeNpub Nothing zapRelays "1" ]
+                    (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ [ css [ Tw.flex, Tw.items_center ] ])
+                    [ text <| lud16, zapButton maybeNpub Nothing zapRelays "0" ]
             )
         |> Maybe.withDefault (div [] [])
 

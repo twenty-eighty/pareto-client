@@ -228,42 +228,6 @@ viewReactions styles icon maybeMsg maybeCount previewData instanceId =
         maybeNpub =
             Nip19.encode (Npub previewData.pubKey)
                 |> Result.toMaybe
-
-        maybeNip19TargetAttr =
-            previewData.maybeNip19Target
-                |> Maybe.map
-                    (\nip19Target ->
-                        if String.startsWith "note" nip19Target then
-                            [ Attr.attribute "data-note-id" nip19Target ]
-
-                        else
-                            [ Attr.attribute "data-naddr" nip19Target ]
-                    )
-
-        ( nostrZapAttrs, maybeZapComponent ) =
-            case ( icon, maybeNpub ) of
-                ( Icon.FeatherIcon featherIcon, Just npub ) ->
-                    if featherIcon == FeatherIcons.zap then
-                        ( [ Attr.id ("zap-button-" ++ instanceId)
-                          , Attr.attribute "data-npub" npub
-                          , Attr.attribute "data-relays" (Set.foldl (\r acc -> r ++ "," ++ acc) "" previewData.zapRelays)
-                          , Attr.attribute "data-button-color" "#334155"
-                          , css [ Tw.cursor_pointer ]
-                          ]
-                            ++ Maybe.withDefault [] maybeNip19TargetAttr
-                        , Just
-                            (Html.node "js-zap-component"
-                                [ Attr.property "buttonId" (Encode.string ("zap-button-" ++ instanceId))
-                                ]
-                                []
-                            )
-                        )
-
-                    else
-                        ( [], Nothing )
-
-                _ ->
-                    ( [], Nothing )
     in
     div
         (styles.colorStyleLabel
@@ -276,21 +240,24 @@ viewReactions styles icon maybeMsg maybeCount previewData instanceId =
                     ]
                ]
         )
-        [ div
-            (onClickAttr
-                ++ nostrZapAttrs
-                ++ [ css
-                        [ Tw.w_5
-                        , Tw.h_5
-                        , Tw.px_0_dot_5
-                        , Tw.py_0_dot_5
-                        , Tw.justify_center
-                        , Tw.items_center
-                        , Tw.flex
-                        ]
-                   ]
-            )
-            [ Icon.view icon, maybeZapComponent |> Maybe.withDefault (div [] []) ]
+        [ if icon == Icon.FeatherIcon FeatherIcons.zap then
+            zapButton maybeNpub previewData.maybeNip19Target previewData.zapRelays instanceId
+
+          else
+            div
+                (onClickAttr
+                    ++ [ css
+                            [ Tw.w_5
+                            , Tw.h_5
+                            , Tw.px_0_dot_5
+                            , Tw.py_0_dot_5
+                            , Tw.justify_center
+                            , Tw.items_center
+                            , Tw.flex
+                            ]
+                       ]
+                )
+                [ Icon.view icon ]
         , div
             []
             [ text (maybeCount |> Maybe.withDefault "0") ]
@@ -316,23 +283,22 @@ zapButton maybeNpub maybeNip19Target zapRelays instanceId =
                             [ Attr.attribute "data-naddr" nip19Target ]
                     )
 
-        nostrZapAttributes =
+        ( nostrZapAttributes, zapComponent ) =
             maybeNpub
                 |> Maybe.map
                     (\npub ->
-                        [ Attr.id ("zap-button-" ++ instanceId)
-                        , Attr.attribute "data-npub" npub
-                        , Attr.attribute "data-relays" (Set.foldl (\r acc -> r ++ "," ++ acc) "" zapRelays)
-                        , Attr.attribute "data-button-color" "#334155"
-                        ]
+                        ( [ Attr.id ("zap-button-" ++ instanceId)
+                          , Attr.attribute "data-npub" npub
+                          , Attr.attribute "data-relays" (Set.foldl (\r acc -> r ++ "," ++ acc) "" zapRelays)
+                          , Attr.attribute "data-button-color" "#334155"
+                          ]
                             ++ Maybe.withDefault [] maybeNip19TargetAttr
+                        , Html.node "js-zap-component"
+                            [ Attr.property "buttonId" (Encode.string ("zap-button-" ++ instanceId)) ]
+                            []
+                        )
                     )
-                |> Maybe.withDefault []
-
-        zapComponent =
-            Html.node "js-zap-component"
-                [ Attr.property "buttonId" (Encode.string ("zap-button-" ++ instanceId)) ]
-                []
+                |> Maybe.withDefault ( [], div [] [] )
     in
     button
         (nostrZapAttributes
@@ -341,7 +307,9 @@ zapButton maybeNpub maybeNip19Target zapRelays instanceId =
                     , Tw.h_5
                     , Tw.px_0_dot_5
                     , Tw.py_0_dot_5
+                    , Tw.justify_center
                     , Tw.items_center
+                    , Tw.flex
                     ]
                ]
         )
