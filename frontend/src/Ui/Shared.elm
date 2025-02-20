@@ -300,3 +300,49 @@ viewReactions styles icon maybeMsg maybeCount previewData instanceId =
 formatZapNum : BrowserEnv -> Int -> String
 formatZapNum browserEnv milliSats =
     browserEnv.formatNumber "0 a" <| toFloat (milliSats // 1000)
+
+
+zapButton : Maybe String -> Maybe String -> Set String -> String -> Html msg
+zapButton maybeNpub maybeNip19Target zapRelays instanceId =
+    let
+        maybeNip19TargetAttr =
+            maybeNip19Target
+                |> Maybe.map
+                    (\nip19Target ->
+                        if String.startsWith "note" nip19Target then
+                            [ Attr.attribute "data-note-id" nip19Target ]
+
+                        else
+                            [ Attr.attribute "data-naddr" nip19Target ]
+                    )
+
+        nostrZapAttributes =
+            maybeNpub
+                |> Maybe.map
+                    (\npub ->
+                        [ Attr.id ("zap-button-" ++ instanceId)
+                        , Attr.attribute "data-npub" npub
+                        , Attr.attribute "data-relays" (Set.foldl (\r acc -> r ++ "," ++ acc) "" zapRelays)
+                        , Attr.attribute "data-button-color" "#334155"
+                        ]
+                            ++ Maybe.withDefault [] maybeNip19TargetAttr
+                    )
+                |> Maybe.withDefault []
+
+        zapComponent =
+            Html.node "js-zap-component"
+                [ Attr.property "buttonId" (Encode.string ("zap-button-" ++ instanceId)) ]
+                []
+    in
+    button
+        (nostrZapAttributes
+            ++ [ css
+                    [ Tw.w_5
+                    , Tw.h_5
+                    , Tw.px_0_dot_5
+                    , Tw.py_0_dot_5
+                    , Tw.items_center
+                    ]
+               ]
+        )
+        [ Icon.view (Icon.FeatherIcon FeatherIcons.zap), zapComponent ]

@@ -175,7 +175,7 @@ view shared _ =
                 [ Tw.m_4
                 ]
             ]
-            [ viewHandlerInformation shared.theme shared.browserEnv shared.loginStatus shared.nostr (Pareto.applicationInformation shared.browserEnv.now)
+            [ viewHandlerInformation shared (Pareto.applicationInformation shared.browserEnv.now)
             , viewSupportedNips shared.theme shared.browserEnv Pareto.supportedNips
             , viewFooter shared.theme shared.browserEnv
             ]
@@ -240,8 +240,8 @@ viewDonationInformation theme translations =
         ]
 
 
-viewHandlerInformation : Theme -> BrowserEnv -> LoginStatus -> Nostr.Model -> HandlerInformation -> Html Msg
-viewHandlerInformation theme browserEnv loginStatus nostr handlerInformation =
+viewHandlerInformation : Shared.Model -> HandlerInformation -> Html Msg
+viewHandlerInformation shared handlerInformation =
     div
         [ css
             [ Tw.flex
@@ -251,20 +251,21 @@ viewHandlerInformation theme browserEnv loginStatus nostr handlerInformation =
         ]
         [ Ui.Profile.viewProfile
             handlerInformation.profile
-            { browserEnv = browserEnv
+            { browserEnv = shared.browserEnv
             , following = UnknownFollowing
             , isAuthor = False
             , subscribe = Nothing
-            , theme = theme
+            , theme = shared.theme
             , validation =
-                Nostr.getProfileValidationStatus nostr handlerInformation.pubKey
+                Nostr.getProfileValidationStatus shared.nostr handlerInformation.pubKey
                     |> Maybe.withDefault ValidationUnknown
             }
-        , viewSupportInformation theme browserEnv.translations
-        , viewDonationInformation theme browserEnv.translations
-        , viewActionButtons theme browserEnv handlerInformation loginStatus
-        , viewWebTargets theme browserEnv handlerInformation.webTargets
-        , viewSupportedKinds theme browserEnv handlerInformation.kinds
+            shared
+        , viewSupportInformation shared.theme shared.browserEnv.translations
+        , viewDonationInformation shared.theme shared.browserEnv.translations
+        , viewActionButtons shared.theme shared.browserEnv handlerInformation shared.loginStatus
+        , viewWebTargets shared.theme shared.browserEnv handlerInformation.webTargets
+        , viewSupportedKinds shared.theme shared.browserEnv handlerInformation.kinds
         ]
 
 

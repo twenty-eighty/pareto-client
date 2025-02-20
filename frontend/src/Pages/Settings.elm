@@ -771,6 +771,7 @@ viewProfile shared _ user =
                                 Nostr.getProfileValidationStatus shared.nostr user.pubKey
                                     |> Maybe.withDefault ValidationUnknown
                             }
+                            shared
                     )
                 |> Maybe.withDefault (div [] [])
     in

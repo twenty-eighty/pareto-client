@@ -204,6 +204,7 @@ viewProfile shared profile =
                 Nostr.getProfileValidationStatus shared.nostr profile.pubKey
                     |> Maybe.withDefault ValidationUnknown
             }
+            shared
         , viewArticles shared profile.pubKey
         ]
 
