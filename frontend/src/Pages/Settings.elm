@@ -801,7 +801,6 @@ type alias RecommendedProfileEditor =
 recommendedProfileEditors : List RecommendedProfileEditor
 recommendedProfileEditors =
     [ { url = "https://metadata.nostr.com/", title = "Nostr Profile Manager" }
-    , { url = "https://nosta.me/", title = "Nosta.me" }
     ]
 
 
