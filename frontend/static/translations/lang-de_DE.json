@@ -116,7 +116,9 @@
       "mute button title": "Stumm",
       "public menu item text": "Öffentlich",
       "private menu item text": "Privat",
-      "subscribe button title": "Abonnieren"
+      "subscribe button title": "Abonnieren",
+      "pub key profile page title": "Profil von",
+      "default profile page title": "Profil"
    },
    "publish article dialog": {
       "dialog title": "Artikel veröffentlichen",

@@ -16,7 +16,7 @@ import Route exposing (Route)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Translations.Sidebar as Translations
+import Translations.Profile as Translations
 import Ui.Profile exposing (FollowType(..))
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..), viewRelayStatus)
@@ -175,7 +175,16 @@ view shared model =
             model.pubKey
                 |> Maybe.andThen (Nostr.getProfile shared.nostr)
     in
-    { title = Translations.readMenuItemText [ shared.browserEnv.translations ]
+    { title =
+        case ( model.pubKey, maybeProfile ) of
+            ( Just pubKey, Just profile ) ->
+                Nostr.Profile.profileDisplayName pubKey profile
+
+            ( Just pubKey, Nothing ) ->
+                Translations.pubKeyProfilePageTitle [ shared.browserEnv.translations ] ++ " " ++ pubKey
+
+            ( _, _ ) ->
+                Translations.defaultProfilePageTitle [ shared.browserEnv.translations ]
     , body =
         [ case ( maybeProfile, model.pubKey ) of
             ( Just profile, _ ) ->
