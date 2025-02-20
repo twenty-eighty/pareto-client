@@ -809,6 +809,7 @@ viewRecommendedProfileEditor styles recommendedProfileEditor =
     li []
         [ a
             (styles.colorStyleLinks
+                ++ styles.textStyleLinks
                 ++ [ Attr.href recommendedProfileEditor.url
                    , Attr.target "_blank"
                    , Attr.rel "noopener noreferrer"
