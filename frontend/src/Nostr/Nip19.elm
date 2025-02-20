@@ -1,12 +1,9 @@
 module Nostr.Nip19 exposing (NAddrData, NIP19Type(..), decode, encode)
 
 import Bitwise exposing (or, shiftLeftBy, shiftRightBy)
-import Char exposing (fromCode)
-import Html exposing (text)
 import Maybe exposing (withDefault)
 import Nostr.Bech32 as Bech32
-import Parser exposing (number)
-import String exposing (fromList, join)
+import String exposing (fromList)
 
 
 
@@ -71,7 +68,7 @@ decode input =
         Nothing ->
             Err "Bech32 decoding failed"
 
-        Just ( prefix, data, encoding ) ->
+        Just ( prefix, data, _ ) ->
             case Bech32.convertBits data 5 8 False of
                 Nothing ->
                     Err "Failed to convert data bits"
@@ -551,8 +548,8 @@ encodeNEvent eventData =
         Just idTlv ->
             let
                 tlvs =
-                    [ idTlv ]
-                        ++ maybeToList authorTLV
+                    idTlv
+                        :: maybeToList authorTLV
                         ++ maybeToList kindTLV
                         ++ relayTLVs
 
@@ -611,8 +608,8 @@ encodeNAddr addrData =
                     )
 
         tlvs =
-            [ identifierTLV ]
-                ++ maybeToList pubKeyTLV
+            identifierTLV
+                :: maybeToList pubKeyTLV
                 ++ [ kindTLV ]
                 ++ relayTLVs
 
@@ -664,12 +661,8 @@ hexToBytes hexStr =
         processChars chars acc =
             case chars of
                 highChar :: lowChar :: rest ->
-                    case toByte highChar lowChar of
-                        Just byte ->
-                            processChars rest (byte :: acc)
-
-                        Nothing ->
-                            Nothing
+                    toByte highChar lowChar
+                        |> Maybe.andThen (\byte -> processChars rest (byte :: acc))
 
                 [] ->
                     Just (List.reverse acc)
