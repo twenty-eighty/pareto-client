@@ -224,10 +224,6 @@ viewReactions styles icon maybeMsg maybeCount previewData instanceId =
 
                 Nothing ->
                     []
-
-        maybeNpub =
-            Nip19.encode (Npub previewData.pubKey)
-                |> Result.toMaybe
     in
     div
         (styles.colorStyleLabel
@@ -241,7 +237,7 @@ viewReactions styles icon maybeMsg maybeCount previewData instanceId =
                ]
         )
         [ if icon == Icon.FeatherIcon FeatherIcons.zap then
-            zapButton maybeNpub previewData.maybeNip19Target previewData.zapRelays instanceId
+            zapButton previewData.pubKey previewData.maybeNip19Target previewData.zapRelays instanceId
 
           else
             div
@@ -269,8 +265,8 @@ formatZapNum browserEnv milliSats =
     browserEnv.formatNumber "0 a" <| toFloat (milliSats // 1000)
 
 
-zapButton : Maybe String -> Maybe String -> Set String -> String -> Html msg
-zapButton maybeNpub maybeNip19Target zapRelays instanceId =
+zapButton : PubKey -> Maybe String -> Set String -> String -> Html msg
+zapButton pubKey maybeNip19Target zapRelays instanceId =
     let
         maybeNip19TargetAttr =
             maybeNip19Target
@@ -282,6 +278,9 @@ zapButton maybeNpub maybeNip19Target zapRelays instanceId =
                         else
                             [ Attr.attribute "data-naddr" nip19Target ]
                     )
+
+        maybeNpub =
+            Nip19.encode (Npub pubKey) |> Result.toMaybe
 
         ( nostrZapAttributes, zapComponent ) =
             maybeNpub

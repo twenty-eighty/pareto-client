@@ -236,18 +236,12 @@ viewNip05 styles profile =
 
 viewLNAddress : Styles msg -> Profile -> Set String -> Html msg
 viewLNAddress styles profile zapRelays =
-    let
-        maybeNpub =
-            Nip19.Npub profile.pubKey
-                |> Nip19.encode
-                |> Result.toMaybe
-    in
     profile.lud16
         |> Maybe.map
             (\lud16 ->
                 p
                     (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ [ css [ Tw.flex, Tw.items_center ] ])
-                    [ text <| lud16, zapButton maybeNpub Nothing zapRelays "0" ]
+                    [ text <| lud16, zapButton profile.pubKey Nothing zapRelays "0" ]
             )
         |> Maybe.withDefault (div [] [])
 
