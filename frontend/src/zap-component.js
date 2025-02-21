@@ -9,10 +9,10 @@ class ZapComponent extends HTMLElement {
     connectedCallback() {
         console.log('zap-component added to page.');
         const scripts = document.getElementsByTagName("script");
-        const myScripts = Array.from(scripts).filter(elem => elem.getAttribute("src") === "/node_modules/nostr-zap/dist/main.js");
+        const myScripts = Array.from(scripts).filter(elem => elem.getAttribute("src") === "/js/nostr-zap.js");
         if (myScripts.length === 0) {
             const newScript = document.createElement('script');
-            newScript.src = "/node_modules/nostr-zap/dist/main.js";
+            newScript.src = "/js/nostr-zap.js";
             document.body.appendChild(newScript);
             console.log("Added script element");
         } else {
