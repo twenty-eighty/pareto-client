@@ -15,6 +15,7 @@ import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Relay exposing (websocketUrl)
 import Nostr.Types exposing (PubKey)
+import Pareto
 import Set exposing (Set)
 import Svg.Loaders
 import Tailwind.Breakpoints as Bp
