@@ -13,11 +13,12 @@ import LinkPreview exposing (LoadedContent)
 import Markdown
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
-import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), numberForKind)
-import Nostr.Nip19 as Nip19
+import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..))
+import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Nip27 exposing (GetProfileFunction)
-import Nostr.Profile exposing (Author, Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
+import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Reactions exposing (Interactions)
+import Nostr.Relay exposing (websocketUrl)
 import Nostr.Types exposing (EventId, PubKey)
 import Route
 import Route.Path
@@ -29,7 +30,7 @@ import Time
 import Translations.Posts
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
-import Ui.Shared exposing (Actions)
+import Ui.Shared exposing (Actions, extendedZapRelays)
 import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded)
 
 
@@ -86,6 +87,17 @@ viewArticle articlePreviewsData articlePreviewData article =
                     ]
                 ]
             ]
+
+        articleRelays =
+            article.relays |> Set.map websocketUrl
+
+        previewData =
+            { pubKey = article.author
+            , maybeNip19Target = nip19ForArticle article
+            , zapRelays = extendedZapRelays articleRelays articlePreviewsData.nostr articlePreviewsData.userPubKey
+            , actions = articlePreviewData.actions
+            , interactions = articlePreviewData.interactions
+            }
     in
     div
         [ css
@@ -184,9 +196,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                     ++ styles.textStyleReactions
                     ++ contentMargins
                 )
-                [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions
+                [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "1"
                 , viewContent styles articlePreviewData.loadedContent getProfile article.content
-                , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions
+                , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "2"
                 ]
             ]
 
@@ -721,33 +733,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
 
 linkToArticle : Article -> Maybe String
 linkToArticle article =
-    case
-        Nip19.encode <|
-            Nip19.NAddr
-                { identifier = article.identifier |> Maybe.withDefault ""
-                , pubKey = article.author
-                , kind = numberForKind article.kind
-                , relays =
-                    article.relays
-                        |> Maybe.map
-                            (\urlsWithoutProtocol ->
-                                urlsWithoutProtocol
-                                    |> Set.toList
-                                    -- append max 5 relays so the link doesn't get infinitely long
-                                    |> List.take 5
-                                    |> List.map
-                                        (\urlWithoutProtocol ->
-                                            "wss://" ++ urlWithoutProtocol
-                                        )
-                            )
-                        |> Maybe.withDefault []
-                }
-    of
-        Ok encodedCoordinates ->
-            Just <| "/a/" ++ encodedCoordinates
-
-        Err _ ->
-            Nothing
+    nip19ForArticle article |> Maybe.map (\naddr -> "/a/" ++ naddr)
 
 
 viewTitlePreview : Styles msg -> Maybe String -> Maybe String -> List Css.Style -> Html msg

@@ -6,6 +6,7 @@ import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Ta
 import Nostr.Nip19 as Nip19
 import Nostr.Nip27 as Nip27
 import Nostr.Profile exposing (ProfileValidation(..))
+import Nostr.Relay exposing (websocketUrl)
 import Nostr.Shared
 import Nostr.Types exposing (Address, EventId, PubKey, RelayUrl)
 import Set exposing (Set)
@@ -31,7 +32,7 @@ type alias Article =
     , hashtags : List String
     , zapWeights : List ( PubKey, RelayUrl, Maybe Int )
     , otherTags : List Tag
-    , relays : Maybe (Set String)
+    , relays : Set String
     , nip27References : List Nip19.NIP19Type
     }
 
@@ -40,7 +41,7 @@ type alias Article =
 -- assume published date is event creation date unless specified explicitely in publishedAt tag
 
 
-emptyArticle : PubKey -> EventId -> Kind -> Time.Posix -> String -> Maybe (List RelayUrl) -> Article
+emptyArticle : PubKey -> EventId -> Kind -> Time.Posix -> String -> List RelayUrl -> Article
 emptyArticle author eventId kind createdAt content relayUrls =
     { author = author
     , id = eventId
@@ -60,7 +61,7 @@ emptyArticle author eventId kind createdAt content relayUrls =
     , hashtags = []
     , zapWeights = []
     , otherTags = []
-    , relays = Maybe.map Set.fromList relayUrls
+    , relays = Set.fromList relayUrls
     , nip27References =
         Nip27.collectNostrLinks content
     }
@@ -72,7 +73,12 @@ nip19ForArticle article =
         { identifier = article.identifier |> Maybe.withDefault ""
         , pubKey = article.author
         , kind = Nostr.Event.numberForKind article.kind
-        , relays = []
+        , relays =
+            article.relays
+                |> Set.toList
+                -- append max 5 relays so the link doesn't get infinitely long
+                |> List.take 5
+                |> List.map websocketUrl
         }
         |> Nip19.encode
         |> Result.toMaybe
@@ -98,7 +104,7 @@ articleFromEvent : Event -> Result (List String) Article
 articleFromEvent event =
     let
         articleWithoutTags =
-            emptyArticle event.pubKey event.id event.kind event.createdAt event.content event.relays
+            emptyArticle event.pubKey event.id event.kind event.createdAt event.content (Maybe.withDefault [] event.relays)
 
         ( builtArticle, buildingErrors ) =
             event.tags

@@ -181,6 +181,7 @@ viewProfile shared model profile =
                 Nostr.getProfileValidationStatus shared.nostr profile.pubKey
                     |> Maybe.withDefault ValidationUnknown
             }
+            shared
         , Nostr.getArticlesForAuthor shared.nostr profile.pubKey
             |> Ui.View.viewArticlePreviews
                 ArticlePreviewList

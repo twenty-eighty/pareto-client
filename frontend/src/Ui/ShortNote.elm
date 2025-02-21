@@ -4,7 +4,7 @@ import BrowserEnv exposing (BrowserEnv)
 import Html.Styled as Html exposing (Html, a, br, button, div, p, span, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Nostr
-import Nostr.Nip19 as Nip19
+import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
 import Nostr.Reactions exposing (Interactions)
 import Nostr.ShortNote exposing (ShortNote)
@@ -12,7 +12,7 @@ import Nostr.Types exposing (EventId, PubKey)
 import Tailwind.Utilities as Tw
 import Ui.Links exposing (linkElementForAuthor)
 import Ui.Profile
-import Ui.Shared exposing (Actions)
+import Ui.Shared exposing (Actions, extendedZapRelays, pubkeyInboxRelays)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 import Url
 
@@ -47,18 +47,36 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
                 AuthorProfile profile profileValidation ->
                     ( profileDisplayName profile.pubKey profile, Just profile, profileValidation )
 
-        noteUrl =
+        authorPubKey =
+            case shortNoteViewData.author of
+                AuthorPubkey pubKey ->
+                    pubKey
+
+                AuthorProfile profile _ ->
+                    profile.pubKey
+
+        authorInboxRelays =
+            pubkeyInboxRelays shortNotesViewData.nostr authorPubKey
+
+        maybeNoteId =
             shortNote.id
                 |> Nip19.Note
                 |> Nip19.encode
                 |> Result.toMaybe
-                |> Maybe.withDefault ""
+
+        previewData =
+            { pubKey = shortNote.pubKey
+            , maybeNip19Target = maybeNoteId
+            , zapRelays = extendedZapRelays authorInboxRelays shortNotesViewData.nostr shortNotesViewData.userPubKey
+            , actions = shortNoteViewData.actions
+            , interactions = shortNoteViewData.interactions
+            }
     in
     div
         [ Attr.class "animated"
         ]
         [ a
-            [ Attr.href noteUrl
+            [ Attr.href (Maybe.withDefault "" maybeNoteId)
             , Attr.attribute "link" ""
             , css
                 [ Tw.relative
@@ -231,7 +249,7 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
                     , div
                         [ Attr.class "_footer_qj1dj_448"
                         ]
-                        [ Ui.Shared.viewInteractions styles shortNotesViewData.browserEnv shortNoteViewData.actions shortNoteViewData.interactions
+                        [ Ui.Shared.viewInteractions styles shortNotesViewData.browserEnv previewData "1"
                         ]
                     ]
                 ]

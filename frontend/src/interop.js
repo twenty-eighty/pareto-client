@@ -6,6 +6,7 @@ import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
 import { BlossomClient } from "blossom-client-sdk/client";
 import { init as initNostrLogin, launch as launchNostrLoginDialog } from "nostr-login"
 import "./clipboard-component.js";
+import "./zap-component.js";
 import "./elm-oembed.js";
 import debug from 'debug';
 

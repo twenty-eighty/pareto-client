@@ -1648,15 +1648,15 @@ updateModelWithLongFormContentDraft model requestId events =
                 |> List.foldl
                     (\article acc ->
                         case ( article.relays, Dict.get article.id acc ) of
-                            ( Just relayUrls, Just relaySet ) ->
+                            ( relayUrls, Just relaySet ) ->
                                 Dict.insert article.id (Set.union relayUrls relaySet) acc
 
-                            ( Just relayUrls, Nothing ) ->
-                                Dict.insert article.id relayUrls acc
+                            ( relayUrls, Nothing ) ->
+                                if not (Set.isEmpty relayUrls) then
+                                    Dict.insert article.id relayUrls acc
 
-                            ( Nothing, _ ) ->
-                                -- usually we should get a relay URL so this branch shouldn't be run through
-                                acc
+                                else
+                                    acc
                     )
                     model.articleDraftRelays
 

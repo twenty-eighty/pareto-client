@@ -13,12 +13,14 @@ import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
+import Set exposing (Set)
+import Shared
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Time
 import Translations.Profile as Translations
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
-import Ui.Shared
+import Ui.Shared exposing (extendedZapRelays, pubkeyInboxRelays, zapButton)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 
 
@@ -83,11 +85,20 @@ viewProfileSmall profile validationStatus =
         ]
 
 
-viewProfile : Profile -> ProfileViewData msg -> Html msg
-viewProfile profile profileViewData =
+viewProfile : Profile -> ProfileViewData msg -> Shared.Model -> Html msg
+viewProfile profile profileViewData shared =
     let
         styles =
             stylesForTheme profileViewData.theme
+
+        authorInboxRelays =
+            pubkeyInboxRelays shared.nostr profile.pubKey
+
+        userPubKey =
+            Shared.loggedInPubKey shared.loginStatus
+
+        zapRelays =
+            extendedZapRelays authorInboxRelays shared.nostr userPubKey
     in
     div
         [ css
@@ -126,6 +137,7 @@ viewProfile profile profileViewData =
                     [ text (profile.about |> Maybe.withDefault "") ]
                 , viewWebsite styles profile
                 , viewNip05 styles profile
+                , viewLNAddress styles profile zapRelays
                 , viewNpub styles profile
                 ]
             , div
@@ -221,6 +233,18 @@ viewNip05 styles profile =
 
         Nothing ->
             div [] []
+
+
+viewLNAddress : Styles msg -> Profile -> Set String -> Html msg
+viewLNAddress styles profile zapRelays =
+    profile.lud16
+        |> Maybe.map
+            (\lud16 ->
+                p
+                    (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ [ css [ Tw.flex, Tw.items_center ] ])
+                    [ text <| lud16, zapButton profile.pubKey Nothing zapRelays "0" ]
+            )
+        |> Maybe.withDefault (div [] [])
 
 
 viewNpub : Styles msg -> Profile -> Html msg
