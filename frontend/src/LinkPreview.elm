@@ -177,10 +177,10 @@ detectLinkType url originalUrl =
                 PlainLink
 
     else if isPlainLinkkUrl url then
-        -- plain link must be tested before embeddable link to avoid trying Facebook links to embed
+        -- plain link must be tested before embeddable link to avoid trying to embed Facebook links
         PlainLink
 
-    else if isEmbeddable url originalUrl then
+    else if isEmbeddable originalUrl then
         EmbeddableLink originalUrl
 
     else
@@ -249,15 +249,9 @@ isPlainLinkkUrl url =
     List.member url.host hosts
 
 
-isEmbeddable : Erl.Url -> String -> Bool
-isEmbeddable url urlString =
-    let
-        hosts =
-            [ [ "soundcloud", "com" ] ]
-    in
-    -- TODO: for some reason soundcloud doesn't match in the built-in list.
-    -- Needs investigation
-    List.member url.host hosts || Oembed.ProviderTemp.hardcodedMatches urlString
+isEmbeddable : String -> Bool
+isEmbeddable urlString =
+    Oembed.ProviderTemp.hardcodedMatches urlString
 
 
 
