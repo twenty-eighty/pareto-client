@@ -42,7 +42,7 @@ type LinkType
     | PodBeanLink String
     | ObjectLink String
     | PlainLink
-    | EmbeddableLink
+    | EmbeddableLink String
 
 
 
@@ -61,7 +61,7 @@ generatePreviewHtml loadedContent urlString linkAttr body =
     in
     case Url.fromString urlString of
         Just _ ->
-            case detectLinkType sanitizedUrl of
+            case detectLinkType sanitizedUrl urlString of
                 YouTubeVideo videoId ->
                     generateYouTubePreview loadedContent urlString videoId
 
@@ -92,8 +92,8 @@ generatePreviewHtml loadedContent urlString linkAttr body =
                 PlainLink ->
                     a (linkAttr ++ [ href <| Erl.toString sanitizedUrl ]) body
 
-                EmbeddableLink ->
-                    generateGenericPreview loadedContent urlString linkAttr body
+                EmbeddableLink originalUrl ->
+                    generateGenericPreview loadedContent originalUrl linkAttr body
 
         Nothing ->
             -- If URL parsing fails, show regular link
@@ -104,8 +104,8 @@ generatePreviewHtml loadedContent urlString linkAttr body =
 -- Function to detect the type of link and extract necessary IDs
 
 
-detectLinkType : Erl.Url -> LinkType
-detectLinkType url =
+detectLinkType : Erl.Url -> String -> LinkType
+detectLinkType url originalUrl =
     if isYouTubeWatchUrl url then
         case getYouTubeVideoIdFromQuery url.query of
             Just videoId ->
@@ -180,8 +180,8 @@ detectLinkType url =
         -- plain link must be tested before embeddable link to avoid trying Facebook links to embed
         PlainLink
 
-    else if isEmbeddable url then
-        EmbeddableLink
+    else if isEmbeddable url originalUrl then
+        EmbeddableLink originalUrl
 
     else
         PlainLink
@@ -249,11 +249,19 @@ isPlainLinkkUrl url =
     List.member url.host hosts
 
 
-isEmbeddable : Erl.Url -> Bool
-isEmbeddable url =
-    url
-        |> Erl.toString
-        |> Oembed.ProviderTemp.hardcodedMatches
+isEmbeddable : Erl.Url -> String -> Bool
+isEmbeddable url urlString =
+    let
+        hosts =
+            [ [ "soundcloud", "com" ] ]
+    in
+    -- TODO: for some reason soundcloud doesn't match in the built-in list.
+    -- Needs investigation
+    List.member url.host hosts || Oembed.ProviderTemp.hardcodedMatches urlString
+
+
+
+-- |> Oembed.matchesDefaultProvider
 
 
 type alias DetectMimeTypeFromPathFunction =
