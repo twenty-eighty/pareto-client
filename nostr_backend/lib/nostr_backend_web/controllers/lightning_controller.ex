@@ -70,6 +70,21 @@ defmodule NostrBackendWeb.LightningController do
     end
   end
 
+  def test_lnurlp_entries do
+    @lnurlp_data
+    |> Enum.map(fn {username, %{"lud16" => lud16} = user_data} ->
+      lnurlp_url = build_lnurlp_url(lud16)
+
+      case fetch_lnurlp_json(lnurlp_url) do
+        {:ok, _json_data} ->
+          {username, lud16, :success}
+
+        {:error, reason} ->
+          {username, lud16, {:error, reason}}
+      end
+    end)
+  end
+
   defp build_lnurlp_url(lud16) do
     [username, domain] = String.split(lud16, "@")
     "https://#{domain}/.well-known/lnurlp/#{username}"
