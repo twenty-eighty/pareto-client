@@ -314,7 +314,7 @@ zapButton pubKey maybeNip19Target zapRelays instanceId =
                     (\npub ->
                         ( [ Attr.id ("zap-button-" ++ instanceId)
                           , Attr.attribute "data-npub" npub
-                          , Attr.attribute "data-relays" (Set.foldl (\r acc -> r ++ "," ++ acc) "" zapRelays)
+                          , Attr.attribute "data-relays" (zapRelays |> Set.toList |> String.join ",")
                           , Attr.attribute "data-button-color" "#334155"
                           ]
                             ++ Maybe.withDefault [] maybeNip19TargetAttr
