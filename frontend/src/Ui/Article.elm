@@ -13,8 +13,8 @@ import LinkPreview exposing (LoadedContent)
 import Markdown
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
-import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), numberForKind)
-import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
+import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..))
+import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Reactions exposing (Interactions)
@@ -93,7 +93,7 @@ viewArticle articlePreviewsData articlePreviewData article =
 
         previewData =
             { pubKey = article.author
-            , maybeNip19Target = articleAddress article
+            , maybeNip19Target = nip19ForArticle article
             , zapRelays = extendedZapRelays articleRelays articlePreviewsData.nostr articlePreviewsData.userPubKey
             , actions = articlePreviewData.actions
             , interactions = articlePreviewData.interactions
@@ -731,26 +731,9 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
         ]
 
 
-articleAddress : Article -> Maybe String
-articleAddress article =
-    Result.toMaybe <|
-        Nip19.encode <|
-            Nip19.NAddr
-                { identifier = article.identifier |> Maybe.withDefault ""
-                , pubKey = article.author
-                , kind = numberForKind article.kind
-                , relays =
-                    article.relays
-                        |> Set.toList
-                        -- append max 5 relays so the link doesn't get infinitely long
-                        |> List.take 5
-                        |> List.map websocketUrl
-                }
-
-
 linkToArticle : Article -> Maybe String
 linkToArticle article =
-    articleAddress article |> Maybe.map (\naddr -> "/a/" ++ naddr)
+    nip19ForArticle article |> Maybe.map (\naddr -> "/a/" ++ naddr)
 
 
 viewTitlePreview : Styles msg -> Maybe String -> Maybe String -> List Css.Style -> Html msg

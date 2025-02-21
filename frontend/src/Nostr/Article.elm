@@ -6,6 +6,7 @@ import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Ta
 import Nostr.Nip19 as Nip19
 import Nostr.Nip27 as Nip27
 import Nostr.Profile exposing (ProfileValidation(..))
+import Nostr.Relay exposing (websocketUrl)
 import Nostr.Shared
 import Nostr.Types exposing (Address, EventId, PubKey, RelayUrl)
 import Set exposing (Set)
@@ -72,7 +73,12 @@ nip19ForArticle article =
         { identifier = article.identifier |> Maybe.withDefault ""
         , pubKey = article.author
         , kind = Nostr.Event.numberForKind article.kind
-        , relays = []
+        , relays =
+            article.relays
+                |> Set.toList
+                -- append max 5 relays so the link doesn't get infinitely long
+                |> List.take 5
+                |> List.map websocketUrl
         }
         |> Nip19.encode
         |> Result.toMaybe
