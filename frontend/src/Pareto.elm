@@ -212,7 +212,7 @@ bootstrapAuthorsList =
     , ( "Genexyz", "2063cd7955cffdca0cc4ae20f77b2b1eb053010e534c18e8ca70222157bd1320" )
     , ( "te@pareto.town", "fe02e8ece33b9e01b4225a01bb373552dc6f78744ad8121698c30bfaf07fbe0b" )
     , ( "Paul Andersson", "2516d14559174be1a2e578c333ef584e2f32b45931bddb624d0178e4070c8fa1" )
-    , ( "Eva Schmidt", "1731c73ccb388c5574b97d349c22c5f34271cef841129eb719e418cc1bca4ecc" )
+    , ( "eva.schmidt@pareto.town", "1731c73ccb388c5574b97d349c22c5f34271cef841129eb719e418cc1bca4ecc" )
     , ( "simon.kramer@sk-nostr.ch", "e77fe29e0868513a47b68b5941332139432b8e600140791163173b636fe8bc9d" )
     , ( "NACHHALL", "712db8c83700aca0ffa1c3b759929e18d26fcc2b6eeb07305bdf33760b42cbce" )
     , ( "bitcoinlighthouse@nsec.app", "638384700918e6a472477045dbcc229362ac0e64a48d927c48af609a956b9348" )
@@ -232,6 +232,7 @@ bootstrapAuthorsList =
     , ( "nexus@pareto.town", "d1d190fa3ecb81a45669bd343d3b9952eb73611cb3cb4c4349980e4de4ce6a6a" )
     , ( "sinautoshi@pareto.town", "04ea4f8350f1562aa1d60dc070561f5bb8386a11d1a00570fd7440da210e1713" )
     , ( "kaydee@pareto.town", "0fb1cb069125af78bce3306562492aa85a458c6b3b8d415fd5710102cc1c8841" )
+    , ( "volker.schubert@pareto.town", "80f49d824217e4730aadb729d38775bb2a31405b92a3d70ea37b73fcab3cb150" )
     ]
 
 
