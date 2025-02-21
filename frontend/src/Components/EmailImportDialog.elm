@@ -10,7 +10,7 @@ import Effect exposing (Effect)
 import Email
 import File exposing (File)
 import File.Select as FileSelect
-import Html.Styled as Html exposing (Html, div, text, textarea)
+import Html.Styled as Html exposing (Html, div, input, label, text, textarea)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
@@ -41,11 +41,14 @@ type Msg msg
     | ProcessEnteredData String
     | NewTableState Table.State
     | NewMappingTableState Table.State
+    | NewPreviewTableState Table.State
     | MappingDropdownSent String (Dropdown.Msg SubscriberField (Msg msg))
+    | UpdateSkippedRows String
     | CsvRequested
     | CsvSelected File
     | CsvLoaded String
     | CsvParsed (Result ProcessingError CsvData)
+    | CsvConfigured (List String) (List (List String))
     | CsvProcess (List String) CsvData CsvColumnNameMap
     | CsvProcessed (List Subscriber)
 
@@ -60,6 +63,7 @@ type DialogState
     = DialogHidden
     | DialogSelection
     | DialogImport EmailImportData
+    | DialogCsvConfiguration CsvConfigurationData
     | DialogCsvMapping CsvMappingData
     | DialogCsvProcessingError ProcessingError
     | DialogProcessed EmailProcessedData
@@ -72,6 +76,14 @@ type ProcessingError
 
 type alias EmailImportData =
     { enteredEmails : String
+    }
+
+
+type alias CsvConfigurationData =
+    { -- CSV data with header(s)
+      csvData : CsvData
+    , skipRows : Int
+    , previewTable : Table.State
     }
 
 
@@ -258,6 +270,14 @@ update props =
                     _ ->
                         ( Model model, Effect.none )
 
+            NewPreviewTableState tableState ->
+                case model.state of
+                    DialogCsvConfiguration configurationData ->
+                        ( Model { model | state = DialogCsvConfiguration { configurationData | previewTable = tableState } }, Effect.none )
+
+                    _ ->
+                        ( Model model, Effect.none )
+
             MappingDropdownSent columnName innerMsg ->
                 case model.state of
                     DialogCsvMapping mappingData ->
@@ -279,6 +299,16 @@ update props =
                                 ( Model model, Effect.none )
 
                     _ ->
+                        ( Model model, Effect.none )
+
+            UpdateSkippedRows value ->
+                case ( model.state, String.toInt value ) of
+                    ( DialogCsvConfiguration csvConfiguration, Just skipRows ) ->
+                        ( Model { state = DialogCsvConfiguration { csvConfiguration | skipRows = skipRows } }
+                        , Effect.none
+                        )
+
+                    ( _, _ ) ->
                         ( Model model, Effect.none )
 
             CsvRequested ->
@@ -305,40 +335,30 @@ update props =
             CsvParsed csvParsingResult ->
                 case csvParsingResult of
                     -- separate header from data
-                    Ok (header :: csvData) ->
+                    Ok [] ->
+                        ( Model { model | state = DialogCsvProcessingError (CsvParsingError <| Translations.csvFileEmptyErrorMessage [ props.browserEnv.translations ]) }
+                        , Effect.none
+                        )
+
+                    Ok csvData ->
                         let
                             csvColumnCount =
-                                header
-                                    |> List.length
+                                csvData
+                                    |> List.head
+                                    |> Maybe.map List.length
+                                    |> Maybe.withDefault 0
                         in
                         ( Model
                             { model
                                 | state =
-                                    DialogCsvMapping
+                                    DialogCsvConfiguration
                                         { csvData = csvData
-                                        , header = header
-                                        , mappingTable =
-                                            Table.initialState (mappingColumnName MappingTableColumnName) csvColumnCount
-                                                |> Table.setTotal csvColumnCount
-                                        , mappingSelectionDropdowns =
-                                            let
-                                                columnNameMap =
-                                                    Subscribers.buildColumnNameMap header
-                                            in
-                                            -- create a dropdown listbox for each CSV column
-                                            header
-                                                |> List.map
-                                                    (\fieldName ->
-                                                        ( fieldName, Dropdown.init { selected = Dict.get fieldName columnNameMap } )
-                                                    )
-                                                |> Dict.fromList
+                                        , skipRows = firstCompleteRow previewTableRows csvData |> Maybe.withDefault 0
+                                        , previewTable =
+                                            Table.initialState "column0" csvColumnCount
+                                                |> Table.setTotal previewTableRows
                                         }
                             }
-                        , Effect.none
-                        )
-
-                    Ok [] ->
-                        ( Model { model | state = DialogCsvProcessingError (CsvParsingError <| Translations.csvFileEmptyErrorMessage [ props.browserEnv.translations ]) }
                         , Effect.none
                         )
 
@@ -346,6 +366,38 @@ update props =
                         ( Model { model | state = DialogCsvProcessingError error }
                         , Effect.none
                         )
+
+            CsvConfigured header csvData ->
+                let
+                    csvColumnCount =
+                        header
+                            |> List.length
+                in
+                ( Model
+                    { model
+                        | state =
+                            DialogCsvMapping
+                                { csvData = csvData
+                                , header = header
+                                , mappingTable =
+                                    Table.initialState (mappingColumnName MappingTableColumnName) csvColumnCount
+                                        |> Table.setTotal (List.length csvData + 1)
+                                , mappingSelectionDropdowns =
+                                    let
+                                        columnNameMap =
+                                            Subscribers.buildColumnNameMap header
+                                    in
+                                    -- create a dropdown listbox for each CSV column
+                                    header
+                                        |> List.map
+                                            (\fieldName ->
+                                                ( fieldName, Dropdown.init { selected = Dict.get fieldName columnNameMap } )
+                                            )
+                                        |> Dict.fromList
+                                }
+                    }
+                , Effect.none
+                )
 
             CsvProcess header csvData csvColumnNameMap ->
                 ( Model
@@ -371,6 +423,26 @@ update props =
                     }
                 , Effect.none
                 )
+
+
+firstCompleteRow : Int -> List (List String) -> Maybe Int
+firstCompleteRow maxRowCount csvData =
+    let
+        isCsvHeaderField : String -> Bool
+        isCsvHeaderField value =
+            case String.toLower value of
+                "email" ->
+                    True
+
+                "e-mail" ->
+                    True
+
+                _ ->
+                    False
+    in
+    csvData
+        |> List.take maxRowCount
+        |> List.Extra.findIndex (List.any isCsvHeaderField)
 
 
 parseCsvTask : String -> Task ProcessingError CsvData
@@ -424,10 +496,18 @@ view dialog =
                 CloseDialog
                 |> Html.map settings.toMsg
 
+        DialogCsvConfiguration csvConfigurationData ->
+            Ui.Shared.modalDialog
+                settings.theme
+                (Translations.configureCsvImportDialogTitle [ settings.browserEnv.translations ])
+                [ viewCsvConfigurationDialog dialog csvConfigurationData ]
+                CloseDialog
+                |> Html.map settings.toMsg
+
         DialogCsvMapping csvMappingData ->
             Ui.Shared.modalDialog
                 settings.theme
-                (Translations.dialogTitle [ settings.browserEnv.translations ])
+                (Translations.mapCsvFieldsDialogTitle [ settings.browserEnv.translations ])
                 [ viewCsvMappingDialog dialog csvMappingData ]
                 CloseDialog
                 |> Html.map settings.toMsg
@@ -540,6 +620,163 @@ viewImportDialog (Settings settings) data =
                 |> Button.view
             ]
         ]
+
+
+viewCsvConfigurationDialog : EmailImportDialog msg -> CsvConfigurationData -> Html (Msg msg)
+viewCsvConfigurationDialog (Settings settings) data =
+    let
+        maybeHeader =
+            data.csvData
+                |> List.drop data.skipRows
+                |> List.head
+
+        maybeData =
+            if List.length data.csvData > data.skipRows + 1 then
+                Just <| List.drop (data.skipRows + 1) data.csvData
+
+            else
+                Nothing
+    in
+    div
+        [ css
+            [ Tw.my_4
+            , Tw.flex
+            , Tw.flex_col
+            , Tw.justify_start
+            , Tw.gap_2
+            , Tw.w_auto
+            , Tw.min_w_80
+            , Tw.max_h_96
+            ]
+        ]
+        [ div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.gap_2
+                ]
+            ]
+            [ label [ Attr.for "skipRows" ] [ text <| Translations.skipRowsFieldLabel [ settings.browserEnv.translations ] ]
+            , input
+                [ Attr.id "skipRows"
+                , Attr.value <| String.fromInt data.skipRows
+                , Attr.type_ "number"
+                , Attr.min <| String.fromInt 0
+                , Attr.max <| String.fromInt (previewTableRows - 1)
+                , Events.onInput UpdateSkippedRows
+                ]
+                []
+            ]
+        , div
+            [ css
+                [ Tw.max_w_96
+                , Tw.overflow_auto
+                ]
+            ]
+            [ Table.view
+                (previewTableConfig settings.browserEnv.translations data)
+                data.previewTable
+                (List.take previewTableRows data.csvData |> List.indexedMap Tuple.pair)
+                |> Html.fromUnstyled
+            ]
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.gap_2
+                ]
+            ]
+            [ Button.new
+                { label = Translations.closeButtonTitle [ settings.browserEnv.translations ]
+                , onClick = Just CloseDialog
+                , theme = settings.theme
+                }
+                |> Button.withTypeSecondary
+                |> Button.view
+            , Button.new
+                { label = Translations.nextButtonTitle [ settings.browserEnv.translations ]
+                , onClick = Maybe.map2 CsvConfigured maybeHeader maybeData
+                , theme = settings.theme
+                }
+                |> Button.withTypePrimary
+                |> Button.view
+            ]
+        ]
+
+
+previewTableRows : Int
+previewTableRows =
+    10
+
+
+previewTableConfig : I18Next.Translations -> CsvConfigurationData -> Table.Config ( Int, List String ) (Msg msg)
+previewTableConfig translations csvConfigurationData =
+    Table.customConfig
+        { toId =
+            \( _, row ) ->
+                row
+                    |> List.head
+                    |> Maybe.withDefault ""
+        , toMsg = NewPreviewTableState
+        , columns =
+            csvConfigurationData.csvData
+                |> List.head
+                |> Maybe.map
+                    (\firstRow ->
+                        firstRow
+                            |> List.indexedMap
+                                (\index _ ->
+                                    previewColumn translations csvConfigurationData.skipRows index
+                                )
+                    )
+                |> Maybe.withDefault []
+        , customizations =
+            { defaultCustomizations
+                | tableAttrs = Table.defaultCustomizations.tableAttrs
+            }
+        }
+
+
+previewColumn : I18Next.Translations -> Int -> Int -> Table.Column ( Int, List String ) (Msg msg)
+previewColumn translations skipRows columnIndex =
+    { id = "column" ++ String.fromInt columnIndex
+    , name = Translations.columnName [ translations ] ++ " " ++ String.fromInt (columnIndex + 1)
+    , viewData = columnValue skipRows columnIndex
+    , sorter = Table.unsortable
+    }
+        |> Table.veryCustomColumn
+
+
+columnValue : Int -> Int -> ( Int, List String ) -> Table.HtmlDetails (Msg msg)
+columnValue skipRows columnIndex ( rowIndex, row ) =
+    let
+        output =
+            case List.drop columnIndex row |> List.head of
+                Just value ->
+                    if rowIndex < skipRows then
+                        Html.i []
+                            [ Html.text value
+                            ]
+
+                    else if skipRows == rowIndex then
+                        Html.b
+                            [ css
+                                [ Tw.font_bold
+                                ]
+                            ]
+                            [ Html.text value
+                            ]
+
+                    else
+                        Html.text value
+
+                Nothing ->
+                    Html.text ""
+    in
+    [ output
+        |> Html.toUnstyled
+    ]
+        |> Table.HtmlDetails []
 
 
 viewCsvMappingDialog : EmailImportDialog msg -> CsvMappingData -> Html (Msg msg)

@@ -51,7 +51,7 @@ export const onReady = ({ app, env }) => {
 
   app.ports.sendCommand.subscribe(({ command: command, value: value }) => {
     if (command === 'connect') {
-      connect(app, value);
+      connect(app, value.client, value.nip89, value.relays);
     } else if (command === 'loginSignUp') {
       loginSignUp(app);
     } else if (connected) {
@@ -129,10 +129,17 @@ export const onReady = ({ app, env }) => {
   }
 
 
-  function connect(app, relays) {
+  function connect(app, client, nip89, relays) {
     debugLog('connect to relays', relays);
     const dexieAdapter = new NDKCacheAdapterDexie({ dbName: 'pareto-ndk-cache' });
-    window.ndk = new NDK({ enableOutboxModel: true, cacheAdapter: dexieAdapter, explicitRelayUrls: relays, debug: debugLog });
+    window.ndk = new NDK({
+      enableOutboxModel: true,
+      cacheAdapter: dexieAdapter,
+      explicitRelayUrls: relays,
+      clientName: client,
+      clientNip89: nip89,
+      debug: debugLog
+    });
 
     // sign in if a relay requests authorization
     window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk });

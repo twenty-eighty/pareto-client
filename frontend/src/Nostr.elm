@@ -1750,6 +1750,19 @@ requestRelatedKindsForArticles model articles request =
 
 appendNip27ProfileRequests : Model -> Request -> List NIP19Type -> ( Model, Request )
 appendNip27ProfileRequests model request nip19List =
+    case nip27ProfilesRequest model nip19List of
+        Just eventFilterForProfiles ->
+            -- TODO: add relays for request
+            eventFilterForProfiles
+                |> RequestProfile Nothing
+                |> addToRequest model request
+
+        Nothing ->
+            ( model, request )
+
+
+nip27ProfilesRequest : Model -> List NIP19Type -> Maybe EventFilter
+nip27ProfilesRequest model nip19List =
     let
         pubKeys =
             nip19List
@@ -1782,21 +1795,10 @@ appendNip27ProfileRequests model request nip19List =
                     )
                 |> Set.fromList
                 |> Set.toList
-
-        maybeEventFilter =
-            pubKeys
-                |> getMissingProfilePubKeys model
-                |> eventFilterForAuthors
     in
-    case maybeEventFilter of
-        Just eventFilterForProfiles ->
-            -- TODO: add relays for request
-            eventFilterForProfiles
-                |> RequestProfile Nothing
-                |> addToRequest model request
-
-        Nothing ->
-            ( model, request )
+    pubKeys
+        |> getMissingProfilePubKeys model
+        |> eventFilterForAuthors
 
 
 updateModelWithSearchRelays : Model -> RequestId -> List Event -> ( Model, Cmd Msg )

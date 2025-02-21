@@ -29,10 +29,11 @@ defaultProfilePicture =
     "/images/avatars/placeholder_01.png"
 
 
-profilePicture : Maybe Profile -> String
-profilePicture maybeProfile =
+profilePicture : Int -> Maybe Profile -> String
+profilePicture width maybeProfile =
     maybeProfile
         |> Maybe.andThen .picture
+        |> Maybe.map (Ui.Shared.extendUrlForScaling width)
         |> Maybe.withDefault defaultProfilePicture
 
 
@@ -321,7 +322,7 @@ viewProfileImage linkElement maybeProfile validationStatus =
         ]
         [ linkElement
             [ img
-                [ Attr.src <| profilePicture maybeProfile
+                [ Attr.src <| profilePicture 112 maybeProfile
                 , Attr.alt "Avatar"
                 , css
                     [ Tw.min_w_28
@@ -402,7 +403,7 @@ viewProfileImageSmall linkElement maybeProfile validationStatus =
         ]
         [ linkElement
             [ img
-                [ Attr.src <| profilePicture maybeProfile
+                [ Attr.src <| profilePicture 40 maybeProfile
                 , Attr.alt "Avatar"
                 , css
                     [ Tw.w_10

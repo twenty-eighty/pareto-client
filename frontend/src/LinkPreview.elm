@@ -35,6 +35,7 @@ type LinkType
     = YouTubeVideo String
     | OdyseeVideo
     | RumbleVideo
+    | TelegramLink String (Maybe String)
     | TwitterTweet String
     | VideoLink String
     | AudioLink String
@@ -69,6 +70,9 @@ generatePreviewHtml loadedContent urlString linkAttr body =
 
                 RumbleVideo ->
                     generateRumblePreview loadedContent urlString
+
+                TelegramLink groupId maybePostId ->
+                    generateTelegramPreview urlString groupId maybePostId body
 
                 TwitterTweet tweetId ->
                     generateTwitterPreview urlString tweetId body
@@ -123,6 +127,14 @@ detectLinkType url =
 
     else if isRumbleUrl url then
         RumbleVideo
+
+    else if isTelegramUrl url then
+        case getTelegramGroup url.path of
+            Just ( groupId, maybePostId ) ->
+                TelegramLink groupId maybePostId
+
+            Nothing ->
+                PlainLink
 
     else if isTwitterStatusUrl url then
         case getTweetIdFromPath url.path of
@@ -363,6 +375,16 @@ getYouTubeVideoIdFromPath path =
             Nothing
 
 
+isTelegramUrl : Erl.Url -> Bool
+isTelegramUrl url =
+    let
+        hosts =
+            [ [ "t", "me" ]
+            ]
+    in
+    List.member url.host hosts
+
+
 isTwitterStatusUrl : Erl.Url -> Bool
 isTwitterStatusUrl url =
     let
@@ -374,6 +396,22 @@ isTwitterStatusUrl url =
             ]
     in
     List.member url.host hosts
+
+
+getTelegramGroup : List String -> Maybe ( String, Maybe String )
+getTelegramGroup path =
+    case path of
+        [] ->
+            Nothing
+
+        [ groupId ] ->
+            Just ( groupId, Nothing )
+
+        [ groupId, postId ] ->
+            Just ( groupId, Just postId )
+
+        _ ->
+            Nothing
 
 
 getTweetIdFromPath : List String -> Maybe String
@@ -673,6 +711,33 @@ videoThumbnailPreview linkElement clickAttr thumbnailUrl =
             [ Graphics.videoPlayIcon 100
             ]
         ]
+
+
+
+-- Function to generate Telegram post HTML
+
+
+generateTelegramPreview : String -> String -> Maybe String -> List (Html msg) -> Html msg
+generateTelegramPreview urlString groupId maybePostId body =
+    case maybePostId of
+        Just postId ->
+            div []
+                [ Html.blockquote
+                    [ Attr.attribute "data-telegram-post" (groupId ++ "/" ++ postId)
+                    , Attr.attribute "data-width" "100%"
+                    , Attr.class "telegram-post"
+                    ]
+                    []
+                , Html.node "script-element"
+                    [ Attr.attribute "src" "https://telegram.org/js/telegram-widget.js?22"
+                    ]
+                    []
+                ]
+
+        Nothing ->
+            -- TODO: Show group info with OpenGraph data from https://t.me/<group>
+            a [ href urlString ]
+                body
 
 
 

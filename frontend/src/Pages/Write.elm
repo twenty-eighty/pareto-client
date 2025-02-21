@@ -25,6 +25,7 @@ import Nostr.DeletionRequest exposing (draftDeletionEvent)
 import Nostr.Event as Event exposing (Event, Kind(..), Tag(..), numberForKind)
 import Nostr.External
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
+import Nostr.Nip27 as Nip27
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Types exposing (EventId, IncomingMessage, PubKey, RelayUrl)
@@ -320,7 +321,11 @@ update shared user msg model =
                     ( { model | editorMode = Preview }, Effect.none )
 
                 Preview ->
-                    ( { model | editorMode = Editor }, Effect.none )
+                    ( { model | editorMode = Editor }
+                    , model.content
+                        |> Maybe.map (loadReferencedNip27Profiles shared.nostr)
+                        |> Maybe.withDefault Effect.none
+                    )
 
         AddLoadedContent url ->
             ( { model | loadedContent = LinkPreview.addLoadedContent model.loadedContent url }, Effect.none )
@@ -454,6 +459,20 @@ update shared user msg model =
                 , toModel = \dropdown -> { model | languageSelection = dropdown, articleState = ArticleModified }
                 , toMsg = DropdownSent
                 }
+
+
+loadReferencedNip27Profiles : Nostr.Model -> String -> Effect Msg
+loadReferencedNip27Profiles nostr content =
+    Nip27.collectNostrLinks content
+        |> Nostr.nip27ProfilesRequest nostr
+        |> Maybe.map
+            (\eventFilter ->
+                RequestUserData eventFilter
+                    |> Nostr.createRequest nostr "Referenced Nostr profiles" []
+                    |> Shared.Msg.RequestNostrEvents
+                    |> Effect.sendSharedMsg
+            )
+        |> Maybe.withDefault Effect.none
 
 
 updateWithPortMessage : Shared.Model -> Model -> Auth.User -> IncomingMessage -> ( Model, Effect Msg )
@@ -663,7 +682,6 @@ eventWithContent shared model user kind =
             |> Event.addPublishedAtTag publishedAt
             |> Maybe.withDefault identity (languageISOCode model |> Maybe.map (Event.addLabelTags "ISO-639-1"))
             |> Event.addZapTags model.zapWeights
-            |> Event.addClientTag Pareto.client Pareto.paretoClientPubKey Pareto.handlerIdentifier Pareto.paretoRelay
             |> Event.addAltTag (altText model.identifier user.pubKey kind [ Pareto.paretoRelay ])
     , content = model.content |> Maybe.withDefault ""
     , id = ""
@@ -761,7 +779,7 @@ view user shared model =
                     [ viewImage model
                     ]
                 ]
-            , viewEditor shared.theme shared.browserEnv model
+            , viewEditor shared model
             , viewLanguage shared.browserEnv model
             , viewTags shared.theme shared.browserEnv model
             , viewArticleState shared.browserEnv shared.theme model.articleState
@@ -1033,8 +1051,8 @@ viewImage model =
                 []
 
 
-viewEditor : Theme -> BrowserEnv -> Model -> Html Msg
-viewEditor theme browserEnv model =
+viewEditor : Shared.Model -> Model -> Html Msg
+viewEditor shared model =
     case model.editorMode of
         Editor ->
             div
@@ -1042,15 +1060,15 @@ viewEditor theme browserEnv model =
                     [ Tw.w_full
                     ]
                 ]
-                [ milkdownEditor model.milkdown browserEnv (model.content |> Maybe.withDefault "")
+                [ milkdownEditor model.milkdown shared.browserEnv (model.content |> Maybe.withDefault "")
                 ]
 
         Preview ->
             let
                 styles =
-                    stylesForTheme theme
+                    stylesForTheme shared.theme
             in
-            Ui.Article.viewContentMarkdown styles (Just model.loadedContent) (\_ -> Nothing) (Maybe.withDefault "" model.content)
+            Ui.Article.viewContentMarkdown styles (Just model.loadedContent) (Nostr.getProfile shared.nostr) (Maybe.withDefault "" model.content)
 
 
 milkdownEditor : Milkdown.Model -> BrowserEnv -> Milkdown.Content -> Html Msg

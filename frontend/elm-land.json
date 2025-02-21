@@ -151,6 +151,9 @@
       "script": [
         {
           "src": "/js/textarea-autoresize.js"
+        },
+        {
+          "src": "/js/script-element.js"
         }
       ]
     },

@@ -9,7 +9,6 @@ import Html.Styled.Attributes exposing (css)
 import Layouts
 import LinkPreview exposing (LoadedContent)
 import Nostr
-import Nostr.Article exposing (addressComponentsForArticle)
 import Nostr.Event as Event exposing (AddressComponents, Kind(..), TagReference(..))
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
@@ -244,10 +243,6 @@ viewContent shared nip19 loadedContent requestId =
     let
         maybeArticle =
             Nostr.getArticleForNip19 shared.nostr nip19
-
-        _ =
-            maybeArticle
-                |> Maybe.andThen addressComponentsForArticle
 
         userPubKey =
             Shared.loggedInPubKey shared.loginStatus

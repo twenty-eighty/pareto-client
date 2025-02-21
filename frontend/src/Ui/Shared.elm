@@ -4,6 +4,7 @@ import BrowserEnv exposing (BrowserEnv)
 import Color
 import Components.Icon as Icon exposing (Icon)
 import Css
+import Erl
 import FeatherIcons
 import Html.Styled as Html exposing (Html, a, button, div, h2, text)
 import Html.Styled.Attributes as Attr exposing (css)
@@ -20,6 +21,30 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
+
+
+extendUrlForScaling : Int -> String -> String
+extendUrlForScaling width urlString =
+    let
+        parsed =
+            urlString
+                |> Erl.parse
+    in
+    if isNip96Server parsed then
+        parsed
+            -- add NIP-96 scaling parameter
+            |> Erl.addQuery "w" (String.fromInt width)
+            |> Erl.toString
+
+    else
+        urlString
+
+
+isNip96Server : Erl.Url -> Bool
+isNip96Server url =
+    List.member (String.join "." url.host)
+        [ Pareto.paretoNip96Server
+        ]
 
 
 pageLoadingIndicator : Html msg

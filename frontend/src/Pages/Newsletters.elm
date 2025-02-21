@@ -2,23 +2,17 @@ module Pages.Newsletters exposing (Model, Msg, page)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
-import Components.AlertTimerMessage as AlertTimerMessage
-import Components.Button as Button
-import Components.EmailImportDialog as EmailImportDialog
-import Components.Icon as Icon
-import Csv.Encode
 import Dict exposing (Dict)
 import Effect exposing (Effect)
-import FeatherIcons
-import File.Download
-import Html.Styled as Html exposing (Html, b, div, li, text, ul)
+import Html.Styled as Html exposing (Html, div, text)
 import Html.Styled.Attributes exposing (css)
-import Html.Styled.Events as Events
+import I18Next
+import Iso8601
 import Json.Decode as Decode
+import Json.Decode.Pipeline exposing (optional, required)
 import Layouts
-import Material.Icons exposing (email)
 import Nostr
-import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), emptyEventFilter)
+import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), buildAddress, emptyEventFilter)
 import Nostr.External
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
@@ -30,13 +24,11 @@ import Route exposing (Route)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Subscribers exposing (Email, Modification(..), Subscriber, SubscriberField(..), modificationToString, translatedFieldName)
 import Svg.Loaders as Loaders
 import Table.Paginated as Table exposing (defaultCustomizations)
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Translations.Sidebar
-import Translations.Subscribers as Translations
+import Time
+import Translations.Newsletters as Translations
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
@@ -46,9 +38,9 @@ page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
 page user shared _ =
     Page.new
         { init = init user shared
-        , update = update user shared
+        , update = update shared
         , subscriptions = subscriptions
-        , view = view user shared
+        , view = view shared
         }
         |> Page.withLayout (toLayout shared.theme)
 
@@ -64,14 +56,11 @@ toLayout theme _ =
 
 
 type alias Model =
-    { alertTimerMessage : AlertTimerMessage.Model
-    , emailImportDialog : EmailImportDialog.Model
-    , errors : List String
-    , modifications : List Modification
+    { errors : List String
     , requestId : RequestId
     , state : ModelState
-    , subscribers : Dict Email Subscriber
-    , subscriberTable : Table.State
+    , newsletters : Dict String Newsletter
+    , newslettersTable : Table.State
     }
 
 
@@ -79,21 +68,61 @@ type ModelState
     = Loading
     | Loaded
     | ErrorLoadingSubscribers String
-    | Modified
-    | Saving
-    | Saved
+
+
+type Field
+    = FieldDate
+    | FieldStatus
+    | FieldProcessed
+    | FieldTotal
+    | FieldError
+
+
+fieldName : Field -> String
+fieldName field =
+    case field of
+        FieldDate ->
+            "Date"
+
+        FieldStatus ->
+            "Status"
+
+        FieldProcessed ->
+            "Processed"
+
+        FieldTotal ->
+            "Total"
+
+        FieldError ->
+            "Error"
+
+
+translatedFieldName : I18Next.Translations -> Field -> String
+translatedFieldName translations field =
+    case field of
+        FieldDate ->
+            Translations.dateColumnName [ translations ]
+
+        FieldStatus ->
+            Translations.statusColumnName [ translations ]
+
+        FieldProcessed ->
+            Translations.processedColumnName [ translations ]
+
+        FieldTotal ->
+            Translations.totalColumnName [ translations ]
+
+        FieldError ->
+            Translations.errorColumnName [ translations ]
 
 
 init : Auth.User -> Shared.Model -> () -> ( Model, Effect Msg )
 init user shared () =
-    ( { alertTimerMessage = AlertTimerMessage.init {}
-      , emailImportDialog = EmailImportDialog.init {}
-      , errors = []
-      , modifications = []
+    ( { errors = []
       , requestId = Nostr.getLastRequestId shared.nostr
       , state = Loading
-      , subscribers = Dict.empty
-      , subscriberTable = Table.initialState (Subscribers.fieldName FieldEmail) 25
+      , newsletters = Dict.empty
+      , newslettersTable = Table.initialState (fieldName FieldDate) 25
       }
     , [ loadNewsletters shared.nostr user.pubKey
       ]
@@ -124,108 +153,22 @@ newslettersEventFilter pubKey =
 
 
 type Msg
-    = ImportClicked
-    | ExportClicked
-    | SaveClicked
-    | ProcessModificationsClicked
-    | AlertTimerMessageSent AlertTimerMessage.Msg
-    | EmailImportDialogSent (EmailImportDialog.Msg Msg)
-    | AddSubscribers (List Subscriber) Bool
-    | RemoveSubscriber String
-    | NewTableState Table.State
+    = NewTableState Table.State
     | ReceivedMessage IncomingMessage
 
 
-update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
-update user shared msg model =
+update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
+update _ msg model =
     case msg of
-        ImportClicked ->
-            ( { model | emailImportDialog = EmailImportDialog.show model.emailImportDialog }, Effect.none )
-
-        ExportClicked ->
-            ( model
-            , model.subscribers
-                |> Dict.values
-                |> Subscribers.toCsv
-                |> Csv.Encode.toBytes
-                |> File.Download.bytes (csvDownloadFileName shared.browserEnv) "text/csv"
-                |> Effect.sendCmd
-            )
-
-        SaveClicked ->
-            ( { model | state = Saving }
-            , Subscribers.subscriberDataEvent shared.browserEnv user.pubKey (Dict.values model.subscribers)
-                |> SendApplicationData
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        ProcessModificationsClicked ->
-            ( { model | state = Modified, subscribers = Subscribers.processModifications model.subscribers model.modifications }, Effect.none )
-
-        AlertTimerMessageSent innerMsg ->
-            AlertTimerMessage.update
-                { msg = innerMsg
-                , model = model.alertTimerMessage
-                , toModel = \alertTimerMessage -> { model | alertTimerMessage = alertTimerMessage }
-                , toMsg = AlertTimerMessageSent
-                }
-
-        EmailImportDialogSent innerMsg ->
-            EmailImportDialog.update
-                { msg = innerMsg
-                , model = model.emailImportDialog
-                , browserEnv = shared.browserEnv
-                , nostr = shared.nostr
-                , onImport = AddSubscribers
-                , pubKey = user.pubKey
-                , toModel = \emailImportDialog -> { model | emailImportDialog = emailImportDialog }
-                , toMsg = EmailImportDialogSent
-                }
-
-        AddSubscribers newSubscribers overwriteExisting ->
-            let
-                subscribers =
-                    Subscribers.merge overwriteExisting model.subscribers newSubscribers
-            in
-            ( { model
-                | emailImportDialog = EmailImportDialog.hide model.emailImportDialog
-                , state = Modified
-                , subscribers = subscribers
-                , subscriberTable = Table.setTotal (Dict.size subscribers) model.subscriberTable
-              }
-            , Effect.none
-            )
-
-        RemoveSubscriber email ->
-            let
-                subscribers =
-                    Subscribers.remove model.subscribers [ email ]
-            in
-            ( { model
-                | state = Modified
-                , subscribers = subscribers
-                , subscriberTable = Table.setTotal (Dict.size subscribers) model.subscriberTable
-              }
-            , Effect.none
-            )
-
         NewTableState tableState ->
-            ( { model | subscriberTable = tableState }, Effect.none )
+            ( { model | newslettersTable = tableState }, Effect.none )
 
         ReceivedMessage message ->
-            updateWithMessage user shared model message
+            updateWithMessage model message
 
 
-csvDownloadFileName : BrowserEnv -> String
-csvDownloadFileName browserEnv =
-    "subscribers_"
-        ++ BrowserEnv.formatIsoDate browserEnv browserEnv.now
-        ++ ".csv"
-
-
-updateWithMessage : Auth.User -> Shared.Model.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
-updateWithMessage user shared model message =
+updateWithMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
+updateWithMessage model message =
     case message.messageType of
         "events" ->
             case Nostr.External.decodeRequestId message.value of
@@ -239,14 +182,13 @@ updateWithMessage user shared model message =
                                 case Nostr.External.decodeEventsKind message.value of
                                     Ok KindApplicationSpecificData ->
                                         let
-                                            ( subscribers, modifications, errors ) =
-                                                Subscribers.processEvents user.pubKey model.subscribers model.modifications events
+                                            ( newsletters, errors ) =
+                                                processEvents model.newsletters events
                                         in
                                         ( { model
                                             | state = Loaded
-                                            , modifications = modifications
-                                            , subscribers = subscribers
-                                            , subscriberTable = Table.setTotal (Dict.size subscribers) model.subscriberTable
+                                            , newsletters = newsletters
+                                            , newslettersTable = Table.setTotal (Dict.size newsletters) model.newslettersTable
                                             , errors = model.errors ++ errors
                                           }
                                         , Effect.none
@@ -264,16 +206,51 @@ updateWithMessage user shared model message =
                 _ ->
                     ( model, Effect.none )
 
-        "published" ->
-            -- currently this page only publishes the list of subscribers so we don't have to check details
-            update user shared (AlertTimerMessageSent (AlertTimerMessage.AddMessage "saved subscribers sucessfully" 1000)) { model | state = Saved }
-
-        "error" ->
-            -- currently this page only publishes the list of subscribers so we don't have to check details
-            update user shared (AlertTimerMessageSent (AlertTimerMessage.AddMessage "error saving subscribers" 2000)) { model | state = Modified }
-
         _ ->
             ( model, Effect.none )
+
+
+processEvents : Dict String Newsletter -> List Event -> ( Dict String Newsletter, List String )
+processEvents existingNewsletters events =
+    events
+        |> List.filter (\event -> event.pubKey == Pareto.emailGatewayKey)
+        |> List.map newsletterFromEvent
+        |> List.foldl
+            (\result ( newsletterDict, errorList ) ->
+                case result of
+                    Ok decodedNewsletter ->
+                        ( Dict.insert (buildAddress decodedNewsletter.articleAddress) decodedNewsletter newsletterDict, errorList )
+
+                    Err error ->
+                        ( newsletterDict, errorList ++ [ Decode.errorToString error ] )
+            )
+            ( existingNewsletters, [] )
+
+
+type alias Newsletter =
+    { articleAddress : AddressComponents
+    , status : String
+    , processed : Int
+    , total : Int
+    , error : Maybe String
+    , timestamp : Time.Posix
+    }
+
+
+newsletterFromEvent : Event -> Result Decode.Error Newsletter
+newsletterFromEvent event =
+    Decode.decodeString (Decode.field "newsletter" newsletterDecoder) event.content
+
+
+newsletterDecoder : Decode.Decoder Newsletter
+newsletterDecoder =
+    Decode.succeed Newsletter
+        |> required "articleAddress" Event.decodeAddress
+        |> required "status" Decode.string
+        |> required "processed" Decode.int
+        |> required "total" Decode.int
+        |> optional "error" (Decode.maybe Decode.string) Nothing
+        |> required "timestamp" Iso8601.decoder
 
 
 
@@ -287,56 +264,50 @@ subscriptions _ =
 
 
 -- VIEW
-{-
-   newslettersTableConfig : BrowserEnv -> Table.Config Subscriber Msg
-   newslettersTableConfig browserEnv =
-       Table.customConfig
-           { toId = .email
-           , toMsg = NewTableState
-           , columns =
-               [ Table.stringColumn (Subscribers.fieldName FieldEmail) (translatedFieldName browserEnv.translations FieldEmail) .email
-               , Table.stringColumn (Subscribers.fieldName FieldName) (translatedFieldName browserEnv.translations FieldName) (\subscriber -> subscriber.name |> Maybe.withDefault "")
-               , Table.stringColumn (Subscribers.fieldName FieldTags) (translatedFieldName browserEnv.translations FieldTags) (\subscriber -> subscriber.tags |> Maybe.map (String.join ", ") |> Maybe.withDefault "")
-               , Table.stringColumn (Subscribers.fieldName FieldDateSubscription) (translatedFieldName browserEnv.translations FieldDateSubscription) (\subscriber -> subscriber.dateSubscription |> BrowserEnv.formatDate browserEnv)
-               , Table.stringColumn (Subscribers.fieldName FieldDateUnsubscription) (translatedFieldName browserEnv.translations FieldDateUnsubscription) (\subscriber -> subscriber.dateUnsubscription |> Maybe.map (BrowserEnv.formatDate browserEnv) |> Maybe.withDefault "")
-               , Table.stringColumn (Subscribers.fieldName FieldSource) (translatedFieldName browserEnv.translations FieldSource) (\subscriber -> subscriber.source |> Maybe.withDefault "")
-               , Table.stringColumn (Subscribers.fieldName FieldUndeliverable) (translatedFieldName browserEnv.translations FieldUndeliverable) (\subscriber -> subscriber.undeliverable |> Maybe.withDefault "")
-               , Table.stringColumn (Subscribers.fieldName FieldLocale) (translatedFieldName browserEnv.translations FieldLocale) (\subscriber -> subscriber.locale |> Maybe.withDefault "")
-               , Table.veryCustomColumn
-                   { id = "delete_entry"
-                   , name = ""
-                   , viewData = \subscriber -> removeSubscriberButton (RemoveSubscriber subscriber.email)
-                   , sorter = Table.unsortable
-                   }
-               ]
-           , customizations =
-               { defaultCustomizations
-                   | tableAttrs = Table.defaultCustomizations.tableAttrs
-               }
-           }
--}
 
 
-removeSubscriberButton : Msg -> Table.HtmlDetails Msg
-removeSubscriberButton removeMsg =
-    Table.HtmlDetails []
-        [ div
-            [ css
-                [ Tw.text_color Theme.slate_500
-                , Tw.cursor_pointer
+newslettersTableConfig : BrowserEnv -> Table.Config Newsletter Msg
+newslettersTableConfig browserEnv =
+    Table.customConfig
+        { toId = \newsletter -> newsletter.timestamp |> Time.posixToMillis |> String.fromInt
+        , toMsg = NewTableState
+        , columns =
+            [ Table.stringColumn (fieldName FieldDate) (translatedFieldName browserEnv.translations FieldDate) (\newsletter -> newsletter.timestamp |> BrowserEnv.formatDate browserEnv)
+            , Table.stringColumn (fieldName FieldStatus) (translatedFieldName browserEnv.translations FieldStatus) (\newsletter -> newsletter.status)
+            , intColumn browserEnv.translations FieldProcessed (\newsletter -> newsletter.processed)
+            , intColumn browserEnv.translations FieldTotal (\newsletter -> newsletter.total)
+            , Table.stringColumn (fieldName FieldError) (translatedFieldName browserEnv.translations FieldError) (\newsletter -> newsletter.error |> Maybe.withDefault "")
+            ]
+        , customizations =
+            { defaultCustomizations
+                | tableAttrs = Table.defaultCustomizations.tableAttrs
+            }
+        }
+
+
+intColumn : I18Next.Translations -> Field -> (Newsletter -> Int) -> Table.Column Newsletter Msg
+intColumn translations field viewData =
+    Table.veryCustomColumn
+        { id = fieldName field
+        , name = translatedFieldName translations field
+        , viewData =
+            \newsletter ->
+                [ Html.node "center"
+                    []
+                    [ viewData newsletter
+                        |> String.fromInt
+                        |> Html.text
+                    ]
+                    |> Html.toUnstyled
                 ]
-            , Events.onClick removeMsg
-            ]
-            [ Icon.FeatherIcon FeatherIcons.delete
-                |> Icon.view
-            ]
-            |> Html.toUnstyled
-        ]
+                    |> Table.HtmlDetails []
+        , sorter = Table.unsortable
+        }
 
 
-view : Auth.User -> Shared.Model.Model -> Model -> View Msg
-view user shared model =
-    { title = Translations.Sidebar.subscribersMenuItemText [ shared.browserEnv.translations ]
+view : Shared.Model.Model -> Model -> View Msg
+view shared model =
+    { title = Translations.newslettersTitle [ shared.browserEnv.translations ]
     , body =
         [ div
             [ css
@@ -346,61 +317,15 @@ view user shared model =
                 , Tw.m_2
                 ]
             ]
-            [ div
-                [ css
-                    [ Tw.flex
-                    , Tw.flex_row
-                    , Tw.gap_2
-                    , Tw.m_2
-                    ]
-                ]
-                [ Button.new
-                    { label = Translations.importButtonTitle [ shared.browserEnv.translations ]
-                    , onClick = Just <| ImportClicked
-                    , theme = shared.theme
-                    }
-                    |> Button.withTypePrimary
-                    |> Button.view
-                , Button.new
-                    { label = Translations.exportButtonTitle [ shared.browserEnv.translations ]
-                    , onClick = Just <| ExportClicked
-                    , theme = shared.theme
-                    }
-                    |> Button.withTypePrimary
-                    |> Button.withDisabled (Dict.size model.subscribers < 1)
-                    |> Button.view
-                , Button.new
-                    { label = Translations.saveButtonTitle [ shared.browserEnv.translations ]
-                    , onClick = Just <| SaveClicked
-                    , theme = shared.theme
-                    }
-                    |> Button.withTypePrimary
-                    |> Button.withDisabled (model.state /= Modified)
-                    |> Button.view
-                ]
-            , viewSubscribers shared.browserEnv model
-            , EmailImportDialog.new
-                { model = model.emailImportDialog
-                , toMsg = EmailImportDialogSent
-                , nostr = shared.nostr
-                , pubKey = user.pubKey
-                , browserEnv = shared.browserEnv
-                , theme = shared.theme
-                }
-                |> EmailImportDialog.view
-            , AlertTimerMessage.new
-                { model = model.alertTimerMessage
-                , theme = shared.theme
-                }
-                |> AlertTimerMessage.view
+            [ viewNewsletters shared.browserEnv model
             ]
         ]
     }
 
 
-viewSubscribers : BrowserEnv -> Model -> Html Msg
-viewSubscribers browserEnv model =
-    case ( model.state, Dict.size model.subscribers ) of
+viewNewsletters : BrowserEnv -> Model -> Html Msg
+viewNewsletters browserEnv model =
+    case ( model.state, Dict.size model.newsletters ) of
         ( Loading, _ ) ->
             div
                 [ css
@@ -410,7 +335,7 @@ viewSubscribers browserEnv model =
                     , Tw.m_2
                     ]
                 ]
-                [ text <| Translations.loadingSubscribersText [ browserEnv.translations ]
+                [ text <| Translations.loadingNewslettersText [ browserEnv.translations ]
                 , Loaders.rings [] |> Html.fromUnstyled
                 ]
 
@@ -423,13 +348,13 @@ viewSubscribers browserEnv model =
                     , Tw.m_2
                     ]
                 ]
-                [ text <| Translations.errorLoadingSubscribersText [ browserEnv.translations ] ++ ": " ++ error
+                [ text <| Translations.errorLoadingNewslettersText [ browserEnv.translations ] ++ ": " ++ error
                 ]
 
         ( _, 0 ) ->
             div
                 []
-                [ text <| Translations.noSubscribersText [ browserEnv.translations ]
+                [ text <| Translations.noNewslettersText [ browserEnv.translations ]
                 ]
 
         ( _, _ ) ->
@@ -438,12 +363,11 @@ viewSubscribers browserEnv model =
                     [ Tw.m_2
                     ]
                 ]
-                [{- Table.view
+                [ Table.view
                     (newslettersTableConfig browserEnv)
-                    model.subscriberTable
-                    (Dict.values model.subscribers)
+                    model.newslettersTable
+                    (Dict.values model.newsletters)
                     |> Html.fromUnstyled
-                 -}
                 ]
 
 
@@ -456,7 +380,7 @@ viewSubscribers browserEnv model =
            , Tw.m_2
            ]
        ]
-       (model.subscribers
+       (model.newsletters
            |> Dict.values
            |> List.map viewSubscriber
        )

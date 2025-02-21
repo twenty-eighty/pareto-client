@@ -55,7 +55,11 @@
       "name column header in csv column mapping table": "Spaltenname",
       "field column header in csv column mapping table": "Feld",
       "unmapped column dropdown value": "<nicht zugeordnet>",
-      "email not mapped error message": "Das E-Mail-Feld muss zugeordnet sein"
+      "email not mapped error message": "Das E-Mail-Feld muss zugeordnet sein",
+      "skip rows field label": "Zeilen überspringen",
+      "column name": "Spalte",
+      "configure CSV import dialog title": "CSV-Import konfigurieren",
+      "map CSV fields dialog title": "CSV-Felder zuordnen"
    },
    "email subscription dialog": {
       "dialog title": "Mit E-Mail abonnieren",
@@ -85,6 +89,17 @@
    "message dialog": {
       "warning": "Warnung"
    },
+   "newsletters": {
+      "newsletters title": "Newsletter",
+      "loading newsletters text": "Lade Newsletter ...",
+      "error loading newsletters text": "Fehler beim Laden der Newsletter",
+      "no newsletters text": "Keine Newsletter gefunden",
+      "date column name": "Datum",
+      "status column name": "Status",
+      "processed column name": "Verarbeitet",
+      "total column name": "Gesamt",
+      "error column name": "Fehler"
+   },
    "posts": {
       "posts title": "Artikel",
       "published category": "Veröffentlicht",
@@ -101,7 +116,9 @@
       "mute button title": "Stumm",
       "public menu item text": "Öffentlich",
       "private menu item text": "Privat",
-      "subscribe button title": "Abonnieren"
+      "subscribe button title": "Abonnieren",
+      "pub key profile page title": "Profil von",
+      "default profile page title": "Profil"
    },
    "publish article dialog": {
       "dialog title": "Artikel veröffentlichen",
