@@ -165,6 +165,8 @@ defmodule NostrBackendWeb.NostrController do
     |> json(@nip96_redirect)
   end
 
+  def get_nostr_data(), do: @nostr_data
+
   defp put_required_headers(conn) do
     conn
     |> put_resp_header("Access-Control-Allow-Origin", "*")

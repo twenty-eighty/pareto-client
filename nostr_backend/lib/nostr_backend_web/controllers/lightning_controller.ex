@@ -1,57 +1,38 @@
 defmodule NostrBackendWeb.LightningController do
   use NostrBackendWeb, :controller
 
+  alias NostrBackendWeb.NostrController
+
   # Define the LNURL-P data for usernames
   # Download https://<domain>/.well-known/lnurlp/<username> to get the relevant data
   @lnurlp_data %{
-    "roland" => %{
-      "nostrPubkey" => "79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f432",
-      "lud16" => "rohe@getalby.com"
-    },
-    "rodant" => %{
-      "nostrPubkey" => "71df211931d26ee41121d295bd43cbc7e382505e333b5c13d4016ced9542d9d7",
-      "lud16" => "vntonior7z@getalby.com"
-    },
-    "janosch" => %{
-      "nostrPubkey" => "89bae92f9d9b0f6d97a300496cfb0b73c92a74c9675a724c0689975f8074dc01",
-      "lud16" => "restfulbench94@walletofsatoshi.com"
-    },
-    "nachteule" => %{
-      "nostrPubkey" => "9c8096eb84d574ca29eb0077d615a2b12c0113064faeac9f72e464a066e47555",
-      "lud16" => "brokendarkness103@getalby.com"
-    },
-    "kalle" => %{
-      "nostrPubkey" => "08d79c2e514edd4634ea92bbfe1ec089730a049216be9d28c77c4c1c7733f518",
-      "lud16" => "balmyravioli90@walletofsatoshi.com"
-    },
-    "donjoe" => %{
-      "nostrPubkey" => "0f4795bf31824a414148daf1b589bb8138fb0a03963f984c84462e40a8365abe",
-      "lud16" => "compacthook86@walletofsatoshi.com"
-    },
-    "_" => %{
-      "nostrPubkey" => "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84",
-      "lud16" => "donate2pareto@walletofsatoshi.com"
-    },
-    "milosz" => %{
-      "nostrPubkey" => "2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638",
-      "lud16" => "donate2pareto@walletofsatoshi.com"
-    },
-    "ashoka" => %{
-      "nostrPubkey" => "e373ca4101e25a4d4fcb2a53473fa4113b91dba2c2e451d039d8528eb82abcc5",
-      "lud16" => "donate2pareto@walletofsatoshi.com"
-    }
+    "roland" => "rohe@getalby.com",
+    "rodant" => "vntonior7z@getalby.com",
+    "janosch" => "restfulbench94@walletofsatoshi.com",
+    "nachteule" => "brokendarkness103@getalby.com",
+    "kalle" => "balmyravioli90@walletofsatoshi.com",
+    "donjoe" => "compacthook86@walletofsatoshi.com",
+    "_" => "donate2pareto@walletofsatoshi.com",
+    "milosz" => "donate2pareto@walletofsatoshi.com",
+    "ashoka" => "donate2pareto@walletofsatoshi.com"
   }
 
   def lnurlp(conn, %{"username" => username}) do
     conn = put_required_headers(conn)
 
-    case Map.get(@lnurlp_data, username) do
-      nil ->
+    nostr_data = NostrController.get_nostr_data()
+    case {@lnurlp_data[username], Map.get(nostr_data["names"], username)} do
+      {nil, _} ->
         conn
         |> put_status(:not_found)
         |> json(%{error: "User not found"})
 
-      %{"nostrPubkey" => nostr_pubkey, "lud16" => lud16} ->
+      { _lud16, nil} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Nostr pubkey not found for user"})
+
+      { lud16, nostr_pubkey} ->
         lnurlp_url = build_lnurlp_url(lud16)
 
         case fetch_lnurlp_json(lnurlp_url) do
@@ -72,7 +53,7 @@ defmodule NostrBackendWeb.LightningController do
 
   def test_lnurlp_entries do
     @lnurlp_data
-    |> Enum.map(fn {username, %{"lud16" => lud16} = user_data} ->
+    |> Enum.map(fn {username, lud16 = _user_data} ->
       lnurlp_url = build_lnurlp_url(lud16)
 
       case fetch_lnurlp_json(lnurlp_url) do
