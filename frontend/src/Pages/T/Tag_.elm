@@ -77,10 +77,10 @@ init shared route () =
 
 
 tagReferencesForParam : String -> List TagReference
-tagReferencesForParam tag =
+tagReferencesForParam hashtag =
     let
         decoded =
-            decodedTagParam tag
+            decodedTagParam hashtag
 
         lowercase =
             decoded
@@ -99,7 +99,8 @@ tagReferencesForParam tag =
         mixedCase =
             firstcharUpper ++ remainingLower
     in
-    [ TagReferenceTag lowercase
+    [ TagReferenceTag hashtag
+    , TagReferenceTag lowercase
     , TagReferenceTag mixedCase
     ]
 
