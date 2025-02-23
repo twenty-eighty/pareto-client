@@ -36,7 +36,7 @@ import Route exposing (Route)
 import Set
 import Shared
 import Shared.Msg
-import Subscribers exposing (Subscriber)
+import Subscribers
 import Svg.Loaders as Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
@@ -778,7 +778,7 @@ view user shared model =
                         , Tw.w_96
                         ]
                     ]
-                    [ viewImage model
+                    [ viewImage shared.browserEnv.translations model
                     ]
                 ]
             , viewEditor shared model
@@ -1025,13 +1025,14 @@ decodeInputChange =
     Decode.field "detail" (Decode.field "value" Decode.string)
 
 
-viewImage : Model -> Html Msg
-viewImage model =
+viewImage : I18Next.Translations -> Model -> Html Msg
+viewImage translations model =
     case model.image of
         Just image ->
             div
                 [ css
                     [ Tw.max_w_72
+                    , Tw.cursor_pointer
                     ]
                 ]
                 [ img
@@ -1047,10 +1048,22 @@ viewImage model =
                     [ Tw.w_48
                     , Tw.h_32
                     , Tw.bg_color Theme.slate_500
+                    , Tw.flex
+                    , Tw.justify_center
+                    , Tw.items_center
+                    , Tw.cursor_pointer
                     ]
                 , Events.onClick (SelectImage ArticleImageSelection)
                 ]
-                []
+                [ Html.span
+                    [ css
+                        [ Tw.text_color Theme.white
+                        , Tw.m_2
+                        ]
+                    ]
+                    [ text <| Translations.imageSelectionInstructionalText [ translations ]
+                    ]
+                ]
 
 
 viewEditor : Shared.Model -> Model -> Html Msg
