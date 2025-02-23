@@ -18,10 +18,8 @@ import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Dropdown as Dropdown
-import Components.Icon as Icon
 import Dict exposing (Dict)
 import Effect exposing (Effect)
-import FeatherIcons
 import File exposing (File)
 import File.Select as FileSelect
 import Html.Styled as Html exposing (Html, button, div, img, input, label, li, option, progress, select, span, text, textarea, ul)

@@ -242,12 +242,16 @@ update user shared msg model =
         UploadResultNip96 (Ok response) ->
             case ( response.status, response.fileMetadata, model.state ) of
                 ( "success", Just fileMetadata, Uploading keyHex ivHex sha256 size active total ) ->
-                    ( { model | state = Saving }
-                    , Subscribers.subscriberDataEvent shared.browserEnv user.pubKey { keyHex = keyHex, ivHex = ivHex, url = Maybe.withDefault "" fileMetadata.url, size = size, active = active, total = total }
-                        |> SendApplicationData
-                        |> Shared.Msg.SendNostrEvent
-                        |> Effect.sendSharedMsg
-                    )
+                    if fileMetadata.oxHash == Nothing || fileMetadata.oxHash == Just sha256 then
+                        ( { model | state = Saving }
+                        , Subscribers.subscriberDataEvent shared.browserEnv user.pubKey { keyHex = keyHex, ivHex = ivHex, url = Maybe.withDefault "" fileMetadata.url, size = size, active = active, total = total }
+                            |> SendApplicationData
+                            |> Shared.Msg.SendNostrEvent
+                            |> Effect.sendSharedMsg
+                        )
+
+                    else
+                        ( { model | state = Modified, errors = "Uploaded file differs from local file" :: model.errors }, Effect.none )
 
                 ( status, _, _ ) ->
                     ( { model | state = Modified, errors = ("Error uploading subscribers: " ++ status) :: model.errors }, Effect.none )
@@ -286,12 +290,7 @@ updateWithMessage user shared model message =
                                         in
                                         case maybeSubscriberEventData of
                                             Just subscriberEventData ->
-                                                ( { modelWithModifications
-                                                    | state = Downloading subscriberEventData
-
-                                                    -- , subscribers = subscribers
-                                                    -- , subscriberTable = Table.setTotal (Dict.size subscribers) model.subscriberTable
-                                                  }
+                                                ( { modelWithModifications | state = Downloading subscriberEventData }
                                                 , Ports.downloadAndDecryptFile subscriberEventData.url
                                                     subscriberEventData.keyHex
                                                     subscriberEventData.ivHex
