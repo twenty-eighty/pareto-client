@@ -127,6 +127,7 @@ defaultNip96ServersPublic =
 applicationDataRelays : List RelayUrl
 applicationDataRelays =
     [ "wss://cool-darkness-73116.pktriot.net"
+    , "wss://team-relay.pareto.space"
     ]
 
 

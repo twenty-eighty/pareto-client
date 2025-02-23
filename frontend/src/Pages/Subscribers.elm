@@ -87,10 +87,9 @@ type ModelState
     | ErrorLoadingSubscribers String
     | Modified
     | Encrypting String String Int Int
-    | RequestingNip96Auth String String File String String String Int Int Int
+    | RequestingNip96Auth String File String String String Int Int Int
     | Uploading String String String Int Int Int
     | Downloading Subscribers.SubscriberEventData
-    | Decrypting
     | Saving
     | Saved
 
@@ -287,7 +286,7 @@ updateWithMessage user shared model message =
                                         in
                                         case maybeSubscriberEventData of
                                             Just subscriberEventData ->
-                                                ( { model
+                                                ( { modelWithModifications
                                                     | state = Downloading subscriberEventData
 
                                                     -- , subscribers = subscribers
@@ -300,7 +299,7 @@ updateWithMessage user shared model message =
                                                 )
 
                                             Nothing ->
-                                                ( { model | state = ErrorLoadingSubscribers "No subscriber event found" }, Effect.none )
+                                                ( { modelWithModifications | state = ErrorLoadingSubscribers "No subscriber event found" }, Effect.none )
 
                                     _ ->
                                         ( model, Effect.none )
@@ -318,7 +317,7 @@ updateWithMessage user shared model message =
             case ( model.state, Decode.decodeValue receivedDataDecoder message.value ) of
                 ( Encrypting serverUrl apiUrl active total, Ok decoded ) ->
                     ( { model
-                        | state = RequestingNip96Auth serverUrl apiUrl decoded.file decoded.keyHex decoded.ivHex decoded.sha256 decoded.size active total
+                        | state = RequestingNip96Auth apiUrl decoded.file decoded.keyHex decoded.ivHex decoded.sha256 decoded.size active total
                       }
                     , PostRequest 1 decoded.sha256
                         |> RequestNip98Auth serverUrl apiUrl
@@ -358,7 +357,7 @@ updateWithMessage user shared model message =
 
         "nip98AuthHeader" ->
             case ( model.state, Decode.decodeValue decodeAuthHeaderReceived message.value ) of
-                ( RequestingNip96Auth serverUrl apiUrl file keyHex ivHex sha256 size active total, Ok decoded ) ->
+                ( RequestingNip96Auth apiUrl file keyHex ivHex sha256 size active total, Ok decoded ) ->
                     ( { model | state = Uploading keyHex ivHex sha256 size active total }
                     , Nip96.uploadFile apiUrl
                         model.fileId

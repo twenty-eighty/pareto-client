@@ -21,10 +21,9 @@ import Pareto
 import Ports
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
-import Subscribers exposing (Email, Subscriber)
+import Subscribers
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Time
 import Translations.PublishArticleDialog as Translations
 import Ui.Shared
 import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
