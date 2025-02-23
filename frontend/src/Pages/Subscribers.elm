@@ -2,8 +2,6 @@ module Pages.Subscribers exposing (Model, Msg, page)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
-import Bytes
-import Bytes.Decode
 import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button as Button
 import Components.EmailImportDialog as EmailImportDialog

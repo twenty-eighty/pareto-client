@@ -19,6 +19,7 @@ import Components.Button as Button
 import Components.Dropdown
 import Components.Icon as Icon
 import Components.UploadDialog as UploadDialog exposing (UploadResponse(..), UploadServer)
+import Css
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import FeatherIcons
@@ -817,6 +818,7 @@ viewMediaSelector (Settings settings) =
                 , Tw.justify_between
                 , Tw.pb_4
                 , Tw.border_b_2
+                , Tw.gap_2
                 ]
             ]
             [ Components.Dropdown.new
@@ -839,6 +841,7 @@ viewMediaSelector (Settings settings) =
                 |> Button.view
                 |> Html.map settings.toMsg
             ]
+        , viewInstruction settings.browserEnv.translations model.displayType
         , viewImages (Settings settings) filesToShow
         , viewConfigureMediaServerMessage (Settings settings)
         , UploadDialog.new
@@ -856,6 +859,26 @@ viewMediaSelector (Settings settings) =
             }
             |> AlertTimerMessage.view
         ]
+
+
+
+-- show instruction how to select image depending on display mode
+
+
+viewInstruction : I18Next.Translations -> DisplayType -> Html msg
+viewInstruction translations displayType =
+    case displayType of
+        DisplayModalDialog _ ->
+            div
+                [ css
+                    [ Tw.my_2
+                    ]
+                ]
+                [ text <| Translations.imageSelectionInstructionalText [ translations ]
+                ]
+
+        DisplayEmbedded ->
+            div [] []
 
 
 viewConfigureMediaServerMessage : MediaSelector msg -> Html msg
@@ -1083,6 +1106,14 @@ imagePreview translations onSelected displayType uniqueFileId uploadedFile =
                 , Tw.items_center
                 , Tw.justify_center
                 , Tw.text_color Theme.gray_400
+                , Tw.pr_1
+                , Tw.pb_1
+                , Tw.drop_shadow_md
+                , Css.hover
+                    [ Tw.pr_0
+                    , Tw.pb_0
+                    , Tw.drop_shadow_sm
+                    ]
                 ]
             , Events.onDoubleClick (SelectedItem { item = uploadedFile, onSelected = onSelected })
             ]

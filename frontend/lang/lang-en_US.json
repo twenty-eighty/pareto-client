@@ -83,7 +83,8 @@
       "no server configured message": "You seem to have no media servers configured. Do you want to use the Pareto media server?",
       "configure server button title": "Configure Pareto media server",
       "select image dialog title": "Select image",
-      "copied link alert message": "Copied link to clipboard"
+      "copied link alert message": "Copied link to clipboard",
+      "image selection instructional text": "Double-click to select image"
    },
    "message dialog": {
       "warning": "Warning"
