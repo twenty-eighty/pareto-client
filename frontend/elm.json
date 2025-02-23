@@ -19,6 +19,7 @@
             "dillonkearns/elm-markdown": "7.0.1",
             "dillonkearns/elm-oembed": "1.0.0",
             "elm/browser": "1.0.2",
+            "elm/bytes": "1.0.8",
             "elm/core": "1.0.5",
             "elm/file": "1.0.5",
             "elm/html": "1.0.0",
@@ -48,7 +49,6 @@
         },
         "indirect": {
             "danfishgold/base64-bytes": "1.1.0",
-            "elm/bytes": "1.0.8",
             "elm/virtual-dom": "1.0.3",
             "justinmimbs/date": "4.1.0",
             "myrho/elm-round": "1.0.5",

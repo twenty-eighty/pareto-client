@@ -34,7 +34,7 @@ type Msg msg
     = ShowDialog
     | CloseDialog
     | ConfigureRelaysClicked
-    | PublishClicked (List RelayUrl -> Maybe (List Subscriber) -> msg)
+    | PublishClicked (List RelayUrl -> Maybe Subscribers.SubscriberEventData -> msg)
     | ToggleRelay RelayUrl Bool
     | UpdateSendViaEmail Bool
     | ReceivedMessage IncomingMessage
@@ -46,7 +46,7 @@ type Model msg
         , relayStates : Dict RelayUrl Bool
         , sendViaEmail : Bool
         , state : DialogState
-        , subscribers : Dict Email Subscriber
+        , subscriberEventData : Maybe Subscribers.SubscriberEventData
         }
 
 
@@ -59,7 +59,7 @@ type PublishArticleDialog msg
     = Settings
         { model : Model msg
         , toMsg : Msg msg -> msg
-        , onPublish : List RelayUrl -> Maybe (List Subscriber) -> msg
+        , onPublish : List RelayUrl -> Maybe Subscribers.SubscriberEventData -> msg
         , nostr : Nostr.Model
         , pubKey : PubKey
         , browserEnv : BrowserEnv
@@ -70,7 +70,7 @@ type PublishArticleDialog msg
 new :
     { model : Model msg
     , toMsg : Msg msg -> msg
-    , onPublish : List RelayUrl -> Maybe (List Subscriber) -> msg
+    , onPublish : List RelayUrl -> Maybe Subscribers.SubscriberEventData -> msg
     , nostr : Nostr.Model
     , pubKey : PubKey
     , browserEnv : BrowserEnv
@@ -98,7 +98,7 @@ init _ =
 
         -- authors shouldn't publish on team relay as normal users can't read from it
         , relayStates = Dict.singleton Pareto.teamRelay False
-        , subscribers = Dict.empty
+        , subscriberEventData = Nothing
         }
 
 
@@ -180,15 +180,15 @@ update props =
                                                 Just relay.urlWithoutProtocol
                                     )
 
-                    emailSubscribers =
+                    subscriberEventData =
                         if model.sendViaEmail then
-                            Just model.subscribers
+                            model.subscriberEventData
 
                         else
                             Nothing
                 in
                 ( Model model
-                , Effect.sendMsg (msg relayUrls (Maybe.map Dict.values emailSubscribers))
+                , Effect.sendMsg (msg relayUrls subscriberEventData)
                 )
 
             ReceivedMessage message ->
@@ -236,25 +236,10 @@ updateWithMessage (Model model) userPubKey message =
                     case Nostr.External.decodeEvents message.value of
                         Ok events ->
                             let
-                                ( subscribers, _, errors ) =
-                                    Subscribers.processEvents userPubKey model.subscribers [] events
-
-                                activeSubscribers =
-                                    subscribers
-                                        |> Dict.toList
-                                        |> List.filter
-                                            (\( _, subscriber ) ->
-                                                case subscriber.dateUnsubscription of
-                                                    Just dateUnsubscription ->
-                                                        -- resubscription
-                                                        Time.posixToMillis subscriber.dateSubscription > Time.posixToMillis dateUnsubscription
-
-                                                    Nothing ->
-                                                        True
-                                            )
-                                        |> Dict.fromList
+                                ( maybeSubscriberEventData, _, errors ) =
+                                    Subscribers.processEvents userPubKey [] events
                             in
-                            ( Model { model | subscribers = activeSubscribers, errors = model.errors ++ errors }, Effect.none )
+                            ( Model { model | subscriberEventData = maybeSubscriberEventData, errors = model.errors ++ errors }, Effect.none )
 
                         _ ->
                             ( Model model, Effect.none )
@@ -312,11 +297,16 @@ viewPublishArticleDialog (Settings settings) =
             Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
 
         optionalDeliverySection =
-            if Dict.size model.subscribers > 0 then
-                deliverySection (Settings settings)
+            case model.subscriberEventData of
+                Just subscriberEventData ->
+                    if subscriberEventData.active > 0 then
+                        deliverySection (Settings settings)
 
-            else
-                div [] []
+                    else
+                        div [] []
+
+                Nothing ->
+                    div [] []
     in
     div
         [ css
@@ -500,7 +490,9 @@ deliverySection (Settings settings) =
             settings.model
 
         subscriberCount =
-            Dict.size model.subscribers
+            model.subscriberEventData
+                |> Maybe.map .active
+                |> Maybe.withDefault 0
 
         checkboxText =
             if subscriberCount == 1 then

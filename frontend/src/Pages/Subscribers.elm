@@ -2,6 +2,8 @@ module Pages.Subscribers exposing (Model, Msg, page)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
+import Bytes
+import Bytes.Decode
 import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button as Button
 import Components.EmailImportDialog as EmailImportDialog
@@ -10,20 +12,25 @@ import Csv.Encode
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import FeatherIcons
+import File exposing (File)
 import File.Download
 import Html.Styled as Html exposing (Html, b, div, li, text, ul)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events as Events
+import Http
 import Json.Decode as Decode
 import Layouts
 import Material.Icons exposing (email)
 import Nostr
 import Nostr.Event exposing (Kind(..))
-import Nostr.External
-import Nostr.Request exposing (RequestData(..), RequestId)
+import Nostr.External exposing (decodeAuthHeaderReceived)
+import Nostr.Nip96 as Nip96
+import Nostr.Request exposing (HttpRequestMethod(..), RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
+import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (IncomingMessage)
 import Page exposing (Page)
+import Pareto
 import Ports
 import Route exposing (Route)
 import Shared
@@ -71,6 +78,8 @@ type alias Model =
     , state : ModelState
     , subscribers : Dict Email Subscriber
     , subscriberTable : Table.State
+    , serverDesc : Maybe Nip96.ServerDescriptorData
+    , fileId : Int
     }
 
 
@@ -79,6 +88,11 @@ type ModelState
     | Loaded
     | ErrorLoadingSubscribers String
     | Modified
+    | Encrypting String String Int Int
+    | RequestingNip96Auth String String File String String String Int Int Int
+    | Uploading String String String Int Int Int
+    | Downloading Subscribers.SubscriberEventData
+    | Decrypting
     | Saving
     | Saved
 
@@ -93,11 +107,19 @@ init user shared () =
       , state = Loading
       , subscribers = Dict.empty
       , subscriberTable = Table.initialState (Subscribers.fieldName FieldEmail) 25
+      , serverDesc = Nothing
+      , fileId = 1
       }
     , [ Subscribers.load shared.nostr user.pubKey
       , Subscribers.loadModifications shared.nostr user.pubKey
       ]
         |> List.map Effect.sendSharedMsg
+        |> List.append
+            [ Nip96.fetchServerSpec
+                (ReceivedNip96ServerDesc ("https://" ++ Pareto.paretoNip96Server))
+                ("https://" ++ Pareto.paretoNip96Server)
+                |> Effect.sendCmd
+            ]
         |> Effect.batch
     )
 
@@ -109,7 +131,7 @@ init user shared () =
 type Msg
     = ImportClicked
     | ExportClicked
-    | SaveClicked
+    | SaveClicked String String
     | ProcessModificationsClicked
     | AlertTimerMessageSent AlertTimerMessage.Msg
     | EmailImportDialogSent (EmailImportDialog.Msg Msg)
@@ -117,6 +139,8 @@ type Msg
     | RemoveSubscriber String
     | NewTableState Table.State
     | ReceivedMessage IncomingMessage
+    | ReceivedNip96ServerDesc String (Result Http.Error Nip96.ServerDescResponse)
+    | UploadResultNip96 (Result Http.Error Nip96.UploadResponse) -- fileId, api URL
 
 
 update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -135,12 +159,18 @@ update user shared msg model =
                 |> Effect.sendCmd
             )
 
-        SaveClicked ->
-            ( { model | state = Saving }
-            , Subscribers.subscriberDataEvent shared.browserEnv user.pubKey (Dict.values model.subscribers)
-                |> SendApplicationData
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
+        SaveClicked serverUrl apipUrl ->
+            let
+                activeSubscriberCount =
+                    model.subscribers
+                        |> Dict.values
+                        |> List.filter (\subscriber -> subscriber.dateUnsubscription == Nothing)
+                        |> List.length
+            in
+            ( { model | state = Encrypting serverUrl apipUrl activeSubscriberCount (Dict.size model.subscribers) }
+            , Subscribers.subscribersToJson (Dict.values model.subscribers)
+                |> Ports.encryptString
+                |> Effect.sendCmd
             )
 
         ProcessModificationsClicked ->
@@ -199,6 +229,35 @@ update user shared msg model =
         ReceivedMessage message ->
             updateWithMessage user shared model message
 
+        ReceivedNip96ServerDesc serverUrl serverDescResponseResult ->
+            case serverDescResponseResult of
+                Ok (Nip96.ServerRedirect serverRedirection) ->
+                    ( model
+                    , Effect.sendCmd (Nip96.fetchServerSpec (ReceivedNip96ServerDesc serverUrl) serverRedirection.delegated_to_url)
+                    )
+
+                Ok (Nip96.ServerDescriptor serverDescriptorData) ->
+                    ( { model | serverDesc = Just <| Nip96.extendRelativeServerDescriptorUrls serverUrl serverDescriptorData }, Effect.none )
+
+                Err error ->
+                    ( { model | errors = ("Error getting server description: " ++ httpErrorToString error) :: model.errors }, Effect.none )
+
+        UploadResultNip96 (Ok response) ->
+            case ( response.status, response.fileMetadata, model.state ) of
+                ( "success", Just fileMetadata, Uploading keyHex ivHex sha256 size active total ) ->
+                    ( { model | state = Saving }
+                    , Subscribers.subscriberDataEvent shared.browserEnv user.pubKey { keyHex = keyHex, ivHex = ivHex, url = Maybe.withDefault "" fileMetadata.url, size = size, active = active, total = total }
+                        |> SendApplicationData
+                        |> Shared.Msg.SendNostrEvent
+                        |> Effect.sendSharedMsg
+                    )
+
+                ( status, _, _ ) ->
+                    ( { model | state = Modified, errors = ("Error uploading subscribers: " ++ status) :: model.errors }, Effect.none )
+
+        UploadResultNip96 (Err error) ->
+            ( { model | state = Modified, errors = ("Error uploading subscribers: " ++ httpErrorToString error) :: model.errors }, Effect.none )
+
 
 csvDownloadFileName : BrowserEnv -> String
 csvDownloadFileName browserEnv =
@@ -222,18 +281,28 @@ updateWithMessage user shared model message =
                                 case Nostr.External.decodeEventsKind message.value of
                                     Ok KindApplicationSpecificData ->
                                         let
-                                            ( subscribers, modifications, errors ) =
-                                                Subscribers.processEvents user.pubKey model.subscribers model.modifications events
+                                            ( maybeSubscriberEventData, modifications, errors ) =
+                                                Subscribers.processEvents user.pubKey model.modifications events
+
+                                            modelWithModifications =
+                                                { model | modifications = modifications, errors = model.errors ++ errors }
                                         in
-                                        ( { model
-                                            | state = Loaded
-                                            , modifications = modifications
-                                            , subscribers = subscribers
-                                            , subscriberTable = Table.setTotal (Dict.size subscribers) model.subscriberTable
-                                            , errors = model.errors ++ errors
-                                          }
-                                        , Effect.none
-                                        )
+                                        case maybeSubscriberEventData of
+                                            Just subscriberEventData ->
+                                                ( { model
+                                                    | state = Downloading subscriberEventData
+
+                                                    -- , subscribers = subscribers
+                                                    -- , subscriberTable = Table.setTotal (Dict.size subscribers) model.subscriberTable
+                                                  }
+                                                , Ports.downloadAndDecryptFile subscriberEventData.url
+                                                    subscriberEventData.keyHex
+                                                    subscriberEventData.ivHex
+                                                    |> Effect.sendCmd
+                                                )
+
+                                            Nothing ->
+                                                ( { model | state = ErrorLoadingSubscribers "No subscriber event found" }, Effect.none )
 
                                     _ ->
                                         ( model, Effect.none )
@@ -247,6 +316,73 @@ updateWithMessage user shared model message =
                 _ ->
                     ( model, Effect.none )
 
+        "encryptedString" ->
+            case ( model.state, Decode.decodeValue receivedDataDecoder message.value ) of
+                ( Encrypting serverUrl apiUrl active total, Ok decoded ) ->
+                    ( { model
+                        | state = RequestingNip96Auth serverUrl apiUrl decoded.file decoded.keyHex decoded.ivHex decoded.sha256 decoded.size active total
+                      }
+                    , PostRequest 1 decoded.sha256
+                        |> RequestNip98Auth serverUrl apiUrl
+                        |> Nostr.createRequest shared.nostr "NIP-96 auth request for files to be uploaded" []
+                        |> Shared.Msg.RequestNostrEvents
+                        |> Effect.sendSharedMsg
+                    )
+
+                ( Encrypting _ _ _ _, Err error ) ->
+                    ( { model | errors = ("Error receiving encrypted file: " ++ Decode.errorToString error) :: model.errors }, Effect.none )
+
+                ( _, _ ) ->
+                    ( model, Effect.none )
+
+        "decryptedString" ->
+            case Decode.decodeValue Subscribers.subscriberDataDecoder message.value of
+                Ok subscribers ->
+                    let
+                        subscribersDict =
+                            subscribers
+                                |> List.foldl
+                                    (\subscriber acc ->
+                                        Dict.insert subscriber.email subscriber acc
+                                    )
+                                    Dict.empty
+                    in
+                    ( { model
+                        | state = Loaded
+                        , subscribers = subscribersDict
+                        , subscriberTable = Table.setTotal (Dict.size subscribersDict) model.subscriberTable
+                      }
+                    , Effect.none
+                    )
+
+                Err error ->
+                    ( { model | errors = ("Error decoding subscribers: " ++ Decode.errorToString error) :: model.errors }, Effect.none )
+
+        "nip98AuthHeader" ->
+            case ( model.state, Decode.decodeValue decodeAuthHeaderReceived message.value ) of
+                ( RequestingNip96Auth serverUrl apiUrl file keyHex ivHex sha256 size active total, Ok decoded ) ->
+                    ( { model | state = Uploading keyHex ivHex sha256 size active total }
+                    , Nip96.uploadFile apiUrl
+                        model.fileId
+                        { file = file
+                        , status = Nip96.Uploading 0.0
+                        , caption = Nothing
+                        , alt = Nothing
+                        , mediaType = Nothing
+                        , noTransform = Just True
+                        , uploadResponse = Nothing
+                        }
+                        UploadResultNip96
+                        decoded.authHeader
+                        |> Effect.sendCmd
+                    )
+
+                ( _, Err error ) ->
+                    ( { model | errors = ("Error receiving NIP-98 auth header: " ++ Decode.errorToString error) :: model.errors }, Effect.none )
+
+                ( _, _ ) ->
+                    ( model, Effect.none )
+
         "published" ->
             -- currently this page only publishes the list of subscribers so we don't have to check details
             update user shared (AlertTimerMessageSent (AlertTimerMessage.AddMessage "saved subscribers sucessfully" 1000)) { model | state = Saved }
@@ -257,6 +393,25 @@ updateWithMessage user shared model message =
 
         _ ->
             ( model, Effect.none )
+
+
+type alias ReceivedData =
+    { file : File
+    , ivHex : String
+    , keyHex : String
+    , sha256 : String
+    , size : Int
+    }
+
+
+receivedDataDecoder : Decode.Decoder ReceivedData
+receivedDataDecoder =
+    Decode.map5 ReceivedData
+        (Decode.field "file" File.decoder)
+        (Decode.field "ivHex" Decode.string)
+        (Decode.field "keyHex" Decode.string)
+        (Decode.field "sha256" Decode.string)
+        (Decode.field "size" Decode.int)
 
 
 
@@ -354,7 +509,7 @@ view user shared model =
                     |> Button.view
                 , Button.new
                     { label = Translations.saveButtonTitle [ shared.browserEnv.translations ]
-                    , onClick = Just <| SaveClicked
+                    , onClick = model.serverDesc |> Maybe.map (\serverDesc -> SaveClicked Pareto.paretoNip96Server serverDesc.apiUrl)
                     , theme = shared.theme
                     }
                     |> Button.withTypePrimary
