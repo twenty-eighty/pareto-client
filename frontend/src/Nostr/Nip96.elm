@@ -3,7 +3,7 @@ module Nostr.Nip96 exposing (..)
 import Dict exposing (Dict)
 import File exposing (File)
 import Http
-import Json.Decode as Decode exposing (Decoder, andThen, bool, dict, fail, field, float, int, list, maybe, string, succeed)
+import Json.Decode as Decode exposing (Decoder, andThen, bool, dict, fail, float, int, list, maybe, string, succeed)
 import Json.Decode.Pipeline exposing (optional, required)
 import Nostr.Nip94 as Nip94
 import Url

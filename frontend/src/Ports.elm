@@ -143,3 +143,27 @@ sendEvent sendRequestId relays event =
                 , ( "relays", Encode.list Encode.string relays )
                 ]
         }
+
+
+encryptString : String -> Cmd msg
+encryptString data =
+    sendCommand
+        { command = "encryptString"
+        , value =
+            Encode.object
+                [ ( "data", Encode.string data )
+                ]
+        }
+
+
+downloadAndDecryptFile : String -> String -> String -> Cmd msg
+downloadAndDecryptFile url keyHex ivHex =
+    sendCommand
+        { command = "downloadAndDecryptFile"
+        , value =
+            Encode.object
+                [ ( "url", Encode.string url )
+                , ( "key", Encode.string keyHex )
+                , ( "iv", Encode.string ivHex )
+                ]
+        }

@@ -448,38 +448,24 @@ modificationsEventFilter pubKey =
     }
 
 
-processEvents : PubKey -> Dict Email Subscriber -> List Modification -> List Event -> ( Dict Email Subscriber, List Modification, List String )
-processEvents userPubKey existingSubscribers existingModifications events =
+processEvents : PubKey -> List Modification -> List Event -> ( Maybe SubscriberEventData, List Modification, List String )
+processEvents userPubKey existingModifications events =
     let
-        subscriberEvents =
+        subscriberEventData =
             events
                 |> List.filter (\event -> event.pubKey == userPubKey)
+                |> List.filterMap
+                    (\subscriberEvent ->
+                        Decode.decodeString decodeSubscriberData subscriberEvent.content
+                            |> Result.toMaybe
+                    )
+                |> List.head
 
         modificationEvents =
             events
                 |> List.filter (\event -> event.pubKey == Pareto.subscriptionServerKey)
 
-        ( subscribersDict, decodingErrors1 ) =
-            subscriberEvents
-                |> List.map subscribersFromEvent
-                |> List.foldl
-                    (\result ( subscriberDict, errorList ) ->
-                        case result of
-                            Ok decodedSubscribers ->
-                                let
-                                    decodedSubscribersDict =
-                                        decodedSubscribers
-                                            |> List.map (\decodedSubscriber -> ( decodedSubscriber.email, decodedSubscriber ))
-                                            |> Dict.fromList
-                                in
-                                ( Dict.union subscriberDict decodedSubscribersDict, errorList )
-
-                            Err error ->
-                                ( subscriberDict, errorList ++ [ Decode.errorToString error ] )
-                    )
-                    ( existingSubscribers, [] )
-
-        ( modifications, decodingErrors2 ) =
+        ( modifications, decodingErrors ) =
             modificationEvents
                 |> List.map modificationsFromEvent
                 |> List.foldl
@@ -493,12 +479,17 @@ processEvents userPubKey existingSubscribers existingModifications events =
                     )
                     ( existingModifications, [] )
     in
-    ( subscribersDict, modifications, decodingErrors1 ++ decodingErrors2 )
+    ( subscriberEventData, modifications, decodingErrors )
 
 
 subscribersFromEvent : Event -> Result Decode.Error (List Subscriber)
 subscribersFromEvent event =
-    Decode.decodeString (Decode.field "subscribers" subscribersDecoder) event.content
+    Decode.decodeString subscriberDataDecoder event.content
+
+
+subscriberDataDecoder : Decode.Decoder (List Subscriber)
+subscriberDataDecoder =
+    Decode.field "subscribers" subscribersDecoder
 
 
 modificationsFromEvent : Event -> Result Decode.Error (List Modification)
@@ -625,15 +616,75 @@ subscriberToCsv subscriber =
         |> String.append "\n"
 
 
-subscriberDataEvent : BrowserEnv -> PubKey -> List Subscriber -> Event
-subscriberDataEvent browserEnv pubKey subscribers =
+type alias SubscriberEventData =
+    { keyHex : String -- encryption key
+    , ivHex : String -- initialization vector of encryption
+    , url : String -- URL where to find the encrypted data
+    , size : Int -- encrypted data size
+    , active : Int -- number of active subscribers
+    , total : Int -- total number of subscribers
+    }
+
+
+subscriberEventKey : String
+subscriberEventKey =
+    "key"
+
+
+subscriberEventIv : String
+subscriberEventIv =
+    "iv"
+
+
+subscriberEventUrl : String
+subscriberEventUrl =
+    "url"
+
+
+subscriberEventSize : String
+subscriberEventSize =
+    "size"
+
+
+subscriberEventActive : String
+subscriberEventActive =
+    "active"
+
+
+subscriberEventTotal : String
+subscriberEventTotal =
+    "total"
+
+
+decodeSubscriberData : Decode.Decoder SubscriberEventData
+decodeSubscriberData =
+    Decode.succeed SubscriberEventData
+        |> required subscriberEventKey Decode.string
+        |> required subscriberEventIv Decode.string
+        |> required subscriberEventUrl Decode.string
+        |> required subscriberEventSize Decode.int
+        |> required subscriberEventActive Decode.int
+        |> required subscriberEventTotal Decode.int
+
+
+subscriberDataEvent : BrowserEnv -> PubKey -> SubscriberEventData -> Event
+subscriberDataEvent browserEnv pubKey { keyHex, ivHex, url, size, active, total } =
     { pubKey = pubKey
     , createdAt = browserEnv.now
     , kind = KindApplicationSpecificData
     , tags =
         []
             |> Event.addDTag subscribersDTag
-    , content = subscribersToJson subscribers
+    , content =
+        [ ( subscriberEventKey, Encode.string keyHex )
+        , ( subscriberEventIv, Encode.string ivHex )
+        , ( subscriberEventUrl, Encode.string url )
+        , ( subscriberEventSize, Encode.int size )
+        , ( subscriberEventActive, Encode.int active )
+        , ( subscriberEventTotal, Encode.int total )
+        ]
+            |> Encode.object
+            |> Encode.encode 0
     , id = ""
     , sig = Nothing
     , relays = Nothing
@@ -670,8 +721,8 @@ encodeSubscriber subscriber =
         |> addStringListToObject FieldTags subscriber.tags
 
 
-newsletterSubscribersEvent : Shared.Model -> PubKey -> AddressComponents -> List Subscriber -> Event
-newsletterSubscribersEvent shared pubKey articleAddressComponents subscribers =
+newsletterSubscribersEvent : Shared.Model -> PubKey -> AddressComponents -> SubscriberEventData -> Event
+newsletterSubscribersEvent shared pubKey articleAddressComponents subscriberEventData =
     let
         ( _, _, identifier ) =
             articleAddressComponents
@@ -691,21 +742,21 @@ newsletterSubscribersEvent shared pubKey articleAddressComponents subscribers =
             |> Event.addAddressTag articleAddressComponents
             -- reference email gateway as encryption target
             |> Event.addPubKeyTag Pareto.emailGatewayKey Nothing Nothing
-    , content = emailSendRequestToJson senderProfileName subscribers
+    , content = emailSendRequestToJson senderProfileName subscriberEventData
     , id = ""
     , sig = Nothing
     , relays = Nothing
     }
 
 
-emailSendRequestToJson : Maybe String -> List Subscriber -> String
-emailSendRequestToJson maybeSenderName subscribers =
-    let
-        recipients =
-            subscribers
-                |> List.filter (\subscriber -> subscriber.dnd /= Just True)
-    in
-    [ ( "recipients", encodeSubscribers recipients )
+emailSendRequestToJson : Maybe String -> SubscriberEventData -> String
+emailSendRequestToJson maybeSenderName { keyHex, ivHex, url, size, active, total } =
+    [ ( subscriberEventKey, Encode.string keyHex )
+    , ( subscriberEventIv, Encode.string ivHex )
+    , ( subscriberEventUrl, Encode.string url )
+    , ( subscriberEventSize, Encode.int size )
+    , ( subscriberEventActive, Encode.int active )
+    , ( subscriberEventTotal, Encode.int total )
     ]
         |> addStringToObject FieldName maybeSenderName
         |> Encode.object

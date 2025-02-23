@@ -111,11 +111,11 @@ type ArticleState
     | ArticleSavingDraft SendRequestId
     | ArticleDraftSaveError String
     | ArticleDraftSaved
-    | ArticlePublishing SendRequestId (Maybe (List Subscriber))
+    | ArticlePublishing SendRequestId (Maybe Subscribers.SubscriberEventData)
     | ArticlePublishingError String
-    | ArticleSendingNewsletter Int
+    | ArticleSendingNewsletter Int Int
     | ArticlePublished
-    | ArticleDeletingDraft SendRequestId (Maybe (List Subscriber))
+    | ArticleDeletingDraft SendRequestId (Maybe Subscribers.SubscriberEventData)
 
 
 type ImageSelection
@@ -280,7 +280,7 @@ type Msg
     | SelectImage ImageSelection
     | ImageSelected ImageSelection MediaSelector.UploadedFile
     | Publish
-    | PublishArticle (List RelayUrl) (Maybe (List Subscriber))
+    | PublishArticle (List RelayUrl) (Maybe Subscribers.SubscriberEventData)
     | SaveDraft
     | Now Time.Posix
     | OpenMediaSelector
@@ -391,8 +391,10 @@ update shared user msg model =
         Publish ->
             update shared user (PublishArticleDialogSent PublishArticleDialog.ShowDialog) model
 
-        PublishArticle relayUrls maybeSubscribers ->
-            ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) maybeSubscribers }, sendPublishCmd shared model user relayUrls )
+        PublishArticle relayUrls maybeSubscriberEventData ->
+            ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) maybeSubscriberEventData }
+            , sendPublishCmd shared model user relayUrls
+            )
 
         SaveDraft ->
             ( { model | articleState = ArticleSavingDraft (Nostr.getLastSendRequestId shared.nostr) }, sendDraftCmd shared model user )
@@ -565,20 +567,20 @@ updateWithPublishedResults shared model user value =
             else
                 ( model, Effect.none )
 
-        ArticlePublishing sendRequestId maybeSubscribers ->
+        ArticlePublishing sendRequestId maybeSubscriberEventData ->
             if Just sendRequestId == receivedSendRequestId then
-                case ( model.draftEventId, maybeSubscribers ) of
+                case ( model.draftEventId, maybeSubscriberEventData ) of
                     ( Just _, _ ) ->
                         ( { model
-                            | articleState = ArticleDeletingDraft (Nostr.getLastSendRequestId shared.nostr) maybeSubscribers
+                            | articleState = ArticleDeletingDraft (Nostr.getLastSendRequestId shared.nostr) maybeSubscriberEventData
                           }
                           -- after publishing article, delete draft
                         , sendDraftDeletionCmd shared model user
                         )
 
-                    ( Nothing, Just subscribers ) ->
-                        ( { model | articleState = ArticleSendingNewsletter (List.length subscribers) }
-                        , Subscribers.newsletterSubscribersEvent shared user.pubKey ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier ) subscribers
+                    ( Nothing, Just subscriberEventData ) ->
+                        ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
+                        , Subscribers.newsletterSubscribersEvent shared user.pubKey ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier ) subscriberEventData
                             |> SendApplicationData
                             |> Shared.Msg.SendNostrEvent
                             |> Effect.sendSharedMsg
@@ -596,12 +598,12 @@ updateWithPublishedResults shared model user value =
             else
                 ( model, Effect.none )
 
-        ArticleDeletingDraft sendRequestId maybeSubscribers ->
+        ArticleDeletingDraft sendRequestId maybeSubscriberEventData ->
             if Just sendRequestId == receivedSendRequestId then
-                case maybeSubscribers of
-                    Just subscribers ->
-                        ( { model | articleState = ArticleSendingNewsletter (List.length subscribers) }
-                        , Subscribers.newsletterSubscribersEvent shared user.pubKey ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier ) subscribers
+                case maybeSubscriberEventData of
+                    Just subscriberEventData ->
+                        ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
+                        , Subscribers.newsletterSubscribersEvent shared user.pubKey ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier ) subscriberEventData
                             |> SendApplicationData
                             |> Shared.Msg.SendNostrEvent
                             |> Effect.sendSharedMsg
@@ -620,7 +622,7 @@ updateWithPublishedResults shared model user value =
             else
                 ( model, Effect.none )
 
-        ArticleSendingNewsletter _ ->
+        ArticleSendingNewsletter _ _ ->
             ( { model
                 | articleState = ArticlePublished
                 , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
@@ -892,7 +894,7 @@ articleStateToString browserEnv articleState =
         ArticlePublishingError error ->
             Just <| Translations.articlePublishingError [ browserEnv.translations ] ++ ": " ++ error
 
-        ArticleSendingNewsletter _ ->
+        ArticleSendingNewsletter _ _ ->
             Just <| Translations.articleSendingNewsletterState [ browserEnv.translations ]
 
         ArticlePublished ->
@@ -932,7 +934,7 @@ articleStateProcessIndicator articleState =
         ArticlePublishingError _ ->
             Nothing
 
-        ArticleSendingNewsletter _ ->
+        ArticleSendingNewsletter _ _ ->
             Just <| (Loaders.rings [] |> Html.fromUnstyled)
 
         ArticlePublished ->

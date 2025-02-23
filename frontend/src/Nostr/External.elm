@@ -31,3 +31,24 @@ decodeEventsKind value =
 decodeRequestId : Decode.Value -> Result Decode.Error RequestId
 decodeRequestId value =
     Decode.decodeValue (Decode.field "requestId" Decode.int) value
+
+
+decodeAuthHeaderReceived : Decode.Decoder AuthHeaderReceived
+decodeAuthHeaderReceived =
+    Decode.map6 AuthHeaderReceived
+        (Decode.field "requestId" Decode.int)
+        (Decode.maybe (Decode.field "fileId" Decode.int))
+        (Decode.field "method" Decode.string)
+        (Decode.field "authHeader" Decode.string)
+        (Decode.field "serverUrl" Decode.string)
+        (Decode.field "apiUrl" Decode.string)
+
+
+type alias AuthHeaderReceived =
+    { requestId : Int
+    , fileId : Maybe Int
+    , method : String
+    , authHeader : String
+    , serverUrl : String
+    , apiUrl : String
+    }

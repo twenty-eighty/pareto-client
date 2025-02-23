@@ -32,6 +32,7 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import Nostr
 import Nostr.Blossom as Blossom
+import Nostr.External exposing (decodeAuthHeaderReceived)
 import Nostr.Nip94 as Nip94
 import Nostr.Nip96 as Nip96
 import Nostr.Request exposing (HttpRequestMethod(..), RequestData(..))
@@ -832,27 +833,6 @@ processIncomingMessage user (Model model) messageType toMsg value =
             ( Model model, Effect.none )
 
 
-decodeAuthHeaderReceived : Decode.Decoder AuthHeaderReceived
-decodeAuthHeaderReceived =
-    Decode.map6 AuthHeaderReceived
-        (Decode.field "requestId" Decode.int)
-        (Decode.maybe (Decode.field "fileId" Decode.int))
-        (Decode.field "method" Decode.string)
-        (Decode.field "authHeader" Decode.string)
-        (Decode.field "serverUrl" Decode.string)
-        (Decode.field "apiUrl" Decode.string)
-
-
-type alias AuthHeaderReceived =
-    { requestId : Int
-    , fileId : Maybe Int
-    , method : String
-    , authHeader : String
-    , serverUrl : String
-    , apiUrl : String
-    }
-
-
 type DisplayMode
     = WaitingForFiles
     | EditingMetadata Int FileUpload
@@ -892,7 +872,7 @@ uploadsNeedingMetadata : List ( Int, FileUpload ) -> List ( Int, FileUpload )
 uploadsNeedingMetadata uploads =
     uploads
         |> List.filter
-            (\( fileId, upload ) ->
+            (\( _, upload ) ->
                 case upload of
                     FileUploadBlossom _ { status } ->
                         status == Blossom.Selected
@@ -1556,17 +1536,6 @@ tagValue tags tagName =
                     Nothing
             )
         |> List.head
-
-
-uploadButton : Ui.Styles.Theme -> Html Msg
-uploadButton theme =
-    Button.new
-        { label = "Upload"
-        , onClick = Just TriggerFileSelect
-        , theme = theme
-        }
-        |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.upload)
-        |> Button.view
 
 
 subscribe : Model -> Sub Msg

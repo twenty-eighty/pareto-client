@@ -92,6 +92,14 @@ export const onReady = ({ app, env }) => {
   function processOnlineCommand(app, command, value) {
     debugLog('process command', command);
     switch (command) {
+      case 'encryptString':
+        encryptString(app, value.data)
+        break;
+
+      case 'downloadAndDecryptFile':
+        downloadAndDecryptFile(app, value.url, value.key, value.iv)
+        break;
+
       case 'requestEvents':
         requestEvents(app, value);
         break;
@@ -128,6 +136,148 @@ export const onReady = ({ app, env }) => {
     }
   }
 
+  // 1) A function that imports an AES-GCM key and encrypts `plaintextBytes` with it.
+  function encryptData(plaintextBytes, keyBytes) {
+    // Import the raw key (32 bytes => AES-256)
+    return window.crypto.subtle
+      .importKey(
+        'raw',
+        keyBytes,
+        { name: 'AES-GCM' },
+        false,
+        ['encrypt']
+      )
+      .then(function (key) {
+        // Create a random 12-byte IV
+        var ivBytes = window.crypto.getRandomValues(new Uint8Array(12));
+
+        // Encrypt with AES-GCM
+        return window.crypto.subtle
+          .encrypt({ name: 'AES-GCM', iv: ivBytes }, key, plaintextBytes)
+          .then(function (ciphertextBuffer) {
+            return {
+              ciphertextBuffer: ciphertextBuffer,
+              ivBytes: ivBytes
+            };
+          });
+      });
+  }
+
+  // 2) Helper to convert bytes to hex string
+  function bytesToHex(uint8Arr) {
+    return Array.from(uint8Arr)
+      .map(function (b) {
+        return b.toString(16).padStart(2, '0');
+      })
+      .join('');
+  }
+
+  // 3) Helper to convert bytes to Base64
+  function bytesToBase64(uint8Arr) {
+    var binary = '';
+    for (var i = 0; i < uint8Arr.byteLength; i++) {
+      binary += String.fromCharCode(uint8Arr[i]);
+    }
+    return btoa(binary);
+  }
+
+  // 4) This function encrypts the data and sends it through an Elm port as:
+  //    { file: { name, size, mime, base64 }, ivHex, keyHex }
+  async function encryptString(app, data) {
+    var keyBytes = new Uint8Array(32); // 32 bytes for AES-256
+
+    window.crypto.getRandomValues(keyBytes); // fill with cryptographically strong random bytes
+    encryptData(new TextEncoder().encode(data), keyBytes)
+      .then(function (result) {
+        var ciphertextBytes = new Uint8Array(result.ciphertextBuffer);
+        var ivBytes = result.ivBytes;
+
+        crypto.subtle.digest('SHA-256', result.ciphertextBuffer).then((hash) => {
+          const hashArray = Array.from(new Uint8Array(hash));
+          const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+          // Prepare 'file' data in a shape compatible with elm/file's decoder
+          var file = new File([result.ciphertextBuffer], 'data.bin', { type: 'application/octet-stream' });
+
+          // Example: send result to Elm port 
+          app.ports.receiveMessage.send({
+            messageType: 'encryptedString', value: {
+              file: file,
+              ivHex: bytesToHex(ivBytes),
+              keyHex: bytesToHex(keyBytes),
+              sha256: hashHex,
+              size: result.ciphertextBuffer.byteLength
+            }
+          });
+        });
+      })
+      .catch(function (error) {
+        console.error('Encryption error:', error);
+        app.ports.receiveMessage.send({ messageType: 'error', value: { reason: "failed to encrypt data" } });
+      });
+  }
+
+
+  function downloadAndDecryptFile(app, url, keyHex, ivHex) {
+    // 1) Fetch the data (as ArrayBuffer)
+    return fetch(url)
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error("Network response was not ok, status=" + response.status);
+        }
+        return response.arrayBuffer();
+      })
+      .then(function (encryptedBuffer) {
+        // 2) Convert key and IV from hex to bytes
+        var keyBytes = hexToBytes(keyHex); // e.g. 32 bytes for AES-256
+        var ivBytes = hexToBytes(ivHex);   // typically 12 bytes for GCM
+
+        // 3) Import key for AES-GCM
+        return window.crypto.subtle
+          .importKey(
+            "raw",
+            keyBytes,
+            { name: "AES-GCM" },
+            false,
+            ["decrypt"]
+          )
+          .then(function (cryptoKey) {
+            // 4) Decrypt using the imported key
+            return window.crypto.subtle.decrypt(
+              {
+                name: "AES-GCM",
+                iv: ivBytes
+              },
+              cryptoKey,
+              encryptedBuffer
+            );
+          });
+      })
+      .then(function (decryptedBuffer) {
+        // 5) Decode from bytes to UTF-8 string
+        var decodedString = new TextDecoder().decode(decryptedBuffer);
+
+        // 6) Send it to Elm via a port (assuming `app.ports.gotDecryptedString` exists)
+        app.ports.receiveMessage.send({ messageType: 'decryptedString', value: JSON.parse(decodedString) });
+      })
+      .catch(function (error) {
+        console.error("Error in fetchAndDecryptEncryptedData:", error);
+        // You could also send an error message to Elm or handle it differently
+        app.ports.receiveMessage.send({ messageType: 'error', value: { reason: "failed to download/decrypt data" } });
+      });
+  }
+
+  // Convert a hex string (e.g. "deadbeef") to Uint8Array
+  function hexToBytes(hexString) {
+    if (hexString.length % 2 !== 0) {
+      throw new Error("Invalid hex string length");
+    }
+    var result = new Uint8Array(hexString.length / 2);
+    for (var i = 0; i < hexString.length; i += 2) {
+      result[i / 2] = parseInt(hexString.substring(i, i + 2), 16);
+    }
+    return result;
+  }
 
   function connect(app, client, nip89, relays) {
     debugLog('connect to relays', relays);
