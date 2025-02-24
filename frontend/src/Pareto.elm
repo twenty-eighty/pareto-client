@@ -234,6 +234,7 @@ bootstrapAuthorsList =
     , ( "sinautoshi@pareto.town", "04ea4f8350f1562aa1d60dc070561f5bb8386a11d1a00570fd7440da210e1713" )
     , ( "kaydee@pareto.town", "0fb1cb069125af78bce3306562492aa85a458c6b3b8d415fd5710102cc1c8841" )
     , ( "volker.schubert@pareto.town", "80f49d824217e4730aadb729d38775bb2a31405b92a3d70ea37b73fcab3cb150" )
+    , ( "friedenstaube@pareto.town", "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5" )
     ]
 
 
