@@ -128,6 +128,8 @@ view toMsg options model =
     Html.node "elm-milkdown-editor"
         ([ style "height" options.height
          , style "font-size" "1em"
+         , style "position" "relative"
+         , style "z-index" "1"
          , on "receivedSelectedFile" (JD.succeed (toMsg OnReceivedSelectedFile))
          ]
             ++ contentAttr options.content
