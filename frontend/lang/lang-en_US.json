@@ -64,7 +64,14 @@
    "email subscription dialog": {
       "dialog title": "Subscribe with Email",
       "subscribe button title": "Subscribe",
-      "close button title": "Close"
+      "close button title": "Close",
+      "info text": "Get new articles of {{profileName}} delivered to your inbox.",
+      "email label": "Email",
+      "email placeholder": "john@example.com",
+      "privacy info": "The email is stored by the author, not the Pareto project",
+      "sending message text": "Sending opt-in...",
+      "sent message text": "Sent opt-in, you will get a confirmation email shortly.",
+      "error message text": "Error subscribing to list: {{error}}. Please contact us at support@pareto.space"
    },
    "locale": {
       "english text": "English",

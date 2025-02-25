@@ -3,6 +3,7 @@ module TailwindMarkdownRenderer exposing (renderer)
 import Css
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as Attr exposing (css)
+import LinkPreview
 import Markdown.Block as Block
 import Markdown.Html
 import Markdown.Renderer
@@ -357,26 +358,12 @@ heading styles { level, rawText, children } =
                 children
 
 
-
---code : String -> Element msg
---code snippet =
---    Element.el
---        [ Element.Background.color
---            (Element.rgba255 50 50 50 0.07)
---        , Element.Border.rounded 2
---        , Element.paddingXY 5 3
---        , Font.family [ Font.typeface "Roboto Mono", Font.monospace ]
---        ]
---        (Element.text snippet)
---
---
-
-
 htmlBlock : Markdown.Html.Renderer (List (Html msg) -> Html msg)
 htmlBlock =
     Markdown.Html.oneOf
         [ htmlAElement
         , htmlCiteElement
+        , htmlIframeElement
         , htmlImgElement
         , htmlPElement
         , htmlStrongElement
@@ -387,6 +374,22 @@ htmlBlock =
         , htmlGenericElement "td"
         , htmlGenericElement "tr"
         ]
+
+
+htmlIframeElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlIframeElement =
+    Markdown.Html.tag "iframe"
+        (\src maybeTitle _ _ _ _ _ _ ->
+            renderHtmlIframeElement src maybeTitle
+        )
+        |> Markdown.Html.withAttribute "src"
+        |> Markdown.Html.withOptionalAttribute "title"
+        |> Markdown.Html.withOptionalAttribute "width"
+        |> Markdown.Html.withOptionalAttribute "height"
+        |> Markdown.Html.withOptionalAttribute "frameborder"
+        |> Markdown.Html.withOptionalAttribute "allow"
+        |> Markdown.Html.withOptionalAttribute "allowfullscreen"
+        |> Markdown.Html.withOptionalAttribute "referrerpolicy"
 
 
 htmlImgElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
@@ -462,6 +465,11 @@ renderHtmlCiteElement maybeSrc children =
             :: srcAttr
         )
         children
+
+
+renderHtmlIframeElement : String -> Maybe String -> (List (Html msg) -> Html msg)
+renderHtmlIframeElement src _ children =
+    LinkPreview.generatePreviewHtml Nothing src [] children
 
 
 renderHtmlImgElement : String -> Maybe String -> (List (Html msg) -> Html msg)

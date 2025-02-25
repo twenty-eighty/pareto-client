@@ -138,7 +138,8 @@ update shared msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    EmailSubscriptionDialog.subscriptions model.emailSubscriptionDialog
+        |> Sub.map EmailSubscriptionDialogSent
 
 
 
@@ -205,7 +206,8 @@ viewEmailSubscriptionDialog shared model profile =
                 { model = model.emailSubscriptionDialog
                 , toMsg = EmailSubscriptionDialogSent
                 , nostr = shared.nostr
-                , pubKey = userPubKey
+                , profile = profile
+                , pubKeyUser = userPubKey
                 , browserEnv = shared.browserEnv
                 , theme = shared.theme
                 }

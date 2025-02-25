@@ -33,6 +33,16 @@ decodeRequestId value =
     Decode.decodeValue (Decode.field "requestId" Decode.int) value
 
 
+decodeSendId : Decode.Value -> Result Decode.Error SendRequestId
+decodeSendId value =
+    Decode.decodeValue (Decode.field "sendId" Decode.int) value
+
+
+decodeReason : Decode.Value -> Result Decode.Error String
+decodeReason value =
+    Decode.decodeValue (Decode.field "reason" Decode.string) value
+
+
 decodeAuthHeaderReceived : Decode.Decoder AuthHeaderReceived
 decodeAuthHeaderReceived =
     Decode.map6 AuthHeaderReceived

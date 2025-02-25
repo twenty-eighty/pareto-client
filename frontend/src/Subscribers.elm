@@ -751,14 +751,18 @@ newsletterSubscribersEvent shared pubKey articleAddressComponents subscriberEven
 
 emailSendRequestToJson : Maybe String -> SubscriberEventData -> String
 emailSendRequestToJson maybeSenderName { keyHex, ivHex, url, size, active, total } =
-    [ ( subscriberEventKey, Encode.string keyHex )
-    , ( subscriberEventIv, Encode.string ivHex )
-    , ( subscriberEventUrl, Encode.string url )
-    , ( subscriberEventSize, Encode.int size )
-    , ( subscriberEventActive, Encode.int active )
-    , ( subscriberEventTotal, Encode.int total )
+    [ ( "newsletter"
+      , [ ( subscriberEventKey, Encode.string keyHex )
+        , ( subscriberEventIv, Encode.string ivHex )
+        , ( subscriberEventUrl, Encode.string url )
+        , ( subscriberEventSize, Encode.int size )
+        , ( subscriberEventActive, Encode.int active )
+        , ( subscriberEventTotal, Encode.int total )
+        ]
+            |> addStringToObject FieldName maybeSenderName
+            |> Encode.object
+      )
     ]
-        |> addStringToObject FieldName maybeSenderName
         |> Encode.object
         |> Encode.encode 0
 

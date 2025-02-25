@@ -65,7 +65,14 @@
       "dialog title": "Mit E-Mail abonnieren",
       "subscribe button title": "Abonnieren",
       "close button title": "Schließen",
-      "next button title": "Weiter"
+      "next button title": "Weiter",
+      "info text": "Bekomme neue Artikel von {{profileName}} direkt in dein Postfach.",
+      "email label": "E-Mail",
+      "email placeholder": "max@mustermann.de",
+      "privacy info": "Die E-Mail wird vom Autor gespeichert, nicht durch das Pareto-Projekt",
+      "sending message text": "Sende Anmeldung ...",
+      "sent message text": "Du bist jetzt eingetragen und bekommst eine E-Mail zum Bestätigen.",
+      "error message text": "Fehler beim Registrieren: {{error}}. Bitte kontaktiere uns unter support@pareto.space"
    },
    "locale": {
       "english text": "Englisch",

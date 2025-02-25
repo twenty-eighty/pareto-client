@@ -129,6 +129,7 @@ modalDialog theme title content onClose =
                     , Tw.items_center
                     , Tw.border_b
                     , Tw.pb_4
+                    , Tw.gap_4
                     ]
                 ]
                 [ h2

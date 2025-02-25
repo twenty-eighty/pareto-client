@@ -40,6 +40,7 @@
             "pablohirafuji/elm-syntax-highlight": "3.5.0",
             "panthershark/email-parser": "1.0.2",
             "proda-ai/murmur3": "1.0.0",
+            "rluiten/mailcheck": "5.0.2",
             "rtfeldman/elm-css": "18.0.0",
             "rtfeldman/elm-hex": "1.0.0",
             "rtfeldman/elm-iso8601-date-strings": "1.1.4",
@@ -52,6 +53,7 @@
             "elm/virtual-dom": "1.0.3",
             "justinmimbs/date": "4.1.0",
             "myrho/elm-round": "1.0.5",
+            "rluiten/stringdistance": "1.0.4",
             "robinheghan/murmur3": "1.0.0",
             "samhstn/time-format": "1.0.0",
             "tesk9/accessible-html": "5.3.0"
