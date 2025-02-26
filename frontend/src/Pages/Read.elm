@@ -8,7 +8,7 @@ import I18Next
 import Layouts
 import Material.Icons exposing (category)
 import Nostr
-import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), emptyEventFilter)
+import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.FollowList exposing (followingPubKey)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
@@ -60,6 +60,7 @@ type alias Model =
 type Category
     = Global
     | Pareto
+    | Frieden
     | Followed
     | Highlighter
     | Rss
@@ -73,6 +74,9 @@ stringFromCategory category =
 
         Pareto ->
             "pareto"
+
+        Frieden ->
+            "frieden"
 
         Followed ->
             "followed"
@@ -92,6 +96,9 @@ categoryFromString categoryString =
 
         "pareto" ->
             Just Pareto
+
+        "frieden" ->
+            Just Frieden
 
         "followed" ->
             Just Followed
@@ -249,6 +256,9 @@ filterForCategory shared category =
         Pareto ->
             { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (paretoFollowsList shared.nostr), limit = Just 20 }
 
+        Frieden ->
+            { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (paretoFollowsList shared.nostr), tagReferences = Just [ TagReferenceTag "Frieden", TagReferenceTag "frieden" ], limit = Just 20 }
+
         Followed ->
             { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (userFollowsList shared.nostr shared.loginStatus), limit = Just 20 }
 
@@ -316,6 +326,18 @@ availableCategories nostr loginStatus translations =
         paretoCategories =
             [ paretoCategory translations ]
 
+        friedenCategories =
+            case Shared.loggedInPubKey loginStatus of
+                Just pubKey ->
+                    if Nostr.isBetaTester nostr pubKey then
+                        [ friedenCategory translations ]
+
+                    else
+                        []
+
+                Nothing ->
+                    []
+
         {-
            paretoRssCategories =
                if paretoRssFollowsList nostr /= [] then
@@ -332,6 +354,8 @@ availableCategories nostr loginStatus translations =
                 []
     in
     paretoCategories
+        ++ friedenCategories
+        ++ followedCategories
         ++ [ { category = Global
              , title = Translations.Read.globalFeedCategory [ translations ]
              }
@@ -340,13 +364,19 @@ availableCategories nostr loginStatus translations =
            --     , title = Translations.Read.highlighterFeedCategory [ translations ]
            --     }
            ]
-        ++ followedCategories
 
 
 paretoCategory : I18Next.Translations -> Components.Categories.CategoryData Category
 paretoCategory translations =
     { category = Pareto
     , title = Translations.Read.paretoFeedCategory [ translations ]
+    }
+
+
+friedenCategory : I18Next.Translations -> Components.Categories.CategoryData Category
+friedenCategory translations =
+    { category = Frieden
+    , title = "Frieden"
     }
 
 
@@ -425,6 +455,9 @@ viewContent shared model userPubKey =
             viewArticles
 
         Pareto ->
+            viewArticles
+
+        Frieden ->
             viewArticles
 
         Followed ->
