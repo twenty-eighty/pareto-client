@@ -21,8 +21,10 @@ defmodule NostrBackendWeb.LightningController do
   def lnurlp(conn, %{"username" => username}) do
     conn = put_required_headers(conn)
 
+    lowercase = String.downcase(username)
+
     nostr_data = NostrController.get_nostr_data()
-    case {@lnurlp_data[username], Map.get(nostr_data["names"], username)} do
+    case {@lnurlp_data[lowercase], Map.get(nostr_data["names"], lowercase)} do
       {nil, _} ->
         conn
         |> put_status(:not_found)

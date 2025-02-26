@@ -121,9 +121,9 @@ defmodule NostrBackendWeb.NostrController do
   def nip05(conn, %{"name" => name}) do
     conn = put_required_headers(conn)
 
-    case Map.get(@nostr_data["names"], name) do
+    case Map.get(@nostr_data["names"], String.downcase(name)) do
       nil ->
-        # return full fill if name is not found
+        # return empty data if name is not found
         json(conn, @empty_data)
 
       pubkey ->
