@@ -14,7 +14,8 @@ defmodule NostrBackendWeb.LightningController do
     "donjoe" => "compacthook86@walletofsatoshi.com",
     "_" => "donate2pareto@walletofsatoshi.com",
     "milosz" => "donate2pareto@walletofsatoshi.com",
-    "ashoka" => "donate2pareto@walletofsatoshi.com"
+    "ashoka" => "donate2pareto@walletofsatoshi.com",
+    "friedenstaube" => "restorationthrumming883287@getalby.com"
   }
 
   def lnurlp(conn, %{"username" => username}) do
