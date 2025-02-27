@@ -57,6 +57,7 @@
       "unmapped column dropdown value": "<nicht zugeordnet>",
       "email not mapped error message": "Das E-Mail-Feld muss zugeordnet sein",
       "skip rows field label": "Zeilen überspringen",
+      "tags field label": "Tags",
       "column name": "Spalte",
       "configure CSV import dialog title": "CSV-Import konfigurieren",
       "map CSV fields dialog title": "CSV-Felder zuordnen"
@@ -221,6 +222,8 @@
       "dnd field name": "Nicht stören",
       "email field name": "E-Mail",
       "name field name": "Name",
+      "first name field name": "Vorname",
+      "last name field name": "Nachname",
       "pubkey field name": "Pubkey",
       "source field name": "Quelle",
       "datesub field name": "Start Abonnement",

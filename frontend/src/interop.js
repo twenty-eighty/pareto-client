@@ -637,7 +637,7 @@ export const onReady = ({ app, env }) => {
         ["e", ndkEvent.id],
         ["a", ndkEvent.kind + ":" + ndkEvent.pubkey + ":" + identifier],
       ],
-      content: await window.ndk.signer.nip44Encrypt({ pubkey: ndkEvent.pubkey }, rawEventString),
+      content: await window.ndk.signer.encrypt({ pubkey: ndkEvent.pubkey }, rawEventString),
       pubkey: ndkEvent.pubkey,
       created_at: ndkEvent.created_at
     }
@@ -654,7 +654,7 @@ export const onReady = ({ app, env }) => {
       encryptForPubKey = ndkEvent.pubkey;
     }
     console.log('encrypt for key', encryptForPubKey);
-    const encrypted = await window.ndk.signer.nip44Encrypt({ pubkey: encryptForPubKey }, ndkEvent.content);
+    const encrypted = await window.ndk.signer.encrypt({ pubkey: encryptForPubKey }, ndkEvent.content);
     if (encrypted) {
       ndkEvent.content = encrypted;
       return ndkEvent;
@@ -664,13 +664,13 @@ export const onReady = ({ app, env }) => {
   }
 
   async function unwrapPrivateRelayListEvent(ndkEvent) {
-    const stringifiedRelayTags = await window.ndk.signer.nip44Decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    const stringifiedRelayTags = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
     ndkEvent.tags = JSON.parse(stringifiedEvent);
     return ndkEvent;
   }
 
   async function unwrapApplicationSpecificEvent(ndkEvent) {
-    const content = await window.ndk.signer.nip44Decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    const content = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
     if (content) {
       ndkEvent.content = content;
     } else {
@@ -680,7 +680,7 @@ export const onReady = ({ app, env }) => {
   }
 
   async function unwrapDraftEvent(ndkEvent) {
-    const stringifiedEvent = await window.ndk.signer.nip44Decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    const stringifiedEvent = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
     if (stringifiedEvent) {
       const event = JSON.parse(stringifiedEvent);
       return event;

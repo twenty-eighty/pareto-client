@@ -374,7 +374,7 @@ paretoCategory translations =
 
 
 friedenCategory : I18Next.Translations -> Components.Categories.CategoryData Category
-friedenCategory translations =
+friedenCategory _ =
     { category = Frieden
     , title = "Frieden"
     }

@@ -9,7 +9,6 @@ import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events
 import I18Next
 import Json.Decode as Decode
-import Json.Encode as Encode
 import Locale exposing (Language(..))
 import Mailcheck
 import Nostr
@@ -18,11 +17,10 @@ import Nostr.External
 import Nostr.Profile exposing (Profile, profileDisplayName)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Types exposing (IncomingMessage, PubKey)
-import Pareto
 import Ports
-import SHA256
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
+import Subscribers exposing (SubscribeInfo)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.EmailSubscriptionDialog as Translations
@@ -33,7 +31,7 @@ import Ui.Styles exposing (Theme, stylesForTheme)
 type Msg msg
     = CloseDialog
     | UpdateEmail String
-    | SubscribeClicked String PubKey PubKey String
+    | SubscribeClicked String Profile (Maybe PubKey) String
     | ReceivedMessage IncomingMessage
 
 
@@ -68,7 +66,7 @@ type EmailSubscriptionDialog msg
         , toMsg : Msg msg -> msg
         , nostr : Nostr.Model
         , profile : Profile
-        , pubKeyUser : PubKey
+        , pubKeyUser : Maybe PubKey
         , browserEnv : BrowserEnv
         , theme : Theme
         }
@@ -79,7 +77,7 @@ new :
     , toMsg : Msg msg -> msg
     , nostr : Nostr.Model
     , profile : Profile
-    , pubKeyUser : PubKey
+    , pubKeyUser : Maybe PubKey
     , browserEnv : BrowserEnv
     , theme : Theme
     }
@@ -151,16 +149,19 @@ update props =
                     _ ->
                         ( Model model, Effect.none )
 
-            SubscribeClicked email pubKeyAuthor pubKeyUser locale ->
+            SubscribeClicked email authorProfile pubKeyUser locale ->
                 case model.state of
                     DialogVisible emailSubscriptionData ->
                         let
-                            userName =
-                                Nostr.getProfile props.nostr pubKeyUser
-                                    |> Maybe.map (profileDisplayName pubKeyUser)
+                            ( firstName, lastName ) =
+                                pubKeyUser
+                                    |> Maybe.andThen (Nostr.getProfile props.nostr)
+                                    |> Maybe.andThen .displayName
+                                    |> Maybe.map Subscribers.splitName
+                                    |> Maybe.withDefault ( Nothing, Nothing )
                         in
                         ( Model { model | state = DialogSending (Nostr.getLastSendRequestId props.nostr) emailSubscriptionData }
-                        , sendOptInEmail props.nostr pubKeyAuthor pubKeyUser email userName locale
+                        , sendOptInEmail props.nostr authorProfile { pubKey = pubKeyUser, email = email, firstName = firstName, lastName = lastName, locale = Just locale }
                         )
 
                     _ ->
@@ -197,40 +198,9 @@ updateWithMessage (Model model) message =
             Model model
 
 
-sendOptInEmail : Nostr.Model -> PubKey -> PubKey -> String -> Maybe String -> String -> Effect msg
-sendOptInEmail nostr pubKeyAuthor pubKeyUser email name locale =
-    let
-        event =
-            emptyEvent pubKeyUser KindApplicationSpecificData
-
-        -- build a hash from author pubkey and subscriber email to avoid duplicate events for the same thing
-        authorEmailHash =
-            (email ++ "|" ++ pubKeyAuthor)
-                |> SHA256.fromString
-                |> SHA256.toHex
-
-        dTag =
-            "subscribe-" ++ authorEmailHash
-    in
-    { event
-        | tags =
-            []
-                |> Nostr.Event.addDTag dTag
-                |> Nostr.Event.addPubKeyTag Pareto.emailGatewayKey Nothing Nothing
-        , content =
-            [ ( "subscribe"
-              , [ ( subscriberEventAuthor, Encode.string pubKeyAuthor )
-                , ( subscriberEventSubscriber, Encode.string pubKeyUser )
-                , ( subscriberEventEmail, Encode.string email )
-                , ( subscriberEventName, Encode.string <| Maybe.withDefault "" name )
-                , ( subscriberEventLocale, Encode.string locale )
-                ]
-                    |> Encode.object
-              )
-            ]
-                |> Encode.object
-                |> Encode.encode 0
-    }
+sendOptInEmail : Nostr.Model -> Profile -> SubscribeInfo -> Effect msg
+sendOptInEmail nostr authorProfile subscribeInfo =
+    Subscribers.subscribeEvent nostr authorProfile subscribeInfo
         |> SendApplicationData
         |> Shared.Msg.SendNostrEvent
         |> Effect.sendSharedMsg
@@ -393,7 +363,7 @@ viewSubscribeDialog (Settings settings) data =
             , viewSuggestion settings.theme settings.browserEnv data.email
             , Button.new
                 { label = Translations.subscribeButtonTitle [ settings.browserEnv.translations ]
-                , onClick = data.email |> Maybe.map (\email -> SubscribeClicked email settings.profile.pubKey settings.pubKeyUser settings.browserEnv.locale)
+                , onClick = data.email |> Maybe.map (\email -> SubscribeClicked email settings.profile settings.pubKeyUser settings.browserEnv.locale)
                 , theme = settings.theme
                 }
                 |> Button.withTypePrimary

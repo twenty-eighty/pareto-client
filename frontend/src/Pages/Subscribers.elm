@@ -430,7 +430,8 @@ subscribersTableConfig browserEnv =
         , toMsg = NewTableState
         , columns =
             [ Table.stringColumn (Subscribers.fieldName FieldEmail) (translatedFieldName browserEnv.translations FieldEmail) .email
-            , Table.stringColumn (Subscribers.fieldName FieldName) (translatedFieldName browserEnv.translations FieldName) (\subscriber -> subscriber.name |> Maybe.withDefault "")
+            , Table.stringColumn (Subscribers.fieldName FieldFirstName) (translatedFieldName browserEnv.translations FieldFirstName) (\subscriber -> subscriber.firstName |> Maybe.withDefault "")
+            , Table.stringColumn (Subscribers.fieldName FieldLastName) (translatedFieldName browserEnv.translations FieldLastName) (\subscriber -> subscriber.lastName |> Maybe.withDefault "")
             , Table.stringColumn (Subscribers.fieldName FieldTags) (translatedFieldName browserEnv.translations FieldTags) (\subscriber -> subscriber.tags |> Maybe.map (String.join ", ") |> Maybe.withDefault "")
             , Table.stringColumn (Subscribers.fieldName FieldDateSubscription) (translatedFieldName browserEnv.translations FieldDateSubscription) (\subscriber -> subscriber.dateSubscription |> BrowserEnv.formatDate browserEnv)
             , Table.stringColumn (Subscribers.fieldName FieldDateUnsubscription) (translatedFieldName browserEnv.translations FieldDateUnsubscription) (\subscriber -> subscriber.dateUnsubscription |> Maybe.map (BrowserEnv.formatDate browserEnv) |> Maybe.withDefault "")

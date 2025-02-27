@@ -12,6 +12,7 @@ import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (Following(..), PubKey)
 import Page exposing (Page)
+import Pareto
 import Route exposing (Route)
 import Shared
 import Shared.Model
@@ -34,7 +35,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -52,9 +53,18 @@ type alias Model =
 init : Shared.Model -> Route { user : String } -> () -> ( Model, Effect Msg )
 init shared route () =
     let
+        emailSubscriptionDialog =
+            case route.hash of
+                Just "subscribe" ->
+                    EmailSubscriptionDialog.init {}
+                        |> EmailSubscriptionDialog.show
+
+                _ ->
+                    EmailSubscriptionDialog.init {}
+
         model =
             { nip05 = Nip05.parseNip05 route.params.user
-            , emailSubscriptionDialog = EmailSubscriptionDialog.init {}
+            , emailSubscriptionDialog = emailSubscriptionDialog
             }
 
         requestEffect =
@@ -200,21 +210,22 @@ viewProfile shared model profile =
 
 viewEmailSubscriptionDialog : Shared.Model -> Model -> Profile -> Html Msg
 viewEmailSubscriptionDialog shared model profile =
-    case Shared.loggedInPubKey shared.loginStatus of
-        Just userPubKey ->
-            EmailSubscriptionDialog.new
-                { model = model.emailSubscriptionDialog
-                , toMsg = EmailSubscriptionDialogSent
-                , nostr = shared.nostr
-                , profile = profile
-                , pubKeyUser = userPubKey
-                , browserEnv = shared.browserEnv
-                , theme = shared.theme
-                }
-                |> EmailSubscriptionDialog.view
-
-        Nothing ->
-            div [] []
+    let
+        -- because we want to allow email subscriptions also without users logged in with Nostr profile
+        -- we need to use another private key to sign the subscription Nostr event
+        pubKeyUser =
+            Shared.loggedInPubKey shared.loginStatus
+    in
+    EmailSubscriptionDialog.new
+        { model = model.emailSubscriptionDialog
+        , toMsg = EmailSubscriptionDialogSent
+        , nostr = shared.nostr
+        , profile = profile
+        , pubKeyUser = pubKeyUser
+        , browserEnv = shared.browserEnv
+        , theme = shared.theme
+        }
+        |> EmailSubscriptionDialog.view
 
 
 followingProfile : Nostr.Model -> PubKey -> Maybe PubKey -> FollowType Msg

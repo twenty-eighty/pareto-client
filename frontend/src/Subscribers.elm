@@ -9,11 +9,12 @@ import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
 import Json.Encode as Encode
 import Nostr
-import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
-import Nostr.Profile exposing (profileDisplayName)
+import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), emptyEvent, emptyEventFilter)
+import Nostr.Profile exposing (Profile, profileDisplayName)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Types exposing (PubKey)
 import Pareto
+import SHA256
 import Shared
 import Shared.Msg
 import Time
@@ -23,7 +24,8 @@ import Translations.Subscribers as Translations
 type alias Subscriber =
     { dnd : Maybe Bool
     , email : String
-    , name : Maybe String
+    , firstName : Maybe String
+    , lastName : Maybe String
     , pubKey : Maybe PubKey
     , source : Maybe String
     , dateSubscription : Time.Posix
@@ -38,6 +40,8 @@ type SubscriberField
     = FieldDnd
     | FieldEmail
     | FieldName
+    | FieldFirstName
+    | FieldLastName
     | FieldPubKey
     | FieldSource
     | FieldDateSubscription
@@ -52,6 +56,8 @@ allSubscriberFields =
     [ FieldDnd
     , FieldEmail
     , FieldName
+    , FieldFirstName
+    , FieldLastName
     , FieldPubKey
     , FieldSource
     , FieldDateSubscription
@@ -76,9 +82,28 @@ type alias CsvData =
 
 defaultCsvColumnNameMap : CsvColumnNameMap
 defaultCsvColumnNameMap =
+    -- these terms need to be lowercase for case insensitive comparison
     [ ( "email", FieldEmail )
+    , ( "emailaddress", FieldEmail )
     , ( "e-mail", FieldEmail )
     , ( "name", FieldName )
+    , ( "full name", FieldName )
+    , ( "complete name", FieldName )
+    , ( "voller name", FieldName )
+    , ( "forename", FieldFirstName )
+    , ( "given name", FieldFirstName )
+    , ( "firstname", FieldFirstName )
+    , ( "first name", FieldFirstName )
+    , ( "first_name", FieldFirstName )
+    , ( "vorname", FieldFirstName )
+    , ( "surname", FieldLastName )
+    , ( "family name", FieldLastName )
+    , ( "lastname", FieldLastName )
+    , ( "last name", FieldLastName )
+    , ( "last_name", FieldLastName )
+    , ( "familienname", FieldLastName )
+    , ( "nachname", FieldLastName )
+    , ( "zuname", FieldLastName )
     , ( "subscription date", FieldDateSubscription )
     ]
         |> Dict.fromList
@@ -159,7 +184,36 @@ setSubscriberField field value subscriber =
             { subscriber | email = value }
 
         FieldName ->
-            { subscriber | name = Just value }
+            -- This logic is not ideal as there may be mapped (full) name and first or last name
+            -- and the order of the fields matters in that case.
+            -- Better would be to collect all fields and match later.
+            -- However, this should be a rather exotic use case and can be avoided
+            -- by mapping either full name or first and last name.
+            let
+                ( firstName, lastName ) =
+                    splitName value
+
+                subscriberWithFirstName =
+                    if firstName /= Nothing && subscriber.firstName == Nothing then
+                        { subscriber | firstName = firstName }
+
+                    else
+                        subscriber
+
+                subscriberWithFirstAndLastName =
+                    if lastName /= Nothing && subscriber.lastName == Nothing then
+                        { subscriberWithFirstName | lastName = lastName }
+
+                    else
+                        subscriberWithFirstName
+            in
+            subscriberWithFirstAndLastName
+
+        FieldFirstName ->
+            { subscriber | firstName = Just value }
+
+        FieldLastName ->
+            { subscriber | lastName = Just value }
 
         FieldPubKey ->
             { subscriber | pubKey = Just value }
@@ -183,6 +237,29 @@ setSubscriberField field value subscriber =
             { subscriber | locale = Just value }
 
 
+
+-- best guess how to split full name to first and last name
+
+
+splitName : String -> ( Maybe String, Maybe String )
+splitName fullName =
+    case String.split " " fullName of
+        [] ->
+            ( Nothing, Nothing )
+
+        [ firstName ] ->
+            ( Just firstName, Nothing )
+
+        [ firstName, lastName ] ->
+            ( Just firstName, Just lastName )
+
+        [ firstName, middleName, lastName ] ->
+            ( Just <| firstName ++ " " ++ middleName, Just lastName )
+
+        firstName :: lastNames ->
+            ( Just firstName, Just <| String.join " " lastNames )
+
+
 fieldName : SubscriberField -> String
 fieldName field =
     case field of
@@ -190,10 +267,17 @@ fieldName field =
             "dnd"
 
         FieldEmail ->
+            -- this field name needs to be the same in email gateway and subscription server
             "email"
 
         FieldName ->
             "name"
+
+        FieldFirstName ->
+            "firstName"
+
+        FieldLastName ->
+            "lastName"
 
         FieldPubKey ->
             "pubkey"
@@ -228,6 +312,12 @@ translatedFieldName translations field =
 
         FieldName ->
             Translations.nameFieldName [ translations ]
+
+        FieldFirstName ->
+            Translations.firstNameFieldName [ translations ]
+
+        FieldLastName ->
+            Translations.lastNameFieldName [ translations ]
 
         FieldPubKey ->
             Translations.pubkeyFieldName [ translations ]
@@ -284,7 +374,8 @@ emptySubscriber : Email -> Subscriber
 emptySubscriber email =
     { dnd = Nothing
     , email = email
-    , name = Nothing
+    , firstName = Nothing
+    , lastName = Nothing
     , pubKey = Nothing
     , source = Nothing
     , dateSubscription = Time.millisToPosix 0
@@ -316,7 +407,8 @@ toCsv subscribers =
     { headers =
         [ fieldName FieldDnd
         , fieldName FieldEmail
-        , fieldName FieldName
+        , fieldName FieldFirstName
+        , fieldName FieldLastName
         , fieldName FieldPubKey
         , fieldName FieldSource
         , fieldName FieldDateSubscription
@@ -329,7 +421,8 @@ toCsv subscribers =
                 (\subscriber ->
                     [ Maybe.withDefault False subscriber.dnd |> boolToString
                     , subscriber.email
-                    , subscriber.name |> Maybe.withDefault ""
+                    , subscriber.firstName |> Maybe.withDefault ""
+                    , subscriber.lastName |> Maybe.withDefault ""
                     , subscriber.pubKey |> Maybe.withDefault ""
                     , subscriber.source |> Maybe.withDefault ""
                     , subscriber.dateSubscription |> Iso8601.fromTime
@@ -525,11 +618,47 @@ subscribesDecoder =
 
 subscribeDecoder : Decode.Decoder Modification
 subscribeDecoder =
-    Decode.field (fieldName FieldEmail) Decode.string
+    subscribeInfoDecoder
         |> Decode.andThen
-            (\email ->
-                Decode.succeed <| Subscription (emptySubscriber email)
+            (\subscribeInfo ->
+                let
+                    subscriberWithEmail =
+                        emptySubscriber subscribeInfo.email
+
+                    subscriber =
+                        { subscriberWithEmail
+                            | firstName = subscribeInfo.firstName
+                            , lastName = subscribeInfo.lastName
+                            , locale = subscribeInfo.locale
+                            , pubKey = subscribeInfo.pubKey
+                        }
+                in
+                Subscription subscriber
+                    |> Decode.succeed
             )
+
+
+
+-- these are the fields that were passed via email gateway and subscribe link to author
+
+
+type alias SubscribeInfo =
+    { email : String
+    , firstName : Maybe String
+    , lastName : Maybe String
+    , locale : Maybe String
+    , pubKey : Maybe PubKey
+    }
+
+
+subscribeInfoDecoder : Decode.Decoder SubscribeInfo
+subscribeInfoDecoder =
+    Decode.succeed SubscribeInfo
+        |> required (fieldName FieldEmail) Decode.string
+        |> optional (fieldName FieldFirstName) (Decode.maybe Decode.string) Nothing
+        |> optional (fieldName FieldLastName) (Decode.maybe Decode.string) Nothing
+        |> optional (fieldName FieldLocale) (Decode.maybe Decode.string) Nothing
+        |> optional (fieldName FieldPubKey) (Decode.maybe Decode.string) Nothing
 
 
 unsubscribesDecoder : Decode.Decoder (List Modification)
@@ -556,7 +685,8 @@ subscriberDecoder =
     Decode.succeed Subscriber
         |> optional (fieldName FieldDnd) (Decode.maybe Decode.bool) Nothing
         |> required (fieldName FieldEmail) Decode.string
-        |> optional (fieldName FieldName) (Decode.maybe Decode.string) Nothing
+        |> optional (fieldName FieldFirstName) (Decode.maybe Decode.string) Nothing
+        |> optional (fieldName FieldLastName) (Decode.maybe Decode.string) Nothing
         |> optional (fieldName FieldPubKey) (Decode.maybe Decode.string) Nothing
         |> optional (fieldName FieldSource) (Decode.maybe Decode.string) Nothing
         |> required (fieldName FieldDateSubscription) decodePosixTime
@@ -581,7 +711,8 @@ toCSV : List Subscriber -> String
 toCSV subscribers =
     [ fieldName FieldDnd
     , fieldName FieldEmail
-    , fieldName FieldName
+    , fieldName FieldFirstName
+    , fieldName FieldLastName
     , fieldName FieldPubKey
     , fieldName FieldSource
     , fieldName FieldDateSubscription
@@ -602,7 +733,8 @@ subscriberToCsv : Subscriber -> String
 subscriberToCsv subscriber =
     [ subscriber.dnd |> Maybe.map boolToString |> Maybe.withDefault ""
     , subscriber.email
-    , subscriber.name |> Maybe.withDefault ""
+    , subscriber.firstName |> Maybe.withDefault ""
+    , subscriber.lastName |> Maybe.withDefault ""
     , subscriber.pubKey |> Maybe.withDefault ""
     , subscriber.source |> Maybe.withDefault ""
     , subscriber.dateSubscription |> timeToString
@@ -714,7 +846,8 @@ encodeSubscriber subscriber =
     , ( fieldName FieldDateSubscription, Encode.int <| Time.posixToMillis subscriber.dateSubscription )
     ]
         |> addBoolToObject FieldDnd subscriber.dnd
-        |> addStringToObject FieldName subscriber.name
+        |> addStringToObject FieldFirstName subscriber.firstName
+        |> addStringToObject FieldLastName subscriber.lastName
         |> addStringToObject FieldPubKey subscriber.pubKey
         |> addStringToObject FieldSource subscriber.source
         |> addDateToObject FieldDateUnsubscription subscriber.dateUnsubscription
@@ -759,7 +892,7 @@ emailSendRequestToJson maybeSenderName { keyHex, ivHex, url, size, active, total
         , ( subscriberEventActive, Encode.int active )
         , ( subscriberEventTotal, Encode.int total )
         ]
-            |> addStringToObject FieldName maybeSenderName
+            |> appendOptionalObjectString "senderName" maybeSenderName
             |> Encode.object
       )
     ]
@@ -818,3 +951,58 @@ addStringListToObject field maybeValues acc =
 
         Nothing ->
             acc
+
+
+subscribeEvent : Nostr.Model -> Profile -> SubscribeInfo -> Event
+subscribeEvent nostr authorProfile { pubKey, email, firstName, lastName, locale } =
+    let
+        signingPubKey =
+            pubKey
+                -- in order to create a valid Nostr event we need some secret key to sign
+                -- but it wouldn't make sense to transport/store the related public key
+                |> Maybe.withDefault Pareto.anonymousPublicKey
+
+        event =
+            emptyEvent signingPubKey KindApplicationSpecificData
+
+        -- build a hash from author pubkey and subscriber email to avoid duplicate events for the same thing
+        authorEmailHash =
+            (email ++ "|" ++ authorProfile.pubKey)
+                |> SHA256.fromString
+                |> SHA256.toHex
+
+        dTag =
+            "subscribe-" ++ authorEmailHash
+    in
+    { event
+        | tags =
+            []
+                |> Event.addDTag dTag
+                |> Event.addPubKeyTag Pareto.emailGatewayKey Nothing Nothing
+        , content =
+            [ ( "subscribe"
+                -- the author field name needs to be the same in email gateway and subscription server
+              , [ ( "author", Encode.string authorProfile.pubKey )
+                , ( fieldName FieldEmail, Encode.string email )
+                ]
+                    |> appendOptionalObjectString (fieldName FieldFirstName) firstName
+                    |> appendOptionalObjectString (fieldName FieldLastName) lastName
+                    |> appendOptionalObjectString "authorName" authorProfile.displayName
+                    |> appendOptionalObjectString (fieldName FieldPubKey) pubKey
+                    |> appendOptionalObjectString (fieldName FieldLocale) locale
+                    |> Encode.object
+              )
+            ]
+                |> Encode.object
+                |> Encode.encode 0
+    }
+
+
+appendOptionalObjectString : String -> Maybe String -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
+appendOptionalObjectString key maybeValue entries =
+    case maybeValue of
+        Just value ->
+            entries ++ [ ( key, Encode.string value ) ]
+
+        Nothing ->
+            entries

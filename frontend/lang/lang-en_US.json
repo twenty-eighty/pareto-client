@@ -57,6 +57,7 @@
       "unmapped column dropdown value": "<unmapped>",
       "email not mapped error message": "At least the email field must be mapped",
       "skip rows field label": "Skip rows",
+      "tags field label": "Tags",
       "column name": "Column",
       "configure CSV import dialog title": "Configure CSV import",
       "map CSV fields dialog title": "Map CSV fields"
@@ -220,6 +221,8 @@
       "dnd field name": "Do not disturb",
       "email field name": "Email",
       "name field name": "Name",
+      "first name field name": "First name",
+      "last name field name": "Last name",
       "pubkey field name": "Pubkey",
       "source field name": "Source",
       "datesub field name": "Subscription date",

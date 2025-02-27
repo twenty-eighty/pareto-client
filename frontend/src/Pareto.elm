@@ -43,6 +43,16 @@ betaTestKey =
     "0f479ef1a8870a917afbae778ea75fedb5db4cb64501e0e64a6d2010a2908e64"
 
 
+anonymousPublicKey : String
+anonymousPublicKey =
+    "ecdf32491ef8b5f1902109f495e7ca189c6fcec76cd66b888fa9fc2ce87f40db"
+
+
+anonymousPrivateKey : String
+anonymousPrivateKey =
+    "cff56394373edfaa281d2e1b5ad1b8cafd8b247f229f2af2c61734fb0c7b3f84"
+
+
 
 -- name of client in "client" tag when publishing articles
 

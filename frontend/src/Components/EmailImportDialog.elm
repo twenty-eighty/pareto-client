@@ -35,8 +35,9 @@ type Msg msg
     = CloseDialog
     | ConfigureRelaysClicked
     | ImportSingleEmails
-    | ImportClicked (List Subscriber) Bool
+    | ImportClicked (List Subscriber) Bool (Maybe (List String))
     | OverwriteExistingClicked Bool
+    | UpdateTags String
     | UpdateEmailData String
     | ProcessEnteredData String
     | NewTableState Table.State
@@ -100,6 +101,7 @@ type alias EmailProcessedData =
     { subscribers : List Subscriber
     , subscriberTable : Table.State
     , overwriteExisting : Bool
+    , tags : Maybe String
     }
 
 
@@ -199,14 +201,50 @@ update props =
                     _ ->
                         ( Model model, Effect.none )
 
+            UpdateTags value ->
+                case model.state of
+                    DialogProcessed emailProcessedData ->
+                        let
+                            dataWithUpdate =
+                                if value /= "" then
+                                    { emailProcessedData | tags = Just value }
+
+                                else
+                                    { emailProcessedData | tags = Nothing }
+                        in
+                        ( Model { model | state = DialogProcessed dataWithUpdate }
+                        , Effect.none
+                        )
+
+                    _ ->
+                        ( Model model, Effect.none )
+
             ImportSingleEmails ->
                 ( Model { model | state = DialogImport { enteredEmails = "" } }
                 , Effect.none
                 )
 
-            ImportClicked subscribers overwriteExisting ->
+            ImportClicked subscribers overwriteExisting maybeTags ->
+                let
+                    subscribersWithTags =
+                        case maybeTags of
+                            Just tags ->
+                                subscribers
+                                    |> List.map
+                                        (\subscriber ->
+                                            case subscriber.tags of
+                                                Just subscriberTags ->
+                                                    { subscriber | tags = Just (subscriberTags ++ tags) }
+
+                                                Nothing ->
+                                                    { subscriber | tags = Just tags }
+                                        )
+
+                            Nothing ->
+                                subscribers
+                in
                 ( Model model
-                , Effect.sendMsg <| props.onImport subscribers overwriteExisting
+                , Effect.sendMsg <| props.onImport subscribersWithTags overwriteExisting
                 )
 
             UpdateEmailData enteredEmails ->
@@ -250,6 +288,7 @@ update props =
                             Table.initialState (Subscribers.fieldName FieldEmail) 25
                                 |> Table.setTotal (List.length subscribers)
                         , overwriteExisting = False
+                        , tags = Just <| defaultTag props.browserEnv
                         }
                 in
                 ( Model { model | state = DialogProcessed processedData }, Effect.none )
@@ -415,6 +454,7 @@ update props =
                             Table.initialState (Subscribers.fieldName FieldEmail) 25
                                 |> Table.setTotal (List.length subscribers)
                         , overwriteExisting = False
+                        , tags = Just <| defaultTag props.browserEnv
                         }
                 in
                 ( Model
@@ -425,12 +465,20 @@ update props =
                 )
 
 
+defaultTag : BrowserEnv -> String
+defaultTag browserEnv =
+    "import_" ++ BrowserEnv.formatIsoDate browserEnv browserEnv.now
+
+
 firstCompleteRow : Int -> List (List String) -> Maybe Int
 firstCompleteRow maxRowCount csvData =
     let
         isCsvHeaderField : String -> Bool
         isCsvHeaderField value =
             case String.toLower value of
+                "emailaddress" ->
+                    True
+
                 "email" ->
                     True
 
@@ -1021,6 +1069,16 @@ processingErrorToString error =
 
 viewProcessedDialog : EmailImportDialog msg -> EmailProcessedData -> Html (Msg msg)
 viewProcessedDialog (Settings settings) data =
+    let
+        tags =
+            data.tags
+                |> Maybe.map
+                    (\tagsString ->
+                        tagsString
+                            |> String.split ","
+                            |> List.map String.trim
+                    )
+    in
     div
         [ css
             [ Tw.my_4
@@ -1033,13 +1091,35 @@ viewProcessedDialog (Settings settings) data =
             ]
         ]
         [ subscribersSection (Settings settings) data
-        , Checkbox.new
-            { label = Translations.overwriteExistingCheckboxLabel [ settings.browserEnv.translations ]
-            , onClick = OverwriteExistingClicked
-            , checked = data.overwriteExisting
-            , theme = settings.theme
-            }
-            |> Checkbox.view
+        , div
+            [ css
+                [ Tw.mt_3
+                ]
+            ]
+            [ Checkbox.new
+                { label = Translations.overwriteExistingCheckboxLabel [ settings.browserEnv.translations ]
+                , onClick = OverwriteExistingClicked
+                , checked = data.overwriteExisting
+                , theme = settings.theme
+                }
+                |> Checkbox.view
+            ]
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.gap_2
+                ]
+            ]
+            [ label [ Attr.for "tags" ]
+                [ text <| Translations.tagsFieldLabel [ settings.browserEnv.translations ] ]
+            , input
+                [ Attr.id "tags"
+                , Attr.value <| Maybe.withDefault "" data.tags
+                , Events.onInput UpdateTags
+                ]
+                []
+            ]
         , div
             [ css
                 [ Tw.flex
@@ -1057,7 +1137,7 @@ viewProcessedDialog (Settings settings) data =
                 |> Button.view
             , Button.new
                 { label = Translations.importButtonTitle [ settings.browserEnv.translations ]
-                , onClick = Just <| ImportClicked data.subscribers data.overwriteExisting
+                , onClick = Just <| ImportClicked data.subscribers data.overwriteExisting tags
                 , theme = settings.theme
                 }
                 |> Button.withTypePrimary
@@ -1106,7 +1186,8 @@ subscribersTableConfig translations =
         , toMsg = NewTableState
         , columns =
             [ Table.stringColumn (Subscribers.fieldName FieldEmail) (translatedFieldName translations FieldEmail) .email
-            , Table.stringColumn (Subscribers.fieldName FieldName) (translatedFieldName translations FieldName) (\subscriber -> subscriber.name |> Maybe.withDefault "")
+            , Table.stringColumn (Subscribers.fieldName FieldFirstName) (translatedFieldName translations FieldFirstName) (\subscriber -> subscriber.firstName |> Maybe.withDefault "")
+            , Table.stringColumn (Subscribers.fieldName FieldLastName) (translatedFieldName translations FieldLastName) (\subscriber -> subscriber.lastName |> Maybe.withDefault "")
             ]
         , customizations =
             { defaultCustomizations
