@@ -4,7 +4,7 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Css
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, div, form, h2, input, label, p, text, ul)
+import Html.Styled as Html exposing (Html, div, input, label, p, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events
 import I18Next
@@ -12,7 +12,7 @@ import Json.Decode as Decode
 import Locale exposing (Language(..))
 import Mailcheck
 import Nostr
-import Nostr.Event exposing (Kind(..), emptyEvent)
+import Nostr.Event exposing (Kind(..))
 import Nostr.External
 import Nostr.Profile exposing (Profile, profileDisplayName)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
@@ -206,31 +206,6 @@ sendOptInEmail nostr authorProfile subscribeInfo =
         |> Effect.sendSharedMsg
 
 
-subscriberEventAuthor : String
-subscriberEventAuthor =
-    "author"
-
-
-subscriberEventSubscriber : String
-subscriberEventSubscriber =
-    "subscriber"
-
-
-subscriberEventEmail : String
-subscriberEventEmail =
-    "email"
-
-
-subscriberEventName : String
-subscriberEventName =
-    "name"
-
-
-subscriberEventLocale : String
-subscriberEventLocale =
-    "locale"
-
-
 
 -- SUBSCRIPTIONS
 
@@ -293,9 +268,6 @@ view dialog =
 viewSubscribeDialog : EmailSubscriptionDialog msg -> EmailSubscriptionData -> Html (Msg msg)
 viewSubscribeDialog (Settings settings) data =
     let
-        (Model model) =
-            settings.model
-
         emailIsValid =
             emailValid <| Maybe.withDefault "" data.email
 
@@ -383,7 +355,7 @@ viewSuggestion theme browserEnv maybeEmail =
     maybeEmail
         |> Maybe.map
             (\email ->
-                emailSuggestion browserEnv.language maybeEmail
+                emailSuggestion browserEnv.language (Just email)
                     |> Maybe.map
                         (\suggestion ->
                             let
@@ -595,10 +567,6 @@ viewPrivacyText theme translations =
 
 viewSendingDialog : EmailSubscriptionDialog msg -> Html (Msg msg)
 viewSendingDialog (Settings settings) =
-    let
-        (Model model) =
-            settings.model
-    in
     div
         [ css
             [ Tw.w_full
@@ -618,10 +586,6 @@ viewSendingDialog (Settings settings) =
 
 viewSentDialog : EmailSubscriptionDialog msg -> Html (Msg msg)
 viewSentDialog (Settings settings) =
-    let
-        (Model model) =
-            settings.model
-    in
     div
         [ css
             [ Tw.w_full
@@ -648,10 +612,6 @@ viewSentDialog (Settings settings) =
 
 viewErrorDialog : EmailSubscriptionDialog msg -> String -> Html (Msg msg)
 viewErrorDialog (Settings settings) error =
-    let
-        (Model model) =
-            settings.model
-    in
     div
         [ css
             [ Tw.w_full

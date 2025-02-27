@@ -954,7 +954,7 @@ addStringListToObject field maybeValues acc =
 
 
 subscribeEvent : Nostr.Model -> Profile -> SubscribeInfo -> Event
-subscribeEvent nostr authorProfile { pubKey, email, firstName, lastName, locale } =
+subscribeEvent _ authorProfile { pubKey, email, firstName, lastName, locale } =
     let
         signingPubKey =
             pubKey

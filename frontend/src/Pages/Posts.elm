@@ -2,19 +2,19 @@ module Pages.Posts exposing (Model, Msg, page)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
-import Components.Button as Button exposing (Button)
+import Components.Button as Button
 import Components.Categories
 import Dict
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled as Html exposing (Html, article, div)
+import Html.Styled.Attributes exposing (css)
+import Html.Styled.Events exposing (..)
 import I18Next
 import Layouts
 import Nostr
 import Nostr.Article exposing (Article, nip19ForArticle)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
-import Nostr.Event exposing (EventFilter, Kind(..), emptyEventFilter, kindDecoder)
+import Nostr.Event exposing (Kind(..), emptyEventFilter)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
@@ -28,13 +28,13 @@ import Tailwind.Utilities as Tw
 import Translations.Posts as Translations
 import Translations.Sidebar
 import Ui.Article
-import Ui.Styles exposing (Styles, Theme)
+import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
-page user shared route =
+page user shared _ =
     Page.new
         { init = init user shared
         , update = update user shared
@@ -45,7 +45,7 @@ page user shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -145,7 +145,7 @@ updateModelWithCategory user shared model category =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -195,7 +195,7 @@ viewArticles shared model userPubKey =
 
 
 viewArticleDraftPreviews : Theme -> BrowserEnv -> Nostr.Model -> List Article -> Html Msg
-viewArticleDraftPreviews theme browserEnv nostr articles =
+viewArticleDraftPreviews theme browserEnv _ articles =
     articles
         |> List.take 20
         |> List.map (\article -> viewArticleDraftPreview theme browserEnv article)

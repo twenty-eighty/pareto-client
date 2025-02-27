@@ -12,7 +12,6 @@ import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (Following(..), PubKey)
 import Page exposing (Page)
-import Pareto
 import Route exposing (Route)
 import Shared
 import Shared.Model
