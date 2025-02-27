@@ -282,6 +282,7 @@ view user shared model =
             , toMsg = CategoriesSent
             , onSelect = CategorySelected
             , equals = categoryEquals
+            , image = \_ -> Nothing
             , categories = availableCategories shared.browserEnv.translations
             , browserEnv = shared.browserEnv
             , styles = stylesForTheme shared.theme

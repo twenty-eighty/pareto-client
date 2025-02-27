@@ -4,6 +4,7 @@ import Components.Categories
 import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
+import Html.Styled.Attributes as Attr exposing (css)
 import I18Next
 import Layouts
 import Material.Icons exposing (category)
@@ -22,6 +23,7 @@ import Route.Path
 import Shared
 import Shared.Model
 import Shared.Msg
+import Tailwind.Utilities as Tw
 import Translations.Read
 import Translations.Sidebar
 import Ui.ShortNote as ShortNote exposing (ShortNotesViewData)
@@ -60,7 +62,7 @@ type alias Model =
 type Category
     = Global
     | Pareto
-    | Frieden
+    | Friedenstaube
     | Followed
     | Highlighter
     | Rss
@@ -75,8 +77,8 @@ stringFromCategory category =
         Pareto ->
             "pareto"
 
-        Frieden ->
-            "frieden"
+        Friedenstaube ->
+            "friedenstaube"
 
         Followed ->
             "followed"
@@ -97,8 +99,8 @@ categoryFromString categoryString =
         "pareto" ->
             Just Pareto
 
-        "frieden" ->
-            Just Frieden
+        "friedenstaube" ->
+            Just Friedenstaube
 
         "followed" ->
             Just Followed
@@ -256,7 +258,7 @@ filterForCategory shared category =
         Pareto ->
             { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (paretoFollowsList shared.nostr), limit = Just 20 }
 
-        Frieden ->
+        Friedenstaube ->
             { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (paretoFollowsList shared.nostr), tagReferences = Just [ TagReferenceTag "Frieden", TagReferenceTag "frieden" ], limit = Just 20 }
 
         Followed ->
@@ -326,11 +328,11 @@ availableCategories nostr loginStatus translations =
         paretoCategories =
             [ paretoCategory translations ]
 
-        friedenCategories =
+        friedenstaubeCategories =
             case Shared.loggedInPubKey loginStatus of
                 Just pubKey ->
                     if Nostr.isBetaTester nostr pubKey then
-                        [ friedenCategory translations ]
+                        [ friedenstaubeCategory translations ]
 
                     else
                         []
@@ -354,7 +356,7 @@ availableCategories nostr loginStatus translations =
                 []
     in
     paretoCategories
-        ++ friedenCategories
+        ++ friedenstaubeCategories
         ++ followedCategories
         ++ [ { category = Global
              , title = Translations.Read.globalFeedCategory [ translations ]
@@ -373,10 +375,10 @@ paretoCategory translations =
     }
 
 
-friedenCategory : I18Next.Translations -> Components.Categories.CategoryData Category
-friedenCategory _ =
-    { category = Frieden
-    , title = "Frieden"
+friedenstaubeCategory : I18Next.Translations -> Components.Categories.CategoryData Category
+friedenstaubeCategory _ =
+    { category = Friedenstaube
+    , title = "Friedenstaube"
     }
 
 
@@ -414,6 +416,7 @@ view shared model =
             , toMsg = CategoriesSent
             , onSelect = CategorySelected
             , equals = \category1 category2 -> category1 == category2
+            , image = categoryImage
             , categories = availableCategories shared.nostr shared.loginStatus shared.browserEnv.translations
             , browserEnv = shared.browserEnv
             , styles = styles
@@ -422,6 +425,33 @@ view shared model =
         , viewContent shared model userPubKey
         ]
     }
+
+
+categoryImage : Category -> Maybe (Html msg)
+categoryImage category =
+    let
+        image src =
+            Html.div
+                [ css
+                    [ Tw.w_4
+                    , Tw.h_4
+                    ]
+                ]
+                [ Html.img
+                    [ Attr.src src
+                    ]
+                    []
+                ]
+    in
+    case category of
+        Pareto ->
+            Just <| image "/images/icon/Pareto-Log2.png"
+
+        Friedenstaube ->
+            Just <| image "/images/Friedenstaube.png"
+
+        _ ->
+            Nothing
 
 
 viewContent : Shared.Model -> Model -> Maybe PubKey -> Html Msg
@@ -457,7 +487,7 @@ viewContent shared model userPubKey =
         Pareto ->
             viewArticles
 
-        Frieden ->
+        Friedenstaube ->
             viewArticles
 
         Followed ->

@@ -162,6 +162,7 @@ view shared user model =
             , toMsg = CategoriesSent
             , onSelect = CategorySelected
             , equals = \category1 category2 -> category1 == category2
+            , image = \_ -> Nothing
             , categories = availableCategories shared.browserEnv.translations
             , browserEnv = shared.browserEnv
             , styles = Ui.Styles.stylesForTheme shared.theme
