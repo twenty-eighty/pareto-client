@@ -481,7 +481,7 @@ processModifications subscribers modifications =
             (\modification acc ->
                 case modification of
                     Subscription newsubscriber ->
-                        Dict.insert newsubscriber.email newsubscriber acc
+                        Dict.insert newsubscriber.email { newsubscriber | source = Just "opt-in" } acc
 
                     Unsubscription unsubscribed ->
                         Dict.update
@@ -560,12 +560,12 @@ processEvents userPubKey existingModifications events =
 
         ( modifications, decodingErrors ) =
             modificationEvents
-                |> List.map modificationsFromEvent
+                |> List.map modificationFromEvent
                 |> List.foldl
                     (\result ( modificationsAcc, errorList ) ->
                         case result of
-                            Ok decodedModifications ->
-                                ( modificationsAcc ++ decodedModifications, errorList )
+                            Ok decodedModification ->
+                                ( modificationsAcc ++ [ decodedModification ], errorList )
 
                             Err error ->
                                 ( modificationsAcc, errorList ++ [ Decode.errorToString error ] )
@@ -585,29 +585,25 @@ subscriberDataDecoder =
     Decode.field "subscribers" subscribersDecoder
 
 
-modificationsFromEvent : Event -> Result Decode.Error (List Modification)
-modificationsFromEvent event =
+modificationFromEvent : Event -> Result Decode.Error Modification
+modificationFromEvent event =
     Decode.decodeString modificationsDecoder event.content
         |> Result.map
-            (\modifications ->
-                modifications
-                    |> List.map
-                        (\modification ->
-                            case modification of
-                                Subscription subscriber ->
-                                    Subscription { subscriber | dnd = Just False, dateSubscription = event.createdAt }
+            (\modification ->
+                case modification of
+                    Subscription subscriber ->
+                        Subscription { subscriber | dnd = Just False, dateSubscription = event.createdAt }
 
-                                Unsubscription subscriber ->
-                                    Unsubscription { subscriber | dnd = Just True, dateUnsubscription = Just event.createdAt }
-                        )
+                    Unsubscription subscriber ->
+                        Unsubscription { subscriber | dnd = Just True, dateUnsubscription = Just event.createdAt }
             )
 
 
-modificationsDecoder : Decode.Decoder (List Modification)
+modificationsDecoder : Decode.Decoder Modification
 modificationsDecoder =
     Decode.oneOf
-        [ Decode.field "subscribe" subscribesDecoder
-        , Decode.field "unsubscribe" unsubscribesDecoder
+        [ Decode.field "subscribe" subscribeDecoder
+        , Decode.field "unsubscribe" unsubscribeDecoder
         ]
 
 
