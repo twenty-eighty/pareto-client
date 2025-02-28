@@ -52,6 +52,7 @@ clientRoleForRoutePath environment path =
         , isLoggedIn = False
         , environment = environment
         , clientRole = ClientReader
+        , sendsNewsletters = False
         , translations = I18Next.initialTranslations
         , maybeBookmarksCount = Nothing
         , currentPath = path
@@ -82,6 +83,7 @@ type alias SidebarItemParams =
     , isLoggedIn : Bool
     , environment : BrowserEnv.Environment
     , clientRole : ClientRole
+    , sendsNewsletters : Bool
     , translations : I18Next.Translations
     , maybeBookmarksCount : Maybe Int
     , currentPath : Route.Path.Path
@@ -95,7 +97,7 @@ routePathIsInList sidebarItemParams =
 
 
 sidebarItems : SidebarItemParams -> List SidebarItemData
-sidebarItems { isAuthor, isBetaTester, isLoggedIn, environment, clientRole, translations, maybeBookmarksCount } =
+sidebarItems { isAuthor, isBetaTester, isLoggedIn, clientRole, sendsNewsletters, translations, maybeBookmarksCount } =
     rawSidebarItems clientRole translations
         |> List.filter (sidebarItemVisible isLoggedIn isAuthor isBetaTester)
         |> List.filterMap
@@ -112,11 +114,11 @@ sidebarItems { isAuthor, isBetaTester, isLoggedIn, environment, clientRole, tran
 
                     Route.Path.Newsletters ->
                         -- currently in development
-                        Just { sidebarItem | disabled = environment /= BrowserEnv.Development && not isBetaTester }
+                        Just { sidebarItem | disabled = not sendsNewsletters }
 
                     Route.Path.Subscribers ->
                         -- currently in development
-                        Just { sidebarItem | disabled = environment /= BrowserEnv.Development && not isBetaTester }
+                        Just { sidebarItem | disabled = not sendsNewsletters }
 
                     _ ->
                         Just sidebarItem
@@ -306,6 +308,13 @@ viewSidebar styles shared currentPath toContentMsg content =
                 Shared.loggedIn shared
             , environment = shared.browserEnv.environment
             , clientRole = shared.role
+            , sendsNewsletters =
+                maybeUserPubKey
+                    |> Maybe.map
+                        (\pubKey ->
+                            Nostr.sendsNewsletterPubKey shared.nostr pubKey == Just True
+                        )
+                    |> Maybe.withDefault False
             , translations = shared.browserEnv.translations
             , maybeBookmarksCount = maybeBookmarksCount
             , currentPath = currentPath
