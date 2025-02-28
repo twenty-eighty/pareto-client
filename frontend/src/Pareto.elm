@@ -270,6 +270,8 @@ supportedKinds =
     [ KindUserMetadata
     , KindEventDeletionRequest
     , KindFileMetadata
+    , KindZapRequest
+    , KindZapReceipt
     , KindRelayListMetadata
     , KindBookmarkList
     , KindUserServerList
@@ -304,6 +306,7 @@ supportedNips =
     , "42"
     , "44"
     , "51"
+    , "57"
     , "65"
     , "89"
     , "94"
