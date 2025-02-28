@@ -9,7 +9,7 @@ import Dict
 import Effect exposing (Effect)
 import FeatherIcons
 import Html.Styled as Html exposing (Html, a, aside, button, div, img, input, label, main_, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css)
+import Html.Styled.Attributes as Attr exposing (class, css, src)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
 import Layout exposing (Layout)
@@ -365,11 +365,12 @@ viewSidebar styles shared currentPath toContentMsg content =
                         [ Tw.flex
                         , Tw.justify_between
                         , Tw.items_center
+                        , Tw.bg_cover
+                        , Tw.bg_center
                         , Tw.h_20
                         , Tw.mb_6
                         ]
-                    , Attr.style "background-image" "url('/images/Pareto-Client-Banner1.png')"
-                    , Attr.style "background-size" "cover"
+                    , Attr.style "background-image" "url('/images/Pareto-Banner-back.png')"
                     ]
                     [ -- viewBanner
                       if roleSwitchButtonEnabled shared.nostr shared.loginStatus then
@@ -377,9 +378,18 @@ viewSidebar styles shared currentPath toContentMsg content =
 
                       else
                         div [] []
+                    , img
+                        [ src "/images/Pareto-Banner-Text.svg"
+                        , css
+                            [ Tw.overflow_x_auto
+                            , Tw.h_7
+                            ]
+                        ]
+                        []
                     , div
                         [ css
-                            [ Tw.px_4
+                            [ Tw.flex_shrink_0
+                            , Tw.pr_4
                             ]
                         ]
                         [ loginButton shared (profileForUser shared shared.loginStatus)
@@ -497,7 +507,8 @@ clientRoleSwitch sidebarItemParams =
             [ Tw.flex
             , Tw.items_center
             , Tw.space_x_4
-            , Tw.mx_10
+            , Bp.lg [ Tw.mx_10 ]
+            , Tw.ml_4
             ]
         ]
         [ {- Label for the Switch -}
