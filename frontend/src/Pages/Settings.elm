@@ -765,7 +765,6 @@ viewProfile shared _ user =
                             profile
                             { browserEnv = shared.browserEnv
                             , following = UnknownFollowing
-                            , sendsNewsletter = False
                             , subscribe = Nothing
                             , theme = shared.theme
                             , validation =

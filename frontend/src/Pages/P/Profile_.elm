@@ -210,7 +210,6 @@ viewProfile shared profile =
             profile
             { browserEnv = shared.browserEnv
             , following = followingProfile shared.nostr profile.pubKey (Shared.loggedInPubKey shared.loginStatus)
-            , sendsNewsletter = Nostr.sendsNewsletterPubKey shared.nostr profile.pubKey |> Maybe.withDefault False
             , subscribe = Nothing
             , theme = shared.theme
             , validation =

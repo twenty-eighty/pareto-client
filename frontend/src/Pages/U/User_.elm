@@ -188,16 +188,31 @@ view shared model =
 
 viewProfile : Shared.Model -> Model -> Profile -> Html Msg
 viewProfile shared model profile =
+    let
+        userPubKey =
+            Shared.loggedInPubKey shared.loginStatus
+
+        isBetaTester =
+            userPubKey
+                |> Maybe.map (Nostr.isBetaTester shared.nostr)
+                |> Maybe.withDefault False
+
+        sendsNewsletter =
+            model.nip05
+                |> Maybe.andThen (Nostr.sendsNewsletterNip05 shared.nostr)
+                |> Maybe.withDefault False
+    in
     div []
         [ Ui.Profile.viewProfile
             profile
             { browserEnv = shared.browserEnv
-            , following = followingProfile shared.nostr profile.pubKey (Shared.loggedInPubKey shared.loginStatus)
-            , sendsNewsletter =
-                model.nip05
-                    |> Maybe.andThen (Nostr.sendsNewsletterNip05 shared.nostr)
-                    |> Maybe.withDefault False
-            , subscribe = Just OpenSubscribeDialog
+            , following = followingProfile shared.nostr profile.pubKey userPubKey
+            , subscribe =
+                if sendsNewsletter && isBetaTester then
+                    Just OpenSubscribeDialog
+
+                else
+                    Nothing
             , theme = shared.theme
             , validation =
                 Nostr.getProfileValidationStatus shared.nostr profile.pubKey
