@@ -93,6 +93,10 @@ init shared route () =
     , Effect.batch
         [ requestProfileEffect
         , requestArticlesEffect
+        , model.pubKey
+            |> Maybe.map Shared.Msg.UpdateNewsletterAvailabilityPubKey
+            |> Maybe.map Effect.sendSharedMsg
+            |> Maybe.withDefault Effect.none
         ]
     )
 
@@ -206,7 +210,7 @@ viewProfile shared profile =
             profile
             { browserEnv = shared.browserEnv
             , following = followingProfile shared.nostr profile.pubKey (Shared.loggedInPubKey shared.loginStatus)
-            , isAuthor = Nostr.isAuthor shared.nostr profile.pubKey
+            , sendsNewsletter = Nostr.sendsNewsletterPubKey shared.nostr profile.pubKey |> Maybe.withDefault False
             , subscribe = Nothing
             , theme = shared.theme
             , validation =

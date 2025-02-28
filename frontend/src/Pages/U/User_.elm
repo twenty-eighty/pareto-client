@@ -73,14 +73,23 @@ init shared route () =
                         case Nostr.getPubKeyByNip05 shared.nostr nip05 of
                             Just pubKey ->
                                 -- already validated, don't do again
-                                pubKey
-                                    |> buildRequestArticlesEffect shared.nostr
+                                [ buildRequestArticlesEffect shared.nostr pubKey
+
+                                -- check if author offers newsletter
+                                , Effect.sendSharedMsg (Shared.Msg.UpdateNewsletterAvailabilityPubKey pubKey)
+                                ]
+                                    |> Effect.batch
 
                             Nothing ->
-                                RequestProfileByNip05 nip05
+                                [ RequestProfileByNip05 nip05
                                     |> Nostr.createRequest shared.nostr ("Profile and data of NIP-05 user " ++ nip05ToString nip05) [ KindLongFormContent, KindHighlights, KindBookmarkList, KindBookmarkSets ]
                                     |> Shared.Msg.RequestNostrEvents
                                     |> Effect.sendSharedMsg
+
+                                -- check if author offers newsletter
+                                , Effect.sendSharedMsg (Shared.Msg.UpdateNewsletterAvailabilityNip05 nip05)
+                                ]
+                                    |> Effect.batch
                     )
                 |> Maybe.withDefault Effect.none
     in
@@ -184,7 +193,10 @@ viewProfile shared model profile =
             profile
             { browserEnv = shared.browserEnv
             , following = followingProfile shared.nostr profile.pubKey (Shared.loggedInPubKey shared.loginStatus)
-            , isAuthor = Nostr.isAuthor shared.nostr profile.pubKey
+            , sendsNewsletter =
+                model.nip05
+                    |> Maybe.andThen (Nostr.sendsNewsletterNip05 shared.nostr)
+                    |> Maybe.withDefault False
             , subscribe = Just OpenSubscribeDialog
             , theme = shared.theme
             , validation =

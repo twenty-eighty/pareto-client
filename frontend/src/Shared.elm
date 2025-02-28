@@ -228,6 +228,20 @@ update _ msg model =
         SetClientRole clientRole ->
             ( { model | role = clientRole }, Effect.none )
 
+        UpdateNewsletterAvailabilityPubKey pubKey ->
+            ( model
+            , Nostr.updateNewsletterAvailabilityPubKey model.nostr pubKey
+                |> Cmd.map NostrMsg
+                |> Effect.sendCmd
+            )
+
+        UpdateNewsletterAvailabilityNip05 nip05 ->
+            ( model
+            , Nostr.updateNewsletterAvailabilityNip05 model.nostr nip05
+                |> Cmd.map NostrMsg
+                |> Effect.sendCmd
+            )
+
 
 updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage model portMessage =
