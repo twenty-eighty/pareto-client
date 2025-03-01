@@ -451,7 +451,7 @@ categoryImage category =
             Just <| image "/images/Friedenstaube.png"
 
         _ ->
-            Nothing
+            Just <| image "/images/icon/Pareto-Log2.png"
 
 
 viewContent : Shared.Model -> Model -> Maybe PubKey -> Html Msg
