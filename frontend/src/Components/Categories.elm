@@ -17,6 +17,7 @@ import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, button, div, text)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events as Events exposing (..)
+import Tailwind.Breakpoints exposing (lg)
 import Tailwind.Utilities as Tw
 import Ui.Styles exposing (Styles)
 
@@ -139,7 +140,8 @@ viewCategories (Settings settings) =
         |> div
             [ css
                 [ Tw.flex
-                , Tw.space_x_4
+                , lg [ Tw.space_x_4 ]
+                , Tw.space_x_2_dot_5
                 , Tw.mb_10
                 , Tw.px_4
                 ]
@@ -155,14 +157,15 @@ viewCategory styles toMsg onSelect maybeImage active data =
         ( element, attrs ) =
             if active then
                 ( div
-                , styles.colorStyleCategoryActiveBackground
-                    ++ styles.colorStyleCategoryActive
-                    ++ styles.colorStyleCategoryActiveBorder
+                  --, styles.colorStyleCategoryActiveBackground ++
+                , styles.colorStyleCategoryActive
+                  --    ++ styles.colorStyleCategoryActiveBorder
                 )
 
             else
                 ( button
-                , styles.colorStyleCategoryInactiveBackground ++ styles.colorStyleGrayscaleText
+                  --, styles.colorStyleCategoryInactiveBackground ++
+                , styles.colorStyleGrayscaleText
                 )
 
         imageElement =
@@ -171,7 +174,8 @@ viewCategory styles toMsg onSelect maybeImage active data =
     in
     element
         ([ css
-            [ Tw.px_4
+            [ lg [ Tw.px_4 ]
+            , Tw.px_0
             , Tw.py_2
             , Tw.rounded_full
             , Tw.flex
