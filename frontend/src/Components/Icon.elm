@@ -1,4 +1,4 @@
-module Components.Icon exposing (Coloring(..), Icon(..), MaterialIcon(..), view)
+module Components.Icon exposing (Coloring(..), Icon(..), MaterialIcon(..), view, viewWithSize)
 
 import Color exposing (Color)
 import FeatherIcons
@@ -41,6 +41,22 @@ view icon =
                 |> Html.fromUnstyled
 
         MaterialIcon materialIcon size coloring ->
+            viewMaterialIcon materialIcon size coloring
+
+        DummyIcon _ ->
+            div [] []
+
+
+viewWithSize : Int -> Icon -> Html msg
+viewWithSize size icon =
+    case icon of
+        FeatherIcon featherIcon ->
+            featherIcon
+                |> FeatherIcons.withSize (toFloat size)
+                |> FeatherIcons.toHtml []
+                |> Html.fromUnstyled
+
+        MaterialIcon materialIcon _ coloring ->
             viewMaterialIcon materialIcon size coloring
 
         DummyIcon _ ->
