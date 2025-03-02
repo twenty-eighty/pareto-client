@@ -889,6 +889,16 @@ type alias ArticleData =
     }
 
 
+decodeArticleData : Decode.Decoder ArticleData
+decodeArticleData =
+    Decode.succeed ArticleData
+        |> required subscriberEventTitle Decode.string
+        |> required subscriberEventSummary Decode.string
+        |> required subscriberEventContent Decode.string
+        |> required subscriberEventImageUrl Decode.string
+        |> optional subscriberEventLanguage (Decode.maybe Decode.string) Nothing
+
+
 newsletterSubscribersEvent : Shared.Model -> PubKey -> AddressComponents -> ArticleData -> SubscriberEventData -> Event
 newsletterSubscribersEvent shared pubKey articleAddressComponents articleData subscriberEventData =
     let

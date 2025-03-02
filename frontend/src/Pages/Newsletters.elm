@@ -24,6 +24,7 @@ import Route exposing (Route)
 import Shared
 import Shared.Model
 import Shared.Msg
+import Subscribers
 import Svg.Loaders as Loaders
 import Table.Paginated as Table exposing (defaultCustomizations)
 import Tailwind.Utilities as Tw
@@ -32,6 +33,18 @@ import Translations.Newsletters as Translations
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
+
+
+type alias Newsletter =
+    { articleAddress : AddressComponents
+    , status : String
+    , processed : Int
+    , skipped : Int
+    , total : Int
+    , error : Maybe String
+    , timestamp : Time.Posix
+    , article : Maybe Subscribers.ArticleData
+    }
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
@@ -74,8 +87,10 @@ type Field
     = FieldDate
     | FieldStatus
     | FieldProcessed
+    | FieldSkipped
     | FieldTotal
     | FieldError
+    | FieldTitle
 
 
 fieldName : Field -> String
@@ -90,11 +105,17 @@ fieldName field =
         FieldProcessed ->
             "Processed"
 
+        FieldSkipped ->
+            "Skipped"
+
         FieldTotal ->
             "Total"
 
         FieldError ->
             "Error"
+
+        FieldTitle ->
+            "Title"
 
 
 translatedFieldName : I18Next.Translations -> Field -> String
@@ -109,11 +130,17 @@ translatedFieldName translations field =
         FieldProcessed ->
             Translations.processedColumnName [ translations ]
 
+        FieldSkipped ->
+            Translations.skippedColumnName [ translations ]
+
         FieldTotal ->
             Translations.totalColumnName [ translations ]
 
         FieldError ->
             Translations.errorColumnName [ translations ]
+
+        FieldTitle ->
+            Translations.subjectColumnName [ translations ]
 
 
 init : Auth.User -> Shared.Model -> () -> ( Model, Effect Msg )
@@ -227,16 +254,6 @@ processEvents existingNewsletters events =
             ( existingNewsletters, [] )
 
 
-type alias Newsletter =
-    { articleAddress : AddressComponents
-    , status : String
-    , processed : Int
-    , total : Int
-    , error : Maybe String
-    , timestamp : Time.Posix
-    }
-
-
 newsletterFromEvent : Event -> Result Decode.Error Newsletter
 newsletterFromEvent event =
     Decode.decodeString (Decode.field "newsletter" newsletterDecoder) event.content
@@ -248,9 +265,11 @@ newsletterDecoder =
         |> required "articleAddress" Event.decodeAddress
         |> required "status" Decode.string
         |> required "processed" Decode.int
+        |> required "skipped" Decode.int
         |> required "total" Decode.int
         |> optional "error" (Decode.maybe Decode.string) Nothing
         |> required "timestamp" Iso8601.decoder
+        |> optional "article" (Decode.maybe Subscribers.decodeArticleData) Nothing
 
 
 
@@ -275,8 +294,10 @@ newslettersTableConfig browserEnv =
             [ Table.stringColumn (fieldName FieldDate) (translatedFieldName browserEnv.translations FieldDate) (\newsletter -> newsletter.timestamp |> BrowserEnv.formatDate browserEnv)
             , Table.stringColumn (fieldName FieldStatus) (translatedFieldName browserEnv.translations FieldStatus) (\newsletter -> newsletter.status)
             , intColumn browserEnv.translations FieldProcessed (\newsletter -> newsletter.processed)
+            , intColumn browserEnv.translations FieldSkipped (\newsletter -> newsletter.skipped)
             , intColumn browserEnv.translations FieldTotal (\newsletter -> newsletter.total)
             , Table.stringColumn (fieldName FieldError) (translatedFieldName browserEnv.translations FieldError) (\newsletter -> newsletter.error |> Maybe.withDefault "")
+            , Table.stringColumn (fieldName FieldTitle) (translatedFieldName browserEnv.translations FieldTitle) (\newsletter -> newsletter.article |> Maybe.map .title |> Maybe.withDefault "")
             ]
         , customizations =
             { defaultCustomizations

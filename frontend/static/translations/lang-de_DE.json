@@ -108,8 +108,10 @@
       "date column name": "Datum",
       "status column name": "Status",
       "processed column name": "Verarbeitet",
+      "skipped column name": "Nicht gesendet",
       "total column name": "Gesamt",
-      "error column name": "Fehler"
+      "error column name": "Fehler",
+      "subject column name": "Betreff"
    },
    "posts": {
       "posts title": "Artikel",
