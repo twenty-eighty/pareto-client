@@ -809,6 +809,11 @@ subscriberEventImageUrl =
     "image"
 
 
+subscriberEventLanguage : String
+subscriberEventLanguage =
+    "language"
+
+
 decodeSubscriberData : Decode.Decoder SubscriberEventData
 decodeSubscriberData =
     Decode.succeed SubscriberEventData
@@ -880,6 +885,7 @@ type alias ArticleData =
     , summary : String
     , content : String
     , imageUrl : String
+    , language : Maybe String
     }
 
 
@@ -912,7 +918,7 @@ newsletterSubscribersEvent shared pubKey articleAddressComponents articleData su
 
 
 emailSendRequestToJson : Maybe String -> ArticleData -> SubscriberEventData -> String
-emailSendRequestToJson maybeSenderName { title, summary, content, imageUrl } { keyHex, ivHex, url, size, active, total } =
+emailSendRequestToJson maybeSenderName { title, summary, content, imageUrl, language } { keyHex, ivHex, url, size, active, total } =
     [ ( "newsletter"
       , [ ( subscriberEventKey, Encode.string keyHex )
         , ( subscriberEventIv, Encode.string ivHex )
@@ -926,10 +932,11 @@ emailSendRequestToJson maybeSenderName { title, summary, content, imageUrl } { k
             , ( subscriberEventContent, Encode.string content )
             , ( subscriberEventImageUrl, Encode.string imageUrl )
             ]
+                |> appendOptionalObjectString subscriberEventLanguage language
                 |> Encode.object
           )
         ]
-            |> appendOptionalObjectString "senderName" maybeSenderName
+            |> appendOptionalObjectString "authorName" maybeSenderName
             |> Encode.object
       )
     ]

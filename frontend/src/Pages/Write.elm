@@ -409,6 +409,7 @@ update shared user msg model =
                         , summary = Maybe.withDefault "" model.summary
                         , content = Maybe.withDefault "" model.content
                         , imageUrl = Maybe.withDefault "" model.image
+                        , language = languageISOCode model
                         }
                         subscriberEventData
                         |> SendApplicationData
@@ -613,6 +614,7 @@ updateWithPublishedResults shared model user value =
                             , summary = Maybe.withDefault "" model.summary
                             , content = Maybe.withDefault "" model.content
                             , imageUrl = Maybe.withDefault "" model.image
+                            , language = languageISOCode model
                             }
                             subscriberEventData
                             |> SendApplicationData
@@ -644,6 +646,7 @@ updateWithPublishedResults shared model user value =
                             , summary = Maybe.withDefault "" model.summary
                             , content = Maybe.withDefault "" model.content
                             , imageUrl = Maybe.withDefault "" model.image
+                            , language = languageISOCode model
                             }
                             subscriberEventData
                             |> SendApplicationData
