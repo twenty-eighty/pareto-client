@@ -673,7 +673,7 @@ export const onReady = ({ app, env }) => {
   }
 
   async function unwrapPrivateRelayListEvent(ndkEvent) {
-    const stringifiedRelayTags = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    const stringifiedEvent = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
     ndkEvent.tags = JSON.parse(stringifiedEvent);
     return ndkEvent;
   }
