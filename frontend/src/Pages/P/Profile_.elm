@@ -1,5 +1,6 @@
 module Pages.P.Profile_ exposing (Model, Msg, page)
 
+import Components.EmailSubscriptionDialog as EmailSubscriptionDialog
 import Components.RelayStatus exposing (Purpose(..))
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
@@ -48,12 +49,22 @@ type alias Model =
     { pubKey : Maybe PubKey
     , relays : List String
     , requestId : Maybe RequestId
+    , emailSubscriptionDialog : EmailSubscriptionDialog.Model
     }
 
 
 init : Shared.Model -> Route { profile : String } -> () -> ( Model, Effect Msg )
 init shared route () =
     let
+        emailSubscriptionDialog =
+            case route.hash of
+                Just "subscribe" ->
+                    EmailSubscriptionDialog.init {}
+                        |> EmailSubscriptionDialog.show
+
+                _ ->
+                    EmailSubscriptionDialog.init {}
+
         model =
             decodeParam route.params.profile
                 |> Maybe.map
@@ -61,9 +72,15 @@ init shared route () =
                         { pubKey = Just pubKey
                         , relays = relays
                         , requestId = Nothing
+                        , emailSubscriptionDialog = emailSubscriptionDialog
                         }
                     )
-                |> Maybe.withDefault { pubKey = Nothing, relays = [], requestId = Nothing }
+                |> Maybe.withDefault
+                    { pubKey = Nothing
+                    , relays = []
+                    , requestId = Nothing
+                    , emailSubscriptionDialog = emailSubscriptionDialog
+                    }
 
         ( requestProfileEffect, requestId ) =
             model.pubKey
@@ -139,10 +156,12 @@ decodeParam profile =
 type Msg
     = Follow PubKey PubKey
     | Unfollow PubKey PubKey
+    | OpenSubscribeDialog
+    | EmailSubscriptionDialogSent (EmailSubscriptionDialog.Msg Msg)
 
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
-update _ msg model =
+update shared msg model =
     case msg of
         Follow pubKeyUser pubKeyToBeFollowed ->
             ( model
@@ -158,14 +177,29 @@ update _ msg model =
                 |> Effect.sendSharedMsg
             )
 
+        OpenSubscribeDialog ->
+            ( { model | emailSubscriptionDialog = EmailSubscriptionDialog.show model.emailSubscriptionDialog }
+            , Effect.none
+            )
+
+        EmailSubscriptionDialogSent innerMsg ->
+            EmailSubscriptionDialog.update
+                { msg = innerMsg
+                , model = model.emailSubscriptionDialog
+                , toModel = \emailSubscriptionDialog -> { model | emailSubscriptionDialog = emailSubscriptionDialog }
+                , toMsg = EmailSubscriptionDialogSent
+                , nostr = shared.nostr
+                }
+
 
 
 -- SUBSCRIPTIONS
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
+subscriptions model =
+    EmailSubscriptionDialog.subscriptions model.emailSubscriptionDialog
+        |> Sub.map EmailSubscriptionDialogSent
 
 
 
@@ -192,7 +226,7 @@ view shared model =
     , body =
         [ case ( maybeProfile, model.pubKey ) of
             ( Just profile, _ ) ->
-                viewProfile shared profile
+                viewProfile shared model profile
 
             ( Nothing, Just pubKey ) ->
                 viewArticles shared pubKey
@@ -203,14 +237,33 @@ view shared model =
     }
 
 
-viewProfile : Shared.Model -> Profile -> Html Msg
-viewProfile shared profile =
+viewProfile : Shared.Model -> Model -> Profile -> Html Msg
+viewProfile shared model profile =
+    let
+        userPubKey =
+            Shared.loggedInPubKey shared.loginStatus
+
+        isBetaTester =
+            userPubKey
+                |> Maybe.map (Nostr.isBetaTester shared.nostr)
+                |> Maybe.withDefault False
+
+        sendsNewsletter =
+            userPubKey
+                |> Maybe.andThen (Nostr.sendsNewsletterPubKey shared.nostr)
+                |> Maybe.withDefault False
+    in
     div []
         [ Ui.Profile.viewProfile
             profile
             { browserEnv = shared.browserEnv
             , following = followingProfile shared.nostr profile.pubKey (Shared.loggedInPubKey shared.loginStatus)
-            , subscribe = Nothing
+            , subscribe =
+                if sendsNewsletter && isBetaTester then
+                    Just OpenSubscribeDialog
+
+                else
+                    Nothing
             , theme = shared.theme
             , validation =
                 Nostr.getProfileValidationStatus shared.nostr profile.pubKey
@@ -218,6 +271,7 @@ viewProfile shared profile =
             }
             shared
         , viewArticles shared profile.pubKey
+        , viewEmailSubscriptionDialog shared model profile
         ]
 
 
@@ -263,3 +317,23 @@ followingProfile nostr profilePubKey maybePubKey =
 
         Nothing ->
             UnknownFollowing
+
+
+viewEmailSubscriptionDialog : Shared.Model -> Model -> Profile -> Html Msg
+viewEmailSubscriptionDialog shared model profile =
+    let
+        -- because we want to allow email subscriptions also without users logged in with Nostr profile
+        -- we need to use another private key to sign the subscription Nostr event
+        pubKeyUser =
+            Shared.loggedInPubKey shared.loginStatus
+    in
+    EmailSubscriptionDialog.new
+        { model = model.emailSubscriptionDialog
+        , toMsg = EmailSubscriptionDialogSent
+        , nostr = shared.nostr
+        , profile = profile
+        , pubKeyUser = pubKeyUser
+        , browserEnv = shared.browserEnv
+        , theme = shared.theme
+        }
+        |> EmailSubscriptionDialog.view
