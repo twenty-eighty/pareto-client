@@ -47,6 +47,8 @@
       "single emails button title": "Single emails",
       "email textarea placeholder text": "Comma-separated email addresses",
       "import selection explanation": "You can either upload a CSV file or add a list of comma-separated email addresses.",
+      "import subscribers warning": "Add only those individuals who have explicitly agreed to receive emails. (double opt-in method)",
+      "import only opt-in explanation": "Do not include individuals whose information was collected solely through product/service exchanges, giveaways, or similar methods.",
       "overwrite existing checkbox label": "Overwrite existing?",
       "csv processing error message": "Error processing CSV file: ",
       "csv file empty error message": "The CSV file is empty",

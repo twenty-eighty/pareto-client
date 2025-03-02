@@ -47,6 +47,8 @@
       "single emails button title": "Einzelne E-Mails",
       "email textarea placeholder text": "Mit Komma getrennte E-Mail-Adressen",
       "import selection explanation": "Du kannst entweder eine CSV-Datei hochladen oder mehrere kommaseparierte E-Mail-Adressen hinzufügen.",
+      "import subscribers warning": "Füge nur Kontakte hinzu, die ausdrücklich zugestimmt haben, von dir E-Mails zu bekommen. (mit Double Opt-In)",
+      "import only opt-in explanation": "Kontakte, deren Information ausschließlich bei Verkäufen, gegen Geschenke (\"Freebies\") oder ähnlichem gesammelt wurden, dürfen nicht hinzugefügt werden.",
       "overwrite existing checkbox label": "Bestehende überschreiben?",
       "csv processing error message": "Fehler beim Einlesen der CSV-Datei: ",
       "csv file empty error message": "Die CSV-Datei ist leer",
