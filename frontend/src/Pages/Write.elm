@@ -6,7 +6,7 @@ import Components.Button as Button
 import Components.Dropdown as Dropdown
 import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
 import Components.MessageDialog as MessageDialog
-import Components.PublishArticleDialog as PublishArticleDialog
+import Components.PublishArticleDialog as PublishArticleDialog exposing (PublishingInfo(..))
 import Css
 import Dict
 import Effect exposing (Effect)
@@ -83,7 +83,7 @@ type alias Model =
     , now : Time.Posix
     , mediaSelector : MediaSelector.Model
     , imageSelection : Maybe ImageSelection
-    , publishArticleDialog : PublishArticleDialog.Model Msg
+    , publishArticleDialog : PublishArticleDialog.Model
     , publishedAt : Maybe Time.Posix
     , articleState : ArticleState
     , editorMode : EditorMode
@@ -100,6 +100,7 @@ type EditorMode
 
 type ModalDialog
     = NoModalDialog
+    | NewsletterSentDialog
     | PublishedDialog
 
 
@@ -280,7 +281,7 @@ type Msg
     | SelectImage ImageSelection
     | ImageSelected ImageSelection MediaSelector.UploadedFile
     | Publish
-    | PublishArticle (List RelayUrl) (Maybe Subscribers.SubscriberEventData)
+    | PublishArticle PublishArticleDialog.PublishingInfo
     | SaveDraft
     | Now Time.Posix
     | OpenMediaSelector
@@ -391,10 +392,34 @@ update shared user msg model =
         Publish ->
             update shared user (PublishArticleDialogSent PublishArticleDialog.ShowDialog) model
 
-        PublishArticle relayUrls maybeSubscriberEventData ->
-            ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) maybeSubscriberEventData }
-            , sendPublishCmd shared model user relayUrls
-            )
+        PublishArticle publishingInfo ->
+            case publishingInfo of
+                ArticleOnly relayUrls ->
+                    ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) Nothing }
+                    , sendPublishCmd shared model user relayUrls
+                    )
+
+                NewsletterOnly subscriberEventData ->
+                    ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
+                    , Subscribers.newsletterSubscribersEvent
+                        shared
+                        user.pubKey
+                        ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier )
+                        { title = Maybe.withDefault "" model.title
+                        , summary = Maybe.withDefault "" model.summary
+                        , content = Maybe.withDefault "" model.content
+                        , imageUrl = Maybe.withDefault "" model.image
+                        }
+                        subscriberEventData
+                        |> SendApplicationData
+                        |> Shared.Msg.SendNostrEvent
+                        |> Effect.sendSharedMsg
+                    )
+
+                ArticleAndNewsletter relayUrls subscriberEventData ->
+                    ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) (Just subscriberEventData) }
+                    , sendPublishCmd shared model user relayUrls
+                    )
 
         SaveDraft ->
             ( { model | articleState = ArticleSavingDraft (Nostr.getLastSendRequestId shared.nostr) }, sendDraftCmd shared model user )
@@ -580,7 +605,16 @@ updateWithPublishedResults shared model user value =
 
                     ( Nothing, Just subscriberEventData ) ->
                         ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
-                        , Subscribers.newsletterSubscribersEvent shared user.pubKey ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier ) subscriberEventData
+                        , Subscribers.newsletterSubscribersEvent
+                            shared
+                            user.pubKey
+                            ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier )
+                            { title = Maybe.withDefault "" model.title
+                            , summary = Maybe.withDefault "" model.summary
+                            , content = Maybe.withDefault "" model.content
+                            , imageUrl = Maybe.withDefault "" model.image
+                            }
+                            subscriberEventData
                             |> SendApplicationData
                             |> Shared.Msg.SendNostrEvent
                             |> Effect.sendSharedMsg
@@ -603,7 +637,15 @@ updateWithPublishedResults shared model user value =
                 case maybeSubscriberEventData of
                     Just subscriberEventData ->
                         ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
-                        , Subscribers.newsletterSubscribersEvent shared user.pubKey ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier ) subscriberEventData
+                        , Subscribers.newsletterSubscribersEvent shared
+                            user.pubKey
+                            ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier )
+                            { title = Maybe.withDefault "" model.title
+                            , summary = Maybe.withDefault "" model.summary
+                            , content = Maybe.withDefault "" model.content
+                            , imageUrl = Maybe.withDefault "" model.image
+                            }
+                            subscriberEventData
                             |> SendApplicationData
                             |> Shared.Msg.SendNostrEvent
                             |> Effect.sendSharedMsg
@@ -626,7 +668,7 @@ updateWithPublishedResults shared model user value =
             ( { model
                 | articleState = ArticlePublished
                 , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
-                , modalDialog = PublishedDialog
+                , modalDialog = NewsletterSentDialog
               }
             , Effect.none
             )
@@ -808,6 +850,22 @@ viewModalDialog theme browserEnv modalDialog =
     case modalDialog of
         NoModalDialog ->
             div [] []
+
+        NewsletterSentDialog ->
+            MessageDialog.new
+                { onClick = PublishedDialogButtonClicked
+                , onClose = PublishedDialogButtonClicked OkButton
+                , title = Translations.newsletterSentMessageBoxTitle [ browserEnv.translations ]
+                , content = div [] [ text <| Translations.newsletterSentMessageBoxText [ browserEnv.translations ] ]
+                , buttons =
+                    [ { style = MessageDialog.PrimaryButton
+                      , title = "Ok"
+                      , identifier = OkButton
+                      }
+                    ]
+                , theme = theme
+                }
+                |> MessageDialog.view
 
         PublishedDialog ->
             MessageDialog.new

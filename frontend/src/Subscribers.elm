@@ -784,6 +784,31 @@ subscriberEventTotal =
     "total"
 
 
+subscriberEventArticle : String
+subscriberEventArticle =
+    "article"
+
+
+subscriberEventTitle : String
+subscriberEventTitle =
+    "title"
+
+
+subscriberEventSummary : String
+subscriberEventSummary =
+    "summary"
+
+
+subscriberEventContent : String
+subscriberEventContent =
+    "content"
+
+
+subscriberEventImageUrl : String
+subscriberEventImageUrl =
+    "image"
+
+
 decodeSubscriberData : Decode.Decoder SubscriberEventData
 decodeSubscriberData =
     Decode.succeed SubscriberEventData
@@ -850,8 +875,16 @@ encodeSubscriber subscriber =
         |> addStringListToObject FieldTags subscriber.tags
 
 
-newsletterSubscribersEvent : Shared.Model -> PubKey -> AddressComponents -> SubscriberEventData -> Event
-newsletterSubscribersEvent shared pubKey articleAddressComponents subscriberEventData =
+type alias ArticleData =
+    { title : String
+    , summary : String
+    , content : String
+    , imageUrl : String
+    }
+
+
+newsletterSubscribersEvent : Shared.Model -> PubKey -> AddressComponents -> ArticleData -> SubscriberEventData -> Event
+newsletterSubscribersEvent shared pubKey articleAddressComponents articleData subscriberEventData =
     let
         ( _, _, identifier ) =
             articleAddressComponents
@@ -871,15 +904,15 @@ newsletterSubscribersEvent shared pubKey articleAddressComponents subscriberEven
             |> Event.addAddressTag articleAddressComponents
             -- reference email gateway as encryption target
             |> Event.addPubKeyTag Pareto.emailGatewayKey Nothing Nothing
-    , content = emailSendRequestToJson senderProfileName subscriberEventData
+    , content = emailSendRequestToJson senderProfileName articleData subscriberEventData
     , id = ""
     , sig = Nothing
     , relays = Nothing
     }
 
 
-emailSendRequestToJson : Maybe String -> SubscriberEventData -> String
-emailSendRequestToJson maybeSenderName { keyHex, ivHex, url, size, active, total } =
+emailSendRequestToJson : Maybe String -> ArticleData -> SubscriberEventData -> String
+emailSendRequestToJson maybeSenderName { title, summary, content, imageUrl } { keyHex, ivHex, url, size, active, total } =
     [ ( "newsletter"
       , [ ( subscriberEventKey, Encode.string keyHex )
         , ( subscriberEventIv, Encode.string ivHex )
@@ -887,6 +920,14 @@ emailSendRequestToJson maybeSenderName { keyHex, ivHex, url, size, active, total
         , ( subscriberEventSize, Encode.int size )
         , ( subscriberEventActive, Encode.int active )
         , ( subscriberEventTotal, Encode.int total )
+        , ( subscriberEventArticle
+          , [ ( subscriberEventTitle, Encode.string title )
+            , ( subscriberEventSummary, Encode.string summary )
+            , ( subscriberEventContent, Encode.string content )
+            , ( subscriberEventImageUrl, Encode.string imageUrl )
+            ]
+                |> Encode.object
+          )
         ]
             |> appendOptionalObjectString "senderName" maybeSenderName
             |> Encode.object
