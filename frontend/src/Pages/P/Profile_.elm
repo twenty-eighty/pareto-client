@@ -249,8 +249,7 @@ viewProfile shared model profile =
                 |> Maybe.withDefault False
 
         sendsNewsletter =
-            userPubKey
-                |> Maybe.andThen (Nostr.sendsNewsletterPubKey shared.nostr)
+            Nostr.sendsNewsletterPubKey shared.nostr profile.pubKey
                 |> Maybe.withDefault False
     in
     div []
