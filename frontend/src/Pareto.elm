@@ -53,6 +53,16 @@ anonymousPrivateKey =
     "cff56394373edfaa281d2e1b5ad1b8cafd8b247f229f2af2c61734fb0c7b3f84"
 
 
+newsletterAuthorCheckEndpointPubKey : String
+newsletterAuthorCheckEndpointPubKey =
+    "https://pareto.town/api/pubkeys"
+
+
+newsletterAuthorCheckEndpointNip05 : String
+newsletterAuthorCheckEndpointNip05 =
+    "https://pareto.town/api/nip05"
+
+
 
 -- name of client in "client" tag when publishing articles
 
@@ -137,7 +147,6 @@ defaultNip96ServersPublic =
 applicationDataRelays : List RelayUrl
 applicationDataRelays =
     [ "wss://cool-darkness-73116.pktriot.net"
-    , "wss://team-relay.pareto.space"
     ]
 
 

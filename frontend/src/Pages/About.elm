@@ -253,7 +253,6 @@ viewHandlerInformation shared handlerInformation =
             handlerInformation.profile
             { browserEnv = shared.browserEnv
             , following = UnknownFollowing
-            , isAuthor = False
             , subscribe = Nothing
             , theme = shared.theme
             , validation =

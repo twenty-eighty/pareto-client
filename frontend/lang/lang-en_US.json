@@ -47,6 +47,8 @@
       "single emails button title": "Single emails",
       "email textarea placeholder text": "Comma-separated email addresses",
       "import selection explanation": "You can either upload a CSV file or add a list of comma-separated email addresses.",
+      "import subscribers warning": "Add only those individuals who have explicitly agreed to receive emails. (double opt-in method)",
+      "import only opt-in explanation": "Do not include individuals whose information was collected solely through product/service exchanges, giveaways, or similar methods.",
       "overwrite existing checkbox label": "Overwrite existing?",
       "csv processing error message": "Error processing CSV file: ",
       "csv file empty error message": "The CSV file is empty",
@@ -105,8 +107,10 @@
       "date column name": "Date",
       "status column name": "Status",
       "processed column name": "Processed",
+      "skipped column name": "Skipped",
       "total column name": "Total",
-      "error column name": "Errors"
+      "error column name": "Errors",
+      "subject column name": "Title"
    },
    "posts": {
       "posts title": "Posts",
@@ -139,8 +143,11 @@
       "no relays configured text": "Do you want to configure some default relays?",
       "configure relays button title": "Configure relays",
       "delivery title": "Delivery",
-      "send also via email singular checkbox text": "Send also via email to one recipient",
-      "send also via email plural checkbox text": "Send also via email to {{recipientCount}} recipients"
+      "only publish article text": "Only publish article",
+      "send only via email singular checkbox text": "Send email to one recipient",
+      "send only via email plural checkbox text": "Send email to {{recipientCount}} recipients",
+      "send also via email singular checkbox text": "Publish article and send via email to one recipient",
+      "send also via email plural checkbox text": "Publish article and send via email to {{recipientCount}} recipients"
    },
    "read": {
       "followed feed category": "Followed",
@@ -218,6 +225,7 @@
       "loading subscribers text": "Loading subscribers...",
       "error loading subscribers text": "Error loading subscribers",
       "no subscribers text": "No subscribers found.",
+      "new modifications": "New modifications",
       "dnd field name": "Do not disturb",
       "email field name": "Email",
       "name field name": "Name",
@@ -275,6 +283,8 @@
       "image selection instructional text": "Click to select image",
       "article published message box title": "Article published",
       "article published message box text": "The article has been published.",
+      "newsletter sent message box title": "Newsletter sent",
+      "newsletter sent message box text": "The newsletter has been sent.",
       "article modified state": "Article modified",
       "article loading draft state": "Loading draft...",
       "article loading draft error": "Error loading draft",

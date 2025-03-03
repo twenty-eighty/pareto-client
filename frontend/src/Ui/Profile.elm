@@ -40,7 +40,6 @@ profilePicture width maybeProfile =
 type alias ProfileViewData msg =
     { browserEnv : BrowserEnv
     , following : FollowType msg
-    , isAuthor : Bool
     , subscribe : Maybe msg
     , theme : Theme
     , validation : ProfileValidation
@@ -160,8 +159,8 @@ viewProfile profile profileViewData shared =
 
 viewSubscriptionButton : Profile -> ProfileViewData msg -> Html msg
 viewSubscriptionButton _ profileViewData =
-    case ( profileViewData.browserEnv.environment, profileViewData.isAuthor, profileViewData.subscribe ) of
-        ( BrowserEnv.Development, True, Just subscribeMsg ) ->
+    case profileViewData.subscribe of
+        Just subscribeMsg ->
             Button.new
                 { label = Translations.subscribeButtonTitle [ profileViewData.browserEnv.translations ]
                 , onClick = Just subscribeMsg
@@ -170,7 +169,7 @@ viewSubscriptionButton _ profileViewData =
                 |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.mail)
                 |> Button.view
 
-        ( _, _, _ ) ->
+        _ ->
             div [] []
 
 

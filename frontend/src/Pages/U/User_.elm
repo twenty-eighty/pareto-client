@@ -12,7 +12,6 @@ import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (Following(..), PubKey)
 import Page exposing (Page)
-import Pareto
 import Route exposing (Route)
 import Shared
 import Shared.Model
@@ -74,14 +73,23 @@ init shared route () =
                         case Nostr.getPubKeyByNip05 shared.nostr nip05 of
                             Just pubKey ->
                                 -- already validated, don't do again
-                                pubKey
-                                    |> buildRequestArticlesEffect shared.nostr
+                                [ buildRequestArticlesEffect shared.nostr pubKey
+
+                                -- check if author offers newsletter
+                                , Effect.sendSharedMsg (Shared.Msg.UpdateNewsletterAvailabilityPubKey pubKey)
+                                ]
+                                    |> Effect.batch
 
                             Nothing ->
-                                RequestProfileByNip05 nip05
+                                [ RequestProfileByNip05 nip05
                                     |> Nostr.createRequest shared.nostr ("Profile and data of NIP-05 user " ++ nip05ToString nip05) [ KindLongFormContent, KindHighlights, KindBookmarkList, KindBookmarkSets ]
                                     |> Shared.Msg.RequestNostrEvents
                                     |> Effect.sendSharedMsg
+
+                                -- check if author offers newsletter
+                                , Effect.sendSharedMsg (Shared.Msg.UpdateNewsletterAvailabilityNip05 nip05)
+                                ]
+                                    |> Effect.batch
                     )
                 |> Maybe.withDefault Effect.none
     in
@@ -180,13 +188,31 @@ view shared model =
 
 viewProfile : Shared.Model -> Model -> Profile -> Html Msg
 viewProfile shared model profile =
+    let
+        userPubKey =
+            Shared.loggedInPubKey shared.loginStatus
+
+        isBetaTester =
+            userPubKey
+                |> Maybe.map (Nostr.isBetaTester shared.nostr)
+                |> Maybe.withDefault False
+
+        sendsNewsletter =
+            model.nip05
+                |> Maybe.andThen (Nostr.sendsNewsletterNip05 shared.nostr)
+                |> Maybe.withDefault False
+    in
     div []
         [ Ui.Profile.viewProfile
             profile
             { browserEnv = shared.browserEnv
-            , following = followingProfile shared.nostr profile.pubKey (Shared.loggedInPubKey shared.loginStatus)
-            , isAuthor = Nostr.isAuthor shared.nostr profile.pubKey
-            , subscribe = Just OpenSubscribeDialog
+            , following = followingProfile shared.nostr profile.pubKey userPubKey
+            , subscribe =
+                if sendsNewsletter && isBetaTester then
+                    Just OpenSubscribeDialog
+
+                else
+                    Nothing
             , theme = shared.theme
             , validation =
                 Nostr.getProfileValidationStatus shared.nostr profile.pubKey

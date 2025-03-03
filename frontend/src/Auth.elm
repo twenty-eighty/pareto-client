@@ -2,7 +2,6 @@ module Auth exposing (User, onPageLoad, viewCustomPage)
 
 import Auth.Action
 import Dict
-import Nostr.Profile exposing (Profile)
 import Nostr.Types exposing (PubKey)
 import Route exposing (Route)
 import Route.Path
@@ -40,5 +39,5 @@ onPageLoad shared route =
 {-| Renders whenever `Auth.Action.loadCustomPage` is returned from `onPageLoad`.
 -}
 viewCustomPage : Shared.Model -> Route () -> View Never
-viewCustomPage shared route =
+viewCustomPage _ _ =
     View.fromString "Loading..."

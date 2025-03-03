@@ -596,7 +596,18 @@ viewSelectionDialog (Settings settings) =
             , Tw.gap_2
             ]
         ]
-        [ div [ css [ Tw.my_2 ] ] [ text <| Translations.importSelectionExplanation [ settings.browserEnv.translations ] ]
+        [ Html.p [ css [] ] [ text <| Translations.importSelectionExplanation [ settings.browserEnv.translations ] ]
+        , div
+            [ css
+                [ Tw.bg_color Theme.yellow_500
+                , Tw.rounded_lg
+                , Tw.p_3
+                , Tw.my_2
+                ]
+            ]
+            [ Html.p [ css [ Tw.font_bold ] ] [ text <| Translations.importSubscribersWarning [ settings.browserEnv.translations ] ]
+            , Html.p [ css [ Tw.mt_2 ] ] [ text <| Translations.importOnlyOptInExplanation [ settings.browserEnv.translations ] ]
+            ]
         , div
             [ css
                 [ Tw.flex

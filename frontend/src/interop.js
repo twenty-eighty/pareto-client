@@ -33,6 +33,9 @@ const debugLog = debug('pareto-client');
 var connected = false;
 var windowLoaded = false;
 
+const anonymousSigner = new NDKPrivateKeySigner('cff56394373edfaa281d2e1b5ad1b8cafd8b247f229f2af2c61734fb0c7b3f84');
+const anonymousPubKey = 'ecdf32491ef8b5f1902109f495e7ca189c6fcec76cd66b888fa9fc2ce87f40db';
+
 export const onReady = ({ app, env }) => {
 
   var requestUserWhenLoaded = false;
@@ -585,11 +588,12 @@ export const onReady = ({ app, env }) => {
     debugLog('send event ' + sendId, event, 'relays: ', relays);
 
     var ndkEvent = new NDKEvent(window.ndk, event);
+    const signer = (ndkEvent.pubkey == anonymousPubKey) ? anonymousSigner : window.ndk.signer;
 
     if (event.kind == 30024) {  // draft event
-      ndkEvent = await encapsulateDraftEvent(ndkEvent);
+      ndkEvent = await encapsulateDraftEvent(ndkEvent, signer);
     } else if (event.kind == 30078) {  // application-specific event
-      ndkEvent = await encapsulateApplicationSpecificEvent(ndkEvent);
+      ndkEvent = await encapsulateApplicationSpecificEvent(ndkEvent, signer);
     }
 
     if (!ndkEvent) {
@@ -598,7 +602,7 @@ export const onReady = ({ app, env }) => {
       return;
     }
 
-    ndkEvent.sign().then(() => {
+    ndkEvent.sign(signer).then(() => {
       debugLog('signed event ' + sendId, ndkEvent);
 
       var relaysWithProtocol = relays.map(relay => {
@@ -620,7 +624,10 @@ export const onReady = ({ app, env }) => {
         // feed sent events into app as if received by relay.
         // thus we can let the event modify the state correctly
         processEvents(app, -1, "sent event", [ndkEvent]);
-      })
+      }).catch((error) => {
+        console.log(error);
+        app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: "failed to send event" } });
+      });
     })
   }
 
@@ -647,14 +654,16 @@ export const onReady = ({ app, env }) => {
   }
 
   // https://nips.nostr.com/78
-  async function encapsulateApplicationSpecificEvent(ndkEvent) {
+  async function encapsulateApplicationSpecificEvent(ndkEvent, signer) {
     // if target pubkey is not specified as a tag, use the pubkey of the event
     var encryptForPubKey = firstTag(ndkEvent, "p");
     if (!encryptForPubKey) {
+      // encrypt for current user (supposed to be an author storing his subscribers)
       encryptForPubKey = ndkEvent.pubkey;
     }
-    console.log('encrypt for key', encryptForPubKey);
-    const encrypted = await window.ndk.signer.encrypt({ pubkey: encryptForPubKey }, ndkEvent.content);
+    debugLog('encrypt for key', encryptForPubKey);
+    // in order to allow anonymous users to subscribe to a newsletter we need to use a different signer
+    const encrypted = await signer.encrypt({ pubkey: encryptForPubKey }, ndkEvent.content);
     if (encrypted) {
       ndkEvent.content = encrypted;
       return ndkEvent;
@@ -664,7 +673,7 @@ export const onReady = ({ app, env }) => {
   }
 
   async function unwrapPrivateRelayListEvent(ndkEvent) {
-    const stringifiedRelayTags = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    const stringifiedEvent = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
     ndkEvent.tags = JSON.parse(stringifiedEvent);
     return ndkEvent;
   }

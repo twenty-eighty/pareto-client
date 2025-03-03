@@ -1,8 +1,10 @@
 module Pages.Read exposing (Model, Msg, init, page, subscriptions, update, view)
 
 import Components.Categories
+import Components.Icon as Icon
 import Dict
 import Effect exposing (Effect)
+import FeatherIcons
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes as Attr exposing (css)
 import I18Next
@@ -449,6 +451,16 @@ categoryImage category =
 
         Friedenstaube ->
             Just <| image "/images/Friedenstaube.png"
+
+        Followed ->
+            Icon.FeatherIcon FeatherIcons.users
+                |> Icon.viewWithSize 16
+                |> Just
+
+        Global ->
+            Icon.FeatherIcon FeatherIcons.globe
+                |> Icon.viewWithSize 16
+                |> Just
 
         _ ->
             Just <| image "/images/icon/Pareto-Log2.png"

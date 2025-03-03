@@ -481,7 +481,7 @@ processModifications subscribers modifications =
             (\modification acc ->
                 case modification of
                     Subscription newsubscriber ->
-                        Dict.insert newsubscriber.email newsubscriber acc
+                        Dict.insert newsubscriber.email { newsubscriber | source = Just "opt-in" } acc
 
                     Unsubscription unsubscribed ->
                         Dict.update
@@ -560,12 +560,12 @@ processEvents userPubKey existingModifications events =
 
         ( modifications, decodingErrors ) =
             modificationEvents
-                |> List.map modificationsFromEvent
+                |> List.map modificationFromEvent
                 |> List.foldl
                     (\result ( modificationsAcc, errorList ) ->
                         case result of
-                            Ok decodedModifications ->
-                                ( modificationsAcc ++ decodedModifications, errorList )
+                            Ok decodedModification ->
+                                ( modificationsAcc ++ [ decodedModification ], errorList )
 
                             Err error ->
                                 ( modificationsAcc, errorList ++ [ Decode.errorToString error ] )
@@ -585,29 +585,25 @@ subscriberDataDecoder =
     Decode.field "subscribers" subscribersDecoder
 
 
-modificationsFromEvent : Event -> Result Decode.Error (List Modification)
-modificationsFromEvent event =
+modificationFromEvent : Event -> Result Decode.Error Modification
+modificationFromEvent event =
     Decode.decodeString modificationsDecoder event.content
         |> Result.map
-            (\modifications ->
-                modifications
-                    |> List.map
-                        (\modification ->
-                            case modification of
-                                Subscription subscriber ->
-                                    Subscription { subscriber | dnd = Just False, dateSubscription = event.createdAt }
+            (\modification ->
+                case modification of
+                    Subscription subscriber ->
+                        Subscription { subscriber | dnd = Just False, dateSubscription = event.createdAt }
 
-                                Unsubscription subscriber ->
-                                    Unsubscription { subscriber | dnd = Just True, dateUnsubscription = Just event.createdAt }
-                        )
+                    Unsubscription subscriber ->
+                        Unsubscription { subscriber | dnd = Just True, dateUnsubscription = Just event.createdAt }
             )
 
 
-modificationsDecoder : Decode.Decoder (List Modification)
+modificationsDecoder : Decode.Decoder Modification
 modificationsDecoder =
     Decode.oneOf
-        [ Decode.field "subscribe" subscribesDecoder
-        , Decode.field "unsubscribe" unsubscribesDecoder
+        [ Decode.field "subscribe" subscribeDecoder
+        , Decode.field "unsubscribe" unsubscribeDecoder
         ]
 
 
@@ -788,6 +784,36 @@ subscriberEventTotal =
     "total"
 
 
+subscriberEventArticle : String
+subscriberEventArticle =
+    "article"
+
+
+subscriberEventTitle : String
+subscriberEventTitle =
+    "title"
+
+
+subscriberEventSummary : String
+subscriberEventSummary =
+    "summary"
+
+
+subscriberEventContent : String
+subscriberEventContent =
+    "content"
+
+
+subscriberEventImageUrl : String
+subscriberEventImageUrl =
+    "image"
+
+
+subscriberEventLanguage : String
+subscriberEventLanguage =
+    "language"
+
+
 decodeSubscriberData : Decode.Decoder SubscriberEventData
 decodeSubscriberData =
     Decode.succeed SubscriberEventData
@@ -854,8 +880,27 @@ encodeSubscriber subscriber =
         |> addStringListToObject FieldTags subscriber.tags
 
 
-newsletterSubscribersEvent : Shared.Model -> PubKey -> AddressComponents -> SubscriberEventData -> Event
-newsletterSubscribersEvent shared pubKey articleAddressComponents subscriberEventData =
+type alias ArticleData =
+    { title : String
+    , summary : String
+    , content : String
+    , imageUrl : String
+    , language : Maybe String
+    }
+
+
+decodeArticleData : Decode.Decoder ArticleData
+decodeArticleData =
+    Decode.succeed ArticleData
+        |> required subscriberEventTitle Decode.string
+        |> required subscriberEventSummary Decode.string
+        |> required subscriberEventContent Decode.string
+        |> required subscriberEventImageUrl Decode.string
+        |> optional subscriberEventLanguage (Decode.maybe Decode.string) Nothing
+
+
+newsletterSubscribersEvent : Shared.Model -> PubKey -> AddressComponents -> ArticleData -> SubscriberEventData -> Event
+newsletterSubscribersEvent shared pubKey articleAddressComponents articleData subscriberEventData =
     let
         ( _, _, identifier ) =
             articleAddressComponents
@@ -875,15 +920,15 @@ newsletterSubscribersEvent shared pubKey articleAddressComponents subscriberEven
             |> Event.addAddressTag articleAddressComponents
             -- reference email gateway as encryption target
             |> Event.addPubKeyTag Pareto.emailGatewayKey Nothing Nothing
-    , content = emailSendRequestToJson senderProfileName subscriberEventData
+    , content = emailSendRequestToJson senderProfileName articleData subscriberEventData
     , id = ""
     , sig = Nothing
     , relays = Nothing
     }
 
 
-emailSendRequestToJson : Maybe String -> SubscriberEventData -> String
-emailSendRequestToJson maybeSenderName { keyHex, ivHex, url, size, active, total } =
+emailSendRequestToJson : Maybe String -> ArticleData -> SubscriberEventData -> String
+emailSendRequestToJson maybeSenderName { title, summary, content, imageUrl, language } { keyHex, ivHex, url, size, active, total } =
     [ ( "newsletter"
       , [ ( subscriberEventKey, Encode.string keyHex )
         , ( subscriberEventIv, Encode.string ivHex )
@@ -891,8 +936,17 @@ emailSendRequestToJson maybeSenderName { keyHex, ivHex, url, size, active, total
         , ( subscriberEventSize, Encode.int size )
         , ( subscriberEventActive, Encode.int active )
         , ( subscriberEventTotal, Encode.int total )
+        , ( subscriberEventArticle
+          , [ ( subscriberEventTitle, Encode.string title )
+            , ( subscriberEventSummary, Encode.string summary )
+            , ( subscriberEventContent, Encode.string content )
+            , ( subscriberEventImageUrl, Encode.string imageUrl )
+            ]
+                |> appendOptionalObjectString subscriberEventLanguage language
+                |> Encode.object
+          )
         ]
-            |> appendOptionalObjectString "senderName" maybeSenderName
+            |> appendOptionalObjectString "authorName" maybeSenderName
             |> Encode.object
       )
     ]
@@ -954,7 +1008,7 @@ addStringListToObject field maybeValues acc =
 
 
 subscribeEvent : Nostr.Model -> Profile -> SubscribeInfo -> Event
-subscribeEvent nostr authorProfile { pubKey, email, firstName, lastName, locale } =
+subscribeEvent _ authorProfile { pubKey, email, firstName, lastName, locale } =
     let
         signingPubKey =
             pubKey

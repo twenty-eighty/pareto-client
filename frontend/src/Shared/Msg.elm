@@ -4,9 +4,10 @@ module Shared.Msg exposing (Msg(..))
 
 import BrowserEnv
 import Nostr
+import Nostr.Nip05 as Nip05
 import Nostr.Request exposing (Request)
 import Nostr.Send exposing (SendRequest)
-import Nostr.Types exposing (IncomingMessage)
+import Nostr.Types exposing (IncomingMessage, PubKey)
 import Shared.Model exposing (ClientRole)
 
 
@@ -27,3 +28,5 @@ type Msg
     | SendNostrEvent SendRequest
     | SwitchClientRole Bool
     | SetClientRole ClientRole
+    | UpdateNewsletterAvailabilityPubKey PubKey
+    | UpdateNewsletterAvailabilityNip05 Nip05.Nip05

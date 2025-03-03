@@ -7,7 +7,6 @@ import Html.Styled.Attributes as Attr exposing (alt, controls, css, href, src, s
 import Html.Styled.Events as Events
 import List.Extra
 import Oembed
-import Oembed.ProviderTemp
 import Regex exposing (Regex)
 import Set exposing (Set)
 import Tailwind.Theme as Theme
@@ -251,11 +250,7 @@ isPlainLinkkUrl url =
 
 isEmbeddable : String -> Bool
 isEmbeddable urlString =
-    Oembed.ProviderTemp.hardcodedMatches urlString
-
-
-
--- |> Oembed.matchesDefaultProvider
+    Oembed.matchesProvider [] urlString
 
 
 type alias DetectMimeTypeFromPathFunction =

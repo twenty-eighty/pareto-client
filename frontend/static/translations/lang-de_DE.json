@@ -47,6 +47,8 @@
       "single emails button title": "Einzelne E-Mails",
       "email textarea placeholder text": "Mit Komma getrennte E-Mail-Adressen",
       "import selection explanation": "Du kannst entweder eine CSV-Datei hochladen oder mehrere kommaseparierte E-Mail-Adressen hinzufügen.",
+      "import subscribers warning": "Füge nur Kontakte hinzu, die ausdrücklich zugestimmt haben, von dir E-Mails zu bekommen. (mit Double Opt-In)",
+      "import only opt-in explanation": "Kontakte, deren Information ausschließlich bei Verkäufen, gegen Geschenke (\"Freebies\") oder ähnlichem gesammelt wurde, dürfen nicht hinzugefügt werden.",
       "overwrite existing checkbox label": "Bestehende überschreiben?",
       "csv processing error message": "Fehler beim Einlesen der CSV-Datei: ",
       "csv file empty error message": "Die CSV-Datei ist leer",
@@ -106,8 +108,10 @@
       "date column name": "Datum",
       "status column name": "Status",
       "processed column name": "Verarbeitet",
+      "skipped column name": "Nicht gesendet",
       "total column name": "Gesamt",
-      "error column name": "Fehler"
+      "error column name": "Fehler",
+      "subject column name": "Betreff"
    },
    "posts": {
       "posts title": "Artikel",
@@ -140,8 +144,11 @@
       "no relays configured text": "Möchtest du ein paar Standard-Relays einrichten?",
       "configure relays button title": "Relays konfigurieren",
       "delivery title": "Verteilung",
-      "send also via email singular checkbox text": "Auch als E-Mail an einen Empfänger versenden",
-      "send also via email plural checkbox text": "Auch als E-Mail an {{recipientCount}} Empfänger versenden"
+      "only publish article text": "Nur als Artikel veröffentlichen",
+      "send only via email singular checkbox text": "Als E-Mail an einen Empfänger senden",
+      "send only via email plural checkbox text": "Als E-Mail an {{recipientCount}} Empfänger senden",
+      "send also via email singular checkbox text": "Artikel veröffentlichen und als E-Mail an einen Empfänger versenden",
+      "send also via email plural checkbox text": "Artikel veröffentlichen und als E-Mail an {{recipientCount}} Empfänger versenden"
    },
    "read": {
       "followed feed category": "Gefolgt",
@@ -218,6 +225,7 @@
       "process modifications button title": "Verarbeiten",
       "loading subscribers text": "Lade Abonnenten ...",
       "error loading subscribers text": "Fehler beim Laden der Abonnenten",
+      "new modifications": "Neue Veränderungen",
       "no subscribers text": "Keine Abonnenten gefunden.",
       "dnd field name": "Nicht stören",
       "email field name": "E-Mail",
@@ -276,6 +284,8 @@
       "image selection instructional text": "Klicken für Bildauswahl",
       "article published message box title": "Artikel veröffentlicht",
       "article published message box text": "Der Artikel wurde veröffentlicht.",
+      "newsletter sent message box title": "Artikel veröffentlicht",
+      "newsletter sent message box text": "Der Artikel wurde veröffentlicht.",
       "article modified state": "Artikel geändert",
       "article loading draft state": "Lade Entwurf ...",
       "article loading draft error": "Fehler beim Laden des Entwurfs",

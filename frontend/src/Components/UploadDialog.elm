@@ -231,7 +231,7 @@ update props =
                 )
 
             IncomingMessage { messageType, value } ->
-                processIncomingMessage props.user props.model messageType props.toMsg value
+                processIncomingMessage props.model messageType props.toMsg value
 
             DropdownSent innerMsg ->
                 let
@@ -706,8 +706,8 @@ defaultNoTransformForFile file =
             Nothing
 
 
-processIncomingMessage : Auth.User -> Model -> String -> (Msg -> msg) -> Encode.Value -> ( Model, Effect msg )
-processIncomingMessage user (Model model) messageType toMsg value =
+processIncomingMessage : Model -> String -> (Msg -> msg) -> Encode.Value -> ( Model, Effect msg )
+processIncomingMessage (Model model) messageType toMsg value =
     case messageType of
         "blossomAuthHeader" ->
             case Decode.decodeValue decodeAuthHeaderReceived value of

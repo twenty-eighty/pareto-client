@@ -632,7 +632,7 @@ viewModifications theme browserEnv model =
             ]
             [ b
                 []
-                [ text "Requested modifications" ]
+                [ text <| Translations.newModifications [ browserEnv.translations ] ]
             , Button.new
                 { label = Translations.processModificationsButtonTitle [ browserEnv.translations ]
                 , onClick = Just <| ProcessModificationsClicked

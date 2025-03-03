@@ -228,6 +228,20 @@ update _ msg model =
         SetClientRole clientRole ->
             ( { model | role = clientRole }, Effect.none )
 
+        UpdateNewsletterAvailabilityPubKey pubKey ->
+            ( model
+            , Nostr.updateNewsletterAvailabilityPubKey model.nostr pubKey
+                |> Cmd.map NostrMsg
+                |> Effect.sendCmd
+            )
+
+        UpdateNewsletterAvailabilityNip05 nip05 ->
+            ( model
+            , Nostr.updateNewsletterAvailabilityNip05 model.nostr nip05
+                |> Cmd.map NostrMsg
+                |> Effect.sendCmd
+            )
+
 
 updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage model portMessage =
@@ -253,7 +267,14 @@ updateWithUserValue model value =
                         ( model.nostr, Cmd.none )
             in
             ( { model | loginStatus = Shared.Model.LoggedIn pubKeyNew, nostr = nostr }
-            , Effect.sendCmd (Cmd.map Shared.Msg.NostrMsg cmd)
+            , [ cmd
+
+              -- check if user sends newsletters
+              , Nostr.updateNewsletterAvailabilityPubKey model.nostr pubKeyNew
+              ]
+                |> Cmd.batch
+                |> Cmd.map Shared.Msg.NostrMsg
+                |> Effect.sendCmd
             )
 
         ( Ok pubKeyNew, _ ) ->
@@ -262,7 +283,14 @@ updateWithUserValue model value =
                     Nostr.requestUserData model.nostr pubKeyNew
             in
             ( { model | loginStatus = Shared.Model.LoggedIn pubKeyNew, nostr = nostr }
-            , Effect.sendCmd (Cmd.map Shared.Msg.NostrMsg cmd)
+            , [ cmd
+
+              -- check if user sends newsletters
+              , Nostr.updateNewsletterAvailabilityPubKey model.nostr pubKeyNew
+              ]
+                |> Cmd.batch
+                |> Cmd.map Shared.Msg.NostrMsg
+                |> Effect.sendCmd
             )
 
         ( Err _, _ ) ->
