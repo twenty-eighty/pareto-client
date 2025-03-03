@@ -31,7 +31,7 @@ import Translations.Posts
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
 import Ui.Shared exposing (Actions, extendedZapRelays)
-import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded)
+import Ui.Styles exposing (Styles, Theme, fontFamilyUnbounded)
 
 
 type alias ArticlePreviewsData msg =
@@ -275,8 +275,8 @@ viewTags : Styles msg -> Article -> Html msg
 viewTags styles article =
     article.hashtags
         |> List.map removeHashTag
-        |> List.intersperse " / "
         |> List.map viewTag
+        |> List.intersperse (text " / ")
         |> div
             (styles.textStyleArticleHashtags ++ styles.colorStyleArticleHashtags)
 
@@ -768,9 +768,10 @@ viewHashTags : Styles msg -> List String -> List Css.Style -> Html msg
 viewHashTags styles hashTags widthAttr =
     if List.length hashTags > 0 then
         hashTags
-            |> List.map (viewHashTag styles)
+            |> List.map viewHashTag
+            |> List.intersperse (text " / ")
             |> div
-                [ css
+                (css
                     (widthAttr
                         ++ [ Tw.space_x_2
                            , Tw.mb_2
@@ -779,37 +780,20 @@ viewHashTags styles hashTags widthAttr =
                            , Tw.text_clip
                            ]
                     )
-                ]
+                    :: (styles.textStyleArticleHashtags ++ styles.colorStyleArticleHashtags)
+                )
 
     else
         div [] []
 
 
-viewHashTag : Styles msg -> String -> Html msg
-viewHashTag styles hashTag =
+viewHashTag : String -> Html msg
+viewHashTag hashTag =
     a
-        [ css
-            [ Tw.px_4
-            , Tw.py_2
-            , Tw.bg_color Theme.gray_300
-            , Tw.rounded_3xl
-            , Tw.inline_block
-            , darkMode
-                [ Tw.bg_color Theme.neutral_700
-                ]
-            ]
+        [ css [ Tw.inline_block ]
         , href ("/t/" ++ hashTag)
         ]
-        [ div
-            (styles.colorStyleLabel
-                ++ styles.textStyleUppercaseLabel
-                ++ [ css
-                        [ Tw.whitespace_nowrap
-                        ]
-                   ]
-            )
-            [ text hashTag ]
-        ]
+        [ text hashTag ]
 
 
 viewArticlePreviewBigPicture : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
