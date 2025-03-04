@@ -1594,111 +1594,114 @@ eventFilterForShortNote noteId =
 
 decodeTag : Decode.Decoder Tag
 decodeTag =
-    Decode.index 0 Decode.string
-        |> Decode.andThen
-            (\typeStr ->
-                case typeStr of
-                    "a" ->
-                        Decode.map AddressTag (Decode.index 1 decodeAddress)
+    Decode.oneOf
+        [ Decode.index 0 Decode.string
+            |> Decode.andThen
+                (\typeStr ->
+                    case typeStr of
+                        "a" ->
+                            Decode.map AddressTag (Decode.index 1 decodeAddress)
 
-                    "about" ->
-                        Decode.map AboutTag (Decode.index 1 Decode.string)
+                        "about" ->
+                            Decode.map AboutTag (Decode.index 1 Decode.string)
 
-                    "alt" ->
-                        Decode.map AltTag (Decode.index 1 Decode.string)
+                        "alt" ->
+                            Decode.map AltTag (Decode.index 1 Decode.string)
 
-                    --           "c" ->
-                    --               Decode.map ClientTag (Decode.index 1 Decode.string)
-                    "client" ->
-                        Decode.map3 ClientTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 Decode.string))
+                        --           "c" ->
+                        --               Decode.map ClientTag (Decode.index 1 Decode.string)
+                        "client" ->
+                            Decode.map3 ClientTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 Decode.string))
 
-                    "d" ->
-                        Decode.map EventDelegationTag (Decode.index 1 Decode.string)
+                        "d" ->
+                            Decode.map EventDelegationTag (Decode.index 1 Decode.string)
 
-                    "dir" ->
-                        Decode.succeed DirTag
+                        "dir" ->
+                            Decode.succeed DirTag
 
-                    "description" ->
-                        Decode.map DescriptionTag (Decode.index 1 Decode.string)
+                        "description" ->
+                            Decode.map DescriptionTag (Decode.index 1 Decode.string)
 
-                    "e" ->
-                        Decode.map EventIdTag (Decode.index 1 Decode.string)
+                        "e" ->
+                            Decode.map EventIdTag (Decode.index 1 Decode.string)
 
-                    "expiration" ->
-                        Decode.map ExpirationTag (Decode.index 1 decodeUnixTimeString)
+                        "expiration" ->
+                            Decode.map ExpirationTag (Decode.index 1 decodeUnixTimeString)
 
-                    "f" ->
-                        Decode.map2 FileTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
+                        "f" ->
+                            Decode.map2 FileTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
-                    "i" ->
-                        Decode.map2 IdentityTag (Decode.index 1 identityDecoder) (Decode.index 2 Decode.string)
+                        "i" ->
+                            Decode.map2 IdentityTag (Decode.index 1 identityDecoder) (Decode.index 2 Decode.string)
 
-                    "image" ->
-                        Decode.map2 ImageTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 imageSizeDecoder))
+                        "image" ->
+                            Decode.map2 ImageTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 imageSizeDecoder))
 
-                    "k" ->
-                        Decode.map KindTag (Decode.index 1 kindStringDecoder)
+                        "k" ->
+                            Decode.map KindTag (Decode.index 1 kindStringDecoder)
 
-                    "location" ->
-                        Decode.map2 LocationTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
+                        "location" ->
+                            Decode.map2 LocationTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
-                    "L" ->
-                        Decode.map LabelNamespaceTag (Decode.index 1 Decode.string)
+                        "L" ->
+                            Decode.map LabelNamespaceTag (Decode.index 1 Decode.string)
 
-                    "l" ->
-                        Decode.map2 LabelTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
+                        "l" ->
+                            Decode.map2 LabelTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
-                    "m" ->
-                        Decode.map MentionTag (Decode.index 1 Decode.string)
+                        "m" ->
+                            Decode.map MentionTag (Decode.index 1 Decode.string)
 
-                    "name" ->
-                        Decode.map NameTag (Decode.index 1 Decode.string)
+                        "name" ->
+                            Decode.map NameTag (Decode.index 1 Decode.string)
 
-                    "p" ->
-                        Decode.map3 PublicKeyTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 Decode.string))
+                        "p" ->
+                            Decode.map3 PublicKeyTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 Decode.string))
 
-                    "published_at" ->
-                        Decode.map PublishedAtTag (Decode.index 1 decodeUnixTimeString)
+                        "published_at" ->
+                            Decode.map PublishedAtTag (Decode.index 1 decodeUnixTimeString)
 
-                    "q" ->
-                        Decode.map QuotedEventTag (Decode.index 1 Decode.string)
+                        "q" ->
+                            Decode.map QuotedEventTag (Decode.index 1 Decode.string)
 
-                    "r" ->
-                        Decode.oneOf
-                            [ Decode.map2 UrlTag (Decode.index 1 Decode.string) (Decode.index 2 decodeRelayRole)
-                            , Decode.map2 UrlTag (Decode.index 1 Decode.string) (Decode.succeed ReadWriteRelay)
-                            ]
+                        "r" ->
+                            Decode.oneOf
+                                [ Decode.map2 UrlTag (Decode.index 1 Decode.string) (Decode.index 2 decodeRelayRole)
+                                , Decode.map2 UrlTag (Decode.index 1 Decode.string) (Decode.succeed ReadWriteRelay)
+                                ]
 
-                    "relay" ->
-                        Decode.map RelayTag (Decode.index 1 Decode.string)
+                        "relay" ->
+                            Decode.map RelayTag (Decode.index 1 Decode.string)
 
-                    "relays" ->
-                        Decode.map RelaysTag (Decode.list Decode.string)
+                        "relays" ->
+                            Decode.map RelaysTag (Decode.list Decode.string)
 
-                    "server" ->
-                        Decode.map ServerTag (Decode.index 1 Decode.string)
+                        "server" ->
+                            Decode.map ServerTag (Decode.index 1 Decode.string)
 
-                    "summary" ->
-                        Decode.map SummaryTag (Decode.index 1 Decode.string)
+                        "summary" ->
+                            Decode.map SummaryTag (Decode.index 1 Decode.string)
 
-                    "t" ->
-                        Decode.map HashTag (Decode.index 1 Decode.string)
+                        "t" ->
+                            Decode.map HashTag (Decode.index 1 Decode.string)
 
-                    "title" ->
-                        Decode.map TitleTag (Decode.index 1 Decode.string)
+                        "title" ->
+                            Decode.map TitleTag (Decode.index 1 Decode.string)
 
-                    "web" ->
-                        Decode.map2 WebTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
+                        "web" ->
+                            Decode.map2 WebTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
-                    "x" ->
-                        Decode.map ExternalIdTag (Decode.index 1 Decode.string)
+                        "x" ->
+                            Decode.map ExternalIdTag (Decode.index 1 Decode.string)
 
-                    "zap" ->
-                        Decode.map3 ZapTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string) (Decode.maybe (Decode.index 3 decodeStringInt))
+                        "zap" ->
+                            Decode.map3 ZapTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string) (Decode.maybe (Decode.index 3 decodeStringInt))
 
-                    _ ->
-                        decodeGenericTag
-            )
+                        _ ->
+                            decodeGenericTag
+                )
+        , decodeGenericTag
+        ]
 
 
 decodeGenericTag : Decode.Decoder Tag
