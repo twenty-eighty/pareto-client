@@ -10,10 +10,8 @@ import Time
 
 
 type Tag
-    = GenericTag String
-    | GenericTag2 String String
-    | GenericTag3 String String String
-    | GenericTag4 String String String String
+    = GenericTag (List String)
+    | InvalidTag (List String)
     | AboutTag String
     | AddressTag AddressComponents
     | AltTag String
@@ -1700,18 +1698,18 @@ decodeTag =
                         _ ->
                             decodeGenericTag
                 )
-        , decodeGenericTag
+        , decodeInvalidTag
         ]
 
 
 decodeGenericTag : Decode.Decoder Tag
 decodeGenericTag =
-    Decode.oneOf
-        [ Decode.map4 GenericTag4 (Decode.index 0 Decode.string) (Decode.index 1 Decode.string) (Decode.index 2 Decode.string) (Decode.index 3 Decode.string)
-        , Decode.map3 GenericTag3 (Decode.index 0 Decode.string) (Decode.index 1 Decode.string) (Decode.index 2 Decode.string)
-        , Decode.map2 GenericTag2 (Decode.index 0 Decode.string) (Decode.index 1 Decode.string)
-        , Decode.map GenericTag (Decode.index 0 Decode.string)
-        ]
+    Decode.map GenericTag (Decode.list Decode.string)
+
+
+decodeInvalidTag : Decode.Decoder Tag
+decodeInvalidTag =
+    Decode.map InvalidTag (Decode.list Decode.string)
 
 
 identityDecoder : Decode.Decoder Identity
@@ -1757,17 +1755,8 @@ decodeStringInt =
 tagToList : Tag -> List String
 tagToList tag =
     case tag of
-        GenericTag key ->
-            [ key ]
-
-        GenericTag2 key value ->
-            [ key, value ]
-
-        GenericTag3 key value1 value2 ->
-            [ key, value1, value2 ]
-
-        GenericTag4 key value1 value2 value3 ->
-            [ key, value1, value2, value3 ]
+        GenericTag array ->
+            array
 
         AboutTag value ->
             [ "about", value ]
@@ -1826,6 +1815,9 @@ tagToList tag =
 
         ImageTag value Nothing ->
             [ "image", value ]
+
+        InvalidTag array ->
+            array
 
         KindTag kind ->
             [ "k", String.fromInt <| numberForKind kind ]

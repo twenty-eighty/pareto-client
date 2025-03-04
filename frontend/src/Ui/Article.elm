@@ -13,7 +13,7 @@ import LinkPreview exposing (LoadedContent)
 import Markdown
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
-import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..))
+import Nostr.Event exposing (AddressComponents, Kind(..), Tag(..), TagReference(..))
 import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
@@ -647,6 +647,27 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
 
             else
                 [ Tw.line_clamp_3 ]
+
+        hasInvalidTags =
+            article.otherTags
+                |> List.filter
+                    (\tag ->
+                        case tag of
+                            InvalidTag _ ->
+                                True
+
+                            _ ->
+                                False
+                    )
+                |> List.length
+                |> (\length -> length > 0)
+
+        invalidTagIndicator =
+            if articlePreviewsData.browserEnv.environment == BrowserEnv.Development && hasInvalidTags then
+                div [] [ text "-> has invalid tags <-" ]
+
+            else
+                div [] []
     in
     div
         [ css
@@ -677,6 +698,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
             ]
         ]
         [ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article
+        , invalidTagIndicator
         , div
             [ css
                 [ Tw.self_stretch
