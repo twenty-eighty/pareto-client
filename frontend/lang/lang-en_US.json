@@ -1,9 +1,6 @@
 {
    "about": {
       "about page title": "About",
-      "supported kinds title": "Supported kinds",
-      "supported nips title": "Supported NIPs",
-      "supported web targets title": "Supported web targets",
       "publish authors list button title": "Publish authors list",
       "publish handler information button title": "Publish handler information",
       "publish profile button title": "Publish profile",
@@ -15,6 +12,8 @@
       "about backend text": "The Pareto backend was developed using the",
       "source code text": "The source code of the Pareto client is available on",
       "feedback text": "You found a bug or want to give feedback? Please write an email to ",
+      "hint to tech details": "For a detailed technical information of the Pareto App ",
+      "see this": "see this.",
       "privacy policy link text": "Privacy Policy",
       "feedback email info text": "You found a bug or want to give feedback? Please write an email to ",
       "donation info text": "Support the further development of the Pareto project on "
@@ -303,5 +302,11 @@
       "comment placeholder": "Comment (optional)",
       "close button title": "Close",
       "zap button title": "Zap"
+   },
+   "tech details": {
+      "page title": "Technical Details",
+      "supported kinds title": "Supported kinds",
+      "supported nips title": "Supported NIPs",
+      "supported web targets title": "Supported web targets"
    }
 }

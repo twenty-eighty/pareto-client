@@ -9,7 +9,7 @@ import I18Next
 import Layouts
 import Locale exposing (Language(..))
 import Nostr
-import Nostr.Event exposing (Kind(..), KindInformationLink(..), Tag(..), TagReference(..), buildAddress, informationForKind, numberForKind)
+import Nostr.Event exposing (Kind(..), KindInformationLink(..), Tag(..), TagReference(..), buildAddress, numberForKind)
 import Nostr.HandlerInformation exposing (HandlerInformation, buildHandlerInformation)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileToJson)
 import Nostr.Request exposing (RequestData(..))
@@ -221,7 +221,7 @@ viewDonationInformation theme translations =
                     ]
                ]
         )
-        [ text <| Translations.donationInfoText [ translations ]
+        [ div [ css [ Tw.mb_4 ] ] [ text <| Translations.donationInfoText [ translations ] ]
         , a
             (styles.textStyleLinks
                 ++ styles.colorStyleLinks
@@ -349,8 +349,8 @@ viewTechDetails theme browserEnv =
     in
     Html.div []
         [ span styles.textStyleBody
-            [ text "For a detailed technical information of the Pareto App "
-            , a (href "/tech-details" :: styles.textStyleLinks) [ text "see this." ]
+            [ text (Translations.hintToTechDetails [ browserEnv.translations ])
+            , a (href "/tech-details" :: styles.textStyleLinks) [ text (Translations.seeThis [ browserEnv.translations ]) ]
             ]
         ]
 
@@ -377,6 +377,7 @@ viewFooter theme browserEnv =
                 (styles.textStyleLinks
                     ++ styles.colorStyleArticleHashtags
                     ++ [ Attr.href "https://elm.land/"
+                       , target "_blank"
                        ]
                 )
                 [ text "Elm Land"
@@ -386,6 +387,7 @@ viewFooter theme browserEnv =
                 (styles.textStyleLinks
                     ++ styles.colorStyleArticleHashtags
                     ++ [ Attr.href "https://elm-lang.org/"
+                       , target "_blank"
                        ]
                 )
                 [ text "Elm"
@@ -399,6 +401,7 @@ viewFooter theme browserEnv =
                 (styles.textStyleLinks
                     ++ styles.colorStyleArticleHashtags
                     ++ [ Attr.href "https://www.phoenixframework.org/"
+                       , target "_blank"
                        ]
                 )
                 [ text "Phoenix Framework"
@@ -412,6 +415,7 @@ viewFooter theme browserEnv =
                 (styles.textStyleLinks
                     ++ styles.colorStyleArticleHashtags
                     ++ [ Attr.href Pareto.source
+                       , target "_blank"
                        ]
                 )
                 [ text Pareto.source
@@ -429,11 +433,9 @@ viewPrivacyPolicyLink styles translations language =
             a
                 (styles.textStyleLinks
                     ++ styles.colorStyleArticleHashtags
-                    ++ [ Attr.href <| Route.Path.toString Route.Path.Privacy
-                       ]
+                    ++ [ Attr.href <| Route.Path.toString Route.Path.Privacy ]
                 )
-                [ text <| Translations.privacyPolicyLinkText [ translations ]
-                ]
+                [ text <| Translations.privacyPolicyLinkText [ translations ] ]
 
         _ ->
             div [] []

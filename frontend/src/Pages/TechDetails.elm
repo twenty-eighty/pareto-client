@@ -3,7 +3,7 @@ module Pages.TechDetails exposing (Model, Msg, page)
 import BrowserEnv exposing (BrowserEnv)
 import Effect exposing (Effect)
 import Html.Styled exposing (Html, a, div, h3, li, span, text, ul)
-import Html.Styled.Attributes exposing (css, href)
+import Html.Styled.Attributes exposing (css, href, target)
 import Layouts
 import Nostr.Event exposing (Kind, KindInformationLink(..), informationForKind, numberForKind)
 import Nostr.HandlerInformation exposing (WebTarget)
@@ -15,7 +15,7 @@ import Route exposing (Route)
 import Shared
 import Tailwind.Utilities as Tw
 import Time exposing (Month(..))
-import Translations.About as Translations
+import Translations.TechDetails as Translations
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 import View exposing (View)
 
@@ -86,7 +86,7 @@ view shared _ =
         handlerInfo =
             Pareto.applicationInformation shared.browserEnv.now
     in
-    { title = ""
+    { title = Translations.pageTitle [ shared.browserEnv.translations ]
     , body =
         [ div
             [ css
@@ -167,7 +167,7 @@ viewKindLink styles link =
                 |> span []
 
         Just (OtherLink title url) ->
-            a (styles.textStyleLinks ++ styles.colorStyleArticleHashtags ++ [ href url ])
+            a (styles.textStyleLinks ++ styles.colorStyleArticleHashtags ++ [ href url, target "_blank" ])
                 [ text title ]
 
         Nothing ->
@@ -206,7 +206,7 @@ viewNip theme nip =
         [ a
             (styles.textStyleLinks
                 ++ styles.colorStyleArticleHashtags
-                ++ [ href nipLink ]
+                ++ [ href nipLink, target "_blank" ]
             )
             [ text <| "NIP-" ++ nip ++ nipInfoText ]
         ]

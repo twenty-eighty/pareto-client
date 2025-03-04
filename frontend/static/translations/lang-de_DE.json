@@ -1,9 +1,6 @@
 {
    "about": {
       "about page title": "Über",
-      "supported kinds title": "Unterstützte Nostr \"kinds\"",
-      "supported nips title": "Unterstützte NIPs",
-      "supported web targets title": "Unterstützte Web-Ziele",
       "publish authors list button title": "Autorenliste veröffentlichen",
       "publish handler information button title": "Handler-Information veröffentlichen",
       "publish profile button title": "Profil veröffentlichen",
@@ -15,6 +12,8 @@
       "about backend text": "Das Pareto Backend wurde entwickelt mit dem",
       "source code text": "Der Quellcode des Pareto Clients is verfügbar unter",
       "feedback text": "Du hast einen Fehler gefunden oder möchtest uns etwas mitteilen? Bitte schreibe eine E-Mail an ",
+      "hint to tech details": "Für ausführliche technische Angaben zu der Pareto-App ",
+      "see this": "siehe hier.",
       "privacy policy link text": "Datenschutzerklärung",
       "feedback email info text": "Du hast einen Fehler gefunden oder möchtest einfach Rückmeldung geben? Schreibe einfach eine E-Mail an ",
       "donation info text": "Unterstütze die Weiterentwicklung des Pareto Projekts unter "
@@ -304,5 +303,11 @@
       "comment placeholder": "Kommentar (optional)",
       "close button title": "Schließen",
       "zap button title": "Zap"
+   },
+   "tech details": {
+      "page title": "Technische Details",
+      "supported kinds title": "Unterstützte Nostr \"kinds\"",
+      "supported nips title": "Unterstützte NIPs",
+      "supported web targets title": "Unterstützte Web-Ziele"
    }
 }
