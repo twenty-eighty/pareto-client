@@ -350,7 +350,9 @@ viewTechDetails theme browserEnv =
     Html.div []
         [ span styles.textStyleBody
             [ text (Translations.hintToTechDetails [ browserEnv.translations ])
-            , a (href "/tech-details" :: styles.textStyleLinks) [ text (Translations.seeThis [ browserEnv.translations ]) ]
+            , a
+                (href "/tech-details" :: styles.textStyleLinks ++ styles.colorStyleArticleHashtags)
+                [ text (Translations.seeThis [ browserEnv.translations ]) ]
             ]
         ]
 
