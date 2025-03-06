@@ -644,7 +644,7 @@ export const onReady = ({ app, env }) => {
         ["e", ndkEvent.id],
         ["a", ndkEvent.kind + ":" + ndkEvent.pubkey + ":" + identifier],
       ],
-      content: await window.ndk.signer.encrypt({ pubkey: ndkEvent.pubkey }, rawEventString),
+      content: await window.ndk.signer.encrypt({ pubkey: ndkEvent.pubkey }, rawEventString, 'nip44'),
       pubkey: ndkEvent.pubkey,
       created_at: ndkEvent.created_at
     }
@@ -663,7 +663,7 @@ export const onReady = ({ app, env }) => {
     }
     debugLog('encrypt for key', encryptForPubKey);
     // in order to allow anonymous users to subscribe to a newsletter we need to use a different signer
-    const encrypted = await signer.encrypt({ pubkey: encryptForPubKey }, ndkEvent.content);
+    const encrypted = await signer.encrypt({ pubkey: encryptForPubKey }, ndkEvent.content, 'nip44');
     if (encrypted) {
       ndkEvent.content = encrypted;
       return ndkEvent;
@@ -673,13 +673,13 @@ export const onReady = ({ app, env }) => {
   }
 
   async function unwrapPrivateRelayListEvent(ndkEvent) {
-    const stringifiedEvent = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    const stringifiedEvent = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
     ndkEvent.tags = JSON.parse(stringifiedEvent);
     return ndkEvent;
   }
 
   async function unwrapApplicationSpecificEvent(ndkEvent) {
-    const content = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    const content = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
     if (content) {
       ndkEvent.content = content;
     } else {
@@ -689,7 +689,7 @@ export const onReady = ({ app, env }) => {
   }
 
   async function unwrapDraftEvent(ndkEvent) {
-    const stringifiedEvent = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    const stringifiedEvent = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
     if (stringifiedEvent) {
       const event = JSON.parse(stringifiedEvent);
       return event;
