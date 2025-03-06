@@ -116,7 +116,7 @@ sendClientRecommendation nostr pubKey handlerInformation =
     , kind = KindHandlerRecommendation
     , tags =
         [ EventDelegationTag (numberForKind KindLongFormContent |> String.fromInt)
-        , GenericTag4 "a" (buildAddress ( KindHandlerInformation, handlerInformation.pubKey, handlerInformation.handlerIdentifier )) Pareto.paretoRelay "web"
+        , GenericTag [ "a", buildAddress ( KindHandlerInformation, handlerInformation.pubKey, handlerInformation.handlerIdentifier ), Pareto.paretoRelay, "web" ]
         ]
     , content = ""
     , id = ""

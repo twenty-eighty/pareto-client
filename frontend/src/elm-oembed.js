@@ -47,10 +47,10 @@ function renderOembed(shadow, urlToEmbed, options) {
 
     switch (response.type) {
       case "rich":
-        tryRenderingHtml(shadow, response);
+        tryRenderingHtml(shadow, response, urlToEmbed);
         break;
       case "video":
-        tryRenderingHtml(shadow, response);
+        tryRenderingHtml(shadow, response, urlToEmbed);
         break;
       case "photo":
         let img = document.createElement("img");
@@ -77,9 +77,9 @@ function renderOembed(shadow, urlToEmbed, options) {
 }} response
  * @param {ShadowRoot} shadow
  */
-function tryRenderingHtml(shadow, response) {
+function tryRenderingHtml(shadow, response, urlToEmbed) {
   if (response && typeof response.html) {
-    let iframe = createIframe(response);
+    let iframe = createIframe(response, urlToEmbed);
     shadow.appendChild(iframe);
     let refetchedIframe = shadow.querySelector("iframe");
 
@@ -164,15 +164,31 @@ function tryRenderingHtml(shadow, response) {
  * @param {{ height: number?; width: number?; html: string; }} response
  * @returns {HTMLIFrameElement}
  */
-function createIframe(response) {
+function createIframe(response, urlToEmbed) {
   let iframe = document.createElement("iframe");
   iframe.setAttribute("border", "0");
   iframe.setAttribute("frameborder", "0");
   iframe.setAttribute("height", ((response.height || 500) + 20).toString());
   iframe.setAttribute("width", ((response.width || 500) + 20).toString());
   iframe.setAttribute("style", "max-width: 100%;");
-  iframe.srcdoc = response.html;
+  iframe.srcdoc = processIframeSrc(response, urlToEmbed);
   return iframe;
+}
+
+function processIframeSrc(response, urlToEmbed) {
+  if (response['provider-name'] === 'SoundCloud') {
+    // take color parameter for embedded player from original url to iframe src URL
+    const oembedUrl = new URL(urlToEmbed);
+    const urlParam = oembedUrl.searchParams.get('url');
+    const soundCloudUrl = new URL(urlParam);
+    const colorParam = soundCloudUrl.searchParams.get('color');
+    if (colorParam) {
+      const iframeSrc = response.html.match(/src="([^"]+)"/)[1];
+      const updatedSrc = `${iframeSrc}&color=${colorParam}`;
+      return response.html.replace(iframeSrc, updatedSrc);
+    }
+  }
+  return response.html;
 }
 
 /**

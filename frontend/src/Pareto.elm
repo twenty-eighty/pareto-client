@@ -146,7 +146,7 @@ defaultNip96ServersPublic =
 
 applicationDataRelays : List RelayUrl
 applicationDataRelays =
-    [ "wss://cool-darkness-73116.pktriot.net"
+    [ "wss://portal-relay.pareto.space"
     ]
 
 
@@ -256,6 +256,7 @@ bootstrapAuthorsList =
     , ( "volker.schubert@pareto.town", "80f49d824217e4730aadb729d38775bb2a31405b92a3d70ea37b73fcab3cb150" )
     , ( "friedenstaube@pareto.town", "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5" )
     , ( "georgohrweh@pareto.town", "a296b972062908df04b056edad5d0c9a8847aa1ed9cfe062ed69c0c2e5a7a2e8" )
+    , ( "someone@pareto.town", "9fec72d579baaa772af9e71e638b529215721ace6e0f8320725ecbf9f77f85b1" )
     ]
 
 
