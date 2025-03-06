@@ -58,7 +58,7 @@ init () =
       , searchStringLowerCase = Nothing
       }
     , Effect.sendCmd <|
-        Ports.requestEvents "Communities" False -1 [] communitiesFilter
+        Ports.requestEvents "Communities" False -1 [] [ communitiesFilter ]
     )
 
 

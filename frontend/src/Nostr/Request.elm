@@ -29,9 +29,9 @@ type alias RequestId =
 
 type RequestData
     = RequestArticle (Maybe (List RelayUrl)) EventFilter
-    | RequestArticles EventFilter
-    | RequestArticlesFeed EventFilter
-    | RequestArticleDrafts EventFilter
+    | RequestArticles (List EventFilter)
+    | RequestArticlesFeed (List EventFilter)
+    | RequestArticleDrafts (List EventFilter)
     | RequestBookmarks EventFilter
     | RequestCommunity (Maybe (List RelayUrl)) EventFilter
     | RequestDeletionRequests EventFilter

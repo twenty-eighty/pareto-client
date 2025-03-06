@@ -80,11 +80,12 @@ requestForBookmarkContent nostr bookmarkType bookmarkList =
                     )
                 |> List.map
                     (\( kind, pubKey, identifier ) ->
-                        { emptyEventFilter
+                        [ { emptyEventFilter
                             | authors = Just [ pubKey ]
                             , kinds = Just [ kind ]
                             , tagReferences = Just [ TagReferenceIdentifier identifier ]
-                        }
+                          }
+                        ]
                             |> RequestArticlesFeed
                             |> Nostr.createRequest nostr "Bookmark articles" [ KindUserMetadata ]
                             |> Shared.Msg.RequestNostrEvents

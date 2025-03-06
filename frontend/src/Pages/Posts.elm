@@ -14,7 +14,7 @@ import Layouts
 import Nostr
 import Nostr.Article exposing (Article, nip19ForArticle)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
-import Nostr.Event exposing (Kind(..), emptyEventFilter)
+import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
@@ -33,10 +33,15 @@ import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 
 
+categoryParamName : String
+categoryParamName =
+    "category"
+
+
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
-page user shared _ =
+page user shared route =
     Page.new
-        { init = init user shared
+        { init = init user shared route
         , update = update user shared
         , subscriptions = subscriptions
         , view = view shared user
@@ -56,6 +61,7 @@ toLayout theme _ =
 
 type alias Model =
     { categories : Components.Categories.Model Category
+    , path : Route.Path.Path
     }
 
 
@@ -75,13 +81,44 @@ availableCategories translations =
     ]
 
 
-init : Auth.User -> Shared.Model -> () -> ( Model, Effect Msg )
-init user shared () =
+init : Auth.User -> Shared.Model -> Route () -> () -> ( Model, Effect Msg )
+init user shared route () =
+    let
+        category =
+            Dict.get categoryParamName route.query
+                |> Maybe.andThen categoryFromString
+                |> Maybe.withDefault Published
+    in
     updateModelWithCategory
         user
         shared
-        { categories = Components.Categories.init { selected = Published } }
-        Published
+        { categories = Components.Categories.init { selected = category }
+        , path = route.path
+        }
+        category
+
+
+categoryFromString : String -> Maybe Category
+categoryFromString categoryString =
+    case categoryString of
+        "published" ->
+            Just Published
+
+        "drafts" ->
+            Just Drafts
+
+        _ ->
+            Nothing
+
+
+stringFromCategory : Category -> String
+stringFromCategory category =
+    case category of
+        Published ->
+            "published"
+
+        Drafts ->
+            "drafts"
 
 
 
@@ -124,19 +161,31 @@ update user shared msg model =
 updateModelWithCategory : Auth.User -> Shared.Model -> Model -> Category -> ( Model, Effect Msg )
 updateModelWithCategory user shared model category =
     let
-        filter =
+        ( request, filters, description ) =
             case category of
                 Published ->
-                    { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ user.pubKey ], limit = Just 20 }
+                    ( RequestArticlesFeed
+                    , [ { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ user.pubKey ], limit = Just 20 } ]
+                    , "Posts of user"
+                    )
 
                 Drafts ->
-                    { emptyEventFilter | kinds = Just [ KindDraftLongFormContent, KindDraft ], authors = Just [ user.pubKey ], limit = Just 20 }
+                    ( RequestArticleDrafts
+                    , [ { emptyEventFilter | kinds = Just [ KindDraftLongFormContent, KindDraft ], authors = Just [ user.pubKey ], limit = Just 20 }
+                      , { emptyEventFilter | kinds = Just [ KindDraftLongFormContent ], tagReferences = Just [ TagReferencePubKey user.pubKey ], limit = Just 20 }
+                      ]
+                    , "Drafts of user"
+                    )
     in
     ( model
-    , RequestArticlesFeed filter
-        |> Nostr.createRequest shared.nostr "Posts of user" [ KindUserMetadata ]
-        |> Shared.Msg.RequestNostrEvents
-        |> Effect.sendSharedMsg
+    , [ Effect.replaceRoute { path = model.path, query = Dict.singleton categoryParamName (stringFromCategory category), hash = Nothing }
+      , filters
+            |> request
+            |> Nostr.createRequest shared.nostr description [ KindUserMetadata ]
+            |> Shared.Msg.RequestNostrEvents
+            |> Effect.sendSharedMsg
+      ]
+        |> Effect.batch
     )
 
 

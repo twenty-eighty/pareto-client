@@ -347,17 +347,17 @@ export const onReady = ({ app, env }) => {
 
   function requestEvents(app,
     { requestId: requestId
-      , filter: filter
+      , filters: filters
       , closeOnEose: closeOnEose
       , description: description
       , relays: relays
     }
   ) {
-    debugLog("FILTER: ", filter, description, " requestId: " + requestId, "closeOnEose: " + closeOnEose, "relays: ", relays);
+    debugLog("FILTERS: ", filters, description, " requestId: " + requestId, "closeOnEose: " + closeOnEose, "relays: ", relays);
 
     const ndkRelays = relays ? NDKRelaySet.fromRelayUrls(relays, window.ndk) : null;
 
-    window.ndk.fetchEvents(filter, { closeOnEose: closeOnEose }, ndkRelays).then((ndkEvents) => {
+    window.ndk.fetchEvents(filters, { closeOnEose: closeOnEose }, ndkRelays).then((ndkEvents) => {
 
       processEvents(app, requestId, description, ndkEvents);
     })

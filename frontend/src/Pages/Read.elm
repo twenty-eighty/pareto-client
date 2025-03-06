@@ -155,7 +155,7 @@ init shared route () =
       }
     , Effect.batch
         [ changeCategoryEffect
-        , RequestArticlesFeed (filterForCategory shared correctedCategory)
+        , RequestArticlesFeed [ filterForCategory shared correctedCategory ]
             |> Nostr.createRequest shared.nostr "Long-form articles" [ KindUserMetadata, KindEventDeletionRequest ]
             |> Shared.Msg.RequestNostrEvents
             |> Effect.sendSharedMsg
@@ -243,7 +243,7 @@ updateModelWithCategory shared model category =
     ( model
     , Effect.batch
         [ Effect.replaceRoute { path = model.path, query = Dict.singleton categoryParamName (stringFromCategory category), hash = Nothing }
-        , RequestArticlesFeed (filterForCategory shared category)
+        , RequestArticlesFeed [ filterForCategory shared category ]
             |> Nostr.createRequest shared.nostr "Long-form articles" [ KindUserMetadata, KindEventDeletionRequest ]
             |> Shared.Msg.RequestNostrEvents
             |> Effect.sendSharedMsg

@@ -272,59 +272,59 @@ performRequest model description requestId requestData =
     in
     case requestData of
         RequestArticle relays eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) eventFilter )
+            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) [ eventFilter ] )
 
-        RequestArticles eventFilter ->
+        RequestArticles eventFilters ->
             ( { model | articlesByDate = [] }
-            , model.hooks.requestEvents description True requestId configuredRelays eventFilter
+            , model.hooks.requestEvents description True requestId configuredRelays eventFilters
             )
 
-        RequestArticlesFeed eventFilter ->
+        RequestArticlesFeed eventFilters ->
             ( { model | articlesByDate = [] }
-            , model.hooks.requestEvents description False requestId configuredRelays eventFilter
+            , model.hooks.requestEvents description False requestId configuredRelays eventFilters
             )
 
-        RequestArticleDrafts eventFilter ->
+        RequestArticleDrafts eventFilters ->
             ( { model | articleDraftsByDate = [] }
-            , model.hooks.requestEvents description False requestId configuredRelays eventFilter
+            , model.hooks.requestEvents description False requestId configuredRelays eventFilters
             )
 
         RequestBookmarks eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter )
+            ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
 
         RequestCommunity relays eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) eventFilter )
+            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) [ eventFilter ] )
 
         RequestDeletionRequests eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter )
+            ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
 
         RequestFollowSets eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter )
+            ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
 
         RequestMediaServerLists eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter )
+            ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
 
         RequestNip05AndArticle nip05 _ ->
             -- identifier not needed here, only after getting nip05 data
             ( model, fetchNip05Info (Nip05FetchedForNip05 requestId nip05) nip05 )
 
         RequestProfile relays eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) eventFilter )
+            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) [ eventFilter ] )
 
         RequestProfileByNip05 nip05 ->
             ( model, fetchNip05Info (Nip05FetchedForNip05 requestId nip05) nip05 )
 
         RequestReactions eventFilter ->
-            ( model, model.hooks.requestEvents description False requestId configuredRelays eventFilter )
+            ( model, model.hooks.requestEvents description False requestId configuredRelays [ eventFilter ] )
 
         RequestRelayLists eventFilter ->
-            ( model, model.hooks.requestEvents description False requestId configuredRelays eventFilter )
+            ( model, model.hooks.requestEvents description False requestId configuredRelays [ eventFilter ] )
 
         RequestSubscribers eventFilter ->
-            ( model, model.hooks.requestEvents description False requestId Pareto.applicationDataRelays eventFilter )
+            ( model, model.hooks.requestEvents description False requestId Pareto.applicationDataRelays [ eventFilter ] )
 
         RequestUserData eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter )
+            ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
 
         RequestBlossomAuth serverUrl content method ->
             ( model, model.hooks.requestBlossomAuth requestId serverUrl content method )
@@ -336,7 +336,7 @@ performRequest model description requestId requestData =
             ( { model | articlesByDate = [] }, model.hooks.searchEvents description True requestId (getSearchRelayUrls model model.defaultUser) eventFilters )
 
         RequestShortNote eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter )
+            ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
 
 
 send : Model -> SendRequest -> ( Model, Cmd Msg )
@@ -947,7 +947,7 @@ getPubKeyByNip05 model nip05 =
 
 requestCommunityPostApprovals : Model -> Community -> Cmd Msg
 requestCommunityPostApprovals model community =
-    eventFilterForCommunityPostApprovals community
+    [ eventFilterForCommunityPostApprovals community ]
         |> model.hooks.requestEvents "Community post approvals" False -1 []
 
 
@@ -2116,7 +2116,7 @@ requestRelatedKindsForProfiles model profiles kinds =
 
 requestArticlesForAuthors : Model -> List PubKey -> ( Model, Cmd Msg )
 requestArticlesForAuthors model pubKeys =
-    createRequest model "Articles for authors" [] (RequestArticlesFeed { emptyEventFilter | authors = Just pubKeys, kinds = Just [ KindLongFormContent ] })
+    createRequest model "Articles for authors" [] (RequestArticlesFeed [ { emptyEventFilter | authors = Just pubKeys, kinds = Just [ KindLongFormContent ] } ])
         |> doRequest model
 
 

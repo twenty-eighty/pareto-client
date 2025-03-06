@@ -100,7 +100,7 @@ init shared route () =
 
 buildRequestArticlesEffect : Nostr.Model -> PubKey -> Effect Msg
 buildRequestArticlesEffect nostr pubKey =
-    { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ pubKey ], limit = Just 20 }
+    [ { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ pubKey ], limit = Just 20 } ]
         |> RequestArticlesFeed
         |> Nostr.createRequest nostr "Posts of user" [ KindUserMetadata ]
         |> Shared.Msg.RequestNostrEvents

@@ -10,7 +10,7 @@ import Nostr.Types exposing (Following(..), IncomingMessage, RelayRole(..), Rela
 type alias Hooks msg =
     { connect : List String -> Cmd msg
     , receiveMessage : (IncomingMessage -> msg) -> Sub msg
-    , requestEvents : String -> Bool -> RequestId -> List RelayUrl -> EventFilter -> Cmd msg
+    , requestEvents : String -> Bool -> RequestId -> List RelayUrl -> List EventFilter -> Cmd msg
     , requestBlossomAuth : RequestId -> String -> String -> HttpRequestMethod -> Cmd msg
     , requestNip96Auth : RequestId -> String -> String -> HttpRequestMethod -> Cmd msg
     , searchEvents : String -> Bool -> RequestId -> List RelayUrl -> List EventFilter -> Cmd msg

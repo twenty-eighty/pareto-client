@@ -69,7 +69,7 @@ init shared route () =
       , articles = []
       , filter = filter
       }
-    , RequestArticlesFeed filter
+    , RequestArticlesFeed [ filter ]
         |> Nostr.createRequest shared.nostr ("Articles for hashtag " ++ route.params.tag) [ KindUserMetadata ]
         |> Shared.Msg.RequestNostrEvents
         |> Effect.sendSharedMsg

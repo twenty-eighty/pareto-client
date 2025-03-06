@@ -42,14 +42,14 @@ requestUser =
     sendCommand { command = "requestUser", value = Encode.null }
 
 
-requestEvents : String -> Bool -> RequestId -> List String -> EventFilter -> Cmd msg
-requestEvents description closeOnEose requestId relays filter =
+requestEvents : String -> Bool -> RequestId -> List String -> List EventFilter -> Cmd msg
+requestEvents description closeOnEose requestId relays filters =
     sendCommand
         { command = "requestEvents"
         , value =
             Encode.object
                 [ ( "requestId", Encode.int requestId )
-                , ( "filter", encodeEventFilter filter )
+                , ( "filters", Encode.list encodeEventFilter filters )
                 , ( "closeOnEose", Encode.bool closeOnEose )
                 , ( "description", Encode.string description )
                 , ( "relays", Encode.list Encode.string relays )
