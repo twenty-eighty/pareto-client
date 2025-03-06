@@ -1,0 +1,1058 @@
+// main.ts
+
+import "./Milkdown/MilkdownEditor.js";
+
+import NDK, {
+    NDKEvent,
+    NDKKind,
+    NDKRelaySet,
+    NDKNip07Signer,
+    NDKPrivateKeySigner,
+    NDKSubscriptionCacheUsage,
+    NDKRelay,
+    NDKRelayAuthPolicies,
+    type NDKSigner,
+    NDKUser,
+    NDKUserParams
+} from "@nostr-dev-kit/ndk";
+import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
+import { BlossomClient, Signer, EventTemplate, SignedEvent } from "blossom-client-sdk/client";
+import { init as initNostrLogin, launch as launchNostrLoginDialog } from "nostr-login";
+import "./clipboard-component.js";
+import "./zap-component.js";
+import "./elm-oembed.js";
+import debug from "debug";
+import { NostrLoginOptions } from "nostr-login/dist/types.js";
+
+// Example global augmentation. Adjust as needed.
+declare global {
+    interface Window {
+        ndk: any;
+        crypto: Crypto;
+    }
+}
+
+/* ------------------ Interfaces for Flags ------------------ */
+
+interface FlagsEnv {
+    ELM_ENV: string;
+}
+
+interface FlagsParams {
+    env: FlagsEnv;
+}
+
+interface FlagsReturnValue {
+    environment: string;
+    darkMode: boolean;
+    isLoggedIn: boolean;
+    locale: string;
+    nativeSharingAvailable: boolean;
+}
+
+/**
+ * This is called BEFORE your Elm app starts up.
+ * The value returned here will be passed as flags
+ * to your `Shared.init` function in Elm.
+ */
+export function flags({ env }: FlagsParams): FlagsReturnValue {
+    return {
+        environment: env.ELM_ENV,
+        darkMode:
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches,
+        isLoggedIn: JSON.parse(localStorage.getItem("isLoggedIn") || "false") || false,
+        locale: navigator.language,
+        nativeSharingAvailable: navigator.share !== undefined
+    };
+}
+
+/* ------------------ Interfaces for onReady ------------------ */
+
+interface OnReadyParams {
+    app: any; // or a more specific Elm app type if you have it
+    env: FlagsEnv;
+}
+
+/* ------------------ Debugger instance ------------------ */
+
+const debugLog = debug("pareto-client");
+
+/* ------------------ Global variables ------------------ */
+
+let connected = false;
+let windowLoaded = false;
+
+const anonymousSigner = new NDKPrivateKeySigner(
+    "cff56394373edfaa281d2e1b5ad1b8cafd8b247f229f2af2c61734fb0c7b3f84"
+);
+const anonymousPubKey =
+    "ecdf32491ef8b5f1902109f495e7ca189c6fcec76cd66b888fa9fc2ce87f40db";
+
+/* ------------------------------------------------------
+    onReady: Called after Elm initializes
+------------------------------------------------------ */
+
+export function onReady({ app, env }: OnReadyParams): void {
+    let requestUserWhenLoaded = false;
+    let storedCommands: Array<{ command: string; value: any }> = [];
+
+    // Listen for OS-level dark/light theme changes
+    if (window.matchMedia) {
+        window
+            .matchMedia("(prefers-color-scheme: dark)")
+            .addEventListener("change", (e) => {
+                if (e.matches) {
+                    app.ports.receiveMessage.send({
+                        messageType: "darkMode",
+                        value: true
+                    });
+                }
+            });
+
+        window
+            .matchMedia("(prefers-color-scheme: light)")
+            .addEventListener("change", (e) => {
+                if (e.matches) {
+                    app.ports.receiveMessage.send({
+                        messageType: "darkMode",
+                        value: false
+                    });
+                }
+            });
+    }
+
+    // Handle incoming commands from Elm
+    app.ports.sendCommand.subscribe(({ command, value }: { command: string; value: any }) => {
+        if (command === "connect") {
+            connect(app, value.client, value.nip89, value.relays);
+        } else if (command === "loginSignUp") {
+            loginSignUp(app);
+        } else if (connected) {
+            processOnlineCommand(app, command, value);
+        } else {
+            storedCommands.push({ command, value });
+            debugLog("store command", command);
+        }
+    });
+
+    // Window load event
+    window.onload = function () {
+        const nostrLoginOptions = {};
+        initNostrLogin(nostrLoginOptions);
+
+        if (requestUserWhenLoaded) {
+            requestUser(app);
+        }
+        windowLoaded = true;
+    };
+
+    // Listen to events from nostr-login
+    document.addEventListener("nlAuth", (event: any) => {
+        switch (event.detail.type) {
+            case "login":
+            case "signup":
+                requestUser(app);
+                localStorage.setItem("isLoggedIn", JSON.stringify(true));
+                break;
+
+            default:
+                app.ports.receiveMessage.send({
+                    messageType: "loggedOut",
+                    value: null
+                });
+                localStorage.removeItem("isLoggedIn");
+                break;
+        }
+    });
+
+    /* ------------------ Command Handling ------------------ */
+
+    function processOnlineCommand(app: any, command: string, value?: any) {
+        debugLog("process command", command);
+        switch (command) {
+            case "encryptString":
+                encryptString(app, value.data);
+                break;
+            case "downloadAndDecryptFile":
+                downloadAndDecryptFile(app, value.url, value.key, value.iv);
+                break;
+            case "requestEvents":
+                requestEvents(app, value);
+                break;
+            case "searchEvents":
+                searchEvents(app, value);
+                break;
+            case "requestBlossomAuth":
+                requestBlossomAuth(app, value);
+                break;
+            case "requestNip96Auth":
+                requestNip96Auth(app, value);
+                break;
+            case "sendEvent":
+                sendEvent(app, value);
+                break;
+            case "loginWithExtension":
+                loginWithExtension(app);
+                break;
+            case "requestUser":
+                if (!windowLoaded) {
+                    // delay loading user until window is loaded
+                    requestUserWhenLoaded = true;
+                } else {
+                    requestUser(app);
+                }
+                break;
+        }
+    }
+
+    /* ------------------ Encryption Helpers ------------------ */
+
+    // 1) A function that imports an AES-GCM key and encrypts `plaintextBytes` with it.
+    function encryptData(
+        plaintextBytes: Uint8Array,
+        keyBytes: Uint8Array
+    ): Promise<{
+        ciphertextBuffer: ArrayBuffer;
+        ivBytes: Uint8Array;
+    }> {
+        return window.crypto.subtle
+            .importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["encrypt"])
+            .then((key) => {
+                const ivBytes = window.crypto.getRandomValues(new Uint8Array(12));
+                return window.crypto.subtle
+                    .encrypt({ name: "AES-GCM", iv: ivBytes }, key, plaintextBytes)
+                    .then((ciphertextBuffer) => {
+                        return {
+                            ciphertextBuffer,
+                            ivBytes
+                        };
+                    });
+            });
+    }
+
+    // 2) Helper to convert bytes to hex string
+    function bytesToHex(uint8Arr: Uint8Array): string {
+        return Array.from(uint8Arr)
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join("");
+    }
+
+    // 3) Helper to convert bytes to Base64 (not used directly here but you had it in your JS)
+    function bytesToBase64(uint8Arr: Uint8Array): string {
+        let binary = "";
+        for (let i = 0; i < uint8Arr.byteLength; i++) {
+            binary += String.fromCharCode(uint8Arr[i]);
+        }
+        return btoa(binary);
+    }
+
+    // 4) Encrypt the data and send it through an Elm port
+    async function encryptString(app: any, data: string) {
+        const keyBytes = new Uint8Array(32);
+        window.crypto.getRandomValues(keyBytes);
+
+        encryptData(new TextEncoder().encode(data), keyBytes)
+            .then((result) => {
+                const ciphertextBytes = new Uint8Array(result.ciphertextBuffer);
+                const ivBytes = result.ivBytes;
+
+                window.crypto.subtle.digest("SHA-256", result.ciphertextBuffer).then((hash) => {
+                    const hashArray = Array.from(new Uint8Array(hash));
+                    const hashHex = hashArray
+                        .map((b) => b.toString(16).padStart(2, "0"))
+                        .join("");
+
+                    // Prepare 'file' data in a shape compatible with elm/file's decoder
+                    const file = new File([result.ciphertextBuffer], "data.bin", {
+                        type: "application/octet-stream"
+                    });
+
+                    app.ports.receiveMessage.send({
+                        messageType: "encryptedString",
+                        value: {
+                            file: file,
+                            ivHex: bytesToHex(ivBytes),
+                            keyHex: bytesToHex(keyBytes),
+                            sha256: hashHex,
+                            size: result.ciphertextBuffer.byteLength
+                        }
+                    });
+                });
+            })
+            .catch((error) => {
+                console.error("Encryption error:", error);
+                app.ports.receiveMessage.send({
+                    messageType: "error",
+                    value: { reason: "failed to encrypt data" }
+                });
+            });
+    }
+
+    function downloadAndDecryptFile(app: any, url: string, keyHex: string, ivHex: string) {
+        return fetch(url)
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("Network response was not ok, status=" + response.status);
+                }
+                return response.arrayBuffer();
+            })
+            .then((encryptedBuffer) => {
+                const keyBytes = hexToBytes(keyHex);
+                const ivBytes = hexToBytes(ivHex);
+
+                return window.crypto.subtle
+                    .importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["decrypt"])
+                    .then((cryptoKey) => {
+                        return window.crypto.subtle.decrypt(
+                            {
+                                name: "AES-GCM",
+                                iv: ivBytes
+                            },
+                            cryptoKey,
+                            encryptedBuffer
+                        );
+                    });
+            })
+            .then((decryptedBuffer) => {
+                const decodedString = new TextDecoder().decode(decryptedBuffer);
+                app.ports.receiveMessage.send({
+                    messageType: "decryptedString",
+                    value: JSON.parse(decodedString)
+                });
+            })
+            .catch((error) => {
+                console.error("Error in fetchAndDecryptEncryptedData:", error);
+                app.ports.receiveMessage.send({
+                    messageType: "error",
+                    value: { reason: "failed to download/decrypt data" }
+                });
+            });
+    }
+
+    function hexToBytes(hexString: string): Uint8Array {
+        if (hexString.length % 2 !== 0) {
+            throw new Error("Invalid hex string length");
+        }
+        const result = new Uint8Array(hexString.length / 2);
+        for (let i = 0; i < hexString.length; i += 2) {
+            result[i / 2] = parseInt(hexString.substring(i, i + 2), 16);
+        }
+        return result;
+    }
+
+    /* ------------------ NDK Connect & Subscriptions ------------------ */
+
+    function connect(app: any, client: string, nip89: string, relays: string[]) {
+        debugLog("connect to relays", relays);
+        const dexieAdapter = new NDKCacheAdapterDexie({ dbName: "pareto-ndk-cache" });
+        window.ndk = new NDK({
+            enableOutboxModel: true,
+            cacheAdapter: dexieAdapter,
+            explicitRelayUrls: relays,
+            clientName: client,
+            clientNip89: nip89,
+            debug: debugLog
+        });
+
+        // Default policy to sign in if relay requests authorization
+        window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({
+            ndk: window.ndk
+        });
+
+        // reduce signature validation ratio
+        window.ndk.initialValidationRatio = 0.5;
+        window.ndk.lowestValidationRatio = 0.01;
+
+        window.ndk.on("event:invalid-sig", (event: any) => {
+            const { relay } = event;
+            debugLog("relay delivered event with invalid signature", relay);
+            app.ports.receiveMessage.send({
+                messageType: "event:invalid-sig",
+                value: { relay }
+            });
+        });
+
+        window.ndk.pool.on("connecting", (relay: any) => {
+            debugLog("connecting relays", relay);
+            app.ports.receiveMessage.send({
+                messageType: "connecting",
+                value: null
+            });
+        });
+
+        window.ndk.pool.on("connect", () => {
+            debugLog("relays connected");
+            connected = true;
+            app.ports.receiveMessage.send({
+                messageType: "connected",
+                value: null
+            });
+
+            for (let i = 0; i < storedCommands.length; i++) {
+                processOnlineCommand(
+                    app,
+                    storedCommands[i].command,
+                    storedCommands[i].value
+                );
+            }
+            storedCommands = [];
+        });
+
+        window.ndk.pool.on("notice", (relay: any, notice: any) => {
+            debugLog("relay notice", relay, notice);
+            app.ports.receiveMessage.send({
+                messageType: "relay:notice",
+                value: { relay, notice }
+            });
+        });
+
+        window.ndk.pool.on("relay:connect", (relay: any) => {
+            debugLog("relay connected", relay);
+            app.ports.receiveMessage.send({
+                messageType: "relay:connected",
+                value: { url: relay.url }
+            });
+        });
+
+        window.ndk.pool.on("relay:ready", (relay: any) => {
+            debugLog("relay ready", relay);
+            app.ports.receiveMessage.send({
+                messageType: "relay:ready",
+                value: { url: relay.url }
+            });
+        });
+
+        window.ndk.pool.on("relay:disconnect", (relay: any) => {
+            debugLog("relay disconnected", relay);
+            app.ports.receiveMessage.send({
+                messageType: "relay:disconnected",
+                value: { url: relay.url }
+            });
+        });
+
+        window.ndk.connect(2000);
+    }
+
+    function requestEvents(
+        app: any,
+        {
+            requestId,
+            filter,
+            closeOnEose,
+            description,
+            relays
+        }: {
+            requestId: number;
+            filter: any;
+            closeOnEose: boolean;
+            description: string;
+            relays?: string[];
+        }
+    ) {
+        debugLog(
+            "FILTER: ",
+            filter,
+            description,
+            " requestId: " + requestId,
+            "closeOnEose: " + closeOnEose,
+            "relays: ",
+            relays
+        );
+
+        const ndkRelays = relays
+            ? NDKRelaySet.fromRelayUrls(relays, window.ndk)
+            : null;
+
+        window.ndk
+            .fetchEvents(filter, { closeOnEose }, ndkRelays)
+            .then((ndkEvents: Set<NDKEvent>) => {
+                processEvents(app, requestId, description, ndkEvents);
+            });
+    }
+
+    function searchEvents(
+        app: any,
+        {
+            requestId,
+            filters,
+            closeOnEose,
+            description,
+            relays
+        }: {
+            requestId: number;
+            filters: any;
+            closeOnEose: boolean;
+            description: string;
+            relays?: string[];
+        }
+    ) {
+        debugLog(
+            "SEARCH FILTERS: ",
+            filters,
+            description,
+            " requestId: " + requestId,
+            "closeOnEose: " + closeOnEose,
+            "relays: ",
+            relays
+        );
+
+        const ndkRelays = relays
+            ? NDKRelaySet.fromRelayUrls(relays, window.ndk)
+            : null;
+
+        window.ndk
+            .fetchEvents(filters, { closeOnEose }, ndkRelays)
+            .then((ndkEvents: Set<NDKEvent>) => {
+                processEvents(app, requestId, description, ndkEvents);
+            });
+    }
+
+    function processEvents(
+        app: any,
+        requestId: number,
+        description: string,
+        ndkEvents: Set<NDKEvent>
+    ) {
+        if (ndkEvents.size === 0) {
+            app.ports.receiveMessage.send({
+                messageType: "events",
+                value: { kind: 0, events: [], requestId }
+            });
+            return;
+        }
+
+        const eventsSortedByKind: Record<number, NDKEvent[]> = {};
+        const highlights: Array<{ pubkey: string; highlight: string }> = [];
+        const zapReceipts: any[] = [];
+
+        ndkEvents.forEach((ndkEvent) => {
+            switch (ndkEvent.kind) {
+                case 0:
+                case 1:
+                case 3:
+                case 5:
+                case 6:
+                case 7:
+                    // Profile, short text note, follow list, etc.
+                    addEvent(eventsSortedByKind, ndkEvent);
+                    break;
+
+                case 9735: {
+                    // zap receipt
+                    const zapReceipt = fillZapReceipt(ndkEvent);
+                    zapReceipts.push(zapReceipt);
+                    break;
+                }
+
+                case 9802: {
+                    // highlight
+                    const highlight = ndkEvent.content;
+                    highlights.push({ pubkey: ndkEvent.pubkey, highlight });
+                    break;
+                }
+
+                case 10002:
+                case 10003:
+                case 10004:
+                case 10050:
+                case 10063:
+                case 10096:
+                case 30000:
+                case 30003:
+                case 30023:
+                case 30024:
+                case 34550:
+                    // Various nip data kinds
+                    addEvent(eventsSortedByKind, ndkEvent);
+                    break;
+
+                case 10013:
+                    // relay list for private content
+                    unwrapPrivateRelayListEvent(ndkEvent).then((event) => {
+                        app.ports.receiveMessage.send({
+                            messageType: "events",
+                            value: { kind: event.kind, events: [event], requestId }
+                        });
+                    });
+                    break;
+
+                case 30078:
+                    // application-specific event
+                    unwrapApplicationSpecificEvent(ndkEvent).then((event) => {
+                        if (event) {
+                            app.ports.receiveMessage.send({
+                                messageType: "events",
+                                value: { kind: event.kind, events: [event], requestId }
+                            });
+                        }
+                    });
+                    break;
+
+                case 31234:
+                    // draft event (NIP-37)
+                    unwrapDraftEvent(ndkEvent).then((event) => {
+                        if (event) {
+                            app.ports.receiveMessage.send({
+                                messageType: "events",
+                                value: { kind: event.kind, events: [event], requestId }
+                            });
+                        }
+                    });
+                    break;
+
+                default:
+                    debugLog("Unhandled event with kind: ", ndkEvent.kind);
+                    addEvent(eventsSortedByKind, ndkEvent);
+                    break;
+            }
+        });
+
+        // send grouped events by kind
+        for (const kindStr in eventsSortedByKind) {
+            const kind = parseInt(kindStr, 10);
+            const events = eventsSortedByKind[kind];
+            debugLog("Events of kind " + kind + ": ", events.length);
+            app.ports.receiveMessage.send({
+                messageType: "events",
+                value: { kind, events, requestId }
+            });
+        }
+
+        if (highlights.length > 0) {
+            debugLog("Highlights: ", highlights.length);
+            app.ports.receiveMessage.send({
+                messageType: "highlights",
+                value: highlights
+            });
+        }
+        if (zapReceipts.length > 0) {
+            debugLog("ZapReceipts: ", zapReceipts.length);
+            app.ports.receiveMessage.send({
+                messageType: "zap_receipts",
+                value: zapReceipts
+            });
+        }
+    }
+
+    async function unwrapPrivateRelayListEvent(ndkEvent: NDKEvent): Promise<NDKEvent> {
+        try {
+            const stringifiedEvent = await window.ndk.signer.decrypt({
+                pubkey: ndkEvent.pubkey
+            }, ndkEvent.content, 'nip44');
+            ndkEvent.tags = JSON.parse(stringifiedEvent);
+            return ndkEvent;
+        } catch (err) {
+            console.error("Error decrypting private relay list event:", err);
+            return ndkEvent;
+        }
+    }
+
+    async function unwrapApplicationSpecificEvent(ndkEvent: NDKEvent): Promise<NDKEvent | null> {
+        try {
+            const content = await window.ndk.signer.decrypt(
+                { pubkey: ndkEvent.pubkey },
+                ndkEvent.content,
+                'nip44'
+            );
+            if (content) {
+                ndkEvent.content = content;
+                return ndkEvent;
+            } else {
+                console.log("Unable to decrypt application-specific event. Ignoring.");
+            }
+        } catch (err) {
+            console.error("Error decrypting application-specific event:", err);
+        }
+        return null;
+    }
+
+    async function unwrapDraftEvent(ndkEvent: NDKEvent): Promise<NDKEvent | null> {
+        try {
+            const stringifiedEvent = await window.ndk.signer.decrypt(
+                { pubkey: ndkEvent.pubkey },
+                ndkEvent.content,
+                'nip44'
+            );
+            if (stringifiedEvent) {
+                const eventObj = JSON.parse(stringifiedEvent);
+                return new NDKEvent(window.ndk, eventObj);
+            } else {
+                console.log("Unable to decrypt draft event. Ignoring.");
+            }
+        } catch (err) {
+            console.error("Error decrypting draft event:", err);
+        }
+        return null;
+    }
+
+    function addEvent(
+        eventsSortedByKind: Record<number, NDKEvent[]>,
+        ndkEvent: NDKEvent
+    ): void {
+        if (!ndkEvent.kind) return;
+        if (!eventsSortedByKind[ndkEvent.kind]) {
+            eventsSortedByKind[ndkEvent.kind] = [ndkEvent];
+        }
+        eventsSortedByKind[ndkEvent.kind].push(ndkEvent);
+    }
+
+    /* ------------------ Blossom Auth ------------------ */
+
+    function requestBlossomAuth(
+        app: any,
+        {
+            requestId,
+            fileId,
+            serverUrl,
+            content,
+            method,
+            hash
+        }: {
+            requestId: number;
+            fileId: string;
+            serverUrl: string;
+            content: any;
+            method: string;
+            hash: string;
+        }
+    ) {
+        debugLog("Blossom auth request with requestId: " + requestId);
+
+        async function signer(event: EventTemplate): Promise<SignedEvent> {
+            const ndkEvent = new NDKEvent(window.ndk);
+            ndkEvent.kind = event.kind;
+            ndkEvent.content = event.content;
+            ndkEvent.tags = event.tags;
+            ndkEvent.created_at = event.created_at;
+            await ndkEvent.sign();
+            if (!ndkEvent.sig) {
+                throw new Error("Failed to sign event");
+            }
+            return {
+                id: ndkEvent.id,
+                pubkey: ndkEvent.pubkey,
+                created_at: ndkEvent.created_at,
+                kind: ndkEvent.kind,
+                tags: ndkEvent.tags,
+                content: ndkEvent.content,
+                sig: ndkEvent.sig
+            };
+        }
+
+        let authPromise: Promise<SignedEvent>;
+
+        switch (method) {
+            case "PUT":
+                authPromise = BlossomClient.createUploadAuth(hash, signer, content);
+                break;
+            case "GET":
+            default:
+                const client = new BlossomClient(serverUrl, signer);
+                authPromise = client.getListAuth("file list");
+                break;
+        }
+
+        authPromise.then((authHeader) => {
+            debugLog("authHeader", authHeader);
+            const encodedAuthHeader = BlossomClient.encodeAuthorizationHeader(authHeader);
+            app.ports.receiveMessage.send({
+                messageType: "blossomAuthHeader",
+                value: {
+                    requestId,
+                    fileId,
+                    method,
+                    authHeader: encodedAuthHeader,
+                    serverUrl,
+                    apiUrl: ""
+                }
+            });
+        });
+    }
+
+    /* ------------------ Nip96 Auth ------------------ */
+
+    function requestNip96Auth(
+        app: any,
+        {
+            requestId,
+            fileId,
+            serverUrl,
+            apiUrl,
+            method,
+            hash
+        }: {
+            requestId: number;
+            fileId: string;
+            serverUrl: string;
+            apiUrl: string;
+            method: string;
+            hash: string;
+        }
+    ) {
+        debugLog("Nip96 auth request with requestId: " + requestId);
+
+        generateNip98Header(apiUrl, method, hash).then((nip98AuthHeader) => {
+            debugLog("nip98 header", nip98AuthHeader);
+            app.ports.receiveMessage.send({
+                messageType: "nip98AuthHeader",
+                value: {
+                    requestId,
+                    fileId,
+                    method,
+                    authHeader: nip98AuthHeader,
+                    serverUrl,
+                    apiUrl
+                }
+            });
+        });
+    }
+
+    /* ------------------ Sending Nostr Events ------------------ */
+
+    async function sendEvent(
+        app: any,
+        {
+            sendId,
+            event,
+            relays
+        }: {
+            sendId: number;
+            event: any;
+            relays: string[];
+        }
+    ) {
+        debugLog("send event " + sendId, event, "relays: ", relays);
+
+        let ndkEvent = new NDKEvent(window.ndk, event);
+        const signer: NDKSigner =
+            ndkEvent.pubkey === anonymousPubKey ? anonymousSigner : window.ndk.signer;
+
+        if (event.kind === 30024) {
+            // draft event
+            ndkEvent = (await encapsulateDraftEvent(ndkEvent)) as NDKEvent;
+        } else if (event.kind === 30078) {
+            // application-specific event
+            ndkEvent = (await encapsulateApplicationSpecificEvent(ndkEvent, signer)) as NDKEvent;
+            if (!ndkEvent) {
+                debugLog("failed to send event " + sendId, event);
+                app.ports.receiveMessage.send({
+                    messageType: "error",
+                    value: {
+                        sendId,
+                        event,
+                        relays,
+                        reason: "failed to encapsulate event"
+                    }
+                });
+                return;
+            }
+        }
+
+        ndkEvent.sign(signer).then(() => {
+            debugLog("signed event " + sendId, ndkEvent);
+
+            let relaysWithProtocol = relays.map((relay: string) => {
+                if (!relay.startsWith("wss://") && !relay.startsWith("ws://")) {
+                    return "wss://" + relay;
+                } else {
+                    return relay;
+                }
+            });
+
+            if (relaysWithProtocol.length === 0) {
+                relaysWithProtocol = ["wss://pareto.nostr1.com"];
+            }
+
+            const relaySet = NDKRelaySet.fromRelayUrls(relaysWithProtocol, window.ndk);
+            ndkEvent
+                .publish(relaySet, 5000, 1)
+                .then((relays: Set<NDKRelay>) => {
+                    debugLog("published event " + sendId, ndkEvent);
+                    app.ports.receiveMessage.send({
+                        messageType: "published",
+                        value: { sendId, event: ndkEvent, relays }
+                    });
+
+                    // feed sent events back into the app as if received by a relay
+                    processEvents(app, -1, "sent event", new Set([ndkEvent]));
+                })
+                .catch((error: any) => {
+                    console.log(error);
+                    app.ports.receiveMessage.send({
+                        messageType: "error",
+                        value: {
+                            sendId,
+                            event,
+                            relays,
+                            reason: "failed to send event"
+                        }
+                    });
+                });
+        });
+    }
+
+    // https://nips.nostr.com/37
+    async function encapsulateDraftEvent(ndkEvent: NDKEvent) {
+        if (!ndkEvent.kind) {
+            return undefined;
+        }
+        await ndkEvent.sign();
+        if (!ndkEvent.created_at) {
+            return undefined;
+        }
+        const rawEventString = JSON.stringify(ndkEvent.rawEvent());
+        const identifier = firstTag(ndkEvent, "d") || "";
+        const kindStr = ndkEvent.kind.toString();
+        const draftEvent =
+        {
+            kind: 31234,
+            tags: [
+                ["d", identifier],
+                ["k", kindStr],
+                ["e", ndkEvent.id],
+                ["a", ndkEvent.kind + ":" + ndkEvent.pubkey + ":" + identifier]
+            ],
+            content: await window.ndk.signer.encrypt(
+                { pubkey: ndkEvent.pubkey },
+                rawEventString,
+                'nip44'
+            ),
+            pubkey: ndkEvent.pubkey,
+            created_at: ndkEvent.created_at
+        };
+        return new NDKEvent(window.ndk, draftEvent);
+    }
+
+    // https://nips.nostr.com/78
+    async function encapsulateApplicationSpecificEvent(
+        ndkEvent: NDKEvent,
+        signer: NDKSigner
+    ): Promise<NDKEvent | null> {
+        let encryptForPubKey = firstTag(ndkEvent, "p");
+        if (!encryptForPubKey) {
+            encryptForPubKey = ndkEvent.pubkey;
+        }
+        debugLog("encrypt for key", encryptForPubKey);
+
+        const userParams: NDKUserParams = { pubkey: encryptForPubKey };
+        const user = new NDKUser(userParams);
+        const encrypted = await signer.encrypt(user, ndkEvent.content, 'nip44');
+        if (encrypted) {
+            ndkEvent.content = encrypted;
+            return ndkEvent;
+        }
+        return null;
+    }
+
+    function firstTag(event: NDKEvent, tagName: string): string | null {
+        if (event.tags) {
+            for (const tag of event.tags) {
+                if (tag[0] === tagName) {
+                    return tag[1];
+                }
+            }
+        }
+        return null;
+    }
+
+    /* ------------------ Zap Receipt ------------------ */
+
+    function fillZapReceipt(ndkEvent: NDKEvent): any {
+        const zapReceipt: any = { id: ndkEvent.id };
+
+        ndkEvent.tags.forEach((tag: string[]) => {
+            switch (tag[0]) {
+                case "P":
+                    zapReceipt.pubkeySender = tag[1];
+                    break;
+                case "a":
+                    zapReceipt.address = tag[1];
+                    break;
+                case "bolt11":
+                    zapReceipt.bolt11 = tag[1];
+                    break;
+                case "e":
+                    zapReceipt.event = tag[1];
+                    break;
+                case "p":
+                    zapReceipt.recipient = tag[1];
+                    break;
+                case "preimage":
+                    zapReceipt.preimage = tag[1];
+                    break;
+                case "description":
+                    try {
+                        const json = JSON.parse(tag[1]);
+                        const tags = json.tags;
+                        const amountTag = tags.find((inner: any) => inner[0] === "amount");
+                        if (amountTag) {
+                            zapReceipt.amount = amountTag[1];
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    }
+                    break;
+            }
+        });
+
+        return zapReceipt;
+    }
+
+    /* ------------------ NIP-98 Auth ------------------ */
+
+    async function generateNip98Header(
+        requestUrl: string,
+        httpMethod: string,
+        sha256Hash: string
+    ): Promise<string> {
+        const event = new NDKEvent(window.ndk, {
+            created_at: Math.floor(Date.now() / 1000),
+            content: "",
+            pubkey: window.ndk.signer.pubkey,
+            kind: NDKKind.HttpAuth,
+            tags: [
+                ["u", requestUrl],
+                ["method", httpMethod]
+            ]
+        });
+
+        if (["POST", "PUT", "PATCH"].includes(httpMethod)) {
+            event.tags.push(["payload", sha256Hash]);
+        }
+
+        await event.sign();
+        const encodedEvent = btoa(JSON.stringify(event.rawEvent()));
+        return `Nostr ${encodedEvent}`;
+    }
+
+    /* ------------------ Nostr Login Flow ------------------ */
+
+    function requestUser(app: any) {
+        if (window.nostr) {
+            const nip07signer = new NDKNip07Signer();
+            window.ndk.signer = nip07signer;
+            nip07signer.user().then((user) => {
+                if (user && user.npub) {
+                    app.ports.receiveMessage.send({
+                        messageType: "user",
+                        value: { pubKey: user.pubkey }
+                    });
+                    localStorage.setItem("isLoggedIn", JSON.stringify(true));
+                }
+            });
+        }
+    }
+
+    function loginSignUp(app: any) {
+        processOnlineCommand(app, "requestUser");
+    }
+
+    function loginWithExtension(app: any) {
+        if (window.nostr) {
+            const nostrLoginOptions: NostrLoginOptions = {
+            };
+            initNostrLogin(nostrLoginOptions);
+        }
+    }
+}
