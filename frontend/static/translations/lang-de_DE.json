@@ -305,9 +305,6 @@
       "zap button title": "Zap"
    },
    "tech details": {
-      "page title": "Technische Details",
-      "supported kinds title": "Unterstützte Nostr \"kinds\"",
-      "supported nips title": "Unterstützte NIPs",
-      "supported web targets title": "Unterstützte Web-Ziele"
+      "page title": "Technische Details"
    }
 }
