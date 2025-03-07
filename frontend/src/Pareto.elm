@@ -103,6 +103,11 @@ privacyPolicyGerman =
     "/md/privacy-de.md"
 
 
+technicalDetails : String
+technicalDetails =
+    "/md/tech-details.md"
+
+
 source : String
 source =
     "https://github.com/twenty-eighty/pareto-client"
