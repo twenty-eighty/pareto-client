@@ -297,34 +297,6 @@ supportedKinds =
     ]
 
 
-supportedNips : List String
-supportedNips =
-    [ "01"
-
-    -- , "02"
-    -- , "04" -- Encrypted Direct Message
-    , "07"
-    , "09"
-    , "11"
-    , "19"
-    , "21"
-    , "23"
-    , "24"
-    , "25"
-    , "31"
-    , "37"
-    , "42"
-    , "44"
-    , "51"
-    , "57"
-    , "65"
-    , "89"
-    , "94"
-    , "96"
-    , "98"
-    ]
-
-
 paretoAbout : String
 paretoAbout =
     "A #Nostr client for publishing and an ecosystem for citizen journalism."
