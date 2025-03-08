@@ -28,6 +28,9 @@ NIP-05 validation JSON is served on this route:
 LNURL Pay JSON data is served on this route:
 /.well-known/lnurlp/\<user\>
 
+## Nostr Technical Information
+Detailed Nostr information about this app, like supported NIPs and Kinds, can be found [here](frontend/static/md/tech-details.md).
+
 ## Backend configuration
 
 These environment variables need to be set

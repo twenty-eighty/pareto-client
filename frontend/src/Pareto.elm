@@ -103,6 +103,11 @@ privacyPolicyGerman =
     "/md/privacy-de.md"
 
 
+technicalDetails : String
+technicalDetails =
+    "/md/tech-details.md"
+
+
 source : String
 source =
     "https://github.com/twenty-eighty/pareto-client"
@@ -294,34 +299,6 @@ supportedKinds =
     , KindDraft
     , KindHandlerRecommendation
     , KindHandlerInformation
-    ]
-
-
-supportedNips : List String
-supportedNips =
-    [ "01"
-
-    -- , "02"
-    -- , "04" -- Encrypted Direct Message
-    , "07"
-    , "09"
-    , "11"
-    , "19"
-    , "21"
-    , "23"
-    , "24"
-    , "25"
-    , "31"
-    , "37"
-    , "42"
-    , "44"
-    , "51"
-    , "57"
-    , "65"
-    , "89"
-    , "94"
-    , "96"
-    , "98"
     ]
 
 

@@ -698,7 +698,6 @@ paretoThemeStyles =
             , Tw.tracking_normal
             , Tw.decoration_auto
             , Tw.underline
-            , Tw.decoration_dotted
             ]
         , fontFamilyInter
         ]
@@ -950,9 +949,9 @@ paretoThemeStyles =
         ]
     , colorStyleArticleHashtags =
         [ css
-            [ Tw.text_color Theme.blue_600
+            [ Tw.text_color Theme.slate_700
             , darkMode
-                [ Tw.text_color Theme.blue_400
+                [ Tw.text_color Theme.slate_400
                 ]
             ]
         ]
