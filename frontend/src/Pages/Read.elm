@@ -332,16 +332,7 @@ availableCategories nostr loginStatus translations =
             [ paretoCategory translations ]
 
         friedenstaubeCategories =
-            case Shared.loggedInPubKey loginStatus of
-                Just pubKey ->
-                    if Nostr.isBetaTester nostr pubKey then
-                        [ friedenstaubeCategory translations ]
-
-                    else
-                        []
-
-                Nothing ->
-                    []
+            [ friedenstaubeCategory translations ]
 
         {-
            paretoRssCategories =
