@@ -1,5 +1,6 @@
 module Pages.Read exposing (Model, Msg, init, page, subscriptions, update, view)
 
+import Color exposing (Color)
 import Components.Categories
 import Components.Icon as Icon
 import Dict
@@ -432,6 +433,9 @@ view shared model =
 categoryImage : Category -> Maybe (Html msg)
 categoryImage category =
     let
+        iconColor =
+            Icon.Color <| Color.fromRgba { red = 0.392, green = 0.455, blue = 0.545, alpha = 1.0 }
+
         image src =
             Html.div
                 [ css
@@ -447,18 +451,23 @@ categoryImage category =
     in
     case category of
         Pareto ->
-            Just <| image "/images/icon/Pareto-Log2.png"
+            Icon.ParetoIcon Icon.ParetoCube 16 iconColor
+                |> Icon.view
+                |> Just
 
         Friedenstaube ->
-            Graphics.peaceDove 16
+            Icon.ParetoIcon Icon.ParetoPeaceDove 16 iconColor
+                |> Icon.view
                 |> Just
 
         Followed ->
-            Graphics.followedIcon 16
+            Icon.ParetoIcon Icon.ParetoFollowed 16 iconColor
+                |> Icon.view
                 |> Just
 
         Global ->
-            Graphics.globeIcon 16
+            Icon.ParetoIcon Icon.ParetoGlobe 16 iconColor
+                |> Icon.view
                 |> Just
 
         _ ->

@@ -1,17 +1,23 @@
-module Components.Icon exposing (Coloring(..), Icon(..), MaterialIcon(..), view, viewWithSize)
+module Components.Icon exposing (Coloring(..), Icon(..), MaterialIcon(..), ParetoIcon(..), view, viewWithSize)
 
 import Color exposing (Color)
 import FeatherIcons
+import Graphics
 import Html.Styled as Html exposing (Html, div)
+import Html.Styled.Attributes exposing (css)
 import Material.Icons
 import Material.Icons.Outlined
 import Material.Icons.Types
 import Svg as UnstyledSvg
+import Tailwind.Color as TailwindColor
+import Tailwind.Theme as Theme
+import Tailwind.Utilities as Tw
 
 
 type Icon
     = FeatherIcon FeatherIcons.Icon
     | MaterialIcon MaterialIcon Int Coloring
+    | ParetoIcon ParetoIcon Int Coloring
     | DummyIcon {}
 
 
@@ -32,6 +38,13 @@ type MaterialIcon
     | MaterialOutlineBookmarkAdded
 
 
+type ParetoIcon
+    = ParetoFollowed
+    | ParetoGlobe
+    | ParetoPeaceDove
+    | ParetoCube
+
+
 view : Icon -> Html msg
 view icon =
     case icon of
@@ -42,6 +55,9 @@ view icon =
 
         MaterialIcon materialIcon size coloring ->
             viewMaterialIcon materialIcon size coloring
+
+        ParetoIcon paretoIcon size coloring ->
+            viewParetoIcon paretoIcon size coloring
 
         DummyIcon _ ->
             div [] []
@@ -58,6 +74,9 @@ viewWithSize size icon =
 
         MaterialIcon materialIcon _ coloring ->
             viewMaterialIcon materialIcon size coloring
+
+        ParetoIcon paretoIcon _ coloring ->
+            viewParetoIcon paretoIcon size coloring
 
         DummyIcon _ ->
             div [] []
@@ -107,3 +126,52 @@ svgForMaterialIcon materialIcon =
 
         MaterialOutlineBookmarkAdded ->
             Material.Icons.Outlined.bookmark_added
+
+
+viewParetoIcon : ParetoIcon -> Int -> Coloring -> Html msg
+viewParetoIcon paretoIcon size coloring =
+    let
+        coloredIcon =
+            case coloring of
+                Color color ->
+                    \icon ->
+                        div
+                            [ css
+                                [ Tw.text_color <| tailwindColorFromColor color ]
+                            ]
+                            [ icon ]
+
+                Inherit ->
+                    identity
+    in
+    svgForParetoIcon paretoIcon size
+        |> coloredIcon
+
+
+tailwindColorFromColor : Color -> Theme.Color
+tailwindColorFromColor color =
+    let
+        rgba =
+            Color.toRgba color
+
+        oneToByte : Float -> Int
+        oneToByte value =
+            round (value * 255.0)
+    in
+    TailwindColor.arbitraryRgba (oneToByte rgba.red) (oneToByte rgba.green) (oneToByte rgba.blue) (rgba.alpha * 100.0)
+
+
+svgForParetoIcon : ParetoIcon -> (Int -> Html msg)
+svgForParetoIcon paretoIcon =
+    case paretoIcon of
+        ParetoCube ->
+            Graphics.paretoCube
+
+        ParetoFollowed ->
+            Graphics.followedIcon
+
+        ParetoGlobe ->
+            Graphics.globeIcon
+
+        ParetoPeaceDove ->
+            Graphics.peaceDove
