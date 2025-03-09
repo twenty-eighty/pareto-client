@@ -6,6 +6,7 @@ import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button as Button
 import Components.EmailImportDialog as EmailImportDialog
 import Components.Icon as Icon
+import Components.SubscriberEditDialog as SubscriberEditDialog
 import Csv.Encode
 import Dict exposing (Dict)
 import Effect exposing (Effect)
@@ -74,6 +75,7 @@ type alias Model =
     , modifications : List Modification
     , requestId : RequestId
     , state : ModelState
+    , subscriberEditDialog : SubscriberEditDialog.Model
     , subscribers : Dict Email Subscriber
     , subscriberTable : Table.State
     , serverDesc : Maybe Nip96.ServerDescriptorData
@@ -102,6 +104,7 @@ init user shared () =
       , modifications = []
       , requestId = Nostr.getLastRequestId shared.nostr
       , state = Loading
+      , subscriberEditDialog = SubscriberEditDialog.init {}
       , subscribers = Dict.empty
       , subscriberTable = Table.initialState (Subscribers.fieldName FieldEmail) 25
       , serverDesc = Nothing
@@ -138,6 +141,9 @@ type Msg
     | ReceivedMessage IncomingMessage
     | ReceivedNip96ServerDesc String (Result Http.Error Nip96.ServerDescResponse)
     | UploadResultNip96 (Result Http.Error Nip96.UploadResponse) -- fileId, api URL
+    | OpenEditSubscriberDialog Subscriber
+    | SubscriberEditDialogSent SubscriberEditDialog.Msg
+    | UpdateSubscriber String Subscriber
 
 
 update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -258,6 +264,23 @@ update user shared msg model =
 
         UploadResultNip96 (Err error) ->
             ( { model | state = Modified, errors = ("Error uploading subscribers: " ++ httpErrorToString error) :: model.errors }, Effect.none )
+
+        OpenEditSubscriberDialog subscriber ->
+            ( { model | subscriberEditDialog = SubscriberEditDialog.show model.subscriberEditDialog subscriber }, Effect.none )
+
+        SubscriberEditDialogSent innerMsg ->
+            SubscriberEditDialog.update
+                { msg = innerMsg
+                , model = model.subscriberEditDialog
+                , toModel = \subscriberEditDialog -> { model | subscriberEditDialog = subscriberEditDialog }
+                , toMsg = SubscriberEditDialogSent
+                , submit = UpdateSubscriber
+                }
+
+        UpdateSubscriber email subscriber ->
+            ( { model | state = Modified, subscribers = Dict.update email (\_ -> Just subscriber) model.subscribers }
+            , Effect.none
+            )
 
 
 csvDownloadFileName : BrowserEnv -> String
@@ -429,7 +452,12 @@ subscribersTableConfig browserEnv =
         { toId = .email
         , toMsg = NewTableState
         , columns =
-            [ Table.stringColumn (Subscribers.fieldName FieldEmail) (translatedFieldName browserEnv.translations FieldEmail) .email
+            [ Table.veryCustomColumn
+                { id = Subscribers.fieldName FieldEmail
+                , name = translatedFieldName browserEnv.translations FieldEmail
+                , viewData = \subscriber -> editSubscriberButton subscriber
+                , sorter = Table.unsortable
+                }
             , Table.stringColumn (Subscribers.fieldName FieldFirstName) (translatedFieldName browserEnv.translations FieldFirstName) (\subscriber -> subscriber.firstName |> Maybe.withDefault "")
             , Table.stringColumn (Subscribers.fieldName FieldLastName) (translatedFieldName browserEnv.translations FieldLastName) (\subscriber -> subscriber.lastName |> Maybe.withDefault "")
             , Table.stringColumn (Subscribers.fieldName FieldTags) (translatedFieldName browserEnv.translations FieldTags) (\subscriber -> subscriber.tags |> Maybe.map (String.join ", ") |> Maybe.withDefault "")
@@ -450,6 +478,22 @@ subscribersTableConfig browserEnv =
                 | tableAttrs = Table.defaultCustomizations.tableAttrs
             }
         }
+
+
+editSubscriberButton : Subscriber -> Table.HtmlDetails Msg
+editSubscriberButton subscriber =
+    Table.HtmlDetails []
+        [ div
+            [ css
+                [ Tw.text_color Theme.slate_500
+                , Tw.cursor_pointer
+                ]
+            , Events.onClick (OpenEditSubscriberDialog subscriber)
+            ]
+            [ text subscriber.email
+            ]
+            |> Html.toUnstyled
+        ]
 
 
 removeSubscriberButton : Msg -> Table.HtmlDetails Msg
@@ -537,6 +581,13 @@ view user shared model =
                 , theme = shared.theme
                 }
                 |> EmailImportDialog.view
+            , SubscriberEditDialog.new
+                { model = model.subscriberEditDialog
+                , toMsg = SubscriberEditDialogSent
+                , browserEnv = shared.browserEnv
+                , theme = shared.theme
+                }
+                |> SubscriberEditDialog.view
             , AlertTimerMessage.new
                 { model = model.alertTimerMessage
                 , theme = shared.theme

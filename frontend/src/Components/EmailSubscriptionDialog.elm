@@ -269,7 +269,7 @@ viewSubscribeDialog : EmailSubscriptionDialog msg -> EmailSubscriptionData -> Ht
 viewSubscribeDialog (Settings settings) data =
     let
         emailIsValid =
-            emailValid <| Maybe.withDefault "" data.email
+            Subscribers.emailValid <| Maybe.withDefault "" data.email
 
         emailFieldId =
             "email"
@@ -388,7 +388,7 @@ emailSuggestion language maybeEmail =
                 Mailcheck.suggestWith (suggestedDomains language) (suggestedSlds language) (suggestedTlds language) email
                     |> Maybe.andThen
                         (\( _, _, suggestion ) ->
-                            if emailValid suggestion then
+                            if Subscribers.emailValid suggestion then
                                 Just suggestion
 
                             else
@@ -532,26 +532,6 @@ suggestedSlds language =
 
         _ ->
             Mailcheck.defaultSecondLevelDomains
-
-
-emailValid : String -> Bool
-emailValid email =
-    Mailcheck.mailParts email
-        |> Maybe.map
-            (\mailParts ->
-                (mailParts.address /= "")
-                    && (String.length mailParts.topLevelDomain > 1)
-                    && (mailParts.secondLevelDomain /= "")
-                    && (numberOfAtChars email == 1)
-            )
-        |> Maybe.withDefault False
-
-
-numberOfAtChars : String -> Int
-numberOfAtChars email =
-    email
-        |> String.indexes "@"
-        |> List.length
 
 
 viewPrivacyText : Theme -> I18Next.Translations -> Html msg

@@ -215,6 +215,10 @@
       "sign-in request": "Please sign up/in to access the page",
       "continue without signing in message": "Continue without signing up/in..."
    },
+   "subscriber edit dialog": {
+      "dialog title": "Edit Subscriber",
+      "submit button title": "Submit"
+   },
    "subscribers": {
       "page title": "Subscribers",
       "export button title": "Export",

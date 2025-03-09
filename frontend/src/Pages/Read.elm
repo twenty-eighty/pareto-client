@@ -1,11 +1,11 @@
 module Pages.Read exposing (Model, Msg, init, page, subscriptions, update, view)
 
-import Color exposing (Color)
+import BrowserEnv exposing (BrowserEnv)
+import Color
 import Components.Categories
 import Components.Icon as Icon
 import Dict
 import Effect exposing (Effect)
-import Graphics
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes as Attr exposing (css)
 import I18Next
@@ -410,7 +410,7 @@ view shared model =
             , toMsg = CategoriesSent
             , onSelect = CategorySelected
             , equals = \category1 category2 -> category1 == category2
-            , image = categoryImage
+            , image = categoryImage shared.browserEnv
             , categories = availableCategories shared.nostr shared.loginStatus shared.browserEnv.translations
             , browserEnv = shared.browserEnv
             , styles = styles
@@ -421,8 +421,8 @@ view shared model =
     }
 
 
-categoryImage : Category -> Maybe (Html msg)
-categoryImage category =
+categoryImage : BrowserEnv -> Category -> Maybe (Html msg)
+categoryImage _ category =
     let
         iconColor =
             Icon.Color <| Color.fromRgba { red = 0.392, green = 0.455, blue = 0.545, alpha = 1.0 }

@@ -8,6 +8,7 @@ import Iso8601
 import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
 import Json.Encode as Encode
+import Mailcheck
 import Nostr
 import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), emptyEvent, emptyEventFilter)
 import Nostr.Profile exposing (Profile, profileDisplayName)
@@ -339,6 +340,53 @@ translatedFieldName translations field =
 
         FieldLocale ->
             Translations.localeFieldName [ translations ]
+
+
+subscriberValue : BrowserEnv -> Subscriber -> SubscriberField -> String
+subscriberValue browserEnv subscriber field =
+    case field of
+        FieldDnd ->
+            subscriber.dnd
+                |> Maybe.map boolToString
+                |> Maybe.withDefault (boolToString False)
+
+        FieldEmail ->
+            subscriber.email
+
+        FieldName ->
+            Maybe.withDefault "" subscriber.firstName ++ " " ++ Maybe.withDefault "" subscriber.lastName
+
+        FieldFirstName ->
+            Maybe.withDefault "" subscriber.firstName
+
+        FieldLastName ->
+            Maybe.withDefault "" subscriber.lastName
+
+        FieldPubKey ->
+            Maybe.withDefault "" subscriber.pubKey
+
+        FieldSource ->
+            Maybe.withDefault "" subscriber.source
+
+        FieldDateSubscription ->
+            subscriber.dateSubscription
+                |> BrowserEnv.formatDate browserEnv
+
+        FieldDateUnsubscription ->
+            subscriber.dateUnsubscription
+                |> Maybe.map (BrowserEnv.formatDate browserEnv)
+                |> Maybe.withDefault ""
+
+        FieldTags ->
+            subscriber.tags
+                |> Maybe.map (String.join ",")
+                |> Maybe.withDefault ""
+
+        FieldUndeliverable ->
+            Maybe.withDefault "" subscriber.undeliverable
+
+        FieldLocale ->
+            Maybe.withDefault "" subscriber.locale
 
 
 type alias Email =
@@ -1062,3 +1110,23 @@ appendOptionalObjectString key maybeValue entries =
 
         Nothing ->
             entries
+
+
+emailValid : String -> Bool
+emailValid email =
+    Mailcheck.mailParts email
+        |> Maybe.map
+            (\mailParts ->
+                (mailParts.address /= "")
+                    && (String.length mailParts.topLevelDomain > 1)
+                    && (mailParts.secondLevelDomain /= "")
+                    && (numberOfAtChars email == 1)
+            )
+        |> Maybe.withDefault False
+
+
+numberOfAtChars : String -> Int
+numberOfAtChars email =
+    email
+        |> String.indexes "@"
+        |> List.length

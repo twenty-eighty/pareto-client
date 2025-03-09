@@ -216,6 +216,10 @@
       "sign-in request": "Bitte melden Sie sich an oder erstellen ein Konto, um auf die Seite zuzugreifen",
       "continue without signing in message": "Ohne Konto fortfahren ..."
    },
+   "subscriber edit dialog": {
+      "dialog title": "Abonnent bearbeiten",
+      "submit button title": "Bestätigen"
+   },
    "subscribers": {
       "page title": "Abonnenten",
       "export button title": "Exportieren",
