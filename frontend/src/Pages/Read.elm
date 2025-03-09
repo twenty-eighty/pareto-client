@@ -4,7 +4,7 @@ import Components.Categories
 import Components.Icon as Icon
 import Dict
 import Effect exposing (Effect)
-import FeatherIcons
+import Graphics
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes as Attr exposing (css)
 import I18Next
@@ -450,16 +450,15 @@ categoryImage category =
             Just <| image "/images/icon/Pareto-Log2.png"
 
         Friedenstaube ->
-            Just <| image "/images/Friedenstaube.png"
+            Graphics.peaceDove 16
+                |> Just
 
         Followed ->
-            Icon.FeatherIcon FeatherIcons.users
-                |> Icon.viewWithSize 16
+            Graphics.followedIcon 16
                 |> Just
 
         Global ->
-            Icon.FeatherIcon FeatherIcons.globe
-                |> Icon.viewWithSize 16
+            Graphics.globeIcon 16
                 |> Just
 
         _ ->
