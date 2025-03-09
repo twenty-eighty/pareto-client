@@ -241,7 +241,8 @@
       "dateunsub field name": "Ende Abonnement",
       "tags field name": "Tags",
       "undeliverable field name": "Unzustellbar",
-      "locale field name": "Sprache"
+      "locale field name": "Sprache",
+      "subscribers count": "{{subscribersCount}} Abonnenten"
    },
    "upload dialog": {
       "dialog title": "Hochladen",

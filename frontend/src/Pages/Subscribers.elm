@@ -518,6 +518,16 @@ view user shared model =
     let
         styles =
             stylesForTheme shared.theme
+
+        subscribersCount =
+            Dict.size model.subscribers
+
+        subscribersCountText =
+            if subscribersCount > 1 then
+                Translations.subscribersCount [ shared.browserEnv.translations ] { subscribersCount = String.fromInt subscribersCount }
+
+            else
+                ""
     in
     { title = Translations.Sidebar.subscribersMenuItemText [ shared.browserEnv.translations ]
     , body =
@@ -568,7 +578,7 @@ view user shared model =
                                 ]
                            ]
                     )
-                    [ text <| String.fromInt (Dict.size model.subscribers) ++ " Subscribers" ]
+                    [ text subscribersCountText ]
                 ]
             , viewSubscribers shared.browserEnv model
             , viewModifications shared.theme shared.browserEnv model

@@ -240,7 +240,8 @@
       "dateunsub field name": "Unsubscription date",
       "tags field name": "Tags",
       "undeliverable field name": "Undeliverable",
-      "locale field name": "Locale"
+      "locale field name": "Locale",
+      "subscribers count": "{{subscribersCount}} subscribers"
    },
    "upload dialog": {
       "dialog title": "Upload",
