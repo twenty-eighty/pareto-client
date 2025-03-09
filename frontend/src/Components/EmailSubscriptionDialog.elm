@@ -542,8 +542,16 @@ emailValid email =
                 (mailParts.address /= "")
                     && (String.length mailParts.topLevelDomain > 1)
                     && (mailParts.secondLevelDomain /= "")
+                    && (numberOfAtChars email == 1)
             )
         |> Maybe.withDefault False
+
+
+numberOfAtChars : String -> Int
+numberOfAtChars email =
+    email
+        |> String.indexes "@"
+        |> List.length
 
 
 viewPrivacyText : Theme -> I18Next.Translations -> Html msg
