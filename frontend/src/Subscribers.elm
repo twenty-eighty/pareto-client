@@ -872,10 +872,12 @@ encodeSubscriber subscriber =
     , ( fieldName FieldDateSubscription, Encode.int <| Time.posixToMillis subscriber.dateSubscription )
     ]
         |> addBoolToObject FieldDnd subscriber.dnd
+        |> addBoolToObject FieldUndeliverable subscriber.undeliverable
         |> addStringToObject FieldFirstName subscriber.firstName
         |> addStringToObject FieldLastName subscriber.lastName
         |> addStringToObject FieldPubKey subscriber.pubKey
         |> addStringToObject FieldSource subscriber.source
+        |> addStringToObject FieldLocale subscriber.locale
         |> addDateToObject FieldDateUnsubscription subscriber.dateUnsubscription
         |> addStringListToObject FieldTags subscriber.tags
 
