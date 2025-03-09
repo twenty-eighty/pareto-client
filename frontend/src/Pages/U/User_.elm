@@ -192,11 +192,6 @@ viewProfile shared model profile =
         userPubKey =
             Shared.loggedInPubKey shared.loginStatus
 
-        isBetaTester =
-            userPubKey
-                |> Maybe.map (Nostr.isBetaTester shared.nostr)
-                |> Maybe.withDefault False
-
         sendsNewsletter =
             model.nip05
                 |> Maybe.andThen (Nostr.sendsNewsletterNip05 shared.nostr)
@@ -208,7 +203,7 @@ viewProfile shared model profile =
             { browserEnv = shared.browserEnv
             , following = followingProfile shared.nostr profile.pubKey userPubKey
             , subscribe =
-                if sendsNewsletter && isBetaTester then
+                if sendsNewsletter then
                     Just OpenSubscribeDialog
 
                 else
