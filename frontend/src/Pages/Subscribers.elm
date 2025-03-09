@@ -41,7 +41,7 @@ import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Sidebar
 import Translations.Subscribers as Translations
-import Ui.Styles exposing (Theme)
+import Ui.Styles exposing (Theme, stylesForTheme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 
@@ -471,6 +471,10 @@ removeSubscriberButton removeMsg =
 
 view : Auth.User -> Shared.Model.Model -> Model -> View Msg
 view user shared model =
+    let
+        styles =
+            stylesForTheme shared.theme
+    in
     { title = Translations.Sidebar.subscribersMenuItemText [ shared.browserEnv.translations ]
     , body =
         [ div
@@ -485,6 +489,7 @@ view user shared model =
                 [ css
                     [ Tw.flex
                     , Tw.flex_row
+                    , Tw.items_center
                     , Tw.gap_2
                     , Tw.m_2
                     ]
@@ -512,6 +517,14 @@ view user shared model =
                     |> Button.withTypePrimary
                     |> Button.withDisabled (model.state /= Modified)
                     |> Button.view
+                , div
+                    (styles.colorStyleGrayscaleMuted
+                        ++ [ css
+                                [ Tw.ml_4
+                                ]
+                           ]
+                    )
+                    [ text <| String.fromInt (Dict.size model.subscribers) ++ " Subscribers" ]
                 ]
             , viewSubscribers shared.browserEnv model
             , viewModifications shared.theme shared.browserEnv model
