@@ -745,26 +745,26 @@ sidebarItemVisible isLoggedIn isAuthor isBetaTester sidebarItem =
 viewSidebarItem : Styles contentMsg -> Route.Path.Path -> SidebarItemData -> Html contentMsg
 viewSidebarItem styles currentPath itemData =
     let
-        ( foreground, background, linkAttr ) =
+        ( element, foreground, linkAttr ) =
             if itemData.disabled then
-                ( styles.colorStyleSitebarItemDisabled
-                , []
+                ( div
+                , styles.colorStyleSitebarItemDisabled
                 , []
                 )
 
             else if currentPath == itemData.path then
-                ( styles.colorStyleSitebarItemActive
-                , styles.colorStyleSitebarItemActiveBackground
+                ( div
+                , styles.colorStyleSitebarItemActive
                 , []
                 )
 
             else
-                ( styles.colorStyleSitebarItemEnabled
-                , []
+                ( a
+                , styles.colorStyleSitebarItemEnabled
                 , [ Attr.href <| Route.toString { path = itemData.path, hash = Nothing, query = Dict.empty } ]
                 )
     in
-    a
+    element
         (css
             [ Tw.py_2
             , Tw.w_10
@@ -779,7 +779,6 @@ viewSidebarItem styles currentPath itemData =
                 ]
             ]
             :: linkAttr
-            ++ background
             ++ foreground
         )
         [ div

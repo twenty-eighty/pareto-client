@@ -157,15 +157,12 @@ viewCategory styles toMsg onSelect maybeImage active data =
         ( element, attrs ) =
             if active then
                 ( div
-                  --, styles.colorStyleCategoryActiveBackground ++
                 , styles.colorStyleCategoryActive
-                  --    ++ styles.colorStyleCategoryActiveBorder
                 )
 
             else
                 ( button
-                  --, styles.colorStyleCategoryInactiveBackground ++
-                , styles.colorStyleGrayscaleText
+                , styles.colorStyleCategoryInactive
                 )
 
         imageElement =
