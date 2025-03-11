@@ -39,10 +39,12 @@ type MaterialIcon
 
 
 type ParetoIcon
-    = ParetoFollowed
+    = ParetoCube
+    | ParetoDove
+    | ParetoFollowed
     | ParetoGlobe
+    | ParetoGlobe2
     | ParetoPeaceDove
-    | ParetoCube
 
 
 view : Icon -> Html msg
@@ -167,11 +169,17 @@ svgForParetoIcon paretoIcon =
         ParetoCube ->
             Graphics.paretoCube
 
+        ParetoDove ->
+            Graphics.dove
+
         ParetoFollowed ->
             Graphics.followedIcon
 
         ParetoGlobe ->
             Graphics.globeIcon
+
+        ParetoGlobe2 ->
+            Graphics.globe2Icon
 
         ParetoPeaceDove ->
             Graphics.peaceDove
