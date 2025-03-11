@@ -2,10 +2,9 @@ module Ui.Styles exposing (..)
 
 import Css
 import Css.Media
-import Html.Attributes
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h1, h2, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled as Html
+import Html.Styled.Attributes as Attr exposing (css)
+import Html.Styled.Events exposing (..)
 import Tailwind.Breakpoints as Bp
 import Tailwind.Color as TwColor
 import Tailwind.Theme as Theme
