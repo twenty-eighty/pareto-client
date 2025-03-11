@@ -1,6 +1,6 @@
 module Graphics exposing (..)
 
-import Html.Styled as Html exposing (Html, text)
+import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as Attr
 import Svg.Styled as Svg exposing (path, svg)
 import Svg.Styled.Attributes as SvgAttr
