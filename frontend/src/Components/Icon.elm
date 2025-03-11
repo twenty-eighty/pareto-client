@@ -33,6 +33,7 @@ type MaterialIcon
     | MaterialCheck
     | MaterialFavorite
     | MaterialFavoriteBorder
+    | MaterialInfo
     | MaterialOutlineBookmark
     | MaterialOutlineBookmarkAdd
     | MaterialOutlineBookmarkAdded
@@ -119,6 +120,9 @@ svgForMaterialIcon materialIcon =
 
         MaterialFavoriteBorder ->
             Material.Icons.favorite_border
+
+        MaterialInfo ->
+            Material.Icons.info
 
         MaterialOutlineBookmark ->
             Material.Icons.Outlined.bookmark

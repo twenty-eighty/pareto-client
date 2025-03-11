@@ -257,6 +257,7 @@ view styles shared path { toContentMsg, model, content } =
             ]
             [ viewSidebar styles shared path toContentMsg content.body
             , viewModalDialog model |> Html.map toContentMsg
+            , viewLinktoInternalPage shared.nostr
             ]
         ]
     }
@@ -849,3 +850,29 @@ getStartedButton theme browserEnv =
         , theme = theme
         }
         |> Components.Button.view
+
+
+
+-- in case there are internal errors recorded,
+-- a small icon is displayed top/right of the screen that
+-- leads to the /internals page showing the error messages
+
+
+viewLinktoInternalPage : Nostr.Model -> Html msg
+viewLinktoInternalPage nostr =
+    case Nostr.getErrorMessages nostr of
+        [] ->
+            div [] []
+
+        _ ->
+            a
+                [ css
+                    [ Tw.absolute
+                    , Tw.top_2
+                    , Tw.right_2
+                    ]
+                , Attr.href <| Route.Path.toString Route.Path.Internals
+                ]
+                [ Icon.MaterialIcon Icon.MaterialInfo 10 Icon.Inherit
+                    |> Icon.view
+                ]

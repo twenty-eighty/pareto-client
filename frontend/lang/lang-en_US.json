@@ -75,6 +75,13 @@
       "sent message text": "Sent opt-in, you will get a confirmation email shortly.",
       "error message text": "Error subscribing to list: {{error}}. Please contact us at support@pareto.space"
    },
+   "internals": {
+      "page title": "Internals",
+      "explanation": "This page shows diagnostic information about the application.",
+      "error reporting": "When reporting an error, please include the information below, if present.",
+      "contact information": "Please contact",
+      "error messages title": "Error messages"
+   },
    "locale": {
       "english text": "English",
       "french text": "French",

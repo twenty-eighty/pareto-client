@@ -1693,6 +1693,11 @@ updateModelWithLongFormContent model requestId events =
     )
 
 
+getErrorMessages : Model -> List String
+getErrorMessages model =
+    model.errors
+
+
 sortArticlesByDate : List Article -> List Article
 sortArticlesByDate articles =
     articles
