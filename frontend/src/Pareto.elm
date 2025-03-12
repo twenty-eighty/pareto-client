@@ -321,7 +321,7 @@ paretoHashtags =
 paretoProfile : Profile
 paretoProfile =
     { nip05 = Just paretoNip05
-    , lud16 = Just "donate2pareto@walletofsatoshi.com"
+    , lud16 = Just "client@pareto.space"
     , name = Just <| String.toLower client
     , displayName = Just client
     , about = Just paretoAbout
