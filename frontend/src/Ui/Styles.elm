@@ -506,9 +506,9 @@ paretoThemeStyles =
         ]
     , colorStylePrimaryButtonText =
         [ css
-            [ Tw.text_color color2
+            [ Tw.text_color color1
             , darkMode
-                [ Tw.text_color color2Inverse
+                [ Tw.text_color color1Inverse
                 ]
             ]
         ]
@@ -541,25 +541,25 @@ paretoThemeStyles =
         ]
     , colorStylePrimaryButtonBackground =
         [ css
-            [ Tw.bg_color color1
+            [ Tw.bg_color color4
             , darkMode
-                [ Tw.bg_color color1Inverse
+                [ Tw.bg_color color4Inverse
                 ]
             ]
         ]
     , colorStyleSecondaryButtonBackground =
         [ css
-            [ Tw.bg_color color2
+            [ Tw.bg_color color3
             , darkMode
-                [ Tw.bg_color color2Inverse
+                [ Tw.bg_color color3Inverse
                 ]
             ]
         ]
     , colorStyleDisabledButtonBackground =
         [ css
-            [ Tw.bg_color color4
+            [ Tw.bg_color color1
             , darkMode
-                [ Tw.bg_color color4Inverse
+                [ Tw.bg_color color1Inverse
                 ]
             ]
         ]
