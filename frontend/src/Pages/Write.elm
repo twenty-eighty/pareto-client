@@ -475,6 +475,7 @@ update shared user msg model =
                 , toMsg = PublishArticleDialogSent
                 , nostr = shared.nostr
                 , pubKey = user.pubKey
+                , testMode = shared.browserEnv.testMode
                 }
 
         PublishedDialogButtonClicked _ ->

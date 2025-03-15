@@ -127,6 +127,7 @@ update :
     , toMsg : Msg msg -> msg
     , nostr : Nostr.Model
     , pubKey : PubKey
+    , testMode : BrowserEnv.TestMode
     }
     -> ( model, Effect msg )
 update props =
@@ -172,7 +173,10 @@ update props =
                     -- because there may appear more relays after the
                     -- init call
                     relayUrls =
-                        Nostr.getWriteRelaysForPubKey props.nostr props.pubKey
+                        if props.testMode == BrowserEnv.TestModeEnabled then
+                            Pareto.testRelays
+                        else
+                            Nostr.getWriteRelaysForPubKey props.nostr props.pubKey
                             |> List.filterMap
                                 (\relay ->
                                     case Dict.get relay.urlWithoutProtocol model.relayStates of
@@ -326,7 +330,13 @@ viewPublishArticleDialog (Settings settings) =
             settings.model
 
         relays =
-            Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
+            if settings.browserEnv.testMode == BrowserEnv.TestModeOff then
+                Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
+            else
+                Pareto.testRelays
+                |> List.map (\relayUrl ->
+                    { urlWithoutProtocol = relayUrl , state = Relay.RelayReady, nip11 = Nothing}
+                    )
 
         activeSubscribersCount =
             model.subscriberEventData
