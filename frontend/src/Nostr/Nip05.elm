@@ -27,7 +27,7 @@ type alias Nip05String =
 
 parseNip05 : String -> Maybe Nip05
 parseNip05 nip05String =
-    case Email.parse nip05String of
+    case Email.parse (String.trim nip05String) of
         Ok { local, domain } ->
             Just { user = local, domain = domain }
 
