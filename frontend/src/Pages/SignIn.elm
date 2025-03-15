@@ -84,7 +84,7 @@ updateWithPortMessage _ model portMessage =
                 ( Just from, Just clientRole ) ->
                     ( model
                     , Effect.batch
-                        [ Effect.sendSharedMsg (Shared.Msg.SetClientRole clientRole)
+                        [ Effect.sendSharedMsg (Shared.Msg.SetClientRole False clientRole)
                         , Effect.pushRoutePath from
                         ]
                     )

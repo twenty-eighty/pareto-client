@@ -203,6 +203,8 @@
    "sidebar": {
       "reader client role text": "Leser",
       "creator client role text": "Autor",
+      "test mode off text": "Testmodus",
+      "test mode on text": "Testmodus",
       "bookmarks menu item text": "Lesezeichen",
       "communities menu item text": "Communities",
       "get started button text": "Anmelden",

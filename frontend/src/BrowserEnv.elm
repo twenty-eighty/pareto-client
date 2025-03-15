@@ -1,4 +1,4 @@
-module BrowserEnv exposing (BrowserEnv, Environment(..), Msg(..), formatDate, formatIsoDate, init, subscriptions, update, updateTimeZone)
+module BrowserEnv exposing (BrowserEnv, Environment(..), Msg(..), formatDate, formatIsoDate, init, subscriptions, update, updateTimeZone, TestMode(..), setTestMode)
 
 import DateFormat
 import DateFormat.Language
@@ -32,6 +32,7 @@ type alias BrowserEnv =
     , language : Language
     , locale : String
     , nativeSharingAvailable : Bool
+    , testMode : TestMode
     , translations : I18Next.Translations
     , now : Posix
     , zone : Time.Zone
@@ -56,6 +57,7 @@ type alias InitParams =
     , frontendUrl : String
     , locale : String
     , nativeSharingAvailable : Bool
+    , testMode : Bool
     }
 
 
@@ -63,6 +65,9 @@ type Environment
     = Production
     | Development
 
+type TestMode
+    = TestModeOff
+    | TestModeEnabled
 
 init : InitParams -> ( BrowserEnv, Cmd Msg )
 init initParams =
@@ -91,6 +96,11 @@ init initParams =
             , language = language
             , locale = initParams.locale
             , nativeSharingAvailable = initParams.nativeSharingAvailable
+            , testMode =
+                if initParams.testMode then
+                    TestModeEnabled
+                else
+                    TestModeOff
             , translations = DefaultLanguage.defaultLanguage
             , now = Time.millisToPosix 0
             , zone = Time.utc
@@ -181,6 +191,20 @@ differsByMoreThan24Hours time1 time2 =
     in
     diffInMillis > millisIn24Hours
 
+setTestMode : BrowserEnv -> TestMode -> (BrowserEnv, Cmd msg)
+setTestMode browserEnv testMode =
+    let
+        testModeStored =
+            case testMode of
+                TestModeOff ->
+                    False
+                TestModeEnabled ->
+                    True
+
+    in
+    ({ browserEnv | testMode = testMode}
+    , Ports.setTestMode testModeStored
+    )
 
 translationsLocale : Language -> String
 translationsLocale language =

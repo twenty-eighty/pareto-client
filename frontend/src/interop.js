@@ -24,7 +24,8 @@ export const flags = ({ env }) => {
     darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
     isLoggedIn: JSON.parse(localStorage.getItem('isLoggedIn')) || false,
     locale: navigator.language,
-    nativeSharingAvailable: (navigator.share != undefined)
+    nativeSharingAvailable: (navigator.share != undefined),
+    testMode: JSON.parse(localStorage.getItem('testMode')) || false,
   }
 }
 
@@ -136,7 +137,18 @@ export const onReady = ({ app, env }) => {
           requestUser(app);
         }
         break;
+
+      case 'setTestMode':
+        setTestMode(app, value);
+        break;
+
     }
+  }
+
+  function setTestMode(app, value) {
+    localStorage.setItem('testMode', JSON.stringify(value));
+    // reload client in order to initialize relay and other lists correctly
+    location.reload();
   }
 
   // 1) A function that imports an AES-GCM key and encrypts `plaintextBytes` with it.

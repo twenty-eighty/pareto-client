@@ -44,17 +44,19 @@ type alias Flags =
     , isLoggedIn : Bool
     , locale : String
     , nativeSharingAvailable : Bool
+    , testMode : Bool
     }
 
 
 decoder : Json.Decode.Decoder Flags
 decoder =
-    Json.Decode.map5 Flags
+    Json.Decode.map6 Flags
         (Json.Decode.field "darkMode" Json.Decode.bool)
         (Json.Decode.field "environment" (Json.Decode.maybe Json.Decode.string))
         (Json.Decode.field "isLoggedIn" Json.Decode.bool)
         (Json.Decode.field "locale" Json.Decode.string)
         (Json.Decode.field "nativeSharingAvailable" Json.Decode.bool)
+        (Json.Decode.field "testMode" Json.Decode.bool)
 
 
 
@@ -81,6 +83,7 @@ init flagsResult _ =
                         , frontendUrl = ""
                         , locale = flags.locale
                         , nativeSharingAvailable = flags.nativeSharingAvailable
+                        , testMode = flags.testMode
                         }
 
                 ( nostrInit, nostrInitCmd ) =
@@ -118,6 +121,7 @@ init flagsResult _ =
                         , frontendUrl = ""
                         , locale = ""
                         , nativeSharingAvailable = False
+                        , testMode = False
                         }
             in
             ( { loginStatus = Shared.Model.LoggedOut
@@ -206,27 +210,31 @@ update _ msg model =
             , Effect.sendCmd <| Cmd.map Shared.Msg.NostrMsg nostrCmd
             )
 
-        SwitchClientRole changePath ->
-            if model.role == ClientReader then
-                ( { model | role = ClientCreator }
+        SetClientRole changePath clientRole  ->
+            let
+                newPath =
+                    if model.role == ClientReader then
+                        Route.Path.Posts
+                    else
+                        Route.Path.Read
+            in
+                ( { model | role = clientRole }
                 , if changePath then
-                    Effect.pushRoutePath Route.Path.Posts
+                    Effect.pushRoutePath newPath
 
                   else
                     Effect.none
                 )
 
-            else
-                ( { model | role = ClientReader }
-                , if changePath then
-                    Effect.pushRoutePath Route.Path.Read
-
-                  else
-                    Effect.none
-                )
-
-        SetClientRole clientRole ->
-            ( { model | role = clientRole }, Effect.none )
+        SetTestMode testMode ->
+            let
+                (browserEnv, cmd ) =
+                    BrowserEnv.setTestMode model.browserEnv testMode
+            in
+            ( { model | browserEnv = browserEnv }
+            , cmd
+                |> Effect.sendCmd
+             )
 
         UpdateNewsletterAvailabilityPubKey pubKey ->
             ( model
