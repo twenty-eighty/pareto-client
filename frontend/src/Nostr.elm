@@ -326,7 +326,7 @@ performRequest model description requestId requestData =
             ( model, model.hooks.requestEvents description False requestId configuredRelays [ eventFilter ] )
 
         RequestSubscribers eventFilter ->
-            ( model, model.hooks.requestEvents description False requestId Pareto.applicationDataRelays [ eventFilter ] )
+            ( model, model.hooks.requestEvents description False requestId (getApplicationDataRelays model) [ eventFilter ] )
 
         RequestUserData eventFilter ->
             ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
@@ -349,7 +349,7 @@ send model sendRequest =
     case sendRequest of
         SendApplicationData event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , sendEvent model Pareto.applicationDataRelays event
+            , sendEvent model (getApplicationDataRelays model) event
             )
 
         SendBookmarkListWithArticle pubKey address ->
@@ -921,6 +921,12 @@ getDefaultRelays model =
     else
         model.defaultRelays
 
+getApplicationDataRelays : Model -> List RelayUrl
+getApplicationDataRelays model =
+    if model.testMode == TestModeEnabled then
+        Pareto.testRelayUrls
+    else
+        Pareto.applicationDataRelays
 
 getRelayData : Model -> RelayUrl -> Maybe Relay
 getRelayData model relayUrl =

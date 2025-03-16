@@ -446,7 +446,7 @@ loadModifications : Nostr.Model -> PubKey -> Shared.Msg.Msg
 loadModifications nostr userPubKey =
     modificationsEventFilter userPubKey
         |> RequestSubscribers
-        |> Nostr.createRequest nostr "Load subscribers" []
+        |> Nostr.createRequest nostr "Load modifications" []
         |> Shared.Msg.RequestNostrEvents
 
 
