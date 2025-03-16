@@ -186,6 +186,7 @@
       "relays category": "Relays",
       "outbox section title": "Public Outbox/Home Relays",
       "outbox relays description": "This relay type stores all your content.",
+      "outbox relays test mode information": "Outbox relays can't be configured in test mode",
       "inbox section title": "Public Inbox Relays",
       "inbox relays description": "This relay type receives all replies, comments, likes, and zaps to your posts.",
       "add relay button title": "Add",

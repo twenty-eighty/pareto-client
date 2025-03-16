@@ -187,6 +187,7 @@
       "relays category": "Relays",
       "outbox section title": "Öffentliche Outbox/Home-Relays",
       "outbox relays description": "Dieser Relay-Typ speichert alle deine Inhalte.",
+      "outbox relays test mode information": "Outbox-Relays können im Testmodus nicht konfiguriert werden.",
       "inbox section title": "Öffentliche Inbox-Relays",
       "inbox relays description": "Dieser Relaytyp erhält alle Antworten, Kommentare, Likes und Zaps zu deinen Posts.",
       "add relay button title": "Hinzufügen",
@@ -196,7 +197,7 @@
       "media server category": "Medien-Server",
       "add nip-96 media server placeholder": "Gib die URL eines NIP-96-Servers ein",
       "add blossom media server placeholder": "Gib die URL eines Blossom-Servers ein",
-      "profile category": "Profile",
+      "profile category": "Profil",
       "profile editor title": "Profil-Editor",
       "profile editor not implemented text": "Der Profil-Editor ist noch nicht implementiert. Bitte benutze eine der bestehenden Alternativen."
    },
