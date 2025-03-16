@@ -841,7 +841,7 @@ viewMediaSelector (Settings settings) =
                 |> Button.view
                 |> Html.map settings.toMsg
             ]
-        , viewInstruction settings.browserEnv.translations model.displayType
+        , viewInstruction settings.browserEnv.translations model.displayType filesToShow
         , viewImages (Settings settings) filesToShow
         , viewConfigureMediaServerMessage (Settings settings)
         , UploadDialog.new
@@ -862,13 +862,14 @@ viewMediaSelector (Settings settings) =
 
 
 
--- show instruction how to select image depending on display mode
+-- Show instruction how to select image depending on display mode
+-- Only show if there's at least one image to select
 
 
-viewInstruction : I18Next.Translations -> DisplayType -> Html msg
-viewInstruction translations displayType =
-    case displayType of
-        DisplayModalDialog _ ->
+viewInstruction : I18Next.Translations -> DisplayType -> List UploadedFile -> Html msg
+viewInstruction translations displayType filesToShow =
+    case (displayType, List.length filesToShow > 0) of
+        (DisplayModalDialog _, True) ->
             div
                 [ css
                     [ Tw.my_2
@@ -877,7 +878,7 @@ viewInstruction translations displayType =
                 [ text <| Translations.imageSelectionInstructionalText [ translations ]
                 ]
 
-        DisplayEmbedded ->
+        (_, _) ->
             div [] []
 
 

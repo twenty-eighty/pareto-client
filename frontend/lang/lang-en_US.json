@@ -100,7 +100,7 @@
       "configure server button title": "Configure Pareto media server",
       "select image dialog title": "Select image",
       "copied link alert message": "Copied link to clipboard",
-      "image selection instructional text": "Double-click to select image"
+      "image selection instructional text": "Double click to select image"
    },
    "message dialog": {
       "warning": "Warning"
