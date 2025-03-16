@@ -1372,6 +1372,9 @@ articleReadyForPublishing model =
         ArticlePublishingError _ ->
             contentComplete
 
+        ArticleSendingNewsletterError _ ->
+            contentComplete
+
         ArticleModified ->
             contentComplete
 

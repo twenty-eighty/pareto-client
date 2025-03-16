@@ -970,15 +970,23 @@ newsletterSubscribersEvent shared pubKey articleAddressComponents articleData su
             |> Event.addAddressTag articleAddressComponents
             -- reference email gateway as encryption target
             |> Event.addPubKeyTag Pareto.emailGatewayKey Nothing Nothing
-    , content = emailSendRequestToJson senderProfileName articleData subscriberEventData
+    , content = emailSendRequestToJson shared.nostr.testMode senderProfileName articleData subscriberEventData
     , id = ""
     , sig = Nothing
     , relays = Nothing
     }
 
 
-emailSendRequestToJson : Maybe String -> ArticleData -> SubscriberEventData -> String
-emailSendRequestToJson maybeSenderName { title, summary, content, imageUrl, language } { keyHex, ivHex, url, size, active, total } =
+emailSendRequestToJson : Nostr.TestMode -> Maybe String -> ArticleData -> SubscriberEventData -> String
+emailSendRequestToJson testMode maybeSenderName { title, summary, content, imageUrl, language } { keyHex, ivHex, url, size, active, total } =
+    let
+        testModeValue =
+            if testMode == Nostr.TestModeEnabled then
+                Just True
+            else
+                Nothing
+
+    in
     [ ( "newsletter"
       , [ ( subscriberEventKey, Encode.string keyHex )
         , ( subscriberEventIv, Encode.string ivHex )
@@ -997,6 +1005,7 @@ emailSendRequestToJson maybeSenderName { title, summary, content, imageUrl, lang
           )
         ]
             |> appendOptionalObjectString "authorName" maybeSenderName
+            |> appendOptionalObjectBool "test" testModeValue
             |> Encode.object
       )
     ]
@@ -1058,7 +1067,7 @@ addStringListToObject field maybeValues acc =
 
 
 subscribeEvent : Nostr.Model -> Profile -> SubscribeInfo -> Event
-subscribeEvent _ authorProfile { pubKey, email, firstName, lastName, locale } =
+subscribeEvent nostr authorProfile { pubKey, email, firstName, lastName, locale } =
     let
         signingPubKey =
             pubKey
@@ -1074,6 +1083,12 @@ subscribeEvent _ authorProfile { pubKey, email, firstName, lastName, locale } =
             (email ++ "|" ++ authorProfile.pubKey)
                 |> SHA256.fromString
                 |> SHA256.toHex
+
+        testModeValue =
+            if nostr.testMode == Nostr.TestModeEnabled then
+                Just True
+            else
+                Nothing
 
         dTag =
             "subscribe-" ++ authorEmailHash
@@ -1094,6 +1109,7 @@ subscribeEvent _ authorProfile { pubKey, email, firstName, lastName, locale } =
                     |> appendOptionalObjectString "authorName" authorProfile.displayName
                     |> appendOptionalObjectString (fieldName FieldPubKey) pubKey
                     |> appendOptionalObjectString (fieldName FieldLocale) locale
+                    |> appendOptionalObjectBool "test" testModeValue
                     |> Encode.object
               )
             ]
@@ -1107,6 +1123,15 @@ appendOptionalObjectString key maybeValue entries =
     case maybeValue of
         Just value ->
             entries ++ [ ( key, Encode.string value ) ]
+
+        Nothing ->
+            entries
+
+appendOptionalObjectBool : String -> Maybe Bool -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
+appendOptionalObjectBool key maybeValue entries =
+    case maybeValue of
+        Just value ->
+            entries ++ [ ( key, Encode.bool value ) ]
 
         Nothing ->
             entries
