@@ -77,6 +77,7 @@ type alias Model =
     , lastRequestId : RequestId
     , lastSendId : RequestId
     , lastSendRequestId : SendRequestId
+    , testMode : TestMode
     }
 
 
@@ -88,6 +89,10 @@ type Msg
     | ReceivedNewsletterAuthorCheckResultPubKey PubKey (Result Http.Error NewsletterCheckResponse)
     | ReceivedNewsletterAuthorCheckResultNip05 Nip05 (Result Http.Error NewsletterCheckResponse)
 
+-- this type is intentionally separate from the definition in BrowserEnv as these modules should function without each other
+type TestMode
+    = TestModeOff
+    | TestModeEnabled
 
 isAuthor : Model -> PubKey -> Bool
 isAuthor model userPubKey =
@@ -267,7 +272,7 @@ performRequest model description requestId requestData =
                         |> List.map (\url -> "wss://" ++ url)
 
                 Nothing ->
-                    Pareto.defaultRelays
+                    getDefaultRelays model
                         |> List.map (\url -> "wss://" ++ url)
     in
     case requestData of
@@ -344,7 +349,7 @@ send model sendRequest =
     case sendRequest of
         SendApplicationData event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId Pareto.applicationDataRelays event
+            , sendEvent model Pareto.applicationDataRelays event
             )
 
         SendBookmarkListWithArticle pubKey address ->
@@ -358,7 +363,7 @@ send model sendRequest =
                         |> bookmarkListEvent pubKey
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model pubKey) event
+            , sendEvent model (getWriteRelayUrlsForPubKey model pubKey) event
             )
 
         SendBookmarkListWithoutArticle pubKey address ->
@@ -372,7 +377,7 @@ send model sendRequest =
                         |> bookmarkListEvent pubKey
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model pubKey) event
+            , sendEvent model (getWriteRelayUrlsForPubKey model pubKey) event
             )
 
         SendBookmarkListWithShortNote pubKey eventId ->
@@ -386,7 +391,7 @@ send model sendRequest =
                         |> bookmarkListEvent pubKey
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model pubKey) event
+            , sendEvent model (getWriteRelayUrlsForPubKey model pubKey) event
             )
 
         SendBookmarkListWithoutShortNote pubKey eventId ->
@@ -400,12 +405,12 @@ send model sendRequest =
                         |> bookmarkListEvent pubKey
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model pubKey) event
+            , sendEvent model (getWriteRelayUrlsForPubKey model pubKey) event
             )
 
         SendClientRecommendation relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId relays event
+            , sendEvent model relays event
             )
 
         SendFollowList userPubKey followList ->
@@ -415,7 +420,7 @@ send model sendRequest =
                         |> followListEvent userPubKey
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model userPubKey) event
+            , sendEvent model (getWriteRelayUrlsForPubKey model userPubKey) event
             )
 
         SendFollowListWithPubKey userPubKey toBeFollowedPubKey ->
@@ -429,7 +434,7 @@ send model sendRequest =
                         |> followListEvent userPubKey
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model userPubKey) event
+            , sendEvent model (getWriteRelayUrlsForPubKey model userPubKey) event
             )
 
         SendFollowListWithoutPubKey userPubKey toBeUnfollowedPubKey ->
@@ -443,32 +448,32 @@ send model sendRequest =
                         |> followListEvent userPubKey
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model userPubKey) event
+            , sendEvent model (getWriteRelayUrlsForPubKey model userPubKey) event
             )
 
         SendHandlerInformation relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId relays event
+            , sendEvent model relays event
             )
 
         SendLongFormArticle relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId relays event
+            , sendEvent model relays event
             )
 
         SendLongFormDraft relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId relays event
+            , sendEvent model relays event
             )
 
         SendFileStorageServerList relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId relays event
+            , sendEvent model relays event
             )
 
         SendDeletionRequest relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId relays event
+            , sendEvent model relays event
             )
 
         SendReaction userPubKey eventId articlePubKey addressComponents ->
@@ -477,7 +482,7 @@ send model sendRequest =
                     emptyEvent userPubKey KindReaction
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId
+            , sendEvent model
                 (getWriteRelayUrlsForPubKey model userPubKey)
                 { event
                     | content = "+"
@@ -491,14 +496,24 @@ send model sendRequest =
 
         SendRelayList relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId relays event
+            , sendEvent model relays event
             )
 
         SendProfile relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId relays event
+            , sendEvent model relays event
             )
 
+sendEvent : Model -> List RelayUrl -> Event -> Cmd Msg
+sendEvent model relays event =
+    let
+        actualWriteRelays =
+            if model.testMode == TestModeEnabled then
+                Pareto.testRelayUrls
+            else
+                relays
+    in
+    model.hooks.sendEvent model.lastSendRequestId actualWriteRelays event
 
 getAuthor : Model -> PubKey -> Nostr.Profile.Author
 getAuthor model pubKey =
@@ -692,8 +707,14 @@ getRelaysForPubKey model pubKey =
         userRelaysFromEvent =
             getRelayListForPubKey model pubKey
 
+        testRelays =
+            if model.testMode == TestModeEnabled then
+                Pareto.testRelayUrls
+            else
+                []
+
         combinedRelayList =
-            userRelaysFromNip05
+            (userRelaysFromNip05 ++ testRelays)
                 |> List.map (\relayUrl -> { role = ReadWriteRelay, url = relayUrl })
                 |> List.append userRelaysFromEvent
                 |> relayMetadataListWithUniqueEntries
@@ -749,15 +770,19 @@ getNip65ReadRelaysForPubKey model pubKey =
 
 getNip65WriteRelaysForPubKey : Model -> PubKey -> List Relay
 getNip65WriteRelaysForPubKey model pubKey =
-    getNip65RelaysForPubKey model pubKey
-        |> List.filterMap
-            (\( role, relay ) ->
-                if role == WriteRelay || role == ReadWriteRelay then
-                    Just relay
+    if model.testMode == TestModeEnabled then
+        Pareto.testRelayUrls
+        |> List.filterMap (getRelayData model)
+    else
+        getNip65RelaysForPubKey model pubKey
+            |> List.filterMap
+                (\( role, relay ) ->
+                    if role == WriteRelay || role == ReadWriteRelay then
+                        Just relay
 
-                else
-                    Nothing
-            )
+                    else
+                        Nothing
+                )
 
 
 getReadRelaysForPubKey : Model -> PubKey -> List Relay
@@ -781,15 +806,19 @@ getReadRelayUrlsForPubKey model pubKey =
 
 getWriteRelaysForPubKey : Model -> PubKey -> List Relay
 getWriteRelaysForPubKey model pubKey =
-    getRelaysForPubKey model pubKey
-        |> List.filterMap
-            (\( role, relay ) ->
-                if role == WriteRelay || role == ReadWriteRelay then
-                    Just relay
+    if model.testMode == TestModeEnabled then
+        Pareto.testRelayUrls
+        |> List.filterMap (getRelayData model)
+    else
+        getRelaysForPubKey model pubKey
+            |> List.filterMap
+                (\( role, relay ) ->
+                    if role == WriteRelay || role == ReadWriteRelay then
+                        Just relay
 
-                else
-                    Nothing
-            )
+                    else
+                        Nothing
+                )
 
 
 getWriteRelayUrlsForPubKey : Model -> PubKey -> List String
@@ -880,10 +909,17 @@ getRelaysForRequest model maybeRequestId =
     in
     case requestUrls of
         [] ->
-            Pareto.defaultRelays
+            getDefaultRelays model
 
         relayUrls ->
             relayUrls
+
+getDefaultRelays : Model -> List RelayUrl
+getDefaultRelays model =
+    if model.testMode == TestModeEnabled then
+        Pareto.testRelayUrls
+    else
+        model.defaultRelays
 
 
 getRelayData : Model -> RelayUrl -> Maybe Relay
@@ -1202,8 +1238,31 @@ empty =
     , lastRequestId = 0
     , lastSendId = 0
     , lastSendRequestId = 0
+    , testMode = TestModeOff
     }
 
+
+init : Hooks Msg -> TestMode -> List String -> ( Model, Cmd Msg )
+init hooks testMode relayUrls =
+    let
+        actualRelayUrls =
+            -- make sure we get NIP-11 information for test relays
+            if testMode == TestModeEnabled then
+                Pareto.testRelayUrls ++ relayUrls
+            else
+                relayUrls
+    in
+    ( { empty
+        | hooks = hooks
+        , relays = initRelayList relayUrls
+        , defaultRelays = relayUrls
+        , testMode = testMode
+      }
+    , Cmd.batch
+        [ hooks.connect (List.map Nostr.Relay.websocketUrl relayUrls)
+        , requestRelayNip11 relayUrls
+        ]
+    )
 
 paretoAuthorsFollowList : List Following
 paretoAuthorsFollowList =
@@ -1217,19 +1276,6 @@ paretoAuthorsFollowList =
                     }
             )
 
-
-init : Hooks Msg -> List String -> ( Model, Cmd Msg )
-init hooks relayUrls =
-    ( { empty
-        | hooks = hooks
-        , relays = initRelayList relayUrls
-        , defaultRelays = relayUrls
-      }
-    , Cmd.batch
-        [ hooks.connect (List.map Nostr.Relay.websocketUrl relayUrls)
-        , requestRelayNip11 relayUrls
-        ]
-    )
 
 
 requestRelayNip11 : List String -> Cmd Msg

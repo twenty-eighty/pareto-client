@@ -174,7 +174,7 @@ update props =
                     -- init call
                     relayUrls =
                         if props.testMode == BrowserEnv.TestModeEnabled then
-                            Pareto.testRelays
+                            Pareto.testRelayUrls
                         else
                             Nostr.getWriteRelaysForPubKey props.nostr props.pubKey
                             |> List.filterMap
@@ -333,10 +333,8 @@ viewPublishArticleDialog (Settings settings) =
             if settings.browserEnv.testMode == BrowserEnv.TestModeOff then
                 Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
             else
-                Pareto.testRelays
-                |> List.map (\relayUrl ->
-                    { urlWithoutProtocol = relayUrl , state = Relay.RelayReady, nip11 = Nothing}
-                    )
+                Pareto.testRelayUrls
+                |> List.filterMap (Nostr.getRelayData settings.nostr)
 
         activeSubscribersCount =
             model.subscriberEventData

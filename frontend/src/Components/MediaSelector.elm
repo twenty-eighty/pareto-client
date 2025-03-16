@@ -328,7 +328,7 @@ update props =
         ConfigureDefaultMediaServer ->
             ( Model model
             , Effect.batch
-                [ sendNip96ServerListCmd props.browserEnv props.user (Nostr.getDefaultNip96Servers props.nostr props.user.pubKey) Pareto.defaultRelays
+                [ sendNip96ServerListCmd props.browserEnv props.user (Nostr.getDefaultNip96Servers props.nostr props.user.pubKey) (Nostr.getDefaultRelays props.nostr)
                 ]
                 |> Effect.map props.toMsg
             )

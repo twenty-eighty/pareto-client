@@ -37,6 +37,8 @@ var windowLoaded = false;
 const anonymousSigner = new NDKPrivateKeySigner('cff56394373edfaa281d2e1b5ad1b8cafd8b247f229f2af2c61734fb0c7b3f84');
 const anonymousPubKey = 'ecdf32491ef8b5f1902109f495e7ca189c6fcec76cd66b888fa9fc2ce87f40db';
 
+const paretoNdkCacheDb = 'pareto-ndk-cache';
+
 export const onReady = ({ app, env }) => {
 
   var requestUserWhenLoaded = false;
@@ -147,6 +149,12 @@ export const onReady = ({ app, env }) => {
 
   function setTestMode(app, value) {
     localStorage.setItem('testMode', JSON.stringify(value));
+    // reset NDK browser cache to separate test from regular mode
+    indexedDB.deleteDatabase(paretoNdkCacheDb);
+    /* // don't log out the user
+    localStorage.clear();
+    */
+    sessionStorage.clear();
     // reload client in order to initialize relay and other lists correctly
     location.reload();
   }
@@ -296,7 +304,7 @@ export const onReady = ({ app, env }) => {
 
   function connect(app, client, nip89, relays) {
     debugLog('connect to relays', relays);
-    const dexieAdapter = new NDKCacheAdapterDexie({ dbName: 'pareto-ndk-cache' });
+    const dexieAdapter = new NDKCacheAdapterDexie({ dbName: paretoNdkCacheDb });
     window.ndk = new NDK({
       enableOutboxModel: true,
       cacheAdapter: dexieAdapter,
@@ -638,7 +646,7 @@ export const onReady = ({ app, env }) => {
         processEvents(app, -1, "sent event", [ndkEvent]);
       }).catch((error) => {
         console.log(error);
-        app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: "failed to send event" } });
+        app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: error.message } });
       });
     })
   }

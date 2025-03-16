@@ -160,8 +160,8 @@ teamRelay =
     "team-relay.pareto.space"
 
 
-testRelays : List RelayUrl
-testRelays =
+testRelayUrls : List RelayUrl
+testRelayUrls =
     [ "client-test.pareto.space"
     ]
 
