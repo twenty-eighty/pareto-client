@@ -315,7 +315,10 @@ export const onReady = ({ app, env }) => {
     });
 
     // sign in if a relay requests authorization
-    window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk });
+    window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.disconnect();
+    // Disabled signing in to relays with Auth request as NDK loops infinitely
+    // Can be tried again after NDK version upgrade
+    // window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk });
 
     // don't validate each event, it's computational intense
     window.ndk.initialValidationRatio = 0.5;
@@ -359,6 +362,9 @@ export const onReady = ({ app, env }) => {
     window.ndk.pool.on("relay:disconnect", (relay) => {
       debugLog('relay disconnected', relay);
       app.ports.receiveMessage.send({ messageType: 'relay:disconnected', value: { url: relay.url } });
+    })
+    window.ndk.pool.on("relay:auth", (relay) => {
+      debugLog('relay auth requested', relay);
     })
 
     window.ndk.connect(2000);
