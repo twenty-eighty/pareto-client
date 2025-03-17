@@ -1,6 +1,7 @@
 module Pages.Settings exposing (Model, Msg, page)
 
 import Auth
+import BrowserEnv
 import Components.Button as Button
 import Components.Categories as Categories
 import Components.Icon as Icon
@@ -339,6 +340,33 @@ type alias RelaySuggestions =
 
 viewRelays : Shared.Model -> Model -> Auth.User -> RelaysModel -> Html Msg
 viewRelays shared _ user relaysModel =
+        {-
+           searchRelays =
+               Nostr.getSearchRelaysForPubKey shared.nostr user.pubKey
+
+           searchRelaySuggestions =
+               { identifier = "search-relay-suggestions"
+               , suggestions =
+                   missingRelays inboxRelays Pareto.defaultSearchRelays
+               }
+        -}
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.gap_2
+            , Tw.m_20
+            ]
+        ]
+        [ outboxRelaySection shared user relaysModel
+        , inboxRelaySection shared user relaysModel
+
+        -- , viewRelayList searchRelays
+        -- , addRelayBox shared.theme shared.browserEnv.translations relaysModel.searchRelay (updateRelayModelSearch relaysModel) (AddSearchRelay user.pubKey)
+        ]
+
+outboxRelaySection : Shared.Model -> Auth.User -> RelaysModel -> Html Msg
+outboxRelaySection shared user relaysModel =
     let
         styles =
             stylesForTheme shared.theme
@@ -355,6 +383,29 @@ viewRelays shared _ user relaysModel =
                 missingRelays outboxRelays suggestedOutboxRelays
             }
 
+    in
+    if shared.browserEnv.testMode == BrowserEnv.TestModeEnabled then
+        div [ css
+                [ Tw.italic
+                ]
+            ]
+            [ text <| Translations.outboxRelaysTestModeInformation [ shared.browserEnv.translations ] ]
+    else
+        div []
+            [ h3
+                (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
+                [ text <| Translations.outboxSectionTitle [ shared.browserEnv.translations ] ]
+            , p [] [ text <| Translations.outboxRelaysDescription [ shared.browserEnv.translations ] ]
+            , viewRelayList shared.theme shared.browserEnv.translations (AddDefaultOutboxRelays suggestedOutboxRelays) (RemoveRelay user.pubKey WriteRelay) outboxRelays
+            , addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay outboxRelaySuggestions (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey)
+            ]
+
+inboxRelaySection : Shared.Model -> Auth.User -> RelaysModel -> Html Msg
+inboxRelaySection shared user relaysModel =
+    let
+        styles =
+            stylesForTheme shared.theme
+
         inboxRelays =
             Nostr.getNip65ReadRelaysForPubKey shared.nostr user.pubKey
 
@@ -367,32 +418,9 @@ viewRelays shared _ user relaysModel =
                 missingRelays inboxRelays suggestedInboxRelays
             }
 
-        {-
-           searchRelays =
-               Nostr.getSearchRelaysForPubKey shared.nostr user.pubKey
-
-           searchRelaySuggestions =
-               { identifier = "search-relay-suggestions"
-               , suggestions =
-                   missingRelays inboxRelays Pareto.defaultSearchRelays
-               }
-        -}
     in
-    div
-        [ css
-            [ Tw.flex
-            , Tw.flex_col
-            , Tw.gap_2
-            , Tw.m_20
-            ]
-        ]
+    div []
         [ h3
-            (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
-            [ text <| Translations.outboxSectionTitle [ shared.browserEnv.translations ] ]
-        , p [] [ text <| Translations.outboxRelaysDescription [ shared.browserEnv.translations ] ]
-        , viewRelayList shared.theme shared.browserEnv.translations (AddDefaultOutboxRelays suggestedOutboxRelays) (RemoveRelay user.pubKey WriteRelay) outboxRelays
-        , addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay outboxRelaySuggestions (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey)
-        , h3
             (styles.colorStyleGrayscaleTitle
                 ++ styles.textStyleH3
                 ++ [ css [ Tw.mt_3 ] ]
@@ -401,12 +429,7 @@ viewRelays shared _ user relaysModel =
         , p [] [ text <| Translations.inboxRelaysDescription [ shared.browserEnv.translations ] ]
         , viewRelayList shared.theme shared.browserEnv.translations (AddDefaultInboxRelays suggestedInboxRelays) (RemoveRelay user.pubKey ReadRelay) inboxRelays
         , addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay inboxRelaySuggestions (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey)
-
-        -- , viewRelayList searchRelays
-        -- , addRelayBox shared.theme shared.browserEnv.translations relaysModel.searchRelay (updateRelayModelSearch relaysModel) (AddSearchRelay user.pubKey)
         ]
-
-
 
 -- users must be whitelisted for Pareto outbox relays
 

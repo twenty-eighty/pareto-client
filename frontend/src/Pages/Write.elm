@@ -102,6 +102,7 @@ type ModalDialog
     = NoModalDialog
     | NewsletterSentDialog
     | PublishedDialog
+    | ErrorDialog
 
 
 type ArticleState
@@ -110,13 +111,15 @@ type ArticleState
     | ArticleLoadingDraft RequestId
     | ArticleLoadingDraftError String
     | ArticleSavingDraft SendRequestId
-    | ArticleDraftSaveError String
+    | ArticleDraftSavingError String
     | ArticleDraftSaved
     | ArticlePublishing SendRequestId (Maybe Subscribers.SubscriberEventData)
     | ArticlePublishingError String
     | ArticleSendingNewsletter Int Int
+    | ArticleSendingNewsletterError String
     | ArticlePublished
     | ArticleDeletingDraft SendRequestId (Maybe Subscribers.SubscriberEventData)
+    | ArticleDeletingDraftError String
 
 
 type ImageSelection
@@ -289,7 +292,7 @@ type Msg
     | ReceivedPortMessage IncomingMessage
     | MilkdownSent (Milkdown.Msg Msg)
     | PublishArticleDialogSent (PublishArticleDialog.Msg Msg)
-    | PublishedDialogButtonClicked PublishedDialogButton
+    | ModalDialogButtonClicked PublishedDialogButton
     | DropdownSent (Dropdown.Msg Language Msg)
 
 
@@ -475,9 +478,10 @@ update shared user msg model =
                 , toMsg = PublishArticleDialogSent
                 , nostr = shared.nostr
                 , pubKey = user.pubKey
+                , testMode = shared.browserEnv.testMode
                 }
 
-        PublishedDialogButtonClicked _ ->
+        ModalDialogButtonClicked _ ->
             ( { model | modalDialog = NoModalDialog }, Effect.none )
 
         DropdownSent innerMsg ->
@@ -528,6 +532,36 @@ updateWithPortMessage shared model user portMessage =
 
                 ( _, _, _ ) ->
                     ( model, Effect.none )
+
+        "error" ->
+            case
+                ( model.articleState, Nostr.External.decodeReason portMessage.value ) of
+                    ( ArticleSavingDraft _, Ok error) ->
+                        ( { model | articleState = ArticleDraftSavingError error
+                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                            , modalDialog = ErrorDialog
+                        }, Effect.none )
+
+                    ( ArticlePublishing _ _, Ok error ) ->
+                        ( { model | articleState = ArticlePublishingError error
+                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                            , modalDialog = ErrorDialog
+                        }, Effect.none )
+
+                    ( ArticleSendingNewsletter _ _, Ok error ) ->
+                        ( { model | articleState = ArticleSendingNewsletterError error
+                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                            , modalDialog = ErrorDialog
+                        }, Effect.none )
+
+                    ( ArticleDeletingDraft _ _, Ok error ) ->
+                        ( { model | articleState = ArticleDeletingDraftError error
+                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                            , modalDialog = ErrorDialog
+                        }, Effect.none )
+
+                    ( _, error) ->
+                        ( model, Effect.none )
 
         _ ->
             ( model, Effect.none )
@@ -691,7 +725,7 @@ sendPublishCmd shared model user relayUrls =
 sendDraftCmd : Shared.Model -> Model -> Auth.User -> Effect Msg
 sendDraftCmd shared model user =
     eventWithContent shared model user KindDraftLongFormContent
-        |> SendLongFormDraft Pareto.defaultRelays
+        |> SendLongFormDraft (Nostr.getDefaultRelays shared.nostr)
         |> Shared.Msg.SendNostrEvent
         |> Effect.sendSharedMsg
 
@@ -843,21 +877,21 @@ view user shared model =
             , theme = shared.theme
             }
             |> PublishArticleDialog.view
-        , viewModalDialog shared.theme shared.browserEnv model.modalDialog
+        , viewModalDialog shared.theme shared.browserEnv model.articleState model.modalDialog
         ]
     }
 
 
-viewModalDialog : Theme -> BrowserEnv -> ModalDialog -> Html Msg
-viewModalDialog theme browserEnv modalDialog =
+viewModalDialog : Theme -> BrowserEnv -> ArticleState -> ModalDialog -> Html Msg
+viewModalDialog theme browserEnv articleState modalDialog =
     case modalDialog of
         NoModalDialog ->
             div [] []
 
         NewsletterSentDialog ->
             MessageDialog.new
-                { onClick = PublishedDialogButtonClicked
-                , onClose = PublishedDialogButtonClicked OkButton
+                { onClick = ModalDialogButtonClicked
+                , onClose = ModalDialogButtonClicked OkButton
                 , title = Translations.newsletterSentMessageBoxTitle [ browserEnv.translations ]
                 , content = div [] [ text <| Translations.newsletterSentMessageBoxText [ browserEnv.translations ] ]
                 , buttons =
@@ -872,8 +906,8 @@ viewModalDialog theme browserEnv modalDialog =
 
         PublishedDialog ->
             MessageDialog.new
-                { onClick = PublishedDialogButtonClicked
-                , onClose = PublishedDialogButtonClicked OkButton
+                { onClick = ModalDialogButtonClicked
+                , onClose = ModalDialogButtonClicked OkButton
                 , title = Translations.articlePublishedMessageBoxTitle [ browserEnv.translations ]
                 , content = div [] [ text <| Translations.articlePublishedMessageBoxText [ browserEnv.translations ] ]
                 , buttons =
@@ -886,6 +920,21 @@ viewModalDialog theme browserEnv modalDialog =
                 }
                 |> MessageDialog.view
 
+        ErrorDialog ->
+            MessageDialog.new
+                { onClick = ModalDialogButtonClicked
+                , onClose = ModalDialogButtonClicked OkButton
+                , title = Translations.errorMessageBoxTitle [ browserEnv.translations ]
+                , content = div [] [ text <| Maybe.withDefault "" (articleStateToString browserEnv articleState) ]
+                , buttons =
+                    [ { style = MessageDialog.PrimaryButton
+                      , title = "Ok"
+                      , identifier = OkButton
+                      }
+                    ]
+                , theme = theme
+                }
+                |> MessageDialog.view
 
 viewArticleState : BrowserEnv -> Theme -> ArticleState -> Html Msg
 viewArticleState browserEnv theme articleState =
@@ -946,7 +995,7 @@ articleStateToString browserEnv articleState =
         ArticleDraftSaved ->
             Just <| Translations.articleDraftSavedState [ browserEnv.translations ]
 
-        ArticleDraftSaveError error ->
+        ArticleDraftSavingError error ->
             Just <| Translations.articleDraftSaveError [ browserEnv.translations ] ++ ": " ++ error
 
         ArticlePublishing _ _ ->
@@ -955,15 +1004,20 @@ articleStateToString browserEnv articleState =
         ArticlePublishingError error ->
             Just <| Translations.articlePublishingError [ browserEnv.translations ] ++ ": " ++ error
 
-        ArticleSendingNewsletter _ _ ->
-            Just <| Translations.articleSendingNewsletterState [ browserEnv.translations ]
-
         ArticlePublished ->
             Just <| Translations.articlePublishedState [ browserEnv.translations ]
 
-        ArticleDeletingDraft _ _ ->
-            Just <| Translations.articleDeletingDraftState [ browserEnv.translations ]
+        ArticleSendingNewsletter _ _ ->
+            Just <| Translations.sendingNewsletterState [ browserEnv.translations ]
 
+        ArticleSendingNewsletterError error ->
+            Just <| Translations.sendingNewsletterError [ browserEnv.translations ] ++ ": " ++ error
+
+        ArticleDeletingDraft _ _ ->
+            Just <| Translations.deletingDraftState [ browserEnv.translations ]
+
+        ArticleDeletingDraftError error ->
+            Just <| Translations.deletingDraftError [ browserEnv.translations ] ++ ": " ++ error
 
 articleStateProcessIndicator : ArticleState -> Maybe (Html Msg)
 articleStateProcessIndicator articleState =
@@ -986,7 +1040,7 @@ articleStateProcessIndicator articleState =
         ArticleDraftSaved ->
             Nothing
 
-        ArticleDraftSaveError _ ->
+        ArticleDraftSavingError _ ->
             Nothing
 
         ArticlePublishing _ _ ->
@@ -998,12 +1052,17 @@ articleStateProcessIndicator articleState =
         ArticleSendingNewsletter _ _ ->
             Just <| (Loaders.rings [] |> Html.fromUnstyled)
 
+        ArticleSendingNewsletterError _ ->
+            Nothing
+
         ArticlePublished ->
             Nothing
 
         ArticleDeletingDraft _ _ ->
             Just <| (Loaders.rings [] |> Html.fromUnstyled)
 
+        ArticleDeletingDraftError _ ->
+            Nothing
 
 viewMediaSelector : Auth.User -> Shared.Model -> Model -> Html Msg
 viewMediaSelector user shared model =
@@ -1298,17 +1357,29 @@ publishButton browserEnv model theme =
 
 articleReadyForPublishing : Model -> Bool
 articleReadyForPublishing model =
-    (model.articleState == ArticleDraftSaved || model.articleState == ArticleModified)
-        && model.title
-        /= Nothing
-        && model.summary
-        /= Nothing
-        && model.content
-        /= Nothing
-        && model.image
-        /= Nothing
-        && model.identifier
-        /= Nothing
+    let
+        contentComplete =
+            (model.title /= Nothing)
+                && (model.summary /= Nothing)
+                && (model.content /= Nothing)
+                && (model.image /= Nothing)
+                && (model.identifier /= Nothing)
+    in
+    case model.articleState of
+        ArticleDraftSaved ->
+            contentComplete
+
+        ArticlePublishingError _ ->
+            contentComplete
+
+        ArticleSendingNewsletterError _ ->
+            contentComplete
+
+        ArticleModified ->
+            contentComplete
+
+        _ ->
+            False
 
 
 previewButton : BrowserEnv -> Model -> Theme -> Html Msg
@@ -1346,4 +1417,12 @@ saveDraftButton browserEnv model theme =
 
 articleReadyForSaving : Model -> Bool
 articleReadyForSaving model =
-    model.articleState == ArticleModified
+    case model.articleState of
+        ArticleModified ->
+            True
+
+        ArticleDraftSavingError _ ->
+            True
+
+        _ ->
+            False

@@ -4,6 +4,7 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.Button
 import Components.Icon as Icon exposing (Icon(..))
 import Components.OnboardingDialog as OnboardingDialog
+import Components.Switch as Switch
 import Css
 import Dict
 import Effect exposing (Effect)
@@ -29,7 +30,7 @@ import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
 import Ui.Profile
-import Ui.Styles exposing (Styles)
+import Ui.Styles exposing (Theme, Styles)
 import View exposing (View)
 
 
@@ -56,6 +57,8 @@ clientRoleForRoutePath environment path =
         , translations = I18Next.initialTranslations
         , maybeBookmarksCount = Nothing
         , currentPath = path
+        , testMode = BrowserEnv.TestModeOff
+        , theme = Ui.Styles.defaultTheme
         }
         |> List.any (\item -> item.path == path)
         |> (\isInReaderList ->
@@ -87,6 +90,8 @@ type alias SidebarItemParams =
     , translations : I18Next.Translations
     , maybeBookmarksCount : Maybe Int
     , currentPath : Route.Path.Path
+    , testMode : BrowserEnv.TestMode
+    , theme : Theme
     }
 
 
@@ -197,7 +202,8 @@ type Msg
     | OpenProfileMenu
     | CloseModal
     | LoginDialogSent OnboardingDialog.Msg
-    | SwitchClientRole Bool Bool
+    | SetClientRole Bool ClientRole
+    | SetTestMode BrowserEnv.TestMode
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -233,8 +239,11 @@ update _ msg model =
                     , Effect.none
                     )
 
-        SwitchClientRole changePath _ ->
-            ( model, Effect.sendSharedMsg <| Shared.Msg.SwitchClientRole changePath )
+        SetClientRole changePath clientRole ->
+            ( model, Effect.sendSharedMsg <| Shared.Msg.SetClientRole changePath clientRole )
+
+        SetTestMode testMode ->
+            ( model, Effect.sendSharedMsg <| Shared.Msg.SetTestMode testMode )
 
 
 subscriptions : Model -> Sub Msg
@@ -319,6 +328,8 @@ viewSidebar styles shared currentPath toContentMsg content =
             , translations = shared.browserEnv.translations
             , maybeBookmarksCount = maybeBookmarksCount
             , currentPath = currentPath
+            , testMode = shared.browserEnv.testMode
+            , theme = shared.theme
             }
     in
     Html.div
@@ -385,6 +396,11 @@ viewSidebar styles shared currentPath toContentMsg content =
                     [ -- viewBanner
                       if roleSwitchButtonEnabled shared.nostr shared.loginStatus then
                         clientRoleSwitch sidebarItemParams
+
+                      else
+                        div [] []
+                    , if sidebarItemParams.isBetaTester then
+                        testModeSwitch sidebarItemParams
 
                       else
                         div [] []
@@ -511,118 +527,31 @@ clientRoleSwitch sidebarItemParams =
                     routePathIsInList
                         { sidebarItemParams | clientRole = ClientReader }
     in
-    {- Switch Container -}
-    div
-        [ css
-            [ Tw.flex
-            , Tw.items_center
-            , Tw.space_x_4
-            , Bp.lg [ Tw.mx_10 ]
-            , Tw.ml_4
-            ]
-        ]
-        [ {- Label for the Switch -}
-          span
-            [ css
-                [ Tw.text_color Theme.gray_700
-                , Tw.font_medium
-                ]
-            ]
-            [ if sidebarItemParams.clientRole == ClientReader then
-                text <| Translations.readerClientRoleText [ sidebarItemParams.translations ]
+    Switch.new
+        { id = "clientrole"
+        , onClick = SetClientRole (not currentPathPresentForOtherRole)
+        , labelOff = Translations.readerClientRoleText [ sidebarItemParams.translations ]
+        , labelOn = Translations.creatorClientRoleText [ sidebarItemParams.translations ]
+        , state = sidebarItemParams.clientRole
+        , stateOff = ClientReader
+        , stateOn = ClientCreator
+        , theme = sidebarItemParams.theme
+        }
+        |> Switch.view
 
-              else
-                text <| Translations.creatorClientRoleText [ sidebarItemParams.translations ]
-            ]
-        , {- Switch -}
-          label
-            [ Attr.for "toggle-switch"
-            , css
-                [ Tw.relative
-                , Tw.cursor_pointer
-                ]
-            ]
-            [ {- Hidden checkbox -}
-              input
-                [ Attr.type_ "checkbox"
-                , Attr.id "toggle-switch"
-                , Events.onCheck <| SwitchClientRole (not currentPathPresentForOtherRole)
-                , css
-                    [ Tw.sr_only
-                    ]
-                ]
-                []
-            , {- Switch Background -}
-              if sidebarItemParams.clientRole == ClientReader then
-                div
-                    [ Attr.id "switch-background"
-                    , css
-                        [ Tw.w_11
-                        , Tw.h_6
-                        , Tw.rounded_full
-                        , Tw.transition_all
-                        , Tw.duration_300
-                        , Tw.bg_color Theme.gray_300
-                        ]
-                    ]
-                    []
-
-              else
-                div
-                    [ Attr.id "switch-background"
-                    , css
-                        [ Tw.w_11
-                        , Tw.h_6
-                        , Tw.rounded_full
-                        , Tw.transition_all
-                        , Tw.duration_300
-                        , Tw.bg_color Theme.blue_600
-                        ]
-                    ]
-                    []
-            , {- Switch Knob -}
-              if sidebarItemParams.clientRole == ClientReader then
-                div
-                    [ Attr.id "switch-knob"
-                    , css
-                        [ Tw.absolute
-                        , Tw.top_0_dot_5
-                        , Tw.left_0_dot_5
-                        , Tw.w_5
-                        , Tw.h_5
-                        , Tw.rounded_full
-                        , Tw.bg_color Theme.white
-                        , Tw.border
-                        , Tw.border_color Theme.gray_300
-                        , Tw.transition_transform
-                        , Tw.duration_300
-                        ]
-                    ]
-                    []
-
-              else
-                div
-                    [ Attr.id "switch-knob"
-                    , css
-                        [ Tw.absolute
-                        , Tw.top_0_dot_5
-                        , Tw.left_0_dot_5
-                        , Tw.w_5
-                        , Tw.h_5
-                        , Tw.rounded_full
-                        , Tw.bg_color Theme.white
-                        , Tw.border
-                        , Tw.border_color Theme.white
-                        , Tw.transform
-                        , Tw.translate_x_full
-                        , Tw.transition_transform
-                        , Tw.duration_300
-                        ]
-                    ]
-                    []
-            ]
-        ]
-
+testModeSwitch : SidebarItemParams -> Html Msg
+testModeSwitch sidebarItemParams =
+    Switch.new
+        { id = "testmode"
+        , onClick = SetTestMode 
+        , labelOff = Translations.testModeOffText [ sidebarItemParams.translations ]
+        , labelOn = Translations.testModeOnText [ sidebarItemParams.translations ]
+        , state = sidebarItemParams.testMode
+        , stateOff = BrowserEnv.TestModeOff
+        , stateOn = BrowserEnv.TestModeEnabled
+        , theme = sidebarItemParams.theme
+        }
+        |> Switch.view
 
 profileForUser : Shared.Model -> LoginStatus -> Maybe Profile
 profileForUser shared loggedIn =

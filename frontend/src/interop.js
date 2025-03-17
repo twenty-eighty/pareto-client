@@ -24,7 +24,8 @@ export const flags = ({ env }) => {
     darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
     isLoggedIn: JSON.parse(localStorage.getItem('isLoggedIn')) || false,
     locale: navigator.language,
-    nativeSharingAvailable: (navigator.share != undefined)
+    nativeSharingAvailable: (navigator.share != undefined),
+    testMode: JSON.parse(localStorage.getItem('testMode')) || false,
   }
 }
 
@@ -35,6 +36,8 @@ var windowLoaded = false;
 
 const anonymousSigner = new NDKPrivateKeySigner('cff56394373edfaa281d2e1b5ad1b8cafd8b247f229f2af2c61734fb0c7b3f84');
 const anonymousPubKey = 'ecdf32491ef8b5f1902109f495e7ca189c6fcec76cd66b888fa9fc2ce87f40db';
+
+const paretoNdkCacheDb = 'pareto-ndk-cache';
 
 export const onReady = ({ app, env }) => {
 
@@ -136,7 +139,24 @@ export const onReady = ({ app, env }) => {
           requestUser(app);
         }
         break;
+
+      case 'setTestMode':
+        setTestMode(app, value);
+        break;
+
     }
+  }
+
+  function setTestMode(app, value) {
+    localStorage.setItem('testMode', JSON.stringify(value));
+    // reset NDK browser cache to separate test from regular mode
+    indexedDB.deleteDatabase(paretoNdkCacheDb);
+    /* // don't log out the user
+    localStorage.clear();
+    */
+    sessionStorage.clear();
+    // reload client in order to initialize relay and other lists correctly
+    location.reload();
   }
 
   // 1) A function that imports an AES-GCM key and encrypts `plaintextBytes` with it.
@@ -284,7 +304,7 @@ export const onReady = ({ app, env }) => {
 
   function connect(app, client, nip89, relays) {
     debugLog('connect to relays', relays);
-    const dexieAdapter = new NDKCacheAdapterDexie({ dbName: 'pareto-ndk-cache' });
+    const dexieAdapter = new NDKCacheAdapterDexie({ dbName: paretoNdkCacheDb });
     window.ndk = new NDK({
       enableOutboxModel: true,
       cacheAdapter: dexieAdapter,
@@ -295,7 +315,10 @@ export const onReady = ({ app, env }) => {
     });
 
     // sign in if a relay requests authorization
-    window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk });
+    window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.disconnect();
+    // Disabled signing in to relays with Auth request as NDK loops infinitely
+    // Can be tried again after NDK version upgrade
+    // window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk });
 
     // don't validate each event, it's computational intense
     window.ndk.initialValidationRatio = 0.5;
@@ -339,6 +362,9 @@ export const onReady = ({ app, env }) => {
     window.ndk.pool.on("relay:disconnect", (relay) => {
       debugLog('relay disconnected', relay);
       app.ports.receiveMessage.send({ messageType: 'relay:disconnected', value: { url: relay.url } });
+    })
+    window.ndk.pool.on("relay:auth", (relay) => {
+      debugLog('relay auth requested', relay);
     })
 
     window.ndk.connect(2000);
@@ -626,7 +652,7 @@ export const onReady = ({ app, env }) => {
         processEvents(app, -1, "sent event", [ndkEvent]);
       }).catch((error) => {
         console.log(error);
-        app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: "failed to send event" } });
+        app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: error.message } });
       });
     })
   }

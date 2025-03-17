@@ -160,17 +160,24 @@ teamRelay =
     "team-relay.pareto.space"
 
 
+testRelayUrls : List RelayUrl
+testRelayUrls =
+    [ "client-test.pareto.space"
+    ]
+
+
+
 paretoOutboxRelays : List RelayUrl
 paretoOutboxRelays =
     [ "nostr.pareto.space"
+    , "nostr.pareto.town"
     , "pareto.nostr1.com"
     ]
 
 
 recommendedOutboxRelays : List RelayUrl
 recommendedOutboxRelays =
-    [ "relay.snort.social"
-    , "relay.nostr.band"
+    [ "relay.nostr.band"
     , "relay.damus.io"
     , "nos.lol"
     , "offchain.pub"
@@ -181,6 +188,7 @@ recommendedOutboxRelays =
 recommendedInboxRelays : List RelayUrl
 recommendedInboxRelays =
     [ "nostr.pareto.space"
+    , "nostr.pareto.town"
     , "pareto.nostr1.com"
     ]
         ++ recommendedOutboxRelays

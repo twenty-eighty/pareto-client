@@ -34,6 +34,9 @@ fontFamilySourceSerifPro =
 type Theme
     = ParetoTheme
 
+defaultTheme : Theme
+defaultTheme =
+    ParetoTheme
 
 type alias StyleBundle msg =
     List (Html.Attribute msg)

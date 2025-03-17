@@ -71,6 +71,12 @@ searchEvents description closeOnEose requestId relays filters =
                 ]
         }
 
+setTestMode : Bool -> Cmd msg
+setTestMode testMode =
+    sendCommand
+        { command = "setTestMode"
+        , value = Encode.bool testMode
+        }
 
 requestBlossomAuth : RequestId -> String -> String -> HttpRequestMethod -> Cmd msg
 requestBlossomAuth requestId server content method =
