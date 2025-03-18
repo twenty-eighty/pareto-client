@@ -42,6 +42,7 @@ import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Sidebar
 import Translations.Subscribers as Translations
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme, stylesForTheme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
@@ -722,7 +723,7 @@ viewModifications theme browserEnv model =
             ]
 
     else
-        div [] []
+        emptyHtml
 
 
 viewModification : BrowserEnv -> Modification -> Html Msg

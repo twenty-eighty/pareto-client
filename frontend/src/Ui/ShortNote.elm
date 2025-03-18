@@ -12,7 +12,7 @@ import Nostr.Types exposing (EventId, PubKey)
 import Tailwind.Utilities as Tw
 import Ui.Links exposing (linkElementForAuthor)
 import Ui.Profile
-import Ui.Shared exposing (Actions, extendedZapRelays, pubkeyInboxRelays)
+import Ui.Shared exposing (Actions, emptyHtml, extendedZapRelays, pubkeyInboxRelays)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 import Url
 
@@ -272,7 +272,7 @@ viewContent styles maybeDescription =
                 (formattedContent description)
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 formattedContent : String -> List (Html msg)

@@ -14,6 +14,7 @@ import Shared
 import Shared.Model exposing (ClientRole(..))
 import Tailwind.Utilities as Tw
 import Translations.Internals as Translations
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme, stylesForTheme)
 import View exposing (View)
 
@@ -98,7 +99,7 @@ showErrorMessages theme translations nostr =
     in
     case Nostr.getErrorMessages nostr of
         [] ->
-            div [] []
+            emptyHtml
 
         errorMessages ->
             div []

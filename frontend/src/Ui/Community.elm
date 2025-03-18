@@ -12,6 +12,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Ui.Profile
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (fontFamilyUnbounded)
 
 
@@ -67,7 +68,7 @@ viewImage maybeImage =
                 ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewName : String -> Html msg
@@ -99,7 +100,7 @@ viewSummary maybeDescription =
                 [ text description ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewModerators : BrowserEnv -> Dict PubKey Profile -> List Moderator -> Html msg
@@ -122,7 +123,7 @@ viewModerators browserEnv profiles moderators =
             ]
 
     else
-        div [] []
+        emptyHtml
 
 
 viewModerator : Maybe Profile -> ProfileValidation -> Moderator -> Html msg

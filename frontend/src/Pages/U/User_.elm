@@ -17,6 +17,7 @@ import Shared
 import Shared.Model
 import Shared.Msg
 import Ui.Profile exposing (FollowType(..))
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
@@ -181,7 +182,7 @@ view shared model =
                 viewProfile shared model profile
 
             Nothing ->
-                div [] []
+                emptyHtml
         ]
     }
 

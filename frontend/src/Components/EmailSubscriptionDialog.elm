@@ -24,7 +24,7 @@ import Subscribers exposing (SubscribeInfo)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.EmailSubscriptionDialog as Translations
-import Ui.Shared
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme, stylesForTheme)
 
 
@@ -230,7 +230,7 @@ view dialog =
     in
     case model.state of
         DialogHidden ->
-            div [] []
+            emptyHtml
 
         DialogVisible emailSubscriptionData ->
             Ui.Shared.modalDialog

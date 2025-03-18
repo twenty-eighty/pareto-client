@@ -26,6 +26,7 @@ import Tailwind.Utilities as Tw
 import Time
 import Translations.About as Translations
 import Ui.Profile exposing (FollowType(..))
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 import View exposing (View)
 
@@ -296,7 +297,7 @@ viewActionButtons theme browserEnv handlerInformation loginStatus =
                 ]
 
         _ ->
-            div [] []
+            emptyHtml
 
 
 viewPublishAuthorsListButton : Theme -> BrowserEnv -> PubKey -> Html Msg
@@ -310,7 +311,7 @@ viewPublishAuthorsListButton theme browserEnv pubKey =
             |> Button.view
 
     else
-        div [] []
+        emptyHtml
 
 
 viewPublishProfileButton : Theme -> BrowserEnv -> PubKey -> HandlerInformation -> Html Msg
@@ -324,7 +325,7 @@ viewPublishProfileButton theme browserEnv pubKey handlerInformation =
             |> Button.view
 
     else
-        div [] []
+        emptyHtml
 
 
 viewPublishHandlerInformationButton : Theme -> BrowserEnv -> PubKey -> HandlerInformation -> Html Msg
@@ -338,7 +339,7 @@ viewPublishHandlerInformationButton theme browserEnv pubKey handlerInformation =
             |> Button.view
 
     else
-        div [] []
+        emptyHtml
 
 
 viewTechDetails : Theme -> BrowserEnv -> Html Msg
@@ -440,4 +441,4 @@ viewPrivacyPolicyLink styles translations language =
                 [ text <| Translations.privacyPolicyLinkText [ translations ] ]
 
         _ ->
-            div [] []
+            emptyHtml

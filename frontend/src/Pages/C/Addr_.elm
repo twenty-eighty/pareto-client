@@ -25,6 +25,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme)
 import Ui.View
 import Url
@@ -152,7 +153,7 @@ view shared model =
         [ model.nip19
             |> Maybe.map (Nostr.getCommunityForNip19 shared.nostr)
             |> Maybe.map (viewCommunity shared.browserEnv shared.nostr)
-            |> Maybe.withDefault (div [] [])
+            |> Maybe.withDefault (emptyHtml)
         ]
     }
 
@@ -164,4 +165,4 @@ viewCommunity browserEnv nostr maybeCommunity =
             Ui.View.viewCommunity browserEnv nostr community
 
         Nothing ->
-            div [] []
+            emptyHtml

@@ -13,6 +13,7 @@ import Parser
 import SyntaxHighlight
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles)
 
 
@@ -64,7 +65,7 @@ renderer styles fnGetProfile =
             case ( image.title, image.src ) of
                 ( _, "" ) ->
                     -- ignore images without src attribute
-                    Html.div [] []
+                    emptyHtml
 
                 ( Just "1.00", src ) ->
                     -- dirty fix - route96 server delivers caption as "1.00" even if it wasn't set explicitly

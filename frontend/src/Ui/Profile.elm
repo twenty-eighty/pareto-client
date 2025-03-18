@@ -20,7 +20,7 @@ import Tailwind.Utilities as Tw
 import Time
 import Translations.Profile as Translations
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
-import Ui.Shared exposing (extendedZapRelays, pubkeyInboxRelays, zapButton)
+import Ui.Shared exposing (emptyHtml, extendedZapRelays, pubkeyInboxRelays, zapButton)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 
 
@@ -170,7 +170,7 @@ viewSubscriptionButton _ profileViewData =
                 |> Button.view
 
         _ ->
-            div [] []
+            emptyHtml
 
 
 followButton : Theme -> BrowserEnv -> PubKey -> FollowType msg -> Html msg
@@ -194,7 +194,7 @@ followButton theme browserEnv profilePubKey following =
                 |> Button.view
 
         UnknownFollowing ->
-            div [] []
+            emptyHtml
 
 
 viewWebsite : Styles msg -> Profile -> Html msg
@@ -210,7 +210,7 @@ viewWebsite styles profile =
                 [ text website ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 websiteLink : String -> String
@@ -231,7 +231,7 @@ viewNip05 styles profile =
                 [ text <| Nip05.nip05ToDisplayString nip05 ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewLNAddress : Styles msg -> Profile -> Set String -> Html msg
@@ -243,7 +243,7 @@ viewLNAddress styles profile zapRelays =
                     (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ [ css [ Tw.flex, Tw.items_center ] ])
                     [ text <| lud16, zapButton profile.pubKey Nothing zapRelays "0" ]
             )
-        |> Maybe.withDefault (div [] [])
+        |> Maybe.withDefault (emptyHtml)
 
 
 viewNpub : Styles msg -> Profile -> Html msg
@@ -261,7 +261,7 @@ viewNpub styles profile =
                 [ text <| shortenedPubKey 11 nip19 ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewBanner : Maybe String -> Html msg
@@ -287,7 +287,7 @@ viewBanner maybeImage =
                 ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewProfilePubKey : PubKey -> Html msg
@@ -353,7 +353,7 @@ validationIcon : Int -> ProfileValidation -> Html msg
 validationIcon width validation =
     case validation of
         ValidationUnknown ->
-            div [] []
+            emptyHtml
 
         ValidationPending ->
             Graphics.featherMehIcon width
@@ -441,4 +441,4 @@ timeParagraph browserEnv maybePublishedAt =
                 [ text <| BrowserEnv.formatDate browserEnv publishedAt ]
 
         Nothing ->
-            div [] []
+            emptyHtml

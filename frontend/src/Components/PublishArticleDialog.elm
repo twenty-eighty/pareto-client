@@ -27,7 +27,7 @@ import Subscribers
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.PublishArticleDialog as Translations
-import Ui.Shared
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
 
 
@@ -312,7 +312,7 @@ view dialog =
     in
     case model.state of
         DialogHidden ->
-            div [] []
+            emptyHtml
 
         DialogVisible ->
             Ui.Shared.modalDialog
@@ -353,7 +353,7 @@ viewPublishArticleDialog (Settings settings) =
                     |> Dropdown.view
 
             else
-                div [] []
+                emptyHtml
 
         optionalRelaysSection =
             case Dropdown.selectedItem model.publishingListbox of
@@ -361,13 +361,13 @@ viewPublishArticleDialog (Settings settings) =
                     relaysSection (Settings settings) relays
 
                 Just PublishNewsletterOnly ->
-                    div [] []
+                    emptyHtml
 
                 Just PublishArticleAndNewsletter ->
                     relaysSection (Settings settings) relays
 
                 Nothing ->
-                    div [] []
+                    emptyHtml
     in
     div
         [ css

@@ -30,6 +30,7 @@ import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
 import Ui.Profile
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme, Styles)
 import View exposing (View)
 
@@ -283,7 +284,7 @@ viewModalDialog model =
                 |> OnboardingDialog.view
 
         _ ->
-            div [] []
+            emptyHtml
 
 
 viewSidebar : Styles contentMsg -> Shared.Model.Model -> Route.Path.Path -> (Msg -> contentMsg) -> List (Html contentMsg) -> Html contentMsg
@@ -398,12 +399,12 @@ viewSidebar styles shared currentPath toContentMsg content =
                         clientRoleSwitch sidebarItemParams
 
                       else
-                        div [] []
+                        emptyHtml
                     , if sidebarItemParams.isBetaTester then
                         testModeSwitch sidebarItemParams
 
                       else
-                        div [] []
+                        emptyHtml
                     , img
                         [ src "/images/Pareto-Banner-Text.svg"
                         , css
@@ -791,7 +792,7 @@ viewLinktoInternalPage : Nostr.Model -> Html msg
 viewLinktoInternalPage nostr =
     case Nostr.getErrorMessages nostr of
         [] ->
-            div [] []
+            emptyHtml
 
         _ ->
             a

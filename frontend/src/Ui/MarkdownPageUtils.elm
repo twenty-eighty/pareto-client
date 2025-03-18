@@ -11,6 +11,7 @@ import Shared
 import Tailwind.Utilities as Tw
 import Time exposing (Month(..))
 import Translations.TechDetails as Translations
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme)
 import View exposing (View)
 
@@ -80,7 +81,7 @@ view shared model =
                    ]
             )
             [ model.markdown
-                |> foldMaybe (div [] [])
+                |> foldMaybe (emptyHtml)
                     (\markdown ->
                         case Markdown.markdownViewHtml styles Nothing (\_ -> Nothing) markdown of
                             Ok html ->

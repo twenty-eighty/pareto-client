@@ -44,7 +44,7 @@ import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Task exposing (Task)
 import Translations.UploadDialog as Translations
-import Ui.Shared exposing (modalDialog)
+import Ui.Shared exposing (emptyHtml, modalDialog)
 import Ui.Styles exposing (stylesForTheme)
 import Url
 
@@ -930,7 +930,7 @@ view (Settings settings) =
     in
     case ( model.state, displayMode (Model model) ) of
         ( DialogClosed, _ ) ->
-            div [] []
+            emptyHtml
 
         ( DialogVisible, WaitingForFiles ) ->
             viewWaitingForFiles (Settings settings)
@@ -1180,7 +1180,7 @@ viewFileUploadBlossom theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                         []
 
                                 Nothing ->
-                                    div [] []
+                                    emptyHtml
                             ]
                         , Button.new
                             { label = Translations.startUploadButtonText [ browserEnv.translations ]
@@ -1388,7 +1388,7 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                         []
 
                                 Nothing ->
-                                    div [] []
+                                    emptyHtml
                             ]
                         , Button.new
                             { label = Translations.startUploadButtonText [ browserEnv.translations ]

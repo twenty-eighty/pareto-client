@@ -16,6 +16,7 @@ import Process
 import Tailwind.Utilities as Tw
 import Task
 import Ui.Styles exposing (Theme, stylesForTheme)
+import Ui.Shared exposing (emptyHtml)
 
 
 type AlertTimerMessage
@@ -160,4 +161,4 @@ view (Settings settings) =
                 ]
 
         Nothing ->
-            div [] []
+            emptyHtml

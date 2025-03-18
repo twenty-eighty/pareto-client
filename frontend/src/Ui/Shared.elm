@@ -23,6 +23,9 @@ import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 
+emptyHtml : Html msg
+emptyHtml =
+    text ""
 
 extendUrlForScaling : Int -> String -> String
 extendUrlForScaling width urlString =
@@ -324,7 +327,7 @@ zapButton pubKey maybeNip19Target zapRelays instanceId =
                             []
                         )
                     )
-                |> Maybe.withDefault ( [], div [] [] )
+                |> Maybe.withDefault ( [], emptyHtml )
     in
     button
         (nostrZapAttributes

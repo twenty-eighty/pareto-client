@@ -2,6 +2,7 @@ module ModalDialog exposing (ModalDialog(..), view)
 
 import Components.OnboardingDialog
 import Html.Styled as Html exposing (Html)
+import Ui.Shared exposing (emptyHtml)
 
 
 type ModalDialog
@@ -20,4 +21,4 @@ view dialog =
             Components.OnboardingDialog.view onboardingData
 
         None ->
-            Html.div [] []
+            emptyHtml

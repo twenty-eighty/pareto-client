@@ -13,7 +13,6 @@ import Tailwind.Color as TailwindColor
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 
-
 type Icon
     = FeatherIcon FeatherIcons.Icon
     | MaterialIcon MaterialIcon Int Coloring
@@ -63,7 +62,7 @@ view icon =
             viewParetoIcon paretoIcon size coloring
 
         DummyIcon _ ->
-            div [] []
+            Html.text ""
 
 
 viewWithSize : Int -> Icon -> Html msg
@@ -82,7 +81,7 @@ viewWithSize size icon =
             viewParetoIcon paretoIcon size coloring
 
         DummyIcon _ ->
-            div [] []
+            Html.text ""
 
 
 viewMaterialIcon : MaterialIcon -> Int -> Coloring -> Html msg

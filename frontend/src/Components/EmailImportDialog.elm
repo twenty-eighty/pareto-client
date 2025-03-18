@@ -27,7 +27,7 @@ import Tailwind.Utilities as Tw
 import Task exposing (Task)
 import Time
 import Translations.EmailImportDialog as Translations
-import Ui.Shared
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme)
 
 
@@ -526,7 +526,7 @@ view dialog =
     in
     case model.state of
         DialogHidden ->
-            div [] []
+            emptyHtml
 
         DialogSelection ->
             Ui.Shared.modalDialog
@@ -911,7 +911,7 @@ viewMappingError translations emailNotMapped =
             ]
 
     else
-        div [] []
+        emptyHtml
 
 
 

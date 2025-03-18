@@ -22,7 +22,7 @@ import Svg.Styled as Svg exposing (path, svg)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.ZapDialog as Translations
-import Ui.Shared
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
 
 
@@ -182,7 +182,7 @@ view dialog =
     in
     case model.state of
         DialogHidden ->
-            div [] []
+            emptyHtml
 
         ZapAmountSelection zapAmountSelectionData ->
             Ui.Shared.modalDialog

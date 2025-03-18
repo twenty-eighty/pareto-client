@@ -32,6 +32,7 @@ import Tailwind.Utilities as Tw
 import Translations.Settings as Translations
 import Ui.Profile exposing (FollowType(..))
 import Ui.Relay exposing (viewRelayImage)
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 import View exposing (View)
 
@@ -796,7 +797,7 @@ viewProfile shared _ user =
                             }
                             shared
                     )
-                |> Maybe.withDefault (div [] [])
+                |> Maybe.withDefault (emptyHtml)
     in
     div
         [ css

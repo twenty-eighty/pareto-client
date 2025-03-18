@@ -21,6 +21,7 @@ import Route.Path
 import Shared
 import Shared.Msg
 import Translations.Bookmarks as Translations
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
@@ -297,15 +298,15 @@ viewArticleBookmarks user shared _ addressComponents =
 
 
 viewHashtagBookmarks user shared model hashtags =
-    div [] []
+    emptyHtml
 
 
 viewNoteBookmarks user shared model notes =
-    div [] []
+    emptyHtml
 
 
 viewUrlBookmarks user shared model urls =
-    div [] []
+    emptyHtml
 
 
 availableCategories : BookmarkList -> I18Next.Translations -> List (Categories.CategoryData BookmarkType)

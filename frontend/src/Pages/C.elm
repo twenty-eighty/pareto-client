@@ -19,6 +19,7 @@ import Shared.Model exposing (LoginStatus(..))
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Communities as Translations
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
 import View exposing (View)
 
@@ -363,7 +364,7 @@ viewImagePreview community =
                 ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 linkElement : Community -> List (Html.Attribute msg) -> List (Html msg) -> Html msg

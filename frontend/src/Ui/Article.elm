@@ -30,7 +30,7 @@ import Time
 import Translations.Posts
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
-import Ui.Shared exposing (Actions, extendedZapRelays)
+import Ui.Shared exposing (Actions, emptyHtml, extendedZapRelays)
 import Ui.Styles exposing (Styles, Theme, fontFamilyUnbounded)
 
 
@@ -230,7 +230,7 @@ viewArticleImage maybeImage =
                 ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewTitle : Maybe String -> Html msg
@@ -250,7 +250,7 @@ viewTitle maybeTitle =
                 ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewSummary : Styles msg -> Maybe String -> Html msg
@@ -268,7 +268,7 @@ viewSummary _ maybeSummary =
                 [ text summary ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewTags : Styles msg -> Article -> Html msg
@@ -667,7 +667,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                 div [] [ text "-> has invalid tags <-" ]
 
             else
-                div [] []
+                emptyHtml
     in
     div
         [ css
@@ -783,7 +783,7 @@ viewTitlePreview styles maybeTitle maybeLinkTarget textWidthAttr =
                 [ text title ]
 
         ( Nothing, _ ) ->
-            div [] []
+            emptyHtml
 
 
 viewHashTags : Styles msg -> List String -> List Css.Style -> Html msg
@@ -806,7 +806,7 @@ viewHashTags styles hashTags widthAttr =
                 )
 
     else
-        div [] []
+        emptyHtml
 
 
 viewHashTag : String -> Html msg
@@ -885,7 +885,7 @@ previewListImage article =
                 ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 previewBigPictureImage : Article -> Html msg
@@ -998,7 +998,7 @@ viewArticleEditButton articlePreviewsData article articleAuthorPubKey =
             |> Button.view
 
     else
-        div [] []
+        emptyHtml
 
 
 viewArticleBookmarkButton : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
@@ -1029,7 +1029,7 @@ viewArticleBookmarkButton articlePreviewsData articlePreviewData article =
                 ]
 
         ( _, _, _ ) ->
-            div [] []
+            emptyHtml
 
 
 editLink : Article -> Maybe String

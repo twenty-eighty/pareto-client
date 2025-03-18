@@ -29,6 +29,7 @@ import Html.Styled.Attributes as Attr
 import Html.Styled.Events as Events
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles
 
 
@@ -173,7 +174,7 @@ view (Settings settings) =
                     [ Graphics.checkboxCheckMark 10 ]
 
               else
-                div [] []
+                emptyHtml
             ]
         , span
             [ Attr.css

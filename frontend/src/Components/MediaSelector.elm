@@ -50,7 +50,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.MediaSelector as Translations
-import Ui.Shared
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme)
 import Url
 
@@ -762,7 +762,7 @@ view (Settings settings) =
     in
     case model.displayType of
         DisplayModalDialog False ->
-            div [] []
+            emptyHtml
 
         DisplayModalDialog True ->
             Ui.Shared.modalDialog
@@ -879,7 +879,7 @@ viewInstruction translations displayType filesToShow =
                 ]
 
         (_, _) ->
-            div [] []
+            emptyHtml
 
 
 viewConfigureMediaServerMessage : MediaSelector msg -> Html msg
@@ -911,7 +911,7 @@ viewConfigureMediaServerMessage (Settings settings) =
             ]
 
     else
-        div [] []
+        emptyHtml
 
 
 viewImages : MediaSelector msg -> List UploadedFile -> Html msg
@@ -1168,7 +1168,7 @@ viewCopyButton : I18Next.Translations -> DisplayType -> String -> String -> Html
 viewCopyButton translations displayType url uniqueId =
     case displayType of
         DisplayModalDialog _ ->
-            div [] []
+            emptyHtml
 
         DisplayEmbedded ->
             copyButton translations url uniqueId
