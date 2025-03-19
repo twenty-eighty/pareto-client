@@ -133,8 +133,7 @@ decodedTagParam tag =
 
 
 type Msg
-    = OpenGetStarted
-    | AddArticleBookmark PubKey AddressComponents
+    = AddArticleBookmark PubKey AddressComponents
     | RemoveArticleBookmark PubKey AddressComponents
     | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
     | AddLoadedContent String
@@ -146,9 +145,6 @@ type Msg
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
-        OpenGetStarted ->
-            ( model, Effect.sendCmd <| Ports.requestUser )
-
         AddArticleBookmark pubKey addressComponents ->
             ( model
             , SendBookmarkListWithArticle pubKey addressComponents
@@ -246,6 +242,9 @@ viewContent shared nip19 loadedContent requestId =
 
         userPubKey =
             Shared.loggedInPubKey shared.loginStatus
+
+        signingUserPubKey =
+            Shared.loggedInSigningPubKey shared.loginStatus
     in
     { title =
         maybeArticle
@@ -259,8 +258,8 @@ viewContent shared nip19 loadedContent requestId =
                     , browserEnv = shared.browserEnv
                     , nostr = shared.nostr
                     , userPubKey = Shared.loggedInPubKey shared.loginStatus
-                    , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) userPubKey
-                    , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) userPubKey
+                    , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) signingUserPubKey
+                    , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) signingUserPubKey
                     , onZap = Maybe.map (\pubKey -> ZapReaction pubKey) userPubKey
                     }
                     (Just loadedContent)

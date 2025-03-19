@@ -120,16 +120,14 @@ decodedTagParam hashtag =
 
 
 type Msg
-    = OpenGetStarted
+    = NoOp
 
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
 update _ msg model =
     case msg of
-        OpenGetStarted ->
-            ( model
-            , Effect.sendCmd <| Ports.requestUser
-            )
+        NoOp ->
+            ( model, Effect.none )
 
 
 

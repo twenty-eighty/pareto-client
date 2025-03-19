@@ -269,7 +269,7 @@ viewContent shared handlerInformation =
 viewActionButtons : Theme -> BrowserEnv -> HandlerInformation -> LoginStatus -> Html Msg
 viewActionButtons theme browserEnv handlerInformation loginStatus =
     case loginStatus of
-        LoggedIn pubKey ->
+        LoggedIn pubKey _ ->
             let
                 styles =
                     stylesForTheme theme

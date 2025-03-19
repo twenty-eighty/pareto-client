@@ -22,7 +22,6 @@ export const flags = ({ env }) => {
   return {
     environment: env.ELM_ENV,
     darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
-    isLoggedIn: JSON.parse(localStorage.getItem('isLoggedIn')) || false,
     locale: navigator.language,
     nativeSharingAvailable: (navigator.share != undefined),
     testMode: JSON.parse(localStorage.getItem('testMode')) || false,
@@ -41,7 +40,6 @@ const paretoNdkCacheDb = 'pareto-ndk-cache';
 
 export const onReady = ({ app, env }) => {
 
-  var requestUserWhenLoaded = false;
   var storedCommands = [];
 
   if (window.matchMedia) {
@@ -58,8 +56,6 @@ export const onReady = ({ app, env }) => {
   app.ports.sendCommand.subscribe(({ command: command, value: value }) => {
     if (command === 'connect') {
       connect(app, value.client, value.nip89, value.relays);
-    } else if (command === 'loginSignUp') {
-      loginSignUp(app);
     } else if (connected) {
       processOnlineCommand(app, command, value);
     } else {
@@ -73,9 +69,6 @@ export const onReady = ({ app, env }) => {
     };
     initNostrLogin(nostrLoginOptions);
 
-    if (requestUserWhenLoaded) {
-      requestUser(app);
-    }
     windowLoaded = true;
   };
 
@@ -84,13 +77,11 @@ export const onReady = ({ app, env }) => {
     switch (event.detail.type) {
       case 'login':
       case 'signup':
-        requestUser(app);
-        localStorage.setItem('isLoggedIn', JSON.stringify(true));
+        requestUser(app, event.detail.method);
         break;
 
       default:
         app.ports.receiveMessage.send({ messageType: 'loggedOut', value: null });
-        localStorage.removeItem('isLoggedIn');
         break;
     }
   });
@@ -98,6 +89,10 @@ export const onReady = ({ app, env }) => {
   function processOnlineCommand(app, command, value) {
     debugLog('process command', command);
     switch (command) {
+      case 'loginSignUp':
+        loginSignUp(app)
+        break;
+
       case 'encryptString':
         encryptString(app, value.data)
         break;
@@ -126,25 +121,15 @@ export const onReady = ({ app, env }) => {
         sendEvent(app, value);
         break;
 
-      case 'loginWithExtension':
-        loginWithExtension(app);
-        break;
-
-      case 'requestUser':
-        if (!windowLoaded) {
-          // delay loading of user until window is loaded
-          // and browser extension with window.nostr is ready
-          requestUserWhenLoaded = true;
-        } else {
-          requestUser(app);
-        }
-        break;
-
       case 'setTestMode':
         setTestMode(app, value);
         break;
 
     }
+  }
+
+  function loginSignUp(app) {
+    launchNostrLoginDialog();
   }
 
   function setTestMode(app, value) {
@@ -799,31 +784,16 @@ export const onReady = ({ app, env }) => {
   }
 
 
-  function requestUser(app) {
+  function requestUser(app, method) {
     if (window.nostr) {
       const nip07signer = new NDKNip07Signer();
       window.ndk.signer = nip07signer;
       nip07signer.user().then(async (user) => {
         if (!!user.npub) {
-          app.ports.receiveMessage.send({ messageType: 'user', value: { pubKey: user.pubkey } });
-          localStorage.setItem('isLoggedIn', JSON.stringify(true));
+          app.ports.receiveMessage.send({ messageType: 'user', value: { pubKey: user.pubkey, method: method } });
         }
       }
       )
-    }
-  }
-
-  function loginSignUp(app) {
-    processOnlineCommand(app, "requestUser")
-  }
-
-  function loginWithExtension(app) {
-    if (window.nostr) {
-      // use nostr-login only if no browser extension is present
-      const nostrLoginOptions = {
-        "data-methods": ["extension"]
-      };
-      initNostrLogin(nostrLoginOptions);
     }
   }
 

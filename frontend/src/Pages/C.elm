@@ -194,7 +194,7 @@ view shared model =
 viewFollowedCommunities : Shared.Model -> Model -> Html Msg
 viewFollowedCommunities shared model =
     case ( shared.loginStatus, model.communities ) of
-        ( LoggedIn pubKey, Just communities ) ->
+        ( LoggedIn pubKey _, Just communities ) ->
             Nostr.getCommunityList shared.nostr pubKey
                 |> Maybe.withDefault []
                 |> List.filterMap

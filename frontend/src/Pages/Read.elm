@@ -169,8 +169,7 @@ init shared route () =
 
 
 type Msg
-    = OpenGetStarted
-    | CategorySelected Category
+    = CategorySelected Category
     | CategoriesSent (Components.Categories.Msg Category Msg)
     | AddArticleBookmark PubKey AddressComponents
     | RemoveArticleBookmark PubKey AddressComponents
@@ -183,11 +182,6 @@ type Msg
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
-        OpenGetStarted ->
-            ( model
-            , Effect.sendCmd <| Ports.requestUser
-            )
-
         CategorySelected category ->
             updateModelWithCategory shared model category
 

@@ -18,7 +18,8 @@ import Nostr.Profile exposing (Profile, profileDisplayName)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Types exposing (IncomingMessage, PubKey)
 import Ports
-import Shared.Model exposing (Model)
+import Shared
+import Shared.Model exposing (Model, LoginStatus(..))
 import Shared.Msg exposing (Msg)
 import Subscribers exposing (SubscribeInfo)
 import Tailwind.Theme as Theme
@@ -31,7 +32,7 @@ import Ui.Styles exposing (Theme, stylesForTheme)
 type Msg msg
     = CloseDialog
     | UpdateEmail String
-    | SubscribeClicked String Profile (Maybe PubKey) String
+    | SubscribeClicked String Profile LoginStatus String
     | ReceivedMessage IncomingMessage
 
 
@@ -66,7 +67,7 @@ type EmailSubscriptionDialog msg
         , toMsg : Msg msg -> msg
         , nostr : Nostr.Model
         , profile : Profile
-        , pubKeyUser : Maybe PubKey
+        , loginStatus : LoginStatus
         , browserEnv : BrowserEnv
         , theme : Theme
         }
@@ -77,7 +78,7 @@ new :
     , toMsg : Msg msg -> msg
     , nostr : Nostr.Model
     , profile : Profile
-    , pubKeyUser : Maybe PubKey
+    , loginStatus : LoginStatus
     , browserEnv : BrowserEnv
     , theme : Theme
     }
@@ -88,7 +89,7 @@ new props =
         , toMsg = props.toMsg
         , nostr = props.nostr
         , profile = props.profile
-        , pubKeyUser = props.pubKeyUser
+        , loginStatus = props.loginStatus
         , browserEnv = props.browserEnv
         , theme = props.theme
         }
@@ -149,19 +150,25 @@ update props =
                     _ ->
                         ( Model model, Effect.none )
 
-            SubscribeClicked email authorProfile pubKeyUser locale ->
+            SubscribeClicked email authorProfile loginStatus locale ->
                 case model.state of
                     DialogVisible emailSubscriptionData ->
                         let
+                            userPubKey =
+                                Shared.loggedInPubKey loginStatus
+
+                            signingPubKey =
+                                Shared.loggedInSigningPubKey loginStatus
+
                             ( firstName, lastName ) =
-                                pubKeyUser
+                                userPubKey
                                     |> Maybe.andThen (Nostr.getProfile props.nostr)
                                     |> Maybe.andThen .displayName
                                     |> Maybe.map Subscribers.splitName
                                     |> Maybe.withDefault ( Nothing, Nothing )
                         in
                         ( Model { model | state = DialogSending (Nostr.getLastSendRequestId props.nostr) emailSubscriptionData }
-                        , sendOptInEmail props.nostr authorProfile { pubKey = pubKeyUser, email = email, firstName = firstName, lastName = lastName, locale = Just locale }
+                        , sendOptInEmail props.nostr authorProfile signingPubKey { pubKey = userPubKey, email = email, firstName = firstName, lastName = lastName, locale = Just locale }
                         )
 
                     _ ->
@@ -198,9 +205,9 @@ updateWithMessage (Model model) message =
             Model model
 
 
-sendOptInEmail : Nostr.Model -> Profile -> SubscribeInfo -> Effect msg
-sendOptInEmail nostr authorProfile subscribeInfo =
-    Subscribers.subscribeEvent nostr authorProfile subscribeInfo
+sendOptInEmail : Nostr.Model -> Profile -> Maybe PubKey -> SubscribeInfo -> Effect msg
+sendOptInEmail nostr authorProfile maybeSigningPubKey subscribeInfo =
+    Subscribers.subscribeEvent nostr authorProfile maybeSigningPubKey subscribeInfo
         |> SendApplicationData
         |> Shared.Msg.SendNostrEvent
         |> Effect.sendSharedMsg
@@ -335,7 +342,7 @@ viewSubscribeDialog (Settings settings) data =
             , viewSuggestion settings.theme settings.browserEnv data.email
             , Button.new
                 { label = Translations.subscribeButtonTitle [ settings.browserEnv.translations ]
-                , onClick = data.email |> Maybe.map (\email -> SubscribeClicked email settings.profile settings.pubKeyUser settings.browserEnv.locale)
+                , onClick = data.email |> Maybe.map (\email -> SubscribeClicked email settings.profile settings.loginStatus settings.browserEnv.locale)
                 , theme = settings.theme
                 }
                 |> Button.withTypePrimary

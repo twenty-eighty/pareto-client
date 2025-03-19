@@ -1,4 +1,4 @@
-module Shared.Model exposing (ClientRole(..), LoginStatus(..), Model)
+module Shared.Model exposing (ClientRole(..), LoginMethod(..), LoginStatus(..), Model)
 
 import BrowserEnv exposing (BrowserEnv)
 import Nostr
@@ -25,8 +25,12 @@ type alias Model =
 type LoginStatus
     = LoggedOut
     | LoggedInUnknown
-    | LoggedIn PubKey
+    | LoggedIn PubKey LoginMethod
 
+type LoginMethod
+    = LoginMethodReadOnly
+    | LoginMethodExtension
+    | LoginMethodOther String
 
 type ClientRole
     = ClientReader

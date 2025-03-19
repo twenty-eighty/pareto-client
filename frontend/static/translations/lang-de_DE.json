@@ -254,6 +254,14 @@
       "locale field name": "Sprache",
       "subscribers count": "{{subscribersCount}} Abonnenten"
    },
+   "text stats": {
+      "Bytes label": "Bytes:",
+      "Characters label": "Zeichen:",
+      "Words label": "Wörter:",
+      "Sentences label": "Sätze:",
+      "Reading time label": "Lesezeit:",
+      "Speaking time label": "Sprechzeit:"
+   },
    "upload dialog": {
       "dialog title": "Hochladen",
       "upload button title": "Hochladen",

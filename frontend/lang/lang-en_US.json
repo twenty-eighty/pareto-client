@@ -253,6 +253,14 @@
       "locale field name": "Locale",
       "subscribers count": "{{subscribersCount}} subscribers"
    },
+   "text stats": {
+      "Bytes label": "Bytes:",
+      "Characters label": "Characters:",
+      "Words label": "Words:",
+      "Sentences label": "Sentences:",
+      "Reading time label": "Reading time:",
+      "Speaking time label": "Speaking time:"
+   },
    "upload dialog": {
       "dialog title": "Upload",
       "upload button title": "Upload",

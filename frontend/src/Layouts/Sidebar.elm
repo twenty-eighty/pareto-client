@@ -3,7 +3,6 @@ module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layo
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button
 import Components.Icon as Icon exposing (Icon(..))
-import Components.OnboardingDialog as OnboardingDialog
 import Components.Switch as Switch
 import Css
 import Dict
@@ -14,7 +13,6 @@ import Html.Styled.Attributes as Attr exposing (class, css, src)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
 import Layout exposing (Layout)
-import ModalDialog exposing (ModalDialog)
 import Nostr
 import Nostr.BookmarkList exposing (bookmarksCount)
 import Nostr.Profile exposing (Profile)
@@ -176,20 +174,13 @@ layout props shared route =
 
 
 type alias Model =
-    { modalDialog : ModalDialog
+    { 
     }
-
-
-type ModalDialog
-    = NoModalDialog
-    | GetStartedDialog (OnboardingDialog.Model Msg)
-    | ProfileMenu
 
 
 init : () -> ( Model, Effect Msg )
 init _ =
-    -- ( { modalDialog = GetStartedDialog <| OnboardingDialog.init { onClose = CloseModal } }
-    ( { modalDialog = NoModalDialog }
+    ( { }
     , Effect.none
     )
 
@@ -200,9 +191,6 @@ init _ =
 
 type Msg
     = OpenGetStarted
-    | OpenProfileMenu
-    | CloseModal
-    | LoginDialogSent OnboardingDialog.Msg
     | SetClientRole Bool ClientRole
     | SetTestMode BrowserEnv.TestMode
 
@@ -211,34 +199,7 @@ update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update _ msg model =
     case msg of
         OpenGetStarted ->
-            ( model
-            , Effect.sendCmd Ports.loginSignUp
-            )
-
-        OpenProfileMenu ->
-            ( { model | modalDialog = ProfileMenu }
-            , Effect.none
-            )
-
-        CloseModal ->
-            ( { model | modalDialog = NoModalDialog }
-            , Effect.none
-            )
-
-        LoginDialogSent innerMsg ->
-            case model.modalDialog of
-                GetStartedDialog dialog ->
-                    OnboardingDialog.update
-                        { msg = innerMsg
-                        , model = dialog
-                        , toModel = \loginDialog -> { model | modalDialog = GetStartedDialog loginDialog }
-                        , toMsg = LoginDialogSent
-                        }
-
-                _ ->
-                    ( model
-                    , Effect.none
-                    )
+            ( model, Effect.sendCmd Ports.loginSignUp )
 
         SetClientRole changePath clientRole ->
             ( model, Effect.sendSharedMsg <| Shared.Msg.SetClientRole changePath clientRole )
@@ -266,25 +227,10 @@ view styles shared path { toContentMsg, model, content } =
                 ]
             ]
             [ viewSidebar styles shared path toContentMsg content.body
-            , viewModalDialog model |> Html.map toContentMsg
             , viewLinktoInternalPage shared.nostr
             ]
         ]
     }
-
-
-viewModalDialog : Model -> Html Msg
-viewModalDialog model =
-    case model.modalDialog of
-        GetStartedDialog dialog ->
-            OnboardingDialog.new
-                { model = dialog
-                , toMsg = LoginDialogSent
-                }
-                |> OnboardingDialog.view
-
-        _ ->
-            emptyHtml
 
 
 viewSidebar : Styles contentMsg -> Shared.Model.Model -> Route.Path.Path -> (Msg -> contentMsg) -> List (Html contentMsg) -> Html contentMsg
@@ -507,7 +453,7 @@ viewBannerSmall browserEnv =
 roleSwitchButtonEnabled : Nostr.Model -> LoginStatus -> Bool
 roleSwitchButtonEnabled nostr loginStatus =
     case loginStatus of
-        LoggedIn userPubKey ->
+        LoggedIn userPubKey _ ->
             -- check here also for author because authors list is available immediately when the client starts
             Nostr.isAuthor nostr userPubKey || Nostr.isEditor nostr userPubKey
 
@@ -557,7 +503,7 @@ testModeSwitch sidebarItemParams =
 profileForUser : Shared.Model -> LoginStatus -> Maybe Profile
 profileForUser shared loggedIn =
     case loggedIn of
-        LoggedIn pubKey ->
+        LoggedIn pubKey _ ->
             Nostr.getProfile shared.nostr pubKey
 
         _ ->
@@ -739,7 +685,7 @@ viewSidebarItem styles currentPath itemData =
 loginButton : Shared.Model -> Maybe Profile -> Html Msg
 loginButton shared maybeProfile =
     case shared.loginStatus of
-        Shared.Model.LoggedIn _ ->
+        Shared.Model.LoggedIn _ _ ->
             loggedInButton maybeProfile
 
         _ ->
@@ -757,7 +703,6 @@ loggedInButton maybeProfile =
             , Tw.rounded_full
             , Tw.border_hidden
             ]
-        , Events.onClick OpenProfileMenu
         ]
         [ img
             [ Attr.src <| Ui.Profile.profilePicture 56 maybeProfile

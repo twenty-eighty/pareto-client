@@ -20,7 +20,7 @@ type alias User =
 onPageLoad : Shared.Model -> Route () -> Auth.Action.Action User
 onPageLoad shared route =
     case shared.loginStatus of
-        LoggedIn pubKey ->
+        LoggedIn pubKey _ ->
             Auth.Action.loadPageWithUser
                 { pubKey = pubKey
                 }

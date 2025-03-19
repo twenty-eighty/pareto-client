@@ -1066,11 +1066,11 @@ addStringListToObject field maybeValues acc =
             acc
 
 
-subscribeEvent : Nostr.Model -> Profile -> SubscribeInfo -> Event
-subscribeEvent nostr authorProfile { pubKey, email, firstName, lastName, locale } =
+subscribeEvent : Nostr.Model -> Profile -> Maybe PubKey -> SubscribeInfo -> Event
+subscribeEvent nostr authorProfile maybeSigningPubKey { pubKey, email, firstName, lastName, locale } =
     let
         signingPubKey =
-            pubKey
+            maybeSigningPubKey
                 -- in order to create a valid Nostr event we need some secret key to sign
                 -- but it wouldn't make sense to transport/store the related public key
                 |> Maybe.withDefault Pareto.anonymousPublicKey

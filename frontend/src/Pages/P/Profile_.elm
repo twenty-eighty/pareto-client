@@ -315,18 +315,12 @@ followingProfile nostr profilePubKey maybePubKey =
 
 viewEmailSubscriptionDialog : Shared.Model -> Model -> Profile -> Html Msg
 viewEmailSubscriptionDialog shared model profile =
-    let
-        -- because we want to allow email subscriptions also without users logged in with Nostr profile
-        -- we need to use another private key to sign the subscription Nostr event
-        pubKeyUser =
-            Shared.loggedInPubKey shared.loginStatus
-    in
     EmailSubscriptionDialog.new
         { model = model.emailSubscriptionDialog
         , toMsg = EmailSubscriptionDialogSent
         , nostr = shared.nostr
         , profile = profile
-        , pubKeyUser = pubKeyUser
+        , loginStatus = shared.loginStatus
         , browserEnv = shared.browserEnv
         , theme = shared.theme
         }

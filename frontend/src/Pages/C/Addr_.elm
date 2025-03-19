@@ -108,19 +108,13 @@ decodedTagParam tag =
 
 
 type Msg
-    = OpenGetStarted
-    | ReceivedMessage IncomingMessage
+    = ReceivedMessage IncomingMessage
     | NostrMsg Nostr.Msg
 
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
-        OpenGetStarted ->
-            ( model
-            , Effect.sendCmd <| Ports.requestUser
-            )
-
         ReceivedMessage message ->
             case message.messageType of
                 "communities" ->

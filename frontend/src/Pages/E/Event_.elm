@@ -169,8 +169,7 @@ decodedTagParam tag =
 
 
 type Msg
-    = OpenGetStarted
-    | AddLoadedContent String
+    = AddLoadedContent String
     | ReceivedMessage IncomingMessage
     | NostrMsg Nostr.Msg
 
@@ -178,11 +177,6 @@ type Msg
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
-        OpenGetStarted ->
-            ( model
-            , Effect.sendCmd <| Ports.requestUser
-            )
-
         AddLoadedContent url ->
             ( { model | loadedContent = LinkPreview.addLoadedContent model.loadedContent url }, Effect.none )
 

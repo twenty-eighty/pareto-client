@@ -73,7 +73,7 @@ update shared msg model =
             updateWithPortMessage shared model portMessage
 
         TriggerLoginSignup ->
-            ( model, Effect.sendCmd Ports.requestUser )
+            ( model, Effect.sendCmd Ports.loginSignUp )
 
 
 updateWithPortMessage : Shared.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
