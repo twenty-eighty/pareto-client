@@ -41,9 +41,12 @@ import Svg.Loaders as Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
+import Task
+import TextStats exposing (TextStats, emptyTextStats)
 import Time
 import Translations.Write as Translations
 import Ui.Article
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme, stylesForTheme)
 import View exposing (View)
 
@@ -90,7 +93,13 @@ type alias Model =
     , loadedContent : LoadedContent Msg
     , modalDialog : ModalDialog
     , languageSelection : Dropdown.Model Language
+    , textStats : TextStats
+    , debounceStatus : DebounceStatus
     }
+
+type DebounceStatus
+    = Inactive
+    | Active Int -- Remaining time in milliseconds
 
 
 type EditorMode
@@ -120,7 +129,6 @@ type ArticleState
     | ArticlePublished
     | ArticleDeletingDraft SendRequestId (Maybe Subscribers.SubscriberEventData)
     | ArticleDeletingDraftError String
-
 
 type ImageSelection
     = ArticleImageSelection
@@ -209,6 +217,8 @@ init user shared route () =
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
                     , modalDialog = NoModalDialog
                     , languageSelection = Dropdown.init { selected = article.language }
+                    , textStats = TextStats.compute article.language article.content
+                    , debounceStatus = Inactive
                     }
 
                 Nothing ->
@@ -232,6 +242,8 @@ init user shared route () =
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
                     , modalDialog = NoModalDialog
                     , languageSelection = Dropdown.init { selected = Just shared.browserEnv.language }
+                    , textStats = emptyTextStats
+                    , debounceStatus = Inactive
                     }
     in
     ( model
@@ -294,6 +306,9 @@ type Msg
     | PublishArticleDialogSent (PublishArticleDialog.Msg Msg)
     | ModalDialogButtonClicked PublishedDialogButton
     | DropdownSent (Dropdown.Msg Language Msg)
+    | LanguageChanged (Maybe Language)
+    | StatsComputed (Result Never TextStats)
+    | Tick Time.Posix
 
 
 type PublishedDialogButton
@@ -305,10 +320,17 @@ update shared user msg model =
     case msg of
         EditorChanged newContent ->
             if newContent == "" then
-                ( { model | articleState = ArticleModified, content = Nothing }, Effect.none )
+                ( { model | articleState = ArticleModified
+                    , content = Nothing
+                    , textStats = emptyTextStats
+                    , debounceStatus = Inactive
+                  }, Effect.none )
 
             else
-                ( { model | articleState = ArticleModified, content = Just newContent }, Effect.none )
+                ( { model | articleState = ArticleModified
+                    , content = Just newContent
+                    , debounceStatus = Active 500
+                  }, Effect.none )
 
         EditorFocused ->
             ( model, Effect.none )
@@ -492,6 +514,35 @@ update shared user msg model =
                 , toMsg = DropdownSent
                 }
 
+        LanguageChanged maybeLanguage ->
+            ( {model | textStats = TextStats.compute maybeLanguage (Maybe.withDefault "" model.content) }, Effect.none)
+
+        StatsComputed (Ok textStats) ->
+            ( { model | textStats = textStats }, Effect.none )
+
+        StatsComputed (Err error) ->
+            ( model , Effect.none )
+
+        Tick _ ->
+            case model.debounceStatus of
+                Inactive ->
+                    -- If debounce is inactive, do nothing
+                    ( model, Effect.none )
+
+                Active remainingTime ->
+                    if remainingTime <= 0 then
+                            -- Time has run out, trigger search
+                            ( { model | debounceStatus = Inactive }
+                            , TextStats.computeTask (Dropdown.selectedItem model.languageSelection) (Maybe.withDefault "" model.content)
+                                |> Task.attempt StatsComputed
+                                |> Effect.sendCmd
+                            )
+
+                    else
+                        -- Decrease remaining time
+                        ( { model | debounceStatus = Active (remainingTime - 100) }
+                        , Effect.none
+                        )
 
 loadReferencedNip27Profiles : Nostr.Model -> String -> Effect Msg
 loadReferencedNip27Profiles nostr content =
@@ -809,8 +860,17 @@ subscriptions model =
         , Sub.map MediaSelectorSent (MediaSelector.subscribe model.mediaSelector)
         , Ports.receiveMessage ReceivedPortMessage
         , PublishArticleDialog.subscriptions model.publishArticleDialog PublishArticleDialogSent
+        , debounceSubscription model.debounceStatus
         ]
 
+debounceSubscription : DebounceStatus -> Sub Msg
+debounceSubscription debounceStatus =
+    case debounceStatus of
+        Inactive ->
+            Sub.none
+
+        Active _ ->
+            Time.every 100 Tick
 
 
 -- VIEW
@@ -865,6 +925,7 @@ view user shared model =
             , viewTags shared.theme shared.browserEnv model
             , viewArticleState shared.browserEnv shared.theme model.articleState
             , saveButtons shared.browserEnv shared.theme model
+            , TextStats.view shared.browserEnv shared.theme model.textStats
             , viewMediaSelector user shared model
             ]
         , PublishArticleDialog.new
@@ -886,7 +947,7 @@ viewModalDialog : Theme -> BrowserEnv -> ArticleState -> ModalDialog -> Html Msg
 viewModalDialog theme browserEnv articleState modalDialog =
     case modalDialog of
         NoModalDialog ->
-            div [] []
+            emptyHtml
 
         NewsletterSentDialog ->
             MessageDialog.new
@@ -971,7 +1032,7 @@ viewArticleState browserEnv theme articleState =
             processIndicator
 
         ( Nothing, Nothing ) ->
-            div [] []
+            emptyHtml
 
 
 articleStateToString : BrowserEnv -> ArticleState -> Maybe String
@@ -1079,7 +1140,7 @@ viewMediaSelector user shared model =
                 |> MediaSelector.view
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewTitle : Theme -> BrowserEnv -> Model -> Html Msg
@@ -1260,6 +1321,7 @@ viewLanguage browserEnv model =
             , allowNoSelection = True
             , toLabel = toLabel browserEnv.translations
             }
+            |> Dropdown.withOnChange LanguageChanged
             |> Dropdown.view
         ]
 
