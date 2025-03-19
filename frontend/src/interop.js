@@ -366,7 +366,18 @@ export const onReady = ({ app, env }) => {
   ) {
     debugLog("FILTERS: ", filters, description, " requestId: " + requestId, "closeOnEose: " + closeOnEose, "relays: ", relays);
 
-    const ndkRelays = relays ? NDKRelaySet.fromRelayUrls(relays, window.ndk) : null;
+    var ndkRelays = null;
+    if (relays) {
+      const relaysWithProtocol = relays.map(relay => {
+        if (!relay.startsWith("wss://") && !relay.startsWith("ws://")) {
+          return "wss://" + relay
+        } else {
+          return relay
+        }
+      });
+
+      ndkRelays = NDKRelaySet.fromRelayUrls(relaysWithProtocol, window.ndk);
+    }
 
     window.ndk.fetchEvents(filters, { closeOnEose: closeOnEose }, ndkRelays).then((ndkEvents) => {
 
