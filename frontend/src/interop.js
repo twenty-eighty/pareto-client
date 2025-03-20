@@ -4,15 +4,12 @@ import "./Milkdown/MilkdownEditor.js";
 import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
 import { BlossomClient } from "blossom-client-sdk/client";
-import { init as initNostrLogin, launch as launchNostrLoginDialog } from "nostr-login"
+// import { init as initNostrLogin, launch as launchNostrLoginDialog } from "nostr-login"
 import "./clipboard-component.js";
 import "./zap-component.js";
 import "./elm-oembed.js";
 import debug from 'debug';
 
-
-// import NostrPasskeyModule from './nostrPasskeyModule.js';
-// const nostrPasskey = new NostrPasskeyModule();
 
 // This is called BEFORE your Elm app starts up
 // 
@@ -65,12 +62,51 @@ export const onReady = ({ app, env }) => {
   });
 
   window.onload = function () {
-    const nostrLoginOptions = {
-    };
-    initNostrLogin(nostrLoginOptions);
+    // make sure to load Nostr-Login after browser extensions had a chance to create window.nostr
+    loadNostrLogin();
 
     windowLoaded = true;
   };
+
+  function loadNostrLogin() {
+    const titleAndDescription = getLocalizedStrings(navigator.language);
+
+    const newScript = document.createElement('script');
+    newScript.src = "https://www.unpkg.com/nostr-login@latest/dist/unpkg.js";
+    newScript.setAttribute("data-title", titleAndDescription.title);
+    newScript.setAttribute("data-description", titleAndDescription.description);
+    newScript.setAttribute("data-signup-relays", "wss://nostr.pareto.space,wss://nostr.pareto.town,wss://pareto.nostr1.com");
+    newScript.setAttribute("data-outbox-relays", "wss://nostr.pareto.space,wss://nostr.pareto.town,wss://pareto.nostr1.com");
+    newScript.setAttribute("data-signup-nstart", "true");
+    newScript.setAttribute("data-follow-npubs",
+      ["2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" // milosz@pareto.space
+        , "e373ca4101e25a4d4fcb2a53473fa4113b91dba2c2e451d039d8528eb82abcc5" // ashoka@pareto.space
+        , "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5" // friedenstaube@pareto.space
+        , "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84" // _@pareto.space
+      ].join(',')
+    );
+    document.body.appendChild(newScript);
+  }
+
+  function getLocalizedStrings(locale) {
+    const strings = {
+      en: {
+        title: "Welcome to Pareto!",
+        description: "Pareto is part of the Nostr network. Log in with your Nostr profile or sign up to join."
+      },
+      de: {
+        title: "Willkommen bei Pareto!",
+        description: "Pareto ist Teil des Nostr-Netzes. Melde dich mit deinem Nostr-Profil an oder erstelle dir ein neues Profil."
+      }
+    };
+
+    if (locale.startsWith('de')) {
+      return strings.de;
+    }
+
+    // Default to English
+    return strings.en;
+  }
 
   // listen to events of nostr-login
   document.addEventListener('nlAuth', (event) => {
@@ -124,12 +160,11 @@ export const onReady = ({ app, env }) => {
       case 'setTestMode':
         setTestMode(app, value);
         break;
-
     }
   }
 
   function loginSignUp(app) {
-    launchNostrLoginDialog();
+    document.dispatchEvent(new CustomEvent('nlLaunch', {}));
   }
 
   function setTestMode(app, value) {

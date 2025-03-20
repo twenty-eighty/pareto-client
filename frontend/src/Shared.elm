@@ -352,11 +352,17 @@ loginMethodDecoder =
     Json.Decode.field "method" Json.Decode.string
     |> Json.Decode.andThen (\method ->
             case String.toLower method of
-                "readonly" ->
-                    Json.Decode.succeed Shared.Model.LoginMethodReadOnly
+                "connect" ->
+                    Json.Decode.succeed Shared.Model.LoginMethodConnect
 
                 "extension" ->
                     Json.Decode.succeed Shared.Model.LoginMethodExtension
+
+                "local" ->
+                    Json.Decode.succeed Shared.Model.LoginMethodLocal
+
+                "readonly" ->
+                    Json.Decode.succeed Shared.Model.LoginMethodReadOnly
 
                 other ->
                     Json.Decode.succeed (Shared.Model.LoginMethodOther other)

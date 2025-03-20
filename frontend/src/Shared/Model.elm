@@ -28,9 +28,11 @@ type LoginStatus
     | LoggedIn PubKey LoginMethod
 
 type LoginMethod
-    = LoginMethodReadOnly
+    = LoginMethodConnect
     | LoginMethodExtension
+    | LoginMethodLocal
     | LoginMethodOther String
+    | LoginMethodReadOnly
 
 type ClientRole
     = ClientReader
