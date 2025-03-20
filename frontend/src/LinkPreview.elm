@@ -682,15 +682,19 @@ videoThumbnailPreview linkElement clickAttr thumbnailUrl =
         )
         [ div
             [ css
-                [ Tw.absolute
-                , Tw.inset_0
+                [ Tw.inset_0
                 , Tw.h_40
+                , Tw.overflow_hidden
                 ]
             ]
             [ img
                 [ src thumbnailUrl
-                , alt "Video Thumbnail"
-                , style "display" "block"
+                , alt "Thumbnail"
+                , css
+                    [ Tw.w_full
+                    , Tw.h_full
+                    , Tw.object_cover
+                    ]
                 ]
                 []
             ]
@@ -920,7 +924,7 @@ genericThumbnailPreview linkElement clickAttr thumbnailUrl =
             ]
             [ img
                 [ src thumbnailUrl
-                , alt "YouTube Video"
+                , alt "Thumbnail"
                 , style "display" "block"
                 ]
                 []
