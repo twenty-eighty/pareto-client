@@ -91,6 +91,10 @@
       "spanish text": "Spanish",
       "swedish text": "Swedish"
    },
+   "media page": {
+      "logged in read only message": "Media files can't be loaded when logged-in read only",
+      "not logged in message": "Media files can't be loaded when not logged-in"
+   },
    "media selector": {
       "Upload files": "Select image",
       "Upload button title": "Upload images",

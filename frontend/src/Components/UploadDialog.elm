@@ -28,6 +28,7 @@ import Html.Styled.Events exposing (onClick, onInput, preventDefaultOn)
 import Http
 import Json.Decode as Decode
 import Json.Encode as Encode
+import MimeType exposing (MimeType)
 import Nostr
 import Nostr.Blossom as Blossom
 import Nostr.External exposing (decodeAuthHeaderReceived)
@@ -49,15 +50,14 @@ import Ui.Styles exposing (stylesForTheme)
 import Url
 
 
-supportedMimeTypes : List String
+supportedMimeTypes : List MimeType
 supportedMimeTypes =
-    [ "image/gif"
-    , "image/jpg"
-    , "image/png"
-    , "image/svg+xml"
-    , "image/webp"
-
-    -- , "application/pdf"
+    [ MimeType.Image MimeType.Gif
+    , MimeType.Image MimeType.Jpeg
+    , MimeType.Image MimeType.Png
+    , MimeType.Image MimeType.Svg
+    , MimeType.Image MimeType.Webp
+    , MimeType.Audio MimeType.Mp3
     ]
 
 
@@ -264,10 +264,15 @@ update props =
                 ( Model model, Effect.none )
 
             TriggerFileSelect ->
+                let
+                    mimeTypeStrings =
+                        supportedMimeTypes
+                        |> List.map MimeType.toString
+                in
                 ( Model model
                   -- multi file selection temporarily disabled
                   -- TODO need to improve the metadata editor for multi file
-                , FileSelect.files supportedMimeTypes FilesSelected
+                , FileSelect.files mimeTypeStrings FilesSelected
                     -- , FileSelect.file ["image/png", "image/jpg"] (\file -> FilesSelected file [])
                     |> Cmd.map props.toMsg
                     |> Effect.sendCmd
@@ -285,7 +290,9 @@ update props =
                                                 FileUploadBlossom Nothing
                                                     { file = fileToUpload
                                                     , status = Blossom.Selected
-                                                    , caption = Nothing
+                                                    , caption = File.name fileToUpload 
+                                                        |> removeFileExtension
+                                                        |> Just
                                                     , uploadResponse = Nothing
                                                     }
                                                     |> Just
@@ -294,7 +301,9 @@ update props =
                                                 FileUploadNip96 Nothing
                                                     { file = fileToUpload
                                                     , status = Nip96.Selected
-                                                    , caption = Nothing
+                                                    , caption = File.name fileToUpload 
+                                                        |> removeFileExtension
+                                                        |> Just
                                                     , alt = Nothing
                                                     , mediaType = Nothing
                                                     , noTransform = defaultNoTransformForFile fileToUpload
@@ -689,17 +698,37 @@ update props =
             ErrorOccurred errorMsg ->
                 ( Model { model | errors = model.errors ++ [ errorMsg ] }, Effect.none )
 
+removeFileExtension : String -> String
+removeFileExtension fileName =
+    case List.maximum (String.indexes "." fileName) of
+        Nothing ->
+            fileName
+
+        Just idx ->
+            if idx == 0 then
+                -- If the only dot is the first character, e.g. ".profile",
+                -- treat it as a hidden file with no extension.
+                fileName
+            else
+                String.left idx fileName
+
 
 defaultNoTransformForFile : File -> Maybe Bool
 defaultNoTransformForFile file =
-    case File.mime file of
-        "image/gif" ->
+    case MimeType.parseMimeType (File.mime file) of
+        Just (MimeType.Audio _) ->
             Just True
 
-        "image/webp" ->
+        Just (MimeType.Video _) ->
             Just True
 
-        "image/svg+xml" ->
+        Just (MimeType.Image MimeType.Gif) ->
+            Just True
+
+        Just (MimeType.Image MimeType.Webp) ->
+            Just True
+
+        Just (MimeType.Image MimeType.Svg) ->
             Just True
 
         _ ->
@@ -1152,10 +1181,11 @@ viewFileUploadBlossom theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                         ]
                                     ]
                                     [ label [] [ text <| Translations.imageCaptionFormLabel [ browserEnv.translations ] ]
-                                    , textarea
+                                    , input
                                         (styles.colorStyleBackground
                                             ++ styles.colorStyleGrayscaleText
                                             ++ [ onInput (UpdateCaption fileId)
+                                               , value <| Maybe.withDefault "" fileUpload.caption
                                                , css
                                                     [ Tw.w_full
                                                     , Tw.border
@@ -1165,7 +1195,7 @@ viewFileUploadBlossom theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                                     ]
                                                ]
                                         )
-                                        [ text <| Maybe.withDefault "" fileUpload.caption ]
+                                        [ ]
                                     ]
                                 ]
                             , case maybePreviewLink of
@@ -1292,6 +1322,7 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                         (styles.colorStyleBackground
                                             ++ styles.colorStyleGrayscaleText
                                             ++ [ onInput (UpdateCaption fileId)
+                                               , value <| Maybe.withDefault "" fileUpload.caption
                                                , css
                                                     [ Tw.w_full
                                                     , Tw.border
@@ -1301,7 +1332,7 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                                     ]
                                                ]
                                         )
-                                        [ text <| Maybe.withDefault "" fileUpload.caption ]
+                                        [  ]
                                     ]
                                 , div
                                     [ css
@@ -1315,6 +1346,7 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                         (styles.colorStyleBackground
                                             ++ styles.colorStyleGrayscaleText
                                             ++ [ onInput (UpdateAltText fileId)
+                                               , value <| Maybe.withDefault "" fileUpload.alt
                                                , css
                                                     [ Tw.w_full
                                                     , Tw.border
@@ -1324,7 +1356,7 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                                     ]
                                                ]
                                         )
-                                        [ text <| Maybe.withDefault "" fileUpload.alt ]
+                                        [ ]
                                     ]
                                 , div
                                     [ css

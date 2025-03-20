@@ -3,7 +3,7 @@ module Pages.Media exposing (Model, Msg, page)
 import Auth
 import Components.MediaSelector as MediaSelector
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (div)
+import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes exposing (css)
 import Layouts
 import Nostr
@@ -14,7 +14,9 @@ import Nostr.Send exposing (SendRequest(..))
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
+import Shared.Model exposing (LoginMethod(..), LoginStatus(..))
 import Tailwind.Utilities as Tw
+import Translations.MediaPage as Translations
 import Ui.Styles exposing (Theme)
 import View exposing (View)
 
@@ -48,12 +50,28 @@ type alias Model =
 init : Auth.User -> Shared.Model -> Route () -> () -> ( Model, Effect Msg )
 init user shared _ () =
     let
+        (blossomServers, nip96Servers )  =
+            case shared.loginStatus of
+                LoggedIn _ LoginMethodReadOnly ->
+                    -- In order to list files via Blossom or NIP-96
+                    -- a Nostr event has to be signed. This is impossible
+                    -- without a private key.
+                    ([], [])
+
+                LoggedIn _ _ ->
+                    ( Nostr.getBlossomServers shared.nostr user.pubKey
+                    , Nostr.getNip96Servers shared.nostr user.pubKey
+                    )
+
+                _ ->
+                    ([], [])
+
         ( mediaSelector, mediaSelectorEffect ) =
             MediaSelector.init
                 { selected = Nothing
                 , toMsg = MediaSelectorSent
-                , blossomServers = Nostr.getBlossomServers shared.nostr user.pubKey
-                , nip96Servers = Nostr.getNip96Servers shared.nostr user.pubKey
+                , blossomServers = blossomServers
+                , nip96Servers = nip96Servers
                 , displayType = MediaSelector.DisplayEmbedded
                 }
     in
@@ -105,15 +123,33 @@ view user shared model =
                 [ Tw.m_10
                 ]
             ]
-            [ MediaSelector.new
+            [ viewMediaSelector shared model
+            ]
+        ]
+    }
+
+viewMediaSelector : Shared.Model -> Model -> Html Msg
+viewMediaSelector shared model =
+    case shared.loginStatus of
+        LoggedIn _ LoginMethodReadOnly ->
+            viewAlternativeMessage <| Translations.loggedInReadOnlyMessage [ shared.browserEnv.translations ]
+
+        LoggedIn pubKey _ ->
+            MediaSelector.new
                 { model = model.mediaSelector
                 , toMsg = MediaSelectorSent
                 , onSelected = Nothing
-                , pubKey = user.pubKey
+                , pubKey = pubKey
                 , browserEnv = shared.browserEnv
                 , theme = shared.theme
                 }
                 |> MediaSelector.view
-            ]
-        ]
-    }
+
+        _ ->
+            viewAlternativeMessage <| Translations.notLoggedInMessage [ shared.browserEnv.translations ]
+
+viewAlternativeMessage : String -> Html Msg
+viewAlternativeMessage message =
+            div []
+                [ Html.text message
+                ]

@@ -4,6 +4,7 @@ import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode exposing (Decoder, andThen, bool, dict, fail, field, float, int, list, maybe, nullable, string, succeed)
 import Json.Decode.Pipeline exposing (optional, required)
+import MimeType exposing (MimeType)
 import Url
 
 
@@ -16,7 +17,7 @@ type alias FileMetadata =
     , content : Maybe String
     , createdAt : Int
     , url : Maybe String
-    , mimeType : Maybe String
+    , mimeType : Maybe MimeType
     , xHash : Maybe String
     , oxHash : Maybe String
     , size : Maybe Int
@@ -46,17 +47,30 @@ type alias Nip94Event =
 isImage : FileMetadata -> Bool
 isImage metaData =
     case metaData.mimeType of
-        Just mimeType ->
-            String.startsWith "image/" mimeType
-                || "avatar"
-                == mimeType
-                || "banner"
-                == mimeType
-                || ""
-                == mimeType
+        Just (MimeType.Image _) ->
+            True
 
         _ ->
+            False
+
+isAudio : FileMetadata -> Bool
+isAudio metaData =
+    case metaData.mimeType of
+        Just (MimeType.Audio _) ->
             True
+
+        _ ->
+            False
+
+isVideo : FileMetadata -> Bool
+isVideo metaData =
+    case metaData.mimeType of
+        Just (MimeType.Video _) ->
+            True
+
+        _ ->
+            False
+
 
 
 
@@ -123,7 +137,7 @@ parseTag tag file =
             { file | url = Just urlValue }
 
         [ "m", mimeTypeValue ] ->
-            { file | mimeType = Just mimeTypeValue }
+            { file | mimeType = MimeType.parseMimeType mimeTypeValue }
 
         [ "x", xHashValue ] ->
             { file | xHash = Just xHashValue }

@@ -92,6 +92,10 @@
       "spanish text": "Spanisch",
       "swedish text": "Schwedisch"
    },
+   "media page": {
+      "logged in read only message": "Mediendateien können nicht angezeigt werden mit Nur-lesen-Anmeldung.",
+      "not logged in message": "Mediendateien können ohne Anmeldung nicht angezeigt werden."
+   },
    "media selector": {
       "Select image": "Bild auswählen",
       "Upload button title": "Bilder hochladen",
@@ -273,7 +277,7 @@
       "media type explanation text": "Medientyp wählen",
       "avatar media type": "Avatar",
       "banner media type": "Banner",
-      "no transform checkbox text": "Keine Transformation",
+      "no transform checkbox text": "Keine Umwandlung",
       "start upload button text": "Upload starten",
       "computing file hash state text": "Berechne Prüfsumme...",
       "awaiting authentication header state text": "Warte auf Authentication Header...",

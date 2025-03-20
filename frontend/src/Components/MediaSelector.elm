@@ -1083,7 +1083,7 @@ uploadedNip96ImageFiles uploadedNip96Files serverUrl =
                         (\uploadedFile ->
                             case uploadedFile of
                                 Nip96File fileMetadata ->
-                                    Nip94.isImage fileMetadata
+                                    Nip94.isImage fileMetadata || Nip94.isAudio fileMetadata
 
                                 BlossomFile _ ->
                                     -- don't know what type blossom file is
@@ -1124,6 +1124,21 @@ imagePreview translations onSelected displayType uniqueFileId uploadedFile =
             let
                 imageWidth =
                     200
+
+                imageUrl =
+                    if Nip94.isImage nip96File then
+                        nip96File.url
+                        |> Maybe.map (\url ->
+                            url ++ "?w=" ++ String.fromInt imageWidth -- NIP-96 servers can return scaled versions of images
+                        ) 
+                        |> Maybe.withDefault ""
+                    else if Nip94.isAudio nip96File then
+                        "/images/audio-placeholder.jpeg"
+                    else if Nip94.isVideo nip96File then
+                        "/images/video-placeholder.jpeg"
+                    else
+                        "Binary"
+
             in
             div
                 [ css
@@ -1135,7 +1150,7 @@ imagePreview translations onSelected displayType uniqueFileId uploadedFile =
                         ++ [ css
                                 []
                            , Attr.alt <| Maybe.withDefault "" nip96File.alt
-                           , Attr.src (Maybe.withDefault "" nip96File.url ++ "?w=" ++ String.fromInt imageWidth) -- NIP-96 servers can return scaled versions of images
+                           , Attr.src imageUrl
                            ]
                     )
                     []
