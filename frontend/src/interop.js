@@ -609,6 +609,7 @@ export const onReady = ({ app, env }) => {
   async function sendEvent(app, { sendId: sendId, event: event, relays: relays }) {
     debugLog('send event ' + sendId, event, 'relays: ', relays);
 
+    var feedSentEventToApplication = true;
     var ndkEvent = new NDKEvent(window.ndk, event);
     const signer = (ndkEvent.pubkey == anonymousPubKey) ? anonymousSigner : window.ndk.signer;
 
@@ -616,6 +617,8 @@ export const onReady = ({ app, env }) => {
       ndkEvent = await encapsulateDraftEvent(ndkEvent, signer);
     } else if (event.kind == 30078) {  // application-specific event
       ndkEvent = await encapsulateApplicationSpecificEvent(ndkEvent, signer);
+      // Don't try to decrypt events that weren't encrypted for us
+      feedSentEventToApplication = false;
     }
 
     if (!ndkEvent) {
@@ -643,9 +646,11 @@ export const onReady = ({ app, env }) => {
         debugLog('published event ' + sendId, ndkEvent);
         app.ports.receiveMessage.send({ messageType: 'published', value: { sendId: sendId, event: ndkEvent, results: results } });
 
-        // feed sent events into app as if received by relay.
-        // thus we can let the event modify the state correctly
-        processEvents(app, -1, "sent event", [ndkEvent]);
+        if (feedSentEventToApplication) {
+          // feed sent events into app as if received by relay.
+          // thus we can let the event modify the state correctly
+          processEvents(app, -1, "sent event", [ndkEvent]);
+        }
       }).catch((error) => {
         console.log(error);
         app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: error.message } });
