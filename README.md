@@ -1,3 +1,10 @@
+# The Pareto Project
+
+An open source publishing ecosystem for uncensorable citizen journalism, powered by Nostr, Lightning and eCash.
+See more on [pareto.space](https://pareto.space/).
+
+This repository contains the Pareto client, a Nostr client for reading and publishing uncensorable long-form content.
+
 # Backend and Frontend of the Pareto Nostr client
 This is a monorepo with both Elixir/Phoenix backend and Elm frontend.
 
