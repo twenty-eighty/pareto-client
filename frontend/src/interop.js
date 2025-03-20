@@ -70,13 +70,23 @@ export const onReady = ({ app, env }) => {
 
   function loadNostrLogin() {
     const titleAndDescription = getLocalizedStrings(navigator.language);
+    const relays =
+      ["wss://nostr.pareto.space"
+        , "wss://nostr.pareto.town"
+        , "wss://pareto.nostr1.com"
+        , "relay.nostr.band"
+        , "relay.damus.io"
+        , "nos.lol"
+        , "offchain.pub"
+        , "nostr.wine"
+      ].join(",");
 
     const newScript = document.createElement('script');
     newScript.src = "https://www.unpkg.com/nostr-login@latest/dist/unpkg.js";
     newScript.setAttribute("data-title", titleAndDescription.title);
     newScript.setAttribute("data-description", titleAndDescription.description);
-    newScript.setAttribute("data-signup-relays", "wss://nostr.pareto.space,wss://nostr.pareto.town,wss://pareto.nostr1.com");
-    newScript.setAttribute("data-outbox-relays", "wss://nostr.pareto.space,wss://nostr.pareto.town,wss://pareto.nostr1.com");
+    newScript.setAttribute("data-signup-relays", relays);
+    newScript.setAttribute("data-outbox-relays", relays);
     newScript.setAttribute("data-signup-nstart", "true");
     newScript.setAttribute("data-follow-npubs",
       ["2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" // milosz@pareto.space
