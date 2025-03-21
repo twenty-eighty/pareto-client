@@ -6,7 +6,7 @@ services:
     env_file:
       - .env
     volumes:
-      - .:/app
+      - ./:/app
     ports:
       - "4000:4000"
 
