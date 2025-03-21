@@ -241,7 +241,7 @@ viewProfile : Shared.Model -> Model -> Profile -> Html Msg
 viewProfile shared model profile =
     let
         userPubKey =
-            Shared.loggedInPubKey shared.loginStatus
+            Shared.loggedInSigningPubKey shared.loginStatus
 
         sendsNewsletter =
             Nostr.sendsNewsletterPubKey shared.nostr profile.pubKey
