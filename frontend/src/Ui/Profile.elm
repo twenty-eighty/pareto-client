@@ -8,6 +8,10 @@ import FeatherIcons
 import Graphics
 import Html.Styled as Html exposing (Html, a, div, h2, img, p, text)
 import Html.Styled.Attributes as Attr exposing (css)
+import Html.Styled.Events as Events
+import I18Next
+import Json.Decode as Decode
+import Json.Encode as Encode
 import Nostr.Nip05 as Nip05
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
@@ -135,9 +139,9 @@ viewProfile profile profileViewData shared =
                     (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
                     [ text (profile.about |> Maybe.withDefault "") ]
                 , viewWebsite styles profile
-                , viewNip05 styles profile
+                , viewNip05 styles profile profileViewData.validation
                 , viewLNAddress styles profile zapRelays
-                , viewNpub styles profile
+                , viewNpub styles profile shared.browserEnv.translations
                 ]
             , div
                 [ css
@@ -222,13 +226,21 @@ websiteLink url =
         url
 
 
-viewNip05 : Styles msg -> Profile -> Html msg
-viewNip05 styles profile =
+viewNip05 : Styles msg -> Profile -> ProfileValidation -> Html msg
+viewNip05 styles profile validation =
     case profile.nip05 of
         Just nip05 ->
             p
-                (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
-                [ text <| Nip05.nip05ToDisplayString nip05 ]
+                (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ [ css [ Tw.flex, Tw.items_center ] ])
+                [ text <| Nip05.nip05ToDisplayString nip05
+                , div
+                    [ css
+                        [ Tw.mx_0_dot_5
+                        , Tw.my_0_dot_5
+                        ]
+                    ]
+                    [ validationIcon 20 validation ]
+                ]
 
         Nothing ->
             emptyHtml
@@ -246,8 +258,8 @@ viewLNAddress styles profile zapRelays =
         |> Maybe.withDefault (emptyHtml)
 
 
-viewNpub : Styles msg -> Profile -> Html msg
-viewNpub styles profile =
+viewNpub : Styles msg -> Profile -> I18Next.Translations -> Html msg
+viewNpub styles profile translations =
     let
         maybeNip19 =
             Nip19.Npub profile.pubKey
@@ -257,11 +269,41 @@ viewNpub styles profile =
     case maybeNip19 of
         Just nip19 ->
             p
-                (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
-                [ text <| shortenedPubKey 11 nip19 ]
+                (styles.colorStyleGrayscaleText
+                    ++ styles.textStyleBody
+                    ++ [ css [ Tw.flex ] ]
+                )
+                [ text <| shortenedPubKey 11 nip19
+                , copyButton translations nip19 (shortenedPubKey 11 nip19)
+                ]
 
         Nothing ->
             emptyHtml
+
+
+copyButton : I18Next.Translations -> String -> String -> Html msg
+copyButton translations copyText uniqueId =
+    div
+        [ css [ Tw.m_0_dot_5 ] ]
+        [ div
+            [ css [ Tw.cursor_pointer ]
+            , Attr.id uniqueId
+            ]
+            [ Icon.FeatherIcon
+                (FeatherIcons.clipboard
+                    |> FeatherIcons.withSize 20
+                )
+                |> Icon.view
+            ]
+        , Html.node "js-clipboard-component"
+            [ Attr.property "buttonId" (Encode.string uniqueId)
+            , Attr.property "copyContent" (Encode.string copyText)
+
+            -- TODO: make a stateful profile component and use AlertTimerMessage to give users a visual feedback
+            --, Events.on "copiedToClipboard" (Decode.succeed (Translations.npubCopied [ translations ]))
+            ]
+            []
+        ]
 
 
 viewBanner : Maybe String -> Html msg
