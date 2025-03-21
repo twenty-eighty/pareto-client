@@ -7,6 +7,7 @@ import FeatherIcons exposing (search)
 import Html.Styled as Html exposing (Html, div, p)
 import Html.Styled.Attributes exposing (css)
 import Layouts
+import Nostr.Nip05 as Nip05
 import Nostr.Nip19 as Nip19
 import Nostr
 import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), emptyEventFilter, kindDecoder)
@@ -87,7 +88,7 @@ update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
         Search maybeSearchText ->
-            performSearch shared model maybeSearchText
+            performSearch shared model (Maybe.map String.trim maybeSearchText)
 
         SearchBarSent innerMsg ->
             SearchBar.update
@@ -129,17 +130,25 @@ performSearch shared model maybeSearchText =
 
                 Ok (Nip19.NAddr _) ->
                     ( model
-                    , Effect.batch
-                        [ Effect.pushRoute { path = Route.Path.A_Addr_ { addr = searchText }, query = Dict.empty, hash = Nothing } ]
+                    , Effect.pushRoute { path = Route.Path.A_Addr_ { addr = searchText }, query = Dict.empty, hash = Nothing }
                     )
 
                 _ ->
-                    ( model
-                    , Effect.batch
-                        [ searchEffect shared searchText
-                        , Effect.pushRoute { path = Route.Path.Search, query = Dict.singleton queryDictKey (Url.percentEncode searchText), hash = Nothing }
-                        ]
-                    )
+                    -- try to decode search string as NIP-05 handle
+                    case Nip05.parseNip05 searchText of
+                        Just nip05 ->
+                            ( model
+                            , Effect.pushRoute { path = Route.Path.U_User_ { user = searchText }, query = Dict.empty, hash = Nothing }
+                            )
+
+                        -- neither NIP-19 nor NIP-05 identifier - search via search relays
+                        Nothing ->
+                            ( model
+                            , Effect.batch
+                                [ searchEffect shared searchText
+                                , Effect.pushRoute { path = Route.Path.Search, query = Dict.singleton queryDictKey (Url.percentEncode searchText), hash = Nothing }
+                                ]
+                            )
 
         Nothing ->
             ( model, Effect.replaceRoute { path = Route.Path.Search, query = Dict.empty, hash = Nothing } )
