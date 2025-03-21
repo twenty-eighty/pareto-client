@@ -4,7 +4,6 @@ import "./Milkdown/MilkdownEditor.js";
 import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
 import { BlossomClient } from "blossom-client-sdk/client";
-// import { init as initNostrLogin, launch as launchNostrLoginDialog } from "nostr-login"
 import "./clipboard-component.js";
 import "./zap-component.js";
 import "./elm-oembed.js";
@@ -28,12 +27,30 @@ export const flags = ({ env }) => {
 const debugLog = debug('pareto-client');
 
 var connected = false;
-var windowLoaded = false;
+var nStartWizard = null
 
 const anonymousSigner = new NDKPrivateKeySigner('cff56394373edfaa281d2e1b5ad1b8cafd8b247f229f2af2c61734fb0c7b3f84');
 const anonymousPubKey = 'ecdf32491ef8b5f1902109f495e7ca189c6fcec76cd66b888fa9fc2ce87f40db';
 
 const paretoNdkCacheDb = 'pareto-ndk-cache';
+
+const defaultRelays =
+  ["wss://nostr.pareto.space"
+    , "wss://nostr.pareto.town"
+    , "wss://pareto.nostr1.com"
+    , "relay.nostr.band"
+    , "relay.damus.io"
+    , "nos.lol"
+    , "offchain.pub"
+    , "nostr.wine"
+  ];
+
+const suggestedPubKeys =
+  ["2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" // milosz@pareto.space
+    , "e373ca4101e25a4d4fcb2a53473fa4113b91dba2c2e451d039d8528eb82abcc5" // ashoka@pareto.space
+    , "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5" // friedenstaube@pareto.space
+    , "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84" // _@pareto.space
+  ];
 
 export const onReady = ({ app, env }) => {
 
@@ -64,22 +81,11 @@ export const onReady = ({ app, env }) => {
   window.onload = function () {
     // make sure to load Nostr-Login after browser extensions had a chance to create window.nostr
     loadNostrLogin();
-
-    windowLoaded = true;
   };
 
   function loadNostrLogin() {
     const titleAndDescription = getLocalizedStrings(navigator.language);
-    const relays =
-      ["wss://nostr.pareto.space"
-        , "wss://nostr.pareto.town"
-        , "wss://pareto.nostr1.com"
-        , "relay.nostr.band"
-        , "relay.damus.io"
-        , "nos.lol"
-        , "offchain.pub"
-        , "nostr.wine"
-      ].join(",");
+    const relays = defaultRelays.join(",");
 
     const newScript = document.createElement('script');
     newScript.src = "https://www.unpkg.com/nostr-login@latest/dist/unpkg.js";
@@ -88,13 +94,7 @@ export const onReady = ({ app, env }) => {
     newScript.setAttribute("data-signup-relays", relays);
     newScript.setAttribute("data-outbox-relays", relays);
     newScript.setAttribute("data-signup-nstart", "true");
-    newScript.setAttribute("data-follow-npubs",
-      ["2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" // milosz@pareto.space
-        , "e373ca4101e25a4d4fcb2a53473fa4113b91dba2c2e451d039d8528eb82abcc5" // ashoka@pareto.space
-        , "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5" // friedenstaube@pareto.space
-        , "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84" // _@pareto.space
-      ].join(',')
-    );
+    newScript.setAttribute("data-follow-npubs", suggestedPubKeys.join(','));
     document.body.appendChild(newScript);
   }
 
@@ -139,6 +139,10 @@ export const onReady = ({ app, env }) => {
         loginSignUp(app)
         break;
 
+      case 'signUp':
+        signUp(app)
+        break;
+
       case 'encryptString':
         encryptString(app, value.data)
         break;
@@ -175,6 +179,53 @@ export const onReady = ({ app, env }) => {
 
   function loginSignUp(app) {
     document.dispatchEvent(new CustomEvent('nlLaunch', {}));
+  }
+
+  function signUp(app) {
+    if (!nStartWizard) {
+      loadNJump();
+    } else {
+      nStartWizard.open();
+    }
+  }
+
+  function loadNJump() {
+    if (!nStartWizard) {
+      const newScript = document.createElement('script');
+      newScript.src = "https://start.njump.me/modal.js";
+      newScript.onload = () => {
+        // Create the modal instance with required parameters
+        nStartWizard = new NstartModal({
+          // Required parameters
+          baseUrl: 'https://start.njump.me',
+          an: 'Pareto', // App name
+
+          // Optional parameters
+          aa: '94a3b8', // Hex accent color
+          afb: false, // Force bunker (default False)
+          asb: false, // Skip bunker (default False)
+          aan: true, // Don't return Nsec (default False)
+          aac: false, // Don't return  Ncryptsec (default False)
+          arr: defaultRelays, // Custom read relays
+          awr: defaultRelays, // Custom write relays
+          s: suggestedPubKeys, // suggested profiles
+
+          // Callbacks
+          onComplete: (result) => {
+            if (result.nostrLogin) {
+              document.dispatchEvent(new CustomEvent('nlLaunch', { detail: 'login-bunker-url' }));
+            } else {
+              document.dispatchEvent(new CustomEvent('nlLaunch', { detail: 'login' }));
+            }
+          },
+          onCancel: () => {
+            console.log('Wizard cancelled');
+          }
+        });
+        nStartWizard.open()
+      };
+      document.body.appendChild(newScript);
+    }
   }
 
   function setTestMode(app, value) {

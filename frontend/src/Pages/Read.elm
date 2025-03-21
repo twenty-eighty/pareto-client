@@ -128,6 +128,13 @@ init shared route () =
                 |> Maybe.andThen categoryFromString
                 |> Maybe.withDefault Pareto
 
+        signUpEffect =
+            if route.hash == Just "signup" then
+                Ports.signUp
+                |> Effect.sendCmd
+            else
+                Effect.none
+
         correctedCategory =
             case category of
                 Pareto ->
@@ -160,6 +167,7 @@ init shared route () =
             |> Nostr.createRequest shared.nostr "Long-form articles" [ KindUserMetadata, KindEventDeletionRequest ]
             |> Shared.Msg.RequestNostrEvents
             |> Effect.sendSharedMsg
+        , signUpEffect
         ]
     )
 

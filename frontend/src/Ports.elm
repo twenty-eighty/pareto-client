@@ -32,6 +32,11 @@ loginSignUp =
     sendCommand { command = "loginSignUp", value = Encode.null }
 
 
+signUp : Cmd msg
+signUp =
+    sendCommand { command = "signUp", value = Encode.null }
+
+
 requestEvents : String -> Bool -> RequestId -> List String -> List EventFilter -> Cmd msg
 requestEvents description closeOnEose requestId relays filters =
     sendCommand
