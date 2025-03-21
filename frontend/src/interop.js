@@ -192,7 +192,7 @@ export const onReady = ({ app, env }) => {
   function loadNJump() {
     if (!nStartWizard) {
       const newScript = document.createElement('script');
-      newScript.src = "https://start.njump.me/modal.js";
+      newScript.src = "/js/nstart-modal.js";
       newScript.onload = () => {
         // Create the modal instance with required parameters
         nStartWizard = new NstartModal({
