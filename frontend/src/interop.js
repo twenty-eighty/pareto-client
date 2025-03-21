@@ -88,7 +88,7 @@ export const onReady = ({ app, env }) => {
     const relays = defaultRelays.join(",");
 
     const newScript = document.createElement('script');
-    newScript.src = "https://www.unpkg.com/nostr-login@latest/dist/unpkg.js";
+    newScript.src = "/js/nostr-login.js";
     newScript.setAttribute("data-title", titleAndDescription.title);
     newScript.setAttribute("data-description", titleAndDescription.description);
     newScript.setAttribute("data-signup-relays", relays);
