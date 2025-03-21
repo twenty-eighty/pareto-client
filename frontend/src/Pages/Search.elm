@@ -7,6 +7,7 @@ import FeatherIcons exposing (search)
 import Html.Styled as Html exposing (Html, div, p)
 import Html.Styled.Attributes exposing (css)
 import Layouts
+import Nostr.Nip19 as Nip19
 import Nostr
 import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), emptyEventFilter, kindDecoder)
 import Nostr.Request exposing (RequestData(..))
@@ -86,17 +87,7 @@ update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
         Search maybeSearchText ->
-            case maybeSearchText of
-                Just searchText ->
-                    ( model
-                    , Effect.batch
-                        [ searchEffect shared searchText
-                        , Effect.replaceRoute { path = Route.Path.Search, query = Dict.singleton queryDictKey (Url.percentEncode searchText), hash = Nothing }
-                        ]
-                    )
-
-                Nothing ->
-                    ( model, Effect.replaceRoute { path = Route.Path.Search, query = Dict.empty, hash = Nothing } )
+            performSearch shared model maybeSearchText
 
         SearchBarSent innerMsg ->
             SearchBar.update
@@ -106,6 +97,52 @@ update shared msg model =
                 , toMsg = SearchBarSent
                 , onSearch = Search
                 }
+
+performSearch : Shared.Model -> Model -> Maybe String -> ( Model, Effect Msg )
+performSearch shared model maybeSearchText =
+    case maybeSearchText of
+        Just searchText ->
+            case Nip19.decode searchText of
+                Ok (Nip19.Npub _) ->
+                    ( model
+                    , Effect.batch
+                        [ Effect.pushRoute { path = Route.Path.P_Profile_ { profile = searchText }, query = Dict.empty, hash = Nothing } ]
+                    )
+
+                Ok (Nip19.Note noteId) ->
+                    ( model
+                    , Effect.batch
+                        [ Effect.pushRoute { path = Route.Path.A_Addr_ { addr = searchText }, query = Dict.empty, hash = Nothing } ]
+                    )
+
+                Ok (Nip19.NProfile nprofile) ->
+                    ( model
+                    , Effect.batch
+                        [ Effect.pushRoute { path = Route.Path.P_Profile_ { profile = searchText }, query = Dict.empty, hash = Nothing } ]
+                    )
+
+                Ok (Nip19.NEvent _) ->
+                    ( model
+                    , Effect.batch
+                        [ Effect.pushRoute { path = Route.Path.A_Addr_ { addr = searchText }, query = Dict.empty, hash = Nothing } ]
+                    )
+
+                Ok (Nip19.NAddr _) ->
+                    ( model
+                    , Effect.batch
+                        [ Effect.pushRoute { path = Route.Path.A_Addr_ { addr = searchText }, query = Dict.empty, hash = Nothing } ]
+                    )
+
+                _ ->
+                    ( model
+                    , Effect.batch
+                        [ searchEffect shared searchText
+                        , Effect.pushRoute { path = Route.Path.Search, query = Dict.singleton queryDictKey (Url.percentEncode searchText), hash = Nothing }
+                        ]
+                    )
+
+        Nothing ->
+            ( model, Effect.replaceRoute { path = Route.Path.Search, query = Dict.empty, hash = Nothing } )
 
 
 searchEffect : Shared.Model -> String -> Effect Msg

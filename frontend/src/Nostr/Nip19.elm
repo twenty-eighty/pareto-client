@@ -1,4 +1,4 @@
-module Nostr.Nip19 exposing (NAddrData, NIP19Type(..), decode, encode)
+module Nostr.Nip19 exposing (NAddrData, NEventData, NIP19Type(..), decode, encode)
 
 import Bitwise exposing (or, shiftLeftBy, shiftRightBy)
 import Maybe exposing (withDefault)

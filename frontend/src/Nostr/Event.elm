@@ -3,7 +3,7 @@ module Nostr.Event exposing (..)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
-import Nostr.Nip19 as Nip19 exposing (NAddrData, NIP19Type(..))
+import Nostr.Nip19 as Nip19 exposing (NAddrData, NEventData, NIP19Type(..))
 import Nostr.Relay
 import Nostr.Types exposing (Address, EventId, PubKey, RelayRole(..), RelayUrl, decodeRelayRole, relayRoleToString)
 import Time
@@ -1565,6 +1565,9 @@ eventFilterForNip19 nip19 =
         Nip19.NAddr naddrData ->
             Just <| eventFilterForNaddr naddrData
 
+        Nip19.NEvent neventData ->
+            Just <| eventFilterForNevent neventData
+
         Nip19.Note noteId ->
             Just <| eventFilterForShortNote noteId
 
@@ -1580,6 +1583,22 @@ eventFilterForNaddr { identifier, kind, pubKey } =
         , tagReferences = Just [ TagReferenceIdentifier identifier ]
         , limit = Just 1
     }
+
+
+eventFilterForNevent : NEventData -> EventFilter
+eventFilterForNevent { id, author, kind, relays } =
+    { emptyEventFilter
+        | authors =
+            author
+                |> Maybe.map List.singleton
+        , ids = Just [ id ]
+        , kinds =
+            kind
+                |> Maybe.map kindFromNumber
+                |> Maybe.map List.singleton
+        , limit = Just 1
+    }
+    
 
 
 eventFilterForShortNote : String -> EventFilter

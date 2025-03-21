@@ -52,7 +52,7 @@ toLayout theme model =
 
 
 type ContentToView
-    = ShortNote String
+    = ShortNote String (Maybe (List RelayUrl))
     | Article AddressComponents (List RelayUrl)
     | NonSupportedNip19 String
     | NonSupportedKind Kind
@@ -75,7 +75,10 @@ init shared route () =
         contentToView =
             case decoded of
                 Ok (Nip19.Note noteId) ->
-                    ShortNote noteId
+                    ShortNote noteId Nothing
+
+                Ok (Nip19.NEvent { id, author, kind, relays }) ->
+                    ShortNote id (Just relays)
 
                 Ok (Nip19.NAddr { identifier, pubKey, kind, relays }) ->
                     case kindFromNumber kind of
@@ -93,16 +96,16 @@ init shared route () =
 
         ( effect, requestId ) =
             case ( contentToView, Result.toMaybe decoded |> Maybe.andThen eventFilterForNip19 ) of
-                ( ShortNote noteId, Just eventFilter ) ->
+                ( ShortNote noteId relays, Just eventFilter ) ->
                     ( eventFilter
-                        |> RequestShortNote
+                        |> RequestShortNote relays
                         |> Nostr.createRequest shared.nostr ("NIP-19 note " ++ route.params.event) [ KindUserMetadata ]
                         |> Shared.Msg.RequestNostrEvents
                         |> Effect.sendSharedMsg
                     , Just <| Nostr.getLastRequestId shared.nostr
                     )
 
-                ( ShortNote _, Nothing ) ->
+                ( ShortNote _ _, Nothing ) ->
                     ( Effect.none
                     , Nothing
                     )
@@ -230,7 +233,7 @@ viewContent shared model =
             Ui.Styles.stylesForTheme shared.theme
     in
     case model.contentToView of
-        ShortNote noteId ->
+        ShortNote noteId _ ->
             Nostr.getShortNoteById shared.nostr noteId
                 |> Maybe.map
                     (\shortNote ->
