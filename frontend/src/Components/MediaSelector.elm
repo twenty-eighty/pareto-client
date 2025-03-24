@@ -19,6 +19,7 @@ import Components.Button as Button
 import Components.Dropdown
 import Components.Icon as Icon
 import Components.UploadDialog as UploadDialog exposing (UploadResponse(..), UploadServer)
+import Css
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import FeatherIcons
@@ -34,6 +35,7 @@ import Json.Encode as Encode
 import Nostr
 import Nostr.Blossom as Blossom exposing (BlobDescriptor, userServerListFromEvent)
 import Nostr.Event exposing (Event, Kind(..))
+import Nostr.External
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.Nip94 as Nip94 exposing (FileMetadata)
 import Nostr.Nip96 as Nip96 exposing (extendRelativeServerDescriptorUrls)
@@ -48,7 +50,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.MediaSelector as Translations
-import Ui.Shared
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme)
 import Url
 
@@ -326,7 +328,7 @@ update props =
         ConfigureDefaultMediaServer ->
             ( Model model
             , Effect.batch
-                [ sendNip96ServerListCmd props.browserEnv props.user (Nostr.getDefaultNip96Servers props.nostr props.user.pubKey) Pareto.defaultRelays
+                [ sendNip96ServerListCmd props.browserEnv props.user (Nostr.getDefaultNip96Servers props.nostr props.user.pubKey) (Nostr.getDefaultRelays props.nostr)
                 ]
                 |> Effect.map props.toMsg
             )
@@ -468,7 +470,7 @@ eventWithNip96ServerList browserEnv user serverUrls =
     , content = ""
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }
 
 
@@ -658,8 +660,8 @@ processIncomingMessage user xModel messageType toMsg value =
         -- so we have to process them when arriving
         "events" ->
             case
-                ( Decode.decodeValue (Decode.field "kind" Nostr.Event.kindDecoder) value
-                , Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) value
+                ( Nostr.External.decodeEventsKind value
+                , Nostr.External.decodeEvents value
                 )
             of
                 ( Ok KindUserServerList, Ok events ) ->
@@ -760,7 +762,7 @@ view (Settings settings) =
     in
     case model.displayType of
         DisplayModalDialog False ->
-            div [] []
+            emptyHtml
 
         DisplayModalDialog True ->
             Ui.Shared.modalDialog
@@ -816,15 +818,17 @@ viewMediaSelector (Settings settings) =
                 , Tw.justify_between
                 , Tw.pb_4
                 , Tw.border_b_2
+                , Tw.gap_2
                 ]
             ]
             [ Components.Dropdown.new
                 { model = model.serverSelectionDropdown
                 , toMsg = DropdownSent
                 , choices = selectableServers
-                , toLabel = mediaServerToString settings.browserEnv.translations
+                , allowNoSelection = False
+                , toLabel = mediaServerToString settings.browserEnv.translations << Maybe.withDefault NoMediaServer
                 }
-                |> Components.Dropdown.withOnChange ChangedSelectedServer
+                |> Components.Dropdown.withOnChange (ChangedSelectedServer << Maybe.withDefault NoMediaServer)
                 |> Components.Dropdown.view
                 |> Html.map settings.toMsg
             , Button.new
@@ -837,6 +841,7 @@ viewMediaSelector (Settings settings) =
                 |> Button.view
                 |> Html.map settings.toMsg
             ]
+        , viewInstruction settings.browserEnv.translations model.displayType filesToShow
         , viewImages (Settings settings) filesToShow
         , viewConfigureMediaServerMessage (Settings settings)
         , UploadDialog.new
@@ -854,6 +859,27 @@ viewMediaSelector (Settings settings) =
             }
             |> AlertTimerMessage.view
         ]
+
+
+
+-- Show instruction how to select image depending on display mode
+-- Only show if there's at least one image to select
+
+
+viewInstruction : I18Next.Translations -> DisplayType -> List UploadedFile -> Html msg
+viewInstruction translations displayType filesToShow =
+    case (displayType, List.length filesToShow > 0) of
+        (DisplayModalDialog _, True) ->
+            div
+                [ css
+                    [ Tw.my_2
+                    ]
+                ]
+                [ text <| Translations.imageSelectionInstructionalText [ translations ]
+                ]
+
+        (_, _) ->
+            emptyHtml
 
 
 viewConfigureMediaServerMessage : MediaSelector msg -> Html msg
@@ -885,7 +911,7 @@ viewConfigureMediaServerMessage (Settings settings) =
             ]
 
     else
-        div [] []
+        emptyHtml
 
 
 viewImages : MediaSelector msg -> List UploadedFile -> Html msg
@@ -1057,7 +1083,7 @@ uploadedNip96ImageFiles uploadedNip96Files serverUrl =
                         (\uploadedFile ->
                             case uploadedFile of
                                 Nip96File fileMetadata ->
-                                    Nip94.isImage fileMetadata
+                                    Nip94.isImage fileMetadata || Nip94.isAudio fileMetadata
 
                                 BlossomFile _ ->
                                     -- don't know what type blossom file is
@@ -1081,6 +1107,14 @@ imagePreview translations onSelected displayType uniqueFileId uploadedFile =
                 , Tw.items_center
                 , Tw.justify_center
                 , Tw.text_color Theme.gray_400
+                , Tw.pr_1
+                , Tw.pb_1
+                , Tw.drop_shadow_md
+                , Css.hover
+                    [ Tw.pr_0
+                    , Tw.pb_0
+                    , Tw.drop_shadow_sm
+                    ]
                 ]
             , Events.onDoubleClick (SelectedItem { item = uploadedFile, onSelected = onSelected })
             ]
@@ -1090,6 +1124,21 @@ imagePreview translations onSelected displayType uniqueFileId uploadedFile =
             let
                 imageWidth =
                     200
+
+                imageUrl =
+                    if Nip94.isImage nip96File then
+                        nip96File.url
+                        |> Maybe.map (\url ->
+                            url ++ "?w=" ++ String.fromInt imageWidth -- NIP-96 servers can return scaled versions of images
+                        ) 
+                        |> Maybe.withDefault ""
+                    else if Nip94.isAudio nip96File then
+                        "/images/audio-placeholder.jpeg"
+                    else if Nip94.isVideo nip96File then
+                        "/images/video-placeholder.jpeg"
+                    else
+                        "Binary"
+
             in
             div
                 [ css
@@ -1101,7 +1150,7 @@ imagePreview translations onSelected displayType uniqueFileId uploadedFile =
                         ++ [ css
                                 []
                            , Attr.alt <| Maybe.withDefault "" nip96File.alt
-                           , Attr.src (Maybe.withDefault "" nip96File.url ++ "?w=" ++ String.fromInt imageWidth) -- NIP-96 servers can return scaled versions of images
+                           , Attr.src imageUrl
                            ]
                     )
                     []
@@ -1134,7 +1183,7 @@ viewCopyButton : I18Next.Translations -> DisplayType -> String -> String -> Html
 viewCopyButton translations displayType url uniqueId =
     case displayType of
         DisplayModalDialog _ ->
-            div [] []
+            emptyHtml
 
         DisplayEmbedded ->
             copyButton translations url uniqueId

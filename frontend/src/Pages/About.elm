@@ -3,15 +3,14 @@ module Pages.About exposing (Model, Msg, page)
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, div, text)
-import Html.Styled.Attributes as Attr exposing (css, href)
+import Html.Styled as Html exposing (Html, a, div, img, span, text)
+import Html.Styled.Attributes as Attr exposing (css, href, src, target, width)
 import I18Next
 import Layouts
 import Locale exposing (Language(..))
 import Nostr
-import Nostr.Event exposing (Kind(..), KindInformationLink(..), Tag(..), TagReference(..), buildAddress, informationForKind, numberForKind)
-import Nostr.HandlerInformation exposing (HandlerInformation, WebTarget, buildHandlerInformation)
-import Nostr.Nips exposing (descriptionForNip)
+import Nostr.Event exposing (Kind(..), KindInformationLink(..), Tag(..), TagReference(..), buildAddress, numberForKind)
+import Nostr.HandlerInformation exposing (HandlerInformation, buildHandlerInformation)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileToJson)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
@@ -27,6 +26,7 @@ import Tailwind.Utilities as Tw
 import Time
 import Translations.About as Translations
 import Ui.Profile exposing (FollowType(..))
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 import View exposing (View)
 
@@ -117,12 +117,12 @@ sendClientRecommendation nostr pubKey handlerInformation =
     , kind = KindHandlerRecommendation
     , tags =
         [ EventDelegationTag (numberForKind KindLongFormContent |> String.fromInt)
-        , GenericTag4 "a" (buildAddress ( KindHandlerInformation, handlerInformation.pubKey, handlerInformation.handlerIdentifier )) Pareto.paretoRelay "web"
+        , GenericTag [ "a", buildAddress ( KindHandlerInformation, handlerInformation.pubKey, handlerInformation.handlerIdentifier ), Pareto.paretoRelay, "web" ]
         ]
     , content = ""
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }
         |> SendClientRecommendation (Nostr.getWriteRelayUrlsForPubKey nostr pubKey)
         |> Shared.Msg.SendNostrEvent
@@ -146,7 +146,7 @@ sendClientProfile nostr pubKey profile =
     , content = profileToJson profile
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }
         |> SendProfile (Nostr.getWriteRelayUrlsForPubKey nostr pubKey)
         |> Shared.Msg.SendNostrEvent
@@ -175,29 +175,31 @@ view shared _ =
                 [ Tw.m_4
                 ]
             ]
-            [ viewHandlerInformation shared.theme shared.browserEnv shared.loginStatus shared.nostr (Pareto.applicationInformation shared.browserEnv.now)
-            , viewSupportedNips shared.theme shared.browserEnv Pareto.supportedNips
+            [ viewContent shared (Pareto.applicationInformation shared.browserEnv.now)
             , viewFooter shared.theme shared.browserEnv
             ]
         ]
     }
 
 
-viewSupportInformation : Theme -> Html Msg
-viewSupportInformation theme =
+viewSupportInformation : Theme -> I18Next.Translations -> Html Msg
+viewSupportInformation theme translations =
     let
         styles =
             stylesForTheme theme
     in
     Html.p
-        [ css
-            [ Tw.my_4
-            ]
-        ]
-        [ text "You found a bug or want to give feedback? Please write an email to "
+        (styles.textStyleBody
+            ++ styles.colorStyleGrayscaleText
+            ++ [ css
+                    [ Tw.my_4
+                    ]
+               ]
+        )
+        [ text <| Translations.feedbackEmailInfoText [ translations ]
         , a
             (styles.textStyleLinks
-                ++ styles.colorStyleArticleHashtags
+                ++ styles.colorStyleLinks
                 ++ [ Attr.href <| "mailto:" ++ Pareto.supportEmail
                    ]
             )
@@ -206,8 +208,39 @@ viewSupportInformation theme =
         ]
 
 
-viewHandlerInformation : Theme -> BrowserEnv -> LoginStatus -> Nostr.Model -> HandlerInformation -> Html Msg
-viewHandlerInformation theme browserEnv loginStatus nostr handlerInformation =
+viewDonationInformation : Theme -> I18Next.Translations -> Html Msg
+viewDonationInformation theme translations =
+    let
+        styles =
+            stylesForTheme theme
+    in
+    Html.p
+        (styles.textStyleBody
+            ++ styles.colorStyleGrayscaleText
+            ++ [ css
+                    [ Tw.my_4
+                    ]
+               ]
+        )
+        [ div [ css [ Tw.mb_4 ] ] [ text <| Translations.donationInfoText [ translations ] ]
+        , a
+            (styles.textStyleLinks
+                ++ styles.colorStyleLinks
+                ++ [ Attr.href <| "https://geyser.fund/project/pareto"
+                   , target "_blank"
+                   ]
+            )
+            [ img
+                [ src "https://storage.googleapis.com/geyser-projects-media/app/logo-name-dark.svg"
+                , width 200
+                ]
+                []
+            ]
+        ]
+
+
+viewContent : Shared.Model -> HandlerInformation -> Html Msg
+viewContent shared handlerInformation =
     div
         [ css
             [ Tw.flex
@@ -217,26 +250,26 @@ viewHandlerInformation theme browserEnv loginStatus nostr handlerInformation =
         ]
         [ Ui.Profile.viewProfile
             handlerInformation.profile
-            { browserEnv = browserEnv
+            { browserEnv = shared.browserEnv
             , following = UnknownFollowing
-            , isAuthor = False
             , subscribe = Nothing
-            , theme = theme
+            , theme = shared.theme
             , validation =
-                Nostr.getProfileValidationStatus nostr handlerInformation.pubKey
+                Nostr.getProfileValidationStatus shared.nostr handlerInformation.pubKey
                     |> Maybe.withDefault ValidationUnknown
             }
-        , viewSupportInformation theme
-        , viewActionButtons theme browserEnv handlerInformation loginStatus
-        , viewWebTargets theme browserEnv handlerInformation.webTargets
-        , viewSupportedKinds theme browserEnv handlerInformation.kinds
+            shared
+        , viewSupportInformation shared.theme shared.browserEnv.translations
+        , viewDonationInformation shared.theme shared.browserEnv.translations
+        , viewActionButtons shared.theme shared.browserEnv handlerInformation shared.loginStatus
+        , viewTechDetails shared.theme shared.browserEnv
         ]
 
 
 viewActionButtons : Theme -> BrowserEnv -> HandlerInformation -> LoginStatus -> Html Msg
 viewActionButtons theme browserEnv handlerInformation loginStatus =
     case loginStatus of
-        LoggedIn pubKey ->
+        LoggedIn pubKey _ ->
             let
                 styles =
                     stylesForTheme theme
@@ -264,7 +297,7 @@ viewActionButtons theme browserEnv handlerInformation loginStatus =
                 ]
 
         _ ->
-            div [] []
+            emptyHtml
 
 
 viewPublishAuthorsListButton : Theme -> BrowserEnv -> PubKey -> Html Msg
@@ -278,7 +311,7 @@ viewPublishAuthorsListButton theme browserEnv pubKey =
             |> Button.view
 
     else
-        div [] []
+        emptyHtml
 
 
 viewPublishProfileButton : Theme -> BrowserEnv -> PubKey -> HandlerInformation -> Html Msg
@@ -292,7 +325,7 @@ viewPublishProfileButton theme browserEnv pubKey handlerInformation =
             |> Button.view
 
     else
-        div [] []
+        emptyHtml
 
 
 viewPublishHandlerInformationButton : Theme -> BrowserEnv -> PubKey -> HandlerInformation -> Html Msg
@@ -306,166 +339,23 @@ viewPublishHandlerInformationButton theme browserEnv pubKey handlerInformation =
             |> Button.view
 
     else
-        div [] []
+        emptyHtml
 
 
-viewSupportedKinds : Theme -> BrowserEnv -> List Kind -> Html Msg
-viewSupportedKinds theme browserEnv kinds =
+viewTechDetails : Theme -> BrowserEnv -> Html Msg
+viewTechDetails theme browserEnv =
     let
         styles =
             Ui.Styles.stylesForTheme theme
     in
-    Html.div
-        []
-        [ Html.h3 (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
-            [ text <| Translations.supportedKindsTitle [ browserEnv.translations ]
-            ]
-        , Html.ul
-            []
-            (List.map (viewSupportedKind theme) kinds)
-        ]
-
-
-viewSupportedKind : Theme -> Kind -> Html Msg
-viewSupportedKind theme kind =
-    let
-        styles =
-            stylesForTheme theme
-
-        kindInfo =
-            informationForKind kind
-    in
-    Html.li
-        []
-        [ text <| String.fromInt (numberForKind kind) ++ ": " ++ kindInfo.description ++ " ("
-        , viewKindLink styles kindInfo.link
-        , text ")"
-        ]
-
-
-viewKindLink : Styles Msg -> Maybe KindInformationLink -> Html Msg
-viewKindLink styles link =
-    case link of
-        Just (LinkToNip nipNumber) ->
-            let
-                linkText =
-                    "NIP " ++ String.fromInt nipNumber
-
-                linkUrl =
-                    "https://nips.nostr.com/" ++ String.fromInt nipNumber
-            in
-            viewKindLink styles (Just <| OtherLink linkText linkUrl)
-
-        Just (LinkToNips nipNumbers) ->
-            nipNumbers
-                |> List.map (\nipNumber -> viewKindLink styles (Just <| LinkToNip nipNumber))
-                |> List.intersperse (Html.span [] [ text ", " ])
-                |> Html.span []
-
-        Just (OtherLink title url) ->
-            a
-                (styles.textStyleLinks
-                    ++ styles.colorStyleArticleHashtags
-                    ++ [ Attr.href url
-                       ]
-                )
-                [ text title
-                ]
-
-        Nothing ->
-            Html.span [] []
-
-
-viewWebTargets : Theme -> BrowserEnv -> List WebTarget -> Html Msg
-viewWebTargets theme browserEnv webTargets =
-    let
-        styles =
-            Ui.Styles.stylesForTheme theme
-    in
-    Html.div
-        []
-        [ Html.h3 (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
-            [ text <| Translations.supportedWebTargetsTitle [ browserEnv.translations ]
-            ]
-        , Html.ul
-            []
-            (List.map (viewWebTarget theme) webTargets)
-        ]
-
-
-viewWebTarget : Theme -> WebTarget -> Html Msg
-viewWebTarget _ ( target, maybeType ) =
-    let
-        webTargetType =
-            case maybeType of
-                Just type_ ->
-                    " (" ++ type_ ++ ")"
-
-                Nothing ->
-                    ""
-    in
-    Html.li
-        []
-        [ text <| target ++ webTargetType
-        ]
-
-
-viewSupportedNips : Theme -> BrowserEnv -> List String -> Html Msg
-viewSupportedNips theme browserEnv supportedNips =
-    let
-        styles =
-            Ui.Styles.stylesForTheme theme
-    in
-    Html.div
-        [ css
-            [ Tw.mt_3
+    Html.div []
+        [ span styles.textStyleBody
+            [ text (Translations.hintToTechDetails [ browserEnv.translations ])
+            , a
+                (href "/tech-details" :: styles.textStyleLinks ++ styles.colorStyleArticleHashtags)
+                [ text (Translations.seeThis [ browserEnv.translations ]) ]
             ]
         ]
-        [ Html.h3 (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
-            [ text <| Translations.supportedNipsTitle [ browserEnv.translations ]
-            ]
-        , Html.ul
-            []
-            (List.map (viewNip theme) supportedNips)
-        ]
-
-
-viewNip : Theme -> String -> Html Msg
-viewNip theme nip =
-    let
-        styles =
-            Ui.Styles.stylesForTheme theme
-    in
-    let
-        nipLink =
-            case String.toInt nip of
-                Just nipNum ->
-                    "https://nips.nostr.com/" ++ String.fromInt nipNum
-
-                Nothing ->
-                    "https://nips.nostr.com/" ++ nip
-    in
-    Html.li
-        []
-        [ Html.a
-            (styles.textStyleLinks
-                ++ styles.colorStyleArticleHashtags
-                ++ [ href nipLink
-                   ]
-            )
-            [ text <| "NIP-" ++ nip ++ nipInfoText nip
-            ]
-        ]
-
-
-nipInfoText : String -> String
-nipInfoText nip =
-    case descriptionForNip nip of
-        Just description ->
-            " (" ++ description ++ ")"
-
-        Nothing ->
-            ""
 
 
 viewFooter : Theme -> BrowserEnv -> Html Msg
@@ -480,7 +370,7 @@ viewFooter theme browserEnv =
             , Tw.flex
             , Tw.flex_col
             , Tw.gap_3
-            , Tw.mb_4
+            , Tw.mb_24
             ]
         ]
         [ Html.span
@@ -490,6 +380,7 @@ viewFooter theme browserEnv =
                 (styles.textStyleLinks
                     ++ styles.colorStyleArticleHashtags
                     ++ [ Attr.href "https://elm.land/"
+                       , target "_blank"
                        ]
                 )
                 [ text "Elm Land"
@@ -499,6 +390,7 @@ viewFooter theme browserEnv =
                 (styles.textStyleLinks
                     ++ styles.colorStyleArticleHashtags
                     ++ [ Attr.href "https://elm-lang.org/"
+                       , target "_blank"
                        ]
                 )
                 [ text "Elm"
@@ -512,29 +404,41 @@ viewFooter theme browserEnv =
                 (styles.textStyleLinks
                     ++ styles.colorStyleArticleHashtags
                     ++ [ Attr.href "https://www.phoenixframework.org/"
+                       , target "_blank"
                        ]
                 )
                 [ text "Phoenix Framework"
                 ]
             , text "."
             ]
-        , text <| Translations.sourceCodeText [ browserEnv.translations ]
+        , Html.span
+            []
+            [ text <| Translations.sourceCodeText [ browserEnv.translations ] ++ " "
+            , a
+                (styles.textStyleLinks
+                    ++ styles.colorStyleArticleHashtags
+                    ++ [ Attr.href Pareto.source
+                       , target "_blank"
+                       ]
+                )
+                [ text Pareto.source
+                ]
+            , text "."
+            ]
         , viewPrivacyPolicyLink styles browserEnv.translations browserEnv.language
         ]
 
 
 viewPrivacyPolicyLink : Styles Msg -> I18Next.Translations -> Language -> Html Msg
 viewPrivacyPolicyLink styles translations language =
-    case language of
-        German _ ->
+    case Pareto.privacyPolicy language of
+        Just _ ->
             a
                 (styles.textStyleLinks
                     ++ styles.colorStyleArticleHashtags
-                    ++ [ Attr.href <| Route.Path.toString Route.Path.Privacy
-                       ]
+                    ++ [ Attr.href <| Route.Path.toString Route.Path.Privacy ]
                 )
-                [ text <| Translations.privacyPolicyLinkText [ translations ]
-                ]
+                [ text <| Translations.privacyPolicyLinkText [ translations ] ]
 
         _ ->
-            div [] []
+            emptyHtml

@@ -17,14 +17,15 @@
     "@nostr-dev-kit/ndk-cache-dexie": "^2.5.9",
     "@scure/bip39": "^1.4.0",
     "blossom-client-sdk": "^1.1.1",
-    "node": "^22.9.0",
-    "nostr-login": "^1.6.6",
+    "node": "^22.14.0",
+    "nostr-login": "^1.7.8",
+    "nostr-zap": "github:rodant/nostr-zap",
     "prismjs": "^1.27.0"
   },
   "devDependencies": {
     "elm-land": "^0.20.1",
     "elm-tailwind-modules": "^0.5.0",
-    "postcss": "^8.5.1",
+    "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17"
   },
   "overrides": {

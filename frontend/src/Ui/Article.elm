@@ -13,23 +13,25 @@ import LinkPreview exposing (LoadedContent)
 import Markdown
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
-import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), numberForKind)
-import Nostr.Nip19 as Nip19
+import Nostr.Event exposing (AddressComponents, Kind(..), Tag(..), TagReference(..))
+import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Nip27 exposing (GetProfileFunction)
-import Nostr.Profile exposing (Author, Profile, ProfileValidation(..))
+import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Reactions exposing (Interactions)
+import Nostr.Relay exposing (websocketUrl)
 import Nostr.Types exposing (EventId, PubKey)
 import Route
 import Route.Path
+import Set
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Time
 import Translations.Posts
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
-import Ui.Profile exposing (profileDisplayName, shortenedPubKey)
-import Ui.Shared exposing (Actions)
-import Ui.Styles exposing (Styles, Theme, darkMode, fontFamilyUnbounded)
+import Ui.Profile
+import Ui.Shared exposing (Actions, emptyHtml, extendedZapRelays)
+import Ui.Styles exposing (Styles, Theme, fontFamilyUnbounded)
 
 
 type alias ArticlePreviewsData msg =
@@ -85,6 +87,17 @@ viewArticle articlePreviewsData articlePreviewData article =
                     ]
                 ]
             ]
+
+        articleRelays =
+            article.relays |> Set.map websocketUrl
+
+        previewData =
+            { pubKey = article.author
+            , maybeNip19Target = nip19ForArticle article
+            , zapRelays = extendedZapRelays articleRelays articlePreviewsData.nostr articlePreviewsData.userPubKey
+            , actions = articlePreviewData.actions
+            , interactions = articlePreviewData.interactions
+            }
     in
     div
         [ css
@@ -183,9 +196,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                     ++ styles.textStyleReactions
                     ++ contentMargins
                 )
-                [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions
+                [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "1"
                 , viewContent styles articlePreviewData.loadedContent getProfile article.content
-                , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv articlePreviewData.actions articlePreviewData.interactions
+                , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "2"
                 ]
             ]
 
@@ -204,7 +217,7 @@ viewArticleImage maybeImage =
                     ]
                 ]
                 [ img
-                    [ Attr.src image
+                    [ Attr.src (Ui.Shared.extendUrlForScaling 384 image)
                     , Attr.alt "Post Image"
                     , css
                         [ Tw.rounded_lg
@@ -217,7 +230,7 @@ viewArticleImage maybeImage =
                 ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewTitle : Maybe String -> Html msg
@@ -237,7 +250,7 @@ viewTitle maybeTitle =
                 ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewSummary : Styles msg -> Maybe String -> Html msg
@@ -255,15 +268,15 @@ viewSummary _ maybeSummary =
                 [ text summary ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewTags : Styles msg -> Article -> Html msg
 viewTags styles article =
     article.hashtags
         |> List.map removeHashTag
-        |> List.intersperse " / "
         |> List.map viewTag
+        |> List.intersperse (text " / ")
         |> div
             (styles.textStyleArticleHashtags ++ styles.colorStyleArticleHashtags)
 
@@ -336,10 +349,6 @@ viewAuthorAndDate styles browserEnv published createdAt author =
 viewArticleProfileSmall : Profile -> ProfileValidation -> Html msg
 viewArticleProfileSmall profile validationStatus =
     let
-        image =
-            profile.picture
-                |> Maybe.withDefault Ui.Profile.defaultProfileImage
-
         linkElement =
             linkElementForProfile profile validationStatus
     in
@@ -352,7 +361,7 @@ viewArticleProfileSmall profile validationStatus =
             [ div
                 []
                 [ img
-                    [ Attr.src image
+                    [ Attr.src <| Ui.Profile.profilePicture 48 (Just profile)
                     , Attr.alt "Avatar"
                     , css
                         [ Tw.min_w_12
@@ -638,6 +647,27 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
 
             else
                 [ Tw.line_clamp_3 ]
+
+        hasInvalidTags =
+            article.otherTags
+                |> List.filter
+                    (\tag ->
+                        case tag of
+                            InvalidTag _ ->
+                                True
+
+                            _ ->
+                                False
+                    )
+                |> List.length
+                |> (\length -> length > 0)
+
+        invalidTagIndicator =
+            if articlePreviewsData.browserEnv.environment == BrowserEnv.Development && hasInvalidTags then
+                div [] [ text "-> has invalid tags <-" ]
+
+            else
+                emptyHtml
     in
     div
         [ css
@@ -668,6 +698,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
             ]
         ]
         [ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article
+        , invalidTagIndicator
         , div
             [ css
                 [ Tw.self_stretch
@@ -724,20 +755,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
 
 linkToArticle : Article -> Maybe String
 linkToArticle article =
-    case
-        Nip19.encode <|
-            Nip19.NAddr
-                { identifier = article.identifier |> Maybe.withDefault ""
-                , pubKey = article.author
-                , kind = numberForKind article.kind
-                , relays = Maybe.map (\urlWithoutProtocol -> [ "wss://" ++ urlWithoutProtocol ]) article.relay |> Maybe.withDefault []
-                }
-    of
-        Ok encodedCoordinates ->
-            Just <| "/a/" ++ encodedCoordinates
-
-        Err _ ->
-            Nothing
+    nip19ForArticle article |> Maybe.map (\naddr -> "/a/" ++ naddr)
 
 
 viewTitlePreview : Styles msg -> Maybe String -> Maybe String -> List Css.Style -> Html msg
@@ -765,16 +783,17 @@ viewTitlePreview styles maybeTitle maybeLinkTarget textWidthAttr =
                 [ text title ]
 
         ( Nothing, _ ) ->
-            div [] []
+            emptyHtml
 
 
 viewHashTags : Styles msg -> List String -> List Css.Style -> Html msg
 viewHashTags styles hashTags widthAttr =
     if List.length hashTags > 0 then
         hashTags
-            |> List.map (viewHashTag styles)
+            |> List.map viewHashTag
+            |> List.intersperse (text " / ")
             |> div
-                [ css
+                (css
                     (widthAttr
                         ++ [ Tw.space_x_2
                            , Tw.mb_2
@@ -783,37 +802,20 @@ viewHashTags styles hashTags widthAttr =
                            , Tw.text_clip
                            ]
                     )
-                ]
+                    :: (styles.textStyleArticleHashtags ++ styles.colorStyleArticleHashtags)
+                )
 
     else
-        div [] []
+        emptyHtml
 
 
-viewHashTag : Styles msg -> String -> Html msg
-viewHashTag styles hashTag =
+viewHashTag : String -> Html msg
+viewHashTag hashTag =
     a
-        [ css
-            [ Tw.px_4
-            , Tw.py_2
-            , Tw.bg_color Theme.gray_300
-            , Tw.rounded_3xl
-            , Tw.inline_block
-            , darkMode
-                [ Tw.bg_color Theme.neutral_700
-                ]
-            ]
+        [ css [ Tw.inline_block ]
         , href ("/t/" ++ hashTag)
         ]
-        [ div
-            (styles.colorStyleLabel
-                ++ styles.textStyleUppercaseLabel
-                ++ [ css
-                        [ Tw.whitespace_nowrap
-                        ]
-                   ]
-            )
-            [ text hashTag ]
-        ]
+        [ text hashTag ]
 
 
 viewArticlePreviewBigPicture : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
@@ -869,7 +871,7 @@ previewListImage article =
                     ]
                 ]
                 [ img
-                    [ Attr.src image
+                    [ Attr.src (Ui.Shared.extendUrlForScaling 384 image)
                     , Attr.style "top" "50%"
                     , Attr.style "left" "50%"
                     , Attr.style "object-fit" "cover"
@@ -883,7 +885,7 @@ previewListImage article =
                 ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 previewBigPictureImage : Article -> Html msg
@@ -964,7 +966,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                         , Tw.inline_flex
                         ]
                     ]
-                    [ viewProfileImageSmall (linkElementForProfile profile validationStatus) profile.picture validationStatus
+                    [ viewProfileImageSmall (linkElementForProfile profile validationStatus) (Just profile) validationStatus
                     , div
                         [ css
                             [ Tw.justify_start
@@ -996,7 +998,7 @@ viewArticleEditButton articlePreviewsData article articleAuthorPubKey =
             |> Button.view
 
     else
-        div [] []
+        emptyHtml
 
 
 viewArticleBookmarkButton : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
@@ -1027,7 +1029,7 @@ viewArticleBookmarkButton articlePreviewsData articlePreviewData article =
                 ]
 
         ( _, _, _ ) ->
-            div [] []
+            emptyHtml
 
 
 editLink : Article -> Maybe String
@@ -1053,7 +1055,7 @@ viewProfilePubKey pubKey =
             , Tw.mb_4
             ]
         ]
-        [ viewProfileImageSmall (linkElementForProfilePubKey pubKey) (Just Ui.Profile.defaultProfileImage) ValidationUnknown
+        [ viewProfileImageSmall (linkElementForProfilePubKey pubKey) Nothing ValidationUnknown
         , h2
             [ css
                 [ Tw.text_sm
@@ -1066,13 +1068,8 @@ viewProfilePubKey pubKey =
         ]
 
 
-viewProfileImage : (List (Html msg) -> Html msg) -> Maybe String -> ProfileValidation -> Html msg
-viewProfileImage linkElement maybeImage validationStatus =
-    let
-        image =
-            maybeImage
-                |> Maybe.withDefault Ui.Profile.defaultProfileImage
-    in
+viewProfileImage : (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
+viewProfileImage linkElement maybeProfile validationStatus =
     div
         [ css
             [ Tw.relative
@@ -1080,7 +1077,7 @@ viewProfileImage linkElement maybeImage validationStatus =
         ]
         [ linkElement
             [ img
-                [ Attr.src image
+                [ Attr.src <| Ui.Profile.profilePicture 112 maybeProfile
                 , Attr.alt "Avatar"
                 , css
                     [ Tw.min_w_28
@@ -1108,13 +1105,8 @@ viewProfileImage linkElement maybeImage validationStatus =
         ]
 
 
-viewProfileImageSmall : (List (Html msg) -> Html msg) -> Maybe String -> ProfileValidation -> Html msg
-viewProfileImageSmall linkElement maybeImage validationStatus =
-    let
-        image =
-            maybeImage
-                |> Maybe.withDefault Ui.Profile.defaultProfileImage
-    in
+viewProfileImageSmall : (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
+viewProfileImageSmall linkElement maybeProfile validationStatus =
     div
         [ css
             [ Tw.relative
@@ -1127,7 +1119,7 @@ viewProfileImageSmall linkElement maybeImage validationStatus =
                     , Tw.h_8
                     , Tw.rounded_3xl
                     ]
-                , Attr.src image
+                , Attr.src <| Ui.Profile.profilePicture 32 maybeProfile
                 , Attr.alt "profile image"
                 , Attr.attribute "loading" "lazy"
                 ]

@@ -1,42 +1,53 @@
-module Components.PublishArticleDialog exposing (Model, Msg, PublishArticleDialog, hide, init, new, show, update, view)
+module Components.PublishArticleDialog exposing (Model, Msg(..), PublishArticleDialog, PublishingInfo(..), hide, init, new, subscriptions, update, view)
 
-import BrowserEnv exposing (BrowserEnv)
+import BrowserEnv exposing (BrowserEnv, Environment(..))
 import Components.Button as Button
 import Components.Checkbox as Checkbox
+import Components.Dropdown as Dropdown
 import Components.Icon as Icon
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import FeatherIcons
-import Html.Styled as Html exposing (Html, a, button, div, form, h2, img, input, label, li, p, span, text, ul)
+import Html.Styled as Html exposing (Html, div, h2, li, p, text, ul)
 import Html.Styled.Attributes as Attr exposing (css)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled.Events exposing (..)
+import I18Next
 import Nostr
+import Nostr.Event exposing (Kind(..))
+import Nostr.External
 import Nostr.Relay as Relay exposing (Relay)
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (PubKey, RelayRole(..), RelayUrl)
+import Nostr.Types exposing (IncomingMessage, PubKey, RelayRole(..), RelayUrl)
 import Pareto
+import Ports
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
-import Svg.Styled as Svg exposing (path, svg)
+import Subscribers
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.PublishArticleDialog as Translations
-import Ui.Shared
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
 
 
 type Msg msg
-    = CloseDialog
+    = ShowDialog
+    | CloseDialog
     | ConfigureRelaysClicked
-    | PublishClicked (List RelayUrl -> msg)
+    | PublishClicked (PublishingInfo -> msg)
     | ToggleRelay RelayUrl Bool
+    | ReceivedMessage IncomingMessage
+    | DropdownSent (Dropdown.Msg PublishingMode (Msg msg))
 
 
-type Model msg
+type Model
     = Model
-        { state : DialogState
+        { errors : List String
         , relayStates : Dict RelayUrl Bool
+        , state : DialogState
+        , publishingListbox : Dropdown.Model PublishingMode
+        , subscriberEventData : Maybe Subscribers.SubscriberEventData
         }
 
 
@@ -45,11 +56,23 @@ type DialogState
     | DialogVisible
 
 
+type PublishingMode
+    = PublishArticleOnly
+    | PublishNewsletterOnly
+    | PublishArticleAndNewsletter
+
+
+type PublishingInfo
+    = ArticleOnly (List RelayUrl)
+    | NewsletterOnly Subscribers.SubscriberEventData
+    | ArticleAndNewsletter (List RelayUrl) Subscribers.SubscriberEventData
+
+
 type PublishArticleDialog msg
     = Settings
-        { model : Model msg
+        { model : Model
         , toMsg : Msg msg -> msg
-        , onPublish : List RelayUrl -> msg
+        , onPublish : PublishingInfo -> msg
         , nostr : Nostr.Model
         , pubKey : PubKey
         , browserEnv : BrowserEnv
@@ -58,9 +81,9 @@ type PublishArticleDialog msg
 
 
 new :
-    { model : Model msg
+    { model : Model
     , toMsg : Msg msg -> msg
-    , onPublish : List RelayUrl -> msg
+    , onPublish : PublishingInfo -> msg
     , nostr : Nostr.Model
     , pubKey : PubKey
     , browserEnv : BrowserEnv
@@ -79,33 +102,32 @@ new props =
         }
 
 
-init : {} -> Model msg
-init props =
+init : {} -> Model
+init _ =
     Model
-        { state = DialogHidden
+        { errors = []
+        , state = DialogHidden
+        , publishingListbox = Dropdown.init { selected = Just PublishArticleOnly }
 
         -- authors shouldn't publish on team relay as normal users can't read from it
         , relayStates = Dict.singleton Pareto.teamRelay False
+        , subscriberEventData = Nothing
         }
 
 
-show : Model msg -> Model msg
-show (Model model) =
-    Model { model | state = DialogVisible }
-
-
-hide : Model msg -> Model msg
+hide : Model -> Model
 hide (Model model) =
     Model { model | state = DialogHidden }
 
 
 update :
     { msg : Msg msg
-    , model : Model msg
-    , toModel : Model msg -> model
+    , model : Model
+    , toModel : Model -> model
     , toMsg : Msg msg -> msg
     , nostr : Nostr.Model
     , pubKey : PubKey
+    , testMode : BrowserEnv.TestMode
     }
     -> ( model, Effect msg )
 update props =
@@ -113,7 +135,7 @@ update props =
         (Model model) =
             props.model
 
-        toParentModel : ( Model msg, Effect msg ) -> ( model, Effect msg )
+        toParentModel : ( Model, Effect msg ) -> ( model, Effect msg )
         toParentModel ( innerModel, effect ) =
             ( props.toModel innerModel
             , effect
@@ -121,6 +143,12 @@ update props =
     in
     toParentModel <|
         case props.msg of
+            ShowDialog ->
+                ( Model { model | state = DialogVisible }
+                , Subscribers.load props.nostr props.pubKey
+                    |> Effect.sendSharedMsg
+                )
+
             CloseDialog ->
                 ( Model { model | state = DialogHidden }
                 , Effect.none
@@ -142,10 +170,13 @@ update props =
             PublishClicked msg ->
                 let
                     -- the list of relays is not stored in the model
-                    -- because there may appear more relays after
+                    -- because there may appear more relays after the
                     -- init call
                     relayUrls =
-                        Nostr.getWriteRelaysForPubKey props.nostr props.pubKey
+                        if props.testMode == BrowserEnv.TestModeEnabled then
+                            Pareto.testRelayUrls
+                        else
+                            Nostr.getWriteRelaysForPubKey props.nostr props.pubKey
                             |> List.filterMap
                                 (\relay ->
                                     case Dict.get relay.urlWithoutProtocol model.relayStates of
@@ -155,10 +186,49 @@ update props =
                                         _ ->
                                             Just relay.urlWithoutProtocol
                                 )
+
+                    effect =
+                        case
+                            ( Dropdown.selectedItem model.publishingListbox
+                            , model.subscriberEventData
+                            )
+                        of
+                            ( Just PublishArticleOnly, _ ) ->
+                                ArticleOnly relayUrls
+                                    |> msg
+                                    |> Effect.sendMsg
+
+                            ( Just PublishNewsletterOnly, Just subscriberEventData ) ->
+                                NewsletterOnly subscriberEventData
+                                    |> msg
+                                    |> Effect.sendMsg
+
+                            ( Just PublishArticleAndNewsletter, Just subscriberEventData ) ->
+                                ArticleAndNewsletter relayUrls subscriberEventData
+                                    |> msg
+                                    |> Effect.sendMsg
+
+                            ( _, _ ) ->
+                                Effect.none
                 in
                 ( Model model
-                , Effect.sendMsg (msg relayUrls)
+                , effect
                 )
+
+            ReceivedMessage message ->
+                updateWithMessage (Model model) props.pubKey message
+
+            DropdownSent innerMsg ->
+                let
+                    ( newModel, effect ) =
+                        Dropdown.update
+                            { msg = innerMsg
+                            , model = model.publishingListbox
+                            , toModel = \dropdown -> Model { model | publishingListbox = dropdown }
+                            , toMsg = DropdownSent
+                            }
+                in
+                ( newModel, Effect.map props.toMsg effect )
 
 
 sendRelayListCmd : PubKey -> List RelayMetadata -> Effect msg
@@ -188,9 +258,47 @@ sendRelayListCmd pubKey relays =
         |> Effect.sendSharedMsg
 
 
-updateRelayChecked : Model msg -> RelayUrl -> Bool -> ( Model msg, Effect msg )
+updateRelayChecked : Model -> RelayUrl -> Bool -> ( Model, Effect msg )
 updateRelayChecked (Model model) relayUrl newChecked =
     ( Model { model | relayStates = Dict.insert relayUrl newChecked model.relayStates }, Effect.none )
+
+
+updateWithMessage : Model -> PubKey -> IncomingMessage -> ( Model, Effect msg )
+updateWithMessage (Model model) userPubKey message =
+    case message.messageType of
+        "events" ->
+            case Nostr.External.decodeEventsKind message.value of
+                Ok KindApplicationSpecificData ->
+                    case Nostr.External.decodeEvents message.value of
+                        Ok events ->
+                            let
+                                ( maybeSubscriberEventData, _, errors ) =
+                                    Subscribers.processEvents userPubKey [] events
+                            in
+                            ( Model { model | subscriberEventData = maybeSubscriberEventData, errors = model.errors ++ errors }, Effect.none )
+
+                        _ ->
+                            ( Model model, Effect.none )
+
+                _ ->
+                    ( Model model, Effect.none )
+
+        _ ->
+            ( Model model, Effect.none )
+
+
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : Model -> (Msg msg -> msg) -> Sub msg
+subscriptions _ toMsg =
+    Ports.receiveMessage ReceivedMessage
+        |> Sub.map toMsg
+
+
+
+-- VIEW
 
 
 view : PublishArticleDialog msg -> Html msg
@@ -204,7 +312,7 @@ view dialog =
     in
     case model.state of
         DialogHidden ->
-            div [] []
+            emptyHtml
 
         DialogVisible ->
             Ui.Shared.modalDialog
@@ -222,7 +330,44 @@ viewPublishArticleDialog (Settings settings) =
             settings.model
 
         relays =
-            Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
+            if settings.browserEnv.testMode == BrowserEnv.TestModeOff then
+                Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
+            else
+                Pareto.testRelayUrls
+                |> List.filterMap (Nostr.getRelayData settings.nostr)
+
+        activeSubscribersCount =
+            model.subscriberEventData
+                |> Maybe.map .active
+                |> Maybe.withDefault 0
+
+        optionalListBox =
+            if activeSubscribersCount > 0 then
+                Dropdown.new
+                    { model = model.publishingListbox
+                    , toMsg = DropdownSent
+                    , choices = [ PublishArticleOnly, PublishNewsletterOnly, PublishArticleAndNewsletter ]
+                    , allowNoSelection = False
+                    , toLabel = toLabel settings.browserEnv.translations activeSubscribersCount
+                    }
+                    |> Dropdown.view
+
+            else
+                emptyHtml
+
+        optionalRelaysSection =
+            case Dropdown.selectedItem model.publishingListbox of
+                Just PublishArticleOnly ->
+                    relaysSection (Settings settings) relays
+
+                Just PublishNewsletterOnly ->
+                    emptyHtml
+
+                Just PublishArticleAndNewsletter ->
+                    relaysSection (Settings settings) relays
+
+                Nothing ->
+                    emptyHtml
     in
     div
         [ css
@@ -233,9 +378,8 @@ viewPublishArticleDialog (Settings settings) =
             , Tw.gap_2
             ]
         ]
-        [ relaysSection (Settings settings) relays
-
-        -- , zapSplitSection (Settings settings)
+        [ optionalListBox
+        , optionalRelaysSection
         , Button.new
             { label = Translations.publishButtonTitle [ settings.browserEnv.translations ]
             , onClick = Just <| PublishClicked settings.onPublish
@@ -247,7 +391,29 @@ viewPublishArticleDialog (Settings settings) =
         ]
 
 
-numberOfCheckedRelays : Model msg -> List Relay -> Int
+toLabel : I18Next.Translations -> Int -> Maybe PublishingMode -> String
+toLabel translations activeSubscribersCount maybePublishingMode =
+    case ( maybePublishingMode, activeSubscribersCount ) of
+        ( Just PublishArticleOnly, _ ) ->
+            Translations.onlyPublishArticleText [ translations ]
+
+        ( Just PublishNewsletterOnly, 1 ) ->
+            Translations.sendOnlyViaEmailSingularCheckboxText [ translations ]
+
+        ( Just PublishNewsletterOnly, count ) ->
+            Translations.sendOnlyViaEmailPluralCheckboxText [ translations ] { recipientCount = String.fromInt count }
+
+        ( Just PublishArticleAndNewsletter, 1 ) ->
+            Translations.sendAlsoViaEmailSingularCheckboxText [ translations ]
+
+        ( Just PublishArticleAndNewsletter, count ) ->
+            Translations.sendAlsoViaEmailPluralCheckboxText [ translations ] { recipientCount = String.fromInt count }
+
+        ( _, _ ) ->
+            ""
+
+
+numberOfCheckedRelays : Model -> List Relay -> Int
 numberOfCheckedRelays (Model model) relays =
     relays
         |> List.filter (\relay -> Dict.get relay.urlWithoutProtocol model.relayStates /= Just False)
@@ -378,46 +544,4 @@ viewRelayCheckbox theme ( relay, checked ) =
             }
             |> Checkbox.withImage (Relay.iconUrl relay)
             |> Checkbox.view
-        ]
-
-
-zapSplitSection : PublishArticleDialog msg -> Html (Msg msg)
-zapSplitSection (Settings settings) =
-    div []
-        [ div
-            [ css
-                [ Tw.flex
-                , Tw.justify_between
-                , Tw.items_center
-                , Tw.mt_8
-                , Tw.mb_2
-                ]
-            ]
-            [ h2
-                [ css
-                    [ Tw.text_lg
-                    , Tw.text_color Theme.gray_800
-                    , Tw.font_bold
-                    ]
-                , fontFamilyUnbounded
-                ]
-                [ text <| Translations.revenueTitle [ settings.browserEnv.translations ] ]
-            ]
-        , div
-            [ css
-                [ Tw.flex
-                , Tw.justify_between
-                , Tw.items_center
-                , Tw.mb_6
-                ]
-            ]
-            [ h2
-                [ css
-                    [ Tw.text_base
-                    , Tw.text_color Theme.gray_800
-                    ]
-                , fontFamilyInter
-                ]
-                [ text <| Translations.revenueDescription [ settings.browserEnv.translations ] ]
-            ]
         ]

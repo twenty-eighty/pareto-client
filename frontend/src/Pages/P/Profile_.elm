@@ -1,5 +1,6 @@
 module Pages.P.Profile_ exposing (Model, Msg, page)
 
+import Components.EmailSubscriptionDialog as EmailSubscriptionDialog
 import Components.RelayStatus exposing (Purpose(..))
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
@@ -16,7 +17,7 @@ import Route exposing (Route)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Translations.Sidebar as Translations
+import Translations.Profile as Translations
 import Ui.Profile exposing (FollowType(..))
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..), viewRelayStatus)
@@ -35,7 +36,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -48,12 +49,22 @@ type alias Model =
     { pubKey : Maybe PubKey
     , relays : List String
     , requestId : Maybe RequestId
+    , emailSubscriptionDialog : EmailSubscriptionDialog.Model
     }
 
 
 init : Shared.Model -> Route { profile : String } -> () -> ( Model, Effect Msg )
 init shared route () =
     let
+        emailSubscriptionDialog =
+            case route.hash of
+                Just "subscribe" ->
+                    EmailSubscriptionDialog.init {}
+                        |> EmailSubscriptionDialog.show
+
+                _ ->
+                    EmailSubscriptionDialog.init {}
+
         model =
             decodeParam route.params.profile
                 |> Maybe.map
@@ -61,9 +72,15 @@ init shared route () =
                         { pubKey = Just pubKey
                         , relays = relays
                         , requestId = Nothing
+                        , emailSubscriptionDialog = emailSubscriptionDialog
                         }
                     )
-                |> Maybe.withDefault { pubKey = Nothing, relays = [], requestId = Nothing }
+                |> Maybe.withDefault
+                    { pubKey = Nothing
+                    , relays = []
+                    , requestId = Nothing
+                    , emailSubscriptionDialog = emailSubscriptionDialog
+                    }
 
         ( requestProfileEffect, requestId ) =
             model.pubKey
@@ -93,13 +110,17 @@ init shared route () =
     , Effect.batch
         [ requestProfileEffect
         , requestArticlesEffect
+        , model.pubKey
+            |> Maybe.map Shared.Msg.UpdateNewsletterAvailabilityPubKey
+            |> Maybe.map Effect.sendSharedMsg
+            |> Maybe.withDefault Effect.none
         ]
     )
 
 
 buildRequestArticlesEffect : Nostr.Model -> PubKey -> Effect Msg
 buildRequestArticlesEffect nostr pubKey =
-    { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ pubKey ], limit = Just 20 }
+    [ { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ pubKey ], limit = Just 20 } ]
         |> RequestArticlesFeed
         |> Nostr.createRequest nostr "Posts of user" [ KindUserMetadata ]
         |> Shared.Msg.RequestNostrEvents
@@ -135,6 +156,8 @@ decodeParam profile =
 type Msg
     = Follow PubKey PubKey
     | Unfollow PubKey PubKey
+    | OpenSubscribeDialog
+    | EmailSubscriptionDialogSent (EmailSubscriptionDialog.Msg Msg)
 
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -154,6 +177,20 @@ update shared msg model =
                 |> Effect.sendSharedMsg
             )
 
+        OpenSubscribeDialog ->
+            ( { model | emailSubscriptionDialog = EmailSubscriptionDialog.show model.emailSubscriptionDialog }
+            , Effect.none
+            )
+
+        EmailSubscriptionDialogSent innerMsg ->
+            EmailSubscriptionDialog.update
+                { msg = innerMsg
+                , model = model.emailSubscriptionDialog
+                , toModel = \emailSubscriptionDialog -> { model | emailSubscriptionDialog = emailSubscriptionDialog }
+                , toMsg = EmailSubscriptionDialogSent
+                , nostr = shared.nostr
+                }
+
 
 
 -- SUBSCRIPTIONS
@@ -161,7 +198,8 @@ update shared msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    EmailSubscriptionDialog.subscriptions model.emailSubscriptionDialog
+        |> Sub.map EmailSubscriptionDialogSent
 
 
 
@@ -175,11 +213,20 @@ view shared model =
             model.pubKey
                 |> Maybe.andThen (Nostr.getProfile shared.nostr)
     in
-    { title = Translations.readMenuItemText [ shared.browserEnv.translations ]
+    { title =
+        case ( model.pubKey, maybeProfile ) of
+            ( Just pubKey, Just profile ) ->
+                Nostr.Profile.profileDisplayName pubKey profile
+
+            ( Just pubKey, Nothing ) ->
+                Translations.pubKeyProfilePageTitle [ shared.browserEnv.translations ] ++ " " ++ pubKey
+
+            ( _, _ ) ->
+                Translations.defaultProfilePageTitle [ shared.browserEnv.translations ]
     , body =
         [ case ( maybeProfile, model.pubKey ) of
             ( Just profile, _ ) ->
-                viewProfile shared profile
+                viewProfile shared model profile
 
             ( Nothing, Just pubKey ) ->
                 viewArticles shared pubKey
@@ -190,21 +237,35 @@ view shared model =
     }
 
 
-viewProfile : Shared.Model -> Profile -> Html Msg
-viewProfile shared profile =
+viewProfile : Shared.Model -> Model -> Profile -> Html Msg
+viewProfile shared model profile =
+    let
+        userPubKey =
+            Shared.loggedInPubKey shared.loginStatus
+
+        sendsNewsletter =
+            Nostr.sendsNewsletterPubKey shared.nostr profile.pubKey
+                |> Maybe.withDefault False
+    in
     div []
         [ Ui.Profile.viewProfile
             profile
             { browserEnv = shared.browserEnv
-            , following = followingProfile shared.nostr profile.pubKey (Shared.loggedInPubKey shared.loginStatus)
-            , isAuthor = Nostr.isAuthor shared.nostr profile.pubKey
-            , subscribe = Nothing
+            , following = followingProfile shared.nostr profile.pubKey userPubKey
+            , subscribe =
+                if sendsNewsletter then
+                    Just OpenSubscribeDialog
+
+                else
+                    Nothing
             , theme = shared.theme
             , validation =
                 Nostr.getProfileValidationStatus shared.nostr profile.pubKey
                     |> Maybe.withDefault ValidationUnknown
             }
+            shared
         , viewArticles shared profile.pubKey
+        , viewEmailSubscriptionDialog shared model profile
         ]
 
 
@@ -250,3 +311,17 @@ followingProfile nostr profilePubKey maybePubKey =
 
         Nothing ->
             UnknownFollowing
+
+
+viewEmailSubscriptionDialog : Shared.Model -> Model -> Profile -> Html Msg
+viewEmailSubscriptionDialog shared model profile =
+    EmailSubscriptionDialog.new
+        { model = model.emailSubscriptionDialog
+        , toMsg = EmailSubscriptionDialogSent
+        , nostr = shared.nostr
+        , profile = profile
+        , loginStatus = shared.loginStatus
+        , browserEnv = shared.browserEnv
+        , theme = shared.theme
+        }
+        |> EmailSubscriptionDialog.view

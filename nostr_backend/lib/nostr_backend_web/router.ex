@@ -47,6 +47,7 @@ defmodule NostrBackendWeb.Router do
     get("/bookmarks", PageController, :bookmarks)
     get("/media", PageController, :media)
     get("/messages", PageController, :messages)
+    get("/newsletters", PageController, :newsletters)
     get("/notifications", PageController, :notifications)
     get("/posts", PageController, :posts)
     get("/privacy", PageController, :privacy)
@@ -54,6 +55,7 @@ defmodule NostrBackendWeb.Router do
     get("/settings", PageController, :settings)
     get("/sign-in", PageController, :sign_in)
     get("/subscribers", PageController, :subscribers)
+    get("/tech-details", PageController, :tech_details)
     get("/write", PageController, :write)
 
     get("/a/:article_id", ContentController, :article)

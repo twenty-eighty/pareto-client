@@ -2,7 +2,7 @@ module Shared exposing
     ( Flags, decoder
     , Model, Msg
     , init, update, subscriptions
-    , loggedIn, loggedInPubKey
+    , loggedIn, loggedInPubKey, loggedInSigningPubKey
     )
 
 {-|
@@ -18,13 +18,14 @@ import Effect exposing (Effect)
 import Json.Decode
 import Nostr
 import Nostr.Event exposing (Kind(..), emptyEventFilter)
+import Nostr.External
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Types exposing (IncomingMessage, PubKey)
 import Pareto
 import Ports
 import Route exposing (Route)
 import Route.Path
-import Shared.Model exposing (ClientRole(..), LoginStatus(..))
+import Shared.Model exposing (ClientRole(..), LoginMethod(..), LoginStatus(..))
 import Shared.Msg exposing (Msg(..))
 import Ui.Styles exposing (Theme(..))
 
@@ -40,9 +41,9 @@ type alias Model =
 type alias Flags =
     { darkMode : Bool
     , environment : Maybe String
-    , isLoggedIn : Bool
     , locale : String
     , nativeSharingAvailable : Bool
+    , testMode : Bool
     }
 
 
@@ -51,9 +52,9 @@ decoder =
     Json.Decode.map5 Flags
         (Json.Decode.field "darkMode" Json.Decode.bool)
         (Json.Decode.field "environment" (Json.Decode.maybe Json.Decode.string))
-        (Json.Decode.field "isLoggedIn" Json.Decode.bool)
         (Json.Decode.field "locale" Json.Decode.string)
         (Json.Decode.field "nativeSharingAvailable" Json.Decode.bool)
+        (Json.Decode.field "testMode" Json.Decode.bool)
 
 
 
@@ -65,13 +66,6 @@ init flagsResult _ =
     case flagsResult of
         Ok flags ->
             let
-                ( loginStatus, effect ) =
-                    if flags.isLoggedIn then
-                        ( Shared.Model.LoggedInUnknown, Effect.sendCmd <| Ports.requestUser )
-
-                    else
-                        ( Shared.Model.LoggedOut, Effect.none )
-
                 ( browserEnv, browserEnvCmd ) =
                     BrowserEnv.init
                         { backendUrl = ""
@@ -80,28 +74,34 @@ init flagsResult _ =
                         , frontendUrl = ""
                         , locale = flags.locale
                         , nativeSharingAvailable = flags.nativeSharingAvailable
+                        , testMode = flags.testMode
                         }
 
+                nostrTestMode =
+                    if flags.testMode then
+                        Nostr.TestModeEnabled
+                    else
+                        Nostr.TestModeOff
+
                 ( nostrInit, nostrInitCmd ) =
-                    Nostr.init portHooks Pareto.defaultRelays
+                    Nostr.init portHooks nostrTestMode Pareto.defaultRelays
 
                 -- request bookmark list of Pareto creators
                 -- as well as bookmark sets for different purposes
                 ( nostr, nostrRequestCmd ) =
-                    { emptyEventFilter | authors = Just [ Pareto.authorsKey, Pareto.rssAuthorsKey, Pareto.editorKey ], kinds = Just [ KindFollows, KindFollowSets ] }
+                    { emptyEventFilter | authors = Just [ Pareto.authorsKey, Pareto.rssAuthorsKey, Pareto.betaTestKey, Pareto.editorKey ], kinds = Just [ KindFollows, KindFollowSets ] }
                         |> RequestFollowSets
                         |> Nostr.createRequest nostrInit "Follow list/sets of Pareto user" []
                         |> Nostr.doRequest nostrInit
             in
-            ( { loginStatus = loginStatus
+            ( { loginStatus = Shared.Model.LoggedInUnknown
               , browserEnv = browserEnv
               , nostr = nostr
               , role = ClientReader
               , theme = ParetoTheme
               }
             , Effect.batch
-                [ effect
-                , Effect.sendCmd <| Cmd.map Shared.Msg.BrowserEnvMsg browserEnvCmd
+                [ Effect.sendCmd <| Cmd.map Shared.Msg.BrowserEnvMsg browserEnvCmd
                 , Effect.sendCmd <| Cmd.map Shared.Msg.NostrMsg nostrInitCmd
                 , Effect.sendCmd <| Cmd.map Shared.Msg.NostrMsg nostrRequestCmd
                 ]
@@ -117,6 +117,7 @@ init flagsResult _ =
                         , frontendUrl = ""
                         , locale = ""
                         , nativeSharingAvailable = False
+                        , testMode = False
                         }
             in
             ( { loginStatus = Shared.Model.LoggedOut
@@ -129,7 +130,7 @@ init flagsResult _ =
             )
 
 
-portHooks : Nostr.Hooks
+portHooks : Nostr.External.Hooks msg
 portHooks =
     { connect = Ports.connect
     , requestEvents = Ports.requestEvents
@@ -153,9 +154,7 @@ update : Route () -> Msg -> Model -> ( Model, Effect Msg )
 update _ msg model =
     case msg of
         TriggerLogin ->
-            ( model
-            , Effect.sendCmd <| Ports.requestUser
-            )
+            ( model, Effect.sendCmd <| Ports.loginSignUp )
 
         ReceivedPortMessage portMessage ->
             updateWithPortMessage model portMessage
@@ -205,27 +204,45 @@ update _ msg model =
             , Effect.sendCmd <| Cmd.map Shared.Msg.NostrMsg nostrCmd
             )
 
-        SwitchClientRole changePath ->
-            if model.role == ClientReader then
-                ( { model | role = ClientCreator }
+        SetClientRole changePath clientRole  ->
+            let
+                newPath =
+                    if model.role == ClientReader then
+                        Route.Path.Posts
+                    else
+                        Route.Path.Read
+            in
+                ( { model | role = clientRole }
                 , if changePath then
-                    Effect.pushRoutePath Route.Path.Posts
+                    Effect.pushRoutePath newPath
 
                   else
                     Effect.none
                 )
 
-            else
-                ( { model | role = ClientReader }
-                , if changePath then
-                    Effect.pushRoutePath Route.Path.Read
+        SetTestMode testMode ->
+            let
+                (browserEnv, cmd ) =
+                    BrowserEnv.setTestMode model.browserEnv testMode
+            in
+            ( { model | browserEnv = browserEnv }
+            , cmd
+                |> Effect.sendCmd
+             )
 
-                  else
-                    Effect.none
-                )
+        UpdateNewsletterAvailabilityPubKey pubKey ->
+            ( model
+            , Nostr.updateNewsletterAvailabilityPubKey model.nostr pubKey
+                |> Cmd.map NostrMsg
+                |> Effect.sendCmd
+            )
 
-        SetClientRole clientRole ->
-            ( { model | role = clientRole }, Effect.none )
+        UpdateNewsletterAvailabilityNip05 nip05 ->
+            ( model
+            , Nostr.updateNewsletterAvailabilityNip05 model.nostr nip05
+                |> Cmd.map NostrMsg
+                |> Effect.sendCmd
+            )
 
 
 updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
@@ -234,14 +251,20 @@ updateWithPortMessage model portMessage =
         "user" ->
             updateWithUserValue model portMessage.value
 
+        "loggedOut" ->
+            ( { model | loginStatus = Shared.Model.LoggedOut }, Effect.none )
+
         _ ->
             ( model, Effect.none )
 
 
 updateWithUserValue : Model -> Json.Decode.Value -> ( Model, Effect Msg )
 updateWithUserValue model value =
-    case ( Json.Decode.decodeValue pubkeyDecoder value, model.loginStatus ) of
-        ( Ok pubKeyNew, Shared.Model.LoggedIn pubKeyLoggedIn ) ->
+    case ( Json.Decode.decodeValue pubkeyDecoder value
+         , Json.Decode.decodeValue loginMethodDecoder value
+         , model.loginStatus
+         ) of
+        ( Ok pubKeyNew, Ok loginMethod, Shared.Model.LoggedIn pubKeyLoggedIn _ ) ->
             let
                 ( nostr, cmd ) =
                     if pubKeyNew /= pubKeyLoggedIn then
@@ -251,20 +274,34 @@ updateWithUserValue model value =
                         -- ignore messages that don't change user
                         ( model.nostr, Cmd.none )
             in
-            ( { model | loginStatus = Shared.Model.LoggedIn pubKeyNew, nostr = nostr }
-            , Effect.sendCmd (Cmd.map Shared.Msg.NostrMsg cmd)
+            ( { model | loginStatus = Shared.Model.LoggedIn pubKeyNew loginMethod, nostr = nostr }
+            , [ cmd
+
+              -- check if user sends newsletters
+              , Nostr.updateNewsletterAvailabilityPubKey model.nostr pubKeyNew
+              ]
+                |> Cmd.batch
+                |> Cmd.map Shared.Msg.NostrMsg
+                |> Effect.sendCmd
             )
 
-        ( Ok pubKeyNew, _ ) ->
+        ( Ok pubKeyNew, Ok loginMethod, _ ) ->
             let
                 ( nostr, cmd ) =
                     Nostr.requestUserData model.nostr pubKeyNew
             in
-            ( { model | loginStatus = Shared.Model.LoggedIn pubKeyNew, nostr = nostr }
-            , Effect.sendCmd (Cmd.map Shared.Msg.NostrMsg cmd)
+            ( { model | loginStatus = Shared.Model.LoggedIn pubKeyNew loginMethod, nostr = nostr }
+            , [ cmd
+
+              -- check if user sends newsletters
+              , Nostr.updateNewsletterAvailabilityPubKey model.nostr pubKeyNew
+              ]
+                |> Cmd.batch
+                |> Cmd.map Shared.Msg.NostrMsg
+                |> Effect.sendCmd
             )
 
-        ( Err _, _ ) ->
+        ( _, _, _ ) ->
             ( model, Effect.none )
 
 
@@ -277,14 +314,28 @@ loggedIn model =
         LoggedInUnknown ->
             False
 
-        LoggedIn _ ->
+        LoggedIn _ _ ->
             True
 
 
 loggedInPubKey : Shared.Model.LoginStatus -> Maybe PubKey
 loggedInPubKey loginStatus =
     case loginStatus of
-        Shared.Model.LoggedIn pubKey ->
+        Shared.Model.LoggedIn pubKey _ ->
+            Just pubKey
+
+        _ ->
+            Nothing
+
+
+-- return a pubkey if the user can sign events
+loggedInSigningPubKey : Shared.Model.LoginStatus -> Maybe PubKey
+loggedInSigningPubKey loginStatus =
+    case loginStatus of
+        Shared.Model.LoggedIn pubKey LoginMethodReadOnly ->
+            Nothing
+
+        Shared.Model.LoggedIn pubKey _ ->
             Just pubKey
 
         _ ->
@@ -293,7 +344,30 @@ loggedInPubKey loginStatus =
 
 pubkeyDecoder : Json.Decode.Decoder PubKey
 pubkeyDecoder =
-    Json.Decode.at [ "pubKey" ] Json.Decode.string
+    Json.Decode.field "pubKey" Json.Decode.string
+
+
+loginMethodDecoder : Json.Decode.Decoder Shared.Model.LoginMethod
+loginMethodDecoder =
+    Json.Decode.field "method" Json.Decode.string
+    |> Json.Decode.andThen (\method ->
+            case String.toLower method of
+                "connect" ->
+                    Json.Decode.succeed Shared.Model.LoginMethodConnect
+
+                "extension" ->
+                    Json.Decode.succeed Shared.Model.LoginMethodExtension
+
+                "local" ->
+                    Json.Decode.succeed Shared.Model.LoginMethodLocal
+
+                "readonly" ->
+                    Json.Decode.succeed Shared.Model.LoginMethodReadOnly
+
+                other ->
+                    Json.Decode.succeed (Shared.Model.LoginMethodOther other)
+
+        )
 
 
 

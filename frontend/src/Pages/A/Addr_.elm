@@ -1,16 +1,14 @@
 module Pages.A.Addr_ exposing (..)
 
 import Browser.Dom
-import BrowserEnv exposing (BrowserEnv)
 import Components.RelayStatus exposing (Purpose(..))
 import Components.ZapDialog as ZapDialog
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, div)
-import Html.Styled.Attributes as Attr exposing (css)
+import Html.Styled as Html exposing (div)
+import Html.Styled.Attributes exposing (css)
 import Layouts
 import LinkPreview exposing (LoadedContent)
 import Nostr
-import Nostr.Article exposing (addressComponentsForArticle)
 import Nostr.Event as Event exposing (AddressComponents, Kind(..), TagReference(..))
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
@@ -44,7 +42,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -92,7 +90,7 @@ init shared route () =
 
         effect =
             case ( maybeArticle, model ) of
-                ( Nothing, Nip19Model { nip19, requestId } ) ->
+                ( Nothing, Nip19Model { nip19 } ) ->
                     -- article not loaded yet, request it now
                     case nip19 of
                         NAddr naddrData ->
@@ -135,8 +133,7 @@ decodedTagParam tag =
 
 
 type Msg
-    = OpenGetStarted
-    | AddArticleBookmark PubKey AddressComponents
+    = AddArticleBookmark PubKey AddressComponents
     | RemoveArticleBookmark PubKey AddressComponents
     | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
     | AddLoadedContent String
@@ -148,9 +145,6 @@ type Msg
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
-        OpenGetStarted ->
-            ( model, Effect.sendCmd <| Ports.requestUser )
-
         AddArticleBookmark pubKey addressComponents ->
             ( model
             , SendBookmarkListWithArticle pubKey addressComponents
@@ -180,7 +174,7 @@ update shared msg model =
                 _ ->
                     ( model, Effect.none )
 
-        ZapReaction userPubKey recipients ->
+        ZapReaction _ recipients ->
             case model of
                 Nip19Model nip19ModelData ->
                     showZapDialog nip19ModelData recipients
@@ -222,7 +216,7 @@ showZapDialog nip19ModelData recipients =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -246,12 +240,11 @@ viewContent shared nip19 loadedContent requestId =
         maybeArticle =
             Nostr.getArticleForNip19 shared.nostr nip19
 
-        addressComponents =
-            maybeArticle
-                |> Maybe.andThen addressComponentsForArticle
-
         userPubKey =
             Shared.loggedInPubKey shared.loginStatus
+
+        signingUserPubKey =
+            Shared.loggedInSigningPubKey shared.loginStatus
     in
     { title =
         maybeArticle
@@ -265,8 +258,8 @@ viewContent shared nip19 loadedContent requestId =
                     , browserEnv = shared.browserEnv
                     , nostr = shared.nostr
                     , userPubKey = Shared.loggedInPubKey shared.loginStatus
-                    , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) userPubKey
-                    , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) userPubKey
+                    , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) signingUserPubKey
+                    , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) signingUserPubKey
                     , onZap = Maybe.map (\pubKey -> ZapReaction pubKey) userPubKey
                     }
                     (Just loadedContent)

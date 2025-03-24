@@ -4,6 +4,7 @@ import File exposing (File)
 import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as Pipeline
+import MimeType
 import Nostr.Event exposing (Event, Tag(..))
 import Nostr.Nip11 exposing (decodeUnixTime)
 import Nostr.Nip94 as Nip94 exposing (FileMetadata)
@@ -121,7 +122,7 @@ metadataDecoder =
         |> Pipeline.hardcoded Nothing
         |> Pipeline.hardcoded 0
         |> Pipeline.optional "url" (Decode.map Just Decode.string) Nothing
-        |> Pipeline.optional "mimeType" (Decode.map Just Decode.string) Nothing
+        |> Pipeline.optional "mimeType" (Decode.map Just MimeType.mimeTypeDecoder) Nothing
         |> Pipeline.optional "xHash" (Decode.map Just Decode.string) Nothing
         |> Pipeline.optional "oxHash" (Decode.map Just Decode.string) Nothing
         |> Pipeline.optional "size" (Decode.map Just sizeDecoder) Nothing

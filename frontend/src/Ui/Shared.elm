@@ -4,16 +4,51 @@ import BrowserEnv exposing (BrowserEnv)
 import Color
 import Components.Icon as Icon exposing (Icon)
 import Css
+import Erl
 import FeatherIcons
 import Html.Styled as Html exposing (Html, a, button, div, h2, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
+import Json.Encode as Encode
+import Nostr
+import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Reactions exposing (Interactions)
+import Nostr.Relay exposing (websocketUrl)
+import Nostr.Types exposing (PubKey)
+import Pareto
+import Set exposing (Set)
 import Svg.Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
+
+emptyHtml : Html msg
+emptyHtml =
+    text ""
+
+extendUrlForScaling : Int -> String -> String
+extendUrlForScaling width urlString =
+    let
+        parsed =
+            urlString
+                |> Erl.parse
+    in
+    if isNip96Server parsed then
+        parsed
+            -- add NIP-96 scaling parameter
+            |> Erl.addQuery "w" (String.fromInt width)
+            |> Erl.toString
+
+    else
+        urlString
+
+
+isNip96Server : Erl.Url -> Bool
+isNip96Server url =
+    List.member (String.join "." url.host)
+        [ Pareto.paretoNip96Server
+        ]
 
 
 pageLoadingIndicator : Html msg
@@ -97,6 +132,7 @@ modalDialog theme title content onClose =
                     , Tw.items_center
                     , Tw.border_b
                     , Tw.pb_4
+                    , Tw.gap_4
                     ]
                 ]
                 [ h2
@@ -134,9 +170,49 @@ type alias Actions msg =
     }
 
 
-viewInteractions : Styles msg -> BrowserEnv -> Actions msg -> Interactions -> Html msg
-viewInteractions styles browserEnv actions interactions =
+type alias PreviewData msg =
+    { pubKey : PubKey
+    , maybeNip19Target : Maybe String
+    , zapRelays : Set String
+    , actions : Actions msg
+    , interactions : Interactions
+    }
+
+
+
+{-
+   Extends the given relays with the inbox relays of the pub-key.
+-}
+
+
+extendedZapRelays : Set String -> Nostr.Model -> Maybe PubKey -> Set String
+extendedZapRelays zapRelays nostrModel maybePubKey =
     let
+        inboxRelays =
+            maybePubKey
+                |> Maybe.map (pubkeyInboxRelays nostrModel)
+                |> Maybe.withDefault Set.empty
+    in
+    zapRelays |> Set.union inboxRelays
+
+
+pubkeyInboxRelays : Nostr.Model -> PubKey -> Set String
+pubkeyInboxRelays nostrModel pubKey =
+    pubKey
+        |> Nostr.getNip65ReadRelaysForPubKey nostrModel
+        |> List.map (\relay -> websocketUrl relay.urlWithoutProtocol)
+        |> Set.fromList
+
+
+viewInteractions : Styles msg -> BrowserEnv -> PreviewData msg -> String -> Html msg
+viewInteractions styles browserEnv previewData instanceId =
+    let
+        actions =
+            previewData.actions
+
+        interactions =
+            previewData.interactions
+
         ( bookmarkIcon, bookmarkMsg ) =
             if interactions.isBookmarked then
                 ( Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdded 30 Icon.Inherit, actions.removeBookmark )
@@ -160,16 +236,16 @@ viewInteractions styles browserEnv actions interactions =
             , Tw.inline_flex
             ]
         ]
-        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) Nothing (Maybe.map String.fromInt interactions.notes)
-        , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions)
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.repeat) Nothing (Maybe.map String.fromInt interactions.reposts)
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps)
-        , viewReactions styles bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks)
+        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) Nothing (Maybe.map String.fromInt interactions.notes) previewData instanceId
+        , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) previewData instanceId
+        , viewReactions styles (Icon.FeatherIcon FeatherIcons.repeat) Nothing (Maybe.map String.fromInt interactions.reposts) previewData instanceId
+        , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) previewData instanceId
+        , viewReactions styles bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks) previewData instanceId
         ]
 
 
-viewReactions : Styles msg -> Icon -> Maybe msg -> Maybe String -> Html msg
-viewReactions styles icon maybeMsg maybeCount =
+viewReactions : Styles msg -> Icon -> Maybe msg -> Maybe String -> PreviewData msg -> String -> Html msg
+viewReactions styles icon maybeMsg maybeCount previewData instanceId =
     let
         onClickAttr =
             case maybeMsg of
@@ -190,20 +266,24 @@ viewReactions styles icon maybeMsg maybeCount =
                     ]
                ]
         )
-        [ div
-            (onClickAttr
-                ++ [ css
-                        [ Tw.w_5
-                        , Tw.h_5
-                        , Tw.px_0_dot_5
-                        , Tw.py_0_dot_5
-                        , Tw.justify_center
-                        , Tw.items_center
-                        , Tw.flex
-                        ]
-                   ]
-            )
-            [ Icon.view icon ]
+        [ if icon == Icon.FeatherIcon FeatherIcons.zap then
+            zapButton previewData.pubKey previewData.maybeNip19Target previewData.zapRelays instanceId
+
+          else
+            div
+                (onClickAttr
+                    ++ [ css
+                            [ Tw.w_5
+                            , Tw.h_5
+                            , Tw.px_0_dot_5
+                            , Tw.py_0_dot_5
+                            , Tw.justify_center
+                            , Tw.items_center
+                            , Tw.flex
+                            ]
+                       ]
+                )
+                [ Icon.view icon ]
         , div
             []
             [ text (maybeCount |> Maybe.withDefault "0") ]
@@ -213,3 +293,53 @@ viewReactions styles icon maybeMsg maybeCount =
 formatZapNum : BrowserEnv -> Int -> String
 formatZapNum browserEnv milliSats =
     browserEnv.formatNumber "0 a" <| toFloat (milliSats // 1000)
+
+
+zapButton : PubKey -> Maybe String -> Set String -> String -> Html msg
+zapButton pubKey maybeNip19Target zapRelays instanceId =
+    let
+        maybeNip19TargetAttr =
+            maybeNip19Target
+                |> Maybe.map
+                    (\nip19Target ->
+                        if String.startsWith "note" nip19Target then
+                            [ Attr.attribute "data-note-id" nip19Target ]
+
+                        else
+                            [ Attr.attribute "data-naddr" nip19Target ]
+                    )
+
+        maybeNpub =
+            Nip19.encode (Npub pubKey) |> Result.toMaybe
+
+        ( nostrZapAttributes, zapComponent ) =
+            maybeNpub
+                |> Maybe.map
+                    (\npub ->
+                        ( [ Attr.id ("zap-button-" ++ instanceId)
+                          , Attr.attribute "data-npub" npub
+                          , Attr.attribute "data-relays" (zapRelays |> Set.toList |> String.join ",")
+                          , Attr.attribute "data-button-color" "#334155"
+                          ]
+                            ++ Maybe.withDefault [] maybeNip19TargetAttr
+                        , Html.node "js-zap-component"
+                            [ Attr.property "buttonId" (Encode.string ("zap-button-" ++ instanceId)) ]
+                            []
+                        )
+                    )
+                |> Maybe.withDefault ( [], emptyHtml )
+    in
+    button
+        (nostrZapAttributes
+            ++ [ css
+                    [ Tw.w_5
+                    , Tw.h_5
+                    , Tw.px_0_dot_5
+                    , Tw.py_0_dot_5
+                    , Tw.justify_center
+                    , Tw.items_center
+                    , Tw.flex
+                    ]
+               ]
+        )
+        [ Icon.view (Icon.FeatherIcon FeatherIcons.zap), zapComponent ]

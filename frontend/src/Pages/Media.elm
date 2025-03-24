@@ -1,34 +1,22 @@
 module Pages.Media exposing (Model, Msg, page)
 
 import Auth
-import BrowserEnv exposing (BrowserEnv)
 import Components.MediaSelector as MediaSelector
-import Css
-import Dict exposing (Dict)
 import Effect exposing (Effect)
-import Hex
-import Html.Styled as Html exposing (Html, a, aside, button, code, div, h2, h3, h4, img, input, label, node, p, span, text, textarea)
-import Html.Styled.Attributes as Attr exposing (class, css, style)
-import Html.Styled.Events as Events exposing (..)
-import Json.Decode as Decode
+import Html.Styled as Html exposing (Html, div)
+import Html.Styled.Attributes exposing (css)
 import Layouts
-import Milkdown.MilkdownEditor as Milkdown
-import Murmur3
 import Nostr
-import Nostr.Event as Event exposing (Event, Kind(..), Tag(..))
-import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
+import Nostr.Event exposing (Kind(..), Tag(..))
+import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Page exposing (Page)
-import Pareto
 import Route exposing (Route)
 import Shared
-import Shared.Msg
-import Tailwind.Breakpoints as Bp
-import Tailwind.Theme as Theme
+import Shared.Model exposing (LoginMethod(..), LoginStatus(..))
 import Tailwind.Utilities as Tw
-import Time
-import Translations.Write
+import Translations.MediaPage as Translations
 import Ui.Styles exposing (Theme)
 import View exposing (View)
 
@@ -45,7 +33,7 @@ page user shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -60,14 +48,30 @@ type alias Model =
 
 
 init : Auth.User -> Shared.Model -> Route () -> () -> ( Model, Effect Msg )
-init user shared route () =
+init user shared _ () =
     let
+        (blossomServers, nip96Servers )  =
+            case shared.loginStatus of
+                LoggedIn _ LoginMethodReadOnly ->
+                    -- In order to list files via Blossom or NIP-96
+                    -- a Nostr event has to be signed. This is impossible
+                    -- without a private key.
+                    ([], [])
+
+                LoggedIn _ _ ->
+                    ( Nostr.getBlossomServers shared.nostr user.pubKey
+                    , Nostr.getNip96Servers shared.nostr user.pubKey
+                    )
+
+                _ ->
+                    ([], [])
+
         ( mediaSelector, mediaSelectorEffect ) =
             MediaSelector.init
                 { selected = Nothing
                 , toMsg = MediaSelectorSent
-                , blossomServers = Nostr.getBlossomServers shared.nostr user.pubKey
-                , nip96Servers = Nostr.getNip96Servers shared.nostr user.pubKey
+                , blossomServers = blossomServers
+                , nip96Servers = nip96Servers
                 , displayType = MediaSelector.DisplayEmbedded
                 }
     in
@@ -119,15 +123,33 @@ view user shared model =
                 [ Tw.m_10
                 ]
             ]
-            [ MediaSelector.new
+            [ viewMediaSelector shared model
+            ]
+        ]
+    }
+
+viewMediaSelector : Shared.Model -> Model -> Html Msg
+viewMediaSelector shared model =
+    case shared.loginStatus of
+        LoggedIn _ LoginMethodReadOnly ->
+            viewAlternativeMessage <| Translations.loggedInReadOnlyMessage [ shared.browserEnv.translations ]
+
+        LoggedIn pubKey _ ->
+            MediaSelector.new
                 { model = model.mediaSelector
                 , toMsg = MediaSelectorSent
                 , onSelected = Nothing
-                , pubKey = user.pubKey
+                , pubKey = pubKey
                 , browserEnv = shared.browserEnv
                 , theme = shared.theme
                 }
                 |> MediaSelector.view
-            ]
-        ]
-    }
+
+        _ ->
+            viewAlternativeMessage <| Translations.notLoggedInMessage [ shared.browserEnv.translations ]
+
+viewAlternativeMessage : String -> Html Msg
+viewAlternativeMessage message =
+            div []
+                [ Html.text message
+                ]

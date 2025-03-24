@@ -1,12 +1,10 @@
 module Nostr.Community exposing (..)
 
-import BrowserEnv exposing (BrowserEnv)
-import Dict exposing (Dict)
-import Json.Decode as Decode exposing (Decoder, fail, list, maybe, nullable, string, succeed)
+import Json.Decode as Decode exposing (Decoder, maybe, string, succeed)
 import Json.Decode.Pipeline exposing (optional, required)
-import Nostr.Event exposing (Event, EventFilter, ImageSize, Kind, Tag(..), imageSizeDecoder)
-import Nostr.Profile exposing (Profile, ProfileValidation(..))
-import Nostr.Types exposing (EventId, PubKey, RelayUrl)
+import Nostr.Event exposing (Event, EventFilter, ImageSize, Tag(..), imageSizeDecoder)
+import Nostr.Profile exposing (ProfileValidation(..))
+import Nostr.Types exposing (PubKey, RelayUrl)
 import Time exposing (Month(..))
 
 
@@ -49,7 +47,6 @@ type alias Community =
     , description : Maybe String
     , image : Maybe Image
     , moderators : List Moderator
-    , relay : Maybe RelayUrl -- the relay this event was loaded from
     , relays : List Relay
     }
 
@@ -75,25 +72,24 @@ communityDefinitionFromEvent event =
                     _ ->
                         acc
             )
-            (emptyCommunity event.pubKey event.relay)
+            (emptyCommunity event.pubKey)
 
 
-emptyCommunity : PubKey -> Maybe RelayUrl -> Community
-emptyCommunity pubKey relay =
+emptyCommunity : PubKey -> Community
+emptyCommunity pubKey =
     { dtag = Nothing
     , pubKey = pubKey
     , name = Nothing
     , description = Nothing
     , image = Nothing
     , moderators = []
-    , relay = relay
     , relays = []
     }
 
 
 communityMatchesFilter : EventFilter -> Community -> Bool
-communityMatchesFilter filter community =
-    True
+communityMatchesFilter _ _ =
+    False
 
 
 communityName : Community -> String

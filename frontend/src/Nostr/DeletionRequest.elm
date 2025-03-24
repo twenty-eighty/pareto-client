@@ -1,10 +1,8 @@
 module Nostr.DeletionRequest exposing (..)
 
-import BrowserEnv exposing (BrowserEnv)
-import Dict exposing (Dict)
 import Nostr.Event exposing (Event, Kind(..), Tag(..), addAddressTag, addKindTag, buildAddress)
-import Nostr.Profile exposing (Profile, ProfileValidation(..))
-import Nostr.Types exposing (EventId, PubKey, RelayUrl)
+import Nostr.Profile exposing (ProfileValidation(..))
+import Nostr.Types exposing (EventId, PubKey)
 import Set exposing (Set)
 import Time
 
@@ -43,7 +41,7 @@ deletionRequestFromEvent event =
 
 
 draftDeletionEvent : PubKey -> Time.Posix -> EventId -> String -> Maybe String -> Event
-draftDeletionEvent pubKey createdAt draftEventId content maybeIdentifier =
+draftDeletionEvent pubKey createdAt _ content maybeIdentifier =
     let
         addIdentifer =
             case maybeIdentifier of
@@ -64,5 +62,5 @@ draftDeletionEvent pubKey createdAt draftEventId content maybeIdentifier =
     , content = content
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }

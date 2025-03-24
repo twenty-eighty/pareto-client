@@ -6,14 +6,14 @@ import Components.Button as Button
 import Components.Dropdown as Dropdown
 import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
 import Components.MessageDialog as MessageDialog
-import Components.PublishArticleDialog as PublishArticleDialog
+import Components.PublishArticleDialog as PublishArticleDialog exposing (PublishingInfo(..))
 import Css
-import Dict exposing (Dict)
+import Dict
 import Effect exposing (Effect)
-import FeatherIcons exposing (share)
 import Html.Styled as Html exposing (Html, div, img, input, label, node, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
+import I18Next exposing (Translations)
 import Json.Decode as Decode
 import Layouts
 import LinkPreview exposing (LoadedContent)
@@ -23,7 +23,9 @@ import Nostr
 import Nostr.Article exposing (articleFromEvent)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
 import Nostr.Event as Event exposing (Event, Kind(..), Tag(..), numberForKind)
+import Nostr.External
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
+import Nostr.Nip27 as Nip27
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Types exposing (EventId, IncomingMessage, PubKey, RelayUrl)
@@ -34,13 +36,17 @@ import Route exposing (Route)
 import Set
 import Shared
 import Shared.Msg
+import Subscribers
 import Svg.Loaders as Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
+import Task
+import TextStats exposing (TextStats, emptyTextStats)
 import Time
 import Translations.Write as Translations
 import Ui.Article
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme, stylesForTheme)
 import View exposing (View)
 
@@ -57,7 +63,7 @@ page user shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -80,13 +86,20 @@ type alias Model =
     , now : Time.Posix
     , mediaSelector : MediaSelector.Model
     , imageSelection : Maybe ImageSelection
-    , publishArticleDialog : PublishArticleDialog.Model Msg
+    , publishArticleDialog : PublishArticleDialog.Model
+    , publishedAt : Maybe Time.Posix
     , articleState : ArticleState
     , editorMode : EditorMode
     , loadedContent : LoadedContent Msg
     , modalDialog : ModalDialog
     , languageSelection : Dropdown.Model Language
+    , textStats : TextStats
+    , debounceStatus : DebounceStatus
     }
+
+type DebounceStatus
+    = Inactive
+    | Active Int -- Remaining time in milliseconds
 
 
 type EditorMode
@@ -96,7 +109,9 @@ type EditorMode
 
 type ModalDialog
     = NoModalDialog
+    | NewsletterSentDialog
     | PublishedDialog
+    | ErrorDialog
 
 
 type ArticleState
@@ -105,13 +120,15 @@ type ArticleState
     | ArticleLoadingDraft RequestId
     | ArticleLoadingDraftError String
     | ArticleSavingDraft SendRequestId
-    | ArticleDraftSaveError String
+    | ArticleDraftSavingError String
     | ArticleDraftSaved
-    | ArticlePublishing SendRequestId
+    | ArticlePublishing SendRequestId (Maybe Subscribers.SubscriberEventData)
     | ArticlePublishingError String
+    | ArticleSendingNewsletter Int Int
+    | ArticleSendingNewsletterError String
     | ArticlePublished
-    | ArticleDeletingDraft SendRequestId
-
+    | ArticleDeletingDraft SendRequestId (Maybe Subscribers.SubscriberEventData)
+    | ArticleDeletingDraftError String
 
 type ImageSelection
     = ArticleImageSelection
@@ -122,24 +139,12 @@ init : Auth.User -> Shared.Model -> Route () -> () -> ( Model, Effect Msg )
 init user shared route () =
     let
         maybeNip19 =
-            case Dict.get "a" route.query of
-                Just address ->
-                    Nip19.decode address
-                        |> Result.toMaybe
-
-                Nothing ->
-                    Nothing
-
-        maybeDraftId =
-            maybeNip19
+            Dict.get "a" route.query
                 |> Maybe.andThen
-                    (\nip19 ->
-                        case nip19 of
-                            NAddr addrData ->
-                                Just addrData
-
-                            _ ->
-                                Nothing
+                    (\address ->
+                        address
+                            |> Nip19.decode
+                            |> Result.toMaybe
                     )
 
         maybeArticle =
@@ -173,6 +178,20 @@ init user shared route () =
         model =
             case maybeArticle of
                 Just article ->
+                    let
+                        publishedAt =
+                            if article.kind == KindDraftLongFormContent then
+                                -- output fresh published date when publishing article
+                                Nothing
+
+                            else if article.publishedAt /= Nothing then
+                                -- keep published date if present
+                                article.publishedAt
+
+                            else
+                                -- assume published date equals creation date of article event
+                                Just article.createdAt
+                    in
                     { draftEventId = Just article.id
                     , title = article.title
                     , summary = article.summary
@@ -192,11 +211,14 @@ init user shared route () =
                     , mediaSelector = mediaSelector
                     , imageSelection = Nothing
                     , publishArticleDialog = publishArticleDialog
+                    , publishedAt = publishedAt
                     , articleState = ArticleDraftSaved
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
                     , modalDialog = NoModalDialog
                     , languageSelection = Dropdown.init { selected = article.language }
+                    , textStats = TextStats.compute article.language article.content
+                    , debounceStatus = Inactive
                     }
 
                 Nothing ->
@@ -214,11 +236,14 @@ init user shared route () =
                     , mediaSelector = mediaSelector
                     , imageSelection = Nothing
                     , publishArticleDialog = publishArticleDialog
+                    , publishedAt = Nothing
                     , articleState = ArticleEmpty
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
                     , modalDialog = NoModalDialog
-                    , languageSelection = Dropdown.init { selected = Nothing }
+                    , languageSelection = Dropdown.init { selected = Just shared.browserEnv.language }
+                    , textStats = emptyTextStats
+                    , debounceStatus = Inactive
                     }
     in
     ( model
@@ -271,7 +296,7 @@ type Msg
     | SelectImage ImageSelection
     | ImageSelected ImageSelection MediaSelector.UploadedFile
     | Publish
-    | PublishArticle (List RelayUrl)
+    | PublishArticle PublishArticleDialog.PublishingInfo
     | SaveDraft
     | Now Time.Posix
     | OpenMediaSelector
@@ -279,8 +304,11 @@ type Msg
     | ReceivedPortMessage IncomingMessage
     | MilkdownSent (Milkdown.Msg Msg)
     | PublishArticleDialogSent (PublishArticleDialog.Msg Msg)
-    | PublishedDialogButtonClicked PublishedDialogButton
+    | ModalDialogButtonClicked PublishedDialogButton
     | DropdownSent (Dropdown.Msg Language Msg)
+    | LanguageChanged (Maybe Language)
+    | StatsComputed (Result Never TextStats)
+    | Tick Time.Posix
 
 
 type PublishedDialogButton
@@ -292,10 +320,17 @@ update shared user msg model =
     case msg of
         EditorChanged newContent ->
             if newContent == "" then
-                ( { model | articleState = ArticleModified, content = Nothing }, Effect.none )
+                ( { model | articleState = ArticleModified
+                    , content = Nothing
+                    , textStats = emptyTextStats
+                    , debounceStatus = Inactive
+                  }, Effect.none )
 
             else
-                ( { model | articleState = ArticleModified, content = Just newContent }, Effect.none )
+                ( { model | articleState = ArticleModified
+                    , content = Just newContent
+                    , debounceStatus = Active 500
+                  }, Effect.none )
 
         EditorFocused ->
             ( model, Effect.none )
@@ -312,7 +347,11 @@ update shared user msg model =
                     ( { model | editorMode = Preview }, Effect.none )
 
                 Preview ->
-                    ( { model | editorMode = Editor }, Effect.none )
+                    ( { model | editorMode = Editor }
+                    , model.content
+                        |> Maybe.map (loadReferencedNip27Profiles shared.nostr)
+                        |> Maybe.withDefault Effect.none
+                    )
 
         AddLoadedContent url ->
             ( { model | loadedContent = LinkPreview.addLoadedContent model.loadedContent url }, Effect.none )
@@ -376,10 +415,37 @@ update shared user msg model =
                                     ( model, Effect.none )
 
         Publish ->
-            ( { model | publishArticleDialog = PublishArticleDialog.show model.publishArticleDialog }, Effect.none )
+            update shared user (PublishArticleDialogSent PublishArticleDialog.ShowDialog) model
 
-        PublishArticle relayUrls ->
-            ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) }, sendPublishCmd shared model user relayUrls )
+        PublishArticle publishingInfo ->
+            case publishingInfo of
+                ArticleOnly relayUrls ->
+                    ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) Nothing }
+                    , sendPublishCmd shared model user relayUrls
+                    )
+
+                NewsletterOnly subscriberEventData ->
+                    ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
+                    , Subscribers.newsletterSubscribersEvent
+                        shared
+                        user.pubKey
+                        ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier )
+                        { title = Maybe.withDefault "" model.title
+                        , summary = Maybe.withDefault "" model.summary
+                        , content = Maybe.withDefault "" model.content
+                        , imageUrl = Maybe.withDefault "" model.image
+                        , language = languageISOCode model
+                        }
+                        subscriberEventData
+                        |> SendApplicationData
+                        |> Shared.Msg.SendNostrEvent
+                        |> Effect.sendSharedMsg
+                    )
+
+                ArticleAndNewsletter relayUrls subscriberEventData ->
+                    ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) (Just subscriberEventData) }
+                    , sendPublishCmd shared model user relayUrls
+                    )
 
         SaveDraft ->
             ( { model | articleState = ArticleSavingDraft (Nostr.getLastSendRequestId shared.nostr) }, sendDraftCmd shared model user )
@@ -434,9 +500,10 @@ update shared user msg model =
                 , toMsg = PublishArticleDialogSent
                 , nostr = shared.nostr
                 , pubKey = user.pubKey
+                , testMode = shared.browserEnv.testMode
                 }
 
-        PublishedDialogButtonClicked _ ->
+        ModalDialogButtonClicked _ ->
             ( { model | modalDialog = NoModalDialog }, Effect.none )
 
         DropdownSent innerMsg ->
@@ -446,6 +513,49 @@ update shared user msg model =
                 , toModel = \dropdown -> { model | languageSelection = dropdown, articleState = ArticleModified }
                 , toMsg = DropdownSent
                 }
+
+        LanguageChanged maybeLanguage ->
+            ( {model | textStats = TextStats.compute maybeLanguage (Maybe.withDefault "" model.content) }, Effect.none)
+
+        StatsComputed (Ok textStats) ->
+            ( { model | textStats = textStats }, Effect.none )
+
+        StatsComputed (Err error) ->
+            ( model , Effect.none )
+
+        Tick _ ->
+            case model.debounceStatus of
+                Inactive ->
+                    -- If debounce is inactive, do nothing
+                    ( model, Effect.none )
+
+                Active remainingTime ->
+                    if remainingTime <= 0 then
+                            -- Time has run out, trigger search
+                            ( { model | debounceStatus = Inactive }
+                            , TextStats.computeTask (Dropdown.selectedItem model.languageSelection) (Maybe.withDefault "" model.content)
+                                |> Task.attempt StatsComputed
+                                |> Effect.sendCmd
+                            )
+
+                    else
+                        -- Decrease remaining time
+                        ( { model | debounceStatus = Active (remainingTime - 100) }
+                        , Effect.none
+                        )
+
+loadReferencedNip27Profiles : Nostr.Model -> String -> Effect Msg
+loadReferencedNip27Profiles nostr content =
+    Nip27.collectNostrLinks content
+        |> Nostr.nip27ProfilesRequest nostr
+        |> Maybe.map
+            (\eventFilter ->
+                RequestUserData eventFilter
+                    |> Nostr.createRequest nostr "Referenced Nostr profiles" []
+                    |> Shared.Msg.RequestNostrEvents
+                    |> Effect.sendSharedMsg
+            )
+        |> Maybe.withDefault Effect.none
 
 
 updateWithPortMessage : Shared.Model -> Model -> Auth.User -> IncomingMessage -> ( Model, Effect Msg )
@@ -459,8 +569,8 @@ updateWithPortMessage shared model user portMessage =
             -- is lost while logging in. After preserving the query parameters while logging
             -- in the article should appear here
             case
-                ( Decode.decodeValue (Decode.field "requestId" Decode.int) portMessage.value
-                , Decode.decodeValue (Decode.field "kind" Event.kindDecoder) portMessage.value
+                ( Nostr.External.decodeRequestId portMessage.value
+                , Nostr.External.decodeEventsKind portMessage.value
                 , model.articleState
                 )
             of
@@ -474,13 +584,43 @@ updateWithPortMessage shared model user portMessage =
                 ( _, _, _ ) ->
                     ( model, Effect.none )
 
+        "error" ->
+            case
+                ( model.articleState, Nostr.External.decodeReason portMessage.value ) of
+                    ( ArticleSavingDraft _, Ok error) ->
+                        ( { model | articleState = ArticleDraftSavingError error
+                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                            , modalDialog = ErrorDialog
+                        }, Effect.none )
+
+                    ( ArticlePublishing _ _, Ok error ) ->
+                        ( { model | articleState = ArticlePublishingError error
+                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                            , modalDialog = ErrorDialog
+                        }, Effect.none )
+
+                    ( ArticleSendingNewsletter _ _, Ok error ) ->
+                        ( { model | articleState = ArticleSendingNewsletterError error
+                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                            , modalDialog = ErrorDialog
+                        }, Effect.none )
+
+                    ( ArticleDeletingDraft _ _, Ok error ) ->
+                        ( { model | articleState = ArticleDeletingDraftError error
+                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                            , modalDialog = ErrorDialog
+                        }, Effect.none )
+
+                    ( _, error) ->
+                        ( model, Effect.none )
+
         _ ->
             ( model, Effect.none )
 
 
 updateModelWithDraftRequest : Model -> Decode.Value -> ( Model, Effect Msg )
 updateModelWithDraftRequest model value =
-    case Decode.decodeValue (Decode.field "events" (Decode.list Event.decodeEvent)) value of
+    case Nostr.External.decodeEvents value of
         Ok draftEvents ->
             let
                 maybeDraft =
@@ -538,18 +678,36 @@ updateWithPublishedResults shared model user value =
             else
                 ( model, Effect.none )
 
-        ArticlePublishing sendRequestId ->
+        ArticlePublishing sendRequestId maybeSubscriberEventData ->
             if Just sendRequestId == receivedSendRequestId then
-                case model.draftEventId of
-                    Just _ ->
+                case ( model.draftEventId, maybeSubscriberEventData ) of
+                    ( Just _, _ ) ->
                         ( { model
-                            | articleState = ArticleDeletingDraft (Nostr.getLastSendRequestId shared.nostr)
+                            | articleState = ArticleDeletingDraft (Nostr.getLastSendRequestId shared.nostr) maybeSubscriberEventData
                           }
                           -- after publishing article, delete draft
                         , sendDraftDeletionCmd shared model user
                         )
 
-                    Nothing ->
+                    ( Nothing, Just subscriberEventData ) ->
+                        ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
+                        , Subscribers.newsletterSubscribersEvent
+                            shared
+                            user.pubKey
+                            ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier )
+                            { title = Maybe.withDefault "" model.title
+                            , summary = Maybe.withDefault "" model.summary
+                            , content = Maybe.withDefault "" model.content
+                            , imageUrl = Maybe.withDefault "" model.image
+                            , language = languageISOCode model
+                            }
+                            subscriberEventData
+                            |> SendApplicationData
+                            |> Shared.Msg.SendNostrEvent
+                            |> Effect.sendSharedMsg
+                        )
+
+                    ( Nothing, Nothing ) ->
                         ( { model
                             | articleState = ArticlePublished
                             , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
@@ -561,18 +719,47 @@ updateWithPublishedResults shared model user value =
             else
                 ( model, Effect.none )
 
-        ArticleDeletingDraft sendRequestId ->
+        ArticleDeletingDraft sendRequestId maybeSubscriberEventData ->
             if Just sendRequestId == receivedSendRequestId then
-                ( { model
-                    | articleState = ArticlePublished
-                    , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
-                    , modalDialog = PublishedDialog
-                  }
-                , Effect.none
-                )
+                case maybeSubscriberEventData of
+                    Just subscriberEventData ->
+                        ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
+                        , Subscribers.newsletterSubscribersEvent shared
+                            user.pubKey
+                            ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier )
+                            { title = Maybe.withDefault "" model.title
+                            , summary = Maybe.withDefault "" model.summary
+                            , content = Maybe.withDefault "" model.content
+                            , imageUrl = Maybe.withDefault "" model.image
+                            , language = languageISOCode model
+                            }
+                            subscriberEventData
+                            |> SendApplicationData
+                            |> Shared.Msg.SendNostrEvent
+                            |> Effect.sendSharedMsg
+                        )
+
+                    Nothing ->
+                        -- no newsletter to be sent
+                        ( { model
+                            | articleState = ArticlePublished
+                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                            , modalDialog = PublishedDialog
+                          }
+                        , Effect.none
+                        )
 
             else
                 ( model, Effect.none )
+
+        ArticleSendingNewsletter _ _ ->
+            ( { model
+                | articleState = ArticlePublished
+                , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                , modalDialog = NewsletterSentDialog
+              }
+            , Effect.none
+            )
 
         _ ->
             ( model, Effect.none )
@@ -589,7 +776,7 @@ sendPublishCmd shared model user relayUrls =
 sendDraftCmd : Shared.Model -> Model -> Auth.User -> Effect Msg
 sendDraftCmd shared model user =
     eventWithContent shared model user KindDraftLongFormContent
-        |> SendLongFormDraft Pareto.defaultRelays
+        |> SendLongFormDraft (Nostr.getDefaultRelays shared.nostr)
         |> Shared.Msg.SendNostrEvent
         |> Effect.sendSharedMsg
 
@@ -609,6 +796,11 @@ sendDraftDeletionCmd shared model user =
 
 eventWithContent : Shared.Model -> Model -> Auth.User -> Kind -> Event
 eventWithContent shared model user kind =
+    let
+        publishedAt =
+            model.publishedAt
+                |> Maybe.withDefault model.now
+    in
     { pubKey = user.pubKey
     , createdAt = shared.browserEnv.now
     , kind = kind
@@ -619,14 +811,14 @@ eventWithContent shared model user kind =
             |> Event.addImageTag model.image
             |> Event.addIdentifierTag model.identifier
             |> Event.addHashtagsToTags model.tags
+            |> Event.addPublishedAtTag publishedAt
             |> Maybe.withDefault identity (languageISOCode model |> Maybe.map (Event.addLabelTags "ISO-639-1"))
             |> Event.addZapTags model.zapWeights
-            |> Event.addClientTag Pareto.client Pareto.paretoClientPubKey Pareto.handlerIdentifier Pareto.paretoRelay
             |> Event.addAltTag (altText model.identifier user.pubKey kind [ Pareto.paretoRelay ])
     , content = model.content |> Maybe.withDefault ""
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }
 
 
@@ -641,7 +833,7 @@ altText maybeIdentifier pubKey kind relays =
         Just identifier ->
             case Nip19.encode (Nip19.NAddr { identifier = identifier, pubKey = pubKey, kind = numberForKind kind, relays = relays }) of
                 Ok nip19 ->
-                    "This is a long form article, you can read it in " ++ Pareto.applicationUrl ++ "/a/" ++ nip19
+                    "This is a long form article, you can read it on " ++ Pareto.applicationUrl ++ "/a/" ++ nip19
 
                 Err _ ->
                     "This is a long form article, you can read it on " ++ Pareto.applicationUrl
@@ -667,8 +859,18 @@ subscriptions model =
         [ Time.every 1000 Now
         , Sub.map MediaSelectorSent (MediaSelector.subscribe model.mediaSelector)
         , Ports.receiveMessage ReceivedPortMessage
+        , PublishArticleDialog.subscriptions model.publishArticleDialog PublishArticleDialogSent
+        , debounceSubscription model.debounceStatus
         ]
 
+debounceSubscription : DebounceStatus -> Sub Msg
+debounceSubscription debounceStatus =
+    case debounceStatus of
+        Inactive ->
+            Sub.none
+
+        Active _ ->
+            Time.every 100 Tick
 
 
 -- VIEW
@@ -715,14 +917,15 @@ view user shared model =
                         , Tw.w_96
                         ]
                     ]
-                    [ viewImage model
+                    [ viewImage shared.browserEnv.translations model
                     ]
                 ]
-            , viewEditor shared.theme shared.browserEnv model
+            , viewEditor shared model
             , viewLanguage shared.browserEnv model
             , viewTags shared.theme shared.browserEnv model
             , viewArticleState shared.browserEnv shared.theme model.articleState
             , saveButtons shared.browserEnv shared.theme model
+            , TextStats.view shared.browserEnv shared.theme model.textStats
             , viewMediaSelector user shared model
             ]
         , PublishArticleDialog.new
@@ -735,21 +938,37 @@ view user shared model =
             , theme = shared.theme
             }
             |> PublishArticleDialog.view
-        , viewModalDialog shared.theme shared.browserEnv model.modalDialog
+        , viewModalDialog shared.theme shared.browserEnv model.articleState model.modalDialog
         ]
     }
 
 
-viewModalDialog : Theme -> BrowserEnv -> ModalDialog -> Html Msg
-viewModalDialog theme browserEnv modalDialog =
+viewModalDialog : Theme -> BrowserEnv -> ArticleState -> ModalDialog -> Html Msg
+viewModalDialog theme browserEnv articleState modalDialog =
     case modalDialog of
         NoModalDialog ->
-            div [] []
+            emptyHtml
+
+        NewsletterSentDialog ->
+            MessageDialog.new
+                { onClick = ModalDialogButtonClicked
+                , onClose = ModalDialogButtonClicked OkButton
+                , title = Translations.newsletterSentMessageBoxTitle [ browserEnv.translations ]
+                , content = div [] [ text <| Translations.newsletterSentMessageBoxText [ browserEnv.translations ] ]
+                , buttons =
+                    [ { style = MessageDialog.PrimaryButton
+                      , title = "Ok"
+                      , identifier = OkButton
+                      }
+                    ]
+                , theme = theme
+                }
+                |> MessageDialog.view
 
         PublishedDialog ->
             MessageDialog.new
-                { onClick = PublishedDialogButtonClicked
-                , onClose = PublishedDialogButtonClicked OkButton
+                { onClick = ModalDialogButtonClicked
+                , onClose = ModalDialogButtonClicked OkButton
                 , title = Translations.articlePublishedMessageBoxTitle [ browserEnv.translations ]
                 , content = div [] [ text <| Translations.articlePublishedMessageBoxText [ browserEnv.translations ] ]
                 , buttons =
@@ -762,6 +981,21 @@ viewModalDialog theme browserEnv modalDialog =
                 }
                 |> MessageDialog.view
 
+        ErrorDialog ->
+            MessageDialog.new
+                { onClick = ModalDialogButtonClicked
+                , onClose = ModalDialogButtonClicked OkButton
+                , title = Translations.errorMessageBoxTitle [ browserEnv.translations ]
+                , content = div [] [ text <| Maybe.withDefault "" (articleStateToString browserEnv articleState) ]
+                , buttons =
+                    [ { style = MessageDialog.PrimaryButton
+                      , title = "Ok"
+                      , identifier = OkButton
+                      }
+                    ]
+                , theme = theme
+                }
+                |> MessageDialog.view
 
 viewArticleState : BrowserEnv -> Theme -> ArticleState -> Html Msg
 viewArticleState browserEnv theme articleState =
@@ -798,7 +1032,7 @@ viewArticleState browserEnv theme articleState =
             processIndicator
 
         ( Nothing, Nothing ) ->
-            div [] []
+            emptyHtml
 
 
 articleStateToString : BrowserEnv -> ArticleState -> Maybe String
@@ -822,10 +1056,10 @@ articleStateToString browserEnv articleState =
         ArticleDraftSaved ->
             Just <| Translations.articleDraftSavedState [ browserEnv.translations ]
 
-        ArticleDraftSaveError error ->
+        ArticleDraftSavingError error ->
             Just <| Translations.articleDraftSaveError [ browserEnv.translations ] ++ ": " ++ error
 
-        ArticlePublishing _ ->
+        ArticlePublishing _ _ ->
             Just <| Translations.articlePublishingState [ browserEnv.translations ]
 
         ArticlePublishingError error ->
@@ -834,9 +1068,17 @@ articleStateToString browserEnv articleState =
         ArticlePublished ->
             Just <| Translations.articlePublishedState [ browserEnv.translations ]
 
-        ArticleDeletingDraft _ ->
-            Just <| Translations.articleDeletingDraftState [ browserEnv.translations ]
+        ArticleSendingNewsletter _ _ ->
+            Just <| Translations.sendingNewsletterState [ browserEnv.translations ]
 
+        ArticleSendingNewsletterError error ->
+            Just <| Translations.sendingNewsletterError [ browserEnv.translations ] ++ ": " ++ error
+
+        ArticleDeletingDraft _ _ ->
+            Just <| Translations.deletingDraftState [ browserEnv.translations ]
+
+        ArticleDeletingDraftError error ->
+            Just <| Translations.deletingDraftError [ browserEnv.translations ] ++ ": " ++ error
 
 articleStateProcessIndicator : ArticleState -> Maybe (Html Msg)
 articleStateProcessIndicator articleState =
@@ -850,7 +1092,7 @@ articleStateProcessIndicator articleState =
         ArticleLoadingDraft _ ->
             Just <| (Loaders.rings [] |> Html.fromUnstyled)
 
-        ArticleLoadingDraftError error ->
+        ArticleLoadingDraftError _ ->
             Nothing
 
         ArticleSavingDraft _ ->
@@ -859,21 +1101,29 @@ articleStateProcessIndicator articleState =
         ArticleDraftSaved ->
             Nothing
 
-        ArticleDraftSaveError error ->
+        ArticleDraftSavingError _ ->
             Nothing
 
-        ArticlePublishing _ ->
+        ArticlePublishing _ _ ->
             Just <| (Loaders.rings [] |> Html.fromUnstyled)
 
-        ArticlePublishingError error ->
+        ArticlePublishingError _ ->
+            Nothing
+
+        ArticleSendingNewsletter _ _ ->
+            Just <| (Loaders.rings [] |> Html.fromUnstyled)
+
+        ArticleSendingNewsletterError _ ->
             Nothing
 
         ArticlePublished ->
             Nothing
 
-        ArticleDeletingDraft _ ->
+        ArticleDeletingDraft _ _ ->
             Just <| (Loaders.rings [] |> Html.fromUnstyled)
 
+        ArticleDeletingDraftError _ ->
+            Nothing
 
 viewMediaSelector : Auth.User -> Shared.Model -> Model -> Html Msg
 viewMediaSelector user shared model =
@@ -890,11 +1140,11 @@ viewMediaSelector user shared model =
                 |> MediaSelector.view
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewTitle : Theme -> BrowserEnv -> Model -> Html Msg
-viewTitle theme browserEnv model =
+viewTitle _ browserEnv model =
     let
         ( foreground, background ) =
             if browserEnv.darkMode then
@@ -923,7 +1173,7 @@ viewTitle theme browserEnv model =
 
 
 viewSubtitle : Theme -> BrowserEnv -> Model -> Html Msg
-viewSubtitle theme browserEnv model =
+viewSubtitle _ browserEnv model =
     let
         ( foreground, background ) =
             if browserEnv.darkMode then
@@ -956,13 +1206,14 @@ decodeInputChange =
     Decode.field "detail" (Decode.field "value" Decode.string)
 
 
-viewImage : Model -> Html Msg
-viewImage model =
+viewImage : I18Next.Translations -> Model -> Html Msg
+viewImage translations model =
     case model.image of
         Just image ->
             div
                 [ css
                     [ Tw.max_w_72
+                    , Tw.cursor_pointer
                     ]
                 ]
                 [ img
@@ -978,14 +1229,26 @@ viewImage model =
                     [ Tw.w_48
                     , Tw.h_32
                     , Tw.bg_color Theme.slate_500
+                    , Tw.flex
+                    , Tw.justify_center
+                    , Tw.items_center
+                    , Tw.cursor_pointer
                     ]
                 , Events.onClick (SelectImage ArticleImageSelection)
                 ]
-                []
+                [ Html.span
+                    [ css
+                        [ Tw.text_color Theme.white
+                        , Tw.m_2
+                        ]
+                    ]
+                    [ text <| Translations.imageSelectionInstructionalText [ translations ]
+                    ]
+                ]
 
 
-viewEditor : Theme -> BrowserEnv -> Model -> Html Msg
-viewEditor theme browserEnv model =
+viewEditor : Shared.Model -> Model -> Html Msg
+viewEditor shared model =
     case model.editorMode of
         Editor ->
             div
@@ -993,15 +1256,15 @@ viewEditor theme browserEnv model =
                     [ Tw.w_full
                     ]
                 ]
-                [ milkdownEditor model.milkdown browserEnv (model.content |> Maybe.withDefault "")
+                [ milkdownEditor model.milkdown shared.browserEnv (model.content |> Maybe.withDefault "")
                 ]
 
         Preview ->
             let
                 styles =
-                    stylesForTheme theme
+                    stylesForTheme shared.theme
             in
-            Ui.Article.viewContentMarkdown styles (Just model.loadedContent) (\_ -> Nothing) (Maybe.withDefault "" model.content)
+            Ui.Article.viewContentMarkdown styles (Just model.loadedContent) (Nostr.getProfile shared.nostr) (Maybe.withDefault "" model.content)
 
 
 milkdownEditor : Milkdown.Model -> BrowserEnv -> Milkdown.Content -> Html Msg
@@ -1055,10 +1318,22 @@ viewLanguage browserEnv model =
             { model = model.languageSelection
             , toMsg = DropdownSent
             , choices = [ English "US", French, German "DE", Italian, Portuguese, Spanish, Swedish ]
-            , toLabel = languageToString browserEnv.translations
+            , allowNoSelection = True
+            , toLabel = toLabel browserEnv.translations
             }
+            |> Dropdown.withOnChange LanguageChanged
             |> Dropdown.view
         ]
+
+
+toLabel : Translations -> Maybe Language -> String
+toLabel translations maybeLanguage =
+    case maybeLanguage of
+        Just language ->
+            languageToString translations language
+
+        Nothing ->
+            Translations.noLanguageText [ translations ]
 
 
 viewTags : Theme -> BrowserEnv -> Model -> Html Msg
@@ -1144,17 +1419,29 @@ publishButton browserEnv model theme =
 
 articleReadyForPublishing : Model -> Bool
 articleReadyForPublishing model =
-    (model.articleState == ArticleDraftSaved || model.articleState == ArticleModified)
-        && model.title
-        /= Nothing
-        && model.summary
-        /= Nothing
-        && model.content
-        /= Nothing
-        && model.image
-        /= Nothing
-        && model.identifier
-        /= Nothing
+    let
+        contentComplete =
+            (model.title /= Nothing)
+                && (model.summary /= Nothing)
+                && (model.content /= Nothing)
+                && (model.image /= Nothing)
+                && (model.identifier /= Nothing)
+    in
+    case model.articleState of
+        ArticleDraftSaved ->
+            contentComplete
+
+        ArticlePublishingError _ ->
+            contentComplete
+
+        ArticleSendingNewsletterError _ ->
+            contentComplete
+
+        ArticleModified ->
+            contentComplete
+
+        _ ->
+            False
 
 
 previewButton : BrowserEnv -> Model -> Theme -> Html Msg
@@ -1192,4 +1479,12 @@ saveDraftButton browserEnv model theme =
 
 articleReadyForSaving : Model -> Bool
 articleReadyForSaving model =
-    model.articleState == ArticleModified
+    case model.articleState of
+        ArticleModified ->
+            True
+
+        ArticleDraftSavingError _ ->
+            True
+
+        _ ->
+            False

@@ -1,11 +1,7 @@
 module Nostr.Bookmarks exposing (..)
 
-import Dict exposing (Dict)
-import Http
-import Json.Decode as Decode exposing (Decoder)
+import Json.Decode as Decode
 import Json.Decode.Pipeline as DecodePipeline
-import Nostr.Types exposing (PubKey)
-import Time
 
 
 type alias Bookmark =

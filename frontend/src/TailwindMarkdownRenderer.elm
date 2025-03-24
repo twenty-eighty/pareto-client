@@ -3,7 +3,7 @@ module TailwindMarkdownRenderer exposing (renderer)
 import Css
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as Attr exposing (css)
-import LinkPreview exposing (LoadedContent)
+import LinkPreview
 import Markdown.Block as Block
 import Markdown.Html
 import Markdown.Renderer
@@ -13,11 +13,12 @@ import Parser
 import SyntaxHighlight
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles)
 
 
-renderer : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> Markdown.Renderer.Renderer (Html msg)
-renderer styles loadedContent fnGetProfile =
+renderer : Styles msg -> GetProfileFunction -> Markdown.Renderer.Renderer (Html msg)
+renderer styles fnGetProfile =
     { heading = heading styles
     , paragraph =
         Html.p
@@ -61,31 +62,55 @@ renderer styles loadedContent fnGetProfile =
     , hardLineBreak = Html.br [] []
     , image =
         \image ->
-            case image.title of
-                Just title ->
-                    Html.figure
-                        [ css
-                            []
-                        ]
+            case ( image.title, image.src ) of
+                ( _, "" ) ->
+                    -- ignore images without src attribute
+                    emptyHtml
+
+                ( Just "1.00", src ) ->
+                    -- dirty fix - route96 server delivers caption as "1.00" even if it wasn't set explicitly
+                    Html.node "center"
+                        []
                         [ Html.img
-                            [ Attr.src (ensureHttps image.src)
+                            [ Attr.src (ensureHttps src)
                             , Attr.alt image.alt
+                            , css
+                                [ Tw.max_h_96
+                                ]
                             ]
                             []
-                        , Html.figcaption
-                            []
-                            [ Html.text title ]
                         ]
 
-                Nothing ->
-                    Html.img
-                        [ Attr.src (ensureHttps image.src)
-                        , Attr.alt image.alt
-                        , css
-                            [ Tw.max_h_96
+                ( Just title, src ) ->
+                    Html.node "center"
+                        []
+                        [ Html.figure
+                            [ css
+                                []
+                            ]
+                            [ Html.img
+                                [ Attr.src (ensureHttps src)
+                                , Attr.alt image.alt
+                                ]
+                                []
+                            , Html.figcaption
+                                []
+                                [ Html.text title ]
                             ]
                         ]
+
+                ( Nothing, src ) ->
+                    Html.node "center"
                         []
+                        [ Html.img
+                            [ Attr.src (ensureHttps src)
+                            , Attr.alt image.alt
+                            , css
+                                [ Tw.max_h_96
+                                ]
+                            ]
+                            []
+                        ]
     , unorderedList =
         \items ->
             Html.ul (styles.textStyleBody ++ styles.colorStyleGrayscaleText)
@@ -334,26 +359,12 @@ heading styles { level, rawText, children } =
                 children
 
 
-
---code : String -> Element msg
---code snippet =
---    Element.el
---        [ Element.Background.color
---            (Element.rgba255 50 50 50 0.07)
---        , Element.Border.rounded 2
---        , Element.paddingXY 5 3
---        , Font.family [ Font.typeface "Roboto Mono", Font.monospace ]
---        ]
---        (Element.text snippet)
---
---
-
-
 htmlBlock : Markdown.Html.Renderer (List (Html msg) -> Html msg)
 htmlBlock =
     Markdown.Html.oneOf
         [ htmlAElement
         , htmlCiteElement
+        , htmlIframeElement
         , htmlImgElement
         , htmlPElement
         , htmlStrongElement
@@ -364,6 +375,22 @@ htmlBlock =
         , htmlGenericElement "td"
         , htmlGenericElement "tr"
         ]
+
+
+htmlIframeElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlIframeElement =
+    Markdown.Html.tag "iframe"
+        (\src maybeTitle _ _ _ _ _ _ ->
+            renderHtmlIframeElement src maybeTitle
+        )
+        |> Markdown.Html.withAttribute "src"
+        |> Markdown.Html.withOptionalAttribute "title"
+        |> Markdown.Html.withOptionalAttribute "width"
+        |> Markdown.Html.withOptionalAttribute "height"
+        |> Markdown.Html.withOptionalAttribute "frameborder"
+        |> Markdown.Html.withOptionalAttribute "allow"
+        |> Markdown.Html.withOptionalAttribute "allowfullscreen"
+        |> Markdown.Html.withOptionalAttribute "referrerpolicy"
 
 
 htmlImgElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
@@ -418,10 +445,9 @@ renderHtmlAElement maybeHref children =
                 |> Maybe.withDefault []
     in
     Html.a
-        ([ css
+        (css
             []
-         ]
-            ++ srcAttr
+            :: srcAttr
         )
         children
 
@@ -435,12 +461,16 @@ renderHtmlCiteElement maybeSrc children =
                 |> Maybe.withDefault []
     in
     Html.cite
-        ([ css
+        (css
             []
-         ]
-            ++ srcAttr
+            :: srcAttr
         )
         children
+
+
+renderHtmlIframeElement : String -> Maybe String -> (List (Html msg) -> Html msg)
+renderHtmlIframeElement src _ children =
+    LinkPreview.generatePreviewHtml Nothing src [] children
 
 
 renderHtmlImgElement : String -> Maybe String -> (List (Html msg) -> Html msg)
@@ -524,7 +554,7 @@ defaultFormatCodeBlock body =
 
 
 formatLink : Styles msg -> { title : Maybe String, destination : String } -> List (Html msg) -> Html msg
-formatLink styles { title, destination } body =
+formatLink styles { destination } body =
     Html.a
         (styles.colorStyleLinks
             ++ styles.textStyleLinks

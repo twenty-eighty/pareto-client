@@ -1,10 +1,11 @@
 port module Ports exposing (..)
 
 import Json.Encode as Encode
-import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), encodeEvent, encodeEventFilter)
+import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), buildAddress, encodeEvent, encodeEventFilter)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestId)
 import Nostr.Send exposing (SendRequestId)
 import Nostr.Types exposing (IncomingMessage, OutgoingCommand)
+import Pareto
 
 
 port sendCommand : OutgoingCommand -> Cmd msg
@@ -15,12 +16,15 @@ port receiveMessage : (IncomingMessage -> msg) -> Sub msg
 
 connect : List String -> Cmd msg
 connect relays =
-    sendCommand { command = "connect", value = Encode.list Encode.string relays }
-
-
-loginWithExtension : Cmd msg
-loginWithExtension =
-    sendCommand { command = "loginWithExtension", value = Encode.null }
+    sendCommand
+        { command = "connect"
+        , value =
+            Encode.object
+                [ ( "client", Encode.string Pareto.client )
+                , ( "nip89", Encode.string <| buildAddress ( KindHandlerInformation, Pareto.paretoClientPubKey, Pareto.handlerIdentifier ) )
+                , ( "relays", Encode.list Encode.string relays )
+                ]
+        }
 
 
 loginSignUp : Cmd msg
@@ -28,19 +32,19 @@ loginSignUp =
     sendCommand { command = "loginSignUp", value = Encode.null }
 
 
-requestUser : Cmd msg
-requestUser =
-    sendCommand { command = "requestUser", value = Encode.null }
+signUp : Cmd msg
+signUp =
+    sendCommand { command = "signUp", value = Encode.null }
 
 
-requestEvents : String -> Bool -> RequestId -> List String -> EventFilter -> Cmd msg
-requestEvents description closeOnEose requestId relays filter =
+requestEvents : String -> Bool -> RequestId -> List String -> List EventFilter -> Cmd msg
+requestEvents description closeOnEose requestId relays filters =
     sendCommand
         { command = "requestEvents"
         , value =
             Encode.object
                 [ ( "requestId", Encode.int requestId )
-                , ( "filter", encodeEventFilter filter )
+                , ( "filters", Encode.list encodeEventFilter filters )
                 , ( "closeOnEose", Encode.bool closeOnEose )
                 , ( "description", Encode.string description )
                 , ( "relays", Encode.list Encode.string relays )
@@ -62,6 +66,12 @@ searchEvents description closeOnEose requestId relays filters =
                 ]
         }
 
+setTestMode : Bool -> Cmd msg
+setTestMode testMode =
+    sendCommand
+        { command = "setTestMode"
+        , value = Encode.bool testMode
+        }
 
 requestBlossomAuth : RequestId -> String -> String -> HttpRequestMethod -> Cmd msg
 requestBlossomAuth requestId server content method =
@@ -132,5 +142,29 @@ sendEvent sendRequestId relays event =
                 [ ( "sendId", Encode.int sendRequestId )
                 , ( "event", encodeEvent event )
                 , ( "relays", Encode.list Encode.string relays )
+                ]
+        }
+
+
+encryptString : String -> Cmd msg
+encryptString data =
+    sendCommand
+        { command = "encryptString"
+        , value =
+            Encode.object
+                [ ( "data", Encode.string data )
+                ]
+        }
+
+
+downloadAndDecryptFile : String -> String -> String -> Cmd msg
+downloadAndDecryptFile url keyHex ivHex =
+    sendCommand
+        { command = "downloadAndDecryptFile"
+        , value =
+            Encode.object
+                [ ( "url", Encode.string url )
+                , ( "key", Encode.string keyHex )
+                , ( "iv", Encode.string ivHex )
                 ]
         }

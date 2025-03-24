@@ -1,13 +1,14 @@
 module Components.Dropdown exposing (..)
 
+import Browser.Dom as Dom
 import Css
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, li, main_, p, span, strong, text, ul)
-import Html.Styled.Attributes as Attr exposing (class, classList, css, disabled, type_)
-import Html.Styled.Events as Events exposing (..)
-import Tailwind.Breakpoints as Bp
+import Html.Styled as Html exposing (Html, button, div, li, strong, text, ul)
+import Html.Styled.Attributes as Attr exposing (class, classList, css)
+import Html.Styled.Events exposing (..)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
+import Task
 import Ui.Styles exposing (darkMode, fontFamilyInter)
 
 
@@ -20,10 +21,11 @@ type Dropdown item msg
         { model : Model item
         , toMsg : Msg item msg -> msg
         , choices : List item
-        , toLabel : item -> String
+        , allowNoSelection : Bool
+        , toLabel : Maybe item -> String
         , size : Size
         , isDisabled : Bool
-        , onChange : Maybe (item -> msg)
+        , onChange : Maybe (Maybe item -> msg)
         }
 
 
@@ -31,7 +33,8 @@ new :
     { model : Model item
     , toMsg : Msg item msg -> msg
     , choices : List item
-    , toLabel : item -> String
+    , allowNoSelection : Bool
+    , toLabel : Maybe item -> String
     }
     -> Dropdown item msg
 new props =
@@ -39,6 +42,7 @@ new props =
         { model = props.model
         , toMsg = props.toMsg
         , choices = props.choices
+        , allowNoSelection = props.allowNoSelection
         , toLabel = props.toLabel
         , size = Normal
         , isDisabled = False
@@ -66,7 +70,7 @@ withDisabled (Settings settings) =
 
 
 withOnChange :
-    (item -> msg)
+    (Maybe item -> msg)
     -> Dropdown item msg
     -> Dropdown item msg
 withOnChange onChange (Settings settings) =
@@ -101,12 +105,14 @@ init props =
 type Msg item msg
     = FocusedDropdown
     | BlurredDropdown
+    | OpenDropdown
     | CloseDropdown
     | UpdatedSearchInput String
     | SelectedItem
-        { item : item
+        { item : Maybe item
         , onChange : Maybe msg
         }
+    | NoOp
 
 
 close : Model item -> Model item
@@ -145,13 +151,20 @@ update props =
     toParentModel <|
         case props.msg of
             FocusedDropdown ->
-                ( Model { model | isMenuOpen = True }
+                ( Model model
                 , Effect.none
                 )
 
             BlurredDropdown ->
                 ( Model { model | search = "", isMenuOpen = False }
                 , Effect.none
+                )
+
+            OpenDropdown ->
+                ( Model { model | isMenuOpen = True }
+                , Task.attempt (\_ -> NoOp) (Dom.focus "dropdownMenu")
+                    |> Cmd.map props.toMsg
+                    |> Effect.sendCmd
                 )
 
             CloseDropdown ->
@@ -169,7 +182,7 @@ update props =
                     { model
                         | search = ""
                         , isMenuOpen = False
-                        , selected = Just data.item
+                        , selected = data.item
                     }
                 , case data.onChange of
                     Just onChange ->
@@ -178,6 +191,9 @@ update props =
                     Nothing ->
                         Effect.none
                 )
+
+            NoOp ->
+                ( Model model, Effect.none )
 
 
 
@@ -190,22 +206,18 @@ view (Settings settings) =
         (Model model) =
             settings.model
 
-        onSearchInput : String -> msg
-        onSearchInput value =
-            settings.toMsg (UpdatedSearchInput value)
-
         dropdownClickMsg =
             if model.isMenuOpen then
                 CloseDropdown
 
             else
-                FocusedDropdown
+                OpenDropdown
 
         -- View the input of the dropdown, that opens the
         -- menu when focused, and displays the search query
         viewDropdownInput : Html msg
         viewDropdownInput =
-            div
+            button
                 [ class "dropdown__toggle"
                 , css
                     [ Tw.w_full
@@ -231,46 +243,59 @@ view (Settings settings) =
                         , Tw.bg_color Theme.black
                         ]
                     ]
+
+                -- , onBlur (settings.toMsg BlurredDropdown)
                 , onClick (settings.toMsg dropdownClickMsg)
                 ]
-                [ {- input
-                         [ class "dropdown__input"
-                         , type_ "search"
-                         , disabled settings.isDisabled
-                         , onInput onSearchInput
-                         , onFocus (settings.toMsg FocusedDropdown)
-                         , onBlur (settings.toMsg BlurredDropdown)
-                         ]
-                         []
-                     ,
-                  -}
-                  viewSelectedValueOverlay
+                [ viewSelectedValueOverlay
                 ]
 
         -- If a value is selected, this overlay should
         -- appear over our input field when the menu is closed
         viewSelectedValueOverlay : Html msg
         viewSelectedValueOverlay =
-            case model.selected of
-                Nothing ->
-                    text ""
-
-                Just item ->
-                    strong
-                        [ class "dropdown__selected"
-                        ]
-                        [ text (settings.toLabel item) ]
+            strong
+                [ class "dropdown__selected"
+                ]
+                [ text (settings.toLabel model.selected) ]
 
         viewDropdownMenu : Html msg
         viewDropdownMenu =
             if model.isMenuOpen then
+                let
+                    choices =
+                        if settings.allowNoSelection then
+                            Nothing :: (settings.choices |> List.map Just)
+
+                        else
+                            settings.choices |> List.map Just
+
+                    selectedIndex =
+                        choices
+                            |> List.indexedMap Tuple.pair
+                            |> List.filterMap
+                                (\( index, value ) ->
+                                    if model.selected == value then
+                                        Just index
+
+                                    else
+                                        Nothing
+                                )
+                            |> List.head
+                            |> Maybe.withDefault 0
+                in
                 div
                     [ Attr.id "dropdownMenu"
+                    , Attr.tabindex 1
+
+                    -- position listbox on top of dropdown element, approx. so that selected element is on top of dropdown
+                    , Attr.style "top" (String.fromInt (selectedIndex * -40 - 15) ++ "px")
+                    , onBlur (settings.toMsg BlurredDropdown)
                     , css
                         [ Tw.absolute
                         , Tw.cursor_pointer
                         , Tw.mt_2
-                        , Tw.w_min
+                        , Tw.w_auto
                         , Tw.z_10
                         , Tw.bg_color Theme.white
                         , Tw.border
@@ -291,13 +316,13 @@ view (Settings settings) =
                                 ]
                             ]
                         ]
-                        (List.map viewDropdownMenuItem settings.choices)
+                        (List.map viewDropdownMenuItem choices)
                     ]
 
             else
                 text ""
 
-        viewDropdownMenuItem : item -> Html msg
+        viewDropdownMenuItem : Maybe item -> Html msg
         viewDropdownMenuItem item =
             li
                 [ onClick (onMenuItemClick item)
@@ -316,7 +341,7 @@ view (Settings settings) =
                 [ text (settings.toLabel item)
                 ]
 
-        onMenuItemClick : item -> msg
+        onMenuItemClick : Maybe item -> msg
         onMenuItemClick item =
             settings.toMsg <|
                 case settings.onChange of
@@ -337,6 +362,9 @@ view (Settings settings) =
         , fontFamilyInter
         , classList
             [ ( "dropdown--small", settings.size == Small )
+            ]
+        , css
+            [ Tw.relative
             ]
         ]
         [ viewDropdownInput

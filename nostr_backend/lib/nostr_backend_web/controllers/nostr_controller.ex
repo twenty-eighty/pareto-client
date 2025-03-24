@@ -11,6 +11,7 @@ defmodule NostrBackendWeb.NostrController do
       "roland" => "cff1720e77bb068f0ebbd389dcd50822dd1ac8d2ac0b0f5f0800ae9e15c7e2b2",
       "donjoe" => "0f4795bf31824a414148daf1b589bb8138fb0a03963f984c84462e40a8365abe",
       "kalle" => "08d79c2e514edd4634ea92bbfe1ec089730a049216be9d28c77c4c1c7733f518",
+      "rodant" => "71df211931d26ee41121d295bd43cbc7e382505e333b5c13d4016ced9542d9d7",
       "aron" => "9f94e6cc5ce50dcaccfc42b18029aba0ac9215d673197a40172896d3f3472946",
       "psychobabble" => "6734e11d8d67d9ca4dedb920f81182ded2bca918e3e0f3528bd5f4c4c7e34e8f",
       "indikativ" => "1a040599c19734813abcec04d9bda0ff5fc5054fc4d035b79484bf970a05f5c4",
@@ -21,7 +22,9 @@ defmodule NostrBackendWeb.NostrController do
       "michael_meyen" => "044da3442a54bd55202b66ca0c4f5fd58cbb158b67f2fb067cc0467c073a8a0e",
       "janosch" => "89bae92f9d9b0f6d97a300496cfb0b73c92a74c9675a724c0689975f8074dc01",
       "j1000" => "135f20a6f142a3f8a6c3fde48772bd6cffece0fc3aa31bef6f12c99b3937e969",
-      "hartmut" => "92af1031a8dc9fd1c2ef982219ff6cff9944ec62bd45d4c6e4e8d5ffd9939aeb"
+      "hartmut" => "92af1031a8dc9fd1c2ef982219ff6cff9944ec62bd45d4c6e4e8d5ffd9939aeb",
+      "nachteule" => "9c8096eb84d574ca29eb0077d615a2b12c0113064faeac9f72e464a066e47555",
+      "friedenstaube" => "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5"
     },
     "relays" => %{
       "2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" => [
@@ -41,6 +44,10 @@ defmodule NostrBackendWeb.NostrController do
         "wss://pareto.nostr1.com"
       ],
       "08d79c2e514edd4634ea92bbfe1ec089730a049216be9d28c77c4c1c7733f518" => [
+        "wss://nostr.pareto.space",
+        "wss://pareto.nostr1.com"
+      ],
+      "71df211931d26ee41121d295bd43cbc7e382505e333b5c13d4016ced9542d9d7" => [
         "wss://nostr.pareto.space",
         "wss://pareto.nostr1.com"
       ],
@@ -89,6 +96,14 @@ defmodule NostrBackendWeb.NostrController do
       "92af1031a8dc9fd1c2ef982219ff6cff9944ec62bd45d4c6e4e8d5ffd9939aeb" => [
         "wss://nostr.pareto.space",
         "wss://pareto.nostr1.com"
+      ],
+      "9c8096eb84d574ca29eb0077d615a2b12c0113064faeac9f72e464a066e47555" => [
+        "wss://nostr.pareto.space",
+        "wss://pareto.nostr1.com"
+      ],
+      "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5" => [
+        "wss://nostr.pareto.space",
+        "wss://pareto.nostr1.com"
       ]
     }
   }
@@ -106,9 +121,9 @@ defmodule NostrBackendWeb.NostrController do
   def nip05(conn, %{"name" => name}) do
     conn = put_required_headers(conn)
 
-    case Map.get(@nostr_data["names"], name) do
+    case Map.get(@nostr_data["names"], String.downcase(name)) do
       nil ->
-        # return full fill if name is not found
+        # return empty data if name is not found
         json(conn, @empty_data)
 
       pubkey ->
@@ -159,6 +174,8 @@ defmodule NostrBackendWeb.NostrController do
     |> put_required_headers()
     |> json(@nip96_redirect)
   end
+
+  def get_nostr_data(), do: @nostr_data
 
   defp put_required_headers(conn) do
     conn

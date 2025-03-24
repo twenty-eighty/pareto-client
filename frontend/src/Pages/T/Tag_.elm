@@ -1,15 +1,10 @@
 module Pages.T.Tag_ exposing (Model, Msg, page)
 
-import BrowserEnv exposing (BrowserEnv)
-import Css
 import Effect exposing (Effect)
-import Graphics
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
-import Html.Styled.Events as Events exposing (..)
-import Json.Decode as Decode
+import Html.Styled as Html exposing (div, h3, text)
+import Html.Styled.Attributes exposing (css)
+import Html.Styled.Events exposing (..)
 import Layouts
-import Layouts.Sidebar
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), emptyEventFilter)
@@ -20,8 +15,6 @@ import Route exposing (Route)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Tailwind.Breakpoints as Bp
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Time exposing (Month(..))
 import Ui.Styles exposing (Theme)
@@ -42,7 +35,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -66,29 +59,60 @@ init shared route () =
                 |> Maybe.withDefault route.params.tag
 
         filter =
-            { emptyEventFilter | kinds = Just [ KindLongFormContent ], tagReferences = tagReferencesForParam decodedParam, limit = Just 20 }
+            { emptyEventFilter
+                | kinds = Just [ KindLongFormContent ]
+                , tagReferences = Just <| tagReferencesForParam decodedParam
+                , limit = Just 20
+            }
     in
     ( { tag = decodedParam
       , articles = []
       , filter = filter
       }
-    , RequestArticlesFeed filter
+    , RequestArticlesFeed [ filter ]
         |> Nostr.createRequest shared.nostr ("Articles for hashtag " ++ route.params.tag) [ KindUserMetadata ]
         |> Shared.Msg.RequestNostrEvents
         |> Effect.sendSharedMsg
     )
 
 
-tagReferencesForParam : String -> Maybe (List TagReference)
-tagReferencesForParam tag =
-    decodedTagParam tag
-        |> Maybe.map TagReferenceTag
-        |> Maybe.map List.singleton
+tagReferencesForParam : String -> List TagReference
+tagReferencesForParam hashtag =
+    let
+        decoded =
+            decodedTagParam hashtag
+
+        lowercase =
+            decoded
+                |> String.toLower
+
+        firstcharUpper =
+            decoded
+                |> String.left 1
+                |> String.toUpper
+
+        remainingLower =
+            decoded
+                |> String.dropLeft 1
+                |> String.toLower
+
+        mixedCase =
+            firstcharUpper ++ remainingLower
+    in
+    [ TagReferenceTag hashtag
+    , TagReferenceTag lowercase
+    , TagReferenceTag mixedCase
+    ]
 
 
-decodedTagParam : String -> Maybe String
-decodedTagParam tag =
-    Url.percentDecode tag
+decodedTagParam : String -> String
+decodedTagParam hashtag =
+    case Url.percentDecode hashtag of
+        Just decoded ->
+            decoded
+
+        Nothing ->
+            hashtag
 
 
 
@@ -96,16 +120,14 @@ decodedTagParam tag =
 
 
 type Msg
-    = OpenGetStarted
+    = NoOp
 
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
-update shared msg model =
+update _ msg model =
     case msg of
-        OpenGetStarted ->
-            ( model
-            , Effect.sendCmd <| Ports.requestUser
-            )
+        NoOp ->
+            ( model, Effect.none )
 
 
 
@@ -113,7 +135,7 @@ update shared msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -132,41 +154,33 @@ view shared model =
         [ div
             [ css
                 [ Tw.flex
+                , Tw.flex_col
                 , Tw.items_center
                 , Tw.justify_center
-                , Tw.mb_4
+                , Tw.my_4
                 ]
             ]
-            [ div
-                [ css
-                    [ Tw.p_6
-                    , Tw.rounded_lg
-                    , Tw.shadow_lg
-                    , Tw.max_w_3xl
-                    ]
+            [ h3
+                (styles.textStyleHashtagLarge
+                    ++ styles.colorStyleGrayscaleTitle
+                    ++ [ css
+                            [ Tw.mb_4
+                            ]
+                       ]
+                )
+                [ text <| "#" ++ model.tag
                 ]
-                [ h3
-                    (styles.textStyleHashtagLarge
-                        ++ styles.colorStyleGrayscaleTitle
-                        ++ [ css
-                                [ Tw.mb_4
-                                ]
-                           ]
-                    )
-                    [ text <| "#" ++ model.tag
-                    ]
-                , Nostr.getArticlesByDate shared.nostr
-                    |> Ui.View.viewArticlePreviews
-                        ArticlePreviewList
-                        { theme = shared.theme
-                        , browserEnv = shared.browserEnv
-                        , nostr = shared.nostr
-                        , userPubKey = Shared.loggedInPubKey shared.loginStatus
-                        , onBookmark = Nothing
-                        , onReaction = Nothing
-                        , onZap = Nothing
-                        }
-                ]
+            , Nostr.getArticlesByDate shared.nostr
+                |> Ui.View.viewArticlePreviews
+                    ArticlePreviewList
+                    { theme = shared.theme
+                    , browserEnv = shared.browserEnv
+                    , nostr = shared.nostr
+                    , userPubKey = Shared.loggedInPubKey shared.loginStatus
+                    , onBookmark = Nothing
+                    , onReaction = Nothing
+                    , onZap = Nothing
+                    }
             ]
         ]
     }

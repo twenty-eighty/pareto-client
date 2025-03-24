@@ -1,14 +1,18 @@
 module Pages.Read exposing (Model, Msg, init, page, subscriptions, update, view)
 
+import BrowserEnv exposing (BrowserEnv)
+import Color
 import Components.Categories
+import Components.Icon as Icon
 import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
+import Html.Styled.Attributes as Attr exposing (css)
 import I18Next
 import Layouts
 import Material.Icons exposing (category)
 import Nostr
-import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), emptyEventFilter)
+import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.FollowList exposing (followingPubKey)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
@@ -22,6 +26,7 @@ import Route.Path
 import Shared
 import Shared.Model
 import Shared.Msg
+import Tailwind.Utilities as Tw
 import Translations.Read
 import Translations.Sidebar
 import Ui.ShortNote as ShortNote exposing (ShortNotesViewData)
@@ -42,7 +47,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -60,6 +65,7 @@ type alias Model =
 type Category
     = Global
     | Pareto
+    | Friedenstaube
     | Followed
     | Highlighter
     | Rss
@@ -73,6 +79,9 @@ stringFromCategory category =
 
         Pareto ->
             "pareto"
+
+        Friedenstaube ->
+            "friedenstaube"
 
         Followed ->
             "followed"
@@ -92,6 +101,9 @@ categoryFromString categoryString =
 
         "pareto" ->
             Just Pareto
+
+        "friedenstaube" ->
+            Just Friedenstaube
 
         "followed" ->
             Just Followed
@@ -115,6 +127,13 @@ init shared route () =
             Dict.get categoryParamName route.query
                 |> Maybe.andThen categoryFromString
                 |> Maybe.withDefault Pareto
+
+        signUpEffect =
+            if route.hash == Just "signup" then
+                Ports.signUp
+                |> Effect.sendCmd
+            else
+                Effect.none
 
         correctedCategory =
             case category of
@@ -144,10 +163,11 @@ init shared route () =
       }
     , Effect.batch
         [ changeCategoryEffect
-        , RequestArticlesFeed (filterForCategory shared correctedCategory)
+        , RequestArticlesFeed [ filterForCategory shared correctedCategory ]
             |> Nostr.createRequest shared.nostr "Long-form articles" [ KindUserMetadata, KindEventDeletionRequest ]
             |> Shared.Msg.RequestNostrEvents
             |> Effect.sendSharedMsg
+        , signUpEffect
         ]
     )
 
@@ -157,8 +177,7 @@ init shared route () =
 
 
 type Msg
-    = OpenGetStarted
-    | CategorySelected Category
+    = CategorySelected Category
     | CategoriesSent (Components.Categories.Msg Category Msg)
     | AddArticleBookmark PubKey AddressComponents
     | RemoveArticleBookmark PubKey AddressComponents
@@ -171,11 +190,6 @@ type Msg
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
-        OpenGetStarted ->
-            ( model
-            , Effect.sendCmd <| Ports.requestUser
-            )
-
         CategorySelected category ->
             updateModelWithCategory shared model category
 
@@ -208,7 +222,8 @@ update shared msg model =
                 |> Effect.sendSharedMsg
             )
 
-        RemoveArticleReaction pubKey eventId ->
+        RemoveArticleReaction _ _ ->
+            -- TODO: Delete like
             ( model, Effect.none )
 
         AddShortNoteBookmark pubKey eventId ->
@@ -231,7 +246,7 @@ updateModelWithCategory shared model category =
     ( model
     , Effect.batch
         [ Effect.replaceRoute { path = model.path, query = Dict.singleton categoryParamName (stringFromCategory category), hash = Nothing }
-        , RequestArticlesFeed (filterForCategory shared category)
+        , RequestArticlesFeed [ filterForCategory shared category ]
             |> Nostr.createRequest shared.nostr "Long-form articles" [ KindUserMetadata, KindEventDeletionRequest ]
             |> Shared.Msg.RequestNostrEvents
             |> Effect.sendSharedMsg
@@ -247,6 +262,9 @@ filterForCategory shared category =
 
         Pareto ->
             { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (paretoFollowsList shared.nostr), limit = Just 20 }
+
+        Friedenstaube ->
+            { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (paretoFollowsList shared.nostr), tagReferences = Just [ TagReferenceTag "Frieden", TagReferenceTag "frieden" ], limit = Just 20 }
 
         Followed ->
             { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (userFollowsList shared.nostr shared.loginStatus), limit = Just 20 }
@@ -301,7 +319,7 @@ userFollowsList nostr loginStatus =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -315,13 +333,17 @@ availableCategories nostr loginStatus translations =
         paretoCategories =
             [ paretoCategory translations ]
 
-        paretoRssCategories =
-            if paretoRssFollowsList nostr /= [] then
-                [ paretoRssCategory translations ]
+        friedenstaubeCategories =
+            [ friedenstaubeCategory translations ]
 
-            else
-                []
+        {-
+           paretoRssCategories =
+               if paretoRssFollowsList nostr /= [] then
+                   [ paretoRssCategory translations ]
 
+               else
+                   []
+        -}
         followedCategories =
             if userFollowsList nostr loginStatus /= [] then
                 [ followedCategory translations ]
@@ -330,6 +352,8 @@ availableCategories nostr loginStatus translations =
                 []
     in
     paretoCategories
+        ++ friedenstaubeCategories
+        ++ followedCategories
         ++ [ { category = Global
              , title = Translations.Read.globalFeedCategory [ translations ]
              }
@@ -338,7 +362,6 @@ availableCategories nostr loginStatus translations =
            --     , title = Translations.Read.highlighterFeedCategory [ translations ]
            --     }
            ]
-        ++ followedCategories
 
 
 paretoCategory : I18Next.Translations -> Components.Categories.CategoryData Category
@@ -348,11 +371,21 @@ paretoCategory translations =
     }
 
 
-paretoRssCategory : I18Next.Translations -> Components.Categories.CategoryData Category
-paretoRssCategory translations =
-    { category = Rss
-    , title = Translations.Read.rssFeedCategory [ translations ]
+friedenstaubeCategory : I18Next.Translations -> Components.Categories.CategoryData Category
+friedenstaubeCategory _ =
+    { category = Friedenstaube
+    , title = "Friedenstaube"
     }
+
+
+
+{-
+   paretoRssCategory : I18Next.Translations -> Components.Categories.CategoryData Category
+   paretoRssCategory translations =
+       { category = Rss
+       , title = Translations.Read.rssFeedCategory [ translations ]
+       }
+-}
 
 
 followedCategory : I18Next.Translations -> Components.Categories.CategoryData Category
@@ -379,6 +412,7 @@ view shared model =
             , toMsg = CategoriesSent
             , onSelect = CategorySelected
             , equals = \category1 category2 -> category1 == category2
+            , image = categoryImage shared.browserEnv
             , categories = availableCategories shared.nostr shared.loginStatus shared.browserEnv.translations
             , browserEnv = shared.browserEnv
             , styles = styles
@@ -387,6 +421,50 @@ view shared model =
         , viewContent shared model userPubKey
         ]
     }
+
+
+categoryImage : BrowserEnv -> Category -> Maybe (Html msg)
+categoryImage _ category =
+    let
+        iconColor =
+            Icon.Color <| Color.fromRgba { red = 0.392, green = 0.455, blue = 0.545, alpha = 1.0 }
+
+        image src =
+            Html.div
+                [ css
+                    [ Tw.w_4
+                    , Tw.h_4
+                    ]
+                ]
+                [ Html.img
+                    [ Attr.src src
+                    ]
+                    []
+                ]
+    in
+    case category of
+        Pareto ->
+            Icon.ParetoIcon Icon.ParetoCube 16 iconColor
+                |> Icon.view
+                |> Just
+
+        Friedenstaube ->
+            Icon.ParetoIcon Icon.ParetoPeaceDove 16 iconColor
+                |> Icon.view
+                |> Just
+
+        Followed ->
+            Icon.ParetoIcon Icon.ParetoFollowed 16 iconColor
+                |> Icon.view
+                |> Just
+
+        Global ->
+            Icon.ParetoIcon Icon.ParetoGlobe 16 iconColor
+                |> Icon.view
+                |> Just
+
+        _ ->
+            Just <| image "/images/icon/Pareto-Log2.png"
 
 
 viewContent : Shared.Model -> Model -> Maybe PubKey -> Html Msg
@@ -420,6 +498,9 @@ viewContent shared model userPubKey =
             viewArticles
 
         Pareto ->
+            viewArticles
+
+        Friedenstaube ->
             viewArticles
 
         Followed ->

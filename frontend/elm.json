@@ -12,10 +12,14 @@
             "ChristophP/elm-i18next": "4.2.1",
             "MartinSStewart/elm-uint64": "2.0.0",
             "NoRedInk/elm-json-decode-pipeline": "1.0.1",
+            "RomanErnst/erl": "2.1.1",
             "avh4/elm-color": "1.0.0",
+            "canceraiddev/elm-sortable-table": "2.1.0",
+            "commonmind/elm-csv-encode": "1.2.0",
             "dillonkearns/elm-markdown": "7.0.1",
-            "dillonkearns/elm-oembed": "1.0.0",
+            "dillonkearns/elm-oembed": "1.1.0",
             "elm/browser": "1.0.2",
+            "elm/bytes": "1.0.8",
             "elm/core": "1.0.5",
             "elm/file": "1.0.5",
             "elm/html": "1.0.0",
@@ -36,17 +40,23 @@
             "pablohirafuji/elm-syntax-highlight": "3.5.0",
             "panthershark/email-parser": "1.0.2",
             "proda-ai/murmur3": "1.0.0",
+            "rluiten/mailcheck": "5.0.2",
             "rtfeldman/elm-css": "18.0.0",
             "rtfeldman/elm-hex": "1.0.0",
+            "rtfeldman/elm-iso8601-date-strings": "1.1.4",
             "ryan-haskell/date-format": "1.0.0",
+            "samuelstevens/elm-csv": "1.0.1",
             "tj/elm-svg-loaders": "1.0.0"
         },
         "indirect": {
             "danfishgold/base64-bytes": "1.1.0",
-            "elm/bytes": "1.0.8",
             "elm/virtual-dom": "1.0.3",
+            "justinmimbs/date": "4.1.0",
             "myrho/elm-round": "1.0.5",
-            "robinheghan/murmur3": "1.0.0"
+            "rluiten/stringdistance": "1.0.4",
+            "robinheghan/murmur3": "1.0.0",
+            "samhstn/time-format": "1.0.0",
+            "tesk9/accessible-html": "5.3.0"
         }
     },
     "test-dependencies": {

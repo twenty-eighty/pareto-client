@@ -1,4 +1,4 @@
-module Markdown exposing (markdownViewHtml, summaryFromContent)
+module Markdown exposing (collectText, markdownViewHtml, summaryFromContent)
 
 -- import Html exposing (Attribute, Html)
 
@@ -148,7 +148,7 @@ render styles loadedContent fnGetProfile markdown =
         |> replaceImgTags
         |> replaceBrokenColTag
         |> Markdown.Parser.parse
-        |> Result.map determmineBlockTypes
+        |> Result.map determineBlockTypes
         |> Result.mapError deadEndsToString
         |> Result.andThen
             (\ast ->
@@ -159,14 +159,78 @@ render styles loadedContent fnGetProfile markdown =
                         )
             )
 
+collectText : String -> Result String String
+collectText markdown =
+    markdown
+        |> replaceImgTags
+        |> replaceBrokenColTag
+        |> Markdown.Parser.parse
+        |> Result.map filterText
+        |> Result.mapError deadEndsToString
+
+filterText : List Block -> String
+filterText blocks =
+    blocks
+        |> List.map
+            (\block ->
+                case block of
+                    HtmlBlock _ ->
+                        ""
+
+                    UnorderedList _ listItems ->
+                        listItems 
+                        |> List.map (\(ListItem _ listItemBlocks) -> filterText listItemBlocks)
+                        |> String.join " "
+
+                    OrderedList _ _ listItems ->
+                        listItems 
+                        |> List.map filterText
+                        |> String.join " "
+
+                    BlockQuote quoteBlocks ->
+                        filterText quoteBlocks
+
+                    Heading _ inlines ->
+                        Markdown.Block.extractInlineText inlines
+
+                    Paragraph inlines ->
+                        Markdown.Block.extractInlineText inlines
+
+                    Table columnHeaders tableBody ->
+                        let
+                            headerText =
+                                columnHeaders
+                                |> List.map (\{ label } -> Markdown.Block.extractInlineText label)
+                                |> String.join " "
+
+                            bodyText =
+                                tableBody
+                                |> List.map (\row ->
+                                        row
+                                        |> List.map Markdown.Block.extractInlineText
+                                        |> String.join " "
+                                    )
+                                    |> String.join " "
+                        in
+                        headerText ++ " " ++ bodyText
+
+                    CodeBlock { body } ->
+                        body
+
+                    ThematicBreak ->
+                        ""
+            )
+        |> String.join " "
+
+
 
 type BlockType
     = DefaultBlock
     | EmbedBlock
 
 
-determmineBlockTypes : List Block -> List ( Block, BlockType )
-determmineBlockTypes blocks =
+determineBlockTypes : List Block -> List ( Block, BlockType )
+determineBlockTypes blocks =
     blocks
         |> List.map
             (\block ->
@@ -194,6 +258,12 @@ generateEmbedForParagraph inlines =
         [ Markdown.Block.Link _ _ _ ] ->
             True
 
+        [ Markdown.Block.Link _ _ _, Markdown.Block.Text txt ] ->
+            -- tolerate whitespace after link
+            txt
+                |> String.trim
+                |> String.isEmpty
+
         _ ->
             False
 
@@ -202,7 +272,7 @@ rendererForBlockType : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunc
 rendererForBlockType styles loadedContent fnGetProfile blockType =
     let
         defaultRenderer =
-            TailwindMarkdownRenderer.renderer styles loadedContent fnGetProfile
+            TailwindMarkdownRenderer.renderer styles fnGetProfile
     in
     case blockType of
         DefaultBlock ->

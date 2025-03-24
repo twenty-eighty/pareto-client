@@ -3,6 +3,7 @@ module Nostr exposing (..)
 import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode
+import Json.Decode.Pipeline exposing (required)
 import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, publishedTime, tagReference)
 import Nostr.Blossom exposing (userServerListFromEvent)
 import Nostr.BookmarkList exposing (BookmarkList, bookmarkListEvent, bookmarkListFromEvent, bookmarkListWithArticle, bookmarkListWithShortNote, bookmarkListWithoutArticle, bookmarkListWithoutShortNote, emptyBookmarkList)
@@ -10,7 +11,8 @@ import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
 import Nostr.DeletionRequest exposing (deletionRequestFromEvent)
-import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress, emptyEvent, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
+import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress, emptyEvent, emptyEventFilter, informationForKind, kindFromNumber, numberForKind, tagReferenceToString)
+import Nostr.External exposing (Hooks)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.FollowList exposing (emptyFollowList, followListEvent, followListFromEvent, followListWithPubKey, followListWithoutPubKey, pubKeyIsFollower)
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
@@ -23,7 +25,7 @@ import Nostr.Relay exposing (Relay, RelayState(..), hostWithoutProtocol, relayUr
 import Nostr.RelayList exposing (relayListFromEvent)
 import Nostr.RelayListMetadata exposing (RelayMetadata, relayMetadataListFromEvent)
 import Nostr.Repost exposing (Repost)
-import Nostr.Request as Request exposing (HttpRequestMethod, Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
+import Nostr.Request as Request exposing (Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
@@ -32,17 +34,6 @@ import Nostr.Zaps exposing (ZapReceipt)
 import Pareto
 import Set exposing (Set)
 import Time
-
-
-type alias Hooks =
-    { connect : List String -> Cmd Msg
-    , receiveMessage : (IncomingMessage -> Msg) -> Sub Msg
-    , requestEvents : String -> Bool -> RequestId -> List RelayUrl -> EventFilter -> Cmd Msg
-    , requestBlossomAuth : RequestId -> String -> String -> HttpRequestMethod -> Cmd Msg
-    , requestNip96Auth : RequestId -> String -> String -> HttpRequestMethod -> Cmd Msg
-    , searchEvents : String -> Bool -> RequestId -> List RelayUrl -> List EventFilter -> Cmd Msg
-    , sendEvent : SendId -> List String -> Event -> Cmd Msg
-    }
 
 
 type alias Model =
@@ -73,22 +64,21 @@ type alias Model =
     , relaysForPubKey : Dict PubKey (List RelayUrl)
     , reposts : Dict EventId Repost
     , searchRelayLists : Dict PubKey (List RelayUrl)
+    , sendsNewsletterPubKey : Dict PubKey Bool
+    , sendsNewsletterNip05 : Dict String Bool
     , shortTextNotes : Dict String ShortNote
     , userServerLists : Dict PubKey (List String)
     , zapReceiptsAddress : Dict String (Dict String Nostr.Zaps.ZapReceipt)
     , zapReceiptsEvents : Dict String (Dict String Nostr.Zaps.ZapReceipt)
-    , hooks : Hooks
+    , hooks : Hooks Msg
     , errors : List String
     , requests : Dict RequestId Request
     , sendRequests : Dict SendRequestId SendRequest
     , lastRequestId : RequestId
     , lastSendId : RequestId
     , lastSendRequestId : SendRequestId
+    , testMode : TestMode
     }
-
-
-type alias SendId =
-    Int
 
 
 type Msg
@@ -96,7 +86,13 @@ type Msg
     | Nip05FetchedForPubKey PubKey Nip05 (Result Http.Error Nip05.Nip05Data)
     | Nip05FetchedForNip05 RequestId Nip05 (Result Http.Error Nip05.Nip05Data)
     | Nip11Fetched String (Result Http.Error Nip11Info)
+    | ReceivedNewsletterAuthorCheckResultPubKey PubKey (Result Http.Error NewsletterCheckResponse)
+    | ReceivedNewsletterAuthorCheckResultNip05 Nip05 (Result Http.Error NewsletterCheckResponse)
 
+-- this type is intentionally separate from the definition in BrowserEnv as these modules should function without each other
+type TestMode
+    = TestModeOff
+    | TestModeEnabled
 
 isAuthor : Model -> PubKey -> Bool
 isAuthor model userPubKey =
@@ -110,6 +106,87 @@ isEditor model userPubKey =
     getFollowsList model Pareto.editorKey
         |> Maybe.map (pubKeyIsFollower userPubKey)
         |> Maybe.withDefault False
+
+
+isBetaTester : Model -> PubKey -> Bool
+isBetaTester model userPubKey =
+    getFollowsList model Pareto.betaTestKey
+        |> Maybe.map (pubKeyIsFollower userPubKey)
+        |> Maybe.withDefault False
+
+
+
+-- Newsletters
+
+
+updateNewsletterAvailabilityPubKey : Model -> PubKey -> Cmd Msg
+updateNewsletterAvailabilityPubKey model pubKey =
+    case Dict.get pubKey model.sendsNewsletterPubKey of
+        Just _ ->
+            Cmd.none
+
+        Nothing ->
+            Http.get
+                { url = Pareto.newsletterAuthorCheckEndpointPubKey ++ "/" ++ pubKey
+                , expect = Http.expectJson (ReceivedNewsletterAuthorCheckResultPubKey pubKey) decodeNewsletterCheckResponse
+                }
+
+
+updateNewsletterAvailabilityNip05 : Model -> Nip05 -> Cmd Msg
+updateNewsletterAvailabilityNip05 model nip05 =
+    let
+        nip05String =
+            nip05ToString nip05
+    in
+    case Dict.get nip05String model.sendsNewsletterNip05 of
+        Just _ ->
+            Cmd.none
+
+        Nothing ->
+            Http.get
+                { url = Pareto.newsletterAuthorCheckEndpointNip05 ++ "/" ++ nip05String
+                , expect = Http.expectJson (ReceivedNewsletterAuthorCheckResultNip05 nip05) decodeNewsletterCheckResponse
+                }
+
+
+sendsNewsletterPubKey : Model -> PubKey -> Maybe Bool
+sendsNewsletterPubKey model pubKey =
+    Dict.get pubKey model.sendsNewsletterPubKey
+
+
+sendsNewsletterNip05 : Model -> Nip05 -> Maybe Bool
+sendsNewsletterNip05 model nip05 =
+    let
+        resultViaPubKey =
+            getPubKeyByNip05 model nip05
+                |> Maybe.andThen (sendsNewsletterPubKey model)
+
+        resultViaNip05 =
+            Dict.get (nip05ToString nip05) model.sendsNewsletterNip05
+    in
+    case ( resultViaPubKey, resultViaNip05 ) of
+        ( Just True, _ ) ->
+            Just True
+
+        ( _, Just True ) ->
+            Just True
+
+        ( Just _, Just _ ) ->
+            Just False
+
+        _ ->
+            Nothing
+
+
+type alias NewsletterCheckResponse =
+    { email : Bool
+    }
+
+
+decodeNewsletterCheckResponse : Decode.Decoder NewsletterCheckResponse
+decodeNewsletterCheckResponse =
+    Decode.succeed NewsletterCheckResponse
+        |> required "email" Decode.bool
 
 
 
@@ -195,61 +272,64 @@ performRequest model description requestId requestData =
                         |> List.map (\url -> "wss://" ++ url)
 
                 Nothing ->
-                    Pareto.defaultRelays
+                    getDefaultRelays model
                         |> List.map (\url -> "wss://" ++ url)
     in
     case requestData of
         RequestArticle relays eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) eventFilter )
+            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) [ eventFilter ] )
 
-        RequestArticles eventFilter ->
+        RequestArticles eventFilters ->
             ( { model | articlesByDate = [] }
-            , model.hooks.requestEvents description True requestId configuredRelays eventFilter
+            , model.hooks.requestEvents description True requestId configuredRelays eventFilters
             )
 
-        RequestArticlesFeed eventFilter ->
+        RequestArticlesFeed eventFilters ->
             ( { model | articlesByDate = [] }
-            , model.hooks.requestEvents description False requestId configuredRelays eventFilter
+            , model.hooks.requestEvents description False requestId configuredRelays eventFilters
             )
 
-        RequestArticleDrafts eventFilter ->
+        RequestArticleDrafts eventFilters ->
             ( { model | articleDraftsByDate = [] }
-            , model.hooks.requestEvents description False requestId configuredRelays eventFilter
+            , model.hooks.requestEvents description False requestId configuredRelays eventFilters
             )
 
         RequestBookmarks eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter )
+            ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
 
         RequestCommunity relays eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) eventFilter )
+            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) [ eventFilter ] )
 
         RequestDeletionRequests eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter )
+            ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
 
         RequestFollowSets eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter )
+            ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
 
         RequestMediaServerLists eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter )
+            ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
 
         RequestNip05AndArticle nip05 _ ->
             -- identifier not needed here, only after getting nip05 data
             ( model, fetchNip05Info (Nip05FetchedForNip05 requestId nip05) nip05 )
 
         RequestProfile relays eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) eventFilter )
+            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) [ eventFilter ] )
 
         RequestProfileByNip05 nip05 ->
             ( model, fetchNip05Info (Nip05FetchedForNip05 requestId nip05) nip05 )
 
         RequestReactions eventFilter ->
-            ( model, model.hooks.requestEvents description False requestId configuredRelays eventFilter )
+            ( model, model.hooks.requestEvents description False requestId configuredRelays [ eventFilter ] )
 
         RequestRelayLists eventFilter ->
-            ( model, model.hooks.requestEvents description False requestId configuredRelays eventFilter )
+            ( model, model.hooks.requestEvents description False requestId configuredRelays [ eventFilter ] )
+
+        RequestSubscribers eventFilter ->
+            ( model, model.hooks.requestEvents description False requestId (getApplicationDataRelays model) [ eventFilter ] )
 
         RequestUserData eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter )
+            ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
 
         RequestBlossomAuth serverUrl content method ->
             ( model, model.hooks.requestBlossomAuth requestId serverUrl content method )
@@ -261,7 +341,7 @@ performRequest model description requestId requestData =
             ( { model | articlesByDate = [] }, model.hooks.searchEvents description True requestId (getSearchRelayUrls model model.defaultUser) eventFilters )
 
         RequestShortNote eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId configuredRelays eventFilter )
+            ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
 
 
 send : Model -> SendRequest -> ( Model, Cmd Msg )
@@ -269,7 +349,7 @@ send model sendRequest =
     case sendRequest of
         SendApplicationData event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId Pareto.applicationDataRelays event
+            , sendEvent model (getApplicationDataRelays model) event
             )
 
         SendBookmarkListWithArticle pubKey address ->
@@ -283,7 +363,7 @@ send model sendRequest =
                         |> bookmarkListEvent pubKey
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model pubKey) event
+            , sendEvent model (getWriteRelayUrlsForPubKey model pubKey) event
             )
 
         SendBookmarkListWithoutArticle pubKey address ->
@@ -297,7 +377,7 @@ send model sendRequest =
                         |> bookmarkListEvent pubKey
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model pubKey) event
+            , sendEvent model (getWriteRelayUrlsForPubKey model pubKey) event
             )
 
         SendBookmarkListWithShortNote pubKey eventId ->
@@ -311,7 +391,7 @@ send model sendRequest =
                         |> bookmarkListEvent pubKey
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model pubKey) event
+            , sendEvent model (getWriteRelayUrlsForPubKey model pubKey) event
             )
 
         SendBookmarkListWithoutShortNote pubKey eventId ->
@@ -325,12 +405,12 @@ send model sendRequest =
                         |> bookmarkListEvent pubKey
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model pubKey) event
+            , sendEvent model (getWriteRelayUrlsForPubKey model pubKey) event
             )
 
         SendClientRecommendation relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId relays event
+            , sendEvent model relays event
             )
 
         SendFollowList userPubKey followList ->
@@ -340,7 +420,7 @@ send model sendRequest =
                         |> followListEvent userPubKey
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model userPubKey) event
+            , sendEvent model (getWriteRelayUrlsForPubKey model userPubKey) event
             )
 
         SendFollowListWithPubKey userPubKey toBeFollowedPubKey ->
@@ -354,7 +434,7 @@ send model sendRequest =
                         |> followListEvent userPubKey
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model userPubKey) event
+            , sendEvent model (getWriteRelayUrlsForPubKey model userPubKey) event
             )
 
         SendFollowListWithoutPubKey userPubKey toBeUnfollowedPubKey ->
@@ -368,32 +448,32 @@ send model sendRequest =
                         |> followListEvent userPubKey
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId (getWriteRelayUrlsForPubKey model userPubKey) event
+            , sendEvent model (getWriteRelayUrlsForPubKey model userPubKey) event
             )
 
         SendHandlerInformation relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId relays event
+            , sendEvent model relays event
             )
 
         SendLongFormArticle relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId relays event
+            , sendEvent model relays event
             )
 
         SendLongFormDraft relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId relays event
+            , sendEvent model relays event
             )
 
         SendFileStorageServerList relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId relays event
+            , sendEvent model relays event
             )
 
         SendDeletionRequest relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId relays event
+            , sendEvent model relays event
             )
 
         SendReaction userPubKey eventId articlePubKey addressComponents ->
@@ -402,7 +482,7 @@ send model sendRequest =
                     emptyEvent userPubKey KindReaction
             in
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId
+            , sendEvent model
                 (getWriteRelayUrlsForPubKey model userPubKey)
                 { event
                     | content = "+"
@@ -416,14 +496,24 @@ send model sendRequest =
 
         SendRelayList relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId relays event
+            , sendEvent model relays event
             )
 
         SendProfile relays event ->
             ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
-            , model.hooks.sendEvent model.lastSendRequestId relays event
+            , sendEvent model relays event
             )
 
+sendEvent : Model -> List RelayUrl -> Event -> Cmd Msg
+sendEvent model relays event =
+    let
+        actualWriteRelays =
+            if model.testMode == TestModeEnabled then
+                Pareto.testRelayUrls
+            else
+                relays
+    in
+    model.hooks.sendEvent model.lastSendRequestId actualWriteRelays event
 
 getAuthor : Model -> PubKey -> Nostr.Profile.Author
 getAuthor model pubKey =
@@ -617,8 +707,14 @@ getRelaysForPubKey model pubKey =
         userRelaysFromEvent =
             getRelayListForPubKey model pubKey
 
+        testRelays =
+            if model.testMode == TestModeEnabled then
+                Pareto.testRelayUrls
+            else
+                []
+
         combinedRelayList =
-            userRelaysFromNip05
+            (userRelaysFromNip05 ++ testRelays)
                 |> List.map (\relayUrl -> { role = ReadWriteRelay, url = relayUrl })
                 |> List.append userRelaysFromEvent
                 |> relayMetadataListWithUniqueEntries
@@ -674,15 +770,19 @@ getNip65ReadRelaysForPubKey model pubKey =
 
 getNip65WriteRelaysForPubKey : Model -> PubKey -> List Relay
 getNip65WriteRelaysForPubKey model pubKey =
-    getNip65RelaysForPubKey model pubKey
-        |> List.filterMap
-            (\( role, relay ) ->
-                if role == WriteRelay || role == ReadWriteRelay then
-                    Just relay
+    if model.testMode == TestModeEnabled then
+        Pareto.testRelayUrls
+        |> List.filterMap (getRelayData model)
+    else
+        getNip65RelaysForPubKey model pubKey
+            |> List.filterMap
+                (\( role, relay ) ->
+                    if role == WriteRelay || role == ReadWriteRelay then
+                        Just relay
 
-                else
-                    Nothing
-            )
+                    else
+                        Nothing
+                )
 
 
 getReadRelaysForPubKey : Model -> PubKey -> List Relay
@@ -706,15 +806,19 @@ getReadRelayUrlsForPubKey model pubKey =
 
 getWriteRelaysForPubKey : Model -> PubKey -> List Relay
 getWriteRelaysForPubKey model pubKey =
-    getRelaysForPubKey model pubKey
-        |> List.filterMap
-            (\( role, relay ) ->
-                if role == WriteRelay || role == ReadWriteRelay then
-                    Just relay
+    if model.testMode == TestModeEnabled then
+        Pareto.testRelayUrls
+        |> List.filterMap (getRelayData model)
+    else
+        getRelaysForPubKey model pubKey
+            |> List.filterMap
+                (\( role, relay ) ->
+                    if role == WriteRelay || role == ReadWriteRelay then
+                        Just relay
 
-                else
-                    Nothing
-            )
+                    else
+                        Nothing
+                )
 
 
 getWriteRelayUrlsForPubKey : Model -> PubKey -> List String
@@ -805,11 +909,24 @@ getRelaysForRequest model maybeRequestId =
     in
     case requestUrls of
         [] ->
-            Pareto.defaultRelays
+            getDefaultRelays model
 
         relayUrls ->
             relayUrls
 
+getDefaultRelays : Model -> List RelayUrl
+getDefaultRelays model =
+    if model.testMode == TestModeEnabled then
+        Pareto.testRelayUrls
+    else
+        model.defaultRelays
+
+getApplicationDataRelays : Model -> List RelayUrl
+getApplicationDataRelays model =
+    if model.testMode == TestModeEnabled then
+        Pareto.testRelayUrls
+    else
+        Pareto.applicationDataRelays
 
 getRelayData : Model -> RelayUrl -> Maybe Relay
 getRelayData model relayUrl =
@@ -847,6 +964,9 @@ getZapReceiptsForArticle model article =
         TagReferenceIdentifier _ ->
             Nothing
 
+        TagReferencePubKey _ ->
+            Nothing
+
         TagReferenceTag _ ->
             Nothing
 
@@ -869,7 +989,7 @@ getPubKeyByNip05 model nip05 =
 
 requestCommunityPostApprovals : Model -> Community -> Cmd Msg
 requestCommunityPostApprovals model community =
-    eventFilterForCommunityPostApprovals community
+    [ eventFilterForCommunityPostApprovals community ]
         |> model.hooks.requestEvents "Community post approvals" False -1 []
 
 
@@ -1112,6 +1232,8 @@ empty =
     , relaysForPubKey = Dict.empty
     , reposts = Dict.empty
     , searchRelayLists = Dict.empty
+    , sendsNewsletterPubKey = Dict.empty
+    , sendsNewsletterNip05 = Dict.empty
     , shortTextNotes = Dict.empty
     , userServerLists = Dict.empty
     , zapReceiptsAddress = Dict.empty
@@ -1122,8 +1244,31 @@ empty =
     , lastRequestId = 0
     , lastSendId = 0
     , lastSendRequestId = 0
+    , testMode = TestModeOff
     }
 
+
+init : Hooks Msg -> TestMode -> List String -> ( Model, Cmd Msg )
+init hooks testMode relayUrls =
+    let
+        actualRelayUrls =
+            -- make sure we get NIP-11 information for test relays
+            if testMode == TestModeEnabled then
+                Pareto.testRelayUrls ++ relayUrls
+            else
+                relayUrls
+    in
+    ( { empty
+        | hooks = hooks
+        , relays = initRelayList relayUrls
+        , defaultRelays = relayUrls
+        , testMode = testMode
+      }
+    , Cmd.batch
+        [ hooks.connect (List.map Nostr.Relay.websocketUrl relayUrls)
+        , requestRelayNip11 relayUrls
+        ]
+    )
 
 paretoAuthorsFollowList : List Following
 paretoAuthorsFollowList =
@@ -1137,19 +1282,6 @@ paretoAuthorsFollowList =
                     }
             )
 
-
-init : Hooks -> List String -> ( Model, Cmd Msg )
-init hooks relayUrls =
-    ( { empty
-        | hooks = hooks
-        , relays = initRelayList relayUrls
-        , defaultRelays = relayUrls
-      }
-    , Cmd.batch
-        [ hooks.connect (List.map Nostr.Relay.websocketUrl relayUrls)
-        , requestRelayNip11 relayUrls
-        ]
-    )
 
 
 requestRelayNip11 : List String -> Cmd Msg
@@ -1222,19 +1354,36 @@ update msg model =
 
                 "events" ->
                     case
-                        ( Decode.decodeValue (Decode.field "requestId" Decode.int) message.value
-                        , Decode.decodeValue (Decode.field "kind" Decode.int) message.value
-                        , Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) message.value
+                        ( Nostr.External.decodeRequestId message.value
+                        , Nostr.External.decodeEventsKind message.value
                         )
                     of
-                        ( Ok requestId, Ok kindNum, Ok events ) ->
-                            updateModelWithEvents model requestId (kindFromNumber kindNum) events
+                        ( Ok requestId, Ok kind ) ->
+                            case Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) message.value of
+                                Ok events ->
+                                    updateModelWithEvents model requestId kind events
 
-                        ( _, _, Ok _ ) ->
+                                Err errorDecodingEvents ->
+                                    let
+                                        kindDesc =
+                                            kind
+                                                |> informationForKind
+                                                |> .description
+
+                                        errorMessage =
+                                            "Error decoding events of kind "
+                                                ++ String.fromInt (numberForKind kind)
+                                                ++ " ("
+                                                ++ kindDesc
+                                                ++ ") - request ID "
+                                                ++ String.fromInt requestId
+                                                ++ ": "
+                                                ++ Decode.errorToString errorDecodingEvents
+                                    in
+                                    ( { model | errors = errorMessage :: model.errors }, Cmd.none )
+
+                        ( _, _ ) ->
                             ( { model | errors = "Error decoding request ID or kind" :: model.errors }, Cmd.none )
-
-                        ( _, _, Err errorDecodingEvents ) ->
-                            ( { model | errors = Decode.errorToString errorDecodingEvents :: model.errors }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -1322,6 +1471,26 @@ update msg model =
                 | errors = ("Error fetching NIP11 data for " ++ urlWithoutProtocol ++ ": " ++ httpErrorToString err) :: model.errors
                 , relays = Dict.insert urlWithoutProtocol updatedRelay model.relays
               }
+            , Cmd.none
+            )
+
+        ReceivedNewsletterAuthorCheckResultPubKey pubKey (Ok newsletterCheckResponse) ->
+            ( { model | sendsNewsletterPubKey = Dict.insert pubKey newsletterCheckResponse.email model.sendsNewsletterPubKey }
+            , Cmd.none
+            )
+
+        ReceivedNewsletterAuthorCheckResultPubKey pubKey (Err error) ->
+            ( { model | errors = ("Error fetching author check result for pubkey " ++ pubKey ++ ": " ++ httpErrorToString error) :: model.errors }
+            , Cmd.none
+            )
+
+        ReceivedNewsletterAuthorCheckResultNip05 nip05 (Ok newsletterCheckResponse) ->
+            ( { model | sendsNewsletterNip05 = Dict.insert (nip05ToString nip05) newsletterCheckResponse.email model.sendsNewsletterNip05 }
+            , Cmd.none
+            )
+
+        ReceivedNewsletterAuthorCheckResultNip05 nip05 (Err error) ->
+            ( { model | errors = ("Error fetching author check result for nip05 " ++ nip05ToString nip05 ++ ": " ++ httpErrorToString error) :: model.errors }
             , Cmd.none
             )
 
@@ -1576,6 +1745,11 @@ updateModelWithLongFormContent model requestId events =
     )
 
 
+getErrorMessages : Model -> List String
+getErrorMessages model =
+    model.errors
+
+
 sortArticlesByDate : List Article -> List Article
 sortArticlesByDate articles =
     articles
@@ -1631,16 +1805,16 @@ updateModelWithLongFormContentDraft model requestId events =
             articles
                 |> List.foldl
                     (\article acc ->
-                        case ( article.relay, Dict.get article.id acc ) of
-                            ( Just relayUrl, Just relaySet ) ->
-                                Dict.insert article.id (Set.insert relayUrl relaySet) acc
+                        case ( article.relays, Dict.get article.id acc ) of
+                            ( relayUrls, Just relaySet ) ->
+                                Dict.insert article.id (Set.union relayUrls relaySet) acc
 
-                            ( Just relayUrl, Nothing ) ->
-                                Dict.insert article.id (Set.singleton relayUrl) acc
+                            ( relayUrls, Nothing ) ->
+                                if not (Set.isEmpty relayUrls) then
+                                    Dict.insert article.id relayUrls acc
 
-                            ( Nothing, _ ) ->
-                                -- usually we should get a relay URL so this branch shouldn't be run through
-                                acc
+                                else
+                                    acc
                     )
                     model.articleDraftRelays
 
@@ -1734,6 +1908,19 @@ requestRelatedKindsForArticles model articles request =
 
 appendNip27ProfileRequests : Model -> Request -> List NIP19Type -> ( Model, Request )
 appendNip27ProfileRequests model request nip19List =
+    case nip27ProfilesRequest model nip19List of
+        Just eventFilterForProfiles ->
+            -- TODO: add relays for request
+            eventFilterForProfiles
+                |> RequestProfile Nothing
+                |> addToRequest model request
+
+        Nothing ->
+            ( model, request )
+
+
+nip27ProfilesRequest : Model -> List NIP19Type -> Maybe EventFilter
+nip27ProfilesRequest model nip19List =
     let
         pubKeys =
             nip19List
@@ -1766,21 +1953,10 @@ appendNip27ProfileRequests model request nip19List =
                     )
                 |> Set.fromList
                 |> Set.toList
-
-        maybeEventFilter =
-            pubKeys
-                |> getMissingProfilePubKeys model
-                |> eventFilterForAuthors
     in
-    case maybeEventFilter of
-        Just eventFilterForProfiles ->
-            -- TODO: add relays for request
-            eventFilterForProfiles
-                |> RequestProfile Nothing
-                |> addToRequest model request
-
-        Nothing ->
-            ( model, request )
+    pubKeys
+        |> getMissingProfilePubKeys model
+        |> eventFilterForAuthors
 
 
 updateModelWithSearchRelays : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
@@ -1997,7 +2173,7 @@ requestRelatedKindsForProfiles model profiles kinds =
 
 requestArticlesForAuthors : Model -> List PubKey -> ( Model, Cmd Msg )
 requestArticlesForAuthors model pubKeys =
-    createRequest model "Articles for authors" [] (RequestArticlesFeed { emptyEventFilter | authors = Just pubKeys, kinds = Just [ KindLongFormContent ] })
+    createRequest model "Articles for authors" [] (RequestArticlesFeed [ { emptyEventFilter | authors = Just pubKeys, kinds = Just [ KindLongFormContent ] } ])
         |> doRequest model
 
 

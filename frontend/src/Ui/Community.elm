@@ -6,13 +6,14 @@ import Html.Styled as Html exposing (Html, a, article, aside, button, div, h1, h
 import Html.Styled.Attributes as Attr exposing (class, css, href)
 import Html.Styled.Events as Events exposing (..)
 import Nostr.Community exposing (Community, Image, Moderator, communityName)
-import Nostr.Profile exposing (Profile, ProfileValidation(..))
+import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName)
 import Nostr.Types exposing (PubKey)
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Ui.Profile exposing (defaultProfileImage, profileDisplayName, validationIcon)
-import Ui.Styles exposing (fontFamilyInter, fontFamilyUnbounded)
+import Ui.Profile
+import Ui.Shared exposing (emptyHtml)
+import Ui.Styles exposing (fontFamilyUnbounded)
 
 
 viewCommunity : BrowserEnv -> Dict PubKey Profile -> Community -> Html msg
@@ -67,7 +68,7 @@ viewImage maybeImage =
                 ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewName : String -> Html msg
@@ -99,7 +100,7 @@ viewSummary maybeDescription =
                 [ text description ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewModerators : BrowserEnv -> Dict PubKey Profile -> List Moderator -> Html msg
@@ -122,7 +123,7 @@ viewModerators browserEnv profiles moderators =
             ]
 
     else
-        div [] []
+        emptyHtml
 
 
 viewModerator : Maybe Profile -> ProfileValidation -> Moderator -> Html msg
@@ -145,7 +146,7 @@ viewProfile profile validationStatus moderator =
             , Tw.mb_4
             ]
         ]
-        [ Ui.Profile.viewProfileImage (div []) profile.picture validationStatus
+        [ Ui.Profile.viewProfileImage (div []) (Just profile) validationStatus
         , div []
             [ h4
                 [ css

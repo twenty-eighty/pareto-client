@@ -15,7 +15,8 @@
   <meta name="twitter:image" content="<%= @group && @group.image_url || "default_image.jpg" %>">
 
   <link rel="stylesheet" type="text/css" href="/styles/styles.css">
-  <script src="/js/textarea-autoresize.js"></script>
+  <script async src="/js/textarea-autoresize.js"></script>
+  <script async src="/js/script-element.js"></script>
   <link rel="stylesheet" crossorigin href="<%= NostrBackendWeb.FrontendAssets.css_file() %>">
   <script type="module" crossorigin src="<%= NostrBackendWeb.FrontendAssets.js_file() %>"></script>
   <!-- Other metadata -->

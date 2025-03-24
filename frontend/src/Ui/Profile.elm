@@ -10,26 +10,36 @@ import Html.Styled as Html exposing (Html, a, div, h2, img, p, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Nostr.Nip05 as Nip05
 import Nostr.Nip19 as Nip19
-import Nostr.Profile exposing (Profile, ProfileValidation(..))
+import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
+import Set exposing (Set)
+import Shared
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Time
 import Translations.Profile as Translations
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
+import Ui.Shared exposing (emptyHtml, extendedZapRelays, pubkeyInboxRelays, zapButton)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 
 
-defaultProfileImage : String
-defaultProfileImage =
+defaultProfilePicture : String
+defaultProfilePicture =
     "/images/avatars/placeholder_01.png"
+
+
+profilePicture : Int -> Maybe Profile -> String
+profilePicture width maybeProfile =
+    maybeProfile
+        |> Maybe.andThen .picture
+        |> Maybe.map (Ui.Shared.extendUrlForScaling width)
+        |> Maybe.withDefault defaultProfilePicture
 
 
 type alias ProfileViewData msg =
     { browserEnv : BrowserEnv
     , following : FollowType msg
-    , isAuthor : Bool
     , subscribe : Maybe msg
     , theme : Theme
     , validation : ProfileValidation
@@ -61,7 +71,7 @@ viewProfileSmall profile validationStatus =
                 , Tw.mb_4
                 ]
             ]
-            [ viewProfileImageSmall (linkElementForProfile profile validationStatus) profile.picture validationStatus
+            [ viewProfileImageSmall (linkElementForProfile profile validationStatus) (Just profile) validationStatus
             , h2
                 [ css
                     [ Tw.text_sm
@@ -74,11 +84,20 @@ viewProfileSmall profile validationStatus =
         ]
 
 
-viewProfile : Profile -> ProfileViewData msg -> Html msg
-viewProfile profile profileViewData =
+viewProfile : Profile -> ProfileViewData msg -> Shared.Model -> Html msg
+viewProfile profile profileViewData shared =
     let
         styles =
             stylesForTheme profileViewData.theme
+
+        authorInboxRelays =
+            pubkeyInboxRelays shared.nostr profile.pubKey
+
+        userPubKey =
+            Shared.loggedInPubKey shared.loginStatus
+
+        zapRelays =
+            extendedZapRelays authorInboxRelays shared.nostr userPubKey
     in
     div
         [ css
@@ -99,7 +118,7 @@ viewProfile profile profileViewData =
                 , Tw.mb_4
                 ]
             ]
-            [ viewProfileImage (div [ css [ Tw.flex_none ] ]) profile.picture profileViewData.validation
+            [ viewProfileImage (div [ css [ Tw.flex_none ] ]) (Just profile) profileViewData.validation
             , div
                 [ css
                     [ Tw.flex
@@ -117,6 +136,7 @@ viewProfile profile profileViewData =
                     [ text (profile.about |> Maybe.withDefault "") ]
                 , viewWebsite styles profile
                 , viewNip05 styles profile
+                , viewLNAddress styles profile zapRelays
                 , viewNpub styles profile
                 ]
             , div
@@ -139,8 +159,8 @@ viewProfile profile profileViewData =
 
 viewSubscriptionButton : Profile -> ProfileViewData msg -> Html msg
 viewSubscriptionButton _ profileViewData =
-    case ( profileViewData.browserEnv.environment, profileViewData.isAuthor, profileViewData.subscribe ) of
-        ( BrowserEnv.Development, True, Just subscribeMsg ) ->
+    case profileViewData.subscribe of
+        Just subscribeMsg ->
             Button.new
                 { label = Translations.subscribeButtonTitle [ profileViewData.browserEnv.translations ]
                 , onClick = Just subscribeMsg
@@ -149,8 +169,8 @@ viewSubscriptionButton _ profileViewData =
                 |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.mail)
                 |> Button.view
 
-        ( _, _, _ ) ->
-            div [] []
+        _ ->
+            emptyHtml
 
 
 followButton : Theme -> BrowserEnv -> PubKey -> FollowType msg -> Html msg
@@ -174,7 +194,7 @@ followButton theme browserEnv profilePubKey following =
                 |> Button.view
 
         UnknownFollowing ->
-            div [] []
+            emptyHtml
 
 
 viewWebsite : Styles msg -> Profile -> Html msg
@@ -190,7 +210,7 @@ viewWebsite styles profile =
                 [ text website ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 websiteLink : String -> String
@@ -211,7 +231,19 @@ viewNip05 styles profile =
                 [ text <| Nip05.nip05ToDisplayString nip05 ]
 
         Nothing ->
-            div [] []
+            emptyHtml
+
+
+viewLNAddress : Styles msg -> Profile -> Set String -> Html msg
+viewLNAddress styles profile zapRelays =
+    profile.lud16
+        |> Maybe.map
+            (\lud16 ->
+                p
+                    (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ [ css [ Tw.flex, Tw.items_center ] ])
+                    [ text <| lud16, zapButton profile.pubKey Nothing zapRelays "0" ]
+            )
+        |> Maybe.withDefault (emptyHtml)
 
 
 viewNpub : Styles msg -> Profile -> Html msg
@@ -229,7 +261,7 @@ viewNpub styles profile =
                 [ text <| shortenedPubKey 11 nip19 ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewBanner : Maybe String -> Html msg
@@ -255,7 +287,7 @@ viewBanner maybeImage =
                 ]
 
         Nothing ->
-            div [] []
+            emptyHtml
 
 
 viewProfilePubKey : PubKey -> Html msg
@@ -268,7 +300,7 @@ viewProfilePubKey pubKey =
             , Tw.mb_4
             ]
         ]
-        [ viewProfileImage (linkElementForProfilePubKey pubKey) (Just defaultProfileImage) ValidationUnknown
+        [ viewProfileImage (linkElementForProfilePubKey pubKey) Nothing ValidationUnknown
         , h2
             [ css
                 [ Tw.text_sm
@@ -280,13 +312,8 @@ viewProfilePubKey pubKey =
         ]
 
 
-viewProfileImage : (List (Html msg) -> Html msg) -> Maybe String -> ProfileValidation -> Html msg
-viewProfileImage linkElement maybeImage validationStatus =
-    let
-        image =
-            maybeImage
-                |> Maybe.withDefault defaultProfileImage
-    in
+viewProfileImage : (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
+viewProfileImage linkElement maybeProfile validationStatus =
     div
         [ css
             [ Tw.relative
@@ -294,7 +321,7 @@ viewProfileImage linkElement maybeImage validationStatus =
         ]
         [ linkElement
             [ img
-                [ Attr.src image
+                [ Attr.src <| profilePicture 112 maybeProfile
                 , Attr.alt "Avatar"
                 , css
                     [ Tw.min_w_28
@@ -326,7 +353,7 @@ validationIcon : Int -> ProfileValidation -> Html msg
 validationIcon width validation =
     case validation of
         ValidationUnknown ->
-            div [] []
+            emptyHtml
 
         ValidationPending ->
             Graphics.featherMehIcon width
@@ -366,13 +393,8 @@ validationTooltipText status =
             "Profile validated successfully"
 
 
-viewProfileImageSmall : (List (Html msg) -> Html msg) -> Maybe String -> ProfileValidation -> Html msg
-viewProfileImageSmall linkElement maybeImage validationStatus =
-    let
-        image =
-            maybeImage
-                |> Maybe.withDefault defaultProfileImage
-    in
+viewProfileImageSmall : (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
+viewProfileImageSmall linkElement maybeProfile validationStatus =
     div
         [ css
             [ Tw.relative
@@ -380,7 +402,7 @@ viewProfileImageSmall linkElement maybeImage validationStatus =
         ]
         [ linkElement
             [ img
-                [ Attr.src image
+                [ Attr.src <| profilePicture 40 maybeProfile
                 , Attr.alt "Avatar"
                 , css
                     [ Tw.w_10
@@ -419,25 +441,4 @@ timeParagraph browserEnv maybePublishedAt =
                 [ text <| BrowserEnv.formatDate browserEnv publishedAt ]
 
         Nothing ->
-            div [] []
-
-
-profileDisplayName : PubKey -> Profile -> String
-profileDisplayName pubKey profile =
-    case ( profile.displayName, profile.name, profile.nip05 ) of
-        ( Just displayName, _, _ ) ->
-            displayName
-
-        ( Nothing, Just name, _ ) ->
-            name
-
-        ( Nothing, Nothing, Just nip05 ) ->
-            Nip05.nip05ToDisplayString nip05
-
-        ( Nothing, Nothing, Nothing ) ->
-            shortenedPubKey 6 pubKey
-
-
-shortenedPubKey : Int -> String -> String
-shortenedPubKey count pubKey =
-    String.left count pubKey ++ "..." ++ String.right count pubKey
+            emptyHtml

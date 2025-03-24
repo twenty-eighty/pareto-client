@@ -35,7 +35,7 @@ iconUrl : Relay -> String
 iconUrl relay =
     relay.nip11
         |> Maybe.andThen .icon
-        |> Maybe.withDefault ("https://" ++ relay.urlWithoutProtocol ++ "/favicon.ico")
+        |> Maybe.withDefault ("https://" ++ hostWithoutProtocol relay.urlWithoutProtocol ++ "/favicon.ico")
 
 
 websocketUrl : String -> String

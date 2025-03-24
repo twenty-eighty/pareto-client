@@ -10,10 +10,8 @@ import Time
 
 
 type Tag
-    = GenericTag String
-    | GenericTag2 String String
-    | GenericTag3 String String String
-    | GenericTag4 String String String String
+    = GenericTag (List String)
+    | InvalidTag (List String)
     | AboutTag String
     | AddressTag AddressComponents
     | AltTag String
@@ -31,7 +29,7 @@ type Tag
     | ImageTag String (Maybe ImageSize)
     | LocationTag String (Maybe String)
     | LabelNamespaceTag String
-    | LabelTag String String
+    | LabelTag String (Maybe String)
     | MentionTag PubKey
     | NameTag String
     | PublicKeyTag PubKey (Maybe String) (Maybe String)
@@ -69,7 +67,7 @@ type alias Event =
     , content : String
     , id : String
     , sig : Maybe String
-    , relay : Maybe RelayUrl
+    , relays : Maybe (List RelayUrl)
     }
 
 
@@ -89,6 +87,7 @@ type TagReference
     = TagReferenceEventId EventId
     | TagReferenceCode AddressComponents
     | TagReferenceIdentifier String
+    | TagReferencePubKey PubKey
     | TagReferenceTag String
 
 
@@ -1473,7 +1472,7 @@ emptyEvent pubKey kind =
     , content = ""
     , id = ""
     , sig = Nothing
-    , relay = Nothing
+    , relays = Nothing
     }
 
 
@@ -1488,6 +1487,9 @@ tagReferenceToString tagRef =
 
         TagReferenceIdentifier identifier ->
             identifier
+
+        TagReferencePubKey pubKey ->
+            pubKey
 
         TagReferenceTag tag ->
             tag
@@ -1554,7 +1556,7 @@ decodeEvent =
         |> Pipeline.required "content" Decode.string
         |> Pipeline.required "id" Decode.string
         |> Pipeline.optional "sig" (Decode.maybe Decode.string) Nothing
-        |> Pipeline.optional "relay" (Decode.maybe Nostr.Relay.relayUrlDecoder) Nothing
+        |> Pipeline.optional "onRelays" (Decode.maybe (Decode.list Nostr.Relay.relayUrlDecoder)) Nothing
 
 
 eventFilterForNip19 : NIP19Type -> Maybe EventFilter
@@ -1590,121 +1592,124 @@ eventFilterForShortNote noteId =
 
 decodeTag : Decode.Decoder Tag
 decodeTag =
-    Decode.index 0 Decode.string
-        |> Decode.andThen
-            (\typeStr ->
-                case typeStr of
-                    "a" ->
-                        Decode.map AddressTag (Decode.index 1 decodeAddress)
+    Decode.oneOf
+        [ Decode.index 0 Decode.string
+            |> Decode.andThen
+                (\typeStr ->
+                    case typeStr of
+                        "a" ->
+                            Decode.map AddressTag (Decode.index 1 decodeAddress)
 
-                    "about" ->
-                        Decode.map AboutTag (Decode.index 1 Decode.string)
+                        "about" ->
+                            Decode.map AboutTag (Decode.index 1 Decode.string)
 
-                    "alt" ->
-                        Decode.map AltTag (Decode.index 1 Decode.string)
+                        "alt" ->
+                            Decode.map AltTag (Decode.index 1 Decode.string)
 
-                    --           "c" ->
-                    --               Decode.map ClientTag (Decode.index 1 Decode.string)
-                    "client" ->
-                        Decode.map3 ClientTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 Decode.string))
+                        --           "c" ->
+                        --               Decode.map ClientTag (Decode.index 1 Decode.string)
+                        "client" ->
+                            Decode.map3 ClientTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 Decode.string))
 
-                    "d" ->
-                        Decode.map EventDelegationTag (Decode.index 1 Decode.string)
+                        "d" ->
+                            Decode.map EventDelegationTag (Decode.index 1 Decode.string)
 
-                    "dir" ->
-                        Decode.succeed DirTag
+                        "dir" ->
+                            Decode.succeed DirTag
 
-                    "description" ->
-                        Decode.map DescriptionTag (Decode.index 1 Decode.string)
+                        "description" ->
+                            Decode.map DescriptionTag (Decode.index 1 Decode.string)
 
-                    "e" ->
-                        Decode.map EventIdTag (Decode.index 1 Decode.string)
+                        "e" ->
+                            Decode.map EventIdTag (Decode.index 1 Decode.string)
 
-                    "expiration" ->
-                        Decode.map ExpirationTag (Decode.index 1 decodeUnixTimeString)
+                        "expiration" ->
+                            Decode.map ExpirationTag (Decode.index 1 decodeUnixTimeString)
 
-                    "f" ->
-                        Decode.map2 FileTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
+                        "f" ->
+                            Decode.map2 FileTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
-                    "i" ->
-                        Decode.map2 IdentityTag (Decode.index 1 identityDecoder) (Decode.index 2 Decode.string)
+                        "i" ->
+                            Decode.map2 IdentityTag (Decode.index 1 identityDecoder) (Decode.index 2 Decode.string)
 
-                    "image" ->
-                        Decode.map2 ImageTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 imageSizeDecoder))
+                        "image" ->
+                            Decode.map2 ImageTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 imageSizeDecoder))
 
-                    "k" ->
-                        Decode.map KindTag (Decode.index 1 kindStringDecoder)
+                        "k" ->
+                            Decode.map KindTag (Decode.index 1 kindStringDecoder)
 
-                    "location" ->
-                        Decode.map2 LocationTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
+                        "location" ->
+                            Decode.map2 LocationTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
-                    "L" ->
-                        Decode.map LabelNamespaceTag (Decode.index 1 Decode.string)
+                        "L" ->
+                            Decode.map LabelNamespaceTag (Decode.index 1 Decode.string)
 
-                    "l" ->
-                        Decode.map2 LabelTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string)
+                        "l" ->
+                            Decode.map2 LabelTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
-                    "m" ->
-                        Decode.map MentionTag (Decode.index 1 Decode.string)
+                        "m" ->
+                            Decode.map MentionTag (Decode.index 1 Decode.string)
 
-                    "name" ->
-                        Decode.map NameTag (Decode.index 1 Decode.string)
+                        "name" ->
+                            Decode.map NameTag (Decode.index 1 Decode.string)
 
-                    "p" ->
-                        Decode.map3 PublicKeyTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 Decode.string))
+                        "p" ->
+                            Decode.map3 PublicKeyTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 Decode.string))
 
-                    "published_at" ->
-                        Decode.map PublishedAtTag (Decode.index 1 decodeUnixTimeString)
+                        "published_at" ->
+                            Decode.map PublishedAtTag (Decode.index 1 decodeUnixTimeString)
 
-                    "q" ->
-                        Decode.map QuotedEventTag (Decode.index 1 Decode.string)
+                        "q" ->
+                            Decode.map QuotedEventTag (Decode.index 1 Decode.string)
 
-                    "r" ->
-                        Decode.oneOf
-                            [ Decode.map2 UrlTag (Decode.index 1 Decode.string) (Decode.index 2 decodeRelayRole)
-                            , Decode.map2 UrlTag (Decode.index 1 Decode.string) (Decode.succeed ReadWriteRelay)
-                            ]
+                        "r" ->
+                            Decode.oneOf
+                                [ Decode.map2 UrlTag (Decode.index 1 Decode.string) (Decode.index 2 decodeRelayRole)
+                                , Decode.map2 UrlTag (Decode.index 1 Decode.string) (Decode.succeed ReadWriteRelay)
+                                ]
 
-                    "relay" ->
-                        Decode.map RelayTag (Decode.index 1 Decode.string)
+                        "relay" ->
+                            Decode.map RelayTag (Decode.index 1 Decode.string)
 
-                    "relays" ->
-                        Decode.map RelaysTag (Decode.list Decode.string)
+                        "relays" ->
+                            Decode.map RelaysTag (Decode.list Decode.string)
 
-                    "server" ->
-                        Decode.map ServerTag (Decode.index 1 Decode.string)
+                        "server" ->
+                            Decode.map ServerTag (Decode.index 1 Decode.string)
 
-                    "summary" ->
-                        Decode.map SummaryTag (Decode.index 1 Decode.string)
+                        "summary" ->
+                            Decode.map SummaryTag (Decode.index 1 Decode.string)
 
-                    "t" ->
-                        Decode.map HashTag (Decode.index 1 Decode.string)
+                        "t" ->
+                            Decode.map HashTag (Decode.index 1 Decode.string)
 
-                    "title" ->
-                        Decode.map TitleTag (Decode.index 1 Decode.string)
+                        "title" ->
+                            Decode.map TitleTag (Decode.index 1 Decode.string)
 
-                    "web" ->
-                        Decode.map2 WebTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
+                        "web" ->
+                            Decode.map2 WebTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
-                    "x" ->
-                        Decode.map ExternalIdTag (Decode.index 1 Decode.string)
+                        "x" ->
+                            Decode.map ExternalIdTag (Decode.index 1 Decode.string)
 
-                    "zap" ->
-                        Decode.map3 ZapTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string) (Decode.maybe (Decode.index 3 decodeStringInt))
+                        "zap" ->
+                            Decode.map3 ZapTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string) (Decode.maybe (Decode.index 3 decodeStringInt))
 
-                    _ ->
-                        decodeGenericTag
-            )
+                        _ ->
+                            decodeGenericTag
+                )
+        , decodeInvalidTag
+        ]
 
 
 decodeGenericTag : Decode.Decoder Tag
 decodeGenericTag =
-    Decode.oneOf
-        [ Decode.map4 GenericTag4 (Decode.index 0 Decode.string) (Decode.index 1 Decode.string) (Decode.index 2 Decode.string) (Decode.index 3 Decode.string)
-        , Decode.map3 GenericTag3 (Decode.index 0 Decode.string) (Decode.index 1 Decode.string) (Decode.index 2 Decode.string)
-        , Decode.map2 GenericTag2 (Decode.index 0 Decode.string) (Decode.index 1 Decode.string)
-        , Decode.map GenericTag (Decode.index 0 Decode.string)
-        ]
+    Decode.map GenericTag (Decode.list Decode.string)
+
+
+decodeInvalidTag : Decode.Decoder Tag
+decodeInvalidTag =
+    Decode.map InvalidTag (Decode.list Decode.string)
 
 
 identityDecoder : Decode.Decoder Identity
@@ -1750,17 +1755,8 @@ decodeStringInt =
 tagToList : Tag -> List String
 tagToList tag =
     case tag of
-        GenericTag key ->
-            [ key ]
-
-        GenericTag2 key value ->
-            [ key, value ]
-
-        GenericTag3 key value1 value2 ->
-            [ key, value1, value2 ]
-
-        GenericTag4 key value1 value2 value3 ->
-            [ key, value1, value2, value3 ]
+        GenericTag array ->
+            array
 
         AboutTag value ->
             [ "about", value ]
@@ -1820,6 +1816,9 @@ tagToList tag =
         ImageTag value Nothing ->
             [ "image", value ]
 
+        InvalidTag array ->
+            array
+
         KindTag kind ->
             [ "k", String.fromInt <| numberForKind kind ]
 
@@ -1834,8 +1833,8 @@ tagToList tag =
         LabelNamespaceTag value ->
             [ "L", value ]
 
-        LabelTag value ns ->
-            [ "l", value, ns ]
+        LabelTag value maybeNS ->
+            List.append [ "l", value ] (Maybe.map List.singleton maybeNS |> Maybe.withDefault [ "ugc" ])
 
         MentionTag pubKey ->
             [ "m", pubKey ]
@@ -1855,7 +1854,8 @@ tagToList tag =
                     [ "p", pubKey ]
 
         PublishedAtTag time ->
-            [ "published_at", Time.posixToMillis time |> String.fromInt ]
+            -- Nostr works with seconds, not milliseconds
+            [ "published_at", Time.posixToMillis time // 1000 |> String.fromInt ]
 
         QuotedEventTag eventId ->
             [ "q", eventId ]
@@ -2021,6 +2021,7 @@ decodeUnixTimeString =
             (\unixTimeString ->
                 case String.toInt unixTimeString of
                     Just unixTime ->
+                        -- Nostr expects values in seconds, not milliseconds
                         Time.millisToPosix (unixTime * 1000)
 
                     Nothing ->
@@ -2086,6 +2087,9 @@ appendTagReferenceList maybeTagRefList encodeList =
                                     TagReferenceIdentifier _ ->
                                         Nothing
 
+                                    TagReferencePubKey _ ->
+                                        Nothing
+
                                     TagReferenceTag _ ->
                                         Nothing
                             )
@@ -2109,6 +2113,9 @@ appendTagReferenceList maybeTagRefList encodeList =
                                         Nothing
 
                                     TagReferenceIdentifier _ ->
+                                        Nothing
+
+                                    TagReferencePubKey _ ->
                                         Nothing
 
                                     TagReferenceTag _ ->
@@ -2136,6 +2143,37 @@ appendTagReferenceList maybeTagRefList encodeList =
                                     TagReferenceIdentifier identifier ->
                                         Just identifier
 
+                                    TagReferencePubKey _ ->
+                                        Nothing
+
+                                    TagReferenceTag _ ->
+                                        Nothing
+                            )
+                        |> (\list ->
+                                if List.isEmpty list then
+                                    Nothing
+
+                                else
+                                    Just list
+                           )
+
+                maybePubKeyList =
+                    tagRefList
+                        |> List.filterMap
+                            (\tagRef ->
+                                case tagRef of
+                                    TagReferenceEventId _ ->
+                                        Nothing
+
+                                    TagReferenceCode _ ->
+                                        Nothing
+
+                                    TagReferenceIdentifier _ ->
+                                        Nothing
+
+                                    TagReferencePubKey pubKey ->
+                                        Just pubKey
+
                                     TagReferenceTag _ ->
                                         Nothing
                             )
@@ -2161,6 +2199,9 @@ appendTagReferenceList maybeTagRefList encodeList =
                                     TagReferenceIdentifier _ ->
                                         Nothing
 
+                                    TagReferencePubKey _ ->
+                                        Nothing
+
                                     TagReferenceTag tag ->
                                         Just tag
                             )
@@ -2176,6 +2217,7 @@ appendTagReferenceList maybeTagRefList encodeList =
                 |> appendStringList "#a" maybeDcodeList
                 |> appendStringList "#d" maybeIdentifierList
                 |> appendStringList "#e" maybeEventIdList
+                |> appendStringList "#p" maybePubKeyList
                 |> appendStringList "#t" maybeTagList
 
         Nothing ->
@@ -2288,6 +2330,11 @@ addKindTags kinds tags =
         |> List.append tags
 
 
+addPubKeyTag : PubKey -> Maybe String -> Maybe String -> List Tag -> List Tag
+addPubKeyTag pubKey maybeRelay maybePetName tags =
+    PublicKeyTag pubKey maybeRelay maybePetName :: tags
+
+
 addPublishedAtTag : Time.Posix -> List Tag -> List Tag
 addPublishedAtTag time tags =
     PublishedAtTag time :: tags
@@ -2391,4 +2438,4 @@ addZapTags zapWeights tags =
 
 addLabelTags : String -> String -> List Tag -> List Tag
 addLabelTags ns label tags =
-    LabelNamespaceTag ns :: LabelTag label ns :: tags
+    LabelNamespaceTag ns :: LabelTag label (Just ns) :: tags

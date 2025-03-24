@@ -1,9 +1,6 @@
 {
    "about": {
       "about page title": "About",
-      "supported kinds title": "Supported kinds",
-      "supported nips title": "Supported NIPs",
-      "supported web targets title": "Supported web targets",
       "publish authors list button title": "Publish authors list",
       "publish handler information button title": "Publish handler information",
       "publish profile button title": "Publish profile",
@@ -13,9 +10,13 @@
       "about frontend text 2": " using the ",
       "about frontend text 3": " programming language.",
       "about backend text": "The Pareto backend was developed using the",
-      "source code text": "The source code of the Pareto client will be released soon.",
+      "source code text": "The source code of the Pareto client is available on",
       "feedback text": "You found a bug or want to give feedback? Please write an email to ",
-      "privacy policy link text": "Privacy Policy"
+      "hint to tech details": "For a detailed technical information of the Pareto App ",
+      "see this": "see this.",
+      "privacy policy link text": "Privacy Policy",
+      "feedback email info text": "You found a bug or want to give feedback? Please write an email to ",
+      "donation info text": "Support the further development of the Pareto project on "
    },
    "article page": {
       "default page title": "Article"
@@ -39,12 +40,47 @@
       "dialog title": "Import Email List",
       "import button title": "Import",
       "close button title": "Close",
-      "next button title": "Next"
+      "next button title": "Next",
+      "upload csv button title": "Upload",
+      "process button title": "Process",
+      "single emails button title": "Single emails",
+      "email textarea placeholder text": "Comma-separated email addresses",
+      "import selection explanation": "You can either upload a CSV file or add a list of comma-separated email addresses.",
+      "import subscribers warning": "Add only those individuals who have explicitly agreed to receive emails. (double opt-in method)",
+      "import only opt-in explanation": "Do not include individuals whose information was collected solely through product/service exchanges, giveaways, or similar methods.",
+      "overwrite existing checkbox label": "Overwrite existing?",
+      "csv processing error message": "Error processing CSV file: ",
+      "csv file empty error message": "The CSV file is empty",
+      "csv processing status message": "Processing CSV file...",
+      "csv parsing status message": "Parsing CSV file...",
+      "name column header in csv column mapping table": "Column name",
+      "field column header in csv column mapping table": "Subscriber field",
+      "unmapped column dropdown value": "<unmapped>",
+      "email not mapped error message": "At least the email field must be mapped",
+      "skip rows field label": "Skip rows",
+      "tags field label": "Tags",
+      "column name": "Column",
+      "configure CSV import dialog title": "Configure CSV import",
+      "map CSV fields dialog title": "Map CSV fields"
    },
    "email subscription dialog": {
       "dialog title": "Subscribe with Email",
       "subscribe button title": "Subscribe",
-      "close button title": "Close"
+      "close button title": "Close",
+      "info text": "Get new articles of {{profileName}} delivered to your inbox.",
+      "email label": "Email",
+      "email placeholder": "john@example.com",
+      "privacy info": "The email is stored by the author, not the Pareto project",
+      "sending message text": "Sending opt-in...",
+      "sent message text": "Sent opt-in, you will get a confirmation email shortly.",
+      "error message text": "Error subscribing to list: {{error}}. Please contact us at support@pareto.space"
+   },
+   "internals": {
+      "page title": "Internals",
+      "explanation": "This page shows diagnostic information about the application.",
+      "error reporting": "When reporting an error, please include the information below, if present.",
+      "contact information": "Please contact",
+      "error messages title": "Error messages"
    },
    "locale": {
       "english text": "English",
@@ -55,6 +91,10 @@
       "spanish text": "Spanish",
       "swedish text": "Swedish"
    },
+   "media page": {
+      "logged in read only message": "Media files can't be loaded when logged-in read only",
+      "not logged in message": "Media files can't be loaded when not logged-in"
+   },
    "media selector": {
       "Upload files": "Select image",
       "Upload button title": "Upload images",
@@ -63,10 +103,24 @@
       "no server configured message": "You seem to have no media servers configured. Do you want to use the Pareto media server?",
       "configure server button title": "Configure Pareto media server",
       "select image dialog title": "Select image",
-      "copied link alert message": "Copied link to clipboard"
+      "copied link alert message": "Copied link to clipboard",
+      "image selection instructional text": "Double click to select image"
    },
    "message dialog": {
       "warning": "Warning"
+   },
+   "newsletters": {
+      "newsletters title": "Newsletters",
+      "loading newsletters text": "Loading newsletters...",
+      "error loading newsletters text": "Error loading newsletters",
+      "no newsletters text": "No newsletters found",
+      "date column name": "Date",
+      "status column name": "Status",
+      "processed column name": "Processed",
+      "skipped column name": "Skipped",
+      "total column name": "Total",
+      "error column name": "Errors",
+      "subject column name": "Title"
    },
    "posts": {
       "posts title": "Posts",
@@ -84,7 +138,9 @@
       "mute button title": "Stumm",
       "public menu item text": "Public",
       "private menu item text": "Private",
-      "subscribe button title": "Subscribe"
+      "subscribe button title": "Subscribe",
+      "pub key profile page title": "Profile of",
+      "default profile page title": "Profile"
    },
    "publish article dialog": {
       "dialog title": "Publish article",
@@ -95,7 +151,13 @@
       "publish button title": "Publish article",
       "no relays configured title": "No relays configured",
       "no relays configured text": "Do you want to configure some default relays?",
-      "configure relays button title": "Configure relays"
+      "configure relays button title": "Configure relays",
+      "delivery title": "Delivery",
+      "only publish article text": "Only publish article",
+      "send only via email singular checkbox text": "Send email to one recipient",
+      "send only via email plural checkbox text": "Send email to {{recipientCount}} recipients",
+      "send also via email singular checkbox text": "Publish article and send via email to one recipient",
+      "send also via email plural checkbox text": "Publish article and send via email to {{recipientCount}} recipients"
    },
    "read": {
       "followed feed category": "Followed",
@@ -128,6 +190,7 @@
       "relays category": "Relays",
       "outbox section title": "Public Outbox/Home Relays",
       "outbox relays description": "This relay type stores all your content.",
+      "outbox relays test mode information": "Outbox relays can't be configured in test mode",
       "inbox section title": "Public Inbox Relays",
       "inbox relays description": "This relay type receives all replies, comments, likes, and zaps to your posts.",
       "add relay button title": "Add",
@@ -144,11 +207,14 @@
    "sidebar": {
       "reader client role text": "Reader",
       "creator client role text": "Creator",
+      "test mode off text": "Test Mode",
+      "test mode on text": "Test Mode",
       "bookmarks menu item text": "Bookmarks",
       "communities menu item text": "Communities",
       "get started button text": "Sign in/up",
       "media menu item text": "Media",
       "messages menu item text": "Messages",
+      "newsletters menu item text": "Newsletters",
       "notifications menu item text": "Notifications",
       "posts menu item text": "Posts",
       "read menu item text": "Read",
@@ -163,10 +229,41 @@
       "sign-in request": "Please sign up/in to access the page",
       "continue without signing in message": "Continue without signing up/in..."
    },
+   "subscriber edit dialog": {
+      "dialog title": "Edit Subscriber",
+      "submit button title": "Submit"
+   },
    "subscribers": {
       "page title": "Subscribers",
+      "export button title": "Export",
       "import button title": "Import",
-      "no subscribers text": "No subscribers found."
+      "save button title": "Save",
+      "process modifications button title": "Process",
+      "loading subscribers text": "Loading subscribers...",
+      "error loading subscribers text": "Error loading subscribers",
+      "no subscribers text": "No subscribers found.",
+      "new modifications": "New modifications",
+      "dnd field name": "Do not disturb",
+      "email field name": "Email",
+      "name field name": "Name",
+      "first name field name": "First name",
+      "last name field name": "Last name",
+      "pubkey field name": "Pubkey",
+      "source field name": "Source",
+      "datesub field name": "Subscription date",
+      "dateunsub field name": "Unsubscription date",
+      "tags field name": "Tags",
+      "undeliverable field name": "Undeliverable",
+      "locale field name": "Locale",
+      "subscribers count": "{{subscribersCount}} subscribers"
+   },
+   "text stats": {
+      "Bytes label": "Bytes:",
+      "Characters label": "Characters:",
+      "Words label": "Words:",
+      "Sentences label": "Sentences:",
+      "Reading time label": "Reading time:",
+      "Speaking time label": "Speaking time:"
    },
    "upload dialog": {
       "dialog title": "Upload",
@@ -205,11 +302,16 @@
       "save draft button title": "Save draft",
       "summary text": "Summary",
       "language selection label": "Article Language",
+      "no language text": "No language selected",
       "tags label text": "Tags",
       "tags placeholder text": "Tags, comma separated",
       "upload button title": "Upload",
+      "image selection instructional text": "Click to select image",
       "article published message box title": "Article published",
       "article published message box text": "The article has been published.",
+      "error message box title": "Error",
+      "newsletter sent message box title": "Newsletter sent",
+      "newsletter sent message box text": "The newsletter has been sent.",
       "article modified state": "Article modified",
       "article loading draft state": "Loading draft...",
       "article loading draft error": "Error loading draft",
@@ -220,12 +322,18 @@
       "article publishing state": "Publishing article...",
       "article published state": "Article published",
       "article publishing error": "Error publishing article",
-      "article deleting draft state": "Deleting draft after publishing..."
+      "sending newsletter state": "Sending newsletter...",
+      "sending newsletter error": "Error sending newsletter",
+      "deleting draft state": "Deleting draft after publishing...",
+      "deleting draft error": "Error deleting draft"
    },
    "zap dialog": {
       "dialog title": "Zap",
       "comment placeholder": "Comment (optional)",
       "close button title": "Close",
       "zap button title": "Zap"
+   },
+   "tech details": {
+      "page title": "Technical Details"
    }
 }

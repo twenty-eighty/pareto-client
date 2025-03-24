@@ -17,6 +17,7 @@ import Shared
 import Shared.Model
 import Shared.Msg
 import Ui.Profile exposing (FollowType(..))
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
@@ -34,7 +35,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -52,9 +53,18 @@ type alias Model =
 init : Shared.Model -> Route { user : String } -> () -> ( Model, Effect Msg )
 init shared route () =
     let
+        emailSubscriptionDialog =
+            case route.hash of
+                Just "subscribe" ->
+                    EmailSubscriptionDialog.init {}
+                        |> EmailSubscriptionDialog.show
+
+                _ ->
+                    EmailSubscriptionDialog.init {}
+
         model =
             { nip05 = Nip05.parseNip05 route.params.user
-            , emailSubscriptionDialog = EmailSubscriptionDialog.init {}
+            , emailSubscriptionDialog = emailSubscriptionDialog
             }
 
         requestEffect =
@@ -64,14 +74,23 @@ init shared route () =
                         case Nostr.getPubKeyByNip05 shared.nostr nip05 of
                             Just pubKey ->
                                 -- already validated, don't do again
-                                pubKey
-                                    |> buildRequestArticlesEffect shared.nostr
+                                [ buildRequestArticlesEffect shared.nostr pubKey
+
+                                -- check if author offers newsletter
+                                , Effect.sendSharedMsg (Shared.Msg.UpdateNewsletterAvailabilityPubKey pubKey)
+                                ]
+                                    |> Effect.batch
 
                             Nothing ->
-                                RequestProfileByNip05 nip05
+                                [ RequestProfileByNip05 nip05
                                     |> Nostr.createRequest shared.nostr ("Profile and data of NIP-05 user " ++ nip05ToString nip05) [ KindLongFormContent, KindHighlights, KindBookmarkList, KindBookmarkSets ]
                                     |> Shared.Msg.RequestNostrEvents
                                     |> Effect.sendSharedMsg
+
+                                -- check if author offers newsletter
+                                , Effect.sendSharedMsg (Shared.Msg.UpdateNewsletterAvailabilityNip05 nip05)
+                                ]
+                                    |> Effect.batch
                     )
                 |> Maybe.withDefault Effect.none
     in
@@ -82,7 +101,7 @@ init shared route () =
 
 buildRequestArticlesEffect : Nostr.Model -> PubKey -> Effect Msg
 buildRequestArticlesEffect nostr pubKey =
-    { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ pubKey ], limit = Just 20 }
+    [ { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ pubKey ], limit = Just 20 } ]
         |> RequestArticlesFeed
         |> Nostr.createRequest nostr "Posts of user" [ KindUserMetadata ]
         |> Shared.Msg.RequestNostrEvents
@@ -138,7 +157,8 @@ update shared msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    EmailSubscriptionDialog.subscriptions model.emailSubscriptionDialog
+        |> Sub.map EmailSubscriptionDialogSent
 
 
 
@@ -162,25 +182,39 @@ view shared model =
                 viewProfile shared model profile
 
             Nothing ->
-                div [] []
+                emptyHtml
         ]
     }
 
 
 viewProfile : Shared.Model -> Model -> Profile -> Html Msg
 viewProfile shared model profile =
+    let
+        userPubKey =
+            Shared.loggedInPubKey shared.loginStatus
+
+        sendsNewsletter =
+            model.nip05
+                |> Maybe.andThen (Nostr.sendsNewsletterNip05 shared.nostr)
+                |> Maybe.withDefault False
+    in
     div []
         [ Ui.Profile.viewProfile
             profile
             { browserEnv = shared.browserEnv
-            , following = followingProfile shared.nostr profile.pubKey (Shared.loggedInPubKey shared.loginStatus)
-            , isAuthor = Nostr.isAuthor shared.nostr profile.pubKey
-            , subscribe = Just OpenSubscribeDialog
+            , following = followingProfile shared.nostr profile.pubKey userPubKey
+            , subscribe =
+                if sendsNewsletter then
+                    Just OpenSubscribeDialog
+
+                else
+                    Nothing
             , theme = shared.theme
             , validation =
                 Nostr.getProfileValidationStatus shared.nostr profile.pubKey
                     |> Maybe.withDefault ValidationUnknown
             }
+            shared
         , Nostr.getArticlesForAuthor shared.nostr profile.pubKey
             |> Ui.View.viewArticlePreviews
                 ArticlePreviewList
@@ -198,20 +232,16 @@ viewProfile shared model profile =
 
 viewEmailSubscriptionDialog : Shared.Model -> Model -> Profile -> Html Msg
 viewEmailSubscriptionDialog shared model profile =
-    case Shared.loggedInPubKey shared.loginStatus of
-        Just userPubKey ->
-            EmailSubscriptionDialog.new
-                { model = model.emailSubscriptionDialog
-                , toMsg = EmailSubscriptionDialogSent
-                , nostr = shared.nostr
-                , pubKey = userPubKey
-                , browserEnv = shared.browserEnv
-                , theme = shared.theme
-                }
-                |> EmailSubscriptionDialog.view
-
-        Nothing ->
-            div [] []
+    EmailSubscriptionDialog.new
+        { model = model.emailSubscriptionDialog
+        , toMsg = EmailSubscriptionDialogSent
+        , nostr = shared.nostr
+        , profile = profile
+        , loginStatus = shared.loginStatus
+        , browserEnv = shared.browserEnv
+        , theme = shared.theme
+        }
+        |> EmailSubscriptionDialog.view
 
 
 followingProfile : Nostr.Model -> PubKey -> Maybe PubKey -> FollowType Msg

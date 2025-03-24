@@ -18,10 +18,8 @@ import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Dropdown as Dropdown
-import Components.Icon as Icon
 import Dict exposing (Dict)
 import Effect exposing (Effect)
-import FeatherIcons
 import File exposing (File)
 import File.Select as FileSelect
 import Html.Styled as Html exposing (Html, button, div, img, input, label, li, option, progress, select, span, text, textarea, ul)
@@ -30,8 +28,10 @@ import Html.Styled.Events exposing (onClick, onInput, preventDefaultOn)
 import Http
 import Json.Decode as Decode
 import Json.Encode as Encode
+import MimeType exposing (MimeType)
 import Nostr
 import Nostr.Blossom as Blossom
+import Nostr.External exposing (decodeAuthHeaderReceived)
 import Nostr.Nip94 as Nip94
 import Nostr.Nip96 as Nip96
 import Nostr.Request exposing (HttpRequestMethod(..), RequestData(..))
@@ -45,20 +45,19 @@ import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Task exposing (Task)
 import Translations.UploadDialog as Translations
-import Ui.Shared exposing (modalDialog)
+import Ui.Shared exposing (emptyHtml, modalDialog)
 import Ui.Styles exposing (stylesForTheme)
 import Url
 
 
-supportedMimeTypes : List String
+supportedMimeTypes : List MimeType
 supportedMimeTypes =
-    [ "image/gif"
-    , "image/jpg"
-    , "image/png"
-    , "image/svg+xml"
-    , "image/webp"
-
-    -- , "application/pdf"
+    [ MimeType.Image MimeType.Gif
+    , MimeType.Image MimeType.Jpeg
+    , MimeType.Image MimeType.Png
+    , MimeType.Image MimeType.Svg
+    , MimeType.Image MimeType.Webp
+    , MimeType.Audio MimeType.Mp3
     ]
 
 
@@ -120,7 +119,7 @@ init :
     { toMsg : Msg -> msg
     }
     -> Model
-init props =
+init _ =
     Model
         { state = DialogClosed
         , serverSelectionDropdown = Dropdown.init { selected = Nothing }
@@ -232,7 +231,7 @@ update props =
                 )
 
             IncomingMessage { messageType, value } ->
-                processIncomingMessage props.user props.model messageType props.toMsg value
+                processIncomingMessage props.model messageType props.toMsg value
 
             DropdownSent innerMsg ->
                 let
@@ -265,10 +264,15 @@ update props =
                 ( Model model, Effect.none )
 
             TriggerFileSelect ->
+                let
+                    mimeTypeStrings =
+                        supportedMimeTypes
+                        |> List.map MimeType.toString
+                in
                 ( Model model
                   -- multi file selection temporarily disabled
                   -- TODO need to improve the metadata editor for multi file
-                , FileSelect.files supportedMimeTypes FilesSelected
+                , FileSelect.files mimeTypeStrings FilesSelected
                     -- , FileSelect.file ["image/png", "image/jpg"] (\file -> FilesSelected file [])
                     |> Cmd.map props.toMsg
                     |> Effect.sendCmd
@@ -286,7 +290,9 @@ update props =
                                                 FileUploadBlossom Nothing
                                                     { file = fileToUpload
                                                     , status = Blossom.Selected
-                                                    , caption = Nothing
+                                                    , caption = File.name fileToUpload 
+                                                        |> removeFileExtension
+                                                        |> Just
                                                     , uploadResponse = Nothing
                                                     }
                                                     |> Just
@@ -295,7 +301,9 @@ update props =
                                                 FileUploadNip96 Nothing
                                                     { file = fileToUpload
                                                     , status = Nip96.Selected
-                                                    , caption = Nothing
+                                                    , caption = File.name fileToUpload 
+                                                        |> removeFileExtension
+                                                        |> Just
                                                     , alt = Nothing
                                                     , mediaType = Nothing
                                                     , noTransform = defaultNoTransformForFile fileToUpload
@@ -564,7 +572,7 @@ update props =
                 , Effect.sendMsg <| props.onUploaded (UploadResponseBlossom apiUrl blobDescriptor)
                 )
 
-            UploadResultBlossom fileId apiUrl (Err error) ->
+            UploadResultBlossom fileId _ (Err error) ->
                 let
                     updatedFiles =
                         Dict.update fileId
@@ -690,25 +698,45 @@ update props =
             ErrorOccurred errorMsg ->
                 ( Model { model | errors = model.errors ++ [ errorMsg ] }, Effect.none )
 
+removeFileExtension : String -> String
+removeFileExtension fileName =
+    case List.maximum (String.indexes "." fileName) of
+        Nothing ->
+            fileName
+
+        Just idx ->
+            if idx == 0 then
+                -- If the only dot is the first character, e.g. ".profile",
+                -- treat it as a hidden file with no extension.
+                fileName
+            else
+                String.left idx fileName
+
 
 defaultNoTransformForFile : File -> Maybe Bool
 defaultNoTransformForFile file =
-    case File.mime file of
-        "image/gif" ->
+    case MimeType.parseMimeType (File.mime file) of
+        Just (MimeType.Audio _) ->
             Just True
 
-        "image/webp" ->
+        Just (MimeType.Video _) ->
             Just True
 
-        "image/svg+xml" ->
+        Just (MimeType.Image MimeType.Gif) ->
+            Just True
+
+        Just (MimeType.Image MimeType.Webp) ->
+            Just True
+
+        Just (MimeType.Image MimeType.Svg) ->
             Just True
 
         _ ->
             Nothing
 
 
-processIncomingMessage : Auth.User -> Model -> String -> (Msg -> msg) -> Encode.Value -> ( Model, Effect msg )
-processIncomingMessage user (Model model) messageType toMsg value =
+processIncomingMessage : Model -> String -> (Msg -> msg) -> Encode.Value -> ( Model, Effect msg )
+processIncomingMessage (Model model) messageType toMsg value =
     case messageType of
         "blossomAuthHeader" ->
             case Decode.decodeValue decodeAuthHeaderReceived value of
@@ -832,27 +860,6 @@ processIncomingMessage user (Model model) messageType toMsg value =
             ( Model model, Effect.none )
 
 
-decodeAuthHeaderReceived : Decode.Decoder AuthHeaderReceived
-decodeAuthHeaderReceived =
-    Decode.map6 AuthHeaderReceived
-        (Decode.field "requestId" Decode.int)
-        (Decode.maybe (Decode.field "fileId" Decode.int))
-        (Decode.field "method" Decode.string)
-        (Decode.field "authHeader" Decode.string)
-        (Decode.field "serverUrl" Decode.string)
-        (Decode.field "apiUrl" Decode.string)
-
-
-type alias AuthHeaderReceived =
-    { requestId : Int
-    , fileId : Maybe Int
-    , method : String
-    , authHeader : String
-    , serverUrl : String
-    , apiUrl : String
-    }
-
-
 type DisplayMode
     = WaitingForFiles
     | EditingMetadata Int FileUpload
@@ -892,7 +899,7 @@ uploadsNeedingMetadata : List ( Int, FileUpload ) -> List ( Int, FileUpload )
 uploadsNeedingMetadata uploads =
     uploads
         |> List.filter
-            (\( fileId, upload ) ->
+            (\( _, upload ) ->
                 case upload of
                     FileUploadBlossom _ { status } ->
                         status == Blossom.Selected
@@ -952,7 +959,7 @@ view (Settings settings) =
     in
     case ( model.state, displayMode (Model model) ) of
         ( DialogClosed, _ ) ->
-            div [] []
+            emptyHtml
 
         ( DialogVisible, WaitingForFiles ) ->
             viewWaitingForFiles (Settings settings)
@@ -981,9 +988,10 @@ viewWaitingForFiles (Settings settings) =
             { model = model.serverSelectionDropdown
             , toMsg = DropdownSent
             , choices = model.uploadServers
-            , toLabel = uploadServerToString
+            , allowNoSelection = False
+            , toLabel = uploadServerToString << Maybe.withDefault (UploadServerBlossom "No server")
             }
-            |> Dropdown.withOnChange ChangedSelectedServer
+            |> Dropdown.withOnChange (ChangedSelectedServer << Maybe.withDefault (UploadServerBlossom "No server"))
             |> Dropdown.view
         , div
             [ css
@@ -1054,10 +1062,6 @@ hijack msg =
 
 viewMetadataDialog : UploadDialog msg -> ( Int, FileUpload ) -> Html msg
 viewMetadataDialog (Settings settings) ( fileId, fileUpload ) =
-    let
-        (Model model) =
-            settings.model
-    in
     modalDialog
         settings.theme
         (Translations.editMetadataDialogTitle [ settings.browserEnv.translations ])
@@ -1177,10 +1181,11 @@ viewFileUploadBlossom theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                         ]
                                     ]
                                     [ label [] [ text <| Translations.imageCaptionFormLabel [ browserEnv.translations ] ]
-                                    , textarea
+                                    , input
                                         (styles.colorStyleBackground
                                             ++ styles.colorStyleGrayscaleText
                                             ++ [ onInput (UpdateCaption fileId)
+                                               , value <| Maybe.withDefault "" fileUpload.caption
                                                , css
                                                     [ Tw.w_full
                                                     , Tw.border
@@ -1190,7 +1195,7 @@ viewFileUploadBlossom theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                                     ]
                                                ]
                                         )
-                                        [ text <| Maybe.withDefault "" fileUpload.caption ]
+                                        [ ]
                                     ]
                                 ]
                             , case maybePreviewLink of
@@ -1205,7 +1210,7 @@ viewFileUploadBlossom theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                         []
 
                                 Nothing ->
-                                    div [] []
+                                    emptyHtml
                             ]
                         , Button.new
                             { label = Translations.startUploadButtonText [ browserEnv.translations ]
@@ -1317,6 +1322,7 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                         (styles.colorStyleBackground
                                             ++ styles.colorStyleGrayscaleText
                                             ++ [ onInput (UpdateCaption fileId)
+                                               , value <| Maybe.withDefault "" fileUpload.caption
                                                , css
                                                     [ Tw.w_full
                                                     , Tw.border
@@ -1326,7 +1332,7 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                                     ]
                                                ]
                                         )
-                                        [ text <| Maybe.withDefault "" fileUpload.caption ]
+                                        [  ]
                                     ]
                                 , div
                                     [ css
@@ -1340,6 +1346,7 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                         (styles.colorStyleBackground
                                             ++ styles.colorStyleGrayscaleText
                                             ++ [ onInput (UpdateAltText fileId)
+                                               , value <| Maybe.withDefault "" fileUpload.alt
                                                , css
                                                     [ Tw.w_full
                                                     , Tw.border
@@ -1349,7 +1356,7 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                                     ]
                                                ]
                                         )
-                                        [ text <| Maybe.withDefault "" fileUpload.alt ]
+                                        [ ]
                                     ]
                                 , div
                                     [ css
@@ -1413,7 +1420,7 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                         []
 
                                 Nothing ->
-                                    div [] []
+                                    emptyHtml
                             ]
                         , Button.new
                             { label = Translations.startUploadButtonText [ browserEnv.translations ]
@@ -1559,17 +1566,6 @@ tagValue tags tagName =
                     Nothing
             )
         |> List.head
-
-
-uploadButton : Ui.Styles.Theme -> Html Msg
-uploadButton theme =
-    Button.new
-        { label = "Upload"
-        , onClick = Just TriggerFileSelect
-        , theme = theme
-        }
-        |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.upload)
-        |> Button.view
 
 
 subscribe : Model -> Sub Msg

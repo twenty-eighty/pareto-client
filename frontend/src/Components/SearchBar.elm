@@ -14,15 +14,11 @@ import Components.Icon as Icon
 import Css
 import Effect exposing (Effect)
 import FeatherIcons
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, strong, text)
-import Html.Styled.Attributes as Attr exposing (class, classList, css, disabled, href, type_)
+import Html.Styled as Html exposing (Html, div, input)
+import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
-import Nostr.Shared exposing (httpErrorToString)
-import Nostr.Types exposing (PubKey)
-import Process
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
-import Task exposing (Task)
 import Time
 import Translations.SearchBar as Translations
 import Ui.Styles exposing (Styles)
@@ -79,6 +75,7 @@ type Msg msg
     = QueryUpdated (Maybe String)
     | TriggerSearch { onSearch : msg }
     | Tick Time.Posix
+    | NoOp msg
 
 
 update :
@@ -137,6 +134,9 @@ update props =
                             , Effect.none
                             )
 
+            NoOp _ ->
+                ( Model model, Effect.none )
+
 
 view : SearchBar msg -> Html msg
 view settings =
@@ -148,11 +148,6 @@ viewSearch (Settings settings) =
     let
         (Model model) =
             settings.model
-
-        attrs =
-            settings.styles.colorStyleCategoryActiveBackground
-                ++ settings.styles.colorStyleCategoryActive
-                ++ settings.styles.colorStyleCategoryActiveBorder
     in
     div
         [ css
@@ -191,33 +186,37 @@ viewSearch (Settings settings) =
                 |> Icon.view
             ]
         , input
-            [ Attr.placeholder <| Translations.placeholder [ settings.browserEnv.translations ]
-            , Attr.value (Maybe.withDefault "" model.searchText)
-            , Events.onInput
-                (\searchText ->
-                    if searchText /= "" then
-                        QueryUpdated (Just searchText)
+            ((settings.styles.colorStyleBackground
+                |> List.map (Attr.map NoOp)
+             )
+                ++ [ Attr.placeholder <| Translations.placeholder [ settings.browserEnv.translations ]
+                   , Attr.value (Maybe.withDefault "" model.searchText)
+                   , Events.onInput
+                        (\searchText ->
+                            if searchText /= "" then
+                                QueryUpdated (Just searchText)
 
-                    else
-                        QueryUpdated Nothing
-                )
-            , css
-                [ Tw.appearance_none
-                , Tw.bg_scroll
-                , Tw.bg_clip_border
-                , Tw.rounded_md
-                , Tw.border_2
-                , Tw.box_border
-                , Tw.cursor_text
-                , Tw.block
-                , Tw.ps_10
-                , Tw.pe_16
-                , Tw.pl_10
-                , Tw.pr_16
-                , Tw.h_10
-                , Tw.w_full
-                ]
-            ]
+                            else
+                                QueryUpdated Nothing
+                        )
+                   , css
+                        [ Tw.appearance_none
+                        , Tw.bg_scroll
+                        , Tw.bg_clip_border
+                        , Tw.rounded_md
+                        , Tw.border_2
+                        , Tw.box_border
+                        , Tw.cursor_text
+                        , Tw.block
+                        , Tw.ps_10
+                        , Tw.pe_16
+                        , Tw.pl_10
+                        , Tw.pr_16
+                        , Tw.h_10
+                        , Tw.w_full
+                        ]
+                   ]
+            )
             []
             |> Html.map settings.toMsg
         ]

@@ -4,14 +4,11 @@ import "./Milkdown/MilkdownEditor.js";
 import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
 import { BlossomClient } from "blossom-client-sdk/client";
-import { init as initNostrLogin, launch as launchNostrLoginDialog } from "nostr-login"
 import "./clipboard-component.js";
+import "./zap-component.js";
 import "./elm-oembed.js";
 import debug from 'debug';
 
-
-// import NostrPasskeyModule from './nostrPasskeyModule.js';
-// const nostrPasskey = new NostrPasskeyModule();
 
 // This is called BEFORE your Elm app starts up
 // 
@@ -21,20 +18,42 @@ export const flags = ({ env }) => {
   return {
     environment: env.ELM_ENV,
     darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
-    isLoggedIn: JSON.parse(localStorage.getItem('isLoggedIn')) || false,
     locale: navigator.language,
-    nativeSharingAvailable: (navigator.share != undefined)
+    nativeSharingAvailable: (navigator.share != undefined),
+    testMode: JSON.parse(localStorage.getItem('testMode')) || false,
   }
 }
 
 const debugLog = debug('pareto-client');
 
 var connected = false;
-var windowLoaded = false;
+var nStartWizard = null
+
+const anonymousSigner = new NDKPrivateKeySigner('cff56394373edfaa281d2e1b5ad1b8cafd8b247f229f2af2c61734fb0c7b3f84');
+const anonymousPubKey = 'ecdf32491ef8b5f1902109f495e7ca189c6fcec76cd66b888fa9fc2ce87f40db';
+
+const paretoNdkCacheDb = 'pareto-ndk-cache';
+
+const defaultRelays =
+  ["wss://nostr.pareto.space"
+    , "wss://nostr.pareto.town"
+    , "wss://pareto.nostr1.com"
+    , "relay.nostr.band"
+    , "relay.damus.io"
+    , "nos.lol"
+    , "offchain.pub"
+    , "nostr.wine"
+  ];
+
+const suggestedPubKeys =
+  ["2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" // milosz@pareto.space
+    , "e373ca4101e25a4d4fcb2a53473fa4113b91dba2c2e451d039d8528eb82abcc5" // ashoka@pareto.space
+    , "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5" // friedenstaube@pareto.space
+    , "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84" // _@pareto.space
+  ];
 
 export const onReady = ({ app, env }) => {
 
-  var requestUserWhenLoaded = false;
   var storedCommands = [];
 
   if (window.matchMedia) {
@@ -50,9 +69,7 @@ export const onReady = ({ app, env }) => {
 
   app.ports.sendCommand.subscribe(({ command: command, value: value }) => {
     if (command === 'connect') {
-      connect(app, value);
-    } else if (command === 'loginSignUp') {
-      loginSignUp(app);
+      connect(app, value.client, value.nip89, value.relays);
     } else if (connected) {
       processOnlineCommand(app, command, value);
     } else {
@@ -62,28 +79,55 @@ export const onReady = ({ app, env }) => {
   });
 
   window.onload = function () {
-    const nostrLoginOptions = {
-    };
-    initNostrLogin(nostrLoginOptions);
-
-    if (requestUserWhenLoaded) {
-      requestUser(app);
-    }
-    windowLoaded = true;
+    // make sure to load Nostr-Login after browser extensions had a chance to create window.nostr
+    loadNostrLogin();
   };
+
+  function loadNostrLogin() {
+    const titleAndDescription = getLocalizedStrings(navigator.language);
+    const relays = defaultRelays.join(",");
+
+    const newScript = document.createElement('script');
+    newScript.src = "/js/nostr-login.js";
+    newScript.setAttribute("data-title", titleAndDescription.title);
+    newScript.setAttribute("data-description", titleAndDescription.description);
+    newScript.setAttribute("data-signup-relays", relays);
+    newScript.setAttribute("data-outbox-relays", relays);
+    newScript.setAttribute("data-signup-nstart", "true");
+    newScript.setAttribute("data-follow-npubs", suggestedPubKeys.join(','));
+    document.body.appendChild(newScript);
+  }
+
+  function getLocalizedStrings(locale) {
+    const strings = {
+      en: {
+        title: "Welcome to Pareto!",
+        description: "Pareto is part of the Nostr network. Log in with your Nostr profile or sign up to join."
+      },
+      de: {
+        title: "Willkommen bei Pareto!",
+        description: "Pareto ist Teil des Nostr-Netzes. Melde dich mit deinem Nostr-Profil an oder erstelle dir ein neues Profil."
+      }
+    };
+
+    if (locale.startsWith('de')) {
+      return strings.de;
+    }
+
+    // Default to English
+    return strings.en;
+  }
 
   // listen to events of nostr-login
   document.addEventListener('nlAuth', (event) => {
     switch (event.detail.type) {
       case 'login':
       case 'signup':
-        requestUser(app);
-        localStorage.setItem('isLoggedIn', JSON.stringify(true));
+        requestUser(app, event.detail.method);
         break;
 
       default:
         app.ports.receiveMessage.send({ messageType: 'loggedOut', value: null });
-        localStorage.removeItem('isLoggedIn');
         break;
     }
   });
@@ -91,6 +135,22 @@ export const onReady = ({ app, env }) => {
   function processOnlineCommand(app, command, value) {
     debugLog('process command', command);
     switch (command) {
+      case 'loginSignUp':
+        loginSignUp(app)
+        break;
+
+      case 'signUp':
+        signUp(app)
+        break;
+
+      case 'encryptString':
+        encryptString(app, value.data)
+        break;
+
+      case 'downloadAndDecryptFile':
+        downloadAndDecryptFile(app, value.url, value.key, value.iv)
+        break;
+
       case 'requestEvents':
         requestEvents(app, value);
         break;
@@ -111,30 +171,235 @@ export const onReady = ({ app, env }) => {
         sendEvent(app, value);
         break;
 
-      case 'loginWithExtension':
-        loginWithExtension(app);
-        break;
-
-      case 'requestUser':
-        if (!windowLoaded) {
-          // delay loading of user until window is loaded
-          // and browser extension with window.nostr is ready
-          requestUserWhenLoaded = true;
-        } else {
-          requestUser(app);
-        }
+      case 'setTestMode':
+        setTestMode(app, value);
         break;
     }
   }
 
+  function loginSignUp(app) {
+    document.dispatchEvent(new CustomEvent('nlLaunch', {}));
+  }
 
-  function connect(app, relays) {
+  function signUp(app) {
+    if (!nStartWizard) {
+      loadNJump();
+    } else {
+      nStartWizard.open();
+    }
+  }
+
+  function loadNJump() {
+    if (!nStartWizard) {
+      const newScript = document.createElement('script');
+      newScript.src = "/js/nstart-modal.js";
+      newScript.onload = () => {
+        // Create the modal instance with required parameters
+        nStartWizard = new NstartModal({
+          // Required parameters
+          baseUrl: 'https://start.njump.me',
+          an: 'Pareto', // App name
+
+          // Optional parameters
+          aa: '94a3b8', // Hex accent color
+          afb: false, // Force bunker (default False)
+          asb: false, // Skip bunker (default False)
+          aan: true, // Don't return Nsec (default False)
+          aac: false, // Don't return  Ncryptsec (default False)
+          arr: defaultRelays, // Custom read relays
+          awr: defaultRelays, // Custom write relays
+          s: suggestedPubKeys, // suggested profiles
+
+          // Callbacks
+          onComplete: (result) => {
+            if (result.nostrLogin) {
+              document.dispatchEvent(new CustomEvent('nlLaunch', { detail: 'login-bunker-url' }));
+            } else {
+              document.dispatchEvent(new CustomEvent('nlLaunch', { detail: 'login' }));
+            }
+          },
+          onCancel: () => {
+            console.log('Wizard cancelled');
+          }
+        });
+        nStartWizard.open()
+      };
+      document.body.appendChild(newScript);
+    }
+  }
+
+  function setTestMode(app, value) {
+    localStorage.setItem('testMode', JSON.stringify(value));
+    // reset NDK browser cache to separate test from regular mode
+    indexedDB.deleteDatabase(paretoNdkCacheDb);
+    /* // don't log out the user
+    localStorage.clear();
+    */
+    sessionStorage.clear();
+    // reload client in order to initialize relay and other lists correctly
+    location.reload();
+  }
+
+  // 1) A function that imports an AES-GCM key and encrypts `plaintextBytes` with it.
+  function encryptData(plaintextBytes, keyBytes) {
+    // Import the raw key (32 bytes => AES-256)
+    return window.crypto.subtle
+      .importKey(
+        'raw',
+        keyBytes,
+        { name: 'AES-GCM' },
+        false,
+        ['encrypt']
+      )
+      .then(function (key) {
+        // Create a random 12-byte IV
+        var ivBytes = window.crypto.getRandomValues(new Uint8Array(12));
+
+        // Encrypt with AES-GCM
+        return window.crypto.subtle
+          .encrypt({ name: 'AES-GCM', iv: ivBytes }, key, plaintextBytes)
+          .then(function (ciphertextBuffer) {
+            return {
+              ciphertextBuffer: ciphertextBuffer,
+              ivBytes: ivBytes
+            };
+          });
+      });
+  }
+
+  // 2) Helper to convert bytes to hex string
+  function bytesToHex(uint8Arr) {
+    return Array.from(uint8Arr)
+      .map(function (b) {
+        return b.toString(16).padStart(2, '0');
+      })
+      .join('');
+  }
+
+  // 3) Helper to convert bytes to Base64
+  function bytesToBase64(uint8Arr) {
+    var binary = '';
+    for (var i = 0; i < uint8Arr.byteLength; i++) {
+      binary += String.fromCharCode(uint8Arr[i]);
+    }
+    return btoa(binary);
+  }
+
+  // 4) This function encrypts the data and sends it through an Elm port as:
+  //    { file: { name, size, mime, base64 }, ivHex, keyHex }
+  async function encryptString(app, data) {
+    var keyBytes = new Uint8Array(32); // 32 bytes for AES-256
+
+    window.crypto.getRandomValues(keyBytes); // fill with cryptographically strong random bytes
+    encryptData(new TextEncoder().encode(data), keyBytes)
+      .then(function (result) {
+        var ciphertextBytes = new Uint8Array(result.ciphertextBuffer);
+        var ivBytes = result.ivBytes;
+
+        crypto.subtle.digest('SHA-256', result.ciphertextBuffer).then((hash) => {
+          const hashArray = Array.from(new Uint8Array(hash));
+          const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+          // Prepare 'file' data in a shape compatible with elm/file's decoder
+          var file = new File([result.ciphertextBuffer], 'data.bin', { type: 'application/octet-stream' });
+
+          // Example: send result to Elm port 
+          app.ports.receiveMessage.send({
+            messageType: 'encryptedString', value: {
+              file: file,
+              ivHex: bytesToHex(ivBytes),
+              keyHex: bytesToHex(keyBytes),
+              sha256: hashHex,
+              size: result.ciphertextBuffer.byteLength
+            }
+          });
+        });
+      })
+      .catch(function (error) {
+        console.error('Encryption error:', error);
+        app.ports.receiveMessage.send({ messageType: 'error', value: { reason: "failed to encrypt data" } });
+      });
+  }
+
+
+  function downloadAndDecryptFile(app, url, keyHex, ivHex) {
+    // 1) Fetch the data (as ArrayBuffer)
+    return fetch(url)
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error("Network response was not ok, status=" + response.status);
+        }
+        return response.arrayBuffer();
+      })
+      .then(function (encryptedBuffer) {
+        // 2) Convert key and IV from hex to bytes
+        var keyBytes = hexToBytes(keyHex); // e.g. 32 bytes for AES-256
+        var ivBytes = hexToBytes(ivHex);   // typically 12 bytes for GCM
+
+        // 3) Import key for AES-GCM
+        return window.crypto.subtle
+          .importKey(
+            "raw",
+            keyBytes,
+            { name: "AES-GCM" },
+            false,
+            ["decrypt"]
+          )
+          .then(function (cryptoKey) {
+            // 4) Decrypt using the imported key
+            return window.crypto.subtle.decrypt(
+              {
+                name: "AES-GCM",
+                iv: ivBytes
+              },
+              cryptoKey,
+              encryptedBuffer
+            );
+          });
+      })
+      .then(function (decryptedBuffer) {
+        // 5) Decode from bytes to UTF-8 string
+        var decodedString = new TextDecoder().decode(decryptedBuffer);
+
+        // 6) Send it to Elm via a port (assuming `app.ports.gotDecryptedString` exists)
+        app.ports.receiveMessage.send({ messageType: 'decryptedString', value: JSON.parse(decodedString) });
+      })
+      .catch(function (error) {
+        console.error("Error in fetchAndDecryptEncryptedData:", error);
+        // You could also send an error message to Elm or handle it differently
+        app.ports.receiveMessage.send({ messageType: 'error', value: { reason: "failed to download/decrypt data" } });
+      });
+  }
+
+  // Convert a hex string (e.g. "deadbeef") to Uint8Array
+  function hexToBytes(hexString) {
+    if (hexString.length % 2 !== 0) {
+      throw new Error("Invalid hex string length");
+    }
+    var result = new Uint8Array(hexString.length / 2);
+    for (var i = 0; i < hexString.length; i += 2) {
+      result[i / 2] = parseInt(hexString.substring(i, i + 2), 16);
+    }
+    return result;
+  }
+
+  function connect(app, client, nip89, relays) {
     debugLog('connect to relays', relays);
-    const dexieAdapter = new NDKCacheAdapterDexie({ dbName: 'pareto-ndk-cache' });
-    window.ndk = new NDK({ enableOutboxModel: true, cacheAdapter: dexieAdapter, explicitRelayUrls: relays, debug: debugLog });
+    const dexieAdapter = new NDKCacheAdapterDexie({ dbName: paretoNdkCacheDb });
+    window.ndk = new NDK({
+      enableOutboxModel: true,
+      cacheAdapter: dexieAdapter,
+      explicitRelayUrls: relays,
+      clientName: client,
+      clientNip89: nip89,
+      debug: debugLog
+    });
 
     // sign in if a relay requests authorization
-    window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk });
+    window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.disconnect();
+    // Disabled signing in to relays with Auth request as NDK loops infinitely
+    // Can be tried again after NDK version upgrade
+    // window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk });
 
     // don't validate each event, it's computational intense
     window.ndk.initialValidationRatio = 0.5;
@@ -179,6 +444,9 @@ export const onReady = ({ app, env }) => {
       debugLog('relay disconnected', relay);
       app.ports.receiveMessage.send({ messageType: 'relay:disconnected', value: { url: relay.url } });
     })
+    window.ndk.pool.on("relay:auth", (relay) => {
+      debugLog('relay auth requested', relay);
+    })
 
     window.ndk.connect(2000);
   }
@@ -186,17 +454,28 @@ export const onReady = ({ app, env }) => {
 
   function requestEvents(app,
     { requestId: requestId
-      , filter: filter
+      , filters: filters
       , closeOnEose: closeOnEose
       , description: description
       , relays: relays
     }
   ) {
-    debugLog("FILTER: ", filter, description, " requestId: " + requestId, "closeOnEose: " + closeOnEose, "relays: ", relays);
+    debugLog("FILTERS: ", filters, description, " requestId: " + requestId, "closeOnEose: " + closeOnEose, "relays: ", relays);
 
-    const ndkRelays = relays ? NDKRelaySet.fromRelayUrls(relays, window.ndk) : null;
+    var ndkRelays = null;
+    if (relays) {
+      const relaysWithProtocol = relays.map(relay => {
+        if (!relay.startsWith("wss://") && !relay.startsWith("ws://")) {
+          return "wss://" + relay
+        } else {
+          return relay
+        }
+      });
 
-    window.ndk.fetchEvents(filter, { closeOnEose: closeOnEose }, ndkRelays).then((ndkEvents) => {
+      ndkRelays = NDKRelaySet.fromRelayUrls(relaysWithProtocol, window.ndk);
+    }
+
+    window.ndk.fetchEvents(filters, { closeOnEose: closeOnEose }, ndkRelays).then((ndkEvents) => {
 
       processEvents(app, requestId, description, ndkEvents);
     })
@@ -222,13 +501,13 @@ export const onReady = ({ app, env }) => {
 
   function processEvents(app, requestId, description, ndkEvents) {
 
-    var articles = [];
-    var communities = [];
+    if (ndkEvents.size == 0) {
+      // report back to the application that there are no events
+      app.ports.receiveMessage.send({ messageType: 'events', value: { kind: 0, events: [], requestId: requestId } });
+      return;
+    }
+
     var eventsSortedByKind = {};
-    var followlists = [];
-    var profiles = [];
-    var reposts = [];
-    var shortNotes = [];
     var highlights = [];
     var zapReceipts = [];
 
@@ -302,6 +581,16 @@ export const onReady = ({ app, env }) => {
             break;
           }
 
+        case 30078: // application-specific event
+          {
+            unwrapApplicationSpecificEvent(ndkEvent).then(event => {
+              if (event) {
+                app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
+              }
+            });
+            break;
+          }
+
         case 31234: // draft event (NIP-37)
           {
             unwrapDraftEvent(ndkEvent).then(event => {
@@ -319,36 +608,12 @@ export const onReady = ({ app, env }) => {
       }
     });
 
-    if (articles.length > 0) {
-      debugLog("Articles: ", articles.length);
-      app.ports.receiveMessage.send({ messageType: 'articles', value: articles });
-    }
-    if (communities.length > 0) {
-      debugLog("Communities: ", communities.length);
-      app.ports.receiveMessage.send({ messageType: 'communities', value: communities });
-    }
     for (const kind in eventsSortedByKind) {
       const events = eventsSortedByKind[kind]
       debugLog("Events of kind " + kind + ": ", events.length);
       app.ports.receiveMessage.send({ messageType: 'events', value: { kind: parseInt(kind), events: events, requestId: requestId } });
     }
 
-    if (followlists.length > 0) {
-      debugLog("Follow lists: ", followlists.length);
-      app.ports.receiveMessage.send({ messageType: 'followlists', value: followlists });
-    }
-    if (profiles.length > 0) {
-      debugLog("Profiles: ", profiles.length);
-      app.ports.receiveMessage.send({ messageType: 'profiles', value: profiles });
-    }
-    if (reposts.length > 0) {
-      debugLog("Reposts: ", reposts.length);
-      app.ports.receiveMessage.send({ messageType: 'reposts', value: reposts });
-    }
-    if (shortNotes.length > 0) {
-      debugLog("Short notes: ", shortNotes.length);
-      app.ports.receiveMessage.send({ messageType: 'short_notes', value: shortNotes });
-    }
     if (highlights.length > 0) {
       debugLog("Highlights: ", highlights.length);
       app.ports.receiveMessage.send({ messageType: 'highlights', value: highlights });
@@ -440,16 +705,34 @@ export const onReady = ({ app, env }) => {
   async function sendEvent(app, { sendId: sendId, event: event, relays: relays }) {
     debugLog('send event ' + sendId, event, 'relays: ', relays);
 
+    var feedSentEventToApplication = true;
     var ndkEvent = new NDKEvent(window.ndk, event);
+    const signer = (ndkEvent.pubkey == anonymousPubKey) ? anonymousSigner : window.ndk.signer;
 
     if (event.kind == 30024) {  // draft event
-      ndkEvent = await encapsulateDraftEvent(ndkEvent);
+      ndkEvent = await encapsulateDraftEvent(ndkEvent, signer);
+    } else if (event.kind == 30078) {  // application-specific event
+      ndkEvent = await encapsulateApplicationSpecificEvent(ndkEvent, signer);
+      // Don't try to decrypt events that weren't encrypted for us
+      feedSentEventToApplication = false;
     }
 
-    ndkEvent.sign().then(() => {
+    if (!ndkEvent) {
+      debugLog('failed to send event ' + sendId, event, 'relays: ', relays);
+      app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: "failed to encapsulate event" } });
+      return;
+    }
+
+    ndkEvent.sign(signer).then(() => {
       debugLog('signed event ' + sendId, ndkEvent);
 
-      var relaysWithProtocol = relays.map(relay => "wss://" + relay);
+      var relaysWithProtocol = relays.map(relay => {
+        if (!relay.startsWith("wss://") && !relay.startsWith("ws://")) {
+          return "wss://" + relay
+        } else {
+          return relay
+        }
+      });
 
       if (relaysWithProtocol.length === 0) {
         relaysWithProtocol = ["wss://pareto.nostr1.com"];
@@ -459,10 +742,15 @@ export const onReady = ({ app, env }) => {
         debugLog('published event ' + sendId, ndkEvent);
         app.ports.receiveMessage.send({ messageType: 'published', value: { sendId: sendId, event: ndkEvent, results: results } });
 
-        // feed sent events into app as if received by relay.
-        // thus we can let the event modify the state correctly
-        processEvents(app, -1, "sent event", [ndkEvent]);
-      })
+        if (feedSentEventToApplication) {
+          // feed sent events into app as if received by relay.
+          // thus we can let the event modify the state correctly
+          processEvents(app, -1, "sent event", [ndkEvent]);
+        }
+      }).catch((error) => {
+        console.log(error);
+        app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: error.message } });
+      });
     })
   }
 
@@ -479,7 +767,7 @@ export const onReady = ({ app, env }) => {
         ["e", ndkEvent.id],
         ["a", ndkEvent.kind + ":" + ndkEvent.pubkey + ":" + identifier],
       ],
-      content: await window.ndk.signer.nip44Encrypt({ pubkey: ndkEvent.pubkey }, rawEventString),
+      content: await window.ndk.signer.encrypt({ pubkey: ndkEvent.pubkey }, rawEventString, 'nip44'),
       pubkey: ndkEvent.pubkey,
       created_at: ndkEvent.created_at
     }
@@ -488,20 +776,49 @@ export const onReady = ({ app, env }) => {
     return ndkEvent;
   }
 
+  // https://nips.nostr.com/78
+  async function encapsulateApplicationSpecificEvent(ndkEvent, signer) {
+    // if target pubkey is not specified as a tag, use the pubkey of the event
+    var encryptForPubKey = firstTag(ndkEvent, "p");
+    if (!encryptForPubKey) {
+      // encrypt for current user (supposed to be an author storing his subscribers)
+      encryptForPubKey = ndkEvent.pubkey;
+    }
+    debugLog('encrypt for key', encryptForPubKey);
+    // in order to allow anonymous users to subscribe to a newsletter we need to use a different signer
+    const encrypted = await signer.encrypt({ pubkey: encryptForPubKey }, ndkEvent.content, 'nip44');
+    if (encrypted) {
+      ndkEvent.content = encrypted;
+      return ndkEvent;
+    }
+    // don't send unencrypted event
+    return null;
+  }
+
   async function unwrapPrivateRelayListEvent(ndkEvent) {
-    const stringifiedRelayTags = await window.ndk.signer.nip44Decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    const stringifiedEvent = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
     ndkEvent.tags = JSON.parse(stringifiedEvent);
     return ndkEvent;
   }
 
+  async function unwrapApplicationSpecificEvent(ndkEvent) {
+    const content = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
+    if (content) {
+      ndkEvent.content = content;
+    } else {
+      console.log("Unable to decrypt application-specific event. Ignoring the event.")
+    }
+    return ndkEvent;
+  }
+
   async function unwrapDraftEvent(ndkEvent) {
-    const stringifiedEvent = await window.ndk.signer.nip44Decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content);
+    const stringifiedEvent = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
     if (stringifiedEvent) {
       const event = JSON.parse(stringifiedEvent);
       return event;
     } else {
       console.log("Unable to decrypt draft event. Ignoring the event.")
-    } 
+    }
   }
 
   function firstTag(event, tagName) {
@@ -579,31 +896,16 @@ export const onReady = ({ app, env }) => {
   }
 
 
-  function requestUser(app) {
+  function requestUser(app, method) {
     if (window.nostr) {
       const nip07signer = new NDKNip07Signer();
       window.ndk.signer = nip07signer;
       nip07signer.user().then(async (user) => {
         if (!!user.npub) {
-          app.ports.receiveMessage.send({ messageType: 'user', value: { pubKey: user.pubkey } });
-          localStorage.setItem('isLoggedIn', JSON.stringify(true));
+          app.ports.receiveMessage.send({ messageType: 'user', value: { pubKey: user.pubkey, method: method } });
         }
       }
       )
-    }
-  }
-
-  function loginSignUp(app) {
-    processOnlineCommand(app, "requestUser")
-  }
-
-  function loginWithExtension(app) {
-    if (window.nostr) {
-      // use nostr-login only if no browser extension is present
-      const nostrLoginOptions = {
-        "data-methods": ["extension"]
-      };
-      initNostrLogin(nostrLoginOptions);
     }
   }
 

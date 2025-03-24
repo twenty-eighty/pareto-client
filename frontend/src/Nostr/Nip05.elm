@@ -6,7 +6,7 @@ import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as DecodePipeline
 import Nostr.Relay as Relay
-import Nostr.Types exposing (PubKey, RelayUrl)
+import Nostr.Types exposing (RelayUrl)
 
 
 type alias Nip05 =
@@ -27,7 +27,7 @@ type alias Nip05String =
 
 parseNip05 : String -> Maybe Nip05
 parseNip05 nip05String =
-    case Email.parse nip05String of
+    case Email.parse (String.trim nip05String) of
         Ok { local, domain } ->
             Just { user = local, domain = domain }
 
@@ -86,6 +86,7 @@ nip05StringDecoder =
 
 fetchNip05Info : (Result Http.Error Nip05Data -> msg) -> Nip05 -> Cmd msg
 fetchNip05Info toMsg nip05 =
+    --fetchNip05InfoViaProxy toMsg nip05
     fetchNip05InfoDirectly toMsg nip05
 
 

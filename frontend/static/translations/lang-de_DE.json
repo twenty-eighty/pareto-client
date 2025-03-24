@@ -1,9 +1,6 @@
 {
    "about": {
       "about page title": "Über",
-      "supported kinds title": "Unterstützte Nostr \"kinds\"",
-      "supported nips title": "Unterstützte NIPs",
-      "supported web targets title": "Unterstützte Web-Ziele",
       "publish authors list button title": "Autorenliste veröffentlichen",
       "publish handler information button title": "Handler-Information veröffentlichen",
       "publish profile button title": "Profil veröffentlichen",
@@ -13,9 +10,13 @@
       "about frontend text 2": " in der Programmiersprache ",
       "about frontend text 3": ".",
       "about backend text": "Das Pareto Backend wurde entwickelt mit dem",
-      "source code text": "Der Quellcode des Pareto Clients wird bald veröffentlicht.",
+      "source code text": "Der Quellcode des Pareto Clients is verfügbar unter",
       "feedback text": "Du hast einen Fehler gefunden oder möchtest uns etwas mitteilen? Bitte schreibe eine E-Mail an ",
-      "privacy policy link text": "Datenschutzerklärung"
+      "hint to tech details": "Für ausführliche technische Angaben zu der Pareto-App ",
+      "see this": "siehe hier.",
+      "privacy policy link text": "Datenschutzerklärung",
+      "feedback email info text": "Du hast einen Fehler gefunden oder möchtest einfach Rückmeldung geben? Schreibe einfach eine E-Mail an ",
+      "donation info text": "Unterstütze die Weiterentwicklung des Pareto Projekts unter "
    },
    "article page": {
       "default page title": "Artikel"
@@ -38,13 +39,49 @@
    "email import dialog": {
       "dialog title": "E-Mail-Liste importieren",
       "import button title": "Importieren",
-      "close button title": "Schließen"
+      "close button title": "Schließen",
+      "next button title": "Weiter",
+      "upload csv button title": "Hochladen",
+      "process button title": "Verarbeiten",
+      "single emails button title": "Einzelne E-Mails",
+      "email textarea placeholder text": "Mit Komma getrennte E-Mail-Adressen",
+      "import selection explanation": "Du kannst entweder eine CSV-Datei hochladen oder mehrere kommaseparierte E-Mail-Adressen hinzufügen.",
+      "import subscribers warning": "Füge nur Kontakte hinzu, die ausdrücklich zugestimmt haben, von dir E-Mails zu bekommen. (mit Double Opt-In)",
+      "import only opt-in explanation": "Kontakte, deren Information ausschließlich bei Verkäufen, gegen Geschenke (\"Freebies\") oder ähnlichem gesammelt wurde, dürfen nicht hinzugefügt werden.",
+      "overwrite existing checkbox label": "Bestehende überschreiben?",
+      "csv processing error message": "Fehler beim Einlesen der CSV-Datei: ",
+      "csv file empty error message": "Die CSV-Datei ist leer",
+      "csv processing status message": "Verarbeite CSV-Datei ...",
+      "csv parsing status message": "Lese CSV-Datei ...",
+      "name column header in csv column mapping table": "Spaltenname",
+      "field column header in csv column mapping table": "Feld",
+      "unmapped column dropdown value": "<nicht zugeordnet>",
+      "email not mapped error message": "Das E-Mail-Feld muss zugeordnet sein",
+      "skip rows field label": "Zeilen überspringen",
+      "tags field label": "Tags",
+      "column name": "Spalte",
+      "configure CSV import dialog title": "CSV-Import konfigurieren",
+      "map CSV fields dialog title": "CSV-Felder zuordnen"
    },
    "email subscription dialog": {
       "dialog title": "Mit E-Mail abonnieren",
       "subscribe button title": "Abonnieren",
       "close button title": "Schließen",
-      "next button title": "Weiter"
+      "next button title": "Weiter",
+      "info text": "Bekomme neue Artikel von {{profileName}} direkt in dein Postfach.",
+      "email label": "E-Mail",
+      "email placeholder": "max@mustermann.de",
+      "privacy info": "Die E-Mail wird vom Autor gespeichert, nicht durch das Pareto-Projekt",
+      "sending message text": "Sende Anmeldung ...",
+      "sent message text": "Du bist jetzt eingetragen und bekommst eine E-Mail zum Bestätigen.",
+      "error message text": "Fehler beim Registrieren: {{error}}. Bitte kontaktiere uns unter support@pareto.space"
+   },
+   "internals": {
+      "page title": "Interne Informationen",
+      "explanation": "Diese Seite zeigt Diagnoseinformationen über diese Anwendung.",
+      "error reporting": "Wenn du einen Fehler meldest, sende bitte die Informationen unten mit, sofern welche angezeigt werden.",
+      "contact information": "Bitte kontaktiere",
+      "error messages title": "Fehlermeldungen"
    },
    "locale": {
       "english text": "Englisch",
@@ -55,6 +92,10 @@
       "spanish text": "Spanisch",
       "swedish text": "Schwedisch"
    },
+   "media page": {
+      "logged in read only message": "Mediendateien können nicht angezeigt werden mit Nur-lesen-Anmeldung.",
+      "not logged in message": "Mediendateien können ohne Anmeldung nicht angezeigt werden."
+   },
    "media selector": {
       "Select image": "Bild auswählen",
       "Upload button title": "Bilder hochladen",
@@ -63,10 +104,24 @@
       "no server configured message": "Anscheinend wurde noch kein Medien-Server eingerichtet. Soll der Medienserver des Pareto Projekts verwendet werden?",
       "configure server button title": "Pareto Medien-Server konfigurieren",
       "select image dialog title": "Bild auswählen",
-      "copied link alert message": "Link wurde kopiert"
+      "copied link alert message": "Link wurde kopiert",
+      "image selection instructional text": "Doppelklicken, um Bild zu wählen"
    },
    "message dialog": {
       "warning": "Warnung"
+   },
+   "newsletters": {
+      "newsletters title": "Newsletter",
+      "loading newsletters text": "Lade Newsletter ...",
+      "error loading newsletters text": "Fehler beim Laden der Newsletter",
+      "no newsletters text": "Keine Newsletter gefunden",
+      "date column name": "Datum",
+      "status column name": "Status",
+      "processed column name": "Verarbeitet",
+      "skipped column name": "Nicht gesendet",
+      "total column name": "Gesamt",
+      "error column name": "Fehler",
+      "subject column name": "Betreff"
    },
    "posts": {
       "posts title": "Artikel",
@@ -84,7 +139,9 @@
       "mute button title": "Stumm",
       "public menu item text": "Öffentlich",
       "private menu item text": "Privat",
-      "subscribe button title": "Abonnieren"
+      "subscribe button title": "Abonnieren",
+      "pub key profile page title": "Profil von",
+      "default profile page title": "Profil"
    },
    "publish article dialog": {
       "dialog title": "Artikel veröffentlichen",
@@ -95,7 +152,13 @@
       "publish button title": "Artikel veröffentlichen",
       "no relays configured title": "Keine Relays konfiguriert",
       "no relays configured text": "Möchtest du ein paar Standard-Relays einrichten?",
-      "configure relays button title": "Relays konfigurieren"
+      "configure relays button title": "Relays konfigurieren",
+      "delivery title": "Verteilung",
+      "only publish article text": "Nur als Artikel veröffentlichen",
+      "send only via email singular checkbox text": "Als E-Mail an einen Empfänger senden",
+      "send only via email plural checkbox text": "Als E-Mail an {{recipientCount}} Empfänger senden",
+      "send also via email singular checkbox text": "Artikel veröffentlichen und als E-Mail an einen Empfänger versenden",
+      "send also via email plural checkbox text": "Artikel veröffentlichen und als E-Mail an {{recipientCount}} Empfänger versenden"
    },
    "read": {
       "followed feed category": "Gefolgt",
@@ -128,6 +191,7 @@
       "relays category": "Relays",
       "outbox section title": "Öffentliche Outbox/Home-Relays",
       "outbox relays description": "Dieser Relay-Typ speichert alle deine Inhalte.",
+      "outbox relays test mode information": "Outbox-Relays können im Testmodus nicht konfiguriert werden.",
       "inbox section title": "Öffentliche Inbox-Relays",
       "inbox relays description": "Dieser Relaytyp erhält alle Antworten, Kommentare, Likes und Zaps zu deinen Posts.",
       "add relay button title": "Hinzufügen",
@@ -137,18 +201,21 @@
       "media server category": "Medien-Server",
       "add nip-96 media server placeholder": "Gib die URL eines NIP-96-Servers ein",
       "add blossom media server placeholder": "Gib die URL eines Blossom-Servers ein",
-      "profile category": "Profile",
+      "profile category": "Profil",
       "profile editor title": "Profil-Editor",
       "profile editor not implemented text": "Der Profil-Editor ist noch nicht implementiert. Bitte benutze eine der bestehenden Alternativen."
    },
    "sidebar": {
       "reader client role text": "Leser",
       "creator client role text": "Autor",
+      "test mode off text": "Testmodus",
+      "test mode on text": "Testmodus",
       "bookmarks menu item text": "Lesezeichen",
       "communities menu item text": "Communities",
       "get started button text": "Anmelden",
       "media menu item text": "Bilder",
       "messages menu item text": "Nachrichten",
+      "newsletters menu item text": "Newsletter",
       "notifications menu item text": "Benachr.",
       "posts menu item text": "Posts",
       "read menu item text": "Lesen",
@@ -163,10 +230,41 @@
       "sign-in request": "Bitte melden Sie sich an oder erstellen ein Konto, um auf die Seite zuzugreifen",
       "continue without signing in message": "Ohne Konto fortfahren ..."
    },
+   "subscriber edit dialog": {
+      "dialog title": "Abonnent bearbeiten",
+      "submit button title": "Bestätigen"
+   },
    "subscribers": {
       "page title": "Abonnenten",
+      "export button title": "Exportieren",
       "import button title": "Importieren",
-      "no subscribers text": "Keine Abonnenten gefunden."
+      "save button title": "Speichern",
+      "process modifications button title": "Verarbeiten",
+      "loading subscribers text": "Lade Abonnenten ...",
+      "error loading subscribers text": "Fehler beim Laden der Abonnenten",
+      "new modifications": "Neue Veränderungen",
+      "no subscribers text": "Keine Abonnenten gefunden.",
+      "dnd field name": "Nicht stören",
+      "email field name": "E-Mail",
+      "name field name": "Name",
+      "first name field name": "Vorname",
+      "last name field name": "Nachname",
+      "pubkey field name": "Pubkey",
+      "source field name": "Quelle",
+      "datesub field name": "Start Abonnement",
+      "dateunsub field name": "Ende Abonnement",
+      "tags field name": "Tags",
+      "undeliverable field name": "Unzustellbar",
+      "locale field name": "Sprache",
+      "subscribers count": "{{subscribersCount}} Abonnenten"
+   },
+   "text stats": {
+      "Bytes label": "Bytes:",
+      "Characters label": "Zeichen:",
+      "Words label": "Wörter:",
+      "Sentences label": "Sätze:",
+      "Reading time label": "Lesezeit:",
+      "Speaking time label": "Sprechzeit:"
    },
    "upload dialog": {
       "dialog title": "Hochladen",
@@ -179,7 +277,7 @@
       "media type explanation text": "Medientyp wählen",
       "avatar media type": "Avatar",
       "banner media type": "Banner",
-      "no transform checkbox text": "Keine Transformation",
+      "no transform checkbox text": "Keine Umwandlung",
       "start upload button text": "Upload starten",
       "computing file hash state text": "Berechne Prüfsumme...",
       "awaiting authentication header state text": "Warte auf Authentication Header...",
@@ -205,11 +303,16 @@
       "save draft button title": "Entwurf speichern",
       "summary text": "Zusammenfassung",
       "language selection label": "Artikelsprache",
+      "no language text": "Keine Sprache ausgewählt",
       "tags label text": "Schlüsselwörter",
       "tags placeholder text": "Schlüsselwörter, mit Komma getrennt",
       "upload button title": "Hochladen",
+      "image selection instructional text": "Klicken für Bildauswahl",
       "article published message box title": "Artikel veröffentlicht",
       "article published message box text": "Der Artikel wurde veröffentlicht.",
+      "error message box title": "Fehler",
+      "newsletter sent message box title": "Artikel veröffentlicht",
+      "newsletter sent message box text": "Der Artikel wurde veröffentlicht.",
       "article modified state": "Artikel geändert",
       "article loading draft state": "Lade Entwurf ...",
       "article loading draft error": "Fehler beim Laden des Entwurfs",
@@ -220,12 +323,18 @@
       "article publishing state": "Artikel wird veröffentlicht ...",
       "article published state": "Artikel wurde veröffentlicht",
       "article publishing error": "Fehler beim Veröffentlichen des Artikels",
-      "article deleting draft state": "Lösche Entwurf nach Veröffentlichung ..."
+      "sending newsletter state": "Sende Newsletter ...",
+      "sending newsletter error": "Fehler beim Senden des Newsletters",
+      "deleting draft state": "Lösche Entwurf nach Veröffentlichung ...",
+      "deleting draft error": "Fehler beim Löschen des Entwurfs"
    },
    "zap dialog": {
       "dialog title": "Zap",
       "comment placeholder": "Kommentar (optional)",
       "close button title": "Schließen",
       "zap button title": "Zap"
+   },
+   "tech details": {
+      "page title": "Technische Details"
    }
 }

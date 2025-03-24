@@ -17,6 +17,7 @@ import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, button, div, text)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events as Events exposing (..)
+import Tailwind.Breakpoints exposing (lg)
 import Tailwind.Utilities as Tw
 import Ui.Styles exposing (Styles)
 
@@ -27,6 +28,7 @@ type Categories category msg
         , toMsg : Msg category msg -> msg
         , onSelect : category -> msg
         , equals : category -> category -> Bool
+        , image : category -> Maybe (Html msg)
         , categories : List (CategoryData category)
         , browserEnv : BrowserEnv
         , styles : Styles msg
@@ -48,6 +50,7 @@ new :
     , toMsg : Msg category msg -> msg
     , onSelect : category -> msg
     , equals : category -> category -> Bool
+    , image : category -> Maybe (Html msg)
     , categories : List (CategoryData category)
     , browserEnv : BrowserEnv
     , styles : Styles msg
@@ -59,6 +62,7 @@ new props =
         , toMsg = props.toMsg
         , onSelect = props.onSelect
         , equals = props.equals
+        , image = props.image
         , categories = props.categories
         , browserEnv = props.browserEnv
         , styles = props.styles
@@ -132,19 +136,20 @@ viewCategories (Settings settings) =
             settings.model
     in
     settings.categories
-        |> List.map (\categoryData -> viewCategory settings.styles settings.toMsg settings.onSelect (settings.equals model.selected categoryData.category) categoryData)
+        |> List.map (\categoryData -> viewCategory settings.styles settings.toMsg settings.onSelect (settings.image categoryData.category) (settings.equals model.selected categoryData.category) categoryData)
         |> div
             [ css
                 [ Tw.flex
-                , Tw.space_x_4
+                , lg [ Tw.space_x_4 ]
+                , Tw.space_x_2_dot_5
                 , Tw.mb_10
                 , Tw.px_4
                 ]
             ]
 
 
-viewCategory : Styles msg -> (Msg category msg -> msg) -> (category -> msg) -> Bool -> CategoryData category -> Html msg
-viewCategory styles toMsg onSelect active data =
+viewCategory : Styles msg -> (Msg category msg -> msg) -> (category -> msg) -> Maybe (Html msg) -> Bool -> CategoryData category -> Html msg
+viewCategory styles toMsg onSelect maybeImage active data =
     let
         onClickCategory =
             toMsg (SelectedItem { category = data.category, onSelect = onSelect data.category })
@@ -152,27 +157,36 @@ viewCategory styles toMsg onSelect active data =
         ( element, attrs ) =
             if active then
                 ( div
-                , styles.colorStyleCategoryActiveBackground
-                    ++ styles.colorStyleCategoryActive
-                    ++ styles.colorStyleCategoryActiveBorder
+                , styles.colorStyleCategoryActive
                 )
 
             else
                 ( button
-                , styles.colorStyleCategoryInactiveBackground ++ styles.colorStyleGrayscaleText
+                , styles.colorStyleCategoryInactive
                 )
+
+        imageElement =
+            maybeImage
+                |> Maybe.withDefault (text "")
     in
     element
         ([ css
-            [ Tw.px_4
+            [ lg [ Tw.px_4 ]
+            , Tw.px_0
             , Tw.py_2
             , Tw.rounded_full
+            , Tw.flex
+            , Tw.flex_row
+            , Tw.items_center
+            , Tw.gap_1
             ]
          , Events.onClick onClickCategory
          ]
             ++ attrs
         )
-        [ text data.title ]
+        [ imageElement
+        , text data.title
+        ]
 
 
 subscribe : Model category -> Sub (Msg category msg)

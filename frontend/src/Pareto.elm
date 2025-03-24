@@ -1,5 +1,6 @@
 module Pareto exposing (..)
 
+import Locale exposing (Language(..))
 import Nostr.Event exposing (Kind(..))
 import Nostr.HandlerInformation exposing (HandlerInformation)
 import Nostr.Nip05 as Nip05
@@ -27,6 +28,41 @@ editorKey =
     "0f479cb726c1578ca765d5ff6a0c58855263977d5d7cf7b4cea23d42d557c611"
 
 
+emailGatewayKey : PubKey
+emailGatewayKey =
+    "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345"
+
+
+subscriptionServerKey : PubKey
+subscriptionServerKey =
+    "f7721f8728935c943710a2f06288cbd56da7ab20b43400a16d26ac58880e0087"
+
+
+betaTestKey : PubKey
+betaTestKey =
+    "0f479ef1a8870a917afbae778ea75fedb5db4cb64501e0e64a6d2010a2908e64"
+
+
+anonymousPublicKey : String
+anonymousPublicKey =
+    "ecdf32491ef8b5f1902109f495e7ca189c6fcec76cd66b888fa9fc2ce87f40db"
+
+
+anonymousPrivateKey : String
+anonymousPrivateKey =
+    "cff56394373edfaa281d2e1b5ad1b8cafd8b247f229f2af2c61734fb0c7b3f84"
+
+
+newsletterAuthorCheckEndpointPubKey : String
+newsletterAuthorCheckEndpointPubKey =
+    "https://pareto.town/api/pubkeys"
+
+
+newsletterAuthorCheckEndpointNip05 : String
+newsletterAuthorCheckEndpointNip05 =
+    "https://pareto.town/api/nip05"
+
+
 
 -- name of client in "client" tag when publishing articles
 
@@ -51,9 +87,30 @@ supportEmail =
     "support@" ++ applicationDomain
 
 
+privacyPolicy : Language -> Maybe String
+privacyPolicy language =
+    case language of
+        German _ ->
+            Just privacyPolicyGerman
+
+        _ ->
+            -- TODO: Add here additional language versions
+            Nothing
+
+
 privacyPolicyGerman : String
 privacyPolicyGerman =
     "/md/privacy-de.md"
+
+
+technicalDetails : String
+technicalDetails =
+    "/md/tech-details.md"
+
+
+source : String
+source =
+    "https://github.com/twenty-eighty/pareto-client"
 
 
 paretoNip05 : Nip05.Nip05
@@ -75,21 +132,26 @@ paretoRelays =
     ]
 
 
+paretoNip96Server : String
+paretoNip96Server =
+    "route96.pareto.space"
+
+
 defaultNip96ServersAuthors : List String
 defaultNip96ServersAuthors =
-    [ "https://route96.pareto.space"
+    [ "https://" ++ paretoNip96Server
     ]
 
 
 defaultNip96ServersPublic : List String
 defaultNip96ServersPublic =
-    [ "https://void.cat"
+    [ "https://nostr.download"
     ]
 
 
 applicationDataRelays : List RelayUrl
 applicationDataRelays =
-    [ "cool-darkness-73116.pktriot.net"
+    [ "wss://portal-relay.pareto.space"
     ]
 
 
@@ -98,17 +160,23 @@ teamRelay =
     "team-relay.pareto.space"
 
 
+testRelayUrls : List RelayUrl
+testRelayUrls =
+    [ "client-test.pareto.space"
+    ]
+
+
 paretoOutboxRelays : List RelayUrl
 paretoOutboxRelays =
     [ "nostr.pareto.space"
+    , "nostr.pareto.town"
     , "pareto.nostr1.com"
     ]
 
 
 recommendedOutboxRelays : List RelayUrl
 recommendedOutboxRelays =
-    [ "relay.snort.social"
-    , "relay.nostr.band"
+    [ "relay.nostr.band"
     , "relay.damus.io"
     , "nos.lol"
     , "offchain.pub"
@@ -119,6 +187,7 @@ recommendedOutboxRelays =
 recommendedInboxRelays : List RelayUrl
 recommendedInboxRelays =
     [ "nostr.pareto.space"
+    , "nostr.pareto.town"
     , "pareto.nostr1.com"
     ]
         ++ recommendedOutboxRelays
@@ -160,6 +229,7 @@ bootstrapAuthorsList =
     , ( "roland@pareto.space", "cff1720e77bb068f0ebbd389dcd50822dd1ac8d2ac0b0f5f0800ae9e15c7e2b2" )
     , ( "donjoe@pareto.space", "0f4795bf31824a414148daf1b589bb8138fb0a03963f984c84462e40a8365abe" )
     , ( "janosch@pareto.space", "89bae92f9d9b0f6d97a300496cfb0b73c92a74c9675a724c0689975f8074dc01" )
+    , ( "rodant@pareto.space", "71df211931d26ee41121d295bd43cbc7e382505e333b5c13d4016ced9542d9d7" )
     , ( "arottmann@grooveix.com", "a95c624384c60902aaac9de52ab0fce39a9e8daa3d2b14236573a093d345522c" )
     , ( "denkbar@grooveix.com", "c631e26716c6b1a404dac828be44fdd403e65a0e5d05af00e24c3524c2b78d3e" )
     , ( "psychobabble@pareto.town", "6734e11d8d67d9ca4dedb920f81182ded2bca918e3e0f3528bd5f4c4c7e34e8f" )
@@ -175,7 +245,7 @@ bootstrapAuthorsList =
     , ( "Genexyz", "2063cd7955cffdca0cc4ae20f77b2b1eb053010e534c18e8ca70222157bd1320" )
     , ( "te@pareto.town", "fe02e8ece33b9e01b4225a01bb373552dc6f78744ad8121698c30bfaf07fbe0b" )
     , ( "Paul Andersson", "2516d14559174be1a2e578c333ef584e2f32b45931bddb624d0178e4070c8fa1" )
-    , ( "Eva Schmidt", "1731c73ccb388c5574b97d349c22c5f34271cef841129eb719e418cc1bca4ecc" )
+    , ( "eva.schmidt@pareto.town", "1731c73ccb388c5574b97d349c22c5f34271cef841129eb719e418cc1bca4ecc" )
     , ( "simon.kramer@sk-nostr.ch", "e77fe29e0868513a47b68b5941332139432b8e600140791163173b636fe8bc9d" )
     , ( "NACHHALL", "712db8c83700aca0ffa1c3b759929e18d26fcc2b6eeb07305bdf33760b42cbce" )
     , ( "bitcoinlighthouse@nsec.app", "638384700918e6a472477045dbcc229362ac0e64a48d927c48af609a956b9348" )
@@ -188,6 +258,22 @@ bootstrapAuthorsList =
     , ( "madmunky@nostrplebs.com", "3eacaa768326d7dce80f6ee17ada199bebe7eb3c1a60b39b14e0a58bbac66fe4" )
     , ( "pavlenex@iris.to", "175f568d77fb0cb7400f0ddd8aed1738cd797532b314ef053a1669d4dba7433a" )
     , ( "barbouille@pareto.town", "68c969eafadfc88d5937770d81031fb314b1bb1c201671403de6d930ab67edb9" )
+    , ( "free-cities@pareto.town", "fc2470ed196801ddace5c2bcb14a53fa5ee9f81ee365bf4958f94c6117d9ee27" )
+    , ( "mathias-broeckers@pareto.town", "6e4b486f698ee18dde7e5bec088c786d31f82c93d7d47cd0cdbcd63ddcadf247" )
+    , ( "quillie@nostria.space", "6c2d68ba016c291417fd18ea7c06b737ec143f7d56d78fdd44a5b248846525ec" )
+    , ( "rbm@pareto.town", "04cb16e4a61034bc4212af6814bb909bcb3b4915f08ff77d50440a102ec3e5d5" )
+    , ( "nexus@pareto.town", "d1d190fa3ecb81a45669bd343d3b9952eb73611cb3cb4c4349980e4de4ce6a6a" )
+    , ( "sinautoshi@pareto.town", "04ea4f8350f1562aa1d60dc070561f5bb8386a11d1a00570fd7440da210e1713" )
+    , ( "kaydee@pareto.town", "69eea7349187e4c96c42dbaec1ef76ba4eea0d0f3fa9bd08364e502a4ae31ae6" )
+    , ( "volker.schubert@pareto.town", "80f49d824217e4730aadb729d38775bb2a31405b92a3d70ea37b73fcab3cb150" )
+    , ( "friedenstaube@pareto.town", "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5" )
+    , ( "georgohrweh@pareto.town", "a296b972062908df04b056edad5d0c9a8847aa1ed9cfe062ed69c0c2e5a7a2e8" )
+    , ( "someone@pareto.town", "9fec72d579baaa772af9e71e638b529215721ace6e0f8320725ecbf9f77f85b1" )
+    , ( "wagschale@pareto.town", "4f2dadc9135248d24832e1a50c43ac438e8ccfcd81c29abdcf060176ad1a034c" )
+    , ( "norbs@pareto.town", "0d1702d6ab3cfdbd6a5687118b9f0008022e129003d8a9627c444d4a8f1ac66f" )
+    , ( "alix@pareto.town", "c93ea055634fb683be4202dd04e336663fb7823c5f1c35ad26b522a3eed5ac4c" )
+    , ( "rm@pareto.town", "2b24a1fa310d5c0f0299c10f13c5f280935ed02407593a8bdb19612d17750f64" )
+    , ( "bitmax@pareto.town", "aa8de34ff8b18ac3cc56decdfe56f17ec3007385993c834c9b99c839a6ffe696" )
     ]
 
 
@@ -211,6 +297,8 @@ supportedKinds =
     [ KindUserMetadata
     , KindEventDeletionRequest
     , KindFileMetadata
+    , KindZapRequest
+    , KindZapReceipt
     , KindRelayListMetadata
     , KindBookmarkList
     , KindUserServerList
@@ -223,33 +311,6 @@ supportedKinds =
     , KindDraft
     , KindHandlerRecommendation
     , KindHandlerInformation
-    ]
-
-
-supportedNips : List String
-supportedNips =
-    [ "01"
-
-    -- , "02"
-    -- , "04" -- Encrypted Direct Message
-    , "07"
-    , "09"
-    , "11"
-    , "19"
-    , "21"
-    , "23"
-    , "24"
-    , "25"
-    , "31"
-    , "37"
-    , "42"
-    , "44"
-    , "51"
-    , "65"
-    , "89"
-    , "94"
-    , "96"
-    , "98"
     ]
 
 
@@ -270,7 +331,7 @@ paretoHashtags =
 paretoProfile : Profile
 paretoProfile =
     { nip05 = Just paretoNip05
-    , lud16 = Just "donate2pareto@walletofsatoshi.com"
+    , lud16 = Just "client@pareto.space"
     , name = Just <| String.toLower client
     , displayName = Just client
     , about = Just paretoAbout
