@@ -7,7 +7,7 @@ import Json.Encode as Encode
 import Nostr.Event exposing (Event, Identity, Tag(..))
 import Nostr.Nip05 as Nip05 exposing (Nip05, nip05StringDecoder)
 import Nostr.Shared
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (PubKey, RelayUrl)
 import Time
 
 
@@ -30,6 +30,7 @@ type alias Profile =
     , createdAt : Maybe Time.Posix
     , pubKey : PubKey
     , identities : List Identity
+    , relays : List RelayUrl
     }
 
 
@@ -93,6 +94,7 @@ emptyProfile pubKey =
     , npub = Nothing
     , createdAt = Nothing
     , identities = []
+    , relays = []
     }
 
 
@@ -103,10 +105,10 @@ profileFromEvent event =
         |> Maybe.map
             (\profile ->
                 if profile.nip05 == Nothing then
-                    { profile | pubKey = event.pubKey }
+                    { profile | pubKey = event.pubKey, relays = Maybe.withDefault [] event.relays }
 
                 else
-                    { profile | pubKey = event.pubKey }
+                    { profile | pubKey = event.pubKey, relays = Maybe.withDefault [] event.relays }
             )
 
 
@@ -179,6 +181,7 @@ nostrProfileDecoder =
         |> DecodePipeline.optional "npub" (Decode.maybe Decode.string) Nothing
         |> DecodePipeline.optional "created_at" (Decode.maybe decodeUnixTime) Nothing
         |> DecodePipeline.hardcoded ""
+        |> DecodePipeline.hardcoded []
         |> DecodePipeline.hardcoded []
 
 

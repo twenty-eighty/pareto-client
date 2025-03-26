@@ -128,6 +128,7 @@ paretoRelay =
 paretoRelays : List String
 paretoRelays =
     [ paretoRelay
+    , "wss://nostr.pareto.town"
     , "wss://pareto.nostr1.com"
     ]
 
@@ -343,6 +344,7 @@ paretoProfile =
     , createdAt = Nothing
     , pubKey = paretoClientPubKey
     , identities = []
+    , relays = paretoRelays
     }
 
 
