@@ -51,7 +51,8 @@ defmodule NostrBackendWeb.PageController do
   end
 
   def friedenstaube(conn, _params) do
-    redirect(conn, to: "/read?category=friedenstaube")
+    # redirect(conn, to: "/read?category=friedenstaube")
+    redirect(conn, to: "/u/friedenstaube@pareto.space")
   end
 
   def home(conn, _params) do
