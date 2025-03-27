@@ -275,6 +275,7 @@ bootstrapAuthorsList =
     , ( "alix@pareto.town", "c93ea055634fb683be4202dd04e336663fb7823c5f1c35ad26b522a3eed5ac4c" )
     , ( "rm@pareto.town", "2b24a1fa310d5c0f0299c10f13c5f280935ed02407593a8bdb19612d17750f64" )
     , ( "metamsol@pareto.town", "d7e3ec2295429efc6a1067bacc8ca78af80aae94cc04a9b48156de85a38eac4e" )
+    , ( "patric@pareto.town", "0b65f96a7f23a5739c3b58375d36822e68deb5efdaf2afaccbb365fe7fda4c8f" )
     ]
 
 
