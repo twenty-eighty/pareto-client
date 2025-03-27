@@ -40,6 +40,7 @@ defmodule NostrBackendWeb.Router do
 
     get("/de", PageController, :landing_page_de)
     get("/en", PageController, :landing_page_en)
+    get("/friedenstaube", PageController, :friedenstaube)
 
     get("/about", PageController, :about)
     get("/c", PageController, :communities)
