@@ -1,11 +1,16 @@
 module Nostr.Nip96 exposing (..)
 
+import BrowserEnv exposing (BrowserEnv)
 import Dict exposing (Dict)
 import File exposing (File)
 import Http
 import Json.Decode as Decode exposing (Decoder, andThen, bool, dict, fail, float, int, list, maybe, string, succeed)
 import Json.Decode.Pipeline exposing (optional, required)
+import Nostr.Event exposing (Event, Kind(..))
 import Nostr.Nip94 as Nip94
+import Nostr.Send exposing (SendRequest(..))
+import Nostr.Types exposing (PubKey, ServerUrl)
+import Shared
 import Url
 
 
@@ -67,6 +72,26 @@ fetchServerSpec toMsg url =
         , timeout = Nothing
         , tracker = Nothing
         }
+
+sendNip96ServerListCmd : BrowserEnv -> PubKey -> List String -> List ServerUrl -> SendRequest
+sendNip96ServerListCmd browserEnv pubKey serverUrls relays =
+    eventWithNip96ServerList browserEnv pubKey serverUrls
+        |> SendFileStorageServerList relays
+
+
+eventWithNip96ServerList : BrowserEnv -> PubKey -> List ServerUrl -> Event
+eventWithNip96ServerList browserEnv pubKey serverUrls =
+    { pubKey = pubKey
+    , createdAt = browserEnv.now
+    , kind = KindFileStorageServerList
+    , tags =
+        []
+            |> Nostr.Event.addServerTags serverUrls
+    , content = ""
+    , id = ""
+    , sig = Nothing
+    , relays = Nothing
+    }
 
 
 extendRelativeServerDescriptorUrls : String -> ServerDescriptorData -> ServerDescriptorData

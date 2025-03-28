@@ -42,7 +42,7 @@ import Nostr.Nip96 as Nip96 exposing (extendRelativeServerDescriptorUrls)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Shared exposing (httpErrorToString)
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (PubKey, ServerUrl)
 import Pareto
 import Ports
 import Shared.Msg
@@ -109,10 +109,6 @@ type MediaServer
     | Nip96MediaServer ServerUrl
     | NoMediaServer
     | AllMediaServers
-
-
-type alias ServerUrl =
-    String
 
 
 type DisplayType
@@ -328,7 +324,9 @@ update props =
         ConfigureDefaultMediaServer ->
             ( Model model
             , Effect.batch
-                [ sendNip96ServerListCmd props.browserEnv props.user (Nostr.getDefaultNip96Servers props.nostr props.user.pubKey) (Nostr.getDefaultRelays props.nostr)
+                [ Nip96.sendNip96ServerListCmd props.browserEnv props.user.pubKey (Nostr.getDefaultNip96Servers props.nostr props.user.pubKey) (Nostr.getDefaultRelays props.nostr)
+                    |> Shared.Msg.SendNostrEvent
+                    |> Effect.sendSharedMsg
                 ]
                 |> Effect.map props.toMsg
             )
@@ -450,28 +448,6 @@ update props =
                     )
                         |> toParentModel
 
-
-sendNip96ServerListCmd : BrowserEnv -> Auth.User -> List String -> List ServerUrl -> Effect msg
-sendNip96ServerListCmd browserEnv user serverUrls relays =
-    eventWithNip96ServerList browserEnv user serverUrls
-        |> SendFileStorageServerList relays
-        |> Shared.Msg.SendNostrEvent
-        |> Effect.sendSharedMsg
-
-
-eventWithNip96ServerList : BrowserEnv -> Auth.User -> List ServerUrl -> Event
-eventWithNip96ServerList browserEnv user serverUrls =
-    { pubKey = user.pubKey
-    , createdAt = browserEnv.now
-    , kind = KindFileStorageServerList
-    , tags =
-        []
-            |> Nostr.Event.addServerTags serverUrls
-    , content = ""
-    , id = ""
-    , sig = Nothing
-    , relays = Nothing
-    }
 
 
 modelWithUploadedFile : Model -> UploadResponse -> ( Model, Effect msg )

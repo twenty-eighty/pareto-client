@@ -16,6 +16,10 @@ type alias RelayUrl =
     String
 
 
+type alias ServerUrl =
+    String
+
+
 type alias Address =
     String
 
