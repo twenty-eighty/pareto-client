@@ -43,7 +43,6 @@ import Nostr.Request exposing (HttpRequestMethod(..), RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey, ServerUrl)
-import Pareto
 import Ports
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
@@ -449,7 +448,6 @@ update props =
                         |> toParentModel
 
 
-
 modelWithUploadedFile : Model -> UploadResponse -> ( Model, Effect msg )
 modelWithUploadedFile model uploadResponse =
     case uploadResponse of
@@ -844,8 +842,8 @@ viewMediaSelector (Settings settings) =
 
 viewInstruction : I18Next.Translations -> DisplayType -> List UploadedFile -> Html msg
 viewInstruction translations displayType filesToShow =
-    case (displayType, List.length filesToShow > 0) of
-        (DisplayModalDialog _, True) ->
+    case ( displayType, List.length filesToShow > 0 ) of
+        ( DisplayModalDialog _, True ) ->
             div
                 [ css
                     [ Tw.my_2
@@ -854,7 +852,7 @@ viewInstruction translations displayType filesToShow =
                 [ text <| Translations.imageSelectionInstructionalText [ translations ]
                 ]
 
-        (_, _) ->
+        ( _, _ ) ->
             emptyHtml
 
 
@@ -1104,17 +1102,21 @@ imagePreview translations onSelected displayType uniqueFileId uploadedFile =
                 imageUrl =
                     if Nip94.isImage nip96File then
                         nip96File.url
-                        |> Maybe.map (\url ->
-                            url ++ "?w=" ++ String.fromInt imageWidth -- NIP-96 servers can return scaled versions of images
-                        ) 
-                        |> Maybe.withDefault ""
+                            |> Maybe.map
+                                (\url ->
+                                    url ++ "?w=" ++ String.fromInt imageWidth
+                                 -- NIP-96 servers can return scaled versions of images
+                                )
+                            |> Maybe.withDefault ""
+
                     else if Nip94.isAudio nip96File then
                         "/images/audio-placeholder.jpeg"
+
                     else if Nip94.isVideo nip96File then
                         "/images/video-placeholder.jpeg"
+
                     else
                         "Binary"
-
             in
             div
                 [ css

@@ -2,13 +2,11 @@ module TextStats exposing (TextStats, compute, computeTask, emptyTextStats, view
 
 import BrowserEnv exposing (BrowserEnv)
 import Char
-import Html.Styled as Html exposing (Html, div, img, input, label, node, text)
-import Html.Styled.Attributes as Attr exposing (css)
+import Html.Styled as Html exposing (Html, div, text)
+import Html.Styled.Attributes exposing (css)
 import Locale exposing (Language(..))
 import Markdown
 import String
-import Tailwind.Breakpoints as Bp
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Task exposing (Task)
 import Translations.TextStats as Translations
@@ -43,12 +41,14 @@ computeTask maybeLanguage content =
 
 {-| Compute statistics about the given text.
 The statistics include:
-- Byte count (assuming the text is stored as UTF-8)
-- Character count
-- Word count
-- Sentence count (with language-specific abbreviation handling)
-- Estimated reading time (200 words per minute)
-- Estimated speaking time (130 words per minute)
+
+  - Byte count (assuming the text is stored as UTF-8)
+  - Character count
+  - Word count
+  - Sentence count (with language-specific abbreviation handling)
+  - Estimated reading time (200 words per minute)
+  - Estimated speaking time (130 words per minute)
+
 -}
 compute : Maybe Language -> String -> TextStats
 compute maybeLanguage markdown =
@@ -99,10 +99,12 @@ compute maybeLanguage markdown =
 
 {-| Compute the number of bytes a string takes when encoded in UTF-8.
 For each character, the number of bytes is determined as:
-- 1 byte if the code point is ≤ 0x7F
-- 2 bytes if the code point is ≤ 0x7FF
-- 3 bytes if the code point is ≤ 0xFFFF
-- 4 bytes otherwise
+
+  - 1 byte if the code point is ≤ 0x7F
+  - 2 bytes if the code point is ≤ 0x7FF
+  - 3 bytes if the code point is ≤ 0xFFFF
+  - 4 bytes otherwise
+
 -}
 utf8ByteLength : String -> Int
 utf8ByteLength text =

@@ -434,6 +434,10 @@ outboxRelaySection shared user relaysModel =
             , suggestions =
                 missingRelays outboxRelays suggestedOutboxRelays
             }
+
+        readOnly =
+            Shared.signingPubKeyAvailable shared.loginStatus
+                |> not
     in
     if shared.browserEnv.testMode == BrowserEnv.TestModeEnabled then
         div
@@ -449,8 +453,12 @@ outboxRelaySection shared user relaysModel =
                 (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
                 [ text <| Translations.outboxSectionTitle [ shared.browserEnv.translations ] ]
             , p [] [ text <| Translations.outboxRelaysDescription [ shared.browserEnv.translations ] ]
-            , viewRelayList shared.theme shared.browserEnv.translations (AddDefaultOutboxRelays suggestedOutboxRelays) (RemoveRelay user.pubKey WriteRelay) outboxRelays
-            , addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay outboxRelaySuggestions (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey)
+            , viewRelayList shared.theme shared.browserEnv.translations readOnly (AddDefaultOutboxRelays suggestedOutboxRelays) (RemoveRelay user.pubKey WriteRelay) outboxRelays
+            , if not readOnly then
+                addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay outboxRelaySuggestions (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey)
+
+              else
+                emptyHtml
             ]
 
 
@@ -471,6 +479,10 @@ inboxRelaySection shared user relaysModel =
             , suggestions =
                 missingRelays inboxRelays suggestedInboxRelays
             }
+
+        readOnly =
+            Shared.signingPubKeyAvailable shared.loginStatus
+                |> not
     in
     div []
         [ h3
@@ -480,8 +492,12 @@ inboxRelaySection shared user relaysModel =
             )
             [ text <| Translations.inboxSectionTitle [ shared.browserEnv.translations ] ]
         , p [] [ text <| Translations.inboxRelaysDescription [ shared.browserEnv.translations ] ]
-        , viewRelayList shared.theme shared.browserEnv.translations (AddDefaultInboxRelays suggestedInboxRelays) (RemoveRelay user.pubKey ReadRelay) inboxRelays
-        , addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay inboxRelaySuggestions (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey)
+        , viewRelayList shared.theme shared.browserEnv.translations readOnly (AddDefaultInboxRelays suggestedInboxRelays) (RemoveRelay user.pubKey ReadRelay) inboxRelays
+        , if not readOnly then
+            addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay inboxRelaySuggestions (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey)
+
+          else
+            emptyHtml
         ]
 
 
@@ -658,8 +674,27 @@ relayUrlValid maybeRelayUrl =
             False
 
 
-viewRelayList : Theme -> I18Next.Translations -> Msg -> (String -> Msg) -> List Relay -> Html Msg
-viewRelayList theme translations addDefaultRelaysMsg removeMsg relays =
+viewRelayList : Theme -> I18Next.Translations -> Bool -> Msg -> (String -> Msg) -> List Relay -> Html Msg
+viewRelayList theme translations readOnly addDefaultRelaysMsg removeMsg relays =
+    let
+        noRelaysConfigureButton =
+            div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_col
+                    , Tw.gap_2
+                    , Tw.mb_2
+                    ]
+                ]
+                [ text <| Translations.noRelaysConfiguredText [ translations ]
+                , Button.new
+                    { label = Translations.addDefaultRelaysButtonTitle [ translations ]
+                    , onClick = Just addDefaultRelaysMsg
+                    , theme = theme
+                    }
+                    |> Button.view
+                ]
+    in
     if List.length relays > 0 then
         div
             [ css
@@ -669,28 +704,17 @@ viewRelayList theme translations addDefaultRelaysMsg removeMsg relays =
                 , Tw.gap_2
                 ]
             ]
-            (List.map (viewRelay removeMsg) relays)
+            (List.map (viewRelay readOnly removeMsg) relays)
+
+    else if not readOnly then
+        noRelaysConfigureButton
 
     else
-        div
-            [ css
-                [ Tw.flex
-                , Tw.flex_col
-                , Tw.gap_2
-                ]
-            ]
-            [ text <| Translations.noRelaysConfiguredText [ translations ]
-            , Button.new
-                { label = Translations.addDefaultRelaysButtonTitle [ translations ]
-                , onClick = Just addDefaultRelaysMsg
-                , theme = theme
-                }
-                |> Button.view
-            ]
+        text <| Translations.relayReadOnlyLoginInfo [ translations ]
 
 
-viewRelay : (String -> Msg) -> Relay -> Html Msg
-viewRelay removeMsg relay =
+viewRelay : Bool -> (String -> Msg) -> Relay -> Html Msg
+viewRelay readOnly removeMsg relay =
     div
         [ css
             [ Tw.flex
@@ -712,7 +736,11 @@ viewRelay removeMsg relay =
             ]
             [ text relay.urlWithoutProtocol
             ]
-        , removeRelayButton relay removeMsg
+        , if not readOnly then
+            removeRelayButton relay removeMsg
+
+          else
+            emptyHtml
         ]
 
 
@@ -806,14 +834,22 @@ nip96ServersSection shared user mediaServersModel =
             , suggestions =
                 missingMediaServers nip96Servers suggestedServers
             }
+
+        readOnly =
+            Shared.signingPubKeyAvailable shared.loginStatus
+                |> not
     in
     div []
         [ h3
             (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
             [ text <| Translations.nip96ServersSectionTitle [ shared.browserEnv.translations ] ]
         , p [] [ text <| Translations.nip96ServersDescription [ shared.browserEnv.translations ] ]
-        , viewMediaServersList shared.theme shared.browserEnv.translations (AddDefaultNip96MediaServers user.pubKey suggestedServers) (RemoveNip96MediaServer user.pubKey) nip96Servers
-        , addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.nip96Server nip96ServerSuggestions (updateNip96Server mediaServersModel) (AddNip96MediaServer user.pubKey)
+        , viewMediaServersList shared.theme shared.browserEnv.translations readOnly (AddDefaultNip96MediaServers user.pubKey suggestedServers) (RemoveNip96MediaServer user.pubKey) nip96Servers
+        , if not readOnly then
+            addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.nip96Server nip96ServerSuggestions (updateNip96Server mediaServersModel) (AddNip96MediaServer user.pubKey)
+
+          else
+            text <| Translations.mediaServerReadOnlyLoginInfo [ shared.browserEnv.translations ]
         ]
 
 
@@ -826,20 +862,9 @@ suggestedNip96Servers shared pubKey =
         Pareto.defaultNip96ServersPublic
 
 
-suggestedBlossomServers : Shared.Model -> PubKey -> List RelayUrl
-suggestedBlossomServers shared pubKey =
-    -- we prefer the NIP-96 protocol because it transports more metadata
-    []
-
-
 updateNip96Server : MediaServersModel -> Maybe String -> MediaServersModel
 updateNip96Server mediaServersModel value =
     { mediaServersModel | nip96Server = value }
-
-
-updateBlossomServer : MediaServersModel -> Maybe String -> MediaServersModel
-updateBlossomServer mediaServersModel value =
-    { mediaServersModel | blossomServer = value }
 
 
 missingMediaServers : List String -> List String -> List String
@@ -856,8 +881,27 @@ missingMediaServers addedMediaServers recommendedMediaServers =
             )
 
 
-viewMediaServersList : Theme -> I18Next.Translations -> Msg -> (String -> Msg) -> List String -> Html Msg
-viewMediaServersList theme translations addDefaultMediaServersMsg removeMsg mediaServers =
+viewMediaServersList : Theme -> I18Next.Translations -> Bool -> Msg -> (String -> Msg) -> List String -> Html Msg
+viewMediaServersList theme translations readOnly addDefaultMediaServersMsg removeMsg mediaServers =
+    let
+        noServersConfiguredInfo =
+            div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_col
+                    , Tw.gap_2
+                    , Tw.mb_2
+                    ]
+                ]
+                [ text <| Translations.noMediaServerConfiguredText [ translations ]
+                , Button.new
+                    { label = Translations.addDefaultMediaServersButtonTitle [ translations ]
+                    , onClick = Just addDefaultMediaServersMsg
+                    , theme = theme
+                    }
+                    |> Button.view
+                ]
+    in
     if List.length mediaServers > 0 then
         div
             [ css
@@ -867,29 +911,17 @@ viewMediaServersList theme translations addDefaultMediaServersMsg removeMsg medi
                 , Tw.gap_2
                 ]
             ]
-            (List.map (viewMediaServer removeMsg) mediaServers)
+            (List.map (viewMediaServer readOnly removeMsg) mediaServers)
+
+    else if not readOnly then
+        noServersConfiguredInfo
 
     else
-        div
-            [ css
-                [ Tw.flex
-                , Tw.flex_col
-                , Tw.gap_2
-                , Tw.mb_2
-                ]
-            ]
-            [ text <| Translations.noMediaServerConfiguredText [ translations ]
-            , Button.new
-                { label = Translations.addDefaultMediaServersButtonTitle [ translations ]
-                , onClick = Just addDefaultMediaServersMsg
-                , theme = theme
-                }
-                |> Button.view
-            ]
+        emptyHtml
 
 
-viewMediaServer : (String -> Msg) -> String -> Html Msg
-viewMediaServer removeMsg mediaServer =
+viewMediaServer : Bool -> (String -> Msg) -> String -> Html Msg
+viewMediaServer readOnly removeMsg mediaServer =
     div
         [ css
             [ Tw.flex
@@ -909,7 +941,11 @@ viewMediaServer removeMsg mediaServer =
             ]
             [ text mediaServer
             ]
-        , removeMediaServerButton mediaServer removeMsg
+        , if not readOnly then
+            removeMediaServerButton mediaServer removeMsg
+
+          else
+            emptyHtml
         ]
 
 
@@ -1041,22 +1077,6 @@ mediaServerUrlValid maybeMediaServerUrl =
 
         Nothing ->
             False
-
-
-viewNip96Server : String -> Html Msg
-viewNip96Server urlWithoutProtocol =
-    div
-        []
-        [ text urlWithoutProtocol
-        ]
-
-
-viewBlossomServer : String -> Html Msg
-viewBlossomServer urlWithoutProtocol =
-    div
-        []
-        [ text urlWithoutProtocol
-        ]
 
 
 viewProfile : Shared.Model -> Model -> Auth.User -> Html Msg

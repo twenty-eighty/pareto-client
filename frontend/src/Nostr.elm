@@ -89,10 +89,15 @@ type Msg
     | ReceivedNewsletterAuthorCheckResultPubKey PubKey (Result Http.Error NewsletterCheckResponse)
     | ReceivedNewsletterAuthorCheckResultNip05 Nip05 (Result Http.Error NewsletterCheckResponse)
 
+
+
 -- this type is intentionally separate from the definition in BrowserEnv as these modules should function without each other
+
+
 type TestMode
     = TestModeOff
     | TestModeEnabled
+
 
 isAuthor : Model -> PubKey -> Bool
 isAuthor model userPubKey =
@@ -504,16 +509,19 @@ send model sendRequest =
             , sendEvent model relays event
             )
 
+
 sendEvent : Model -> List RelayUrl -> Event -> Cmd Msg
 sendEvent model relays event =
     let
         actualWriteRelays =
             if model.testMode == TestModeEnabled then
                 Pareto.testRelayUrls
+
             else
                 relays
     in
     model.hooks.sendEvent model.lastSendRequestId actualWriteRelays event
+
 
 getAuthor : Model -> PubKey -> Nostr.Profile.Author
 getAuthor model pubKey =
@@ -710,6 +718,7 @@ getRelaysForPubKey model pubKey =
         testRelays =
             if model.testMode == TestModeEnabled then
                 Pareto.testRelayUrls
+
             else
                 []
 
@@ -772,7 +781,8 @@ getNip65WriteRelaysForPubKey : Model -> PubKey -> List Relay
 getNip65WriteRelaysForPubKey model pubKey =
     if model.testMode == TestModeEnabled then
         Pareto.testRelayUrls
-        |> List.filterMap (getRelayData model)
+            |> List.filterMap (getRelayData model)
+
     else
         getNip65RelaysForPubKey model pubKey
             |> List.filterMap
@@ -808,7 +818,8 @@ getWriteRelaysForPubKey : Model -> PubKey -> List Relay
 getWriteRelaysForPubKey model pubKey =
     if model.testMode == TestModeEnabled then
         Pareto.testRelayUrls
-        |> List.filterMap (getRelayData model)
+            |> List.filterMap (getRelayData model)
+
     else
         getRelaysForPubKey model pubKey
             |> List.filterMap
@@ -914,19 +925,24 @@ getRelaysForRequest model maybeRequestId =
         relayUrls ->
             relayUrls
 
+
 getDefaultRelays : Model -> List RelayUrl
 getDefaultRelays model =
     if model.testMode == TestModeEnabled then
         Pareto.testRelayUrls
+
     else
         model.defaultRelays
+
 
 getApplicationDataRelays : Model -> List RelayUrl
 getApplicationDataRelays model =
     if model.testMode == TestModeEnabled then
         Pareto.testRelayUrls
+
     else
         Pareto.applicationDataRelays
+
 
 getRelayData : Model -> RelayUrl -> Maybe Relay
 getRelayData model relayUrl =
@@ -1255,6 +1271,7 @@ init hooks testMode relayUrls =
             -- make sure we get NIP-11 information for test relays
             if testMode == TestModeEnabled then
                 Pareto.testRelayUrls ++ relayUrls
+
             else
                 relayUrls
     in
@@ -1266,9 +1283,10 @@ init hooks testMode relayUrls =
       }
     , Cmd.batch
         [ hooks.connect (List.map Nostr.Relay.websocketUrl relayUrls)
-        , requestRelayNip11 relayUrls
+        , requestRelayNip11 actualRelayUrls
         ]
     )
+
 
 paretoAuthorsFollowList : List Following
 paretoAuthorsFollowList =
@@ -1281,7 +1299,6 @@ paretoAuthorsFollowList =
                     , petname = Just nip05
                     }
             )
-
 
 
 requestRelayNip11 : List String -> Cmd Msg
