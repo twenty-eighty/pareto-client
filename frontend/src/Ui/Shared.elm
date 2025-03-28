@@ -15,7 +15,7 @@ import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Relay exposing (websocketUrl)
 import Nostr.Types exposing (PubKey)
-import Pareto
+import Pareto exposing (defaultRelays)
 import Set exposing (Set)
 import Svg.Loaders
 import Tailwind.Breakpoints as Bp
@@ -23,9 +23,11 @@ import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 
+
 emptyHtml : Html msg
 emptyHtml =
     text ""
+
 
 extendUrlForScaling : Int -> String -> String
 extendUrlForScaling width urlString =
@@ -188,19 +190,29 @@ type alias PreviewData msg =
 extendedZapRelays : Set String -> Nostr.Model -> Maybe PubKey -> Set String
 extendedZapRelays zapRelays nostrModel maybePubKey =
     let
-        inboxRelays =
+        pubKeyRelays =
             maybePubKey
-                |> Maybe.map (pubkeyInboxRelays nostrModel)
+                |> Maybe.map (pubkeyRelays nostrModel)
                 |> Maybe.withDefault Set.empty
+
+        defaultRelays =
+            Set.fromList nostrModel.defaultRelays |> Set.map websocketUrl
+
+        candidateRelays =
+            Set.union zapRelays pubKeyRelays
     in
-    zapRelays |> Set.union inboxRelays
+    if Set.size candidateRelays == Set.size zapRelays || Set.size candidateRelays == Set.size pubKeyRelays then
+        Set.union candidateRelays defaultRelays
+
+    else
+        candidateRelays
 
 
-pubkeyInboxRelays : Nostr.Model -> PubKey -> Set String
-pubkeyInboxRelays nostrModel pubKey =
+pubkeyRelays : Nostr.Model -> PubKey -> Set String
+pubkeyRelays nostrModel pubKey =
     pubKey
-        |> Nostr.getNip65ReadRelaysForPubKey nostrModel
-        |> List.map (\relay -> websocketUrl relay.urlWithoutProtocol)
+        |> Nostr.getNip65RelaysForPubKey nostrModel
+        |> List.map (\( _, relay ) -> websocketUrl relay.urlWithoutProtocol)
         |> Set.fromList
 
 

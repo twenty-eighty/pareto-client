@@ -20,7 +20,7 @@ import Tailwind.Utilities as Tw
 import Time
 import Translations.Profile as Translations
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
-import Ui.Shared exposing (emptyHtml, extendedZapRelays, pubkeyInboxRelays, zapButton)
+import Ui.Shared exposing (emptyHtml, extendedZapRelays, pubkeyRelays, zapButton)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 
 
@@ -90,14 +90,14 @@ viewProfile profile profileViewData shared =
         styles =
             stylesForTheme profileViewData.theme
 
-        authorInboxRelays =
-            pubkeyInboxRelays shared.nostr profile.pubKey
+        authorRelays =
+            pubkeyRelays shared.nostr profile.pubKey
 
         userPubKey =
             Shared.loggedInPubKey shared.loginStatus
 
         zapRelays =
-            extendedZapRelays authorInboxRelays shared.nostr userPubKey
+            extendedZapRelays authorRelays shared.nostr userPubKey
     in
     div
         [ css
@@ -243,7 +243,7 @@ viewLNAddress styles profile zapRelays =
                     (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ [ css [ Tw.flex, Tw.items_center ] ])
                     [ text <| lud16, zapButton profile.pubKey Nothing zapRelays "0" ]
             )
-        |> Maybe.withDefault (emptyHtml)
+        |> Maybe.withDefault emptyHtml
 
 
 viewNpub : Styles msg -> Profile -> Html msg

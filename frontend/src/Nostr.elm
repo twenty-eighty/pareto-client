@@ -340,8 +340,8 @@ performRequest model description requestId requestData =
         RequestSearchResults eventFilters ->
             ( { model | articlesByDate = [] }, model.hooks.searchEvents description True requestId (getSearchRelayUrls model model.defaultUser) eventFilters )
 
-        RequestShortNote eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
+        RequestShortNote relays eventFilter ->
+            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) [ eventFilter ] )
 
 
 send : Model -> SendRequest -> ( Model, Cmd Msg )

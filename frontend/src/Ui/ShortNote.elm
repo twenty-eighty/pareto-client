@@ -12,7 +12,7 @@ import Nostr.Types exposing (EventId, PubKey)
 import Tailwind.Utilities as Tw
 import Ui.Links exposing (linkElementForAuthor)
 import Ui.Profile
-import Ui.Shared exposing (Actions, emptyHtml, extendedZapRelays, pubkeyInboxRelays)
+import Ui.Shared exposing (Actions, emptyHtml, extendedZapRelays, pubkeyRelays)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 import Url
 
@@ -55,8 +55,8 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
                 AuthorProfile profile _ ->
                     profile.pubKey
 
-        authorInboxRelays =
-            pubkeyInboxRelays shortNotesViewData.nostr authorPubKey
+        authorRelays =
+            pubkeyRelays shortNotesViewData.nostr authorPubKey
 
         maybeNoteId =
             shortNote.id
@@ -67,7 +67,7 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
         previewData =
             { pubKey = shortNote.pubKey
             , maybeNip19Target = maybeNoteId
-            , zapRelays = extendedZapRelays authorInboxRelays shortNotesViewData.nostr shortNotesViewData.userPubKey
+            , zapRelays = extendedZapRelays authorRelays shortNotesViewData.nostr shortNotesViewData.userPubKey
             , actions = shortNoteViewData.actions
             , interactions = shortNoteViewData.interactions
             }

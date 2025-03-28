@@ -264,7 +264,18 @@ filterForCategory shared category =
             { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (paretoFollowsList shared.nostr), limit = Just 20 }
 
         Friedenstaube ->
-            { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (paretoFollowsList shared.nostr), tagReferences = Just [ TagReferenceTag "Frieden", TagReferenceTag "frieden" ], limit = Just 20 }
+            { emptyEventFilter
+                | kinds = Just [ KindLongFormContent ]
+                , authors = Just (paretoFollowsList shared.nostr)
+                , tagReferences =
+                    Just
+                        [ TagReferenceTag "Frieden"
+                        , TagReferenceTag "frieden"
+                        , TagReferenceTag "Friedenstaube"
+                        , TagReferenceTag "friedenstaube"
+                        ]
+                , limit = Just 20
+            }
 
         Followed ->
             { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (userFollowsList shared.nostr shared.loginStatus), limit = Just 20 }

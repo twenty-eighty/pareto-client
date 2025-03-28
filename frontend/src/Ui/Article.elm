@@ -885,7 +885,7 @@ previewListImage article =
                 ]
 
         Nothing ->
-            emptyHtml
+            div [][]
 
 
 previewBigPictureImage : Article -> Html msg

@@ -50,6 +50,11 @@ defmodule NostrBackendWeb.PageController do
     |> send_file(200, file_path)
   end
 
+  def friedenstaube(conn, _params) do
+    # redirect(conn, to: "/read?category=friedenstaube")
+    redirect(conn, to: "/u/friedenstaube@pareto.space")
+  end
+
   def home(conn, _params) do
     # The home page is often custom made,
     # so skip the default app layout.
