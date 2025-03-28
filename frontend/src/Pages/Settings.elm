@@ -1,7 +1,7 @@
 module Pages.Settings exposing (Model, Msg, page)
 
 import Auth
-import BrowserEnv
+import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Categories as Categories
 import Components.Icon as Icon
@@ -15,12 +15,13 @@ import I18Next
 import Layouts
 import Nostr
 import Nostr.Event exposing (Kind(..), emptyEventFilter)
+import Nostr.Nip96 exposing (eventWithNip96ServerList)
 import Nostr.Profile exposing (ProfileValidation(..))
 import Nostr.Relay as Relay exposing (Relay, RelayState(..), hostWithoutProtocol)
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList, removeFromRelayList)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (PubKey, RelayRole(..), RelayUrl)
+import Nostr.Types exposing (PubKey, RelayRole(..), RelayUrl, ServerUrl)
 import Page exposing (Page)
 import Pareto
 import Route exposing (Route)
@@ -34,6 +35,7 @@ import Ui.Profile exposing (FollowType(..))
 import Ui.Relay exposing (viewRelayImage)
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
+import Url
 import View exposing (View)
 
 
@@ -83,12 +85,11 @@ emptyRelaysModel =
     }
 
 
-
---   emptyMediaServersModel : MediaServersModel
---   emptyMediaServersModel =
---       { nip96Server = Nothing
---       , blossomServer = Nothing
---       }
+emptyMediaServersModel : MediaServersModel
+emptyMediaServersModel =
+    { nip96Server = Nothing
+    , blossomServer = Nothing
+    }
 
 
 type Category
@@ -102,10 +103,9 @@ availableCategories translations =
     [ { category = Relays emptyRelaysModel
       , title = Translations.relaysCategory [ translations ]
       }
-
-    --   , { category = MediaServers emptyMediaServersModel
-    --     , title = Translations.mediaServersCategory [ translations ]
-    --     }
+    , { category = MediaServers emptyMediaServersModel
+      , title = Translations.mediaServersCategory [ translations ]
+      }
     , { category = Profile
       , title = Translations.profileCategory [ translations ]
       }
@@ -140,6 +140,10 @@ type Msg
     | AddDefaultOutboxRelays (List RelayUrl)
     | AddDefaultInboxRelays (List RelayUrl)
     | RemoveRelay PubKey RelayRole RelayUrl
+    | UpdateMediaServerModel MediaServersModel
+    | AddNip96MediaServer PubKey ServerUrl
+    | RemoveNip96MediaServer PubKey ServerUrl
+    | AddDefaultNip96MediaServers PubKey (List ServerUrl)
 
 
 update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -196,6 +200,52 @@ update user shared msg model =
                 |> removeFromRelayList { url = relayUrl, role = relayRole }
                 |> sendRelayListCmd pubKey
             )
+
+        UpdateMediaServerModel mediaServersModel ->
+            ( { model | categories = Categories.select model.categories (MediaServers mediaServersModel) }, Effect.none )
+
+        AddNip96MediaServer pubKey mediaServer ->
+            ( { model | categories = Categories.select model.categories (MediaServers emptyMediaServersModel) }
+            , Nostr.getNip96Servers shared.nostr pubKey
+                |> extendMediaServerList mediaServer
+                |> sendMediaServerListCmd shared.browserEnv pubKey
+            )
+
+        RemoveNip96MediaServer pubKey mediaServer ->
+            ( model
+            , Nostr.getNip96Servers shared.nostr pubKey
+                |> removeMediaServerFromList mediaServer
+                |> sendMediaServerListCmd shared.browserEnv pubKey
+            )
+
+        AddDefaultNip96MediaServers pubKey mediaServers ->
+            ( model
+            , mediaServers
+                |> sendMediaServerListCmd shared.browserEnv pubKey
+            )
+
+
+extendMediaServerList : ServerUrl -> List ServerUrl -> List ServerUrl
+extendMediaServerList mediaServer mediaServers =
+    if List.member mediaServer mediaServers then
+        mediaServers
+
+    else
+        mediaServers ++ [ mediaServer ]
+
+
+removeMediaServerFromList : ServerUrl -> List ServerUrl -> List ServerUrl
+removeMediaServerFromList mediaServer mediaServers =
+    mediaServers
+        |> List.filter (\serverInList -> serverInList /= mediaServer)
+
+
+sendMediaServerListCmd : BrowserEnv -> PubKey -> List ServerUrl -> Effect msg
+sendMediaServerListCmd browserEnv pubKey mediaServers =
+    eventWithNip96ServerList browserEnv pubKey mediaServers
+        |> SendFileStorageServerList []
+        |> Shared.Msg.SendNostrEvent
+        |> Effect.sendSharedMsg
 
 
 relayListWithRole : List RelayUrl -> RelayRole -> List RelayMetadata
@@ -333,7 +383,7 @@ viewCategory shared model user =
             viewProfile shared model user
 
 
-type alias RelaySuggestions =
+type alias Suggestions =
     { identifier : String
     , suggestions : List String
     }
@@ -341,16 +391,16 @@ type alias RelaySuggestions =
 
 viewRelays : Shared.Model -> Model -> Auth.User -> RelaysModel -> Html Msg
 viewRelays shared _ user relaysModel =
-        {-
-           searchRelays =
-               Nostr.getSearchRelaysForPubKey shared.nostr user.pubKey
+    {-
+       searchRelays =
+           Nostr.getSearchRelaysForPubKey shared.nostr user.pubKey
 
-           searchRelaySuggestions =
-               { identifier = "search-relay-suggestions"
-               , suggestions =
-                   missingRelays inboxRelays Pareto.defaultSearchRelays
-               }
-        -}
+       searchRelaySuggestions =
+           { identifier = "search-relay-suggestions"
+           , suggestions =
+               missingRelays inboxRelays Pareto.defaultSearchRelays
+           }
+    -}
     div
         [ css
             [ Tw.flex
@@ -365,6 +415,7 @@ viewRelays shared _ user relaysModel =
         -- , viewRelayList searchRelays
         -- , addRelayBox shared.theme shared.browserEnv.translations relaysModel.searchRelay (updateRelayModelSearch relaysModel) (AddSearchRelay user.pubKey)
         ]
+
 
 outboxRelaySection : Shared.Model -> Auth.User -> RelaysModel -> Html Msg
 outboxRelaySection shared user relaysModel =
@@ -383,14 +434,15 @@ outboxRelaySection shared user relaysModel =
             , suggestions =
                 missingRelays outboxRelays suggestedOutboxRelays
             }
-
     in
     if shared.browserEnv.testMode == BrowserEnv.TestModeEnabled then
-        div [ css
+        div
+            [ css
                 [ Tw.italic
                 ]
             ]
             [ text <| Translations.outboxRelaysTestModeInformation [ shared.browserEnv.translations ] ]
+
     else
         div []
             [ h3
@@ -400,6 +452,7 @@ outboxRelaySection shared user relaysModel =
             , viewRelayList shared.theme shared.browserEnv.translations (AddDefaultOutboxRelays suggestedOutboxRelays) (RemoveRelay user.pubKey WriteRelay) outboxRelays
             , addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay outboxRelaySuggestions (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey)
             ]
+
 
 inboxRelaySection : Shared.Model -> Auth.User -> RelaysModel -> Html Msg
 inboxRelaySection shared user relaysModel =
@@ -418,7 +471,6 @@ inboxRelaySection shared user relaysModel =
             , suggestions =
                 missingRelays inboxRelays suggestedInboxRelays
             }
-
     in
     div []
         [ h3
@@ -431,6 +483,8 @@ inboxRelaySection shared user relaysModel =
         , viewRelayList shared.theme shared.browserEnv.translations (AddDefaultInboxRelays suggestedInboxRelays) (RemoveRelay user.pubKey ReadRelay) inboxRelays
         , addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay inboxRelaySuggestions (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey)
         ]
+
+
 
 -- users must be whitelisted for Pareto outbox relays
 
@@ -482,8 +536,8 @@ updateRelayModelInbox relaysModel value =
 --       { relaysModel | searchRelay = value }
 
 
-addRelayBox : Theme -> I18Next.Translations -> Maybe String -> RelaySuggestions -> (Maybe String -> RelaysModel) -> (String -> Msg) -> Html Msg
-addRelayBox theme translations maybeValue relaySuggestions updateFn addRelayMsg =
+addRelayBox : Theme -> I18Next.Translations -> Maybe String -> Suggestions -> (Maybe String -> RelaysModel) -> (String -> Msg) -> Html Msg
+addRelayBox theme translations maybeValue suggestions updateRelayFn addRelayMsg =
     let
         styles =
             stylesForTheme theme
@@ -540,14 +594,14 @@ addRelayBox theme translations maybeValue relaySuggestions updateFn addRelayMsg 
                        , Attr.value (Maybe.withDefault "" maybeValue)
                        , Attr.type_ "url"
                        , Attr.spellcheck False
-                       , Attr.list relaySuggestions.identifier
+                       , Attr.list suggestions.identifier
                        , Events.onInput
                             (\relayText ->
                                 if relayText /= "" then
-                                    UpdateRelayModel <| updateFn (Just <| relayText)
+                                    UpdateRelayModel <| updateRelayFn (Just <| relayText)
 
                                 else
-                                    UpdateRelayModel <| updateFn Nothing
+                                    UpdateRelayModel <| updateRelayFn Nothing
                             )
                        , css
                             [ Tw.appearance_none
@@ -568,7 +622,7 @@ addRelayBox theme translations maybeValue relaySuggestions updateFn addRelayMsg 
                        ]
                 )
                 []
-            , relaySuggestionDataList relaySuggestions
+            , relaySuggestionDataList suggestions
             ]
         , Button.new
             { label = Translations.addRelayButtonTitle [ translations ]
@@ -580,12 +634,12 @@ addRelayBox theme translations maybeValue relaySuggestions updateFn addRelayMsg 
         ]
 
 
-relaySuggestionDataList : RelaySuggestions -> Html Msg
-relaySuggestionDataList relaySuggestions =
+relaySuggestionDataList : Suggestions -> Html Msg
+relaySuggestionDataList suggestions =
     datalist
-        [ Attr.id relaySuggestions.identifier
+        [ Attr.id suggestions.identifier
         ]
-        (relaySuggestions.suggestions
+        (suggestions.suggestions
             |> List.map
                 (\relayUrl ->
                     option [ Attr.value relayUrl ] []
@@ -720,43 +774,273 @@ removeRelayButton relay removeMsg =
 
 
 viewMediaServers : Shared.Model -> Model -> Auth.User -> MediaServersModel -> Html Msg
-viewMediaServers shared _ user _ =
-    let
-        blossomServers =
-            Nostr.getBlossomServers shared.nostr user.pubKey
-
-        nip96Servers =
-            Nostr.getNip96Servers shared.nostr user.pubKey
-    in
+viewMediaServers shared _ user mediaServersModel =
     div
         [ css
             [ Tw.flex
             , Tw.flex_col
+            , Tw.gap_2
+            , Tw.m_20
+            ]
+        ]
+        [ nip96ServersSection shared user mediaServersModel
+
+        -- , blossomServersection shared user relaysModel
+        ]
+
+
+nip96ServersSection : Shared.Model -> Auth.User -> MediaServersModel -> Html Msg
+nip96ServersSection shared user mediaServersModel =
+    let
+        styles =
+            stylesForTheme shared.theme
+
+        nip96Servers =
+            Nostr.getNip96Servers shared.nostr user.pubKey
+
+        suggestedServers =
+            suggestedNip96Servers shared user.pubKey
+
+        nip96ServerSuggestions =
+            { identifier = "nip96-server-suggestions"
+            , suggestions =
+                missingMediaServers nip96Servers suggestedServers
+            }
+    in
+    div []
+        [ h3
+            (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
+            [ text <| Translations.nip96ServersSectionTitle [ shared.browserEnv.translations ] ]
+        , p [] [ text <| Translations.nip96ServersDescription [ shared.browserEnv.translations ] ]
+        , viewMediaServersList shared.theme shared.browserEnv.translations (AddDefaultNip96MediaServers user.pubKey suggestedServers) (RemoveNip96MediaServer user.pubKey) nip96Servers
+        , addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.nip96Server nip96ServerSuggestions (updateNip96Server mediaServersModel) (AddNip96MediaServer user.pubKey)
+        ]
+
+
+suggestedNip96Servers : Shared.Model -> PubKey -> List RelayUrl
+suggestedNip96Servers shared pubKey =
+    if Nostr.isEditor shared.nostr pubKey then
+        Pareto.defaultNip96ServersAuthors
+
+    else
+        Pareto.defaultNip96ServersPublic
+
+
+suggestedBlossomServers : Shared.Model -> PubKey -> List RelayUrl
+suggestedBlossomServers shared pubKey =
+    -- we prefer the NIP-96 protocol because it transports more metadata
+    []
+
+
+updateNip96Server : MediaServersModel -> Maybe String -> MediaServersModel
+updateNip96Server mediaServersModel value =
+    { mediaServersModel | nip96Server = value }
+
+
+updateBlossomServer : MediaServersModel -> Maybe String -> MediaServersModel
+updateBlossomServer mediaServersModel value =
+    { mediaServersModel | blossomServer = value }
+
+
+missingMediaServers : List String -> List String -> List String
+missingMediaServers addedMediaServers recommendedMediaServers =
+    recommendedMediaServers
+        |> List.filter
+            (\mediaServer ->
+                addedMediaServers
+                    |> List.filter
+                        (\addedMediaServer ->
+                            addedMediaServer == mediaServer
+                        )
+                    |> List.isEmpty
+            )
+
+
+viewMediaServersList : Theme -> I18Next.Translations -> Msg -> (String -> Msg) -> List String -> Html Msg
+viewMediaServersList theme translations addDefaultMediaServersMsg removeMsg mediaServers =
+    if List.length mediaServers > 0 then
+        div
+            [ css
+                [ Tw.flex
+                , Tw.flex_col
+                , Tw.my_2
+                , Tw.gap_2
+                ]
+            ]
+            (List.map (viewMediaServer removeMsg) mediaServers)
+
+    else
+        div
+            [ css
+                [ Tw.flex
+                , Tw.flex_col
+                , Tw.gap_2
+                , Tw.mb_2
+                ]
+            ]
+            [ text <| Translations.noMediaServerConfiguredText [ translations ]
+            , Button.new
+                { label = Translations.addDefaultMediaServersButtonTitle [ translations ]
+                , onClick = Just addDefaultMediaServersMsg
+                , theme = theme
+                }
+                |> Button.view
+            ]
+
+
+viewMediaServer : (String -> Msg) -> String -> Html Msg
+viewMediaServer removeMsg mediaServer =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_row
+            , Tw.items_center
+            , Tw.gap_2
+            , Tw.p_2
+            , Tw.border_b_2
+            , Tw.w_96
+            ]
+        ]
+        [ div
+            [ css
+                [ Tw.grow
+                , Tw.w_96
+                ]
+            ]
+            [ text mediaServer
+            ]
+        , removeMediaServerButton mediaServer removeMsg
+        ]
+
+
+removeMediaServerButton : String -> (String -> Msg) -> Html Msg
+removeMediaServerButton mediaServer removeMsg =
+    div
+        [ css
+            [ Tw.text_color Theme.slate_500
+            , Tw.cursor_pointer
+            ]
+        , Events.onClick (removeMsg mediaServer)
+        ]
+        [ Icon.FeatherIcon FeatherIcons.delete
+            |> Icon.view
+        ]
+
+
+addMediaServerBox : Theme -> I18Next.Translations -> Maybe String -> Suggestions -> (Maybe String -> MediaServersModel) -> (String -> Msg) -> Html Msg
+addMediaServerBox theme translations maybeValue suggestions updateMediaServerFn addMediaServerMsg =
+    let
+        styles =
+            stylesForTheme theme
+
+        showProtocolPrefix =
+            maybeValue
+                |> Maybe.map (\value -> not <| String.startsWith "https://" value || String.startsWith "http://" value)
+                |> Maybe.withDefault True
+
+        serverUrlWithProtocol =
+            if showProtocolPrefix then
+                maybeValue
+                    |> Maybe.map (String.append "https://")
+
+            else
+                maybeValue
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_row
+            , Tw.gap_2
             ]
         ]
         [ div
             [ css
                 [ Tw.flex
-                , Tw.flex_col
+                , Tw.flex_row
+                , Tw.relative
+                , Tw.w_full
+                , Bp.sm
+                    [ Css.property "width" "400px"
+                    ]
                 ]
             ]
-            (text "NIP-96 Servers"
-                :: (nip96Servers
-                        |> List.map viewNip96Server
-                   )
-            )
-        , div
-            [ css
-                [ Tw.flex
-                , Tw.flex_col
+            [ div
+                (styles.colorStyleGrayscaleMuted
+                    ++ [ css
+                            [ Tw.flex
+                            , Tw.absolute
+                            , Tw.leading_6
+                            , Tw.w_12
+                            , Tw.h_10
+                            , Tw.items_center
+                            , Tw.justify_center
+                            , Tw.left_2
+                            , Tw.top_0
+                            , Tw.pointer_events_none
+                            ]
+                       ]
+                )
+                [ if showProtocolPrefix then
+                    text "https://"
+
+                  else
+                    text ""
                 ]
+            , input
+                (styles.colorStyleBackground
+                    ++ styles.colorStyleGrayscaleText
+                    ++ [ Attr.placeholder <| Translations.addRelayPlaceholder [ translations ]
+                       , Attr.value (Maybe.withDefault "" maybeValue)
+                       , Attr.type_ "url"
+                       , Attr.spellcheck False
+                       , Attr.list suggestions.identifier
+                       , Events.onInput
+                            (\mediaServerText ->
+                                if mediaServerText /= "" then
+                                    UpdateMediaServerModel <| updateMediaServerFn (Just <| mediaServerText)
+
+                                else
+                                    UpdateMediaServerModel <| updateMediaServerFn Nothing
+                            )
+                       , css
+                            [ Tw.appearance_none
+                            , Tw.bg_scroll
+                            , Tw.bg_clip_border
+                            , Tw.rounded_md
+                            , Tw.border_2
+                            , Tw.box_border
+                            , Tw.cursor_text
+                            , Tw.block
+                            , Tw.ps_16
+                            , Tw.pe_16
+                            , Tw.pl_16
+                            , Tw.pr_16
+                            , Tw.h_10
+                            , Tw.w_full
+                            ]
+                       ]
+                )
+                []
+            , relaySuggestionDataList suggestions
             ]
-            (text "Blossom Servers"
-                :: (blossomServers
-                        |> List.map viewBlossomServer
-                   )
-            )
+        , Button.new
+            { label = Translations.addRelayButtonTitle [ translations ]
+            , onClick = Maybe.map addMediaServerMsg serverUrlWithProtocol
+            , theme = theme
+            }
+            |> Button.withDisabled (not <| mediaServerUrlValid serverUrlWithProtocol)
+            |> Button.view
         ]
+
+
+mediaServerUrlValid : Maybe ServerUrl -> Bool
+mediaServerUrlValid maybeMediaServerUrl =
+    case maybeMediaServerUrl of
+        Just url ->
+            Url.fromString url /= Nothing
+
+        Nothing ->
+            False
 
 
 viewNip96Server : String -> Html Msg
@@ -797,7 +1081,7 @@ viewProfile shared _ user =
                             }
                             shared
                     )
-                |> Maybe.withDefault (emptyHtml)
+                |> Maybe.withDefault emptyHtml
     in
     div
         [ css
