@@ -802,6 +802,7 @@ export const onReady = ({ app, env }) => {
   }
 
   async function unwrapApplicationSpecificEvent(ndkEvent) {
+    const decryptionMethod = ndkEvent.content.includes("?iv=") ? 'nip04' : 'nip44';
     const content = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
     if (content) {
       ndkEvent.content = content;
