@@ -12,7 +12,7 @@ import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
 import Layouts
 import Nostr
-import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), buildAddress, emptyEventFilter)
+import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.External
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
@@ -72,7 +72,7 @@ type alias Model =
     { errors : List String
     , requestId : RequestId
     , state : ModelState
-    , newsletters : Dict String Newsletter
+    , newsletters : Dict Int Newsletter
     , newslettersTable : Table.State
     }
 
@@ -237,7 +237,7 @@ updateWithMessage model message =
             ( model, Effect.none )
 
 
-processEvents : Dict String Newsletter -> List Event -> ( Dict String Newsletter, List String )
+processEvents : Dict Int Newsletter -> List Event -> ( Dict Int Newsletter, List String )
 processEvents existingNewsletters events =
     events
         |> List.filter (\event -> event.pubKey == Pareto.emailGatewayKey)
@@ -246,7 +246,7 @@ processEvents existingNewsletters events =
             (\result ( newsletterDict, errorList ) ->
                 case result of
                     Ok decodedNewsletter ->
-                        ( Dict.insert (buildAddress decodedNewsletter.articleAddress) decodedNewsletter newsletterDict, errorList )
+                        ( Dict.insert (Time.posixToMillis decodedNewsletter.timestamp) decodedNewsletter newsletterDict, errorList )
 
                     Err error ->
                         ( newsletterDict, errorList ++ [ Decode.errorToString error ] )
@@ -390,19 +390,3 @@ viewNewsletters browserEnv model =
                     (Dict.values model.newsletters)
                     |> Html.fromUnstyled
                 ]
-
-
-
-{-
-   ul
-       [ css
-           [ Tw.flex
-           , Tw.flex_col
-           , Tw.m_2
-           ]
-       ]
-       (model.newsletters
-           |> Dict.values
-           |> List.map viewSubscriber
-       )
--}

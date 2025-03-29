@@ -1586,7 +1586,7 @@ eventFilterForNaddr { identifier, kind, pubKey } =
 
 
 eventFilterForNevent : NEventData -> EventFilter
-eventFilterForNevent { id, author, kind, relays } =
+eventFilterForNevent { id, author, kind } =
     { emptyEventFilter
         | authors =
             author
@@ -1598,7 +1598,6 @@ eventFilterForNevent { id, author, kind, relays } =
                 |> Maybe.map List.singleton
         , limit = Just 1
     }
-    
 
 
 eventFilterForShortNote : String -> EventFilter

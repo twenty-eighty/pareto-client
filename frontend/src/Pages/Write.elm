@@ -528,7 +528,7 @@ update shared user msg model =
         StatsComputed (Ok textStats) ->
             ( { model | textStats = textStats }, Effect.none )
 
-        StatsComputed (Err error) ->
+        StatsComputed (Err _) ->
             ( model, Effect.none )
 
         Tick _ ->
