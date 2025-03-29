@@ -218,7 +218,10 @@
       "profile editor title": "Profil-Editor",
       "profile editor not implemented text": "Der Profil-Editor ist noch nicht implementiert. Bitte benutze eine der bestehenden Alternativen.",
       "profile save button title": "Speichern",
-      "image selection button title": "Auswählen"
+      "no profile read only informational text": "Du scheinst kein Profil zu haben, kannst allerdings auch keines anlegen im Nur-Lesen-Modus",
+      "no profile informational text": "Du scheinst kein Profil zu haben - möchtest du eines anlegen?",
+      "image selection button title": "Auswählen",
+      "create profile button title": "Profil erstellen"
    },
    "sidebar": {
       "reader client role text": "Leser",

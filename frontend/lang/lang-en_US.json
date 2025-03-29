@@ -218,7 +218,10 @@
       "profile editor title": "Profile Editor",
       "profile editor not implemented text": "The profile editor is not yet implemented. Please use one of the existing alternatives.",
       "profile save button title": "Save",
-      "image selection button title": "Select"
+      "no profile read only informational text": "You seem to have no profile but can't create one in read-only mode",
+      "no profile informational text": "You seem to have no profile - do you want to create one?",
+      "image selection button title": "Select",
+      "create profile button title": "Create Profile"
    },
    "sidebar": {
       "reader client role text": "Reader",

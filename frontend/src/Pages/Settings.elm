@@ -19,7 +19,7 @@ import Nostr
 import Nostr.Event exposing (Kind(..), emptyEventFilter)
 import Nostr.Nip05 as Nip05
 import Nostr.Nip96 as Nip96 exposing (eventWithNip96ServerList)
-import Nostr.Profile exposing (Profile, ProfileValidation(..), eventFromProfile, profilesEqual)
+import Nostr.Profile exposing (Profile, ProfileValidation(..), emptyProfile, eventFromProfile, profilesEqual)
 import Nostr.Relay as Relay exposing (Relay, RelayState(..), hostWithoutProtocol)
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList, removeFromRelayList)
 import Nostr.Request exposing (RequestData(..))
@@ -273,6 +273,7 @@ type Msg
     | MediaSelectorSent (MediaSelector.Msg Msg)
     | ImageSelected MediaSelector.UploadedFile
     | SaveProfile Profile
+    | CreateProfile
 
 
 update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -445,6 +446,14 @@ update user shared msg model =
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
+
+        CreateProfile ->
+            case model.data of
+                ProfileData profileModel ->
+                    ( { model | data = ProfileData { profileModel | savedProfile = Just <| emptyProfile user.pubKey } }, Effect.none )
+
+                _ ->
+                    ( model, Effect.none )
 
 
 extendMediaServerList : ServerUrl -> List ServerUrl -> List ServerUrl
@@ -1303,11 +1312,8 @@ viewProfile shared user profileModel =
             Shared.signingPubKeyAvailable shared.loginStatus
                 |> not
 
-        existingProfile =
-            Nostr.getProfile shared.nostr user.pubKey
-
         viewUserProfile =
-            case ( existingProfile, readOnly ) of
+            case ( profileModel.savedProfile, readOnly ) of
                 ( Just profile, True ) ->
                     Ui.Profile.viewProfile
                         profile
@@ -1325,10 +1331,24 @@ viewProfile shared user profileModel =
                     viewProfileEditor shared user profileModel
 
                 ( Nothing, True ) ->
-                    Html.text "You seem to have no profile but can't create one in read-only mode"
+                    Html.text <| Translations.noProfileReadOnlyInformationalText [ shared.browserEnv.translations ]
 
                 ( Nothing, False ) ->
-                    Html.text "You seem to have no profile - do you want to create one?"
+                    div
+                        [ css
+                            [ Tw.flex
+                            , Tw.flex_col
+                            , Tw.gap_2
+                            ]
+                        ]
+                        [ Html.text <| Translations.noProfileInformationalText [ shared.browserEnv.translations ]
+                        , Button.new
+                            { label = Translations.createProfileButtonTitle [ shared.browserEnv.translations ]
+                            , onClick = Just CreateProfile
+                            , theme = shared.theme
+                            }
+                            |> Button.view
+                        ]
     in
     div
         [ css
