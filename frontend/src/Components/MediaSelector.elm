@@ -1098,7 +1098,20 @@ uploadedNip96ImageFiles uploadedNip96Files serverUrl =
 imagePreview : I18Next.Translations -> Maybe (UploadedFile -> msg) -> DisplayType -> String -> UploadedFile -> Html (Msg msg)
 imagePreview translations onSelected displayType uniqueFileId uploadedFile =
     let
+        multiSelection =
+            -- In case we will support selection of multiple files,
+            -- a single click/tap should not commit the selection but only select.
+            -- An extra button is then needed to commit the selection.
+            False
+
+        selectionAttr =
+            if multiSelection then
+                [ Events.onDoubleClick (SelectedItem { item = uploadedFile, onSelected = onSelected }) ]
+            else
+                [ Events.onClick (SelectedItem { item = uploadedFile, onSelected = onSelected }) ]
+
         commonAttributes =
+            selectionAttr ++
             [ css
                 [ Tw.w_full
                 , Tw.h_auto
@@ -1118,7 +1131,6 @@ imagePreview translations onSelected displayType uniqueFileId uploadedFile =
                     , Tw.drop_shadow_sm
                     ]
                 ]
-            , Events.onDoubleClick (SelectedItem { item = uploadedFile, onSelected = onSelected })
             ]
     in
     case uploadedFile of
