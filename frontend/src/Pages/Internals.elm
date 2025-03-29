@@ -11,7 +11,7 @@ import Page exposing (Page)
 import Pareto
 import Route exposing (Route)
 import Shared
-import Shared.Model exposing (ClientRole(..))
+import Shared.Model exposing (ClientRole(..), LoginMethod(..), LoginStatus(..))
 import Tailwind.Utilities as Tw
 import Translations.Internals as Translations
 import Ui.Shared exposing (emptyHtml)
@@ -85,14 +85,69 @@ view shared _ =
                 )
                 [ text <| Translations.contactInformation [ shared.browserEnv.translations ] ++ " " ++ Pareto.supportEmail
                 ]
-            , showErrorMessages shared.theme shared.browserEnv.translations shared.nostr
+            , viewLoginInfo shared
+            , viewErrorMessages shared.theme shared.browserEnv.translations shared.nostr
             ]
         ]
     }
 
 
-showErrorMessages : Theme -> I18Next.Translations -> Nostr.Model -> Html Msg
-showErrorMessages theme translations nostr =
+viewLoginInfo : Shared.Model -> Html Msg
+viewLoginInfo shared =
+    let
+        styles =
+            stylesForTheme shared.theme
+    in
+    div []
+        [ Html.h2
+            (styles.textStyleH2
+                ++ [ css
+                        []
+                   ]
+            )
+            [ text <| Translations.loginInfoTitle [ shared.browserEnv.translations ]
+            ]
+        , div
+            []
+            [ text <| loginStatusToString shared.browserEnv.translations shared.loginStatus
+            ]
+        ]
+
+
+loginStatusToString : I18Next.Translations -> LoginStatus -> String
+loginStatusToString translations loginStatus =
+    case loginStatus of
+        LoggedOut ->
+            Translations.loggedOutStatusText [ translations ]
+
+        LoggedInUnknown ->
+            Translations.unknownLoginStatusText [ translations ]
+
+        LoggedIn pubKey loginMethod ->
+            Translations.loggedInStatusText [ translations ] ++ " " ++ pubKey ++ " (" ++ loginMethodToString loginMethod ++ ")"
+
+
+loginMethodToString : LoginMethod -> String
+loginMethodToString loginMethod =
+    case loginMethod of
+        LoginMethodConnect ->
+            "connect"
+
+        LoginMethodExtension ->
+            "extension"
+
+        LoginMethodLocal ->
+            "local"
+
+        LoginMethodOther method ->
+            method
+
+        LoginMethodReadOnly ->
+            "read only"
+
+
+viewErrorMessages : Theme -> I18Next.Translations -> Nostr.Model -> Html Msg
+viewErrorMessages theme translations nostr =
     let
         styles =
             stylesForTheme theme
@@ -103,8 +158,8 @@ showErrorMessages theme translations nostr =
 
         errorMessages ->
             div []
-                [ div
-                    (styles.textStyleH1
+                [ Html.h2
+                    (styles.textStyleH2
                         ++ [ css
                                 []
                            ]
@@ -112,7 +167,14 @@ showErrorMessages theme translations nostr =
                     [ text <| Translations.errorMessagesTitle [ translations ]
                     ]
                 , errorMessages
-                    |> List.map Html.text
+                    |> List.map
+                        (\htmlText ->
+                            htmlText
+                                |> String.split "\n"
+                                |> List.map Html.text
+                                |> List.intersperse (Html.br [] [])
+                                |> div []
+                        )
                     |> div
                         [ css
                             [ Tw.flex

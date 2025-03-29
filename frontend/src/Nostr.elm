@@ -1402,6 +1402,14 @@ update msg model =
                         ( _, _ ) ->
                             ( { model | errors = "Error decoding request ID or kind" :: model.errors }, Cmd.none )
 
+                "error" ->
+                    case Nostr.External.decodeReason message.value of
+                        Ok error ->
+                            ( { model | errors = error :: model.errors }, Cmd.none )
+
+                        Err error ->
+                            ( { model | errors = Decode.errorToString error :: model.errors }, Cmd.none )
+
                 _ ->
                     ( model, Cmd.none )
 

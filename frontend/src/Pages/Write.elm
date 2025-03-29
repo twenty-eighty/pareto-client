@@ -97,6 +97,7 @@ type alias Model =
     , debounceStatus : DebounceStatus
     }
 
+
 type DebounceStatus
     = Inactive
     | Active Int -- Remaining time in milliseconds
@@ -129,6 +130,7 @@ type ArticleState
     | ArticlePublished
     | ArticleDeletingDraft SendRequestId (Maybe Subscribers.SubscriberEventData)
     | ArticleDeletingDraftError String
+
 
 type ImageSelection
     = ArticleImageSelection
@@ -320,17 +322,23 @@ update shared user msg model =
     case msg of
         EditorChanged newContent ->
             if newContent == "" then
-                ( { model | articleState = ArticleModified
+                ( { model
+                    | articleState = ArticleModified
                     , content = Nothing
                     , textStats = emptyTextStats
                     , debounceStatus = Inactive
-                  }, Effect.none )
+                  }
+                , Effect.none
+                )
 
             else
-                ( { model | articleState = ArticleModified
+                ( { model
+                    | articleState = ArticleModified
                     , content = Just newContent
                     , debounceStatus = Active 500
-                  }, Effect.none )
+                  }
+                , Effect.none
+                )
 
         EditorFocused ->
             ( model, Effect.none )
@@ -515,13 +523,13 @@ update shared user msg model =
                 }
 
         LanguageChanged maybeLanguage ->
-            ( {model | textStats = TextStats.compute maybeLanguage (Maybe.withDefault "" model.content) }, Effect.none)
+            ( { model | textStats = TextStats.compute maybeLanguage (Maybe.withDefault "" model.content) }, Effect.none )
 
         StatsComputed (Ok textStats) ->
             ( { model | textStats = textStats }, Effect.none )
 
         StatsComputed (Err error) ->
-            ( model , Effect.none )
+            ( model, Effect.none )
 
         Tick _ ->
             case model.debounceStatus of
@@ -531,18 +539,19 @@ update shared user msg model =
 
                 Active remainingTime ->
                     if remainingTime <= 0 then
-                            -- Time has run out, trigger search
-                            ( { model | debounceStatus = Inactive }
-                            , TextStats.computeTask (Dropdown.selectedItem model.languageSelection) (Maybe.withDefault "" model.content)
-                                |> Task.attempt StatsComputed
-                                |> Effect.sendCmd
-                            )
+                        -- Time has run out, trigger search
+                        ( { model | debounceStatus = Inactive }
+                        , TextStats.computeTask (Dropdown.selectedItem model.languageSelection) (Maybe.withDefault "" model.content)
+                            |> Task.attempt StatsComputed
+                            |> Effect.sendCmd
+                        )
 
                     else
                         -- Decrease remaining time
                         ( { model | debounceStatus = Active (remainingTime - 100) }
                         , Effect.none
                         )
+
 
 loadReferencedNip27Profiles : Nostr.Model -> String -> Effect Msg
 loadReferencedNip27Profiles nostr content =
@@ -586,33 +595,46 @@ updateWithPortMessage shared model user portMessage =
 
         "error" ->
             case
-                ( model.articleState, Nostr.External.decodeReason portMessage.value ) of
-                    ( ArticleSavingDraft _, Ok error) ->
-                        ( { model | articleState = ArticleDraftSavingError error
-                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
-                            , modalDialog = ErrorDialog
-                        }, Effect.none )
+                ( model.articleState, Nostr.External.decodeReason portMessage.value )
+            of
+                ( ArticleSavingDraft _, Ok error ) ->
+                    ( { model
+                        | articleState = ArticleDraftSavingError error
+                        , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                        , modalDialog = ErrorDialog
+                      }
+                    , Effect.none
+                    )
 
-                    ( ArticlePublishing _ _, Ok error ) ->
-                        ( { model | articleState = ArticlePublishingError error
-                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
-                            , modalDialog = ErrorDialog
-                        }, Effect.none )
+                ( ArticlePublishing _ _, Ok error ) ->
+                    ( { model
+                        | articleState = ArticlePublishingError error
+                        , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                        , modalDialog = ErrorDialog
+                      }
+                    , Effect.none
+                    )
 
-                    ( ArticleSendingNewsletter _ _, Ok error ) ->
-                        ( { model | articleState = ArticleSendingNewsletterError error
-                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
-                            , modalDialog = ErrorDialog
-                        }, Effect.none )
+                ( ArticleSendingNewsletter _ _, Ok error ) ->
+                    ( { model
+                        | articleState = ArticleSendingNewsletterError error
+                        , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                        , modalDialog = ErrorDialog
+                      }
+                    , Effect.none
+                    )
 
-                    ( ArticleDeletingDraft _ _, Ok error ) ->
-                        ( { model | articleState = ArticleDeletingDraftError error
-                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
-                            , modalDialog = ErrorDialog
-                        }, Effect.none )
+                ( ArticleDeletingDraft _ _, Ok error ) ->
+                    ( { model
+                        | articleState = ArticleDeletingDraftError error
+                        , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                        , modalDialog = ErrorDialog
+                      }
+                    , Effect.none
+                    )
 
-                    ( _, error) ->
-                        ( model, Effect.none )
+                ( _, error ) ->
+                    ( model, Effect.none )
 
         _ ->
             ( model, Effect.none )
@@ -863,6 +885,7 @@ subscriptions model =
         , debounceSubscription model.debounceStatus
         ]
 
+
 debounceSubscription : DebounceStatus -> Sub Msg
 debounceSubscription debounceStatus =
     case debounceStatus of
@@ -871,6 +894,7 @@ debounceSubscription debounceStatus =
 
         Active _ ->
             Time.every 100 Tick
+
 
 
 -- VIEW
@@ -997,6 +1021,7 @@ viewModalDialog theme browserEnv articleState modalDialog =
                 }
                 |> MessageDialog.view
 
+
 viewArticleState : BrowserEnv -> Theme -> ArticleState -> Html Msg
 viewArticleState browserEnv theme articleState =
     let
@@ -1080,6 +1105,7 @@ articleStateToString browserEnv articleState =
         ArticleDeletingDraftError error ->
             Just <| Translations.deletingDraftError [ browserEnv.translations ] ++ ": " ++ error
 
+
 articleStateProcessIndicator : ArticleState -> Maybe (Html Msg)
 articleStateProcessIndicator articleState =
     case articleState of
@@ -1124,6 +1150,7 @@ articleStateProcessIndicator articleState =
 
         ArticleDeletingDraftError _ ->
             Nothing
+
 
 viewMediaSelector : Auth.User -> Shared.Model -> Model -> Html Msg
 viewMediaSelector user shared model =

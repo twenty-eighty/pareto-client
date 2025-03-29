@@ -83,6 +83,12 @@ export const onReady = ({ app, env }) => {
     loadNostrLogin();
   };
 
+  // in certain cases we can't catch the error with try/catch
+  window.addEventListener("unhandledrejection", function (event) {
+    debugLog('unhandledrejection', event);
+    app.ports.receiveMessage.send({ messageType: 'error', value: { reason: event.reason.stack } });
+  });
+
   function loadNostrLogin() {
     const titleAndDescription = getLocalizedStrings(navigator.language);
     const relays = defaultRelays.join(",");
@@ -709,12 +715,18 @@ export const onReady = ({ app, env }) => {
     var ndkEvent = new NDKEvent(window.ndk, event);
     const signer = (ndkEvent.pubkey == anonymousPubKey) ? anonymousSigner : window.ndk.signer;
 
-    if (event.kind == 30024) {  // draft event
-      ndkEvent = await encapsulateDraftEvent(ndkEvent, signer);
-    } else if (event.kind == 30078) {  // application-specific event
-      ndkEvent = await encapsulateApplicationSpecificEvent(ndkEvent, signer);
-      // Don't try to decrypt events that weren't encrypted for us
-      feedSentEventToApplication = false;
+    try {
+      if (event.kind == 30024) {  // draft event
+        ndkEvent = await encapsulateDraftEvent(ndkEvent, signer);
+      } else if (event.kind == 30078) {  // application-specific event
+        ndkEvent = await encapsulateApplicationSpecificEvent(ndkEvent, signer);
+        // Don't try to decrypt events that weren't encrypted for us
+        feedSentEventToApplication = false;
+      }
+    } catch (error) {
+      console.error(error);
+      app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: error.message } });
+      return;
     }
 
     if (!ndkEvent) {
@@ -756,8 +768,19 @@ export const onReady = ({ app, env }) => {
 
   // https://nips.nostr.com/37
   async function encapsulateDraftEvent(ndkEvent) {
+    const contentLength = ndkEvent.content.length;
+    const maxContentLength = 65535;
+    if (contentLength > maxContentLength) {
+      throw new Error(`Article can't be encrypted/saved if longer than ${maxContentLength} bytes`);
+    }
+
     await ndkEvent.sign();
     const rawEventString = JSON.stringify(ndkEvent.rawEvent());
+    const rawEventLength = rawEventString.length;
+    if (rawEventLength > maxContentLength) {
+      throw new Error(`Article can't be encrypted/saved if longer than ${maxContentLength} bytes`);
+    }
+    const content = await window.ndk.signer.encrypt({ pubkey: ndkEvent.pubkey }, rawEventString, 'nip44');
     const identifier = firstTag(ndkEvent, "d");
     const draftEvent = {
       kind: 31234,
@@ -767,7 +790,7 @@ export const onReady = ({ app, env }) => {
         ["e", ndkEvent.id],
         ["a", ndkEvent.kind + ":" + ndkEvent.pubkey + ":" + identifier],
       ],
-      content: await window.ndk.signer.encrypt({ pubkey: ndkEvent.pubkey }, rawEventString, 'nip44'),
+      content: content,
       pubkey: ndkEvent.pubkey,
       created_at: ndkEvent.created_at
     }

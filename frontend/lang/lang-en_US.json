@@ -78,9 +78,13 @@
    "internals": {
       "page title": "Internals",
       "explanation": "This page shows diagnostic information about the application.",
-      "error reporting": "When reporting an error, please include the information below, if present.",
+      "error reporting": "When reporting an error, please include the information below.",
       "contact information": "Please contact",
-      "error messages title": "Error messages"
+      "login info title": "Login",
+      "error messages title": "Error messages",
+      "logged out status text": "Logged out",
+      "unknown login status text": "Unknown login status",
+      "logged in status text": "Logged in:"
    },
    "locale": {
       "english text": "English",

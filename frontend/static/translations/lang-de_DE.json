@@ -79,9 +79,13 @@
    "internals": {
       "page title": "Interne Informationen",
       "explanation": "Diese Seite zeigt Diagnoseinformationen über diese Anwendung.",
-      "error reporting": "Wenn du einen Fehler meldest, sende bitte die Informationen unten mit, sofern welche angezeigt werden.",
+      "error reporting": "Wenn du einen Fehler meldest, sende bitte die Informationen unten mit.",
       "contact information": "Bitte kontaktiere",
-      "error messages title": "Fehlermeldungen"
+      "login info title": "Login",
+      "error messages title": "Fehlermeldungen",
+      "logged out status text": "Nicht angemeldet",
+      "unknown login status text": "Unbekannter Anmeldestatus",
+      "logged in status text": "Angemeldet:"
    },
    "locale": {
       "english text": "Englisch",
