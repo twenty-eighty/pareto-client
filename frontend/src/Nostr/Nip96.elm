@@ -10,7 +10,6 @@ import Nostr.Event exposing (Event, Kind(..))
 import Nostr.Nip94 as Nip94
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey, ServerUrl)
-import Shared
 import Url
 
 
@@ -72,6 +71,7 @@ fetchServerSpec toMsg url =
         , timeout = Nothing
         , tracker = Nothing
         }
+
 
 sendNip96ServerListCmd : BrowserEnv -> PubKey -> List String -> List ServerUrl -> SendRequest
 sendNip96ServerListCmd browserEnv pubKey serverUrls relays =
@@ -242,10 +242,15 @@ type alias FileUpload =
     , status : UploadStatus
     , caption : Maybe String
     , alt : Maybe String
-    , mediaType : Maybe String
+    , mediaType : Maybe MediaType
     , noTransform : Maybe Bool
     , uploadResponse : Maybe UploadResponse
     }
+
+
+type MediaType
+    = MediaTypeAvatar
+    | MediaTypeBanner
 
 
 type alias UploadResponse =
@@ -264,6 +269,32 @@ type UploadStatus
     | Uploading Float -- Progress percentage
     | Uploaded
     | Failed String -- Error message
+
+
+mediaTypeToString : Maybe MediaType -> String
+mediaTypeToString mediaType =
+    case mediaType of
+        Just MediaTypeAvatar ->
+            "avatar"
+
+        Just MediaTypeBanner ->
+            "banner"
+
+        Nothing ->
+            ""
+
+
+mediaTypeFromString : String -> Maybe MediaType
+mediaTypeFromString mediaTypeString =
+    case mediaTypeString of
+        "avatar" ->
+            Just MediaTypeAvatar
+
+        "banner" ->
+            Just MediaTypeBanner
+
+        _ ->
+            Nothing
 
 
 uploadFile : String -> Int -> FileUpload -> (Result Http.Error UploadResponse -> msg) -> String -> Cmd msg
@@ -293,8 +324,8 @@ multipartBody upload =
             , Http.stringPart "size" (File.size upload.file |> String.fromInt)
             , Http.stringPart "content_type" (File.mime upload.file)
             , Http.stringPart "expiration" expirationString
+            , Http.stringPart "media_type" (upload.mediaType |> mediaTypeToString)
             ]
-                |> appendStringField "media_type" upload.mediaType
                 |> appendStringField "alt" upload.alt
                 |> appendStringField "caption" upload.caption
                 |> appendBooleanField "no_transform" upload.noTransform

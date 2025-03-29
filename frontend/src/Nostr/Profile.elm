@@ -4,7 +4,7 @@ import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as DecodePipeline
 import Json.Encode as Encode
-import Nostr.Event exposing (Event, Identity, Tag(..))
+import Nostr.Event exposing (Event, Identity, Kind(..), Tag(..))
 import Nostr.Nip05 as Nip05 exposing (Nip05, nip05StringDecoder)
 import Nostr.Shared
 import Nostr.Types exposing (PubKey, RelayUrl)
@@ -47,7 +47,7 @@ profileToJson : Profile -> String
 profileToJson profile =
     []
         |> appendStringToEncode "name" profile.name
-        |> appendStringToEncode "displayName" profile.displayName
+        |> appendStringToEncode "display_name" profile.displayName
         |> appendStringToEncode "nip05" (Maybe.map Nip05.nip05ToString profile.nip05)
         |> appendStringToEncode "lud16" profile.lud16
         |> appendStringToEncode "about" profile.about
@@ -95,6 +95,32 @@ emptyProfile pubKey =
     , createdAt = Nothing
     , identities = []
     , relays = []
+    }
+
+
+profilesEqual : Profile -> Profile -> Bool
+profilesEqual profile1 profile2 =
+    (profile1.about == profile2.about)
+        && (profile1.banner == profile2.banner)
+        && (profile1.bot == profile2.bot)
+        && (profile1.displayName == profile2.displayName)
+        && (profile1.lud16 == profile2.lud16)
+        && (profile1.name == profile2.name)
+        && (profile1.nip05 == profile2.nip05)
+        && (profile1.picture == profile2.picture)
+        && (profile1.website == profile2.website)
+
+
+eventFromProfile : PubKey -> Profile -> Event
+eventFromProfile pubKey profile =
+    { pubKey = pubKey
+    , createdAt = Time.millisToPosix 0
+    , kind = KindUserMetadata
+    , tags = []
+    , content = profileToJson profile
+    , id = ""
+    , sig = Nothing
+    , relays = Nothing
     }
 
 

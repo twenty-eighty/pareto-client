@@ -204,6 +204,8 @@
       "no relays configured text": "Anscheinend hast du keine Relays konfiguriert. Möchtest du ein paar hinzufügen?",
       "add default relays button title": "Relays hinzufügen",
       "media servers category": "Medien-Server",
+      "add media server button title": "Hinzufügen",
+      "add media server placeholder": "Gib die URL eines Medien-Servers ein",
       "no media server configured text": "Anscheinend hast du noch keinen Medienserver konfiguriert. Möchtest du einen hinzufügen?",
       "add default media servers button title": "Medien-Server hinzufügen",
       "nip-96 servers section title": "NIP-96 Server",
@@ -214,7 +216,9 @@
       "add blossom media server placeholder": "Gib die URL eines Blossom-Servers ein",
       "profile category": "Profil",
       "profile editor title": "Profil-Editor",
-      "profile editor not implemented text": "Der Profil-Editor ist noch nicht implementiert. Bitte benutze eine der bestehenden Alternativen."
+      "profile editor not implemented text": "Der Profil-Editor ist noch nicht implementiert. Bitte benutze eine der bestehenden Alternativen.",
+      "profile save button title": "Speichern",
+      "image selection button title": "Auswählen"
    },
    "sidebar": {
       "reader client role text": "Leser",

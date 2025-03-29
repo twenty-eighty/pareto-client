@@ -11,7 +11,7 @@ import Locale exposing (Language(..))
 import Nostr
 import Nostr.Event exposing (Kind(..), KindInformationLink(..), Tag(..), TagReference(..), buildAddress, numberForKind)
 import Nostr.HandlerInformation exposing (HandlerInformation, buildHandlerInformation)
-import Nostr.Profile exposing (Profile, ProfileValidation(..), profileToJson)
+import Nostr.Profile exposing (Profile, ProfileValidation(..), eventFromProfile)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (Following(..), PubKey)
@@ -139,15 +139,7 @@ sendHandlerInformation nostr pubKey handlerInformation =
 
 sendClientProfile : Nostr.Model -> PubKey -> Profile -> Effect Msg
 sendClientProfile nostr pubKey profile =
-    { pubKey = pubKey
-    , createdAt = Time.millisToPosix 0
-    , kind = KindUserMetadata
-    , tags = []
-    , content = profileToJson profile
-    , id = ""
-    , sig = Nothing
-    , relays = Nothing
-    }
+    eventFromProfile pubKey profile
         |> SendProfile (Nostr.getWriteRelayUrlsForPubKey nostr pubKey)
         |> Shared.Msg.SendNostrEvent
         |> Effect.sendSharedMsg

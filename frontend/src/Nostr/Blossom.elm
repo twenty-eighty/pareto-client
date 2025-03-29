@@ -2,7 +2,7 @@ module Nostr.Blossom exposing (..)
 
 import File exposing (File)
 import Http
-import Json.Decode as Decode exposing (Decoder)
+import Json.Decode as Decode
 import Json.Decode.Pipeline as Pipeline
 import MimeType
 import Nostr.Event exposing (Event, Tag(..))

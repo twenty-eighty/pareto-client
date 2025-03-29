@@ -633,7 +633,8 @@ updateWithPortMessage shared model user portMessage =
                     , Effect.none
                     )
 
-                ( _, error ) ->
+                ( _, _ ) ->
+                    -- error message will be collected in Nostr module
                     ( model, Effect.none )
 
         _ ->

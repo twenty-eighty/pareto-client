@@ -4,12 +4,14 @@ module Components.MediaSelector exposing
     , Model
     , Msg
     , UploadedFile(..)
+    , getMediaType
     , init
     , new
     , show
     , subscribe
     , update
     , view
+    , withMediaType
     )
 
 import Auth
@@ -85,6 +87,16 @@ new props =
         }
 
 
+withMediaType : Nip96.MediaType -> Model -> Model
+withMediaType mediaType (Model model) =
+    Model { model | mediaType = Just mediaType }
+
+
+getMediaType : Model -> Maybe Nip96.MediaType
+getMediaType (Model model) =
+    model.mediaType
+
+
 type Model
     = Model
         { selected : Maybe Int
@@ -98,6 +110,7 @@ type Model
         , uploadedBlossomFiles : Dict ServerUrl (List UploadedFile)
         , uploadedNip96Files : Dict ServerUrl (List UploadedFile)
         , uploadDialog : UploadDialog.Model
+        , mediaType : Maybe Nip96.MediaType
         , errors : List String
         , alertTimerMessage : AlertTimerMessage.Model
         }
@@ -154,6 +167,7 @@ init props =
                 { toMsg = UploadDialogSent
                 }
         , errors = []
+        , mediaType = Nothing
         , alertTimerMessage = AlertTimerMessage.init {}
         }
     , Effect.batch
@@ -332,7 +346,21 @@ update props =
                 |> toParentModel
 
         Upload ->
-            ( Model { model | uploadDialog = UploadDialog.show model.uploadDialog }, Effect.none )
+            ( Model
+                { model
+                    | uploadDialog =
+                        case model.mediaType of
+                            Just mediaType ->
+                                model.uploadDialog
+                                    |> UploadDialog.withMediaType mediaType
+                                    |> UploadDialog.show
+
+                            Nothing ->
+                                model.uploadDialog
+                                    |> UploadDialog.show
+                }
+            , Effect.none
+            )
                 |> toParentModel
 
         Uploaded uploadResponse ->
