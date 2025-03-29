@@ -125,7 +125,7 @@ performSearch shared model maybeSearchText =
                 Ok (Nip19.NEvent _) ->
                     ( model
                     , Effect.batch
-                        [ Effect.pushRoute { path = Route.Path.A_Addr_ { addr = searchText }, query = Dict.empty, hash = Nothing } ]
+                        [ Effect.pushRoute { path = Route.Path.E_Event_ { event = searchText }, query = Dict.empty, hash = Nothing } ]
                     )
 
                 Ok (Nip19.NAddr _) ->
