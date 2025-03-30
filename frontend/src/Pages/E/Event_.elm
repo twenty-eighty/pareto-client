@@ -250,6 +250,7 @@ viewContent shared model =
                                 , removeBookmark = Nothing
                                 , addReaction = Nothing
                                 , removeReaction = Nothing
+                                , addRepost = Nothing
                                 }
                             , interactions =
                                 { zaps = Nothing
@@ -276,6 +277,7 @@ viewContent shared model =
                         , userPubKey = Shared.loggedInPubKey shared.loginStatus
                         , onBookmark = Nothing
                         , onReaction = Nothing
+                        , onRepost = Nothing
                         , onZap = Nothing
                         }
                         (Just model.loadedContent)

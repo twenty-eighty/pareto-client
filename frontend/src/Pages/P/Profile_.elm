@@ -280,6 +280,7 @@ viewArticles shared pubKey =
             , userPubKey = Shared.loggedInPubKey shared.loginStatus
             , onBookmark = Nothing
             , onReaction = Nothing
+            , onRepost = Nothing
             , onZap = Nothing
             }
 

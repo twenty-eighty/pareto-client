@@ -26,3 +26,4 @@ type SendRequest
     | SendProfile (List RelayUrl) Event
     | SendReaction PubKey EventId PubKey AddressComponents
     | SendRelayList (List RelayUrl) Event
+    | SendRepost (List RelayUrl) Event

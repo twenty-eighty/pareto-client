@@ -17,13 +17,13 @@ import Nostr.FollowList exposing (emptyFollowList, followListEvent, followListFr
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
 import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05Info, nip05ToString)
 import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
+import Nostr.Nip18 exposing (Repost, repostFromEvent)
 import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileFromEvent)
 import Nostr.Reactions exposing (Reaction, reactionFromEvent)
 import Nostr.Relay exposing (Relay, RelayState(..), hostWithoutProtocol, relayUrlDecoder)
 import Nostr.RelayList exposing (relayListFromEvent)
 import Nostr.RelayListMetadata exposing (RelayMetadata, relayMetadataListFromEvent)
-import Nostr.Repost exposing (Repost)
 import Nostr.Request as Request exposing (Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
@@ -64,7 +64,8 @@ type alias Model =
     , relays : Dict String Relay
     , relayMetadataLists : Dict PubKey (List RelayMetadata)
     , relaysForPubKey : Dict PubKey (List RelayUrl)
-    , reposts : Dict EventId Repost
+    , repostsByAddress : Dict Address (Dict PubKey Repost)
+    , repostsByEventId : Dict EventId (Dict PubKey Repost)
     , searchRelayLists : Dict PubKey (List RelayUrl)
     , shortTextNotes : Dict String ShortNote
     , userServerLists : Dict PubKey (List String)
@@ -479,10 +480,15 @@ send model sendRequest =
                     | content = "+"
                     , tags =
                         [ AddressTag addressComponents
-                        , EventIdTag eventId
+                        , EventIdTag eventId Nothing
                         , PublicKeyTag articlePubKey Nothing Nothing
                         ]
                 }
+            )
+
+        SendRepost relays event ->
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , sendEvent model relays event
             )
 
         SendRelayList relays event ->
@@ -689,6 +695,11 @@ getBookmarks model pubKey =
 getReactionsForArticle : Model -> AddressComponents -> Maybe (Dict PubKey Nostr.Reactions.Reaction)
 getReactionsForArticle model addressComponents =
     Dict.get (buildAddress addressComponents) model.reactionsForAddress
+
+
+getRepostsForArticle : Model -> AddressComponents -> Maybe (Dict PubKey Nostr.Nip18.Repost)
+getRepostsForArticle model addressComponents =
+    Dict.get (buildAddress addressComponents) model.repostsByAddress
 
 
 getRelaysForPubKey : Model -> PubKey -> List ( RelayRole, Relay )
@@ -1076,7 +1087,7 @@ getInteractions model maybePubKey article =
     { zaps = getZapReceiptsCountForArticle model article
     , highlights = Nothing
     , reactions = getReactionsCountForArticle model article
-    , reposts = Nothing
+    , reposts = getRepostsCountForArticle model article
     , notes = Nothing
     , bookmarks = Maybe.map (getBookmarkListCountForAddressComponents model) maybeAddressComponents
     , isBookmarked =
@@ -1102,12 +1113,9 @@ isArticleBookmarked model article pubKey =
     bookmarkList.articles
         |> List.filter
             (\( kind, referencedPubKey, dCode ) ->
-                article.kind
-                    == kind
-                    && article.author
-                    == referencedPubKey
-                    && article.identifier
-                    == Just dCode
+                (article.kind == kind)
+                    && (article.author == referencedPubKey)
+                    && (article.identifier == Just dCode)
             )
         |> List.isEmpty
         |> not
@@ -1152,6 +1160,14 @@ getReactionsCountForArticle model article =
         |> Maybe.map Dict.size
 
 
+getRepostsCountForArticle : Model -> Article -> Maybe Int
+getRepostsCountForArticle model article =
+    article
+        |> addressComponentsForArticle
+        |> Maybe.andThen (getRepostsForArticle model)
+        |> Maybe.map Dict.size
+
+
 getReactionForArticle : Model -> PubKey -> AddressComponents -> Maybe Reaction
 getReactionForArticle model pubKey addressComponents =
     getReactionsForArticle model addressComponents
@@ -1179,7 +1195,7 @@ eventFilterForReactions tagReferences =
     else
         Just
             { emptyEventFilter
-                | kinds = Just [ KindZapReceipt, KindHighlights, KindRepost, KindShortTextNote, KindReaction, KindBookmarkList, KindBookmarkSets ]
+                | kinds = Just [ KindZapReceipt, KindHighlights, KindRepost, KindGenericRepost, KindShortTextNote, KindReaction, KindBookmarkList, KindBookmarkSets ]
                 , tagReferences = Just tagReferences
             }
 
@@ -1234,7 +1250,8 @@ empty =
     , relayMetadataLists = Dict.empty
     , relays = Dict.empty
     , relaysForPubKey = Dict.empty
-    , reposts = Dict.empty
+    , repostsByAddress = Dict.empty
+    , repostsByEventId = Dict.empty
     , searchRelayLists = Dict.empty
     , shortTextNotes = Dict.empty
     , userServerLists = Dict.empty
@@ -1524,6 +1541,12 @@ updateModelWithEvents model requestId kind events =
         KindEventDeletionRequest ->
             updateModelWithDeletionRequests model events
 
+        KindRepost ->
+            updateModelWithReposts model events
+
+        KindGenericRepost ->
+            updateModelWithReposts model events
+
         KindUserServerList ->
             updateModelWithUserServerLists model requestId events
 
@@ -1641,6 +1664,58 @@ updateModelWithDeletionRequests model events =
     ( { model
         | deletedAddresses = deletedAddresses
         , deletedEvents = deletedEventIds
+      }
+    , Cmd.none
+    )
+
+
+updateModelWithReposts : Model -> List Event -> ( Model, Cmd Msg )
+updateModelWithReposts model events =
+    let
+        updatedDictByAddress repost dict =
+            case repost.repostedAddress of
+                Just addressComponents ->
+                    let
+                        address =
+                            buildAddress addressComponents
+                    in
+                    case Dict.get address dict of
+                        Just dictForAddress ->
+                            Dict.insert address (Dict.insert repost.pubKey repost dictForAddress) dict
+
+                        Nothing ->
+                            Dict.insert address (Dict.singleton repost.pubKey repost) dict
+
+                Nothing ->
+                    dict
+
+        updatedDictByEventId repost dict =
+            case repost.repostedEvent of
+                Just eventId ->
+                    case Dict.get eventId dict of
+                        Just dictForAddress ->
+                            Dict.insert eventId (Dict.insert repost.pubKey repost dictForAddress) dict
+
+                        Nothing ->
+                            Dict.insert eventId (Dict.singleton repost.pubKey repost) dict
+
+                Nothing ->
+                    dict
+
+        ( repostsByAddress, repostsByEventId ) =
+            events
+                |> List.map repostFromEvent
+                |> List.foldl
+                    (\repost ( accAddress, accEvent ) ->
+                        ( updatedDictByAddress repost accAddress
+                        , updatedDictByEventId repost accEvent
+                        )
+                    )
+                    ( model.repostsByAddress, model.repostsByEventId )
+    in
+    ( { model
+        | repostsByAddress = repostsByAddress
+        , repostsByEventId = repostsByEventId
       }
     , Cmd.none
     )

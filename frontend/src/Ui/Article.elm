@@ -41,6 +41,7 @@ type alias ArticlePreviewsData msg =
     , userPubKey : Maybe PubKey
     , onBookmark : Maybe ( AddressComponents -> msg, AddressComponents -> msg ) -- msgs for adding/removing a bookmark
     , onReaction : Maybe (EventId -> PubKey -> AddressComponents -> msg)
+    , onRepost : Maybe msg
     , onZap : Maybe (List ZapDialog.Recipient -> msg)
     }
 
@@ -885,7 +886,7 @@ previewListImage article =
                 ]
 
         Nothing ->
-            div [][]
+            div [] []
 
 
 previewBigPictureImage : Article -> Html msg

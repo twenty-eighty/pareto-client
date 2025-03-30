@@ -18,7 +18,7 @@ type Tag
     | ClientTag String (Maybe String) (Maybe String)
     | DescriptionTag String
     | DirTag
-    | EventIdTag EventId
+    | EventIdTag EventId (Maybe RelayUrl)
     | EventDelegationTag PubKey
     | ExpirationTag Time.Posix
     | ExternalIdTag String
@@ -32,7 +32,7 @@ type Tag
     | LabelTag String (Maybe String)
     | MentionTag PubKey
     | NameTag String
-    | PublicKeyTag PubKey (Maybe String) (Maybe String)
+    | PublicKeyTag PubKey (Maybe RelayUrl) (Maybe String)
     | PublishedAtTag Time.Posix
     | QuotedEventTag EventId
     | ReferenceTag String (Maybe String)
@@ -1639,7 +1639,7 @@ decodeTag =
                             Decode.map DescriptionTag (Decode.index 1 Decode.string)
 
                         "e" ->
-                            Decode.map EventIdTag (Decode.index 1 Decode.string)
+                            Decode.map2 EventIdTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
                         "expiration" ->
                             Decode.map ExpirationTag (Decode.index 1 decodeUnixTimeString)
@@ -1802,8 +1802,13 @@ tagToList tag =
         DirTag ->
             [ "dir" ]
 
-        EventIdTag eventId ->
-            [ "e", eventId ]
+        EventIdTag eventId maybeRelayUrl ->
+            case maybeRelayUrl of
+                Just relayUrl ->
+                    [ "e", eventId, relayUrl ]
+
+                Nothing ->
+                    [ "e", eventId ]
 
         EventDelegationTag pubKey ->
             [ "d", pubKey ]
@@ -2331,9 +2336,9 @@ addDTag identifier tags =
     EventDelegationTag identifier :: tags
 
 
-addEventIdTag : EventId -> List Tag -> List Tag
-addEventIdTag eventId tags =
-    EventIdTag eventId :: tags
+addEventIdTag : EventId -> Maybe RelayUrl -> List Tag -> List Tag
+addEventIdTag eventId maybeRelayUrl tags =
+    EventIdTag eventId maybeRelayUrl :: tags
 
 
 addKindTag : Kind -> List Tag -> List Tag
@@ -2348,7 +2353,7 @@ addKindTags kinds tags =
         |> List.append tags
 
 
-addPubKeyTag : PubKey -> Maybe String -> Maybe String -> List Tag -> List Tag
+addPubKeyTag : PubKey -> Maybe RelayUrl -> Maybe String -> List Tag -> List Tag
 addPubKeyTag pubKey maybeRelay maybePetName tags =
     PublicKeyTag pubKey maybeRelay maybePetName :: tags
 

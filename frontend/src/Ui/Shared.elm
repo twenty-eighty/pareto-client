@@ -169,6 +169,7 @@ type alias Actions msg =
     , removeBookmark : Maybe msg
     , addReaction : Maybe msg
     , removeReaction : Maybe msg
+    , addRepost : Maybe msg
     }
 
 
@@ -250,7 +251,7 @@ viewInteractions styles browserEnv previewData instanceId =
         ]
         [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) Nothing (Maybe.map String.fromInt interactions.notes) previewData instanceId
         , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) previewData instanceId
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.repeat) Nothing (Maybe.map String.fromInt interactions.reposts) previewData instanceId
+        , viewReactions styles (Icon.FeatherIcon FeatherIcons.repeat) actions.addRepost (Maybe.map String.fromInt interactions.reposts) previewData instanceId
         , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) previewData instanceId
         , viewReactions styles bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks) previewData instanceId
         ]

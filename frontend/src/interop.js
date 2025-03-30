@@ -525,6 +525,7 @@ export const onReady = ({ app, env }) => {
         case 5: // event deletion request
         case 6: // repost
         case 7: // reactions
+        case 16: // generic repost
           {
             eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
             break;

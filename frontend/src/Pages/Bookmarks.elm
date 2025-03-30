@@ -4,7 +4,7 @@ import Auth
 import Components.Categories as Categories
 import Dict
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, div)
+import Html.Styled as Html exposing (Html)
 import I18Next
 import Layouts
 import Nostr
@@ -293,6 +293,7 @@ viewArticleBookmarks user shared _ addressComponents =
             , userPubKey = Just user.pubKey
             , onBookmark = Just ( AddArticleBookmark user.pubKey, RemoveArticleBookmark user.pubKey )
             , onReaction = Nothing
+            , onRepost = Nothing
             , onZap = Nothing
             }
 

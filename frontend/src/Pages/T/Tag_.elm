@@ -10,7 +10,6 @@ import Nostr.Article exposing (Article)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Request exposing (RequestData(..))
 import Page exposing (Page)
-import Ports
 import Route exposing (Route)
 import Shared
 import Shared.Model
@@ -179,6 +178,7 @@ view shared model =
                     , userPubKey = Shared.loggedInPubKey shared.loginStatus
                     , onBookmark = Nothing
                     , onReaction = Nothing
+                    , onRepost = Nothing
                     , onZap = Nothing
                     }
             ]

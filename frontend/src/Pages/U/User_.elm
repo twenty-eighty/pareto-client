@@ -224,6 +224,7 @@ viewProfile shared model profile =
                 , userPubKey = Shared.loggedInPubKey shared.loginStatus
                 , onBookmark = Nothing
                 , onReaction = Nothing
+                , onRepost = Nothing
                 , onZap = Nothing
                 }
         , viewEmailSubscriptionDialog shared model profile

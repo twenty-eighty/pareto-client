@@ -9,13 +9,14 @@ import Html.Styled.Attributes exposing (css)
 import Layouts
 import LinkPreview exposing (LoadedContent)
 import Nostr
+import Nostr.Article exposing (Article)
 import Nostr.Event as Event exposing (AddressComponents, Kind(..), TagReference(..))
+import Nostr.Nip18 exposing (articleRepostEvent)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (EventId, PubKey)
 import Page exposing (Page)
-import Ports
 import Route exposing (Route)
 import Set
 import Shared
@@ -136,6 +137,7 @@ type Msg
     = AddArticleBookmark PubKey AddressComponents
     | RemoveArticleBookmark PubKey AddressComponents
     | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
+    | AddRepost PubKey Article
     | AddLoadedContent String
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
@@ -162,6 +164,19 @@ update shared msg model =
         AddArticleReaction userPubKey eventId articlePubKey addressComponents ->
             ( model
             , SendReaction userPubKey eventId articlePubKey addressComponents
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        AddRepost userPubKey article ->
+            let
+                relays =
+                    article.relays
+                        |> Set.toList
+                        |> List.append (Nostr.getWriteRelayUrlsForPubKey shared.nostr userPubKey)
+            in
+            ( model
+            , SendRepost relays (articleRepostEvent userPubKey article)
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
@@ -253,16 +268,19 @@ viewContent shared nip19 loadedContent requestId =
     , body =
         [ maybeArticle
             |> Maybe.map
-                (Ui.View.viewArticle
-                    { theme = shared.theme
-                    , browserEnv = shared.browserEnv
-                    , nostr = shared.nostr
-                    , userPubKey = Shared.loggedInPubKey shared.loginStatus
-                    , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) signingUserPubKey
-                    , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) signingUserPubKey
-                    , onZap = Maybe.map (\pubKey -> ZapReaction pubKey) userPubKey
-                    }
-                    (Just loadedContent)
+                (\article ->
+                    Ui.View.viewArticle
+                        { theme = shared.theme
+                        , browserEnv = shared.browserEnv
+                        , nostr = shared.nostr
+                        , userPubKey = Shared.loggedInPubKey shared.loginStatus
+                        , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) signingUserPubKey
+                        , onRepost = Maybe.map (\pubKey -> AddRepost pubKey article) signingUserPubKey
+                        , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) signingUserPubKey
+                        , onZap = Maybe.map (\pubKey -> ZapReaction pubKey) userPubKey
+                        }
+                        (Just loadedContent)
+                        article
                 )
             |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle (Just requestId))
         ]

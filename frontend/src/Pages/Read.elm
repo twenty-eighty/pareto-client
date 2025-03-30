@@ -131,7 +131,8 @@ init shared route () =
         signUpEffect =
             if route.hash == Just "signup" then
                 Ports.signUp
-                |> Effect.sendCmd
+                    |> Effect.sendCmd
+
             else
                 Effect.none
 
@@ -491,6 +492,7 @@ viewContent shared model userPubKey =
                     , userPubKey = userPubKey
                     , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) userPubKey
                     , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) userPubKey
+                    , onRepost = Nothing
                     , onZap = Nothing
                     }
 
@@ -537,6 +539,7 @@ viewShortNotes shortNotesViewData shortNotes =
                         , removeBookmark = Nothing
                         , addReaction = Nothing
                         , removeReaction = Nothing
+                        , addRepost = Nothing
                         }
                     , interactions =
                         { zaps = Nothing

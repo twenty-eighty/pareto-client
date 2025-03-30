@@ -1,8 +1,6 @@
 module Nostr.Reactions exposing (..)
 
-import Json.Decode as Decode exposing (Decoder)
-import Json.Decode.Pipeline as DecodePipeline
-import Nostr.Event exposing (AddressComponents, Event, Kind, Tag(..), kindDecoder)
+import Nostr.Event exposing (AddressComponents, Event, Kind, Tag(..))
 import Nostr.Types exposing (EventId, PubKey)
 
 
@@ -42,7 +40,7 @@ reactionFromEvent event =
                     AddressTag addressComponents ->
                         { acc | addressComponentsReactedTo = Just addressComponents }
 
-                    EventIdTag eventId ->
+                    EventIdTag eventId _ ->
                         { acc | noteIdReactedTo = Just eventId }
 
                     KindTag kind ->
