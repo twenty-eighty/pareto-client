@@ -232,16 +232,16 @@ update _ msg model =
                 |> Effect.sendCmd
             )
 
-        UpdateNewsletterAvailabilityPubKey pubKey ->
+        LoadUserDataByPubKey pubKey ->
             ( model
-            , Nostr.updateNewsletterAvailabilityPubKey model.nostr pubKey
+            , Nostr.loadUserDataByPubKey model.nostr pubKey
                 |> Cmd.map NostrMsg
                 |> Effect.sendCmd
             )
 
-        UpdateNewsletterAvailabilityNip05 nip05 ->
+        LoadUserDataByNip05 nip05 ->
             ( model
-            , Nostr.updateNewsletterAvailabilityNip05 model.nostr nip05
+            , Nostr.loadUserDataByNip05 model.nostr nip05
                 |> Cmd.map NostrMsg
                 |> Effect.sendCmd
             )
@@ -282,7 +282,7 @@ updateWithUserValue model value =
             , [ cmd
 
               -- check if user sends newsletters
-              , Nostr.updateNewsletterAvailabilityPubKey model.nostr pubKeyNew
+              , Nostr.loadUserDataByPubKey model.nostr pubKeyNew
               ]
                 |> Cmd.batch
                 |> Cmd.map Shared.Msg.NostrMsg
@@ -298,7 +298,7 @@ updateWithUserValue model value =
             , [ cmd
 
               -- check if user sends newsletters
-              , Nostr.updateNewsletterAvailabilityPubKey model.nostr pubKeyNew
+              , Nostr.loadUserDataByPubKey model.nostr pubKeyNew
               ]
                 |> Cmd.batch
                 |> Cmd.map Shared.Msg.NostrMsg

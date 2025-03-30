@@ -17,6 +17,7 @@ import I18Next
 import Layouts
 import Nostr
 import Nostr.Event exposing (Kind(..), emptyEventFilter)
+import Nostr.Lud16 as Lud16
 import Nostr.Nip05 as Nip05
 import Nostr.Nip96 as Nip96 exposing (eventWithNip96ServerList)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), emptyProfile, eventFromProfile, profilesEqual)
@@ -547,7 +548,11 @@ updateModelWithCategory user shared model category =
                                     emptyProfileModel user shared
                     in
                     ( { model | data = ProfileData profileModel }
-                    , profileEffect
+                    , Effect.batch
+                        [ profileEffect
+                        , Shared.Msg.LoadUserDataByPubKey user.pubKey
+                            |> Effect.sendSharedMsg
+                        ]
                     )
     in
     ( newModel
@@ -1365,6 +1370,9 @@ viewProfile shared user profileModel =
 viewProfileEditor : Shared.Model -> Auth.User -> ProfileModel -> Html Msg
 viewProfileEditor shared user profileModel =
     let
+        portalUserData =
+            Nostr.getPortalUserInfo shared.nostr user.pubKey
+
         profileNotChanged =
             case profileModel.savedProfile of
                 Just savedProfile ->
@@ -1401,6 +1409,7 @@ viewProfileEditor shared user profileModel =
                 }
                 |> EntryField.withLabel "name"
                 |> EntryField.withPlaceholder "name"
+                |> EntryField.withSuggestions "name" (portalUserData |> Maybe.andThen .username |> Maybe.map List.singleton |> Maybe.withDefault [])
                 |> EntryField.view
             , EntryField.new
                 { value = profileModel.nip05
@@ -1409,6 +1418,7 @@ viewProfileEditor shared user profileModel =
                 }
                 |> EntryField.withLabel "nip05"
                 |> EntryField.withPlaceholder "nip05"
+                |> EntryField.withSuggestions "nip05" (portalUserData |> Maybe.andThen .nip05 |> Maybe.map Nip05.nip05ToString |> Maybe.map List.singleton |> Maybe.withDefault [])
                 |> EntryField.withType EntryField.FieldTypeEmail
                 |> EntryField.view
             ]
@@ -1448,6 +1458,7 @@ viewProfileEditor shared user profileModel =
             }
             |> EntryField.withLabel "lud16"
             |> EntryField.withPlaceholder "lud16"
+            |> EntryField.withSuggestions "lud16" (portalUserData |> Maybe.andThen .lud16 |> Maybe.map Lud16.lud16ToString |> Maybe.map List.singleton |> Maybe.withDefault [])
             |> EntryField.withType EntryField.FieldTypeEmail
             |> EntryField.view
         , EntryField.new

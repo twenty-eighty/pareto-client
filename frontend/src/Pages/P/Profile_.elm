@@ -111,7 +111,7 @@ init shared route () =
         [ requestProfileEffect
         , requestArticlesEffect
         , model.pubKey
-            |> Maybe.map Shared.Msg.UpdateNewsletterAvailabilityPubKey
+            |> Maybe.map Shared.Msg.LoadUserDataByPubKey
             |> Maybe.map Effect.sendSharedMsg
             |> Maybe.withDefault Effect.none
         ]
