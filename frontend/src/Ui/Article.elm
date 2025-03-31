@@ -168,8 +168,8 @@ viewArticle articlePreviewsData articlePreviewData article =
                         )
                         [ text <| Maybe.withDefault "" article.title ]
                     , Html.summary
-                        (styles.textStyleH4Article
-                            ++ styles.colorStyleGrayscaleText
+                        (styles.textStyleH2
+                            ++ styles.colorStyleGrayscaleSummary
                             ++ [ css
                                     [ Tw.max_w_screen_sm
                                     , Bp.sm

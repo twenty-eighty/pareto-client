@@ -34,9 +34,11 @@ fontFamilySourceSerifPro =
 type Theme
     = ParetoTheme
 
+
 defaultTheme : Theme
 defaultTheme =
     ParetoTheme
+
 
 type alias StyleBundle msg =
     List (Html.Attribute msg)
@@ -93,6 +95,7 @@ map toMsg props =
     , colorStyleGreen = mapStyleBundle toMsg props.colorStyleGreen
     , colorStyleCover = mapStyleBundle toMsg props.colorStyleCover
     , colorStyleGrayscaleTitle = mapStyleBundle toMsg props.colorStyleGrayscaleTitle
+    , colorStyleGrayscaleSummary = mapStyleBundle toMsg props.colorStyleGrayscaleSummary
     , colorStyleGrayscaleMuted = mapStyleBundle toMsg props.colorStyleGrayscaleMuted
     , colorStyleGrayscaleText = mapStyleBundle toMsg props.colorStyleGrayscaleText
     , colorStyleGrayscaleMedia = mapStyleBundle toMsg props.colorStyleGrayscaleMedia
@@ -160,6 +163,7 @@ type alias Styles msg =
     , colorStyleGreen : StyleBundle msg
     , colorStyleCover : StyleBundle msg
     , colorStyleGrayscaleTitle : StyleBundle msg
+    , colorStyleGrayscaleSummary : StyleBundle msg
     , colorStyleGrayscaleMuted : StyleBundle msg
     , colorStyleGrayscaleText : StyleBundle msg
     , colorStyleGrayscaleMedia : StyleBundle msg
@@ -248,7 +252,7 @@ paretoThemeStyles =
     , textStyleBody =
         [ css
             [ Tw.text_base
-            , Tw.font_normal
+            , Tw.font_medium
             , Tw.leading_6
             , Tw.tracking_normal
 
@@ -295,7 +299,7 @@ paretoThemeStyles =
     , textStyleH1Article =
         [ css
             [ Tw.text_5xl
-            , Tw.font_semibold
+            , Tw.font_bold
             , Tw.leading_tight
             ]
         , fontFamilyInter
@@ -304,7 +308,7 @@ paretoThemeStyles =
     , textStyleH2 =
         [ css
             [ Tw.text_2xl
-            , Tw.font_semibold
+            , Tw.font_medium
             , Tw.tracking_tight
             ]
         , fontFamilyInter
@@ -459,6 +463,14 @@ paretoThemeStyles =
                 ]
             ]
         ]
+    , colorStyleGrayscaleSummary =
+        [ css
+            [ Tw.text_color Theme.slate_800
+            , darkMode
+                [ Tw.text_color Theme.slate_200
+                ]
+            ]
+        ]
     , colorStyleGrayscaleMuted =
         [ css
             [ Tw.text_color Theme.slate_400
@@ -469,9 +481,9 @@ paretoThemeStyles =
         ]
     , colorStyleGrayscaleText =
         [ css
-            [ Tw.text_color Theme.slate_500
+            [ Tw.text_color Theme.slate_700
             , darkMode
-                [ Tw.text_color Theme.slate_500
+                [ Tw.text_color Theme.slate_300
                 ]
             ]
         ]
