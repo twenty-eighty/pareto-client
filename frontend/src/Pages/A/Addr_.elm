@@ -277,6 +277,8 @@ viewContent shared nip19 loadedContent requestId =
                         , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) signingUserPubKey
                         , onRepost = Maybe.map (\pubKey -> AddRepost pubKey article) signingUserPubKey
                         , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) signingUserPubKey
+
+                        -- signing is possible also with read-only login
                         , onZap = Maybe.map (\pubKey -> ZapReaction pubKey) userPubKey
                         }
                         (Just loadedContent)

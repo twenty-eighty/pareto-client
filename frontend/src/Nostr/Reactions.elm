@@ -1,6 +1,7 @@
 module Nostr.Reactions exposing (..)
 
 import Nostr.Event exposing (AddressComponents, Event, Kind, Tag(..))
+import Nostr.Nip18 exposing (Repost)
 import Nostr.Types exposing (EventId, PubKey)
 
 
@@ -17,6 +18,7 @@ type alias Interactions =
     , bookmarks : Maybe Int
     , isBookmarked : Bool
     , reaction : Maybe Reaction
+    , repost : Maybe Repost
     }
 
 

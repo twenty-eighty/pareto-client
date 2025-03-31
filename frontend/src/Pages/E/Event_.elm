@@ -1,11 +1,8 @@
 module Pages.E.Event_ exposing (..)
 
-import BrowserEnv exposing (BrowserEnv)
 import Components.RelayStatus exposing (Purpose(..))
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled as Html exposing (Html, article, div, text)
 import Layouts
 import LinkPreview exposing (LoadedContent)
 import Nostr
@@ -42,7 +39,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -77,7 +74,7 @@ init shared route () =
                 Ok (Nip19.Note noteId) ->
                     ShortNote noteId Nothing
 
-                Ok (Nip19.NEvent { id, author, kind, relays }) ->
+                Ok (Nip19.NEvent { id, relays }) ->
                     ShortNote id (Just relays)
 
                 Ok (Nip19.NAddr { identifier, pubKey, kind, relays }) ->
@@ -96,7 +93,7 @@ init shared route () =
 
         ( effect, requestId ) =
             case ( contentToView, Result.toMaybe decoded |> Maybe.andThen eventFilterForNip19 ) of
-                ( ShortNote noteId relays, Just eventFilter ) ->
+                ( ShortNote _ relays, Just eventFilter ) ->
                     ( eventFilter
                         |> RequestShortNote relays
                         |> Nostr.createRequest shared.nostr ("NIP-19 note " ++ route.params.event) [ KindUserMetadata ]
@@ -178,12 +175,12 @@ type Msg
 
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
-update shared msg model =
+update _ msg model =
     case msg of
         AddLoadedContent url ->
             ( { model | loadedContent = LinkPreview.addLoadedContent model.loadedContent url }, Effect.none )
 
-        ReceivedMessage message ->
+        ReceivedMessage _ ->
             ( model, Effect.none )
 
         NostrMsg _ ->
@@ -209,7 +206,7 @@ isArticleWithIdAndAuthor author articleId article =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Ports.receiveMessage ReceivedMessage
 
 
@@ -228,10 +225,6 @@ view shared model =
 
 viewContent : Shared.Model -> Model -> Html Msg
 viewContent shared model =
-    let
-        styles =
-            Ui.Styles.stylesForTheme shared.theme
-    in
     case model.contentToView of
         ShortNote noteId _ ->
             Nostr.getShortNoteById shared.nostr noteId
@@ -261,13 +254,14 @@ viewContent shared model =
                                 , bookmarks = Nothing
                                 , isBookmarked = False
                                 , reaction = Nothing
+                                , repost = Nothing
                                 }
                             }
                             shortNote
                     )
                 |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingNote model.requestId)
 
-        Article addressComponents relays ->
+        Article addressComponents _ ->
             Nostr.getArticleForAddressComponents shared.nostr addressComponents
                 |> Maybe.map
                     (Ui.View.viewArticle

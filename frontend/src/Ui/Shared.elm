@@ -240,6 +240,19 @@ viewInteractions styles browserEnv previewData instanceId =
 
                 Nothing ->
                     ( Icon.MaterialIcon Icon.MaterialFavoriteBorder 30 Icon.Inherit, actions.addReaction )
+
+        ( repostIcon, repostMsg ) =
+            case interactions.repost of
+                Just _ ->
+                    ( Icon.MaterialIcon Icon.MaterialRepeatOn 30 Icon.Inherit
+                      -- disable reposting if done already by user
+                    , Nothing
+                    )
+
+                Nothing ->
+                    ( Icon.MaterialIcon Icon.MaterialRepeat 30 Icon.Inherit
+                    , actions.addRepost
+                    )
     in
     div
         [ css
@@ -251,7 +264,7 @@ viewInteractions styles browserEnv previewData instanceId =
         ]
         [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) Nothing (Maybe.map String.fromInt interactions.notes) previewData instanceId
         , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) previewData instanceId
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.repeat) actions.addRepost (Maybe.map String.fromInt interactions.reposts) previewData instanceId
+        , viewReactions styles repostIcon repostMsg (Maybe.map String.fromInt interactions.reposts) previewData instanceId
         , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) previewData instanceId
         , viewReactions styles bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks) previewData instanceId
         ]

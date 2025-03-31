@@ -1100,6 +1100,14 @@ getInteractions model maybePubKey article =
 
             ( _, _ ) ->
                 Nothing
+    , repost =
+        case ( maybePubKey, maybeAddressComponents ) of
+            ( Just userPubKey, Just addressComponents ) ->
+                getRepostsForArticle model addressComponents
+                    |> Maybe.andThen (Dict.get userPubKey)
+
+            _ ->
+                Nothing
     }
 
 
@@ -1672,6 +1680,7 @@ updateModelWithDeletionRequests model events =
 updateModelWithReposts : Model -> List Event -> ( Model, Cmd Msg )
 updateModelWithReposts model events =
     let
+        updatedDictByAddress : Repost -> Dict Address (Dict PubKey Repost) -> Dict Address (Dict PubKey Repost)
         updatedDictByAddress repost dict =
             case repost.repostedAddress of
                 Just addressComponents ->
@@ -1689,6 +1698,7 @@ updateModelWithReposts model events =
                 Nothing ->
                     dict
 
+        updatedDictByEventId : Repost -> Dict EventId (Dict PubKey Repost) -> Dict EventId (Dict PubKey Repost)
         updatedDictByEventId repost dict =
             case repost.repostedEvent of
                 Just eventId ->

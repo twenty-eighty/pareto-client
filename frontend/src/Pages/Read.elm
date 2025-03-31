@@ -550,6 +550,7 @@ viewShortNotes shortNotesViewData shortNotes =
                         , bookmarks = Nothing
                         , isBookmarked = False
                         , reaction = Nothing
+                        , repost = Nothing
                         }
                     }
                     shortNote
