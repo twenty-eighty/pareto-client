@@ -26,12 +26,16 @@ onPageLoad shared route =
                 }
 
         _ ->
+            let
+                queryParams =
+                    route.query
+                        |> Dict.toList
+            in
             Auth.Action.pushRoute
                 { path = Route.Path.SignIn
                 , query =
                     Dict.fromList
-                        [ ( "from", route.url.path )
-                        ]
+                        (( "from", route.url.path ) :: queryParams)
                 , hash = Nothing
                 }
 
