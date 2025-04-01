@@ -209,7 +209,7 @@ export const onReady = ({ app, env }) => {
           // Optional parameters
           aa: '94a3b8', // Hex accent color
           afb: false, // Force bunker (default False)
-          asb: false, // Skip bunker (default False)
+          asb: true, // Skip bunker (default False)
           aan: true, // Don't return Nsec (default False)
           aac: false, // Don't return  Ncryptsec (default False)
           arr: defaultRelays, // Custom read relays
