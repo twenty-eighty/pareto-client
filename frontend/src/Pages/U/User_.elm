@@ -77,7 +77,7 @@ init shared route () =
                                 [ buildRequestArticlesEffect shared.nostr pubKey
 
                                 -- check if author offers newsletter
-                                , Effect.sendSharedMsg (Shared.Msg.UpdateNewsletterAvailabilityPubKey pubKey)
+                                , Effect.sendSharedMsg (Shared.Msg.LoadUserDataByPubKey pubKey)
                                 ]
                                     |> Effect.batch
 
@@ -88,7 +88,7 @@ init shared route () =
                                     |> Effect.sendSharedMsg
 
                                 -- check if author offers newsletter
-                                , Effect.sendSharedMsg (Shared.Msg.UpdateNewsletterAvailabilityNip05 nip05)
+                                , Effect.sendSharedMsg (Shared.Msg.LoadUserDataByNip05 nip05)
                                 ]
                                     |> Effect.batch
                     )
@@ -224,6 +224,7 @@ viewProfile shared model profile =
                 , userPubKey = Shared.loggedInPubKey shared.loginStatus
                 , onBookmark = Nothing
                 , onReaction = Nothing
+                , onRepost = Nothing
                 , onZap = Nothing
                 }
         , viewEmailSubscriptionDialog shared model profile

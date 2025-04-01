@@ -79,9 +79,13 @@
    "internals": {
       "page title": "Interne Informationen",
       "explanation": "Diese Seite zeigt Diagnoseinformationen über diese Anwendung.",
-      "error reporting": "Wenn du einen Fehler meldest, sende bitte die Informationen unten mit, sofern welche angezeigt werden.",
+      "error reporting": "Wenn du einen Fehler meldest, sende bitte die Informationen unten mit.",
       "contact information": "Bitte kontaktiere",
-      "error messages title": "Fehlermeldungen"
+      "login info title": "Login",
+      "error messages title": "Fehlermeldungen",
+      "logged out status text": "Nicht angemeldet",
+      "unknown login status text": "Unbekannter Anmeldestatus",
+      "logged in status text": "Angemeldet:"
    },
    "locale": {
       "english text": "Englisch",
@@ -105,7 +109,7 @@
       "configure server button title": "Pareto Medien-Server konfigurieren",
       "select image dialog title": "Bild auswählen",
       "copied link alert message": "Link wurde kopiert",
-      "image selection instructional text": "Doppelklicken, um Bild zu wählen"
+      "image selection instructional text": "Klicken, um Bild zu wählen"
    },
    "message dialog": {
       "warning": "Warnung"
@@ -196,14 +200,28 @@
       "inbox relays description": "Dieser Relaytyp erhält alle Antworten, Kommentare, Likes und Zaps zu deinen Posts.",
       "add relay button title": "Hinzufügen",
       "add relay placeholder": "Gib die URL eines Relays ein",
+      "relay read only login info": "Im Nur-Lesen-Modus kann die Konfiguration nicht geändert werden.",
       "no relays configured text": "Anscheinend hast du keine Relays konfiguriert. Möchtest du ein paar hinzufügen?",
       "add default relays button title": "Relays hinzufügen",
-      "media server category": "Medien-Server",
+      "media servers category": "Medien-Server",
+      "add media server button title": "Hinzufügen",
+      "add media server placeholder": "Gib die URL eines Medien-Servers ein",
+      "no media server configured text": "Anscheinend hast du noch keinen Medienserver konfiguriert. Möchtest du einen hinzufügen?",
+      "add default media servers button title": "Medien-Server hinzufügen",
+      "nip-96 servers section title": "NIP-96 Server",
+      "nip-96 servers description": "Diese Medien-Server benutzen das NIP-96-Protokoll.",
       "add nip-96 media server placeholder": "Gib die URL eines NIP-96-Servers ein",
+      "media server read only login info": "Im Nur-Lesen-Modus kann die Konfiguration nicht geändert werden.",
+      "blossom servers section title": "Blossom Server",
       "add blossom media server placeholder": "Gib die URL eines Blossom-Servers ein",
       "profile category": "Profil",
       "profile editor title": "Profil-Editor",
-      "profile editor not implemented text": "Der Profil-Editor ist noch nicht implementiert. Bitte benutze eine der bestehenden Alternativen."
+      "profile editor not implemented text": "Der Profil-Editor ist noch nicht implementiert. Bitte benutze eine der bestehenden Alternativen.",
+      "profile save button title": "Speichern",
+      "no profile read only informational text": "Du scheinst kein Profil zu haben, kannst allerdings auch keines anlegen im Nur-Lesen-Modus",
+      "no profile informational text": "Du scheinst kein Profil zu haben - möchtest du eines anlegen?",
+      "image selection button title": "Auswählen",
+      "create profile button title": "Profil erstellen"
    },
    "sidebar": {
       "reader client role text": "Leser",

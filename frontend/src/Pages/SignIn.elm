@@ -1,6 +1,6 @@
 module Pages.SignIn exposing (Model, Msg, init, page, subscriptions, update, view)
 
-import Dict
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (a, div, text)
 import Html.Styled.Attributes as Attr exposing (css)
@@ -40,6 +40,8 @@ toLayout theme _ =
 
 type alias Model =
     { from : Maybe Route.Path.Path
+    , hash : Maybe String
+    , query : Dict String String
     , clientRole : Maybe ClientRole
     }
 
@@ -48,17 +50,26 @@ init : Shared.Model -> Route () -> () -> ( Model, Effect Msg )
 init shared route () =
     let
         from =
-            Dict.get "from" route.query
+            Dict.get fromParamName route.query
                 |> Maybe.andThen Route.Path.fromString
     in
     ( { from =
             from
+      , hash = route.hash
+      , query =
+            route.query
+                |> Dict.remove fromParamName
       , clientRole =
             from
                 |> Maybe.map (Layouts.Sidebar.clientRoleForRoutePath shared.browserEnv.environment)
       }
     , Effect.sendCmd Ports.loginSignUp
     )
+
+
+fromParamName : String
+fromParamName =
+    "from"
 
 
 type Msg
@@ -85,7 +96,7 @@ updateWithPortMessage _ model portMessage =
                     ( model
                     , Effect.batch
                         [ Effect.sendSharedMsg (Shared.Msg.SetClientRole False clientRole)
-                        , Effect.pushRoutePath from
+                        , Effect.pushRoute { path = from, query = model.query, hash = model.hash }
                         ]
                     )
 

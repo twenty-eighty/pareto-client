@@ -41,6 +41,7 @@ type alias ArticlePreviewsData msg =
     , userPubKey : Maybe PubKey
     , onBookmark : Maybe ( AddressComponents -> msg, AddressComponents -> msg ) -- msgs for adding/removing a bookmark
     , onReaction : Maybe (EventId -> PubKey -> AddressComponents -> msg)
+    , onRepost : Maybe msg
     , onZap : Maybe (List ZapDialog.Recipient -> msg)
     }
 
@@ -167,8 +168,8 @@ viewArticle articlePreviewsData articlePreviewData article =
                         )
                         [ text <| Maybe.withDefault "" article.title ]
                     , Html.summary
-                        (styles.textStyleH4Article
-                            ++ styles.colorStyleGrayscaleText
+                        (styles.textStyleH2
+                            ++ styles.colorStyleGrayscaleSummary
                             ++ [ css
                                     [ Tw.max_w_screen_sm
                                     , Bp.sm
@@ -885,7 +886,7 @@ previewListImage article =
                 ]
 
         Nothing ->
-            div [][]
+            div [] []
 
 
 previewBigPictureImage : Article -> Html msg

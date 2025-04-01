@@ -3,7 +3,6 @@ module Nostr exposing (..)
 import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode
-import Json.Decode.Pipeline exposing (required)
 import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, publishedTime, tagReference)
 import Nostr.Blossom exposing (userServerListFromEvent)
 import Nostr.BookmarkList exposing (BookmarkList, bookmarkListEvent, bookmarkListFromEvent, bookmarkListWithArticle, bookmarkListWithShortNote, bookmarkListWithoutArticle, bookmarkListWithoutShortNote, emptyBookmarkList)
@@ -18,13 +17,13 @@ import Nostr.FollowList exposing (emptyFollowList, followListEvent, followListFr
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
 import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05Info, nip05ToString)
 import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
+import Nostr.Nip18 exposing (Repost, repostFromEvent)
 import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileFromEvent)
 import Nostr.Reactions exposing (Reaction, reactionFromEvent)
 import Nostr.Relay exposing (Relay, RelayState(..), hostWithoutProtocol, relayUrlDecoder)
 import Nostr.RelayList exposing (relayListFromEvent)
 import Nostr.RelayListMetadata exposing (RelayMetadata, relayMetadataListFromEvent)
-import Nostr.Repost exposing (Repost)
 import Nostr.Request as Request exposing (Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
@@ -32,6 +31,7 @@ import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
 import Nostr.Types exposing (Address, EventId, Following(..), IncomingMessage, PubKey, RelayRole(..), RelayUrl)
 import Nostr.Zaps exposing (ZapReceipt)
 import Pareto
+import Portal
 import Set exposing (Set)
 import Time
 
@@ -55,6 +55,8 @@ type alias Model =
     , followSets : Dict PubKey (Dict String FollowSet) -- follow sets; keys pubKey / identifier
     , pubKeyByNip05 : Dict Nip05String PubKey
     , poolState : RelayState
+    , portalUserInfoPubKey : Dict PubKey Portal.PortalCheckResponse
+    , portalUserInfoNip05 : Dict String Portal.PortalCheckResponse
     , profiles : Dict PubKey Nostr.Profile.Profile
     , profileValidations : Dict PubKey ProfileValidation
     , reactionsForEventId : Dict EventId (Dict PubKey Nostr.Reactions.Reaction)
@@ -62,10 +64,9 @@ type alias Model =
     , relays : Dict String Relay
     , relayMetadataLists : Dict PubKey (List RelayMetadata)
     , relaysForPubKey : Dict PubKey (List RelayUrl)
-    , reposts : Dict EventId Repost
+    , repostsByAddress : Dict Address (Dict PubKey Repost)
+    , repostsByEventId : Dict EventId (Dict PubKey Repost)
     , searchRelayLists : Dict PubKey (List RelayUrl)
-    , sendsNewsletterPubKey : Dict PubKey Bool
-    , sendsNewsletterNip05 : Dict String Bool
     , shortTextNotes : Dict String ShortNote
     , userServerLists : Dict PubKey (List String)
     , zapReceiptsAddress : Dict String (Dict String Nostr.Zaps.ZapReceipt)
@@ -86,13 +87,18 @@ type Msg
     | Nip05FetchedForPubKey PubKey Nip05 (Result Http.Error Nip05.Nip05Data)
     | Nip05FetchedForNip05 RequestId Nip05 (Result Http.Error Nip05.Nip05Data)
     | Nip11Fetched String (Result Http.Error Nip11Info)
-    | ReceivedNewsletterAuthorCheckResultPubKey PubKey (Result Http.Error NewsletterCheckResponse)
-    | ReceivedNewsletterAuthorCheckResultNip05 Nip05 (Result Http.Error NewsletterCheckResponse)
+    | ReceivedPortalCheckResultPubKey PubKey (Result Http.Error Portal.PortalCheckResponse)
+    | ReceivedPortalCheckResultNip05 Nip05 (Result Http.Error Portal.PortalCheckResponse)
+
+
 
 -- this type is intentionally separate from the definition in BrowserEnv as these modules should function without each other
+
+
 type TestMode
     = TestModeOff
     | TestModeEnabled
+
 
 isAuthor : Model -> PubKey -> Bool
 isAuthor model userPubKey =
@@ -116,42 +122,38 @@ isBetaTester model userPubKey =
 
 
 
--- Newsletters
+-- user data from portal server
 
 
-updateNewsletterAvailabilityPubKey : Model -> PubKey -> Cmd Msg
-updateNewsletterAvailabilityPubKey model pubKey =
-    case Dict.get pubKey model.sendsNewsletterPubKey of
+loadUserDataByPubKey : Model -> PubKey -> Cmd Msg
+loadUserDataByPubKey model pubKey =
+    case sendsNewsletterPubKey model pubKey of
         Just _ ->
             Cmd.none
 
         Nothing ->
-            Http.get
-                { url = Pareto.newsletterAuthorCheckEndpointPubKey ++ "/" ++ pubKey
-                , expect = Http.expectJson (ReceivedNewsletterAuthorCheckResultPubKey pubKey) decodeNewsletterCheckResponse
-                }
+            Portal.loadUserDataByPubKey ReceivedPortalCheckResultPubKey pubKey
 
 
-updateNewsletterAvailabilityNip05 : Model -> Nip05 -> Cmd Msg
-updateNewsletterAvailabilityNip05 model nip05 =
-    let
-        nip05String =
-            nip05ToString nip05
-    in
-    case Dict.get nip05String model.sendsNewsletterNip05 of
+loadUserDataByNip05 : Model -> Nip05 -> Cmd Msg
+loadUserDataByNip05 model nip05 =
+    case sendsNewsletterNip05 model nip05 of
         Just _ ->
             Cmd.none
 
         Nothing ->
-            Http.get
-                { url = Pareto.newsletterAuthorCheckEndpointNip05 ++ "/" ++ nip05String
-                , expect = Http.expectJson (ReceivedNewsletterAuthorCheckResultNip05 nip05) decodeNewsletterCheckResponse
-                }
+            Portal.loadUserDataByNip05 ReceivedPortalCheckResultNip05 nip05
+
+
+getPortalUserInfo : Model -> PubKey -> Maybe Portal.PortalCheckResponse
+getPortalUserInfo model pubKey =
+    Dict.get pubKey model.portalUserInfoPubKey
 
 
 sendsNewsletterPubKey : Model -> PubKey -> Maybe Bool
 sendsNewsletterPubKey model pubKey =
-    Dict.get pubKey model.sendsNewsletterPubKey
+    getPortalUserInfo model pubKey
+        |> Maybe.map .email
 
 
 sendsNewsletterNip05 : Model -> Nip05 -> Maybe Bool
@@ -162,7 +164,8 @@ sendsNewsletterNip05 model nip05 =
                 |> Maybe.andThen (sendsNewsletterPubKey model)
 
         resultViaNip05 =
-            Dict.get (nip05ToString nip05) model.sendsNewsletterNip05
+            Dict.get (nip05ToString nip05) model.portalUserInfoNip05
+                |> Maybe.map .email
     in
     case ( resultViaPubKey, resultViaNip05 ) of
         ( Just True, _ ) ->
@@ -176,17 +179,6 @@ sendsNewsletterNip05 model nip05 =
 
         _ ->
             Nothing
-
-
-type alias NewsletterCheckResponse =
-    { email : Bool
-    }
-
-
-decodeNewsletterCheckResponse : Decode.Decoder NewsletterCheckResponse
-decodeNewsletterCheckResponse =
-    Decode.succeed NewsletterCheckResponse
-        |> required "email" Decode.bool
 
 
 
@@ -488,10 +480,15 @@ send model sendRequest =
                     | content = "+"
                     , tags =
                         [ AddressTag addressComponents
-                        , EventIdTag eventId
+                        , EventIdTag eventId Nothing
                         , PublicKeyTag articlePubKey Nothing Nothing
                         ]
                 }
+            )
+
+        SendRepost relays event ->
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , sendEvent model relays event
             )
 
         SendRelayList relays event ->
@@ -504,16 +501,19 @@ send model sendRequest =
             , sendEvent model relays event
             )
 
+
 sendEvent : Model -> List RelayUrl -> Event -> Cmd Msg
 sendEvent model relays event =
     let
         actualWriteRelays =
             if model.testMode == TestModeEnabled then
                 Pareto.testRelayUrls
+
             else
                 relays
     in
     model.hooks.sendEvent model.lastSendRequestId actualWriteRelays event
+
 
 getAuthor : Model -> PubKey -> Nostr.Profile.Author
 getAuthor model pubKey =
@@ -697,6 +697,11 @@ getReactionsForArticle model addressComponents =
     Dict.get (buildAddress addressComponents) model.reactionsForAddress
 
 
+getRepostsForArticle : Model -> AddressComponents -> Maybe (Dict PubKey Nostr.Nip18.Repost)
+getRepostsForArticle model addressComponents =
+    Dict.get (buildAddress addressComponents) model.repostsByAddress
+
+
 getRelaysForPubKey : Model -> PubKey -> List ( RelayRole, Relay )
 getRelaysForPubKey model pubKey =
     let
@@ -710,6 +715,7 @@ getRelaysForPubKey model pubKey =
         testRelays =
             if model.testMode == TestModeEnabled then
                 Pareto.testRelayUrls
+
             else
                 []
 
@@ -772,7 +778,8 @@ getNip65WriteRelaysForPubKey : Model -> PubKey -> List Relay
 getNip65WriteRelaysForPubKey model pubKey =
     if model.testMode == TestModeEnabled then
         Pareto.testRelayUrls
-        |> List.filterMap (getRelayData model)
+            |> List.filterMap (getRelayData model)
+
     else
         getNip65RelaysForPubKey model pubKey
             |> List.filterMap
@@ -808,7 +815,8 @@ getWriteRelaysForPubKey : Model -> PubKey -> List Relay
 getWriteRelaysForPubKey model pubKey =
     if model.testMode == TestModeEnabled then
         Pareto.testRelayUrls
-        |> List.filterMap (getRelayData model)
+            |> List.filterMap (getRelayData model)
+
     else
         getRelaysForPubKey model pubKey
             |> List.filterMap
@@ -914,19 +922,24 @@ getRelaysForRequest model maybeRequestId =
         relayUrls ->
             relayUrls
 
+
 getDefaultRelays : Model -> List RelayUrl
 getDefaultRelays model =
     if model.testMode == TestModeEnabled then
         Pareto.testRelayUrls
+
     else
         model.defaultRelays
+
 
 getApplicationDataRelays : Model -> List RelayUrl
 getApplicationDataRelays model =
     if model.testMode == TestModeEnabled then
         Pareto.testRelayUrls
+
     else
         Pareto.applicationDataRelays
+
 
 getRelayData : Model -> RelayUrl -> Maybe Relay
 getRelayData model relayUrl =
@@ -1074,7 +1087,7 @@ getInteractions model maybePubKey article =
     { zaps = getZapReceiptsCountForArticle model article
     , highlights = Nothing
     , reactions = getReactionsCountForArticle model article
-    , reposts = Nothing
+    , reposts = getRepostsCountForArticle model article
     , notes = Nothing
     , bookmarks = Maybe.map (getBookmarkListCountForAddressComponents model) maybeAddressComponents
     , isBookmarked =
@@ -1086,6 +1099,14 @@ getInteractions model maybePubKey article =
                 getReactionForArticle model userPubKey addressComponents
 
             ( _, _ ) ->
+                Nothing
+    , repost =
+        case ( maybePubKey, maybeAddressComponents ) of
+            ( Just userPubKey, Just addressComponents ) ->
+                getRepostsForArticle model addressComponents
+                    |> Maybe.andThen (Dict.get userPubKey)
+
+            _ ->
                 Nothing
     }
 
@@ -1100,12 +1121,9 @@ isArticleBookmarked model article pubKey =
     bookmarkList.articles
         |> List.filter
             (\( kind, referencedPubKey, dCode ) ->
-                article.kind
-                    == kind
-                    && article.author
-                    == referencedPubKey
-                    && article.identifier
-                    == Just dCode
+                (article.kind == kind)
+                    && (article.author == referencedPubKey)
+                    && (article.identifier == Just dCode)
             )
         |> List.isEmpty
         |> not
@@ -1150,6 +1168,14 @@ getReactionsCountForArticle model article =
         |> Maybe.map Dict.size
 
 
+getRepostsCountForArticle : Model -> Article -> Maybe Int
+getRepostsCountForArticle model article =
+    article
+        |> addressComponentsForArticle
+        |> Maybe.andThen (getRepostsForArticle model)
+        |> Maybe.map Dict.size
+
+
 getReactionForArticle : Model -> PubKey -> AddressComponents -> Maybe Reaction
 getReactionForArticle model pubKey addressComponents =
     getReactionsForArticle model addressComponents
@@ -1177,7 +1203,7 @@ eventFilterForReactions tagReferences =
     else
         Just
             { emptyEventFilter
-                | kinds = Just [ KindZapReceipt, KindHighlights, KindRepost, KindShortTextNote, KindReaction, KindBookmarkList, KindBookmarkSets ]
+                | kinds = Just [ KindZapReceipt, KindHighlights, KindRepost, KindGenericRepost, KindShortTextNote, KindReaction, KindBookmarkList, KindBookmarkSets ]
                 , tagReferences = Just tagReferences
             }
 
@@ -1223,6 +1249,8 @@ empty =
     , poolState = RelayStateUnknown
     , followLists = Dict.singleton Pareto.authorsKey paretoAuthorsFollowList
     , followSets = Dict.empty
+    , portalUserInfoPubKey = Dict.empty
+    , portalUserInfoNip05 = Dict.empty
     , profiles = Dict.empty
     , profileValidations = Dict.empty
     , reactionsForEventId = Dict.empty
@@ -1230,10 +1258,9 @@ empty =
     , relayMetadataLists = Dict.empty
     , relays = Dict.empty
     , relaysForPubKey = Dict.empty
-    , reposts = Dict.empty
+    , repostsByAddress = Dict.empty
+    , repostsByEventId = Dict.empty
     , searchRelayLists = Dict.empty
-    , sendsNewsletterPubKey = Dict.empty
-    , sendsNewsletterNip05 = Dict.empty
     , shortTextNotes = Dict.empty
     , userServerLists = Dict.empty
     , zapReceiptsAddress = Dict.empty
@@ -1255,6 +1282,7 @@ init hooks testMode relayUrls =
             -- make sure we get NIP-11 information for test relays
             if testMode == TestModeEnabled then
                 Pareto.testRelayUrls ++ relayUrls
+
             else
                 relayUrls
     in
@@ -1266,9 +1294,10 @@ init hooks testMode relayUrls =
       }
     , Cmd.batch
         [ hooks.connect (List.map Nostr.Relay.websocketUrl relayUrls)
-        , requestRelayNip11 relayUrls
+        , requestRelayNip11 actualRelayUrls
         ]
     )
+
 
 paretoAuthorsFollowList : List Following
 paretoAuthorsFollowList =
@@ -1281,7 +1310,6 @@ paretoAuthorsFollowList =
                     , petname = Just nip05
                     }
             )
-
 
 
 requestRelayNip11 : List String -> Cmd Msg
@@ -1385,6 +1413,14 @@ update msg model =
                         ( _, _ ) ->
                             ( { model | errors = "Error decoding request ID or kind" :: model.errors }, Cmd.none )
 
+                "error" ->
+                    case Nostr.External.decodeReason message.value of
+                        Ok error ->
+                            ( { model | errors = error :: model.errors }, Cmd.none )
+
+                        Err error ->
+                            ( { model | errors = Decode.errorToString error :: model.errors }, Cmd.none )
+
                 _ ->
                     ( model, Cmd.none )
 
@@ -1474,22 +1510,22 @@ update msg model =
             , Cmd.none
             )
 
-        ReceivedNewsletterAuthorCheckResultPubKey pubKey (Ok newsletterCheckResponse) ->
-            ( { model | sendsNewsletterPubKey = Dict.insert pubKey newsletterCheckResponse.email model.sendsNewsletterPubKey }
+        ReceivedPortalCheckResultPubKey pubKey (Ok portalCheckResponse) ->
+            ( { model | portalUserInfoPubKey = Dict.insert pubKey portalCheckResponse model.portalUserInfoPubKey }
             , Cmd.none
             )
 
-        ReceivedNewsletterAuthorCheckResultPubKey pubKey (Err error) ->
+        ReceivedPortalCheckResultPubKey pubKey (Err error) ->
             ( { model | errors = ("Error fetching author check result for pubkey " ++ pubKey ++ ": " ++ httpErrorToString error) :: model.errors }
             , Cmd.none
             )
 
-        ReceivedNewsletterAuthorCheckResultNip05 nip05 (Ok newsletterCheckResponse) ->
-            ( { model | sendsNewsletterNip05 = Dict.insert (nip05ToString nip05) newsletterCheckResponse.email model.sendsNewsletterNip05 }
+        ReceivedPortalCheckResultNip05 nip05 (Ok portalCheckResponse) ->
+            ( { model | portalUserInfoNip05 = Dict.insert (nip05ToString nip05) portalCheckResponse model.portalUserInfoNip05 }
             , Cmd.none
             )
 
-        ReceivedNewsletterAuthorCheckResultNip05 nip05 (Err error) ->
+        ReceivedPortalCheckResultNip05 nip05 (Err error) ->
             ( { model | errors = ("Error fetching author check result for nip05 " ++ nip05ToString nip05 ++ ": " ++ httpErrorToString error) :: model.errors }
             , Cmd.none
             )
@@ -1512,6 +1548,12 @@ updateModelWithEvents model requestId kind events =
 
         KindEventDeletionRequest ->
             updateModelWithDeletionRequests model events
+
+        KindRepost ->
+            updateModelWithReposts model events
+
+        KindGenericRepost ->
+            updateModelWithReposts model events
 
         KindUserServerList ->
             updateModelWithUserServerLists model requestId events
@@ -1630,6 +1672,60 @@ updateModelWithDeletionRequests model events =
     ( { model
         | deletedAddresses = deletedAddresses
         , deletedEvents = deletedEventIds
+      }
+    , Cmd.none
+    )
+
+
+updateModelWithReposts : Model -> List Event -> ( Model, Cmd Msg )
+updateModelWithReposts model events =
+    let
+        updatedDictByAddress : Repost -> Dict Address (Dict PubKey Repost) -> Dict Address (Dict PubKey Repost)
+        updatedDictByAddress repost dict =
+            case repost.repostedAddress of
+                Just addressComponents ->
+                    let
+                        address =
+                            buildAddress addressComponents
+                    in
+                    case Dict.get address dict of
+                        Just dictForAddress ->
+                            Dict.insert address (Dict.insert repost.pubKey repost dictForAddress) dict
+
+                        Nothing ->
+                            Dict.insert address (Dict.singleton repost.pubKey repost) dict
+
+                Nothing ->
+                    dict
+
+        updatedDictByEventId : Repost -> Dict EventId (Dict PubKey Repost) -> Dict EventId (Dict PubKey Repost)
+        updatedDictByEventId repost dict =
+            case repost.repostedEvent of
+                Just eventId ->
+                    case Dict.get eventId dict of
+                        Just dictForAddress ->
+                            Dict.insert eventId (Dict.insert repost.pubKey repost dictForAddress) dict
+
+                        Nothing ->
+                            Dict.insert eventId (Dict.singleton repost.pubKey repost) dict
+
+                Nothing ->
+                    dict
+
+        ( repostsByAddress, repostsByEventId ) =
+            events
+                |> List.map repostFromEvent
+                |> List.foldl
+                    (\repost ( accAddress, accEvent ) ->
+                        ( updatedDictByAddress repost accAddress
+                        , updatedDictByEventId repost accEvent
+                        )
+                    )
+                    ( model.repostsByAddress, model.repostsByEventId )
+    in
+    ( { model
+        | repostsByAddress = repostsByAddress
+        , repostsByEventId = repostsByEventId
       }
     , Cmd.none
     )

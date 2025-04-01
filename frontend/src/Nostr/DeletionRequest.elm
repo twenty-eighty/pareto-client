@@ -28,7 +28,7 @@ deletionRequestFromEvent event =
                     AddressTag addressComponents ->
                         { acc | addresses = Set.insert (buildAddress addressComponents) acc.addresses }
 
-                    EventIdTag eventId ->
+                    EventIdTag eventId _ ->
                         { acc | eventIds = Set.insert eventId acc.eventIds }
 
                     KindTag kind ->

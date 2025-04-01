@@ -3,7 +3,6 @@ module Pages.U.User_.Identifier_ exposing (Model, Msg, page)
 import Browser.Dom
 import Components.RelayStatus exposing (Purpose(..))
 import Effect exposing (Effect)
-import FeatherIcons exposing (user)
 import Html.Styled as Html exposing (Html)
 import Layouts
 import LinkPreview exposing (LoadedContent)
@@ -35,7 +34,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -131,7 +130,7 @@ update msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -163,6 +162,7 @@ viewArticle shared model maybeArticle =
                 , userPubKey = Shared.loggedInPubKey shared.loginStatus
                 , onBookmark = Nothing
                 , onReaction = Nothing
+                , onRepost = Nothing
                 , onZap = Nothing
                 }
                 (Just model.loadedContent)

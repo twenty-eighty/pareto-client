@@ -8,9 +8,9 @@ import Css
 import Dict
 import Effect exposing (Effect)
 import FeatherIcons
-import Html.Styled as Html exposing (Html, a, aside, button, div, img, input, label, main_, span, text)
+import Html.Styled as Html exposing (Html, a, aside, button, div, img, main_, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, src)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled.Events exposing (..)
 import I18Next
 import Layout exposing (Layout)
 import Nostr
@@ -29,7 +29,7 @@ import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme, Styles)
+import Ui.Styles exposing (Styles, Theme)
 import View exposing (View)
 
 
@@ -44,12 +44,16 @@ map toMsg props =
     }
 
 
+
+-- this function checks if a route will be available in reader mode after login
+
+
 clientRoleForRoutePath : BrowserEnv.Environment -> Route.Path.Path -> ClientRole
 clientRoleForRoutePath environment path =
     sidebarItems
         { isAuthor = False
         , isBetaTester = False
-        , isLoggedIn = False
+        , isLoggedIn = True
         , environment = environment
         , clientRole = ClientReader
         , sendsNewsletters = False
@@ -174,13 +178,12 @@ layout props shared route =
 
 
 type alias Model =
-    { 
-    }
+    {}
 
 
 init : () -> ( Model, Effect Msg )
 init _ =
-    ( { }
+    ( {}
     , Effect.none
     )
 
@@ -218,7 +221,7 @@ subscriptions _ =
 
 
 view : Styles contentMsg -> Shared.Model.Model -> Route.Path.Path -> { toContentMsg : Msg -> contentMsg, content : View contentMsg, model : Model } -> View contentMsg
-view styles shared path { toContentMsg, model, content } =
+view styles shared path { toContentMsg, content } =
     { title = content.title ++ " | Pareto"
     , body =
         [ div
@@ -486,11 +489,12 @@ clientRoleSwitch sidebarItemParams =
         }
         |> Switch.view
 
+
 testModeSwitch : SidebarItemParams -> Html Msg
 testModeSwitch sidebarItemParams =
     Switch.new
         { id = "testmode"
-        , onClick = SetTestMode 
+        , onClick = SetTestMode
         , labelOff = Translations.testModeOffText [ sidebarItemParams.translations ]
         , labelOn = Translations.testModeOnText [ sidebarItemParams.translations ]
         , state = sidebarItemParams.testMode
@@ -499,6 +503,7 @@ testModeSwitch sidebarItemParams =
         , theme = sidebarItemParams.theme
         }
         |> Switch.view
+
 
 profileForUser : Shared.Model -> LoginStatus -> Maybe Profile
 profileForUser shared loggedIn =

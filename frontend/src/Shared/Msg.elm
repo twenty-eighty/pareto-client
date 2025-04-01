@@ -28,5 +28,5 @@ type Msg
     | SendNostrEvent SendRequest
     | SetClientRole Bool ClientRole
     | SetTestMode TestMode
-    | UpdateNewsletterAvailabilityPubKey PubKey
-    | UpdateNewsletterAvailabilityNip05 Nip05.Nip05
+    | LoadUserDataByPubKey PubKey
+    | LoadUserDataByNip05 Nip05.Nip05

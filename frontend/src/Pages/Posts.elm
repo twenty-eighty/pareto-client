@@ -235,6 +235,7 @@ viewArticles shared model userPubKey =
                     , userPubKey = Just userPubKey
                     , onBookmark = Nothing
                     , onReaction = Nothing
+                    , onRepost = Nothing
                     , onZap = Nothing
                     }
 

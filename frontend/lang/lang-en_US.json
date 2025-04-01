@@ -78,9 +78,13 @@
    "internals": {
       "page title": "Internals",
       "explanation": "This page shows diagnostic information about the application.",
-      "error reporting": "When reporting an error, please include the information below, if present.",
+      "error reporting": "When reporting an error, please include the information below.",
       "contact information": "Please contact",
-      "error messages title": "Error messages"
+      "login info title": "Login",
+      "error messages title": "Error messages",
+      "logged out status text": "Logged out",
+      "unknown login status text": "Unknown login status",
+      "logged in status text": "Logged in:"
    },
    "locale": {
       "english text": "English",
@@ -104,7 +108,7 @@
       "configure server button title": "Configure Pareto media server",
       "select image dialog title": "Select image",
       "copied link alert message": "Copied link to clipboard",
-      "image selection instructional text": "Double click to select image"
+      "image selection instructional text": "Click to select image"
    },
    "message dialog": {
       "warning": "Warning"
@@ -195,14 +199,29 @@
       "inbox relays description": "This relay type receives all replies, comments, likes, and zaps to your posts.",
       "add relay button title": "Add",
       "add relay placeholder": "Enter a relay URL",
+      "relay read only login info": "In read-only mode you can't modify relay settings.",
       "no relays configured text": "You seem to have no relays configured. Do you want to a add some?",
       "add default relays button title": "Add default relays",
       "media servers category": "Media Servers",
+      "add media server button title": "Add",
+      "add media server placeholder": "Enter a media server URL",
+      "no media server configured text": "You seem to have no media server configured. Do you want to a add one?",
+      "add default media servers button title": "Add default media servers",
+      "nip-96 servers section title": "NIP-96 Servers",
+      "nip-96 servers description": "This media server type uses the NIP-96 protocol.",
       "add nip-96 media server placeholder": "NIP-96 server URL",
+      "media server read only login info": "In read-only mode you can't modify server settings.",
+      "blossom servers section title": "Blossom Servers",
+      "blossom servers description": "This media server type uses the Blossom protocol.",
       "add blossom media server placeholder": "Blossom server URL",
       "profile category": "Profile",
       "profile editor title": "Profile Editor",
-      "profile editor not implemented text": "The profile editor is not yet implemented. Please use one of the existing alternatives."
+      "profile editor not implemented text": "The profile editor is not yet implemented. Please use one of the existing alternatives.",
+      "profile save button title": "Save",
+      "no profile read only informational text": "You seem to have no profile but can't create one in read-only mode",
+      "no profile informational text": "You seem to have no profile - do you want to create one?",
+      "image selection button title": "Select",
+      "create profile button title": "Create Profile"
    },
    "sidebar": {
       "reader client role text": "Reader",

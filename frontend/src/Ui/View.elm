@@ -59,6 +59,7 @@ actionsFromArticlePreviewsData articlePreviewsData article =
             , removeBookmark = Just <| removeArticleBookmark addressComponents
             , addReaction = addReactionMsg
             , removeReaction = Nothing
+            , addRepost = articlePreviewsData.onRepost
             }
 
         ( _, _ ) ->
@@ -66,6 +67,7 @@ actionsFromArticlePreviewsData articlePreviewsData article =
             , removeBookmark = Nothing
             , addReaction = Nothing
             , removeReaction = Nothing
+            , addRepost = Nothing
             }
 
 

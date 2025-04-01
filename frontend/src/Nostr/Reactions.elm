@@ -1,8 +1,7 @@
 module Nostr.Reactions exposing (..)
 
-import Json.Decode as Decode exposing (Decoder)
-import Json.Decode.Pipeline as DecodePipeline
-import Nostr.Event exposing (AddressComponents, Event, Kind, Tag(..), kindDecoder)
+import Nostr.Event exposing (AddressComponents, Event, Kind, Tag(..))
+import Nostr.Nip18 exposing (Repost)
 import Nostr.Types exposing (EventId, PubKey)
 
 
@@ -19,6 +18,7 @@ type alias Interactions =
     , bookmarks : Maybe Int
     , isBookmarked : Bool
     , reaction : Maybe Reaction
+    , repost : Maybe Repost
     }
 
 
@@ -42,7 +42,7 @@ reactionFromEvent event =
                     AddressTag addressComponents ->
                         { acc | addressComponentsReactedTo = Just addressComponents }
 
-                    EventIdTag eventId ->
+                    EventIdTag eventId _ ->
                         { acc | noteIdReactedTo = Just eventId }
 
                     KindTag kind ->

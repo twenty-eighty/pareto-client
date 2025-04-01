@@ -12,6 +12,7 @@ module Components.UploadDialog exposing
     , update
     , updateServerList
     , view
+    , withMediaType
     )
 
 import Auth
@@ -22,7 +23,7 @@ import Dict exposing (Dict)
 import Effect exposing (Effect)
 import File exposing (File)
 import File.Select as FileSelect
-import Html.Styled as Html exposing (Html, button, div, img, input, label, li, option, progress, select, span, text, textarea, ul)
+import Html.Styled as Html exposing (Html, button, div, img, input, label, li, option, progress, select, span, text, ul)
 import Html.Styled.Attributes as Attr exposing (checked, class, css, type_, value)
 import Html.Styled.Events exposing (onClick, onInput, preventDefaultOn)
 import Http
@@ -33,7 +34,7 @@ import Nostr
 import Nostr.Blossom as Blossom
 import Nostr.External exposing (decodeAuthHeaderReceived)
 import Nostr.Nip94 as Nip94
-import Nostr.Nip96 as Nip96
+import Nostr.Nip96 as Nip96 exposing (MediaType(..), mediaTypeFromString, mediaTypeToString)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestData(..))
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
@@ -97,6 +98,7 @@ type Model
         , errors : List String
         , files : Dict Int FileUpload
         , nextFileId : Int
+        , mediaType : Maybe MediaType
         }
 
 
@@ -125,6 +127,7 @@ init _ =
         , serverSelectionDropdown = Dropdown.init { selected = Nothing }
         , uploadServers = []
         , files = Dict.empty
+        , mediaType = Nothing
         , nextFileId = 0
         , errors = []
         }
@@ -133,6 +136,11 @@ init _ =
 show : Model -> Model
 show (Model model) =
     Model { model | state = DialogVisible, errors = [] }
+
+
+withMediaType : MediaType -> Model -> Model
+withMediaType mediaType (Model model) =
+    Model { model | mediaType = Just mediaType }
 
 
 selectServer : Model -> Maybe UploadServer -> Model
@@ -175,7 +183,7 @@ type Msg
     | ConvertedToUrl Int String
     | UpdateCaption Int String
     | UpdateAltText Int String
-    | UpdateMediaType Int String
+    | UpdateMediaType Int (Maybe MediaType)
     | ToggleNoTransform Int
     | StartUpload Int -- FileId
     | HashComputed Int String -- FileId, SHA256 Hash
@@ -267,7 +275,7 @@ update props =
                 let
                     mimeTypeStrings =
                         supportedMimeTypes
-                        |> List.map MimeType.toString
+                            |> List.map MimeType.toString
                 in
                 ( Model model
                   -- multi file selection temporarily disabled
@@ -290,9 +298,10 @@ update props =
                                                 FileUploadBlossom Nothing
                                                     { file = fileToUpload
                                                     , status = Blossom.Selected
-                                                    , caption = File.name fileToUpload 
-                                                        |> removeFileExtension
-                                                        |> Just
+                                                    , caption =
+                                                        File.name fileToUpload
+                                                            |> removeFileExtension
+                                                            |> Just
                                                     , uploadResponse = Nothing
                                                     }
                                                     |> Just
@@ -301,11 +310,12 @@ update props =
                                                 FileUploadNip96 Nothing
                                                     { file = fileToUpload
                                                     , status = Nip96.Selected
-                                                    , caption = File.name fileToUpload 
-                                                        |> removeFileExtension
-                                                        |> Just
+                                                    , caption =
+                                                        File.name fileToUpload
+                                                            |> removeFileExtension
+                                                            |> Just
                                                     , alt = Nothing
-                                                    , mediaType = Nothing
+                                                    , mediaType = model.mediaType
                                                     , noTransform = defaultNoTransformForFile fileToUpload
                                                     , uploadResponse = Nothing
                                                     }
@@ -421,11 +431,7 @@ update props =
                                         Just (FileUploadBlossom maybePreviewLink upload)
 
                                     Just (FileUploadNip96 maybePreviewLink upload) ->
-                                        if mediaType /= "" then
-                                            Just <| FileUploadNip96 maybePreviewLink { upload | mediaType = Just mediaType }
-
-                                        else
-                                            Just <| FileUploadNip96 maybePreviewLink { upload | mediaType = Nothing }
+                                        Just <| FileUploadNip96 maybePreviewLink { upload | mediaType = mediaType }
 
                                     Nothing ->
                                         Nothing
@@ -698,6 +704,7 @@ update props =
             ErrorOccurred errorMsg ->
                 ( Model { model | errors = model.errors ++ [ errorMsg ] }, Effect.none )
 
+
 removeFileExtension : String -> String
 removeFileExtension fileName =
     case List.maximum (String.indexes "." fileName) of
@@ -709,6 +716,7 @@ removeFileExtension fileName =
                 -- If the only dot is the first character, e.g. ".profile",
                 -- treat it as a hidden file with no extension.
                 fileName
+
             else
                 String.left idx fileName
 
@@ -1195,7 +1203,7 @@ viewFileUploadBlossom theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                                     ]
                                                ]
                                         )
-                                        [ ]
+                                        []
                                     ]
                                 ]
                             , case maybePreviewLink of
@@ -1332,7 +1340,7 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                                     ]
                                                ]
                                         )
-                                        [  ]
+                                        []
                                     ]
                                 , div
                                     [ css
@@ -1356,7 +1364,7 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                                     ]
                                                ]
                                         )
-                                        [ ]
+                                        []
                                     ]
                                 , div
                                     [ css
@@ -1369,7 +1377,8 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                     , select
                                         (styles.colorStyleBackground
                                             ++ styles.colorStyleGrayscaleText
-                                            ++ [ onInput (UpdateMediaType fileId)
+                                            ++ [ onInput (UpdateMediaType fileId << mediaTypeFromString)
+                                               , value (mediaTypeToString fileUpload.mediaType)
                                                , css
                                                     [ Tw.w_full
                                                     , Tw.border
@@ -1379,9 +1388,9 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
                                                     ]
                                                ]
                                         )
-                                        [ option [ value "" ] [ text <| Translations.mediaTypeExplanationText [ browserEnv.translations ] ]
-                                        , option [ value "avatar" ] [ text <| Translations.avatarMediaType [ browserEnv.translations ] ]
-                                        , option [ value "banner" ] [ text <| Translations.bannerMediaType [ browserEnv.translations ] ]
+                                        [ option [ value (mediaTypeToString Nothing) ] [ text <| Translations.mediaTypeExplanationText [ browserEnv.translations ] ]
+                                        , option [ value (mediaTypeToString <| Just Nip96.MediaTypeAvatar) ] [ text <| Translations.avatarMediaType [ browserEnv.translations ] ]
+                                        , option [ value (mediaTypeToString <| Just Nip96.MediaTypeBanner) ] [ text <| Translations.bannerMediaType [ browserEnv.translations ] ]
                                         ]
                                     ]
                                 , div
@@ -1475,6 +1484,8 @@ viewFileUploadNip96 theme browserEnv maybePreviewLink ( fileId, fileUpload ) =
             [ css
                 [ Tw.font_bold
                 , Tw.mb_2
+                , Tw.overflow_hidden
+                , Tw.text_ellipsis
                 ]
             ]
             [ text fileName ]
@@ -1550,22 +1561,6 @@ viewUploadResponseNip96 browserEnv response =
             Nothing ->
                 [ div [] [ text <| Translations.noNip94ProvidedText [ browserEnv.translations ] ] ]
         )
-
-
-tagValue : List (List String) -> String -> Maybe String
-tagValue tags tagName =
-    tags
-        |> List.filterMap
-            (\tag ->
-                if List.head tag == Just tagName then
-                    tag
-                        |> List.drop 1
-                        |> List.head
-
-                else
-                    Nothing
-            )
-        |> List.head
 
 
 subscribe : Model -> Sub Msg

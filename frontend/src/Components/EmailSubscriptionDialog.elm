@@ -2,11 +2,10 @@ module Components.EmailSubscriptionDialog exposing (EmailSubscriptionDialog, Mod
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
-import Css
+import Components.EntryField as EntryField
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, div, input, label, p, text)
-import Html.Styled.Attributes as Attr exposing (css)
-import Html.Styled.Events as Events
+import Html.Styled as Html exposing (Html, div, p, text)
+import Html.Styled.Attributes exposing (css)
 import I18Next
 import Json.Decode as Decode
 import Locale exposing (Language(..))
@@ -19,10 +18,9 @@ import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Types exposing (IncomingMessage, PubKey)
 import Ports
 import Shared
-import Shared.Model exposing (Model, LoginStatus(..))
+import Shared.Model exposing (LoginStatus(..), Model)
 import Shared.Msg exposing (Msg)
 import Subscribers exposing (SubscribeInfo)
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.EmailSubscriptionDialog as Translations
 import Ui.Shared exposing (emptyHtml)
@@ -278,12 +276,21 @@ viewSubscribeDialog (Settings settings) data =
         emailIsValid =
             Subscribers.emailValid <| Maybe.withDefault "" data.email
 
-        emailFieldId =
-            "email"
+        submitMsg =
+            data.email
+                |> Maybe.map (\email -> SubscribeClicked email settings.profile settings.loginStatus settings.browserEnv.locale)
+
+        suggestions =
+            emailSuggestion settings.browserEnv.language data.email
+                |> Maybe.map List.singleton
+                |> Maybe.withDefault []
     in
     div
         [ css
-            [ Tw.w_full
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.gap_2
+            , Tw.w_full
             , Tw.max_w_sm
             , Tw.mt_2
             ]
@@ -301,48 +308,25 @@ viewSubscribeDialog (Settings settings) data =
         , div []
             [ div
                 [ css
-                    [ Tw.mb_1
+                    [ Tw.mb_2
                     ]
                 ]
-                [ label
-                    [ Attr.for emailFieldId
-                    , css
-                        [ Tw.block
-                        , Tw.mb_2
-                        , Tw.text_sm
-                        , Tw.font_medium
-                        , Tw.text_color Theme.gray_700
-                        ]
-                    ]
-                    [ text <| Translations.emailLabel [ settings.browserEnv.translations ] ]
-                , input
-                    [ Attr.type_ "email"
-                    , Attr.id emailFieldId
-                    , Attr.name "email"
-                    , css
-                        [ Tw.w_full
-                        , Tw.px_4
-                        , Tw.py_2
-                        , Tw.border
-                        , Tw.border_color Theme.gray_300
-                        , Tw.rounded
-                        , Css.focus
-                            [ Tw.outline_none
-                            , Tw.ring_2
-                            , Tw.ring_color Theme.blue_500
-                            ]
-                        ]
-                    , Attr.placeholder <| Translations.emailPlaceholder [ settings.browserEnv.translations ]
-                    , Attr.required True
-                    , Attr.value (Maybe.withDefault "" data.email)
-                    , Events.onInput UpdateEmail
-                    ]
-                    []
+                [ EntryField.new
+                    { value = Maybe.withDefault "" data.email
+                    , onInput = UpdateEmail
+                    , theme = settings.theme
+                    }
+                    |> EntryField.withLabel (Translations.emailLabel [ settings.browserEnv.translations ])
+                    |> EntryField.withPlaceholder (Translations.emailPlaceholder [ settings.browserEnv.translations ])
+                    |> EntryField.withRequired
+                    |> EntryField.withSubmitMsg submitMsg
+                    |> EntryField.withSuggestions "email" suggestions
+                    |> EntryField.withType EntryField.FieldTypeEmail
+                    |> EntryField.view
                 ]
-            , viewSuggestion settings.theme settings.browserEnv data.email
             , Button.new
                 { label = Translations.subscribeButtonTitle [ settings.browserEnv.translations ]
-                , onClick = data.email |> Maybe.map (\email -> SubscribeClicked email settings.profile settings.loginStatus settings.browserEnv.locale)
+                , onClick = submitMsg
                 , theme = settings.theme
                 }
                 |> Button.withTypePrimary
@@ -351,40 +335,6 @@ viewSubscribeDialog (Settings settings) data =
             , viewPrivacyText settings.theme settings.browserEnv.translations
             ]
         ]
-
-
-viewSuggestion : Theme -> BrowserEnv -> Maybe String -> Html (Msg msg)
-viewSuggestion theme browserEnv maybeEmail =
-    let
-        defaultHtml =
-            div [ css [ Tw.mt_4 ] ] []
-    in
-    maybeEmail
-        |> Maybe.map
-            (\email ->
-                emailSuggestion browserEnv.language (Just email)
-                    |> Maybe.map
-                        (\suggestion ->
-                            let
-                                styles =
-                                    stylesForTheme theme
-                            in
-                            div
-                                (styles.colorStyleGrayscaleMuted
-                                    ++ styles.textStyle14
-                                    ++ [ css
-                                            [ Tw.ml_4
-                                            , Tw.mb_4
-                                            , Tw.cursor_pointer
-                                            ]
-                                       , Events.onClick (UpdateEmail suggestion)
-                                       ]
-                                )
-                                [ text suggestion ]
-                        )
-                    |> Maybe.withDefault defaultHtml
-            )
-        |> Maybe.withDefault defaultHtml
 
 
 emailSuggestion : Language -> Maybe String -> Maybe String

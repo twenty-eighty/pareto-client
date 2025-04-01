@@ -27,12 +27,14 @@ type LoginStatus
     | LoggedInUnknown
     | LoggedIn PubKey LoginMethod
 
+
 type LoginMethod
     = LoginMethodConnect
     | LoginMethodExtension
     | LoginMethodLocal
     | LoginMethodOther String
     | LoginMethodReadOnly
+
 
 type ClientRole
     = ClientReader

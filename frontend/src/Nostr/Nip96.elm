@@ -1,11 +1,15 @@
 module Nostr.Nip96 exposing (..)
 
+import BrowserEnv exposing (BrowserEnv)
 import Dict exposing (Dict)
 import File exposing (File)
 import Http
 import Json.Decode as Decode exposing (Decoder, andThen, bool, dict, fail, float, int, list, maybe, string, succeed)
 import Json.Decode.Pipeline exposing (optional, required)
+import Nostr.Event exposing (Event, Kind(..))
 import Nostr.Nip94 as Nip94
+import Nostr.Send exposing (SendRequest(..))
+import Nostr.Types exposing (PubKey, ServerUrl)
 import Url
 
 
@@ -67,6 +71,27 @@ fetchServerSpec toMsg url =
         , timeout = Nothing
         , tracker = Nothing
         }
+
+
+sendNip96ServerListCmd : BrowserEnv -> PubKey -> List String -> List ServerUrl -> SendRequest
+sendNip96ServerListCmd browserEnv pubKey serverUrls relays =
+    eventWithNip96ServerList browserEnv pubKey serverUrls
+        |> SendFileStorageServerList relays
+
+
+eventWithNip96ServerList : BrowserEnv -> PubKey -> List ServerUrl -> Event
+eventWithNip96ServerList browserEnv pubKey serverUrls =
+    { pubKey = pubKey
+    , createdAt = browserEnv.now
+    , kind = KindFileStorageServerList
+    , tags =
+        []
+            |> Nostr.Event.addServerTags serverUrls
+    , content = ""
+    , id = ""
+    , sig = Nothing
+    , relays = Nothing
+    }
 
 
 extendRelativeServerDescriptorUrls : String -> ServerDescriptorData -> ServerDescriptorData
@@ -217,10 +242,15 @@ type alias FileUpload =
     , status : UploadStatus
     , caption : Maybe String
     , alt : Maybe String
-    , mediaType : Maybe String
+    , mediaType : Maybe MediaType
     , noTransform : Maybe Bool
     , uploadResponse : Maybe UploadResponse
     }
+
+
+type MediaType
+    = MediaTypeAvatar
+    | MediaTypeBanner
 
 
 type alias UploadResponse =
@@ -239,6 +269,32 @@ type UploadStatus
     | Uploading Float -- Progress percentage
     | Uploaded
     | Failed String -- Error message
+
+
+mediaTypeToString : Maybe MediaType -> String
+mediaTypeToString mediaType =
+    case mediaType of
+        Just MediaTypeAvatar ->
+            "avatar"
+
+        Just MediaTypeBanner ->
+            "banner"
+
+        Nothing ->
+            ""
+
+
+mediaTypeFromString : String -> Maybe MediaType
+mediaTypeFromString mediaTypeString =
+    case mediaTypeString of
+        "avatar" ->
+            Just MediaTypeAvatar
+
+        "banner" ->
+            Just MediaTypeBanner
+
+        _ ->
+            Nothing
 
 
 uploadFile : String -> Int -> FileUpload -> (Result Http.Error UploadResponse -> msg) -> String -> Cmd msg
@@ -268,8 +324,8 @@ multipartBody upload =
             , Http.stringPart "size" (File.size upload.file |> String.fromInt)
             , Http.stringPart "content_type" (File.mime upload.file)
             , Http.stringPart "expiration" expirationString
+            , Http.stringPart "media_type" (upload.mediaType |> mediaTypeToString)
             ]
-                |> appendStringField "media_type" upload.mediaType
                 |> appendStringField "alt" upload.alt
                 |> appendStringField "caption" upload.caption
                 |> appendBooleanField "no_transform" upload.noTransform

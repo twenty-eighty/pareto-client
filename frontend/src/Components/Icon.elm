@@ -13,6 +13,7 @@ import Tailwind.Color as TailwindColor
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 
+
 type Icon
     = FeatherIcon FeatherIcons.Icon
     | MaterialIcon MaterialIcon Int Coloring
@@ -36,6 +37,8 @@ type MaterialIcon
     | MaterialOutlineBookmark
     | MaterialOutlineBookmarkAdd
     | MaterialOutlineBookmarkAdded
+    | MaterialRepeat
+    | MaterialRepeatOn
 
 
 type ParetoIcon
@@ -131,6 +134,12 @@ svgForMaterialIcon materialIcon =
 
         MaterialOutlineBookmarkAdded ->
             Material.Icons.Outlined.bookmark_added
+
+        MaterialRepeat ->
+            Material.Icons.Outlined.repeat
+
+        MaterialRepeatOn ->
+            Material.Icons.Outlined.repeat_on
 
 
 viewParetoIcon : ParetoIcon -> Int -> Coloring -> Html msg

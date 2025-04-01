@@ -14,11 +14,9 @@ module Components.RelayStatus exposing
 
 -}
 
-import Components.Icon exposing (Icon)
 import Css
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes exposing (..)
-import Html.Styled.Events as Events
 import I18Next
 import Nostr.Relay exposing (Relay, RelayState(..))
 import Tailwind.Breakpoints as Bp

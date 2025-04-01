@@ -4,12 +4,14 @@ module Components.MediaSelector exposing
     , Model
     , Msg
     , UploadedFile(..)
+    , getMediaType
     , init
     , new
     , show
     , subscribe
     , update
     , view
+    , withMediaType
     )
 
 import Auth
@@ -42,8 +44,7 @@ import Nostr.Nip96 as Nip96 exposing (extendRelativeServerDescriptorUrls)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Shared exposing (httpErrorToString)
-import Nostr.Types exposing (PubKey)
-import Pareto
+import Nostr.Types exposing (PubKey, ServerUrl)
 import Ports
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
@@ -86,6 +87,16 @@ new props =
         }
 
 
+withMediaType : Nip96.MediaType -> Model -> Model
+withMediaType mediaType (Model model) =
+    Model { model | mediaType = Just mediaType }
+
+
+getMediaType : Model -> Maybe Nip96.MediaType
+getMediaType (Model model) =
+    model.mediaType
+
+
 type Model
     = Model
         { selected : Maybe Int
@@ -99,6 +110,7 @@ type Model
         , uploadedBlossomFiles : Dict ServerUrl (List UploadedFile)
         , uploadedNip96Files : Dict ServerUrl (List UploadedFile)
         , uploadDialog : UploadDialog.Model
+        , mediaType : Maybe Nip96.MediaType
         , errors : List String
         , alertTimerMessage : AlertTimerMessage.Model
         }
@@ -109,10 +121,6 @@ type MediaServer
     | Nip96MediaServer ServerUrl
     | NoMediaServer
     | AllMediaServers
-
-
-type alias ServerUrl =
-    String
 
 
 type DisplayType
@@ -159,6 +167,7 @@ init props =
                 { toMsg = UploadDialogSent
                 }
         , errors = []
+        , mediaType = Nothing
         , alertTimerMessage = AlertTimerMessage.init {}
         }
     , Effect.batch
@@ -328,14 +337,30 @@ update props =
         ConfigureDefaultMediaServer ->
             ( Model model
             , Effect.batch
-                [ sendNip96ServerListCmd props.browserEnv props.user (Nostr.getDefaultNip96Servers props.nostr props.user.pubKey) (Nostr.getDefaultRelays props.nostr)
+                [ Nip96.sendNip96ServerListCmd props.browserEnv props.user.pubKey (Nostr.getDefaultNip96Servers props.nostr props.user.pubKey) (Nostr.getDefaultRelays props.nostr)
+                    |> Shared.Msg.SendNostrEvent
+                    |> Effect.sendSharedMsg
                 ]
                 |> Effect.map props.toMsg
             )
                 |> toParentModel
 
         Upload ->
-            ( Model { model | uploadDialog = UploadDialog.show model.uploadDialog }, Effect.none )
+            ( Model
+                { model
+                    | uploadDialog =
+                        case model.mediaType of
+                            Just mediaType ->
+                                model.uploadDialog
+                                    |> UploadDialog.withMediaType mediaType
+                                    |> UploadDialog.show
+
+                            Nothing ->
+                                model.uploadDialog
+                                    |> UploadDialog.show
+                }
+            , Effect.none
+            )
                 |> toParentModel
 
         Uploaded uploadResponse ->
@@ -449,29 +474,6 @@ update props =
                     , Effect.none
                     )
                         |> toParentModel
-
-
-sendNip96ServerListCmd : BrowserEnv -> Auth.User -> List String -> List ServerUrl -> Effect msg
-sendNip96ServerListCmd browserEnv user serverUrls relays =
-    eventWithNip96ServerList browserEnv user serverUrls
-        |> SendFileStorageServerList relays
-        |> Shared.Msg.SendNostrEvent
-        |> Effect.sendSharedMsg
-
-
-eventWithNip96ServerList : BrowserEnv -> Auth.User -> List ServerUrl -> Event
-eventWithNip96ServerList browserEnv user serverUrls =
-    { pubKey = user.pubKey
-    , createdAt = browserEnv.now
-    , kind = KindFileStorageServerList
-    , tags =
-        []
-            |> Nostr.Event.addServerTags serverUrls
-    , content = ""
-    , id = ""
-    , sig = Nothing
-    , relays = Nothing
-    }
 
 
 modelWithUploadedFile : Model -> UploadResponse -> ( Model, Effect msg )
@@ -868,8 +870,8 @@ viewMediaSelector (Settings settings) =
 
 viewInstruction : I18Next.Translations -> DisplayType -> List UploadedFile -> Html msg
 viewInstruction translations displayType filesToShow =
-    case (displayType, List.length filesToShow > 0) of
-        (DisplayModalDialog _, True) ->
+    case ( displayType, List.length filesToShow > 0 ) of
+        ( DisplayModalDialog _, True ) ->
             div
                 [ css
                     [ Tw.my_2
@@ -878,7 +880,7 @@ viewInstruction translations displayType filesToShow =
                 [ text <| Translations.imageSelectionInstructionalText [ translations ]
                 ]
 
-        (_, _) ->
+        ( _, _ ) ->
             emptyHtml
 
 
@@ -1096,7 +1098,20 @@ uploadedNip96ImageFiles uploadedNip96Files serverUrl =
 imagePreview : I18Next.Translations -> Maybe (UploadedFile -> msg) -> DisplayType -> String -> UploadedFile -> Html (Msg msg)
 imagePreview translations onSelected displayType uniqueFileId uploadedFile =
     let
+        multiSelection =
+            -- In case we will support selection of multiple files,
+            -- a single click/tap should not commit the selection but only select.
+            -- An extra button is then needed to commit the selection.
+            False
+
+        selectionAttr =
+            if multiSelection then
+                [ Events.onDoubleClick (SelectedItem { item = uploadedFile, onSelected = onSelected }) ]
+            else
+                [ Events.onClick (SelectedItem { item = uploadedFile, onSelected = onSelected }) ]
+
         commonAttributes =
+            selectionAttr ++
             [ css
                 [ Tw.w_full
                 , Tw.h_auto
@@ -1116,7 +1131,6 @@ imagePreview translations onSelected displayType uniqueFileId uploadedFile =
                     , Tw.drop_shadow_sm
                     ]
                 ]
-            , Events.onDoubleClick (SelectedItem { item = uploadedFile, onSelected = onSelected })
             ]
     in
     case uploadedFile of
@@ -1128,17 +1142,21 @@ imagePreview translations onSelected displayType uniqueFileId uploadedFile =
                 imageUrl =
                     if Nip94.isImage nip96File then
                         nip96File.url
-                        |> Maybe.map (\url ->
-                            url ++ "?w=" ++ String.fromInt imageWidth -- NIP-96 servers can return scaled versions of images
-                        ) 
-                        |> Maybe.withDefault ""
+                            |> Maybe.map
+                                (\url ->
+                                    url ++ "?w=" ++ String.fromInt imageWidth
+                                 -- NIP-96 servers can return scaled versions of images
+                                )
+                            |> Maybe.withDefault ""
+
                     else if Nip94.isAudio nip96File then
                         "/images/audio-placeholder.jpeg"
+
                     else if Nip94.isVideo nip96File then
                         "/images/video-placeholder.jpeg"
+
                     else
                         "Binary"
-
             in
             div
                 [ css

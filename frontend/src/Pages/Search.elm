@@ -1,16 +1,15 @@
 module Pages.Search exposing (Model, Msg, page)
 
-import Components.SearchBar as SearchBar exposing (SearchBar)
+import Components.SearchBar as SearchBar
 import Dict
 import Effect exposing (Effect)
-import FeatherIcons exposing (search)
 import Html.Styled as Html exposing (Html, div, p)
 import Html.Styled.Attributes exposing (css)
 import Layouts
+import Nostr
+import Nostr.Event exposing (EventFilter, Kind(..), emptyEventFilter)
 import Nostr.Nip05 as Nip05
 import Nostr.Nip19 as Nip19
-import Nostr
-import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), emptyEventFilter, kindDecoder)
 import Nostr.Request exposing (RequestData(..))
 import Page exposing (Page)
 import Route exposing (Route)
@@ -37,7 +36,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -99,6 +98,7 @@ update shared msg model =
                 , onSearch = Search
                 }
 
+
 performSearch : Shared.Model -> Model -> Maybe String -> ( Model, Effect Msg )
 performSearch shared model maybeSearchText =
     case maybeSearchText of
@@ -110,13 +110,13 @@ performSearch shared model maybeSearchText =
                         [ Effect.pushRoute { path = Route.Path.P_Profile_ { profile = searchText }, query = Dict.empty, hash = Nothing } ]
                     )
 
-                Ok (Nip19.Note noteId) ->
+                Ok (Nip19.Note _) ->
                     ( model
                     , Effect.batch
                         [ Effect.pushRoute { path = Route.Path.A_Addr_ { addr = searchText }, query = Dict.empty, hash = Nothing } ]
                     )
 
-                Ok (Nip19.NProfile nprofile) ->
+                Ok (Nip19.NProfile _) ->
                     ( model
                     , Effect.batch
                         [ Effect.pushRoute { path = Route.Path.P_Profile_ { profile = searchText }, query = Dict.empty, hash = Nothing } ]
@@ -125,7 +125,7 @@ performSearch shared model maybeSearchText =
                 Ok (Nip19.NEvent _) ->
                     ( model
                     , Effect.batch
-                        [ Effect.pushRoute { path = Route.Path.A_Addr_ { addr = searchText }, query = Dict.empty, hash = Nothing } ]
+                        [ Effect.pushRoute { path = Route.Path.E_Event_ { event = searchText }, query = Dict.empty, hash = Nothing } ]
                     )
 
                 Ok (Nip19.NAddr _) ->
@@ -138,7 +138,7 @@ performSearch shared model maybeSearchText =
                     case Nip05.parseNip05 searchText of
                         Just nip05 ->
                             ( model
-                            , Effect.pushRoute { path = Route.Path.U_User_ { user = searchText }, query = Dict.empty, hash = Nothing }
+                            , Effect.pushRoute { path = Route.Path.U_User_ { user = Nip05.nip05ToString nip05 }, query = Dict.empty, hash = Nothing }
                             )
 
                         -- neither NIP-19 nor NIP-05 identifier - search via search relays
@@ -247,5 +247,6 @@ viewArticles shared =
             , userPubKey = Shared.loggedInPubKey shared.loginStatus
             , onBookmark = Nothing
             , onReaction = Nothing
+            , onRepost = Nothing
             , onZap = Nothing
             }

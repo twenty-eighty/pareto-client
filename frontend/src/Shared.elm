@@ -2,7 +2,7 @@ module Shared exposing
     ( Flags, decoder
     , Model, Msg
     , init, update, subscriptions
-    , loggedIn, loggedInPubKey, loggedInSigningPubKey
+    , loggedIn, loggedInPubKey, loggedInSigningPubKey, signingPubKeyAvailable
     )
 
 {-|
@@ -80,6 +80,7 @@ init flagsResult _ =
                 nostrTestMode =
                     if flags.testMode then
                         Nostr.TestModeEnabled
+
                     else
                         Nostr.TestModeOff
 
@@ -204,42 +205,43 @@ update _ msg model =
             , Effect.sendCmd <| Cmd.map Shared.Msg.NostrMsg nostrCmd
             )
 
-        SetClientRole changePath clientRole  ->
+        SetClientRole changePath clientRole ->
             let
                 newPath =
                     if model.role == ClientReader then
                         Route.Path.Posts
+
                     else
                         Route.Path.Read
             in
-                ( { model | role = clientRole }
-                , if changePath then
-                    Effect.pushRoutePath newPath
+            ( { model | role = clientRole }
+            , if changePath then
+                Effect.pushRoutePath newPath
 
-                  else
-                    Effect.none
-                )
+              else
+                Effect.none
+            )
 
         SetTestMode testMode ->
             let
-                (browserEnv, cmd ) =
+                ( browserEnv, cmd ) =
                     BrowserEnv.setTestMode model.browserEnv testMode
             in
             ( { model | browserEnv = browserEnv }
             , cmd
                 |> Effect.sendCmd
-             )
+            )
 
-        UpdateNewsletterAvailabilityPubKey pubKey ->
+        LoadUserDataByPubKey pubKey ->
             ( model
-            , Nostr.updateNewsletterAvailabilityPubKey model.nostr pubKey
+            , Nostr.loadUserDataByPubKey model.nostr pubKey
                 |> Cmd.map NostrMsg
                 |> Effect.sendCmd
             )
 
-        UpdateNewsletterAvailabilityNip05 nip05 ->
+        LoadUserDataByNip05 nip05 ->
             ( model
-            , Nostr.updateNewsletterAvailabilityNip05 model.nostr nip05
+            , Nostr.loadUserDataByNip05 model.nostr nip05
                 |> Cmd.map NostrMsg
                 |> Effect.sendCmd
             )
@@ -260,10 +262,12 @@ updateWithPortMessage model portMessage =
 
 updateWithUserValue : Model -> Json.Decode.Value -> ( Model, Effect Msg )
 updateWithUserValue model value =
-    case ( Json.Decode.decodeValue pubkeyDecoder value
-         , Json.Decode.decodeValue loginMethodDecoder value
-         , model.loginStatus
-         ) of
+    case
+        ( Json.Decode.decodeValue pubkeyDecoder value
+        , Json.Decode.decodeValue loginMethodDecoder value
+        , model.loginStatus
+        )
+    of
         ( Ok pubKeyNew, Ok loginMethod, Shared.Model.LoggedIn pubKeyLoggedIn _ ) ->
             let
                 ( nostr, cmd ) =
@@ -278,7 +282,7 @@ updateWithUserValue model value =
             , [ cmd
 
               -- check if user sends newsletters
-              , Nostr.updateNewsletterAvailabilityPubKey model.nostr pubKeyNew
+              , Nostr.loadUserDataByPubKey model.nostr pubKeyNew
               ]
                 |> Cmd.batch
                 |> Cmd.map Shared.Msg.NostrMsg
@@ -294,7 +298,7 @@ updateWithUserValue model value =
             , [ cmd
 
               -- check if user sends newsletters
-              , Nostr.updateNewsletterAvailabilityPubKey model.nostr pubKeyNew
+              , Nostr.loadUserDataByPubKey model.nostr pubKeyNew
               ]
                 |> Cmd.batch
                 |> Cmd.map Shared.Msg.NostrMsg
@@ -328,11 +332,14 @@ loggedInPubKey loginStatus =
             Nothing
 
 
+
 -- return a pubkey if the user can sign events
+
+
 loggedInSigningPubKey : Shared.Model.LoginStatus -> Maybe PubKey
 loggedInSigningPubKey loginStatus =
     case loginStatus of
-        Shared.Model.LoggedIn pubKey LoginMethodReadOnly ->
+        Shared.Model.LoggedIn _ LoginMethodReadOnly ->
             Nothing
 
         Shared.Model.LoggedIn pubKey _ ->
@@ -340,6 +347,23 @@ loggedInSigningPubKey loginStatus =
 
         _ ->
             Nothing
+
+
+
+-- check if user can sign events
+
+
+signingPubKeyAvailable : Shared.Model.LoginStatus -> Bool
+signingPubKeyAvailable loginStatus =
+    case loginStatus of
+        Shared.Model.LoggedIn _ LoginMethodReadOnly ->
+            False
+
+        Shared.Model.LoggedIn _ _ ->
+            True
+
+        _ ->
+            False
 
 
 pubkeyDecoder : Json.Decode.Decoder PubKey
@@ -350,24 +374,24 @@ pubkeyDecoder =
 loginMethodDecoder : Json.Decode.Decoder Shared.Model.LoginMethod
 loginMethodDecoder =
     Json.Decode.field "method" Json.Decode.string
-    |> Json.Decode.andThen (\method ->
-            case String.toLower method of
-                "connect" ->
-                    Json.Decode.succeed Shared.Model.LoginMethodConnect
+        |> Json.Decode.andThen
+            (\method ->
+                case String.toLower method of
+                    "connect" ->
+                        Json.Decode.succeed Shared.Model.LoginMethodConnect
 
-                "extension" ->
-                    Json.Decode.succeed Shared.Model.LoginMethodExtension
+                    "extension" ->
+                        Json.Decode.succeed Shared.Model.LoginMethodExtension
 
-                "local" ->
-                    Json.Decode.succeed Shared.Model.LoginMethodLocal
+                    "local" ->
+                        Json.Decode.succeed Shared.Model.LoginMethodLocal
 
-                "readonly" ->
-                    Json.Decode.succeed Shared.Model.LoginMethodReadOnly
+                    "readonly" ->
+                        Json.Decode.succeed Shared.Model.LoginMethodReadOnly
 
-                other ->
-                    Json.Decode.succeed (Shared.Model.LoginMethodOther other)
-
-        )
+                    other ->
+                        Json.Decode.succeed (Shared.Model.LoginMethodOther other)
+            )
 
 
 
