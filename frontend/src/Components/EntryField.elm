@@ -159,7 +159,11 @@ view (Settings settings) =
         ( suggestionsAttr, suggestionsElement ) =
             case settings.suggestions of
                 Just ( identifier, suggestions ) ->
-                    ( [ Attr.list identifier ], suggestionDataList identifier suggestions )
+                    ( [ Attr.list identifier ]
+                    , suggestions
+                        |> List.filter (\suggestion -> suggestion /= settings.value)
+                        |> suggestionDataList identifier
+                    )
 
                 Nothing ->
                     ( [], emptyHtml )
