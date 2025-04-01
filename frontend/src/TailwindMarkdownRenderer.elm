@@ -26,8 +26,11 @@ renderer styles fnGetProfile =
                 ++ styles.colorStyleGrayscaleText
                 ++ [ css
                         [ Tw.mb_6
+                        , Tw.text_justify
+                        , Tw.hyphens_auto
                         , Css.property "overflow-wrap" "break-word"
-                        , Css.property "word-break" "break-word"
+
+                        -- , Css.property "word-break" "break-word"
                         ]
                    ]
             )
@@ -145,6 +148,8 @@ renderer styles fnGetProfile =
                                         [ css
                                             [ Tw.list_disc
                                             , Tw.m_6
+                                            , Tw.text_justify
+                                            , Tw.hyphens_auto
                                             ]
                                         ]
                                         (checkbox :: children)

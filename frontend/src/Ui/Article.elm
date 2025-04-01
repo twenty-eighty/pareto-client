@@ -10,6 +10,7 @@ import Html.Styled as Html exposing (Html, a, article, div, h2, h3, img, summary
 import Html.Styled.Attributes as Attr exposing (css, href)
 import Html.Styled.Events as Events exposing (..)
 import LinkPreview exposing (LoadedContent)
+import Locale
 import Markdown
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
@@ -68,6 +69,14 @@ viewArticle articlePreviewsData articlePreviewData article =
         getProfile =
             Nostr.getProfile articlePreviewsData.nostr
 
+        langAttr =
+            case article.language of
+                Just language ->
+                    [ Attr.lang (language |> Locale.languageToISOCode) ]
+
+                Nothing ->
+                    []
+
         contentMargins =
             [ css
                 [ Tw.px_1
@@ -100,31 +109,33 @@ viewArticle articlePreviewsData articlePreviewData article =
             , interactions = articlePreviewData.interactions
             }
     in
-    div
-        [ css
-            [ Tw.flex_col
-            , Tw.justify_start
-            , Tw.items_center
-            , Tw.gap_12
-            , Tw.inline_flex
-            , Tw.px_2
-            , Bp.xxl
-                [ Tw.px_40
-                ]
-            , Bp.xl
-                [ Tw.px_20
-                ]
-            , Bp.lg
-                [ Tw.px_10
-                ]
-            , Bp.md
-                [ Tw.px_5
-                ]
-            , Bp.sm
-                [ Tw.px_3
-                ]
-            ]
-        ]
+    Html.article
+        (langAttr
+            ++ [ css
+                    [ Tw.flex_col
+                    , Tw.justify_start
+                    , Tw.items_center
+                    , Tw.gap_12
+                    , Tw.inline_flex
+                    , Tw.px_2
+                    , Bp.xxl
+                        [ Tw.px_40
+                        ]
+                    , Bp.xl
+                        [ Tw.px_20
+                        ]
+                    , Bp.lg
+                        [ Tw.px_10
+                        ]
+                    , Bp.md
+                        [ Tw.px_5
+                        ]
+                    , Bp.sm
+                        [ Tw.px_3
+                        ]
+                    ]
+               ]
+        )
         [ div
             [ css
                 [ Tw.self_stretch

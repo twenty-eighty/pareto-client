@@ -331,7 +331,7 @@ viewSidebar styles shared currentPath toContentMsg content =
                     [ Tw.flex_1
                     ]
                 ]
-                [ div
+                [ Html.header
                     [ css
                         [ Tw.flex
                         , Tw.justify_between
