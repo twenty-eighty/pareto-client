@@ -8,6 +8,7 @@ import Components.EntryField as EntryField
 import Components.Icon as Icon
 import Components.MediaSelector as MediaSelector
 import Css
+import Dict
 import Effect exposing (Effect)
 import FeatherIcons
 import Html.Styled as Html exposing (Html, datalist, div, h3, input, option, p, text)
@@ -29,6 +30,7 @@ import Nostr.Types exposing (PubKey, RelayRole(..), RelayUrl, ServerUrl)
 import Page exposing (Page)
 import Pareto
 import Route exposing (Route)
+import Route.Path
 import Shared
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
@@ -44,9 +46,9 @@ import View exposing (View)
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
-page user shared _ =
+page user shared route =
     Page.new
-        { init = init user shared
+        { init = init user shared route
         , update = update user shared
         , subscriptions = subscriptions
         , view = view user shared
@@ -67,6 +69,7 @@ toLayout theme _ =
 type alias Model =
     { categories : Categories.Model Category
     , data : DataModel
+    , path : Route.Path.Path
     }
 
 
@@ -236,19 +239,56 @@ availableCategories translations =
     ]
 
 
-init : Auth.User -> Shared.Model -> () -> ( Model, Effect Msg )
-init user shared () =
+init : Auth.User -> Shared.Model -> Route () -> () -> ( Model, Effect Msg )
+init user shared route () =
     let
-        initialCategory =
-            Relays
+        category =
+            Dict.get categoryParamName route.query
+                |> Maybe.andThen categoryFromString
+                |> Maybe.withDefault Relays
     in
     updateModelWithCategory
         user
         shared
-        { categories = Categories.init { selected = initialCategory }
+        { categories = Categories.init { selected = category }
         , data = RelaysData emptyRelaysModel
+        , path = route.path
         }
-        initialCategory
+        category
+
+
+categoryParamName : String
+categoryParamName =
+    "category"
+
+
+stringFromCategory : Category -> String
+stringFromCategory category =
+    case category of
+        Relays ->
+            "relays"
+
+        MediaServers ->
+            "media_servers"
+
+        Profile ->
+            "profile"
+
+
+categoryFromString : String -> Maybe Category
+categoryFromString categoryString =
+    case categoryString of
+        "relays" ->
+            Just Relays
+
+        "media_servers" ->
+            Just MediaServers
+
+        "profile" ->
+            Just Profile
+
+        _ ->
+            Nothing
 
 
 
@@ -451,7 +491,23 @@ update user shared msg model =
         CreateProfile ->
             case model.data of
                 ProfileData profileModel ->
-                    ( { model | data = ProfileData { profileModel | savedProfile = Just <| emptyProfile user.pubKey } }, Effect.none )
+                    let
+                        portalUserData =
+                            Nostr.getPortalUserInfo shared.nostr user.pubKey
+                    in
+                    ( { model
+                        | data =
+                            ProfileData
+                                { profileModel
+                                  -- preset new profile with data received from portal server
+                                    | name = portalUserData |> Maybe.andThen .username |> Maybe.withDefault ""
+                                    , nip05 = portalUserData |> Maybe.andThen .nip05 |> Maybe.map Nip05.nip05ToString |> Maybe.withDefault ""
+                                    , lud16 = portalUserData |> Maybe.andThen .lud16 |> Maybe.map Lud16.lud16ToString |> Maybe.withDefault ""
+                                    , savedProfile = Just <| emptyProfile user.pubKey
+                                }
+                      }
+                    , Effect.none
+                    )
 
                 _ ->
                     ( model, Effect.none )
@@ -556,7 +612,10 @@ updateModelWithCategory user shared model category =
                     )
     in
     ( newModel
-    , effect
+    , Effect.batch
+        [ Effect.replaceRoute { path = model.path, query = Dict.singleton categoryParamName (stringFromCategory category), hash = Nothing }
+        , effect
+        ]
     )
 
 
