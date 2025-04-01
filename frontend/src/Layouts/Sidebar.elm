@@ -44,12 +44,16 @@ map toMsg props =
     }
 
 
+
+-- this function checks if a route will be available in reader mode after login
+
+
 clientRoleForRoutePath : BrowserEnv.Environment -> Route.Path.Path -> ClientRole
 clientRoleForRoutePath environment path =
     sidebarItems
         { isAuthor = False
         , isBetaTester = False
-        , isLoggedIn = False
+        , isLoggedIn = True
         , environment = environment
         , clientRole = ClientReader
         , sendsNewsletters = False
