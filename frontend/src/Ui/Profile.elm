@@ -15,6 +15,7 @@ import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
 import Set exposing (Set)
 import Shared
+import Tailwind.Breakpoints exposing (lg, md, sm)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Time
@@ -105,14 +106,15 @@ viewProfile profile profileViewData shared =
             , Tw.flex_col
             , Tw.space_y_2
             , Tw.mx_4
-            , Tw.mb_4
+            , Tw.mb_6
             ]
         ]
         [ viewBanner profile.banner
         , div
             [ css
                 [ Tw.flex
-                , Tw.flex_row
+                , md [ Tw.flex_row ]
+                , Tw.flex_col
                 , Tw.items_start
                 , Tw.space_x_4
                 , Tw.mb_4
