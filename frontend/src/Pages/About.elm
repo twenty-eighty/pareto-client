@@ -418,6 +418,7 @@ viewFooter theme browserEnv =
             , text "."
             ]
         , viewPrivacyPolicyLink styles browserEnv.translations browserEnv.language
+        , viewImprintLink styles browserEnv.translations browserEnv.language
         ]
 
 
@@ -431,6 +432,21 @@ viewPrivacyPolicyLink styles translations language =
                     ++ [ Attr.href <| Route.Path.toString Route.Path.Privacy ]
                 )
                 [ text <| Translations.privacyPolicyLinkText [ translations ] ]
+
+        _ ->
+            emptyHtml
+
+
+viewImprintLink : Styles Msg -> I18Next.Translations -> Language -> Html Msg
+viewImprintLink styles translations language =
+    case Pareto.imprint language of
+        Just _ ->
+            a
+                (styles.textStyleLinks
+                    ++ styles.colorStyleArticleHashtags
+                    ++ [ Attr.href <| Route.Path.toString Route.Path.Imprint ]
+                )
+                [ text <| Translations.imprintLinkText [ translations ] ]
 
         _ ->
             emptyHtml
