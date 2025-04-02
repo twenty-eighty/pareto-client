@@ -9,13 +9,15 @@ Technischer Support, Feedback: [support@pareto.space](mailto:support@pareto.spac
 ## Der Verein Amici della Verità / pareto\.space
 Amici della Verità,\
 casella postale Nr. 45\
-6675 Cevio,\
-Switzerland
+6675 Cevio\
+Schweiz
 
 
 ## Die Friedenstaube
 Die Friedenstaube\
 (Coopérativa in creazione)\
 Casella postale Nr. 45\
-6675 Cevio, Schweiz\
+6675 Cevio\
+Schweiz
+
 E-Mail: [friedenstaube@pareto.space](mailto:friedenstaube@pareto.space)
