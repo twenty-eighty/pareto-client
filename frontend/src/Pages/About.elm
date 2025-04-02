@@ -344,7 +344,7 @@ viewTechDetails theme browserEnv =
         [ span styles.textStyleBody
             [ text (Translations.hintToTechDetails [ browserEnv.translations ])
             , a
-                (href "/tech-details" :: styles.textStyleLinks ++ styles.colorStyleArticleHashtags)
+                (href "/tech-details" :: styles.textStyleLinks ++ styles.colorStyleLinks)
                 [ text (Translations.seeThis [ browserEnv.translations ]) ]
             ]
         ]
@@ -370,7 +370,7 @@ viewFooter theme browserEnv =
             [ text <| Translations.aboutFrontendText [ browserEnv.translations ] ++ " "
             , a
                 (styles.textStyleLinks
-                    ++ styles.colorStyleArticleHashtags
+                    ++ styles.colorStyleLinks
                     ++ [ Attr.href "https://elm.land/"
                        , target "_blank"
                        ]
@@ -380,7 +380,7 @@ viewFooter theme browserEnv =
             , text <| Translations.aboutFrontendText2 [ browserEnv.translations ] ++ " "
             , a
                 (styles.textStyleLinks
-                    ++ styles.colorStyleArticleHashtags
+                    ++ styles.colorStyleLinks
                     ++ [ Attr.href "https://elm-lang.org/"
                        , target "_blank"
                        ]
@@ -394,7 +394,7 @@ viewFooter theme browserEnv =
             [ text <| Translations.aboutBackendText [ browserEnv.translations ] ++ " "
             , a
                 (styles.textStyleLinks
-                    ++ styles.colorStyleArticleHashtags
+                    ++ styles.colorStyleLinks
                     ++ [ Attr.href "https://www.phoenixframework.org/"
                        , target "_blank"
                        ]
@@ -408,7 +408,7 @@ viewFooter theme browserEnv =
             [ text <| Translations.sourceCodeText [ browserEnv.translations ] ++ " "
             , a
                 (styles.textStyleLinks
-                    ++ styles.colorStyleArticleHashtags
+                    ++ styles.colorStyleLinks
                     ++ [ Attr.href Pareto.source
                        , target "_blank"
                        ]
@@ -428,7 +428,7 @@ viewPrivacyPolicyLink styles translations language =
         Just _ ->
             a
                 (styles.textStyleLinks
-                    ++ styles.colorStyleArticleHashtags
+                    ++ styles.colorStyleLinks
                     ++ [ Attr.href <| Route.Path.toString Route.Path.Privacy ]
                 )
                 [ text <| Translations.privacyPolicyLinkText [ translations ] ]
@@ -443,7 +443,7 @@ viewImprintLink styles translations language =
         Just _ ->
             a
                 (styles.textStyleLinks
-                    ++ styles.colorStyleArticleHashtags
+                    ++ styles.colorStyleLinks
                     ++ [ Attr.href <| Route.Path.toString Route.Path.Imprint ]
                 )
                 [ text <| Translations.imprintLinkText [ translations ] ]

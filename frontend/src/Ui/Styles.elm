@@ -5,7 +5,6 @@ import Css.Media
 import Html.Styled as Html
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events exposing (..)
-import Tailwind.Breakpoints as Bp
 import Tailwind.Color as TwColor
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
@@ -67,10 +66,8 @@ map toMsg props =
     , color3DarkMode = props.color1DarkMode
     , color4 = props.color4
     , color4DarkMode = props.color1DarkMode
-    , textStyleReactions = mapStyleBundle toMsg props.textStyleReactions
     , textStyleLinks = mapStyleBundle toMsg props.textStyleLinks
     , textStyleBody = mapStyleBundle toMsg props.textStyleBody
-    , textStyleDropdownsLabel = mapStyleBundle toMsg props.textStyleDropdownsLabel
     , textStyleSemiboldLabel = mapStyleBundle toMsg props.textStyleSemiboldLabel
     , textStyleUppercaseLabel = mapStyleBundle toMsg props.textStyleUppercaseLabel
     , textStyleH1 = mapStyleBundle toMsg props.textStyleH1
@@ -80,16 +77,10 @@ map toMsg props =
     , textStyleH4 = mapStyleBundle toMsg props.textStyleH4
     , textStyleH4Article = mapStyleBundle toMsg props.textStyleH4Article
     , textStyle14 = mapStyleBundle toMsg props.textStyle14
-    , textStyleArticleHashtags = mapStyleBundle toMsg props.textStyleArticleHashtags
-    , textStyleArticleAuthor = mapStyleBundle toMsg props.textStyleArticleAuthor
-    , textStyleArticleCode = mapStyleBundle toMsg props.textStyleArticleCode
-    , textStyleArticleDate = mapStyleBundle toMsg props.textStyleArticleDate
-    , textStyleHashtagLarge = mapStyleBundle toMsg props.textStyleHashtagLarge
     , colorStyleBackground = mapStyleBundle toMsg props.colorStyleBackground
     , colorStyleLabel = mapStyleBundle toMsg props.colorStyleLabel
     , colorStyleLinks = mapStyleBundle toMsg props.colorStyleLinks
     , colorStyleMedia = mapStyleBundle toMsg props.colorStyleMedia
-    , colorStyleLabelBG = mapStyleBundle toMsg props.colorStyleLabelBG
     , colorStyleBorders = mapStyleBundle toMsg props.colorStyleBorders
     , colorStyleIcons = mapStyleBundle toMsg props.colorStyleIcons
     , colorStyleGreen = mapStyleBundle toMsg props.colorStyleGreen
@@ -100,7 +91,7 @@ map toMsg props =
     , colorStyleGrayscaleText = mapStyleBundle toMsg props.colorStyleGrayscaleText
     , colorStyleGrayscaleMedia = mapStyleBundle toMsg props.colorStyleGrayscaleMedia
     , colorStyleGrayscaleDisabled = mapStyleBundle toMsg props.colorStyleGrayscaleDisabled
-    , colorStyleArticleHashtags = mapStyleBundle toMsg props.colorStyleArticleHashtags
+    , colorStyleCode = mapStyleBundle toMsg props.colorStyleCode
     , colorStyleRegularButtonText = mapStyleBundle toMsg props.colorStyleRegularButtonText
     , colorStylePrimaryButtonText = mapStyleBundle toMsg props.colorStylePrimaryButtonText
     , colorStyleSecondaryButtonText = mapStyleBundle toMsg props.colorStyleSecondaryButtonText
@@ -110,13 +101,6 @@ map toMsg props =
     , colorStyleSecondaryButtonBackground = mapStyleBundle toMsg props.colorStyleSecondaryButtonBackground
     , colorStyleDisabledButtonBackground = mapStyleBundle toMsg props.colorStyleDisabledButtonBackground
     , colorStyleInverse = mapStyleBundle toMsg props.colorStyleInverse
-    , colorStyleSitebarBackground = mapStyleBundle toMsg props.colorStyleSitebarBackground
-    , colorStyleSitebarItemActive = mapStyleBundle toMsg props.colorStyleSitebarItemActive
-    , colorStyleSitebarItemInactiveBackground = mapStyleBundle toMsg props.colorStyleSitebarItemInactiveBackground
-    , colorStyleSitebarItemEnabled = mapStyleBundle toMsg props.colorStyleSitebarItemEnabled
-    , colorStyleSitebarItemDisabled = mapStyleBundle toMsg props.colorStyleSitebarItemDisabled
-    , colorStyleCategoryActive = mapStyleBundle toMsg props.colorStyleCategoryActive
-    , colorStyleCategoryInactive = mapStyleBundle toMsg props.colorStyleCategoryInactive
     , effectStyleModalShadow = mapStyleBundle toMsg props.effectStyleModalShadow
     , effectStyleShadow1 = mapStyleBundle toMsg props.effectStyleShadow1
     , effectStyleSheetShadow = mapStyleBundle toMsg props.effectStyleSheetShadow
@@ -135,10 +119,8 @@ type alias Styles msg =
     , color3DarkMode : Theme.Color
     , color4 : Theme.Color
     , color4DarkMode : Theme.Color
-    , textStyleReactions : StyleBundle msg
     , textStyleLinks : StyleBundle msg
     , textStyleBody : StyleBundle msg
-    , textStyleDropdownsLabel : StyleBundle msg
     , textStyleSemiboldLabel : StyleBundle msg
     , textStyleUppercaseLabel : StyleBundle msg
     , textStyleH1 : StyleBundle msg
@@ -148,16 +130,10 @@ type alias Styles msg =
     , textStyleH4 : StyleBundle msg
     , textStyleH4Article : StyleBundle msg
     , textStyle14 : StyleBundle msg
-    , textStyleArticleHashtags : StyleBundle msg
-    , textStyleArticleAuthor : StyleBundle msg
-    , textStyleArticleCode : StyleBundle msg
-    , textStyleArticleDate : StyleBundle msg
-    , textStyleHashtagLarge : StyleBundle msg
     , colorStyleBackground : StyleBundle msg
     , colorStyleLabel : StyleBundle msg
     , colorStyleLinks : StyleBundle msg
     , colorStyleMedia : StyleBundle msg
-    , colorStyleLabelBG : StyleBundle msg
     , colorStyleBorders : StyleBundle msg
     , colorStyleIcons : StyleBundle msg
     , colorStyleGreen : StyleBundle msg
@@ -168,7 +144,7 @@ type alias Styles msg =
     , colorStyleGrayscaleText : StyleBundle msg
     , colorStyleGrayscaleMedia : StyleBundle msg
     , colorStyleGrayscaleDisabled : StyleBundle msg
-    , colorStyleArticleHashtags : StyleBundle msg
+    , colorStyleCode : StyleBundle msg
     , colorStyleRegularButtonText : StyleBundle msg
     , colorStylePrimaryButtonText : StyleBundle msg
     , colorStyleSecondaryButtonText : StyleBundle msg
@@ -178,13 +154,6 @@ type alias Styles msg =
     , colorStyleSecondaryButtonBackground : StyleBundle msg
     , colorStyleDisabledButtonBackground : StyleBundle msg
     , colorStyleInverse : StyleBundle msg
-    , colorStyleSitebarBackground : StyleBundle msg
-    , colorStyleSitebarItemActive : StyleBundle msg
-    , colorStyleSitebarItemInactiveBackground : StyleBundle msg
-    , colorStyleSitebarItemEnabled : StyleBundle msg
-    , colorStyleSitebarItemDisabled : StyleBundle msg
-    , colorStyleCategoryActive : StyleBundle msg
-    , colorStyleCategoryInactive : StyleBundle msg
     , effectStyleModalShadow : StyleBundle msg
     , effectStyleShadow1 : StyleBundle msg
     , effectStyleSheetShadow : StyleBundle msg
@@ -229,15 +198,6 @@ paretoThemeStyles =
     , color3DarkMode = color3Inverse
     , color4 = color4
     , color4DarkMode = color4Inverse
-    , textStyleReactions =
-        [ css
-            [ Tw.text_base
-            , Tw.font_medium
-            , Tw.tracking_normal
-            ]
-        , fontFamilyInter
-        , Attr.style "line-height" "auto"
-        ]
     , textStyleLinks =
         [ css
             [ Tw.text_base
@@ -259,15 +219,6 @@ paretoThemeStyles =
             -- , Tw.leading_relaxed
             ]
         , fontFamilyInter
-        ]
-    , textStyleDropdownsLabel =
-        [ css
-            [ Tw.text_base
-            , Tw.font_semibold
-            , Tw.tracking_normal
-            ]
-        , fontFamilyInter
-        , Attr.style "line-height" "auto"
         ]
     , textStyleSemiboldLabel =
         [ css
@@ -346,46 +297,6 @@ paretoThemeStyles =
             ]
         , fontFamilyInter
         ]
-    , textStyleArticleHashtags =
-        [ css
-            [ Tw.text_sm
-            , Tw.font_medium
-            , Tw.leading_snug
-            ]
-        , fontFamilyRobotoMono
-        ]
-    , textStyleArticleAuthor =
-        [ css
-            [ Tw.text_sm
-            , Tw.font_normal
-            , Tw.leading_snug
-            ]
-        , fontFamilyRobotoMono
-        ]
-    , textStyleArticleCode =
-        [ css
-            [ Tw.text_xs
-            , Tw.font_normal
-            , Tw.capitalize
-            , Tw.leading_tight
-            ]
-        , fontFamilyRobotoMono
-        ]
-    , textStyleArticleDate =
-        [ css
-            [ Tw.text_xs
-            , Tw.font_normal
-            , Tw.leading_tight
-            ]
-        , fontFamilyRobotoMono
-        ]
-    , textStyleHashtagLarge =
-        [ css
-            [ Tw.text_4xl
-            , Tw.font_bold
-            ]
-        , fontFamilyRobotoMono
-        ]
     , colorStyleBackground =
         [ css
             [ Tw.bg_color Theme.white
@@ -409,14 +320,6 @@ paretoThemeStyles =
             ]
         ]
     , colorStyleMedia =
-        [ css
-            [ Tw.text_color Theme.slate_200 -- should be #D6D9E5
-            , darkMode
-                [ Tw.text_color Theme.slate_800
-                ]
-            ]
-        ]
-    , colorStyleLabelBG =
         [ css
             [ Tw.text_color Theme.slate_200 -- should be #D6D9E5
             , darkMode
@@ -457,33 +360,33 @@ paretoThemeStyles =
         ]
     , colorStyleGrayscaleTitle =
         [ css
-            [ Tw.text_color Theme.slate_800
+            [ Tw.text_color color4
             , darkMode
-                [ Tw.text_color Theme.slate_200
+                [ Tw.text_color color4Inverse
                 ]
             ]
         ]
     , colorStyleGrayscaleSummary =
         [ css
-            [ Tw.text_color Theme.slate_800
+            [ Tw.text_color color4
             , darkMode
-                [ Tw.text_color Theme.slate_200
+                [ Tw.text_color color4Inverse
                 ]
             ]
         ]
     , colorStyleGrayscaleMuted =
         [ css
-            [ Tw.text_color Theme.slate_400
+            [ Tw.text_color color2
             , darkMode
-                [ Tw.text_color Theme.slate_600
+                [ Tw.text_color color2Inverse
                 ]
             ]
         ]
     , colorStyleGrayscaleText =
         [ css
-            [ Tw.text_color Theme.slate_700
+            [ Tw.text_color color4
             , darkMode
-                [ Tw.text_color Theme.slate_300
+                [ Tw.text_color color4Inverse
                 ]
             ]
         ]
@@ -499,15 +402,15 @@ paretoThemeStyles =
         [ css
             [ Tw.text_color color2
             , darkMode
-                [ Tw.text_color color1
+                [ Tw.text_color color2Inverse
                 ]
             ]
         ]
-    , colorStyleArticleHashtags =
+    , colorStyleCode =
         [ css
-            [ Tw.text_color Theme.slate_700
+            [ Tw.text_color color4
             , darkMode
-                [ Tw.text_color Theme.slate_400
+                [ Tw.text_color color4Inverse
                 ]
             ]
         ]
@@ -583,90 +486,6 @@ paretoThemeStyles =
             [ Tw.bg_color Theme.white
             , darkMode
                 [ Tw.bg_color Theme.black
-                ]
-            ]
-        ]
-    , colorStyleSitebarBackground =
-        [ css
-            [ Tw.bg_color Theme.slate_800
-            , darkMode
-                [ Tw.border_t_2
-                ]
-            , Bp.sm
-                [ Tw.bg_color Theme.white
-                , darkMode
-                    [ Tw.bg_color Theme.black
-                    ]
-                ]
-            ]
-        ]
-    , colorStyleSitebarItemActive =
-        [ css
-            [ Tw.text_color color1
-            , Tw.bg_color color3
-            , Bp.sm
-                [ Tw.text_color color1
-                , Tw.bg_color color3
-                , darkMode
-                    [ Tw.text_color color1
-                    , Tw.bg_color color4
-                    ]
-                ]
-            , darkMode
-                [ Tw.text_color color1Inverse
-                , Tw.bg_color color2Inverse
-                , Bp.sm
-                    [ Tw.text_color color1Inverse
-                    ]
-                ]
-            ]
-        ]
-    , colorStyleSitebarItemInactiveBackground =
-        [ css
-            [ Tw.text_color color4
-            , Bp.sm
-                [ Tw.text_color color4Inverse
-                ]
-            ]
-        ]
-    , colorStyleSitebarItemEnabled =
-        [ css
-            [ Tw.text_color color2
-            , darkMode
-                [ Tw.text_color color4Inverse
-                ]
-            , Bp.sm
-                [ Tw.text_color color4
-                , darkMode
-                    [ Tw.text_color color4Inverse
-                    ]
-                ]
-            ]
-        ]
-    , colorStyleSitebarItemDisabled =
-        [ css
-            [ Tw.text_color color2
-            , Bp.sm
-                [ Tw.text_color color2
-                , darkMode
-                    [ Tw.text_color color2Inverse
-                    ]
-                ]
-            ]
-        ]
-    , colorStyleCategoryActive =
-        [ css
-            [ Tw.text_color color4
-            , darkMode
-                [ Tw.text_color color4Inverse
-                ]
-            ]
-        ]
-    , colorStyleCategoryInactive =
-        [ css
-            [ Tw.text_color color3
-            , darkMode
-                [ Tw.text_color color3Inverse
                 ]
             ]
         ]
