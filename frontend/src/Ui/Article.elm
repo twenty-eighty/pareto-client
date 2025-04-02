@@ -394,7 +394,7 @@ viewArticleTime : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> 
 viewArticleTime styles browserEnv maybePublishedAt createdAt =
     div
         (styles.textStyleArticleDate
-            ++ styles.colorStyleGrayscaleMuted
+            ++ styles.colorStyleCategoryInactive
             ++ [ css
                     [ Tw.left_0
                     , Tw.top_5
@@ -588,45 +588,49 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
         styles =
             Ui.Styles.stylesForTheme articlePreviewsData.theme
 
-        textWidthAttr =
+        ( textWidthAttr, hashtagsHeightAttr ) =
             case article.image of
                 Just _ ->
-                    [ Tw.w_80
-                    , Bp.xxl
-                        [ Css.property "width" "600px"
-                        ]
-                    , Bp.xl
-                        [ Css.property "width" "400px"
-                        ]
-                    , Bp.lg
-                        [ Css.property "width" "340px"
-                        ]
-                    , Bp.md
-                        [ Css.property "width" "340px"
-                        ]
-                    , Bp.sm
-                        [ Css.property "width" "320px"
-                        ]
-                    ]
+                    ( [ Tw.w_80
+                      , Bp.xxl
+                            [ Css.property "width" "600px"
+                            ]
+                      , Bp.xl
+                            [ Css.property "width" "400px"
+                            ]
+                      , Bp.lg
+                            [ Css.property "width" "340px"
+                            ]
+                      , Bp.md
+                            [ Css.property "width" "340px"
+                            ]
+                      , Bp.sm
+                            [ Css.property "width" "320px"
+                            ]
+                      ]
+                    , Css.property "height" "40px"
+                    )
 
                 Nothing ->
-                    [ Tw.w_80
-                    , Bp.xxl
-                        [ Css.property "width" "950px"
-                        ]
-                    , Bp.xl
-                        [ Css.property "width" "700px"
-                        ]
-                    , Bp.lg
-                        [ Css.property "width" "600px"
-                        ]
-                    , Bp.md
-                        [ Css.property "width" "540px"
-                        ]
-                    , Bp.sm
-                        [ Css.property "width" "460px"
-                        ]
-                    ]
+                    ( [ Tw.w_80
+                      , Bp.xxl
+                            [ Css.property "width" "950px"
+                            ]
+                      , Bp.xl
+                            [ Css.property "width" "700px"
+                            ]
+                      , Bp.lg
+                            [ Css.property "width" "600px"
+                            ]
+                      , Bp.md
+                            [ Css.property "width" "540px"
+                            ]
+                      , Bp.sm
+                            [ Css.property "width" "460px"
+                            ]
+                      ]
+                    , Css.property "height" "auto"
+                    )
 
         summaryText =
             case article.summary of
@@ -747,7 +751,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                                ]
                         )
                         [ text summaryText ]
-                    , viewHashTags styles article.hashtags textWidthAttr
+                    , viewHashTags styles article.hashtags (hashtagsHeightAttr :: textWidthAttr)
                     ]
                 ]
             ]
@@ -1042,7 +1046,7 @@ editLink article =
 timeParagraph : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg
 timeParagraph styles browserEnv maybePublishedAt createdAt =
     div
-        (styles.colorStyleGrayscaleMuted ++ styles.textStyle14)
+        (styles.colorStyleCategoryInactive ++ styles.textStyle14)
         [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
 
 
