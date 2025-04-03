@@ -632,7 +632,7 @@ getBlossomServers model pubKey =
 
 getDefaultNip96Servers : Model -> PubKey -> List String
 getDefaultNip96Servers model pubKey =
-    if isAuthor model pubKey then
+    if isEditor model pubKey then
         Pareto.defaultNip96ServersAuthors
 
     else

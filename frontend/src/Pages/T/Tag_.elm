@@ -16,7 +16,7 @@ import Shared.Model
 import Shared.Msg
 import Tailwind.Utilities as Tw
 import Time exposing (Month(..))
-import Ui.Styles exposing (Theme)
+import Ui.Styles exposing (Theme, fontFamilyRobotoMono)
 import Ui.View exposing (ArticlePreviewType(..))
 import Url
 import View exposing (View)
@@ -142,6 +142,16 @@ subscriptions _ =
 -- VIEW
 
 
+textStyleHashtagLarge : List (Html.Attribute msg)
+textStyleHashtagLarge =
+    [ css
+        [ Tw.text_4xl
+        , Tw.font_bold
+        ]
+    , fontFamilyRobotoMono
+    ]
+
+
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     let
@@ -160,7 +170,7 @@ view shared model =
                 ]
             ]
             [ h3
-                (styles.textStyleHashtagLarge
+                (textStyleHashtagLarge
                     ++ styles.colorStyleGrayscaleTitle
                     ++ [ css
                             [ Tw.mb_4

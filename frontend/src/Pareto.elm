@@ -87,6 +87,22 @@ supportEmail =
     "support@" ++ applicationDomain
 
 
+imprint : Language -> Maybe String
+imprint language =
+    case language of
+        German _ ->
+            Just imprintGerman
+
+        _ ->
+            -- TODO: Add here additional language versions
+            Nothing
+
+
+imprintGerman : String
+imprintGerman =
+    "/md/imprint-de.md"
+
+
 privacyPolicy : Language -> Maybe String
 privacyPolicy language =
     case language of

@@ -29,7 +29,7 @@ import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Styles, Theme)
+import Ui.Styles exposing (Styles, Theme, darkMode)
 import View exposing (View)
 
 
@@ -281,6 +281,21 @@ viewSidebar styles shared currentPath toContentMsg content =
             , testMode = shared.browserEnv.testMode
             , theme = shared.theme
             }
+
+        colorStyleSitebarBackground =
+            [ css
+                [ Tw.bg_color Theme.slate_800
+                , darkMode
+                    [ Tw.border_t_2
+                    ]
+                , Bp.sm
+                    [ Tw.bg_color Theme.white
+                    , darkMode
+                        [ Tw.bg_color Theme.black
+                        ]
+                    ]
+                ]
+            ]
     in
     Html.div
         (styles.colorStyleGrayscaleTitle
@@ -296,7 +311,7 @@ viewSidebar styles shared currentPath toContentMsg content =
                 ]
             ]
             [ aside
-                (styles.colorStyleSitebarBackground
+                (colorStyleSitebarBackground
                     ++ [ css
                             [ Tw.p_2
                             , Tw.h_14
@@ -331,7 +346,7 @@ viewSidebar styles shared currentPath toContentMsg content =
                     [ Tw.flex_1
                     ]
                 ]
-                [ div
+                [ Html.header
                     [ css
                         [ Tw.flex
                         , Tw.justify_between
@@ -627,22 +642,65 @@ sidebarItemVisible isLoggedIn isAuthor isBetaTester sidebarItem =
 viewSidebarItem : Styles contentMsg -> Route.Path.Path -> SidebarItemData -> Html contentMsg
 viewSidebarItem styles currentPath itemData =
     let
+        colorStyleSitebarItemActive =
+            [ css
+                [ Tw.text_color styles.color1
+                , Tw.bg_color styles.color3
+                , Bp.sm
+                    [ Tw.text_color styles.color1
+                    , Tw.bg_color styles.color3
+                    , darkMode
+                        [ Tw.text_color styles.color1
+                        , Tw.bg_color styles.color4
+                        ]
+                    ]
+                , darkMode
+                    [ Tw.text_color styles.color1DarkMode
+                    , Tw.bg_color styles.color2DarkMode
+                    , Bp.sm
+                        [ Tw.text_color styles.color1DarkMode
+                        ]
+                    ]
+                ]
+            ]
+
+        colorStyleSitebarItemEnabled =
+            [ css
+                [ Tw.text_color styles.color3
+                , darkMode
+                    [ Tw.text_color styles.color2
+                    ]
+                ]
+            ]
+
+        colorStyleSitebarItemDisabled =
+            [ css
+                [ Tw.text_color styles.color2
+                , Bp.sm
+                    [ Tw.text_color styles.color2
+                    , darkMode
+                        [ Tw.text_color styles.color2DarkMode
+                        ]
+                    ]
+                ]
+            ]
+
         ( element, foreground, linkAttr ) =
             if itemData.disabled then
                 ( div
-                , styles.colorStyleSitebarItemDisabled
+                , colorStyleSitebarItemDisabled
                 , []
                 )
 
             else if currentPath == itemData.path then
                 ( div
-                , styles.colorStyleSitebarItemActive
+                , colorStyleSitebarItemActive
                 , []
                 )
 
             else
                 ( a
-                , styles.colorStyleSitebarItemEnabled
+                , colorStyleSitebarItemEnabled
                 , [ Attr.href <| Route.toString { path = itemData.path, hash = Nothing, query = Dict.empty } ]
                 )
     in

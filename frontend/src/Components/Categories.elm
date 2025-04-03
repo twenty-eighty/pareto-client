@@ -19,7 +19,7 @@ import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Tailwind.Breakpoints exposing (lg)
 import Tailwind.Utilities as Tw
-import Ui.Styles exposing (Styles)
+import Ui.Styles exposing (Styles, darkMode)
 
 
 type Categories category msg
@@ -154,15 +154,33 @@ viewCategory styles toMsg onSelect maybeImage active data =
         onClickCategory =
             toMsg (SelectedItem { category = data.category, onSelect = onSelect data.category })
 
+        colorStyleCategoryActive =
+            [ css
+                [ Tw.text_color styles.color4
+                , darkMode
+                    [ Tw.text_color styles.color4DarkMode
+                    ]
+                ]
+            ]
+
+        colorStyleCategoryInactive =
+            [ css
+                [ Tw.text_color styles.color3
+                , darkMode
+                    [ Tw.text_color styles.color3DarkMode
+                    ]
+                ]
+            ]
+
         ( element, attrs ) =
             if active then
                 ( div
-                , styles.colorStyleCategoryActive
+                , colorStyleCategoryActive
                 )
 
             else
                 ( button
-                , styles.colorStyleCategoryInactive
+                , colorStyleCategoryInactive
                 )
 
         imageElement =

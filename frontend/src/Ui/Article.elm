@@ -10,6 +10,7 @@ import Html.Styled as Html exposing (Html, a, article, div, h2, h3, img, summary
 import Html.Styled.Attributes as Attr exposing (css, href)
 import Html.Styled.Events as Events exposing (..)
 import LinkPreview exposing (LoadedContent)
+import Locale
 import Markdown
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
@@ -31,7 +32,7 @@ import Translations.Posts
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
 import Ui.Shared exposing (Actions, emptyHtml, extendedZapRelays)
-import Ui.Styles exposing (Styles, Theme, fontFamilyUnbounded)
+import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyInter, fontFamilyRobotoMono, fontFamilyUnbounded)
 
 
 type alias ArticlePreviewsData msg =
@@ -59,6 +60,66 @@ type alias ArticlePreviewData msg =
 -- single article
 
 
+textStyleReactions : List (Html.Attribute msg)
+textStyleReactions =
+    [ css
+        [ Tw.text_base
+        , Tw.font_medium
+        , Tw.tracking_normal
+        ]
+    , fontFamilyInter
+    , Attr.style "line-height" "auto"
+    ]
+
+
+textStyleArticleHashtags : List (Html.Attribute msg)
+textStyleArticleHashtags =
+    [ css
+        [ Tw.text_sm
+        , Tw.font_medium
+        , Tw.leading_snug
+        ]
+    , fontFamilyRobotoMono
+    ]
+
+
+textStyleArticleAuthor : List (Html.Attribute msg)
+textStyleArticleAuthor =
+    [ css
+        [ Tw.text_sm
+        , Tw.font_normal
+        , Tw.leading_snug
+        ]
+    , fontFamilyRobotoMono
+    ]
+
+
+textStyleArticleDate : List (Html.Attribute msg)
+textStyleArticleDate =
+    [ css
+        [ Tw.text_xs
+        , Tw.font_normal
+        , Tw.leading_tight
+        ]
+    , fontFamilyRobotoMono
+    ]
+
+
+colorStyleArticleHashtags : List (Html.Attribute msg)
+colorStyleArticleHashtags =
+    let
+        styles =
+            Ui.Styles.stylesForTheme ParetoTheme
+    in
+    [ css
+        [ Tw.text_color styles.color4
+        , darkMode
+            [ Tw.text_color styles.color4DarkMode
+            ]
+        ]
+    ]
+
+
 viewArticle : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
 viewArticle articlePreviewsData articlePreviewData article =
     let
@@ -67,6 +128,14 @@ viewArticle articlePreviewsData articlePreviewData article =
 
         getProfile =
             Nostr.getProfile articlePreviewsData.nostr
+
+        langAttr =
+            case article.language of
+                Just language ->
+                    [ Attr.lang (language |> Locale.languageToISOCode) ]
+
+                Nothing ->
+                    []
 
         contentMargins =
             [ css
@@ -100,31 +169,33 @@ viewArticle articlePreviewsData articlePreviewData article =
             , interactions = articlePreviewData.interactions
             }
     in
-    div
-        [ css
-            [ Tw.flex_col
-            , Tw.justify_start
-            , Tw.items_center
-            , Tw.gap_12
-            , Tw.inline_flex
-            , Tw.px_2
-            , Bp.xxl
-                [ Tw.px_40
-                ]
-            , Bp.xl
-                [ Tw.px_20
-                ]
-            , Bp.lg
-                [ Tw.px_10
-                ]
-            , Bp.md
-                [ Tw.px_5
-                ]
-            , Bp.sm
-                [ Tw.px_3
-                ]
-            ]
-        ]
+    Html.article
+        (langAttr
+            ++ [ css
+                    [ Tw.flex_col
+                    , Tw.justify_start
+                    , Tw.items_center
+                    , Tw.gap_12
+                    , Tw.inline_flex
+                    , Tw.px_2
+                    , Bp.xxl
+                        [ Tw.px_40
+                        ]
+                    , Bp.xl
+                        [ Tw.px_20
+                        ]
+                    , Bp.lg
+                        [ Tw.px_10
+                        ]
+                    , Bp.md
+                        [ Tw.px_5
+                        ]
+                    , Bp.sm
+                        [ Tw.px_3
+                        ]
+                    ]
+               ]
+        )
         [ div
             [ css
                 [ Tw.self_stretch
@@ -145,7 +216,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                     ]
                     :: contentMargins
                 )
-                [ viewTags styles article
+                [ viewTags article
                 , div
                     [ css
                         [ Tw.flex_col
@@ -194,7 +265,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                     , Tw.mb_20
                     ]
                     :: styles.colorStyleGrayscaleMuted
-                    ++ styles.textStyleReactions
+                    ++ textStyleReactions
                     ++ contentMargins
                 )
                 [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "1"
@@ -272,14 +343,14 @@ viewSummary _ maybeSummary =
             emptyHtml
 
 
-viewTags : Styles msg -> Article -> Html msg
-viewTags styles article =
+viewTags : Article -> Html msg
+viewTags article =
     article.hashtags
         |> List.map removeHashTag
         |> List.map viewTag
         |> List.intersperse (text " / ")
         |> div
-            (styles.textStyleArticleHashtags ++ styles.colorStyleArticleHashtags)
+            (textStyleArticleHashtags ++ colorStyleArticleHashtags)
 
 
 removeHashTag : String -> String
@@ -333,8 +404,8 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                         ]
                     ]
                     [ div
-                        (styles.textStyleArticleAuthor
-                            ++ styles.colorStyleArticleHashtags
+                        (textStyleArticleAuthor
+                            ++ styles.colorStyleLinks
                             ++ [ css
                                     [ Tw.left_0
                                     , Tw.top_0
@@ -393,8 +464,8 @@ viewArticleProfileSmall profile validationStatus =
 viewArticleTime : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg
 viewArticleTime styles browserEnv maybePublishedAt createdAt =
     div
-        (styles.textStyleArticleDate
-            ++ styles.colorStyleCategoryInactive
+        (textStyleArticleDate
+            ++ styles.colorStyleGrayscaleMuted
             ++ [ css
                     [ Tw.left_0
                     , Tw.top_5
@@ -455,7 +526,7 @@ viewArticleComments styles =
                 (styles.textStyleH2 ++ styles.colorStyleGrayscaleTitle)
                 [ text "Comments" ]
             , div
-                (styles.textStyleArticleAuthor ++ styles.colorStyleArticleHashtags)
+                (textStyleArticleAuthor ++ styles.colorStyleGrayscaleMuted)
                 [ text "(0)" ]
             ]
         , div
@@ -520,7 +591,7 @@ viewArticleComments styles =
                     ]
                 ]
                 [ div
-                    (styles.textStyleReactions ++ styles.colorStyleInverse)
+                    (textStyleReactions ++ styles.colorStyleInverse)
                     [ text "Post Comment" ]
                 ]
             ]
@@ -807,7 +878,7 @@ viewHashTags styles hashTags widthAttr =
                            , Tw.text_clip
                            ]
                     )
-                    :: (styles.textStyleArticleHashtags ++ styles.colorStyleArticleHashtags)
+                    :: (textStyleArticleHashtags ++ colorStyleArticleHashtags)
                 )
 
     else
