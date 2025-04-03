@@ -1117,7 +1117,7 @@ editLink article =
 timeParagraph : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg
 timeParagraph styles browserEnv maybePublishedAt createdAt =
     div
-        (styles.colorStyleCategoryInactive ++ styles.textStyle14)
+        (styles.colorStyleGrayscaleMuted ++ styles.textStyle14)
         [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
 
 
