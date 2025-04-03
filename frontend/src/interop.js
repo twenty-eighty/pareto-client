@@ -86,7 +86,8 @@ export const onReady = ({ app, env }) => {
   // in certain cases we can't catch the error with try/catch
   window.addEventListener("unhandledrejection", function (event) {
     debugLog('unhandledrejection', event);
-    app.ports.receiveMessage.send({ messageType: 'error', value: { reason: event.reason.stack } });
+    const errorMessage = event.reason && event.reason.stack ? event.reason.stack : 'unhandledrejection';
+    app.ports.receiveMessage.send({ messageType: 'error', value: { reason: errorMessage } });
   });
 
   function loadNostrLogin() {
@@ -726,7 +727,8 @@ export const onReady = ({ app, env }) => {
       }
     } catch (error) {
       console.error(error);
-      app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: error.message } });
+      const errorMessage = error.message ? error.message : 'Error encrypting event';
+      app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: errorMessage } });
       return;
     }
 
@@ -762,7 +764,8 @@ export const onReady = ({ app, env }) => {
         }
       }).catch((error) => {
         console.log(error);
-        app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: error.message } });
+        const errorMessage = error.message ? error.message : 'Error publishing event';
+        app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: errorMessage } });
       });
     })
   }
