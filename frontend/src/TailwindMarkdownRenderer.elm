@@ -14,7 +14,19 @@ import SyntaxHighlight
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Styles)
+import Ui.Styles exposing (Styles, fontFamilyRobotoMono)
+
+
+textStyleArticleCode : List (Html.Attribute msg)
+textStyleArticleCode =
+    [ css
+        [ Tw.text_xs
+        , Tw.font_normal
+        , Tw.capitalize
+        , Tw.leading_tight
+        ]
+    , fontFamilyRobotoMono
+    ]
 
 
 renderer : Styles msg -> GetProfileFunction -> Markdown.Renderer.Renderer (Html msg)
@@ -56,7 +68,7 @@ renderer styles fnGetProfile =
     , codeSpan =
         \content ->
             Html.code
-                (styles.textStyleArticleCode ++ styles.colorStyleArticleHashtags)
+                (textStyleArticleCode ++ styles.colorStyleCode)
                 [ Html.text content ]
 
     --, codeSpan = code

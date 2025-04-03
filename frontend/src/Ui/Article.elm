@@ -32,7 +32,7 @@ import Translations.Posts
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
 import Ui.Shared exposing (Actions, emptyHtml, extendedZapRelays)
-import Ui.Styles exposing (Styles, Theme, fontFamilyUnbounded)
+import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyInter, fontFamilyRobotoMono, fontFamilyUnbounded)
 
 
 type alias ArticlePreviewsData msg =
@@ -58,6 +58,81 @@ type alias ArticlePreviewData msg =
 
 
 -- single article
+
+
+textStyleReactions : List (Html.Attribute msg)
+textStyleReactions =
+    [ css
+        [ Tw.text_base
+        , Tw.font_medium
+        , Tw.tracking_normal
+        ]
+    , fontFamilyInter
+    , Attr.style "line-height" "auto"
+    ]
+
+
+textStyleArticleHashtags : List (Html.Attribute msg)
+textStyleArticleHashtags =
+    [ css
+        [ Tw.text_sm
+        , Tw.font_medium
+        , Tw.leading_snug
+        ]
+    , fontFamilyRobotoMono
+    ]
+
+
+textStyleArticleAuthor : List (Html.Attribute msg)
+textStyleArticleAuthor =
+    [ css
+        [ Tw.text_sm
+        , Tw.font_normal
+        , Tw.leading_snug
+        ]
+    , fontFamilyRobotoMono
+    ]
+
+
+textStyleArticleDate : List (Html.Attribute msg)
+textStyleArticleDate =
+    [ css
+        [ Tw.text_xs
+        , Tw.font_normal
+        , Tw.leading_tight
+        ]
+    , fontFamilyRobotoMono
+    ]
+
+
+colorStyleArticleHashtags : List (Html.Attribute msg)
+colorStyleArticleHashtags =
+    let
+        styles =
+            Ui.Styles.stylesForTheme ParetoTheme
+    in
+    [ css
+        [ Tw.text_color styles.color4
+        , darkMode
+            [ Tw.text_color styles.color4DarkMode
+            ]
+        ]
+    ]
+
+
+colorStyleCategoryInactive : List (Html.Attribute msg)
+colorStyleCategoryInactive =
+    let
+        styles =
+            Ui.Styles.stylesForTheme ParetoTheme
+    in
+    [ css
+        [ Tw.text_color styles.color3
+        , darkMode
+            [ Tw.text_color styles.color3DarkMode
+            ]
+        ]
+    ]
 
 
 viewArticle : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
@@ -156,7 +231,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                     ]
                     :: contentMargins
                 )
-                [ viewTags styles article
+                [ viewTags article
                 , div
                     [ css
                         [ Tw.flex_col
@@ -205,7 +280,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                     , Tw.mb_20
                     ]
                     :: styles.colorStyleGrayscaleMuted
-                    ++ styles.textStyleReactions
+                    ++ textStyleReactions
                     ++ contentMargins
                 )
                 [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "1"
@@ -283,14 +358,14 @@ viewSummary _ maybeSummary =
             emptyHtml
 
 
-viewTags : Styles msg -> Article -> Html msg
-viewTags styles article =
+viewTags : Article -> Html msg
+viewTags article =
     article.hashtags
         |> List.map removeHashTag
         |> List.map viewTag
         |> List.intersperse (text " / ")
         |> div
-            (styles.textStyleArticleHashtags ++ styles.colorStyleArticleHashtags)
+            (textStyleArticleHashtags ++ colorStyleArticleHashtags)
 
 
 removeHashTag : String -> String
@@ -344,8 +419,8 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                         ]
                     ]
                     [ div
-                        (styles.textStyleArticleAuthor
-                            ++ styles.colorStyleArticleHashtags
+                        (textStyleArticleAuthor
+                            ++ styles.colorStyleLinks
                             ++ [ css
                                     [ Tw.left_0
                                     , Tw.top_0
@@ -404,7 +479,7 @@ viewArticleProfileSmall profile validationStatus =
 viewArticleTime : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg
 viewArticleTime styles browserEnv maybePublishedAt createdAt =
     div
-        (styles.textStyleArticleDate
+        (textStyleArticleDate
             ++ styles.colorStyleGrayscaleMuted
             ++ [ css
                     [ Tw.left_0
@@ -466,7 +541,7 @@ viewArticleComments styles =
                 (styles.textStyleH2 ++ styles.colorStyleGrayscaleTitle)
                 [ text "Comments" ]
             , div
-                (styles.textStyleArticleAuthor ++ styles.colorStyleArticleHashtags)
+                (textStyleArticleAuthor ++ styles.colorStyleGrayscaleMuted)
                 [ text "(0)" ]
             ]
         , div
@@ -531,7 +606,7 @@ viewArticleComments styles =
                     ]
                 ]
                 [ div
-                    (styles.textStyleReactions ++ styles.colorStyleInverse)
+                    (textStyleReactions ++ styles.colorStyleInverse)
                     [ text "Post Comment" ]
                 ]
             ]
@@ -599,45 +674,49 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
         styles =
             Ui.Styles.stylesForTheme articlePreviewsData.theme
 
-        textWidthAttr =
+        ( textWidthAttr, hashtagsHeightAttr ) =
             case article.image of
                 Just _ ->
-                    [ Tw.w_80
-                    , Bp.xxl
-                        [ Css.property "width" "600px"
-                        ]
-                    , Bp.xl
-                        [ Css.property "width" "400px"
-                        ]
-                    , Bp.lg
-                        [ Css.property "width" "340px"
-                        ]
-                    , Bp.md
-                        [ Css.property "width" "340px"
-                        ]
-                    , Bp.sm
-                        [ Css.property "width" "320px"
-                        ]
-                    ]
+                    ( [ Tw.w_80
+                      , Bp.xxl
+                            [ Css.property "width" "600px"
+                            ]
+                      , Bp.xl
+                            [ Css.property "width" "400px"
+                            ]
+                      , Bp.lg
+                            [ Css.property "width" "340px"
+                            ]
+                      , Bp.md
+                            [ Css.property "width" "340px"
+                            ]
+                      , Bp.sm
+                            [ Css.property "width" "320px"
+                            ]
+                      ]
+                    , Css.property "height" "40px"
+                    )
 
                 Nothing ->
-                    [ Tw.w_80
-                    , Bp.xxl
-                        [ Css.property "width" "950px"
-                        ]
-                    , Bp.xl
-                        [ Css.property "width" "700px"
-                        ]
-                    , Bp.lg
-                        [ Css.property "width" "600px"
-                        ]
-                    , Bp.md
-                        [ Css.property "width" "540px"
-                        ]
-                    , Bp.sm
-                        [ Css.property "width" "460px"
-                        ]
-                    ]
+                    ( [ Tw.w_80
+                      , Bp.xxl
+                            [ Css.property "width" "950px"
+                            ]
+                      , Bp.xl
+                            [ Css.property "width" "700px"
+                            ]
+                      , Bp.lg
+                            [ Css.property "width" "600px"
+                            ]
+                      , Bp.md
+                            [ Css.property "width" "540px"
+                            ]
+                      , Bp.sm
+                            [ Css.property "width" "460px"
+                            ]
+                      ]
+                    , Css.property "height" "auto"
+                    )
 
         summaryText =
             case article.summary of
@@ -758,7 +837,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                                ]
                         )
                         [ text summaryText ]
-                    , viewHashTags styles article.hashtags textWidthAttr
+                    , viewHashTags styles article.hashtags (hashtagsHeightAttr :: textWidthAttr)
                     ]
                 ]
             ]
@@ -814,7 +893,7 @@ viewHashTags styles hashTags widthAttr =
                            , Tw.text_clip
                            ]
                     )
-                    :: (styles.textStyleArticleHashtags ++ styles.colorStyleArticleHashtags)
+                    :: (textStyleArticleHashtags ++ colorStyleArticleHashtags)
                 )
 
     else
@@ -1053,7 +1132,7 @@ editLink article =
 timeParagraph : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg
 timeParagraph styles browserEnv maybePublishedAt createdAt =
     div
-        (styles.colorStyleGrayscaleMuted ++ styles.textStyle14)
+        (colorStyleCategoryInactive ++ styles.textStyle14)
         [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
 
 
