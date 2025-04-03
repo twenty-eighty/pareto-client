@@ -666,15 +666,9 @@ viewSidebarItem styles currentPath itemData =
 
         colorStyleSitebarItemEnabled =
             [ css
-                [ Tw.text_color styles.color2
+                [ Tw.text_color styles.color3
                 , darkMode
-                    [ Tw.text_color styles.color4DarkMode
-                    ]
-                , Bp.sm
-                    [ Tw.text_color styles.color4
-                    , darkMode
-                        [ Tw.text_color styles.color4DarkMode
-                        ]
+                    [ Tw.text_color styles.color2
                     ]
                 ]
             ]
