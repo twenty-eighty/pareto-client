@@ -120,21 +120,6 @@ colorStyleArticleHashtags =
     ]
 
 
-colorStyleCategoryInactive : List (Html.Attribute msg)
-colorStyleCategoryInactive =
-    let
-        styles =
-            Ui.Styles.stylesForTheme ParetoTheme
-    in
-    [ css
-        [ Tw.text_color styles.color3
-        , darkMode
-            [ Tw.text_color styles.color3DarkMode
-            ]
-        ]
-    ]
-
-
 viewArticle : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
 viewArticle articlePreviewsData articlePreviewData article =
     let
@@ -1131,8 +1116,18 @@ editLink article =
 
 timeParagraph : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg
 timeParagraph styles browserEnv maybePublishedAt createdAt =
+    let
+        colorStyleDate =
+            [ css
+                [ Tw.text_color styles.color3
+                , darkMode
+                    [ Tw.text_color styles.color3DarkMode
+                    ]
+                ]
+            ]
+    in
     div
-        (colorStyleCategoryInactive ++ styles.textStyle14)
+        (colorStyleDate ++ styles.textStyle14)
         [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
 
 
