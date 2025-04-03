@@ -15,6 +15,7 @@ Schweiz
 
 ## Die Friedenstaube
 Die Friedenstaube\
+Verantwortlich: Milosz Matushek
 (Coopérativa in creazione)\
 Casella postale Nr. 45\
 6675 Cevio\
