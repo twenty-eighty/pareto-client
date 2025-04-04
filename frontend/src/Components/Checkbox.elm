@@ -30,7 +30,7 @@ import Html.Styled.Events as Events
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles
+import Ui.Styles exposing (Theme(..), darkMode)
 
 
 
@@ -83,6 +83,9 @@ withDisabled isDisabled (Settings settings) =
 view : Checkbox msg -> Html msg
 view (Settings settings) =
     let
+        styles =
+            Ui.Styles.stylesForTheme ParetoTheme
+
         viewOptionalImage : Maybe String -> Html msg
         viewOptionalImage maybeImage =
             case maybeImage of
@@ -107,9 +110,8 @@ view (Settings settings) =
                                 ]
                             ]
                             [ div
-                                [ Attr.css
+                                (Attr.css
                                     [ Tw.text_color Theme.white
-                                    , Tw.bg_color Theme.slate_300
                                     , Tw.items_center
                                     , Tw.bg_clip_border
                                     , Tw.rounded_full
@@ -118,7 +120,8 @@ view (Settings settings) =
                                     , Tw.flex
                                     , Tw.justify_center
                                     ]
-                                ]
+                                    :: styles.colorStyleBackground
+                                )
                                 [ Graphics.defaultRelayImage 14
                                 ]
                             ]
@@ -148,9 +151,8 @@ view (Settings settings) =
             ]
             []
         , span
-            [ Attr.css
+            (Attr.css
                 [ Tw.border_2
-                , Tw.border_color Theme.slate_300
                 , Tw.border_r_2
                 , Tw.cursor_pointer
                 , Tw.w_4
@@ -159,9 +161,11 @@ view (Settings settings) =
                 , Tw.items_center
                 , Tw.justify_center
                 , Tw.text_color Theme.white
-                , Tw.bg_color Theme.purple_500
+                , Tw.bg_color styles.color3
+                , darkMode [ Tw.bg_color styles.color2DarkMode ]
                 ]
-            ]
+                :: styles.colorStyleBorders
+            )
             [ if settings.checked then
                 div
                     [ Attr.css
