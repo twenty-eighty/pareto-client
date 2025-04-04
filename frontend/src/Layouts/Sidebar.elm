@@ -284,10 +284,8 @@ viewSidebar styles shared currentPath toContentMsg content =
 
         colorStyleSitebarBackground =
             [ css
-                [ Tw.bg_color Theme.slate_800
-                , darkMode
-                    [ Tw.border_t_2
-                    ]
+                [ darkMode
+                    [ Tw.border_t_2 ]
                 , Bp.sm
                     [ Tw.bg_color Theme.white
                     , darkMode

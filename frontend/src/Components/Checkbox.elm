@@ -111,7 +111,8 @@ view (Settings settings) =
                             ]
                             [ div
                                 (Attr.css
-                                    [ Tw.text_color Theme.white
+                                    [ Tw.text_color Theme.black
+                                    , darkMode [ Tw.text_color Theme.white ]
                                     , Tw.items_center
                                     , Tw.bg_clip_border
                                     , Tw.rounded_full

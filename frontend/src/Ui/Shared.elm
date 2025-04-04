@@ -21,7 +21,7 @@ import Svg.Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Ui.Styles exposing (Styles, Theme, stylesForTheme)
+import Ui.Styles exposing (Styles, Theme, darkMode, stylesForTheme)
 
 
 emptyHtml : Html msg
@@ -141,7 +141,8 @@ modalDialog theme title content onClose =
                     [ css
                         [ Tw.text_lg
                         , Tw.font_semibold
-                        , Tw.text_color Theme.gray_800
+                        , Tw.text_color styles.color4
+                        , darkMode [ Tw.text_color styles.color4DarkMode ]
                         ]
                     ]
                     [ text title ]

@@ -42,12 +42,11 @@ import Ports
 import SHA256
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Task exposing (Task)
 import Translations.UploadDialog as Translations
 import Ui.Shared exposing (emptyHtml, modalDialog)
-import Ui.Styles exposing (stylesForTheme)
+import Ui.Styles exposing (Theme(..), stylesForTheme)
 import Url
 
 
@@ -988,6 +987,9 @@ viewWaitingForFiles (Settings settings) =
     let
         (Model model) =
             settings.model
+
+        styles =
+            Ui.Styles.stylesForTheme ParetoTheme
     in
     modalDialog
         settings.theme
@@ -1002,19 +1004,20 @@ viewWaitingForFiles (Settings settings) =
             |> Dropdown.withOnChange (ChangedSelectedServer << Maybe.withDefault (UploadServerBlossom "No server"))
             |> Dropdown.view
         , div
-            [ css
+            ([ css
                 [ Tw.p_20
                 , Tw.m_2
                 , Tw.rounded_2xl
-                , Tw.border_color Theme.slate_500
                 , Tw.border_dashed
                 , Tw.border_4
                 ]
-            , hijackOn "dragenter" (Decode.succeed DragEnter)
-            , hijackOn "dragover" (Decode.succeed DragOver)
-            , hijackOn "dragleave" (Decode.succeed DragLeave)
-            , hijackOn "drop" dropDecoder
-            ]
+             , hijackOn "dragenter" (Decode.succeed DragEnter)
+             , hijackOn "dragover" (Decode.succeed DragOver)
+             , hijackOn "dragleave" (Decode.succeed DragLeave)
+             , hijackOn "drop" dropDecoder
+             ]
+                ++ styles.colorStyleBorders
+            )
             [ div [ class "mb-4" ]
                 [ button
                     [ onClick TriggerFileSelect
