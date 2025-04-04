@@ -158,7 +158,11 @@ modalDialog theme title content onClose =
                     [ text " ✕ " ]
                 ]
             , div
-                []
+                [ css
+                    [ Tw.max_h_96
+                    , Tw.overflow_y_scroll
+                    ]
+                ]
                 content
             ]
         ]
