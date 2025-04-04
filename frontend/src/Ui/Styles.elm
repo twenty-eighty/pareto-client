@@ -415,9 +415,9 @@ paretoThemeStyles =
         ]
     , colorStylePrimaryButtonText =
         [ css
-            [ Tw.text_color color1
+            [ Tw.text_color color3
             , darkMode
-                [ Tw.text_color color1Inverse
+                [ Tw.text_color color3Inverse
                 ]
             ]
         ]

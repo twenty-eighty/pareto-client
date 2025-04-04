@@ -38,12 +38,11 @@ import Shared.Msg
 import Subscribers exposing (Email, Modification(..), Subscriber, SubscriberField(..), modificationToString, translatedFieldName)
 import Svg.Loaders as Loaders
 import Table.Paginated as Table exposing (defaultCustomizations)
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Sidebar
 import Translations.Subscribers as Translations
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme, stylesForTheme)
+import Ui.Styles exposing (Theme(..), stylesForTheme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 
@@ -483,14 +482,19 @@ subscribersTableConfig browserEnv =
 
 editSubscriberButton : Subscriber -> Table.HtmlDetails Msg
 editSubscriberButton subscriber =
+    let
+        styles =
+            stylesForTheme ParetoTheme
+    in
     Table.HtmlDetails []
         [ div
-            [ css
-                [ Tw.text_color Theme.slate_500
-                , Tw.cursor_pointer
+            ([ css
+                [ Tw.cursor_pointer
                 ]
-            , Events.onClick (OpenEditSubscriberDialog subscriber)
-            ]
+             , Events.onClick (OpenEditSubscriberDialog subscriber)
+             ]
+                ++ styles.colorStylePrimaryButtonText
+            )
             [ text subscriber.email
             ]
             |> Html.toUnstyled
@@ -499,14 +503,19 @@ editSubscriberButton subscriber =
 
 removeSubscriberButton : Msg -> Table.HtmlDetails Msg
 removeSubscriberButton removeMsg =
+    let
+        styles =
+            stylesForTheme ParetoTheme
+    in
     Table.HtmlDetails []
         [ div
-            [ css
-                [ Tw.text_color Theme.slate_500
-                , Tw.cursor_pointer
+            ([ css
+                [ Tw.cursor_pointer
                 ]
-            , Events.onClick removeMsg
-            ]
+             , Events.onClick removeMsg
+             ]
+                ++ styles.colorStylePrimaryButtonText
+            )
             [ Icon.FeatherIcon FeatherIcons.delete
                 |> Icon.view
             ]
