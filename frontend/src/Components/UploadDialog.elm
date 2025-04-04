@@ -1514,13 +1514,16 @@ viewUploadResponseBlossom browserEnv response =
                         ]
                     ]
                     [ text (Translations.downloadUrlFieldText [ browserEnv.translations ] ++ " " ++ url) ]
-                , div
-                    [ css
-                        [ Tw.text_ellipsis
-                        , Tw.overflow_hidden
-                        ]
-                    ]
-                    [ text (Translations.originalFileHashText [ browserEnv.translations ] ++ " " ++ ox) ]
+
+                {-
+                   , div
+                       [ css
+                           [ Tw.text_ellipsis
+                           , Tw.overflow_hidden
+                           ]
+                       ]
+                       [ text (Translations.originalFileHashText [ browserEnv.translations ] ++ " " ++ ox) ]
+                -}
                 ]
 
             Nothing ->
@@ -1549,13 +1552,16 @@ viewUploadResponseNip96 browserEnv response =
                         ]
                     ]
                     [ text (Translations.downloadUrlFieldText [ browserEnv.translations ] ++ " " ++ url) ]
-                , div
-                    [ css
-                        [ Tw.text_ellipsis
-                        , Tw.overflow_hidden
-                        ]
-                    ]
-                    [ text (Translations.originalFileHashText [ browserEnv.translations ] ++ " " ++ ox) ]
+
+                {-
+                   , div
+                       [ css
+                           [ Tw.text_ellipsis
+                           , Tw.overflow_hidden
+                           ]
+                       ]
+                       [ text (Translations.originalFileHashText [ browserEnv.translations ] ++ " " ++ ox) ]
+                -}
                 ]
 
             Nothing ->
