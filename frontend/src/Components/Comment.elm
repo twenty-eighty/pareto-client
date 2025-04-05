@@ -11,7 +11,7 @@ import Locale exposing (Language(..))
 import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.External
-import Nostr.Nip22 exposing (CommentType(..), articleCommentEvent, commentContent, setCommentContent)
+import Nostr.Nip22 exposing (CommentType(..), articleCommentEvent, commentContent, commentValid, setCommentContent)
 import Nostr.Profile exposing (Profile, profileDisplayName)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Types exposing (IncomingMessage, PubKey)
@@ -208,13 +208,16 @@ view comment =
 
         signingPubKey =
             Shared.loggedInSigningPubKey settings.loginStatus
+
+        postButtonMsg =
+            signingPubKey |> Maybe.map PostClicked
     in
     case model.state of
         CommentHidden ->
             emptyHtml
 
         CommentEditing commentData ->
-            viewComment comment commentData (Translations.postButtonText [ settings.browserEnv.translations ]) (signingPubKey |> Maybe.map PostClicked) Nothing
+            viewComment comment commentData (Translations.postButtonText [ settings.browserEnv.translations ]) postButtonMsg Nothing
                 |> Html.map settings.toMsg
 
         CommentSending _ commentData ->
@@ -226,7 +229,7 @@ view comment =
                 |> Html.map settings.toMsg
 
         CommentSendError error commentData ->
-            viewComment comment commentData (Translations.postButtonText [ settings.browserEnv.translations ]) (signingPubKey |> Maybe.map PostClicked) (Just error)
+            viewComment comment commentData (Translations.postButtonText [ settings.browserEnv.translations ]) postButtonMsg (Just error)
                 |> Html.map settings.toMsg
 
 
@@ -277,6 +280,7 @@ viewComment (Settings settings) draftComment postButtonText buttonMsg maybeError
                 , onClick = buttonMsg
                 , theme = settings.theme
                 }
+                |> Button.withDisabled (not <| commentValid draftComment)
                 |> Button.view
             ]
         ]

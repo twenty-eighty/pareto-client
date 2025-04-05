@@ -54,6 +54,21 @@ setCommentContent comment content =
             CommentToArticleComment { articleCommentComment | content = content }
 
 
+commentValid : CommentType -> Bool
+commentValid comment =
+    case comment of
+        CommentToArticle articleComment ->
+            contentValid articleComment.content
+
+        CommentToArticleComment articleCommentComment ->
+            contentValid articleCommentComment.content
+
+
+contentValid : String -> Bool
+contentValid content =
+    content /= ""
+
+
 articleDraftComment : PubKey -> Article -> Maybe CommentType
 articleDraftComment pubKey article =
     let
