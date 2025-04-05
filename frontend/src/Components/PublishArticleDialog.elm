@@ -28,7 +28,7 @@ import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.PublishArticleDialog as Translations
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
+import Ui.Styles exposing (Theme(..), darkMode, fontFamilyInter, fontFamilyUnbounded)
 
 
 type Msg msg
@@ -175,17 +175,18 @@ update props =
                     relayUrls =
                         if props.testMode == BrowserEnv.TestModeEnabled then
                             Pareto.testRelayUrls
+
                         else
                             Nostr.getWriteRelaysForPubKey props.nostr props.pubKey
-                            |> List.filterMap
-                                (\relay ->
-                                    case Dict.get relay.urlWithoutProtocol model.relayStates of
-                                        Just False ->
-                                            Nothing
+                                |> List.filterMap
+                                    (\relay ->
+                                        case Dict.get relay.urlWithoutProtocol model.relayStates of
+                                            Just False ->
+                                                Nothing
 
-                                        _ ->
-                                            Just relay.urlWithoutProtocol
-                                )
+                                            _ ->
+                                                Just relay.urlWithoutProtocol
+                                    )
 
                     effect =
                         case
@@ -332,9 +333,10 @@ viewPublishArticleDialog (Settings settings) =
         relays =
             if settings.browserEnv.testMode == BrowserEnv.TestModeOff then
                 Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
+
             else
                 Pareto.testRelayUrls
-                |> List.filterMap (Nostr.getRelayData settings.nostr)
+                    |> List.filterMap (Nostr.getRelayData settings.nostr)
 
         activeSubscribersCount =
             model.subscriberEventData
@@ -445,6 +447,10 @@ relaysSection (Settings settings) relays =
 
 viewRelays : PublishArticleDialog msg -> List ( Relay, Bool ) -> Html (Msg msg)
 viewRelays (Settings settings) relays =
+    let
+        styles =
+            Ui.Styles.stylesForTheme ParetoTheme
+    in
     div []
         [ div
             [ css
@@ -485,7 +491,8 @@ viewRelays (Settings settings) relays =
             [ Attr.style "list-style-type" "disc"
             , css
                 [ Tw.text_base
-                , Tw.text_color Theme.purple_900
+                , Tw.text_color styles.color3
+                , darkMode [ Tw.text_color styles.color2DarkMode ]
                 , Tw.mb_2
                 , Tw.flex
                 , Tw.flex_col

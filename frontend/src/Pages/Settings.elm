@@ -40,7 +40,7 @@ import Translations.Settings as Translations
 import Ui.Profile exposing (FollowType(..))
 import Ui.Relay exposing (viewRelayImage)
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme, stylesForTheme)
+import Ui.Styles exposing (Theme(..), stylesForTheme)
 import Url
 import View exposing (View)
 
@@ -1079,13 +1079,17 @@ viewRelayConnectionIndicator relay =
 
 removeRelayButton : Relay -> (String -> Msg) -> Html Msg
 removeRelayButton relay removeMsg =
+    let
+        styles =
+            stylesForTheme ParetoTheme
+    in
     div
-        [ css
-            [ Tw.text_color Theme.slate_500
-            , Tw.cursor_pointer
-            ]
-        , Events.onClick (removeMsg relay.urlWithoutProtocol)
-        ]
+        ([ css
+            [ Tw.cursor_pointer ]
+         , Events.onClick (removeMsg relay.urlWithoutProtocol)
+         ]
+            ++ styles.colorStylePrimaryButtonText
+        )
         [ Icon.FeatherIcon FeatherIcons.delete
             |> Icon.view
         ]
@@ -1241,13 +1245,18 @@ viewMediaServer readOnly removeMsg mediaServer =
 
 removeMediaServerButton : String -> (String -> Msg) -> Html Msg
 removeMediaServerButton mediaServer removeMsg =
+    let
+        styles =
+            stylesForTheme ParetoTheme
+    in
     div
-        [ css
-            [ Tw.text_color Theme.slate_500
-            , Tw.cursor_pointer
+        ([ css
+            [ Tw.cursor_pointer
             ]
-        , Events.onClick (removeMsg mediaServer)
-        ]
+         , Events.onClick (removeMsg mediaServer)
+         ]
+            ++ styles.colorStylePrimaryButtonText
+        )
         [ Icon.FeatherIcon FeatherIcons.delete
             |> Icon.view
         ]

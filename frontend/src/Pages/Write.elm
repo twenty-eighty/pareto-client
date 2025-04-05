@@ -47,7 +47,7 @@ import Time
 import Translations.Write as Translations
 import Ui.Article
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme, stylesForTheme)
+import Ui.Styles exposing (Theme(..), stylesForTheme)
 import View exposing (View)
 
 
@@ -1236,6 +1236,10 @@ decodeInputChange =
 
 viewImage : I18Next.Translations -> Model -> Html Msg
 viewImage translations model =
+    let
+        styles =
+            stylesForTheme ParetoTheme
+    in
     case model.image of
         Just image ->
             div
@@ -1253,17 +1257,18 @@ viewImage translations model =
 
         Nothing ->
             div
-                [ css
+                ([ css
                     [ Tw.w_48
                     , Tw.h_32
-                    , Tw.bg_color Theme.slate_500
                     , Tw.flex
                     , Tw.justify_center
                     , Tw.items_center
                     , Tw.cursor_pointer
                     ]
-                , Events.onClick (SelectImage ArticleImageSelection)
-                ]
+                 , Events.onClick (SelectImage ArticleImageSelection)
+                 ]
+                    ++ styles.colorStyleBackground
+                )
                 [ Html.span
                     [ css
                         [ Tw.text_color Theme.white

@@ -11,10 +11,9 @@ import Nostr.Nip27 exposing (GetProfileFunction, subsituteNostrLinks)
 import Nostr.Shared exposing (ensureHttps)
 import Parser
 import SyntaxHighlight
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Styles, fontFamilyRobotoMono)
+import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyRobotoMono, stylesForTheme)
 
 
 textStyleArticleCode : List (Html.Attribute msg)
@@ -556,6 +555,10 @@ codeParsingFunction language =
 
 
 defaultFormatCodeBlock body =
+    let
+        styles =
+            stylesForTheme ParetoTheme
+    in
     Html.pre
         [ css
             [ Tw.bg_scroll
@@ -563,7 +566,8 @@ defaultFormatCodeBlock body =
             , Tw.max_w_prose
             , Tw.p_3
             , Tw.rounded_2xl
-            , Tw.bg_color Theme.slate_800
+            , Tw.bg_color styles.color2
+            , darkMode [ Tw.bg_color styles.color2DarkMode ]
             , Tw.mb_3
             ]
         ]
