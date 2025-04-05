@@ -405,6 +405,11 @@ send model sendRequest =
             , sendEvent model relays event
             )
 
+        SendComment relays event ->
+            ( { model | lastSendRequestId = model.lastSendRequestId + 1, sendRequests = Dict.insert model.lastSendRequestId sendRequest model.sendRequests }
+            , sendEvent model relays event
+            )
+
         SendFollowList userPubKey followList ->
             let
                 event =
@@ -479,7 +484,7 @@ send model sendRequest =
                 { event
                     | content = "+"
                     , tags =
-                        [ AddressTag addressComponents
+                        [ AddressTag addressComponents Nothing
                         , EventIdTag eventId Nothing
                         , PublicKeyTag articlePubKey Nothing Nothing
                         ]
@@ -1683,7 +1688,7 @@ updateModelWithReposts model events =
         updatedDictByAddress : Repost -> Dict Address (Dict PubKey Repost) -> Dict Address (Dict PubKey Repost)
         updatedDictByAddress repost dict =
             case repost.repostedAddress of
-                Just addressComponents ->
+                Just ( addressComponents, _ ) ->
                     let
                         address =
                             buildAddress addressComponents
@@ -1701,7 +1706,7 @@ updateModelWithReposts model events =
         updatedDictByEventId : Repost -> Dict EventId (Dict PubKey Repost) -> Dict EventId (Dict PubKey Repost)
         updatedDictByEventId repost dict =
             case repost.repostedEvent of
-                Just eventId ->
+                Just ( eventId, _ ) ->
                     case Dict.get eventId dict of
                         Just dictForAddress ->
                             Dict.insert eventId (Dict.insert repost.pubKey repost dictForAddress) dict

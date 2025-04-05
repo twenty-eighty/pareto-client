@@ -13,6 +13,7 @@ import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Community exposing (Community)
+import Nostr.Nip22 exposing (articleDraftComment)
 import Nostr.Request exposing (RequestId)
 import Tailwind.Utilities as Tw
 import Ui.Article exposing (ArticlePreviewsData)
@@ -52,6 +53,18 @@ actionsFromArticlePreviewsData articlePreviewsData article =
                 )
                 articlePreviewsData.onReaction
                 maybeAddressComponents
+
+        startCommentMsg =
+            articlePreviewsData.userPubKey
+                |> Maybe.andThen
+                    (\userPubKey ->
+                        Maybe.map2
+                            (\( _, openCommentMsg ) draftComment ->
+                                openCommentMsg draftComment
+                            )
+                            articlePreviewsData.commenting
+                            (articleDraftComment userPubKey article)
+                    )
     in
     case ( articlePreviewsData.onBookmark, maybeAddressComponents ) of
         ( Just ( addArticleBookmark, removeArticleBookmark ), Just addressComponents ) ->
@@ -60,6 +73,7 @@ actionsFromArticlePreviewsData articlePreviewsData article =
             , addReaction = addReactionMsg
             , removeReaction = Nothing
             , addRepost = articlePreviewsData.onRepost
+            , startComment = startCommentMsg
             }
 
         ( _, _ ) ->
@@ -68,6 +82,7 @@ actionsFromArticlePreviewsData articlePreviewsData article =
             , addReaction = Nothing
             , removeReaction = Nothing
             , addRepost = Nothing
+            , startComment = Nothing
             }
 
 

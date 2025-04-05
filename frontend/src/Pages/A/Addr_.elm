@@ -1,6 +1,7 @@
 module Pages.A.Addr_ exposing (..)
 
 import Browser.Dom
+import Components.Comment as Comment
 import Components.RelayStatus exposing (Purpose(..))
 import Components.ZapDialog as ZapDialog
 import Effect exposing (Effect)
@@ -13,6 +14,7 @@ import Nostr.Article exposing (Article)
 import Nostr.Event as Event exposing (AddressComponents, Kind(..), TagReference(..))
 import Nostr.Nip18 exposing (articleRepostEvent)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
+import Nostr.Nip22 exposing (CommentType)
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (EventId, PubKey)
@@ -59,6 +61,7 @@ type Model
 
 type alias Nip19ModelData =
     { loadedContent : LoadedContent Msg
+    , comment : Comment.Model
     , nip19 : NIP19Type
     , requestId : RequestId
     , zapDialog : ZapDialog.Model Msg
@@ -79,6 +82,7 @@ init shared route () =
                             { loadedUrls = Set.empty
                             , addLoadedContentFunction = AddLoadedContent
                             }
+                        , comment = Comment.init {}
                         , nip19 = nip19
                         , requestId = Nostr.getLastRequestId shared.nostr
                         , zapDialog = ZapDialog.init {}
@@ -139,6 +143,8 @@ type Msg
     | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
     | AddRepost PubKey Article
     | AddLoadedContent String
+    | OpenComment CommentType
+    | CommentSent (Comment.Msg Msg)
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
     | NoOp
@@ -189,6 +195,28 @@ update shared msg model =
                 _ ->
                     ( model, Effect.none )
 
+        OpenComment comment ->
+            case model of
+                Nip19Model nip19ModelData ->
+                    ( Nip19Model { nip19ModelData | comment = Comment.show nip19ModelData.comment comment }, Effect.none )
+
+                _ ->
+                    ( model, Effect.none )
+
+        CommentSent innerMsg ->
+            case model of
+                Nip19Model nip19ModelData ->
+                    Comment.update
+                        { nostr = shared.nostr
+                        , msg = innerMsg
+                        , model = nip19ModelData.comment
+                        , toModel = \comment -> Nip19Model { nip19ModelData | comment = comment }
+                        , toMsg = CommentSent
+                        }
+
+                _ ->
+                    ( model, Effect.none )
+
         ZapReaction _ recipients ->
             case model of
                 Nip19Model nip19ModelData ->
@@ -231,8 +259,13 @@ showZapDialog nip19ModelData recipients =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
+subscriptions model =
+    case model of
+        Nip19Model nip19ModelData ->
+            Sub.map CommentSent (Comment.subscriptions nip19ModelData.comment)
+
+        _ ->
+            Sub.none
 
 
 
@@ -242,15 +275,15 @@ subscriptions _ =
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     case model of
-        Nip19Model { loadedContent, nip19, requestId } ->
-            viewContent shared nip19 loadedContent requestId
+        Nip19Model { loadedContent, comment, nip19, requestId } ->
+            viewContent shared nip19 comment loadedContent requestId
 
         ErrorModel error ->
             viewError shared error
 
 
-viewContent : Shared.Model -> NIP19Type -> LoadedContent Msg -> RequestId -> View Msg
-viewContent shared nip19 loadedContent requestId =
+viewContent : Shared.Model -> NIP19Type -> Comment.Model -> LoadedContent Msg -> RequestId -> View Msg
+viewContent shared nip19 comment loadedContent requestId =
     let
         maybeArticle =
             Nostr.getArticleForNip19 shared.nostr nip19
@@ -260,6 +293,25 @@ viewContent shared nip19 loadedContent requestId =
 
         signingUserPubKey =
             Shared.loggedInSigningPubKey shared.loginStatus
+
+        commenting =
+            signingUserPubKey
+                |> Maybe.andThen (Nostr.getProfile shared.nostr)
+                |> Maybe.andThen
+                    (\profile ->
+                        ( Comment.new
+                            { model = comment
+                            , toMsg = CommentSent
+                            , nostr = shared.nostr
+                            , profile = profile
+                            , loginStatus = shared.loginStatus
+                            , browserEnv = shared.browserEnv
+                            , theme = shared.theme
+                            }
+                        , OpenComment
+                        )
+                            |> Just
+                    )
     in
     { title =
         maybeArticle
@@ -275,6 +327,7 @@ viewContent shared nip19 loadedContent requestId =
                         , nostr = shared.nostr
                         , userPubKey = Shared.loggedInPubKey shared.loginStatus
                         , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) signingUserPubKey
+                        , commenting = commenting
                         , onRepost = Maybe.map (\pubKey -> AddRepost pubKey article) signingUserPubKey
                         , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) signingUserPubKey
 

@@ -1,6 +1,7 @@
 module Pages.U.User_.Identifier_ exposing (Model, Msg, page)
 
 import Browser.Dom
+import Components.Comment as Comment
 import Components.RelayStatus exposing (Purpose(..))
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html)
@@ -10,6 +11,7 @@ import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Nip05 as Nip05
+import Nostr.Nip22 exposing (CommentType)
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Page exposing (Page)
 import Route exposing (Route)
@@ -26,7 +28,7 @@ page : Shared.Model -> Route { user : String, identifier : String } -> Page Mode
 page shared route =
     Page.new
         { init = init shared route
-        , update = update
+        , update = update shared
         , subscriptions = subscriptions
         , view = view shared
         }
@@ -45,6 +47,7 @@ toLayout theme _ =
 
 type alias Model =
     { loadedContent : LoadedContent Msg
+    , comment : Comment.Model
     , identifier : String
     , nip05 : Maybe Nip05.Nip05
     , requestId : Maybe RequestId
@@ -56,6 +59,7 @@ init shared route () =
     let
         model =
             { identifier = route.params.identifier
+            , comment = Comment.init {}
             , nip05 = Nip05.parseNip05 route.params.user
             , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
             , requestId = Nothing
@@ -113,10 +117,12 @@ init shared route () =
 type Msg
     = NoOp
     | AddLoadedContent String
+    | OpenComment CommentType
+    | CommentSent (Comment.Msg Msg)
 
 
-update : Msg -> Model -> ( Model, Effect Msg )
-update msg model =
+update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
+update shared msg model =
     case msg of
         NoOp ->
             ( model, Effect.none )
@@ -124,14 +130,26 @@ update msg model =
         AddLoadedContent url ->
             ( { model | loadedContent = LinkPreview.addLoadedContent model.loadedContent url }, Effect.none )
 
+        OpenComment comment ->
+            ( { model | comment = Comment.show model.comment comment }, Effect.none )
+
+        CommentSent innerMsg ->
+            Comment.update
+                { nostr = shared.nostr
+                , msg = innerMsg
+                , model = model.comment
+                , toModel = \comment -> { model | comment = comment }
+                , toMsg = CommentSent
+                }
+
 
 
 -- SUBSCRIPTIONS
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
+subscriptions model =
+    Sub.map CommentSent (Comment.subscriptions model.comment)
 
 
 
@@ -153,6 +171,29 @@ view shared model =
 
 viewArticle : Shared.Model -> Model -> Maybe Article -> Html Msg
 viewArticle shared model maybeArticle =
+    let
+        signingUserPubKey =
+            Shared.loggedInSigningPubKey shared.loginStatus
+
+        commenting =
+            signingUserPubKey
+                |> Maybe.andThen (Nostr.getProfile shared.nostr)
+                |> Maybe.andThen
+                    (\profile ->
+                        ( Comment.new
+                            { model = model.comment
+                            , toMsg = CommentSent
+                            , nostr = shared.nostr
+                            , profile = profile
+                            , loginStatus = shared.loginStatus
+                            , browserEnv = shared.browserEnv
+                            , theme = shared.theme
+                            }
+                        , OpenComment
+                        )
+                            |> Just
+                    )
+    in
     case maybeArticle of
         Just article ->
             Ui.View.viewArticle
@@ -161,6 +202,7 @@ viewArticle shared model maybeArticle =
                 , nostr = shared.nostr
                 , userPubKey = Shared.loggedInPubKey shared.loginStatus
                 , onBookmark = Nothing
+                , commenting = commenting
                 , onReaction = Nothing
                 , onRepost = Nothing
                 , onZap = Nothing

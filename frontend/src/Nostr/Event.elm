@@ -13,7 +13,7 @@ type Tag
     = GenericTag (List String)
     | InvalidTag (List String)
     | AboutTag String
-    | AddressTag AddressComponents
+    | AddressTag AddressComponents (Maybe String)
     | AltTag String
     | ClientTag String (Maybe String) (Maybe String)
     | DescriptionTag String
@@ -38,6 +38,9 @@ type Tag
     | ReferenceTag String (Maybe String)
     | RelayTag String
     | RelaysTag (List String)
+    | RootAddressTag AddressComponents (Maybe RelayUrl)
+    | RootKindTag Kind
+    | RootPubKeyTag PubKey (Maybe RelayUrl)
     | ServerTag String
     | SubjectTag String
     | SummaryTag String
@@ -1616,7 +1619,10 @@ decodeTag =
                 (\typeStr ->
                     case typeStr of
                         "a" ->
-                            Decode.map AddressTag (Decode.index 1 decodeAddress)
+                            Decode.map2 AddressTag (Decode.index 1 decodeAddress) (Decode.maybe (Decode.index 2 Decode.string))
+
+                        "A" ->
+                            Decode.map2 RootAddressTag (Decode.index 1 decodeAddress) (Decode.maybe (Decode.index 2 Decode.string))
 
                         "about" ->
                             Decode.map AboutTag (Decode.index 1 Decode.string)
@@ -1656,6 +1662,9 @@ decodeTag =
                         "k" ->
                             Decode.map KindTag (Decode.index 1 kindStringDecoder)
 
+                        "K" ->
+                            Decode.map RootKindTag (Decode.index 1 kindStringDecoder)
+
                         "location" ->
                             Decode.map2 LocationTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
@@ -1673,6 +1682,9 @@ decodeTag =
 
                         "p" ->
                             Decode.map3 PublicKeyTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 Decode.string))
+
+                        "P" ->
+                            Decode.map2 RootPubKeyTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
                         "published_at" ->
                             Decode.map PublishedAtTag (Decode.index 1 decodeUnixTimeString)
@@ -1779,8 +1791,13 @@ tagToList tag =
         AboutTag value ->
             [ "about", value ]
 
-        AddressTag addressComponents ->
-            [ "a", buildAddress addressComponents ]
+        AddressTag addressComponents maybeRelayUrl ->
+            case maybeRelayUrl of
+                Just relayUrl ->
+                    [ "a", buildAddress addressComponents, relayUrl ]
+
+                Nothing ->
+                    [ "a", buildAddress addressComponents ]
 
         AltTag value ->
             [ "alt", value ]
@@ -1896,6 +1913,25 @@ tagToList tag =
 
         RelaysTag relays ->
             "relays" :: relays
+
+        RootAddressTag addressComponents maybeRelay ->
+            case maybeRelay of
+                Just relay ->
+                    [ "A", buildAddress addressComponents, relay ]
+
+                _ ->
+                    [ "A", buildAddress addressComponents ]
+
+        RootKindTag kind ->
+            [ "K", String.fromInt <| numberForKind kind ]
+
+        RootPubKeyTag pubKey maybeRelay ->
+            case maybeRelay of
+                Just relay ->
+                    [ "P", pubKey, relay ]
+
+                _ ->
+                    [ "P", pubKey ]
 
         ServerTag value ->
             [ "server", value ]
@@ -2309,15 +2345,15 @@ appendTags tags eventElements =
 -- functions for building Event structure
 
 
-addAddressTag : AddressComponents -> List Tag -> List Tag
-addAddressTag addressComponents tags =
-    tags ++ [ AddressTag addressComponents ]
+addAddressTag : AddressComponents -> Maybe RelayUrl -> List Tag -> List Tag
+addAddressTag addressComponents maybeRelayUrl tags =
+    tags ++ [ AddressTag addressComponents maybeRelayUrl ]
 
 
-addAddressTags : List AddressComponents -> List Tag -> List Tag
-addAddressTags addresses tags =
+addAddressTags : List AddressComponents -> Maybe RelayUrl -> List Tag -> List Tag
+addAddressTags addresses maybeRelayUrl tags =
     addresses
-        |> List.map AddressTag
+        |> List.map (\address -> AddressTag address maybeRelayUrl)
         |> List.append tags
 
 
@@ -2367,6 +2403,13 @@ addReferenceTags : List ( String, Maybe String ) -> List Tag -> List Tag
 addReferenceTags references tags =
     references
         |> List.map (\( reference, maybeType ) -> ReferenceTag reference maybeType)
+        |> List.append tags
+
+
+addRootAddressTags : List AddressComponents -> Maybe RelayUrl -> List Tag -> List Tag
+addRootAddressTags addresses maybeRelayUrl tags =
+    addresses
+        |> List.map (\address -> RootAddressTag address maybeRelayUrl)
         |> List.append tags
 
 

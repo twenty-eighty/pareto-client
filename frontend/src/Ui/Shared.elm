@@ -175,6 +175,7 @@ type alias Actions msg =
     , addReaction : Maybe msg
     , removeReaction : Maybe msg
     , addRepost : Maybe msg
+    , startComment : Maybe msg
     }
 
 
@@ -267,7 +268,7 @@ viewInteractions styles browserEnv previewData instanceId =
             , Tw.inline_flex
             ]
         ]
-        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) Nothing (Maybe.map String.fromInt interactions.notes) previewData instanceId
+        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) actions.startComment (Maybe.map String.fromInt interactions.notes) previewData instanceId
         , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) previewData instanceId
         , viewReactions styles repostIcon repostMsg (Maybe.map String.fromInt interactions.reposts) previewData instanceId
         , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) previewData instanceId

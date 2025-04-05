@@ -7,6 +7,7 @@ https://pareto.space/p/<bech32> (nprofile)
 5: Event Deletion Request [(NIP 9)](https://nips.nostr.com/9)\
 16: Generic Reposts [(NIP 18)](https://nips.nostr.com/18)\
 1063: File Metadata [(NIP 94)](https://nips.nostr.com/94)\
+1111: Comment [(NIP 22)](https://nips.nostr.com/22)\
 9734: Zap Request [(NIP 57)](https://nips.nostr.com/57)\
 9735: Zap [(NIP 57)](https://nips.nostr.com/57)\
 10002: Relay List Metadata [(NIP 65)](https://nips.nostr.com/65)\
@@ -30,6 +31,7 @@ https://pareto.space/p/<bech32> (nprofile)
 [NIP-18 (Reposts)](https://nips.nostr.com/18)\
 [NIP-19 (bech32-encoded entities)](https://nips.nostr.com/19)\
 [NIP-21 (nostr: URI scheme)](https://nips.nostr.com/21)\
+[NIP-22 (Comment)](https://nips.nostr.com/22)\
 [NIP-23 (Long-form Content)](https://nips.nostr.com/23)\
 [NIP-24 (Extra metadata fields and tags)](https://nips.nostr.com/24)\
 [NIP-25 (Reactions)](https://nips.nostr.com/25)\

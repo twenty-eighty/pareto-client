@@ -244,6 +244,7 @@ viewContent shared model =
                                 , addReaction = Nothing
                                 , removeReaction = Nothing
                                 , addRepost = Nothing
+                                , startComment = Nothing
                                 }
                             , interactions =
                                 { zaps = Nothing
@@ -270,6 +271,7 @@ viewContent shared model =
                         , nostr = shared.nostr
                         , userPubKey = Shared.loggedInPubKey shared.loginStatus
                         , onBookmark = Nothing
+                        , commenting = Nothing
                         , onReaction = Nothing
                         , onRepost = Nothing
                         , onZap = Nothing

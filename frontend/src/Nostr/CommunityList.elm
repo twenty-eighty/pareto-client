@@ -1,8 +1,6 @@
 module Nostr.CommunityList exposing (..)
 
-import Dict exposing (Dict)
-import Json.Decode as Decode exposing (Decoder)
-import Nostr.Event exposing (Event, Kind(..), Tag(..), TagReference, parseAddress)
+import Nostr.Event exposing (Event, Kind(..), Tag(..))
 import Nostr.Types exposing (PubKey)
 
 
@@ -36,7 +34,7 @@ communityListFromEvent event =
                 |> List.filterMap
                     (\tag ->
                         case tag of
-                            AddressTag ( KindCommunityDefinition, pubKey, identifier ) ->
+                            AddressTag ( KindCommunityDefinition, pubKey, identifier ) _ ->
                                 Just { identifier = identifier, pubKey = pubKey }
 
                             _ ->

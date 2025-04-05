@@ -2,15 +2,15 @@ module Nostr.Nip18 exposing (..)
 
 import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), addAddressTags, emptyEvent)
-import Nostr.Types exposing (EventId, PubKey)
+import Nostr.Types exposing (EventId, PubKey, RelayUrl)
 import Set
 
 
 type alias Repost =
     { pubKey : PubKey
-    , repostedAddress : Maybe AddressComponents
-    , repostedEvent : Maybe EventId
-    , repostedPubKey : Maybe PubKey
+    , repostedAddress : Maybe ( AddressComponents, Maybe RelayUrl )
+    , repostedEvent : Maybe ( EventId, Maybe RelayUrl )
+    , repostedPubKey : Maybe ( PubKey, Maybe RelayUrl )
     }
 
 
@@ -29,14 +29,14 @@ repostFromEvent event =
         |> List.foldl
             (\tag res ->
                 case tag of
-                    AddressTag address ->
-                        { res | repostedAddress = Just address }
+                    AddressTag address maybeRelayUrl ->
+                        { res | repostedAddress = Just ( address, maybeRelayUrl ) }
 
-                    EventIdTag eventId _ ->
-                        { res | repostedEvent = Just eventId }
+                    EventIdTag eventId maybeRelayUrl ->
+                        { res | repostedEvent = Just ( eventId, maybeRelayUrl ) }
 
-                    PublicKeyTag repostedPubKey _ _ ->
-                        { res | repostedPubKey = Just repostedPubKey }
+                    PublicKeyTag repostedPubKey maybeRelayUrl _ ->
+                        { res | repostedPubKey = Just ( repostedPubKey, maybeRelayUrl ) }
 
                     _ ->
                         res
@@ -61,5 +61,5 @@ articleRepostEvent pubKey article =
             , PublicKeyTag article.author Nothing Nothing
             , KindTag article.kind
             ]
-                |> addAddressTags (addressComponentsForArticle article |> Maybe.map List.singleton |> Maybe.withDefault [])
+                |> addAddressTags (addressComponentsForArticle article |> Maybe.map List.singleton |> Maybe.withDefault []) firstRelay
     }

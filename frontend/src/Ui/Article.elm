@@ -2,6 +2,7 @@ module Ui.Article exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
+import Components.Comment as Comment
 import Components.Icon as Icon
 import Components.ZapDialog as ZapDialog
 import Css
@@ -16,6 +17,7 @@ import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
 import Nostr.Event exposing (AddressComponents, Kind(..), Tag(..), TagReference(..))
 import Nostr.Nip19 exposing (NIP19Type(..))
+import Nostr.Nip22 exposing (CommentType)
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Reactions exposing (Interactions)
@@ -41,6 +43,7 @@ type alias ArticlePreviewsData msg =
     , nostr : Nostr.Model
     , userPubKey : Maybe PubKey
     , onBookmark : Maybe ( AddressComponents -> msg, AddressComponents -> msg ) -- msgs for adding/removing a bookmark
+    , commenting : Maybe ( Comment.Comment msg, CommentType -> msg )
     , onReaction : Maybe (EventId -> PubKey -> AddressComponents -> msg)
     , onRepost : Maybe msg
     , onZap : Maybe (List ZapDialog.Recipient -> msg)
@@ -219,6 +222,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                 , Tw.items_center
                 , Tw.gap_4
                 , Tw.flex
+                , Tw.mb_20
                 ]
             ]
             [ div
@@ -277,7 +281,6 @@ viewArticle articlePreviewsData articlePreviewData article =
                     , Tw.items_start
                     , Tw.gap_4
                     , Tw.flex
-                    , Tw.mb_20
                     ]
                     :: styles.colorStyleGrayscaleMuted
                     ++ textStyleReactions
@@ -287,9 +290,16 @@ viewArticle articlePreviewsData articlePreviewData article =
                 , viewContent styles articlePreviewData.loadedContent getProfile article.content
                 , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "2"
                 ]
-            ]
+            , case articlePreviewsData.commenting of
+                Just ( comment, _ ) ->
+                    comment
+                        |> Comment.view
 
-        -- , viewArticleComments styles
+                Nothing ->
+                    emptyHtml
+
+            -- , viewArticleComments styles
+            ]
         ]
 
 

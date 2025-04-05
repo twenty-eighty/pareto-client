@@ -316,6 +316,8 @@ supportedKinds : List Kind
 supportedKinds =
     [ KindUserMetadata
     , KindEventDeletionRequest
+    , KindRepost
+    , KindComment
     , KindFileMetadata
     , KindZapRequest
     , KindZapReceipt

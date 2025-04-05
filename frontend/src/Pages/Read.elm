@@ -491,6 +491,7 @@ viewContent shared model userPubKey =
                     , nostr = shared.nostr
                     , userPubKey = userPubKey
                     , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) userPubKey
+                    , commenting = Nothing
                     , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) userPubKey
                     , onRepost = Nothing
                     , onZap = Nothing
@@ -540,6 +541,7 @@ viewShortNotes shortNotesViewData shortNotes =
                         , addReaction = Nothing
                         , removeReaction = Nothing
                         , addRepost = Nothing
+                        , startComment = Nothing
                         }
                     , interactions =
                         { zaps = Nothing

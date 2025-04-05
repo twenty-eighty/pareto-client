@@ -15,6 +15,7 @@ type SendRequest
     | SendBookmarkListWithShortNote PubKey EventId
     | SendBookmarkListWithoutShortNote PubKey EventId
     | SendClientRecommendation (List RelayUrl) Event
+    | SendComment (List RelayUrl) Event
     | SendDeletionRequest (List RelayUrl) Event
     | SendFileStorageServerList (List RelayUrl) Event
     | SendFollowList PubKey (List Following)
