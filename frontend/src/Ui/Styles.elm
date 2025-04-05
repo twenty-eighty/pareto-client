@@ -328,9 +328,9 @@ paretoThemeStyles =
         ]
     , colorStyleBorders =
         [ css
-            [ Tw.text_color color4
+            [ Tw.border_color color4
             , darkMode
-                [ Tw.text_color color4Inverse
+                [ Tw.border_color color4Inverse
                 ]
             ]
         ]
