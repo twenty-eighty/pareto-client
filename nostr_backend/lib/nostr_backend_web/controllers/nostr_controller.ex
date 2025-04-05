@@ -3,6 +3,12 @@ defmodule NostrBackendWeb.NostrController do
 
   alias NostrBackend.Nip05
 
+  @default_relays = [
+        "wss://nostr.pareto.space",
+        "wss://nostr.pareto.town",
+        "wss://pareto.nostr1.com"
+  ]
+
   # Define the names and relays in a module attribute
   @nostr_data %{
     "names" => %{
@@ -28,88 +34,26 @@ defmodule NostrBackendWeb.NostrController do
       "danjel" => "22ea455f4b837d60c2615721ccc2ef54a4d56e5f00993f4cffd2b98c9180f82f"
     },
     "relays" => %{
-      "2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "e373ca4101e25a4d4fcb2a53473fa4113b91dba2c2e451d039d8528eb82abcc5" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "cff1720e77bb068f0ebbd389dcd50822dd1ac8d2ac0b0f5f0800ae9e15c7e2b2" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "0f4795bf31824a414148daf1b589bb8138fb0a03963f984c84462e40a8365abe" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "08d79c2e514edd4634ea92bbfe1ec089730a049216be9d28c77c4c1c7733f518" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "71df211931d26ee41121d295bd43cbc7e382505e333b5c13d4016ced9542d9d7" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "9f94e6cc5ce50dcaccfc42b18029aba0ac9215d673197a40172896d3f3472946" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "6734e11d8d67d9ca4dedb920f81182ded2bca918e3e0f3528bd5f4c4c7e34e8f" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "1a040599c19734813abcec04d9bda0ff5fc5054fc4d035b79484bf970a05f5c4" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "78c90fc422bdadafb4df0de5d1ed87133265f896949705bebc61aee44bff983c" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com",
-        "nos.lol",
-        "relay.damus.io"
-      ],
-      "0f479c7dff7bb53dae53f3bb32ad1109edbb07ba562bdd5168044b3f4364e7b5" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "79271c81ef2fd4994c20d73b0555a3e58d7ee9caaa2328082e3a336de18d9066" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "044da3442a54bd55202b66ca0c4f5fd58cbb158b67f2fb067cc0467c073a8a0e" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "89bae92f9d9b0f6d97a300496cfb0b73c92a74c9675a724c0689975f8074dc01" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "135f20a6f142a3f8a6c3fde48772bd6cffece0fc3aa31bef6f12c99b3937e969" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "92af1031a8dc9fd1c2ef982219ff6cff9944ec62bd45d4c6e4e8d5ffd9939aeb" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "9c8096eb84d574ca29eb0077d615a2b12c0113064faeac9f72e464a066e47555" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ],
-      "22ea455f4b837d60c2615721ccc2ef54a4d56e5f00993f4cffd2b98c9180f82f" => [
-        "wss://nostr.pareto.space",
-        "wss://pareto.nostr1.com"
-      ]
+      "2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" => @default_relays,
+      "e373ca4101e25a4d4fcb2a53473fa4113b91dba2c2e451d039d8528eb82abcc5" => @default_relays,
+      "cff1720e77bb068f0ebbd389dcd50822dd1ac8d2ac0b0f5f0800ae9e15c7e2b2" => @default_relays,
+      "0f4795bf31824a414148daf1b589bb8138fb0a03963f984c84462e40a8365abe" => @default_relays,
+      "08d79c2e514edd4634ea92bbfe1ec089730a049216be9d28c77c4c1c7733f518" => @default_relays,
+      "71df211931d26ee41121d295bd43cbc7e382505e333b5c13d4016ced9542d9d7" => @default_relays,
+      "9f94e6cc5ce50dcaccfc42b18029aba0ac9215d673197a40172896d3f3472946" => @default_relays,
+      "6734e11d8d67d9ca4dedb920f81182ded2bca918e3e0f3528bd5f4c4c7e34e8f" => @default_relays,
+      "1a040599c19734813abcec04d9bda0ff5fc5054fc4d035b79484bf970a05f5c4" => @default_relays,
+      "78c90fc422bdadafb4df0de5d1ed87133265f896949705bebc61aee44bff983c" => @default_relays,
+      "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84" => @default_relays,
+      "0f479c7dff7bb53dae53f3bb32ad1109edbb07ba562bdd5168044b3f4364e7b5" => @default_relays,
+      "79271c81ef2fd4994c20d73b0555a3e58d7ee9caaa2328082e3a336de18d9066" => @default_relays,
+      "044da3442a54bd55202b66ca0c4f5fd58cbb158b67f2fb067cc0467c073a8a0e" => @default_relays,
+      "89bae92f9d9b0f6d97a300496cfb0b73c92a74c9675a724c0689975f8074dc01" => @default_relays,
+      "135f20a6f142a3f8a6c3fde48772bd6cffece0fc3aa31bef6f12c99b3937e969" => @default_relays,
+      "92af1031a8dc9fd1c2ef982219ff6cff9944ec62bd45d4c6e4e8d5ffd9939aeb" => @default_relays,
+      "9c8096eb84d574ca29eb0077d615a2b12c0113064faeac9f72e464a066e47555" => @default_relays,
+      "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5" => @default_relays,
+      "22ea455f4b837d60c2615721ccc2ef54a4d56e5f00993f4cffd2b98c9180f82f" => @default_relays
     }
   }
 
