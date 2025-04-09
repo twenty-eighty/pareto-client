@@ -341,7 +341,6 @@ viewProfileImage linkElement maybeProfile validationStatus =
                 [ Tw.absolute
                 , Tw.top_0
                 , Tw.right_0
-                , Tw.text_color Theme.gray_400
                 , Tw.w_4
                 , Tw.h_4
                 ]
@@ -420,7 +419,6 @@ viewProfileImageSmall linkElement maybeProfile validationStatus =
                 [ Tw.absolute
                 , Tw.top_0
                 , Tw.right_0
-                , Tw.text_color Theme.gray_400
                 , Tw.max_w_2
                 , Tw.max_h_2
                 ]
