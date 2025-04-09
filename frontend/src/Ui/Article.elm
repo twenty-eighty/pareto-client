@@ -398,7 +398,7 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                     , Tw.mb_4
                     ]
                 ]
-                [ Ui.Profile.viewProfilePubKey pubKey
+                [ Ui.Profile.viewProfilePubKey styles pubKey
                 , timeParagraph styles browserEnv published createdAt
                 ]
 
