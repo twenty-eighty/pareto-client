@@ -3,7 +3,7 @@ defmodule NostrBackendWeb.NostrController do
 
   alias NostrBackend.Nip05
 
-  @default_relays = [
+  @default_relays [
         "wss://nostr.pareto.space",
         "wss://nostr.pareto.town",
         "wss://pareto.nostr1.com"
