@@ -5,7 +5,7 @@ module Components.Button exposing
     , withSizeSmall
     , withIconLeft, withIconRight
     , withDisabled
-    , withLink, withTypePrimary, withTypeSecondary
+    , withHidden, withLink, withTypePrimary, withTypeSecondary
     )
 
 {-|
@@ -32,6 +32,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events as Events
 import Tailwind.Utilities as Tw
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles
 
 
@@ -51,6 +52,7 @@ type Button msg
         , iconRight : Maybe Icon
         , isOutlined : Bool
         , isDisabled : Bool
+        , isHidden : Bool
         , theme : Ui.Styles.Theme
         }
 
@@ -68,6 +70,7 @@ new props =
         , iconRight = Nothing
         , isOutlined = False
         , isDisabled = False
+        , isHidden = False
         , theme = props.theme
         }
 
@@ -144,6 +147,11 @@ withDisabled isDisabled (Settings settings) =
     Settings { settings | isDisabled = isDisabled }
 
 
+withHidden : Bool -> Button msg -> Button msg
+withHidden isHidden (Settings settings) =
+    Settings { settings | isHidden = isHidden }
+
+
 
 -- VIEW
 
@@ -174,39 +182,43 @@ view (Settings settings) =
                 ( _, _, _ ) ->
                     ( div, [ disabled True ] )
     in
-    div
-        [ css
-            [ Tw.flex
-            , Tw.flex_row
-            , Tw.gap_2
+    if not settings.isHidden then
+        div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.gap_2
+                ]
             ]
-        ]
-        [ element
-            (buttonStyles
-                ++ onClickAttr
-                ++ [ css
-                        [ Tw.py_2
-                        , Tw.px_4
-                        , Tw.flex
-                        , Tw.flex_row
-                        , Tw.gap_2
-                        , Tw.rounded_full
-                        , Css.hover
-                            []
-                        ]
-                   , classList
-                        [ ( "is-success", settings.style == Success )
-                        , ( "is-warning", settings.style == Warning )
-                        , ( "is-danger", settings.style == Danger )
-                        , ( "is-small", settings.size == Small )
-                        ]
-                   ]
-            )
-            [ viewOptionalIcon settings.iconLeft
-            , text settings.label
-            , viewOptionalIcon settings.iconRight
+            [ element
+                (buttonStyles
+                    ++ onClickAttr
+                    ++ [ css
+                            [ Tw.py_2
+                            , Tw.px_4
+                            , Tw.flex
+                            , Tw.flex_row
+                            , Tw.gap_2
+                            , Tw.rounded_full
+                            , Css.hover
+                                []
+                            ]
+                       , classList
+                            [ ( "is-success", settings.style == Success )
+                            , ( "is-warning", settings.style == Warning )
+                            , ( "is-danger", settings.style == Danger )
+                            , ( "is-small", settings.size == Small )
+                            ]
+                       ]
+                )
+                [ viewOptionalIcon settings.iconLeft
+                , text settings.label
+                , viewOptionalIcon settings.iconRight
+                ]
             ]
-        ]
+
+    else
+        emptyHtml
 
 
 stylesForTheme : Button msg -> List (Attribute msg)
