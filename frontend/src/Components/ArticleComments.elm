@@ -137,7 +137,7 @@ viewArticleComment styles browserEnv nostr level articleCommentComments articleC
                     (\profile ->
                         Nostr.getProfileValidationStatus nostr profile.pubKey
                             |> Maybe.withDefault ValidationUnknown
-                            |> Ui.Profile.viewProfileSmall profile
+                            |> Ui.Profile.viewProfileSmall styles profile
                     )
                 |> Maybe.withDefault emptyHtml
     in
