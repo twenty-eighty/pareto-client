@@ -144,7 +144,7 @@ type Msg
     | AddRepost PubKey Article
     | AddLoadedContent String
     | OpenComment CommentType
-    | CommentSent (Comment.Msg Msg)
+    | CommentSent Comment.Msg
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
     | NoOp

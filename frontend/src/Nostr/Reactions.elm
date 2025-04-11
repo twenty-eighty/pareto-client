@@ -1,7 +1,9 @@
 module Nostr.Reactions exposing (..)
 
+import Dict exposing (Dict)
 import Nostr.Event exposing (AddressComponents, Event, Kind, Tag(..))
 import Nostr.Nip18 exposing (Repost)
+import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment)
 import Nostr.Types exposing (EventId, PubKey)
 
 
@@ -11,6 +13,8 @@ import Nostr.Types exposing (EventId, PubKey)
 
 type alias Interactions =
     { zaps : Maybe Int
+    , articleComments : List ArticleComment
+    , articleCommentComments : Dict EventId (List ArticleCommentComment) -- event ID is the one of the parent comment
     , highlights : Maybe Int
     , reactions : Maybe Int
     , reposts : Maybe Int

@@ -33,7 +33,7 @@ viewArticle articlePreviewsData loadedContent article =
         articlePreviewsData
         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
         , actions = actionsFromArticlePreviewsData articlePreviewsData article
-        , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
+        , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr articlePreviewsData.userPubKey article
         , displayAuthor = True
         , loadedContent = loadedContent
         }
@@ -122,7 +122,7 @@ viewArticlePreviewsList articlePreviewsData articles =
                             { author = Nostr.getAuthor articlePreviewsData.nostr article.author
                             , actions =
                                 actionsFromArticlePreviewsData articlePreviewsData article
-                            , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
+                            , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr articlePreviewsData.userPubKey article
                             , displayAuthor = True
                             , loadedContent = Nothing
                             }
@@ -153,7 +153,7 @@ viewArticlePreviewsBigPicture articlePreviewsData articles =
                         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
                         , actions =
                             actionsFromArticlePreviewsData articlePreviewsData article
-                        , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
+                        , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr articlePreviewsData.userPubKey article
                         , displayAuthor = True
                         , loadedContent = Nothing
                         }

@@ -19,6 +19,7 @@ import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05Info, nip05T
 import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
 import Nostr.Nip18 exposing (Repost, repostFromEvent)
 import Nostr.Nip19 exposing (NIP19Type(..))
+import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..), articleCommentCommentOfComment, articleCommentOfComment, commentEventId, commentFromEvent, commentRootAddress)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileFromEvent)
 import Nostr.Reactions exposing (Reaction, reactionFromEvent)
 import Nostr.Relay exposing (Relay, RelayState(..), hostWithoutProtocol, relayUrlDecoder)
@@ -44,6 +45,7 @@ type alias Model =
     , articleDraftRelays : Dict EventId (Set RelayUrl)
     , bookmarkLists : Dict PubKey BookmarkList
     , bookmarkSets : Dict PubKey BookmarkSet
+    , commentsByAddress : Dict Address (Dict EventId CommentType)
     , communities : Dict PubKey (List Community)
     , communityLists : Dict PubKey (List CommunityReference)
     , defaultRelays : List String
@@ -692,6 +694,40 @@ getFollowsList model pubKey =
     Dict.get pubKey model.followLists
 
 
+getArticleComments : Model -> AddressComponents -> List ArticleComment
+getArticleComments model addressComponents =
+    Dict.get (buildAddress addressComponents) model.commentsByAddress
+        |> Maybe.map Dict.values
+        |> Maybe.map (List.filterMap articleCommentOfComment)
+        |> Maybe.withDefault []
+
+
+getArticleCommentComments : Model -> AddressComponents -> Dict EventId (List ArticleCommentComment)
+getArticleCommentComments model addressComponents =
+    Dict.get (buildAddress addressComponents) model.commentsByAddress
+        |> Maybe.map
+            (\commentsDict ->
+                commentsDict
+                    |> Dict.toList
+                    |> List.filterMap (\( _, comment ) -> articleCommentCommentOfComment comment)
+                    |> List.foldl
+                        (\articleCommentComment acc ->
+                            Dict.update articleCommentComment.parentEventId
+                                (\maybeArticleCommentCommentList ->
+                                    case maybeArticleCommentCommentList of
+                                        Just articleCommentCommentList ->
+                                            Just <| articleCommentComment :: articleCommentCommentList
+
+                                        Nothing ->
+                                            Just [ articleCommentComment ]
+                                )
+                                acc
+                        )
+                        Dict.empty
+            )
+        |> Maybe.withDefault Dict.empty
+
+
 getBookmarks : Model -> PubKey -> Maybe BookmarkList
 getBookmarks model pubKey =
     Dict.get pubKey model.bookmarkLists
@@ -702,9 +738,19 @@ getReactionsForArticle model addressComponents =
     Dict.get (buildAddress addressComponents) model.reactionsForAddress
 
 
+getReactionsForEventId : Model -> EventId -> Maybe (Dict PubKey Nostr.Reactions.Reaction)
+getReactionsForEventId model eventid =
+    Dict.get eventid model.reactionsForEventId
+
+
 getRepostsForArticle : Model -> AddressComponents -> Maybe (Dict PubKey Nostr.Nip18.Repost)
 getRepostsForArticle model addressComponents =
     Dict.get (buildAddress addressComponents) model.repostsByAddress
+
+
+getRepostsForEventId : Model -> EventId -> Maybe (Dict PubKey Nostr.Nip18.Repost)
+getRepostsForEventId model eventId =
+    Dict.get eventId model.repostsByEventId
 
 
 getRelaysForPubKey : Model -> PubKey -> List ( RelayRole, Relay )
@@ -989,6 +1035,11 @@ getZapReceiptsForArticle model article =
             Nothing
 
 
+getZapReceiptsForEventId : Model -> EventId -> Maybe (Dict String Nostr.Zaps.ZapReceipt)
+getZapReceiptsForEventId model eventId =
+    Dict.get eventId model.zapReceiptsEvents
+
+
 getProfile : Model -> PubKey -> Maybe Profile
 getProfile model pubKey =
     Dict.get pubKey model.profiles
@@ -1083,13 +1134,15 @@ getCommunityList model pubKey =
     Dict.get pubKey model.communityLists
 
 
-getInteractions : Model -> Maybe PubKey -> Article -> Nostr.Reactions.Interactions
-getInteractions model maybePubKey article =
+getInteractionsForArticle : Model -> Maybe PubKey -> Article -> Nostr.Reactions.Interactions
+getInteractionsForArticle model maybePubKey article =
     let
         maybeAddressComponents =
             addressComponentsForArticle article
     in
     { zaps = getZapReceiptsCountForArticle model article
+    , articleComments = maybeAddressComponents |> Maybe.map (getArticleComments model) |> Maybe.withDefault []
+    , articleCommentComments = maybeAddressComponents |> Maybe.map (getArticleCommentComments model) |> Maybe.withDefault Dict.empty
     , highlights = Nothing
     , reactions = getReactionsCountForArticle model article
     , reposts = getRepostsCountForArticle model article
@@ -1116,6 +1169,23 @@ getInteractions model maybePubKey article =
     }
 
 
+getInteractionsForEventId : Model -> Maybe PubKey -> EventId -> Nostr.Reactions.Interactions
+getInteractionsForEventId model maybePubKey eventId =
+    { zaps = getZapReceiptsCountForComment model eventId
+    , articleComments = []
+    , articleCommentComments = Dict.empty
+    , highlights = Nothing
+    , reactions = getReactionsCountForEventId model eventId
+    , reposts = getRepostsCountForEventId model eventId
+    , notes = Nothing
+    , bookmarks = Nothing
+    , isBookmarked = False
+    , reaction = maybePubKey |> Maybe.andThen (\pubKey -> getReactionForEventId model pubKey eventId)
+    , repost =
+        Nothing
+    }
+
+
 isArticleBookmarked : Model -> Article -> PubKey -> Bool
 isArticleBookmarked model article pubKey =
     let
@@ -1137,6 +1207,17 @@ isArticleBookmarked model article pubKey =
 getZapReceiptsCountForArticle : Model -> Article -> Maybe Int
 getZapReceiptsCountForArticle model article =
     getZapReceiptsForArticle model article
+        |> Maybe.andThen
+            (\receiptsDict ->
+                Dict.values receiptsDict
+                    |> List.foldl addZapAmount 0
+                    |> Just
+            )
+
+
+getZapReceiptsCountForComment : Model -> EventId -> Maybe Int
+getZapReceiptsCountForComment model eventId =
+    getZapReceiptsForEventId model eventId
         |> Maybe.andThen
             (\receiptsDict ->
                 Dict.values receiptsDict
@@ -1173,6 +1254,12 @@ getReactionsCountForArticle model article =
         |> Maybe.map Dict.size
 
 
+getReactionsCountForEventId : Model -> EventId -> Maybe Int
+getReactionsCountForEventId model eventId =
+    getReactionsForEventId model eventId
+        |> Maybe.map Dict.size
+
+
 getRepostsCountForArticle : Model -> Article -> Maybe Int
 getRepostsCountForArticle model article =
     article
@@ -1181,9 +1268,21 @@ getRepostsCountForArticle model article =
         |> Maybe.map Dict.size
 
 
+getRepostsCountForEventId : Model -> EventId -> Maybe Int
+getRepostsCountForEventId model eventId =
+    getRepostsForEventId model eventId
+        |> Maybe.map Dict.size
+
+
 getReactionForArticle : Model -> PubKey -> AddressComponents -> Maybe Reaction
 getReactionForArticle model pubKey addressComponents =
     getReactionsForArticle model addressComponents
+        |> Maybe.andThen (Dict.get pubKey)
+
+
+getReactionForEventId : Model -> PubKey -> EventId -> Maybe Reaction
+getReactionForEventId model pubKey eventId =
+    getReactionsForEventId model eventId
         |> Maybe.andThen (Dict.get pubKey)
 
 
@@ -1208,7 +1307,18 @@ eventFilterForReactions tagReferences =
     else
         Just
             { emptyEventFilter
-                | kinds = Just [ KindZapReceipt, KindHighlights, KindRepost, KindGenericRepost, KindShortTextNote, KindReaction, KindBookmarkList, KindBookmarkSets ]
+                | kinds =
+                    Just
+                        [ KindZapReceipt
+                        , KindComment
+                        , KindHighlights
+                        , KindRepost
+                        , KindGenericRepost
+                        , KindShortTextNote
+                        , KindReaction
+                        , KindBookmarkList
+                        , KindBookmarkSets
+                        ]
                 , tagReferences = Just tagReferences
             }
 
@@ -1234,6 +1344,7 @@ empty =
     , articleDraftRelays = Dict.empty
     , bookmarkLists = Dict.empty
     , bookmarkSets = Dict.empty
+    , commentsByAddress = Dict.empty
     , communities = Dict.empty
     , communityLists = Dict.empty
     , defaultRelays = []
@@ -1554,6 +1665,9 @@ updateModelWithEvents model requestId kind events =
         KindEventDeletionRequest ->
             updateModelWithDeletionRequests model events
 
+        KindComment ->
+            updateModelWithComments model events
+
         KindRepost ->
             updateModelWithReposts model events
 
@@ -1732,6 +1846,40 @@ updateModelWithReposts model events =
         | repostsByAddress = repostsByAddress
         , repostsByEventId = repostsByEventId
       }
+    , Cmd.none
+    )
+
+
+updateModelWithComments : Model -> List Event -> ( Model, Cmd Msg )
+updateModelWithComments model events =
+    let
+        updatedDictByAddress : CommentType -> Dict Address (Dict PubKey CommentType) -> Dict Address (Dict PubKey CommentType)
+        updatedDictByAddress comment dict =
+            let
+                address =
+                    commentRootAddress comment
+                        |> buildAddress
+
+                eventId =
+                    commentEventId comment
+            in
+            case Dict.get address dict of
+                Just dictForAddress ->
+                    Dict.insert address (Dict.insert eventId comment dictForAddress) dict
+
+                Nothing ->
+                    Dict.insert address (Dict.singleton eventId comment) dict
+
+        commentsByAddress =
+            events
+                |> List.filterMap commentFromEvent
+                |> List.foldl
+                    (\comment accAddress ->
+                        updatedDictByAddress comment accAddress
+                    )
+                    model.commentsByAddress
+    in
+    ( { model | commentsByAddress = commentsByAddress }
     , Cmd.none
     )
 

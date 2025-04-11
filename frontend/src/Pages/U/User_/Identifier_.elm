@@ -118,7 +118,7 @@ type Msg
     = NoOp
     | AddLoadedContent String
     | OpenComment CommentType
-    | CommentSent (Comment.Msg Msg)
+    | CommentSent Comment.Msg
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )

@@ -545,6 +545,8 @@ viewShortNotes shortNotesViewData shortNotes =
                         }
                     , interactions =
                         { zaps = Nothing
+                        , articleComments = []
+                        , articleCommentComments = Dict.empty
                         , highlights = Nothing
                         , reactions = Nothing
                         , reposts = Nothing

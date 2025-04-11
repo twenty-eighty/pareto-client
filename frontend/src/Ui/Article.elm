@@ -1,12 +1,13 @@
 module Ui.Article exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
+import Components.ArticleComments as ArticleComments
 import Components.Button as Button
 import Components.Comment as Comment
 import Components.Icon as Icon
 import Components.ZapDialog as ZapDialog
 import Css
-import Dict
+import Dict exposing (Dict)
 import Html.Styled as Html exposing (Html, a, article, div, h2, h3, img, summary, text)
 import Html.Styled.Attributes as Attr exposing (css, href)
 import Html.Styled.Events as Events exposing (..)
@@ -17,7 +18,7 @@ import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
 import Nostr.Event exposing (AddressComponents, Kind(..), Tag(..), TagReference(..))
 import Nostr.Nip19 exposing (NIP19Type(..))
-import Nostr.Nip22 exposing (CommentType)
+import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType, nip19ForComment)
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Reactions exposing (Interactions)
@@ -280,6 +281,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                     , Tw.justify_start
                     , Tw.items_start
                     , Tw.gap_4
+                    , Tw.mb_2
                     , Tw.flex
                     ]
                     :: styles.colorStyleGrayscaleMuted
@@ -297,8 +299,19 @@ viewArticle articlePreviewsData articlePreviewData article =
 
                 Nothing ->
                     emptyHtml
-
-            -- , viewArticleComments styles
+            , div
+                [ css
+                    [ Tw.mt_2 ]
+                ]
+                [ ArticleComments.new
+                    { browserEnv = articlePreviewsData.browserEnv
+                    , nostr = articlePreviewsData.nostr
+                    , articleComments = articlePreviewData.interactions.articleComments
+                    , articleCommentComments = articlePreviewData.interactions.articleCommentComments
+                    , theme = articlePreviewsData.theme
+                    }
+                    |> ArticleComments.view
+                ]
             ]
         ]
 
@@ -525,102 +538,6 @@ viewContentMarkdown styles loadedContent fnGetProfile content =
 
         Err error ->
             div [] [ text <| "Error rendering Markdown: " ++ error ]
-
-
-viewArticleComments : Styles msg -> Html msg
-viewArticleComments styles =
-    div
-        [ css
-            [ Tw.self_stretch
-            , Tw.flex_col
-            , Tw.justify_start
-            , Tw.items_start
-            , Tw.gap_6
-            , Tw.flex
-            ]
-        ]
-        [ div
-            [ css
-                [ Tw.justify_start
-                , Tw.items_center
-                , Tw.gap_3
-                , Tw.inline_flex
-                ]
-            ]
-            [ div
-                (styles.textStyleH2 ++ styles.colorStyleGrayscaleTitle)
-                [ text "Comments" ]
-            , div
-                (textStyleArticleAuthor ++ styles.colorStyleGrayscaleMuted)
-                [ text "(0)" ]
-            ]
-        , div
-            [ css
-                [ Tw.flex_col
-                , Tw.justify_end
-                , Tw.items_end
-                , Tw.gap_4
-                , Tw.flex
-                ]
-            ]
-            [ div
-                [ css
-                    [ Tw.flex_col
-                    , Tw.justify_start
-                    , Tw.items_start
-                    , Tw.gap_4
-                    , Tw.flex
-                    ]
-                ]
-                [ div
-                    [ css
-                        [ Tw.w_96
-                        , Tw.h_28
-                        , Tw.relative
-                        ]
-                    ]
-                    [ div
-                        [ css
-                            [ Tw.w_96
-                            , Tw.h_28
-                            , Tw.left_0
-                            , Tw.top_0
-                            , Tw.bg_color Theme.gray_100
-                            , Tw.rounded_xl
-                            ]
-                        ]
-                        []
-                    , div
-                        (styles.textStyleBody
-                            ++ styles.colorStyleGrayscaleMuted
-                            ++ [ css
-                                    [ Tw.left_4
-                                    , Tw.top_3
-                                    ]
-                               ]
-                        )
-                        [ text "Comment" ]
-                    ]
-                ]
-            , div
-                [ css
-                    [ Tw.self_stretch
-                    , Tw.px_6
-                    , Tw.py_3
-                    , Tw.bg_color Theme.blue_600
-                    , Tw.rounded_xl
-                    , Tw.justify_center
-                    , Tw.items_center
-                    , Tw.gap_2_dot_5
-                    , Tw.inline_flex
-                    ]
-                ]
-                [ div
-                    (textStyleReactions ++ styles.colorStyleInverse)
-                    [ text "Post Comment" ]
-                ]
-            ]
-        ]
 
 
 viewArticleInternal : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> BrowserEnv -> Article -> Html msg

@@ -1,6 +1,7 @@
 module Pages.E.Event_ exposing (..)
 
 import Components.RelayStatus exposing (Purpose(..))
+import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, article, div, text)
 import Layouts
@@ -248,6 +249,8 @@ viewContent shared model =
                                 }
                             , interactions =
                                 { zaps = Nothing
+                                , articleComments = []
+                                , articleCommentComments = Dict.empty
                                 , highlights = Nothing
                                 , reactions = Nothing
                                 , reposts = Nothing

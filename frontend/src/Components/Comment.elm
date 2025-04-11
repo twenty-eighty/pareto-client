@@ -25,7 +25,7 @@ import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme, stylesForTheme)
 
 
-type Msg msg
+type Msg
     = CloseDialog
     | UpdateComment CommentType
     | PostClicked PubKey
@@ -49,7 +49,7 @@ type CommentState
 type Comment msg
     = Settings
         { model : Model
-        , toMsg : Msg msg -> msg
+        , toMsg : Msg -> msg
         , nostr : Nostr.Model
         , profile : Profile
         , loginStatus : LoginStatus
@@ -60,7 +60,7 @@ type Comment msg
 
 new :
     { model : Model
-    , toMsg : Msg msg -> msg
+    , toMsg : Msg -> msg
     , nostr : Nostr.Model
     , profile : Profile
     , loginStatus : LoginStatus
@@ -98,10 +98,10 @@ hide (Model model) =
 
 
 type alias Props model msg =
-    { msg : Msg msg
+    { msg : Msg
     , model : Model
     , toModel : Model -> model
-    , toMsg : Msg msg -> msg
+    , toMsg : Msg -> msg
     , nostr : Nostr.Model
     }
 
@@ -164,7 +164,12 @@ updateWithMessage (Model model) message =
             if sendRequestId == sendId then
                 case message.messageType of
                     "published" ->
-                        Model { model | state = CommentSent commentData }
+                        Model
+                            { model
+                                | state = CommentHidden
+
+                                {- CommentSent commentData -}
+                            }
 
                     "error" ->
                         case Nostr.External.decodeReason message.value of
@@ -188,7 +193,7 @@ updateWithMessage (Model model) message =
 -- SUBSCRIPTIONS
 
 
-subscriptions : Model -> Sub (Msg msg)
+subscriptions : Model -> Sub Msg
 subscriptions _ =
     Ports.receiveMessage ReceivedMessage
 
@@ -233,7 +238,7 @@ view comment =
                 |> Html.map settings.toMsg
 
 
-viewComment : Comment msg -> CommentType -> String -> Maybe (Msg msg) -> Maybe String -> Html (Msg msg)
+viewComment : Comment msg -> CommentType -> String -> Maybe Msg -> Maybe String -> Html Msg
 viewComment (Settings settings) draftComment postButtonText buttonMsg maybeError =
     let
         styles =
@@ -256,6 +261,7 @@ viewComment (Settings settings) draftComment postButtonText buttonMsg maybeError
             , Tw.flex_col
             , Tw.gap_2
             , Tw.self_stretch
+            , Tw.h_auto
             , Tw.max_w_full
             ]
         ]

@@ -161,7 +161,7 @@ modalDialog theme title content onClose =
             , div
                 [ css
                     [ Tw.max_h_96
-                    , Tw.overflow_y_scroll
+                    , Tw.overflow_y_auto
                     ]
                 ]
                 content
