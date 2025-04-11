@@ -24,12 +24,11 @@ import Shared
 import Shared.Model exposing (ClientRole(..), LoginStatus(..))
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Styles, Theme, darkMode)
+import Ui.Styles exposing (Styles, Theme(..), darkMode)
 import View exposing (View)
 
 
@@ -281,19 +280,6 @@ viewSidebar styles shared currentPath toContentMsg content =
             , testMode = shared.browserEnv.testMode
             , theme = shared.theme
             }
-
-        colorStyleSitebarBackground =
-            [ css
-                [ darkMode
-                    [ Tw.border_t_2 ]
-                , Bp.sm
-                    [ Tw.bg_color Theme.white
-                    , darkMode
-                        [ Tw.bg_color Theme.black
-                        ]
-                    ]
-                ]
-            ]
     in
     Html.div
         (styles.colorStyleGrayscaleTitle
@@ -309,7 +295,8 @@ viewSidebar styles shared currentPath toContentMsg content =
                 ]
             ]
             [ aside
-                (colorStyleSitebarBackground
+                (styles.colorStyleBackground
+                    ++ styles.colorStyleBorders
                     ++ [ css
                             [ Tw.p_2
                             , Tw.h_14
@@ -321,8 +308,7 @@ viewSidebar styles shared currentPath toContentMsg content =
                             , Tw.flex_row
                             , Tw.space_x_4
                             , Bp.xl
-                                [ Tw.w_52
-                                ]
+                                [ Tw.w_52 ]
                             , Bp.sm
                                 [ Tw.inline
                                 , Tw.w_20
@@ -330,7 +316,6 @@ viewSidebar styles shared currentPath toContentMsg content =
                                 , Tw.justify_items_center
                                 , Tw.h_screen
                                 , Tw.border_r
-                                , Tw.border_color Theme.gray_200
                                 , Tw.z_0
                                 ]
                             ]
@@ -755,16 +740,20 @@ loginButton shared maybeProfile =
 
 loggedInButton : Maybe Profile -> Html Msg
 loggedInButton maybeProfile =
+    let
+        styles =
+            Ui.Styles.stylesForTheme ParetoTheme
+    in
     button
-        [ css
-            [ Tw.bg_color Theme.gray_100
-            , Tw.text_color Theme.white
+        (css
+            [ Tw.bg_color styles.color1
             , Tw.py_2
             , Tw.px_2
             , Tw.rounded_full
             , Tw.border_hidden
             ]
-        ]
+            :: styles.colorStyleIcons
+        )
         [ img
             [ Attr.src <| Ui.Profile.profilePicture 56 maybeProfile
             , css

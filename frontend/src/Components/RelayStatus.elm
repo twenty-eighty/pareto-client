@@ -4,7 +4,7 @@ module Components.RelayStatus exposing
     , Purpose(..)
     )
 
-{-|
+{-| NOT IM USE CURRENTLY!!!
 
 
 ## Basic usage
@@ -23,7 +23,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.RelayStatusComponent as Translations
-import Ui.Styles
+import Ui.Styles exposing (Theme(..))
 
 
 
@@ -108,6 +108,9 @@ viewRelay translations relay =
     let
         ( statusText, statusColor ) =
             relayStateInfo translations relay.state
+
+        styles =
+            Ui.Styles.stylesForTheme ParetoTheme
     in
     li
         [ css
@@ -140,20 +143,17 @@ viewRelay translations relay =
                 ]
                 []
             , span
-                [ css
-                    [ Tw.text_color Theme.gray_700
-                    , Tw.font_semibold
-                    ]
-                ]
+                (css
+                    [ Tw.font_semibold ]
+                    :: styles.colorStyleGrayscaleText
+                )
                 [ text statusText ]
             ]
         , div
-            [ css
-                [ Tw.text_sm
-                , Tw.text_color Theme.gray_600
-                , Tw.break_all
-                ]
-            ]
+            (css
+                [ Tw.text_sm, Tw.break_all ]
+                :: styles.colorStyleGrayscaleText
+            )
             [ text relay.urlWithoutProtocol ]
         ]
 

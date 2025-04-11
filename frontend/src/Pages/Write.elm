@@ -47,7 +47,7 @@ import Time
 import Translations.Write as Translations
 import Ui.Article
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme(..), stylesForTheme)
+import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
 import View exposing (View)
 
 
@@ -1257,18 +1257,18 @@ viewImage translations model =
 
         Nothing ->
             div
-                ([ css
+                [ css
                     [ Tw.w_48
                     , Tw.h_32
                     , Tw.flex
+                    , Tw.bg_color styles.color2
                     , Tw.justify_center
                     , Tw.items_center
                     , Tw.cursor_pointer
+                    , darkMode [ Tw.bg_color styles.color2DarkMode ]
                     ]
-                 , Events.onClick (SelectImage ArticleImageSelection)
-                 ]
-                    ++ styles.colorStyleBackground
-                )
+                , Events.onClick (SelectImage ArticleImageSelection)
+                ]
                 [ Html.span
                     [ css
                         [ Tw.text_color Theme.white
@@ -1328,6 +1328,10 @@ milkDownDarkMode darkModeActive =
 
 viewLanguage : BrowserEnv -> Model -> Html Msg
 viewLanguage browserEnv model =
+    let
+        styles =
+            Ui.Styles.stylesForTheme ParetoTheme
+    in
     div
         [ css
             [ Tw.w_full
@@ -1335,15 +1339,16 @@ viewLanguage browserEnv model =
         ]
         [ {- Label -}
           label
-            [ Attr.for "dropdownMenu"
-            , css
+            ([ Attr.for "dropdownMenu"
+             , css
                 [ Tw.block
-                , Tw.text_color Theme.gray_700
                 , Tw.text_sm
                 , Tw.font_medium
                 , Tw.mb_2
                 ]
-            ]
+             ]
+                ++ styles.colorStyleLabel
+            )
             [ text <| Translations.languageSelectionLabel [ browserEnv.translations ]
             ]
         , {- Dropdown -}
@@ -1382,20 +1387,22 @@ viewTags theme browserEnv model =
         ]
         [ {- Label -}
           label
-            [ Attr.for "entry-field"
-            , css
+            ([ Attr.for "entry-field"
+             , css
                 [ Tw.block
-                , Tw.text_color Theme.gray_700
                 , Tw.text_sm
                 , Tw.font_medium
                 , Tw.mb_2
                 ]
-            ]
+             ]
+                ++ styles.colorStyleLabel
+            )
             [ text <| Translations.tagsLabelText [ browserEnv.translations ]
             ]
         , {- Input Field -}
           input
             (styles.colorStyleBackground
+                ++ styles.colorStyleBorders
                 ++ [ Attr.type_ "text"
                    , Attr.id "entry-field"
                    , Attr.placeholder <| Translations.tagsPlaceholderText [ browserEnv.translations ]
@@ -1406,7 +1413,6 @@ viewTags theme browserEnv model =
                         , Tw.px_4
                         , Tw.py_2
                         , Tw.border
-                        , Tw.border_color Theme.gray_300
                         , Tw.rounded_lg
                         , Tw.transition_all
                         , Tw.duration_200

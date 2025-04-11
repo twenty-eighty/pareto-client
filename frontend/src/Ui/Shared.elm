@@ -19,7 +19,6 @@ import Pareto exposing (defaultRelays)
 import Set exposing (Set)
 import Svg.Loaders
 import Tailwind.Breakpoints as Bp
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Ui.Styles exposing (Styles, Theme, darkMode, stylesForTheme)
 
@@ -59,37 +58,39 @@ pageLoadingIndicator =
         |> Html.fromUnstyled
 
 
-thinBorderButton : msg -> String -> Html msg
-thinBorderButton onClickMsg title =
+thinBorderButton : Styles msg -> msg -> String -> Html msg
+thinBorderButton styles onClickMsg title =
     button
-        [ css
-            [ Tw.bg_color Theme.gray_200
-            , Tw.py_2
+        ([ css
+            [ Tw.py_2
             , Tw.px_4
             , Tw.rounded_full
             , Css.hover
-                [ Tw.bg_color Theme.gray_300
-                ]
+                [ Tw.bg_color styles.color4 ]
+            , darkMode [ Css.hover [ Tw.bg_color styles.color4DarkMode ] ]
             ]
-        , Events.onClick onClickMsg
-        ]
+         , Events.onClick onClickMsg
+         ]
+            ++ styles.colorStylePrimaryButtonBackground
+        )
         [ text title ]
 
 
-linkButton : String -> String -> Html msg
-linkButton title url =
+linkButton : Styles msg -> String -> String -> Html msg
+linkButton styles title url =
     a
-        [ css
-            [ Tw.bg_color Theme.gray_200
-            , Tw.py_2
+        ([ css
+            [ Tw.py_2
             , Tw.px_4
             , Tw.rounded_full
             , Css.hover
-                [ Tw.bg_color Theme.gray_300
-                ]
+                [ Tw.bg_color styles.color4 ]
+            , darkMode [ Css.hover [ Tw.bg_color styles.color4DarkMode ] ]
             ]
-        , Attr.href url
-        ]
+         , Attr.href url
+         ]
+            ++ styles.colorStylePrimaryButtonBackground
+        )
         [ text title ]
 
 
@@ -100,17 +101,17 @@ modalDialog theme title content onClose =
             stylesForTheme theme
     in
     div
-        [ css
+        (css
             [ Tw.fixed
             , Tw.inset_0
-            , Tw.bg_color Theme.gray_900
             , Tw.bg_opacity_50
             , Tw.flex
             , Tw.justify_center
             , Tw.items_center
             , Tw.z_50
             ]
-        ]
+            :: styles.colorStyleBackground
+        )
         [ div
             (styles.colorStyleBackground
                 ++ [ css
@@ -147,15 +148,19 @@ modalDialog theme title content onClose =
                     ]
                     [ text title ]
                 , button
-                    [ css
-                        [ Tw.text_color Theme.gray_400
-                        , Css.hover
-                            [ Tw.text_color Theme.gray_600
+                    ([ css
+                        [ Css.hover
+                            [ Tw.text_color styles.color2 ]
+                        , darkMode
+                            [ Css.hover
+                                [ Tw.text_color styles.color2DarkMode ]
                             ]
                         ]
-                    , Attr.id "close-modal"
-                    , Events.onClick onClose
-                    ]
+                     , Attr.id "close-modal"
+                     , Events.onClick onClose
+                     ]
+                        ++ styles.colorStyleGrayscaleText
+                    )
                     [ text " ✕ " ]
                 ]
             , div

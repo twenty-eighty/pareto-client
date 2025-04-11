@@ -343,19 +343,20 @@ viewArticleImage maybeImage =
             emptyHtml
 
 
-viewTitle : Maybe String -> Html msg
-viewTitle maybeTitle =
+viewTitle : Styles msg -> Maybe String -> Html msg
+viewTitle styles maybeTitle =
     case maybeTitle of
         Just title ->
             h3
-                [ css
+                ([ css
                     [ Tw.text_4xl
                     , Tw.font_bold
-                    , Tw.text_color Theme.gray_900
                     , Tw.mb_2
                     ]
-                , fontFamilyUnbounded
-                ]
+                 , fontFamilyUnbounded
+                 ]
+                    ++ styles.colorStyleGrayscaleTitle
+                )
                 [ text title
                 ]
 
@@ -364,17 +365,17 @@ viewTitle maybeTitle =
 
 
 viewSummary : Styles msg -> Maybe String -> Html msg
-viewSummary _ maybeSummary =
+viewSummary styles maybeSummary =
     case maybeSummary of
         Just summary ->
             Html.summary
-                [ css
-                    [ Tw.text_color Theme.gray_600
-                    , Tw.text_sm
+                (css
+                    [ Tw.text_sm
                     , Tw.mb_4
                     , Tw.list_none
                     ]
-                ]
+                    :: styles.colorStyleGrayscaleSummary
+                )
                 [ text summary ]
 
         Nothing ->
@@ -420,7 +421,7 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                     , Tw.mb_4
                     ]
                 ]
-                [ Ui.Profile.viewProfilePubKey pubKey
+                [ Ui.Profile.viewProfilePubKey styles pubKey
                 , timeParagraph styles browserEnv published createdAt
                 ]
 
@@ -433,7 +434,7 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                     , Tw.mb_4
                     ]
                 ]
-                [ viewArticleProfileSmall profile validationStatus
+                [ viewArticleProfileSmall styles profile validationStatus
                 , div
                     [ css
                         [ Tw.h_11
@@ -456,8 +457,8 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                 ]
 
 
-viewArticleProfileSmall : Profile -> ProfileValidation -> Html msg
-viewArticleProfileSmall profile validationStatus =
+viewArticleProfileSmall : Styles msg -> Profile -> ProfileValidation -> Html msg
+viewArticleProfileSmall styles profile validationStatus =
     let
         linkElement =
             linkElementForProfile profile validationStatus
@@ -489,7 +490,6 @@ viewArticleProfileSmall profile validationStatus =
                     [ Tw.absolute
                     , Tw.top_0
                     , Tw.right_0
-                    , Tw.text_color Theme.gray_400
                     , Tw.w_3
                     , Tw.h_2
                     ]
@@ -688,10 +688,9 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                 emptyHtml
     in
     div
-        [ css
+        (css
             [ Tw.pb_6
             , Tw.border_b
-            , Tw.border_color Theme.gray_200
             , Tw.flex
             , Tw.flex_col
             , Tw.justify_start
@@ -714,7 +713,8 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                 , Css.property "width" "550px"
                 ]
             ]
-        ]
+            :: styles.colorStyleBorders
+        )
         [ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article
         , invalidTagIndicator
         , div
@@ -851,7 +851,7 @@ viewArticlePreviewBigPicture articlePreviewsData articlePreviewData article =
             , Tw.inline_flex
             ]
         ]
-        [ previewBigPictureImage article
+        [ previewBigPictureImage article articlePreviewsData
         , div
             [ css
                 [ Tw.flex_col
@@ -883,7 +883,6 @@ previewListImage article =
                 [ css
                     [ Tw.w_80
                     , Tw.h_44
-                    , Tw.bg_color Theme.gray_300
                     , Tw.overflow_hidden
                     , Tw.relative
                     ]
@@ -906,15 +905,18 @@ previewListImage article =
             div [] []
 
 
-previewBigPictureImage : Article -> Html msg
-previewBigPictureImage article =
+previewBigPictureImage : Article -> ArticlePreviewsData msg -> Html msg
+previewBigPictureImage article articlePreviewData =
+    let
+        styles =
+            Ui.Styles.stylesForTheme articlePreviewData.theme
+    in
     case article.image of
         Just image ->
             div
                 [ css
                     [ Tw.w_96
                     , Tw.h_60
-                    , Tw.bg_color Theme.gray_300
                     , Tw.overflow_hidden
                     , Tw.relative
                     , Tw.rounded_xl
@@ -936,15 +938,15 @@ previewBigPictureImage article =
 
         Nothing ->
             div
-                [ css
+                (css
                     [ Tw.w_96
                     , Tw.h_60
-                    , Tw.bg_color Theme.gray_300
                     , Tw.overflow_hidden
                     , Tw.relative
                     , Tw.rounded_xl
                     ]
-                ]
+                    :: styles.colorStyleBackground
+                )
                 []
 
 
@@ -964,7 +966,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                     , Tw.inline_flex
                     ]
                 ]
-                [ viewProfilePubKey pubKey
+                [ viewProfilePubKey articlePreviewsData pubKey
                 , timeParagraph styles articlePreviewsData.browserEnv article.publishedAt article.createdAt
                 ]
 
@@ -984,7 +986,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                         , Tw.inline_flex
                         ]
                     ]
-                    [ viewProfileImageSmall (linkElementForProfile profile validationStatus) (Just profile) validationStatus
+                    [ viewProfileImageSmall styles (linkElementForProfile profile validationStatus) (Just profile) validationStatus
                     , div
                         [ css
                             [ Tw.justify_start
@@ -1063,8 +1065,12 @@ timeParagraph styles browserEnv maybePublishedAt createdAt =
         [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
 
 
-viewProfilePubKey : PubKey -> Html msg
-viewProfilePubKey pubKey =
+viewProfilePubKey : ArticlePreviewsData msg -> PubKey -> Html msg
+viewProfilePubKey articlePreviewsData pubKey =
+    let
+        styles =
+            Ui.Styles.stylesForTheme articlePreviewsData.theme
+    in
     div
         [ css
             [ Tw.flex
@@ -1073,12 +1079,12 @@ viewProfilePubKey pubKey =
             , Tw.mb_4
             ]
         ]
-        [ viewProfileImageSmall (linkElementForProfilePubKey pubKey) Nothing ValidationUnknown
+        [ viewProfileImageSmall styles (linkElementForProfilePubKey pubKey) Nothing ValidationUnknown
         , h2
             [ css
                 [ Tw.text_sm
                 , Tw.font_semibold
-                , Tw.text_color Theme.gray_800
+                , Tw.text_color Theme.green_500
                 , Tw.truncate
                 ]
             ]
@@ -1113,7 +1119,6 @@ viewProfileImage linkElement maybeProfile validationStatus =
                 [ Tw.absolute
                 , Tw.top_0
                 , Tw.right_0
-                , Tw.text_color Theme.gray_400
                 , Tw.w_4
                 , Tw.h_4
                 ]
@@ -1123,8 +1128,8 @@ viewProfileImage linkElement maybeProfile validationStatus =
         ]
 
 
-viewProfileImageSmall : (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
-viewProfileImageSmall linkElement maybeProfile validationStatus =
+viewProfileImageSmall : Styles msg -> (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
+viewProfileImageSmall styles linkElement maybeProfile validationStatus =
     div
         [ css
             [ Tw.relative
@@ -1148,7 +1153,6 @@ viewProfileImageSmall linkElement maybeProfile validationStatus =
                 [ Tw.absolute
                 , Tw.top_0
                 , Tw.right_0
-                , Tw.text_color Theme.gray_400
                 , Tw.max_w_2
                 , Tw.max_h_2
                 ]

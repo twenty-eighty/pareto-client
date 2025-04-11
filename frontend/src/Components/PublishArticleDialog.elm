@@ -463,10 +463,11 @@ viewRelays (Settings settings) relays =
             [ h2
                 [ css
                     [ Tw.text_lg
-                    , Tw.text_color Theme.gray_800
+                    , Tw.text_color styles.color4
+                    , darkMode [ Tw.text_color styles.color4DarkMode ]
                     , Tw.font_bold
                     ]
-                , fontFamilyUnbounded
+                , fontFamilyInter
                 ]
                 [ text <| Translations.relaysTitle [ settings.browserEnv.translations ] ]
             ]
@@ -481,7 +482,8 @@ viewRelays (Settings settings) relays =
             [ h2
                 [ css
                     [ Tw.text_base
-                    , Tw.text_color Theme.gray_800
+                    , Tw.text_color styles.color3
+                    , darkMode [ Tw.text_color styles.color3DarkMode ]
                     ]
                 , fontFamilyInter
                 ]

@@ -15,8 +15,7 @@ import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (PubKey)
 import Set exposing (Set)
 import Shared
-import Tailwind.Breakpoints exposing (lg, md, sm)
-import Tailwind.Theme as Theme
+import Tailwind.Breakpoints exposing (md)
 import Tailwind.Utilities as Tw
 import Time
 import Translations.Profile as Translations
@@ -53,8 +52,8 @@ type FollowType msg
     | UnknownFollowing
 
 
-viewProfileSmall : Profile -> ProfileValidation -> Html msg
-viewProfileSmall profile validationStatus =
+viewProfileSmall : Styles msg -> Profile -> ProfileValidation -> Html msg
+viewProfileSmall styles profile validationStatus =
     div
         [ css
             [ Tw.flex
@@ -72,12 +71,12 @@ viewProfileSmall profile validationStatus =
             ]
             [ viewProfileImageSmall (linkElementForProfile profile validationStatus) (Just profile) validationStatus
             , h2
-                [ css
+                (css
                     [ Tw.text_sm
                     , Tw.font_semibold
-                    , Tw.text_color Theme.gray_800
                     ]
-                ]
+                    :: styles.colorStyleGrayscaleTitle
+                )
                 [ text (profileDisplayName profile.pubKey profile) ]
             ]
         ]
@@ -290,8 +289,8 @@ viewBanner maybeImage =
             emptyHtml
 
 
-viewProfilePubKey : PubKey -> Html msg
-viewProfilePubKey pubKey =
+viewProfilePubKey : Styles msg -> PubKey -> Html msg
+viewProfilePubKey styles pubKey =
     div
         [ css
             [ Tw.flex
@@ -302,12 +301,12 @@ viewProfilePubKey pubKey =
         ]
         [ viewProfileImage (linkElementForProfilePubKey pubKey) Nothing ValidationUnknown
         , h2
-            [ css
+            (css
                 [ Tw.text_sm
                 , Tw.font_semibold
-                , Tw.text_color Theme.gray_800
                 ]
-            ]
+                :: styles.colorStyleGrayscaleTitle
+            )
             [ text pubKey ]
         ]
 
@@ -339,7 +338,6 @@ viewProfileImage linkElement maybeProfile validationStatus =
                 [ Tw.absolute
                 , Tw.top_0
                 , Tw.right_0
-                , Tw.text_color Theme.gray_400
                 , Tw.w_4
                 , Tw.h_4
                 ]
@@ -418,7 +416,6 @@ viewProfileImageSmall linkElement maybeProfile validationStatus =
                 [ Tw.absolute
                 , Tw.top_0
                 , Tw.right_0
-                , Tw.text_color Theme.gray_400
                 , Tw.max_w_2
                 , Tw.max_h_2
                 ]
@@ -428,16 +425,12 @@ viewProfileImageSmall linkElement maybeProfile validationStatus =
         ]
 
 
-timeParagraph : BrowserEnv -> Maybe Time.Posix -> Html msg
-timeParagraph browserEnv maybePublishedAt =
+timeParagraph : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Html msg
+timeParagraph styles browserEnv maybePublishedAt =
     case maybePublishedAt of
         Just publishedAt ->
             p
-                [ css
-                    [ Tw.text_xs
-                    , Tw.text_color Theme.gray_500
-                    ]
-                ]
+                (css [ Tw.text_xs ] :: styles.colorStyleGrayscaleDisabled)
                 [ text <| BrowserEnv.formatDate browserEnv publishedAt ]
 
         Nothing ->
