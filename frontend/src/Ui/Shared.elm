@@ -4,6 +4,7 @@ import BrowserEnv exposing (BrowserEnv)
 import Color
 import Components.Icon as Icon exposing (Icon)
 import Css
+import Dict
 import Erl
 import FeatherIcons
 import Html.Styled as Html exposing (Html, a, button, div, h2, text)
@@ -264,6 +265,9 @@ viewInteractions styles browserEnv previewData instanceId =
                     ( Icon.MaterialIcon Icon.MaterialRepeat 30 Icon.Inherit
                     , actions.addRepost
                     )
+
+        commentsCount =
+            List.length interactions.articleComments + Dict.size interactions.articleCommentComments
     in
     div
         [ css
@@ -273,7 +277,7 @@ viewInteractions styles browserEnv previewData instanceId =
             , Tw.inline_flex
             ]
         ]
-        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) actions.startComment (Maybe.map String.fromInt interactions.notes) previewData instanceId
+        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) actions.startComment (Just <| String.fromInt commentsCount) previewData instanceId
         , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) previewData instanceId
         , viewReactions styles repostIcon repostMsg (Maybe.map String.fromInt interactions.reposts) previewData instanceId
         , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) previewData instanceId
