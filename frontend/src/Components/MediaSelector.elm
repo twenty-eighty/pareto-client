@@ -1148,6 +1148,9 @@ imagePreview translations onSelected displayType uniqueFileId uploadedFile =
                                 )
                             |> Maybe.withDefault ""
 
+                    else if Nip94.isPdf nip96File then
+                        "/images/pdf-placeholder.jpeg"
+
                     else if Nip94.isAudio nip96File then
                         "/images/audio-placeholder.jpeg"
 
