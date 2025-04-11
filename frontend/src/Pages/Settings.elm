@@ -1213,7 +1213,7 @@ blossomServersSection shared user mediaServersModel =
 
         blossomServerSuggestions =
             { identifier = "blossom-server-suggestions"
-            , suggestions = []
+            , suggestions = suggestedServers
             }
 
         readOnly =
@@ -1235,7 +1235,8 @@ blossomServersSection shared user mediaServersModel =
 
 
 suggestedBlossomServers : Shared.Model -> PubKey -> List RelayUrl
-suggestedBlossomServers shared pubKey =
+suggestedBlossomServers _ _ =
+    -- currently we prefer NIP-96
     []
 
 
