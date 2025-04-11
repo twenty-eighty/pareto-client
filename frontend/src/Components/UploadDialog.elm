@@ -531,15 +531,9 @@ update props =
 
                                             Nothing ->
                                                 Nothing
-
-                                    -- content field of auth header
-                                    content =
-                                        upload
-                                            |> Maybe.andThen .caption
-                                            |> Maybe.withDefault "Image upload"
                                 in
                                 PutRequest fileId hash
-                                    |> RequestBlossomAuth serverUrl content
+                                    |> RequestBlossomAuth serverUrl "Image upload"
                                     |> Nostr.createRequest props.nostr "Blossom auth request for files to be uploaded" []
                                     |> Shared.Msg.RequestNostrEvents
                                     |> Effect.sendSharedMsg
