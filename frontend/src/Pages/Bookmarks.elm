@@ -292,6 +292,7 @@ viewArticleBookmarks user shared _ addressComponents =
             , nostr = shared.nostr
             , userPubKey = Just user.pubKey
             , onBookmark = Just ( AddArticleBookmark user.pubKey, RemoveArticleBookmark user.pubKey )
+            , commenting = Nothing
             , onReaction = Nothing
             , onRepost = Nothing
             , onZap = Nothing

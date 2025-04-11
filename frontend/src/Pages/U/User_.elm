@@ -223,6 +223,7 @@ viewProfile shared model profile =
                 , nostr = shared.nostr
                 , userPubKey = Shared.loggedInPubKey shared.loginStatus
                 , onBookmark = Nothing
+                , commenting = Nothing
                 , onReaction = Nothing
                 , onRepost = Nothing
                 , onZap = Nothing

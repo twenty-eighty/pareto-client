@@ -59,7 +59,6 @@ viewProfileSmall styles profile validationStatus =
             [ Tw.flex
             , Tw.flex_col
             , Tw.space_y_2
-            , Tw.mb_4
             ]
         ]
         [ div
@@ -68,7 +67,6 @@ viewProfileSmall styles profile validationStatus =
                 , Tw.flex_row
                 , Tw.items_center
                 , Tw.space_x_2
-                , Tw.mb_4
                 ]
             ]
             [ viewProfileImageSmall (linkElementForProfile profile validationStatus) (Just profile) validationStatus

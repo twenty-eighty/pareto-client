@@ -967,7 +967,7 @@ newsletterSubscribersEvent shared pubKey articleAddressComponents articleData su
             -- create unique identifier for every newsletter
             |> Event.addDTag (newsletterDTag ++ identifier)
             -- reference article to be sent as newsletter
-            |> Event.addAddressTag articleAddressComponents
+            |> Event.addAddressTag articleAddressComponents Nothing
             -- reference email gateway as encryption target
             |> Event.addPubKeyTag Pareto.emailGatewayKey Nothing Nothing
     , content = emailSendRequestToJson shared.nostr.testMode senderProfileName articleData subscriberEventData
@@ -983,9 +983,9 @@ emailSendRequestToJson testMode maybeSenderName { title, summary, content, image
         testModeValue =
             if testMode == Nostr.TestModeEnabled then
                 Just True
+
             else
                 Nothing
-
     in
     [ ( "newsletter"
       , [ ( subscriberEventKey, Encode.string keyHex )
@@ -1087,6 +1087,7 @@ subscribeEvent nostr authorProfile maybeSigningPubKey { pubKey, email, firstName
         testModeValue =
             if nostr.testMode == Nostr.TestModeEnabled then
                 Just True
+
             else
                 Nothing
 
@@ -1126,6 +1127,7 @@ appendOptionalObjectString key maybeValue entries =
 
         Nothing ->
             entries
+
 
 appendOptionalObjectBool : String -> Maybe Bool -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
 appendOptionalObjectBool key maybeValue entries =

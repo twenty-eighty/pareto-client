@@ -137,7 +137,12 @@ view (Settings settings) =
 
         ( elementType, attrs ) =
             if settings.rows > 1 then
-                ( textarea, [ Attr.rows settings.rows ] )
+                ( textarea
+                , [ Attr.rows settings.rows
+                    , css [  Tw.h_auto
+
+                    ]
+                 ] )
 
             else
                 ( input, [ Attr.type_ <| fieldTypeToString settings.type_ ] )

@@ -6,14 +6,12 @@ module Components.MessageDialog exposing
     )
 
 import Components.Button as Button
-import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, strong, text)
-import Html.Styled.Attributes as Attr exposing (class, classList, css, disabled, href, type_)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled as Html exposing (Html, div)
+import Html.Styled.Attributes exposing (css)
+import Html.Styled.Events exposing (..)
 import Tailwind.Utilities as Tw
-import Translations.MessageDialog as Translations
 import Ui.Shared exposing (modalDialog)
-import Ui.Styles exposing (Styles, Theme)
+import Ui.Styles exposing (Theme)
 
 
 type MessageDialog identifier msg

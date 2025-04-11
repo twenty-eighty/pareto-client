@@ -13,6 +13,7 @@ import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Community exposing (Community)
+import Nostr.Nip22 exposing (articleDraftComment)
 import Nostr.Request exposing (RequestId)
 import Tailwind.Utilities as Tw
 import Ui.Article exposing (ArticlePreviewsData)
@@ -32,7 +33,7 @@ viewArticle articlePreviewsData loadedContent article =
         articlePreviewsData
         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
         , actions = actionsFromArticlePreviewsData articlePreviewsData article
-        , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
+        , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr articlePreviewsData.userPubKey article
         , displayAuthor = True
         , loadedContent = loadedContent
         }
@@ -52,6 +53,18 @@ actionsFromArticlePreviewsData articlePreviewsData article =
                 )
                 articlePreviewsData.onReaction
                 maybeAddressComponents
+
+        startCommentMsg =
+            articlePreviewsData.userPubKey
+                |> Maybe.andThen
+                    (\userPubKey ->
+                        Maybe.map2
+                            (\( _, openCommentMsg ) draftComment ->
+                                openCommentMsg draftComment
+                            )
+                            articlePreviewsData.commenting
+                            (articleDraftComment userPubKey article)
+                    )
     in
     case ( articlePreviewsData.onBookmark, maybeAddressComponents ) of
         ( Just ( addArticleBookmark, removeArticleBookmark ), Just addressComponents ) ->
@@ -60,6 +73,7 @@ actionsFromArticlePreviewsData articlePreviewsData article =
             , addReaction = addReactionMsg
             , removeReaction = Nothing
             , addRepost = articlePreviewsData.onRepost
+            , startComment = startCommentMsg
             }
 
         ( _, _ ) ->
@@ -68,6 +82,7 @@ actionsFromArticlePreviewsData articlePreviewsData article =
             , addReaction = Nothing
             , removeReaction = Nothing
             , addRepost = Nothing
+            , startComment = Nothing
             }
 
 
@@ -107,7 +122,7 @@ viewArticlePreviewsList articlePreviewsData articles =
                             { author = Nostr.getAuthor articlePreviewsData.nostr article.author
                             , actions =
                                 actionsFromArticlePreviewsData articlePreviewsData article
-                            , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
+                            , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr articlePreviewsData.userPubKey article
                             , displayAuthor = True
                             , loadedContent = Nothing
                             }
@@ -138,7 +153,7 @@ viewArticlePreviewsBigPicture articlePreviewsData articles =
                         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
                         , actions =
                             actionsFromArticlePreviewsData articlePreviewsData article
-                        , interactions = Nostr.getInteractions articlePreviewsData.nostr articlePreviewsData.userPubKey article
+                        , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr articlePreviewsData.userPubKey article
                         , displayAuthor = True
                         , loadedContent = Nothing
                         }

@@ -1506,7 +1506,7 @@ viewUploadResponseBlossom browserEnv response =
                         fileMetadata.url
                             |> Maybe.withDefault (Translations.noUrlProvidedText [ browserEnv.translations ])
 
-                    ox =
+                    _ =
                         fileMetadata.oxHash
                             |> Maybe.withDefault (Translations.noHashProvidedText [ browserEnv.translations ])
                 in
@@ -1544,7 +1544,7 @@ viewUploadResponseNip96 browserEnv response =
                         fileMetadata.url
                             |> Maybe.withDefault (Translations.noUrlProvidedText [ browserEnv.translations ])
 
-                    ox =
+                    _ =
                         fileMetadata.oxHash
                             |> Maybe.withDefault (Translations.noHashProvidedText [ browserEnv.translations ])
                 in
