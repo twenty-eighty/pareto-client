@@ -66,26 +66,22 @@ followingPubKey following =
 
 followListFromEvent : Event -> PubKeyFollowList
 followListFromEvent event =
-    let
-        followList =
-            event.tags
-                |> List.foldl
-                    (\tag res ->
-                        case tag of
-                            PublicKeyTag pubKey relay petname ->
-                                { res | following = res.following ++ [ FollowingPubKey { pubKey = pubKey, relay = relay, petname = petname } ] }
+    event.tags
+        |> List.foldl
+            (\tag res ->
+                case tag of
+                    PublicKeyTag pubKey relay petname ->
+                        { res | following = res.following ++ [ FollowingPubKey { pubKey = pubKey, relay = relay, petname = petname } ] }
 
-                            HashTag hashtag ->
-                                { res | following = res.following ++ [ FollowingHashtag hashtag ] }
+                    HashTag hashtag ->
+                        { res | following = res.following ++ [ FollowingHashtag hashtag ] }
 
-                            _ ->
-                                res
-                    )
-                    { pubKey = event.pubKey
-                    , following = []
-                    }
-    in
-    followList
+                    _ ->
+                        res
+            )
+            { pubKey = event.pubKey
+            , following = []
+            }
 
 
 followListEvent : PubKey -> List Following -> Event

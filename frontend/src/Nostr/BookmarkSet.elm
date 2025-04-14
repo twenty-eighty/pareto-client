@@ -1,8 +1,6 @@
 module Nostr.BookmarkSet exposing (..)
 
-import Dict exposing (Dict)
-import Json.Decode as Decode exposing (Decoder)
-import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), TagReference(..), parseAddress)
+import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), TagReference(..))
 import Nostr.Types exposing (EventId, PubKey)
 
 
@@ -26,7 +24,7 @@ bookmarkSetFromEvent event =
                 |> List.foldl
                     (\tag bml ->
                         case tag of
-                            AddressTag addressComponents ->
+                            AddressTag addressComponents _ ->
                                 { bml | articles = bml.articles ++ [ addressComponents ] }
 
                             HashTag hashtag ->

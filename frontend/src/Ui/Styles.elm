@@ -83,7 +83,6 @@ map toMsg props =
     , colorStyleMedia = mapStyleBundle toMsg props.colorStyleMedia
     , colorStyleBorders = mapStyleBundle toMsg props.colorStyleBorders
     , colorStyleIcons = mapStyleBundle toMsg props.colorStyleIcons
-    , colorStyleGreen = mapStyleBundle toMsg props.colorStyleGreen
     , colorStyleCover = mapStyleBundle toMsg props.colorStyleCover
     , colorStyleGrayscaleTitle = mapStyleBundle toMsg props.colorStyleGrayscaleTitle
     , colorStyleGrayscaleSummary = mapStyleBundle toMsg props.colorStyleGrayscaleSummary
@@ -136,7 +135,6 @@ type alias Styles msg =
     , colorStyleMedia : StyleBundle msg
     , colorStyleBorders : StyleBundle msg
     , colorStyleIcons : StyleBundle msg
-    , colorStyleGreen : StyleBundle msg
     , colorStyleCover : StyleBundle msg
     , colorStyleGrayscaleTitle : StyleBundle msg
     , colorStyleGrayscaleSummary : StyleBundle msg
@@ -307,47 +305,40 @@ paretoThemeStyles =
         ]
     , colorStyleLabel =
         [ css
-            [ Tw.text_color Theme.slate_600 -- should be #565C70
+            [ Tw.text_color color2
             , darkMode
-                [ Tw.text_color Theme.slate_400
+                [ Tw.text_color color2Inverse
                 ]
             ]
         ]
     , colorStyleLinks =
         [ css
-            [ darkMode
-                []
+            [ Tw.text_color color4
+            , darkMode
+                [ Tw.text_color color4Inverse ]
             ]
         ]
     , colorStyleMedia =
         [ css
-            [ Tw.text_color Theme.slate_200 -- should be #D6D9E5
+            [ Tw.text_color color2
             , darkMode
-                [ Tw.text_color Theme.slate_800
+                [ Tw.text_color color2Inverse
                 ]
             ]
         ]
     , colorStyleBorders =
         [ css
-            [ Tw.text_color color4
+            [ Tw.border_color color4
             , darkMode
-                [ Tw.text_color color4Inverse
+                [ Tw.border_color color4Inverse
                 ]
             ]
         ]
     , colorStyleIcons =
         [ css
-            [ Tw.text_color Theme.slate_400 -- should be #999CAB
+            [ Tw.text_color color3
             , darkMode
-                [ Tw.text_color Theme.slate_600
-                ]
-            ]
-        ]
-    , colorStyleGreen =
-        [ css
-            [ Tw.text_color Theme.emerald_400 -- should be Linear in Figma
-            , darkMode
-                [ Tw.text_color Theme.emerald_600
+                [ Tw.text_color color3Inverse
                 ]
             ]
         ]
@@ -424,9 +415,9 @@ paretoThemeStyles =
         ]
     , colorStylePrimaryButtonText =
         [ css
-            [ Tw.text_color color1
+            [ Tw.text_color color3
             , darkMode
-                [ Tw.text_color color1Inverse
+                [ Tw.text_color color3Inverse
                 ]
             ]
         ]

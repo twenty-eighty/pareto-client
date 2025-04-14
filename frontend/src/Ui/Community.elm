@@ -2,31 +2,34 @@ module Ui.Community exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
 import Dict exposing (Dict)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h1, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled as Html exposing (Html, div, h1, h3, h4, img, p, text)
+import Html.Styled.Attributes as Attr exposing (css, style)
+import Html.Styled.Events exposing (..)
 import Nostr.Community exposing (Community, Image, Moderator, communityName)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName)
 import Nostr.Types exposing (PubKey)
-import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (fontFamilyUnbounded)
+import Ui.Styles exposing (Styles, Theme(..), fontFamilyUnbounded)
 
 
 viewCommunity : BrowserEnv -> Dict PubKey Profile -> Community -> Html msg
 viewCommunity browserEnv profiles community =
+    let
+        styles =
+            Ui.Styles.stylesForTheme ParetoTheme
+    in
     div
-        [ css
+        (css
             [ Tw.flex
             , Tw.items_center
             , Tw.justify_center
             , Tw.min_h_screen
-            , Tw.bg_color Theme.gray_100
             ]
-        ]
+            :: styles.colorStyleBackground
+        )
         [ div
             [ css
                 [ Tw.bg_color Theme.white
@@ -38,9 +41,9 @@ viewCommunity browserEnv profiles community =
                 ]
             ]
             [ viewImage community.image
-            , viewName <| communityName community
-            , viewSummary community.description
-            , viewModerators browserEnv profiles community.moderators
+            , viewName styles <| communityName community
+            , viewSummary styles community.description
+            , viewModerators styles profiles community.moderators
             ]
         ]
 
@@ -71,50 +74,52 @@ viewImage maybeImage =
             emptyHtml
 
 
-viewName : String -> Html msg
-viewName name =
+viewName : Styles msg -> String -> Html msg
+viewName styles name =
     h1
-        [ css
+        ([ css
             [ Tw.text_4xl
             , Tw.font_bold
-            , Tw.text_color Theme.gray_900
             , Tw.mb_2
             ]
-        , fontFamilyUnbounded
-        ]
+         , fontFamilyUnbounded
+         ]
+            ++ styles.colorStyleGrayscaleTitle
+        )
         [ text name
         ]
 
 
-viewSummary : Maybe String -> Html msg
-viewSummary maybeDescription =
+viewSummary : Styles msg -> Maybe String -> Html msg
+viewSummary styles maybeDescription =
     case maybeDescription of
         Just description ->
             p
-                [ css
-                    [ Tw.text_color Theme.gray_600
-                    , Tw.text_sm
+                (css
+                    [ Tw.text_sm
                     , Tw.mb_4
                     ]
-                ]
+                    :: styles.colorStyleGrayscaleText
+                )
                 [ text description ]
 
         Nothing ->
             emptyHtml
 
 
-viewModerators : BrowserEnv -> Dict PubKey Profile -> List Moderator -> Html msg
-viewModerators browserEnv profiles moderators =
+viewModerators : Styles msg -> Dict PubKey Profile -> List Moderator -> Html msg
+viewModerators styles profiles moderators =
     if not (List.isEmpty moderators) then
         h3
-            [ css
+            ([ css
                 [ Tw.text_lg
                 , Tw.font_bold
-                , Tw.text_color Theme.gray_900
                 , Tw.mb_2
                 ]
-            , fontFamilyUnbounded
-            ]
+             , fontFamilyUnbounded
+             ]
+                ++ styles.colorStyleGrayscaleText
+            )
             [ text "Moderators"
 
             -- TODO: get actual validation status
@@ -138,6 +143,10 @@ viewModerator maybeProfile validationStatus moderator =
 
 viewProfile : Profile -> ProfileValidation -> Moderator -> Html msg
 viewProfile profile validationStatus moderator =
+    let
+        styles =
+            Ui.Styles.stylesForTheme ParetoTheme
+    in
     div
         [ css
             [ Tw.flex
@@ -149,12 +158,12 @@ viewProfile profile validationStatus moderator =
         [ Ui.Profile.viewProfileImage (div []) (Just profile) validationStatus
         , div []
             [ h4
-                [ css
+                (css
                     [ Tw.text_sm
                     , Tw.font_semibold
-                    , Tw.text_color Theme.gray_800
                     ]
-                ]
+                    :: styles.colorStyleGrayscaleTitle
+                )
                 [ text (profileDisplayName moderator.pubKey profile) ]
             ]
         ]
@@ -162,11 +171,15 @@ viewProfile profile validationStatus moderator =
 
 viewPubKey : String -> Html msg
 viewPubKey pubKey =
+    let
+        styles =
+            Ui.Styles.stylesForTheme ParetoTheme
+    in
     h4
-        [ css
+        (css
             [ Tw.text_sm
             , Tw.font_semibold
-            , Tw.text_color Theme.gray_800
             ]
-        ]
+            :: styles.colorStyleGrayscaleText
+        )
         [ text pubKey ]

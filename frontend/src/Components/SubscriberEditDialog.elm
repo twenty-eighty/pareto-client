@@ -15,7 +15,7 @@ import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.SubscriberEditDialog as Translations
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme)
+import Ui.Styles exposing (Theme(..))
 
 
 type Msg
@@ -200,32 +200,36 @@ viewSubscriberDialog (Settings settings) subscriber =
 
 entryField : BrowserEnv -> SubscriberField -> Subscriber -> Html Msg
 entryField browserEnv field subscriber =
+    let
+        styles =
+            Ui.Styles.stylesForTheme ParetoTheme
+    in
     div
         [ css
             [ Tw.mb_1
             ]
         ]
         [ label
-            [ Attr.for (Subscribers.fieldName field)
-            , css
+            ([ Attr.for (Subscribers.fieldName field)
+             , css
                 [ Tw.block
                 , Tw.mb_2
                 , Tw.text_sm
                 , Tw.font_medium
-                , Tw.text_color Theme.gray_700
                 ]
-            ]
+             ]
+                ++ styles.colorStyleLabel
+            )
             [ text <| Subscribers.translatedFieldName browserEnv.translations field ]
         , input
-            [ Attr.type_ "email"
-            , Attr.id (Subscribers.fieldName field)
-            , Attr.name "email"
-            , css
+            ([ Attr.type_ "email"
+             , Attr.id (Subscribers.fieldName field)
+             , Attr.name "email"
+             , css
                 [ Tw.w_full
                 , Tw.px_4
                 , Tw.py_2
                 , Tw.border
-                , Tw.border_color Theme.gray_300
                 , Tw.rounded
                 , Css.focus
                     [ Tw.outline_none
@@ -233,13 +237,17 @@ entryField browserEnv field subscriber =
                     , Tw.ring_color Theme.blue_500
                     ]
                 ]
-            , Attr.required True
-            , Attr.value (Subscribers.subscriberValue browserEnv subscriber field)
-            , Events.onInput
+             , Attr.required True
+             , Attr.value (Subscribers.subscriberValue browserEnv subscriber field)
+             , Events.onInput
                 (\value ->
                     Subscribers.setSubscriberField field value subscriber
                         |> UpdateSubscriber
                 )
-            ]
+             ]
+                ++ styles.colorStyleBackground
+                ++ styles.colorStyleGrayscaleText
+                ++ styles.colorStyleBorders
+            )
             []
         ]

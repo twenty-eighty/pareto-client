@@ -1107,31 +1107,30 @@ imagePreview translations onSelected displayType uniqueFileId uploadedFile =
         selectionAttr =
             if multiSelection then
                 [ Events.onDoubleClick (SelectedItem { item = uploadedFile, onSelected = onSelected }) ]
+
             else
                 [ Events.onClick (SelectedItem { item = uploadedFile, onSelected = onSelected }) ]
 
         commonAttributes =
-            selectionAttr ++
-            [ css
-                [ Tw.w_full
-                , Tw.h_auto
-                , Tw.max_h_56
-                , Tw.bg_color Theme.gray_200
-                , Tw.rounded_lg
-                , Tw.flex
-                , Tw.items_center
-                , Tw.justify_center
-                , Tw.text_color Theme.gray_400
-                , Tw.pr_1
-                , Tw.pb_1
-                , Tw.drop_shadow_md
-                , Css.hover
-                    [ Tw.pr_0
-                    , Tw.pb_0
-                    , Tw.drop_shadow_sm
-                    ]
-                ]
-            ]
+            selectionAttr
+                ++ [ css
+                        [ Tw.w_full
+                        , Tw.h_auto
+                        , Tw.max_h_56
+                        , Tw.rounded_lg
+                        , Tw.flex
+                        , Tw.items_center
+                        , Tw.justify_center
+                        , Tw.pr_1
+                        , Tw.pb_1
+                        , Tw.drop_shadow_md
+                        , Css.hover
+                            [ Tw.pr_0
+                            , Tw.pb_0
+                            , Tw.drop_shadow_sm
+                            ]
+                        ]
+                   ]
     in
     case uploadedFile of
         Nip96File nip96File ->
@@ -1148,6 +1147,9 @@ imagePreview translations onSelected displayType uniqueFileId uploadedFile =
                                  -- NIP-96 servers can return scaled versions of images
                                 )
                             |> Maybe.withDefault ""
+
+                    else if Nip94.isPdf nip96File then
+                        "/images/pdf-placeholder.jpeg"
 
                     else if Nip94.isAudio nip96File then
                         "/images/audio-placeholder.jpeg"

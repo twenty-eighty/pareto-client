@@ -1,7 +1,9 @@
 module Ui.Article exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
+import Components.ArticleComments as ArticleComments
 import Components.Button as Button
+import Components.Comment as Comment
 import Components.Icon as Icon
 import Components.ZapDialog as ZapDialog
 import Css
@@ -16,6 +18,7 @@ import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
 import Nostr.Event exposing (AddressComponents, Kind(..), Tag(..), TagReference(..))
 import Nostr.Nip19 exposing (NIP19Type(..))
+import Nostr.Nip22 exposing (CommentType)
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Reactions exposing (Interactions)
@@ -41,6 +44,7 @@ type alias ArticlePreviewsData msg =
     , nostr : Nostr.Model
     , userPubKey : Maybe PubKey
     , onBookmark : Maybe ( AddressComponents -> msg, AddressComponents -> msg ) -- msgs for adding/removing a bookmark
+    , commenting : Maybe ( Comment.Comment msg, CommentType -> msg )
     , onReaction : Maybe (EventId -> PubKey -> AddressComponents -> msg)
     , onRepost : Maybe msg
     , onZap : Maybe (List ZapDialog.Recipient -> msg)
@@ -102,6 +106,21 @@ textStyleArticleDate =
         , Tw.leading_tight
         ]
     , fontFamilyRobotoMono
+    ]
+
+
+colorStyleDate : List (Html.Attribute msg)
+colorStyleDate =
+    let
+        styles =
+            Ui.Styles.stylesForTheme ParetoTheme
+    in
+    [ css
+        [ Tw.text_color styles.color3
+        , darkMode
+            [ Tw.text_color styles.color3DarkMode
+            ]
+        ]
     ]
 
 
@@ -204,6 +223,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                 , Tw.items_center
                 , Tw.gap_4
                 , Tw.flex
+                , Tw.mb_20
                 ]
             ]
             [ div
@@ -261,8 +281,8 @@ viewArticle articlePreviewsData articlePreviewData article =
                     , Tw.justify_start
                     , Tw.items_start
                     , Tw.gap_4
+                    , Tw.mb_2
                     , Tw.flex
-                    , Tw.mb_20
                     ]
                     :: styles.colorStyleGrayscaleMuted
                     ++ textStyleReactions
@@ -272,9 +292,27 @@ viewArticle articlePreviewsData articlePreviewData article =
                 , viewContent styles articlePreviewData.loadedContent getProfile article.content
                 , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "2"
                 ]
-            ]
+            , case articlePreviewsData.commenting of
+                Just ( comment, _ ) ->
+                    comment
+                        |> Comment.view
 
-        -- , viewArticleComments styles
+                Nothing ->
+                    emptyHtml
+            , div
+                [ css
+                    [ Tw.mt_2 ]
+                ]
+                [ ArticleComments.new
+                    { browserEnv = articlePreviewsData.browserEnv
+                    , nostr = articlePreviewsData.nostr
+                    , articleComments = articlePreviewData.interactions.articleComments
+                    , articleCommentComments = articlePreviewData.interactions.articleCommentComments
+                    , theme = articlePreviewsData.theme
+                    }
+                    |> ArticleComments.view
+                ]
+            ]
         ]
 
 
@@ -305,19 +343,20 @@ viewArticleImage maybeImage =
             emptyHtml
 
 
-viewTitle : Maybe String -> Html msg
-viewTitle maybeTitle =
+viewTitle : Styles msg -> Maybe String -> Html msg
+viewTitle styles maybeTitle =
     case maybeTitle of
         Just title ->
             h3
-                [ css
+                ([ css
                     [ Tw.text_4xl
                     , Tw.font_bold
-                    , Tw.text_color Theme.gray_900
                     , Tw.mb_2
                     ]
-                , fontFamilyUnbounded
-                ]
+                 , fontFamilyUnbounded
+                 ]
+                    ++ styles.colorStyleGrayscaleTitle
+                )
                 [ text title
                 ]
 
@@ -326,17 +365,17 @@ viewTitle maybeTitle =
 
 
 viewSummary : Styles msg -> Maybe String -> Html msg
-viewSummary _ maybeSummary =
+viewSummary styles maybeSummary =
     case maybeSummary of
         Just summary ->
             Html.summary
-                [ css
-                    [ Tw.text_color Theme.gray_600
-                    , Tw.text_sm
+                (css
+                    [ Tw.text_sm
                     , Tw.mb_4
                     , Tw.list_none
                     ]
-                ]
+                    :: styles.colorStyleGrayscaleSummary
+                )
                 [ text summary ]
 
         Nothing ->
@@ -382,7 +421,7 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                     , Tw.mb_4
                     ]
                 ]
-                [ Ui.Profile.viewProfilePubKey pubKey
+                [ Ui.Profile.viewProfilePubKey styles pubKey
                 , timeParagraph styles browserEnv published createdAt
                 ]
 
@@ -413,7 +452,7 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                                ]
                         )
                         [ text <| profileDisplayName profile.pubKey profile ]
-                    , viewArticleTime styles browserEnv published createdAt
+                    , viewArticleTime browserEnv published createdAt
                     ]
                 ]
 
@@ -451,7 +490,6 @@ viewArticleProfileSmall profile validationStatus =
                     [ Tw.absolute
                     , Tw.top_0
                     , Tw.right_0
-                    , Tw.text_color Theme.gray_400
                     , Tw.w_3
                     , Tw.h_2
                     ]
@@ -461,11 +499,11 @@ viewArticleProfileSmall profile validationStatus =
         ]
 
 
-viewArticleTime : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg
-viewArticleTime styles browserEnv maybePublishedAt createdAt =
+viewArticleTime : BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg
+viewArticleTime browserEnv maybePublishedAt createdAt =
     div
         (textStyleArticleDate
-            ++ styles.colorStyleGrayscaleMuted
+            ++ colorStyleDate
             ++ [ css
                     [ Tw.left_0
                     , Tw.top_5
@@ -500,102 +538,6 @@ viewContentMarkdown styles loadedContent fnGetProfile content =
 
         Err error ->
             div [] [ text <| "Error rendering Markdown: " ++ error ]
-
-
-viewArticleComments : Styles msg -> Html msg
-viewArticleComments styles =
-    div
-        [ css
-            [ Tw.self_stretch
-            , Tw.flex_col
-            , Tw.justify_start
-            , Tw.items_start
-            , Tw.gap_6
-            , Tw.flex
-            ]
-        ]
-        [ div
-            [ css
-                [ Tw.justify_start
-                , Tw.items_center
-                , Tw.gap_3
-                , Tw.inline_flex
-                ]
-            ]
-            [ div
-                (styles.textStyleH2 ++ styles.colorStyleGrayscaleTitle)
-                [ text "Comments" ]
-            , div
-                (textStyleArticleAuthor ++ styles.colorStyleGrayscaleMuted)
-                [ text "(0)" ]
-            ]
-        , div
-            [ css
-                [ Tw.flex_col
-                , Tw.justify_end
-                , Tw.items_end
-                , Tw.gap_4
-                , Tw.flex
-                ]
-            ]
-            [ div
-                [ css
-                    [ Tw.flex_col
-                    , Tw.justify_start
-                    , Tw.items_start
-                    , Tw.gap_4
-                    , Tw.flex
-                    ]
-                ]
-                [ div
-                    [ css
-                        [ Tw.w_96
-                        , Tw.h_28
-                        , Tw.relative
-                        ]
-                    ]
-                    [ div
-                        [ css
-                            [ Tw.w_96
-                            , Tw.h_28
-                            , Tw.left_0
-                            , Tw.top_0
-                            , Tw.bg_color Theme.gray_100
-                            , Tw.rounded_xl
-                            ]
-                        ]
-                        []
-                    , div
-                        (styles.textStyleBody
-                            ++ styles.colorStyleGrayscaleMuted
-                            ++ [ css
-                                    [ Tw.left_4
-                                    , Tw.top_3
-                                    ]
-                               ]
-                        )
-                        [ text "Comment" ]
-                    ]
-                ]
-            , div
-                [ css
-                    [ Tw.self_stretch
-                    , Tw.px_6
-                    , Tw.py_3
-                    , Tw.bg_color Theme.blue_600
-                    , Tw.rounded_xl
-                    , Tw.justify_center
-                    , Tw.items_center
-                    , Tw.gap_2_dot_5
-                    , Tw.inline_flex
-                    ]
-                ]
-                [ div
-                    (textStyleReactions ++ styles.colorStyleInverse)
-                    [ text "Post Comment" ]
-                ]
-            ]
-        ]
 
 
 viewArticleInternal : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> BrowserEnv -> Article -> Html msg
@@ -746,10 +688,9 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                 emptyHtml
     in
     div
-        [ css
+        (css
             [ Tw.pb_6
             , Tw.border_b
-            , Tw.border_color Theme.gray_200
             , Tw.flex
             , Tw.flex_col
             , Tw.justify_start
@@ -772,7 +713,8 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                 , Css.property "width" "550px"
                 ]
             ]
-        ]
+            :: styles.colorStyleBorders
+        )
         [ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article
         , invalidTagIndicator
         , div
@@ -822,7 +764,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                                ]
                         )
                         [ text summaryText ]
-                    , viewHashTags styles article.hashtags (hashtagsHeightAttr :: textWidthAttr)
+                    , viewHashTags article.hashtags (hashtagsHeightAttr :: textWidthAttr)
                     ]
                 ]
             ]
@@ -862,8 +804,8 @@ viewTitlePreview styles maybeTitle maybeLinkTarget textWidthAttr =
             emptyHtml
 
 
-viewHashTags : Styles msg -> List String -> List Css.Style -> Html msg
-viewHashTags styles hashTags widthAttr =
+viewHashTags : List String -> List Css.Style -> Html msg
+viewHashTags hashTags widthAttr =
     if List.length hashTags > 0 then
         hashTags
             |> List.map viewHashTag
@@ -909,7 +851,7 @@ viewArticlePreviewBigPicture articlePreviewsData articlePreviewData article =
             , Tw.inline_flex
             ]
         ]
-        [ previewBigPictureImage article
+        [ previewBigPictureImage article articlePreviewsData
         , div
             [ css
                 [ Tw.flex_col
@@ -941,7 +883,6 @@ previewListImage article =
                 [ css
                     [ Tw.w_80
                     , Tw.h_44
-                    , Tw.bg_color Theme.gray_300
                     , Tw.overflow_hidden
                     , Tw.relative
                     ]
@@ -964,15 +905,18 @@ previewListImage article =
             div [] []
 
 
-previewBigPictureImage : Article -> Html msg
-previewBigPictureImage article =
+previewBigPictureImage : Article -> ArticlePreviewsData msg -> Html msg
+previewBigPictureImage article articlePreviewData =
+    let
+        styles =
+            Ui.Styles.stylesForTheme articlePreviewData.theme
+    in
     case article.image of
         Just image ->
             div
                 [ css
                     [ Tw.w_96
                     , Tw.h_60
-                    , Tw.bg_color Theme.gray_300
                     , Tw.overflow_hidden
                     , Tw.relative
                     , Tw.rounded_xl
@@ -994,15 +938,15 @@ previewBigPictureImage article =
 
         Nothing ->
             div
-                [ css
+                (css
                     [ Tw.w_96
                     , Tw.h_60
-                    , Tw.bg_color Theme.gray_300
                     , Tw.overflow_hidden
                     , Tw.relative
                     , Tw.rounded_xl
                     ]
-                ]
+                    :: styles.colorStyleBackground
+                )
                 []
 
 
@@ -1117,7 +1061,7 @@ editLink article =
 timeParagraph : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg
 timeParagraph styles browserEnv maybePublishedAt createdAt =
     div
-        (styles.colorStyleGrayscaleMuted ++ styles.textStyle14)
+        (colorStyleDate ++ styles.textStyle14)
         [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
 
 
@@ -1136,7 +1080,7 @@ viewProfilePubKey pubKey =
             [ css
                 [ Tw.text_sm
                 , Tw.font_semibold
-                , Tw.text_color Theme.gray_800
+                , Tw.text_color Theme.green_500
                 , Tw.truncate
                 ]
             ]
@@ -1171,7 +1115,6 @@ viewProfileImage linkElement maybeProfile validationStatus =
                 [ Tw.absolute
                 , Tw.top_0
                 , Tw.right_0
-                , Tw.text_color Theme.gray_400
                 , Tw.w_4
                 , Tw.h_4
                 ]
@@ -1206,7 +1149,6 @@ viewProfileImageSmall linkElement maybeProfile validationStatus =
                 [ Tw.absolute
                 , Tw.top_0
                 , Tw.right_0
-                , Tw.text_color Theme.gray_400
                 , Tw.max_w_2
                 , Tw.max_h_2
                 ]

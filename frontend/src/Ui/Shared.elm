@@ -4,6 +4,7 @@ import BrowserEnv exposing (BrowserEnv)
 import Color
 import Components.Icon as Icon exposing (Icon)
 import Css
+import Dict
 import Erl
 import FeatherIcons
 import Html.Styled as Html exposing (Html, a, button, div, h2, text)
@@ -19,9 +20,8 @@ import Pareto exposing (defaultRelays)
 import Set exposing (Set)
 import Svg.Loaders
 import Tailwind.Breakpoints as Bp
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Ui.Styles exposing (Styles, Theme, stylesForTheme)
+import Ui.Styles exposing (Styles, Theme, darkMode, stylesForTheme)
 
 
 emptyHtml : Html msg
@@ -59,37 +59,39 @@ pageLoadingIndicator =
         |> Html.fromUnstyled
 
 
-thinBorderButton : msg -> String -> Html msg
-thinBorderButton onClickMsg title =
+thinBorderButton : Styles msg -> msg -> String -> Html msg
+thinBorderButton styles onClickMsg title =
     button
-        [ css
-            [ Tw.bg_color Theme.gray_200
-            , Tw.py_2
+        ([ css
+            [ Tw.py_2
             , Tw.px_4
             , Tw.rounded_full
             , Css.hover
-                [ Tw.bg_color Theme.gray_300
-                ]
+                [ Tw.bg_color styles.color4 ]
+            , darkMode [ Css.hover [ Tw.bg_color styles.color4DarkMode ] ]
             ]
-        , Events.onClick onClickMsg
-        ]
+         , Events.onClick onClickMsg
+         ]
+            ++ styles.colorStylePrimaryButtonBackground
+        )
         [ text title ]
 
 
-linkButton : String -> String -> Html msg
-linkButton title url =
+linkButton : Styles msg -> String -> String -> Html msg
+linkButton styles title url =
     a
-        [ css
-            [ Tw.bg_color Theme.gray_200
-            , Tw.py_2
+        ([ css
+            [ Tw.py_2
             , Tw.px_4
             , Tw.rounded_full
             , Css.hover
-                [ Tw.bg_color Theme.gray_300
-                ]
+                [ Tw.bg_color styles.color4 ]
+            , darkMode [ Css.hover [ Tw.bg_color styles.color4DarkMode ] ]
             ]
-        , Attr.href url
-        ]
+         , Attr.href url
+         ]
+            ++ styles.colorStylePrimaryButtonBackground
+        )
         [ text title ]
 
 
@@ -100,17 +102,17 @@ modalDialog theme title content onClose =
             stylesForTheme theme
     in
     div
-        [ css
+        (css
             [ Tw.fixed
             , Tw.inset_0
-            , Tw.bg_color Theme.gray_900
             , Tw.bg_opacity_50
             , Tw.flex
             , Tw.justify_center
             , Tw.items_center
             , Tw.z_50
             ]
-        ]
+            :: styles.colorStyleBackground
+        )
         [ div
             (styles.colorStyleBackground
                 ++ [ css
@@ -141,24 +143,33 @@ modalDialog theme title content onClose =
                     [ css
                         [ Tw.text_lg
                         , Tw.font_semibold
-                        , Tw.text_color Theme.gray_800
+                        , Tw.text_color styles.color4
+                        , darkMode [ Tw.text_color styles.color4DarkMode ]
                         ]
                     ]
                     [ text title ]
                 , button
-                    [ css
-                        [ Tw.text_color Theme.gray_400
-                        , Css.hover
-                            [ Tw.text_color Theme.gray_600
+                    ([ css
+                        [ Css.hover
+                            [ Tw.text_color styles.color2 ]
+                        , darkMode
+                            [ Css.hover
+                                [ Tw.text_color styles.color2DarkMode ]
                             ]
                         ]
-                    , Attr.id "close-modal"
-                    , Events.onClick onClose
-                    ]
+                     , Attr.id "close-modal"
+                     , Events.onClick onClose
+                     ]
+                        ++ styles.colorStyleGrayscaleText
+                    )
                     [ text " ✕ " ]
                 ]
             , div
-                []
+                [ css
+                    [ Tw.max_h_96
+                    , Tw.overflow_y_auto
+                    ]
+                ]
                 content
             ]
         ]
@@ -170,6 +181,7 @@ type alias Actions msg =
     , addReaction : Maybe msg
     , removeReaction : Maybe msg
     , addRepost : Maybe msg
+    , startComment : Maybe msg
     }
 
 
@@ -253,6 +265,9 @@ viewInteractions styles browserEnv previewData instanceId =
                     ( Icon.MaterialIcon Icon.MaterialRepeat 30 Icon.Inherit
                     , actions.addRepost
                     )
+
+        commentsCount =
+            List.length interactions.articleComments + Dict.size interactions.articleCommentComments
     in
     div
         [ css
@@ -262,7 +277,7 @@ viewInteractions styles browserEnv previewData instanceId =
             , Tw.inline_flex
             ]
         ]
-        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) Nothing (Maybe.map String.fromInt interactions.notes) previewData instanceId
+        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) actions.startComment (Just <| String.fromInt commentsCount) previewData instanceId
         , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) previewData instanceId
         , viewReactions styles repostIcon repostMsg (Maybe.map String.fromInt interactions.reposts) previewData instanceId
         , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) previewData instanceId

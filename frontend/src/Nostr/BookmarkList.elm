@@ -1,8 +1,7 @@
 module Nostr.BookmarkList exposing (..)
 
-import Dict exposing (Dict)
-import Json.Decode as Decode exposing (Decoder, list)
-import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), TagReference(..), addAddressTags, emptyEvent, parseAddress)
+import Json.Decode exposing (list)
+import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), TagReference(..), addAddressTags, emptyEvent)
 import Nostr.Types exposing (EventId, PubKey)
 
 
@@ -22,7 +21,7 @@ type BookmarkType
 
 
 
-{-  -}
+{- -}
 
 
 emptyBookmarkList : BookmarkList
@@ -50,7 +49,7 @@ bookmarkListFromEvent event =
                 |> List.foldl
                     (\tag bml ->
                         case tag of
-                            AddressTag addressComponents ->
+                            AddressTag addressComponents Nothing ->
                                 { bml | articles = bml.articles ++ [ addressComponents ] }
 
                             HashTag hashtag ->
@@ -149,5 +148,5 @@ bookmarkListEvent pubKey list =
     { event
         | tags =
             []
-                |> addAddressTags list.articles
+                |> addAddressTags list.articles Nothing
     }

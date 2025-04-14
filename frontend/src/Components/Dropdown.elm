@@ -9,7 +9,7 @@ import Html.Styled.Events exposing (..)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Task
-import Ui.Styles exposing (darkMode, fontFamilyInter)
+import Ui.Styles exposing (Theme(..), darkMode, fontFamilyInter)
 
 
 
@@ -213,23 +213,23 @@ view (Settings settings) =
             else
                 OpenDropdown
 
+        styles =
+            Ui.Styles.stylesForTheme ParetoTheme
+
         -- View the input of the dropdown, that opens the
         -- menu when focused, and displays the search query
         viewDropdownInput : Html msg
         viewDropdownInput =
             button
-                [ class "dropdown__toggle"
-                , css
+                ([ class "dropdown__toggle"
+                 , css
                     [ Tw.w_full
                     , Tw.text_left
-                    , Tw.bg_color Theme.white
                     , Tw.border
-                    , Tw.border_color Theme.gray_300
                     , Tw.rounded_lg
                     , Tw.shadow_sm
                     , Tw.px_4
                     , Tw.py_2
-                    , Tw.text_color Theme.gray_700
                     , Tw.cursor_pointer
                     , Css.focus
                         [ Tw.outline_none
@@ -237,16 +237,15 @@ view (Settings settings) =
                         , Tw.ring_color Theme.blue_500
                         , Tw.border_color Theme.blue_500
                         ]
-                    , darkMode
-                        [ Tw.border_color Theme.gray_700
-                        , Tw.text_color Theme.gray_300
-                        , Tw.bg_color Theme.black
-                        ]
                     ]
 
-                -- , onBlur (settings.toMsg BlurredDropdown)
-                , onClick (settings.toMsg dropdownClickMsg)
-                ]
+                 -- , onBlur (settings.toMsg BlurredDropdown)
+                 , onClick (settings.toMsg dropdownClickMsg)
+                 ]
+                    ++ styles.colorStyleBorders
+                    ++ styles.colorStyleGrayscaleText
+                    ++ styles.colorStyleBackground
+                )
                 [ viewSelectedValueOverlay
                 ]
 
@@ -285,37 +284,28 @@ view (Settings settings) =
                             |> Maybe.withDefault 0
                 in
                 div
-                    [ Attr.id "dropdownMenu"
-                    , Attr.tabindex 1
+                    ([ Attr.id "dropdownMenu"
+                     , Attr.tabindex 1
 
-                    -- position listbox on top of dropdown element, approx. so that selected element is on top of dropdown
-                    , Attr.style "top" (String.fromInt (selectedIndex * -40 - 15) ++ "px")
-                    , onBlur (settings.toMsg BlurredDropdown)
-                    , css
+                     -- position listbox on top of dropdown element, approx. so that selected element is on top of dropdown
+                     , Attr.style "top" (String.fromInt (selectedIndex * -40 - 15) ++ "px")
+                     , onBlur (settings.toMsg BlurredDropdown)
+                     , css
                         [ Tw.absolute
                         , Tw.cursor_pointer
                         , Tw.mt_2
                         , Tw.w_auto
                         , Tw.z_10
-                        , Tw.bg_color Theme.white
                         , Tw.border
-                        , Tw.border_color Theme.gray_200
                         , Tw.rounded_lg
                         , Tw.shadow_lg
-                        , darkMode
-                            [ Tw.bg_color Theme.black
-                            ]
                         ]
-                    ]
+                     ]
+                        ++ styles.colorStyleBackground
+                        ++ styles.colorStyleBorders
+                    )
                     [ ul
-                        [ css
-                            [ Tw.py_2
-                            , Tw.text_color Theme.gray_700
-                            , darkMode
-                                [ Tw.text_color Theme.gray_300
-                                ]
-                            ]
-                        ]
+                        (css [ Tw.py_2 ] :: styles.colorStyleGrayscaleText)
                         (List.map viewDropdownMenuItem choices)
                     ]
 

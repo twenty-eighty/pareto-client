@@ -20,7 +20,7 @@ import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Communities as Translations
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
+import Ui.Styles exposing (Styles, Theme(..), fontFamilyInter, fontFamilyUnbounded)
 import View exposing (View)
 
 
@@ -131,14 +131,14 @@ view shared model =
     { title = Translations.communitiesTitle [ shared.browserEnv.translations ]
     , body =
         [ div
-            [ css
+            (css
                 [ Tw.flex
                 , Tw.items_center
                 , Tw.justify_center
                 , Tw.min_h_screen
-                , Tw.bg_color Theme.gray_100
                 ]
-            ]
+                :: stylesFromParetoTheme.colorStyleBackground
+            )
             [ div
                 [ css
                     [ Tw.bg_color Theme.white
@@ -150,37 +150,40 @@ view shared model =
                     ]
                 ]
                 [ h1
-                    [ css
+                    ([ css
                         [ Tw.text_4xl
                         , Tw.font_bold
-                        , Tw.text_color Theme.gray_900
                         , Tw.mb_2
                         ]
-                    , fontFamilyUnbounded
-                    ]
+                     , fontFamilyUnbounded
+                     ]
+                        ++ stylesFromParetoTheme.colorStyleGrayscaleTitle
+                    )
                     [ text <| Translations.communitiesTitle [ shared.browserEnv.translations ]
                     ]
                 , h3
-                    [ css
+                    ([ css
                         [ Tw.text_2xl
                         , Tw.font_bold
-                        , Tw.text_color Theme.gray_900
                         , Tw.mb_2
                         ]
-                    , fontFamilyUnbounded
-                    ]
+                     , fontFamilyUnbounded
+                     ]
+                        ++ stylesFromParetoTheme.colorStyleGrayscaleTitle
+                    )
                     [ text <| Translations.myCommunitiesTitle [ shared.browserEnv.translations ]
                     ]
                 , viewFollowedCommunities shared model
                 , h3
-                    [ css
+                    ([ css
                         [ Tw.text_2xl
                         , Tw.font_bold
-                        , Tw.text_color Theme.gray_900
                         , Tw.mb_2
                         ]
-                    , fontFamilyUnbounded
-                    ]
+                     , fontFamilyUnbounded
+                     ]
+                        ++ stylesFromParetoTheme.colorStyleGrayscaleTitle
+                    )
                     [ text <| Translations.browseCommunitiesText [ shared.browserEnv.translations ]
                     ]
                 , viewSearchBar model
@@ -210,12 +213,12 @@ viewFollowedCommunities shared model =
 
         _ ->
             p
-                [ css
-                    [ Tw.text_color Theme.gray_900
-                    , Tw.mb_2
-                    ]
-                , fontFamilyInter
-                ]
+                ([ css
+                    [ Tw.mb_2 ]
+                 , fontFamilyInter
+                 ]
+                    ++ stylesFromParetoTheme.colorStyleGrayscaleText
+                )
                 [ text <| Translations.noCommunitiesText [ shared.browserEnv.translations ]
                 ]
 
@@ -230,30 +233,32 @@ communityForRef communities identifier pubKey =
 viewSearchBar : Model -> Html Msg
 viewSearchBar model =
     div
-        [ Events.onInput UpdateSearch
-        , css
+        ([ Events.onInput UpdateSearch
+         , css
             [ Tw.min_h_6
             , Tw.min_w_20
-            , Tw.bg_color Theme.gray_100
             ]
-        ]
+         ]
+            ++ stylesFromParetoTheme.colorStyleBackground
+        )
         [ input
-            [ Attr.attribute "type" "text"
-            , Attr.attribute "name" "search"
-            , Attr.attribute "id" "search"
-            , Attr.attribute "placeholder" "Search for communities"
-            , Attr.attribute "value" (model.searchString |> Maybe.withDefault "")
-            , css
+            ([ Attr.attribute "type" "text"
+             , Attr.attribute "name" "search"
+             , Attr.attribute "id" "search"
+             , Attr.attribute "placeholder" "Search for communities"
+             , Attr.attribute "value" (model.searchString |> Maybe.withDefault "")
+             , css
                 [ Tw.w_full
-                , Tw.text_color Theme.gray_900
-                , Tw.border_color Theme.gray_100
                 , Tw.border_2
                 , Tw.border_solid
                 , Tw.rounded_lg
                 , Tw.p_3
                 ]
-            , fontFamilyInter
-            ]
+             , fontFamilyInter
+             ]
+                ++ stylesFromParetoTheme.colorStyleGrayscaleText
+                ++ stylesFromParetoTheme.colorStyleBorders
+            )
             []
         ]
 
@@ -315,25 +320,26 @@ viewCommunityPreview _ community =
                 ]
             ]
             [ h3
-                [ css
+                ([ css
                     [ Tw.text_2xl
                     , Tw.font_bold
-                    , Tw.text_color Theme.gray_900
                     , Tw.mb_2
                     ]
-                , fontFamilyUnbounded
-                ]
+                 , fontFamilyUnbounded
+                 ]
+                    ++ stylesFromParetoTheme.colorStyleGrayscaleTitle
+                )
                 [ linkElement community
                     []
                     [ text <| Nostr.Community.communityName community ]
                 ]
             , p
-                [ css
-                    [ Tw.text_color Theme.gray_900
-                    , Tw.mb_2
-                    ]
-                , fontFamilyInter
-                ]
+                ([ css
+                    [ Tw.mb_2 ]
+                 , fontFamilyInter
+                 ]
+                    ++ stylesFromParetoTheme.colorStyleGrayscaleText
+                )
                 [ text (community.description |> Maybe.withDefault "")
                 ]
             ]
@@ -388,3 +394,8 @@ linkToCommunity community =
         |> Nip19.encode
         |> Result.toMaybe
         |> Maybe.map (\naddr -> "/c/" ++ naddr)
+
+
+stylesFromParetoTheme : Styles msg
+stylesFromParetoTheme =
+    Ui.Styles.stylesForTheme ParetoTheme

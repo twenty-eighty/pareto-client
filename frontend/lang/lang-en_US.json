@@ -31,6 +31,16 @@
       "hashtags title": "Hashtags",
       "urls title": "Urls"
    },
+   "comment": {
+      "comment label": "Comment",
+      "comment placeholder": "Add your comment...",
+      "post button text": "Post",
+      "posting button text": "Posting...",
+      "posted button text": "Posted",
+      "posting text": "Posting...",
+      "posted text": "Posted",
+      "error posting text": "Error posting comment: {{errorText}}"
+   },
    "communities": {
       "communities title": "Communities",
       "my communities title": "My communities",

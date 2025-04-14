@@ -26,10 +26,10 @@ import Graphics
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events
+import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Tailwind.Breakpoints as Bp
-import Ui.Styles
+import Ui.Styles exposing (Theme(..))
 
 
 
@@ -69,7 +69,6 @@ new props =
 -- MODIFIERS
 
 
-
 withDisabled : Bool -> Switch type_ msg -> Switch type_ msg
 withDisabled isDisabled (Settings settings) =
     Settings { settings | isDisabled = isDisabled }
@@ -85,8 +84,12 @@ view (Settings settings) =
         otherState =
             if settings.state == settings.stateOn then
                 settings.stateOff
+
             else
                 settings.stateOn
+
+        styles =
+            Ui.Styles.stylesForTheme ParetoTheme
     in
     -- ( styles.colorStyleButtonText ++ styles.colorStyleButtonBackground ++
     div
@@ -100,16 +103,15 @@ view (Settings settings) =
         ]
         [ {- Label for the Switch -}
           span
-            [ css
-                [ Tw.text_color Theme.gray_700
-                , Tw.font_medium
-                ]
-            ]
+            (css
+                [ Tw.font_medium ]
+                :: styles.colorStyleLabel
+            )
             [ if settings.state == settings.stateOn then
                 text <| settings.labelOn
 
               else
-                text <| settings.labelOff 
+                text <| settings.labelOff
             ]
         , {- Switch -}
           label
@@ -132,16 +134,17 @@ view (Settings settings) =
             , {- Switch Background -}
               if settings.state == settings.stateOff then
                 div
-                    [ Attr.id "switch-background"
-                    , css
+                    ([ Attr.id "switch-background"
+                     , css
                         [ Tw.w_11
                         , Tw.h_6
                         , Tw.rounded_full
                         , Tw.transition_all
                         , Tw.duration_300
-                        , Tw.bg_color Theme.gray_300
                         ]
-                    ]
+                     ]
+                        ++ styles.colorStyleDisabledButtonBackground
+                    )
                     []
 
               else
@@ -160,8 +163,8 @@ view (Settings settings) =
             , {- Switch Knob -}
               if settings.state == settings.stateOff then
                 div
-                    [ Attr.id "switch-knob"
-                    , css
+                    ([ Attr.id "switch-knob"
+                     , css
                         [ Tw.absolute
                         , Tw.top_0_dot_5
                         , Tw.left_0_dot_5
@@ -170,11 +173,12 @@ view (Settings settings) =
                         , Tw.rounded_full
                         , Tw.bg_color Theme.white
                         , Tw.border
-                        , Tw.border_color Theme.gray_300
                         , Tw.transition_transform
                         , Tw.duration_300
                         ]
-                    ]
+                     ]
+                        ++ styles.colorStyleBorders
+                    )
                     []
 
               else

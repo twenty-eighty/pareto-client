@@ -234,6 +234,7 @@ viewArticles shared model userPubKey =
                     , nostr = shared.nostr
                     , userPubKey = Just userPubKey
                     , onBookmark = Nothing
+                    , commenting = Nothing
                     , onReaction = Nothing
                     , onRepost = Nothing
                     , onZap = Nothing
