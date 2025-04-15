@@ -107,7 +107,20 @@ init shared route () =
                                      else
                                         Nothing
                                     )
-                                |> Nostr.createRequest shared.nostr "Article described as NIP-19" [ KindUserMetadata ]
+                                |> Nostr.createRequest shared.nostr "Article described as NIP-19 NAddr" [ KindUserMetadata ]
+                                |> Shared.Msg.RequestNostrEvents
+                                |> Effect.sendSharedMsg
+
+                        NEvent neventData ->
+                            Event.eventFilterForNevent neventData
+                                |> RequestArticle
+                                    (if neventData.relays /= [] then
+                                        Just neventData.relays
+
+                                     else
+                                        Nothing
+                                    )
+                                |> Nostr.createRequest shared.nostr "Article described as NIP-19 NEvent" [ KindUserMetadata ]
                                 |> Shared.Msg.RequestNostrEvents
                                 |> Effect.sendSharedMsg
 

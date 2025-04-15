@@ -41,7 +41,9 @@ type alias Model =
     { articlesByAddress : Dict Address Article
     , articlesByAuthor : Dict PubKey (List Article)
     , articlesByDate : List Article
+    , articlesById : Dict EventId Article
     , articleDraftsByDate : List Article
+    , articleDraftsById : Dict EventId Article
     , articleDraftRelays : Dict EventId (Set RelayUrl)
     , bookmarkLists : Dict PubKey BookmarkList
     , bookmarkSets : Dict PubKey BookmarkSet
@@ -576,6 +578,12 @@ getArticleDraftWithIdentifier model pubKey identifier =
         |> List.head
 
 
+getArticleDraftWithId : Model -> EventId -> Maybe Article
+getArticleDraftWithId model id =
+    model.articleDraftsById
+        |> Dict.get id
+
+
 getArticlesForAuthor : Model -> PubKey -> List Article
 getArticlesForAuthor model pubKey =
     model.articlesByAuthor
@@ -619,6 +627,22 @@ getArticleForNip19 model nip19 =
                 _ ->
                     Nothing
 
+        NEvent { id, kind } ->
+            case kind of
+                Just kindNum ->
+                    case kindFromNumber kindNum of
+                        KindLongFormContent ->
+                            getArticleWithId model id
+
+                        KindDraftLongFormContent ->
+                            getArticleDraftWithId model id
+
+                        _ ->
+                            Nothing
+
+                _ ->
+                    Nothing
+
         _ ->
             Nothing
 
@@ -628,6 +652,12 @@ getArticleWithIdentifier model pubKey identifier =
     model.articlesByAuthor
         |> Dict.get pubKey
         |> Maybe.andThen (filterArticlesWithIdentifier identifier)
+
+
+getArticleWithId : Model -> EventId -> Maybe Article
+getArticleWithId model eventId =
+    model.articlesById
+        |> Dict.get eventId
 
 
 getBlossomServers : Model -> PubKey -> List String
@@ -1340,7 +1370,9 @@ empty =
     { articlesByAddress = Dict.empty
     , articlesByAuthor = Dict.empty
     , articlesByDate = []
+    , articlesById = Dict.empty
     , articleDraftsByDate = []
+    , articleDraftsById = Dict.empty
     , articleDraftRelays = Dict.empty
     , bookmarkLists = Dict.empty
     , bookmarkSets = Dict.empty
@@ -2033,6 +2065,14 @@ updateModelWithLongFormContent model requestId events =
                     )
                     model.articlesByAuthor
 
+        articlesById =
+            articles
+                |> List.foldl
+                    (\article dict ->
+                        Dict.insert article.id article dict
+                    )
+                    model.articlesById
+
         maybeRequest =
             Dict.get requestId model.requests
 
@@ -2048,6 +2088,7 @@ updateModelWithLongFormContent model requestId events =
         | articlesByAddress = articlesByAddress
         , articlesByAuthor = articlesByAuthor
         , articlesByDate = articlesByDate
+        , articlesById = articlesById
         , errors = newErrors ++ model.errors
       }
     , requestCmd
@@ -2149,6 +2190,14 @@ updateModelWithLongFormContentDraft model requestId events =
                             |> Maybe.withDefault 0
                     )
 
+        articleDraftsById =
+            articles
+                |> List.foldl
+                    (\article dict ->
+                        Dict.insert article.id article dict
+                    )
+                    model.articleDraftsById
+
         maybeRequest =
             Dict.get requestId model.requests
 
@@ -2162,6 +2211,7 @@ updateModelWithLongFormContentDraft model requestId events =
     in
     ( { requestModel
         | articleDraftsByDate = articleDraftsByDate
+        , articleDraftsById = articleDraftsById
         , articleDraftRelays = articleDraftRelays
         , errors = newErrors ++ model.errors
       }
