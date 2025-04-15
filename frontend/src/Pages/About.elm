@@ -91,20 +91,8 @@ update shared msg model =
             )
 
         PublishAuthorsList pubKey ->
-            let
-                authorsFollowList =
-                    Pareto.bootstrapAuthorsList
-                        |> List.map
-                            (\( nip05, authorPubKey ) ->
-                                FollowingPubKey
-                                    { pubKey = authorPubKey
-                                    , relay = Just Pareto.paretoRelay
-                                    , petname = Just nip05
-                                    }
-                            )
-            in
             ( model
-            , SendFollowList pubKey authorsFollowList
+            , SendFollowList pubKey Nostr.paretoAuthorsFollowList
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )

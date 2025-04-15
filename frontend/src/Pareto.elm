@@ -1,5 +1,6 @@
 module Pareto exposing (..)
 
+import Dict exposing (Dict)
 import Locale exposing (Language(..))
 import Nostr.Event exposing (Kind(..))
 import Nostr.HandlerInformation exposing (HandlerInformation)
@@ -239,7 +240,7 @@ defaultRelayUrls =
 -- the list is replaced after the follow list of above key authorsKey has been loaded
 
 
-bootstrapAuthorsList : List ( String, PubKey )
+bootstrapAuthorsList : Dict String PubKey
 bootstrapAuthorsList =
     [ ( "milosz@pareto.space", "2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" )
     , ( "ashoka@pareto.space", "e373ca4101e25a4d4fcb2a53473fa4113b91dba2c2e451d039d8528eb82abcc5" )
@@ -299,6 +300,7 @@ bootstrapAuthorsList =
     , ( "dieter@pareto.town", "3abd9a2fbeb1615167d6fee8e3cdc70d500a40040c40b32da8f33bbfc0898c19" )
     , ( "matej@pareto.space", "5aa5e38abbb37f89c863419bd1e4e60aa31d82fa3c39397e386586e3961b8021" )
     ]
+        |> Dict.fromList
 
 
 paretoClientNpub : String

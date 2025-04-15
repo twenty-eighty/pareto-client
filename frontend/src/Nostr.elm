@@ -19,7 +19,7 @@ import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05Info, nip05T
 import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
 import Nostr.Nip18 exposing (Repost, repostFromEvent)
 import Nostr.Nip19 exposing (NIP19Type(..))
-import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..), articleCommentCommentOfComment, articleCommentOfComment, commentEventId, commentFromEvent, commentRootAddress)
+import Nostr.Nip22 as Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..), articleCommentCommentOfComment, articleCommentOfComment, commentEventId, commentFromEvent, commentRootAddress)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileFromEvent)
 import Nostr.Reactions exposing (Reaction, reactionFromEvent)
 import Nostr.Relay exposing (Relay, RelayState(..), hostWithoutProtocol, relayUrlDecoder)
@@ -1116,7 +1116,7 @@ getMissingProfilePubKeys model pubKeys =
             )
 
 
-eventFilterForAuthors : List String -> Maybe EventFilter
+eventFilterForAuthors : List PubKey -> Maybe EventFilter
 eventFilterForAuthors authors =
     if List.isEmpty authors then
         Nothing
@@ -1418,6 +1418,7 @@ init hooks testMode relayUrls =
 paretoAuthorsFollowList : List Following
 paretoAuthorsFollowList =
     Pareto.bootstrapAuthorsList
+        |> Dict.toList
         |> List.map
             (\( nip05, authorPubKey ) ->
                 FollowingPubKey
@@ -1426,6 +1427,12 @@ paretoAuthorsFollowList =
                     , petname = Just nip05
                     }
             )
+
+
+paretoKnownPubKey : Nip05 -> Maybe PubKey
+paretoKnownPubKey nip05 =
+    Pareto.bootstrapAuthorsList
+        |> Dict.get (nip05ToString nip05)
 
 
 requestRelayNip11 : List String -> Cmd Msg
@@ -1666,7 +1673,7 @@ updateModelWithEvents model requestId kind events =
             updateModelWithDeletionRequests model events
 
         KindComment ->
-            updateModelWithComments model events
+            updateModelWithComments model requestId events
 
         KindRepost ->
             updateModelWithReposts model events
@@ -1850,8 +1857,8 @@ updateModelWithReposts model events =
     )
 
 
-updateModelWithComments : Model -> List Event -> ( Model, Cmd Msg )
-updateModelWithComments model events =
+updateModelWithComments : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
+updateModelWithComments model requestId events =
     let
         updatedDictByAddress : CommentType -> Dict Address (Dict PubKey CommentType) -> Dict Address (Dict PubKey CommentType)
         updatedDictByAddress comment dict =
@@ -1870,18 +1877,71 @@ updateModelWithComments model events =
                 Nothing ->
                     Dict.insert address (Dict.singleton eventId comment) dict
 
-        commentsByAddress =
+        comments =
             events
                 |> List.filterMap commentFromEvent
+
+        commentsByAddress =
+            comments
                 |> List.foldl
                     (\comment accAddress ->
                         updatedDictByAddress comment accAddress
                     )
                     model.commentsByAddress
+
+        maybeRequest =
+            Dict.get requestId model.requests
+
+        ( modelWithRequest, cmd ) =
+            case maybeRequest of
+                Just request ->
+                    requestRelatedKindsForArticleComments model comments request
+
+                Nothing ->
+                    ( model, Cmd.none )
     in
-    ( { model | commentsByAddress = commentsByAddress }
-    , Cmd.none
+    ( { modelWithRequest | commentsByAddress = commentsByAddress }
+    , cmd
     )
+
+
+uniquePubKeys : List PubKey -> List PubKey
+uniquePubKeys pubkeys =
+    pubkeys
+        |> Set.fromList
+        |> Set.toList
+
+
+requestRelatedKindsForArticleComments : Model -> List CommentType -> Request -> ( Model, Cmd Msg )
+requestRelatedKindsForArticleComments model comments request =
+    let
+        maybeEventFilterForAuthorProfiles =
+            comments
+                |> List.map Nip22.commentPubKey
+                |> uniquePubKeys
+                |> getMissingProfilePubKeys model
+                |> eventFilterForAuthors
+
+        ( requestProfileModel, extendedRequestProfile ) =
+            case maybeEventFilterForAuthorProfiles of
+                Just eventFilterForAuthorProfiles ->
+                    -- TODO: add relays for request
+                    eventFilterForAuthorProfiles
+                        |> RequestProfile Nothing
+                        |> addToRequest model request
+
+                _ ->
+                    ( model, request )
+
+        ( extendedModel, extendedRequestReactions ) =
+            comments
+                |> List.map Nip22.tagReference
+                |> eventFilterForReactions
+                |> Maybe.map RequestReactions
+                |> Maybe.map (addToRequest requestProfileModel extendedRequestProfile)
+                |> Maybe.withDefault ( requestProfileModel, extendedRequestProfile )
+    in
+    doRequest extendedModel extendedRequestReactions
 
 
 updateModelWithUserServerLists : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
