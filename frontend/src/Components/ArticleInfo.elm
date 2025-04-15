@@ -8,6 +8,7 @@ import Nostr.Profile exposing (Author)
 import Tailwind.Breakpoints as Bp exposing (..)
 import Tailwind.Theme as Theme exposing (..)
 import Tailwind.Utilities as Tw exposing (..)
+import TextStats exposing (TextStats)
 import Ui.Profile
 import Ui.Styles exposing (Styles)
 
@@ -36,6 +37,9 @@ view styles author article browserEnv =
 
         articlePublishedDate =
             BrowserEnv.formatDate browserEnv (publishedTime article.createdAt article.publishedAt)
+
+        articleStats =
+            TextStats.compute article.language article.content
     in
     aside
         [ css
@@ -104,7 +108,7 @@ view styles author article browserEnv =
                 ]
                 [ text articlePublishedDate ]
             , viewTags <| List.filter (\hashtag -> not (String.isEmpty hashtag)) <| article.hashtags
-            , viewArticleStats [ { label = "Lesezeit", counter = 3453 }, { label = "Hörzeit", counter = 3453 }, { label = "Anzahl Worte", counter = 3453 }, { label = "Anzahl Sätze", counter = 333 }, { label = "Anzahl Zeichen", counter = 3 } ]
+            , viewArticleStats articleStats
             , viewInteractions { likes = 5, comments = 0, reposts = 0, zaps = 142, bookmarks = 2 }
             ]
         ]
@@ -174,38 +178,44 @@ viewTags tags =
         )
 
 
-viewArticleStats : List { label : String, counter : Int } -> Html msg
-viewArticleStats stats =
+viewArticleStats : TextStats -> Html msg
+viewArticleStats textStats =
+    let
+        toHtml label value =
+            div
+                [ css
+                    [ Tw.flex
+                    , Tw.gap_1_dot_5
+                    , Tw.text_sm
+                    , Tw.tracking_wide
+                    , Tw.leading_none
+                    , Tw.text_color Theme.slate_400
+                    ]
+                ]
+                [ dt
+                    [ css
+                        [ Tw.grow ]
+                    ]
+                    [ text <| label ]
+                , dd []
+                    [ text <| value ]
+                ]
+
+        roundToTwoDecimals num =
+            toFloat (round (num * 100)) / 100
+    in
     dl
         [ css
-            [ Tw.w_full
+            [ Tw.w_auto
             , Tw.mt_4
             ]
         ]
-        (stats
-            |> List.map
-                (\stat ->
-                    div
-                        [ css
-                            [ Tw.flex
-                            , Tw.gap_1_dot_5
-                            , Tw.text_xs
-                            , Tw.tracking_wide
-                            , Tw.leading_none
-                            , Tw.text_color Theme.slate_400
-                            ]
-                        ]
-                        [ dt
-                            [ css
-                                [ Tw.grow
-                                ]
-                            ]
-                            [ text <| stat.label ++ ":" ]
-                        , dd []
-                            [ text <| String.fromInt stat.counter ]
-                        ]
-                )
-        )
+        [ toHtml "Reading Time:" (String.fromFloat <| roundToTwoDecimals textStats.readingTime)
+        , toHtml "Speaking Time:" (String.fromFloat <| roundToTwoDecimals textStats.speakingTime)
+        , toHtml "Sentences:" (String.fromInt textStats.sentences)
+        , toHtml "Words:" (String.fromInt textStats.words)
+        , toHtml "Characters:" (String.fromInt textStats.characters)
+        ]
 
 
 viewInteractions : { likes : Int, comments : Int, reposts : Int, zaps : Int, bookmarks : Int } -> Html msg

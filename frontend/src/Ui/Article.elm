@@ -193,7 +193,8 @@ viewArticle articlePreviewsData articlePreviewData article =
         [ css
             [ Tw.flex
             , Tw.flex_wrap
-            , Tw.neg_mx_4
+
+            --, Tw.neg_mx_4
             , Tw.neg_mb_4
             , Bp.md [ Tw.mb_0 ]
             ]
