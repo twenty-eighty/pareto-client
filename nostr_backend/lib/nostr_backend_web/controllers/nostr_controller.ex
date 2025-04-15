@@ -32,7 +32,8 @@ defmodule NostrBackendWeb.NostrController do
       "hartmut" => "92af1031a8dc9fd1c2ef982219ff6cff9944ec62bd45d4c6e4e8d5ffd9939aeb",
       "nachteule" => "9c8096eb84d574ca29eb0077d615a2b12c0113064faeac9f72e464a066e47555",
       "friedenstaube" => "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5",
-      "danjel" => "22ea455f4b837d60c2615721ccc2ef54a4d56e5f00993f4cffd2b98c9180f82f"
+      "danjel" => "22ea455f4b837d60c2615721ccc2ef54a4d56e5f00993f4cffd2b98c9180f82f",
+      "admin" => "0f475886295e78e74af76dfacb3ea537de1938ee79cf92c66d417b5ccd03f43c"
     },
     "relays" => %{
       "2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" => @default_relays,
@@ -55,7 +56,8 @@ defmodule NostrBackendWeb.NostrController do
       "92af1031a8dc9fd1c2ef982219ff6cff9944ec62bd45d4c6e4e8d5ffd9939aeb" => @default_relays,
       "9c8096eb84d574ca29eb0077d615a2b12c0113064faeac9f72e464a066e47555" => @default_relays,
       "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5" => @default_relays,
-      "22ea455f4b837d60c2615721ccc2ef54a4d56e5f00993f4cffd2b98c9180f82f" => @default_relays
+      "22ea455f4b837d60c2615721ccc2ef54a4d56e5f00993f4cffd2b98c9180f82f" => @default_relays,
+      "0f475886295e78e74af76dfacb3ea537de1938ee79cf92c66d417b5ccd03f43c" => @default_relays
     }
   }
 
