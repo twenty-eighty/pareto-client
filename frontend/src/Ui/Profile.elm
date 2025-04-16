@@ -6,22 +6,25 @@ import Components.Button as Button
 import Components.Icon as Icon exposing (Icon(..), MaterialIcon(..))
 import FeatherIcons
 import Graphics
-import Html.Styled as Html exposing (Html, a, div, h2, img, p, text)
+import Html.Styled as Html exposing (Html, a, div, h2, h4, img, p, text)
 import Html.Styled.Attributes as Attr exposing (css)
+import Html.Styled.Events as Events
+import Nostr
 import Nostr.Nip05 as Nip05
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Shared exposing (httpErrorToString)
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (Following(..), PubKey)
 import Set exposing (Set)
 import Shared
-import Tailwind.Breakpoints exposing (md)
+import Shared.Model exposing (LoginStatus)
+import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Time
 import Translations.Profile as Translations
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Shared exposing (emptyHtml, extendedZapRelays, pubkeyRelays, zapButton)
-import Ui.Styles exposing (Styles, Theme, stylesForTheme)
+import Ui.Styles exposing (Styles, Theme, darkMode, stylesForTheme)
 
 
 defaultProfilePicture : String
@@ -39,6 +42,8 @@ profilePicture width maybeProfile =
 
 type alias ProfileViewData msg =
     { browserEnv : BrowserEnv
+    , nostr : Nostr.Model
+    , loginStatus : LoginStatus
     , following : FollowType msg
     , subscribe : Maybe msg
     , theme : Theme
@@ -82,20 +87,131 @@ viewProfileSmall styles profile validationStatus =
         ]
 
 
-viewProfile : Profile -> ProfileViewData msg -> Shared.Model -> Html msg
-viewProfile profile profileViewData shared =
+viewAuthorCard : Profile -> ProfileViewData msg -> Html msg
+viewAuthorCard profile profileViewData =
     let
         styles =
             stylesForTheme profileViewData.theme
 
         authorRelays =
-            pubkeyRelays shared.nostr profile.pubKey
+            pubkeyRelays profileViewData.nostr profile.pubKey
 
         userPubKey =
-            Shared.loggedInPubKey shared.loginStatus
+            Shared.loggedInPubKey profileViewData.loginStatus
 
         zapRelays =
-            extendedZapRelays authorRelays shared.nostr userPubKey
+            extendedZapRelays authorRelays profileViewData.nostr userPubKey
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_row
+            , Tw.items_center
+            , Tw.space_x_4
+            , Tw.px_4
+            , Tw.h_20
+            , Tw.max_w_xs
+            , Bp.sm
+                [ Tw.max_w_md
+                ]
+            , Bp.md
+                [ Tw.max_w_sm
+                ]
+            ]
+        ]
+        [ viewProfileImageAuthorCard (linkElementForProfile profile profileViewData.validation) (Just profile)
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.flex_col
+                , Tw.flex_grow
+                , Tw.min_w_48
+                , Bp.sm
+                    [ Tw.w_96
+                    ]
+                , Bp.lg
+                    [ Tw.w_60
+                    ]
+                , Bp.xl
+                    [ Tw.w_72
+                    ]
+                ]
+            ]
+            [ h4
+                (styles.colorStyleGrayscaleTitle ++ styles.textStyleH4)
+                [ text (profileDisplayName profile.pubKey profile) ]
+            , viewNip05 styles profile
+            , viewLNAddress styles profile zapRelays
+            ]
+        , followBookmarkElement profile.pubKey profileViewData.following
+        ]
+
+
+viewProfileImageAuthorCard : (List (Html msg) -> Html msg) -> Maybe Profile -> Html msg
+viewProfileImageAuthorCard linkElement maybeProfile =
+    div
+        [ css
+            [ Tw.min_w_16
+            ]
+        ]
+        [ linkElement
+            [ img
+                [ Attr.src <| profilePicture 64 maybeProfile
+                , Attr.alt "Avatar"
+                , css
+                    [ Tw.w_16
+                    , Tw.h_16
+                    , Tw.rounded_full
+                    ]
+                ]
+                []
+            ]
+        ]
+
+
+followBookmarkElement : PubKey -> FollowType msg -> Html msg
+followBookmarkElement profilePubKey following =
+    case following of
+        Following msg ->
+            div
+                [ css
+                    [ Tw.cursor_pointer
+                    ]
+                , Events.onClick (msg profilePubKey)
+                ]
+                [ Icon.MaterialIcon Icon.MaterialBookmark 30 Icon.Inherit
+                    |> Icon.view
+                ]
+
+        NotFollowing msg ->
+            div
+                [ css
+                    [ Tw.cursor_pointer
+                    ]
+                , Events.onClick (msg profilePubKey)
+                ]
+                [ Icon.MaterialIcon Icon.MaterialBookmarkBorder 30 Icon.Inherit
+                    |> Icon.view
+                ]
+
+        UnknownFollowing ->
+            emptyHtml
+
+
+viewProfile : Profile -> ProfileViewData msg -> Html msg
+viewProfile profile profileViewData =
+    let
+        styles =
+            stylesForTheme profileViewData.theme
+
+        authorRelays =
+            pubkeyRelays profileViewData.nostr profile.pubKey
+
+        userPubKey =
+            Shared.loggedInPubKey profileViewData.loginStatus
+
+        zapRelays =
+            extendedZapRelays authorRelays profileViewData.nostr userPubKey
     in
     div
         [ css
@@ -110,7 +226,7 @@ viewProfile profile profileViewData shared =
         , div
             [ css
                 [ Tw.flex
-                , md [ Tw.flex_row ]
+                , Bp.md [ Tw.flex_row ]
                 , Tw.flex_col
                 , Tw.items_start
                 , Tw.space_x_4
@@ -226,7 +342,7 @@ viewNip05 styles profile =
     case profile.nip05 of
         Just nip05 ->
             p
-                (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
+                (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ [ css [ Tw.overflow_hidden, Tw.text_ellipsis ] ])
                 [ text <| Nip05.nip05ToDisplayString nip05 ]
 
         Nothing ->
@@ -239,8 +355,10 @@ viewLNAddress styles profile zapRelays =
         |> Maybe.map
             (\lud16 ->
                 p
-                    (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ [ css [ Tw.flex, Tw.items_center ] ])
-                    [ text <| lud16, zapButton profile.pubKey Nothing zapRelays "0" ]
+                    (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ [ css [ Tw.flex, Tw.items_center, Tw.overflow_hidden, Tw.text_ellipsis ] ])
+                    [ zapButton profile.pubKey Nothing zapRelays "0"
+                    , text <| lud16
+                    ]
             )
         |> Maybe.withDefault emptyHtml
 
@@ -435,3 +553,32 @@ timeParagraph styles browserEnv maybePublishedAt =
 
         Nothing ->
             emptyHtml
+
+
+followingProfile : Nostr.Model -> PubKey -> (PubKey -> PubKey -> msg) -> (PubKey -> PubKey -> msg) -> Maybe PubKey -> FollowType msg
+followingProfile nostr profilePubKey followMsg unfollowMsg maybePubKey =
+    case maybePubKey of
+        Just userPubKey ->
+            Nostr.getFollowsList nostr userPubKey
+                |> Maybe.andThen
+                    (\followList ->
+                        followList
+                            |> List.filterMap
+                                (\following ->
+                                    case following of
+                                        FollowingPubKey { pubKey } ->
+                                            if profilePubKey == pubKey then
+                                                Just (Following (unfollowMsg userPubKey))
+
+                                            else
+                                                Nothing
+
+                                        FollowingHashtag _ ->
+                                            Nothing
+                                )
+                            |> List.head
+                    )
+                |> Maybe.withDefault (NotFollowing (followMsg userPubKey))
+
+        Nothing ->
+            UnknownFollowing

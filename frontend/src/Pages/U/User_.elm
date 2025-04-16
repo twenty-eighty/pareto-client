@@ -202,6 +202,8 @@ viewProfile shared model profile =
         [ Ui.Profile.viewProfile
             profile
             { browserEnv = shared.browserEnv
+            , nostr = shared.nostr
+            , loginStatus = shared.loginStatus
             , following = followingProfile shared.nostr profile.pubKey userPubKey
             , subscribe =
                 if sendsNewsletter then
@@ -214,7 +216,6 @@ viewProfile shared model profile =
                 Nostr.getProfileValidationStatus shared.nostr profile.pubKey
                     |> Maybe.withDefault ValidationUnknown
             }
-            shared
         , Nostr.getArticlesForAuthor shared.nostr profile.pubKey
             |> Ui.View.viewArticlePreviews
                 ArticlePreviewList

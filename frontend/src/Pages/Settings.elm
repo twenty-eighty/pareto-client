@@ -1462,6 +1462,8 @@ viewProfile shared user profileModel =
                     Ui.Profile.viewProfile
                         profile
                         { browserEnv = shared.browserEnv
+                        , nostr = shared.nostr
+                        , loginStatus = shared.loginStatus
                         , following = UnknownFollowing
                         , subscribe = Nothing
                         , theme = shared.theme
@@ -1469,7 +1471,6 @@ viewProfile shared user profileModel =
                             Nostr.getProfileValidationStatus shared.nostr user.pubKey
                                 |> Maybe.withDefault ValidationUnknown
                         }
-                        shared
 
                 ( Just _, False ) ->
                     viewProfileEditor shared user profileModel

@@ -104,11 +104,16 @@ type TestMode
     | TestModeEnabled
 
 
+getAuthorsFollowList : Model -> List Following
+getAuthorsFollowList model =
+    getFollowsList model Pareto.authorsKey
+        |> Maybe.withDefault paretoAuthorsFollowList
+
+
 isAuthor : Model -> PubKey -> Bool
 isAuthor model userPubKey =
-    getFollowsList model Pareto.authorsKey
-        |> Maybe.map (pubKeyIsFollower userPubKey)
-        |> Maybe.withDefault False
+    getAuthorsFollowList model
+        |> pubKeyIsFollower userPubKey
 
 
 isEditor : Model -> PubKey -> Bool
