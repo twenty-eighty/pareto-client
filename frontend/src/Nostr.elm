@@ -20,6 +20,7 @@ import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
 import Nostr.Nip18 exposing (Repost, repostFromEvent)
 import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 as Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..), articleCommentCommentOfComment, articleCommentOfComment, commentEventId, commentFromEvent, commentRootAddress)
+import Nostr.Nip68 exposing (PicturePost, picturePostFromEvent)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileFromEvent)
 import Nostr.Reactions exposing (Reaction, reactionFromEvent)
 import Nostr.Relay exposing (Relay, RelayState(..), hostWithoutProtocol, relayUrlDecoder)
@@ -57,6 +58,7 @@ type alias Model =
     , fileStorageServerLists : Dict PubKey (List String)
     , followLists : Dict PubKey (List Following)
     , followSets : Dict PubKey (Dict String FollowSet) -- follow sets; keys pubKey / identifier
+    , pictures : Dict EventId PicturePost
     , pubKeyByNip05 : Dict Nip05String PubKey
     , poolState : RelayState
     , portalUserInfoPubKey : Dict PubKey Portal.PortalCheckResponse
@@ -540,6 +542,11 @@ getAuthor model pubKey =
         |> Dict.get pubKey
         |> Maybe.map (\profile -> Nostr.Profile.AuthorProfile profile validationStatus)
         |> Maybe.withDefault (Nostr.Profile.AuthorPubkey pubKey)
+
+
+getPicturePosts : Model -> List PicturePost
+getPicturePosts model =
+    []
 
 
 getProfileValidationStatus : Model -> PubKey -> Maybe ProfileValidation
@@ -1398,6 +1405,7 @@ empty =
         , searchEvents = \_ _ _ _ _ -> Cmd.none
         , sendEvent = \_ _ _ -> Cmd.none
         }
+    , pictures = Dict.empty
     , pubKeyByNip05 = Dict.empty
     , poolState = RelayStateUnknown
     , followLists = Dict.singleton Pareto.authorsKey paretoAuthorsFollowList
@@ -1712,6 +1720,9 @@ updateModelWithEvents model requestId kind events =
         KindComment ->
             updateModelWithComments model requestId events
 
+        KindPicture ->
+            updateModelWithPictures model requestId events
+
         KindRepost ->
             updateModelWithReposts model events
 
@@ -1940,6 +1951,21 @@ updateModelWithComments model requestId events =
     ( { modelWithRequest | commentsByAddress = commentsByAddress }
     , cmd
     )
+
+
+updateModelWithPictures : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
+updateModelWithPictures model _ events =
+    let
+        pictures =
+            events
+                |> List.map picturePostFromEvent
+                |> List.foldl
+                    (\picture dict ->
+                        Dict.insert picture.id picture dict
+                    )
+                    model.pictures
+    in
+    ( { model | pictures = pictures }, Cmd.none )
 
 
 uniquePubKeys : List PubKey -> List PubKey

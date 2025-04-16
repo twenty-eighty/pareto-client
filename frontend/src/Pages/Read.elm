@@ -14,6 +14,7 @@ import Material.Icons exposing (category)
 import Nostr
 import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.FollowList exposing (followingPubKey)
+import Nostr.Nip68 as Nip68 exposing (PicturePost)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.ShortNote exposing (ShortNote)
@@ -29,6 +30,7 @@ import Shared.Msg
 import Tailwind.Utilities as Tw
 import Translations.Read
 import Translations.Sidebar
+import Ui.PicturePost as PicturePost exposing (PicturePostsViewData)
 import Ui.ShortNote as ShortNote exposing (ShortNotesViewData)
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
@@ -69,6 +71,7 @@ type Category
     | Followed
     | Highlighter
     | Rss
+    | Memes
 
 
 stringFromCategory : Category -> String
@@ -92,6 +95,9 @@ stringFromCategory category =
         Rss ->
             "rss"
 
+        Memes ->
+            "memes"
+
 
 categoryFromString : String -> Maybe Category
 categoryFromString categoryString =
@@ -110,6 +116,9 @@ categoryFromString categoryString =
 
         "highlights" ->
             Just Highlighter
+
+        "memes" ->
+            Just Memes
 
         _ ->
             Nothing
@@ -287,6 +296,14 @@ filterForCategory shared category =
         Rss ->
             { emptyEventFilter | kinds = Just [ KindShortTextNote ], authors = Just (paretoRssFollowsList shared.nostr), limit = Just 20 }
 
+        Memes ->
+            { emptyEventFilter
+                | kinds = Just [ KindPicture ]
+
+                {- , authors = Just (paretoFollowsList shared.nostr) -}
+                , limit = Just 20
+            }
+
 
 paretoFollowsList : Nostr.Model -> List PubKey
 paretoFollowsList nostr =
@@ -362,10 +379,23 @@ availableCategories nostr loginStatus translations =
 
             else
                 []
+
+        isBetaTester =
+            Shared.loggedInPubKey loginStatus
+                |> Maybe.map (Nostr.isBetaTester nostr)
+                |> Maybe.withDefault False
+
+        memesCategories =
+            if isBetaTester then
+                [ memesCategory translations ]
+
+            else
+                []
     in
     paretoCategories
         ++ friedenstaubeCategories
         ++ followedCategories
+        ++ memesCategories
         ++ [ { category = Global
              , title = Translations.Read.globalFeedCategory [ translations ]
              }
@@ -404,6 +434,13 @@ followedCategory : I18Next.Translations -> Components.Categories.CategoryData Ca
 followedCategory translations =
     { category = Followed
     , title = Translations.Read.followedFeedCategory [ translations ]
+    }
+
+
+memesCategory : I18Next.Translations -> Components.Categories.CategoryData Category
+memesCategory translations =
+    { category = Memes
+    , title = Translations.Read.memesFeedCategory [ translations ]
     }
 
 
@@ -506,6 +543,14 @@ viewContent shared model userPubKey =
                     , userPubKey = userPubKey
                     , onBookmark = Maybe.map (\pubKey -> ( AddShortNoteBookmark pubKey, RemoveShortNoteBookmark pubKey )) userPubKey
                     }
+
+        viewMemes =
+            Nostr.getPicturePosts shared.nostr
+                |> viewPicturePosts
+                    { theme = shared.theme
+                    , browserEnv = shared.browserEnv
+                    , nostr = shared.nostr
+                    }
     in
     case Components.Categories.selected model.categories of
         Global ->
@@ -525,6 +570,9 @@ viewContent shared model userPubKey =
 
         Rss ->
             viewNotes
+
+        Memes ->
+            viewMemes
 
 
 viewShortNotes : ShortNotesViewData Msg -> List ShortNote -> Html Msg
@@ -558,5 +606,18 @@ viewShortNotes shortNotesViewData shortNotes =
                         }
                     }
                     shortNote
+            )
+        |> div []
+
+
+viewPicturePosts : PicturePostsViewData -> List PicturePost -> Html Msg
+viewPicturePosts picturePostsViewData picturePosts =
+    picturePosts
+        |> List.map
+            (\picturePost ->
+                PicturePost.viewPicturePost
+                    picturePostsViewData
+                    {}
+                    picturePost
             )
         |> div []
