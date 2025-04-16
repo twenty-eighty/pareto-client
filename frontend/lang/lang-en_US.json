@@ -22,6 +22,9 @@
    "article page": {
       "default page title": "Article"
    },
+   "authors page": {
+      "page title": "Authors"
+   },
    "bookmarks": {
       "bookmarks title": "Bookmarks",
       "no bookmarks": "No bookmark lists found",

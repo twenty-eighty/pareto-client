@@ -231,6 +231,8 @@ viewContent shared handlerInformation =
         [ Ui.Profile.viewProfile
             handlerInformation.profile
             { browserEnv = shared.browserEnv
+            , nostr = shared.nostr
+            , loginStatus = shared.loginStatus
             , following = UnknownFollowing
             , subscribe = Nothing
             , theme = shared.theme
@@ -238,7 +240,6 @@ viewContent shared handlerInformation =
                 Nostr.getProfileValidationStatus shared.nostr handlerInformation.pubKey
                     |> Maybe.withDefault ValidationUnknown
             }
-            shared
         , viewSupportInformation shared.theme shared.browserEnv.translations
         , viewDonationInformation shared.theme shared.browserEnv.translations
         , viewActionButtons shared.theme shared.browserEnv handlerInformation shared.loginStatus

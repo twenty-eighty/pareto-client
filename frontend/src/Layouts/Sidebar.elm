@@ -370,7 +370,17 @@ viewSidebar styles shared currentPath toContentMsg content =
                         ]
                     ]
                     |> Html.map toContentMsg
-                , viewMainContent content
+                , div
+                    [ css
+                        -- additional space for sidebar at bottom in mobile view
+                        [ Tw.mb_16
+                        , Bp.sm
+                            [ Tw.mb_2
+                            ]
+                        ]
+                    ]
+                    [ viewMainContent content
+                    ]
                 ]
             ]
         ]

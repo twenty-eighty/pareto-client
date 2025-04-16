@@ -22,6 +22,9 @@
    "article page": {
       "default page title": "Artikel"
    },
+   "authors page": {
+      "page title": "Autoren"
+   },
    "bookmarks": {
       "bookmarks title": "Lesezeichen",
       "no bookmarks": "Keine Listen mit Lesezeichen gefunden",

@@ -80,6 +80,12 @@ defmodule NostrBackendWeb.PageController do
     |> render(:about)
   end
 
+  def authors(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:authors)
+  end
+
   def bookmarks(conn, _params) do
     conn
     |> add_meta_tags

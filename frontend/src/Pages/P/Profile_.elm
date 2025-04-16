@@ -18,7 +18,7 @@ import Shared
 import Shared.Model
 import Shared.Msg
 import Translations.Profile as Translations
-import Ui.Profile exposing (FollowType(..))
+import Ui.Profile exposing (FollowType(..), followingProfile)
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..), viewRelayStatus)
 import View exposing (View)
@@ -251,7 +251,9 @@ viewProfile shared model profile =
         [ Ui.Profile.viewProfile
             profile
             { browserEnv = shared.browserEnv
-            , following = followingProfile shared.nostr profile.pubKey userPubKey
+            , nostr = shared.nostr
+            , loginStatus = shared.loginStatus
+            , following = followingProfile shared.nostr profile.pubKey Follow Unfollow userPubKey
             , subscribe =
                 if sendsNewsletter then
                     Just OpenSubscribeDialog
@@ -263,7 +265,6 @@ viewProfile shared model profile =
                 Nostr.getProfileValidationStatus shared.nostr profile.pubKey
                     |> Maybe.withDefault ValidationUnknown
             }
-            shared
         , viewArticles shared profile.pubKey
         , viewEmailSubscriptionDialog shared model profile
         ]
@@ -284,35 +285,6 @@ viewArticles shared pubKey =
             , onRepost = Nothing
             , onZap = Nothing
             }
-
-
-followingProfile : Nostr.Model -> PubKey -> Maybe PubKey -> FollowType Msg
-followingProfile nostr profilePubKey maybePubKey =
-    case maybePubKey of
-        Just userPubKey ->
-            Nostr.getFollowsList nostr userPubKey
-                |> Maybe.andThen
-                    (\followList ->
-                        followList
-                            |> List.filterMap
-                                (\following ->
-                                    case following of
-                                        FollowingPubKey { pubKey } ->
-                                            if profilePubKey == pubKey then
-                                                Just (Following (Unfollow userPubKey))
-
-                                            else
-                                                Nothing
-
-                                        FollowingHashtag _ ->
-                                            Nothing
-                                )
-                            |> List.head
-                    )
-                |> Maybe.withDefault (NotFollowing (Follow userPubKey))
-
-        Nothing ->
-            UnknownFollowing
 
 
 viewEmailSubscriptionDialog : Shared.Model -> Model -> Profile -> Html Msg
