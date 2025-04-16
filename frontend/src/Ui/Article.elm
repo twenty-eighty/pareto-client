@@ -216,6 +216,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                             , Tw.gap_12
                             , Tw.inline_flex
                             , Tw.px_2
+                            , Css.property "width" "inherit"
                             ]
                        ]
                 )
