@@ -24,7 +24,7 @@ import Time
 import Translations.Profile as Translations
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Shared exposing (emptyHtml, extendedZapRelays, pubkeyRelays, zapButton)
-import Ui.Styles exposing (Styles, Theme, darkMode, stylesForTheme)
+import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 
 
 defaultProfilePicture : String

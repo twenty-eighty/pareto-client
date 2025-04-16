@@ -62,36 +62,37 @@ pageLoadingIndicator =
 thinBorderButton : Styles msg -> msg -> String -> Html msg
 thinBorderButton styles onClickMsg title =
     button
-        ([ css
+        [ css
             [ Tw.py_2
             , Tw.px_4
             , Tw.rounded_full
+            , Tw.bg_color styles.color4
             , Css.hover
                 [ Tw.bg_color styles.color4 ]
-            , darkMode [ Css.hover [ Tw.bg_color styles.color4DarkMode ] ]
+            , darkMode
+                [ Tw.bg_color styles.color4DarkMode
+                , Css.hover [ Tw.bg_color styles.color4DarkMode ]
+                ]
             ]
-         , Events.onClick onClickMsg
-         ]
-            ++ styles.colorStylePrimaryButtonBackground
-        )
+        , Events.onClick onClickMsg
+        ]
         [ text title ]
 
 
 linkButton : Styles msg -> String -> String -> Html msg
 linkButton styles title url =
     a
-        ([ css
+        [ css
             [ Tw.py_2
             , Tw.px_4
             , Tw.rounded_full
+            , Tw.bg_color styles.color4
             , Css.hover
                 [ Tw.bg_color styles.color4 ]
-            , darkMode [ Css.hover [ Tw.bg_color styles.color4DarkMode ] ]
+            , darkMode [ Tw.bg_color styles.color4DarkMode, Css.hover [ Tw.bg_color styles.color4DarkMode ] ]
             ]
-         , Attr.href url
-         ]
-            ++ styles.colorStylePrimaryButtonBackground
-        )
+        , Attr.href url
+        ]
         [ text title ]
 
 
@@ -118,6 +119,12 @@ modalDialog theme title content onClose =
                 ++ [ css
                         [ Tw.rounded_lg
                         , Tw.shadow_lg
+                        , Tw.drop_shadow_md
+                        , Tw.backdrop_blur_md
+                        , Tw.shadow_color styles.color2
+                        , darkMode
+                            [ Tw.shadow_color styles.color2DarkMode
+                            ]
                         , Tw.p_8
                         , Tw.max_w_sm
                         , Bp.sm

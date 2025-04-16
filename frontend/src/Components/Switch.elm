@@ -22,14 +22,13 @@ module Components.Switch exposing
 
 -}
 
-import Graphics
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Ui.Styles exposing (Theme(..))
+import Ui.Styles exposing (Theme(..), darkMode)
 
 
 
@@ -134,17 +133,19 @@ view (Settings settings) =
             , {- Switch Background -}
               if settings.state == settings.stateOff then
                 div
-                    ([ Attr.id "switch-background"
-                     , css
+                    [ Attr.id "switch-background"
+                    , css
                         [ Tw.w_11
                         , Tw.h_6
                         , Tw.rounded_full
                         , Tw.transition_all
                         , Tw.duration_300
+                        , Tw.bg_color styles.color1
+                        , darkMode
+                            [ Tw.bg_color styles.color1DarkMode
+                            ]
                         ]
-                     ]
-                        ++ styles.colorStyleDisabledButtonBackground
-                    )
+                    ]
                     []
 
               else

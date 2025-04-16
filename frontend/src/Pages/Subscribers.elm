@@ -42,7 +42,7 @@ import Tailwind.Utilities as Tw
 import Translations.Sidebar
 import Translations.Subscribers as Translations
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme(..), stylesForTheme)
+import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 
@@ -488,13 +488,15 @@ editSubscriberButton subscriber =
     in
     Table.HtmlDetails []
         [ div
-            ([ css
+            [ css
                 [ Tw.cursor_pointer
+                , Tw.text_color styles.color3
+                , darkMode
+                    [ Tw.text_color styles.color3DarkMode
+                    ]
                 ]
-             , Events.onClick (OpenEditSubscriberDialog subscriber)
-             ]
-                ++ styles.colorStylePrimaryButtonText
-            )
+            , Events.onClick (OpenEditSubscriberDialog subscriber)
+            ]
             [ text subscriber.email
             ]
             |> Html.toUnstyled
@@ -509,13 +511,15 @@ removeSubscriberButton removeMsg =
     in
     Table.HtmlDetails []
         [ div
-            ([ css
+            [ css
                 [ Tw.cursor_pointer
+                , Tw.text_color styles.color3
+                , darkMode
+                    [ Tw.text_color styles.color3DarkMode
+                    ]
                 ]
-             , Events.onClick removeMsg
-             ]
-                ++ styles.colorStylePrimaryButtonText
-            )
+            , Events.onClick removeMsg
+            ]
             [ Icon.FeatherIcon FeatherIcons.delete
                 |> Icon.view
             ]

@@ -41,7 +41,7 @@ import Translations.Settings as Translations
 import Ui.Profile exposing (FollowType(..))
 import Ui.Relay exposing (viewRelayImage)
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme(..), stylesForTheme)
+import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
 import Url
 import View exposing (View)
 
@@ -1109,12 +1109,15 @@ removeRelayButton relay removeMsg =
             stylesForTheme ParetoTheme
     in
     div
-        ([ css
-            [ Tw.cursor_pointer ]
-         , Events.onClick (removeMsg relay.urlWithoutProtocol)
-         ]
-            ++ styles.colorStylePrimaryButtonText
-        )
+        [ css
+            [ Tw.cursor_pointer
+            , Tw.bg_color styles.color4
+            , darkMode
+                [ Tw.bg_color styles.color4DarkMode
+                ]
+            ]
+        , Events.onClick (removeMsg relay.urlWithoutProtocol)
+        ]
         [ Icon.FeatherIcon FeatherIcons.delete
             |> Icon.view
         ]
@@ -1321,13 +1324,15 @@ removeMediaServerButton mediaServer removeMsg =
             stylesForTheme ParetoTheme
     in
     div
-        ([ css
+        [ css
             [ Tw.cursor_pointer
+            , Tw.text_color styles.color3
+            , darkMode
+                [ Tw.text_color styles.color3DarkMode
+                ]
             ]
-         , Events.onClick (removeMsg mediaServer)
-         ]
-            ++ styles.colorStylePrimaryButtonText
-        )
+        , Events.onClick (removeMsg mediaServer)
+        ]
         [ Icon.FeatherIcon FeatherIcons.delete
             |> Icon.view
         ]

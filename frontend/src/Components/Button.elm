@@ -33,7 +33,7 @@ import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events as Events
 import Tailwind.Utilities as Tw
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles
+import Ui.Styles exposing (darkMode)
 
 
 
@@ -232,26 +232,38 @@ stylesForTheme (Settings settings) =
             case settings.type_ of
                 RegularButton ->
                     if settings.isDisabled then
-                        ( styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground )
+                        ( [ Tw.text_color styles.color2, darkMode [ Tw.text_color styles.color2DarkMode ] ]
+                        , [ Tw.bg_color styles.color1, darkMode [ Tw.bg_color styles.color1DarkMode ] ]
+                        )
 
                     else
-                        ( styles.colorStyleRegularButtonText, styles.colorStyleRegularButtonBackground )
+                        ( [ Tw.text_color styles.color1, darkMode [ Tw.text_color styles.color1DarkMode ] ]
+                        , [ Tw.bg_color styles.color4
+                          , Tw.border_color styles.color1
+                          , darkMode [ Tw.bg_color styles.color4DarkMode, Tw.border_color styles.color1DarkMode ]
+                          ]
+                        )
 
                 PrimaryButton ->
                     if settings.isDisabled then
-                        ( styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground )
+                        ( [ Tw.text_color styles.color2, darkMode [ Tw.text_color styles.color2DarkMode ] ]
+                        , [ Tw.bg_color styles.color1, darkMode [ Tw.bg_color styles.color1DarkMode ] ]
+                        )
 
                     else
-                        ( styles.colorStylePrimaryButtonText, styles.colorStylePrimaryButtonBackground )
+                        ( [ Tw.text_color styles.color1, darkMode [ Tw.text_color styles.color1DarkMode ] ]
+                        , [ Tw.bg_color styles.color4, darkMode [ Tw.bg_color styles.color4DarkMode ] ]
+                        )
 
                 SecondaryButton ->
                     if settings.isDisabled then
-                        ( styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground )
+                        ( [ Tw.text_color styles.color2, darkMode [ Tw.text_color styles.color2DarkMode ] ]
+                        , [ Tw.bg_color styles.color1, darkMode [ Tw.bg_color styles.color1DarkMode ] ]
+                        )
 
                     else
-                        ( styles.colorStyleSecondaryButtonText, styles.colorStyleSecondaryButtonBackground )
-
-        attributes =
-            foregroundStyles ++ backgroundStyles
+                        ( [ Tw.text_color styles.color1, darkMode [ Tw.text_color styles.color1DarkMode ] ]
+                        , [ Tw.bg_color styles.color3, darkMode [ Tw.bg_color styles.color3DarkMode ] ]
+                        )
     in
-    attributes
+    [ css (foregroundStyles ++ backgroundStyles) ]
