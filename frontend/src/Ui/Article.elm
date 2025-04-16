@@ -8,7 +8,7 @@ import Components.Comment as Comment
 import Components.Icon as Icon
 import Components.ZapDialog as ZapDialog
 import Css
-import Dict exposing (Dict)
+import Dict
 import Html.Styled as Html exposing (Html, a, article, div, h2, h3, img, summary, text)
 import Html.Styled.Attributes as Attr exposing (css, href)
 import Html.Styled.Events as Events exposing (..)
@@ -19,7 +19,7 @@ import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
 import Nostr.Event exposing (AddressComponents, Kind(..), Tag(..), TagReference(..))
 import Nostr.Nip19 exposing (NIP19Type(..))
-import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType, nip19ForComment)
+import Nostr.Nip22 exposing (CommentType)
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Reactions exposing (Interactions)
@@ -193,136 +193,129 @@ viewArticle articlePreviewsData articlePreviewData article =
         [ css
             [ Tw.flex
             , Tw.flex_wrap
-
-            --, Tw.neg_mx_4
+            , Tw.w_lvw
             , Tw.neg_mb_4
             , Bp.md [ Tw.mb_0 ]
             ]
         ]
         [ ArticleInfo.view styles articlePreviewData.author article articlePreviewsData.browserEnv
-        , Html.article
-            (langAttr
-                ++ [ css
-                        [ Tw.flex_col
-                        , Tw.justify_start
-                        , Tw.items_center
-                        , Tw.gap_12
-                        , Tw.inline_flex
-                        , Tw.px_2
-                        , Bp.xxl
-                            [ Tw.px_5
-                            ]
-                        , Bp.xl
-                            [ Tw.px_5
-                            ]
-                        , Bp.lg
-                            [ Tw.px_5
-                            ]
-                        , Bp.md
-                            [ Tw.px_5
-                            ]
-                        , Bp.sm
-                            [ Tw.px_3
-                            ]
-                        ]
-                   ]
-            )
-            [ div
-                [ css
-                    [ Tw.self_stretch
-                    , Tw.flex_col
-                    , Tw.justify_center
-                    , Tw.items_center
-                    , Tw.gap_4
-                    , Tw.flex
-                    , Tw.mb_20
-                    ]
+        , div
+            [ css
+                [ Bp.lg [ Tw.w_4over5 ]
+                , Tw.w_lvw
+                , Tw.overflow_scroll
+                , Tw.h_lvh
                 ]
+            ]
+            [ Html.article
+                (langAttr
+                    ++ [ css
+                            [ Tw.flex_col
+                            , Tw.justify_start
+                            , Tw.items_center
+                            , Tw.gap_12
+                            , Tw.inline_flex
+                            , Tw.px_2
+                            ]
+                       ]
+                )
                 [ div
-                    (css
-                        [ Tw.flex_col
-                        , Tw.justify_start
-                        , Tw.items_start
+                    [ css
+                        [ Tw.self_stretch
+                        , Tw.flex_col
+                        , Tw.justify_center
+                        , Tw.items_center
                         , Tw.gap_4
-                        , Tw.inline_flex
+                        , Tw.flex
+                        , Tw.mb_20
                         ]
-                        :: contentMargins
-                    )
-                    [ viewTags article
-                    , div
-                        [ css
+                    ]
+                    [ div
+                        (css
                             [ Tw.flex_col
                             , Tw.justify_start
                             , Tw.items_start
-                            , Tw.gap_6
-                            , Tw.flex
+                            , Tw.gap_4
+                            , Tw.inline_flex
+                            ]
+                            :: contentMargins
+                        )
+                        [ viewTags article
+                        , div
+                            [ css
+                                [ Tw.flex_col
+                                , Tw.justify_start
+                                , Tw.items_start
+                                , Tw.gap_6
+                                , Tw.flex
+                                ]
+                            ]
+                            [ Html.h1
+                                (styles.textStyleH1Article
+                                    ++ styles.colorStyleGrayscaleTitle
+                                    ++ [ css
+                                            [ Tw.max_w_screen_sm
+                                            , Bp.sm
+                                                [ Tw.max_w_prose
+                                                ]
+                                            ]
+                                       ]
+                                )
+                                [ text <| Maybe.withDefault "" article.title ]
+                            , Html.summary
+                                (styles.textStyleH2
+                                    ++ styles.colorStyleGrayscaleSummary
+                                    ++ [ css
+                                            [ Tw.max_w_screen_sm
+                                            , Bp.sm
+                                                [ Tw.max_w_prose
+                                                , Tw.list_none
+                                                ]
+                                            ]
+                                       ]
+                                )
+                                [ text <| Maybe.withDefault "" article.summary ]
+                            , viewAuthorAndDate styles articlePreviewsData.browserEnv article.publishedAt article.createdAt articlePreviewData.author
                             ]
                         ]
-                        [ Html.h1
-                            (styles.textStyleH1Article
-                                ++ styles.colorStyleGrayscaleTitle
-                                ++ [ css
-                                        [ Tw.max_w_screen_sm
-                                        , Bp.sm
-                                            [ Tw.max_w_prose
-                                            ]
-                                        ]
-                                   ]
-                            )
-                            [ text <| Maybe.withDefault "" article.title ]
-                        , Html.summary
-                            (styles.textStyleH2
-                                ++ styles.colorStyleGrayscaleSummary
-                                ++ [ css
-                                        [ Tw.max_w_screen_sm
-                                        , Bp.sm
-                                            [ Tw.max_w_prose
-                                            , Tw.list_none
-                                            ]
-                                        ]
-                                   ]
-                            )
-                            [ text <| Maybe.withDefault "" article.summary ]
-                        , viewAuthorAndDate styles articlePreviewsData.browserEnv article.publishedAt article.createdAt articlePreviewData.author
+                    , viewArticleImage article.image
+                    , div
+                        (css
+                            [ Tw.flex_col
+                            , Tw.justify_start
+                            , Tw.items_start
+                            , Tw.gap_4
+                            , Tw.mb_2
+                            , Tw.flex
+                            ]
+                            :: styles.colorStyleGrayscaleMuted
+                            ++ textStyleReactions
+                            ++ contentMargins
+                        )
+                        [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "1"
+                        , viewContent styles articlePreviewData.loadedContent getProfile article.content
+                        , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "2"
                         ]
-                    ]
-                , viewArticleImage article.image
-                , div
-                    (css
-                        [ Tw.flex_col
-                        , Tw.justify_start
-                        , Tw.items_start
-                        , Tw.gap_4
-                        , Tw.mb_2
-                        , Tw.flex
-                        ]
-                        :: styles.colorStyleGrayscaleMuted
-                        ++ textStyleReactions
-                        ++ contentMargins
-                    )
-                    [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "1"
-                    , viewContent styles articlePreviewData.loadedContent getProfile article.content
-                    , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "2"
-                    ]
-                , case articlePreviewsData.commenting of
-                    Just ( comment, _ ) ->
-                        comment
-                            |> Comment.view
+                    , case articlePreviewsData.commenting of
+                        Just ( comment, _ ) ->
+                            comment
+                                |> Comment.view
 
-                    Nothing ->
-                        emptyHtml
-                , div
-                    [ css
-                        [ Tw.mt_2 ]
-                    ]
-                    [ ArticleComments.new
-                        { browserEnv = articlePreviewsData.browserEnv
-                        , nostr = articlePreviewsData.nostr
-                        , articleComments = articlePreviewData.interactions.articleComments
-                        , articleCommentComments = articlePreviewData.interactions.articleCommentComments
-                        , theme = articlePreviewsData.theme
-                        }
-                        |> ArticleComments.view
+                        Nothing ->
+                            emptyHtml
+                    , div
+                        [ css
+                            [ Tw.mt_2 ]
+                        ]
+                        [ ArticleComments.new
+                            { browserEnv = articlePreviewsData.browserEnv
+                            , nostr = articlePreviewsData.nostr
+                            , articleComments = articlePreviewData.interactions.articleComments
+                            , articleCommentComments = articlePreviewData.interactions.articleCommentComments
+                            , theme = articlePreviewsData.theme
+                            }
+                            |> ArticleComments.view
+                        ]
                     ]
                 ]
             ]
@@ -447,7 +440,7 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                     , Tw.mb_4
                     ]
                 ]
-                [ viewArticleProfileSmall styles profile validationStatus
+                [ viewArticleProfileSmall profile validationStatus
                 , div
                     [ css
                         [ Tw.h_11
@@ -465,13 +458,13 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                                ]
                         )
                         [ text <| profileDisplayName profile.pubKey profile ]
-                    , viewArticleTime styles browserEnv published createdAt
+                    , viewArticleTime browserEnv published createdAt
                     ]
                 ]
 
 
-viewArticleProfileSmall : Styles msg -> Profile -> ProfileValidation -> Html msg
-viewArticleProfileSmall styles profile validationStatus =
+viewArticleProfileSmall : Profile -> ProfileValidation -> Html msg
+viewArticleProfileSmall profile validationStatus =
     let
         linkElement =
             linkElementForProfile profile validationStatus
@@ -512,8 +505,8 @@ viewArticleProfileSmall styles profile validationStatus =
         ]
 
 
-viewArticleTime : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg
-viewArticleTime styles browserEnv maybePublishedAt createdAt =
+viewArticleTime : BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg
+viewArticleTime browserEnv maybePublishedAt createdAt =
     div
         (textStyleArticleDate
             ++ colorStyleDate
@@ -777,7 +770,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                                ]
                         )
                         [ text summaryText ]
-                    , viewHashTags styles article.hashtags (hashtagsHeightAttr :: textWidthAttr)
+                    , viewHashTags article.hashtags (hashtagsHeightAttr :: textWidthAttr)
                     ]
                 ]
             ]
@@ -817,8 +810,8 @@ viewTitlePreview styles maybeTitle maybeLinkTarget textWidthAttr =
             emptyHtml
 
 
-viewHashTags : Styles msg -> List String -> List Css.Style -> Html msg
-viewHashTags styles hashTags widthAttr =
+viewHashTags : List String -> List Css.Style -> Html msg
+viewHashTags hashTags widthAttr =
     if List.length hashTags > 0 then
         hashTags
             |> List.map viewHashTag
@@ -979,7 +972,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                     , Tw.inline_flex
                     ]
                 ]
-                [ viewProfilePubKey articlePreviewsData pubKey
+                [ viewProfilePubKey pubKey
                 , timeParagraph styles articlePreviewsData.browserEnv article.publishedAt article.createdAt
                 ]
 
@@ -999,7 +992,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                         , Tw.inline_flex
                         ]
                     ]
-                    [ viewProfileImageSmall styles (linkElementForProfile profile validationStatus) (Just profile) validationStatus
+                    [ viewProfileImageSmall (linkElementForProfile profile validationStatus) (Just profile) validationStatus
                     , div
                         [ css
                             [ Tw.justify_start
@@ -1078,12 +1071,8 @@ timeParagraph styles browserEnv maybePublishedAt createdAt =
         [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
 
 
-viewProfilePubKey : ArticlePreviewsData msg -> PubKey -> Html msg
-viewProfilePubKey articlePreviewsData pubKey =
-    let
-        styles =
-            Ui.Styles.stylesForTheme articlePreviewsData.theme
-    in
+viewProfilePubKey : PubKey -> Html msg
+viewProfilePubKey pubKey =
     div
         [ css
             [ Tw.flex
@@ -1092,7 +1081,7 @@ viewProfilePubKey articlePreviewsData pubKey =
             , Tw.mb_4
             ]
         ]
-        [ viewProfileImageSmall styles (linkElementForProfilePubKey pubKey) Nothing ValidationUnknown
+        [ viewProfileImageSmall (linkElementForProfilePubKey pubKey) Nothing ValidationUnknown
         , h2
             [ css
                 [ Tw.text_sm
@@ -1141,8 +1130,8 @@ viewProfileImage linkElement maybeProfile validationStatus =
         ]
 
 
-viewProfileImageSmall : Styles msg -> (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
-viewProfileImageSmall styles linkElement maybeProfile validationStatus =
+viewProfileImageSmall : (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
+viewProfileImageSmall linkElement maybeProfile validationStatus =
     div
         [ css
             [ Tw.relative

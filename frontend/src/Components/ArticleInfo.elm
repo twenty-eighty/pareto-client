@@ -43,13 +43,17 @@ view styles author article browserEnv =
     in
     aside
         [ css
-            [ Tw.overflow_hidden
+            [ Tw.overflow_x_clip
             , Tw.text_sm
             , Tw.font_semibold
             , Tw.tracking_wide
             , Tw.bg_color Theme.white
-            , Tw.max_w_72
+            , Tw.w_1over5
+            , Tw.h_screen
             , Tw.text_color Theme.slate_300
+            , Bp.lg
+                [ Tw.inline ]
+            , Tw.hidden
             ]
         ]
         [ section
@@ -61,6 +65,7 @@ view styles author article browserEnv =
                 , Tw.pt_6
                 , Tw.pb_96
                 , Tw.w_full
+                , Tw.h_full
                 , Tw.bg_color Theme.slate_500
                 ]
             ]
@@ -229,7 +234,7 @@ viewInteractions interactions =
             , Tw.text_base
             , Tw.tracking_wider
             , Tw.leading_none
-            , Tw.whitespace_nowrap
+            , Tw.flex_wrap
             ]
         ]
         [ div
