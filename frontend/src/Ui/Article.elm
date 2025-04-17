@@ -202,9 +202,9 @@ viewArticle articlePreviewsData articlePreviewData article =
         , div
             [ css
                 [ Bp.lg [ Tw.w_4over5 ]
-                , Tw.w_lvw
+                , Tw.w_dvw
                 , Tw.overflow_scroll
-                , Tw.h_lvh
+                , Tw.h_dvh
                 ]
             ]
             [ Html.article
