@@ -14,7 +14,7 @@ import Material.Icons exposing (category)
 import Nostr
 import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.FollowList exposing (followingPubKey)
-import Nostr.Nip68 as Nip68 exposing (PicturePost)
+import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.ShortNote exposing (ShortNote)

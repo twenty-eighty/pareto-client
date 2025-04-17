@@ -58,7 +58,7 @@ type alias Model =
     , fileStorageServerLists : Dict PubKey (List String)
     , followLists : Dict PubKey (List Following)
     , followSets : Dict PubKey (Dict String FollowSet) -- follow sets; keys pubKey / identifier
-    , pictures : Dict EventId PicturePost
+    , picturePosts : Dict EventId PicturePost
     , pubKeyByNip05 : Dict Nip05String PubKey
     , poolState : RelayState
     , portalUserInfoPubKey : Dict PubKey Portal.PortalCheckResponse
@@ -546,7 +546,8 @@ getAuthor model pubKey =
 
 getPicturePosts : Model -> List PicturePost
 getPicturePosts model =
-    []
+    model.picturePosts
+        |> Dict.values
 
 
 getProfileValidationStatus : Model -> PubKey -> Maybe ProfileValidation
@@ -1405,7 +1406,7 @@ empty =
         , searchEvents = \_ _ _ _ _ -> Cmd.none
         , sendEvent = \_ _ _ -> Cmd.none
         }
-    , pictures = Dict.empty
+    , picturePosts = Dict.empty
     , pubKeyByNip05 = Dict.empty
     , poolState = RelayStateUnknown
     , followLists = Dict.singleton Pareto.authorsKey paretoAuthorsFollowList
@@ -1956,16 +1957,16 @@ updateModelWithComments model requestId events =
 updateModelWithPictures : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
 updateModelWithPictures model _ events =
     let
-        pictures =
+        picturePosts =
             events
                 |> List.map picturePostFromEvent
                 |> List.foldl
                     (\picture dict ->
                         Dict.insert picture.id picture dict
                     )
-                    model.pictures
+                    model.picturePosts
     in
-    ( { model | pictures = pictures }, Cmd.none )
+    ( { model | picturePosts = picturePosts }, Cmd.none )
 
 
 uniquePubKeys : List PubKey -> List PubKey
