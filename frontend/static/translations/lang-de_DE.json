@@ -251,6 +251,7 @@
       "messages menu item text": "Nachrichten",
       "newsletters menu item text": "Newsletter",
       "notifications menu item text": "Benachr.",
+      "pictures menu item text": "Bilder",
       "posts menu item text": "Posts",
       "read menu item text": "Lesen",
       "search menu item text": "Suche",
@@ -299,6 +300,17 @@
       "Sentences label": "Sätze:",
       "Reading time label": "Lesezeit:",
       "Speaking time label": "Sprechzeit:"
+   },
+   "uitest": {
+      "dialog title": "UI Test",
+      "category 1 text": "Kategorie 1",
+      "category 2 text": "Kategorie 2",
+      "no dropdown item text": "Keine Dropdown-Auswahl",
+      "dropdown item 1 text": "Dropdown-Auswahl 1",
+      "dropdown item 2 text": "Dropdown-Auswahl 2",
+      "checkbox label": "Checkbox-Text",
+      "switch off label": "Switch aus label",
+      "switch on label": "Switch an label"
    },
    "upload dialog": {
       "dialog title": "Hochladen",

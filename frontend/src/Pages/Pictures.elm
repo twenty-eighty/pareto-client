@@ -1,4 +1,4 @@
-module Pages.Read exposing (Model, Msg, init, page, subscriptions, update, view)
+module Pages.Pictures exposing (Model, Msg, init, page, subscriptions, update, view)
 
 import BrowserEnv exposing (BrowserEnv)
 import Color
@@ -14,9 +14,9 @@ import Material.Icons exposing (category)
 import Nostr
 import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.FollowList exposing (followingPubKey)
+import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.ShortNote exposing (ShortNote)
 import Nostr.Types exposing (EventId, PubKey)
 import Page exposing (Page)
 import Pareto
@@ -29,7 +29,7 @@ import Shared.Msg
 import Tailwind.Utilities as Tw
 import Translations.Read
 import Translations.Sidebar
-import Ui.ShortNote as ShortNote exposing (ShortNotesViewData)
+import Ui.PicturePost as PicturePost exposing (PicturePostsViewData)
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
@@ -65,10 +65,8 @@ type alias Model =
 type Category
     = Global
     | Pareto
-    | Friedenstaube
     | Followed
-    | Highlighter
-    | Rss
+    | Memes
 
 
 stringFromCategory : Category -> String
@@ -80,17 +78,11 @@ stringFromCategory category =
         Pareto ->
             "pareto"
 
-        Friedenstaube ->
-            "friedenstaube"
-
         Followed ->
             "followed"
 
-        Highlighter ->
-            "highlights"
-
-        Rss ->
-            "rss"
+        Memes ->
+            "memes"
 
 
 categoryFromString : String -> Maybe Category
@@ -102,14 +94,11 @@ categoryFromString categoryString =
         "pareto" ->
             Just Pareto
 
-        "friedenstaube" ->
-            Just Friedenstaube
-
         "followed" ->
             Just Followed
 
-        "highlights" ->
-            Just Highlighter
+        "memes" ->
+            Just Memes
 
         _ ->
             Nothing
@@ -165,7 +154,7 @@ init shared route () =
     , Effect.batch
         [ changeCategoryEffect
         , RequestArticlesFeed [ filterForCategory shared correctedCategory ]
-            |> Nostr.createRequest shared.nostr "Long-form articles" [ KindUserMetadata, KindEventDeletionRequest ]
+            |> Nostr.createRequest shared.nostr "Picture posts" [ KindUserMetadata, KindEventDeletionRequest ]
             |> Shared.Msg.RequestNostrEvents
             |> Effect.sendSharedMsg
         , signUpEffect
@@ -259,49 +248,26 @@ filterForCategory : Shared.Model -> Category -> EventFilter
 filterForCategory shared category =
     case category of
         Global ->
-            { emptyEventFilter | kinds = Just [ KindLongFormContent ], limit = Just 20 }
+            { emptyEventFilter | kinds = Just [ KindPicture ], limit = Just 20 }
 
         Pareto ->
-            { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (paretoFollowsList shared.nostr), limit = Just 20 }
-
-        Friedenstaube ->
-            { emptyEventFilter
-                | kinds = Just [ KindLongFormContent ]
-                , authors = Just (paretoFollowsList shared.nostr)
-                , tagReferences =
-                    Just
-                        [ TagReferenceTag "Frieden"
-                        , TagReferenceTag "frieden"
-                        , TagReferenceTag "Friedenstaube"
-                        , TagReferenceTag "friedenstaube"
-                        ]
-                , limit = Just 20
-            }
+            { emptyEventFilter | kinds = Just [ KindPicture ], authors = Just (paretoFollowsList shared.nostr), limit = Just 20 }
 
         Followed ->
-            { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (userFollowsList shared.nostr shared.loginStatus), limit = Just 20 }
+            { emptyEventFilter | kinds = Just [ KindPicture ], authors = Just (userFollowsList shared.nostr shared.loginStatus), limit = Just 20 }
 
-        Highlighter ->
-            { emptyEventFilter | kinds = Just [ KindLongFormContent ], limit = Just 20 }
+        Memes ->
+            { emptyEventFilter
+                | kinds = Just [ KindPicture ]
 
-        Rss ->
-            { emptyEventFilter | kinds = Just [ KindShortTextNote ], authors = Just (paretoRssFollowsList shared.nostr), limit = Just 20 }
+                {- , authors = Just (paretoFollowsList shared.nostr) -}
+                , limit = Just 20
+            }
 
 
 paretoFollowsList : Nostr.Model -> List PubKey
 paretoFollowsList nostr =
     case Nostr.getFollowsList nostr Pareto.authorsKey of
-        Just followsList ->
-            followsList
-                |> List.filterMap followingPubKey
-
-        Nothing ->
-            []
-
-
-paretoRssFollowsList : Nostr.Model -> List PubKey
-paretoRssFollowsList nostr =
-    case Nostr.getFollowsList nostr Pareto.rssAuthorsKey of
         Just followsList ->
             followsList
                 |> List.filterMap followingPubKey
@@ -345,27 +311,28 @@ availableCategories nostr loginStatus translations =
         paretoCategories =
             [ paretoCategory translations ]
 
-        friedenstaubeCategories =
-            [ friedenstaubeCategory translations ]
-
-        {-
-           paretoRssCategories =
-               if paretoRssFollowsList nostr /= [] then
-                   [ paretoRssCategory translations ]
-
-               else
-                   []
-        -}
         followedCategories =
             if userFollowsList nostr loginStatus /= [] then
                 [ followedCategory translations ]
 
             else
                 []
+
+        isBetaTester =
+            Shared.loggedInPubKey loginStatus
+                |> Maybe.map (Nostr.isBetaTester nostr)
+                |> Maybe.withDefault False
+
+        memesCategories =
+            if isBetaTester then
+                [ memesCategory translations ]
+
+            else
+                []
     in
     paretoCategories
-        ++ friedenstaubeCategories
         ++ followedCategories
+        ++ memesCategories
         ++ [ { category = Global
              , title = Translations.Read.globalFeedCategory [ translations ]
              }
@@ -383,13 +350,6 @@ paretoCategory translations =
     }
 
 
-friedenstaubeCategory : I18Next.Translations -> Components.Categories.CategoryData Category
-friedenstaubeCategory _ =
-    { category = Friedenstaube
-    , title = "Friedenstaube"
-    }
-
-
 
 {-
    paretoRssCategory : I18Next.Translations -> Components.Categories.CategoryData Category
@@ -404,6 +364,13 @@ followedCategory : I18Next.Translations -> Components.Categories.CategoryData Ca
 followedCategory translations =
     { category = Followed
     , title = Translations.Read.followedFeedCategory [ translations ]
+    }
+
+
+memesCategory : I18Next.Translations -> Components.Categories.CategoryData Category
+memesCategory translations =
+    { category = Memes
+    , title = Translations.Read.memesFeedCategory [ translations ]
     }
 
 
@@ -460,11 +427,6 @@ categoryImage _ category =
                 |> Icon.view
                 |> Just
 
-        Friedenstaube ->
-            Icon.ParetoIcon Icon.ParetoPeaceDove 16 iconColor
-                |> Icon.view
-                |> Just
-
         Followed ->
             Icon.ParetoIcon Icon.ParetoFollowed 16 iconColor
                 |> Icon.view
@@ -480,83 +442,38 @@ categoryImage _ category =
 
 
 viewContent : Shared.Model -> Model -> Maybe PubKey -> Html Msg
-viewContent shared model userPubKey =
+viewContent shared model _ =
     let
-        viewArticles =
-            Nostr.getArticlesByDate shared.nostr
-                |> Ui.View.viewArticlePreviews
-                    ArticlePreviewList
+        viewMemes =
+            Nostr.getPicturePosts shared.nostr
+                |> viewPicturePosts
                     { theme = shared.theme
                     , browserEnv = shared.browserEnv
                     , nostr = shared.nostr
-                    , userPubKey = userPubKey
-                    , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) userPubKey
-                    , commenting = Nothing
-                    , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) userPubKey
-                    , onRepost = Nothing
-                    , onZap = Nothing
-                    }
-
-        viewNotes =
-            Nostr.getShortNotes shared.nostr
-                |> viewShortNotes
-                    { theme = shared.theme
-                    , browserEnv = shared.browserEnv
-                    , nostr = shared.nostr
-                    , userPubKey = userPubKey
-                    , onBookmark = Maybe.map (\pubKey -> ( AddShortNoteBookmark pubKey, RemoveShortNoteBookmark pubKey )) userPubKey
                     }
     in
     case Components.Categories.selected model.categories of
         Global ->
-            viewArticles
+            viewMemes
 
         Pareto ->
-            viewArticles
-
-        Friedenstaube ->
-            viewArticles
+            viewMemes
 
         Followed ->
-            viewArticles
+            viewMemes
 
-        Highlighter ->
-            viewArticles
-
-        Rss ->
-            viewNotes
+        Memes ->
+            viewMemes
 
 
-viewShortNotes : ShortNotesViewData Msg -> List ShortNote -> Html Msg
-viewShortNotes shortNotesViewData shortNotes =
-    shortNotes
+viewPicturePosts : PicturePostsViewData -> List PicturePost -> Html Msg
+viewPicturePosts picturePostsViewData picturePosts =
+    picturePosts
         |> List.map
-            (\shortNote ->
-                ShortNote.viewShortNote
-                    shortNotesViewData
-                    { author = Nostr.getAuthor shortNotesViewData.nostr shortNote.pubKey
-                    , actions =
-                        { addBookmark = Nothing
-                        , removeBookmark = Nothing
-                        , addReaction = Nothing
-                        , removeReaction = Nothing
-                        , addRepost = Nothing
-                        , startComment = Nothing
-                        }
-                    , interactions =
-                        { zaps = Nothing
-                        , articleComments = []
-                        , articleCommentComments = Dict.empty
-                        , highlights = Nothing
-                        , reactions = Nothing
-                        , reposts = Nothing
-                        , notes = Nothing
-                        , bookmarks = Nothing
-                        , isBookmarked = False
-                        , reaction = Nothing
-                        , repost = Nothing
-                        }
-                    }
-                    shortNote
+            (\picturePost ->
+                PicturePost.viewPicturePost
+                    picturePostsViewData
+                    {}
+                    picturePost
             )
         |> div []
