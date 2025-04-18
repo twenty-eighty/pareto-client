@@ -38,6 +38,7 @@ type RequestData
     | RequestFollowSets EventFilter
     | RequestMediaServerLists EventFilter
     | RequestNip05AndArticle Nip05 String
+    | RequestPicturesFeed (List EventFilter)
     | RequestProfile (Maybe (List RelayUrl)) EventFilter
     | RequestProfileByNip05 Nip05
     | RequestReactions EventFilter
@@ -118,6 +119,9 @@ relaysOfRequest request =
                         Nothing
 
                     RequestNip05AndArticle _ _ ->
+                        Nothing
+
+                    RequestPicturesFeed _ ->
                         Nothing
 
                     RequestProfile (Just relayList) _ ->

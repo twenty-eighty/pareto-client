@@ -2,6 +2,7 @@ module Nostr.Nip27 exposing (GetProfileFunction, collectNostrLinks, subsituteNos
 
 import Html.Styled as Html exposing (Html, a, text)
 import Html.Styled.Attributes exposing (href)
+import Nostr.Event exposing (Kind(..), kindFromNumber)
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName)
 import Nostr.Types exposing (PubKey)
@@ -177,8 +178,13 @@ generateNostrLink styles fnGetProfile nostrLink =
                 Ok (Nip19.NAddr _) ->
                     Just ( shortenedLinkText linkContent, "/a/" ++ linkContent )
 
-                Ok (Nip19.NEvent _) ->
-                    Just ( shortenedLinkText linkContent, "/a/" ++ linkContent )
+                Ok (Nip19.NEvent { kind }) ->
+                    case Maybe.map kindFromNumber kind of
+                        Just KindLongFormContent ->
+                            Just ( shortenedLinkText linkContent, "/a/" ++ linkContent )
+
+                        _ ->
+                            Just ( shortenedLinkText linkContent, "/e/" ++ linkContent )
 
                 Ok (Nip19.Note _) ->
                     Just ( shortenedLinkText linkContent, "/a/" ++ linkContent )

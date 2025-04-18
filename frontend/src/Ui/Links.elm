@@ -1,7 +1,7 @@
 module Ui.Links exposing (..)
 
-import Html.Styled as Html exposing (Attribute, Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
+import Html.Styled as Html exposing (Html, a, div)
+import Html.Styled.Attributes exposing (href)
 import Nostr.Nip05 as Nip05
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..))

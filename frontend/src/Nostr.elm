@@ -316,6 +316,11 @@ performRequest model description requestId requestData =
             -- identifier not needed here, only after getting nip05 data
             ( model, fetchNip05Info (Nip05FetchedForNip05 requestId nip05) nip05 )
 
+        RequestPicturesFeed eventFilters ->
+            ( { model | picturePosts = Dict.empty }
+            , model.hooks.requestEvents description False requestId configuredRelays eventFilters
+            )
+
         RequestProfile relays eventFilter ->
             ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) [ eventFilter ] )
 
@@ -1955,7 +1960,7 @@ updateModelWithComments model requestId events =
 
 
 updateModelWithPictures : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
-updateModelWithPictures model _ events =
+updateModelWithPictures model requestId events =
     let
         picturePosts =
             events
@@ -1965,8 +1970,26 @@ updateModelWithPictures model _ events =
                         Dict.insert picture.id picture dict
                     )
                     model.picturePosts
+
+        modelWithPicturePosts =
+            { model | picturePosts = picturePosts }
+
+        maybeRequest =
+            getRequest model requestId
+
+        ( profileRequestModel, maybeRequestWithProfiles ) =
+            maybeRequest
+                |> Maybe.map (\request -> requestRelatedProfiles (picturePosts |> Dict.values |> List.map .pubKey) ( modelWithPicturePosts, request ))
+                |> Maybe.map (requestRelatedReactions (picturePosts |> Dict.values |> List.map .id))
+                |> Maybe.map (\( modelWithRequests, extendedRequest ) -> ( modelWithRequests, Just extendedRequest ))
+                |> Maybe.withDefault ( modelWithPicturePosts, maybeRequest )
     in
-    ( { model | picturePosts = picturePosts }, Cmd.none )
+    case maybeRequestWithProfiles of
+        Just requestWithProfiles ->
+            doRequest profileRequestModel requestWithProfiles
+
+        Nothing ->
+            ( modelWithPicturePosts, Cmd.none )
 
 
 uniquePubKeys : List PubKey -> List PubKey
@@ -2512,6 +2535,36 @@ requestRelatedKindsForShortNotes model shortNotes request =
                 |> Maybe.withDefault ( requestProfileModel, extendedRequestProfile )
     in
     doRequest extendedModel extendedRequestReactions
+
+
+requestRelatedProfiles : List PubKey -> ( Model, Request ) -> ( Model, Request )
+requestRelatedProfiles pubKeys ( model, request ) =
+    let
+        maybeEventFilterForAuthorProfiles =
+            pubKeys
+                |> uniquePubKeys
+                |> getMissingProfilePubKeys model
+                |> eventFilterForAuthors
+    in
+    case maybeEventFilterForAuthorProfiles of
+        Just eventFilterForAuthorProfiles ->
+            -- TODO: add relays for request
+            eventFilterForAuthorProfiles
+                |> RequestProfile Nothing
+                |> addToRequest model request
+
+        Nothing ->
+            ( model, request )
+
+
+requestRelatedReactions : List EventId -> ( Model, Request ) -> ( Model, Request )
+requestRelatedReactions eventIds ( model, request ) =
+    eventIds
+        |> List.map TagReferenceEventId
+        |> eventFilterForReactions
+        |> Maybe.map RequestReactions
+        |> Maybe.map (addToRequest model request)
+        |> Maybe.withDefault ( model, request )
 
 
 updateModelWithUserMetadata : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
