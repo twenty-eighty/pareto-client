@@ -4,6 +4,7 @@ import Components.Button
 import Components.Categories
 import Components.Checkbox
 import Components.Dropdown
+import Components.EntryField
 import Components.Icon
 import Components.SearchBar
 import Components.Switch
@@ -50,9 +51,11 @@ type alias Model =
     { categories : Components.Categories.Model TestCategory
     , checkboxValue : Bool
     , dropdown : Components.Dropdown.Model TestDropdownItem
+    , entryFieldValue : String
     , searchbar : Components.SearchBar.Model
     , searchValue : Maybe String
     , switchValue : TestSwitchState
+    , textAreaValue : String
     , theme : Theme
     }
 
@@ -77,9 +80,11 @@ init shared () =
     ( { categories = Components.Categories.init { selected = Category2 }
       , checkboxValue = True
       , dropdown = Components.Dropdown.init { selected = Just DropdownItem2 }
+      , entryFieldValue = ""
       , searchbar = Components.SearchBar.init { searchText = Nothing }
       , searchValue = Nothing
       , switchValue = SwitchState2
+      , textAreaValue = ""
       , theme = shared.theme
       }
     , Effect.none
@@ -96,11 +101,13 @@ type Msg
     | CategoriesSent (Components.Categories.Msg TestCategory Msg)
     | CategorySelected TestCategory
     | CheckboxClicked Bool
+    | EntryFieldChanged String
     | SwitchClicked TestSwitchState
     | DropdownSent (Components.Dropdown.Msg TestDropdownItem Msg)
     | DropdownChanged (Maybe TestDropdownItem)
     | Search (Maybe String)
     | SearchBarSent (Components.SearchBar.Msg Msg)
+    | TextAreaChanged String
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
@@ -125,6 +132,9 @@ update msg model =
 
         CheckboxClicked value ->
             ( { model | checkboxValue = value }, Effect.none )
+
+        EntryFieldChanged value ->
+            ( { model | entryFieldValue = value }, Effect.none )
 
         SwitchClicked value ->
             ( { model | switchValue = value }, Effect.none )
@@ -151,6 +161,9 @@ update msg model =
                 , toMsg = SearchBarSent
                 , onSearch = Search
                 }
+
+        TextAreaChanged value ->
+            ( { model | textAreaValue = value }, Effect.none )
 
 
 
@@ -215,8 +228,10 @@ elementList shared model =
     , ( "primary button (disabled)", primaryButtonDisabledElement shared model )
     , ( "secondary button", secondaryButtonElement shared model )
     , ( "secondary button (disabled)", secondaryButtonDisabledElement shared model )
-    , ( "regular button", regularButtonElement shared model )
+    , ( "regular button with icons", regularButtonElement shared model )
     , ( "regular button (disabled)", regularButtonDisabledElement shared model )
+    , ( "entry field", entryFieldElement shared model )
+    , ( "text area", textAreaElement shared model )
     , ( "search bar", searchbarElement shared model )
     ]
 
@@ -396,6 +411,35 @@ regularButtonDisabledElement shared model =
         }
         |> Components.Button.withDisabled True
         |> Components.Button.view
+
+
+
+-- entry field / text area
+
+
+entryFieldElement : Shared.Model -> Model -> Html Msg
+entryFieldElement shared model =
+    Components.EntryField.new
+        { value = model.entryFieldValue
+        , onInput = EntryFieldChanged
+        , theme = model.theme
+        }
+        |> Components.EntryField.withLabel (Translations.entryFieldLabel [ shared.browserEnv.translations ])
+        |> Components.EntryField.withPlaceholder (Translations.entryFieldPlaceholder [ shared.browserEnv.translations ])
+        |> Components.EntryField.view
+
+
+textAreaElement : Shared.Model -> Model -> Html Msg
+textAreaElement shared model =
+    Components.EntryField.new
+        { value = model.entryFieldValue
+        , onInput = EntryFieldChanged
+        , theme = model.theme
+        }
+        |> Components.EntryField.withLabel (Translations.textAreaLabel [ shared.browserEnv.translations ])
+        |> Components.EntryField.withPlaceholder (Translations.textAreaPlaceholder [ shared.browserEnv.translations ])
+        |> Components.EntryField.withRows 5
+        |> Components.EntryField.view
 
 
 

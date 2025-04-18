@@ -308,6 +308,10 @@
       "no dropdown item text": "Keine Dropdown-Auswahl",
       "dropdown item 1 text": "Dropdown-Auswahl 1",
       "dropdown item 2 text": "Dropdown-Auswahl 2",
+      "entry field label": "Eingabefeld Label",
+      "entry field placeholder": "Eingabefeld Platzhalter",
+      "text area label": "Textbereich Label",
+      "text area placeholder": "Textbereich Platzhalter",
       "checkbox label": "Checkbox-Text",
       "switch off label": "Switch aus label",
       "switch on label": "Switch an label"
