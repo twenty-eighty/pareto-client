@@ -1,15 +1,22 @@
 module Components.ArticleInfo exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
+import Color
+import Components.Icon as Icon exposing (Icon)
+import FeatherIcons
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr exposing (..)
 import Nostr.Article exposing (Article, publishedTime)
 import Nostr.Profile exposing (Author)
+import Nostr.Reactions exposing (Interactions)
+import String exposing (toInt)
 import Tailwind.Breakpoints as Bp exposing (..)
 import Tailwind.Theme as Theme exposing (..)
 import Tailwind.Utilities as Tw exposing (..)
 import TextStats exposing (TextStats)
 import Ui.Profile
+import Ui.Shared exposing (formatZapNum)
+import Ui.ShortNote exposing (isImageUrl)
 import Ui.Styles exposing (Styles)
 
 
@@ -18,8 +25,8 @@ import Ui.Styles exposing (Styles)
 -- VIEW
 
 
-view : Styles msg -> Author -> Article -> BrowserEnv -> Html msg
-view styles author article browserEnv =
+view : Styles msg -> Author -> Article -> BrowserEnv -> Interactions -> Html msg
+view styles author article browserEnv interactions =
     let
         ( profile, pubKey ) =
             case author of
@@ -49,6 +56,7 @@ view styles author article browserEnv =
             , Tw.tracking_wide
             , Tw.bg_color Theme.white
             , Tw.w_1over5
+            , Tw.max_w_60
             , Tw.h_screen
             , Tw.text_color Theme.slate_300
             , Bp.lg
@@ -114,7 +122,7 @@ view styles author article browserEnv =
                 [ text articlePublishedDate ]
             , viewTags <| List.filter (\hashtag -> not (String.isEmpty hashtag)) <| article.hashtags
             , viewArticleStats articleStats
-            , viewInteractions { likes = 5, comments = 0, reposts = 0, zaps = 142, bookmarks = 2 }
+            , viewInteractions browserEnv interactions
             ]
         ]
 
@@ -223,8 +231,50 @@ viewArticleStats textStats =
         ]
 
 
-viewInteractions : { likes : Int, comments : Int, reposts : Int, zaps : Int, bookmarks : Int } -> Html msg
-viewInteractions interactions =
+viewInteractions : BrowserEnv -> Interactions -> Html msg
+viewInteractions browserEnv interactions =
+    let
+        renderInteraction : Icon -> Maybe Int -> Html msg
+        renderInteraction icon maybeValue =
+            div
+                [ css
+                    [ Tw.flex
+                    , Tw.h_6
+                    , Tw.gap_1_dot_5
+                    ]
+                ]
+                [ div
+                    [ css
+                        [ Tw.w_6
+                        , Tw.h_6
+                        , Tw.justify_center
+                        , Tw.items_center
+                        , Tw.flex
+                        ]
+                    ]
+                    [ Icon.view icon
+                    ]
+                , span [ css [ Tw.py_0_dot_5 ] ]
+                    [ text <| Maybe.withDefault "0" <| Maybe.map String.fromInt maybeValue ]
+                ]
+
+        likkesIcon =
+            Icon.MaterialIcon Icon.MaterialFavoriteBorder 30 Icon.Inherit
+
+        bookmarkIcon =
+            Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdded 30 Icon.Inherit
+
+        repostIcon =
+            Icon.MaterialIcon Icon.MaterialRepeat 30 Icon.Inherit
+
+        itemsList =
+            [ ( Icon.FeatherIcon FeatherIcons.messageSquare, Just (List.length interactions.articleComments) )
+            , ( likkesIcon, interactions.reactions )
+            , ( repostIcon, interactions.reposts )
+            , ( Icon.FeatherIcon FeatherIcons.zap, interactions.zaps |> Maybe.map (\v -> v // 1000) )
+            , ( bookmarkIcon, interactions.bookmarks )
+            ]
+    in
     div
         [ css
             [ Tw.flex
@@ -237,112 +287,4 @@ viewInteractions interactions =
             , Tw.flex_wrap
             ]
         ]
-        [ div
-            [ css
-                [ Tw.flex
-                , Tw.flex_1
-                , Tw.gap_1_dot_5
-                ]
-            ]
-            [ img
-                [ Attr.src "https://cdn.builder.io/api/v1/image/assets/TEMP/efa51e07b048e900800fe1cf9dd9ce516d17661b?placeholderIfAbsent=true&apiKey=10f24aae08624aa4a3139b1ffec54639"
-                , Attr.alt "Likes icon"
-                , css
-                    [ Tw.object_contain
-                    , Tw.shrink_0
-                    , Tw.my_auto
-                    , Tw.aspect_square
-                    , Tw.w_4
-                    ]
-                ]
-                []
-            , span []
-                [ text "5" ]
-            ]
-        , div
-            [ css
-                [ Tw.flex
-                , Tw.flex_1
-                , Tw.gap_1_dot_5
-                ]
-            ]
-            [ img
-                [ Attr.src "https://cdn.builder.io/api/v1/image/assets/TEMP/ecd4859d1d71529d148449914d4864dba4335a09?placeholderIfAbsent=true&apiKey=10f24aae08624aa4a3139b1ffec54639"
-                , Attr.alt "Comments icon"
-                , css
-                    [ Tw.object_contain
-                    , Tw.shrink_0
-                    , Tw.my_auto
-                    , Tw.aspect_square
-                    , Tw.w_4
-                    ]
-                ]
-                []
-            , span []
-                [ text "0" ]
-            ]
-        , div
-            [ css
-                [ Tw.flex
-                , Tw.flex_1
-                , Tw.gap_1_dot_5
-                ]
-            ]
-            [ img
-                [ Attr.src "https://cdn.builder.io/api/v1/image/assets/TEMP/b03c504a0dbdc9fed19204aa20fbd4016d88c3b4?placeholderIfAbsent=true&apiKey=10f24aae08624aa4a3139b1ffec54639"
-                , Attr.alt "Shares icon"
-                , css
-                    [ Tw.object_contain
-                    , Tw.shrink_0
-                    , Tw.my_auto
-                    , Tw.aspect_square
-                    , Tw.w_4
-                    ]
-                ]
-                []
-            , span []
-                [ text "0" ]
-            ]
-        , div
-            [ css
-                [ Tw.flex
-                , Tw.gap_1_dot_5
-                ]
-            ]
-            [ img
-                [ Attr.src "https://cdn.builder.io/api/v1/image/assets/TEMP/e6108ae064f959cd44a0e2018e3cc9572635b74c?placeholderIfAbsent=true&apiKey=10f24aae08624aa4a3139b1ffec54639"
-                , Attr.alt "Views icon"
-                , css
-                    [ Tw.object_contain
-                    , Tw.shrink_0
-                    , Tw.my_auto
-                    , Tw.aspect_square
-                    , Tw.w_4
-                    ]
-                ]
-                []
-            , span []
-                [ text "142" ]
-            ]
-        , div
-            [ css
-                [ Tw.flex
-                , Tw.gap_1
-                ]
-            ]
-            [ img
-                [ Attr.src "https://cdn.builder.io/api/v1/image/assets/TEMP/2deb36a8261980cb9698c587ac53c7f07b9591ce?placeholderIfAbsent=true&apiKey=10f24aae08624aa4a3139b1ffec54639"
-                , Attr.alt "Saves icon"
-                , css
-                    [ Tw.object_contain
-                    , Tw.shrink_0
-                    , Tw.my_auto
-                    , Tw.aspect_square
-                    , Tw.w_4
-                    ]
-                ]
-                []
-            , span []
-                [ text "2" ]
-            ]
-        ]
+        (itemsList |> List.map (\( url, value ) -> renderInteraction url value))

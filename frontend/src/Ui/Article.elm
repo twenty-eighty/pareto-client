@@ -194,11 +194,13 @@ viewArticle articlePreviewsData articlePreviewData article =
             [ Tw.flex
             , Tw.flex_wrap
             , Tw.w_lvw
+            , Tw.h_dvh
+            , Tw.overflow_hidden
             , Tw.neg_mb_4
             , Bp.md [ Tw.mb_0 ]
             ]
         ]
-        [ ArticleInfo.view styles articlePreviewData.author article articlePreviewsData.browserEnv
+        [ ArticleInfo.view styles articlePreviewData.author article articlePreviewsData.browserEnv articlePreviewData.interactions
         , div
             [ css
                 [ Bp.lg [ Tw.w_4over5 ]
