@@ -170,6 +170,12 @@ defmodule NostrBackendWeb.PageController do
     |> render(:tech_details)
   end
 
+  def uitest(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:uitest)
+  end
+
   def write(conn, _params) do
     conn
     |> add_meta_tags

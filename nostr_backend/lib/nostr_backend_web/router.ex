@@ -59,6 +59,7 @@ defmodule NostrBackendWeb.Router do
     get("/sign-in", PageController, :sign_in)
     get("/subscribers", PageController, :subscribers)
     get("/tech-details", PageController, :tech_details)
+    get("/uitest", PageController, :uitest)
     get("/write", PageController, :write)
 
     get("/a/:article_id", ContentController, :article)
