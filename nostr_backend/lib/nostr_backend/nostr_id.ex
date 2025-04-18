@@ -61,6 +61,17 @@ defmodule NostrBackend.NostrId do
     end
   end
 
+  defp parse_data("nevent", data) do
+    case TLVDecoder.decode_tlv_stream(data) do
+      {:ok, tlv_list} ->
+        parsed_data = extract_tlv_data(:nevent, tlv_list)
+        {:ok, {:event, parsed_data}}
+
+      {:error, reason} ->
+        {:error, "Invalid TLV data in nevent: #{inspect(reason)}"}
+    end
+  end
+
   defp parse_data("nattr", data) do
     article_id = Base.encode16(data, case: :lower)
     {:ok, {:article, article_id}}
@@ -97,6 +108,37 @@ defmodule NostrBackend.NostrId do
         0x03 ->
           kind = :binary.decode_unsigned(tlv.value, :big)
           Map.put(acc, :kind, kind)
+
+        _ ->
+          # Ignore unknown tags
+          acc
+      end
+    end)
+  end
+
+    defp extract_tlv_data(:nevent, tlv_list) do
+    Enum.reduce(tlv_list, %{relays: []}, fn tlv, acc ->
+      case tlv.tag do
+        # Event ID
+        0x00 ->
+          id = Base.encode16(tlv.value, case: :lower)
+          Map.put(acc, :id, id)
+
+        # Relay
+        0x01 ->
+          relays = acc.relays ++ [tlv.value]
+          Map.put(acc, :relays, relays)
+
+        # Author
+        0x02 ->
+          author = Base.encode16(tlv.value, case: :lower)
+          Map.put(acc, :author, author)
+
+        # Kind
+        0x03 ->
+          kind = :binary.decode_unsigned(tlv.value, :big)
+          Map.put(acc, :kind, kind)
+
 
         _ ->
           # Ignore unknown tags

@@ -17,7 +17,8 @@ import Markdown
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
 import Nostr.Event exposing (AddressComponents, Kind(..), Tag(..), TagReference(..))
-import Nostr.Nip19 exposing (NIP19Type(..))
+import Nostr.Nip05 exposing (nip05ToString)
+import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (CommentType)
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
@@ -755,7 +756,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                             ]
                         ]
                     ]
-                    [ viewTitlePreview styles article.title (linkToArticle article) textWidthAttr
+                    [ viewTitlePreview styles article.title (linkToArticle articlePreviewData.author article) textWidthAttr
                     , div
                         (styles.colorStyleGrayscaleText
                             ++ styles.textStyleBody
@@ -771,9 +772,41 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
         ]
 
 
-linkToArticle : Article -> Maybe String
-linkToArticle article =
-    nip19ForArticle article |> Maybe.map (\naddr -> "/a/" ++ naddr)
+linkToArticle : Author -> Article -> Maybe String
+linkToArticle author article =
+    let
+        articleRelays =
+            article.relays
+                |> Set.toList
+                -- append max 5 relays so the link doesn't get infinitely long
+                |> List.take 5
+                |> List.map websocketUrl
+    in
+    case ( author, article.identifier ) of
+        ( Nostr.Profile.AuthorProfile { nip05 } ValidationSucceeded, Just identifier ) ->
+            Just <| "/u/" ++ (nip05 |> Maybe.map nip05ToString |> Maybe.withDefault "") ++ "/" ++ identifier
+
+        ( _, Just identifier ) ->
+            Nip19.NAddr
+                { identifier = identifier
+                , pubKey = article.author
+                , kind = Nostr.Event.numberForKind article.kind
+                , relays = articleRelays
+                }
+                |> Nip19.encode
+                |> Result.toMaybe
+                |> Maybe.map (\naddr -> "/a/" ++ naddr)
+
+        ( _, Nothing ) ->
+            NEvent
+                { id = article.id
+                , author = Just article.author
+                , kind = Just <| Nostr.Event.numberForKind article.kind
+                , relays = articleRelays
+                }
+                |> Nip19.encode
+                |> Result.toMaybe
+                |> Maybe.map (\nevent -> "/a/" ++ nevent)
 
 
 viewTitlePreview : Styles msg -> Maybe String -> Maybe String -> List Css.Style -> Html msg
@@ -1158,8 +1191,8 @@ viewProfileImageSmall linkElement maybeProfile validationStatus =
         ]
 
 
-viewTitleSummaryImagePreview : Styles msg -> Article -> Html msg
-viewTitleSummaryImagePreview styles article =
+viewTitleSummaryImagePreview : Styles msg -> Author -> Article -> Html msg
+viewTitleSummaryImagePreview styles author article =
     div
         [ css
             [ Tw.flex
@@ -1168,7 +1201,7 @@ viewTitleSummaryImagePreview styles article =
             ]
         ]
         [ div []
-            [ viewTitlePreview styles article.title (linkToArticle article) []
+            [ viewTitlePreview styles article.title (linkToArticle author article) []
             , viewSummary styles article.summary
             ]
         , viewArticleImage article.image

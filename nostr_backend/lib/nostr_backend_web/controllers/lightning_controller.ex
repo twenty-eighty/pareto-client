@@ -14,6 +14,7 @@ defmodule NostrBackendWeb.LightningController do
     "donjoe" => "compacthook86@walletofsatoshi.com",
     "client" => "donate2pareto@walletofsatoshi.com",
     "_" => "donate2pareto@walletofsatoshi.com",
+    "matej" => "matej@blink.sv",
     "milosz" => "donate2pareto@walletofsatoshi.com",
     "ashoka" => "donate2pareto@walletofsatoshi.com",
     "friedenstaube" => "sorrypyramid67@walletofsatoshi.com",

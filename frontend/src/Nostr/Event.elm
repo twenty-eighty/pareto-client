@@ -3,6 +3,7 @@ module Nostr.Event exposing (..)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
+import MimeType exposing (MimeType)
 import Nostr.Nip19 as Nip19 exposing (NAddrData, NEventData, NIP19Type(..))
 import Nostr.Relay
 import Nostr.Types exposing (Address, EventId, PubKey, RelayRole(..), RelayUrl, decodeRelayRole, relayRoleToString)
@@ -16,6 +17,7 @@ type Tag
     | AddressTag AddressComponents (Maybe String)
     | AltTag String
     | ClientTag String (Maybe String) (Maybe String)
+    | ContentWarningTag String
     | DescriptionTag String
     | DirTag
     | EventIdTag EventId (Maybe RelayUrl)
@@ -23,9 +25,11 @@ type Tag
     | ExpirationTag Time.Posix
     | ExternalIdTag String
     | FileTag String (Maybe String)
+    | GeohashTag String
     | HashTag String
     | IdentityTag Identity String
     | KindTag Kind
+    | ImageMetadataTag ImageMetadata
     | ImageTag String (Maybe ImageSize)
     | LocationTag String (Maybe String)
     | LabelNamespaceTag String
@@ -48,6 +52,17 @@ type Tag
     | UrlTag String RelayRole
     | WebTag String (Maybe String)
     | ZapTag PubKey RelayUrl (Maybe Int)
+
+
+type alias ImageMetadata =
+    { url : String
+    , mimeType : Maybe MimeType
+    , blurHash : Maybe String
+    , dim : Maybe ( Int, Int )
+    , alt : Maybe String
+    , x : Maybe String
+    , fallbacks : List String
+    }
 
 
 type Identity
@@ -1635,6 +1650,9 @@ decodeTag =
                         "client" ->
                             Decode.map3 ClientTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 Decode.string))
 
+                        "content-warning" ->
+                            Decode.map ContentWarningTag (Decode.index 1 Decode.string)
+
                         "d" ->
                             Decode.map EventDelegationTag (Decode.index 1 Decode.string)
 
@@ -1653,11 +1671,26 @@ decodeTag =
                         "f" ->
                             Decode.map2 FileTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
+                        "g" ->
+                            Decode.map GeohashTag (Decode.index 1 Decode.string)
+
                         "i" ->
                             Decode.map2 IdentityTag (Decode.index 1 identityDecoder) (Decode.index 2 Decode.string)
 
                         "image" ->
                             Decode.map2 ImageTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 imageSizeDecoder))
+
+                        "imeta" ->
+                            Decode.list Decode.string
+                                |> Decode.andThen
+                                    (\tagList ->
+                                        case imageMetadataFromTagList tagList of
+                                            Ok imageMetadata ->
+                                                Decode.succeed (ImageMetadataTag imageMetadata)
+
+                                            Err error ->
+                                                Decode.fail error
+                                    )
 
                         "k" ->
                             Decode.map KindTag (Decode.index 1 kindStringDecoder)
@@ -1730,6 +1763,87 @@ decodeTag =
                 )
         , decodeInvalidTag
         ]
+
+
+imageMetadataFromTagList : List String -> Result String ImageMetadata
+imageMetadataFromTagList tagList =
+    let
+        parsed =
+            tagList
+                |> List.foldl
+                    (\tag acc ->
+                        let
+                            tagName =
+                                tag
+                                    |> String.words
+                                    |> List.head
+                        in
+                        case tagName of
+                            Just "imeta" ->
+                                acc
+
+                            Just "url" ->
+                                { acc | url = String.dropLeft 4 tag |> String.trim |> Just }
+
+                            Just "m" ->
+                                { acc | mimeType = String.dropLeft 2 tag |> String.trim |> MimeType.parseMimeType }
+
+                            Just "blurhash" ->
+                                { acc | blurHash = String.dropLeft 9 tag |> String.trim |> Just }
+
+                            Just "dim" ->
+                                { acc | dim = parseDimensions (String.dropLeft 4 tag |> String.trim) }
+
+                            Just "alt" ->
+                                { acc | alt = String.dropLeft 4 tag |> String.trim |> Just }
+
+                            Just "x" ->
+                                { acc | x = String.dropLeft 2 tag |> String.trim |> Just }
+
+                            Just "fallback" ->
+                                { acc | fallbacks = acc.fallbacks ++ [ String.dropLeft 9 tag |> String.trim ] }
+
+                            _ ->
+                                acc
+                    )
+                    { url = Nothing
+                    , mimeType = Nothing
+                    , blurHash = Nothing
+                    , dim = Nothing
+                    , alt = Nothing
+                    , x = Nothing
+                    , fallbacks = []
+                    }
+    in
+    case parsed.url of
+        Just url ->
+            Ok
+                { url = url
+                , mimeType = parsed.mimeType
+                , blurHash = parsed.blurHash
+                , dim = parsed.dim
+                , alt = parsed.alt
+                , x = parsed.x
+                , fallbacks = parsed.fallbacks
+                }
+
+        Nothing ->
+            Err "no URL found in image metadata"
+
+
+parseDimensions : String -> Maybe ( Int, Int )
+parseDimensions dimValue =
+    case String.split "x" dimValue of
+        [ widthStr, heightStr ] ->
+            case ( String.toInt widthStr, String.toInt heightStr ) of
+                ( Just width, Just height ) ->
+                    Just ( width, height )
+
+                _ ->
+                    Nothing
+
+        _ ->
+            Nothing
 
 
 decodeGenericTag : Decode.Decoder Tag
@@ -1813,6 +1927,9 @@ tagToList tag =
                 _ ->
                     [ "client", client ]
 
+        ContentWarningTag contentWarning ->
+            [ "content-warning", contentWarning ]
+
         DescriptionTag value ->
             [ "description", value ]
 
@@ -1844,6 +1961,9 @@ tagToList tag =
                 Nothing ->
                     [ "f", value1 ]
 
+        GeohashTag geohash ->
+            [ "g", geohash ]
+
         HashTag value ->
             [ "t", value ]
 
@@ -1852,6 +1972,9 @@ tagToList tag =
 
         ImageTag value (Just size) ->
             [ "image", value, imageSizeToString size ]
+
+        ImageMetadataTag imageMetadata ->
+            buildImageMetadataTag imageMetadata
 
         ImageTag value Nothing ->
             [ "image", value ]
@@ -1968,6 +2091,13 @@ tagToList tag =
 
                 Nothing ->
                     [ "zap", pubKey, relayUrl ]
+
+
+buildImageMetadataTag : ImageMetadata -> List String
+buildImageMetadataTag imageMetadata =
+    [ "imeta"
+    , "url " ++ imageMetadata.url
+    ]
 
 
 identityToString : Identity -> String

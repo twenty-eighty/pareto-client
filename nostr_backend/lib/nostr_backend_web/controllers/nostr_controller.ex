@@ -19,6 +19,7 @@ defmodule NostrBackendWeb.NostrController do
       "kalle" => "08d79c2e514edd4634ea92bbfe1ec089730a049216be9d28c77c4c1c7733f518",
       "rodant" => "71df211931d26ee41121d295bd43cbc7e382505e333b5c13d4016ced9542d9d7",
       "aron" => "9f94e6cc5ce50dcaccfc42b18029aba0ac9215d673197a40172896d3f3472946",
+      "matej" => "5aa5e38abbb37f89c863419bd1e4e60aa31d82fa3c39397e386586e3961b8021",
       "psychobabble" => "6734e11d8d67d9ca4dedb920f81182ded2bca918e3e0f3528bd5f4c4c7e34e8f",
       "indikativ" => "1a040599c19734813abcec04d9bda0ff5fc5054fc4d035b79484bf970a05f5c4",
       "walter_siegrist" => "78c90fc422bdadafb4df0de5d1ed87133265f896949705bebc61aee44bff983c",
@@ -31,7 +32,15 @@ defmodule NostrBackendWeb.NostrController do
       "hartmut" => "92af1031a8dc9fd1c2ef982219ff6cff9944ec62bd45d4c6e4e8d5ffd9939aeb",
       "nachteule" => "9c8096eb84d574ca29eb0077d615a2b12c0113064faeac9f72e464a066e47555",
       "friedenstaube" => "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5",
-      "danjel" => "22ea455f4b837d60c2615721ccc2ef54a4d56e5f00993f4cffd2b98c9180f82f"
+      "danjel" => "22ea455f4b837d60c2615721ccc2ef54a4d56e5f00993f4cffd2b98c9180f82f",
+      "admin" => "0f475886295e78e74af76dfacb3ea537de1938ee79cf92c66d417b5ccd03f43c",
+      "kuma" => "0f467b0603cd3229ad436399a2d4144965f16841767160296a0a7048a844c6f4",
+      "email-gateway" => "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345",
+      "authors" => "0f47948ccf4d12064ede2e0aa744868a2443cb1c42b32c06191e0d902205abef",
+      "editors" => "0f479cb726c1578ca765d5ff6a0c58855263977d5d7cf7b4cea23d42d557c611",
+      "rss" => "0f4791c38e1236dc55f11acbf37a00da8879906d9374498378db8d6ea7952869",
+      "subscription-server" => "f7721f8728935c943710a2f06288cbd56da7ab20b43400a16d26ac58880e0087",
+      "beta-testers" => "0f479ef1a8870a917afbae778ea75fedb5db4cb64501e0e64a6d2010a2908e64"
     },
     "relays" => %{
       "2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" => @default_relays,
@@ -41,6 +50,7 @@ defmodule NostrBackendWeb.NostrController do
       "08d79c2e514edd4634ea92bbfe1ec089730a049216be9d28c77c4c1c7733f518" => @default_relays,
       "71df211931d26ee41121d295bd43cbc7e382505e333b5c13d4016ced9542d9d7" => @default_relays,
       "9f94e6cc5ce50dcaccfc42b18029aba0ac9215d673197a40172896d3f3472946" => @default_relays,
+      "5aa5e38abbb37f89c863419bd1e4e60aa31d82fa3c39397e386586e3961b8021" => @default_relays,
       "6734e11d8d67d9ca4dedb920f81182ded2bca918e3e0f3528bd5f4c4c7e34e8f" => @default_relays,
       "1a040599c19734813abcec04d9bda0ff5fc5054fc4d035b79484bf970a05f5c4" => @default_relays,
       "78c90fc422bdadafb4df0de5d1ed87133265f896949705bebc61aee44bff983c" => @default_relays,
@@ -53,7 +63,15 @@ defmodule NostrBackendWeb.NostrController do
       "92af1031a8dc9fd1c2ef982219ff6cff9944ec62bd45d4c6e4e8d5ffd9939aeb" => @default_relays,
       "9c8096eb84d574ca29eb0077d615a2b12c0113064faeac9f72e464a066e47555" => @default_relays,
       "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5" => @default_relays,
-      "22ea455f4b837d60c2615721ccc2ef54a4d56e5f00993f4cffd2b98c9180f82f" => @default_relays
+      "22ea455f4b837d60c2615721ccc2ef54a4d56e5f00993f4cffd2b98c9180f82f" => @default_relays,
+      "0f475886295e78e74af76dfacb3ea537de1938ee79cf92c66d417b5ccd03f43c" => @default_relays,
+      "0f467b0603cd3229ad436399a2d4144965f16841767160296a0a7048a844c6f4" => @default_relays,
+      "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345" => @default_relays,
+      "0f47948ccf4d12064ede2e0aa744868a2443cb1c42b32c06191e0d902205abef" => @default_relays,
+      "0f479cb726c1578ca765d5ff6a0c58855263977d5d7cf7b4cea23d42d557c611" => @default_relays,
+      "0f4791c38e1236dc55f11acbf37a00da8879906d9374498378db8d6ea7952869" => @default_relays,
+      "f7721f8728935c943710a2f06288cbd56da7ab20b43400a16d26ac58880e0087" => @default_relays,
+      "0f479ef1a8870a917afbae778ea75fedb5db4cb64501e0e64a6d2010a2908e64" => @default_relays
     }
   }
 

@@ -19,7 +19,8 @@ import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05Info, nip05T
 import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
 import Nostr.Nip18 exposing (Repost, repostFromEvent)
 import Nostr.Nip19 exposing (NIP19Type(..))
-import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..), articleCommentCommentOfComment, articleCommentOfComment, commentEventId, commentFromEvent, commentRootAddress)
+import Nostr.Nip22 as Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..), articleCommentCommentOfComment, articleCommentOfComment, commentEventId, commentFromEvent, commentRootAddress)
+import Nostr.Nip68 exposing (PicturePost, picturePostFromEvent)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileFromEvent)
 import Nostr.Reactions exposing (Reaction, reactionFromEvent)
 import Nostr.Relay exposing (Relay, RelayState(..), hostWithoutProtocol, relayUrlDecoder)
@@ -41,7 +42,9 @@ type alias Model =
     { articlesByAddress : Dict Address Article
     , articlesByAuthor : Dict PubKey (List Article)
     , articlesByDate : List Article
+    , articlesById : Dict EventId Article
     , articleDraftsByDate : List Article
+    , articleDraftsById : Dict EventId Article
     , articleDraftRelays : Dict EventId (Set RelayUrl)
     , bookmarkLists : Dict PubKey BookmarkList
     , bookmarkSets : Dict PubKey BookmarkSet
@@ -55,6 +58,7 @@ type alias Model =
     , fileStorageServerLists : Dict PubKey (List String)
     , followLists : Dict PubKey (List Following)
     , followSets : Dict PubKey (Dict String FollowSet) -- follow sets; keys pubKey / identifier
+    , picturePosts : Dict EventId PicturePost
     , pubKeyByNip05 : Dict Nip05String PubKey
     , poolState : RelayState
     , portalUserInfoPubKey : Dict PubKey Portal.PortalCheckResponse
@@ -102,11 +106,16 @@ type TestMode
     | TestModeEnabled
 
 
+getAuthorsFollowList : Model -> List Following
+getAuthorsFollowList model =
+    getFollowsList model Pareto.authorsKey
+        |> Maybe.withDefault paretoAuthorsFollowList
+
+
 isAuthor : Model -> PubKey -> Bool
 isAuthor model userPubKey =
-    getFollowsList model Pareto.authorsKey
-        |> Maybe.map (pubKeyIsFollower userPubKey)
-        |> Maybe.withDefault False
+    getAuthorsFollowList model
+        |> pubKeyIsFollower userPubKey
 
 
 isEditor : Model -> PubKey -> Bool
@@ -535,6 +544,12 @@ getAuthor model pubKey =
         |> Maybe.withDefault (Nostr.Profile.AuthorPubkey pubKey)
 
 
+getPicturePosts : Model -> List PicturePost
+getPicturePosts model =
+    model.picturePosts
+        |> Dict.values
+
+
 getProfileValidationStatus : Model -> PubKey -> Maybe ProfileValidation
 getProfileValidationStatus model pubKey =
     Dict.get pubKey model.profileValidations
@@ -574,6 +589,12 @@ getArticleDraftWithIdentifier model pubKey identifier =
                     == Just identifier
             )
         |> List.head
+
+
+getArticleDraftWithId : Model -> EventId -> Maybe Article
+getArticleDraftWithId model id =
+    model.articleDraftsById
+        |> Dict.get id
 
 
 getArticlesForAuthor : Model -> PubKey -> List Article
@@ -619,6 +640,22 @@ getArticleForNip19 model nip19 =
                 _ ->
                     Nothing
 
+        NEvent { id, kind } ->
+            case kind of
+                Just kindNum ->
+                    case kindFromNumber kindNum of
+                        KindLongFormContent ->
+                            getArticleWithId model id
+
+                        KindDraftLongFormContent ->
+                            getArticleDraftWithId model id
+
+                        _ ->
+                            Nothing
+
+                _ ->
+                    Nothing
+
         _ ->
             Nothing
 
@@ -628,6 +665,12 @@ getArticleWithIdentifier model pubKey identifier =
     model.articlesByAuthor
         |> Dict.get pubKey
         |> Maybe.andThen (filterArticlesWithIdentifier identifier)
+
+
+getArticleWithId : Model -> EventId -> Maybe Article
+getArticleWithId model eventId =
+    model.articlesById
+        |> Dict.get eventId
 
 
 getBlossomServers : Model -> PubKey -> List String
@@ -1116,7 +1159,7 @@ getMissingProfilePubKeys model pubKeys =
             )
 
 
-eventFilterForAuthors : List String -> Maybe EventFilter
+eventFilterForAuthors : List PubKey -> Maybe EventFilter
 eventFilterForAuthors authors =
     if List.isEmpty authors then
         Nothing
@@ -1340,7 +1383,9 @@ empty =
     { articlesByAddress = Dict.empty
     , articlesByAuthor = Dict.empty
     , articlesByDate = []
+    , articlesById = Dict.empty
     , articleDraftsByDate = []
+    , articleDraftsById = Dict.empty
     , articleDraftRelays = Dict.empty
     , bookmarkLists = Dict.empty
     , bookmarkSets = Dict.empty
@@ -1361,6 +1406,7 @@ empty =
         , searchEvents = \_ _ _ _ _ -> Cmd.none
         , sendEvent = \_ _ _ -> Cmd.none
         }
+    , picturePosts = Dict.empty
     , pubKeyByNip05 = Dict.empty
     , poolState = RelayStateUnknown
     , followLists = Dict.singleton Pareto.authorsKey paretoAuthorsFollowList
@@ -1418,6 +1464,7 @@ init hooks testMode relayUrls =
 paretoAuthorsFollowList : List Following
 paretoAuthorsFollowList =
     Pareto.bootstrapAuthorsList
+        |> Dict.toList
         |> List.map
             (\( nip05, authorPubKey ) ->
                 FollowingPubKey
@@ -1426,6 +1473,12 @@ paretoAuthorsFollowList =
                     , petname = Just nip05
                     }
             )
+
+
+paretoKnownPubKey : Nip05 -> Maybe PubKey
+paretoKnownPubKey nip05 =
+    Pareto.bootstrapAuthorsList
+        |> Dict.get (nip05ToString nip05)
 
 
 requestRelayNip11 : List String -> Cmd Msg
@@ -1666,7 +1719,10 @@ updateModelWithEvents model requestId kind events =
             updateModelWithDeletionRequests model events
 
         KindComment ->
-            updateModelWithComments model events
+            updateModelWithComments model requestId events
+
+        KindPicture ->
+            updateModelWithPictures model requestId events
 
         KindRepost ->
             updateModelWithReposts model events
@@ -1850,8 +1906,8 @@ updateModelWithReposts model events =
     )
 
 
-updateModelWithComments : Model -> List Event -> ( Model, Cmd Msg )
-updateModelWithComments model events =
+updateModelWithComments : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
+updateModelWithComments model requestId events =
     let
         updatedDictByAddress : CommentType -> Dict Address (Dict PubKey CommentType) -> Dict Address (Dict PubKey CommentType)
         updatedDictByAddress comment dict =
@@ -1870,18 +1926,86 @@ updateModelWithComments model events =
                 Nothing ->
                     Dict.insert address (Dict.singleton eventId comment) dict
 
-        commentsByAddress =
+        comments =
             events
                 |> List.filterMap commentFromEvent
+
+        commentsByAddress =
+            comments
                 |> List.foldl
                     (\comment accAddress ->
                         updatedDictByAddress comment accAddress
                     )
                     model.commentsByAddress
+
+        maybeRequest =
+            Dict.get requestId model.requests
+
+        ( modelWithRequest, cmd ) =
+            case maybeRequest of
+                Just request ->
+                    requestRelatedKindsForArticleComments model comments request
+
+                Nothing ->
+                    ( model, Cmd.none )
     in
-    ( { model | commentsByAddress = commentsByAddress }
-    , Cmd.none
+    ( { modelWithRequest | commentsByAddress = commentsByAddress }
+    , cmd
     )
+
+
+updateModelWithPictures : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
+updateModelWithPictures model _ events =
+    let
+        picturePosts =
+            events
+                |> List.map picturePostFromEvent
+                |> List.foldl
+                    (\picture dict ->
+                        Dict.insert picture.id picture dict
+                    )
+                    model.picturePosts
+    in
+    ( { model | picturePosts = picturePosts }, Cmd.none )
+
+
+uniquePubKeys : List PubKey -> List PubKey
+uniquePubKeys pubkeys =
+    pubkeys
+        |> Set.fromList
+        |> Set.toList
+
+
+requestRelatedKindsForArticleComments : Model -> List CommentType -> Request -> ( Model, Cmd Msg )
+requestRelatedKindsForArticleComments model comments request =
+    let
+        maybeEventFilterForAuthorProfiles =
+            comments
+                |> List.map Nip22.commentPubKey
+                |> uniquePubKeys
+                |> getMissingProfilePubKeys model
+                |> eventFilterForAuthors
+
+        ( requestProfileModel, extendedRequestProfile ) =
+            case maybeEventFilterForAuthorProfiles of
+                Just eventFilterForAuthorProfiles ->
+                    -- TODO: add relays for request
+                    eventFilterForAuthorProfiles
+                        |> RequestProfile Nothing
+                        |> addToRequest model request
+
+                _ ->
+                    ( model, request )
+
+        ( extendedModel, extendedRequestReactions ) =
+            comments
+                |> List.map Nip22.tagReference
+                |> eventFilterForReactions
+                |> Maybe.map RequestReactions
+                |> Maybe.map (addToRequest requestProfileModel extendedRequestProfile)
+                |> Maybe.withDefault ( requestProfileModel, extendedRequestProfile )
+    in
+    doRequest extendedModel extendedRequestReactions
 
 
 updateModelWithUserServerLists : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
@@ -1973,6 +2097,14 @@ updateModelWithLongFormContent model requestId events =
                     )
                     model.articlesByAuthor
 
+        articlesById =
+            articles
+                |> List.foldl
+                    (\article dict ->
+                        Dict.insert article.id article dict
+                    )
+                    model.articlesById
+
         maybeRequest =
             Dict.get requestId model.requests
 
@@ -1988,6 +2120,7 @@ updateModelWithLongFormContent model requestId events =
         | articlesByAddress = articlesByAddress
         , articlesByAuthor = articlesByAuthor
         , articlesByDate = articlesByDate
+        , articlesById = articlesById
         , errors = newErrors ++ model.errors
       }
     , requestCmd
@@ -2089,6 +2222,14 @@ updateModelWithLongFormContentDraft model requestId events =
                             |> Maybe.withDefault 0
                     )
 
+        articleDraftsById =
+            articles
+                |> List.foldl
+                    (\article dict ->
+                        Dict.insert article.id article dict
+                    )
+                    model.articleDraftsById
+
         maybeRequest =
             Dict.get requestId model.requests
 
@@ -2102,6 +2243,7 @@ updateModelWithLongFormContentDraft model requestId events =
     in
     ( { requestModel
         | articleDraftsByDate = articleDraftsByDate
+        , articleDraftsById = articleDraftsById
         , articleDraftRelays = articleDraftRelays
         , errors = newErrors ++ model.errors
       }

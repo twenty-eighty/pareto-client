@@ -30,6 +30,7 @@ type MaterialIcon
     = MaterialBookmark
     | MaterialBookmarkAdd
     | MaterialBookmarkAdded
+    | MaterialBookmarkBorder
     | MaterialCheck
     | MaterialFavorite
     | MaterialFavoriteBorder
@@ -113,6 +114,9 @@ svgForMaterialIcon materialIcon =
 
         MaterialBookmarkAdded ->
             Material.Icons.bookmark_added
+
+        MaterialBookmarkBorder ->
+            Material.Icons.bookmark_border
 
         MaterialCheck ->
             Material.Icons.check

@@ -22,6 +22,9 @@
    "article page": {
       "default page title": "Article"
    },
+   "authors page": {
+      "page title": "Authors"
+   },
    "bookmarks": {
       "bookmarks title": "Bookmarks",
       "no bookmarks": "No bookmark lists found",
@@ -179,7 +182,8 @@
       "global feed category": "Global",
       "pareto feed category": "Pareto",
       "rss feed category": "Others",
-      "highlighter feed category": "Highlighter"
+      "highlighter feed category": "Highlighter",
+      "memes feed category": "Memes"
    },
    "relay status component": {
       "relay state unknown": "unknown",
@@ -239,6 +243,7 @@
       "creator client role text": "Creator",
       "test mode off text": "Test Mode",
       "test mode on text": "Test Mode",
+      "authors menu item text": "Authors",
       "bookmarks menu item text": "Bookmarks",
       "communities menu item text": "Communities",
       "get started button text": "Sign in/up",
@@ -246,6 +251,7 @@
       "messages menu item text": "Messages",
       "newsletters menu item text": "Newsletters",
       "notifications menu item text": "Notifications",
+      "pictures menu item text": "Pictures",
       "posts menu item text": "Posts",
       "read menu item text": "Read",
       "search menu item text": "Search",
@@ -294,6 +300,21 @@
       "Sentences label": "Sentences:",
       "Reading time label": "Reading time:",
       "Speaking time label": "Speaking time:"
+   },
+   "uitest": {
+      "dialog title": "UI Test",
+      "category 1 text": "Category 1",
+      "category 2 text": "Category 2",
+      "no dropdown item text": "No dropdown item",
+      "dropdown item 1 text": "Dropdown item 1",
+      "dropdown item 2 text": "Dropdown item 2",
+      "entry field label": "Entry field label",
+      "entry field placeholder": "Entry field placeholder",
+      "text area label": "Text area label",
+      "text area placeholder": "Text area placeholder",
+      "checkbox label": "Checkbox label",
+      "switch off label": "Switch off label",
+      "switch on label": "Switch on label"
    },
    "upload dialog": {
       "dialog title": "Upload",

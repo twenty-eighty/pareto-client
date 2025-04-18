@@ -405,8 +405,8 @@ encode entity =
         Npub pubKeyHex ->
             encodeSimple "npub" pubKeyHex
 
-        Nsec seckeyHex ->
-            encodeSimple "nsec" seckeyHex
+        Nsec secKeyHex ->
+            encodeSimple "nsec" secKeyHex
 
         Note noteIdHex ->
             encodeSimple "note" noteIdHex

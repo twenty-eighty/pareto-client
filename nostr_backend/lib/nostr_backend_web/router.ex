@@ -43,8 +43,8 @@ defmodule NostrBackendWeb.Router do
     get("/friedenstaube", PageController, :friedenstaube)
 
     get("/about", PageController, :about)
+    get("/authors", PageController, :authors)
     get("/c", PageController, :communities)
-    get("/search", PageController, :search)
     get("/bookmarks", PageController, :bookmarks)
     get("/imprint", PageController, :imprint)
     get("/media", PageController, :media)
@@ -54,6 +54,7 @@ defmodule NostrBackendWeb.Router do
     get("/posts", PageController, :posts)
     get("/privacy", PageController, :privacy)
     get("/read", PageController, :read)
+    get("/search", PageController, :search)
     get("/settings", PageController, :settings)
     get("/sign-in", PageController, :sign_in)
     get("/subscribers", PageController, :subscribers)

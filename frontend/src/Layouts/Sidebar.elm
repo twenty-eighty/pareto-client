@@ -137,10 +137,12 @@ rawSidebarItems clientRole translations =
     case clientRole of
         ClientReader ->
             [ { path = Route.Path.Read, title = Translations.readMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bookOpen, requiresLogin = False, requiresAuthor = False, disabled = False }
+            , { path = Route.Path.Pictures, title = Translations.picturesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.image, requiresLogin = False, requiresAuthor = False, disabled = False }
             , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, requiresAuthor = False, disabled = False }
 
             --, { path = Route.Path.Communities, title = Translations.communitiesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.globe, requiresLogin = False, requiresAuthor = False, disabled = False }
             , { path = Route.Path.Bookmarks, title = Translations.bookmarksMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bookmark, requiresLogin = True, requiresAuthor = False, disabled = False }
+            , { path = Route.Path.Authors, title = Translations.authorsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.users, requiresLogin = False, requiresAuthor = False, disabled = False }
 
             --, { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, requiresAuthor = False, disabled = True }
             --, { path = Route.Path.Notifications, title = Translations.notificationsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bell, requiresLogin = True, requiresAuthor = False, disabled = True }
@@ -370,7 +372,17 @@ viewSidebar styles shared currentPath toContentMsg content =
                         ]
                     ]
                     |> Html.map toContentMsg
-                , viewMainContent content
+                , div
+                    [ css
+                        -- additional space for sidebar at bottom in mobile view
+                        [ Tw.mb_16
+                        , Bp.sm
+                            [ Tw.mb_2
+                            ]
+                        ]
+                    ]
+                    [ viewMainContent content
+                    ]
                 ]
             ]
         ]
@@ -611,6 +623,9 @@ sidebarItemVisible : Bool -> Bool -> Bool -> SidebarItemData -> Bool
 sidebarItemVisible isLoggedIn isAuthor isBetaTester sidebarItem =
     if isBetaTester then
         True
+
+    else if sidebarItem.path == Route.Path.Pictures then
+        isBetaTester
 
     else if sidebarItem.requiresAuthor then
         isAuthor
