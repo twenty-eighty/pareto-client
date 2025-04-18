@@ -6,8 +6,9 @@ import Components.Categories
 import Components.Icon as Icon
 import Dict
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, div)
+import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as Attr exposing (css)
+import Html.Styled.Lazy as Lazy
 import I18Next
 import Layouts
 import Material.Icons exposing (category)
@@ -17,6 +18,7 @@ import Nostr.FollowList exposing (followingPubKey)
 import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
+import Nostr.ShortNote exposing (ShortNote)
 import Nostr.Types exposing (EventId, PubKey)
 import Page exposing (Page)
 import Pareto
@@ -30,6 +32,7 @@ import Tailwind.Utilities as Tw
 import Translations.Read
 import Translations.Sidebar
 import Ui.PicturePost as PicturePost exposing (PicturePostsViewData)
+import Ui.ShortNote exposing (ShortNotesViewData)
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
@@ -153,7 +156,7 @@ init shared route () =
       }
     , Effect.batch
         [ changeCategoryEffect
-        , RequestArticlesFeed [ filterForCategory shared correctedCategory ]
+        , RequestPicturesFeed [ filterForCategory shared correctedCategory ]
             |> Nostr.createRequest shared.nostr "Picture posts" [ KindUserMetadata, KindEventDeletionRequest ]
             |> Shared.Msg.RequestNostrEvents
             |> Effect.sendSharedMsg
@@ -236,8 +239,8 @@ updateModelWithCategory shared model category =
     ( model
     , Effect.batch
         [ Effect.replaceRoute { path = model.path, query = Dict.singleton categoryParamName (stringFromCategory category), hash = Nothing }
-        , RequestArticlesFeed [ filterForCategory shared category ]
-            |> Nostr.createRequest shared.nostr "Long-form articles" [ KindUserMetadata, KindEventDeletionRequest ]
+        , RequestPicturesFeed [ filterForCategory shared category ]
+            |> Nostr.createRequest shared.nostr "Picture posts" [ KindUserMetadata, KindEventDeletionRequest ]
             |> Shared.Msg.RequestNostrEvents
             |> Effect.sendSharedMsg
         ]
@@ -258,9 +261,8 @@ filterForCategory shared category =
 
         Memes ->
             { emptyEventFilter
-                | kinds = Just [ KindPicture ]
-
-                {- , authors = Just (paretoFollowsList shared.nostr) -}
+                | kinds = Just [ KindShortTextNote ]
+                , authors = Just [ "a6fdf45b4921d5bfe9d48d2a03d4e71b7340d8166a9da83dae2896239145f104" ]
                 , limit = Just 20
             }
 
@@ -336,10 +338,6 @@ availableCategories nostr loginStatus translations =
         ++ [ { category = Global
              , title = Translations.Read.globalFeedCategory [ translations ]
              }
-
-           --   , { category = Highlighter
-           --     , title = Translations.Read.highlighterFeedCategory [ translations ]
-           --     }
            ]
 
 
@@ -348,16 +346,6 @@ paretoCategory translations =
     { category = Pareto
     , title = Translations.Read.paretoFeedCategory [ translations ]
     }
-
-
-
-{-
-   paretoRssCategory : I18Next.Translations -> Components.Categories.CategoryData Category
-   paretoRssCategory translations =
-       { category = Rss
-       , title = Translations.Read.rssFeedCategory [ translations ]
-       }
--}
 
 
 followedCategory : I18Next.Translations -> Components.Categories.CategoryData Category
@@ -446,10 +434,22 @@ viewContent shared model _ =
     let
         viewMemes =
             Nostr.getPicturePosts shared.nostr
+                |> List.filter filterPostsWithContentWarning
                 |> viewPicturePosts
                     { theme = shared.theme
                     , browserEnv = shared.browserEnv
                     , nostr = shared.nostr
+                    }
+
+        viewShortTextNotes =
+            Nostr.getShortNotes shared.nostr
+                |> viewShortNotes
+                    shared
+                    { theme = shared.theme
+                    , browserEnv = shared.browserEnv
+                    , nostr = shared.nostr
+                    , userPubKey = Nothing
+                    , onBookmark = Nothing
                     }
     in
     case Components.Categories.selected model.categories of
@@ -463,7 +463,12 @@ viewContent shared model _ =
             viewMemes
 
         Memes ->
-            viewMemes
+            viewShortTextNotes
+
+
+filterPostsWithContentWarning : PicturePost -> Bool
+filterPostsWithContentWarning picturePost =
+    picturePost.contentWarning == Nothing
 
 
 viewPicturePosts : PicturePostsViewData -> List PicturePost -> Html Msg
@@ -471,9 +476,53 @@ viewPicturePosts picturePostsViewData picturePosts =
     picturePosts
         |> List.map
             (\picturePost ->
-                PicturePost.viewPicturePost
-                    picturePostsViewData
-                    {}
+                Lazy.lazy2
+                    (PicturePost.viewPicturePost picturePostsViewData)
+                    { author = Nostr.getAuthor picturePostsViewData.nostr picturePost.pubKey
+                    }
                     picturePost
             )
-        |> div []
+        |> Html.div
+            [ css
+                [ Tw.px_4
+                ]
+            ]
+
+
+viewShortNotes : Shared.Model -> ShortNotesViewData msg -> List ShortNote -> Html msg
+viewShortNotes shared shortNotesViewData shortNotes =
+    shortNotes
+        |> List.map
+            (\shortNote ->
+                Ui.ShortNote.viewShortNote
+                    shortNotesViewData
+                    { author = Nostr.getAuthor shared.nostr shortNote.pubKey
+                    , actions =
+                        { addBookmark = Nothing
+                        , removeBookmark = Nothing
+                        , addReaction = Nothing
+                        , removeReaction = Nothing
+                        , addRepost = Nothing
+                        , startComment = Nothing
+                        }
+                    , interactions =
+                        { zaps = Nothing
+                        , articleComments = []
+                        , articleCommentComments = Dict.empty
+                        , highlights = Nothing
+                        , reactions = Nothing
+                        , reposts = Nothing
+                        , notes = Nothing
+                        , bookmarks = Nothing
+                        , isBookmarked = False
+                        , reaction = Nothing
+                        , repost = Nothing
+                        }
+                    }
+                    shortNote
+            )
+        |> Html.div
+            [ css
+                [ Tw.px_4
+                ]
+            ]
