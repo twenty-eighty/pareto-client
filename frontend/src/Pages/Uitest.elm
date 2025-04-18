@@ -28,7 +28,7 @@ import View exposing (View)
 page : Shared.Model -> Route () -> Page Model Msg
 page shared _ =
     Page.new
-        { init = init
+        { init = init shared
         , update = update
         , subscriptions = subscriptions
         , view = view shared
@@ -53,6 +53,7 @@ type alias Model =
     , searchbar : Components.SearchBar.Model
     , searchValue : Maybe String
     , switchValue : TestSwitchState
+    , theme : Theme
     }
 
 
@@ -71,14 +72,15 @@ type TestSwitchState
     | SwitchState2
 
 
-init : () -> ( Model, Effect Msg )
-init () =
+init : Shared.Model -> () -> ( Model, Effect Msg )
+init shared () =
     ( { categories = Components.Categories.init { selected = Category2 }
       , checkboxValue = True
       , dropdown = Components.Dropdown.init { selected = Just DropdownItem2 }
       , searchbar = Components.SearchBar.init { searchText = Nothing }
       , searchValue = Nothing
       , switchValue = SwitchState2
+      , theme = shared.theme
       }
     , Effect.none
     )
@@ -209,12 +211,12 @@ elementList shared model =
     , ( "Dropdown listbox", dropdownElement shared model )
     , ( "Checkbox", checkboxElement shared model )
     , ( "Switch", switchElement shared model )
-    , ( "primary button", primaryButtonElement shared )
-    , ( "primary button (disabled)", primaryButtonDisabledElement shared )
-    , ( "secondary button", secondaryButtonElement shared )
-    , ( "secondary button (disabled)", secondaryButtonDisabledElement shared )
-    , ( "regular button", regularButtonElement shared )
-    , ( "regular button (disabled)", regularButtonDisabledElement shared )
+    , ( "primary button", primaryButtonElement shared model )
+    , ( "primary button (disabled)", primaryButtonDisabledElement shared model )
+    , ( "secondary button", secondaryButtonElement shared model )
+    , ( "secondary button (disabled)", secondaryButtonDisabledElement shared model )
+    , ( "regular button", regularButtonElement shared model )
+    , ( "regular button (disabled)", regularButtonDisabledElement shared model )
     , ( "search bar", searchbarElement shared model )
     ]
 
@@ -227,7 +229,7 @@ categoriesElement : Shared.Model -> Model -> Html Msg
 categoriesElement shared model =
     let
         styles =
-            Ui.Styles.stylesForTheme shared.theme
+            Ui.Styles.stylesForTheme model.theme
     in
     Components.Categories.new
         { model = model.categories
@@ -299,7 +301,7 @@ checkboxElement shared model =
         { checked = model.checkboxValue
         , label = Translations.checkboxLabel [ shared.browserEnv.translations ]
         , onClick = CheckboxClicked
-        , theme = shared.theme
+        , theme = model.theme
         }
         |> Components.Checkbox.view
 
@@ -318,7 +320,7 @@ switchElement shared model =
         , state = model.switchValue
         , stateOff = SwitchState1
         , stateOn = SwitchState2
-        , theme = shared.theme
+        , theme = model.theme
         }
         |> Components.Switch.view
 
@@ -327,70 +329,70 @@ switchElement shared model =
 -- buttons
 
 
-primaryButtonElement : Shared.Model -> Html Msg
-primaryButtonElement shared =
+primaryButtonElement : Shared.Model -> Model -> Html Msg
+primaryButtonElement shared model =
     Components.Button.new
         { label = Translations.category1Text [ shared.browserEnv.translations ]
         , onClick = Just ButtonClick
-        , theme = shared.theme
+        , theme = model.theme
         }
         |> Components.Button.withTypePrimary
         |> Components.Button.view
 
 
-primaryButtonDisabledElement : Shared.Model -> Html Msg
-primaryButtonDisabledElement shared =
+primaryButtonDisabledElement : Shared.Model -> Model -> Html Msg
+primaryButtonDisabledElement shared model =
     Components.Button.new
         { label = Translations.category1Text [ shared.browserEnv.translations ]
         , onClick = Just ButtonClick
-        , theme = shared.theme
+        , theme = model.theme
         }
         |> Components.Button.withTypePrimary
         |> Components.Button.withDisabled True
         |> Components.Button.view
 
 
-secondaryButtonElement : Shared.Model -> Html Msg
-secondaryButtonElement shared =
+secondaryButtonElement : Shared.Model -> Model -> Html Msg
+secondaryButtonElement shared model =
     Components.Button.new
         { label = Translations.category1Text [ shared.browserEnv.translations ]
         , onClick = Just ButtonClick
-        , theme = shared.theme
+        , theme = model.theme
         }
         |> Components.Button.withTypeSecondary
         |> Components.Button.view
 
 
-secondaryButtonDisabledElement : Shared.Model -> Html Msg
-secondaryButtonDisabledElement shared =
+secondaryButtonDisabledElement : Shared.Model -> Model -> Html Msg
+secondaryButtonDisabledElement shared model =
     Components.Button.new
         { label = Translations.category1Text [ shared.browserEnv.translations ]
         , onClick = Just ButtonClick
-        , theme = shared.theme
+        , theme = model.theme
         }
         |> Components.Button.withTypeSecondary
         |> Components.Button.withDisabled True
         |> Components.Button.view
 
 
-regularButtonElement : Shared.Model -> Html Msg
-regularButtonElement shared =
+regularButtonElement : Shared.Model -> Model -> Html Msg
+regularButtonElement shared model =
     Components.Button.new
         { label = Translations.category1Text [ shared.browserEnv.translations ]
         , onClick = Just ButtonClick
-        , theme = shared.theme
+        , theme = model.theme
         }
         |> Components.Button.withIconLeft (Components.Icon.FeatherIcon FeatherIcons.feather)
         |> Components.Button.withIconRight (Components.Icon.MaterialIcon Components.Icon.MaterialFavorite 20 Components.Icon.Inherit)
         |> Components.Button.view
 
 
-regularButtonDisabledElement : Shared.Model -> Html Msg
-regularButtonDisabledElement shared =
+regularButtonDisabledElement : Shared.Model -> Model -> Html Msg
+regularButtonDisabledElement shared model =
     Components.Button.new
         { label = Translations.category1Text [ shared.browserEnv.translations ]
         , onClick = Just ButtonClick
-        , theme = shared.theme
+        , theme = model.theme
         }
         |> Components.Button.withDisabled True
         |> Components.Button.view
@@ -404,7 +406,7 @@ searchbarElement : Shared.Model -> Model -> Html Msg
 searchbarElement shared model =
     let
         styles =
-            Ui.Styles.stylesForTheme shared.theme
+            Ui.Styles.stylesForTheme model.theme
     in
     div
         [ css
