@@ -3,7 +3,7 @@ module Ui.Community exposing (..)
 import BrowserEnv exposing (BrowserEnv)
 import Dict exposing (Dict)
 import Html.Styled as Html exposing (Html, div, h1, h3, h4, img, p, text)
-import Html.Styled.Attributes as Attr exposing (css, style)
+import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events exposing (..)
 import Nostr.Community exposing (Community, Image, Moderator, communityName)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName)
@@ -16,7 +16,7 @@ import Ui.Styles exposing (Styles, Theme(..), fontFamilyUnbounded)
 
 
 viewCommunity : BrowserEnv -> Dict PubKey Profile -> Community -> Html msg
-viewCommunity browserEnv profiles community =
+viewCommunity _ profiles community =
     let
         styles =
             Ui.Styles.stylesForTheme ParetoTheme

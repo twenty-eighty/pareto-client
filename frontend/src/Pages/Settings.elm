@@ -1,6 +1,7 @@
 module Pages.Settings exposing (Model, Msg, page)
 
 import Auth
+import Nostr.ConfigCheck as ConfigCheck
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Categories as Categories
@@ -18,6 +19,7 @@ import I18Next
 import Layouts
 import Nostr
 import Nostr.Blossom exposing (eventWithBlossomServerList)
+import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Event exposing (Kind(..), emptyEventFilter)
 import Nostr.Lud16 as Lud16
 import Nostr.Nip05 as Nip05
@@ -40,7 +42,7 @@ import Tailwind.Utilities as Tw
 import Translations.Settings as Translations
 import Ui.Profile exposing (FollowType(..))
 import Ui.Relay exposing (viewRelayImage)
-import Ui.Shared exposing (emptyHtml)
+import Ui.Shared exposing (countBadge, emptyHtml)
 import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
 import Url
 import View exposing (View)
@@ -144,6 +146,7 @@ profileModelFromProfile user shared profile =
 profileFromProfileModel : PubKey -> ProfileModel -> Profile
 profileFromProfileModel pubKey profileModel =
     { nip05 = Nip05.parseNip05 profileModel.nip05
+    , lud06 = Nothing
     , lud16 = stringToMaybe profileModel.lud16
     , name = stringToMaybe profileModel.name
     , displayName = stringToMaybe profileModel.displayName
@@ -178,6 +181,7 @@ boolToMaybe value =
         Nothing
 
 
+emptyRelaysModel : RelaysModel
 emptyRelaysModel =
     { outboxRelay = Nothing
     , inboxRelay = Nothing
@@ -226,16 +230,50 @@ type Category
     | Profile
 
 
-availableCategories : I18Next.Translations -> List (Categories.CategoryData Category)
-availableCategories translations =
+availableCategories : I18Next.Translations -> ConfigCheck.Model -> List (Categories.CategoryData Category)
+availableCategories translations configCheck =
+    let
+        relaysIssuesCount =
+            ConfigCheck.relayIssues configCheck
+                |> List.length
+
+        relaysIssuesSuffix =
+            if relaysIssuesCount > 0 then
+                "\u{00A0}" ++ countBadge relaysIssuesCount 
+
+            else
+                ""
+
+        mediaServersIssuesCount =
+            ConfigCheck.mediaServerIssues configCheck
+                |> List.length
+
+        mediaServersIssuesSuffix =
+            if mediaServersIssuesCount > 0 then
+                "\u{00A0}" ++ countBadge mediaServersIssuesCount
+
+            else
+                ""
+        profileIssuesCount =
+            ConfigCheck.profileIssues configCheck
+                |> List.length
+
+        profileIssuesSuffix =
+            if profileIssuesCount > 0 then
+                "\u{00A0}" ++ countBadge profileIssuesCount
+
+            else
+                ""
+                
+    in
     [ { category = Relays
-      , title = Translations.relaysCategory [ translations ]
+      , title = Translations.relaysCategory [ translations ] ++ relaysIssuesSuffix
       }
     , { category = MediaServers
-      , title = Translations.mediaServersCategory [ translations ]
+      , title = Translations.mediaServersCategory [ translations ] ++ mediaServersIssuesSuffix
       }
     , { category = Profile
-      , title = Translations.profileCategory [ translations ]
+      , title = Translations.profileCategory [ translations ] ++ profileIssuesSuffix
       }
     ]
 
@@ -672,7 +710,7 @@ view user shared model =
             , onSelect = CategorySelected
             , equals = (==)
             , image = \_ -> Nothing
-            , categories = availableCategories shared.browserEnv.translations
+            , categories = availableCategories shared.browserEnv.translations shared.configCheck
             , browserEnv = shared.browserEnv
             , styles = stylesForTheme shared.theme
             }
@@ -724,7 +762,8 @@ viewRelays shared user relaysModel =
             , Tw.m_20
             ]
         ]
-        [ outboxRelaySection shared user relaysModel
+        [ viewConfigIssues shared.browserEnv.translations (ConfigCheck.relayIssues shared.configCheck) (Translations.relayIssuesTitle [ shared.browserEnv.translations ])
+        , outboxRelaySection shared user relaysModel
         , inboxRelaySection shared user relaysModel
 
         -- , viewRelayList searchRelays
@@ -1111,9 +1150,9 @@ removeRelayButton relay removeMsg =
     div
         [ css
             [ Tw.cursor_pointer
-            , Tw.bg_color styles.color4
+            , Tw.text_color styles.color3
             , darkMode
-                [ Tw.bg_color styles.color4DarkMode
+                [ Tw.text_color styles.color3DarkMode
                 ]
             ]
         , Events.onClick (removeMsg relay.urlWithoutProtocol)
@@ -1133,7 +1172,8 @@ viewMediaServers shared user mediaServersModel =
             , Tw.m_20
             ]
         ]
-        [ nip96ServersSection shared user mediaServersModel
+        [ viewConfigIssues shared.browserEnv.translations (ConfigCheck.mediaServerIssues shared.configCheck) (Translations.mediaServerIssuesTitle [ shared.browserEnv.translations ])
+        , nip96ServersSection shared user mediaServersModel
         , blossomServersSection shared user mediaServersModel
         ]
 
@@ -1533,7 +1573,8 @@ viewProfileEditor shared user profileModel =
             , Tw.gap_2
             ]
         ]
-        [ Button.new
+        [ viewConfigIssues shared.browserEnv.translations (ConfigCheck.profileIssues shared.configCheck) (Translations.profileIssuesTitle [ shared.browserEnv.translations ])
+        , Button.new
             { label = Translations.profileSaveButtonTitle [ shared.browserEnv.translations ]
             , onClick = Just <| SaveProfile (profileFromProfileModel user.pubKey profileModel)
             , theme = shared.theme
@@ -1632,6 +1673,45 @@ viewProfileEditor shared user profileModel =
             , theme = shared.theme
             }
             |> MediaSelector.view
+        ]
+
+
+viewConfigIssues : I18Next.Translations -> List ConfigCheck.Issue -> String -> Html msg
+viewConfigIssues translations issues title =
+    case issues of
+        [] ->
+            emptyHtml
+
+        profileIssues ->
+            Html.div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_col
+                    , Tw.mb_4
+                    ]
+                ]
+                [ Html.span [ css [ Tw.font_bold ] ] [ Html.text title ]
+                , profileIssues
+                    |> List.map (ConfigCheck.issueText translations)
+                    |> List.map viewIssueText
+                    |> Html.ul
+                        [ css
+                            [ Tw.list_inside
+                            ]
+                        ]
+                ]
+
+
+viewIssueText : ConfigCheck.IssueText -> Html msg
+viewIssueText { message, explanation, solution } =
+    Html.li
+        [ css
+            [ Tw.list_disc
+            ]
+        ]
+        [ Html.span [ css [ Tw.italic ] ] [ Html.text message ]
+        , Html.text <| " - " ++ explanation
+        , Html.p [ css [ Tw.text_sm ] ] [ Html.text solution ]
         ]
 
 

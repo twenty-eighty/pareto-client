@@ -1,12 +1,10 @@
 module Nostr.Lud16 exposing (..)
 
-import Dict exposing (Dict)
-import Email
 import Http
+import Email
 import Json.Decode as Decode exposing (Decoder)
-import Json.Decode.Pipeline as DecodePipeline
-import Nostr.Relay as Relay
-import Nostr.Types exposing (RelayUrl)
+import Json.Decode.Pipeline exposing (required)
+import Url exposing (Url)
 
 
 type alias Lud16 =
@@ -14,6 +12,16 @@ type alias Lud16 =
     , domain : String
     }
 
+type alias LightningPaymentData =
+    { allowsNostr : Bool
+    , callback : Url
+    , commentAllowed : Int
+    , maxSendable : Int
+    , metadata : String
+    , minSendable : Int
+    , nostrPubkey : String
+    , tag : String
+    }
 
 type alias Lud16String =
     String
@@ -53,4 +61,36 @@ lud16StringDecoder =
                 parseLud16 lud16String
                     |> Maybe.map Decode.succeed
                     |> Maybe.withDefault (Decode.fail <| "Error parsing lud16: " ++ lud16String)
+            )
+
+requestLightningPaymentData : (Result Http.Error LightningPaymentData -> msg) -> Lud16 -> Cmd msg
+requestLightningPaymentData responseMsg lud16 =
+    Http.get
+        { url = "https://" ++ lud16.domain ++ "/.well-known/lnurlp/" ++ lud16.user
+        , expect = Http.expectJson responseMsg lightningPaymentDataDecoder
+        }
+
+lightningPaymentDataDecoder : Decoder LightningPaymentData
+lightningPaymentDataDecoder =
+    Decode.succeed LightningPaymentData
+        |> required "allowsNostr" Decode.bool
+        |> required "callback" urlDecoder
+        |> required "commentAllowed" Decode.int
+        |> required "maxSendable" Decode.int
+        |> required "metadata" Decode.string
+        |> required "minSendable" Decode.int
+        |> required "nostrPubkey" Decode.string
+        |> required "tag" Decode.string
+
+urlDecoder : Decoder Url
+urlDecoder =
+    Decode.string
+        |> Decode.andThen
+            (\urlString ->
+                (Url.fromString urlString)
+                    |> Maybe.map
+                        (\url ->
+                                Decode.succeed url
+                        )
+                    |> Maybe.withDefault (Decode.fail <| "Error parsing URL: " ++ urlString)
             )

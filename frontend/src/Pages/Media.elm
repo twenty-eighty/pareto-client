@@ -115,7 +115,7 @@ subscriptions model =
 
 
 view : Auth.User -> Shared.Model -> Model -> View Msg
-view user shared model =
+view _ shared model =
     { title = "Media"
     , body =
         [ div
