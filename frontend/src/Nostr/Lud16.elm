@@ -1,12 +1,7 @@
 module Nostr.Lud16 exposing (..)
 
-import Dict exposing (Dict)
 import Email
-import Http
 import Json.Decode as Decode exposing (Decoder)
-import Json.Decode.Pipeline as DecodePipeline
-import Nostr.Relay as Relay
-import Nostr.Types exposing (RelayUrl)
 
 
 type alias Lud16 =

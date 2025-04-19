@@ -179,6 +179,7 @@ boolToMaybe value =
         Nothing
 
 
+emptyRelaysModel : RelaysModel
 emptyRelaysModel =
     { outboxRelay = Nothing
     , inboxRelay = Nothing

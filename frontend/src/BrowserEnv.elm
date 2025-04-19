@@ -262,6 +262,7 @@ updateWithPortMessage browserEnv portMessage =
             ( browserEnv, Cmd.none )
 
 
+httpError : Http.Error -> String
 httpError error =
     case error of
         Http.BadUrl badUrl ->
