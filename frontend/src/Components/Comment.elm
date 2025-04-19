@@ -12,7 +12,7 @@ import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.External
 import Nostr.Nip22 exposing (CommentType(..), articleCommentEvent, commentContent, commentValid, setCommentContent)
-import Nostr.Profile exposing (Profile, profileDisplayName)
+import Nostr.Profile exposing (Profile)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Types exposing (IncomingMessage, PubKey)
 import Ports
