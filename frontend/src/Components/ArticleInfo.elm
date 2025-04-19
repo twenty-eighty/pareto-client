@@ -278,12 +278,9 @@ viewInteractions browserEnv interactions =
     div
         [ css
             [ Tw.flex
-            , Tw.gap_8
+            , Tw.gap_6
             , Tw.self_stretch
             , Tw.mt_6
-            , Tw.text_base
-            , Tw.tracking_wider
-            , Tw.leading_none
             , Tw.flex_wrap
             ]
         ]
