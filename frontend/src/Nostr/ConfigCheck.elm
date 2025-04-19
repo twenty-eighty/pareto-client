@@ -38,13 +38,14 @@ type Issue
     | ProfileNip05NotMatchingPubKey
     | ProfileNip05NetworkError Http.Error
     | ProfileAvatarMissing
+    | ProfileAvatarError Http.Error
     | ProfileBannerMissing
+    | ProfileBannerError Http.Error
     | ProfileLud06Configured
     | ProfileLud16Missing
     | ProfileLud16InvalidForm
     | ProfileLud16Offline Http.Error
     | ProfileLud16InvalidResponse String
-    | TestIssue
 
 
 type alias IssueText =
@@ -65,6 +66,8 @@ type alias PerformRemoteCheckFunction =
 type Msg
     = NoOp
     | ReceivedLightningPaymentData (Result Http.Error Lud16.LightningPaymentData)
+    | ReceivedProfileAvatar (Result Http.Error ())
+    | ReceivedProfileBanner (Result Http.Error ())
 
 
 init : Model
@@ -112,6 +115,17 @@ update msg model =
         ReceivedLightningPaymentData (Err error) ->
             ( { model | issues = model.issues ++ [ ProfileLud16Offline error ] }, Cmd.none )
 
+        ReceivedProfileAvatar (Ok _) ->
+            ( model, Cmd.none )
+
+        ReceivedProfileAvatar (Err error) ->
+            ( { model | issues = model.issues ++ [ ProfileAvatarError error ] }, Cmd.none )
+
+        ReceivedProfileBanner (Ok _) ->
+            ( model, Cmd.none )
+
+        ReceivedProfileBanner (Err error) ->
+            ( { model | issues = model.issues ++ [ ProfileBannerError error ] }, Cmd.none )
 
 performChecks : Nostr.Model -> PubKey -> ( Model, Cmd Msg )
 performChecks nostr pubKey =
@@ -248,10 +262,16 @@ issueText translations issue =
             , solution = ""
             }
 
-        TestIssue ->
-            { message = "Test message"
-            , explanation = "Test explanation"
-            , solution = "Test solution"
+        ProfileAvatarError error ->
+            { message = Translations.profileAvatarErrorText [ translations ]
+            , explanation = Translations.profileAvatarErrorExplanation [ translations ] { error = httpErrorToString error }
+            , solution = ""
+            }
+
+        ProfileBannerError error ->
+            { message = Translations.profileBannerErrorText [ translations ]
+            , explanation = Translations.profileBannerErrorExplanation [ translations ] { error = httpErrorToString error }
+            , solution = ""
             }
 
 
@@ -315,7 +335,10 @@ issueType issue =
         ProfileLud16InvalidResponse _ ->
             ProfileIssue
 
-        TestIssue ->
+        ProfileAvatarError _ ->
+            ProfileIssue
+
+        ProfileBannerError _ ->
             ProfileIssue
 
 
@@ -336,20 +359,15 @@ localCheckFunctions =
     , checLud06Configured
     , checkMissingLud16
     , checkMalformedLud16
-    -- , checkLocalTestFunction
     ]
 
 
 remoteCheckFunctions : List PerformRemoteCheckFunction
 remoteCheckFunctions =
     [ checkLud16Response
-    -- dummyRemoteCheckFunction
+    , checkProfileAvatar
+    , checkProfileBanner
     ]
-
-
-checkLocalTestFunction : PerformLocalCheckFunction
-checkLocalTestFunction _ _ =
-    Just TestIssue
 
 
 
@@ -597,12 +615,39 @@ checkLud16Response nostr pubKey =
                 )
             )
         
+checkProfileAvatar : PerformRemoteCheckFunction
+checkProfileAvatar nostr pubKey =
+    Nostr.getProfile nostr pubKey
+        |> Maybe.andThen
+            (\profile ->
+                profile.picture
+                |> Maybe.andThen (\pictureUrl ->
+                    httpHeadRequest pictureUrl (ReceivedProfileAvatar)
+                         |> Just
+                )
+            )
+        
+checkProfileBanner : PerformRemoteCheckFunction
+checkProfileBanner nostr pubKey =
+    Nostr.getProfile nostr pubKey
+        |> Maybe.andThen
+            (\profile ->
+                profile.banner
+                |> Maybe.andThen (\bannerUrl ->
+                    httpHeadRequest bannerUrl (ReceivedProfileBanner )
+                         |> Just
+                )
+            )
+        
 
-dummyLocalCheckFunction : PerformLocalCheckFunction
-dummyLocalCheckFunction _ _ =
-    Nothing
-
-
-dummyRemoteCheckFunction : PerformRemoteCheckFunction
-dummyRemoteCheckFunction _ _ =
-    Nothing
+httpHeadRequest : String -> (Result Http.Error () -> Msg) -> Cmd Msg
+httpHeadRequest url onResult =
+    Http.request
+        { method = "HEAD"
+        ,url = url
+        , expect = Http.expectWhatever onResult
+        , headers = []
+        , body = Http.emptyBody
+        , timeout = Nothing
+                        , tracker = Nothing
+                        }

@@ -88,7 +88,11 @@
       "profile lud-16 offline text": "Profile LUD-16 offline",
       "profile lud-16 offline explanation": "The Lightning wallet configured in the LUD-16 field in the profile appears to be offline. ({{error}})",
       "profile lud-16 invalid response text": "Profile LUD-16 invalid response",
-      "profile lud-16 invalid response explanation": "The Lightning wallet configured in the LUD-16 field in the profile doesn't work as expected. (Error: {{error}})"
+      "profile lud-16 invalid response explanation": "The Lightning wallet configured in the LUD-16 field in the profile doesn't work as expected. (Error: {{error}})",
+      "profile avatar error text": "Profile avatar error",
+      "profile avatar error explanation": "The profile avatar picture is not reachable. ({{error}})",
+      "profile banner error text": "Profile banner error",
+      "profile banner error explanation": "The profile banner picture is not reachable. ({{error}})"
    },
    "email import dialog": {
       "dialog title": "Import Email List",
