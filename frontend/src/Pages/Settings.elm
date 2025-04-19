@@ -1,6 +1,7 @@
 module Pages.Settings exposing (Model, Msg, page)
 
 import Auth
+import Nostr.ConfigCheck as ConfigCheck
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Categories as Categories
@@ -41,7 +42,7 @@ import Tailwind.Utilities as Tw
 import Translations.Settings as Translations
 import Ui.Profile exposing (FollowType(..))
 import Ui.Relay exposing (viewRelayImage)
-import Ui.Shared exposing (emptyHtml)
+import Ui.Shared exposing (countBadge, emptyHtml)
 import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
 import Url
 import View exposing (View)
@@ -229,16 +230,50 @@ type Category
     | Profile
 
 
-availableCategories : I18Next.Translations -> List (Categories.CategoryData Category)
-availableCategories translations =
+availableCategories : I18Next.Translations -> ConfigCheck.Model -> List (Categories.CategoryData Category)
+availableCategories translations configCheck =
+    let
+        relaysIssuesCount =
+            ConfigCheck.relayIssues configCheck
+                |> List.length
+
+        relaysIssuesSuffix =
+            if relaysIssuesCount > 0 then
+                "\u{00A0}" ++ countBadge relaysIssuesCount 
+
+            else
+                ""
+
+        mediaServersIssuesCount =
+            ConfigCheck.mediaServerIssues configCheck
+                |> List.length
+
+        mediaServersIssuesSuffix =
+            if mediaServersIssuesCount > 0 then
+                "\u{00A0}" ++ countBadge mediaServersIssuesCount
+
+            else
+                ""
+        profileIssuesCount =
+            ConfigCheck.profileIssues configCheck
+                |> List.length
+
+        profileIssuesSuffix =
+            if profileIssuesCount > 0 then
+                "\u{00A0}" ++ countBadge profileIssuesCount
+
+            else
+                ""
+                
+    in
     [ { category = Relays
-      , title = Translations.relaysCategory [ translations ]
+      , title = Translations.relaysCategory [ translations ] ++ relaysIssuesSuffix
       }
     , { category = MediaServers
-      , title = Translations.mediaServersCategory [ translations ]
+      , title = Translations.mediaServersCategory [ translations ] ++ mediaServersIssuesSuffix
       }
     , { category = Profile
-      , title = Translations.profileCategory [ translations ]
+      , title = Translations.profileCategory [ translations ] ++ profileIssuesSuffix
       }
     ]
 
@@ -675,7 +710,7 @@ view user shared model =
             , onSelect = CategorySelected
             , equals = (==)
             , image = \_ -> Nothing
-            , categories = availableCategories shared.browserEnv.translations
+            , categories = availableCategories shared.browserEnv.translations shared.configCheck
             , browserEnv = shared.browserEnv
             , styles = stylesForTheme shared.theme
             }

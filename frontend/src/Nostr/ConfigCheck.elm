@@ -73,6 +73,11 @@ init =
     }
 
 
+getIssues : Model -> List Issue
+getIssues model =
+    model.issues
+
+
 relayIssues : Model -> List Issue
 relayIssues model =
     model.issues
