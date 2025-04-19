@@ -67,8 +67,12 @@
       "profile display name missing explanation": "There is no display name set in the profile.",
       "profile about text missing text": "Profile about text missing",
       "profile about text missing explanation": "There is no about text set in the profile.",
-      "profile nip-05 missing text": "Profile NIP-05 missing",
-      "profile nip-05 missing explanation": "There is no NIP-05 handle set in the profile.",
+      "profile nip-05 name missing text": "Profile NIP-05 name missing",
+      "profile nip-05 name missing explanation": "There is no name set in the NIP-05 handle.",
+      "profile nip-05 not matching pubkey text": "Profile NIP-05 not matching pubkey",
+      "profile nip-05 not matching pubkey explanation": "The NIP-05 handle in the profile does not match the pubkey.",
+      "profile nip-05 network error text": "Profile NIP-05 network error",
+      "profile nip-05 network error explanation": "The NIP-05 handle in the profile is not reachable. ({{error}})",
       "profile nip-05 invalid text": "Profile NIP-05 invalid",
       "profile nip-05 invalid explanation": "The NIP-05 handle in the profile is invalid.",
       "profile avatar missing text": "Profile avatar picture missing",
@@ -82,9 +86,9 @@
       "profile lud-16 invalid text": "Profile LUD-16 invalid",
       "profile lud-16 invalid explanation": "The Lightning wallet configured in the LUD-16 field in the profile is invalid. You can obtain a valid address using the Wallet of Satoshi mobile app (Android, iOS). It looks like an email address: <wallet name>@walletofsatoshi.com.",
       "profile lud-16 offline text": "Profile LUD-16 offline",
-      "profile lud-16 offline explanation": "The Lightning wallet configured in the LUD-16 field in the profile appears to be offline.",
+      "profile lud-16 offline explanation": "The Lightning wallet configured in the LUD-16 field in the profile appears to be offline. ({{error}})",
       "profile lud-16 invalid response text": "Profile LUD-16 invalid response",
-      "profile lud-16 invalid response explanation": "The Lightning wallet configured in the LUD-16 field in the profile doesn't work as expected."
+      "profile lud-16 invalid response explanation": "The Lightning wallet configured in the LUD-16 field in the profile doesn't work as expected. (Error: {{error}})"
    },
    "email import dialog": {
       "dialog title": "Import Email List",

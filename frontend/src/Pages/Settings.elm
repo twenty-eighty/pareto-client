@@ -145,6 +145,7 @@ profileModelFromProfile user shared profile =
 profileFromProfileModel : PubKey -> ProfileModel -> Profile
 profileFromProfileModel pubKey profileModel =
     { nip05 = Nip05.parseNip05 profileModel.nip05
+    , lud06 = Nothing
     , lud16 = stringToMaybe profileModel.lud16
     , name = stringToMaybe profileModel.name
     , displayName = stringToMaybe profileModel.displayName

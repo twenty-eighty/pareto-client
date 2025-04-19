@@ -235,7 +235,7 @@ eventHandlers shouldLog msg_ =
 
 
 onEvents : Bool -> Maybe (Content -> msg) -> List (Html.Attribute msg)
-onEvents shouldLog maybeMsg =
+onEvents _ maybeMsg =
     case maybeMsg of
         Nothing ->
             []
@@ -276,7 +276,7 @@ view options =
 
 
 update : Msg -> Model -> ( Model, Cmd msg )
-update msg model =
+update msg _ =
     case msg of
         OnLoad state ->
             ( Connected state, Cmd.none )
@@ -297,10 +297,6 @@ update msg model =
 
 -- DECODERS
 
-
-decDetailState : (State -> Msg) -> JD.Decoder Msg
-decDetailState msg_ =
-    decodeDetail msg_ decodeState
 
 
 decodeContent : (Content -> msg) -> JD.Decoder msg

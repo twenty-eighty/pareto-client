@@ -356,6 +356,7 @@ paretoHashtags =
 paretoProfile : Profile
 paretoProfile =
     { nip05 = Just paretoNip05
+    , lud06 = Nothing
     , lud16 = Just "client@pareto.space"
     , name = Just <| String.toLower client
     , displayName = Just client

@@ -2,9 +2,8 @@ module Nostr.Bech32 exposing (Encoding(..), convertBits, decode, encode)
 
 import Bitwise as BW
 import Char
-import List exposing (foldl)
 import String
-import UInt64 exposing (UInt64, and, fromInt, isZero, shiftLeftBy, shiftRightZfBy, toString, xor)
+import UInt64 exposing (UInt64)
 
 
 
@@ -201,7 +200,7 @@ expandHrp hrp =
         hrp2 =
             List.map (\c -> modBy 32 (Char.toCode c)) hrpChars
     in
-    hrp1 ++ [ 0 ] ++ hrp2
+    hrp1 ++ 0 :: hrp2
 
 
 polymod : List Int -> UInt64

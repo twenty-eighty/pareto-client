@@ -1,12 +1,9 @@
 module Ui.PicturePost exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
-import Color
-import Gallery
 import Html.Styled as Html exposing (Html, br, div, p, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Nostr
-import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip68 exposing (Picture, PicturePost)
 import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
 import Nostr.Reactions exposing (Interactions)

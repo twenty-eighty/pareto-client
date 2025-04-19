@@ -2,9 +2,6 @@ module TailwindExtensions exposing (background, bp_2xl, bp_dark, bp_focus, bp_fo
 
 import Css
 import Css.Media
-import Html.Styled as Html
-import Html.Styled.Attributes as Attr exposing (css)
-import Tailwind.Utilities as Tw
 
 
 bp_dark : List Css.Style -> Css.Style

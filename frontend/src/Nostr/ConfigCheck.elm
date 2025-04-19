@@ -3,11 +3,14 @@ module Nostr.ConfigCheck exposing (..)
 import Http
 import I18Next
 import Nostr
-import Nostr.Event exposing (Event, Kind(..), Tag(..))
+import Nostr.Event exposing (Kind(..), Tag(..))
+import Nostr.Lud16 as Lud16
 import Nostr.Types exposing (PubKey, RelayUrl, ServerUrl)
 import Pareto
 import Translations.ConfigCheck as Translations
 import Nostr.Relay exposing (RelayState(..))
+import Nostr.Shared exposing (httpErrorToString)
+import Nostr.Profile exposing (ProfileValidation(..))
 
 
 type alias Model =
@@ -31,14 +34,16 @@ type Issue
     | ProfileDisplayNameMissing
     | ProfileAboutMissing
     | ProfileNip05Missing
-    | ProfileNip05Invalid
+    | ProfileNip05NameMissing
+    | ProfileNip05NotMatchingPubKey
+    | ProfileNip05NetworkError Http.Error
     | ProfileAvatarMissing
     | ProfileBannerMissing
     | ProfileLud06Configured
     | ProfileLud16Missing
     | ProfileLud16InvalidForm
-    | ProfileLud16Offline
-    | ProfileLud16InvalidResponse
+    | ProfileLud16Offline Http.Error
+    | ProfileLud16InvalidResponse String
     | TestIssue
 
 
@@ -59,6 +64,7 @@ type alias PerformRemoteCheckFunction =
 
 type Msg
     = NoOp
+    | ReceivedLightningPaymentData (Result Http.Error Lud16.LightningPaymentData)
 
 
 init : Model
@@ -90,6 +96,16 @@ update msg model =
     case msg of
         NoOp ->
             ( model, Cmd.none )
+
+        ReceivedLightningPaymentData (Ok _) ->
+            -- TODO check content of lightning payment data
+            ( model, Cmd.none )
+
+        ReceivedLightningPaymentData (Err (Http.BadBody error)) ->
+            ( { model | issues = model.issues ++ [ ProfileLud16InvalidResponse error] }, Cmd.none )
+
+        ReceivedLightningPaymentData (Err error) ->
+            ( { model | issues = model.issues ++ [ ProfileLud16Offline error ] }, Cmd.none )
 
 
 performChecks : Nostr.Model -> PubKey -> ( Model, Cmd Msg )
@@ -162,14 +178,26 @@ issueText translations issue =
             }
 
         ProfileNip05Missing ->
-            { message = Translations.profileNip05MissingText [ translations ]
-            , explanation = Translations.profileNip05MissingExplanation [ translations ]
+            { message = Translations.profileNip05NameMissingText [ translations ]
+            , explanation = Translations.profileNip05NameMissingExplanation [ translations ]
             , solution = ""
             }
 
-        ProfileNip05Invalid ->
-            { message = Translations.profileNip05InvalidText [ translations ]
-            , explanation = Translations.profileNip05InvalidExplanation [ translations ]
+        ProfileNip05NameMissing ->
+            { message = Translations.profileNip05NameMissingText [ translations ]
+            , explanation = Translations.profileNip05NameMissingExplanation [ translations ]
+            , solution = ""
+            }
+
+        ProfileNip05NotMatchingPubKey ->
+            { message = Translations.profileNip05NotMatchingPubkeyText [ translations ]
+            , explanation = Translations.profileNip05NotMatchingPubkeyExplanation [ translations ]
+            , solution = ""
+            }
+
+        ProfileNip05NetworkError httpError ->
+            { message = Translations.profileNip05NetworkErrorText [ translations ]
+            , explanation = Translations.profileNip05NetworkErrorExplanation [ translations ] { error = httpErrorToString httpError }
             , solution = ""
             }
 
@@ -203,15 +231,15 @@ issueText translations issue =
             , solution = ""
             }
 
-        ProfileLud16Offline ->
+        ProfileLud16Offline error ->
             { message = Translations.profileLud16OfflineText [ translations ]
-            , explanation = Translations.profileLud16OfflineExplanation [ translations ]
+            , explanation = Translations.profileLud16OfflineExplanation [ translations ] { error = httpErrorToString error }
             , solution = ""
             }
 
-        ProfileLud16InvalidResponse ->
+        ProfileLud16InvalidResponse error ->
             { message = Translations.profileLud16InvalidResponseText [ translations ]
-            , explanation = Translations.profileLud16InvalidResponseExplanation [ translations ]
+            , explanation = Translations.profileLud16InvalidResponseExplanation [ translations ] { error = error }
             , solution = ""
             }
 
@@ -252,7 +280,13 @@ issueType issue =
         ProfileNip05Missing ->
             ProfileIssue
 
-        ProfileNip05Invalid ->
+        ProfileNip05NameMissing ->
+            ProfileIssue
+
+        ProfileNip05NotMatchingPubKey ->
+            ProfileIssue
+
+        ProfileNip05NetworkError _ ->
             ProfileIssue
 
         ProfileAvatarMissing ->
@@ -270,10 +304,10 @@ issueType issue =
         ProfileLud16InvalidForm ->
             ProfileIssue
 
-        ProfileLud16Offline ->
+        ProfileLud16Offline _ ->
             ProfileIssue
 
-        ProfileLud16InvalidResponse ->
+        ProfileLud16InvalidResponse _ ->
             ProfileIssue
 
         TestIssue ->
@@ -288,17 +322,23 @@ localCheckFunctions =
     , checkUnreliableMediaServers
     , checkMissingProfile
     , checkMissingProfileName
-    , checkMissingNip05
+    , checkMissingProfileDisplayName
+    , checkMissingProfileAbout
+    , checkMissingProfileNip05
+    , checkInvalidProfileNip05
     , checkMissingProfileAvatar
     , checkMissingProfileBanner
-
+    , checLud06Configured
+    , checkMissingLud16
+    , checkMalformedLud16
     -- , checkLocalTestFunction
     ]
 
 
 remoteCheckFunctions : List PerformRemoteCheckFunction
 remoteCheckFunctions =
-    [ dummyRemoteCheckFunction
+    [ checkLud16Response
+    -- dummyRemoteCheckFunction
     ]
 
 
@@ -415,8 +455,34 @@ checkMissingProfileName nostr pubKey =
             )
 
 
-checkMissingNip05 : PerformLocalCheckFunction
-checkMissingNip05 nostr pubKey =
+checkMissingProfileDisplayName : PerformLocalCheckFunction
+checkMissingProfileDisplayName nostr pubKey =
+    Nostr.getProfile nostr pubKey
+        |> Maybe.andThen
+            (\profile ->
+                if profile.displayName == Nothing then
+                    Just ProfileDisplayNameMissing
+
+                else
+                    Nothing
+            )
+
+
+checkMissingProfileAbout : PerformLocalCheckFunction
+checkMissingProfileAbout nostr pubKey =
+    Nostr.getProfile nostr pubKey
+        |> Maybe.andThen
+            (\profile ->
+                if profile.about == Nothing then
+                    Just ProfileAboutMissing
+
+                else
+                    Nothing
+            )
+
+
+checkMissingProfileNip05 : PerformLocalCheckFunction
+checkMissingProfileNip05 nostr pubKey =
     Nostr.getProfile nostr pubKey
         |> Maybe.andThen
             (\profile ->
@@ -426,6 +492,24 @@ checkMissingNip05 nostr pubKey =
                 else
                     Nothing
             )
+
+
+checkInvalidProfileNip05 : PerformLocalCheckFunction
+checkInvalidProfileNip05 nostr pubKey =
+    case Nostr.getProfileValidationStatus nostr pubKey of
+        Just ValidationNameMissing ->
+            Just ProfileNip05NameMissing
+
+        Just ValidationNotMatchingPubKey ->
+            Just ProfileNip05NotMatchingPubKey
+
+        Just (ValidationNetworkError httpError) ->
+            Just (ProfileNip05NetworkError httpError)
+
+        _ ->
+            Nothing
+
+
 
 
 checkMissingProfileAvatar : PerformLocalCheckFunction
@@ -454,11 +538,66 @@ checkMissingProfileBanner nostr pubKey =
             )
 
 
+checLud06Configured : PerformLocalCheckFunction
+checLud06Configured nostr pubKey =
+    Nostr.getProfile nostr pubKey
+        |> Maybe.andThen
+            (\profile ->
+                if profile.lud06 /= Nothing then
+                    Just ProfileLud06Configured
+
+                else
+                    Nothing
+            )
+
+checkMissingLud16 : PerformLocalCheckFunction
+checkMissingLud16 nostr pubKey =
+    Nostr.getProfile nostr pubKey
+        |> Maybe.andThen
+            (\profile ->
+                if profile.lud16 == Nothing then
+                    Just ProfileLud16Missing
+
+                else
+                    Nothing
+            )
+
+checkMalformedLud16 : PerformLocalCheckFunction
+checkMalformedLud16 nostr pubKey =
+    Nostr.getProfile nostr pubKey
+        |> Maybe.andThen
+            (\profile ->
+                profile.lud16
+                |> Maybe.andThen (\lud16 ->
+                        if Lud16.parseLud16 lud16 == Nothing then
+                            Just ProfileLud16InvalidForm
+
+                        else
+                            Nothing
+                )
+            )
+
+
+checkLud16Response : PerformRemoteCheckFunction
+checkLud16Response nostr pubKey =
+    Nostr.getProfile nostr pubKey
+        |> Maybe.andThen
+            (\profile ->
+                profile.lud16
+                |> Maybe.andThen (\lud16String ->
+                        Lud16.parseLud16 lud16String 
+                            |> Maybe.map (\lud16 ->
+                                Lud16.requestLightningPaymentData ReceivedLightningPaymentData lud16
+                            )
+                )
+            )
+        
+
 dummyLocalCheckFunction : PerformLocalCheckFunction
-dummyLocalCheckFunction nostr pubKey =
+dummyLocalCheckFunction _ _ =
     Nothing
 
 
 dummyRemoteCheckFunction : PerformRemoteCheckFunction
-dummyRemoteCheckFunction nostr pubKey =
+dummyRemoteCheckFunction _ _ =
     Nothing

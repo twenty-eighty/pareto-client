@@ -67,8 +67,12 @@
       "profile display name missing explanation": "Im Profil ist kein Anzeigename gesetzt.",
       "profile about text missing text": "Fehlender Über-Mich-Text im Profil",
       "profile about text missing explanation": "Im Profil ist kein Über-Mich-Text gesetzt.",
-      "profile nip-05 missing text": "Kein NIP-05-Handle im Profil gesetzt",
-      "profile nip-05 missing explanation": "Im Profil ist kein NIP-05-Handle gesetzt.",
+      "profile nip-05 name missing text": "Kein Name im NIP-05-Handle im Profil gesetzt",
+      "profile nip-05 name missing explanation": "Im NIP-05-Handle im Profil ist kein Name gesetzt.",
+      "profile nip-05 not matching pubkey text": "NIP-05-Handle im Profil nicht mit Pubkey übereinstimmt",
+      "profile nip-05 not matching pubkey explanation": "Das NIP-05-Handle im Profil stimmt nicht mit deiner Nostr-ID überein.",
+      "profile nip-05 network error text": "NIP-05-Handle im Profil nicht erreichbar",
+      "profile nip-05 network error explanation": "Das NIP-05-Handle im Profil ist nicht erreichbar. ({{error}})",
       "profile nip-05 invalid text": "Ungültiges NIP-05-Handle im Profil",
       "profile nip-05 invalid explanation": "Das NIP-05-Handle im Profil ist ungültig.",
       "profile avatar missing text": "Fehlendes Profilbild",
@@ -82,9 +86,9 @@
       "profile lud-16 invalid text": "LUD-16 im Profil ist ungültig",
       "profile lud-16 invalid explanation": "Die Lightning-Wallet im Feld LUD-16 im Profil ist ungültig. Du kannst eine gültige Adresse über die App Wallet of Satoshi bekommen (Android, iOS). Sie sollte wie eine E-Mail-Adresse aussehen: <wallet name>@walletofsatoshi.com.",
       "profile lud-16 offline text": "Lightning Wallet (LUD-16) nicht erreichbar",
-      "profile lud-16 offline explanation": "Die im Profil im Feld LUD-16 konfigurierte Lightning-Wallet ist anscheinend nicht erreichbar.",
+      "profile lud-16 offline explanation": "Die im Profil im Feld LUD-16 konfigurierte Lightning-Wallet ist anscheinend nicht erreichbar. ({{error}})",
       "profile lud-16 invalid response text": "Unerwartete Antwort von Lightning-Wallet (LUD-16)",
-      "profile lud-16 invalid response explanation": "Die im Profil im Feld LUD-16 konfigurierte Lightning-Wallet lieferte eine unerwartete Antwort."
+      "profile lud-16 invalid response explanation": "Die im Profil im Feld LUD-16 konfigurierte Lightning-Wallet lieferte eine unerwartete Antwort. (Fehler: {{error}})"
    },
    "email import dialog": {
       "dialog title": "E-Mail-Liste importieren",
