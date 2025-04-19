@@ -18,6 +18,7 @@ import I18Next
 import Layouts
 import Nostr
 import Nostr.Blossom exposing (eventWithBlossomServerList)
+import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Event exposing (Kind(..), emptyEventFilter)
 import Nostr.Lud16 as Lud16
 import Nostr.Nip05 as Nip05
@@ -724,7 +725,8 @@ viewRelays shared user relaysModel =
             , Tw.m_20
             ]
         ]
-        [ outboxRelaySection shared user relaysModel
+        [ viewConfigIssues shared.browserEnv.translations (ConfigCheck.relayIssues shared.configCheck) (Translations.relayIssuesTitle [ shared.browserEnv.translations ])
+        , outboxRelaySection shared user relaysModel
         , inboxRelaySection shared user relaysModel
 
         -- , viewRelayList searchRelays
@@ -1111,9 +1113,9 @@ removeRelayButton relay removeMsg =
     div
         [ css
             [ Tw.cursor_pointer
-            , Tw.bg_color styles.color4
+            , Tw.text_color styles.color3
             , darkMode
-                [ Tw.bg_color styles.color4DarkMode
+                [ Tw.text_color styles.color3DarkMode
                 ]
             ]
         , Events.onClick (removeMsg relay.urlWithoutProtocol)
@@ -1133,7 +1135,8 @@ viewMediaServers shared user mediaServersModel =
             , Tw.m_20
             ]
         ]
-        [ nip96ServersSection shared user mediaServersModel
+        [ viewConfigIssues shared.browserEnv.translations (ConfigCheck.mediaServerIssues shared.configCheck) (Translations.mediaServerIssuesTitle [ shared.browserEnv.translations ])
+        , nip96ServersSection shared user mediaServersModel
         , blossomServersSection shared user mediaServersModel
         ]
 
@@ -1533,7 +1536,8 @@ viewProfileEditor shared user profileModel =
             , Tw.gap_2
             ]
         ]
-        [ Button.new
+        [ viewConfigIssues shared.browserEnv.translations (ConfigCheck.profileIssues shared.configCheck) (Translations.profileIssuesTitle [ shared.browserEnv.translations ])
+        , Button.new
             { label = Translations.profileSaveButtonTitle [ shared.browserEnv.translations ]
             , onClick = Just <| SaveProfile (profileFromProfileModel user.pubKey profileModel)
             , theme = shared.theme
@@ -1632,6 +1636,45 @@ viewProfileEditor shared user profileModel =
             , theme = shared.theme
             }
             |> MediaSelector.view
+        ]
+
+
+viewConfigIssues : I18Next.Translations -> List ConfigCheck.Issue -> String -> Html msg
+viewConfigIssues translations issues title =
+    case issues of
+        [] ->
+            emptyHtml
+
+        profileIssues ->
+            Html.div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_col
+                    , Tw.mb_4
+                    ]
+                ]
+                [ Html.span [ css [ Tw.font_bold ] ] [ Html.text title ]
+                , profileIssues
+                    |> List.map (ConfigCheck.issueText translations)
+                    |> List.map viewIssueText
+                    |> Html.ul
+                        [ css
+                            [ Tw.list_inside
+                            ]
+                        ]
+                ]
+
+
+viewIssueText : ConfigCheck.IssueText -> Html msg
+viewIssueText { message, explanation, solution } =
+    Html.li
+        [ css
+            [ Tw.list_disc
+            ]
+        ]
+        [ Html.span [ css [ Tw.italic ] ] [ Html.text message ]
+        , Html.text <| " - " ++ explanation
+        , Html.p [ css [ Tw.text_sm ] ] [ Html.text solution ]
         ]
 
 

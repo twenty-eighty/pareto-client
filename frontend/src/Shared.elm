@@ -17,16 +17,19 @@ import BrowserEnv
 import Effect exposing (Effect)
 import Json.Decode
 import Nostr
+import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Event exposing (Kind(..), emptyEventFilter)
 import Nostr.External
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Types exposing (IncomingMessage, PubKey)
 import Pareto
 import Ports
+import Process
 import Route exposing (Route)
 import Route.Path
 import Shared.Model exposing (ClientRole(..), LoginMethod(..), LoginStatus(..))
 import Shared.Msg exposing (Msg(..))
+import Task
 import Ui.Styles exposing (Theme(..))
 
 
@@ -97,6 +100,7 @@ init flagsResult _ =
             in
             ( { loginStatus = Shared.Model.LoggedInUnknown
               , browserEnv = browserEnv
+              , configCheck = ConfigCheck.init
               , nostr = nostr
               , role = ClientReader
               , theme = ParetoTheme
@@ -123,6 +127,7 @@ init flagsResult _ =
             in
             ( { loginStatus = Shared.Model.LoggedOut
               , browserEnv = browserEnv
+              , configCheck = ConfigCheck.init
               , nostr = Nostr.empty
               , role = ClientReader
               , theme = ParetoTheme
@@ -232,6 +237,30 @@ update _ msg model =
                 |> Effect.sendCmd
             )
 
+        CheckConfiguration _ ->
+            let
+                ( configCheck, checkCmd ) =
+                    loggedInSigningPubKey model.loginStatus
+                        |> Maybe.map (ConfigCheck.performChecks model.nostr)
+                        |> Maybe.withDefault ( model.configCheck, Cmd.none )
+            in
+            ( { model | configCheck = configCheck }
+            , checkCmd
+                |> Cmd.map ConfigCheckMsg
+                |> Effect.sendCmd
+            )
+
+        ConfigCheckMsg configCheckMsg ->
+            let
+                ( configCheck, checkCmd ) =
+                    ConfigCheck.update configCheckMsg model.configCheck
+            in
+            ( { model | configCheck = configCheck }
+            , checkCmd
+                |> Cmd.map ConfigCheckMsg
+                |> Effect.sendCmd
+            )
+
         LoadUserDataByPubKey pubKey ->
             ( model
             , Nostr.loadUserDataByPubKey model.nostr pubKey
@@ -270,22 +299,37 @@ updateWithUserValue model value =
     of
         ( Ok pubKeyNew, Ok loginMethod, Shared.Model.LoggedIn pubKeyLoggedIn _ ) ->
             let
-                ( nostr, cmd ) =
+                ( nostr, cmdNostr ) =
                     if pubKeyNew /= pubKeyLoggedIn then
                         Nostr.requestUserData model.nostr pubKeyNew
 
                     else
                         -- ignore messages that don't change user
                         ( model.nostr, Cmd.none )
+
+                startConfigCheckCmd =
+                    if loginMethod /= LoginMethodReadOnly && Nostr.isEditor model.nostr pubKeyNew && Nostr.isBetaTester model.nostr pubKeyNew then
+                        -- trigger configuration check for Pareto users/authors
+                        Process.sleep (10 * 1000.0)
+                            |> Task.perform CheckConfiguration
+
+                    else
+                        -- ignore messages that don't change user
+                        Cmd.none
             in
-            ( { model | loginStatus = Shared.Model.LoggedIn pubKeyNew loginMethod, nostr = nostr }
-            , [ cmd
+            ( { model
+                | loginStatus = Shared.Model.LoggedIn pubKeyNew loginMethod
+                , nostr = nostr
+              }
+            , [ cmdNostr
+                    |> Cmd.map Shared.Msg.NostrMsg
 
               -- check if user sends newsletters
               , Nostr.loadUserDataByPubKey model.nostr pubKeyNew
+                    |> Cmd.map Shared.Msg.NostrMsg
+              , startConfigCheckCmd
               ]
                 |> Cmd.batch
-                |> Cmd.map Shared.Msg.NostrMsg
                 |> Effect.sendCmd
             )
 

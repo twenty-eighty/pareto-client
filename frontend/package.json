@@ -18,7 +18,7 @@
     "@scure/bip39": "^1.4.0",
     "blossom-client-sdk": "^1.1.1",
     "node": "^22.14.0",
-    "nostr-login": "^1.7.8",
+    "nostr-login": "github:dan-jel/nostr-login",
     "nostr-zap": "github:rodant/nostr-zap#pareto-main",
     "prismjs": "^1.27.0"
   },
