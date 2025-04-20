@@ -11,7 +11,7 @@ import Translations.ConfigCheck as Translations
 import Nostr.Relay exposing (RelayState(..))
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Profile exposing (ProfileValidation(..))
-
+import Url exposing (Url)
 
 type alias Model =
     { issues : List Issue
@@ -45,6 +45,7 @@ type Issue
     | ProfileLud16Missing
     | ProfileLud16InvalidForm
     | ProfileLud16Offline Http.Error
+    | ProfileLud16CallbackOffline Http.Error
     | ProfileLud16InvalidResponse String
 
 
@@ -66,6 +67,7 @@ type alias PerformRemoteCheckFunction =
 type Msg
     = NoOp
     | ReceivedLightningPaymentData (Result Http.Error Lud16.LightningPaymentData)
+    | ReceivedLightningCallbackResponse (Result Http.Error ())
     | ReceivedProfileAvatar (Result Http.Error ())
     | ReceivedProfileBanner (Result Http.Error ())
 
@@ -105,15 +107,22 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
-        ReceivedLightningPaymentData (Ok _) ->
-            -- TODO check content of lightning payment data
-            ( model, Cmd.none )
+        ReceivedLightningPaymentData (Ok lightningPaymentData) ->
+            ( model
+            , httpHeadRequest lightningPaymentData.callback ReceivedLightningCallbackResponse
+             )
 
         ReceivedLightningPaymentData (Err (Http.BadBody error)) ->
             ( { model | issues = model.issues ++ [ ProfileLud16InvalidResponse error] }, Cmd.none )
 
         ReceivedLightningPaymentData (Err error) ->
             ( { model | issues = model.issues ++ [ ProfileLud16Offline error ] }, Cmd.none )
+
+        ReceivedLightningCallbackResponse (Ok _) ->
+            ( model, Cmd.none )
+
+        ReceivedLightningCallbackResponse (Err error) ->
+            ( { model | issues = model.issues ++ [ ProfileLud16CallbackOffline error ] }, Cmd.none )
 
         ReceivedProfileAvatar (Ok _) ->
             ( model, Cmd.none )
@@ -256,6 +265,12 @@ issueText translations issue =
             , solution = ""
             }
 
+        ProfileLud16CallbackOffline error ->
+            { message = Translations.profileLud16CallbackOfflineText [ translations ]
+            , explanation = Translations.profileLud16CallbackOfflineExplanation [ translations ] { error = httpErrorToString error }
+            , solution = ""
+            }
+
         ProfileLud16InvalidResponse error ->
             { message = Translations.profileLud16InvalidResponseText [ translations ]
             , explanation = Translations.profileLud16InvalidResponseExplanation [ translations ] { error = error }
@@ -330,6 +345,9 @@ issueType issue =
             ProfileIssue
 
         ProfileLud16Offline _ ->
+            ProfileIssue
+
+        ProfileLud16CallbackOffline _ ->
             ProfileIssue
 
         ProfileLud16InvalidResponse _ ->
@@ -622,8 +640,10 @@ checkProfileAvatar nostr pubKey =
             (\profile ->
                 profile.picture
                 |> Maybe.andThen (\pictureUrl ->
-                    httpHeadRequest pictureUrl (ReceivedProfileAvatar)
-                         |> Just
+                    Url.fromString pictureUrl
+                        |> Maybe.map (\url ->
+                            httpHeadRequest url ReceivedProfileAvatar
+                        )
                 )
             )
         
@@ -634,17 +654,19 @@ checkProfileBanner nostr pubKey =
             (\profile ->
                 profile.banner
                 |> Maybe.andThen (\bannerUrl ->
-                    httpHeadRequest bannerUrl (ReceivedProfileBanner )
-                         |> Just
+                    Url.fromString bannerUrl
+                        |> Maybe.map (\url ->
+                            httpHeadRequest url ReceivedProfileBanner
+                        )
                 )
             )
         
 
-httpHeadRequest : String -> (Result Http.Error () -> Msg) -> Cmd Msg
+httpHeadRequest : Url -> (Result Http.Error () -> Msg) -> Cmd Msg
 httpHeadRequest url onResult =
     Http.request
         { method = "HEAD"
-        ,url = url
+        ,url = Url.toString url
         , expect = Http.expectWhatever onResult
         , headers = []
         , body = Http.emptyBody

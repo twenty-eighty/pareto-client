@@ -42,7 +42,7 @@ import Tailwind.Utilities as Tw
 import Translations.Settings as Translations
 import Ui.Profile exposing (FollowType(..))
 import Ui.Relay exposing (viewRelayImage)
-import Ui.Shared exposing (countBadge, emptyHtml)
+import Ui.Shared exposing (countBadge, emptyHtml, viewConfigIssues)
 import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
 import Url
 import View exposing (View)
@@ -1673,45 +1673,6 @@ viewProfileEditor shared user profileModel =
             , theme = shared.theme
             }
             |> MediaSelector.view
-        ]
-
-
-viewConfigIssues : I18Next.Translations -> List ConfigCheck.Issue -> String -> Html msg
-viewConfigIssues translations issues title =
-    case issues of
-        [] ->
-            emptyHtml
-
-        profileIssues ->
-            Html.div
-                [ css
-                    [ Tw.flex
-                    , Tw.flex_col
-                    , Tw.mb_4
-                    ]
-                ]
-                [ Html.span [ css [ Tw.font_bold ] ] [ Html.text title ]
-                , profileIssues
-                    |> List.map (ConfigCheck.issueText translations)
-                    |> List.map viewIssueText
-                    |> Html.ul
-                        [ css
-                            [ Tw.list_inside
-                            ]
-                        ]
-                ]
-
-
-viewIssueText : ConfigCheck.IssueText -> Html msg
-viewIssueText { message, explanation, solution } =
-    Html.li
-        [ css
-            [ Tw.list_disc
-            ]
-        ]
-        [ Html.span [ css [ Tw.italic ] ] [ Html.text message ]
-        , Html.text <| " - " ++ explanation
-        , Html.p [ css [ Tw.text_sm ] ] [ Html.text solution ]
         ]
 
 

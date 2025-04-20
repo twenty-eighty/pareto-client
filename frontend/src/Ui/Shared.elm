@@ -2,7 +2,10 @@ module Ui.Shared exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
 import Color
+import I18Next
 import Components.Icon as Icon exposing (Icon)
+import Nostr
+import Nostr.ConfigCheck as ConfigCheck
 import Css
 import Dict
 import Erl
@@ -110,6 +113,45 @@ countBadge count =
 
         otherNumber ->
             "(" ++ String.fromInt otherNumber ++ ")"
+
+viewConfigIssues : I18Next.Translations -> List ConfigCheck.Issue -> String -> Html msg
+viewConfigIssues translations issues title =
+    case issues of
+        [] ->
+            emptyHtml
+
+        profileIssues ->
+            Html.div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_col
+                    , Tw.mb_4
+                    ]
+                ]
+                [ Html.span [ css [ Tw.font_bold ] ] [ Html.text title ]
+                , profileIssues
+                    |> List.map (ConfigCheck.issueText translations)
+                    |> List.map viewIssueText
+                    |> Html.ul
+                        [ css
+                            [ Tw.list_inside
+                            ]
+                        ]
+                ]
+
+
+viewIssueText : ConfigCheck.IssueText -> Html msg
+viewIssueText { message, explanation, solution } =
+    Html.li
+        [ css
+            [ Tw.list_disc
+            ]
+        ]
+        [ Html.span [ css [ Tw.italic ] ] [ Html.text message ]
+        , Html.text <| " - " ++ explanation
+        , Html.p [ css [ Tw.text_sm ] ] [ Html.text solution ]
+        ]
+
 
 
 

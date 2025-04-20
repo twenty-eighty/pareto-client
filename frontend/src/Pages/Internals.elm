@@ -16,7 +16,9 @@ import Tailwind.Utilities as Tw
 import Translations.Internals as Translations
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme, stylesForTheme)
+import Ui.Shared exposing (emptyHtml, viewConfigIssues)
 import View exposing (View)
+import Nostr.ConfigCheck as ConfigCheck
 
 
 page : Shared.Model -> Route () -> Page Model Msg
@@ -86,6 +88,7 @@ view shared _ =
                 [ text <| Translations.contactInformation [ shared.browserEnv.translations ] ++ " " ++ Pareto.supportEmail
                 ]
             , viewLoginInfo shared
+            , viewConfigIssues shared.browserEnv.translations (ConfigCheck.getIssues shared.configCheck) (Translations.configurationIssuesTitle [ shared.browserEnv.translations ])
             , viewErrorMessages shared.theme shared.browserEnv.translations shared.nostr
             ]
         ]
