@@ -111,6 +111,7 @@ type MediaServerState
 
 type alias ProfileModel =
     { nip05 : String
+    , lud06 : String
     , lud16 : String
     , name : String
     , displayName : String
@@ -147,6 +148,7 @@ profileModelFromProfile user shared profile =
                 }
     in
     ( { nip05 = profile.nip05 |> Maybe.map Nip05.nip05ToString |> Maybe.withDefault ""
+      , lud06 = profile.lud06 |> Maybe.withDefault ""
       , lud16 = profile.lud16 |> Maybe.withDefault ""
       , name = profile.name |> Maybe.withDefault ""
       , displayName = profile.displayName |> Maybe.withDefault ""
@@ -166,7 +168,7 @@ profileModelFromProfile user shared profile =
 profileFromProfileModel : PubKey -> ProfileModel -> Profile
 profileFromProfileModel pubKey profileModel =
     { nip05 = Nip05.parseNip05 profileModel.nip05
-    , lud06 = Nothing
+    , lud06 = stringToMaybe profileModel.lud06
     , lud16 = stringToMaybe profileModel.lud16
     , name = stringToMaybe profileModel.name
     , displayName = stringToMaybe profileModel.displayName
@@ -231,6 +233,7 @@ emptyProfileModel user shared =
                 }
     in
     ( { nip05 = ""
+      , lud06 = ""
       , lud16 = ""
       , name = ""
       , displayName = ""
@@ -1720,6 +1723,26 @@ viewProfileEditor shared user profileModel =
 
                 Nothing ->
                     False
+
+        -- only show lud06 field if it was present in loaded profile
+        lud06Field =
+            profileModel.savedProfile
+                |> Maybe.andThen .lud06
+                |> Maybe.map (\lud06String ->
+                    if lud06String /= "" then
+                        EntryField.new
+                            { value = profileModel.lud06
+                            , onInput = \lud06 -> UpdateProfileModel { profileModel | lud06 = lud06 }
+                            , theme = shared.theme
+                            }
+                            |> EntryField.withLabel "lud06"
+                            |> EntryField.withPlaceholder "lud06"
+                            |> EntryField.withType EntryField.FieldTypeText
+                            |> EntryField.view
+                    else
+                        emptyHtml
+                )
+                |> Maybe.withDefault emptyHtml
     in
     div
         [ css
@@ -1793,6 +1816,7 @@ viewProfileEditor shared user profileModel =
             |> EntryField.withPlaceholder "banner"
             |> EntryField.withType EntryField.FieldTypeUrl
             |> EntryField.view
+        , lud06Field
         , EntryField.new
             { value = profileModel.lud16
             , onInput = \lud16 -> UpdateProfileModel { profileModel | lud16 = lud16 }

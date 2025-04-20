@@ -91,6 +91,8 @@
       "profile banner not url explanation": "The profile banner picture is not a valid URL.",
       "profile lud-06 configured text": "Profile LUD-06 configured",
       "profile lud-06 configured explanation": "The LUD-06 field should be empty so that the wallet address in the LUD-16 field is used.",
+      "profile lud-06 format error text": "Profile LUD-06 format error",
+      "profile lud-06 format error explanation": "The LUD-06 field is not a valid Bech32 encoded string. ({{error}})",
       "profile lud-16 missing text": "Profile LUD-16 missing",
       "profile lud-16 missing explanation": "No Lightning wallet address is set in the profile (LUD-16).",
       "profile lud-16 whitespace text": "Profile LUD-16 conains spaces",
@@ -202,6 +204,15 @@
       "total column name": "Total",
       "error column name": "Errors",
       "subject column name": "Title"
+   },
+   "picture post dialog": {
+      "dialog title": "Picture Post",
+      "post button title": "Post",
+      "posting button text": "Posting...",
+      "posted button text": "Posted",
+      "posting text": "Posting...",
+      "posted text": "Posted",
+      "error posting text": "Error posting picture post: {{errorText}}"
    },
    "posts": {
       "posts title": "Posts",

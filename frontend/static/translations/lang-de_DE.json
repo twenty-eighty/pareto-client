@@ -90,7 +90,9 @@
       "profile banner not url text": "Profilbanner ist keine URL",
       "profile banner not url explanation": "Das Profilbanner ist keine gültige URL.",
       "profile lud-06 configured text": "LUD-06 im Profil konfiguriert.",
-      "profile lud-06 configured explanation": "Das Feld LUD-06 im Profil sollte leer sein, damit die Wallet-Adress im Feld LUD-16 verwendet wird.",
+      "profile lud-06 configured explanation": "Das Feld LUD-06 im Profil sollte leer sein, damit die Wallet-Adresse im Feld LUD-16 verwendet wird.",
+      "profile lud-06 format error text": "LUD-06 im Profil ist nicht korrekt formatiert",
+      "profile lud-06 format error explanation": "Das Feld LUD-06 im Profil ist nicht korrekt formatiert (Bech32). ({{error}})",
       "profile lud-16 missing text": "LUD-16 fehlt im Profil",
       "profile lud-16 missing explanation": "Im Profil ist keine Lightning Wallet gesetzt (LUD-16).",
       "profile lud-16 whitespace text": "LUD-16 im Profil enthält Leerzeichen",
@@ -201,6 +203,15 @@
       "total column name": "Gesamt",
       "error column name": "Fehler",
       "subject column name": "Betreff"
+   },
+   "picture post dialog": {
+      "dialog title": "Bild veröffentlichen",
+      "post button title": "Veröffentlichen",
+      "posting button text": "Veröffentlichen ...",
+      "posted button text": "Veröffentlicht",
+      "posting text": "Veröffentlichen ...",
+      "posted text": "Veröffentlicht",
+      "error posting text": "Fehler beim Veröffentlichen des Bildes: {{errorText}}"
    },
    "posts": {
       "posts title": "Artikel",

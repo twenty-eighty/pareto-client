@@ -3,7 +3,9 @@ module Nostr.ConfigCheck exposing (..)
 import Http
 import I18Next
 import Nostr
+import Nostr.Bech32 as Bech32
 import Nostr.Event exposing (Kind(..), Tag(..))
+import Nostr.Lud06 as Lud06
 import Nostr.Lud16 as Lud16
 import Nostr.Nip05 as Nip05 exposing (Nip05)
 import Nostr.Types exposing (PubKey, RelayUrl, ServerUrl)
@@ -45,6 +47,7 @@ type Issue
     | ProfileBannerNotUrl
     | ProfileBannerError Http.Error
     | ProfileLud06Configured
+    | ProfileLud06FormatError String
     | ProfileLud16Missing
     | ProfileLud16Whitespace
     | ProfileLud16InvalidForm
@@ -288,6 +291,12 @@ issueText translations issue =
             , solution = ""
             }
 
+        ProfileLud06FormatError error ->
+            { message = Translations.profileLud06FormatErrorText [ translations ]
+            , explanation = Translations.profileLud06FormatErrorExplanation [ translations ] { error = error }
+            , solution = ""
+            }
+
         ProfileLud16Missing ->
             { message = Translations.profileLud16MissingText [ translations ]
             , explanation = Translations.profileLud16MissingExplanation [ translations ]
@@ -397,6 +406,9 @@ issueType issue =
         ProfileLud06Configured ->
             ProfileIssue
 
+        ProfileLud06FormatError _ ->
+            ProfileIssue
+
         ProfileLud16Missing ->
             ProfileIssue
 
@@ -439,7 +451,8 @@ localCheckFunctions =
     , checkInvalidProfileNip05
     , checkProfileAvatarStatic
     , checkProfileBannerStatic
-    , checLud06Configured
+    -- , checkLud06Configured
+    , checkLud06Format
     , checkMissingLud16
     , checkMalformedLud16
     ]
@@ -662,8 +675,8 @@ checkProfileBannerStatic nostr pubKey =
             )
 
 
-checLud06Configured : PerformLocalCheckFunction
-checLud06Configured nostr pubKey =
+checkLud06Configured : PerformLocalCheckFunction
+checkLud06Configured nostr pubKey =
     Nostr.getProfile nostr pubKey
         |> Maybe.andThen
             (\profile ->
@@ -673,6 +686,24 @@ checLud06Configured nostr pubKey =
                 else
                     Nothing
             )
+
+
+checkLud06Format : PerformLocalCheckFunction
+checkLud06Format nostr pubKey =
+    Nostr.getProfile nostr pubKey
+        |> Maybe.andThen
+            (\profile ->
+                profile.lud06
+                |> Maybe.andThen (\lud06 ->
+                    case Lud06.parseLud06 lud06 of
+                        Ok _ ->
+                            Nothing
+
+                        Err error ->
+                            Just (ProfileLud06FormatError error)
+                )
+            )
+
 
 checkMissingLud16 : PerformLocalCheckFunction
 checkMissingLud16 nostr pubKey =
