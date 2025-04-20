@@ -237,6 +237,13 @@ update _ msg model =
                 |> Effect.sendCmd
             )
 
+        DelayedCheckConfiguration ->
+            ( model
+            , Process.sleep 1000.0
+                |> Task.perform CheckConfiguration
+                |> Effect.sendCmd
+            )
+
         CheckConfiguration _ ->
             let
                 ( configCheck, checkCmd ) =
@@ -314,7 +321,7 @@ updateWithUserValue model value =
                             |> Task.perform CheckConfiguration
 
                     else
-                        -- ignore messages that don't change user
+                        -- don't check for non-Pareto users
                         Cmd.none
             in
             ( { model

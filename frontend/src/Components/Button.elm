@@ -6,6 +6,7 @@ module Components.Button exposing
     , withIconLeft, withIconRight
     , withDisabled
     , withHidden, withLink, withTypePrimary, withTypeSecondary
+    , withIntermediateState
     )
 
 {-|
@@ -28,12 +29,13 @@ module Components.Button exposing
 
 import Components.Icon exposing (Icon)
 import Css
-import Html.Styled exposing (..)
+import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events as Events
 import Tailwind.Utilities as Tw
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (darkMode)
+import Svg.Loaders
 
 
 
@@ -53,6 +55,7 @@ type Button msg
         , isOutlined : Bool
         , isDisabled : Bool
         , isHidden : Bool
+        , isInIntermediateState : Bool
         , theme : Ui.Styles.Theme
         }
 
@@ -71,6 +74,7 @@ new props =
         , isOutlined = False
         , isDisabled = False
         , isHidden = False
+        , isInIntermediateState = False
         , theme = props.theme
         }
 
@@ -152,6 +156,11 @@ withHidden isHidden (Settings settings) =
     Settings { settings | isHidden = isHidden }
 
 
+withIntermediateState : Bool -> Button msg -> Button msg
+withIntermediateState isIntermediateState (Settings settings) =
+    Settings { settings | isInIntermediateState = isIntermediateState }
+
+
 
 -- VIEW
 
@@ -171,8 +180,19 @@ view (Settings settings) =
                 Nothing ->
                     text ""
 
+        viewIntermediateStateIndicator : Html msg
+        viewIntermediateStateIndicator =
+            if settings.isInIntermediateState then
+                div [ css [ Tw.flex, Tw.items_center, Tw.justify_center ] ]
+                    [ Svg.Loaders.puff [ Svg.Loaders.size 16, Svg.Loaders.color "currentColor" ]
+                        |> Html.fromUnstyled
+                    ]
+
+            else
+                emptyHtml
+
         ( element, onClickAttr ) =
-            case ( settings.isDisabled, settings.onClick, settings.link ) of
+            case ( settings.isDisabled || settings.isInIntermediateState, settings.onClick, settings.link ) of
                 ( False, Just onClick, _ ) ->
                     ( button, [ Events.onClick onClick ] )
 
@@ -214,6 +234,7 @@ view (Settings settings) =
                 [ viewOptionalIcon settings.iconLeft
                 , text settings.label
                 , viewOptionalIcon settings.iconRight
+                , viewIntermediateStateIndicator 
                 ]
             ]
 

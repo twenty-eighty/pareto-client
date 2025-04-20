@@ -29,6 +29,7 @@ type Msg
     | SendNostrEvent SendRequest
     | SetClientRole Bool ClientRole
     | SetTestMode TestMode
+    | DelayedCheckConfiguration
     | CheckConfiguration ()
     | ConfigCheckMsg ConfigCheck.Msg
     | LoadUserDataByPubKey PubKey
