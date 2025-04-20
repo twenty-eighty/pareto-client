@@ -1735,8 +1735,8 @@ viewProfileEditor shared user profileModel =
                             , onInput = \lud06 -> UpdateProfileModel { profileModel | lud06 = lud06 }
                             , theme = shared.theme
                             }
-                            |> EntryField.withLabel "lud06"
-                            |> EntryField.withPlaceholder "lud06"
+                            |> EntryField.withLabel (Translations.profileLud06FieldLabel [ shared.browserEnv.translations ])
+                            |> EntryField.withPlaceholder (Translations.profileLud06FieldPlaceholder [ shared.browserEnv.translations ])
                             |> EntryField.withType EntryField.FieldTypeText
                             |> EntryField.view
                     else
@@ -1748,7 +1748,7 @@ viewProfileEditor shared user profileModel =
         [ css
             [ Tw.flex
             , Tw.flex_col
-            , Tw.gap_2
+            , Tw.gap_3
             ]
         ]
         [ viewConfigIssues shared.browserEnv.translations (ConfigCheck.profileIssues shared.configCheck) (Translations.profileIssuesTitle [ shared.browserEnv.translations ])
@@ -1772,8 +1772,8 @@ viewProfileEditor shared user profileModel =
                 , onInput = \name -> UpdateProfileModel { profileModel | name = name }
                 , theme = shared.theme
                 }
-                |> EntryField.withLabel "name"
-                |> EntryField.withPlaceholder "name"
+                |> EntryField.withLabel (Translations.profileNameFieldLabel [ shared.browserEnv.translations ])
+                |> EntryField.withPlaceholder (Translations.profileNameFieldPlaceholder [ shared.browserEnv.translations ])
                 |> EntryField.withSuggestions "name" (portalUserData |> Maybe.andThen .username |> Maybe.map List.singleton |> Maybe.withDefault [])
                 |> EntryField.view
             , EntryField.new
@@ -1781,8 +1781,8 @@ viewProfileEditor shared user profileModel =
                 , onInput = \nip05 -> UpdateProfileModel { profileModel | nip05 = nip05 }
                 , theme = shared.theme
                 }
-                |> EntryField.withLabel "nip05"
-                |> EntryField.withPlaceholder "nip05"
+                |> EntryField.withLabel (Translations.profileNip05FieldLabel [ shared.browserEnv.translations ])
+                |> EntryField.withPlaceholder (Translations.profileNip05FieldPlaceholder [ shared.browserEnv.translations ])
                 |> EntryField.withSuggestions "nip05" (portalUserData |> Maybe.andThen .nip05 |> Maybe.map Nip05.nip05ToString |> Maybe.map List.singleton |> Maybe.withDefault [])
                 |> EntryField.withType EntryField.FieldTypeEmail
                 |> EntryField.view
@@ -1792,8 +1792,8 @@ viewProfileEditor shared user profileModel =
             , onInput = \about -> UpdateProfileModel { profileModel | about = about }
             , theme = shared.theme
             }
-            |> EntryField.withLabel "about"
-            |> EntryField.withPlaceholder "about"
+            |> EntryField.withLabel (Translations.profileAboutFieldLabel [ shared.browserEnv.translations ])
+            |> EntryField.withPlaceholder (Translations.profileAboutFieldPlaceholder [ shared.browserEnv.translations ])
             |> EntryField.withRows 2
             |> EntryField.view
         , viewImageSelection shared ImagePicture profileModel
@@ -1802,8 +1802,8 @@ viewProfileEditor shared user profileModel =
             , onInput = \picture -> UpdateProfileModel { profileModel | picture = picture }
             , theme = shared.theme
             }
-            |> EntryField.withLabel "picture"
-            |> EntryField.withPlaceholder "picture"
+            |> EntryField.withLabel (Translations.profilePictureFieldLabel [ shared.browserEnv.translations ])
+            |> EntryField.withPlaceholder (Translations.profilePictureFieldPlaceholder [ shared.browserEnv.translations ])
             |> EntryField.withType EntryField.FieldTypeUrl
             |> EntryField.view
         , viewImageSelection shared ImageBanner profileModel
@@ -1812,8 +1812,8 @@ viewProfileEditor shared user profileModel =
             , onInput = \banner -> UpdateProfileModel { profileModel | banner = banner }
             , theme = shared.theme
             }
-            |> EntryField.withLabel "banner"
-            |> EntryField.withPlaceholder "banner"
+            |> EntryField.withLabel (Translations.profileBannerFieldLabel [ shared.browserEnv.translations ])
+            |> EntryField.withPlaceholder (Translations.profileBannerFieldPlaceholder [ shared.browserEnv.translations ])
             |> EntryField.withType EntryField.FieldTypeUrl
             |> EntryField.view
         , lud06Field
@@ -1822,8 +1822,8 @@ viewProfileEditor shared user profileModel =
             , onInput = \lud16 -> UpdateProfileModel { profileModel | lud16 = lud16 }
             , theme = shared.theme
             }
-            |> EntryField.withLabel "lud16"
-            |> EntryField.withPlaceholder "lud16"
+            |> EntryField.withLabel (Translations.profileLud16FieldLabel [ shared.browserEnv.translations ])
+            |> EntryField.withPlaceholder (Translations.profileLud16FieldPlaceholder [ shared.browserEnv.translations ])
             |> EntryField.withSuggestions "lud16" (portalUserData |> Maybe.andThen .lud16 |> Maybe.map Lud16.lud16ToString |> Maybe.map List.singleton |> Maybe.withDefault [])
             |> EntryField.withType EntryField.FieldTypeEmail
             |> EntryField.view
@@ -1832,16 +1832,16 @@ viewProfileEditor shared user profileModel =
             , onInput = \displayName -> UpdateProfileModel { profileModel | displayName = displayName }
             , theme = shared.theme
             }
-            |> EntryField.withLabel "display_name"
-            |> EntryField.withPlaceholder "display_name"
+            |> EntryField.withLabel (Translations.profileDisplayNameFieldLabel [ shared.browserEnv.translations ])
+            |> EntryField.withPlaceholder (Translations.profileDisplayNameFieldPlaceholder [ shared.browserEnv.translations ])
             |> EntryField.view
         , EntryField.new
             { value = profileModel.website
             , onInput = \website -> UpdateProfileModel { profileModel | website = website }
             , theme = shared.theme
             }
-            |> EntryField.withLabel "website"
-            |> EntryField.withPlaceholder "website"
+            |> EntryField.withLabel (Translations.profileWebsiteFieldLabel [ shared.browserEnv.translations ])
+            |> EntryField.withPlaceholder (Translations.profileWebsiteFieldPlaceholder [ shared.browserEnv.translations ])
             |> EntryField.withType EntryField.FieldTypeUrl
             |> EntryField.view
         , MediaSelector.new
