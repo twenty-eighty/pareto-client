@@ -45,7 +45,9 @@ type Issue
     | ProfileBannerError Http.Error
     | ProfileLud06Configured
     | ProfileLud16Missing
+    | ProfileLud16Whitespace
     | ProfileLud16InvalidForm
+    | ProfileLud16BitcoinAddress
     | ProfileLud16Offline Http.Error
     | ProfileLud16CallbackOffline Http.Error
     | ProfileLud16InvalidResponse String
@@ -267,10 +269,22 @@ issueText translations issue =
             , solution = ""
             }
 
+        ProfileLud16Whitespace ->
+            { message = Translations.profileLud16WhitespaceText [ translations ]
+            , explanation = Translations.profileLud16WhitespaceExplanation [ translations ]
+            , solution = ""
+            }
+
         ProfileLud16InvalidForm ->
             { message = Translations.profileLud16InvalidText [ translations ]
             , explanation = Translations.profileLud16InvalidExplanation [ translations ]
-            , solution = ""
+            , solution = Translations.profileLud16InvalidSolution [ translations ]
+            }
+
+        ProfileLud16BitcoinAddress ->
+            { message = Translations.profileLud16BitcoinAddressText [ translations ]
+            , explanation = Translations.profileLud16BitcoinAddressExplanation [ translations ]
+            , solution = Translations.profileLud16BitcoinAddressSolution [ translations ]
             }
 
         ProfileLud16Offline error ->
@@ -361,7 +375,13 @@ issueType issue =
         ProfileLud16Missing ->
             ProfileIssue
 
+        ProfileLud16Whitespace ->
+            ProfileIssue
+
         ProfileLud16InvalidForm ->
+            ProfileIssue
+
+        ProfileLud16BitcoinAddress ->
             ProfileIssue
 
         ProfileLud16Offline _ ->
@@ -626,11 +646,16 @@ checkMissingLud16 nostr pubKey =
     Nostr.getProfile nostr pubKey
         |> Maybe.andThen
             (\profile ->
-                if profile.lud16 == Nothing then
-                    Just ProfileLud16Missing
+                case profile.lud16 of
+                    Just lud16 ->
+                        if String.trim lud16 /= lud16 then
+                            Just ProfileLud16Whitespace
 
-                else
-                    Nothing
+                        else
+                            Nothing
+
+                    Nothing ->
+                        Just ProfileLud16Missing
             )
 
 checkMalformedLud16 : PerformLocalCheckFunction
@@ -640,7 +665,9 @@ checkMalformedLud16 nostr pubKey =
             (\profile ->
                 profile.lud16
                 |> Maybe.andThen (\lud16 ->
-                        if Lud16.parseLud16 lud16 == Nothing then
+                        if String.startsWith "bc1" lud16 then
+                            Just ProfileLud16BitcoinAddress
+                        else if Lud16.parseLud16 lud16 == Nothing then
                             Just ProfileLud16InvalidForm
 
                         else
