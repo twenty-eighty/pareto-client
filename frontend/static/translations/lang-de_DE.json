@@ -108,9 +108,9 @@
       "profile lud-16 invalid response text": "Unerwartete Antwort von Lightning-Wallet (LUD-16)",
       "profile lud-16 invalid response explanation": "Die im Profil im Feld LUD-16 konfigurierte Lightning-Wallet lieferte eine unerwartete Antwort. (Fehler: {{error}})",
       "profile avatar error text": "Fehler beim Laden des Profilbildes",
-      "profile avatar error explanation": "Das Profilbild ist nicht erreichbar. ({{error}})",
+      "profile avatar error explanation": "Das Profilbild kann nicht geladen werden.",
       "profile banner error text": "Fehler beim Laden des Profilbanners",
-      "profile banner error explanation": "Das Profilbanner ist nicht erreichbar. ({{error}})"
+      "profile banner error explanation": "Das Profilbanner kann nicht geladen werden."
    },
    "email import dialog": {
       "dialog title": "E-Mail-Liste importieren",

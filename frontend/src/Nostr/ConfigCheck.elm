@@ -42,10 +42,10 @@ type Issue
     | ProfileNip05NetworkError Http.Error (Maybe Nip05)
     | ProfileAvatarMissing
     | ProfileAvatarNotUrl
-    | ProfileAvatarError Http.Error
+    | ProfileAvatarError 
     | ProfileBannerMissing
     | ProfileBannerNotUrl
-    | ProfileBannerError Http.Error
+    | ProfileBannerError 
     | ProfileLud06Configured
     | ProfileLud06FormatError String
     | ProfileLud16Missing
@@ -76,8 +76,6 @@ type Msg
     = NoOp
     | ReceivedLightningPaymentData (Result Http.Error Lud16.LightningPaymentData)
     | ReceivedLightningCallbackResponse (Result Http.Error ())
-    | ReceivedProfileAvatar (Result Http.Error ())
-    | ReceivedProfileBanner (Result Http.Error ())
 
 
 init : Model
@@ -132,17 +130,6 @@ update msg model =
         ReceivedLightningCallbackResponse (Err error) ->
             ( { model | issues = model.issues ++ [ ProfileLud16CallbackOffline error ] }, Cmd.none )
 
-        ReceivedProfileAvatar (Ok _) ->
-            ( model, Cmd.none )
-
-        ReceivedProfileAvatar (Err error) ->
-            ( { model | issues = model.issues ++ [ ProfileAvatarError error ] }, Cmd.none )
-
-        ReceivedProfileBanner (Ok _) ->
-            ( model, Cmd.none )
-
-        ReceivedProfileBanner (Err error) ->
-            ( { model | issues = model.issues ++ [ ProfileBannerError error ] }, Cmd.none )
 
 performChecks : Nostr.Model -> PubKey -> ( Model, Cmd Msg )
 performChecks nostr pubKey =
@@ -339,15 +326,15 @@ issueText translations issue =
             , solution = ""
             }
 
-        ProfileAvatarError error ->
+        ProfileAvatarError ->
             { message = Translations.profileAvatarErrorText [ translations ]
-            , explanation = Translations.profileAvatarErrorExplanation [ translations ] { error = httpErrorToString error }
+            , explanation = Translations.profileAvatarErrorExplanation [ translations ]
             , solution = ""
             }
 
-        ProfileBannerError error ->
+        ProfileBannerError ->
             { message = Translations.profileBannerErrorText [ translations ]
-            , explanation = Translations.profileBannerErrorExplanation [ translations ] { error = httpErrorToString error }
+            , explanation = Translations.profileBannerErrorExplanation [ translations ]
             , solution = ""
             }
 
@@ -430,10 +417,10 @@ issueType issue =
         ProfileLud16InvalidResponse _ ->
             ProfileIssue
 
-        ProfileAvatarError _ ->
+        ProfileAvatarError ->
             ProfileIssue
 
-        ProfileBannerError _ ->
+        ProfileBannerError ->
             ProfileIssue
 
 
@@ -461,8 +448,6 @@ localCheckFunctions =
 remoteCheckFunctions : List PerformRemoteCheckFunction
 remoteCheckFunctions =
     [ checkLud16Response
-    , checkProfileAvatar
-    , checkProfileBanner
     ]
 
 
@@ -751,34 +736,6 @@ checkLud16Response nostr pubKey =
                             |> Maybe.map (\lud16 ->
                                 Lud16.requestLightningPaymentData ReceivedLightningPaymentData lud16
                             )
-                )
-            )
-        
-checkProfileAvatar : PerformRemoteCheckFunction
-checkProfileAvatar nostr pubKey =
-    Nostr.getProfile nostr pubKey
-        |> Maybe.andThen
-            (\profile ->
-                profile.picture
-                |> Maybe.andThen (\pictureUrl ->
-                    Url.fromString pictureUrl
-                        |> Maybe.map (\url ->
-                            httpHeadRequest url ReceivedProfileAvatar
-                        )
-                )
-            )
-        
-checkProfileBanner : PerformRemoteCheckFunction
-checkProfileBanner nostr pubKey =
-    Nostr.getProfile nostr pubKey
-        |> Maybe.andThen
-            (\profile ->
-                profile.banner
-                |> Maybe.andThen (\bannerUrl ->
-                    Url.fromString bannerUrl
-                        |> Maybe.map (\url ->
-                            httpHeadRequest url ReceivedProfileBanner
-                        )
                 )
             )
         
