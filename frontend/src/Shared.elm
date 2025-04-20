@@ -308,7 +308,7 @@ updateWithUserValue model value =
                         ( model.nostr, Cmd.none )
 
                 startConfigCheckCmd =
-                    if loginMethod /= LoginMethodReadOnly && Nostr.isEditor model.nostr pubKeyNew then
+                    if Nostr.isEditor model.nostr pubKeyNew then
                         -- trigger configuration check for Pareto users/authors
                         Process.sleep (5 * 1000.0)
                             |> Task.perform CheckConfiguration

@@ -11,7 +11,7 @@ import Translations.ConfigCheck as Translations
 import Nostr.Relay exposing (RelayState(..))
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Profile exposing (ProfileValidation(..))
-
+import Url exposing (Url)
 
 type alias Model =
     { issues : List Issue
@@ -38,13 +38,18 @@ type Issue
     | ProfileNip05NotMatchingPubKey
     | ProfileNip05NetworkError Http.Error
     | ProfileAvatarMissing
+    | ProfileAvatarNotUrl
     | ProfileAvatarError Http.Error
     | ProfileBannerMissing
+    | ProfileBannerNotUrl
     | ProfileBannerError Http.Error
     | ProfileLud06Configured
     | ProfileLud16Missing
+    | ProfileLud16Whitespace
     | ProfileLud16InvalidForm
+    | ProfileLud16BitcoinAddress
     | ProfileLud16Offline Http.Error
+    | ProfileLud16CallbackOffline Http.Error
     | ProfileLud16InvalidResponse String
 
 
@@ -66,6 +71,7 @@ type alias PerformRemoteCheckFunction =
 type Msg
     = NoOp
     | ReceivedLightningPaymentData (Result Http.Error Lud16.LightningPaymentData)
+    | ReceivedLightningCallbackResponse (Result Http.Error ())
     | ReceivedProfileAvatar (Result Http.Error ())
     | ReceivedProfileBanner (Result Http.Error ())
 
@@ -105,15 +111,22 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
-        ReceivedLightningPaymentData (Ok _) ->
-            -- TODO check content of lightning payment data
-            ( model, Cmd.none )
+        ReceivedLightningPaymentData (Ok lightningPaymentData) ->
+            ( model
+            , httpHeadRequest lightningPaymentData.callback ReceivedLightningCallbackResponse
+             )
 
         ReceivedLightningPaymentData (Err (Http.BadBody error)) ->
             ( { model | issues = model.issues ++ [ ProfileLud16InvalidResponse error] }, Cmd.none )
 
         ReceivedLightningPaymentData (Err error) ->
             ( { model | issues = model.issues ++ [ ProfileLud16Offline error ] }, Cmd.none )
+
+        ReceivedLightningCallbackResponse (Ok _) ->
+            ( model, Cmd.none )
+
+        ReceivedLightningCallbackResponse (Err error) ->
+            ( { model | issues = model.issues ++ [ ProfileLud16CallbackOffline error ] }, Cmd.none )
 
         ReceivedProfileAvatar (Ok _) ->
             ( model, Cmd.none )
@@ -226,9 +239,21 @@ issueText translations issue =
             , solution = ""
             }
 
+        ProfileAvatarNotUrl ->
+            { message = Translations.profileAvatarNotUrlText [ translations ]
+            , explanation = Translations.profileAvatarNotUrlExplanation [ translations ]
+            , solution = ""
+            }
+
         ProfileBannerMissing ->
             { message = Translations.profileBannerMissingText [ translations ]
             , explanation = Translations.profileBannerMissingExplanation [ translations ]
+            , solution = ""
+            }
+
+        ProfileBannerNotUrl ->
+            { message = Translations.profileBannerNotUrlText [ translations ]
+            , explanation = Translations.profileBannerNotUrlExplanation [ translations ]
             , solution = ""
             }
 
@@ -244,15 +269,33 @@ issueText translations issue =
             , solution = ""
             }
 
+        ProfileLud16Whitespace ->
+            { message = Translations.profileLud16WhitespaceText [ translations ]
+            , explanation = Translations.profileLud16WhitespaceExplanation [ translations ]
+            , solution = ""
+            }
+
         ProfileLud16InvalidForm ->
             { message = Translations.profileLud16InvalidText [ translations ]
             , explanation = Translations.profileLud16InvalidExplanation [ translations ]
-            , solution = ""
+            , solution = Translations.profileLud16InvalidSolution [ translations ]
+            }
+
+        ProfileLud16BitcoinAddress ->
+            { message = Translations.profileLud16BitcoinAddressText [ translations ]
+            , explanation = Translations.profileLud16BitcoinAddressExplanation [ translations ]
+            , solution = Translations.profileLud16BitcoinAddressSolution [ translations ]
             }
 
         ProfileLud16Offline error ->
             { message = Translations.profileLud16OfflineText [ translations ]
             , explanation = Translations.profileLud16OfflineExplanation [ translations ] { error = httpErrorToString error }
+            , solution = ""
+            }
+
+        ProfileLud16CallbackOffline error ->
+            { message = Translations.profileLud16CallbackOfflineText [ translations ]
+            , explanation = Translations.profileLud16CallbackOfflineExplanation [ translations ] { error = httpErrorToString error }
             , solution = ""
             }
 
@@ -317,7 +360,13 @@ issueType issue =
         ProfileAvatarMissing ->
             ProfileIssue
 
+        ProfileAvatarNotUrl ->
+            ProfileIssue
+
         ProfileBannerMissing ->
+            ProfileIssue
+
+        ProfileBannerNotUrl ->
             ProfileIssue
 
         ProfileLud06Configured ->
@@ -326,10 +375,19 @@ issueType issue =
         ProfileLud16Missing ->
             ProfileIssue
 
+        ProfileLud16Whitespace ->
+            ProfileIssue
+
         ProfileLud16InvalidForm ->
             ProfileIssue
 
+        ProfileLud16BitcoinAddress ->
+            ProfileIssue
+
         ProfileLud16Offline _ ->
+            ProfileIssue
+
+        ProfileLud16CallbackOffline _ ->
             ProfileIssue
 
         ProfileLud16InvalidResponse _ ->
@@ -354,8 +412,8 @@ localCheckFunctions =
     , checkMissingProfileAbout
     , checkMissingProfileNip05
     , checkInvalidProfileNip05
-    , checkMissingProfileAvatar
-    , checkMissingProfileBanner
+    , checkProfileAvatarStatic
+    , checkProfileBannerStatic
     , checLud06Configured
     , checkMissingLud16
     , checkMalformedLud16
@@ -535,29 +593,39 @@ checkInvalidProfileNip05 nostr pubKey =
 
 
 
-checkMissingProfileAvatar : PerformLocalCheckFunction
-checkMissingProfileAvatar nostr pubKey =
+checkProfileAvatarStatic : PerformLocalCheckFunction
+checkProfileAvatarStatic nostr pubKey =
     Nostr.getProfile nostr pubKey
         |> Maybe.andThen
             (\profile ->
-                if profile.picture == Nothing then
-                    Just ProfileAvatarMissing
+                case profile.picture of
+                    Just pictureUrl ->
+                        if Url.fromString pictureUrl == Nothing then
+                            Just ProfileAvatarNotUrl
 
-                else
-                    Nothing
+                        else
+                            Nothing
+
+                    Nothing ->
+                        Just ProfileAvatarNotUrl
             )
 
 
-checkMissingProfileBanner : PerformLocalCheckFunction
-checkMissingProfileBanner nostr pubKey =
+checkProfileBannerStatic : PerformLocalCheckFunction
+checkProfileBannerStatic nostr pubKey =
     Nostr.getProfile nostr pubKey
         |> Maybe.andThen
             (\profile ->
-                if profile.banner == Nothing then
-                    Just ProfileBannerMissing
+                case profile.banner of
+                    Just bannerUrl ->
+                        if Url.fromString bannerUrl == Nothing then
+                            Just ProfileBannerNotUrl
 
-                else
-                    Nothing
+                        else
+                            Nothing
+
+                    Nothing ->
+                        Just ProfileBannerMissing
             )
 
 
@@ -578,11 +646,16 @@ checkMissingLud16 nostr pubKey =
     Nostr.getProfile nostr pubKey
         |> Maybe.andThen
             (\profile ->
-                if profile.lud16 == Nothing then
-                    Just ProfileLud16Missing
+                case profile.lud16 of
+                    Just lud16 ->
+                        if String.trim lud16 /= lud16 then
+                            Just ProfileLud16Whitespace
 
-                else
-                    Nothing
+                        else
+                            Nothing
+
+                    Nothing ->
+                        Just ProfileLud16Missing
             )
 
 checkMalformedLud16 : PerformLocalCheckFunction
@@ -592,7 +665,9 @@ checkMalformedLud16 nostr pubKey =
             (\profile ->
                 profile.lud16
                 |> Maybe.andThen (\lud16 ->
-                        if Lud16.parseLud16 lud16 == Nothing then
+                        if String.startsWith "bc1" lud16 then
+                            Just ProfileLud16BitcoinAddress
+                        else if Lud16.parseLud16 lud16 == Nothing then
                             Just ProfileLud16InvalidForm
 
                         else
@@ -622,8 +697,10 @@ checkProfileAvatar nostr pubKey =
             (\profile ->
                 profile.picture
                 |> Maybe.andThen (\pictureUrl ->
-                    httpHeadRequest pictureUrl (ReceivedProfileAvatar)
-                         |> Just
+                    Url.fromString pictureUrl
+                        |> Maybe.map (\url ->
+                            httpHeadRequest url ReceivedProfileAvatar
+                        )
                 )
             )
         
@@ -634,17 +711,19 @@ checkProfileBanner nostr pubKey =
             (\profile ->
                 profile.banner
                 |> Maybe.andThen (\bannerUrl ->
-                    httpHeadRequest bannerUrl (ReceivedProfileBanner )
-                         |> Just
+                    Url.fromString bannerUrl
+                        |> Maybe.map (\url ->
+                            httpHeadRequest url ReceivedProfileBanner
+                        )
                 )
             )
         
 
-httpHeadRequest : String -> (Result Http.Error () -> Msg) -> Cmd Msg
+httpHeadRequest : Url -> (Result Http.Error () -> Msg) -> Cmd Msg
 httpHeadRequest url onResult =
     Http.request
         { method = "HEAD"
-        ,url = url
+        ,url = Url.toString url
         , expect = Http.expectWhatever onResult
         , headers = []
         , body = Http.emptyBody
