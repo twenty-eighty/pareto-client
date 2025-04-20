@@ -88,7 +88,13 @@ type alias RelaysModel =
     { outboxRelay : Maybe String
     , inboxRelay : Maybe String
     , searchRelay : Maybe String
+    , state : RelayListState
     }
+
+type RelayListState
+    = RelayListStateEditing
+    | RelayListStateSaving SendRequestId
+
 
 
 type alias MediaServersModel =
@@ -200,6 +206,7 @@ emptyRelaysModel =
     { outboxRelay = Nothing
     , inboxRelay = Nothing
     , searchRelay = Nothing
+    , state = RelayListStateEditing
     }
 
 
@@ -393,14 +400,14 @@ update user shared msg model =
             ( { model | data = RelaysData relaysModel }, Effect.none )
 
         AddOutboxRelay pubKey relayUrl ->
-            ( { model | data = RelaysData emptyRelaysModel }
+            ( { model | data = RelaysData { emptyRelaysModel | state = RelayListStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
             , Nostr.getRelayListForPubKey shared.nostr pubKey
                 |> extendRelayList (relayListWithRole [ relayUrl ] WriteRelay)
                 |> sendRelayListCmd pubKey
             )
 
         AddInboxRelay pubKey relayUrl ->
-            ( { model | data = RelaysData emptyRelaysModel }
+            ( { model | data = RelaysData { emptyRelaysModel | state = RelayListStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
             , Nostr.getRelayListForPubKey shared.nostr pubKey
                 |> extendRelayList (relayListWithRole [ relayUrl ] ReadRelay)
                 |> sendRelayListCmd pubKey
@@ -410,21 +417,21 @@ update user shared msg model =
             ( model, Effect.none )
 
         AddDefaultOutboxRelays relayUrls ->
-            ( model
+            ( { model | data = RelaysData { emptyRelaysModel | state = RelayListStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
             , Nostr.getRelayListForPubKey shared.nostr user.pubKey
                 |> extendRelayList (relayListWithRole relayUrls WriteRelay)
                 |> sendRelayListCmd user.pubKey
             )
 
         AddDefaultInboxRelays relayUrls ->
-            ( model
+            ( { model | data = RelaysData { emptyRelaysModel | state = RelayListStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
             , Nostr.getRelayListForPubKey shared.nostr user.pubKey
                 |> extendRelayList (relayListWithRole relayUrls ReadRelay)
                 |> sendRelayListCmd user.pubKey
             )
 
         RemoveRelay pubKey relayRole relayUrl ->
-            ( model
+            ( { model | data = RelaysData { emptyRelaysModel | state = RelayListStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
             , Nostr.getRelayListForPubKey shared.nostr pubKey
                 |> removeFromRelayList { url = relayUrl, role = relayRole }
                 |> sendRelayListCmd pubKey
@@ -597,6 +604,26 @@ updateWithPortMessage model message =
     case message.messageType of
         "published" ->
             case (model.data, Nostr.External.decodeSendId message.value, Nostr.External.decodeEvent message.value) of
+                ( RelaysData relaysModel, Ok incomingSendId, _ ) ->
+                    case relaysModel.state of
+                        RelayListStateSaving sendRequestId ->
+                            if sendRequestId == incomingSendId then
+                                ( { model
+                                    | data = RelaysData
+                                        { relaysModel
+                                        | state = RelayListStateEditing
+                                        }
+                                  }
+                                  -- check configuration again after saving relays
+                                , Effect.sendSharedMsg Shared.Msg.DelayedCheckConfiguration
+                                )
+
+                            else
+                                ( model, Effect.none )
+
+                        _ ->
+                            ( model, Effect.none )
+
                 ( ProfileData profileModel, Ok incomingSendId, Ok event ) ->
                     case (profileModel.state, profileFromEvent event) of
                         ( EditStateSaving sendRequestId, Just profile ) ->
@@ -886,6 +913,14 @@ outboxRelaySection shared user relaysModel =
         readOnly =
             Shared.signingPubKeyAvailable shared.loginStatus
                 |> not
+
+        saving =
+            case relaysModel.state of
+                RelayListStateSaving _ ->
+                    True
+
+                _ ->
+                    False
     in
     if shared.browserEnv.testMode == BrowserEnv.TestModeEnabled then
         div
@@ -903,7 +938,7 @@ outboxRelaySection shared user relaysModel =
             , p [] [ text <| Translations.outboxRelaysDescription [ shared.browserEnv.translations ] ]
             , viewRelayList shared.theme shared.browserEnv.translations readOnly (AddDefaultOutboxRelays suggestedOutboxRelays) (RemoveRelay user.pubKey WriteRelay) outboxRelays
             , if not readOnly then
-                addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay outboxRelaySuggestions (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey)
+                addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay outboxRelaySuggestions (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey) saving
 
               else
                 emptyHtml
@@ -931,6 +966,14 @@ inboxRelaySection shared user relaysModel =
         readOnly =
             Shared.signingPubKeyAvailable shared.loginStatus
                 |> not
+
+        saving =
+            case relaysModel.state of
+                RelayListStateSaving _ ->
+                    True
+
+                _ ->
+                    False
     in
     div []
         [ h3
@@ -942,7 +985,7 @@ inboxRelaySection shared user relaysModel =
         , p [] [ text <| Translations.inboxRelaysDescription [ shared.browserEnv.translations ] ]
         , viewRelayList shared.theme shared.browserEnv.translations readOnly (AddDefaultInboxRelays suggestedInboxRelays) (RemoveRelay user.pubKey ReadRelay) inboxRelays
         , if not readOnly then
-            addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay inboxRelaySuggestions (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey)
+            addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay inboxRelaySuggestions (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey) saving
 
           else
             emptyHtml
@@ -1000,8 +1043,8 @@ updateRelayModelInbox relaysModel value =
 --       { relaysModel | searchRelay = value }
 
 
-addRelayBox : Theme -> I18Next.Translations -> Maybe String -> Suggestions -> (Maybe String -> RelaysModel) -> (String -> Msg) -> Html Msg
-addRelayBox theme translations maybeValue suggestions updateRelayFn addRelayMsg =
+addRelayBox : Theme -> I18Next.Translations -> Maybe String -> Suggestions -> (Maybe String -> RelaysModel) -> (String -> Msg) -> Bool -> Html Msg
+addRelayBox theme translations maybeValue suggestions updateRelayFn addRelayMsg saving =
     let
         styles =
             stylesForTheme theme
@@ -1094,6 +1137,7 @@ addRelayBox theme translations maybeValue suggestions updateRelayFn addRelayMsg 
             , theme = theme
             }
             |> Button.withDisabled (not <| relayUrlValid maybeValue)
+            |> Button.withIntermediateState saving
             |> Button.view
         ]
 
