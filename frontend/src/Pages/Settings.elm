@@ -18,6 +18,7 @@ import Html.Styled as Html exposing (Html, datalist, div, h3, input, option, p, 
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
+import Json.Decode as Decode
 import Layouts
 import Nostr
 import Nostr.Blossom exposing (eventWithBlossomServerList)
@@ -111,6 +112,7 @@ type MediaServerState
 
 type alias ProfileModel =
     { nip05 : String
+    , lud06 : String
     , lud16 : String
     , name : String
     , displayName : String
@@ -122,6 +124,8 @@ type alias ProfileModel =
     , savedProfile : Maybe Profile
     , mediaSelector : MediaSelector.Model
     , state : EditState
+    , pictureIssue : Maybe ConfigCheck.Issue
+    , bannerIssue : Maybe ConfigCheck.Issue
     }
 
 type EditState
@@ -147,6 +151,7 @@ profileModelFromProfile user shared profile =
                 }
     in
     ( { nip05 = profile.nip05 |> Maybe.map Nip05.nip05ToString |> Maybe.withDefault ""
+      , lud06 = profile.lud06 |> Maybe.withDefault ""
       , lud16 = profile.lud16 |> Maybe.withDefault ""
       , name = profile.name |> Maybe.withDefault ""
       , displayName = profile.displayName |> Maybe.withDefault ""
@@ -158,6 +163,8 @@ profileModelFromProfile user shared profile =
       , savedProfile = Just profile
       , mediaSelector = mediaSelector
       , state = EditStateEditing
+      , pictureIssue = Nothing
+      , bannerIssue = Nothing
       }
     , mediaSelectorEffect
     )
@@ -166,7 +173,7 @@ profileModelFromProfile user shared profile =
 profileFromProfileModel : PubKey -> ProfileModel -> Profile
 profileFromProfileModel pubKey profileModel =
     { nip05 = Nip05.parseNip05 profileModel.nip05
-    , lud06 = Nothing
+    , lud06 = stringToMaybe profileModel.lud06
     , lud16 = stringToMaybe profileModel.lud16
     , name = stringToMaybe profileModel.name
     , displayName = stringToMaybe profileModel.displayName
@@ -231,6 +238,7 @@ emptyProfileModel user shared =
                 }
     in
     ( { nip05 = ""
+      , lud06 = ""
       , lud16 = ""
       , name = ""
       , displayName = ""
@@ -242,6 +250,8 @@ emptyProfileModel user shared =
       , savedProfile = Nothing
       , mediaSelector = mediaSelector
       , state = EditStateEditing
+      , pictureIssue = Nothing
+      , bannerIssue = Nothing
       }
     , mediaSelectorEffect
     )
@@ -253,11 +263,11 @@ type Category
     | Profile
 
 
-availableCategories : I18Next.Translations -> ConfigCheck.Model -> List (Categories.CategoryData Category)
-availableCategories translations configCheck =
+availableCategories : I18Next.Translations -> ConfigCheckIssues -> List (Categories.CategoryData Category)
+availableCategories translations configCheckIssues =
     let
         relaysIssuesCount =
-            ConfigCheck.relayIssues configCheck
+            configCheckIssues.relaysIssues
                 |> List.length
 
         relaysIssuesSuffix =
@@ -268,7 +278,7 @@ availableCategories translations configCheck =
                 ""
 
         mediaServersIssuesCount =
-            ConfigCheck.mediaServerIssues configCheck
+            configCheckIssues.mediaServersIssues
                 |> List.length
 
         mediaServersIssuesSuffix =
@@ -277,8 +287,9 @@ availableCategories translations configCheck =
 
             else
                 ""
+                
         profileIssuesCount =
-            ConfigCheck.profileIssues configCheck
+            configCheckIssues.profileIssues
                 |> List.length
 
         profileIssuesSuffix =
@@ -380,6 +391,8 @@ type Msg
     | SaveProfile Profile
     | CreateProfile
     | ReceivedPortMessage IncomingMessage
+    | PictureLoaded Bool
+    | BannerLoaded Bool
 
 
 update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -598,6 +611,36 @@ update user shared msg model =
 
         ReceivedPortMessage message ->
             updateWithPortMessage model message
+
+        PictureLoaded isLoaded ->
+            case model.data of
+                ProfileData profileModel ->
+                    let
+                        pictureIssue =
+                            if isLoaded then
+                                Nothing
+                            else
+                                Just ConfigCheck.ProfileAvatarError
+                    in
+                    ( { model | data = ProfileData { profileModel | pictureIssue = pictureIssue } }, Effect.none )
+
+                _ ->
+                    ( model, Effect.none )
+
+        BannerLoaded isLoaded ->
+            case model.data of
+                ProfileData profileModel ->
+                    let
+                        bannerIssue =
+                            if isLoaded then
+                                Nothing
+                            else
+                                Just ConfigCheck.ProfileBannerError
+                    in
+                    ( { model | data = ProfileData { profileModel | bannerIssue = bannerIssue } }, Effect.none )
+
+                _ ->
+                    ( model, Effect.none )
 
 updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage model message =
@@ -823,6 +866,13 @@ subscriptions model =
 
 view : Auth.User -> Shared.Model -> Model -> View Msg
 view user shared model =
+    let
+        configCheckIssues =
+            { profileIssues = profileIssues model shared.configCheck
+            , relaysIssues = ConfigCheck.relayIssues shared.configCheck
+            , mediaServersIssues = ConfigCheck.mediaServerIssues shared.configCheck
+            }
+    in
     { title = Translations.pageTitle [ shared.browserEnv.translations ]
     , body =
         [ Categories.new
@@ -831,27 +881,62 @@ view user shared model =
             , onSelect = CategorySelected
             , equals = (==)
             , image = \_ -> Nothing
-            , categories = availableCategories shared.browserEnv.translations shared.configCheck
+            , categories = availableCategories shared.browserEnv.translations configCheckIssues
             , browserEnv = shared.browserEnv
             , styles = stylesForTheme shared.theme
             }
             |> Categories.view
-        , viewCategory shared model user
+        , viewCategory shared configCheckIssues model user
         ]
     }
 
+profileIssues : Model -> ConfigCheck.Model -> List ConfigCheck.Issue
+profileIssues model configCheck =
+    let
+        imageIssues =
+            case model.data of
+                ProfileData profileModel ->
+                    let
+                        pictureIssue =
+                            case profileModel.pictureIssue of
+                                Just issue ->
+                                    [ issue ]
 
-viewCategory : Shared.Model -> Model -> Auth.User -> Html Msg
-viewCategory shared model user =
+                                Nothing ->
+                                    []
+
+                        bannerIssue =
+                            case profileModel.bannerIssue of
+                                Just issue ->
+                                    [ issue ]
+
+                                Nothing ->
+                                    []
+                    in
+                    pictureIssue ++ bannerIssue
+
+                _ ->
+                    []
+    in
+    imageIssues ++ ConfigCheck.profileIssues configCheck
+
+type alias ConfigCheckIssues =
+    { profileIssues : List ConfigCheck.Issue
+    , relaysIssues : List ConfigCheck.Issue
+    , mediaServersIssues : List ConfigCheck.Issue
+    }
+
+viewCategory : Shared.Model -> ConfigCheckIssues -> Model -> Auth.User -> Html Msg
+viewCategory shared configCheckIssues model user =
     case ( Categories.selected model.categories, model.data ) of
         ( Relays, RelaysData relaysModel ) ->
-            viewRelays shared user relaysModel
+            viewRelays shared configCheckIssues.relaysIssues user relaysModel
 
         ( MediaServers, MediaServersData mediaServersModel ) ->
-            viewMediaServers shared user mediaServersModel
+            viewMediaServers shared configCheckIssues.mediaServersIssues user mediaServersModel
 
         ( Profile, ProfileData profileModel ) ->
-            viewProfile shared user profileModel
+            viewProfile shared configCheckIssues.profileIssues user profileModel
 
         _ ->
             emptyHtml
@@ -863,8 +948,8 @@ type alias Suggestions =
     }
 
 
-viewRelays : Shared.Model -> Auth.User -> RelaysModel -> Html Msg
-viewRelays shared user relaysModel =
+viewRelays : Shared.Model -> List ConfigCheck.Issue -> Auth.User -> RelaysModel -> Html Msg
+viewRelays shared configCheckIssues user relaysModel =
     {-
        searchRelays =
            Nostr.getSearchRelaysForPubKey shared.nostr user.pubKey
@@ -883,7 +968,7 @@ viewRelays shared user relaysModel =
             , Tw.m_20
             ]
         ]
-        [ viewConfigIssues shared.browserEnv.translations (ConfigCheck.relayIssues shared.configCheck) (Translations.relayIssuesTitle [ shared.browserEnv.translations ])
+        [ viewConfigIssues shared.browserEnv.translations configCheckIssues (Translations.relayIssuesTitle [ shared.browserEnv.translations ])
         , outboxRelaySection shared user relaysModel
         , inboxRelaySection shared user relaysModel
 
@@ -1300,8 +1385,8 @@ removeRelayButton relay removeMsg =
         ]
 
 
-viewMediaServers : Shared.Model -> Auth.User -> MediaServersModel -> Html Msg
-viewMediaServers shared user mediaServersModel =
+viewMediaServers : Shared.Model -> List ConfigCheck.Issue -> Auth.User -> MediaServersModel -> Html Msg
+viewMediaServers shared configCheckIssues user mediaServersModel =
     div
         [ css
             [ Tw.flex
@@ -1310,7 +1395,7 @@ viewMediaServers shared user mediaServersModel =
             , Tw.m_20
             ]
         ]
-        [ viewConfigIssues shared.browserEnv.translations (ConfigCheck.mediaServerIssues shared.configCheck) (Translations.mediaServerIssuesTitle [ shared.browserEnv.translations ])
+        [ viewConfigIssues shared.browserEnv.translations configCheckIssues (Translations.mediaServerIssuesTitle [ shared.browserEnv.translations ])
         , nip96ServersSection shared user mediaServersModel
         , blossomServersSection shared user mediaServersModel
         ]
@@ -1649,8 +1734,8 @@ mediaServerUrlValid maybeMediaServerUrl =
             False
 
 
-viewProfile : Shared.Model -> Auth.User -> ProfileModel -> Html Msg
-viewProfile shared user profileModel =
+viewProfile : Shared.Model -> List ConfigCheck.Issue -> Auth.User -> ProfileModel -> Html Msg
+viewProfile shared configCheckIssues user profileModel =
     let
         readOnly =
             Shared.signingPubKeyAvailable shared.loginStatus
@@ -1673,7 +1758,7 @@ viewProfile shared user profileModel =
                         }
 
                 ( Just _, False ) ->
-                    viewProfileEditor shared user profileModel
+                    viewProfileEditor shared configCheckIssues user profileModel
 
                 ( Nothing, True ) ->
                     Html.text <| Translations.noProfileReadOnlyInformationalText [ shared.browserEnv.translations ]
@@ -1707,8 +1792,8 @@ viewProfile shared user profileModel =
         ]
 
 
-viewProfileEditor : Shared.Model -> Auth.User -> ProfileModel -> Html Msg
-viewProfileEditor shared user profileModel =
+viewProfileEditor : Shared.Model -> List ConfigCheck.Issue -> Auth.User -> ProfileModel -> Html Msg
+viewProfileEditor shared configCheckIssues user profileModel =
     let
         portalUserData =
             Nostr.getPortalUserInfo shared.nostr user.pubKey
@@ -1720,15 +1805,35 @@ viewProfileEditor shared user profileModel =
 
                 Nothing ->
                     False
+
+        -- only show lud06 field if it was present in loaded profile
+        lud06Field =
+            profileModel.savedProfile
+                |> Maybe.andThen .lud06
+                |> Maybe.map (\lud06String ->
+                    if lud06String /= "" then
+                        EntryField.new
+                            { value = profileModel.lud06
+                            , onInput = \lud06 -> UpdateProfileModel { profileModel | lud06 = lud06 }
+                            , theme = shared.theme
+                            }
+                            |> EntryField.withLabel (Translations.profileLud06FieldLabel [ shared.browserEnv.translations ])
+                            |> EntryField.withPlaceholder (Translations.profileLud06FieldPlaceholder [ shared.browserEnv.translations ])
+                            |> EntryField.withType EntryField.FieldTypeText
+                            |> EntryField.view
+                    else
+                        emptyHtml
+                )
+                |> Maybe.withDefault emptyHtml
     in
     div
         [ css
             [ Tw.flex
             , Tw.flex_col
-            , Tw.gap_2
+            , Tw.gap_3
             ]
         ]
-        [ viewConfigIssues shared.browserEnv.translations (ConfigCheck.profileIssues shared.configCheck) (Translations.profileIssuesTitle [ shared.browserEnv.translations ])
+        [ viewConfigIssues shared.browserEnv.translations configCheckIssues (Translations.profileIssuesTitle [ shared.browserEnv.translations ])
         , Button.new
             { label = Translations.profileSaveButtonTitle [ shared.browserEnv.translations ]
             , onClick = Just <| SaveProfile (profileFromProfileModel user.pubKey profileModel)
@@ -1749,8 +1854,8 @@ viewProfileEditor shared user profileModel =
                 , onInput = \name -> UpdateProfileModel { profileModel | name = name }
                 , theme = shared.theme
                 }
-                |> EntryField.withLabel "name"
-                |> EntryField.withPlaceholder "name"
+                |> EntryField.withLabel (Translations.profileNameFieldLabel [ shared.browserEnv.translations ])
+                |> EntryField.withPlaceholder (Translations.profileNameFieldPlaceholder [ shared.browserEnv.translations ])
                 |> EntryField.withSuggestions "name" (portalUserData |> Maybe.andThen .username |> Maybe.map List.singleton |> Maybe.withDefault [])
                 |> EntryField.view
             , EntryField.new
@@ -1758,8 +1863,8 @@ viewProfileEditor shared user profileModel =
                 , onInput = \nip05 -> UpdateProfileModel { profileModel | nip05 = nip05 }
                 , theme = shared.theme
                 }
-                |> EntryField.withLabel "nip05"
-                |> EntryField.withPlaceholder "nip05"
+                |> EntryField.withLabel (Translations.profileNip05FieldLabel [ shared.browserEnv.translations ])
+                |> EntryField.withPlaceholder (Translations.profileNip05FieldPlaceholder [ shared.browserEnv.translations ])
                 |> EntryField.withSuggestions "nip05" (portalUserData |> Maybe.andThen .nip05 |> Maybe.map Nip05.nip05ToString |> Maybe.map List.singleton |> Maybe.withDefault [])
                 |> EntryField.withType EntryField.FieldTypeEmail
                 |> EntryField.view
@@ -1769,37 +1874,38 @@ viewProfileEditor shared user profileModel =
             , onInput = \about -> UpdateProfileModel { profileModel | about = about }
             , theme = shared.theme
             }
-            |> EntryField.withLabel "about"
-            |> EntryField.withPlaceholder "about"
+            |> EntryField.withLabel (Translations.profileAboutFieldLabel [ shared.browserEnv.translations ])
+            |> EntryField.withPlaceholder (Translations.profileAboutFieldPlaceholder [ shared.browserEnv.translations ])
             |> EntryField.withRows 2
             |> EntryField.view
-        , viewImageSelection shared ImagePicture profileModel
+        , viewImageSelection shared PictureLoaded ImagePicture profileModel
         , EntryField.new
             { value = profileModel.picture
             , onInput = \picture -> UpdateProfileModel { profileModel | picture = picture }
             , theme = shared.theme
             }
-            |> EntryField.withLabel "picture"
-            |> EntryField.withPlaceholder "picture"
+            |> EntryField.withLabel (Translations.profilePictureFieldLabel [ shared.browserEnv.translations ])
+            |> EntryField.withPlaceholder (Translations.profilePictureFieldPlaceholder [ shared.browserEnv.translations ])
             |> EntryField.withType EntryField.FieldTypeUrl
             |> EntryField.view
-        , viewImageSelection shared ImageBanner profileModel
+        , viewImageSelection shared BannerLoaded ImageBanner profileModel
         , EntryField.new
             { value = profileModel.banner
             , onInput = \banner -> UpdateProfileModel { profileModel | banner = banner }
             , theme = shared.theme
             }
-            |> EntryField.withLabel "banner"
-            |> EntryField.withPlaceholder "banner"
+            |> EntryField.withLabel (Translations.profileBannerFieldLabel [ shared.browserEnv.translations ])
+            |> EntryField.withPlaceholder (Translations.profileBannerFieldPlaceholder [ shared.browserEnv.translations ])
             |> EntryField.withType EntryField.FieldTypeUrl
             |> EntryField.view
+        , lud06Field
         , EntryField.new
             { value = profileModel.lud16
             , onInput = \lud16 -> UpdateProfileModel { profileModel | lud16 = lud16 }
             , theme = shared.theme
             }
-            |> EntryField.withLabel "lud16"
-            |> EntryField.withPlaceholder "lud16"
+            |> EntryField.withLabel (Translations.profileLud16FieldLabel [ shared.browserEnv.translations ])
+            |> EntryField.withPlaceholder (Translations.profileLud16FieldPlaceholder [ shared.browserEnv.translations ])
             |> EntryField.withSuggestions "lud16" (portalUserData |> Maybe.andThen .lud16 |> Maybe.map Lud16.lud16ToString |> Maybe.map List.singleton |> Maybe.withDefault [])
             |> EntryField.withType EntryField.FieldTypeEmail
             |> EntryField.view
@@ -1808,16 +1914,16 @@ viewProfileEditor shared user profileModel =
             , onInput = \displayName -> UpdateProfileModel { profileModel | displayName = displayName }
             , theme = shared.theme
             }
-            |> EntryField.withLabel "display_name"
-            |> EntryField.withPlaceholder "display_name"
+            |> EntryField.withLabel (Translations.profileDisplayNameFieldLabel [ shared.browserEnv.translations ])
+            |> EntryField.withPlaceholder (Translations.profileDisplayNameFieldPlaceholder [ shared.browserEnv.translations ])
             |> EntryField.view
         , EntryField.new
             { value = profileModel.website
             , onInput = \website -> UpdateProfileModel { profileModel | website = website }
             , theme = shared.theme
             }
-            |> EntryField.withLabel "website"
-            |> EntryField.withPlaceholder "website"
+            |> EntryField.withLabel (Translations.profileWebsiteFieldLabel [ shared.browserEnv.translations ])
+            |> EntryField.withPlaceholder (Translations.profileWebsiteFieldPlaceholder [ shared.browserEnv.translations ])
             |> EntryField.withType EntryField.FieldTypeUrl
             |> EntryField.view
         , MediaSelector.new
@@ -1832,8 +1938,8 @@ viewProfileEditor shared user profileModel =
         ]
 
 
-viewImageSelection : Shared.Model -> ImageUploadType -> ProfileModel -> Html Msg
-viewImageSelection shared imageUploadType profileModel =
+viewImageSelection : Shared.Model -> (Bool -> Msg) -> ImageUploadType -> ProfileModel -> Html Msg
+viewImageSelection shared onImageLoadedMsg imageUploadType profileModel =
     let
         imageUrl =
             case imageUploadType of
@@ -1852,7 +1958,7 @@ viewImageSelection shared imageUploadType profileModel =
             , Tw.gap_2
             ]
         ]
-        [ viewImage imageUrl
+        [ viewImage onImageLoadedMsg imageUrl
         , Button.new
             { label = Translations.imageSelectionButtonTitle [ shared.browserEnv.translations ]
             , onClick = Just <| OpenImageSelection imageUploadType
@@ -1863,8 +1969,8 @@ viewImageSelection shared imageUploadType profileModel =
         ]
 
 
-viewImage : String -> Html Msg
-viewImage imageUrl =
+viewImage : (Bool -> Msg) -> String -> Html Msg
+viewImage onImageLoadedMsg imageUrl =
     case Url.fromString imageUrl of
         Just _ ->
             Html.img
@@ -1874,6 +1980,8 @@ viewImage imageUrl =
                     , Tw.min_h_full
                     , Tw.mt_3
                     ]
+                , Events.on "load" (Decode.succeed (onImageLoadedMsg True))
+                , Events.on "error" (Decode.succeed (onImageLoadedMsg False))
                 ]
                 []
 

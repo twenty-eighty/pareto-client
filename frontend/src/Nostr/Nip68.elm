@@ -35,9 +35,23 @@ type alias Picture =
     }
 
 
-
-{- -}
-
+emptyPicturePost : PicturePost
+emptyPicturePost =
+    { id = ""
+    , description = ""
+    , createdAt = Time.millisToPosix 0
+    , pubKey = ""
+    , title = Nothing
+    , pictures = []
+    , contentWarning = Nothing
+    , taggedUsers = []
+    , mimeTypes = []
+    , hashes = []
+    , hashtags = []
+    , location = Nothing
+    , geohash = Nothing
+    , language = Nothing
+    }
 
 picturePostFromEvent : Event -> PicturePost
 picturePostFromEvent event =

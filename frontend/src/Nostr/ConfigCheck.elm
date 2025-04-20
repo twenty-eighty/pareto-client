@@ -3,7 +3,9 @@ module Nostr.ConfigCheck exposing (..)
 import Http
 import I18Next
 import Nostr
+import Nostr.Bech32 as Bech32
 import Nostr.Event exposing (Kind(..), Tag(..))
+import Nostr.Lud06 as Lud06
 import Nostr.Lud16 as Lud16
 import Nostr.Nip05 as Nip05 exposing (Nip05)
 import Nostr.Types exposing (PubKey, RelayUrl, ServerUrl)
@@ -40,11 +42,12 @@ type Issue
     | ProfileNip05NetworkError Http.Error (Maybe Nip05)
     | ProfileAvatarMissing
     | ProfileAvatarNotUrl
-    | ProfileAvatarError Http.Error
+    | ProfileAvatarError 
     | ProfileBannerMissing
     | ProfileBannerNotUrl
-    | ProfileBannerError Http.Error
+    | ProfileBannerError 
     | ProfileLud06Configured
+    | ProfileLud06FormatError String
     | ProfileLud16Missing
     | ProfileLud16Whitespace
     | ProfileLud16InvalidForm
@@ -73,8 +76,6 @@ type Msg
     = NoOp
     | ReceivedLightningPaymentData (Result Http.Error Lud16.LightningPaymentData)
     | ReceivedLightningCallbackResponse (Result Http.Error ())
-    | ReceivedProfileAvatar (Result Http.Error ())
-    | ReceivedProfileBanner (Result Http.Error ())
 
 
 init : Model
@@ -129,17 +130,6 @@ update msg model =
         ReceivedLightningCallbackResponse (Err error) ->
             ( { model | issues = model.issues ++ [ ProfileLud16CallbackOffline error ] }, Cmd.none )
 
-        ReceivedProfileAvatar (Ok _) ->
-            ( model, Cmd.none )
-
-        ReceivedProfileAvatar (Err error) ->
-            ( { model | issues = model.issues ++ [ ProfileAvatarError error ] }, Cmd.none )
-
-        ReceivedProfileBanner (Ok _) ->
-            ( model, Cmd.none )
-
-        ReceivedProfileBanner (Err error) ->
-            ( { model | issues = model.issues ++ [ ProfileBannerError error ] }, Cmd.none )
 
 performChecks : Nostr.Model -> PubKey -> ( Model, Cmd Msg )
 performChecks nostr pubKey =
@@ -288,6 +278,12 @@ issueText translations issue =
             , solution = ""
             }
 
+        ProfileLud06FormatError error ->
+            { message = Translations.profileLud06FormatErrorText [ translations ]
+            , explanation = Translations.profileLud06FormatErrorExplanation [ translations ] { error = error }
+            , solution = ""
+            }
+
         ProfileLud16Missing ->
             { message = Translations.profileLud16MissingText [ translations ]
             , explanation = Translations.profileLud16MissingExplanation [ translations ]
@@ -330,15 +326,15 @@ issueText translations issue =
             , solution = ""
             }
 
-        ProfileAvatarError error ->
+        ProfileAvatarError ->
             { message = Translations.profileAvatarErrorText [ translations ]
-            , explanation = Translations.profileAvatarErrorExplanation [ translations ] { error = httpErrorToString error }
+            , explanation = Translations.profileAvatarErrorExplanation [ translations ]
             , solution = ""
             }
 
-        ProfileBannerError error ->
+        ProfileBannerError ->
             { message = Translations.profileBannerErrorText [ translations ]
-            , explanation = Translations.profileBannerErrorExplanation [ translations ] { error = httpErrorToString error }
+            , explanation = Translations.profileBannerErrorExplanation [ translations ]
             , solution = ""
             }
 
@@ -397,6 +393,9 @@ issueType issue =
         ProfileLud06Configured ->
             ProfileIssue
 
+        ProfileLud06FormatError _ ->
+            ProfileIssue
+
         ProfileLud16Missing ->
             ProfileIssue
 
@@ -418,10 +417,10 @@ issueType issue =
         ProfileLud16InvalidResponse _ ->
             ProfileIssue
 
-        ProfileAvatarError _ ->
+        ProfileAvatarError ->
             ProfileIssue
 
-        ProfileBannerError _ ->
+        ProfileBannerError ->
             ProfileIssue
 
 
@@ -439,7 +438,8 @@ localCheckFunctions =
     , checkInvalidProfileNip05
     , checkProfileAvatarStatic
     , checkProfileBannerStatic
-    , checLud06Configured
+    -- , checkLud06Configured
+    , checkLud06Format
     , checkMissingLud16
     , checkMalformedLud16
     ]
@@ -448,8 +448,6 @@ localCheckFunctions =
 remoteCheckFunctions : List PerformRemoteCheckFunction
 remoteCheckFunctions =
     [ checkLud16Response
-    , checkProfileAvatar
-    , checkProfileBanner
     ]
 
 
@@ -662,8 +660,8 @@ checkProfileBannerStatic nostr pubKey =
             )
 
 
-checLud06Configured : PerformLocalCheckFunction
-checLud06Configured nostr pubKey =
+checkLud06Configured : PerformLocalCheckFunction
+checkLud06Configured nostr pubKey =
     Nostr.getProfile nostr pubKey
         |> Maybe.andThen
             (\profile ->
@@ -673,6 +671,24 @@ checLud06Configured nostr pubKey =
                 else
                     Nothing
             )
+
+
+checkLud06Format : PerformLocalCheckFunction
+checkLud06Format nostr pubKey =
+    Nostr.getProfile nostr pubKey
+        |> Maybe.andThen
+            (\profile ->
+                profile.lud06
+                |> Maybe.andThen (\lud06 ->
+                    case Lud06.parseLud06 lud06 of
+                        Ok _ ->
+                            Nothing
+
+                        Err error ->
+                            Just (ProfileLud06FormatError error)
+                )
+            )
+
 
 checkMissingLud16 : PerformLocalCheckFunction
 checkMissingLud16 nostr pubKey =
@@ -720,34 +736,6 @@ checkLud16Response nostr pubKey =
                             |> Maybe.map (\lud16 ->
                                 Lud16.requestLightningPaymentData ReceivedLightningPaymentData lud16
                             )
-                )
-            )
-        
-checkProfileAvatar : PerformRemoteCheckFunction
-checkProfileAvatar nostr pubKey =
-    Nostr.getProfile nostr pubKey
-        |> Maybe.andThen
-            (\profile ->
-                profile.picture
-                |> Maybe.andThen (\pictureUrl ->
-                    Url.fromString pictureUrl
-                        |> Maybe.map (\url ->
-                            httpHeadRequest url ReceivedProfileAvatar
-                        )
-                )
-            )
-        
-checkProfileBanner : PerformRemoteCheckFunction
-checkProfileBanner nostr pubKey =
-    Nostr.getProfile nostr pubKey
-        |> Maybe.andThen
-            (\profile ->
-                profile.banner
-                |> Maybe.andThen (\bannerUrl ->
-                    Url.fromString bannerUrl
-                        |> Maybe.map (\url ->
-                            httpHeadRequest url ReceivedProfileBanner
-                        )
                 )
             )
         

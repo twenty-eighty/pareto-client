@@ -91,6 +91,8 @@
       "profile banner not url explanation": "The profile banner picture is not a valid URL.",
       "profile lud-06 configured text": "Profile LUD-06 configured",
       "profile lud-06 configured explanation": "The LUD-06 field should be empty so that the wallet address in the LUD-16 field is used.",
+      "profile lud-06 format error text": "Profile LUD-06 format error",
+      "profile lud-06 format error explanation": "The LUD-06 field is not a valid Bech32 encoded string. ({{error}})",
       "profile lud-16 missing text": "Profile LUD-16 missing",
       "profile lud-16 missing explanation": "No Lightning wallet address is set in the profile (LUD-16).",
       "profile lud-16 whitespace text": "Profile LUD-16 conains spaces",
@@ -108,9 +110,9 @@
       "profile lud-16 invalid response text": "Profile LUD-16 invalid response",
       "profile lud-16 invalid response explanation": "The Lightning wallet configured in the LUD-16 field in the profile doesn't work as expected. (Error: {{error}})",
       "profile avatar error text": "Profile avatar error",
-      "profile avatar error explanation": "The profile avatar picture is not reachable. ({{error}})",
+      "profile avatar error explanation": "The profile avatar picture can't be loaded.",
       "profile banner error text": "Profile banner error",
-      "profile banner error explanation": "The profile banner picture is not reachable. ({{error}})"
+      "profile banner error explanation": "The profile banner picture can't be loaded."
    },
    "email import dialog": {
       "dialog title": "Import Email List",
@@ -202,6 +204,15 @@
       "total column name": "Total",
       "error column name": "Errors",
       "subject column name": "Title"
+   },
+   "picture post dialog": {
+      "dialog title": "Picture Post",
+      "post button title": "Post",
+      "posting button text": "Posting...",
+      "posted button text": "Posted",
+      "posting text": "Posting...",
+      "posted text": "Posted",
+      "error posting text": "Error posting picture post: {{errorText}}"
    },
    "posts": {
       "posts title": "Posts",
@@ -302,7 +313,25 @@
       "no profile read only informational text": "You seem to have no profile but can't create one in read-only mode",
       "no profile informational text": "You seem to have no profile - do you want to create one?",
       "image selection button title": "Select",
-      "create profile button title": "Create Profile"
+      "create profile button title": "Create Profile",
+      "profile name field label": "Name",
+      "profile name field placeholder": "Enter your name",
+      "profile display_name field label": "Display name",
+      "profile display_name field placeholder": "Enter your display name",
+      "profile nip05 field label": "NIP-05",
+      "profile nip05 field placeholder": "Enter your NIP-05 handle",
+      "profile about field label": "About",
+      "profile about field placeholder": "Enter a short description about yourself",
+      "profile picture field label": "Picture",
+      "profile picture field placeholder": "Enter a URL of a picture",
+      "profile banner field label": "Banner",
+      "profile banner field placeholder": "Enter a URL of a banner",
+      "profile lud06 field label": "LUD-06 (LNURL of a Lightning wallet)",
+      "profile lud06 field placeholder": "Enter a valid LUD-06",
+      "profile lud16 field label": "LUD-16 (Lightning wallet address)",
+      "profile lud16 field placeholder": "Enter your Lightning wallet address",
+      "profile website field label": "Website",
+      "profile website field placeholder": "Enter your website"
    },
    "sidebar": {
       "reader client role text": "Reader",
