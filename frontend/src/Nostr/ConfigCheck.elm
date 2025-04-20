@@ -5,6 +5,7 @@ import I18Next
 import Nostr
 import Nostr.Event exposing (Kind(..), Tag(..))
 import Nostr.Lud16 as Lud16
+import Nostr.Nip05 as Nip05 exposing (Nip05)
 import Nostr.Types exposing (PubKey, RelayUrl, ServerUrl)
 import Pareto
 import Translations.ConfigCheck as Translations
@@ -33,10 +34,10 @@ type Issue
     | ProfileNameMissing
     | ProfileDisplayNameMissing
     | ProfileAboutMissing
-    | ProfileNip05Missing
-    | ProfileNip05NameMissing
-    | ProfileNip05NotMatchingPubKey
-    | ProfileNip05NetworkError Http.Error
+    | ProfileNip05Missing (Maybe Nip05)
+    | ProfileNip05NameMissing (Maybe Nip05)
+    | ProfileNip05NotMatchingPubKey (Maybe Nip05)
+    | ProfileNip05NetworkError Http.Error (Maybe Nip05)
     | ProfileAvatarMissing
     | ProfileAvatarNotUrl
     | ProfileAvatarError Http.Error
@@ -209,28 +210,52 @@ issueText translations issue =
             , solution = ""
             }
 
-        ProfileNip05Missing ->
-            { message = Translations.profileNip05NameMissingText [ translations ]
-            , explanation = Translations.profileNip05NameMissingExplanation [ translations ]
-            , solution = ""
+        ProfileNip05Missing maybeNip05 ->
+            { message = Translations.profileNip05MissingText [ translations ]
+            , explanation = Translations.profileNip05MissingExplanation [ translations ]
+            , solution =
+                case maybeNip05 of
+                    Just nip05 ->
+                        Translations.profileNip05MissingSolution [ translations ] { nip05 = nip05 |> Nip05.nip05ToString }
+
+                    Nothing ->
+                        ""
             }
 
-        ProfileNip05NameMissing ->
+        ProfileNip05NameMissing maybeNip05 ->
             { message = Translations.profileNip05NameMissingText [ translations ]
             , explanation = Translations.profileNip05NameMissingExplanation [ translations ]
-            , solution = ""
+            , solution =
+                case maybeNip05 of
+                    Just nip05 ->
+                        Translations.profileNip05NameMissingSolution [ translations ] { nip05 = nip05 |> Nip05.nip05ToString }
+
+                    Nothing ->
+                        ""
             }
 
-        ProfileNip05NotMatchingPubKey ->
+        ProfileNip05NotMatchingPubKey maybeNip05 ->
             { message = Translations.profileNip05NotMatchingPubkeyText [ translations ]
             , explanation = Translations.profileNip05NotMatchingPubkeyExplanation [ translations ]
-            , solution = ""
+            , solution =
+                case maybeNip05 of
+                    Just nip05 ->
+                        Translations.profileNip05NotMatchingPubkeySolution [ translations ] { nip05 = nip05 |> Nip05.nip05ToString }
+
+                    Nothing ->
+                        ""
             }
 
-        ProfileNip05NetworkError httpError ->
+        ProfileNip05NetworkError httpError maybeNip05 ->
             { message = Translations.profileNip05NetworkErrorText [ translations ]
             , explanation = Translations.profileNip05NetworkErrorExplanation [ translations ] { error = httpErrorToString httpError }
-            , solution = ""
+            , solution =
+                case maybeNip05 of
+                    Just nip05 ->
+                        Translations.profileNip05NetworkErrorSolution [ translations ] { nip05 = nip05 |> Nip05.nip05ToString }
+
+                    Nothing ->
+                        ""
             }
 
         ProfileAvatarMissing ->
@@ -345,16 +370,16 @@ issueType issue =
         ProfileAboutMissing ->
             ProfileIssue
 
-        ProfileNip05Missing ->
+        ProfileNip05Missing _ ->
             ProfileIssue
 
-        ProfileNip05NameMissing ->
+        ProfileNip05NameMissing _ ->
             ProfileIssue
 
-        ProfileNip05NotMatchingPubKey ->
+        ProfileNip05NotMatchingPubKey _ ->
             ProfileIssue
 
-        ProfileNip05NetworkError _ ->
+        ProfileNip05NetworkError _ _ ->
             ProfileIssue
 
         ProfileAvatarMissing ->
@@ -567,8 +592,12 @@ checkMissingProfileNip05 nostr pubKey =
     Nostr.getProfile nostr pubKey
         |> Maybe.andThen
             (\profile ->
+                let
+                    portalUserInfo =
+                        Nostr.getPortalUserInfo nostr pubKey
+                in
                 if profile.nip05 == Nothing then
-                    Just ProfileNip05Missing
+                    Just (ProfileNip05Missing (portalUserInfo |> Maybe.andThen .nip05))
 
                 else
                     Nothing
@@ -579,13 +608,17 @@ checkInvalidProfileNip05 : PerformLocalCheckFunction
 checkInvalidProfileNip05 nostr pubKey =
     case Nostr.getProfileValidationStatus nostr pubKey of
         Just ValidationNameMissing ->
-            Just ProfileNip05NameMissing
+            Just (ProfileNip05NameMissing (Nostr.getPortalUserInfo nostr pubKey |> Maybe.andThen .nip05))
 
         Just ValidationNotMatchingPubKey ->
-            Just ProfileNip05NotMatchingPubKey
+            Just (ProfileNip05NotMatchingPubKey (Nostr.getPortalUserInfo nostr pubKey |> Maybe.andThen .nip05))
 
         Just (ValidationNetworkError httpError) ->
-            Just (ProfileNip05NetworkError httpError)
+            let
+                portalUserInfo =
+                    Nostr.getPortalUserInfo nostr pubKey
+            in
+            Just (ProfileNip05NetworkError httpError (portalUserInfo |> Maybe.andThen .nip05))
 
         _ ->
             Nothing

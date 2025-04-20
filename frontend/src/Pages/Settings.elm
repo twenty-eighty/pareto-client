@@ -2,6 +2,8 @@ module Pages.Settings exposing (Model, Msg, page)
 
 import Auth
 import Nostr.ConfigCheck as ConfigCheck
+import Nostr.External
+import Ports
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Categories as Categories
@@ -24,12 +26,12 @@ import Nostr.Event exposing (Kind(..), emptyEventFilter)
 import Nostr.Lud16 as Lud16
 import Nostr.Nip05 as Nip05
 import Nostr.Nip96 as Nip96 exposing (eventWithNip96ServerList)
-import Nostr.Profile exposing (Profile, ProfileValidation(..), emptyProfile, eventFromProfile, profilesEqual)
+import Nostr.Profile exposing (Profile, ProfileValidation(..), emptyProfile, eventFromProfile, profilesEqual, profileFromEvent)
 import Nostr.Relay as Relay exposing (Relay, RelayState(..), hostWithoutProtocol)
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList, removeFromRelayList)
 import Nostr.Request exposing (RequestData(..))
-import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (PubKey, RelayRole(..), RelayUrl, ServerUrl)
+import Nostr.Send exposing (SendRequest(..), SendRequestId)
+import Nostr.Types exposing (IncomingMessage, PubKey, RelayRole(..), RelayUrl, ServerUrl)
 import Page exposing (Page)
 import Pareto
 import Route exposing (Route)
@@ -107,7 +109,12 @@ type alias ProfileModel =
     , bot : Bool
     , savedProfile : Maybe Profile
     , mediaSelector : MediaSelector.Model
+    , state : ProfileState
     }
+
+type ProfileState
+    = ProfileStateEditing
+    | ProfileStateSaving SendRequestId
 
 
 type ImageUploadType
@@ -138,6 +145,7 @@ profileModelFromProfile user shared profile =
       , bot = profile.bot |> Maybe.withDefault False
       , savedProfile = Just profile
       , mediaSelector = mediaSelector
+      , state = ProfileStateEditing
       }
     , mediaSelectorEffect
     )
@@ -219,6 +227,7 @@ emptyProfileModel user shared =
       , bot = False
       , savedProfile = Nothing
       , mediaSelector = mediaSelector
+      , state = ProfileStateEditing
       }
     , mediaSelectorEffect
     )
@@ -356,6 +365,7 @@ type Msg
     | ImageSelected MediaSelector.UploadedFile
     | SaveProfile Profile
     | CreateProfile
+    | ReceivedPortMessage IncomingMessage
 
 
 update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -536,12 +546,17 @@ update user shared msg model =
                     ( model, Effect.none )
 
         SaveProfile profile ->
-            ( model
-            , eventFromProfile profile.pubKey profile
-                |> SendProfile (Nostr.getWriteRelayUrlsForPubKey shared.nostr profile.pubKey)
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
+            case model.data of
+                ProfileData profileModel ->
+                    ( { model | data = ProfileData { profileModel | state = ProfileStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
+                    , eventFromProfile profile.pubKey profile
+                        |> SendProfile (Nostr.getWriteRelayUrlsForPubKey shared.nostr profile.pubKey)
+                        |> Shared.Msg.SendNostrEvent
+                        |> Effect.sendSharedMsg
+                    )
+
+                _ ->
+                    ( model, Effect.none )
 
         CreateProfile ->
             case model.data of
@@ -566,6 +581,41 @@ update user shared msg model =
 
                 _ ->
                     ( model, Effect.none )
+
+        ReceivedPortMessage message ->
+            updateWithPortMessage model message
+
+updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
+updateWithPortMessage model message =
+    case message.messageType of
+        "published" ->
+            case (model.data, Nostr.External.decodeSendId message.value, Nostr.External.decodeEvent message.value) of
+                ( ProfileData profileModel, Ok incomingSendId, Ok event ) ->
+                    case (profileModel.state, profileFromEvent event) of
+                        ( ProfileStateSaving sendRequestId, Just profile ) ->
+                            if sendRequestId == incomingSendId then
+                                ( { model
+                                    | data = ProfileData
+                                        { profileModel
+                                        | state = ProfileStateEditing
+                                        , savedProfile = Just profile
+                                        }
+                                  }
+                                  -- check configuration again after saving profile
+                                , Effect.sendSharedMsg Shared.Msg.DelayedCheckConfiguration
+                                )
+
+                            else
+                                ( model, Effect.none )
+
+                        _ ->
+                            ( model, Effect.none )
+
+                _ ->
+                    ( model, Effect.none )
+
+        _ ->
+            ( model, Effect.none )
 
 
 extendMediaServerList : ServerUrl -> List ServerUrl -> List ServerUrl
@@ -688,12 +738,15 @@ updateModelWithCategory user shared model category =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    case model.data of
-        ProfileData profileModel ->
-            Sub.map MediaSelectorSent (MediaSelector.subscribe profileModel.mediaSelector)
+    Sub.batch
+        [ Ports.receiveMessage ReceivedPortMessage
+        , case model.data of
+            ProfileData profileModel ->
+                Sub.map MediaSelectorSent (MediaSelector.subscribe profileModel.mediaSelector)
 
-        _ ->
-            Sub.none
+            _ ->
+                Sub.none
+        ]
 
 
 
@@ -1579,7 +1632,8 @@ viewProfileEditor shared user profileModel =
             , onClick = Just <| SaveProfile (profileFromProfileModel user.pubKey profileModel)
             , theme = shared.theme
             }
-            |> Button.withDisabled profileNotChanged
+            |> Button.withDisabled (profileNotChanged)
+            |> Button.withIntermediateState (profileModel.state /= ProfileStateEditing)
             |> Button.view
         , div
             [ css
