@@ -94,7 +94,13 @@ type alias RelaysModel =
 type alias MediaServersModel =
     { nip96Server : Maybe String
     , blossomServer : Maybe String
+    , state : MediaServerState
     }
+
+type MediaServerState
+    = MediaServerStateEditing
+    | MediaServerStateSavingNip96 SendRequestId
+    | MediaServerStateSavingBlossom SendRequestId
 
 
 type alias ProfileModel =
@@ -109,12 +115,12 @@ type alias ProfileModel =
     , bot : Bool
     , savedProfile : Maybe Profile
     , mediaSelector : MediaSelector.Model
-    , state : ProfileState
+    , state : EditState
     }
 
-type ProfileState
-    = ProfileStateEditing
-    | ProfileStateSaving SendRequestId
+type EditState
+    = EditStateEditing
+    | EditStateSaving SendRequestId
 
 
 type ImageUploadType
@@ -145,7 +151,7 @@ profileModelFromProfile user shared profile =
       , bot = profile.bot |> Maybe.withDefault False
       , savedProfile = Just profile
       , mediaSelector = mediaSelector
-      , state = ProfileStateEditing
+      , state = EditStateEditing
       }
     , mediaSelectorEffect
     )
@@ -201,6 +207,7 @@ emptyMediaServersModel : MediaServersModel
 emptyMediaServersModel =
     { nip96Server = Nothing
     , blossomServer = Nothing
+    , state = MediaServerStateEditing
     }
 
 
@@ -227,7 +234,7 @@ emptyProfileModel user shared =
       , bot = False
       , savedProfile = Nothing
       , mediaSelector = mediaSelector
-      , state = ProfileStateEditing
+      , state = EditStateEditing
       }
     , mediaSelectorEffect
     )
@@ -427,34 +434,34 @@ update user shared msg model =
             ( { model | data = MediaServersData mediaServersModel }, Effect.none )
 
         AddNip96MediaServer pubKey mediaServer ->
-            ( { model | data = MediaServersData emptyMediaServersModel }
+            ( { model | data = MediaServersData { emptyMediaServersModel | state = MediaServerStateSavingNip96 (Nostr.getLastSendRequestId shared.nostr) } }
             , Nostr.getNip96Servers shared.nostr pubKey
                 |> extendMediaServerList mediaServer
                 |> sendNip96MediaServerListCmd shared.browserEnv pubKey
             )
 
         RemoveNip96MediaServer pubKey mediaServer ->
-            ( model
+            ( { model | data = MediaServersData { emptyMediaServersModel | state = MediaServerStateSavingNip96 (Nostr.getLastSendRequestId shared.nostr) } }
             , Nostr.getNip96Servers shared.nostr pubKey
                 |> removeMediaServerFromList mediaServer
                 |> sendNip96MediaServerListCmd shared.browserEnv pubKey
             )
 
         AddDefaultNip96MediaServers pubKey mediaServers ->
-            ( model
+            ( { model | data = MediaServersData { emptyMediaServersModel | state = MediaServerStateSavingNip96 (Nostr.getLastSendRequestId shared.nostr) } }
             , mediaServers
                 |> sendNip96MediaServerListCmd shared.browserEnv pubKey
             )
 
         AddBlossomMediaServer pubKey mediaServer ->
-            ( { model | data = MediaServersData emptyMediaServersModel }
+            ( { model | data = MediaServersData { emptyMediaServersModel | state = MediaServerStateSavingBlossom (Nostr.getLastSendRequestId shared.nostr) } }
             , Nostr.getBlossomServers shared.nostr pubKey
                 |> extendMediaServerList mediaServer
                 |> sendBlossomMediaServerListCmd shared.browserEnv pubKey
             )
 
         RemoveBlossomMediaServer pubKey mediaServer ->
-            ( model
+            ( { model | data = MediaServersData { emptyMediaServersModel | state = MediaServerStateSavingBlossom (Nostr.getLastSendRequestId shared.nostr) } }
             , Nostr.getBlossomServers shared.nostr pubKey
                 |> removeMediaServerFromList mediaServer
                 |> sendBlossomMediaServerListCmd shared.browserEnv pubKey
@@ -548,7 +555,7 @@ update user shared msg model =
         SaveProfile profile ->
             case model.data of
                 ProfileData profileModel ->
-                    ( { model | data = ProfileData { profileModel | state = ProfileStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
+                    ( { model | data = ProfileData { profileModel | state = EditStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
                     , eventFromProfile profile.pubKey profile
                         |> SendProfile (Nostr.getWriteRelayUrlsForPubKey shared.nostr profile.pubKey)
                         |> Shared.Msg.SendNostrEvent
@@ -592,12 +599,12 @@ updateWithPortMessage model message =
             case (model.data, Nostr.External.decodeSendId message.value, Nostr.External.decodeEvent message.value) of
                 ( ProfileData profileModel, Ok incomingSendId, Ok event ) ->
                     case (profileModel.state, profileFromEvent event) of
-                        ( ProfileStateSaving sendRequestId, Just profile ) ->
+                        ( EditStateSaving sendRequestId, Just profile ) ->
                             if sendRequestId == incomingSendId then
                                 ( { model
                                     | data = ProfileData
                                         { profileModel
-                                        | state = ProfileStateEditing
+                                        | state = EditStateEditing
                                         , savedProfile = Just profile
                                         }
                                   }
@@ -611,6 +618,40 @@ updateWithPortMessage model message =
                         _ ->
                             ( model, Effect.none )
 
+                ( MediaServersData mediaServersModel, Ok incomingSendId, _ ) ->
+                    case mediaServersModel.state of
+                        MediaServerStateSavingNip96 sendRequestId ->
+                            if sendRequestId == incomingSendId then
+                                ( { model
+                                    | data = MediaServersData
+                                        { mediaServersModel
+                                        | state = MediaServerStateEditing
+                                        }
+                                  }
+                                  -- check configuration again after saving media server
+                                , Effect.sendSharedMsg Shared.Msg.DelayedCheckConfiguration
+                                )
+
+                            else
+                                ( model, Effect.none )
+
+                        MediaServerStateSavingBlossom sendRequestId ->
+                            if sendRequestId == incomingSendId then
+                                ( { model
+                                    | data = MediaServersData
+                                        { mediaServersModel
+                                        | state = MediaServerStateEditing
+                                        }
+                                  }
+                                  -- check configuration again after saving media server
+                                , Effect.sendSharedMsg Shared.Msg.DelayedCheckConfiguration
+                                )
+
+                            else
+                                ( model, Effect.none )
+
+                        _ ->
+                            ( model, Effect.none )
                 _ ->
                     ( model, Effect.none )
 
@@ -1252,6 +1293,14 @@ nip96ServersSection shared user mediaServersModel =
         readOnly =
             Shared.signingPubKeyAvailable shared.loginStatus
                 |> not
+
+        saving =
+            case mediaServersModel.state of
+                MediaServerStateSavingNip96 _ ->
+                    True
+
+                _ ->
+                    False
     in
     div []
         [ h3
@@ -1260,7 +1309,7 @@ nip96ServersSection shared user mediaServersModel =
         , p [] [ text <| Translations.nip96ServersDescription [ shared.browserEnv.translations ] ]
         , viewMediaServersList shared.theme shared.browserEnv.translations readOnly (Just <| AddDefaultNip96MediaServers user.pubKey suggestedServers) (RemoveNip96MediaServer user.pubKey) nip96Servers
         , if not readOnly then
-            addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.nip96Server nip96ServerSuggestions (updateNip96Server mediaServersModel) (AddNip96MediaServer user.pubKey)
+            addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.nip96Server nip96ServerSuggestions (updateNip96Server mediaServersModel) (AddNip96MediaServer user.pubKey) saving
 
           else
             text <| Translations.mediaServerReadOnlyLoginInfo [ shared.browserEnv.translations ]
@@ -1315,6 +1364,14 @@ blossomServersSection shared user mediaServersModel =
         readOnly =
             Shared.signingPubKeyAvailable shared.loginStatus
                 |> not
+
+        saving =
+            case mediaServersModel.state of
+                MediaServerStateSavingBlossom _ ->
+                    True
+
+                _ ->
+                    False
     in
     div []
         [ h3
@@ -1323,7 +1380,7 @@ blossomServersSection shared user mediaServersModel =
         , p [] [ text <| Translations.blossomServersDescription [ shared.browserEnv.translations ] ]
         , viewMediaServersList shared.theme shared.browserEnv.translations readOnly Nothing (RemoveBlossomMediaServer user.pubKey) blossomServers
         , if not readOnly then
-            addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.blossomServer blossomServerSuggestions (updateBlossomServer mediaServersModel) (AddBlossomMediaServer user.pubKey)
+            addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.blossomServer blossomServerSuggestions (updateBlossomServer mediaServersModel) (AddBlossomMediaServer user.pubKey) saving
 
           else
             text <| Translations.mediaServerReadOnlyLoginInfo [ shared.browserEnv.translations ]
@@ -1431,8 +1488,8 @@ removeMediaServerButton mediaServer removeMsg =
         ]
 
 
-addMediaServerBox : Theme -> I18Next.Translations -> Maybe String -> Suggestions -> (Maybe String -> MediaServersModel) -> (String -> Msg) -> Html Msg
-addMediaServerBox theme translations maybeValue suggestions updateMediaServerFn addMediaServerMsg =
+addMediaServerBox : Theme -> I18Next.Translations -> Maybe String -> Suggestions -> (Maybe String -> MediaServersModel) -> (String -> Msg) -> Bool -> Html Msg
+addMediaServerBox theme translations maybeValue suggestions updateMediaServerFn addMediaServerMsg saving =
     let
         styles =
             stylesForTheme theme
@@ -1533,6 +1590,7 @@ addMediaServerBox theme translations maybeValue suggestions updateMediaServerFn 
             , theme = theme
             }
             |> Button.withDisabled (not <| mediaServerUrlValid serverUrlWithProtocol)
+            |> Button.withIntermediateState saving
             |> Button.view
         ]
 
@@ -1633,7 +1691,7 @@ viewProfileEditor shared user profileModel =
             , theme = shared.theme
             }
             |> Button.withDisabled (profileNotChanged)
-            |> Button.withIntermediateState (profileModel.state /= ProfileStateEditing)
+            |> Button.withIntermediateState (profileModel.state /= EditStateEditing)
             |> Button.view
         , div
             [ css
