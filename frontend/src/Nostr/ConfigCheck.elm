@@ -38,8 +38,10 @@ type Issue
     | ProfileNip05NotMatchingPubKey
     | ProfileNip05NetworkError Http.Error
     | ProfileAvatarMissing
+    | ProfileAvatarNotUrl
     | ProfileAvatarError Http.Error
     | ProfileBannerMissing
+    | ProfileBannerNotUrl
     | ProfileBannerError Http.Error
     | ProfileLud06Configured
     | ProfileLud16Missing
@@ -235,9 +237,21 @@ issueText translations issue =
             , solution = ""
             }
 
+        ProfileAvatarNotUrl ->
+            { message = Translations.profileAvatarNotUrlText [ translations ]
+            , explanation = Translations.profileAvatarNotUrlExplanation [ translations ]
+            , solution = ""
+            }
+
         ProfileBannerMissing ->
             { message = Translations.profileBannerMissingText [ translations ]
             , explanation = Translations.profileBannerMissingExplanation [ translations ]
+            , solution = ""
+            }
+
+        ProfileBannerNotUrl ->
+            { message = Translations.profileBannerNotUrlText [ translations ]
+            , explanation = Translations.profileBannerNotUrlExplanation [ translations ]
             , solution = ""
             }
 
@@ -332,7 +346,13 @@ issueType issue =
         ProfileAvatarMissing ->
             ProfileIssue
 
+        ProfileAvatarNotUrl ->
+            ProfileIssue
+
         ProfileBannerMissing ->
+            ProfileIssue
+
+        ProfileBannerNotUrl ->
             ProfileIssue
 
         ProfileLud06Configured ->
@@ -372,8 +392,8 @@ localCheckFunctions =
     , checkMissingProfileAbout
     , checkMissingProfileNip05
     , checkInvalidProfileNip05
-    , checkMissingProfileAvatar
-    , checkMissingProfileBanner
+    , checkProfileAvatarStatic
+    , checkProfileBannerStatic
     , checLud06Configured
     , checkMissingLud16
     , checkMalformedLud16
@@ -553,29 +573,39 @@ checkInvalidProfileNip05 nostr pubKey =
 
 
 
-checkMissingProfileAvatar : PerformLocalCheckFunction
-checkMissingProfileAvatar nostr pubKey =
+checkProfileAvatarStatic : PerformLocalCheckFunction
+checkProfileAvatarStatic nostr pubKey =
     Nostr.getProfile nostr pubKey
         |> Maybe.andThen
             (\profile ->
-                if profile.picture == Nothing then
-                    Just ProfileAvatarMissing
+                case profile.picture of
+                    Just pictureUrl ->
+                        if Url.fromString pictureUrl == Nothing then
+                            Just ProfileAvatarNotUrl
 
-                else
-                    Nothing
+                        else
+                            Nothing
+
+                    Nothing ->
+                        Just ProfileAvatarNotUrl
             )
 
 
-checkMissingProfileBanner : PerformLocalCheckFunction
-checkMissingProfileBanner nostr pubKey =
+checkProfileBannerStatic : PerformLocalCheckFunction
+checkProfileBannerStatic nostr pubKey =
     Nostr.getProfile nostr pubKey
         |> Maybe.andThen
             (\profile ->
-                if profile.banner == Nothing then
-                    Just ProfileBannerMissing
+                case profile.banner of
+                    Just bannerUrl ->
+                        if Url.fromString bannerUrl == Nothing then
+                            Just ProfileBannerNotUrl
 
-                else
-                    Nothing
+                        else
+                            Nothing
+
+                    Nothing ->
+                        Just ProfileBannerMissing
             )
 
 
