@@ -3,7 +3,6 @@ module Nostr.ConfigCheck exposing (..)
 import Http
 import I18Next
 import Nostr
-import Nostr.Bech32 as Bech32
 import Nostr.Event exposing (Kind(..), Tag(..))
 import Nostr.Lud06 as Lud06
 import Nostr.Lud16 as Lud16
@@ -55,7 +54,7 @@ type Issue
     | ProfileLud16Offline Http.Error
     | ProfileLud16CallbackOffline Http.Error
     | ProfileLud16InvalidResponse String
-
+    | ProfileLud16NotNostrEnabled
 
 type alias IssueText =
     { message : String
@@ -130,6 +129,14 @@ update msg model =
         ReceivedLightningCallbackResponse (Err error) ->
             ( { model | issues = model.issues ++ [ ProfileLud16CallbackOffline error ] }, Cmd.none )
 
+checkLightningPaymentData : Model -> Lud16.LightningPaymentData -> Model
+checkLightningPaymentData model lightningPaymentData =
+    case (lightningPaymentData.allowsNostr, lightningPaymentData.commentAllowed) of
+        (Just True, Just _) ->
+            model
+
+        _ ->
+            { model | issues = ProfileLud16NotNostrEnabled :: model.issues }
 
 performChecks : Nostr.Model -> PubKey -> ( Model, Cmd Msg )
 performChecks nostr pubKey =
@@ -161,7 +168,7 @@ issueText translations issue =
         OfflineRelays relayUrls ->
             { message = Translations.relaysOfflineText [ translations ]
             , explanation = Translations.relaysOfflineExplanation [ translations ] { relays = relayUrls |> String.join ", " }
-            , solution = ""
+            , solution = Translations.relaysOfflineSolution [ translations ]
             }
 
         MediaServersMissing serverUrls ->
@@ -287,7 +294,7 @@ issueText translations issue =
         ProfileLud16Missing ->
             { message = Translations.profileLud16MissingText [ translations ]
             , explanation = Translations.profileLud16MissingExplanation [ translations ]
-            , solution = ""
+            , solution = Translations.profileLud16MissingSolution [ translations ]
             }
 
         ProfileLud16Whitespace ->
@@ -335,6 +342,12 @@ issueText translations issue =
         ProfileBannerError ->
             { message = Translations.profileBannerErrorText [ translations ]
             , explanation = Translations.profileBannerErrorExplanation [ translations ]
+            , solution = ""
+            }
+
+        ProfileLud16NotNostrEnabled ->
+            { message = Translations.profileLud16NotNostrEnabledText [ translations ]
+            , explanation = Translations.profileLud16NotNostrEnabledExplanation [ translations ]
             , solution = ""
             }
 
@@ -421,6 +434,9 @@ issueType issue =
             ProfileIssue
 
         ProfileBannerError ->
+            ProfileIssue
+
+        ProfileLud16NotNostrEnabled ->
             ProfileIssue
 
 
@@ -630,6 +646,9 @@ checkProfileAvatarStatic nostr pubKey =
         |> Maybe.andThen
             (\profile ->
                 case profile.picture of
+                    Just "" ->
+                        Just ProfileAvatarMissing
+
                     Just pictureUrl ->
                         if Url.fromString pictureUrl == Nothing then
                             Just ProfileAvatarNotUrl
@@ -638,7 +657,7 @@ checkProfileAvatarStatic nostr pubKey =
                             Nothing
 
                     Nothing ->
-                        Just ProfileAvatarNotUrl
+                        Just ProfileAvatarMissing
             )
 
 
@@ -648,6 +667,9 @@ checkProfileBannerStatic nostr pubKey =
         |> Maybe.andThen
             (\profile ->
                 case profile.banner of
+                    Just "" ->
+                        Just ProfileBannerMissing
+
                     Just bannerUrl ->
                         if Url.fromString bannerUrl == Nothing then
                             Just ProfileBannerNotUrl
@@ -680,12 +702,15 @@ checkLud06Format nostr pubKey =
             (\profile ->
                 profile.lud06
                 |> Maybe.andThen (\lud06 ->
-                    case Lud06.parseLud06 lud06 of
-                        Ok _ ->
-                            Nothing
+                    if lud06 /= "" then
+                        case Lud06.parseLud06 lud06 of
+                            Ok _ ->
+                                Nothing
 
-                        Err error ->
-                            Just (ProfileLud06FormatError error)
+                            Err error ->
+                                Just (ProfileLud06FormatError error)
+                    else
+                        Nothing
                 )
             )
 
@@ -715,6 +740,10 @@ checkMalformedLud16 nostr pubKey =
                 profile.lud16
                 |> Maybe.andThen (\lud16 ->
                         if String.startsWith "bc1" lud16 then
+                            Just ProfileLud16BitcoinAddress
+                        else if (String.startsWith "02" lud16) && not (String.contains "@" lud16) then
+                            Just ProfileLud16BitcoinAddress
+                        else if (String.startsWith "03" lud16) && not (String.contains "@" lud16) then
                             Just ProfileLud16BitcoinAddress
                         else if Lud16.parseLud16 lud16 == Nothing then
                             Just ProfileLud16InvalidForm

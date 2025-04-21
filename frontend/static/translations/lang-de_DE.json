@@ -23,7 +23,9 @@
       "default page title": "Artikel"
    },
    "authors page": {
-      "page title": "Autoren"
+      "page title": "Autoren",
+      "fetch config data button title": "Konfigurationsdaten abrufen",
+      "check config button title": "Konfiguration prüfen"
    },
    "bookmarks": {
       "bookmarks title": "Lesezeichen",
@@ -55,6 +57,7 @@
       "outbox relays missing explanation": "Diese Relays sollten konfiguriert sein, damit Artikel verlässlich veröffentlicht werden können: {{relays}}.",
       "relays offline text": "Relays nicht erreichbar",
       "relays offline explanation": "Diese Relays sind nicht erreichbar: {{relays}}.",
+      "relays offline solution": "Entferne die Relays, wenn sie dauerhaft offline sind.",
       "media server missing text": "Fehlender Medien-Server",
       "media server missing explanation": "Der Pareto Medien-Server sollte benutzt werden, um Bilder verlässlich zu speichern: {{servers}}",
       "unreliable media servers text": "Unzuverlässige Medien-Server",
@@ -95,9 +98,10 @@
       "profile lud-06 format error explanation": "Das Feld LUD-06 im Profil ist nicht korrekt formatiert (Bech32). ({{error}})",
       "profile lud-16 missing text": "LUD-16 fehlt im Profil",
       "profile lud-16 missing explanation": "Im Profil ist keine Lightning Wallet gesetzt (LUD-16).",
+      "profile lud-16 missing solution": "Du kannst eine gültige Adresse über die App Wallet of Satoshi bekommen (Android, iOS). Sie sollte wie eine E-Mail-Adresse aussehen: <wallet name>@walletofsatoshi.com.",
       "profile lud-16 whitespace text": "LUD-16 im Profil enthält Leerzeichen",
       "profile lud-16 whitespace explanation": "Das Feld LUD-16 im Profil enthält Leerzeichen, was dazu führen kann, dass es nicht funktioniert.",
-      "profile lud-16 bitcoin address text": "LUD-16 im Profil ist eine Bitcoin-Adresse",
+      "profile lud-16 bitcoin address text": "LUD-16 im Profil enthält eine Bitcoin-Adresse",
       "profile lud-16 bitcoin address explanation": "Du hast in das Feld LUD-16 eine Bitcoin-Adresse eingetragen, dort sollte allerdings eine Lightning-Wallet-Adresse stehen.",
       "profile lud-16 invalid text": "LUD-16 im Profil ist ungültig",
       "profile lud-16 invalid explanation": "Die Lightning-Wallet im Feld LUD-16 im Profil ist ungültig. Du kannst eine gültige Adresse über die App Wallet of Satoshi bekommen (Android, iOS). Sie sollte wie eine E-Mail-Adresse aussehen: <wallet name>@walletofsatoshi.com.",
@@ -107,6 +111,8 @@
       "profile lud-16 callback offline explanation": "Die im Profil im Feld LUD-16 konfigurierte Lightning-Wallet ist anscheinend nicht erreichbar. ({{error}})",
       "profile lud-16 invalid response text": "Unerwartete Antwort von Lightning-Wallet (LUD-16)",
       "profile lud-16 invalid response explanation": "Die im Profil im Feld LUD-16 konfigurierte Lightning-Wallet lieferte eine unerwartete Antwort. (Fehler: {{error}})",
+      "profile lud-16 not nostr enabled text": "Lightning Wallet (LUD-16) nicht mit Nostr verknüpft",
+      "profile lud-16 not nostr enabled explanation": "Die im Profil im Feld LUD-16 konfigurierte Lightning-Wallet ist nicht mit deinem Nostr-Profil verknüpft.",
       "profile avatar error text": "Fehler beim Laden des Profilbildes",
       "profile avatar error explanation": "Das Profilbild kann nicht geladen werden.",
       "profile banner error text": "Fehler beim Laden des Profilbanners",

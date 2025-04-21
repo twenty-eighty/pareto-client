@@ -2,7 +2,6 @@ module Nostr.Lud06 exposing (..)
 
 import Nostr.Bech32 as Bech32
 import Json.Decode as Decode exposing (Decoder)
-import Json.Decode.Pipeline exposing (required)
 import Url exposing (Url)
 
 

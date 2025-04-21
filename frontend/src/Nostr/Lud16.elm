@@ -3,7 +3,7 @@ module Nostr.Lud16 exposing (..)
 import Http
 import Email
 import Json.Decode as Decode exposing (Decoder)
-import Json.Decode.Pipeline exposing (required)
+import Json.Decode.Pipeline exposing (required, optional)
 import Url exposing (Url)
 
 
@@ -13,13 +13,13 @@ type alias Lud16 =
     }
 
 type alias LightningPaymentData =
-    { allowsNostr : Bool
+    { allowsNostr : Maybe Bool
     , callback : Url
-    , commentAllowed : Int
+    , commentAllowed : Maybe Int
     , maxSendable : Int
     , metadata : String
     , minSendable : Int
-    , nostrPubkey : String
+    , nostrPubkey : Maybe String
     , tag : String
     }
 
@@ -73,13 +73,13 @@ requestLightningPaymentData responseMsg lud16 =
 lightningPaymentDataDecoder : Decoder LightningPaymentData
 lightningPaymentDataDecoder =
     Decode.succeed LightningPaymentData
-        |> required "allowsNostr" Decode.bool
+        |> optional "allowsNostr" (Decode.maybe Decode.bool) Nothing
         |> required "callback" urlDecoder
-        |> required "commentAllowed" Decode.int
+        |> optional "commentAllowed" (Decode.maybe Decode.int) Nothing
         |> required "maxSendable" Decode.int
         |> required "metadata" Decode.string
         |> required "minSendable" Decode.int
-        |> required "nostrPubkey" Decode.string
+        |> optional "nostrPubkey" (Decode.maybe Decode.string) Nothing
         |> required "tag" Decode.string
 
 urlDecoder : Decoder Url
