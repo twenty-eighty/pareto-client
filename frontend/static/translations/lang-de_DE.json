@@ -158,6 +158,10 @@
       "sent message text": "Du bist jetzt eingetragen und bekommst eine E-Mail zum Bestätigen.",
       "error message text": "Fehler beim Registrieren: {{error}}. Bitte kontaktiere uns unter support@pareto.space"
    },
+   "hashtag editor": {
+      "label": "Hashtags",
+      "placeholder": "Gib Hashtags mit Komma getrennt ein"
+   },
    "internals": {
       "page title": "Interne Informationen",
       "explanation": "Diese Seite zeigt Diagnoseinformationen über diese Anwendung.",
@@ -211,13 +215,26 @@
       "subject column name": "Betreff"
    },
    "picture post dialog": {
-      "dialog title": "Bild veröffentlichen",
+      "dialog title": "Bilder veröffentlichen",
       "post button title": "Veröffentlichen",
       "posting button text": "Veröffentlichen ...",
       "posted button text": "Veröffentlicht",
       "posting text": "Veröffentlichen ...",
       "posted text": "Veröffentlicht",
-      "error posting text": "Fehler beim Veröffentlichen des Bildes: {{errorText}}"
+      "error posting text": "Fehler beim Veröffentlichen des Bildes: {{errorText}}",
+      "no language text": "Keine Sprache ausgewählt",
+      "hashtags label": "Hashtags",
+      "hashtags placeholder": "Gib Hashtags mit Komma getrennt ein",
+      "title label": "Titel",
+      "title placeholder": "Gib einen Titel ein",
+      "add picture button label": "Hinzufügen"
+   },
+   "pictures": {
+      "page title": "Bilder",
+      "pareto feed category": "Pareto",
+      "followed feed category": "Gefolgt",
+      "memes feed category": "Memes",
+      "new picture post button label": "Posten"
    },
    "posts": {
       "posts title": "Artikel",

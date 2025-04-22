@@ -3,8 +3,10 @@ module Ui.PicturePost exposing (..)
 import BrowserEnv exposing (BrowserEnv)
 import Html.Styled as Html exposing (Html, br, div, p, text)
 import Html.Styled.Attributes as Attr exposing (css)
+import Locale exposing (languageToISOCode)
 import Nostr
-import Nostr.Nip68 exposing (Picture, PicturePost)
+import Nostr.Event exposing (ImageMetadata)
+import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Types exposing (EventId, PubKey)
@@ -58,10 +60,17 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
                 [ Tw.border_color styles.color1DarkMode
                 ]
             ]
+        , Attr.lang (picturePost.language |> Maybe.map languageToISOCode |> Maybe.withDefault "en")
         ]
         [ case maybeProfile of
             Just profile ->
                 Ui.Profile.viewProfileSmall styles profile validationStatus
+
+            Nothing ->
+                emptyHtml
+        , case picturePost.title of
+            Just title ->
+                text title
 
             Nothing ->
                 emptyHtml
@@ -70,9 +79,9 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
         ]
 
 
-viewPictures : List Picture -> Html msg
-viewPictures pictures =
-    case pictures of
+viewPictures : List ImageMetadata -> Html msg
+viewPictures imageMetadataList =
+    case imageMetadataList of
         [] ->
             emptyHtml
 

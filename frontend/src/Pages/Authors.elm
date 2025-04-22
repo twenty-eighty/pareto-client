@@ -134,7 +134,7 @@ update shared msg model =
         ReceivedConfigChecks (Ok ( configChecks, cmd )) ->
             ( { model | configChecks = configChecks }, Effect.sendCmd cmd )
 
-        ReceivedConfigChecks (Err error) ->
+        ReceivedConfigChecks (Err _) ->
             ( model, Effect.none )
 
         ConfigCheckMsg pubKey configCheckMsg ->
@@ -156,7 +156,7 @@ update shared msg model =
 
 
 performConfigChecks : Shared.Model -> Model -> Task Never ((Dict PubKey ConfigCheck.Model), Cmd Msg)
-performConfigChecks shared model =
+performConfigChecks shared _ =
     Nostr.getAuthorsPubKeys shared.nostr
         |> List.foldl
             (\pubKey ( acc, cmds ) ->

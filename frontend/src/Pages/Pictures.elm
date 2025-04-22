@@ -2,8 +2,10 @@ module Pages.Pictures exposing (Model, Msg, init, page, subscriptions, update, v
 
 import BrowserEnv exposing (BrowserEnv)
 import Color
+import Components.Button as Button
 import Components.Categories
 import Components.Icon as Icon
+import Components.PicturePostDialog as PicturePostDialog
 import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html)
@@ -29,9 +31,9 @@ import Shared
 import Shared.Model
 import Shared.Msg
 import Tailwind.Utilities as Tw
-import Translations.Read
-import Translations.Sidebar
+import Translations.Pictures as Translations
 import Ui.PicturePost as PicturePost exposing (PicturePostsViewData)
+import Ui.Shared exposing (emptyHtml)
 import Ui.ShortNote exposing (ShortNotesViewData)
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
@@ -62,6 +64,7 @@ toLayout theme _ =
 type alias Model =
     { categories : Components.Categories.Model Category
     , path : Route.Path.Path
+    , picturePostDialog : Maybe PicturePostDialog.Model
     }
 
 
@@ -153,6 +156,7 @@ init shared route () =
     in
     ( { categories = Components.Categories.init { selected = correctedCategory }
       , path = route.path
+      , picturePostDialog = Nothing
       }
     , Effect.batch
         [ changeCategoryEffect
@@ -178,7 +182,8 @@ type Msg
     | RemoveArticleReaction PubKey EventId -- event ID of like
     | AddShortNoteBookmark PubKey EventId
     | RemoveShortNoteBookmark PubKey EventId
-
+    | ShowPicturePostDialog PubKey
+    | PicturePostDialogMsg PicturePostDialog.Msg
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
@@ -233,6 +238,29 @@ update shared msg model =
                 |> Effect.sendSharedMsg
             )
 
+        ShowPicturePostDialog pubKey ->
+            let
+                ( picturePostDialog, effect ) =
+                    PicturePostDialog.init { nostr = shared.nostr, pubKey = pubKey, language = shared.browserEnv.language }
+            in
+            ( { model | picturePostDialog = Just <| PicturePostDialog.show picturePostDialog }
+            , Effect.map PicturePostDialogMsg effect
+            )
+
+
+        PicturePostDialogMsg innerMsg ->
+            model.picturePostDialog
+                |> Maybe.map (\picturePostDialog ->
+                    PicturePostDialog.update
+                        { msg = innerMsg
+                        , model = picturePostDialog
+                        , toModel = \dDialog -> { model | picturePostDialog = Just dDialog }
+                        , toMsg = PicturePostDialogMsg
+                        , nostr = shared.nostr
+                        , browserEnv = shared.browserEnv
+                        }
+                    )
+                |> Maybe.withDefault ( model, Effect.none )
 
 updateModelWithCategory : Shared.Model -> Model -> Category -> ( Model, Effect Msg )
 updateModelWithCategory shared model category =
@@ -299,8 +327,13 @@ userFollowsList nostr loginStatus =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
+subscriptions model =
+    model.picturePostDialog
+        |> Maybe.map (\picturePostDialog ->
+            PicturePostDialog.subscriptions picturePostDialog
+                |> Sub.map PicturePostDialogMsg
+        )
+        |> Maybe.withDefault Sub.none
 
 
 
@@ -334,31 +367,33 @@ availableCategories nostr loginStatus translations =
     in
     paretoCategories
         ++ followedCategories
-        ++ memesCategories
+        -- ++ memesCategories
+        {- apparently the content warning field is not consistently filled, so we don't show the global category
         ++ [ { category = Global
              , title = Translations.Read.globalFeedCategory [ translations ]
              }
            ]
+        -}
 
 
 paretoCategory : I18Next.Translations -> Components.Categories.CategoryData Category
 paretoCategory translations =
     { category = Pareto
-    , title = Translations.Read.paretoFeedCategory [ translations ]
+    , title = Translations.paretoFeedCategory [ translations ]
     }
 
 
 followedCategory : I18Next.Translations -> Components.Categories.CategoryData Category
 followedCategory translations =
     { category = Followed
-    , title = Translations.Read.followedFeedCategory [ translations ]
+    , title = Translations.followedFeedCategory [ translations ]
     }
 
 
 memesCategory : I18Next.Translations -> Components.Categories.CategoryData Category
 memesCategory translations =
     { category = Memes
-    , title = Translations.Read.memesFeedCategory [ translations ]
+    , title = Translations.memesFeedCategory [ translations ]
     }
 
 
@@ -370,11 +405,34 @@ view shared model =
 
         userPubKey =
             Shared.loggedInPubKey shared.loginStatus
+
+        postButton =
+            Shared.loggedInSigningPubKey shared.loginStatus
+                |> Maybe.map (\pubKey ->
+                    if Nostr.isBetaTester shared.nostr pubKey then
+                        Html.div
+                            [ css
+                                [ Tw.flex
+                                , Tw.mx_8
+                                , Tw.mb_2
+                                ]
+                            ]
+                            [ Button.new
+                                { theme = shared.theme
+                                , onClick = Just (ShowPicturePostDialog pubKey)
+                                , label = Translations.newPicturePostButtonLabel [ shared.browserEnv.translations ]
+                                }
+                                |> Button.view
+                            ]
+                    else
+                        emptyHtml
+                )
+                |> Maybe.withDefault emptyHtml
     in
-    { title = Translations.Sidebar.readMenuItemText [ shared.browserEnv.translations ]
+    { title = Translations.pageTitle [ shared.browserEnv.translations ]
     , body =
-        [ {- Main Content -}
-          Components.Categories.new
+        [ postButton
+        ,  Components.Categories.new
             { model = model.categories
             , toMsg = CategoriesSent
             , onSelect = CategorySelected
@@ -386,6 +444,19 @@ view shared model =
             }
             |> Components.Categories.view
         , viewContent shared model userPubKey
+        , model.picturePostDialog
+            |> Maybe.map (\picturePostDialog ->
+                PicturePostDialog.new 
+                    { model = picturePostDialog
+                    , toMsg = PicturePostDialogMsg
+                    , nostr = shared.nostr
+                    , loginStatus = shared.loginStatus
+                    , browserEnv = shared.browserEnv
+                    , theme = shared.theme
+                    }
+                    |> PicturePostDialog.view
+            )
+            |> Maybe.withDefault emptyHtml
         ]
     }
 

@@ -522,7 +522,7 @@ update user shared msg model =
             case model.data of
                 ProfileData profileModel ->
                     MediaSelector.update
-                        { user = user
+                        { pubKey = user.pubKey
                         , nostr = shared.nostr
                         , msg = innerMsg
                         , model = profileModel.mediaSelector
