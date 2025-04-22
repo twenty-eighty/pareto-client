@@ -103,8 +103,10 @@
       "profile lud-16 whitespace explanation": "Das Feld LUD-16 im Profil enthält Leerzeichen, was dazu führen kann, dass es nicht funktioniert.",
       "profile lud-16 bitcoin address text": "LUD-16 im Profil enthält eine Bitcoin-Adresse",
       "profile lud-16 bitcoin address explanation": "Du hast in das Feld LUD-16 eine Bitcoin-Adresse eingetragen, dort sollte allerdings eine Lightning-Wallet-Adresse stehen.",
+      "profile lud-16 bitcoin address solution": "You can obtain a valid address using the Wallet of Satoshi mobile app (Android, iOS). It looks like an email address: <wallet name>@walletofsatoshi.com.",
       "profile lud-16 invalid text": "LUD-16 im Profil ist ungültig",
       "profile lud-16 invalid explanation": "Die Lightning-Wallet im Feld LUD-16 im Profil ist ungültig. Du kannst eine gültige Adresse über die App Wallet of Satoshi bekommen (Android, iOS). Sie sollte wie eine E-Mail-Adresse aussehen: <wallet name>@walletofsatoshi.com.",
+      "profile lud-16 invalid solution": "You can obtain a valid address using the Wallet of Satoshi mobile app (Android, iOS). It looks like an email address: <wallet name>@walletofsatoshi.com.",
       "profile lud-16 offline text": "Lightning Wallet (LUD-16) nicht erreichbar",
       "profile lud-16 offline explanation": "Die im Profil im Feld LUD-16 konfigurierte Lightning-Wallet ist anscheinend nicht erreichbar. ({{error}})",
       "profile lud-16 callback offline text": "Lightning Wallet (LUD-16) nicht erreichbar (Callback)",
@@ -149,7 +151,6 @@
       "dialog title": "Mit E-Mail abonnieren",
       "subscribe button title": "Abonnieren",
       "close button title": "Schließen",
-      "next button title": "Weiter",
       "info text": "Bekomme neue Artikel von {{profileName}} direkt in dein Postfach.",
       "email label": "E-Mail",
       "email placeholder": "max@mustermann.de",
@@ -184,7 +185,7 @@
       "not logged in message": "Mediendateien können ohne Anmeldung nicht angezeigt werden."
    },
    "media selector": {
-      "Select image": "Bild auswählen",
+      "Upload files": "Select image",
       "Upload button title": "Bilder hochladen",
       "all servers listbox entry": "Alle Server",
       "no server listbox entry": "Kein Server konfiguriert",
@@ -277,8 +278,8 @@
    },
    "search": {
       "page title": "Suchen",
-      "explanation 1": "Füge eine Nostr-ID (npub, nprofile, nevent oder naddr), Nostr-Adresse (tony@pareto.space) oder eine URL mit einer Nostr-ID ein",
-      "explanation 2": "Hashtags werden unterstützt, setze ein # vor einen Begriff, um nach Hashtags zu filtern."
+      "explanation 1": "",
+      "explanation 2": ""
    },
    "search bar": {
       "placeholder": "URL, Nostr-ID oder Nostr-Adresse"
@@ -308,6 +309,7 @@
       "add nip-96 media server placeholder": "Gib die URL eines NIP-96-Servers ein",
       "media server read only login info": "Im Nur-Lesen-Modus kann die Konfiguration nicht geändert werden.",
       "blossom servers section title": "Blossom Server",
+      "blossom servers description": "This media server type uses the Blossom protocol.",
       "add blossom media server placeholder": "Gib die URL eines Blossom-Servers ein",
       "profile category": "Profil",
       "profile editor title": "Profil-Editor",
@@ -376,8 +378,8 @@
       "process modifications button title": "Verarbeiten",
       "loading subscribers text": "Lade Abonnenten ...",
       "error loading subscribers text": "Fehler beim Laden der Abonnenten",
-      "new modifications": "Neue Veränderungen",
       "no subscribers text": "Keine Abonnenten gefunden.",
+      "new modifications": "Neue Veränderungen",
       "dnd field name": "Nicht stören",
       "email field name": "E-Mail",
       "name field name": "Name",
