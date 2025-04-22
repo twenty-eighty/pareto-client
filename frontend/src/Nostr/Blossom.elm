@@ -150,7 +150,7 @@ metadataDecoder =
         |> Pipeline.hardcoded Nothing
         |> Pipeline.optional "summary" (Decode.map Just Decode.string) Nothing
         |> Pipeline.optional "alt" (Decode.map Just Decode.string) Nothing
-
+        |> Pipeline.optional "fallbacks" (Decode.map Just (Decode.list Decode.string)) Nothing
 
 sizeDecoder : Decode.Decoder Int
 sizeDecoder =

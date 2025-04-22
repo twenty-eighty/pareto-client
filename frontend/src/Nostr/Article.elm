@@ -138,7 +138,7 @@ articleFromEvent event =
                                 ( { article | title = Just title }, errors )
 
                             LabelTag lang (Just "ISO-639-1") ->
-                                ( { article | language = Just (languageFromISOCode lang) }, errors )
+                                ( { article | language = languageFromISOCode lang }, errors )
 
                             ZapTag pubKey relayUrl maybeWeight ->
                                 ( { article | zapWeights = article.zapWeights ++ [ ( pubKey, relayUrl, maybeWeight ) ] }, errors )

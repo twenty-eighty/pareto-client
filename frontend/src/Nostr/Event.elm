@@ -35,6 +35,7 @@ type Tag
     | LabelNamespaceTag String
     | LabelTag String (Maybe String)
     | MentionTag PubKey
+    | MimeTypeTag MimeType
     | NameTag String
     | PublicKeyTag PubKey (Maybe RelayUrl) (Maybe String)
     | PublishedAtTag Time.Posix
@@ -1708,6 +1709,7 @@ decodeTag =
                             Decode.map2 LabelTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
                         "m" ->
+                            -- note: in NIP-68, "m" is used for mime types
                             Decode.map MentionTag (Decode.index 1 Decode.string)
 
                         "name" ->
@@ -1753,6 +1755,7 @@ decodeTag =
                             Decode.map2 WebTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
                         "x" ->
+                            -- note: in NIP-68, "x" is used for hash values
                             Decode.map ExternalIdTag (Decode.index 1 Decode.string)
 
                         "zap" ->
@@ -2002,6 +2005,9 @@ tagToList tag =
         MentionTag pubKey ->
             [ "m", pubKey ]
 
+        MimeTypeTag mimeType ->
+            [ "m", MimeType.toString mimeType ]
+
         NameTag value ->
             [ "name", value ]
 
@@ -2095,9 +2101,39 @@ tagToList tag =
 
 buildImageMetadataTag : ImageMetadata -> List String
 buildImageMetadataTag imageMetadata =
+    let
+        mimeTypeEntry =
+            imageMetadata.mimeType
+                |> Maybe.map (\mimeType -> [ "m " ++ MimeType.toString mimeType ])
+                |> Maybe.withDefault []
+
+        blurHashEntry =
+            imageMetadata.blurHash
+                |> Maybe.map (\blurHash -> [ "blurhash " ++ blurHash ])
+                |> Maybe.withDefault []
+
+        dimEntry =
+            imageMetadata.dim
+                |> Maybe.map (\( width, height ) -> [ "dim " ++ String.fromInt width ++ "x" ++ String.fromInt height ])
+                |> Maybe.withDefault []
+
+        altEntry =
+            imageMetadata.alt
+                |> Maybe.map (\alt -> [ "alt " ++ alt ])
+                |> Maybe.withDefault []
+
+        xEntry =
+            imageMetadata.x
+                |> Maybe.map (\x -> [ "x " ++ x ])
+                |> Maybe.withDefault []
+
+        fallbacksEntries =
+            imageMetadata.fallbacks
+                |> List.map (\fallback -> "fallback " ++ fallback)
+    in
     [ "imeta"
     , "url " ++ imageMetadata.url
-    ]
+    ] ++ mimeTypeEntry ++ blurHashEntry ++ dimEntry ++ altEntry ++ xEntry ++ fallbacksEntries
 
 
 identityToString : Identity -> String
@@ -2506,6 +2542,20 @@ addEventIdTag : EventId -> Maybe RelayUrl -> List Tag -> List Tag
 addEventIdTag eventId maybeRelayUrl tags =
     EventIdTag eventId maybeRelayUrl :: tags
 
+addHashValueTags : List String -> List Tag -> List Tag
+addHashValueTags hashValues tags =
+    hashValues
+        |> List.map ExternalIdTag
+        |> List.append tags
+
+
+addImetaTags : List ImageMetadata -> List Tag -> List Tag
+addImetaTags imageMetadataList tags =
+    imageMetadataList
+        |> List.map ImageMetadataTag
+        |> List.append tags
+
+
 
 addKindTag : Kind -> List Tag -> List Tag
 addKindTag kind tags =
@@ -2519,9 +2569,22 @@ addKindTags kinds tags =
         |> List.append tags
 
 
+addMimeTypeTags : List MimeType -> List Tag -> List Tag
+addMimeTypeTags mimeTypes tags =
+    mimeTypes
+        |> List.map MimeTypeTag
+        |> List.append tags
+
 addPubKeyTag : PubKey -> Maybe RelayUrl -> Maybe String -> List Tag -> List Tag
 addPubKeyTag pubKey maybeRelay maybePetName tags =
     PublicKeyTag pubKey maybeRelay maybePetName :: tags
+
+
+addPubKeyTags : List (PubKey, Maybe RelayUrl, Maybe String) -> List Tag -> List Tag
+addPubKeyTags entries tags =
+    entries
+        |> List.map (\( pubKey, maybeRelay, maybePetName ) -> PublicKeyTag pubKey maybeRelay maybePetName)
+        |> List.append tags
 
 
 addPublishedAtTag : Time.Posix -> List Tag -> List Tag
@@ -2590,26 +2653,11 @@ addPublishedTag maybeTime tags =
         |> Maybe.withDefault tags
 
 
-addHashtagListToTags : List String -> List Tag -> List Tag
-addHashtagListToTags hashtags tags =
+addHashtagsToTags : List String -> List Tag -> List Tag
+addHashtagsToTags hashtags tags =
     hashtags
-        |> List.map String.trim
         |> List.map HashTag
         |> List.append tags
-
-
-addHashtagsToTags : Maybe String -> List Tag -> List Tag
-addHashtagsToTags maybeTags tags =
-    maybeTags
-        |> Maybe.map
-            (\tagsString ->
-                tagsString
-                    |> String.split ","
-                    |> List.map String.trim
-                    |> List.map HashTag
-                    |> List.append tags
-            )
-        |> Maybe.withDefault tags
 
 
 addWebTargetTags : List ( String, Maybe String ) -> List Tag -> List Tag

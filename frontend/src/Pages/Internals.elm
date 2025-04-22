@@ -19,6 +19,7 @@ import Ui.Styles exposing (Theme, stylesForTheme)
 import Ui.Shared exposing (emptyHtml, viewConfigIssues)
 import View exposing (View)
 import Nostr.ConfigCheck as ConfigCheck
+import Nostr.Nip19 as Nip19
 
 
 page : Shared.Model -> Route () -> Page Model Msg
@@ -127,7 +128,14 @@ loginStatusToString translations loginStatus =
             Translations.unknownLoginStatusText [ translations ]
 
         LoggedIn pubKey loginMethod ->
-            Translations.loggedInStatusText [ translations ] ++ " " ++ pubKey ++ " (" ++ loginMethodToString loginMethod ++ ")"
+            let
+                keyInfo =
+                    Nip19.Npub pubKey
+                    |> Nip19.encode
+                    |> Result.toMaybe
+                    |> Maybe.withDefault pubKey
+            in
+            Translations.loggedInStatusText [ translations ] ++ " " ++ keyInfo ++ " (" ++ loginMethodToString loginMethod ++ ")"
 
 
 loginMethodToString : LoginMethod -> String

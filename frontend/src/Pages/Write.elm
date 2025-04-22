@@ -4,13 +4,13 @@ import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Dropdown as Dropdown
+import Components.HashtagEditor as HashtagEditor
 import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
 import Components.MessageDialog as MessageDialog
 import Components.PublishArticleDialog as PublishArticleDialog exposing (PublishingInfo(..))
-import Css
 import Dict
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, div, img, input, label, node, text)
+import Html.Styled as Html exposing (Html, div, img, label, node, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import I18Next exposing (Translations)
@@ -80,7 +80,6 @@ type alias Model =
     , content : Maybe String
     , milkdown : Milkdown.Model
     , identifier : Maybe String
-    , tags : Maybe String
     , zapWeights : List ( PubKey, RelayUrl, Maybe Int )
     , otherTags : List Tag
     , now : Time.Posix
@@ -93,6 +92,7 @@ type alias Model =
     , loadedContent : LoadedContent Msg
     , modalDialog : ModalDialog
     , languageSelection : Dropdown.Model Language
+    , hashtagEditor : HashtagEditor.Model
     , textStats : TextStats
     , debounceStatus : DebounceStatus
     }
@@ -201,7 +201,6 @@ init user shared route () =
                     , content = Just article.content
                     , milkdown = Milkdown.init
                     , identifier = article.identifier
-                    , tags = tagsString article.hashtags
                     , otherTags = article.otherTags
                     , zapWeights =
                         if List.length article.zapWeights > 0 then
@@ -219,6 +218,7 @@ init user shared route () =
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
                     , modalDialog = NoModalDialog
                     , languageSelection = Dropdown.init { selected = article.language }
+                    , hashtagEditor = HashtagEditor.init { hashtags = article.hashtags }
                     , textStats = TextStats.compute article.language article.content
                     , debounceStatus = Inactive
                     }
@@ -231,7 +231,6 @@ init user shared route () =
                     , content = Nothing
                     , milkdown = Milkdown.init
                     , identifier = Nothing
-                    , tags = Nothing
                     , otherTags = []
                     , zapWeights = defaultZapWeights user.pubKey
                     , now = Time.millisToPosix 0
@@ -244,6 +243,7 @@ init user shared route () =
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
                     , modalDialog = NoModalDialog
                     , languageSelection = Dropdown.init { selected = Just shared.browserEnv.language }
+                    , hashtagEditor = HashtagEditor.init { hashtags = [] }
                     , textStats = emptyTextStats
                     , debounceStatus = Inactive
                     }
@@ -268,20 +268,6 @@ defaultZapWeights pubKey =
         ]
 
 
-tagsString : List String -> Maybe String
-tagsString tags =
-    case tags of
-        [] ->
-            Nothing
-
-        [ tag ] ->
-            Just tag
-
-        tagList ->
-            Just <| String.join ", " tagList
-
-
-
 -- UPDATE
 
 
@@ -294,7 +280,7 @@ type Msg
     | AddLoadedContent String
     | UpdateTitle String
     | UpdateSubtitle String
-    | UpdateTags String
+    | HashtagEditorMsg HashtagEditor.Msg
     | SelectImage ImageSelection
     | ImageSelected ImageSelection MediaSelector.UploadedFile
     | Publish
@@ -378,12 +364,13 @@ update shared user msg model =
             else
                 ( { model | articleState = ArticleModified, summary = Just <| filterTitleChars summary }, Effect.none )
 
-        UpdateTags tags ->
-            if tags == "" then
-                ( { model | articleState = ArticleModified, tags = Nothing }, Effect.none )
-
-            else
-                ( { model | articleState = ArticleModified, tags = Just tags }, Effect.none )
+        HashtagEditorMsg innerMsg ->
+            HashtagEditor.update
+                { msg = innerMsg
+                , model = model.hashtagEditor
+                , toModel = \hashtagEditor -> { model | hashtagEditor = hashtagEditor }
+                , toMsg = HashtagEditorMsg
+                }
 
         SelectImage imageSelection ->
             ( { model
@@ -481,7 +468,7 @@ update shared user msg model =
 
         MediaSelectorSent innerMsg ->
             MediaSelector.update
-                { user = user
+                { pubKey = user.pubKey
                 , nostr = shared.nostr
                 , msg = innerMsg
                 , model = model.mediaSelector
@@ -662,7 +649,7 @@ updateModelWithDraftRequest model value =
                         , image = draft.image
                         , content = Just draft.content
                         , identifier = draft.identifier
-                        , tags = tagsString draft.hashtags
+                        , hashtagEditor = HashtagEditor.init { hashtags = draft.hashtags }
                       }
                     , Effect.none
                     )
@@ -833,7 +820,7 @@ eventWithContent shared model user kind =
             |> Event.addSummaryTag model.summary
             |> Event.addImageTag model.image
             |> Event.addIdentifierTag model.identifier
-            |> Event.addHashtagsToTags model.tags
+            |> Event.addHashtagsToTags (HashtagEditor.getHashtags model.hashtagEditor)
             |> Event.addPublishedAtTag publishedAt
             |> Maybe.withDefault identity (languageISOCode model |> Maybe.map (Event.addLabelTags "ISO-639-1"))
             |> Event.addZapTags model.zapWeights
@@ -1355,7 +1342,7 @@ viewLanguage browserEnv model =
           Dropdown.new
             { model = model.languageSelection
             , toMsg = DropdownSent
-            , choices = [ English "US", French, German "DE", Italian, Portuguese, Spanish, Swedish ]
+            , choices = Locale.defaultLanguages
             , allowNoSelection = True
             , toLabel = toLabel browserEnv.translations
             }
@@ -1376,57 +1363,13 @@ toLabel translations maybeLanguage =
 
 viewTags : Theme -> BrowserEnv -> Model -> Html Msg
 viewTags theme browserEnv model =
-    let
-        styles =
-            stylesForTheme theme
-    in
-    div
-        [ css
-            [ Tw.w_full
-            ]
-        ]
-        [ {- Label -}
-          label
-            ([ Attr.for "entry-field"
-             , css
-                [ Tw.block
-                , Tw.text_sm
-                , Tw.font_medium
-                , Tw.mb_2
-                ]
-             ]
-                ++ styles.colorStyleLabel
-            )
-            [ text <| Translations.tagsLabelText [ browserEnv.translations ]
-            ]
-        , {- Input Field -}
-          input
-            (styles.colorStyleBackground
-                ++ styles.colorStyleBorders
-                ++ [ Attr.type_ "text"
-                   , Attr.id "entry-field"
-                   , Attr.placeholder <| Translations.tagsPlaceholderText [ browserEnv.translations ]
-                   , Attr.value (model.tags |> Maybe.withDefault "")
-                   , Events.onInput UpdateTags
-                   , css
-                        [ Tw.w_full
-                        , Tw.px_4
-                        , Tw.py_2
-                        , Tw.border
-                        , Tw.rounded_lg
-                        , Tw.transition_all
-                        , Tw.duration_200
-                        , Css.focus
-                            [ Tw.outline_none
-                            , Tw.ring_2
-                            , Tw.ring_color Theme.blue_500
-                            , Tw.border_color Theme.blue_500
-                            ]
-                        ]
-                   ]
-            )
-            []
-        ]
+    HashtagEditor.new
+        { model = model.hashtagEditor
+        , toMsg = HashtagEditorMsg
+        , translations = browserEnv.translations
+        , theme = theme
+        }
+        |> HashtagEditor.view
 
 
 saveButtons : BrowserEnv -> Theme -> Model -> Html Msg

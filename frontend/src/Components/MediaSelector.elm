@@ -14,7 +14,6 @@ module Components.MediaSelector exposing
     , withMediaType
     )
 
-import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button as Button
@@ -244,7 +243,7 @@ update :
     , model : Model
     , toModel : Model -> model
     , toMsg : Msg msg -> msg
-    , user : Auth.User
+    , pubKey : PubKey
     , nostr : Nostr.Model
     , browserEnv : BrowserEnv
     }
@@ -337,7 +336,7 @@ update props =
         ConfigureDefaultMediaServer ->
             ( Model model
             , Effect.batch
-                [ Nip96.sendNip96ServerListCmd props.browserEnv props.user.pubKey (Nostr.getDefaultNip96Servers props.nostr props.user.pubKey) (Nostr.getDefaultRelays props.nostr)
+                [ Nip96.sendNip96ServerListCmd props.browserEnv props.pubKey (Nostr.getDefaultNip96Servers props.nostr props.pubKey) (Nostr.getDefaultRelays props.nostr)
                     |> Shared.Msg.SendNostrEvent
                     |> Effect.sendSharedMsg
                 ]
@@ -374,14 +373,14 @@ update props =
                 , toModel = \uploadDialog -> Model { model | uploadDialog = uploadDialog }
                 , toMsg = props.toMsg << UploadDialogSent
                 , onUploaded = props.toMsg << Uploaded
-                , user = props.user
+                , pubKey = props.pubKey
                 , nostr = props.nostr
                 , browserEnv = props.browserEnv
                 }
                 |> toParentModel
 
         IncomingMessage { messageType, value } ->
-            processIncomingMessage props.user props.model messageType props.toMsg value
+            processIncomingMessage props.pubKey props.model messageType props.toMsg value
                 |> toParentModel
 
         SelectedItem data ->
@@ -623,8 +622,8 @@ updateServerState dict serverUrl state =
     Dict.insert serverUrl state dict
 
 
-processIncomingMessage : Auth.User -> Model -> String -> (Msg msg -> msg) -> Encode.Value -> ( Model, Effect msg )
-processIncomingMessage user xModel messageType toMsg value =
+processIncomingMessage : PubKey -> Model -> String -> (Msg msg -> msg) -> Encode.Value -> ( Model, Effect msg )
+processIncomingMessage pubKey xModel messageType toMsg value =
     let
         (Model model) =
             xModel
@@ -634,7 +633,7 @@ processIncomingMessage user xModel messageType toMsg value =
             case Decode.decodeValue decodeAuthHeaderReceived value of
                 Ok decoded ->
                     ( Model { model | authHeader = Just decoded.authHeader }
-                    , Blossom.fetchFileList (ReceivedBlossomFileList decoded.serverUrl) decoded.authHeader decoded.serverUrl user.pubKey
+                    , Blossom.fetchFileList (ReceivedBlossomFileList decoded.serverUrl) decoded.authHeader decoded.serverUrl pubKey
                         |> Cmd.map toMsg
                         |> Effect.sendCmd
                     )
@@ -668,11 +667,11 @@ processIncomingMessage user xModel messageType toMsg value =
             of
                 ( Ok KindUserServerList, Ok events ) ->
                     -- list with Blossom servers
-                    updateModelWithUserServerLists (Model model) user toMsg events
+                    updateModelWithUserServerLists (Model model) pubKey toMsg events
 
                 ( Ok KindFileStorageServerList, Ok events ) ->
                     -- list with NIP-96 servers
-                    updateModelWithFileStorageServerLists (Model model) user toMsg events
+                    updateModelWithFileStorageServerLists (Model model) pubKey toMsg events
 
                 _ ->
                     ( Model model, Effect.none )
@@ -700,13 +699,13 @@ type alias AuthHeaderReceived =
     }
 
 
-updateModelWithUserServerLists : Model -> Auth.User -> (Msg msg -> msg) -> List Event -> ( Model, Effect msg )
-updateModelWithUserServerLists (Model model) user toMsg events =
+updateModelWithUserServerLists : Model -> PubKey -> (Msg msg -> msg) -> List Event -> ( Model, Effect msg )
+updateModelWithUserServerLists (Model model) pubKey toMsg events =
     let
         -- usually there should be only one for the logged-in user
         newUserServers =
             events
-                |> List.filter (\event -> user.pubKey == event.pubKey)
+                |> List.filter (\event -> pubKey == event.pubKey)
                 |> List.map userServerListFromEvent
                 |> List.foldl
                     (\( _, userServerList ) servers ->
@@ -728,13 +727,13 @@ updateModelWithUserServerLists (Model model) user toMsg events =
     ( Model { model | blossomServers = newServerDict }, listAuthRequests )
 
 
-updateModelWithFileStorageServerLists : Model -> Auth.User -> (Msg msg -> msg) -> List Event -> ( Model, Effect msg )
-updateModelWithFileStorageServerLists (Model model) user toMsg events =
+updateModelWithFileStorageServerLists : Model -> PubKey -> (Msg msg -> msg) -> List Event -> ( Model, Effect msg )
+updateModelWithFileStorageServerLists (Model model) pubKey toMsg events =
     let
         -- usually there should be only one for the logged-in user
         newFileStorageServers =
             events
-                |> List.filter (\event -> user.pubKey == event.pubKey)
+                |> List.filter (\event -> pubKey == event.pubKey)
                 |> List.map fileStorageServerListFromEvent
                 |> List.foldl
                     (\( _, fileStorageServerList ) servers ->

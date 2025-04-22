@@ -26,6 +26,9 @@ type Language
     | Swedish
     | Russian
 
+defaultLanguages : List Language
+defaultLanguages =
+    [ English "US", French, German "DE", Italian, Portuguese, Spanish, Swedish ]
 
 languageFromLocale : String -> Language
 languageFromLocale locale =
@@ -84,32 +87,32 @@ languageToString translations language =
             "Not supported yet"
 
 
-languageFromISOCode : String -> Language
+languageFromISOCode : String -> Maybe Language
 languageFromISOCode code =
     case code of
         "en" ->
-            English "US"
+            Just (English "US")
 
         "fr" ->
-            French
+            Just French
 
         "de" ->
-            German "DE"
+            Just (German "DE")
 
         "it" ->
-            Italian
+            Just Italian
 
         "pt" ->
-            Portuguese
+            Just Portuguese
 
         "es" ->
-            Spanish
+            Just Spanish
 
         "sv" ->
-            Swedish
+            Just Swedish
 
         _ ->
-            English "GB"
+            Nothing
 
 
 languageToISOCode : Language -> String

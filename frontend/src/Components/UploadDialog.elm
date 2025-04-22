@@ -15,7 +15,6 @@ module Components.UploadDialog exposing
     , withMediaType
     )
 
-import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Dropdown as Dropdown
@@ -203,7 +202,7 @@ update :
     , toModel : Model -> model
     , toMsg : Msg -> msg
     , onUploaded : UploadResponse -> msg
-    , user : Auth.User
+    , pubKey : PubKey
     , nostr : Nostr.Model
     , browserEnv : BrowserEnv
     }

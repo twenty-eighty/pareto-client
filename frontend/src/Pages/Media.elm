@@ -91,7 +91,7 @@ update shared user msg model =
     case msg of
         MediaSelectorSent innerMsg ->
             MediaSelector.update
-                { user = user
+                { pubKey = user.pubKey
                 , msg = innerMsg
                 , model = model.mediaSelector
                 , toModel = \mediaSelector -> { model | mediaSelector = mediaSelector }
