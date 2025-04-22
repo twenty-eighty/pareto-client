@@ -189,8 +189,8 @@
       "not logged in message": "Media files can't be loaded when not logged-in"
    },
    "media selector": {
-      "Upload files": "Select image",
-      "Upload button title": "Upload images",
+      "upload files": "Select image",
+      "upload button title": "Upload images",
       "all servers listbox entry": "All servers",
       "no server listbox entry": "No server configured",
       "no server configured message": "You seem to have no media servers configured. Do you want to use the Pareto media server?",
@@ -296,8 +296,8 @@
    },
    "search": {
       "page title": "Search",
-      "explanation 1": "",
-      "explanation 2": ""
+      "explanation 1": "Add a Nostr ID (npub, nprofile, nevent or naddr), Nostr address (tony@pareto.space) or a URL with a Nostr ID",
+      "explanation 2": "Hashtags are supported, set a # before a word to filter by hashtags."
    },
    "search bar": {
       "placeholder": "URL, Nostr ID, or Nostr Address"
@@ -340,22 +340,34 @@
       "create profile button title": "Create Profile",
       "profile name field label": "Name",
       "profile name field placeholder": "Enter your name",
+      "profile name field description": "This is a short name you use to identify yourself on Nostr.",
       "profile display_name field label": "Display name",
       "profile display_name field placeholder": "Enter your display name",
-      "profile nip05 field label": "NIP-05",
-      "profile nip05 field placeholder": "Enter your NIP-05 handle",
+      "profile display_name field description": "This is a longer name you use to identify yourself on Nostr.",
+      "profile nip05 field label": "Nostr Handle (NIP-05)",
+      "profile nip05 field placeholder": "Enter your NIP-05 handle. (e.g. alice@example.com)",
+      "profile nip05 field description": "This is the handle you use to identify yourself on Nostr. It is used to verify your identity. If you are an author of the Pareto project you automatically have one you can use here.",
       "profile about field label": "About",
       "profile about field placeholder": "Enter a short description about yourself",
+      "profile about field description": "This is a short description about yourself.",
       "profile picture field label": "Picture",
       "profile picture field placeholder": "Enter a URL of a picture",
+      "profile picture field description": "This is the small picture displayed with your name at different places.",
       "profile banner field label": "Banner",
       "profile banner field placeholder": "Enter a URL of a banner",
+      "profile banner field description": "This is the banner displayed at the top of your profile page.",
       "profile lud06 field label": "LUD-06 (LNURL of a Lightning wallet)",
       "profile lud06 field placeholder": "Enter a valid LUD-06",
-      "profile lud16 field label": "LUD-16 (Lightning wallet address)",
+      "profile lud06 field description": "This is the LUD-06 field. It is used to store the LNURL of a Lightning wallet. You only need to fill either this or the LUD-16 field, however prefer the LUD-16 field.",
+      "profile lud16 field label": "Lightning wallet address (LUD-16)",
       "profile lud16 field placeholder": "Enter your Lightning wallet address",
+      "profile lud16 field description": "This is the LUD-16 field. It is used to store the Lightning wallet address for payments. You can obtain a valid address using the Wallet of Satoshi mobile app (Android, iOS). It looks like an email address: <wallet name>@walletofsatoshi.com.",
       "profile website field label": "Website",
       "profile website field placeholder": "Enter your website"
+   },
+   "sharing button dialog": {
+      "dialog title": "Share",
+      "submit button title": "Copy to clipboard"
    },
    "sidebar": {
       "reader client role text": "Reader",
