@@ -88,7 +88,7 @@ view shared _ =
                 [ text <| Translations.contactInformation [ shared.browserEnv.translations ] ++ " " ++ Pareto.supportEmail
                 ]
             , viewLoginInfo shared
-            , viewConfigIssues shared.browserEnv.translations (ConfigCheck.getIssues shared.configCheck) (Translations.configurationIssuesTitle [ shared.browserEnv.translations ])
+            , viewConfigIssues shared.browserEnv.translations (Translations.configurationIssuesTitle [ shared.browserEnv.translations ]) (ConfigCheck.getIssues shared.configCheck)
             , viewErrorMessages shared.theme shared.browserEnv.translations shared.nostr
             ]
         ]

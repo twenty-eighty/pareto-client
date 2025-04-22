@@ -114,8 +114,8 @@ countBadge count =
         otherNumber ->
             "(" ++ String.fromInt otherNumber ++ ")"
 
-viewConfigIssues : I18Next.Translations -> List ConfigCheck.Issue -> String -> Html msg
-viewConfigIssues translations issues title =
+viewConfigIssues : I18Next.Translations -> String -> List ConfigCheck.Issue -> Html msg
+viewConfigIssues translations title issues =
     case issues of
         [] ->
             emptyHtml

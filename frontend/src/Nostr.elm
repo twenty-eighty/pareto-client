@@ -112,6 +112,20 @@ getAuthorsFollowList model =
         |> Maybe.withDefault paretoAuthorsFollowList
 
 
+getAuthorsPubKeys : Model -> List PubKey
+getAuthorsPubKeys model =
+    getAuthorsFollowList model
+        |> List.filterMap
+            (\following ->
+                case following of
+                    FollowingPubKey { pubKey } ->
+                        Just pubKey
+
+                    _ ->
+                        Nothing
+            )
+
+
 isAuthor : Model -> PubKey -> Bool
 isAuthor model userPubKey =
     getAuthorsFollowList model
