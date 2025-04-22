@@ -228,7 +228,8 @@
       "hashtags placeholder": "Enter hashtags separated by commas",
       "title label": "Title",
       "title placeholder": "Enter a title",
-      "add picture button label": "Add"
+      "add picture button label": "Add",
+      "error message text": "Error publishing picture post: {{errorText}}"
    },
    "pictures": {
       "page title": "Pictures",
