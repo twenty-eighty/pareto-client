@@ -227,7 +227,8 @@
       "hashtags placeholder": "Gib Hashtags mit Komma getrennt ein",
       "title label": "Titel",
       "title placeholder": "Gib einen Titel ein",
-      "add picture button label": "Hinzufügen"
+      "add picture button label": "Hinzufügen",
+      "error message text": "Fehler beim Veröffentlichen des Bildes: {{errorText}}"
    },
    "pictures": {
       "page title": "Bilder",
