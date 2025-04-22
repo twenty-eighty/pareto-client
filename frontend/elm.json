@@ -37,6 +37,7 @@
             "justinmimbs/timezone-data": "11.0.0",
             "matheus23/elm-tailwind-modules-base": "1.0.0",
             "myrho/numeral-elm": "1.0.1",
+            "pablohirafuji/elm-qrcode": "4.0.2",
             "pablohirafuji/elm-syntax-highlight": "3.5.0",
             "panthershark/email-parser": "1.0.2",
             "proda-ai/murmur3": "1.0.0",
@@ -52,6 +53,8 @@
         "indirect": {
             "danfishgold/base64-bytes": "1.1.0",
             "elm/virtual-dom": "1.0.3",
+            "folkertdev/elm-flate": "2.0.5",
+            "justgook/elm-image": "5.0.0",
             "justinmimbs/date": "4.1.0",
             "myrho/elm-round": "1.0.5",
             "rluiten/stringdistance": "1.0.4",

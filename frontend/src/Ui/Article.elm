@@ -5,6 +5,7 @@ import Components.ArticleComments as ArticleComments
 import Components.Button as Button
 import Components.Comment as Comment
 import Components.Icon as Icon
+import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapDialog as ZapDialog
 import Css
 import Dict
@@ -37,6 +38,7 @@ import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
 import Ui.Shared exposing (Actions, emptyHtml, extendedZapRelays)
 import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyInter, fontFamilyRobotoMono, fontFamilyUnbounded)
+import Pareto
 
 
 type alias ArticlePreviewsData msg =
@@ -49,6 +51,7 @@ type alias ArticlePreviewsData msg =
     , onReaction : Maybe (EventId -> PubKey -> AddressComponents -> msg)
     , onRepost : Maybe msg
     , onZap : Maybe (List ZapDialog.Recipient -> msg)
+    , sharing: Maybe (SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg)
     }
 
 
@@ -187,6 +190,10 @@ viewArticle articlePreviewsData articlePreviewData article =
             , zapRelays = extendedZapRelays articleRelays articlePreviewsData.nostr articlePreviewsData.userPubKey
             , actions = articlePreviewData.actions
             , interactions = articlePreviewData.interactions
+            , sharing = articlePreviewsData.sharing
+            , sharingInfo = sharingInfoForArticle article articlePreviewData.author
+            , translations = articlePreviewsData.browserEnv.translations
+            , theme = articlePreviewsData.theme
             }
     in
     Html.article
@@ -316,6 +323,15 @@ viewArticle articlePreviewsData articlePreviewData article =
             ]
         ]
 
+sharingInfoForArticle : Article -> Author -> SharingButtonDialog.SharingInfo
+sharingInfoForArticle article author =
+    { url =
+        linkToArticle author article
+            |> Maybe.map (\relativeUrl -> Pareto.applicationUrl ++ relativeUrl)
+            |> Maybe.withDefault ""
+    , title = Maybe.withDefault "" article.title
+    , text = Maybe.withDefault "" article.summary
+    }
 
 viewArticleImage : Maybe String -> Html msg
 viewArticleImage maybeImage =

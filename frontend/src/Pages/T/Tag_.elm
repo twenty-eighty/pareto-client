@@ -191,6 +191,7 @@ view shared model =
                     , onReaction = Nothing
                     , onRepost = Nothing
                     , onZap = Nothing
+                    , sharing = Nothing
                     }
             ]
         ]

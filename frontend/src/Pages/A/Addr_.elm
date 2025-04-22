@@ -3,6 +3,7 @@ module Pages.A.Addr_ exposing (..)
 import Browser.Dom
 import Components.Comment as Comment
 import Components.RelayStatus exposing (Purpose(..))
+import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapDialog as ZapDialog
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (div)
@@ -65,6 +66,7 @@ type alias Nip19ModelData =
     , nip19 : NIP19Type
     , requestId : RequestId
     , zapDialog : ZapDialog.Model Msg
+    , sharingButtonDialog : SharingButtonDialog.Model
     }
 
 
@@ -86,6 +88,7 @@ init shared route () =
                         , nip19 = nip19
                         , requestId = Nostr.getLastRequestId shared.nostr
                         , zapDialog = ZapDialog.init {}
+                        , sharingButtonDialog = SharingButtonDialog.init {}
                         }
                     , Nostr.getArticleForNip19 shared.nostr nip19
                     )
@@ -160,6 +163,7 @@ type Msg
     | CommentSent Comment.Msg
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
+    | SharingButtonDialogMsg SharingButtonDialog.Msg
     | NoOp
 
 
@@ -252,6 +256,18 @@ update shared msg model =
                 _ ->
                     ( model, Effect.none )
 
+        SharingButtonDialogMsg innerMsg ->
+            case model of
+                Nip19Model nip19ModelData ->
+                    SharingButtonDialog.update
+                        { model = nip19ModelData.sharingButtonDialog
+                        , msg = innerMsg
+                        , toModel = \sharingButtonDialog -> Nip19Model { nip19ModelData | sharingButtonDialog = sharingButtonDialog }
+                        , toMsg = SharingButtonDialogMsg
+                        }
+
+                _ ->
+                    ( model, Effect.none )
         NoOp ->
             ( model, Effect.none )
 
@@ -288,15 +304,15 @@ subscriptions model =
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     case model of
-        Nip19Model { loadedContent, comment, nip19, requestId } ->
-            viewContent shared nip19 comment loadedContent requestId
+        Nip19Model { loadedContent, comment, nip19, requestId, sharingButtonDialog } ->
+            viewContent shared nip19 comment loadedContent requestId sharingButtonDialog
 
         ErrorModel error ->
             viewError shared error
 
 
-viewContent : Shared.Model -> NIP19Type -> Comment.Model -> LoadedContent Msg -> RequestId -> View Msg
-viewContent shared nip19 comment loadedContent requestId =
+viewContent : Shared.Model -> NIP19Type -> Comment.Model -> LoadedContent Msg -> RequestId -> SharingButtonDialog.Model -> View Msg
+viewContent shared nip19 comment loadedContent requestId sharingButtonDialog =
     let
         maybeArticle =
             Nostr.getArticleForNip19 shared.nostr nip19
@@ -346,6 +362,7 @@ viewContent shared nip19 comment loadedContent requestId =
 
                         -- signing is possible also with read-only login
                         , onZap = Maybe.map (\pubKey -> ZapReaction pubKey) userPubKey
+                        , sharing = Just ( sharingButtonDialog, SharingButtonDialogMsg )
                         }
                         (Just loadedContent)
                         article

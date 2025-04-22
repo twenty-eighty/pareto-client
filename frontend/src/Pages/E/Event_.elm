@@ -278,6 +278,7 @@ viewContent shared model =
                         , onReaction = Nothing
                         , onRepost = Nothing
                         , onZap = Nothing
+                        , sharing = Nothing
                         }
                         (Just model.loadedContent)
                     )

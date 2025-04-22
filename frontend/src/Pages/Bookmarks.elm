@@ -296,6 +296,7 @@ viewArticleBookmarks user shared _ addressComponents =
             , onReaction = Nothing
             , onRepost = Nothing
             , onZap = Nothing
+            , sharing = Nothing
             }
 
 

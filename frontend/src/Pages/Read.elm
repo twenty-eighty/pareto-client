@@ -495,6 +495,7 @@ viewContent shared model userPubKey =
                     , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) userPubKey
                     , onRepost = Nothing
                     , onZap = Nothing
+                    , sharing = Nothing
                     }
 
         viewNotes =

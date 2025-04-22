@@ -3,6 +3,7 @@ module Pages.U.User_.Identifier_ exposing (Model, Msg, page)
 import Browser.Dom
 import Components.Comment as Comment
 import Components.RelayStatus exposing (Purpose(..))
+import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapDialog as ZapDialog
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html)
@@ -57,6 +58,7 @@ type alias Model =
     , nip05 : Maybe Nip05.Nip05
     , requestId : Maybe RequestId
     , zapDialog : ZapDialog.Model Msg
+    , sharingButtonDialog : SharingButtonDialog.Model
     }
 
 
@@ -70,6 +72,7 @@ init shared route () =
             , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
             , requestId = Nothing
             , zapDialog = ZapDialog.init {}
+            , sharingButtonDialog = SharingButtonDialog.init {}
             }
 
         ( requestEffect, requestId ) =
@@ -132,7 +135,7 @@ type Msg
     | CommentSent Comment.Msg
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
-
+    | SharingButtonDialogMsg SharingButtonDialog.Msg
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
@@ -199,6 +202,14 @@ update shared msg model =
                 , model = model.zapDialog
                 , toModel = \zapDialog -> { model | zapDialog = zapDialog }
                 , toMsg = ZapDialogSent
+                }
+
+        SharingButtonDialogMsg innerMsg ->
+            SharingButtonDialog.update
+                { model = model.sharingButtonDialog
+                , msg = innerMsg
+                , toModel = \sharingButtonDialog -> { model | sharingButtonDialog = sharingButtonDialog }
+                , toMsg = SharingButtonDialogMsg
                 }
 
 
@@ -281,6 +292,7 @@ viewArticle shared model maybeArticle =
 
                 -- signing is possible also with read-only login
                 , onZap = Maybe.map (\pubKey -> ZapReaction pubKey) userPubKey
+                , sharing = Just ( model.sharingButtonDialog, SharingButtonDialogMsg )
                 }
                 (Just model.loadedContent)
                 article

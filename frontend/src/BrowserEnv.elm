@@ -1,4 +1,4 @@
-module BrowserEnv exposing (BrowserEnv, Environment(..), Msg(..), formatDate, formatIsoDate, init, subscriptions, update, updateTimeZone, TestMode(..), setTestMode)
+module BrowserEnv exposing (BrowserEnv, Environment(..), Msg(..), formatDate, formatIsoDate, init, subscriptions, update, updateTimeZone, TestMode(..), setTestMode, isNativeSharingAvailable)
 
 import DateFormat
 import DateFormat.Language
@@ -68,6 +68,10 @@ type Environment
 type TestMode
     = TestModeOff
     | TestModeEnabled
+
+isNativeSharingAvailable : BrowserEnv -> Bool
+isNativeSharingAvailable browserEnv =
+    browserEnv.nativeSharingAvailable
 
 init : InitParams -> ( BrowserEnv, Cmd Msg )
 init initParams =

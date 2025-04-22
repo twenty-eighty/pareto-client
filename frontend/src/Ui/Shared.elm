@@ -2,6 +2,7 @@ module Ui.Shared exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
 import Color
+import Components.SharingButtonDialog as SharingButtonDialog
 import I18Next
 import Components.Icon as Icon exposing (Icon)
 import Nostr
@@ -307,6 +308,10 @@ type alias PreviewData msg =
     , zapRelays : Set String
     , actions : Actions msg
     , interactions : Interactions
+    , sharing: Maybe (SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg)
+    , sharingInfo : SharingButtonDialog.SharingInfo
+    , translations : I18Next.Translations
+    , theme : Theme
     }
 
 
@@ -398,6 +403,20 @@ viewInteractions styles browserEnv previewData instanceId =
         , viewReactions styles repostIcon repostMsg (Maybe.map String.fromInt interactions.reposts) previewData instanceId
         , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) previewData instanceId
         , viewReactions styles bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks) previewData instanceId
+        , previewData.sharing
+            |> Maybe.map
+                (\( sharingButtonDialog, sharingButtonDialogMsg ) ->
+                    SharingButtonDialog.new
+                        { model = sharingButtonDialog
+                        , browserEnv = browserEnv
+                        , sharingInfo = previewData.sharingInfo
+                        , translations = previewData.translations
+                        , theme = previewData.theme
+                        , toMsg = sharingButtonDialogMsg
+                        }
+                    |> SharingButtonDialog.view
+                )
+            |> Maybe.withDefault emptyHtml
         ]
 
 

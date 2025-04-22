@@ -250,4 +250,5 @@ viewArticles shared =
             , onReaction = Nothing
             , onRepost = Nothing
             , onZap = Nothing
+            , sharing = Nothing
             }

@@ -228,6 +228,7 @@ viewProfile shared model profile =
                 , onReaction = Nothing
                 , onRepost = Nothing
                 , onZap = Nothing
+                , sharing = Nothing
                 }
         , viewEmailSubscriptionDialog shared model profile
         ]

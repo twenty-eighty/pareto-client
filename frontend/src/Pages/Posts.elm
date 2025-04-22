@@ -239,6 +239,7 @@ viewArticles shared model userPubKey =
                     , onReaction = Nothing
                     , onRepost = Nothing
                     , onZap = Nothing
+                    , sharing = Nothing
                     }
 
         Drafts ->
