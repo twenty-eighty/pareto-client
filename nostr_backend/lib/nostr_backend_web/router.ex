@@ -51,6 +51,7 @@ defmodule NostrBackendWeb.Router do
     get("/messages", PageController, :messages)
     get("/newsletters", PageController, :newsletters)
     get("/notifications", PageController, :notifications)
+    get("/pictures", PageController, :pictures)
     get("/posts", PageController, :posts)
     get("/privacy", PageController, :privacy)
     get("/read", PageController, :read)

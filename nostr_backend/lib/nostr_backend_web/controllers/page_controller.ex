@@ -128,6 +128,12 @@ defmodule NostrBackendWeb.PageController do
     |> render(:communities)
   end
 
+  def pictures(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:pictures)
+  end
+
   def posts(conn, _params) do
     conn
     |> add_meta_tags

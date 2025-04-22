@@ -26,6 +26,7 @@ type alias FileMetadata =
     , image : Maybe Media
     , summary : Maybe String
     , alt : Maybe String
+    , fallbacks : Maybe (List String)
     }
 
 
@@ -128,6 +129,7 @@ fromRawEvent rawEvent =
             , image = Nothing
             , summary = Nothing
             , alt = Nothing
+            , fallbacks = Nothing
             }
     in
     succeed (parseTags rawEvent.tags initialEvent)
@@ -190,6 +192,9 @@ parseTag tag file =
 
         [ "alt", altValue ] ->
             { file | alt = Just altValue }
+
+        [ "fallback", fallbackValue ] ->
+            { file | fallbacks =  (file.fallbacks |> Maybe.withDefault []) ++ [fallbackValue] |> Just }
 
         _ ->
             file
