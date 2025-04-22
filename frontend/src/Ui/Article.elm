@@ -200,7 +200,7 @@ viewArticle articlePreviewsData articlePreviewData article =
             , Bp.md [ Tw.mb_0 ]
             ]
         ]
-        [ ArticleInfo.view styles articlePreviewData.author article articlePreviewsData.browserEnv articlePreviewData.interactions
+        [ ArticleInfo.view styles articlePreviewData.author article articlePreviewsData.browserEnv articlePreviewData.interactions articlePreviewsData.nostr
         , div
             [ css
                 [ Bp.lg [ Tw.w_4over5 ]

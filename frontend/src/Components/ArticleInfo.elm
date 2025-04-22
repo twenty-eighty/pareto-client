@@ -3,9 +3,11 @@ module Components.ArticleInfo exposing (..)
 import BrowserEnv exposing (BrowserEnv)
 import Color
 import Components.Icon as Icon exposing (Icon)
+import Dict
 import FeatherIcons
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr exposing (..)
+import Nostr
 import Nostr.Article exposing (Article, publishedTime)
 import Nostr.Profile exposing (Author)
 import Nostr.Reactions exposing (Interactions)
@@ -25,8 +27,8 @@ import Ui.Styles exposing (Styles)
 -- VIEW
 
 
-view : Styles msg -> Author -> Article -> BrowserEnv -> Interactions -> Html msg
-view styles author article browserEnv interactions =
+view : Styles msg -> Author -> Article -> BrowserEnv -> Interactions -> Nostr.Model -> Html msg
+view styles author article browserEnv interactions nostr =
     let
         ( profile, pubKey ) =
             case author of
@@ -47,6 +49,9 @@ view styles author article browserEnv interactions =
 
         articleStats =
             TextStats.compute article.language article.content
+
+        articleFromAuthor =
+            Dict.get pubKey nostr.articlesByAuthor |> Maybe.map List.length |> Maybe.withDefault 0
     in
     aside
         [ css
@@ -100,7 +105,7 @@ view styles author article browserEnv interactions =
                 [ css
                     [ Tw.mt_1 ]
                 ]
-                [ viewAuthorStat "Beiträge" 21
+                [ viewAuthorStat "Beiträge" articleFromAuthor
                 , viewAuthorStat "Follower" 210
                 ]
             , {- Article Info Section -}
