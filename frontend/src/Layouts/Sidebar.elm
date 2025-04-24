@@ -3,6 +3,7 @@ module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layo
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button
 import Components.Icon as Icon exposing (Icon(..))
+import Nostr.ConfigCheck as ConfigCheck
 import Components.Switch as Switch
 import Css
 import Dict
@@ -27,7 +28,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
 import Ui.Profile
-import Ui.Shared exposing (emptyHtml)
+import Ui.Shared exposing (countBadge, emptyHtml)
 import Ui.Styles exposing (Styles, Theme(..), darkMode)
 import View exposing (View)
 
@@ -50,7 +51,8 @@ map toMsg props =
 clientRoleForRoutePath : BrowserEnv.Environment -> Route.Path.Path -> ClientRole
 clientRoleForRoutePath environment path =
     sidebarItems
-        { isAuthor = False
+        { configIssues = 0
+        , isAuthor = False
         , isBetaTester = False
         , isLoggedIn = True
         , environment = environment
@@ -83,7 +85,8 @@ type alias SidebarItemData =
 
 
 type alias SidebarItemParams =
-    { isAuthor : Bool
+    { configIssues : Int
+    , isAuthor : Bool
     , isBetaTester : Bool
     , isLoggedIn : Bool
     , environment : BrowserEnv.Environment
@@ -104,7 +107,7 @@ routePathIsInList sidebarItemParams =
 
 
 sidebarItems : SidebarItemParams -> List SidebarItemData
-sidebarItems { isAuthor, isBetaTester, isLoggedIn, clientRole, sendsNewsletters, translations, maybeBookmarksCount } =
+sidebarItems { configIssues, isAuthor, isBetaTester, isLoggedIn, clientRole, sendsNewsletters, translations, maybeBookmarksCount } =
     rawSidebarItems clientRole translations
         |> List.filter (sidebarItemVisible isLoggedIn isAuthor isBetaTester)
         |> List.filterMap
@@ -123,6 +126,13 @@ sidebarItems { isAuthor, isBetaTester, isLoggedIn, clientRole, sendsNewsletters,
                         -- currently in development
                         Just { sidebarItem | disabled = not sendsNewsletters }
 
+                    Route.Path.Settings ->
+                        if configIssues > 0 then
+                            Just { sidebarItem | title = sidebarItem.title ++ "\u{00A0}" ++ countBadge configIssues }
+
+                        else
+                            Just sidebarItem
+
                     Route.Path.Subscribers ->
                         -- currently in development
                         Just { sidebarItem | disabled = not sendsNewsletters }
@@ -137,10 +147,12 @@ rawSidebarItems clientRole translations =
     case clientRole of
         ClientReader ->
             [ { path = Route.Path.Read, title = Translations.readMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bookOpen, requiresLogin = False, requiresAuthor = False, disabled = False }
+            , { path = Route.Path.Pictures, title = Translations.picturesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.image, requiresLogin = False, requiresAuthor = False, disabled = False }
             , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, requiresAuthor = False, disabled = False }
 
             --, { path = Route.Path.Communities, title = Translations.communitiesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.globe, requiresLogin = False, requiresAuthor = False, disabled = False }
             , { path = Route.Path.Bookmarks, title = Translations.bookmarksMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bookmark, requiresLogin = True, requiresAuthor = False, disabled = False }
+            , { path = Route.Path.Authors, title = Translations.authorsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.users, requiresLogin = False, requiresAuthor = False, disabled = False }
 
             --, { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, requiresAuthor = False, disabled = True }
             --, { path = Route.Path.Notifications, title = Translations.notificationsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bell, requiresLogin = True, requiresAuthor = False, disabled = True }
@@ -256,7 +268,8 @@ viewSidebar styles shared currentPath toContentMsg content =
             Shared.loggedInPubKey shared.loginStatus
 
         sidebarItemParams =
-            { isAuthor =
+            { configIssues = ConfigCheck.getIssues shared.configCheck |> List.length
+            , isAuthor =
                 maybeUserPubKey
                     |> Maybe.map (Nostr.isAuthor shared.nostr)
                     |> Maybe.withDefault False
@@ -371,7 +384,17 @@ viewSidebar styles shared currentPath toContentMsg content =
                         ]
                     ]
                     |> Html.map toContentMsg
-                , viewMainContent content
+                , div
+                    [ css
+                        -- additional space for sidebar at bottom in mobile view
+                        [ Tw.mb_16
+                        , Bp.sm
+                            [ Tw.mb_2
+                            ]
+                        ]
+                    ]
+                    [ viewMainContent content
+                    ]
                 ]
             ]
         ]
@@ -547,77 +570,13 @@ viewSidebarItems styles sidebarItemParams =
         (List.map (viewSidebarItem styles sidebarItemParams.currentPath) visibleSidebarItems)
 
 
-countBadge : Int -> String
-countBadge count =
-    case count of
-        1 ->
-            "①"
-
-        2 ->
-            "②"
-
-        3 ->
-            "③"
-
-        4 ->
-            "④"
-
-        5 ->
-            "⑤"
-
-        6 ->
-            "⑥"
-
-        7 ->
-            "⑦"
-
-        8 ->
-            "⑧"
-
-        9 ->
-            "⑨"
-
-        10 ->
-            "⑩"
-
-        11 ->
-            "⑪"
-
-        12 ->
-            "⑫"
-
-        13 ->
-            "⑬"
-
-        14 ->
-            "⑭"
-
-        15 ->
-            "⑮"
-
-        16 ->
-            "⑯"
-
-        17 ->
-            "⑰"
-
-        18 ->
-            "⑱"
-
-        19 ->
-            "⑲"
-
-        20 ->
-            "⑳"
-
-        otherNumber ->
-            "(" ++ String.fromInt otherNumber ++ ")"
-
-
 sidebarItemVisible : Bool -> Bool -> Bool -> SidebarItemData -> Bool
 sidebarItemVisible isLoggedIn isAuthor isBetaTester sidebarItem =
     if isBetaTester then
         True
+
+    else if sidebarItem.path == Route.Path.Pictures then
+        isBetaTester
 
     else if sidebarItem.requiresAuthor then
         isAuthor

@@ -24,11 +24,10 @@ import Ports
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
 import Subscribers
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.PublishArticleDialog as Translations
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme(..), darkMode, fontFamilyInter, fontFamilyUnbounded)
+import Ui.Styles exposing (Theme(..), darkMode, fontFamilyInter)
 
 
 type Msg msg

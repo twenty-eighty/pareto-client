@@ -16,7 +16,6 @@ import Browser
 import Css.Global
 import Html.Styled as Html exposing (Html)
 import Route exposing (Route)
-import Shared exposing (Msg)
 import Shared.Model
 import Tailwind.Utilities exposing (globalStyles)
 
@@ -36,7 +35,7 @@ toBrowserDocument :
     , view : View msg
     }
     -> Browser.Document msg
-toBrowserDocument { shared, view } =
+toBrowserDocument { view } =
     { title = view.title
     , body =
         Css.Global.global globalStyles

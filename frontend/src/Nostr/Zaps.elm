@@ -3,7 +3,6 @@ module Nostr.Zaps exposing (..)
 import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as DecodePipeline
-import Nostr.Nip05 exposing (Nip05)
 
 
 type alias ZapReceipt =

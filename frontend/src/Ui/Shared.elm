@@ -2,8 +2,13 @@ module Ui.Shared exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
 import Color
+import Components.SharingButtonDialog as SharingButtonDialog
+import I18Next
 import Components.Icon as Icon exposing (Icon)
+import Nostr
+import Nostr.ConfigCheck as ConfigCheck
 import Css
+import Dict
 import Erl
 import FeatherIcons
 import Html.Styled as Html exposing (Html, a, button, div, h2, text)
@@ -44,6 +49,112 @@ extendUrlForScaling width urlString =
     else
         urlString
 
+countBadge : Int -> String
+countBadge count =
+    case count of
+        1 ->
+            "①"
+
+        2 ->
+            "②"
+
+        3 ->
+            "③"
+
+        4 ->
+            "④"
+
+        5 ->
+            "⑤"
+
+        6 ->
+            "⑥"
+
+        7 ->
+            "⑦"
+
+        8 ->
+            "⑧"
+
+        9 ->
+            "⑨"
+
+        10 ->
+            "⑩"
+
+        11 ->
+            "⑪"
+
+        12 ->
+            "⑫"
+
+        13 ->
+            "⑬"
+
+        14 ->
+            "⑭"
+
+        15 ->
+            "⑮"
+
+        16 ->
+            "⑯"
+
+        17 ->
+            "⑰"
+
+        18 ->
+            "⑱"
+
+        19 ->
+            "⑲"
+
+        20 ->
+            "⑳"
+
+        otherNumber ->
+            "(" ++ String.fromInt otherNumber ++ ")"
+
+viewConfigIssues : I18Next.Translations -> String -> List ConfigCheck.Issue -> Html msg
+viewConfigIssues translations title issues =
+    case issues of
+        [] ->
+            emptyHtml
+
+        profileIssues ->
+            Html.div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_col
+                    , Tw.mb_4
+                    ]
+                ]
+                [ Html.span [ css [ Tw.font_bold ] ] [ Html.text title ]
+                , profileIssues
+                    |> List.map (ConfigCheck.issueText translations)
+                    |> List.map viewIssueText
+                    |> Html.ul
+                        [ css
+                            [ Tw.list_inside
+                            ]
+                        ]
+                ]
+
+
+viewIssueText : ConfigCheck.IssueText -> Html msg
+viewIssueText { message, explanation, solution } =
+    Html.li
+        [ css
+            [ Tw.list_disc
+            ]
+        ]
+        [ Html.span [ css [ Tw.italic ] ] [ Html.text message ]
+        , Html.text <| " - " ++ explanation
+        , Html.p [ css [ Tw.text_sm ] ] [ Html.text solution ]
+        ]
+
+
+
 
 isNip96Server : Erl.Url -> Bool
 isNip96Server url =
@@ -61,36 +172,37 @@ pageLoadingIndicator =
 thinBorderButton : Styles msg -> msg -> String -> Html msg
 thinBorderButton styles onClickMsg title =
     button
-        ([ css
+        [ css
             [ Tw.py_2
             , Tw.px_4
             , Tw.rounded_full
+            , Tw.bg_color styles.color4
             , Css.hover
                 [ Tw.bg_color styles.color4 ]
-            , darkMode [ Css.hover [ Tw.bg_color styles.color4DarkMode ] ]
+            , darkMode
+                [ Tw.bg_color styles.color4DarkMode
+                , Css.hover [ Tw.bg_color styles.color4DarkMode ]
+                ]
             ]
-         , Events.onClick onClickMsg
-         ]
-            ++ styles.colorStylePrimaryButtonBackground
-        )
+        , Events.onClick onClickMsg
+        ]
         [ text title ]
 
 
 linkButton : Styles msg -> String -> String -> Html msg
 linkButton styles title url =
     a
-        ([ css
+        [ css
             [ Tw.py_2
             , Tw.px_4
             , Tw.rounded_full
+            , Tw.bg_color styles.color4
             , Css.hover
                 [ Tw.bg_color styles.color4 ]
-            , darkMode [ Css.hover [ Tw.bg_color styles.color4DarkMode ] ]
+            , darkMode [ Tw.bg_color styles.color4DarkMode, Css.hover [ Tw.bg_color styles.color4DarkMode ] ]
             ]
-         , Attr.href url
-         ]
-            ++ styles.colorStylePrimaryButtonBackground
-        )
+        , Attr.href url
+        ]
         [ text title ]
 
 
@@ -117,6 +229,12 @@ modalDialog theme title content onClose =
                 ++ [ css
                         [ Tw.rounded_lg
                         , Tw.shadow_lg
+                        , Tw.drop_shadow_md
+                        , Tw.backdrop_blur_md
+                        , Tw.shadow_color styles.color2
+                        , darkMode
+                            [ Tw.shadow_color styles.color2DarkMode
+                            ]
                         , Tw.p_8
                         , Tw.max_w_sm
                         , Bp.sm
@@ -190,6 +308,10 @@ type alias PreviewData msg =
     , zapRelays : Set String
     , actions : Actions msg
     , interactions : Interactions
+    , sharing: Maybe (SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg)
+    , sharingInfo : SharingButtonDialog.SharingInfo
+    , translations : I18Next.Translations
+    , theme : Theme
     }
 
 
@@ -264,6 +386,9 @@ viewInteractions styles browserEnv previewData instanceId =
                     ( Icon.MaterialIcon Icon.MaterialRepeat 30 Icon.Inherit
                     , actions.addRepost
                     )
+
+        commentsCount =
+            List.length interactions.articleComments + Dict.size interactions.articleCommentComments
     in
     div
         [ css
@@ -273,11 +398,25 @@ viewInteractions styles browserEnv previewData instanceId =
             , Tw.inline_flex
             ]
         ]
-        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) actions.startComment (Maybe.map String.fromInt interactions.notes) previewData instanceId
+        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) actions.startComment (Just <| String.fromInt commentsCount) previewData instanceId
         , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) previewData instanceId
         , viewReactions styles repostIcon repostMsg (Maybe.map String.fromInt interactions.reposts) previewData instanceId
         , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) previewData instanceId
         , viewReactions styles bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks) previewData instanceId
+        , previewData.sharing
+            |> Maybe.map
+                (\( sharingButtonDialog, sharingButtonDialogMsg ) ->
+                    SharingButtonDialog.new
+                        { model = sharingButtonDialog
+                        , browserEnv = browserEnv
+                        , sharingInfo = previewData.sharingInfo
+                        , translations = previewData.translations
+                        , theme = previewData.theme
+                        , toMsg = sharingButtonDialogMsg
+                        }
+                    |> SharingButtonDialog.view
+                )
+            |> Maybe.withDefault emptyHtml
         ]
 
 

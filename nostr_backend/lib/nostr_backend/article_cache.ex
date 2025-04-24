@@ -28,8 +28,6 @@ defmodule NostrBackend.ArticleCache do
   end
 
   defp load_article(%{kind: kind, identifier: identifier, author: author, relays: relays}) do
-    # Implement the logic to load the article from the Nostr network
-    # For example:
     case NostrClient.fetch_article_by_address(kind, author, identifier, relays) do
       {:ok, event} -> {:ok, Content.parse_article_event(event)}
       {:error, reason} -> {:error, reason}
@@ -37,8 +35,6 @@ defmodule NostrBackend.ArticleCache do
   end
 
   defp load_article(%{kind: kind, identifier: identifier, author: author}) do
-    # Implement the logic to load the article from the Nostr network
-    # For example:
     case NostrClient.fetch_article_by_address(kind, author, identifier) do
       {:ok, event} -> {:ok, Content.parse_article_event(event)}
       {:error, reason} -> {:error, reason}
@@ -46,17 +42,27 @@ defmodule NostrBackend.ArticleCache do
   end
 
   defp load_article(%{kind: kind, identifier: identifier}) do
-    # Implement the logic to load the article from the Nostr network
-    # For example:
     case NostrClient.fetch_article_by_address(kind, identifier) do
       {:ok, event} -> {:ok, Content.parse_article_event(event)}
       {:error, reason} -> {:error, reason}
     end
   end
 
+  defp load_article(%{id: id, relays: relays}) do
+    case NostrClient.fetch_article_by_id(id, relays) do
+      {:ok, event} -> {:ok, Content.parse_article_event(event)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp load_article(%{id: id}) do
+    case NostrClient.fetch_article_by_id(id, []) do
+      {:ok, event} -> {:ok, Content.parse_article_event(event)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   defp load_article(article_id) do
-    # Implement the logic to load the article from the Nostr network
-    # For example:
     case NostrClient.fetch_article(article_id) do
       {:ok, event} -> {:ok, Content.parse_article_event(event)}
       {:error, reason} -> {:error, reason}

@@ -3,6 +3,7 @@ module Nostr.Event exposing (..)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
+import MimeType exposing (MimeType)
 import Nostr.Nip19 as Nip19 exposing (NAddrData, NEventData, NIP19Type(..))
 import Nostr.Relay
 import Nostr.Types exposing (Address, EventId, PubKey, RelayRole(..), RelayUrl, decodeRelayRole, relayRoleToString)
@@ -16,6 +17,7 @@ type Tag
     | AddressTag AddressComponents (Maybe String)
     | AltTag String
     | ClientTag String (Maybe String) (Maybe String)
+    | ContentWarningTag String
     | DescriptionTag String
     | DirTag
     | EventIdTag EventId (Maybe RelayUrl)
@@ -23,14 +25,17 @@ type Tag
     | ExpirationTag Time.Posix
     | ExternalIdTag String
     | FileTag String (Maybe String)
+    | GeohashTag String
     | HashTag String
     | IdentityTag Identity String
     | KindTag Kind
+    | ImageMetadataTag ImageMetadata
     | ImageTag String (Maybe ImageSize)
     | LocationTag String (Maybe String)
     | LabelNamespaceTag String
     | LabelTag String (Maybe String)
     | MentionTag PubKey
+    | MimeTypeTag MimeType
     | NameTag String
     | PublicKeyTag PubKey (Maybe RelayUrl) (Maybe String)
     | PublishedAtTag Time.Posix
@@ -48,6 +53,17 @@ type Tag
     | UrlTag String RelayRole
     | WebTag String (Maybe String)
     | ZapTag PubKey RelayUrl (Maybe Int)
+
+
+type alias ImageMetadata =
+    { url : String
+    , mimeType : Maybe MimeType
+    , blurHash : Maybe String
+    , dim : Maybe ( Int, Int )
+    , alt : Maybe String
+    , x : Maybe String
+    , fallbacks : List String
+    }
 
 
 type Identity
@@ -1635,6 +1651,9 @@ decodeTag =
                         "client" ->
                             Decode.map3 ClientTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 Decode.string))
 
+                        "content-warning" ->
+                            Decode.map ContentWarningTag (Decode.index 1 Decode.string)
+
                         "d" ->
                             Decode.map EventDelegationTag (Decode.index 1 Decode.string)
 
@@ -1653,11 +1672,26 @@ decodeTag =
                         "f" ->
                             Decode.map2 FileTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
+                        "g" ->
+                            Decode.map GeohashTag (Decode.index 1 Decode.string)
+
                         "i" ->
                             Decode.map2 IdentityTag (Decode.index 1 identityDecoder) (Decode.index 2 Decode.string)
 
                         "image" ->
                             Decode.map2 ImageTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 imageSizeDecoder))
+
+                        "imeta" ->
+                            Decode.list Decode.string
+                                |> Decode.andThen
+                                    (\tagList ->
+                                        case imageMetadataFromTagList tagList of
+                                            Ok imageMetadata ->
+                                                Decode.succeed (ImageMetadataTag imageMetadata)
+
+                                            Err error ->
+                                                Decode.fail error
+                                    )
 
                         "k" ->
                             Decode.map KindTag (Decode.index 1 kindStringDecoder)
@@ -1675,6 +1709,7 @@ decodeTag =
                             Decode.map2 LabelTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
                         "m" ->
+                            -- note: in NIP-68, "m" is used for mime types
                             Decode.map MentionTag (Decode.index 1 Decode.string)
 
                         "name" ->
@@ -1720,6 +1755,7 @@ decodeTag =
                             Decode.map2 WebTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
 
                         "x" ->
+                            -- note: in NIP-68, "x" is used for hash values
                             Decode.map ExternalIdTag (Decode.index 1 Decode.string)
 
                         "zap" ->
@@ -1730,6 +1766,87 @@ decodeTag =
                 )
         , decodeInvalidTag
         ]
+
+
+imageMetadataFromTagList : List String -> Result String ImageMetadata
+imageMetadataFromTagList tagList =
+    let
+        parsed =
+            tagList
+                |> List.foldl
+                    (\tag acc ->
+                        let
+                            tagName =
+                                tag
+                                    |> String.words
+                                    |> List.head
+                        in
+                        case tagName of
+                            Just "imeta" ->
+                                acc
+
+                            Just "url" ->
+                                { acc | url = String.dropLeft 4 tag |> String.trim |> Just }
+
+                            Just "m" ->
+                                { acc | mimeType = String.dropLeft 2 tag |> String.trim |> MimeType.parseMimeType }
+
+                            Just "blurhash" ->
+                                { acc | blurHash = String.dropLeft 9 tag |> String.trim |> Just }
+
+                            Just "dim" ->
+                                { acc | dim = parseDimensions (String.dropLeft 4 tag |> String.trim) }
+
+                            Just "alt" ->
+                                { acc | alt = String.dropLeft 4 tag |> String.trim |> Just }
+
+                            Just "x" ->
+                                { acc | x = String.dropLeft 2 tag |> String.trim |> Just }
+
+                            Just "fallback" ->
+                                { acc | fallbacks = acc.fallbacks ++ [ String.dropLeft 9 tag |> String.trim ] }
+
+                            _ ->
+                                acc
+                    )
+                    { url = Nothing
+                    , mimeType = Nothing
+                    , blurHash = Nothing
+                    , dim = Nothing
+                    , alt = Nothing
+                    , x = Nothing
+                    , fallbacks = []
+                    }
+    in
+    case parsed.url of
+        Just url ->
+            Ok
+                { url = url
+                , mimeType = parsed.mimeType
+                , blurHash = parsed.blurHash
+                , dim = parsed.dim
+                , alt = parsed.alt
+                , x = parsed.x
+                , fallbacks = parsed.fallbacks
+                }
+
+        Nothing ->
+            Err "no URL found in image metadata"
+
+
+parseDimensions : String -> Maybe ( Int, Int )
+parseDimensions dimValue =
+    case String.split "x" dimValue of
+        [ widthStr, heightStr ] ->
+            case ( String.toInt widthStr, String.toInt heightStr ) of
+                ( Just width, Just height ) ->
+                    Just ( width, height )
+
+                _ ->
+                    Nothing
+
+        _ ->
+            Nothing
 
 
 decodeGenericTag : Decode.Decoder Tag
@@ -1813,6 +1930,9 @@ tagToList tag =
                 _ ->
                     [ "client", client ]
 
+        ContentWarningTag contentWarning ->
+            [ "content-warning", contentWarning ]
+
         DescriptionTag value ->
             [ "description", value ]
 
@@ -1844,6 +1964,9 @@ tagToList tag =
                 Nothing ->
                     [ "f", value1 ]
 
+        GeohashTag geohash ->
+            [ "g", geohash ]
+
         HashTag value ->
             [ "t", value ]
 
@@ -1852,6 +1975,9 @@ tagToList tag =
 
         ImageTag value (Just size) ->
             [ "image", value, imageSizeToString size ]
+
+        ImageMetadataTag imageMetadata ->
+            buildImageMetadataTag imageMetadata
 
         ImageTag value Nothing ->
             [ "image", value ]
@@ -1878,6 +2004,9 @@ tagToList tag =
 
         MentionTag pubKey ->
             [ "m", pubKey ]
+
+        MimeTypeTag mimeType ->
+            [ "m", MimeType.toString mimeType ]
 
         NameTag value ->
             [ "name", value ]
@@ -1968,6 +2097,43 @@ tagToList tag =
 
                 Nothing ->
                     [ "zap", pubKey, relayUrl ]
+
+
+buildImageMetadataTag : ImageMetadata -> List String
+buildImageMetadataTag imageMetadata =
+    let
+        mimeTypeEntry =
+            imageMetadata.mimeType
+                |> Maybe.map (\mimeType -> [ "m " ++ MimeType.toString mimeType ])
+                |> Maybe.withDefault []
+
+        blurHashEntry =
+            imageMetadata.blurHash
+                |> Maybe.map (\blurHash -> [ "blurhash " ++ blurHash ])
+                |> Maybe.withDefault []
+
+        dimEntry =
+            imageMetadata.dim
+                |> Maybe.map (\( width, height ) -> [ "dim " ++ String.fromInt width ++ "x" ++ String.fromInt height ])
+                |> Maybe.withDefault []
+
+        altEntry =
+            imageMetadata.alt
+                |> Maybe.map (\alt -> [ "alt " ++ alt ])
+                |> Maybe.withDefault []
+
+        xEntry =
+            imageMetadata.x
+                |> Maybe.map (\x -> [ "x " ++ x ])
+                |> Maybe.withDefault []
+
+        fallbacksEntries =
+            imageMetadata.fallbacks
+                |> List.map (\fallback -> "fallback " ++ fallback)
+    in
+    [ "imeta"
+    , "url " ++ imageMetadata.url
+    ] ++ mimeTypeEntry ++ blurHashEntry ++ dimEntry ++ altEntry ++ xEntry ++ fallbacksEntries
 
 
 identityToString : Identity -> String
@@ -2376,6 +2542,20 @@ addEventIdTag : EventId -> Maybe RelayUrl -> List Tag -> List Tag
 addEventIdTag eventId maybeRelayUrl tags =
     EventIdTag eventId maybeRelayUrl :: tags
 
+addHashValueTags : List String -> List Tag -> List Tag
+addHashValueTags hashValues tags =
+    hashValues
+        |> List.map ExternalIdTag
+        |> List.append tags
+
+
+addImetaTags : List ImageMetadata -> List Tag -> List Tag
+addImetaTags imageMetadataList tags =
+    imageMetadataList
+        |> List.map ImageMetadataTag
+        |> List.append tags
+
+
 
 addKindTag : Kind -> List Tag -> List Tag
 addKindTag kind tags =
@@ -2389,9 +2569,22 @@ addKindTags kinds tags =
         |> List.append tags
 
 
+addMimeTypeTags : List MimeType -> List Tag -> List Tag
+addMimeTypeTags mimeTypes tags =
+    mimeTypes
+        |> List.map MimeTypeTag
+        |> List.append tags
+
 addPubKeyTag : PubKey -> Maybe RelayUrl -> Maybe String -> List Tag -> List Tag
 addPubKeyTag pubKey maybeRelay maybePetName tags =
     PublicKeyTag pubKey maybeRelay maybePetName :: tags
+
+
+addPubKeyTags : List (PubKey, Maybe RelayUrl, Maybe String) -> List Tag -> List Tag
+addPubKeyTags entries tags =
+    entries
+        |> List.map (\( pubKey, maybeRelay, maybePetName ) -> PublicKeyTag pubKey maybeRelay maybePetName)
+        |> List.append tags
 
 
 addPublishedAtTag : Time.Posix -> List Tag -> List Tag
@@ -2460,26 +2653,11 @@ addPublishedTag maybeTime tags =
         |> Maybe.withDefault tags
 
 
-addHashtagListToTags : List String -> List Tag -> List Tag
-addHashtagListToTags hashtags tags =
+addHashtagsToTags : List String -> List Tag -> List Tag
+addHashtagsToTags hashtags tags =
     hashtags
-        |> List.map String.trim
         |> List.map HashTag
         |> List.append tags
-
-
-addHashtagsToTags : Maybe String -> List Tag -> List Tag
-addHashtagsToTags maybeTags tags =
-    maybeTags
-        |> Maybe.map
-            (\tagsString ->
-                tagsString
-                    |> String.split ","
-                    |> List.map String.trim
-                    |> List.map HashTag
-                    |> List.append tags
-            )
-        |> Maybe.withDefault tags
 
 
 addWebTargetTags : List ( String, Maybe String ) -> List Tag -> List Tag

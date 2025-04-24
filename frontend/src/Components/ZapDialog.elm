@@ -2,28 +2,21 @@ module Components.ZapDialog exposing (Model, Msg, Recipient, ZapDialog, hide, in
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
-import Components.Icon as Icon
-import Dict exposing (Dict)
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, button, div, form, h2, img, input, label, li, p, span, text, ul)
+import Html.Styled as Html exposing (Html, div, ul)
 import Html.Styled.Attributes as Attr exposing (css)
-import Html.Styled.Events as Events exposing (..)
 import Http
 import Nostr
-import Nostr.Relay exposing (Relay)
-import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList)
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey, RelayUrl)
 import Nostr.Zaps exposing (Lud16, PayRequest, fetchPayRequest)
-import Pareto
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
-import Svg.Styled as Svg exposing (path, svg)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.ZapDialog as Translations
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme, fontFamilyInter, fontFamilyUnbounded)
+import Ui.Styles exposing (Theme)
 
 
 type Msg msg
@@ -263,7 +256,7 @@ viewRecipients (Settings settings) recipients =
 
 
 viewRecipient : Theme -> Recipient -> Html (Msg msg)
-viewRecipient theme recipient =
+viewRecipient _ _ =
     div
         []
         []

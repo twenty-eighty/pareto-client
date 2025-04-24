@@ -15,6 +15,7 @@ import Nostr
 import Nostr.Article exposing (Article, nip19ForArticle)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
+import Nostr.Profile exposing (Author)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
@@ -238,23 +239,28 @@ viewArticles shared model userPubKey =
                     , onReaction = Nothing
                     , onRepost = Nothing
                     , onZap = Nothing
+                    , sharing = Nothing
                     }
 
         Drafts ->
+            let
+                author =
+                    Nostr.getAuthor shared.nostr userPubKey
+            in
             Nostr.getArticleDraftsByDate shared.nostr
-                |> viewArticleDraftPreviews shared.theme shared.browserEnv shared.nostr
+                |> viewArticleDraftPreviews shared.theme shared.browserEnv author
 
 
-viewArticleDraftPreviews : Theme -> BrowserEnv -> Nostr.Model -> List Article -> Html Msg
-viewArticleDraftPreviews theme browserEnv _ articles =
+viewArticleDraftPreviews : Theme -> BrowserEnv -> Author -> List Article -> Html Msg
+viewArticleDraftPreviews theme browserEnv author articles =
     articles
         |> List.take 20
-        |> List.map (\article -> viewArticleDraftPreview theme browserEnv article)
+        |> List.map (\article -> viewArticleDraftPreview theme browserEnv author article)
         |> div []
 
 
-viewArticleDraftPreview : Ui.Styles.Theme -> BrowserEnv -> Article -> Html Msg
-viewArticleDraftPreview theme browserEnv article =
+viewArticleDraftPreview : Ui.Styles.Theme -> BrowserEnv -> Author -> Article -> Html Msg
+viewArticleDraftPreview theme browserEnv author article =
     let
         styles =
             Ui.Styles.stylesForTheme theme
@@ -288,7 +294,7 @@ viewArticleDraftPreview theme browserEnv article =
                 , deleteDraftButton theme (Translations.deleteDraftButtonLabel [ browserEnv.translations ]) article
                 , editDraftButton theme (Translations.editDraftButtonLabel [ browserEnv.translations ]) article
                 ]
-            , Ui.Article.viewTitleSummaryImagePreview styles article
+            , Ui.Article.viewTitleSummaryImagePreview styles author article
             , Ui.Article.viewTags article
             ]
         ]

@@ -1,14 +1,15 @@
 module Nostr.Blossom exposing (..)
 
+import BrowserEnv exposing (BrowserEnv)
 import File exposing (File)
 import Http
 import Json.Decode as Decode
 import Json.Decode.Pipeline as Pipeline
 import MimeType
-import Nostr.Event exposing (Event, Tag(..))
+import Nostr.Event exposing (Event, Kind(..), Tag(..))
 import Nostr.Nip11 exposing (decodeUnixTime)
 import Nostr.Nip94 as Nip94 exposing (FileMetadata)
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (PubKey, ServerUrl)
 import Time
 
 
@@ -57,6 +58,21 @@ userServerListFromEvent event =
                     []
     in
     ( event.pubKey, userServerList )
+
+
+eventWithBlossomServerList : BrowserEnv -> PubKey -> List ServerUrl -> Event
+eventWithBlossomServerList browserEnv pubKey serverUrls =
+    { pubKey = pubKey
+    , createdAt = browserEnv.now
+    , kind = KindUserServerList
+    , tags =
+        []
+            |> Nostr.Event.addServerTags serverUrls
+    , content = ""
+    , id = ""
+    , sig = Nothing
+    , relays = Nothing
+    }
 
 
 fetchFileList : (Result Http.Error (List BlobDescriptor) -> msg) -> String -> String -> PubKey -> Cmd msg
@@ -134,7 +150,7 @@ metadataDecoder =
         |> Pipeline.hardcoded Nothing
         |> Pipeline.optional "summary" (Decode.map Just Decode.string) Nothing
         |> Pipeline.optional "alt" (Decode.map Just Decode.string) Nothing
-
+        |> Pipeline.optional "fallbacks" (Decode.map Just (Decode.list Decode.string)) Nothing
 
 sizeDecoder : Decode.Decoder Int
 sizeDecoder =

@@ -4,6 +4,7 @@ module Shared.Msg exposing (Msg(..))
 
 import BrowserEnv exposing (TestMode)
 import Nostr
+import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Nip05 as Nip05
 import Nostr.Request exposing (Request)
 import Nostr.Send exposing (SendRequest)
@@ -28,5 +29,8 @@ type Msg
     | SendNostrEvent SendRequest
     | SetClientRole Bool ClientRole
     | SetTestMode TestMode
+    | DelayedCheckConfiguration
+    | CheckConfiguration ()
+    | ConfigCheckMsg ConfigCheck.Msg
     | LoadUserDataByPubKey PubKey
     | LoadUserDataByNip05 Nip05.Nip05

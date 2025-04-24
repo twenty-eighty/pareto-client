@@ -2,6 +2,7 @@ module Shared.Model exposing (ClientRole(..), LoginMethod(..), LoginStatus(..), 
 
 import BrowserEnv exposing (BrowserEnv)
 import Nostr
+import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Types exposing (PubKey)
 import Ui.Styles exposing (Theme)
 
@@ -16,6 +17,7 @@ own file, so they can be imported by `Effect.elm`
 type alias Model =
     { loginStatus : LoginStatus
     , browserEnv : BrowserEnv
+    , configCheck : ConfigCheck.Model
     , nostr : Nostr.Model
     , role : ClientRole
     , theme : Theme

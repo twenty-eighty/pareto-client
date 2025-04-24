@@ -1,0 +1,17 @@
+name: Build docker image
+
+on:
+  pull_request:
+    branches: [ "develop" ]
+
+env:
+  IMAGE_TAG: pareto-client:${{ github.sha }}
+   
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build the Docker image
+      run: docker build . --file Dockerfile --tag ${{ env.IMAGE_TAG }}

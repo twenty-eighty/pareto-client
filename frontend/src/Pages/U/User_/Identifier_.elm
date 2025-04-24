@@ -3,16 +3,22 @@ module Pages.U.User_.Identifier_ exposing (Model, Msg, page)
 import Browser.Dom
 import Components.Comment as Comment
 import Components.RelayStatus exposing (Purpose(..))
+import Components.SharingButtonDialog as SharingButtonDialog
+import Components.ZapDialog as ZapDialog
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html)
 import Layouts
 import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article)
-import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
+import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Nip05 as Nip05
+import Nostr.Nip18 exposing (articleRepostEvent)
+import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (CommentType)
 import Nostr.Request exposing (RequestData(..), RequestId)
+import Nostr.Send exposing (SendRequest(..))
+import Nostr.Types exposing (EventId, PubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Set
@@ -51,6 +57,8 @@ type alias Model =
     , identifier : String
     , nip05 : Maybe Nip05.Nip05
     , requestId : Maybe RequestId
+    , zapDialog : ZapDialog.Model Msg
+    , sharingButtonDialog : SharingButtonDialog.Model
     }
 
 
@@ -63,6 +71,8 @@ init shared route () =
             , nip05 = Nip05.parseNip05 route.params.user
             , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
             , requestId = Nothing
+            , zapDialog = ZapDialog.init {}
+            , sharingButtonDialog = SharingButtonDialog.init {}
             }
 
         ( requestEffect, requestId ) =
@@ -116,16 +126,56 @@ init shared route () =
 
 type Msg
     = NoOp
+    | AddArticleBookmark PubKey AddressComponents
+    | RemoveArticleBookmark PubKey AddressComponents
+    | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
+    | AddRepost PubKey Article
     | AddLoadedContent String
     | OpenComment CommentType
     | CommentSent Comment.Msg
-
+    | ZapReaction PubKey (List ZapDialog.Recipient)
+    | ZapDialogSent (ZapDialog.Msg Msg)
+    | SharingButtonDialogMsg SharingButtonDialog.Msg
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
         NoOp ->
             ( model, Effect.none )
+
+        AddArticleBookmark pubKey addressComponents ->
+            ( model
+            , SendBookmarkListWithArticle pubKey addressComponents
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        RemoveArticleBookmark pubKey addressComponents ->
+            ( model
+            , SendBookmarkListWithoutArticle pubKey addressComponents
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        AddArticleReaction userPubKey eventId articlePubKey addressComponents ->
+            ( model
+            , SendReaction userPubKey eventId articlePubKey addressComponents
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        AddRepost userPubKey article ->
+            let
+                relays =
+                    article.relays
+                        |> Set.toList
+                        |> List.append (Nostr.getWriteRelayUrlsForPubKey shared.nostr userPubKey)
+            in
+            ( model
+            , SendRepost relays (articleRepostEvent userPubKey article)
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
 
         AddLoadedContent url ->
             ( { model | loadedContent = LinkPreview.addLoadedContent model.loadedContent url }, Effect.none )
@@ -141,6 +191,37 @@ update shared msg model =
                 , toModel = \comment -> { model | comment = comment }
                 , toMsg = CommentSent
                 }
+
+        ZapReaction _ recipients ->
+            showZapDialog model recipients
+
+        ZapDialogSent innerMsg ->
+            ZapDialog.update
+                { nostr = shared.nostr
+                , msg = innerMsg
+                , model = model.zapDialog
+                , toModel = \zapDialog -> { model | zapDialog = zapDialog }
+                , toMsg = ZapDialogSent
+                }
+
+        SharingButtonDialogMsg innerMsg ->
+            SharingButtonDialog.update
+                { model = model.sharingButtonDialog
+                , msg = innerMsg
+                , toModel = \sharingButtonDialog -> { model | sharingButtonDialog = sharingButtonDialog }
+                , toMsg = SharingButtonDialogMsg
+                }
+
+
+showZapDialog : Model -> List ZapDialog.Recipient -> ( Model, Effect Msg )
+showZapDialog model recipients =
+    let
+        ( zapDialogModel, effect ) =
+            ZapDialog.show model.zapDialog ZapDialogSent recipients
+    in
+    ( { model | zapDialog = zapDialogModel }
+    , effect
+    )
 
 
 
@@ -193,6 +274,9 @@ viewArticle shared model maybeArticle =
                         )
                             |> Just
                     )
+
+        userPubKey =
+            Shared.loggedInPubKey shared.loginStatus
     in
     case maybeArticle of
         Just article ->
@@ -201,11 +285,14 @@ viewArticle shared model maybeArticle =
                 , browserEnv = shared.browserEnv
                 , nostr = shared.nostr
                 , userPubKey = Shared.loggedInPubKey shared.loginStatus
-                , onBookmark = Nothing
+                , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) signingUserPubKey
                 , commenting = commenting
-                , onReaction = Nothing
-                , onRepost = Nothing
-                , onZap = Nothing
+                , onRepost = Maybe.map (\pubKey -> AddRepost pubKey article) signingUserPubKey
+                , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) signingUserPubKey
+
+                -- signing is possible also with read-only login
+                , onZap = Maybe.map (\pubKey -> ZapReaction pubKey) userPubKey
+                , sharing = Just ( model.sharingButtonDialog, SharingButtonDialogMsg )
                 }
                 (Just model.loadedContent)
                 article

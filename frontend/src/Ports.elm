@@ -73,6 +73,13 @@ setTestMode testMode =
         , value = Encode.bool testMode
         }
 
+shareLink : { url : String, title : String, text : String } -> Cmd msg
+shareLink { url, title, text } =
+    sendCommand
+        { command = "shareLink"
+        , value = Encode.object [ ( "url", Encode.string url ), ( "title", Encode.string title ), ( "text", Encode.string text ) ]
+        }
+
 requestBlossomAuth : RequestId -> String -> String -> HttpRequestMethod -> Cmd msg
 requestBlossomAuth requestId server content method =
     sendCommand

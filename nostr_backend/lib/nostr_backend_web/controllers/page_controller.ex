@@ -80,6 +80,12 @@ defmodule NostrBackendWeb.PageController do
     |> render(:about)
   end
 
+  def authors(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:authors)
+  end
+
   def bookmarks(conn, _params) do
     conn
     |> add_meta_tags
@@ -122,6 +128,12 @@ defmodule NostrBackendWeb.PageController do
     |> render(:communities)
   end
 
+  def pictures(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:pictures)
+  end
+
   def posts(conn, _params) do
     conn
     |> add_meta_tags
@@ -162,6 +174,12 @@ defmodule NostrBackendWeb.PageController do
     conn
     |> add_meta_tags
     |> render(:tech_details)
+  end
+
+  def uitest(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:uitest)
   end
 
   def write(conn, _params) do

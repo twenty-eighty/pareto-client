@@ -4,13 +4,14 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Checkbox as Checkbox
 import Components.Dropdown as Dropdown
+import Components.EntryField as EntryField
 import Csv as CsvParser
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Email
 import File exposing (File)
 import File.Select as FileSelect
-import Html.Styled as Html exposing (Html, div, input, label, text, textarea)
+import Html.Styled as Html exposing (Html, div, input, label, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
@@ -28,7 +29,7 @@ import Task exposing (Task)
 import Time
 import Translations.EmailImportDialog as Translations
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme)
+import Ui.Styles exposing (Theme, darkMode)
 
 
 type Msg msg
@@ -600,6 +601,9 @@ viewSelectionDialog (Settings settings) =
         , div
             [ css
                 [ Tw.bg_color Theme.yellow_500
+                , darkMode
+                    [ Tw.text_color Theme.black
+                    ]
                 , Tw.rounded_lg
                 , Tw.p_3
                 , Tw.my_2
@@ -644,17 +648,14 @@ viewImportDialog (Settings settings) data =
             , Tw.gap_2
             ]
         ]
-        [ textarea
-            [ css
-                [ Tw.p_2
-                , Tw.w_80
-                , Tw.h_40
-                ]
-            , Attr.value data.enteredEmails
-            , Attr.placeholder <| Translations.emailTextareaPlaceholderText [ settings.browserEnv.translations ]
-            , Events.onInput UpdateEmailData
-            ]
-            []
+        [ EntryField.new
+            { value = data.enteredEmails
+            , onInput = UpdateEmailData
+            , theme = settings.theme
+            }
+            |> EntryField.withPlaceholder (Translations.emailTextareaPlaceholderText [ settings.browserEnv.translations ])
+            |> EntryField.withRows 5
+            |> EntryField.view
         , div
             [ css
                 [ Tw.flex
@@ -1122,14 +1123,13 @@ viewProcessedDialog (Settings settings) data =
                 , Tw.gap_2
                 ]
             ]
-            [ label [ Attr.for "tags" ]
-                [ text <| Translations.tagsFieldLabel [ settings.browserEnv.translations ] ]
-            , input
-                [ Attr.id "tags"
-                , Attr.value <| Maybe.withDefault "" data.tags
-                , Events.onInput UpdateTags
-                ]
-                []
+            [ EntryField.new
+                { value = Maybe.withDefault "" data.tags
+                , onInput = UpdateTags
+                , theme = settings.theme
+                }
+                |> EntryField.withLabel (Translations.tagsFieldLabel [ settings.browserEnv.translations ])
+                |> EntryField.view
             ]
         , div
             [ css

@@ -126,6 +126,8 @@ chakraIcon =
         ]
 
 
+
+atIcon : Html msg
 atIcon =
     svg
         [ SvgAttr.viewBox "0 0 24 24"
@@ -140,6 +142,7 @@ atIcon =
         ]
 
 
+aboutIcon : Html msg
 aboutIcon =
     svg
         [ SvgAttr.width "24"
@@ -173,6 +176,7 @@ aboutIcon =
         ]
 
 
+smallBookmarkIcon : Html msg
 smallBookmarkIcon =
     svg
         [ SvgAttr.width "16"
@@ -193,6 +197,7 @@ smallBookmarkIcon =
         ]
 
 
+commentsIcon : Html msg
 commentsIcon =
     svg
         [ SvgAttr.width "18"
@@ -213,6 +218,7 @@ commentsIcon =
         ]
 
 
+likeIcon : Html msg
 likeIcon =
     svg
         [ SvgAttr.width "20"
@@ -239,6 +245,7 @@ likeIcon =
         ]
 
 
+repostIcon : Html msg
 repostIcon =
     svg
         [ SvgAttr.width "20"
@@ -259,6 +266,7 @@ repostIcon =
         ]
 
 
+zapIcon : Html msg
 zapIcon =
     svg
         [ SvgAttr.width "16"
@@ -279,6 +287,7 @@ zapIcon =
         ]
 
 
+settingsIcon : Html msg
 settingsIcon =
     svg
         [ SvgAttr.width "24"
@@ -307,6 +316,7 @@ settingsIcon =
         ]
 
 
+relaysIcon : Html msg
 relaysIcon =
     svg
         [ SvgAttr.width "24"
@@ -327,6 +337,7 @@ relaysIcon =
         ]
 
 
+moderationIcon : Html msg
 moderationIcon =
     svg
         [ SvgAttr.viewBox "0 0 24 24"
@@ -348,6 +359,7 @@ moderationIcon =
         ]
 
 
+logoutIcon : Html msg
 logoutIcon =
     svg
         [ SvgAttr.viewBox "0 0 24 24"
@@ -362,6 +374,7 @@ logoutIcon =
         ]
 
 
+checkIcon : Html msg
 checkIcon =
     svg
         [ SvgAttr.viewBox "0 0 14 14"
@@ -378,6 +391,7 @@ checkIcon =
         ]
 
 
+featherSmileIcon : Int -> Html msg
 featherSmileIcon width =
     svg
         [ SvgAttr.width <| String.fromInt width
@@ -416,6 +430,7 @@ featherSmileIcon width =
         ]
 
 
+featherFrownIcon : Int -> Html msg
 featherFrownIcon width =
     svg
         [ SvgAttr.width <| String.fromInt width
@@ -454,6 +469,7 @@ featherFrownIcon width =
         ]
 
 
+featherMehIcon : Int -> Html msg
 featherMehIcon width =
     svg
         [ SvgAttr.width <| String.fromInt width
@@ -499,6 +515,7 @@ featherMehIcon width =
 -- landing page
 
 
+keyboardIcon : Html msg
 keyboardIcon =
     svg
         [ SvgAttr.width "24"
@@ -551,6 +568,7 @@ keyboardIcon =
         ]
 
 
+listSearchIcon : Html msg
 listSearchIcon =
     svg
         [ SvgAttr.width "24"
@@ -591,6 +609,7 @@ listSearchIcon =
         ]
 
 
+mailIcon : Html msg
 mailIcon =
     svg
         [ SvgAttr.width "24"
@@ -619,6 +638,7 @@ mailIcon =
         ]
 
 
+speakerPhoneIcon : Html msg
 speakerPhoneIcon =
     svg
         [ SvgAttr.width "24"
@@ -651,6 +671,7 @@ speakerPhoneIcon =
         ]
 
 
+sunIcon : Html msg
 sunIcon =
     svg
         [ SvgAttr.width "24"
@@ -679,6 +700,7 @@ sunIcon =
         ]
 
 
+topologyStar3Icon : Html msg
 topologyStar3Icon =
     svg
         [ SvgAttr.width "24"
@@ -751,6 +773,7 @@ topologyStar3Icon =
         ]
 
 
+plant2Icon : Html msg
 plant2Icon =
     svg
         [ SvgAttr.width "24"
@@ -791,6 +814,7 @@ plant2Icon =
         ]
 
 
+infinityIcon : Html msg
 infinityIcon =
     svg
         [ SvgAttr.width "24"
@@ -815,6 +839,7 @@ infinityIcon =
         ]
 
 
+roadmapCheckIcon : Html msg
 roadmapCheckIcon =
     svg
         [ SvgAttr.viewBox "0 0 24 24"
@@ -840,6 +865,7 @@ roadmapCheckIcon =
         ]
 
 
+plusIcon : Html msg
 plusIcon =
     svg
         [ SvgAttr.viewBox "0 0 24 24"
@@ -858,6 +884,7 @@ plusIcon =
         ]
 
 
+minusIcon : Html msg
 minusIcon =
     svg
         [ SvgAttr.viewBox "0 0 24 24"
@@ -876,6 +903,7 @@ minusIcon =
         ]
 
 
+videoPlayIcon : Int -> Html msg
 videoPlayIcon width =
     svg
         [ SvgAttr.fill "none"

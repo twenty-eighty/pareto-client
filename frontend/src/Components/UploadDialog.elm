@@ -15,7 +15,6 @@ module Components.UploadDialog exposing
     , withMediaType
     )
 
-import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Dropdown as Dropdown
@@ -203,7 +202,7 @@ update :
     , toModel : Model -> model
     , toMsg : Msg -> msg
     , onUploaded : UploadResponse -> msg
-    , user : Auth.User
+    , pubKey : PubKey
     , nostr : Nostr.Model
     , browserEnv : BrowserEnv
     }
@@ -531,15 +530,9 @@ update props =
 
                                             Nothing ->
                                                 Nothing
-
-                                    -- content field of auth header
-                                    content =
-                                        upload
-                                            |> Maybe.andThen .caption
-                                            |> Maybe.withDefault "Image upload"
                                 in
                                 PutRequest fileId hash
-                                    |> RequestBlossomAuth serverUrl content
+                                    |> RequestBlossomAuth serverUrl "Image upload"
                                     |> Nostr.createRequest props.nostr "Blossom auth request for files to be uploaded" []
                                     |> Shared.Msg.RequestNostrEvents
                                     |> Effect.sendSharedMsg

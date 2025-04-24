@@ -33,6 +33,15 @@ defmodule NostrBackend.NostrClient do
     fetch_from_relays(@relay_urls, address_info, :address)
   end
 
+  def fetch_article_by_id(id, []) do
+    fetch_article_by_id(id, @relay_urls)
+  end
+
+  def fetch_article_by_id(id, relay_urls) do
+    event_info = %{id: id}
+    fetch_from_relays(relay_urls, event_info, :event)
+  end
+
   @spec fetch_article(String.t()) :: {:ok, map()} | {:error, String.t()}
   def fetch_article(article_hex_id) do
     fetch_from_relays(@relay_urls, article_hex_id, :article)
@@ -172,6 +181,14 @@ defmodule NostrBackend.NostrClient do
         "kinds" => [kind],
         "authors" => [author],
         "#d" => [identifier]
+      }
+    ]
+  end
+
+  defp build_filters(%{id: id}, :event) do
+    [
+      %{
+        "ids" => [id]
       }
     ]
   end

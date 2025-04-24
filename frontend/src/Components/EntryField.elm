@@ -3,6 +3,7 @@ module Components.EntryField exposing
     , FieldType(..)
     , new
     , view
+    , withDescription
     , withLabel
     , withPlaceholder
     , withRequired
@@ -22,7 +23,8 @@ import Ui.Styles exposing (Theme, stylesForTheme)
 
 type EntryField msg
     = Settings
-        { label : Maybe String
+        { description : Maybe String
+        , label : Maybe String
         , onSubmit : Maybe msg
         , onInput : String -> msg
         , placeholder : Maybe String
@@ -61,7 +63,8 @@ new :
     -> EntryField msg
 new props =
     Settings
-        { label = Nothing
+        { description = Nothing
+        , label = Nothing
         , onSubmit = Nothing
         , onInput = props.onInput
         , placeholder = Nothing
@@ -73,6 +76,11 @@ new props =
         , type_ = FieldTypeText
         , value = props.value
         }
+
+
+withDescription : String -> EntryField msg -> EntryField msg
+withDescription description (Settings settings) =
+    Settings { settings | description = Just description }
 
 
 withRows : Int -> EntryField msg -> EntryField msg
@@ -127,6 +135,20 @@ view (Settings settings) =
 
                 Nothing ->
                     []
+
+        descriptionElement =
+            case settings.description of
+                Just description ->
+                    Html.div
+                        (styles.colorStyleGrayscaleMuted ++
+                        [ css
+                            [ Tw.text_sm
+                            ]
+                        ])
+                        [ Html.text description ]
+
+                Nothing ->
+                    emptyHtml
 
         requiredAttr =
             if settings.required then
@@ -225,6 +247,7 @@ view (Settings settings) =
             )
             []
         , suggestionsElement
+        , descriptionElement
         ]
 
 

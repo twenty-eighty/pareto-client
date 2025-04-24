@@ -181,6 +181,10 @@ export const onReady = ({ app, env }) => {
       case 'setTestMode':
         setTestMode(app, value);
         break;
+
+      case 'shareLink':
+        shareLink(app, value);
+        break;
     }
   }
 
@@ -245,6 +249,15 @@ export const onReady = ({ app, env }) => {
     sessionStorage.clear();
     // reload client in order to initialize relay and other lists correctly
     location.reload();
+  }
+
+  function shareLink(app, value) {
+    console.log('shareLink', value);
+    if (navigator.share) {
+      navigator.share(value);
+    } else {
+      console.log('navigator.share not supported');
+    }
   }
 
   // 1) A function that imports an AES-GCM key and encrypts `plaintextBytes` with it.
@@ -527,6 +540,7 @@ export const onReady = ({ app, env }) => {
         case 6: // repost
         case 7: // reactions
         case 16: // generic repost
+        case 20: // picture post
           {
             eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
             break;

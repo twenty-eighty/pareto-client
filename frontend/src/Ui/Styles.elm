@@ -88,24 +88,8 @@ map toMsg props =
     , colorStyleGrayscaleSummary = mapStyleBundle toMsg props.colorStyleGrayscaleSummary
     , colorStyleGrayscaleMuted = mapStyleBundle toMsg props.colorStyleGrayscaleMuted
     , colorStyleGrayscaleText = mapStyleBundle toMsg props.colorStyleGrayscaleText
-    , colorStyleGrayscaleMedia = mapStyleBundle toMsg props.colorStyleGrayscaleMedia
     , colorStyleGrayscaleDisabled = mapStyleBundle toMsg props.colorStyleGrayscaleDisabled
     , colorStyleCode = mapStyleBundle toMsg props.colorStyleCode
-    , colorStyleRegularButtonText = mapStyleBundle toMsg props.colorStyleRegularButtonText
-    , colorStylePrimaryButtonText = mapStyleBundle toMsg props.colorStylePrimaryButtonText
-    , colorStyleSecondaryButtonText = mapStyleBundle toMsg props.colorStyleSecondaryButtonText
-    , colorStyleDisabledButtonText = mapStyleBundle toMsg props.colorStyleDisabledButtonText
-    , colorStyleRegularButtonBackground = mapStyleBundle toMsg props.colorStyleRegularButtonBackground
-    , colorStylePrimaryButtonBackground = mapStyleBundle toMsg props.colorStylePrimaryButtonBackground
-    , colorStyleSecondaryButtonBackground = mapStyleBundle toMsg props.colorStyleSecondaryButtonBackground
-    , colorStyleDisabledButtonBackground = mapStyleBundle toMsg props.colorStyleDisabledButtonBackground
-    , colorStyleInverse = mapStyleBundle toMsg props.colorStyleInverse
-    , effectStyleModalShadow = mapStyleBundle toMsg props.effectStyleModalShadow
-    , effectStyleShadow1 = mapStyleBundle toMsg props.effectStyleShadow1
-    , effectStyleSheetShadow = mapStyleBundle toMsg props.effectStyleSheetShadow
-    , effectStyleNavShadow = mapStyleBundle toMsg props.effectStyleNavShadow
-    , effectStyleButtonShadow = mapStyleBundle toMsg props.effectStyleButtonShadow
-    , effectStyleButtonHover = mapStyleBundle toMsg props.effectStyleButtonHover
     }
 
 
@@ -140,24 +124,8 @@ type alias Styles msg =
     , colorStyleGrayscaleSummary : StyleBundle msg
     , colorStyleGrayscaleMuted : StyleBundle msg
     , colorStyleGrayscaleText : StyleBundle msg
-    , colorStyleGrayscaleMedia : StyleBundle msg
     , colorStyleGrayscaleDisabled : StyleBundle msg
     , colorStyleCode : StyleBundle msg
-    , colorStyleRegularButtonText : StyleBundle msg
-    , colorStylePrimaryButtonText : StyleBundle msg
-    , colorStyleSecondaryButtonText : StyleBundle msg
-    , colorStyleDisabledButtonText : StyleBundle msg
-    , colorStyleRegularButtonBackground : StyleBundle msg
-    , colorStylePrimaryButtonBackground : StyleBundle msg
-    , colorStyleSecondaryButtonBackground : StyleBundle msg
-    , colorStyleDisabledButtonBackground : StyleBundle msg
-    , colorStyleInverse : StyleBundle msg
-    , effectStyleModalShadow : StyleBundle msg
-    , effectStyleShadow1 : StyleBundle msg
-    , effectStyleSheetShadow : StyleBundle msg
-    , effectStyleNavShadow : StyleBundle msg
-    , effectStyleButtonShadow : StyleBundle msg
-    , effectStyleButtonHover : StyleBundle msg
     }
 
 
@@ -381,14 +349,6 @@ paretoThemeStyles =
                 ]
             ]
         ]
-    , colorStyleGrayscaleMedia =
-        [ css
-            [ Tw.text_color color2
-            , darkMode
-                [ Tw.text_color color1
-                ]
-            ]
-        ]
     , colorStyleGrayscaleDisabled =
         [ css
             [ Tw.text_color color2
@@ -403,117 +363,6 @@ paretoThemeStyles =
             , darkMode
                 [ Tw.text_color color4Inverse
                 ]
-            ]
-        ]
-    , colorStyleRegularButtonText =
-        [ css
-            [ Tw.text_color color1
-            , darkMode
-                [ Tw.text_color color1Inverse
-                ]
-            ]
-        ]
-    , colorStylePrimaryButtonText =
-        [ css
-            [ Tw.text_color color3
-            , darkMode
-                [ Tw.text_color color3Inverse
-                ]
-            ]
-        ]
-    , colorStyleSecondaryButtonText =
-        [ css
-            [ Tw.text_color color1
-            , darkMode
-                [ Tw.text_color color1Inverse
-                ]
-            ]
-        ]
-    , colorStyleDisabledButtonText =
-        [ css
-            [ Tw.text_color color2
-            , darkMode
-                [ Tw.text_color color2Inverse
-                ]
-            ]
-        ]
-    , colorStyleRegularButtonBackground =
-        [ css
-            [ Tw.bg_color color4
-            , Tw.border_color color1
-            , Tw.border_2
-            , darkMode
-                [ Tw.bg_color color4Inverse
-                , Tw.border_color color1Inverse
-                ]
-            ]
-        ]
-    , colorStylePrimaryButtonBackground =
-        [ css
-            [ Tw.bg_color color4
-            , darkMode
-                [ Tw.bg_color color4Inverse
-                ]
-            ]
-        ]
-    , colorStyleSecondaryButtonBackground =
-        [ css
-            [ Tw.bg_color color3
-            , darkMode
-                [ Tw.bg_color color3Inverse
-                ]
-            ]
-        ]
-    , colorStyleDisabledButtonBackground =
-        [ css
-            [ Tw.bg_color color1
-            , darkMode
-                [ Tw.bg_color color1Inverse
-                ]
-            ]
-        ]
-    , colorStyleInverse =
-        [ css
-            [ Tw.bg_color Theme.white
-            , darkMode
-                [ Tw.bg_color Theme.black
-                ]
-            ]
-        ]
-    , effectStyleModalShadow =
-        [ css
-            [ Tw.drop_shadow_md
-            , Tw.backdrop_blur_md
-            ]
-        ]
-    , effectStyleShadow1 =
-        [ css
-            [ Tw.drop_shadow_lg
-            , Tw.backdrop_blur_md
-            ]
-        ]
-    , effectStyleSheetShadow =
-        [ css
-            [ Tw.backdrop_blur
-            ]
-        , Attr.style "filter" "drop-shadow(0 -1px rgb(0 0 0 / 0.05))"
-        ]
-    , effectStyleNavShadow =
-        [ css
-            [ Tw.drop_shadow
-            , Tw.backdrop_blur_sm
-            ]
-        ]
-    , effectStyleButtonShadow =
-        [ css
-            [ Tw.drop_shadow
-            , Tw.backdrop_blur_sm
-            ]
-        ]
-    , effectStyleButtonHover =
-        [ css
-            [ Tw.drop_shadow
-            , Tw.backdrop_blur_sm
             ]
         ]
     }

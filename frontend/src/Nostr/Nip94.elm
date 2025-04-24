@@ -1,11 +1,8 @@
 module Nostr.Nip94 exposing (..)
 
-import Dict exposing (Dict)
-import Http
-import Json.Decode as Decode exposing (Decoder, andThen, bool, dict, fail, field, float, int, list, maybe, nullable, string, succeed)
+import Json.Decode as Decode exposing (Decoder, andThen, int, list, maybe, nullable, string, succeed)
 import Json.Decode.Pipeline exposing (optional, required)
 import MimeType exposing (MimeType)
-import Url
 
 
 
@@ -29,6 +26,7 @@ type alias FileMetadata =
     , image : Maybe Media
     , summary : Maybe String
     , alt : Maybe String
+    , fallbacks : Maybe (List String)
     }
 
 
@@ -53,6 +51,17 @@ isImage metaData =
         _ ->
             False
 
+
+isPdf : FileMetadata -> Bool
+isPdf metaData =
+    case metaData.mimeType of
+        Just (MimeType.App MimeType.Pdf) ->
+            True
+
+        _ ->
+            False
+
+
 isAudio : FileMetadata -> Bool
 isAudio metaData =
     case metaData.mimeType of
@@ -62,6 +71,7 @@ isAudio metaData =
         _ ->
             False
 
+
 isVideo : FileMetadata -> Bool
 isVideo metaData =
     case metaData.mimeType of
@@ -70,7 +80,6 @@ isVideo metaData =
 
         _ ->
             False
-
 
 
 
@@ -120,6 +129,7 @@ fromRawEvent rawEvent =
             , image = Nothing
             , summary = Nothing
             , alt = Nothing
+            , fallbacks = Nothing
             }
     in
     succeed (parseTags rawEvent.tags initialEvent)
@@ -182,6 +192,9 @@ parseTag tag file =
 
         [ "alt", altValue ] ->
             { file | alt = Just altValue }
+
+        [ "fallback", fallbackValue ] ->
+            { file | fallbacks =  (file.fallbacks |> Maybe.withDefault []) ++ [fallbackValue] |> Just }
 
         _ ->
             file

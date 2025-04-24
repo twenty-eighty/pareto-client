@@ -554,6 +554,7 @@ codeParsingFunction language =
             SyntaxHighlight.noLang
 
 
+defaultFormatCodeBlock : String -> Html msg
 defaultFormatCodeBlock body =
     let
         styles =

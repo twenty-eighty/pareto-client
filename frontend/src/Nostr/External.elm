@@ -18,6 +18,11 @@ type alias Hooks msg =
     }
 
 
+decodeEvent : Decode.Value -> Result Decode.Error Event
+decodeEvent value =
+    Decode.decodeValue (Decode.field "event" Nostr.Event.decodeEvent) value
+
+
 decodeEvents : Decode.Value -> Result Decode.Error (List Event)
 decodeEvents value =
     Decode.decodeValue (Decode.field "events" (Decode.list Nostr.Event.decodeEvent)) value

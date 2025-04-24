@@ -6,6 +6,7 @@ import Components.ArticleInfo as ArticleInfo
 import Components.Button as Button
 import Components.Comment as Comment
 import Components.Icon as Icon
+import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapDialog as ZapDialog
 import Css
 import Css.Media
@@ -19,7 +20,8 @@ import Markdown
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
 import Nostr.Event exposing (AddressComponents, Kind(..), Tag(..), TagReference(..))
-import Nostr.Nip19 exposing (NIP19Type(..))
+import Nostr.Nip05 exposing (nip05ToString)
+import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (CommentType)
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
@@ -38,6 +40,7 @@ import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
 import Ui.Shared exposing (Actions, emptyHtml, extendedZapRelays)
 import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyInter, fontFamilyRobotoMono, fontFamilyUnbounded)
+import Pareto
 
 
 type alias ArticlePreviewsData msg =
@@ -50,6 +53,7 @@ type alias ArticlePreviewsData msg =
     , onReaction : Maybe (EventId -> PubKey -> AddressComponents -> msg)
     , onRepost : Maybe msg
     , onZap : Maybe (List ZapDialog.Recipient -> msg)
+    , sharing: Maybe (SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg)
     }
 
 
@@ -188,6 +192,10 @@ viewArticle articlePreviewsData articlePreviewData article =
             , zapRelays = extendedZapRelays articleRelays articlePreviewsData.nostr articlePreviewsData.userPubKey
             , actions = articlePreviewData.actions
             , interactions = articlePreviewData.interactions
+            , sharing = articlePreviewsData.sharing
+            , sharingInfo = sharingInfoForArticle article articlePreviewData.author
+            , translations = articlePreviewsData.browserEnv.translations
+            , theme = articlePreviewsData.theme
             }
     in
     div
@@ -346,6 +354,15 @@ viewArticle articlePreviewsData articlePreviewData article =
             ]
         ]
 
+sharingInfoForArticle : Article -> Author -> SharingButtonDialog.SharingInfo
+sharingInfoForArticle article author =
+    { url =
+        linkToArticle author article
+            |> Maybe.map (\relativeUrl -> Pareto.applicationUrl ++ relativeUrl)
+            |> Maybe.withDefault ""
+    , title = Maybe.withDefault "" article.title
+    , text = Maybe.withDefault "" article.summary
+    }
 
 viewArticleImage : Maybe String -> Html msg
 viewArticleImage maybeImage =
@@ -788,7 +805,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                             ]
                         ]
                     ]
-                    [ viewTitlePreview styles article.title (linkToArticle article) textWidthAttr
+                    [ viewTitlePreview styles article.title (linkToArticle articlePreviewData.author article) textWidthAttr
                     , div
                         (styles.colorStyleGrayscaleText
                             ++ styles.textStyleBody
@@ -804,9 +821,41 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
         ]
 
 
-linkToArticle : Article -> Maybe String
-linkToArticle article =
-    nip19ForArticle article |> Maybe.map (\naddr -> "/a/" ++ naddr)
+linkToArticle : Author -> Article -> Maybe String
+linkToArticle author article =
+    let
+        articleRelays =
+            article.relays
+                |> Set.toList
+                -- append max 5 relays so the link doesn't get infinitely long
+                |> List.take 5
+                |> List.map websocketUrl
+    in
+    case ( author, article.identifier ) of
+        ( Nostr.Profile.AuthorProfile { nip05 } ValidationSucceeded, Just identifier ) ->
+            Just <| "/u/" ++ (nip05 |> Maybe.map nip05ToString |> Maybe.withDefault "") ++ "/" ++ identifier
+
+        ( _, Just identifier ) ->
+            Nip19.NAddr
+                { identifier = identifier
+                , pubKey = article.author
+                , kind = Nostr.Event.numberForKind article.kind
+                , relays = articleRelays
+                }
+                |> Nip19.encode
+                |> Result.toMaybe
+                |> Maybe.map (\naddr -> "/a/" ++ naddr)
+
+        ( _, Nothing ) ->
+            NEvent
+                { id = article.id
+                , author = Just article.author
+                , kind = Just <| Nostr.Event.numberForKind article.kind
+                , relays = articleRelays
+                }
+                |> Nip19.encode
+                |> Result.toMaybe
+                |> Maybe.map (\nevent -> "/a/" ++ nevent)
 
 
 viewTitlePreview : Styles msg -> Maybe String -> Maybe String -> List Css.Style -> Html msg
@@ -1191,8 +1240,8 @@ viewProfileImageSmall linkElement maybeProfile validationStatus =
         ]
 
 
-viewTitleSummaryImagePreview : Styles msg -> Article -> Html msg
-viewTitleSummaryImagePreview styles article =
+viewTitleSummaryImagePreview : Styles msg -> Author -> Article -> Html msg
+viewTitleSummaryImagePreview styles author article =
     div
         [ css
             [ Tw.flex
@@ -1201,7 +1250,7 @@ viewTitleSummaryImagePreview styles article =
             ]
         ]
         [ div []
-            [ viewTitlePreview styles article.title (linkToArticle article) []
+            [ viewTitlePreview styles article.title (linkToArticle author article) []
             , viewSummary styles article.summary
             ]
         , viewArticleImage article.image

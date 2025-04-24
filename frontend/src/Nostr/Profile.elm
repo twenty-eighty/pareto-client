@@ -18,6 +18,7 @@ type Author
 
 type alias Profile =
     { nip05 : Maybe Nip05
+    , lud06 : Maybe String
     , lud16 : Maybe String
     , name : Maybe String
     , displayName : Maybe String
@@ -49,6 +50,7 @@ profileToJson profile =
         |> appendStringToEncode "name" profile.name
         |> appendStringToEncode "display_name" profile.displayName
         |> appendStringToEncode "nip05" (Maybe.map Nip05.nip05ToString profile.nip05)
+        |> appendStringToEncode "lud06" profile.lud06
         |> appendStringToEncode "lud16" profile.lud16
         |> appendStringToEncode "about" profile.about
         |> appendStringToEncode "picture" profile.picture
@@ -82,6 +84,7 @@ appendBoolToEncode key maybeValue elements =
 emptyProfile : String -> Profile
 emptyProfile pubKey =
     { nip05 = Nothing
+    , lud06 = Nothing
     , lud16 = Nothing
     , name = Nothing
     , displayName = Nothing
@@ -104,6 +107,7 @@ profilesEqual profile1 profile2 =
         && (profile1.banner == profile2.banner)
         && (profile1.bot == profile2.bot)
         && (profile1.displayName == profile2.displayName)
+        && (profile1.lud06 == profile2.lud06)
         && (profile1.lud16 == profile2.lud16)
         && (profile1.name == profile2.name)
         && (profile1.nip05 == profile2.nip05)
@@ -196,6 +200,7 @@ nostrProfileDecoder : Decoder Profile
 nostrProfileDecoder =
     Decode.succeed Profile
         |> DecodePipeline.optional "nip05" (Decode.maybe nip05StringDecoder) Nothing
+        |> DecodePipeline.optional "lud06" (Decode.maybe Decode.string) Nothing
         |> DecodePipeline.optional "lud16" (Decode.maybe Decode.string) Nothing
         |> DecodePipeline.optional "name" (Decode.maybe Decode.string) Nothing
         |> DecodePipeline.optional "display_name" (Decode.maybe Decode.string) Nothing

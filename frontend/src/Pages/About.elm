@@ -91,20 +91,8 @@ update shared msg model =
             )
 
         PublishAuthorsList pubKey ->
-            let
-                authorsFollowList =
-                    Pareto.bootstrapAuthorsList
-                        |> List.map
-                            (\( nip05, authorPubKey ) ->
-                                FollowingPubKey
-                                    { pubKey = authorPubKey
-                                    , relay = Just Pareto.paretoRelay
-                                    , petname = Just nip05
-                                    }
-                            )
-            in
             ( model
-            , SendFollowList pubKey authorsFollowList
+            , SendFollowList pubKey Nostr.paretoAuthorsFollowList
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
@@ -243,6 +231,8 @@ viewContent shared handlerInformation =
         [ Ui.Profile.viewProfile
             handlerInformation.profile
             { browserEnv = shared.browserEnv
+            , nostr = shared.nostr
+            , loginStatus = shared.loginStatus
             , following = UnknownFollowing
             , subscribe = Nothing
             , theme = shared.theme
@@ -250,7 +240,6 @@ viewContent shared handlerInformation =
                 Nostr.getProfileValidationStatus shared.nostr handlerInformation.pubKey
                     |> Maybe.withDefault ValidationUnknown
             }
-            shared
         , viewSupportInformation shared.theme shared.browserEnv.translations
         , viewDonationInformation shared.theme shared.browserEnv.translations
         , viewActionButtons shared.theme shared.browserEnv handlerInformation shared.loginStatus

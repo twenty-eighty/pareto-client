@@ -1,7 +1,7 @@
 module Nostr.Nip22 exposing (..)
 
 import Nostr.Article exposing (Article)
-import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), emptyEvent, numberForKind)
+import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), TagReference(..), emptyEvent, numberForKind)
 import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Types exposing (EventId, PubKey, RelayUrl)
 import Set
@@ -58,6 +58,26 @@ commentRootAddress comment =
 
         CommentToArticleComment articleCommentComment ->
             articleCommentComment.rootAddress
+
+
+commentPubKey : CommentType -> PubKey
+commentPubKey comment =
+    case comment of
+        CommentToArticle articleComment ->
+            articleComment.pubKey
+
+        CommentToArticleComment articleCommentComment ->
+            articleCommentComment.pubKey
+
+
+tagReference : CommentType -> TagReference
+tagReference comment =
+    case comment of
+        CommentToArticle articleComment ->
+            TagReferenceEventId articleComment.eventId
+
+        CommentToArticleComment articleCommentComment ->
+            TagReferenceEventId articleCommentComment.eventId
 
 
 commentEventId : CommentType -> EventId

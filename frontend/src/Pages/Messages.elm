@@ -1,7 +1,6 @@
 module Pages.Messages exposing (Model, Msg, page)
 
 import Effect exposing (Effect)
-import Html
 import Layouts
 import Page exposing (Page)
 import Route exposing (Route)
@@ -11,7 +10,7 @@ import View exposing (View)
 
 
 page : Shared.Model -> Route () -> Page Model Msg
-page shared route =
+page shared _ =
     Page.new
         { init = init
         , update = update
@@ -22,7 +21,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -64,7 +63,7 @@ update msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -73,5 +72,5 @@ subscriptions model =
 
 
 view : Model -> View Msg
-view model =
+view _ =
     View.fromString "Pages.Search"

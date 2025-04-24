@@ -1,17 +1,12 @@
 module Pages.C.Addr_ exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
-import Css
 import Effect exposing (Effect)
-import Graphics
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, href)
-import Html.Styled.Events as Events exposing (..)
-import Json.Decode as Decode
+import Html.Styled as Html exposing (Html)
 import Layouts
 import Nostr
-import Nostr.Community exposing (Community, communityMatchesFilter)
-import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), eventFilterForNaddr)
+import Nostr.Community exposing (Community)
+import Nostr.Event exposing (Kind(..), TagReference(..), eventFilterForNaddr)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Types exposing (IncomingMessage)
@@ -21,9 +16,6 @@ import Route exposing (Route)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Tailwind.Breakpoints as Bp
-import Tailwind.Theme as Theme
-import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme)
@@ -44,7 +36,7 @@ page shared route =
 
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout theme _ =
     Layouts.Sidebar
         { styles = Ui.Styles.stylesForTheme theme }
 
@@ -113,7 +105,7 @@ type Msg
 
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
-update shared msg model =
+update _ msg model =
     case msg of
         ReceivedMessage message ->
             case message.messageType of
@@ -132,7 +124,7 @@ update shared msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Ports.receiveMessage ReceivedMessage
 
 

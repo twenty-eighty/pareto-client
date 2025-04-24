@@ -5,7 +5,8 @@ module Components.Button exposing
     , withSizeSmall
     , withIconLeft, withIconRight
     , withDisabled
-    , withLink, withTypePrimary, withTypeSecondary
+    , withHidden, withLink, withTypePrimary, withTypeSecondary
+    , withIntermediateState
     )
 
 {-|
@@ -28,11 +29,13 @@ module Components.Button exposing
 
 import Components.Icon exposing (Icon)
 import Css
-import Html.Styled exposing (..)
+import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events as Events
 import Tailwind.Utilities as Tw
-import Ui.Styles
+import Ui.Shared exposing (emptyHtml)
+import Ui.Styles exposing (darkMode)
+import Svg.Loaders
 
 
 
@@ -51,6 +54,8 @@ type Button msg
         , iconRight : Maybe Icon
         , isOutlined : Bool
         , isDisabled : Bool
+        , isHidden : Bool
+        , isInIntermediateState : Bool
         , theme : Ui.Styles.Theme
         }
 
@@ -68,6 +73,8 @@ new props =
         , iconRight = Nothing
         , isOutlined = False
         , isDisabled = False
+        , isHidden = False
+        , isInIntermediateState = False
         , theme = props.theme
         }
 
@@ -144,6 +151,16 @@ withDisabled isDisabled (Settings settings) =
     Settings { settings | isDisabled = isDisabled }
 
 
+withHidden : Bool -> Button msg -> Button msg
+withHidden isHidden (Settings settings) =
+    Settings { settings | isHidden = isHidden }
+
+
+withIntermediateState : Bool -> Button msg -> Button msg
+withIntermediateState isIntermediateState (Settings settings) =
+    Settings { settings | isInIntermediateState = isIntermediateState }
+
+
 
 -- VIEW
 
@@ -163,8 +180,19 @@ view (Settings settings) =
                 Nothing ->
                     text ""
 
+        viewIntermediateStateIndicator : Html msg
+        viewIntermediateStateIndicator =
+            if settings.isInIntermediateState then
+                div [ css [ Tw.flex, Tw.items_center, Tw.justify_center ] ]
+                    [ Svg.Loaders.puff [ Svg.Loaders.size 16, Svg.Loaders.color "currentColor" ]
+                        |> Html.fromUnstyled
+                    ]
+
+            else
+                emptyHtml
+
         ( element, onClickAttr ) =
-            case ( settings.isDisabled, settings.onClick, settings.link ) of
+            case ( settings.isDisabled || settings.isInIntermediateState, settings.onClick, settings.link ) of
                 ( False, Just onClick, _ ) ->
                     ( button, [ Events.onClick onClick ] )
 
@@ -174,39 +202,44 @@ view (Settings settings) =
                 ( _, _, _ ) ->
                     ( div, [ disabled True ] )
     in
-    div
-        [ css
-            [ Tw.flex
-            , Tw.flex_row
-            , Tw.gap_2
+    if not settings.isHidden then
+        div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.gap_2
+                ]
             ]
-        ]
-        [ element
-            (buttonStyles
-                ++ onClickAttr
-                ++ [ css
-                        [ Tw.py_2
-                        , Tw.px_4
-                        , Tw.flex
-                        , Tw.flex_row
-                        , Tw.gap_2
-                        , Tw.rounded_full
-                        , Css.hover
-                            []
-                        ]
-                   , classList
-                        [ ( "is-success", settings.style == Success )
-                        , ( "is-warning", settings.style == Warning )
-                        , ( "is-danger", settings.style == Danger )
-                        , ( "is-small", settings.size == Small )
-                        ]
-                   ]
-            )
-            [ viewOptionalIcon settings.iconLeft
-            , text settings.label
-            , viewOptionalIcon settings.iconRight
+            [ element
+                (buttonStyles
+                    ++ onClickAttr
+                    ++ [ css
+                            [ Tw.py_2
+                            , Tw.px_4
+                            , Tw.flex
+                            , Tw.flex_row
+                            , Tw.gap_2
+                            , Tw.rounded_full
+                            , Css.hover
+                                []
+                            ]
+                       , classList
+                            [ ( "is-success", settings.style == Success )
+                            , ( "is-warning", settings.style == Warning )
+                            , ( "is-danger", settings.style == Danger )
+                            , ( "is-small", settings.size == Small )
+                            ]
+                       ]
+                )
+                [ viewOptionalIcon settings.iconLeft
+                , text settings.label
+                , viewOptionalIcon settings.iconRight
+                , viewIntermediateStateIndicator 
+                ]
             ]
-        ]
+
+    else
+        emptyHtml
 
 
 stylesForTheme : Button msg -> List (Attribute msg)
@@ -220,26 +253,38 @@ stylesForTheme (Settings settings) =
             case settings.type_ of
                 RegularButton ->
                     if settings.isDisabled then
-                        ( styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground )
+                        ( [ Tw.text_color styles.color2, darkMode [ Tw.text_color styles.color2DarkMode ] ]
+                        , [ Tw.bg_color styles.color1, darkMode [ Tw.bg_color styles.color1DarkMode ] ]
+                        )
 
                     else
-                        ( styles.colorStyleRegularButtonText, styles.colorStyleRegularButtonBackground )
+                        ( [ Tw.text_color styles.color1, darkMode [ Tw.text_color styles.color1DarkMode ] ]
+                        , [ Tw.bg_color styles.color4
+                          , Tw.border_color styles.color1
+                          , darkMode [ Tw.bg_color styles.color4DarkMode, Tw.border_color styles.color1DarkMode ]
+                          ]
+                        )
 
                 PrimaryButton ->
                     if settings.isDisabled then
-                        ( styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground )
+                        ( [ Tw.text_color styles.color2, darkMode [ Tw.text_color styles.color2DarkMode ] ]
+                        , [ Tw.bg_color styles.color1, darkMode [ Tw.bg_color styles.color1DarkMode ] ]
+                        )
 
                     else
-                        ( styles.colorStylePrimaryButtonText, styles.colorStylePrimaryButtonBackground )
+                        ( [ Tw.text_color styles.color1, darkMode [ Tw.text_color styles.color1DarkMode ] ]
+                        , [ Tw.bg_color styles.color4, darkMode [ Tw.bg_color styles.color4DarkMode ] ]
+                        )
 
                 SecondaryButton ->
                     if settings.isDisabled then
-                        ( styles.colorStyleDisabledButtonText, styles.colorStyleDisabledButtonBackground )
+                        ( [ Tw.text_color styles.color2, darkMode [ Tw.text_color styles.color2DarkMode ] ]
+                        , [ Tw.bg_color styles.color1, darkMode [ Tw.bg_color styles.color1DarkMode ] ]
+                        )
 
                     else
-                        ( styles.colorStyleSecondaryButtonText, styles.colorStyleSecondaryButtonBackground )
-
-        attributes =
-            foregroundStyles ++ backgroundStyles
+                        ( [ Tw.text_color styles.color1, darkMode [ Tw.text_color styles.color1DarkMode ] ]
+                        , [ Tw.bg_color styles.color3, darkMode [ Tw.bg_color styles.color3DarkMode ] ]
+                        )
     in
-    attributes
+    [ css (foregroundStyles ++ backgroundStyles) ]
