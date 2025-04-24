@@ -12,7 +12,7 @@ import Layouts
 import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article)
-import Nostr.Event as Event exposing (AddressComponents, Kind(..), TagReference(..))
+import Nostr.Event as Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Nip18 exposing (articleRepostEvent)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (CommentType)
@@ -207,7 +207,21 @@ update shared msg model =
         AddLoadedContent url ->
             case model of
                 Nip19Model nip19ModelData ->
-                    ( Nip19Model { nip19ModelData | loadedContent = LinkPreview.addLoadedContent nip19ModelData.loadedContent url }, Effect.none )
+                    let
+                        maybeAuthorsPubKey =
+                            Nostr.getArticleForNip19 shared.nostr nip19ModelData.nip19 |> Maybe.map .author
+
+                        buildRequestArticlesEffect : Nostr.Model -> PubKey -> Effect Msg
+                        buildRequestArticlesEffect nostr pubKey =
+                            { emptyEventFilter | kinds = Just [ KindFollows ], authors = Nothing, tagReferences = Just [ TagReferencePubKey pubKey ], limit = Just 0 }
+                                |> RequestFollowSets
+                                |> Nostr.createRequest nostr "Followers of user" []
+                                |> Shared.Msg.RequestNostrEvents
+                                |> Effect.sendSharedMsg
+                    in
+                    ( Nip19Model { nip19ModelData | loadedContent = LinkPreview.addLoadedContent nip19ModelData.loadedContent url }
+                    , maybeAuthorsPubKey |> Maybe.map (buildRequestArticlesEffect shared.nostr) |> Maybe.withDefault Effect.none
+                    )
 
                 _ ->
                     ( model, Effect.none )

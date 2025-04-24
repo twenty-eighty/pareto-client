@@ -238,6 +238,7 @@ view styles shared path { toContentMsg, content } =
         [ div
             [ css
                 [ Tw.h_full
+                , Tw.overflow_clip
                 ]
             ]
             [ viewSidebar styles shared path toContentMsg content.body
@@ -322,7 +323,7 @@ viewSidebar styles shared currentPath toContentMsg content =
                             , Tw.space_x_4
                             , Bp.xl
                                 [ Tw.w_52 ]
-                            , Bp.sm
+                            , Bp.lg
                                 [ Tw.inline
                                 , Tw.w_20
                                 , Tw.relative
@@ -340,6 +341,7 @@ viewSidebar styles shared currentPath toContentMsg content =
             , div
                 [ css
                     [ Tw.flex_1
+                    , Css.property "width" "100dvh"
                     ]
                 ]
                 [ Html.header
@@ -350,7 +352,6 @@ viewSidebar styles shared currentPath toContentMsg content =
                         , Tw.bg_cover
                         , Tw.bg_center
                         , Tw.h_20
-                        , Tw.mb_6
                         ]
                     , Attr.style "background-image" "url('/images/Pareto-Banner-back.png')"
                     ]
@@ -406,7 +407,14 @@ viewMainContent content =
         , css
             []
         ]
-        content
+        [ div
+            [ css
+                [ Tw.h_lvh
+                , Tw.overflow_scroll
+                ]
+            ]
+            content
+        ]
 
 
 viewBannerSmall : BrowserEnv -> Html contentMsg
@@ -552,10 +560,9 @@ viewSidebarItems styles sidebarItemParams =
             , Bp.xl
                 [ Tw.w_44
                 ]
-            , Bp.sm
+            , Bp.lg
                 [ Tw.grid_rows_9
                 , Tw.grid_cols_1
-                , Tw.w_14
                 , Css.property "height" "560px"
                 ]
             ]

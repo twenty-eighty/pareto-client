@@ -4,6 +4,7 @@ import BrowserEnv exposing (BrowserEnv)
 import Color
 import Components.Button as Button
 import Components.Icon as Icon exposing (Icon(..), MaterialIcon(..))
+import Css.Media
 import FeatherIcons
 import Graphics
 import Html.Styled as Html exposing (Html, a, div, h2, h4, img, p, text)
@@ -17,8 +18,9 @@ import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (Following(..), PubKey)
 import Set exposing (Set)
 import Shared
+import Tailwind.Breakpoints as Bp exposing (..)
+import Tailwind.Theme as Theme
 import Shared.Model exposing (LoginStatus)
-import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Time
 import Translations.Profile as Translations
@@ -383,28 +385,30 @@ viewNpub styles profile =
 
 viewBanner : Maybe String -> Html msg
 viewBanner maybeImage =
-    case maybeImage of
-        Just image ->
-            div
-                [ css
-                    [ Tw.relative
-                    , Tw.mb_4
-                    ]
+    let
+        imageSrc =
+            Maybe.withDefault "/images/pareto-banner.png" maybeImage
+    in
+    div
+        [ css
+            [ Tw.mb_4
+            , Tw.w_full
+            , Bp.lg [ Tw.max_h_80 ]
+            , Bp.md [ Tw.max_h_52 ]
+            , Css.Media.withMediaQuery [ "(min-width: 360px)" ] [ Tw.max_h_36 ]
+            , Tw.overflow_clip
+            ]
+        ]
+        [ img
+            [ Attr.src imageSrc
+            , Attr.alt "Banner Image"
+            , css
+                [ Tw.w_full
+                , Tw.object_cover
                 ]
-                [ img
-                    [ Attr.src image
-                    , Attr.alt "Banner Image"
-                    , css
-                        [ Tw.rounded_lg
-                        , Tw.w_full
-                        , Tw.object_cover
-                        ]
-                    ]
-                    []
-                ]
-
-        Nothing ->
-            emptyHtml
+            ]
+            []
+        ]
 
 
 viewProfilePubKey : Styles msg -> PubKey -> Html msg
@@ -433,7 +437,10 @@ viewProfileImage : (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileVali
 viewProfileImage linkElement maybeProfile validationStatus =
     div
         [ css
-            [ Tw.relative
+            [ Tw.w_fit
+            , Tw.border_color Theme.white
+            , Tw.rounded_full
+            , Tw.bg_color Theme.white
             ]
         ]
         [ linkElement
@@ -441,10 +448,11 @@ viewProfileImage linkElement maybeProfile validationStatus =
                 [ Attr.src <| profilePicture 112 maybeProfile
                 , Attr.alt "Avatar"
                 , css
-                    [ Tw.min_w_28
-                    , Tw.min_h_28
-                    , Tw.max_w_28
-                    , Tw.max_h_28
+                    [ Bp.lg [ Tw.max_w_28 ]
+                    , Bp.md [ Tw.max_w_16 ]
+                    , Css.Media.withMediaQuery [ "(min-width: 360px)" ] [ Tw.max_w_14 ]
+                    , Tw.object_contain
+                    , Tw.h_auto
                     , Tw.p_1
                     , Tw.rounded_full
                     ]
