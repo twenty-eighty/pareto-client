@@ -1,7 +1,6 @@
 module Components.ArticleInfo exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
-import Color
 import Components.Icon as Icon exposing (Icon)
 import Dict
 import FeatherIcons
@@ -11,14 +10,11 @@ import Nostr
 import Nostr.Article exposing (Article, publishedTime)
 import Nostr.Profile exposing (Author)
 import Nostr.Reactions exposing (Interactions)
-import String exposing (toInt)
 import Tailwind.Breakpoints as Bp exposing (..)
 import Tailwind.Theme as Theme exposing (..)
 import Tailwind.Utilities as Tw exposing (..)
 import TextStats exposing (TextStats)
 import Ui.Profile
-import Ui.Shared exposing (formatZapNum)
-import Ui.ShortNote exposing (isImageUrl)
 import Ui.Styles exposing (Styles)
 
 
@@ -50,8 +46,11 @@ view styles author article browserEnv interactions nostr =
         articleStats =
             TextStats.compute article.language article.content
 
-        articleFromAuthor =
+        articlesFromAuthor =
             Dict.get pubKey nostr.articlesByAuthor |> Maybe.map List.length |> Maybe.withDefault 0
+
+        followersFromAuthor =
+            Dict.get pubKey nostr.followLists |> Maybe.map List.length |> Maybe.withDefault 0
     in
     aside
         [ css
@@ -83,17 +82,7 @@ view styles author article browserEnv interactions nostr =
                 ]
             ]
             {- Profile Section -}
-            [ img
-                [ Attr.src profileImage
-                , Attr.alt "Profile avatar"
-                , css
-                    [ Tw.object_contain
-                    , Tw.w_11
-                    , Tw.rounded_3xl
-                    , Tw.aspect_square
-                    ]
-                ]
-                []
+            [ viewProfileImage profileImage
             , h2
                 [ css
                     [ Tw.mt_3
@@ -105,8 +94,8 @@ view styles author article browserEnv interactions nostr =
                 [ css
                     [ Tw.mt_1 ]
                 ]
-                [ viewAuthorStat "Beiträge" articleFromAuthor
-                , viewAuthorStat "Follower" 210
+                [ viewAuthorStat "Beiträge" articlesFromAuthor
+                , viewAuthorStat "Follower" followersFromAuthor
                 ]
             , {- Article Info Section -}
               h3
@@ -130,6 +119,21 @@ view styles author article browserEnv interactions nostr =
             , viewInteractions browserEnv interactions
             ]
         ]
+
+
+viewProfileImage : String -> Html msg
+viewProfileImage profileImage =
+    img
+        [ Attr.src profileImage
+        , Attr.alt "Profile avatar"
+        , css
+            [ Tw.object_contain
+            , Tw.w_11
+            , Tw.rounded_3xl
+            , Tw.aspect_square
+            ]
+        ]
+        []
 
 
 viewAuthorStat : String -> Int -> Html msg

@@ -8,6 +8,7 @@ import Components.Comment as Comment
 import Components.Icon as Icon
 import Components.ZapDialog as ZapDialog
 import Css
+import Css.Media
 import Dict
 import Html.Styled as Html exposing (Html, a, article, div, h2, h3, img, summary, text)
 import Html.Styled.Attributes as Attr exposing (css, href)
@@ -209,7 +210,27 @@ viewArticle articlePreviewsData articlePreviewData article =
                 , Tw.h_dvh
                 ]
             ]
-            [ Html.article
+            [ div
+                [ css
+                    [ Tw.relative
+                    , Tw.flex
+                    , Tw.flex_col
+                    , Tw.items_center
+                    ]
+                ]
+                [ Ui.Profile.viewBanner (getProfile article.author |> Maybe.andThen .banner)
+                , div
+                    [ css
+                        [ Tw.absolute
+                        , Bp.lg [ Tw.top_3over4 ]
+                        , Bp.md [ Tw.top_3over4 ]
+                        , Css.Media.withMediaQuery [ "(min-width: 360px)" ] [ Tw.top_3over4 ]
+                        , Tw.z_10
+                        ]
+                    ]
+                    [ Ui.Profile.viewProfileImage (linkElementForProfilePubKey article.author) (getProfile article.author) ValidationUnknown ]
+                ]
+            , Html.article
                 (langAttr
                     ++ [ css
                             [ Tw.flex_col
@@ -218,6 +239,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                             , Tw.gap_12
                             , Tw.inline_flex
                             , Tw.px_2
+                            , Tw.my_16
                             , Css.property "width" "inherit"
                             ]
                        ]
@@ -243,7 +265,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                             ]
                             :: contentMargins
                         )
-                        [ viewTags article
+                        [ div [ css [ Bp.lg [ Tw.hidden ] ] ] [ viewTags article ]
                         , div
                             [ css
                                 [ Tw.flex_col
@@ -428,6 +450,7 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                     , Tw.items_center
                     , Tw.space_x_2
                     , Tw.mb_4
+                    , Bp.lg [ Tw.hidden ]
                     ]
                 ]
                 [ Ui.Profile.viewProfilePubKey styles pubKey
@@ -441,6 +464,7 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                     , Tw.items_center
                     , Tw.space_x_2
                     , Tw.mb_4
+                    , Bp.lg [ Tw.hidden ]
                     ]
                 ]
                 [ viewArticleProfileSmall profile validationStatus
