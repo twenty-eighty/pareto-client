@@ -18,8 +18,9 @@ import Nostr.Relay exposing (websocketUrl)
 import Nostr.Types exposing (PubKey)
 import Set exposing (Set)
 import Tailwind.Utilities as Tw
-import Ui.Styles exposing (Styles, Theme)
 import Ui.Shared exposing (emptyHtml)
+import Ui.Styles exposing (Styles, Theme)
+
 
 type alias Actions msg =
     { addBookmark : Maybe msg
@@ -37,12 +38,11 @@ type alias PreviewData msg =
     , zapRelays : Set String
     , actions : Actions msg
     , interactions : Interactions
-    , sharing: Maybe (SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg)
+    , sharing : Maybe ( SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg )
     , sharingInfo : SharingButtonDialog.SharingInfo
     , translations : I18Next.Translations
     , theme : Theme
     }
-
 
 
 viewInteractions : Styles msg -> BrowserEnv -> PreviewData msg -> String -> Html msg
@@ -86,13 +86,14 @@ viewInteractions styles browserEnv previewData instanceId =
             List.length interactions.articleComments + Dict.size interactions.articleCommentComments
     in
     div
-        [ css
+        (css
             [ Tw.justify_start
             , Tw.items_start
             , Tw.gap_6
             , Tw.inline_flex
             ]
-        ]
+            :: styles.colorStyleGrayscaleText
+        )
         [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) actions.startComment (Just <| String.fromInt commentsCount) previewData instanceId
         , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) previewData instanceId
         , viewReactions styles repostIcon repostMsg (Maybe.map String.fromInt interactions.reposts) previewData instanceId
@@ -109,7 +110,7 @@ viewInteractions styles browserEnv previewData instanceId =
                         , theme = previewData.theme
                         , toMsg = sharingButtonDialogMsg
                         }
-                    |> SharingButtonDialog.view
+                        |> SharingButtonDialog.view
                 )
             |> Maybe.withDefault emptyHtml
         ]
@@ -127,16 +128,14 @@ viewReactions styles icon maybeMsg maybeCount previewData instanceId =
                     []
     in
     div
-        (styles.colorStyleLabel
-            ++ [ css
-                    [ Tw.rounded_3xl
-                    , Tw.justify_center
-                    , Tw.items_center
-                    , Tw.gap_1
-                    , Tw.flex
-                    ]
-               ]
-        )
+        [ css
+            [ Tw.rounded_3xl
+            , Tw.justify_center
+            , Tw.items_center
+            , Tw.gap_1
+            , Tw.flex
+            ]
+        ]
         [ if icon == Icon.FeatherIcon FeatherIcons.zap then
             zapButton previewData.pubKey previewData.maybeNip19Target previewData.zapRelays instanceId
 
@@ -214,6 +213,8 @@ zapButton pubKey maybeNip19Target zapRelays instanceId =
                ]
         )
         [ Icon.view (Icon.FeatherIcon FeatherIcons.zap), zapComponent ]
+
+
 
 {-
    Extends the given relays with the inbox relays of the pub-key.
