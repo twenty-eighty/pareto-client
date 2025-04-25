@@ -1,25 +1,14 @@
 module Ui.Shared exposing (..)
 
-import BrowserEnv exposing (BrowserEnv)
-import Color
-import Components.Icon as Icon exposing (Icon)
-import Components.SharingButtonDialog as SharingButtonDialog
-import Nostr.ConfigCheck as ConfigCheck
 import Css
 import Erl
 import Html.Styled as Html exposing (Html, a, button, div, h2, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
-import Json.Encode as Encode
-import Nostr
 import Nostr.ConfigCheck as ConfigCheck
-import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
-import Nostr.Reactions exposing (Interactions)
-import Nostr.Relay exposing (websocketUrl)
-import Nostr.Types exposing (PubKey)
-import Pareto exposing (defaultRelays)
-import Set exposing (Set)
+import Nostr.Nip19 exposing (NIP19Type(..))
+import Pareto
 import Svg.Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
