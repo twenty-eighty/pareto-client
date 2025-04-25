@@ -161,7 +161,7 @@
    },
    "hashtag editor": {
       "label": "Hashtags",
-      "placeholder": "Gib Hashtags mit Komma getrennt ein"
+      "placeholder": "Enter hashtags separated by commas"
    },
    "internals": {
       "page title": "Interne Informationen",
@@ -189,8 +189,8 @@
       "not logged in message": "Mediendateien können ohne Anmeldung nicht angezeigt werden."
    },
    "media selector": {
-      "select image": "Bild auswählen",
-      "upload button title": "Bilder hochladen",
+      "upload files": "Select image",
+      "upload button title": "Upload images",
       "all servers listbox entry": "Alle Server",
       "no server listbox entry": "Kein Server konfiguriert",
       "no server configured message": "Anscheinend wurde noch kein Medien-Server eingerichtet. Soll der Medienserver des Pareto Projekts verwendet werden?",
@@ -216,27 +216,27 @@
       "subject column name": "Betreff"
    },
    "picture post dialog": {
-      "dialog title": "Bilder veröffentlichen",
+      "dialog title": "Post pictures",
       "post button title": "Veröffentlichen",
       "posting button text": "Veröffentlichen ...",
       "posted button text": "Veröffentlicht",
       "posting text": "Veröffentlichen ...",
       "posted text": "Veröffentlicht",
       "error posting text": "Fehler beim Veröffentlichen des Bildes: {{errorText}}",
-      "no language text": "Keine Sprache ausgewählt",
+      "no language text": "No language selected",
       "hashtags label": "Hashtags",
-      "hashtags placeholder": "Gib Hashtags mit Komma getrennt ein",
-      "title label": "Titel",
-      "title placeholder": "Gib einen Titel ein",
-      "add picture button label": "Hinzufügen",
-      "error message text": "Fehler beim Veröffentlichen des Bildes: {{errorText}}"
+      "hashtags placeholder": "Enter hashtags separated by commas",
+      "title label": "Title",
+      "title placeholder": "Enter a title",
+      "add picture button label": "Add",
+      "error message text": "Error publishing picture post: {{errorText}}"
    },
    "pictures": {
-      "page title": "Bilder",
+      "page title": "Pictures",
       "pareto feed category": "Pareto",
-      "followed feed category": "Gefolgt",
+      "followed feed category": "Followed",
       "memes feed category": "Memes",
-      "new picture post button label": "Posten"
+      "new picture post button label": "Post"
    },
    "posts": {
       "posts title": "Artikel",
@@ -327,7 +327,7 @@
       "add nip-96 media server placeholder": "Gib die URL eines NIP-96-Servers ein",
       "media server read only login info": "Im Nur-Lesen-Modus kann die Konfiguration nicht geändert werden.",
       "blossom servers section title": "Blossom Server",
-      "blossom servers description": "Diese Medien-Server benutzen das Blossom-Protokoll.",
+      "blossom servers description": "This media server type uses the Blossom protocol.",
       "add blossom media server placeholder": "Gib die URL eines Blossom-Servers ein",
       "profile category": "Profil",
       "profile editor title": "Profil-Editor",
@@ -340,34 +340,35 @@
       "create profile button title": "Profil erstellen",
       "profile name field label": "Name",
       "profile name field placeholder": "Gib deinen Namen ein",
-      "profile name field description": "Dies ist ein kurzer Name, den du benutzt, um dich auf Nostr zu identifizieren.",
+      "profile name field description": "This is a short name you use to identify yourself on Nostr.",
       "profile display_name field label": "Anzeigename",
       "profile display_name field placeholder": "Gib deinen Anzeigename ein",
-      "profile display_name field description": "Dies ist ein längerer Name, den du benutzt, um dich auf Nostr zu identifizieren.",
-      "profile nip05 field label": "Nostr-Handle (NIP-05)",
-      "profile nip05 field placeholder": "Gib deinen NIP-05-Handle ein. (z.B. alice@example.com)",
-      "profile nip05 field description": "Dies ist das Handle, den du benutzt, um dich auf Nostr zu identifizieren. Es wird verwendet, um deine Identität zu verifizieren. Wenn du ein Autor des Pareto-Projekts bist, hast du automatisch ein Handle, das du hier benutzen kannst.",
+      "profile display_name field description": "This is a longer name you use to identify yourself on Nostr.",
+      "profile nip05 field label": "Nostr Handle (NIP-05)",
+      "profile nip05 field placeholder": "Enter your NIP-05 handle. (e.g. alice@example.com)",
+      "profile nip05 field description": "This is the handle you use to identify yourself on Nostr. It is used to verify your identity. If you are an author of the Pareto project you automatically have one you can use here.",
       "profile about field label": "Über mich",
       "profile about field placeholder": "Gib eine kurze Beschreibung über dich ein",
-      "profile about field description": "Dies ist eine kurze Beschreibung über dich.",
+      "profile about field description": "This is a short description about yourself.",
       "profile picture field label": "Bild",
       "profile picture field placeholder": "Gib eine URL eines Bildes ein",
-      "profile picture field description": "Dies ist das kleine Bild, das mit deinem Namen an verschiedenen Stellen angezeigt wird.",
+      "profile picture field description": "This is the small picture displayed with your name at different places.",
       "profile banner field label": "Banner",
       "profile banner field placeholder": "Gib eine URL eines Banners ein",
-      "profile banner field description": "Dies ist das Banner, das oben auf deiner Profilseite angezeigt wird.",
+      "profile banner field description": "This is the banner displayed at the top of your profile page.",
       "profile lud06 field label": "LUD-06 (LNURL einer Lightning-Wallet)",
       "profile lud06 field placeholder": "Gib eine gültige LUD-06 ein",
-      "profile lud06 field description": "Dies ist das LUD-06-Feld. Es wird verwendet, um die LNURL einer Lightning-Wallet zu speichern. Du musst entweder dieses oder das LUD-16-Feld ausfüllen, jedoch bevorzuge das LUD-16-Feld.",
-      "profile lud16 field label": "Lightning-Wallet-Adresse (LUD-16)",
+      "profile lud06 field description": "This is the LUD-06 field. It is used to store the LNURL of a Lightning wallet. You only need to fill either this or the LUD-16 field, however prefer the LUD-16 field.",
+      "profile lud16 field label": "Lightning wallet address (LUD-16)",
       "profile lud16 field placeholder": "Gib deine Lightning-Wallet-Adresse ein",
-      "profile lud16 field description": "Dies ist das LUD-16-Feld. Es wird verwendet, um die Lightning-Wallet-Adresse zu speichern. Du kannst eine gültige Adresse mit der Wallet of Satoshi-App (Android, iOS) erhalten. Es sieht aus wie eine E-Mail-Adresse: <wallet name>@walletofsatoshi.com$.",
+      "profile lud16 field description": "This is the LUD-16 field. It is used to store the Lightning wallet address for payments. You can obtain a valid address using the Wallet of Satoshi mobile app (Android, iOS). It looks like an email address: <wallet name>@walletofsatoshi.com.",
       "profile website field label": "Website",
       "profile website field placeholder": "Gib deine Website ein"
    },
    "sharing button dialog": {
-      "dialog title": "Teilen",
-      "submit button title": "In Zwischenablage kopieren"
+      "dialog title": "Share",
+      "submit button title": "Copy to clipboard",
+      "copied to clipboard alert message": "Copied to clipboard"
    },
    "sidebar": {
       "reader client role text": "Leser",
