@@ -2,11 +2,8 @@ module Ui.Shared exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
 import Color
-import Components.SharingButtonDialog as SharingButtonDialog
-import I18Next
 import Components.Icon as Icon exposing (Icon)
-import Nostr
-import Nostr.ConfigCheck as ConfigCheck
+import Components.SharingButtonDialog as SharingButtonDialog
 import Css
 import Dict
 import Erl
@@ -14,8 +11,10 @@ import FeatherIcons
 import Html.Styled as Html exposing (Html, a, button, div, h2, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
+import I18Next
 import Json.Encode as Encode
 import Nostr
+import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Relay exposing (websocketUrl)
@@ -48,6 +47,7 @@ extendUrlForScaling width urlString =
 
     else
         urlString
+
 
 countBadge : Int -> String
 countBadge count =
@@ -115,6 +115,7 @@ countBadge count =
         otherNumber ->
             "(" ++ String.fromInt otherNumber ++ ")"
 
+
 viewConfigIssues : I18Next.Translations -> String -> List ConfigCheck.Issue -> Html msg
 viewConfigIssues translations title issues =
     case issues of
@@ -152,8 +153,6 @@ viewIssueText { message, explanation, solution } =
         , Html.text <| " - " ++ explanation
         , Html.p [ css [ Tw.text_sm ] ] [ Html.text solution ]
         ]
-
-
 
 
 isNip96Server : Erl.Url -> Bool
@@ -308,7 +307,7 @@ type alias PreviewData msg =
     , zapRelays : Set String
     , actions : Actions msg
     , interactions : Interactions
-    , sharing: Maybe (SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg)
+    , sharing : Maybe ( SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg )
     , sharingInfo : SharingButtonDialog.SharingInfo
     , translations : I18Next.Translations
     , theme : Theme
@@ -391,13 +390,14 @@ viewInteractions styles browserEnv previewData instanceId =
             List.length interactions.articleComments + Dict.size interactions.articleCommentComments
     in
     div
-        [ css
+        (css
             [ Tw.justify_start
             , Tw.items_start
             , Tw.gap_6
             , Tw.inline_flex
             ]
-        ]
+            :: styles.colorStyleGrayscaleText
+        )
         [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) actions.startComment (Just <| String.fromInt commentsCount) previewData instanceId
         , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) previewData instanceId
         , viewReactions styles repostIcon repostMsg (Maybe.map String.fromInt interactions.reposts) previewData instanceId
@@ -414,7 +414,7 @@ viewInteractions styles browserEnv previewData instanceId =
                         , theme = previewData.theme
                         , toMsg = sharingButtonDialogMsg
                         }
-                    |> SharingButtonDialog.view
+                        |> SharingButtonDialog.view
                 )
             |> Maybe.withDefault emptyHtml
         ]
@@ -432,16 +432,14 @@ viewReactions styles icon maybeMsg maybeCount previewData instanceId =
                     []
     in
     div
-        (styles.colorStyleLabel
-            ++ [ css
-                    [ Tw.rounded_3xl
-                    , Tw.justify_center
-                    , Tw.items_center
-                    , Tw.gap_1
-                    , Tw.flex
-                    ]
-               ]
-        )
+        [ css
+            [ Tw.rounded_3xl
+            , Tw.justify_center
+            , Tw.items_center
+            , Tw.gap_1
+            , Tw.flex
+            ]
+        ]
         [ if icon == Icon.FeatherIcon FeatherIcons.zap then
             zapButton previewData.pubKey previewData.maybeNip19Target previewData.zapRelays instanceId
 

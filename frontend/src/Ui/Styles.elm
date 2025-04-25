@@ -66,6 +66,8 @@ map toMsg props =
     , color3DarkMode = props.color1DarkMode
     , color4 = props.color4
     , color4DarkMode = props.color1DarkMode
+    , color5 = props.color5
+    , color5DarkMode = props.color5DarkMode
     , textStyleLinks = mapStyleBundle toMsg props.textStyleLinks
     , textStyleBody = mapStyleBundle toMsg props.textStyleBody
     , textStyleSemiboldLabel = mapStyleBundle toMsg props.textStyleSemiboldLabel
@@ -102,6 +104,8 @@ type alias Styles msg =
     , color3DarkMode : Theme.Color
     , color4 : Theme.Color
     , color4DarkMode : Theme.Color
+    , color5 : Theme.Color
+    , color5DarkMode : Theme.Color
     , textStyleLinks : StyleBundle msg
     , textStyleBody : StyleBundle msg
     , textStyleSemiboldLabel : StyleBundle msg
@@ -136,24 +140,30 @@ paretoThemeStyles =
             TwColor.arbitraryRgb 203 213 225
 
         color1Inverse =
-            color4
+            color5
 
         color2 =
             TwColor.arbitraryRgb 148 163 184
 
         color2Inverse =
-            color3
+            color4
 
         color3 =
             TwColor.arbitraryRgb 100 116 139
 
         color3Inverse =
-            color2
+            color3
 
         color4 =
             TwColor.arbitraryRgb 51 65 85
 
         color4Inverse =
+            color2
+
+        color5 =
+            TwColor.arbitraryRgb 23 36 52
+
+        color5Inverse =
             color1
     in
     { color1 = color1
@@ -164,6 +174,8 @@ paretoThemeStyles =
     , color3DarkMode = color3Inverse
     , color4 = color4
     , color4DarkMode = color4Inverse
+    , color5 = color5
+    , color5DarkMode = color5Inverse
     , textStyleLinks =
         [ css
             [ Tw.text_base
@@ -267,7 +279,7 @@ paretoThemeStyles =
         [ css
             [ Tw.bg_color Theme.white
             , darkMode
-                [ Tw.bg_color Theme.black
+                [ Tw.bg_color color1Inverse
                 ]
             ]
         ]

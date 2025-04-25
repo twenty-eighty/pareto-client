@@ -11,7 +11,7 @@ import Nostr.Article exposing (Article, publishedTime)
 import Nostr.Profile exposing (Author)
 import Nostr.Reactions exposing (Interactions)
 import Tailwind.Breakpoints as Bp exposing (..)
-import Tailwind.Theme as Theme exposing (..)
+import Tailwind.Theme exposing (..)
 import Tailwind.Utilities as Tw exposing (..)
 import TextStats exposing (TextStats)
 import Ui.Profile
@@ -58,11 +58,12 @@ view styles author article browserEnv interactions nostr =
             , Tw.text_sm
             , Tw.font_semibold
             , Tw.tracking_wide
-            , Tw.bg_color Theme.white
             , Tw.w_1over5
             , Tw.max_w_60
             , Tw.h_screen
-            , Tw.text_color Theme.slate_300
+            , Tw.text_color styles.color1
+            , Tw.bg_color styles.color3
+            , Ui.Styles.darkMode [ Tw.bg_color styles.color4 ]
             , Bp.lg
                 [ Tw.inline ]
             , Tw.hidden
@@ -78,7 +79,6 @@ view styles author article browserEnv interactions nostr =
                 , Tw.pb_96
                 , Tw.w_full
                 , Tw.h_full
-                , Tw.bg_color Theme.slate_500
                 ]
             ]
             {- Profile Section -}
@@ -94,8 +94,8 @@ view styles author article browserEnv interactions nostr =
                 [ css
                     [ Tw.mt_1 ]
                 ]
-                [ viewAuthorStat "Beiträge" articlesFromAuthor
-                , viewAuthorStat "Follower" followersFromAuthor
+                [ viewAuthorStat styles "Beiträge" articlesFromAuthor
+                , viewAuthorStat styles "Follower" followersFromAuthor
                 ]
             , {- Article Info Section -}
               h3
@@ -110,12 +110,12 @@ view styles author article browserEnv interactions nostr =
                 [ css
                     [ Tw.text_xs
                     , Tw.tracking_wide
-                    , Tw.text_color Theme.slate_400
+                    , Tw.text_color styles.color2
                     ]
                 ]
                 [ text articlePublishedDate ]
             , viewTags <| List.filter (\hashtag -> not (String.isEmpty hashtag)) <| article.hashtags
-            , viewArticleStats articleStats
+            , viewArticleStats styles articleStats
             , viewInteractions browserEnv interactions
             ]
         ]
@@ -136,8 +136,8 @@ viewProfileImage profileImage =
         []
 
 
-viewAuthorStat : String -> Int -> Html msg
-viewAuthorStat stat counter =
+viewAuthorStat : Styles msg -> String -> Int -> Html msg
+viewAuthorStat styles stat counter =
     div
         [ css
             [ Tw.flex
@@ -146,7 +146,7 @@ viewAuthorStat stat counter =
             , Tw.neg_mb_4
             , Tw.text_xs
             , Tw.tracking_wide
-            , Tw.text_color Theme.slate_400
+            , Tw.text_color styles.color2
             , Bp.md
                 [ Tw.mb_0
                 ]
@@ -200,8 +200,8 @@ viewTags tags =
         )
 
 
-viewArticleStats : TextStats -> Html msg
-viewArticleStats textStats =
+viewArticleStats : Styles msg -> TextStats -> Html msg
+viewArticleStats styles textStats =
     let
         toHtml label value =
             div
@@ -211,7 +211,7 @@ viewArticleStats textStats =
                     , Tw.text_sm
                     , Tw.tracking_wide
                     , Tw.leading_none
-                    , Tw.text_color Theme.slate_400
+                    , Tw.text_color styles.color2
                     ]
                 ]
                 [ dt

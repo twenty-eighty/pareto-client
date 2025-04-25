@@ -28,6 +28,7 @@ import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profi
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Relay exposing (websocketUrl)
 import Nostr.Types exposing (EventId, PubKey)
+import Pareto
 import Route
 import Route.Path
 import Set
@@ -40,7 +41,6 @@ import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
 import Ui.Shared exposing (Actions, emptyHtml, extendedZapRelays)
 import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyInter, fontFamilyRobotoMono, fontFamilyUnbounded)
-import Pareto
 
 
 type alias ArticlePreviewsData msg =
@@ -53,7 +53,7 @@ type alias ArticlePreviewsData msg =
     , onReaction : Maybe (EventId -> PubKey -> AddressComponents -> msg)
     , onRepost : Maybe msg
     , onZap : Maybe (List ZapDialog.Recipient -> msg)
-    , sharing: Maybe (SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg)
+    , sharing : Maybe ( SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg )
     }
 
 
@@ -354,6 +354,7 @@ viewArticle articlePreviewsData articlePreviewData article =
             ]
         ]
 
+
 sharingInfoForArticle : Article -> Author -> SharingButtonDialog.SharingInfo
 sharingInfoForArticle article author =
     { url =
@@ -363,6 +364,7 @@ sharingInfoForArticle article author =
     , title = Maybe.withDefault "" article.title
     , text = Maybe.withDefault "" article.summary
     }
+
 
 viewArticleImage : Maybe String -> Html msg
 viewArticleImage maybeImage =
