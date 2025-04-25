@@ -250,6 +250,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                             , Tw.px_2
                             , Tw.my_16
                             , Css.property "width" "inherit"
+                            -- switch off ligatures - Inter font doesn't have ligatures
+                            , Css.property "font-variant-ligatures" "none"
+                            , Css.property "font-feature-settings" "\"liga\" 0"
                             ]
                        ]
                 )
