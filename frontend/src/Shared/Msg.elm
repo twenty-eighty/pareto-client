@@ -2,6 +2,7 @@ module Shared.Msg exposing (Msg(..))
 
 {-| -}
 
+import Components.AlertTimerMessage as AlertTimerMessage
 import BrowserEnv exposing (TestMode)
 import Nostr
 import Nostr.ConfigCheck as ConfigCheck
@@ -34,3 +35,5 @@ type Msg
     | ConfigCheckMsg ConfigCheck.Msg
     | LoadUserDataByPubKey PubKey
     | LoadUserDataByNip05 Nip05.Nip05
+    | ShowAlert String
+    | AlertSent AlertTimerMessage.Msg

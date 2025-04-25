@@ -1,6 +1,7 @@
 module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layout, map)
 
 import BrowserEnv exposing (BrowserEnv)
+import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button
 import Components.Icon as Icon exposing (Icon(..))
 import Components.Switch as Switch
@@ -245,6 +246,11 @@ view styles shared path { toContentMsg, content } =
             )
             [ viewSidebar styles shared path toContentMsg content.body
             , viewLinktoInternalPage shared.nostr
+            , AlertTimerMessage.new
+                { model = shared.alertTimerMessage
+                , theme = shared.theme
+                }
+                |> AlertTimerMessage.view
             ]
         ]
     }

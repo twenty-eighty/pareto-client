@@ -8,7 +8,6 @@ module Components.AlertTimerMessage exposing
     , view
     )
 
-import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div, text)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (..)
@@ -50,8 +49,8 @@ type Model
         }
 
 
-init : {} -> Model
-init _ =
+init : Model
+init =
     Model
         { messages = []
         }
@@ -68,16 +67,16 @@ update :
     , toModel : Model -> model
     , toMsg : Msg -> msg
     }
-    -> ( model, Effect msg )
+    -> ( model, Cmd msg )
 update props =
     let
         (Model model) =
             props.model
 
-        toParentModel : ( Model, Effect msg ) -> ( model, Effect msg )
-        toParentModel ( innerModel, effect ) =
+        toParentModel : ( Model, Cmd msg ) -> ( model, Cmd msg )
+        toParentModel ( innerModel, cmd ) =
             ( props.toModel innerModel
-            , effect
+            , cmd
             )
     in
     toParentModel <|
@@ -87,24 +86,24 @@ update props =
                     [] ->
                         ( Model { messages = [ { message = message, timeout = millisecs } ] }
                         , delay millisecs RemoveMessage
-                            |> Effect.map props.toMsg
+                            |> Cmd.map props.toMsg
                         )
 
                     messages ->
                         ( Model { messages = messages ++ [ { message = message, timeout = millisecs } ] }
-                        , Effect.none
+                        , Cmd.none
                         )
 
             RemoveMessage ->
                 case model.messages of
                     [] ->
                         ( Model model
-                        , Effect.none
+                        , Cmd.none
                         )
 
                     [ _ ] ->
                         ( Model { model | messages = [] }
-                        , Effect.none
+                        , Cmd.none
                         )
 
                     _ :: remaining ->
@@ -114,18 +113,17 @@ update props =
                             |> Maybe.map
                                 (\firstMessage ->
                                     delay firstMessage.timeout RemoveMessage
-                                        |> Effect.map props.toMsg
+                                        |> Cmd.map props.toMsg
                                 )
-                            |> Maybe.withDefault Effect.none
+                            |> Maybe.withDefault Cmd.none
                         )
 
 
-delay : Int -> msg -> Effect msg
+delay : Int -> msg -> Cmd msg
 delay time msg =
     Process.sleep (toFloat time)
         |> Task.andThen (always <| Task.succeed msg)
         |> Task.perform identity
-        |> Effect.sendCmd
 
 
 view : AlertTimerMessage -> Html msg

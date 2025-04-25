@@ -18,7 +18,7 @@ import Nostr.Request exposing (RequestId)
 import Tailwind.Utilities as Tw
 import Ui.Article exposing (ArticlePreviewsData)
 import Ui.Community
-import Ui.Shared exposing (Actions)
+import Ui.Interactions exposing (Actions)
 import Ui.Styles exposing (Theme)
 
 

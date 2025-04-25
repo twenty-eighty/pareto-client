@@ -366,7 +366,8 @@
    },
    "sharing button dialog": {
       "dialog title": "Teilen",
-      "submit button title": "In Zwischenablage kopieren"
+      "submit button title": "In Zwischenablage kopieren",
+      "copied to clipboard alert message": "In Zwischenablage kopiert"
    },
    "sidebar": {
       "reader client role text": "Leser",

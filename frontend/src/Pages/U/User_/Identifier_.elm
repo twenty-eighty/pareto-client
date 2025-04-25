@@ -72,7 +72,7 @@ init shared route () =
             , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
             , requestId = Nothing
             , zapDialog = ZapDialog.init {}
-            , sharingButtonDialog = SharingButtonDialog.init {}
+            , sharingButtonDialog = SharingButtonDialog.init
             }
 
         ( requestEffect, requestId ) =
@@ -206,7 +206,8 @@ update shared msg model =
 
         SharingButtonDialogMsg innerMsg ->
             SharingButtonDialog.update
-                { model = model.sharingButtonDialog
+                { browserEnv = shared.browserEnv
+                , model = model.sharingButtonDialog
                 , msg = innerMsg
                 , toModel = \sharingButtonDialog -> { model | sharingButtonDialog = sharingButtonDialog }
                 , toMsg = SharingButtonDialogMsg

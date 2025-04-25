@@ -37,9 +37,10 @@ import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Time
 import Translations.Posts
+import Ui.Interactions exposing (Actions, extendedZapRelays, viewInteractions)
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
-import Ui.Shared exposing (Actions, emptyHtml, extendedZapRelays)
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyInter, fontFamilyRobotoMono, fontFamilyUnbounded)
 
 
@@ -249,6 +250,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                             , Tw.px_2
                             , Tw.my_16
                             , Css.property "width" "inherit"
+                            -- switch off ligatures - Inter font doesn't have ligatures
+                            , Css.property "font-variant-ligatures" "none"
+                            , Css.property "font-feature-settings" "\"liga\" 0"
                             ]
                        ]
                 )
@@ -325,9 +329,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                             ++ textStyleReactions
                             ++ contentMargins
                         )
-                        [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "1"
+                        [ viewInteractions styles articlePreviewsData.browserEnv previewData "1"
                         , viewContent styles articlePreviewData.loadedContent getProfile article.content
-                        , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "2"
+                        , viewInteractions styles articlePreviewsData.browserEnv previewData "2"
                         ]
                     , case articlePreviewsData.commenting of
                         Just ( comment, _ ) ->

@@ -24,8 +24,9 @@ import Shared.Model exposing (LoginStatus)
 import Tailwind.Utilities as Tw
 import Time
 import Translations.Profile as Translations
+import Ui.Interactions exposing (extendedZapRelays, pubkeyRelays, zapButton)
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
-import Ui.Shared exposing (emptyHtml, extendedZapRelays, pubkeyRelays, zapButton)
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 
 

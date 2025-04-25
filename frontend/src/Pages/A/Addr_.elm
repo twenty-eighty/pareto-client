@@ -88,7 +88,7 @@ init shared route () =
                         , nip19 = nip19
                         , requestId = Nostr.getLastRequestId shared.nostr
                         , zapDialog = ZapDialog.init {}
-                        , sharingButtonDialog = SharingButtonDialog.init {}
+                        , sharingButtonDialog = SharingButtonDialog.init
                         }
                     , Nostr.getArticleForNip19 shared.nostr nip19
                     )
@@ -274,7 +274,8 @@ update shared msg model =
             case model of
                 Nip19Model nip19ModelData ->
                     SharingButtonDialog.update
-                        { model = nip19ModelData.sharingButtonDialog
+                        { browserEnv = shared.browserEnv
+                        , model = nip19ModelData.sharingButtonDialog
                         , msg = innerMsg
                         , toModel = \sharingButtonDialog -> Nip19Model { nip19ModelData | sharingButtonDialog = sharingButtonDialog }
                         , toMsg = SharingButtonDialogMsg
