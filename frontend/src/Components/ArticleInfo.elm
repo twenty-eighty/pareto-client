@@ -95,7 +95,8 @@ view styles author article browserEnv interactions nostr =
                     [ Tw.mt_1 ]
                 ]
                 [ viewAuthorStat styles "Beiträge" articlesFromAuthor
-                , viewAuthorStat styles "Follower" followersFromAuthor
+
+                --, viewAuthorStat styles "Follower" followersFromAuthor
                 ]
             , {- Article Info Section -}
               h3
