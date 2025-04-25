@@ -1,6 +1,7 @@
 module Shared.Model exposing (ClientRole(..), LoginMethod(..), LoginStatus(..), Model)
 
 import BrowserEnv exposing (BrowserEnv)
+import Components.AlertTimerMessage as AlertTimerMessage
 import Nostr
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Types exposing (PubKey)
@@ -21,6 +22,7 @@ type alias Model =
     , nostr : Nostr.Model
     , role : ClientRole
     , theme : Theme
+    , alertTimerMessage : AlertTimerMessage.Model
     }
 
 

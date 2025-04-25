@@ -367,7 +367,8 @@
    },
    "sharing button dialog": {
       "dialog title": "Share",
-      "submit button title": "Copy to clipboard"
+      "submit button title": "Copy to clipboard",
+      "copied to clipboard alert message": "Copied to clipboard"
    },
    "sidebar": {
       "reader client role text": "Reader",

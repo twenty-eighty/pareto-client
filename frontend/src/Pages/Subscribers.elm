@@ -2,7 +2,6 @@ module Pages.Subscribers exposing (Model, Msg, page)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
-import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button as Button
 import Components.EmailImportDialog as EmailImportDialog
 import Components.Icon as Icon
@@ -69,8 +68,7 @@ toLayout theme _ =
 
 
 type alias Model =
-    { alertTimerMessage : AlertTimerMessage.Model
-    , emailImportDialog : EmailImportDialog.Model
+    { emailImportDialog : EmailImportDialog.Model
     , errors : List String
     , modifications : List Modification
     , requestId : RequestId
@@ -93,13 +91,11 @@ type ModelState
     | Uploading String String String Int Int Int
     | Downloading Subscribers.SubscriberEventData
     | Saving
-    | Saved
 
 
 init : Auth.User -> Shared.Model -> () -> ( Model, Effect Msg )
 init user shared () =
-    ( { alertTimerMessage = AlertTimerMessage.init {}
-      , emailImportDialog = EmailImportDialog.init {}
+    ( { emailImportDialog = EmailImportDialog.init {}
       , errors = []
       , modifications = []
       , requestId = Nostr.getLastRequestId shared.nostr
@@ -133,7 +129,6 @@ type Msg
     | ExportClicked
     | SaveClicked String String
     | ProcessModificationsClicked
-    | AlertTimerMessageSent AlertTimerMessage.Msg
     | EmailImportDialogSent (EmailImportDialog.Msg Msg)
     | AddSubscribers (List Subscriber) Bool
     | RemoveSubscriber String
@@ -178,14 +173,6 @@ update user shared msg model =
 
         ProcessModificationsClicked ->
             ( { model | state = Modified, subscribers = Subscribers.processModifications model.subscribers model.modifications }, Effect.none )
-
-        AlertTimerMessageSent innerMsg ->
-            AlertTimerMessage.update
-                { msg = innerMsg
-                , model = model.alertTimerMessage
-                , toModel = \alertTimerMessage -> { model | alertTimerMessage = alertTimerMessage }
-                , toMsg = AlertTimerMessageSent
-                }
 
         EmailImportDialogSent innerMsg ->
             EmailImportDialog.update
@@ -404,11 +391,11 @@ updateWithMessage user shared model message =
 
         "published" ->
             -- currently this page only publishes the list of subscribers so we don't have to check details
-            update user shared (AlertTimerMessageSent (AlertTimerMessage.AddMessage "saved subscribers sucessfully" 1000)) { model | state = Saved }
+            ( model, Effect.sendSharedMsg (Shared.Msg.ShowAlert "saved subscribers sucessfully" ))
 
         "error" ->
             -- currently this page only publishes the list of subscribers so we don't have to check details
-            update user shared (AlertTimerMessageSent (AlertTimerMessage.AddMessage "error saving subscribers" 2000)) { model | state = Modified }
+            ( model, Effect.sendSharedMsg (Shared.Msg.ShowAlert "error saving subscribers" ))
 
         _ ->
             ( model, Effect.none )
@@ -612,11 +599,6 @@ view user shared model =
                 , theme = shared.theme
                 }
                 |> SubscriberEditDialog.view
-            , AlertTimerMessage.new
-                { model = model.alertTimerMessage
-                , theme = shared.theme
-                }
-                |> AlertTimerMessage.view
             ]
         ]
     }

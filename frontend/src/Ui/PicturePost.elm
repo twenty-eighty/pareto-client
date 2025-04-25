@@ -11,9 +11,10 @@ import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplay
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Types exposing (EventId, PubKey)
 import Tailwind.Utilities as Tw
+import Ui.Interactions exposing (Actions, extendedZapRelays, pubkeyRelays)
 import Ui.Links exposing (linkElementForAuthor)
 import Ui.Profile
-import Ui.Shared exposing (Actions, emptyHtml, extendedZapRelays, pubkeyRelays)
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme, darkMode, stylesForTheme)
 import Url
 

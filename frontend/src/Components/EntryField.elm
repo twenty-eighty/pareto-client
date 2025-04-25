@@ -7,6 +7,7 @@ module Components.EntryField exposing
     , withLabel
     , withPlaceholder
     , withRequired
+    , withReadOnly
     , withRows
     , withSubmitMsg
     , withSuggestions
@@ -28,6 +29,7 @@ type EntryField msg
         , onSubmit : Maybe msg
         , onInput : String -> msg
         , placeholder : Maybe String
+        , readOnly : Bool
         , required : Bool
         , rows : Int
         , showForm : Bool
@@ -68,6 +70,7 @@ new props =
         , onSubmit = Nothing
         , onInput = props.onInput
         , placeholder = Nothing
+        , readOnly = False
         , required = False
         , rows = 1
         , showForm = False
@@ -106,6 +109,11 @@ withPlaceholder placeholder (Settings settings) =
 withRequired : EntryField msg -> EntryField msg
 withRequired (Settings settings) =
     Settings { settings | required = True }
+
+
+withReadOnly : EntryField msg -> EntryField msg
+withReadOnly (Settings settings) =
+    Settings { settings | readOnly = True }
 
 
 withSuggestions : String -> List String -> EntryField msg -> EntryField msg
@@ -149,6 +157,13 @@ view (Settings settings) =
 
                 Nothing ->
                     emptyHtml
+
+        readOnlyAttr =
+            if settings.readOnly then
+                [ Attr.readonly True ]
+
+            else
+                []
 
         requiredAttr =
             if settings.required then
@@ -220,6 +235,7 @@ view (Settings settings) =
         [ labelElement
         , elementType
             (styles.colorStyleBackground
+                ++ readOnlyAttr
                 ++ attrs
                 ++ nameAttr
                 ++ placeholderAttr
