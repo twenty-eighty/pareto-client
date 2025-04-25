@@ -106,22 +106,32 @@ update shared msg model =
             )
 
         FetchConfigCheckData ->
+            let
+                authorPubKeys =
+                    Nostr.getAuthorsPubKeys shared.nostr
+            in
             ( model
-            , { emptyEventFilter
-                | authors = Just (Nostr.getAuthorsPubKeys shared.nostr)
-                , kinds = Just  
-                    [ KindUserServerList
-                    , KindFileStorageServerList
-                    , KindRelayListMetadata
-                    , KindSearchRelaysList
-                    , KindPrivateRelayList
-                    , KindRelayListForDMs
-                    ]
-              }
-                |> RequestProfile Nothing
-                |> Nostr.createRequest shared.nostr "Config data" [ ]
-                |> Shared.Msg.RequestNostrEvents
-                |> Effect.sendSharedMsg
+            , Effect.batch
+                [ { emptyEventFilter
+                    | authors = Just authorPubKeys
+                    , kinds = Just  
+                        [ KindUserServerList
+                        , KindFileStorageServerList
+                        , KindRelayListMetadata
+                        , KindSearchRelaysList
+                        , KindPrivateRelayList
+                        , KindRelayListForDMs
+                        ]
+                  }
+                    |> RequestProfile Nothing
+                    |> Nostr.createRequest shared.nostr "Config data" [ ]
+                    |> Shared.Msg.RequestNostrEvents
+                    |> Effect.sendSharedMsg
+                , authorPubKeys
+                    |> List.map Shared.Msg.LoadUserDataByPubKey
+                    |> List.map Effect.sendSharedMsg
+                    |> Effect.batch
+                ]
             )
 
         PerformConfigChecks ->
