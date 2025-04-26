@@ -58,7 +58,6 @@ view styles author article browserEnv interactions nostr =
             , Tw.text_sm
             , Tw.font_semibold
             , Tw.tracking_wide
-            , Tw.w_1over5
             , Tw.max_w_60
             , Tw.h_screen
             , Tw.text_color styles.color1

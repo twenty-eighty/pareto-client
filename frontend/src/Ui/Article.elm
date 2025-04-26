@@ -203,8 +203,7 @@ viewArticle articlePreviewsData articlePreviewData article =
         [ css
             [ Tw.flex
             , Tw.flex_wrap
-            , Tw.w_lvw
-            , Tw.h_dvh
+            , Tw.w_dvw
             , Tw.overflow_hidden
             , Tw.neg_mb_4
             , Bp.md [ Tw.mb_0 ]
@@ -213,9 +212,8 @@ viewArticle articlePreviewsData articlePreviewData article =
         [ ArticleInfo.view styles articlePreviewData.author article articlePreviewsData.browserEnv articlePreviewData.interactions articlePreviewsData.nostr
         , div
             [ css
-                [ Bp.lg [ Tw.w_4over5 ]
-                , Tw.w_dvw
-                , Tw.overflow_scroll
+                [ Tw.flex_1
+                , Tw.overflow_y_scroll
                 , Tw.h_dvh
                 ]
             ]
@@ -250,6 +248,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                             , Tw.px_2
                             , Tw.my_16
                             , Css.property "width" "inherit"
+
                             -- switch off ligatures - Inter font doesn't have ligatures
                             , Css.property "font-variant-ligatures" "none"
                             , Css.property "font-feature-settings" "\"liga\" 0"
