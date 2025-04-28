@@ -6,6 +6,7 @@ import Dict
 import FeatherIcons
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr exposing (..)
+import I18Next exposing (Translations)
 import Nostr
 import Nostr.Article exposing (Article, publishedTime)
 import Nostr.Profile exposing (Author)
@@ -14,6 +15,7 @@ import Tailwind.Breakpoints as Bp exposing (..)
 import Tailwind.Theme exposing (..)
 import Tailwind.Utilities as Tw exposing (..)
 import TextStats exposing (TextStats)
+import Translations.ArticleInfo as Translations
 import Ui.Profile
 import Ui.Styles exposing (Styles)
 
@@ -93,9 +95,9 @@ view styles author article browserEnv interactions nostr =
                 [ css
                     [ Tw.mt_1 ]
                 ]
-                [ viewAuthorStat styles "Beiträge" articlesFromAuthor
+                [ viewAuthorStat styles (Translations.numberOfArticles [ browserEnv.translations ]) articlesFromAuthor
 
-                --, viewAuthorStat styles "Follower" followersFromAuthor
+                --, viewAuthorStat styles (Translations.followers [ browserEnv.translations ]) followersFromAuthor
                 ]
             , {- Article Info Section -}
               h3
@@ -105,7 +107,7 @@ view styles author article browserEnv interactions nostr =
                     , Tw.tracking_wider
                     ]
                 ]
-                [ text "Artikel Info" ]
+                [ text (Translations.title [ browserEnv.translations ]) ]
             , div
                 [ css
                     [ Tw.text_xs
@@ -115,7 +117,7 @@ view styles author article browserEnv interactions nostr =
                 ]
                 [ text articlePublishedDate ]
             , viewTags <| List.filter (\hashtag -> not (String.isEmpty hashtag)) <| article.hashtags
-            , viewArticleStats styles articleStats
+            , viewArticleStats styles articleStats browserEnv
             , viewInteractions browserEnv interactions
             ]
         ]
@@ -200,8 +202,8 @@ viewTags tags =
         )
 
 
-viewArticleStats : Styles msg -> TextStats -> Html msg
-viewArticleStats styles textStats =
+viewArticleStats : Styles msg -> TextStats -> BrowserEnv -> Html msg
+viewArticleStats styles textStats browserEnv =
     let
         toHtml label value =
             div
@@ -232,11 +234,11 @@ viewArticleStats styles textStats =
             , Tw.mt_4
             ]
         ]
-        [ toHtml "Reading Time:" (String.fromFloat <| roundToTwoDecimals textStats.readingTime)
-        , toHtml "Speaking Time:" (String.fromFloat <| roundToTwoDecimals textStats.speakingTime)
-        , toHtml "Sentences:" (String.fromInt textStats.sentences)
-        , toHtml "Words:" (String.fromInt textStats.words)
-        , toHtml "Characters:" (String.fromInt textStats.characters)
+        [ toHtml (Translations.readingTime [ browserEnv.translations ]) (String.fromFloat <| roundToTwoDecimals textStats.readingTime)
+        , toHtml (Translations.speakingTime [ browserEnv.translations ]) (String.fromFloat <| roundToTwoDecimals textStats.speakingTime)
+        , toHtml (Translations.sentences [ browserEnv.translations ]) (String.fromInt textStats.sentences)
+        , toHtml (Translations.words [ browserEnv.translations ]) (String.fromInt textStats.words)
+        , toHtml (Translations.characters [ browserEnv.translations ]) (String.fromInt textStats.characters)
         ]
 
 
