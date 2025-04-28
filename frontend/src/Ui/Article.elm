@@ -231,7 +231,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                         [ Tw.absolute
                         , Bp.lg [ Tw.top_3over4 ]
                         , Bp.md [ Tw.top_3over4 ]
-                        , Css.Media.withMediaQuery [ "(min-width: 360px)" ] [ Tw.top_3over4 ]
+                        , Css.Media.withMediaQuery [ "(min-width: 360px)" ] [ Tw.top_1over2 ]
                         , Tw.z_10
                         ]
                     ]

@@ -416,7 +416,7 @@ viewMainContent content =
         [ div
             [ css
                 [ Tw.h_lvh
-                , Tw.overflow_y_clip
+                , Tw.overflow_y_scroll
                 ]
             ]
             content
