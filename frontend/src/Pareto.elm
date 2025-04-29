@@ -281,6 +281,7 @@ bootstrapAuthorsList =
     , ( "rm@pareto.town", "2b24a1fa310d5c0f0299c10f13c5f280935ed02407593a8bdb19612d17750f64" )
     , ( "rodant@pareto.space", "71df211931d26ee41121d295bd43cbc7e382505e333b5c13d4016ced9542d9d7" )
     , ( "roland@pareto.space", "cff1720e77bb068f0ebbd389dcd50822dd1ac8d2ac0b0f5f0800ae9e15c7e2b2" )
+    , ( "rosaskanal@pareto.town", "99e7936f129df8c6c826df78a3be975f166081902bde9046848cbf1ed5d2197c" )
     , ( "rp@pareto.town", "2fb77d268b93380a7c3152c610bb373165569a664d445a33140ac048c47a6ee1" )
     , ( "simon.kramer@sk-nostr.ch", "e77fe29e0868513a47b68b5941332139432b8e600140791163173b636fe8bc9d" )
     , ( "sinautoshi@pareto.town", "04ea4f8350f1562aa1d60dc070561f5bb8386a11d1a00570fd7440da210e1713" )
