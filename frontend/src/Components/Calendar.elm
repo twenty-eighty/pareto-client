@@ -449,7 +449,6 @@ availableTimesForMonth (Model model) =
             model.currentTime
                 |> Maybe.map (Time.toDay model.selectedZone)
                 |> Maybe.withDefault 0
-                |> Debug.log "currentDayInMonth"
 
         currentMonthDisplayed =
             case (model.currentTime, model.displayedMonth, model.displayedYear) of
