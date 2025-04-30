@@ -88,7 +88,7 @@ viewInteractions styles browserEnv previewData instanceId =
     div
         (css
             [ Tw.justify_start
-            , Tw.items_start
+            , Tw.items_center
             , Tw.gap_6
             , Tw.inline_flex
             ]
