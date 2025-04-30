@@ -1,12 +1,13 @@
 module Ui.Shared exposing (..)
 
-import Nostr.ConfigCheck as ConfigCheck
 import Css
 import Erl
 import Html.Styled as Html exposing (Html, a, button, div, h2, text)
 import Html.Styled.Attributes as Attr exposing (css)
-import Html.Styled.Events as Events 
+import Html.Styled.Events as Events exposing (..)
 import I18Next
+import Nostr.ConfigCheck as ConfigCheck
+import Nostr.Nip19 exposing (NIP19Type(..))
 import Pareto
 import Svg.Loaders
 import Tailwind.Breakpoints as Bp
@@ -34,6 +35,7 @@ extendUrlForScaling width urlString =
 
     else
         urlString
+
 
 countBadge : Int -> String
 countBadge count =
@@ -101,6 +103,7 @@ countBadge count =
         otherNumber ->
             "(" ++ String.fromInt otherNumber ++ ")"
 
+
 viewConfigIssues : I18Next.Translations -> String -> List ConfigCheck.Issue -> Html msg
 viewConfigIssues translations title issues =
     case issues of
@@ -138,8 +141,6 @@ viewIssueText { message, explanation, solution } =
         , Html.text <| " - " ++ explanation
         , Html.p [ css [ Tw.text_sm ] ] [ Html.text solution ]
         ]
-
-
 
 
 isNip96Server : Erl.Url -> Bool
@@ -276,4 +277,3 @@ modalDialog theme title content onClose =
                 content
             ]
         ]
-

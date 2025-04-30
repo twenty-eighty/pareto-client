@@ -18,9 +18,9 @@ import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Types exposing (Following(..), PubKey)
 import Set exposing (Set)
 import Shared
+import Shared.Model exposing (LoginStatus)
 import Tailwind.Breakpoints as Bp exposing (..)
 import Tailwind.Theme as Theme
-import Shared.Model exposing (LoginStatus)
 import Tailwind.Utilities as Tw
 import Time
 import Translations.Profile as Translations
@@ -451,7 +451,7 @@ viewProfileImage linkElement maybeProfile validationStatus =
                 , css
                     [ Bp.lg [ Tw.max_w_28 ]
                     , Bp.md [ Tw.max_w_16 ]
-                    , Css.Media.withMediaQuery [ "(min-width: 360px)" ] [ Tw.max_w_14 ]
+                    , Tw.max_w_14
                     , Tw.object_contain
                     , Tw.h_auto
                     , Tw.p_1

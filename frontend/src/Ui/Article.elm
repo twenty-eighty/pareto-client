@@ -28,6 +28,7 @@ import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profi
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Relay exposing (websocketUrl)
 import Nostr.Types exposing (EventId, PubKey)
+import Pareto
 import Route
 import Route.Path
 import Set
@@ -41,7 +42,6 @@ import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyInter, fontFamilyRobotoMono, fontFamilyUnbounded)
-import Pareto
 
 
 type alias ArticlePreviewsData msg =
@@ -54,7 +54,7 @@ type alias ArticlePreviewsData msg =
     , onReaction : Maybe (EventId -> PubKey -> AddressComponents -> msg)
     , onRepost : Maybe msg
     , onZap : Maybe (List ZapDialog.Recipient -> msg)
-    , sharing: Maybe (SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg)
+    , sharing : Maybe ( SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg )
     }
 
 
@@ -203,8 +203,7 @@ viewArticle articlePreviewsData articlePreviewData article =
         [ css
             [ Tw.flex
             , Tw.flex_wrap
-            , Tw.w_lvw
-            , Tw.h_dvh
+            , Tw.w_dvw
             , Tw.overflow_hidden
             , Tw.neg_mb_4
             , Bp.md [ Tw.mb_0 ]
@@ -213,9 +212,8 @@ viewArticle articlePreviewsData articlePreviewData article =
         [ ArticleInfo.view styles articlePreviewData.author article articlePreviewsData.browserEnv articlePreviewData.interactions articlePreviewsData.nostr
         , div
             [ css
-                [ Bp.lg [ Tw.w_4over5 ]
-                , Tw.w_dvw
-                , Tw.overflow_scroll
+                [ Tw.flex_1
+                , Tw.overflow_y_scroll
                 , Tw.h_dvh
                 ]
             ]
@@ -231,9 +229,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                 , div
                     [ css
                         [ Tw.absolute
-                        , Bp.lg [ Tw.top_3over4 ]
-                        , Bp.md [ Tw.top_3over4 ]
-                        , Css.Media.withMediaQuery [ "(min-width: 360px)" ] [ Tw.top_3over4 ]
+                        , Tw.top_3over4
                         , Tw.z_10
                         ]
                     ]
@@ -250,6 +246,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                             , Tw.px_2
                             , Tw.my_16
                             , Css.property "width" "inherit"
+
                             -- switch off ligatures - Inter font doesn't have ligatures
                             , Css.property "font-variant-ligatures" "none"
                             , Css.property "font-feature-settings" "\"liga\" 0"
@@ -358,6 +355,7 @@ viewArticle articlePreviewsData articlePreviewData article =
             ]
         ]
 
+
 sharingInfoForArticle : Article -> Author -> SharingButtonDialog.SharingInfo
 sharingInfoForArticle article author =
     { url =
@@ -367,6 +365,7 @@ sharingInfoForArticle article author =
     , title = Maybe.withDefault "" article.title
     , text = Maybe.withDefault "" article.summary
     }
+
 
 viewArticleImage : Maybe String -> Html msg
 viewArticleImage maybeImage =

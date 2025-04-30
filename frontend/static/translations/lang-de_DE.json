@@ -22,6 +22,17 @@
    "article page": {
       "default page title": "Artikel"
    },
+   "article info": {
+      "title": "Artikel Info",
+      "number of articles": "Beiträge",
+      "followers": "Followers",
+      "reading time": "Lesezeit:",
+      "speaking time": "Hörlänge:",
+      "time unit": "Minuten",
+      "sentences": "Sätze:",
+      "words": "Wörter:",
+      "characters": "Zeichen:"
+   },
    "authors page": {
       "page title": "Autoren",
       "fetch config data button title": "Konfigurationsdaten abrufen",

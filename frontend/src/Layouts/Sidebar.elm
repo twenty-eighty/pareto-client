@@ -4,7 +4,6 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button
 import Components.Icon as Icon exposing (Icon(..))
-import Nostr.ConfigCheck as ConfigCheck
 import Components.Switch as Switch
 import Css
 import Dict
@@ -17,6 +16,7 @@ import I18Next
 import Layout exposing (Layout)
 import Nostr
 import Nostr.BookmarkList exposing (bookmarksCount)
+import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Profile exposing (Profile)
 import Nostr.Types exposing (Following(..))
 import Ports
@@ -26,6 +26,7 @@ import Shared
 import Shared.Model exposing (ClientRole(..), LoginStatus(..))
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
+import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
 import Ui.Profile
@@ -237,11 +238,12 @@ view styles shared path { toContentMsg, content } =
     { title = content.title ++ " | Pareto"
     , body =
         [ div
-            [ css
+            (css
                 [ Tw.h_full
                 , Tw.overflow_clip
                 ]
-            ]
+                :: styles.colorStyleBackground
+            )
             [ viewSidebar styles shared path toContentMsg content.body
             , viewLinktoInternalPage shared.nostr
             , AlertTimerMessage.new
@@ -303,10 +305,8 @@ viewSidebar styles shared currentPath toContentMsg content =
     in
     Html.div
         (styles.colorStyleGrayscaleTitle
-            ++ styles.colorStyleBackground
             ++ [ css
-                    [ Tw.h_screen
-                    ]
+                    [ Tw.h_screen ]
                ]
         )
         [ div
@@ -315,8 +315,7 @@ viewSidebar styles shared currentPath toContentMsg content =
                 ]
             ]
             [ aside
-                (styles.colorStyleBackground
-                    ++ styles.colorStyleBorders
+                (styles.colorStyleBorders
                     ++ [ css
                             [ Tw.p_2
                             , Tw.h_14
@@ -338,6 +337,7 @@ viewSidebar styles shared currentPath toContentMsg content =
                                 , Tw.border_r
                                 , Tw.z_0
                                 ]
+                            , darkMode [ Tw.bg_color Theme.black ]
                             ]
                        ]
                 )
@@ -416,7 +416,7 @@ viewMainContent content =
         [ div
             [ css
                 [ Tw.h_lvh
-                , Tw.overflow_scroll
+                , Tw.overflow_y_scroll
                 ]
             ]
             content
@@ -601,21 +601,7 @@ viewSidebarItem styles currentPath itemData =
             [ css
                 [ Tw.text_color styles.color1
                 , Tw.bg_color styles.color3
-                , Bp.sm
-                    [ Tw.text_color styles.color1
-                    , Tw.bg_color styles.color3
-                    , darkMode
-                        [ Tw.text_color styles.color1
-                        , Tw.bg_color styles.color4
-                        ]
-                    ]
-                , darkMode
-                    [ Tw.text_color styles.color1DarkMode
-                    , Tw.bg_color styles.color2DarkMode
-                    , Bp.sm
-                        [ Tw.text_color styles.color1DarkMode
-                        ]
-                    ]
+                , darkMode [ Tw.bg_color styles.color4 ]
                 ]
             ]
 
