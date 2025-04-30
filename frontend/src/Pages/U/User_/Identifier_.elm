@@ -57,7 +57,7 @@ type alias Model =
     , identifier : String
     , nip05 : Maybe Nip05.Nip05
     , requestId : Maybe RequestId
-    , zapDialog : ZapDialog.Model Msg
+    , zapDialog : ZapDialog.Model
     , sharingButtonDialog : SharingButtonDialog.Model
     }
 

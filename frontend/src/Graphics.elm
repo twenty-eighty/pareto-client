@@ -6,6 +6,24 @@ import Svg.Styled as Svg exposing (path, svg)
 import Svg.Styled.Attributes as SvgAttr
 
 
+angleDownIcon : Int -> String -> Html msg
+angleDownIcon width color =
+        Svg.svg
+            [ SvgAttr.width (String.fromInt width)
+            , SvgAttr.height (String.fromInt width)
+            , SvgAttr.viewBox "0 0 512 512"
+            ]
+            [ Svg.path
+                [ SvgAttr.fill "none"
+                , SvgAttr.stroke color
+                , SvgAttr.strokeWidth "50"
+                , SvgAttr.d "M0,128 L224,384 L448,128"
+                ]
+                []
+            ]
+
+
+
 readIcon : Html msg
 readIcon =
     svg

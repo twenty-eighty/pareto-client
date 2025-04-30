@@ -65,7 +65,7 @@ type alias Nip19ModelData =
     , comment : Comment.Model
     , nip19 : NIP19Type
     , requestId : RequestId
-    , zapDialog : ZapDialog.Model Msg
+    , zapDialog : ZapDialog.Model
     , sharingButtonDialog : SharingButtonDialog.Model
     }
 

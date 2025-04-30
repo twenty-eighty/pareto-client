@@ -182,6 +182,7 @@ viewDialog (Settings settings) =
     in
     ModalDialog.new
         { title = Translations.dialogTitle [ settings.translations ]
+        , buttons = []
         , content =
             [ Html.div [ Attr.css [ Tw.flex, Tw.flex_col, Tw.gap_2 ] ]
                 [ Html.div [ Attr.css [ Tw.flex, Tw.flex_row, Tw.items_end ] ]

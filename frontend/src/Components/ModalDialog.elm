@@ -32,16 +32,18 @@ import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
 type ModalDialog msg
     = Settings
         { title : String
+        , buttons : List (Html msg)
         , content : List (Html msg)
         , onClose : msg
         , theme : Ui.Styles.Theme
         }
 
 
-new : { title : String, content : List (Html msg), onClose : msg, theme : Ui.Styles.Theme } -> ModalDialog msg
+new : { title : String, buttons : List (Html msg), content : List (Html msg), onClose : msg, theme : Ui.Styles.Theme } -> ModalDialog msg
 new props =
     Settings
         { title = props.title
+        , buttons = props.buttons
         , content = props.content
         , onClose = props.onClose
         , theme = props.theme
@@ -139,5 +141,13 @@ view (Settings settings) =
                     ]
                 ]
                 settings.content
+            , div
+                [ css
+                    [ Tw.flex
+                    , Tw.justify_end
+                    , Tw.gap_2
+                    ]
+                ]
+                settings.buttons
             ]
         ]

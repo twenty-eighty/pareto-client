@@ -9,6 +9,7 @@
     "elm-version": "0.19.1",
     "dependencies": {
         "direct": {
+            "AdrianRibao/elm-derberos-date": "1.2.3",
             "ChristophP/elm-i18next": "4.2.1",
             "MartinSStewart/elm-uint64": "2.0.0",
             "NoRedInk/elm-json-decode-pipeline": "1.0.1",
@@ -38,16 +39,17 @@
             "matheus23/elm-tailwind-modules-base": "1.0.0",
             "myrho/numeral-elm": "1.0.1",
             "pablohirafuji/elm-qrcode": "4.0.2",
-            "pablohirafuji/elm-syntax-highlight": "3.5.0",
+            "pablohirafuji/elm-syntax-highlight": "3.7.1",
             "panthershark/email-parser": "1.0.2",
             "proda-ai/murmur3": "1.0.0",
             "rl-king/elm-gallery": "2.0.0",
-            "rluiten/mailcheck": "5.0.2",
+            "rluiten/mailcheck": "5.0.3",
             "rtfeldman/elm-css": "18.0.0",
             "rtfeldman/elm-hex": "1.0.0",
             "rtfeldman/elm-iso8601-date-strings": "1.1.4",
             "ryan-haskell/date-format": "1.0.0",
             "samuelstevens/elm-csv": "1.0.1",
+            "supermario/elm-countries": "1.1.1",
             "tj/elm-svg-loaders": "1.0.0"
         },
         "indirect": {

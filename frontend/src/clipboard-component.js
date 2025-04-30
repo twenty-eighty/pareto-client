@@ -10,7 +10,7 @@ class ClipboardComponent extends HTMLElement {
   connectedCallback() {
     console.log('ClipboardComponent connectedCallback called');
     var thisComponent = this;
-    
+
     // Use MutationObserver to watch for changes in the DOM
     const observer = new MutationObserver((mutations) => {
       console.log('DOM mutation observed, looking for button with ID:', this.copyButtonId);

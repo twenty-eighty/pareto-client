@@ -8,6 +8,7 @@ import Components.HashtagEditor as HashtagEditor
 import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
 import Components.MessageDialog as MessageDialog
 import Components.PublishArticleDialog as PublishArticleDialog exposing (PublishingInfo(..))
+import Components.PublishDateDialog as PublishDateDialog
 import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div, img, label, node, text)
@@ -87,6 +88,7 @@ type alias Model =
     , imageSelection : Maybe ImageSelection
     , publishArticleDialog : PublishArticleDialog.Model
     , publishedAt : Maybe Time.Posix
+    , publishDateDialog : PublishDateDialog.Model
     , articleState : ArticleState
     , editorMode : EditorMode
     , loadedContent : LoadedContent Msg
@@ -213,6 +215,7 @@ init user shared route () =
                     , imageSelection = Nothing
                     , publishArticleDialog = publishArticleDialog
                     , publishedAt = publishedAt
+                    , publishDateDialog = PublishDateDialog.init
                     , articleState = ArticleDraftSaved
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
@@ -238,6 +241,7 @@ init user shared route () =
                     , imageSelection = Nothing
                     , publishArticleDialog = publishArticleDialog
                     , publishedAt = Nothing
+                    , publishDateDialog = PublishDateDialog.init
                     , articleState = ArticleEmpty
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
@@ -292,6 +296,9 @@ type Msg
     | ReceivedPortMessage IncomingMessage
     | MilkdownSent (Milkdown.Msg Msg)
     | PublishArticleDialogSent (PublishArticleDialog.Msg Msg)
+    | PublishDateDialogSent (PublishDateDialog.Msg Msg)
+    | UpdatePublishDate Time.Posix
+    | ShowPublishDateDialog
     | ModalDialogButtonClicked PublishedDialogButton
     | DropdownSent (Dropdown.Msg Language Msg)
     | LanguageChanged (Maybe Language)
@@ -497,6 +504,24 @@ update shared user msg model =
                 , pubKey = user.pubKey
                 , testMode = shared.browserEnv.testMode
                 }
+
+        PublishDateDialogSent innerMsg ->
+            PublishDateDialog.update
+                { msg = innerMsg
+                , model = model.publishDateDialog
+                , toModel = \publishDateDialog -> { model | publishDateDialog = publishDateDialog }
+                , toMsg = PublishDateDialogSent
+                }
+
+        UpdatePublishDate publishDate ->
+            ( { model | publishedAt = Just publishDate }, Effect.none )
+
+        ShowPublishDateDialog ->
+            let
+                ( publishDateDialog, effect ) =
+                    PublishDateDialog.show model.publishDateDialog model.publishedAt
+            in
+            ( { model | publishDateDialog = publishDateDialog }, Effect.map PublishDateDialogSent effect )
 
         ModalDialogButtonClicked _ ->
             ( { model | modalDialog = NoModalDialog }, Effect.none )
@@ -897,6 +922,9 @@ view user shared model =
                 [ Tw.mx_10
                 , Tw.mt_12
                 , Tw.space_y_5
+                , Tw.flex
+                , Tw.flex_col
+                , Tw.gap_2
                 , Bp.xl
                     [ Tw.mx_40
                     ]
@@ -935,11 +963,20 @@ view user shared model =
             , viewEditor shared model
             , viewLanguage shared.browserEnv model
             , viewTags shared.theme shared.browserEnv model
+            , viewPublishDate shared.browserEnv shared.theme model
             , viewArticleState shared.browserEnv shared.theme model.articleState
             , saveButtons shared.browserEnv shared.theme model
             , TextStats.view shared.browserEnv shared.theme model.textStats
             , viewMediaSelector user shared model
             ]
+        , PublishDateDialog.new
+            { model = model.publishDateDialog
+            , toMsg = PublishDateDialogSent
+            , onCommitDate = UpdatePublishDate
+            , browserEnv = shared.browserEnv
+            , theme = shared.theme
+            }
+            |> PublishDateDialog.view
         , PublishArticleDialog.new
             { model = model.publishArticleDialog
             , toMsg = PublishArticleDialogSent
@@ -1370,6 +1407,32 @@ viewTags theme browserEnv model =
         , theme = theme
         }
         |> HashtagEditor.view
+
+
+viewPublishDate : BrowserEnv -> Theme -> Model -> Html Msg
+viewPublishDate browserEnv theme model =
+    let
+        publishDate =
+            model.publishedAt
+                |> Maybe.map (BrowserEnv.formatDate browserEnv)
+                |> Maybe.withDefault (Translations.nowText [ browserEnv.translations ])
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.justify_between
+            , Tw.gap_2
+            ]
+        ]
+        [ Html.text <| Translations.publishingDateLabel [ browserEnv.translations ] { publishDate = publishDate }
+        , Button.new
+            { label = Translations.changePublishDateButtonTitle [ browserEnv.translations ]
+            , onClick = Just ShowPublishDateDialog
+            , theme = theme
+            }
+            |> Button.withTypeSecondary
+            |> Button.view
+        ]
 
 
 saveButtons : BrowserEnv -> Theme -> Model -> Html Msg
