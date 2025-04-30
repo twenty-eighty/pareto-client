@@ -29,13 +29,16 @@ fontFamilySourceSerifPro : Html.Attribute msg
 fontFamilySourceSerifPro =
     Attr.style "font-family" "Source Serif Pro"
 
+
 dummyTheme : Theme
 dummyTheme =
     ParetoTheme
 
+
 type Theme
     = ParetoTheme
     | CustomTheme CustomThemeParams
+
 
 type alias CustomThemeParams =
     { color1 : Theme.Color
@@ -46,8 +49,9 @@ type alias CustomThemeParams =
     , color3DarkMode : Theme.Color
     , color4 : Theme.Color
     , color4DarkMode : Theme.Color
+    , color5 : Theme.Color
+    , color5DarkMode : Theme.Color
     }
-
 
 
 type alias StyleBundle msg =
@@ -146,6 +150,7 @@ type alias Styles msg =
     , colorStyleCode : StyleBundle msg
     }
 
+
 paretoThemeStyles : Styles msg
 paretoThemeStyles =
     let
@@ -181,17 +186,20 @@ paretoThemeStyles =
     in
     customThemeStyles
         { color1 = color1
-        , color1DarkMode = color4
+        , color1DarkMode = color1Inverse
         , color2 = color2
-        , color2DarkMode = color3
+        , color2DarkMode = color2Inverse
         , color3 = color3
-        , color3DarkMode = color2
+        , color3DarkMode = color3Inverse
         , color4 = color4
-        , color4DarkMode = color1
+        , color4DarkMode = color4Inverse
+        , color5 = color5
+        , color5DarkMode = color5Inverse
         }
 
+
 customThemeStyles : CustomThemeParams -> Styles msg
-customThemeStyles { color1, color1DarkMode, color2, color2DarkMode, color3, color3DarkMode, color4, color4DarkMode } =
+customThemeStyles { color1, color1DarkMode, color2, color2DarkMode, color3, color3DarkMode, color4, color4DarkMode, color5, color5DarkMode } =
     { color1 = color1
     , color1DarkMode = color1DarkMode
     , color2 = color2
@@ -199,9 +207,9 @@ customThemeStyles { color1, color1DarkMode, color2, color2DarkMode, color3, colo
     , color3 = color3
     , color3DarkMode = color3DarkMode
     , color4 = color4
-    , color4DarkMode = color4Inverse
+    , color4DarkMode = color4DarkMode
     , color5 = color5
-    , color5DarkMode = color5Inverse
+    , color5DarkMode = color5DarkMode
     , textStyleLinks =
         [ css
             [ Tw.text_base
@@ -305,7 +313,7 @@ customThemeStyles { color1, color1DarkMode, color2, color2DarkMode, color3, colo
         [ css
             [ Tw.bg_color Theme.white
             , darkMode
-                [ Tw.bg_color color1Inverse
+                [ Tw.bg_color color1DarkMode
                 ]
             ]
         ]
