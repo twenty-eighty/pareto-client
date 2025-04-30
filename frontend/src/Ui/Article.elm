@@ -203,7 +203,7 @@ viewArticle articlePreviewsData articlePreviewData article =
         [ css
             [ Tw.flex
             , Tw.flex_wrap
-            , Tw.w_dvw
+            , Tw.w_full
             , Tw.overflow_hidden
             , Tw.neg_mb_4
             , Bp.md [ Tw.mb_0 ]
@@ -245,7 +245,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                             , Tw.inline_flex
                             , Tw.px_2
                             , Tw.my_16
-                            , Css.property "width" "inherit"
+                            , Tw.w_full
 
                             -- switch off ligatures - Inter font doesn't have ligatures
                             , Css.property "font-variant-ligatures" "none"

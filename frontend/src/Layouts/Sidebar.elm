@@ -414,11 +414,7 @@ viewMainContent content =
             []
         ]
         [ div
-            [ css
-                [ Tw.h_lvh
-                , Tw.overflow_y_scroll
-                ]
-            ]
+            [ css [ Tw.h_lvh ] ]
             content
         ]
 
