@@ -63,7 +63,7 @@ clientRoleForRoutePath environment path =
         , maybeBookmarksCount = Nothing
         , currentPath = path
         , testMode = BrowserEnv.TestModeOff
-        , theme = Ui.Styles.defaultTheme
+        , theme = Ui.Styles.dummyTheme
         }
         |> List.any (\item -> item.path == path)
         |> (\isInReaderList ->
