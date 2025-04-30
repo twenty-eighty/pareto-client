@@ -29,14 +29,25 @@ fontFamilySourceSerifPro : Html.Attribute msg
 fontFamilySourceSerifPro =
     Attr.style "font-family" "Source Serif Pro"
 
+dummyTheme : Theme
+dummyTheme =
+    ParetoTheme
 
 type Theme
     = ParetoTheme
+    | CustomTheme CustomThemeParams
 
+type alias CustomThemeParams =
+    { color1 : Theme.Color
+    , color1DarkMode : Theme.Color
+    , color2 : Theme.Color
+    , color2DarkMode : Theme.Color
+    , color3 : Theme.Color
+    , color3DarkMode : Theme.Color
+    , color4 : Theme.Color
+    , color4DarkMode : Theme.Color
+    }
 
-defaultTheme : Theme
-defaultTheme =
-    ParetoTheme
 
 
 type alias StyleBundle msg =
@@ -48,6 +59,9 @@ stylesForTheme theme =
     case theme of
         ParetoTheme ->
             paretoThemeStyles
+
+        CustomTheme customThemeParams ->
+            customThemeStyles customThemeParams
 
 
 mapStyleBundle : (msg1 -> msg2) -> StyleBundle msg1 -> StyleBundle msg2
@@ -132,7 +146,6 @@ type alias Styles msg =
     , colorStyleCode : StyleBundle msg
     }
 
-
 paretoThemeStyles : Styles msg
 paretoThemeStyles =
     let
@@ -166,12 +179,25 @@ paretoThemeStyles =
         color5Inverse =
             color1
     in
+    customThemeStyles
+        { color1 = color1
+        , color1DarkMode = color4
+        , color2 = color2
+        , color2DarkMode = color3
+        , color3 = color3
+        , color3DarkMode = color2
+        , color4 = color4
+        , color4DarkMode = color1
+        }
+
+customThemeStyles : CustomThemeParams -> Styles msg
+customThemeStyles { color1, color1DarkMode, color2, color2DarkMode, color3, color3DarkMode, color4, color4DarkMode } =
     { color1 = color1
-    , color1DarkMode = color1Inverse
+    , color1DarkMode = color1DarkMode
     , color2 = color2
-    , color2DarkMode = color2Inverse
+    , color2DarkMode = color2DarkMode
     , color3 = color3
-    , color3DarkMode = color3Inverse
+    , color3DarkMode = color3DarkMode
     , color4 = color4
     , color4DarkMode = color4Inverse
     , color5 = color5
@@ -287,7 +313,7 @@ paretoThemeStyles =
         [ css
             [ Tw.text_color color2
             , darkMode
-                [ Tw.text_color color2Inverse
+                [ Tw.text_color color2DarkMode
                 ]
             ]
         ]
@@ -295,14 +321,14 @@ paretoThemeStyles =
         [ css
             [ Tw.text_color color4
             , darkMode
-                [ Tw.text_color color4Inverse ]
+                [ Tw.text_color color4DarkMode ]
             ]
         ]
     , colorStyleMedia =
         [ css
             [ Tw.text_color color2
             , darkMode
-                [ Tw.text_color color2Inverse
+                [ Tw.text_color color2DarkMode
                 ]
             ]
         ]
@@ -310,7 +336,7 @@ paretoThemeStyles =
         [ css
             [ Tw.border_color color4
             , darkMode
-                [ Tw.border_color color4Inverse
+                [ Tw.border_color color4DarkMode
                 ]
             ]
         ]
@@ -318,7 +344,7 @@ paretoThemeStyles =
         [ css
             [ Tw.text_color color3
             , darkMode
-                [ Tw.text_color color3Inverse
+                [ Tw.text_color color3DarkMode
                 ]
             ]
         ]
@@ -333,7 +359,7 @@ paretoThemeStyles =
         [ css
             [ Tw.text_color color4
             , darkMode
-                [ Tw.text_color color4Inverse
+                [ Tw.text_color color4DarkMode
                 ]
             ]
         ]
@@ -341,7 +367,7 @@ paretoThemeStyles =
         [ css
             [ Tw.text_color color4
             , darkMode
-                [ Tw.text_color color4Inverse
+                [ Tw.text_color color4DarkMode
                 ]
             ]
         ]
@@ -349,7 +375,7 @@ paretoThemeStyles =
         [ css
             [ Tw.text_color color2
             , darkMode
-                [ Tw.text_color color2Inverse
+                [ Tw.text_color color2DarkMode
                 ]
             ]
         ]
@@ -357,7 +383,7 @@ paretoThemeStyles =
         [ css
             [ Tw.text_color color4
             , darkMode
-                [ Tw.text_color color4Inverse
+                [ Tw.text_color color4DarkMode
                 ]
             ]
         ]
@@ -365,7 +391,7 @@ paretoThemeStyles =
         [ css
             [ Tw.text_color color2
             , darkMode
-                [ Tw.text_color color2Inverse
+                [ Tw.text_color color2DarkMode
                 ]
             ]
         ]
@@ -373,7 +399,7 @@ paretoThemeStyles =
         [ css
             [ Tw.text_color color4
             , darkMode
-                [ Tw.text_color color4Inverse
+                [ Tw.text_color color4DarkMode
                 ]
             ]
         ]
