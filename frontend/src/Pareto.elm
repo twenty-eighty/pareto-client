@@ -289,6 +289,7 @@ bootstrapAuthorsList =
     , ( "someone@pareto.town", "9fec72d579baaa772af9e71e638b529215721ace6e0f8320725ecbf9f77f85b1" )
     , ( "te@pareto.town", "fe02e8ece33b9e01b4225a01bb373552dc6f78744ad8121698c30bfaf07fbe0b" )
     , ( "unsere-verfassung@pareto.town", "56f279150240a326e2bd58f6b7a2486c84f4cfb4baacbdbdf1e8145d5fee3024" )
+    , ( "unzicker@pareto.town", "0e5b795a07479e4e5fcbe197a09284b6a8fecb89e63481818453baf19176f766" )
     , ( "wagschale@pareto.town", "4f2dadc9135248d24832e1a50c43ac438e8ccfcd81c29abdcf060176ad1a034c" )
     , ( "walter_siegrist@pareto.space", "78c90fc422bdadafb4df0de5d1ed87133265f896949705bebc61aee44bff983c" )
     , ( "womanbynature@pareto.town", "fbb0eb9dec0e6f31f1a677d1eca902a5deb405af8fe0e50ac61c73dcbdb78256" )
