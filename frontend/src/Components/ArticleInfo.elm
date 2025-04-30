@@ -6,7 +6,6 @@ import Dict
 import FeatherIcons
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr exposing (..)
-import I18Next exposing (Translations)
 import Nostr
 import Nostr.Article exposing (Article, publishedTime)
 import Nostr.Profile exposing (Author)
@@ -195,6 +194,7 @@ viewTags tags =
                     li
                         [ css
                             [ Tw.leading_none
+                            , Tw.my_1_dot_5
                             ]
                         ]
                         [ text <| "# " ++ tag ]
@@ -205,7 +205,7 @@ viewTags tags =
 viewArticleStats : Styles msg -> TextStats -> BrowserEnv -> Html msg
 viewArticleStats styles textStats browserEnv =
     let
-        toHtml label value =
+        toHtml label value unit =
             div
                 [ css
                     [ Tw.flex
@@ -214,19 +214,22 @@ viewArticleStats styles textStats browserEnv =
                     , Tw.tracking_wide
                     , Tw.leading_none
                     , Tw.text_color styles.color2
+                    , Tw.my_1_dot_5
                     ]
                 ]
                 [ dt
                     [ css
-                        [ Tw.grow ]
+                        []
                     ]
                     [ text <| label ]
                 , dd []
                     [ text <| value ]
+                , dd []
+                    [ text <| unit ]
                 ]
 
         roundToTwoDecimals num =
-            toFloat (round (num * 100)) / 100
+            toFloat (round (num * 10)) / 10
     in
     dl
         [ css
@@ -234,11 +237,11 @@ viewArticleStats styles textStats browserEnv =
             , Tw.mt_4
             ]
         ]
-        [ toHtml (Translations.readingTime [ browserEnv.translations ]) (String.fromFloat <| roundToTwoDecimals textStats.readingTime)
-        , toHtml (Translations.speakingTime [ browserEnv.translations ]) (String.fromFloat <| roundToTwoDecimals textStats.speakingTime)
-        , toHtml (Translations.sentences [ browserEnv.translations ]) (String.fromInt textStats.sentences)
-        , toHtml (Translations.words [ browserEnv.translations ]) (String.fromInt textStats.words)
-        , toHtml (Translations.characters [ browserEnv.translations ]) (String.fromInt textStats.characters)
+        [ toHtml (Translations.readingTime [ browserEnv.translations ]) (String.fromFloat <| roundToTwoDecimals textStats.readingTime) (Translations.timeUnit [ browserEnv.translations ])
+        , toHtml (Translations.speakingTime [ browserEnv.translations ]) (String.fromFloat <| roundToTwoDecimals textStats.speakingTime) (Translations.timeUnit [ browserEnv.translations ])
+        , toHtml (Translations.sentences [ browserEnv.translations ]) (String.fromInt textStats.sentences) ""
+        , toHtml (Translations.words [ browserEnv.translations ]) (String.fromInt textStats.words) ""
+        , toHtml (Translations.characters [ browserEnv.translations ]) (String.fromInt textStats.characters) ""
         ]
 
 

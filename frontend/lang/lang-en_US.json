@@ -23,11 +23,12 @@
       "default page title": "Article"
    },
    "article info": {
-      "title": "Article Info:",
-      "number of articles": "Articles:",
-      "followers": "Followers:",
+      "title": "Article Info",
+      "number of articles": "Articles",
+      "followers": "Followers",
       "reading time": "Reading Time:",
       "speaking time": "Speaking Time:",
+      "time unit": "minutes",
       "sentences": "Sentences:",
       "words": "Words:",
       "characters": "Characters:"
