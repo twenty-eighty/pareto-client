@@ -1,12 +1,15 @@
 module Pages.Uitest exposing (Model, Msg, page)
 
+import BrowserEnv
 import Components.Button
+import Components.Calendar
 import Components.Categories
 import Components.Checkbox
 import Components.Dropdown
 import Components.EntryField
 import Components.Icon
 import Components.SearchBar
+import Components.SharingButtonDialog
 import Components.Switch
 import Effect exposing (Effect)
 import FeatherIcons
@@ -16,6 +19,7 @@ import Html.Styled.Attributes exposing (css)
 import I18Next
 import Layouts
 import Material.Icons exposing (category)
+import Pareto
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
@@ -30,7 +34,7 @@ page : Shared.Model -> Route () -> Page Model Msg
 page shared _ =
     Page.new
         { init = init shared
-        , update = update
+        , update = update shared
         , subscriptions = subscriptions
         , view = view shared
         }
@@ -48,12 +52,14 @@ toLayout theme _ =
 
 
 type alias Model =
-    { categories : Components.Categories.Model TestCategory
+    { calendar : Components.Calendar.Model
+    , categories : Components.Categories.Model TestCategory
     , checkboxValue : Bool
     , dropdown : Components.Dropdown.Model TestDropdownItem
     , entryFieldValue : String
     , searchbar : Components.SearchBar.Model
     , searchValue : Maybe String
+    , sharingButtonDialog : Components.SharingButtonDialog.Model
     , switchValue : TestSwitchState
     , textAreaValue : String
     , theme : Theme
@@ -77,17 +83,25 @@ type TestSwitchState
 
 init : Shared.Model -> () -> ( Model, Effect Msg )
 init shared () =
-    ( { categories = Components.Categories.init { selected = Category2 }
+    let
+        (calendar, calendarMsg)
+            = Components.Calendar.init { selectableRange = Components.Calendar.Past, selectionMode = Components.Calendar.DaySelection, selectedPublishDate = Nothing }
+    in
+    ( { calendar = calendar
+      , categories = Components.Categories.init { selected = Category2 }
       , checkboxValue = True
       , dropdown = Components.Dropdown.init { selected = Just DropdownItem2 }
       , entryFieldValue = ""
       , searchbar = Components.SearchBar.init { searchText = Nothing }
       , searchValue = Nothing
+      , sharingButtonDialog = Components.SharingButtonDialog.init
       , switchValue = SwitchState2
       , textAreaValue = ""
       , theme = shared.theme
       }
-    , Effect.none
+    , calendarMsg
+        |> Effect.sendCmd
+        |> Effect.map CalendarSent
     )
 
 
@@ -100,6 +114,7 @@ type Msg
     | ButtonClick
     | CategoriesSent (Components.Categories.Msg TestCategory Msg)
     | CategorySelected TestCategory
+    | CalendarSent Components.Calendar.Msg
     | CheckboxClicked Bool
     | EntryFieldChanged String
     | SwitchClicked TestSwitchState
@@ -107,17 +122,26 @@ type Msg
     | DropdownChanged (Maybe TestDropdownItem)
     | Search (Maybe String)
     | SearchBarSent (Components.SearchBar.Msg Msg)
+    | SharingButtonDialogSent Components.SharingButtonDialog.Msg
     | TextAreaChanged String
 
 
-update : Msg -> Model -> ( Model, Effect Msg )
-update msg model =
+update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
+update shared msg model =
     case msg of
         NoOp ->
             ( model, Effect.none )
 
         ButtonClick ->
             ( model, Effect.none )
+
+        CalendarSent innerMsg ->
+            Components.Calendar.update
+                { msg = innerMsg
+                , model = model.calendar
+                , toModel = \calendar -> { model | calendar = calendar }
+                , toMsg = CalendarSent
+                }
 
         CategoriesSent innerMsg ->
             Components.Categories.update
@@ -160,6 +184,15 @@ update msg model =
                 , toModel = \searchbar -> { model | searchbar = searchbar }
                 , toMsg = SearchBarSent
                 , onSearch = Search
+                }
+
+        SharingButtonDialogSent innerMsg ->
+            Components.SharingButtonDialog.update
+                { msg = innerMsg
+                , model = model.sharingButtonDialog
+                , toModel = \sharingButtonDialog -> { model | sharingButtonDialog = sharingButtonDialog }
+                , toMsg = SharingButtonDialogSent
+                , browserEnv = shared.browserEnv
                 }
 
         TextAreaChanged value ->
@@ -220,7 +253,8 @@ viewElement ( description, output ) =
 
 elementList : Shared.Model -> Model -> List ( String, Html Msg )
 elementList shared model =
-    [ ( "Categories selector", categoriesElement shared model )
+    [ ( "Calendar", calendarElement shared model )
+    , ( "Categories selector", categoriesElement shared model )
     , ( "Dropdown listbox", dropdownElement shared model )
     , ( "Checkbox", checkboxElement shared model )
     , ( "Switch", switchElement shared model )
@@ -232,10 +266,38 @@ elementList shared model =
     , ( "regular button (disabled)", regularButtonDisabledElement shared model )
     , ( "entry field", entryFieldElement shared model )
     , ( "text area", textAreaElement shared model )
+    , ( "sharing button/dialog", sharingButtonDialogElement shared model )
     , ( "search bar", searchbarElement shared model )
     ]
 
 
+
+-- calendar
+
+
+calendarElement : Shared.Model -> Model -> Html Msg
+calendarElement shared model =
+    div [ css
+            [ Tw.w_full
+            , Tw.flex
+            , Tw.flex_col
+            , Tw.gap_2
+            ]
+        ]
+        [ Components.Calendar.new
+            { model = model.calendar
+            , toMsg = CalendarSent
+            , browserEnv = shared.browserEnv
+            , theme = model.theme
+            }
+            |> Components.Calendar.view
+        , case Components.Calendar.selectedTime model.calendar of
+            Just date ->
+                Html.text <| "Calendar date: " ++ (BrowserEnv.formatDate shared.browserEnv date)
+
+            Nothing ->
+                Html.text "No date selected"
+        ]
 
 -- category selector
 
@@ -472,3 +534,19 @@ searchbarElement shared model =
             Nothing ->
                 Html.text "No search value"
         ]
+
+
+-- sharing button/dialog
+
+
+sharingButtonDialogElement : Shared.Model -> Model -> Html Msg
+sharingButtonDialogElement shared model =
+    Components.SharingButtonDialog.new
+        { model = model.sharingButtonDialog
+        , toMsg = SharingButtonDialogSent
+        , browserEnv = shared.browserEnv
+        , sharingInfo = { url = Pareto.applicationUrl, title = Pareto.client, text = Pareto.applicationDomain }
+        , theme = model.theme
+        , translations = shared.browserEnv.translations
+        }
+        |> Components.SharingButtonDialog.view

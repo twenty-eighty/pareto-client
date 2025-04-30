@@ -139,15 +139,24 @@ view (Settings settings) =
                 viewDialog (Settings settings)
             else
                 Html.text ""
+
+        buttonMsg =
+            if BrowserEnv.isNativeSharingAvailable settings.browserEnv then
+                ShareLink settings.sharingInfo
+            else
+                UpdateVisible True
+    
+        button =
+            Html.button
+                [ Attr.type_ "button"
+                , Events.onClick (settings.toMsg buttonMsg)
+                ]
+                [ Icon.FeatherIcon FeatherIcons.share2
+                    |> Icon.viewWithSize 16
+                ]
     in
     if BrowserEnv.isNativeSharingAvailable settings.browserEnv then
-        Html.button
-            [ Attr.type_ "button"
-            , Events.onClick (settings.toMsg (ShareLink settings.sharingInfo))
-            ]
-            [ Icon.FeatherIcon FeatherIcons.share
-                |> Icon.view
-            ]
+        button
     else
         Html.div
             [ Attr.css
@@ -156,13 +165,7 @@ view (Settings settings) =
                 , Tw.gap_2
                 ]
             ]
-            [ Html.button
-                [ Attr.type_ "button"
-                , Events.onClick (settings.toMsg (UpdateVisible True))
-                ]
-                [ Icon.FeatherIcon FeatherIcons.share
-                    |> Icon.view
-                ]
+            [ button
             , dialog
             ]
 

@@ -5,7 +5,7 @@ import Countries
 import Components.Dropdown as Dropdown
 import CountriesTimezones exposing (Country)
 import Css
-import Derberos.Date.Core exposing (DateRecord, civilToPosix, newDateRecord, posixToCivil)
+import Derberos.Date.Core exposing (DateRecord, civilToPosix, newDateRecord)
 import Derberos.Date.Utils exposing (getNextMonth, getPrevMonth, getWeekday, monthToNumber, monthToNumber1, numberOfDaysInMonth, weekdayToNumber)
 import Dict exposing (Dict)
 import Effect exposing (Effect)
@@ -166,14 +166,13 @@ update props =
                         in
                         ( modelWithTimeAndZone (Model modelWithZoneName) model.currentTime zone, Effect.none )
 
-                    Err error ->
+                    Err _ ->
                         ( Model model, Effect.none )
 
             UpdateAvailableTimes availableTimes ->
                 ( modelWithTimeAndZone (Model { model | availableTimes = availableTimes }) model.currentTime model.selectedZone, Effect.none )
 
-            SelectDay day ->
-                -- ( Model { model | selectedDay = Just day, selectedMonth = model.displayedMonth, selectedYear = model.displayedYear }, Effect.none )
+            SelectDay _ ->
                 ( Model model, Effect.none )
 
             SelectTime time _ ->
@@ -344,7 +343,7 @@ firstTime times currentTime =
         |> Maybe.withDefault currentTime
 
 
-view : Calendar msg -> Html Msg
+view : Calendar msg -> Html msg
 view (Settings settings) =
     let
         (Model model) =
@@ -360,27 +359,6 @@ view (Settings settings) =
 
                 AvailableTimeSelection ->
                     model.availableTimes
-
-        availableDateRecords =
-            dateRecordsFromTimes availableTimes model.selectedZone
-
---      timesOfSelectedDay =
---          if (model.selectedMonth == model.displayedMonth) && (model.selectedYear == model.displayedYear) then
---              case ( model.selectedDay, model.selectedMonth, model.selectedYear ) of
---                  ( Just day, Just month, Just year ) ->
---                      availableDateRecords
---                          |> List.filter
---                              (\( dateRecord, _ ) ->
---                                  (dateRecord.day == day)
---                                      && (dateRecord.month == Derberos.Date.Utils.monthToNumber1 month)
---                                      && (dateRecord.year == year)
---                              )
-
---                  ( _, _, _ ) ->
---                      []
-
---          else
---              []
     in
     div [ css [ Tw.flex, Tw.space_x_8 ] ]
         [ div [ css [ Tw.w_full ] ]
@@ -438,6 +416,7 @@ view (Settings settings) =
             ]
 -}
         ] 
+        |> Html.map settings.toMsg
  
  
  
@@ -463,8 +442,8 @@ availableTimesForMonth (Model model) =
         (PastAndFuture, Just displayedMonth, Just displayedYear) ->
             if currentMonthDisplayed then
                 noonDatesForMonth (Model model) displayedMonth displayedYear 1 (currentDayInMonth - 1)
-                ++ [model.currentTime |> Maybe.withDefault (Time.millisToPosix 0)]
-                ++ noonDatesForMonth (Model model) displayedMonth displayedYear (currentDayInMonth + 1) (numberOfDaysInMonth displayedYear displayedMonth)
+                ++ (model.currentTime |> Maybe.withDefault (Time.millisToPosix 0))
+                :: noonDatesForMonth (Model model) displayedMonth displayedYear (currentDayInMonth + 1) (numberOfDaysInMonth displayedYear displayedMonth)
 
             else
                 noonDatesForMonth (Model model) displayedMonth displayedYear 1 (numberOfDaysInMonth displayedYear displayedMonth)

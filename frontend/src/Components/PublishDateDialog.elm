@@ -168,7 +168,6 @@ view dialog =
                             , theme = settings.theme
                             }
                             |> Calendar.view
-                            |> Html.map CalendarSent
                         , viewSelectedDate settings.browserEnv (Calendar.selectedTime calendarModel)
                         ]
                     ]
