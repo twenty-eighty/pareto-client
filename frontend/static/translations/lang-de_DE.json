@@ -409,7 +409,6 @@
       "dialog title": "Mit E-Mail abonnieren",
       "subscribe button title": "Abonnieren",
       "close button title": "Schließen",
-      "next button title": "Weiter",
       "info text": "Bekomme neue Artikel von {{profileName}} direkt in dein Postfach.",
       "email label": "E-Mail",
       "email placeholder": "max@mustermann.de",
@@ -448,6 +447,7 @@
       "not logged in message": "Mediendateien können ohne Anmeldung nicht angezeigt werden."
    },
    "media selector": {
+      "upload files": "Bild auswählen",
       "select image": "Bild auswählen",
       "upload button title": "Bilder hochladen",
       "all servers listbox entry": "Alle Server",
