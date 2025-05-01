@@ -10,7 +10,7 @@ import Nostr.Reactions exposing (Interactions)
 import Nostr.ShortNote exposing (ShortNote)
 import Nostr.Types exposing (EventId, PubKey)
 import Tailwind.Utilities as Tw
-import Ui.Interactions exposing (Actions, pubkeyRelays)
+import Ui.Interactions exposing (Actions)
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme, darkMode, stylesForTheme)
@@ -46,14 +46,6 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
 
                 AuthorProfile profile profileValidation ->
                     ( profileDisplayName profile.pubKey profile, Just profile, profileValidation )
-
-        authorPubKey =
-            case shortNoteViewData.author of
-                AuthorPubkey pubKey ->
-                    pubKey
-
-                AuthorProfile profile _ ->
-                    profile.pubKey
     in
     div
         [ css
