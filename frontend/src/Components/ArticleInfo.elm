@@ -219,13 +219,11 @@ viewArticleStats styles textStats browserEnv =
                 ]
                 [ dt
                     [ css
-                        []
+                        [ Tw.flex_1 ]
                     ]
                     [ text <| label ]
                 , dd []
-                    [ text <| value ]
-                , dd []
-                    [ text <| unit ]
+                    [ text <| (value ++ " " ++ unit) ]
                 ]
 
         roundToTwoDecimals num =
