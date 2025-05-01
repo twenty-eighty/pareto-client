@@ -572,7 +572,7 @@
       "relay issues title": "Probleme in Relay-Konfiguration",
       "outbox section title": "Öffentliche Outbox/Home-Relays",
       "outbox relays description": "Dieser Relay-Typ speichert alle deine Inhalte.",
-      "outbox relays test mode information": "Outbox-Relays können im Testmodus nicht konfiguriert werden.",
+      "outbox relays test mode information": "Outbox-Relays können im Testmodus nicht konfiguriert werden",
       "inbox section title": "Öffentliche Inbox-Relays",
       "inbox relays description": "Dieser Relaytyp erhält alle Antworten, Kommentare, Likes und Zaps zu deinen Posts.",
       "add relay button title": "Hinzufügen",
@@ -625,7 +625,7 @@
       "profile lud06 field description": "Dies ist das LUD-06-Feld. Es wird verwendet, um die LNURL einer Lightning-Wallet zu speichern. Du musst entweder dieses oder das LUD-16-Feld ausfüllen, jedoch bevorzuge das LUD-16-Feld.",
       "profile lud16 field label": "Lightning-Wallet-Adresse (LUD-16)",
       "profile lud16 field placeholder": "Gib deine Lightning-Wallet-Adresse ein",
-      "profile lud16 field description": "Dies ist das LUD-16-Feld. Es wird verwendet, um die Lightning-Wallet-Adresse zu speichern. Du kannst eine gültige Adresse mit der Wallet of Satoshi-App (Android, iOS) erhalten. Es sieht aus wie eine E-Mail-Adresse: <wallet name>@walletofsatoshi.com$.",
+      "profile lud16 field description": "Dies ist das LUD-16-Feld. Es wird verwendet, um die Lightning-Wallet-Adresse zu speichern. Du kannst eine gültige Adresse mit der Wallet of Satoshi-App (Android, iOS) erhalten. Es sieht aus wie eine E-Mail-Adresse: <wallet name>@walletofsatoshi.com.",
       "profile website field label": "Website",
       "profile website field placeholder": "Gib deine Website ein"
    },
@@ -765,8 +765,8 @@
       "article published message box title": "Artikel veröffentlicht",
       "article published message box text": "Der Artikel wurde veröffentlicht.",
       "error message box title": "Fehler",
-      "newsletter sent message box title": "Artikel veröffentlicht",
-      "newsletter sent message box text": "Der Artikel wurde veröffentlicht.",
+      "newsletter sent message box title": "Newsletter gesendet",
+      "newsletter sent message box text": "Der Newsletter wurde gesendet.",
       "publishing date label": "Veröffentlichungsdatum: {{publishDate}}",
       "now text": "jetzt",
       "change publish date button title": "Ändern",
@@ -793,5 +793,8 @@
    },
    "tech details": {
       "page title": "Technische Details"
+   },
+   "calendar": {
+      "time zone": "Zeitzone"
    }
 }
