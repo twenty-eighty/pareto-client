@@ -548,7 +548,7 @@ sharingButtonDialogElement shared model =
         { model = model.sharingButtonDialog
         , toMsg = SharingButtonDialogSent
         , browserEnv = shared.browserEnv
-        , sharingInfo = { url = Pareto.applicationUrl, title = Pareto.client, text = Pareto.applicationDomain }
+        , sharingInfo = { url = Pareto.applicationUrl, title = Pareto.client, text = Pareto.applicationDomain, hashtags = Pareto.paretoHashtags }
         , theme = model.theme
         , translations = shared.browserEnv.translations
         }

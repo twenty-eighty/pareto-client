@@ -358,6 +358,7 @@ sharingInfoForArticle article author =
             |> Maybe.withDefault ""
     , title = Maybe.withDefault "" article.title
     , text = Maybe.withDefault "" article.summary
+    , hashtags = article.hashtags
     }
 
 

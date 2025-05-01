@@ -138,6 +138,7 @@ view (Settings settings) =
                 [ css
                     [ Tw.max_h_96
                     , Tw.overflow_y_auto
+                    , Tw.mt_4
                     ]
                 ]
                 settings.content
@@ -146,6 +147,7 @@ view (Settings settings) =
                     [ Tw.flex
                     , Tw.justify_end
                     , Tw.gap_2
+                    , Tw.mt_4
                     ]
                 ]
                 settings.buttons

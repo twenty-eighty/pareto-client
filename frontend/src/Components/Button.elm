@@ -3,9 +3,10 @@ module Components.Button exposing
     , view
     , withStyleSuccess, withStyleWarning, withStyleDanger
     , withSizeSmall
+    , withContentLeft, withContentRight
     , withIconLeft, withIconRight
     , withDisabled
-    , withHidden, withLink, withTypePrimary, withTypeSecondary
+    , withHidden, withLink, withNewTabLink, withTypePrimary, withTypeSecondary
     , withIntermediateState
     )
 
@@ -22,6 +23,7 @@ module Components.Button exposing
 
 @docs withStyleSuccess, withStyleWarning, withStyleDanger
 @docs withSizeSmall
+@docs withContentLeft, withContentRight
 @docs withIconLeft, withIconRight
 @docs withDisabled
 
@@ -30,7 +32,7 @@ module Components.Button exposing
 import Components.Icon exposing (Icon)
 import Css
 import Html.Styled as Html exposing (..)
-import Html.Styled.Attributes exposing (..)
+import Html.Styled.Attributes as Attr
 import Html.Styled.Events as Events
 import Tailwind.Utilities as Tw
 import Ui.Shared exposing (emptyHtml)
@@ -45,13 +47,12 @@ import Svg.Loaders
 type Button msg
     = Settings
         { label : String
-        , onClick : Maybe msg
-        , link : Maybe String
+        , action : Action msg
         , style : Style
         , size : Size
         , type_ : ButtonType
-        , iconLeft : Maybe Icon
-        , iconRight : Maybe Icon
+        , contentLeft : Content msg
+        , contentRight : Content msg
         , isOutlined : Bool
         , isDisabled : Bool
         , isHidden : Bool
@@ -64,13 +65,12 @@ new : { label : String, onClick : Maybe msg, theme : Ui.Styles.Theme } -> Button
 new props =
     Settings
         { label = props.label
-        , onClick = props.onClick
-        , link = Nothing
+        , action = props.onClick |> Maybe.map OnClick |> Maybe.withDefault NoOp
         , style = Default
         , size = Normal
         , type_ = RegularButton
-        , iconLeft = Nothing
-        , iconRight = Nothing
+        , contentLeft = NoContent
+        , contentRight = NoContent
         , isOutlined = False
         , isDisabled = False
         , isHidden = False
@@ -78,14 +78,29 @@ new props =
         , theme = props.theme
         }
 
+type Content msg
+    = ContentIcon Icon
+    | ContentHtml (Html msg)
+    | NoContent
+
+type Action msg
+    = OnClick msg
+    | Link String
+    | NewTabLink String
+    | NoOp
 
 
 -- MODIFIERS
 
 
 withLink : Maybe String -> Button msg -> Button msg
-withLink link (Settings settings) =
-    Settings { settings | link = link }
+withLink url (Settings settings) =
+    Settings { settings | action =  url |> Maybe.map Link |> Maybe.withDefault NoOp }
+
+
+withNewTabLink : String -> Button msg -> Button msg
+withNewTabLink url (Settings settings) =
+    Settings { settings | action = NewTabLink url }
 
 
 type ButtonType
@@ -138,12 +153,19 @@ withSizeSmall (Settings settings) =
 
 withIconLeft : Icon -> Button msg -> Button msg
 withIconLeft icon (Settings settings) =
-    Settings { settings | iconLeft = Just icon }
+    Settings { settings | contentLeft = ContentIcon icon }
 
+withContentLeft : Html msg -> Button msg -> Button msg
+withContentLeft content (Settings settings) =
+    Settings { settings | contentLeft = ContentHtml content }
 
 withIconRight : Icon -> Button msg -> Button msg
 withIconRight icon (Settings settings) =
-    Settings { settings | iconRight = Just icon }
+    Settings { settings | contentRight = ContentIcon icon }
+
+withContentRight : Html msg -> Button msg -> Button msg
+withContentRight content (Settings settings) =
+    Settings { settings | contentRight = ContentHtml content }
 
 
 withDisabled : Bool -> Button msg -> Button msg
@@ -171,19 +193,22 @@ view (Settings settings) =
         buttonStyles =
             stylesForTheme (Settings settings)
 
-        viewOptionalIcon : Maybe Icon -> Html msg
-        viewOptionalIcon maybeIcon =
-            case maybeIcon of
-                Just icon ->
+        viewOptionalContent : Content msg -> Html msg
+        viewOptionalContent content =
+            case content of
+                ContentIcon icon ->
                     Components.Icon.view icon
 
-                Nothing ->
+                ContentHtml html ->
+                    html
+
+                NoContent ->
                     text ""
 
         viewIntermediateStateIndicator : Html msg
         viewIntermediateStateIndicator =
             if settings.isInIntermediateState then
-                div [ css [ Tw.flex, Tw.items_center, Tw.justify_center ] ]
+                div [ Attr.css [ Tw.flex, Tw.items_center, Tw.justify_center ] ]
                     [ Svg.Loaders.puff [ Svg.Loaders.size 16, Svg.Loaders.color "currentColor" ]
                         |> Html.fromUnstyled
                     ]
@@ -192,19 +217,22 @@ view (Settings settings) =
                 emptyHtml
 
         ( element, onClickAttr ) =
-            case ( settings.isDisabled || settings.isInIntermediateState, settings.onClick, settings.link ) of
-                ( False, Just onClick, _ ) ->
+            case ( settings.isDisabled || settings.isInIntermediateState, settings.action ) of
+                ( False, OnClick onClick ) ->
                     ( button, [ Events.onClick onClick ] )
 
-                ( False, Nothing, Just link ) ->
-                    ( a, [ href link ] )
+                ( False, Link link ) ->
+                    ( a, [ Attr.href link ] )
 
-                ( _, _, _ ) ->
-                    ( div, [ disabled True ] )
+                ( False, NewTabLink url ) ->
+                    ( a, [ Attr.target "_blank", Attr.href url ] )
+
+                ( _, _) ->
+                    ( div, [ Attr.disabled True ] )
     in
     if not settings.isHidden then
         div
-            [ css
+            [ Attr.css
                 [ Tw.flex
                 , Tw.flex_row
                 , Tw.gap_2
@@ -213,7 +241,7 @@ view (Settings settings) =
             [ element
                 (buttonStyles
                     ++ onClickAttr
-                    ++ [ css
+                    ++ [ Attr.css
                             [ Tw.py_2
                             , Tw.px_4
                             , Tw.flex
@@ -223,7 +251,7 @@ view (Settings settings) =
                             , Css.hover
                                 []
                             ]
-                       , classList
+                       , Attr.classList
                             [ ( "is-success", settings.style == Success )
                             , ( "is-warning", settings.style == Warning )
                             , ( "is-danger", settings.style == Danger )
@@ -231,9 +259,9 @@ view (Settings settings) =
                             ]
                        ]
                 )
-                [ viewOptionalIcon settings.iconLeft
+                [ viewOptionalContent settings.contentLeft
                 , text settings.label
-                , viewOptionalIcon settings.iconRight
+                , viewOptionalContent settings.contentRight
                 , viewIntermediateStateIndicator 
                 ]
             ]
@@ -287,4 +315,4 @@ stylesForTheme (Settings settings) =
                         , [ Tw.bg_color styles.color3, darkMode [ Tw.bg_color styles.color3DarkMode ] ]
                         )
     in
-    [ css (foregroundStyles ++ backgroundStyles) ]
+    [ Attr.css (foregroundStyles ++ backgroundStyles) ]

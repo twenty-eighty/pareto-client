@@ -632,7 +632,15 @@
    "sharing button dialog": {
       "dialog title": "Teilen",
       "submit button title": "In Zwischenablage kopieren",
-      "copied to clipboard alert message": "In Zwischenablage kopiert"
+      "copied to clipboard alert message": "In Zwischenablage kopiert",
+      "show social dialog button title": "Auf sozialen Medien teilen",
+      "back button title": "Zurück",
+      "facebook button title": "Facebook",
+      "twitter button title": "X",
+      "linkedin button title": "LinkedIn",
+      "reddit button title": "Reddit",
+      "telegram button title": "Telegram",
+      "whatsapp button title": "WhatsApp"
    },
    "sidebar": {
       "reader client role text": "Leser",
