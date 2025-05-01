@@ -1148,6 +1148,7 @@ emailValid email =
                     && (String.length mailParts.topLevelDomain > 1)
                     && (mailParts.secondLevelDomain /= "")
                     && (numberOfAtChars email == 1)
+                    && (not <| String.contains " " email)
             )
         |> Maybe.withDefault False
 
