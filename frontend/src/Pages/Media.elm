@@ -6,6 +6,7 @@ import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes exposing (css)
 import Layouts
+import Layouts.Sidebar
 import Nostr
 import Nostr.Event exposing (Kind(..), Tag(..))
 import Nostr.Nip19 exposing (NIP19Type(..))
@@ -34,8 +35,10 @@ page user shared route =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 

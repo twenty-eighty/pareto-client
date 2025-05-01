@@ -1,4 +1,4 @@
-module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layout, map)
+module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layout, map, new, withLeftPart)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.AlertTimerMessage as AlertTimerMessage
@@ -37,14 +37,27 @@ import View exposing (View)
 
 type alias Props contentMsg =
     { styles : Styles contentMsg
+    , fixedLeftPart : Maybe (Html contentMsg)
     }
 
 
 map : (msg1 -> msg2) -> Props msg1 -> Props msg2
 map toMsg props =
     { styles = Ui.Styles.map toMsg props.styles
+    , fixedLeftPart = Maybe.map (Html.map toMsg) props.fixedLeftPart
     }
 
+new : { styles :Styles contentMsg } -> Props contentMsg
+new { styles } =
+    { styles = styles
+    , fixedLeftPart = Nothing
+    }
+
+withLeftPart : Html contentMsg -> Props contentMsg -> Props contentMsg
+withLeftPart leftPart props =
+    { styles = props.styles
+    , fixedLeftPart = Just leftPart
+    }
 
 
 -- this function checks if a route will be available in reader mode after login
@@ -181,7 +194,7 @@ layout props shared route =
     Layout.new
         { init = init
         , update = update shared
-        , view = view props.styles shared route.path
+        , view = view props shared route.path
         , subscriptions = subscriptions
         }
 
@@ -233,8 +246,8 @@ subscriptions _ =
 -- VIEW
 
 
-view : Styles contentMsg -> Shared.Model.Model -> Route.Path.Path -> { toContentMsg : Msg -> contentMsg, content : View contentMsg, model : Model } -> View contentMsg
-view styles shared path { toContentMsg, content } =
+view : Props contentMsg -> Shared.Model.Model -> Route.Path.Path -> { toContentMsg : Msg -> contentMsg, content : View contentMsg, model : Model } -> View contentMsg
+view props shared path { toContentMsg, content } =
     { title = content.title ++ " | Pareto"
     , body =
         [ div
@@ -242,9 +255,9 @@ view styles shared path { toContentMsg, content } =
                 [ Tw.h_full
                 , Tw.overflow_clip
                 ]
-                :: styles.colorStyleBackground
+                :: props.styles.colorStyleBackground
             )
-            [ viewSidebar styles shared path toContentMsg content.body
+            [ viewSidebar props shared path toContentMsg content.body
             , viewLinktoInternalPage shared.nostr
             , AlertTimerMessage.new
                 { model = shared.alertTimerMessage
@@ -256,8 +269,8 @@ view styles shared path { toContentMsg, content } =
     }
 
 
-viewSidebar : Styles contentMsg -> Shared.Model.Model -> Route.Path.Path -> (Msg -> contentMsg) -> List (Html contentMsg) -> Html contentMsg
-viewSidebar styles shared currentPath toContentMsg content =
+viewSidebar : Props contentMsg -> Shared.Model.Model -> Route.Path.Path -> (Msg -> contentMsg) -> List (Html contentMsg) -> Html contentMsg
+viewSidebar props shared currentPath toContentMsg content =
     let
         maybeBookmarksCount =
             Shared.loggedInPubKey shared.loginStatus
@@ -304,9 +317,11 @@ viewSidebar styles shared currentPath toContentMsg content =
             }
     in
     Html.div
-        (styles.colorStyleGrayscaleTitle
+        (props.styles.colorStyleGrayscaleTitle
             ++ [ css
-                    [ Tw.h_screen ]
+                    [ Tw.h_screen
+                    , Tw.overflow_hidden
+                    ]
                ]
         )
         [ div
@@ -315,44 +330,48 @@ viewSidebar styles shared currentPath toContentMsg content =
                 ]
             ]
             [ aside
-                (styles.colorStyleBorders
+                (props.styles.colorStyleBorders
                     ++ [ css
                             [ Tw.p_2
                             , Tw.h_14
                             , Tw.fixed
                             , Tw.bottom_0
+                            , Tw.left_0
                             , Tw.w_screen
-                            , Tw.z_10
                             , Tw.flex
                             , Tw.flex_row
                             , Tw.space_x_4
+                            , Tw.bg_color props.styles.color4
                             , Bp.xl
                                 [ Tw.w_52 ]
-                            , Bp.lg
+                            , Bp.sm
                                 [ Tw.inline
                                 , Tw.w_20
+                                , Tw.top_0
                                 , Tw.relative
                                 , Tw.justify_items_center
                                 , Tw.h_screen
                                 , Tw.border_r
-                                , Tw.z_0
+                                , Tw.bg_color Theme.white
                                 ]
                             , darkMode [ Tw.bg_color Theme.black ]
                             ]
                        ]
                 )
                 [ viewBannerSmall shared.browserEnv
-                , viewSidebarItems styles sidebarItemParams
+                , viewSidebarItems props.styles sidebarItemParams
                 ]
             , div
                 [ css
-                    [ Tw.flex_1
-                    , Css.property "width" "100dvh"
+                    [ Tw.flex
+                    , Tw.flex_col
+                    , Tw.w_full
                     ]
                 ]
                 [ Html.header
                     [ css
                         [ Tw.flex
+                        , Tw.flex_row
                         , Tw.justify_between
                         , Tw.items_center
                         , Tw.bg_cover
@@ -392,14 +411,13 @@ viewSidebar styles shared currentPath toContentMsg content =
                     |> Html.map toContentMsg
                 , div
                     [ css
-                        -- additional space for sidebar at bottom in mobile view
-                        [ Tw.mb_16
-                        , Bp.sm
-                            [ Tw.mb_2
-                            ]
+                        [ Tw.flex
+                        , Tw.flex_1
                         ]
                     ]
-                    [ viewMainContent content
+                    [ props.fixedLeftPart
+                        |> Maybe.withDefault emptyHtml
+                    , viewMainContent content
                     ]
                 ]
             ]
@@ -411,12 +429,21 @@ viewMainContent content =
     main_
         [ class "page"
         , css
-            []
+            [ Tw.flex_1
+            , Tw.overflow_y_auto
+            , Tw.relative
+            , Css.property "height" "calc(100vh - 5rem - 56px)"  -- 5rem = 80px for header
+            , Bp.sm
+                [ Css.property "height" "calc(100vh - 5rem)"  -- 5rem = 80px for header
+                ]
+            ]
         ]
         [ div
             [ css
-                [ Tw.h_lvh
-                , Tw.overflow_y_scroll
+                [ Tw.mb_16
+                , Bp.sm
+                    [ Tw.mb_2
+                    ]
                 ]
             ]
             content
@@ -566,7 +593,7 @@ viewSidebarItems styles sidebarItemParams =
             , Bp.xl
                 [ Tw.w_44
                 ]
-            , Bp.lg
+            , Bp.sm
                 [ Tw.grid_rows_9
                 , Tw.grid_cols_1
                 , Css.property "height" "560px"

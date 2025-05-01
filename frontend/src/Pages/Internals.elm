@@ -6,6 +6,7 @@ import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events exposing (..)
 import I18Next
 import Layouts
+import Layouts.Sidebar
 import Nostr
 import Page exposing (Page)
 import Pareto
@@ -35,8 +36,10 @@ page shared _ =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 type alias Model =

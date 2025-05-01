@@ -2,6 +2,7 @@ module Pages.Messages exposing (Model, Msg, page)
 
 import Effect exposing (Effect)
 import Layouts
+import Layouts.Sidebar
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
@@ -22,8 +23,10 @@ page shared _ =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 

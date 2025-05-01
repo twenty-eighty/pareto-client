@@ -6,6 +6,7 @@ import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Json.Decode as Decode
 import Layouts
+import Layouts.Sidebar
 import Nostr
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), decodeEvent, emptyEventFilter, numberForKind)
@@ -37,9 +38,10 @@ page shared _ =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
-
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 -- INIT

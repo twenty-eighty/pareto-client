@@ -17,6 +17,7 @@ import Html.Styled.Events as Events exposing (..)
 import I18Next exposing (Translations)
 import Json.Decode as Decode
 import Layouts
+import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
 import Locale exposing (Language(..), languageToISOCode, languageToString)
 import Milkdown.MilkdownEditor as Milkdown
@@ -65,8 +66,10 @@ page user shared route =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 

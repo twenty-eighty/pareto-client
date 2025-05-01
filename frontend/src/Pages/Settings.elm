@@ -20,6 +20,7 @@ import Html.Styled.Events as Events exposing (..)
 import I18Next
 import Json.Decode as Decode
 import Layouts
+import Layouts.Sidebar
 import Nostr
 import Nostr.Blossom exposing (eventWithBlossomServerList)
 import Nostr.ConfigCheck as ConfigCheck
@@ -64,8 +65,10 @@ page user shared route =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 

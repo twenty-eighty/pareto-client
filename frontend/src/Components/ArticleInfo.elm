@@ -55,18 +55,18 @@ view styles author article browserEnv interactions nostr =
     in
     aside
         [ css
-            [ Tw.overflow_x_clip
-            , Tw.text_sm
+            [ Tw.text_sm
             , Tw.font_semibold
             , Tw.tracking_wide
-            , Tw.max_w_60
-            , Tw.h_screen
             , Tw.text_color styles.color1
             , Tw.bg_color styles.color3
             , Ui.Styles.darkMode [ Tw.bg_color styles.color4 ]
-            , Bp.lg
-                [ Tw.inline ]
             , Tw.hidden
+            , Bp.lg
+                [ Tw.block
+                , Tw.max_w_60
+                , Tw.h_screen
+                ]
             ]
         ]
         [ section

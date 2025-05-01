@@ -5,6 +5,7 @@ import Html.Styled exposing (div, text)
 import Html.Styled.Attributes exposing (css)
 import Http
 import Layouts
+import Layouts.Sidebar
 import Markdown
 import Nostr.Event exposing (KindInformationLink(..))
 import Shared
@@ -97,8 +98,10 @@ view shared model =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 foldMaybe : b -> (a -> b) -> Maybe a -> b

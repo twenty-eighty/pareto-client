@@ -18,6 +18,7 @@ import Html.Styled.Events as Events
 import Http
 import Json.Decode as Decode
 import Layouts
+import Layouts.Sidebar
 import Material.Icons exposing (email)
 import Nostr
 import Nostr.Event exposing (Kind(..))
@@ -59,8 +60,10 @@ page user shared _ =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 

@@ -6,6 +6,7 @@ import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div, p)
 import Html.Styled.Attributes exposing (css)
 import Layouts
+import Layouts.Sidebar
 import Nostr
 import Nostr.Event exposing (EventFilter, Kind(..), emptyEventFilter)
 import Nostr.Nip05 as Nip05
@@ -37,8 +38,10 @@ page shared route =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 

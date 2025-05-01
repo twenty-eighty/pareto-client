@@ -18,6 +18,7 @@ import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes exposing (css)
 import I18Next
 import Layouts
+import Layouts.Sidebar
 import Material.Icons exposing (category)
 import Pareto
 import Page exposing (Page)
@@ -43,8 +44,10 @@ page shared _ =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 

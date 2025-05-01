@@ -4,6 +4,7 @@ import BrowserEnv exposing (BrowserEnv)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html)
 import Layouts
+import Layouts.Sidebar
 import Nostr
 import Nostr.Community exposing (Community)
 import Nostr.Event exposing (Kind(..), TagReference(..), eventFilterForNaddr)
@@ -37,8 +38,10 @@ page shared route =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 

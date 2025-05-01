@@ -9,7 +9,6 @@ import Components.Icon as Icon
 import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapDialog as ZapDialog
 import Css
-import Css.Media
 import Dict
 import Html.Styled as Html exposing (Html, a, article, div, h2, h3, img, summary, text)
 import Html.Styled.Attributes as Attr exposing (css, href)
@@ -204,17 +203,13 @@ viewArticle articlePreviewsData articlePreviewData article =
             [ Tw.flex
             , Tw.flex_wrap
             , Tw.w_full
-            , Tw.overflow_hidden
             , Tw.neg_mb_4
             , Bp.md [ Tw.mb_0 ]
             ]
         ]
-        [ ArticleInfo.view styles articlePreviewData.author article articlePreviewsData.browserEnv articlePreviewData.interactions articlePreviewsData.nostr
-        , div
+        [ div
             [ css
                 [ Tw.flex_1
-                , Tw.overflow_y_scroll
-                , Tw.h_dvh
                 ]
             ]
             [ div
