@@ -1,6 +1,7 @@
 module Pages.A.Addr_ exposing (..)
 
 import Browser.Dom
+import Components.ArticleInfo as ArticleInfo
 import Components.Comment as Comment
 import Components.RelayStatus exposing (Purpose(..))
 import Components.SharingButtonDialog as SharingButtonDialog
@@ -29,7 +30,8 @@ import Shared.Msg
 import Tailwind.Utilities as Tw
 import Task
 import Translations.ArticlePage as Translations
-import Ui.Styles exposing (Theme, stylesForTheme)
+import Ui.Shared exposing (emptyHtml)
+import Ui.Styles exposing (stylesForTheme)
 import Ui.View exposing (viewRelayStatus)
 import Url
 import View exposing (View)
@@ -43,16 +45,43 @@ page shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout shared.theme)
+        |> Page.withLayout (toLayout shared)
 
 
-toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme model =
+toLayout : Shared.Model -> Model -> Layouts.Layout Msg
+toLayout shared model =
+    let
+        styles = Ui.Styles.stylesForTheme shared.theme
+
+        maybeArticle =
+            case model of
+                Nip19Model { nip19 } ->
+                    Nostr.getArticleForNip19 shared.nostr nip19
+
+                ErrorModel _ ->
+                    Nothing
+
+        userPubKey =
+            Shared.loggedInPubKey shared.loginStatus
+
+        articleInfo =
+            maybeArticle
+            |> Maybe.map (\article ->
+                ArticleInfo.view
+                    styles
+                    (Nostr.getAuthor shared.nostr article.author)
+                    article
+                    shared.browserEnv
+                    (Nostr.getInteractionsForArticle shared.nostr userPubKey article)
+                    shared.nostr
+            )
+            |> Maybe.withDefault emptyHtml
+    in
     Layouts.Sidebar.new
-        { styles = Ui.Styles.stylesForTheme theme
+        { styles = styles
         }
+        |> Layouts.Sidebar.withLeftPart articleInfo
         |> Layouts.Sidebar
-        
 
 
 
