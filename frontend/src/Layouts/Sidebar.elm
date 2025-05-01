@@ -47,17 +47,20 @@ map toMsg props =
     , fixedLeftPart = Maybe.map (Html.map toMsg) props.fixedLeftPart
     }
 
-new : { styles :Styles contentMsg } -> Props contentMsg
+
+new : { styles : Styles contentMsg } -> Props contentMsg
 new { styles } =
     { styles = styles
     , fixedLeftPart = Nothing
     }
+
 
 withLeftPart : Html contentMsg -> Props contentMsg -> Props contentMsg
 withLeftPart leftPart props =
     { styles = props.styles
     , fixedLeftPart = Just leftPart
     }
+
 
 
 -- this function checks if a route will be available in reader mode after login
@@ -331,6 +334,7 @@ viewSidebar props shared currentPath toContentMsg content =
             ]
             [ aside
                 (props.styles.colorStyleBorders
+                    ++ props.styles.colorStyleBackground
                     ++ [ css
                             [ Tw.p_2
                             , Tw.h_14
@@ -341,7 +345,6 @@ viewSidebar props shared currentPath toContentMsg content =
                             , Tw.flex
                             , Tw.flex_row
                             , Tw.space_x_4
-                            , Tw.bg_color props.styles.color4
                             , Bp.xl
                                 [ Tw.w_52 ]
                             , Bp.sm
@@ -352,7 +355,6 @@ viewSidebar props shared currentPath toContentMsg content =
                                 , Tw.justify_items_center
                                 , Tw.h_screen
                                 , Tw.border_r
-                                , Tw.bg_color Theme.white
                                 ]
                             , darkMode [ Tw.bg_color Theme.black ]
                             ]
@@ -432,9 +434,9 @@ viewMainContent content =
             [ Tw.flex_1
             , Tw.overflow_y_auto
             , Tw.relative
-            , Css.property "height" "calc(100vh - 5rem - 56px)"  -- 5rem = 80px for header
+            , Css.property "height" "calc(100vh - 5rem - 56px)" -- 5rem = 80px for header
             , Bp.sm
-                [ Css.property "height" "calc(100vh - 5rem)"  -- 5rem = 80px for header
+                [ Css.property "height" "calc(100vh - 5rem)" -- 5rem = 80px for header
                 ]
             ]
         ]
