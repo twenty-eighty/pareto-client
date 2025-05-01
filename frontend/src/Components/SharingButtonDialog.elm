@@ -33,6 +33,7 @@ import Translations.SharingButtonDialog as Translations
 import Ui.Styles exposing (Theme, stylesForTheme)
 import Ui.Styles exposing (darkMode)
 import Url.Builder
+import Tailwind.Theme as Theme
 
 type SharingButtonDialog msg
     = Settings
@@ -267,7 +268,7 @@ viewDialog (Settings settings) =
             ]
         , content =
             [ Html.div [ Attr.css [ Tw.flex, Tw.flex_col, Tw.gap_2 ] ]
-                [ Html.div [ Attr.css [ Tw.flex, Tw.flex_row, Tw.items_end ] ]
+                [ Html.div [ Attr.css [ Tw.flex, Tw.flex_row, Tw.items_end, Tw.bg_color Theme.white ] ]
                     [ qrCode
 {-
                     , copyButton settings.theme
