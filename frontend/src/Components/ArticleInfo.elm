@@ -50,7 +50,7 @@ view styles author article browserEnv interactions nostr =
         articlesFromAuthor =
             Dict.get pubKey nostr.articlesByAuthor |> Maybe.map List.length |> Maybe.withDefault 0
 
-        followersFromAuthor =
+        _ =
             Dict.get pubKey nostr.followLists |> Maybe.map List.length |> Maybe.withDefault 0
     in
     aside
@@ -117,7 +117,7 @@ view styles author article browserEnv interactions nostr =
                 [ text articlePublishedDate ]
             , viewTags <| List.filter (\hashtag -> not (String.isEmpty hashtag)) <| article.hashtags
             , viewArticleStats styles articleStats browserEnv
-            , viewInteractions browserEnv interactions
+            , viewInteractions interactions
             ]
         ]
 
@@ -245,8 +245,8 @@ viewArticleStats styles textStats browserEnv =
         ]
 
 
-viewInteractions : BrowserEnv -> Interactions -> Html msg
-viewInteractions browserEnv interactions =
+viewInteractions : Interactions -> Html msg
+viewInteractions interactions =
     let
         renderInteraction : Icon -> Maybe Int -> Html msg
         renderInteraction icon maybeValue =

@@ -28,7 +28,7 @@ import Shared
 import Shared.Msg
 import Task
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme)
+import Ui.Styles
 import Ui.View exposing (viewRelayStatus)
 import View exposing (View)
 

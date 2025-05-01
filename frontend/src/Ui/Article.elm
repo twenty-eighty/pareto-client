@@ -2,7 +2,6 @@ module Ui.Article exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.ArticleComments as ArticleComments
-import Components.ArticleInfo as ArticleInfo
 import Components.Button as Button
 import Components.Comment as Comment
 import Components.Icon as Icon

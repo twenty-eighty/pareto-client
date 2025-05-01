@@ -361,7 +361,7 @@ availableCategories nostr loginStatus translations =
                 |> Maybe.map (Nostr.isBetaTester nostr)
                 |> Maybe.withDefault False
 
-        memesCategories =
+        _ =
             if isBetaTester then
                 [ memesCategory translations ]
 

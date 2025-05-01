@@ -94,11 +94,11 @@ viewInteractions styles browserEnv previewData instanceId =
             ]
             :: styles.colorStyleGrayscaleText
         )
-        [ viewReactions styles (Icon.FeatherIcon FeatherIcons.messageSquare) actions.startComment (Just <| String.fromInt commentsCount) previewData instanceId
-        , viewReactions styles reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) previewData instanceId
-        , viewReactions styles repostIcon repostMsg (Maybe.map String.fromInt interactions.reposts) previewData instanceId
-        , viewReactions styles (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) previewData instanceId
-        , viewReactions styles bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks) previewData instanceId
+        [ viewReactions (Icon.FeatherIcon FeatherIcons.messageSquare) actions.startComment (Just <| String.fromInt commentsCount) previewData instanceId
+        , viewReactions reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) previewData instanceId
+        , viewReactions repostIcon repostMsg (Maybe.map String.fromInt interactions.reposts) previewData instanceId
+        , viewReactions (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) previewData instanceId
+        , viewReactions bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks) previewData instanceId
         , previewData.sharing
             |> Maybe.map
                 (\( sharingButtonDialog, sharingButtonDialogMsg ) ->
@@ -116,8 +116,8 @@ viewInteractions styles browserEnv previewData instanceId =
         ]
 
 
-viewReactions : Styles msg -> Icon -> Maybe msg -> Maybe String -> PreviewData msg -> String -> Html msg
-viewReactions styles icon maybeMsg maybeCount previewData instanceId =
+viewReactions : Icon -> Maybe msg -> Maybe String -> PreviewData msg -> String -> Html msg
+viewReactions icon maybeMsg maybeCount previewData instanceId =
     let
         onClickAttr =
             case maybeMsg of
