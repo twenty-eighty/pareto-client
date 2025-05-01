@@ -4,6 +4,7 @@ import BrowserEnv exposing (BrowserEnv, Environment(..))
 import Components.Button as Button
 import Components.Checkbox as Checkbox
 import Components.Dropdown as Dropdown
+import Components.ModalDialog as ModalDialog
 import Components.Icon as Icon
 import Dict exposing (Dict)
 import Effect exposing (Effect)
@@ -315,27 +316,42 @@ view dialog =
             emptyHtml
 
         DialogVisible ->
-            Ui.Shared.modalDialog
-                settings.theme
-                (Translations.dialogTitle [ settings.browserEnv.translations ])
-                [ viewPublishArticleDialog dialog ]
-                CloseDialog
+            let
+                relays =
+                    if settings.browserEnv.testMode == BrowserEnv.TestModeOff then
+                        Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
+
+                    else
+                        Pareto.testRelayUrls
+                            |> List.filterMap (Nostr.getRelayData settings.nostr)
+
+            in
+            ModalDialog.new
+                { title = Translations.dialogTitle [ settings.browserEnv.translations ]
+                , content =
+                    [ viewPublishArticleDialog dialog relays
+                    ]
+                , onClose = CloseDialog
+                , theme = settings.theme
+                , buttons =
+                    [ Button.new
+                        { label = Translations.publishButtonTitle [ settings.browserEnv.translations ]
+                        , onClick = Just <| PublishClicked settings.onPublish
+                        , theme = settings.theme
+                        }
+                        |> Button.withTypePrimary
+                        |> Button.withDisabled (numberOfCheckedRelays settings.model relays < 1)
+                        |> Button.view
+                    ]
+                }
+                |> ModalDialog.view
                 |> Html.map settings.toMsg
 
-
-viewPublishArticleDialog : PublishArticleDialog msg -> Html (Msg msg)
-viewPublishArticleDialog (Settings settings) =
+viewPublishArticleDialog : PublishArticleDialog msg -> List Relay -> Html (Msg msg)
+viewPublishArticleDialog (Settings settings) relays =
     let
         (Model model) =
             settings.model
-
-        relays =
-            if settings.browserEnv.testMode == BrowserEnv.TestModeOff then
-                Nostr.getWriteRelaysForPubKey settings.nostr settings.pubKey
-
-            else
-                Pareto.testRelayUrls
-                    |> List.filterMap (Nostr.getRelayData settings.nostr)
 
         activeSubscribersCount =
             model.subscriberEventData
@@ -381,14 +397,6 @@ viewPublishArticleDialog (Settings settings) =
         ]
         [ optionalListBox
         , optionalRelaysSection
-        , Button.new
-            { label = Translations.publishButtonTitle [ settings.browserEnv.translations ]
-            , onClick = Just <| PublishClicked settings.onPublish
-            , theme = settings.theme
-            }
-            |> Button.withTypePrimary
-            |> Button.withDisabled (numberOfCheckedRelays settings.model relays < 1)
-            |> Button.view
         ]
 
 
