@@ -392,8 +392,7 @@ viewBanner maybeImage =
     in
     div
         [ css
-            [ Tw.mb_4
-            , Tw.w_full
+            [ Tw.w_full
             , Bp.lg [ Tw.max_h_80 ]
             , Bp.md [ Tw.max_h_52 ]
             , Css.Media.withMediaQuery [ "(min-width: 360px)" ] [ Tw.max_h_36 ]
@@ -449,7 +448,8 @@ viewProfileImage linkElement maybeProfile validationStatus =
                 [ Attr.src <| profilePicture 112 maybeProfile
                 , Attr.alt "Avatar"
                 , css
-                    [ Bp.lg [ Tw.max_w_28 ]
+                    [ Bp.xl [ Tw.max_w_28 ]
+                    , Bp.lg [ Tw.max_w_24 ]
                     , Bp.md [ Tw.max_w_16 ]
                     , Tw.max_w_14
                     , Tw.object_contain

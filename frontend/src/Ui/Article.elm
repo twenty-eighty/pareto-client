@@ -238,7 +238,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                             , Tw.gap_12
                             , Tw.inline_flex
                             , Tw.px_2
-                            , Tw.my_16
+                            , Tw.my_20
                             , Tw.w_full
 
                             -- switch off ligatures - Inter font doesn't have ligatures
