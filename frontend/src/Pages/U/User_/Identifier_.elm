@@ -47,25 +47,28 @@ page shared route =
 toLayout : Shared.Model -> Model -> Layouts.Layout Msg
 toLayout shared model =
     let
-        styles = Ui.Styles.stylesForTheme shared.theme
+        styles =
+            Ui.Styles.stylesForTheme shared.theme
 
-        maybeArticle = articleFromModel shared model
+        maybeArticle =
+            articleFromModel shared model
 
         userPubKey =
             Shared.loggedInPubKey shared.loginStatus
 
         articleInfo =
             maybeArticle
-            |> Maybe.map (\article ->
-                ArticleInfo.view
-                    styles
-                    (Nostr.getAuthor shared.nostr article.author)
-                    article
-                    shared.browserEnv
-                    (Nostr.getInteractionsForArticle shared.nostr userPubKey article)
-                    shared.nostr
-            )
-            |> Maybe.withDefault emptyHtml
+                |> Maybe.map
+                    (\article ->
+                        ArticleInfo.view
+                            styles
+                            (Nostr.getAuthor shared.nostr article.author)
+                            article
+                            shared.browserEnv
+                            (Nostr.getInteractionsForArticle shared.nostr userPubKey article)
+                            shared.nostr
+                    )
+                |> Maybe.withDefault emptyHtml
     in
     Layouts.Sidebar.new
         { styles = styles
@@ -106,34 +109,50 @@ init shared route () =
             model.nip05
                 |> Maybe.map
                     (\nip05 ->
-                        case Nostr.getPubKeyByNip05 shared.nostr nip05 of
+                        let
+                            maybeAuthorsPubKey =
+                                Nostr.getPubKeyByNip05 shared.nostr nip05
+
+                            followersEffect =
+                                Shared.createFollowersEffect shared.nostr maybeAuthorsPubKey
+                        in
+                        case maybeAuthorsPubKey of
                             Just pubKey ->
                                 case Nostr.getArticleWithIdentifier shared.nostr pubKey model.identifier of
                                     Just _ ->
                                         -- article already loaded, accessible in view function
-                                        ( Effect.none, Nothing )
+                                        ( followersEffect, Nothing )
 
+                                    -- |> Debug.log "User Page -> init: article loaded"
                                     Nothing ->
-                                        ( -- pubkey already loaded, request article
-                                          { emptyEventFilter
-                                            | authors = Just [ pubKey ]
-                                            , kinds = Just [ KindLongFormContent ]
-                                            , tagReferences = Just [ TagReferenceIdentifier model.identifier ]
-                                          }
-                                            |> RequestArticle (Just <| Nostr.getReadRelayUrlsForPubKey shared.nostr pubKey)
-                                            |> Nostr.createRequest shared.nostr ("Article of NIP-05 user " ++ Nip05.nip05ToString nip05) []
-                                            |> Shared.Msg.RequestNostrEvents
-                                            |> Effect.sendSharedMsg
+                                        ( Effect.batch
+                                            [ followersEffect
+                                            , -- pubkey already loaded, request article
+                                              { emptyEventFilter
+                                                | authors = Just [ pubKey ]
+                                                , kinds = Just [ KindLongFormContent ]
+                                                , tagReferences = Just [ TagReferenceIdentifier model.identifier ]
+                                              }
+                                                |> RequestArticle (Just <| Nostr.getReadRelayUrlsForPubKey shared.nostr pubKey)
+                                                |> Nostr.createRequest shared.nostr ("Article of NIP-05 user " ++ Nip05.nip05ToString nip05) []
+                                                |> Shared.Msg.RequestNostrEvents
+                                                |> Effect.sendSharedMsg
+                                            ]
                                         , Just <| Nostr.getLastRequestId shared.nostr
                                         )
 
+                            --|> Debug.log "User Page -> init: no article"
                             Nothing ->
-                                ( RequestNip05AndArticle nip05 model.identifier
-                                    |> Nostr.createRequest shared.nostr ("Article of NIP-05 user " ++ Nip05.nip05ToString nip05) [ KindLongFormContent, KindHighlights, KindBookmarkList, KindBookmarkSets ]
-                                    |> Shared.Msg.RequestNostrEvents
-                                    |> Effect.sendSharedMsg
+                                ( Effect.batch
+                                    [ followersEffect
+                                    , RequestNip05AndArticle nip05 model.identifier
+                                        |> Nostr.createRequest shared.nostr ("Article of NIP-05 user " ++ Nip05.nip05ToString nip05) [ KindLongFormContent, KindHighlights, KindBookmarkList, KindBookmarkSets ]
+                                        |> Shared.Msg.RequestNostrEvents
+                                        |> Effect.sendSharedMsg
+                                    ]
                                 , Just <| Nostr.getLastRequestId shared.nostr
                                 )
+                     --|> Debug.log "User Page -> init: Fetching PubKey and article..."
                     )
                 |> Maybe.withDefault ( Effect.none, Nothing )
     in
@@ -164,11 +183,19 @@ type Msg
     | ZapDialogSent (ZapDialog.Msg Msg)
     | SharingButtonDialogMsg SharingButtonDialog.Msg
 
+
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
         NoOp ->
-            ( model, Effect.none )
+            let
+                maybeAuthorsPubKey =
+                    model.nip05 |> Maybe.andThen (Nostr.getPubKeyByNip05 shared.nostr)
+
+                followersEffect =
+                    Shared.createFollowersEffect shared.nostr maybeAuthorsPubKey
+            in
+            ( model, followersEffect )
 
         AddArticleBookmark pubKey addressComponents ->
             ( model
@@ -275,11 +302,13 @@ view shared model =
     , body = [ viewArticle shared model maybeArticle ]
     }
 
+
 articleFromModel : Shared.Model -> Model -> Maybe Article
 articleFromModel shared model =
     model.nip05
         |> Maybe.andThen (Nostr.getPubKeyByNip05 shared.nostr)
         |> Maybe.andThen (\pubKey -> Nostr.getArticleWithIdentifier shared.nostr pubKey model.identifier)
+
 
 viewArticle : Shared.Model -> Model -> Maybe Article -> Html Msg
 viewArticle shared model maybeArticle =
