@@ -7,6 +7,7 @@ import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (..)
 import Layouts
+import Layouts.Sidebar
 import Nostr
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
@@ -43,8 +44,10 @@ page shared route =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 
@@ -106,22 +109,32 @@ update shared msg model =
             )
 
         FetchConfigCheckData ->
+            let
+                authorPubKeys =
+                    Nostr.getAuthorsPubKeys shared.nostr
+            in
             ( model
-            , { emptyEventFilter
-                | authors = Just (Nostr.getAuthorsPubKeys shared.nostr)
-                , kinds = Just  
-                    [ KindUserServerList
-                    , KindFileStorageServerList
-                    , KindRelayListMetadata
-                    , KindSearchRelaysList
-                    , KindPrivateRelayList
-                    , KindRelayListForDMs
-                    ]
-              }
-                |> RequestProfile Nothing
-                |> Nostr.createRequest shared.nostr "Config data" [ ]
-                |> Shared.Msg.RequestNostrEvents
-                |> Effect.sendSharedMsg
+            , Effect.batch
+                [ { emptyEventFilter
+                    | authors = Just authorPubKeys
+                    , kinds = Just  
+                        [ KindUserServerList
+                        , KindFileStorageServerList
+                        , KindRelayListMetadata
+                        , KindSearchRelaysList
+                        , KindPrivateRelayList
+                        , KindRelayListForDMs
+                        ]
+                  }
+                    |> RequestProfile Nothing
+                    |> Nostr.createRequest shared.nostr "Config data" [ ]
+                    |> Shared.Msg.RequestNostrEvents
+                    |> Effect.sendSharedMsg
+                , authorPubKeys
+                    |> List.map Shared.Msg.LoadUserDataByPubKey
+                    |> List.map Effect.sendSharedMsg
+                    |> Effect.batch
+                ]
             )
 
         PerformConfigChecks ->

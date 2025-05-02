@@ -5,6 +5,7 @@ import Html.Styled as Html exposing (div, h3, text)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (..)
 import Layouts
+import Layouts.Sidebar
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), emptyEventFilter)
@@ -35,8 +36,10 @@ page shared route =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 
@@ -191,6 +194,7 @@ view shared model =
                     , onReaction = Nothing
                     , onRepost = Nothing
                     , onZap = Nothing
+                    , sharing = Nothing
                     }
             ]
         ]

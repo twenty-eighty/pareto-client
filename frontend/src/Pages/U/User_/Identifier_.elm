@@ -1,12 +1,15 @@
 module Pages.U.User_.Identifier_ exposing (Model, Msg, page)
 
 import Browser.Dom
+import Components.ArticleInfo as ArticleInfo
 import Components.Comment as Comment
 import Components.RelayStatus exposing (Purpose(..))
+import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapDialog as ZapDialog
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html)
 import Layouts
+import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article)
@@ -24,7 +27,8 @@ import Set
 import Shared
 import Shared.Msg
 import Task
-import Ui.Styles exposing (Theme)
+import Ui.Shared exposing (emptyHtml)
+import Ui.Styles
 import Ui.View exposing (viewRelayStatus)
 import View exposing (View)
 
@@ -37,13 +41,37 @@ page shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout shared.theme)
+        |> Page.withLayout (toLayout shared)
 
 
-toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+toLayout : Shared.Model -> Model -> Layouts.Layout Msg
+toLayout shared model =
+    let
+        styles = Ui.Styles.stylesForTheme shared.theme
+
+        maybeArticle = articleFromModel shared model
+
+        userPubKey =
+            Shared.loggedInPubKey shared.loginStatus
+
+        articleInfo =
+            maybeArticle
+            |> Maybe.map (\article ->
+                ArticleInfo.view
+                    styles
+                    (Nostr.getAuthor shared.nostr article.author)
+                    article
+                    shared.browserEnv
+                    (Nostr.getInteractionsForArticle shared.nostr userPubKey article)
+                    shared.nostr
+            )
+            |> Maybe.withDefault emptyHtml
+    in
+    Layouts.Sidebar.new
+        { styles = styles
+        }
+        |> Layouts.Sidebar.withLeftPart articleInfo
+        |> Layouts.Sidebar
 
 
 
@@ -56,7 +84,8 @@ type alias Model =
     , identifier : String
     , nip05 : Maybe Nip05.Nip05
     , requestId : Maybe RequestId
-    , zapDialog : ZapDialog.Model Msg
+    , zapDialog : ZapDialog.Model
+    , sharingButtonDialog : SharingButtonDialog.Model
     }
 
 
@@ -70,6 +99,7 @@ init shared route () =
             , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
             , requestId = Nothing
             , zapDialog = ZapDialog.init {}
+            , sharingButtonDialog = SharingButtonDialog.init
             }
 
         ( requestEffect, requestId ) =
@@ -132,7 +162,7 @@ type Msg
     | CommentSent Comment.Msg
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
-
+    | SharingButtonDialogMsg SharingButtonDialog.Msg
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
@@ -201,6 +231,15 @@ update shared msg model =
                 , toMsg = ZapDialogSent
                 }
 
+        SharingButtonDialogMsg innerMsg ->
+            SharingButtonDialog.update
+                { browserEnv = shared.browserEnv
+                , model = model.sharingButtonDialog
+                , msg = innerMsg
+                , toModel = \sharingButtonDialog -> { model | sharingButtonDialog = sharingButtonDialog }
+                , toMsg = SharingButtonDialogMsg
+                }
+
 
 showZapDialog : Model -> List ZapDialog.Recipient -> ( Model, Effect Msg )
 showZapDialog model recipients =
@@ -230,14 +269,17 @@ view : Shared.Model -> Model -> View Msg
 view shared model =
     let
         maybeArticle =
-            model.nip05
-                |> Maybe.andThen (Nostr.getPubKeyByNip05 shared.nostr)
-                |> Maybe.andThen (\pubKey -> Nostr.getArticleWithIdentifier shared.nostr pubKey model.identifier)
+            articleFromModel shared model
     in
     { title = maybeArticle |> Maybe.andThen .title |> Maybe.withDefault "Article"
     , body = [ viewArticle shared model maybeArticle ]
     }
 
+articleFromModel : Shared.Model -> Model -> Maybe Article
+articleFromModel shared model =
+    model.nip05
+        |> Maybe.andThen (Nostr.getPubKeyByNip05 shared.nostr)
+        |> Maybe.andThen (\pubKey -> Nostr.getArticleWithIdentifier shared.nostr pubKey model.identifier)
 
 viewArticle : Shared.Model -> Model -> Maybe Article -> Html Msg
 viewArticle shared model maybeArticle =
@@ -281,6 +323,7 @@ viewArticle shared model maybeArticle =
 
                 -- signing is possible also with read-only login
                 , onZap = Maybe.map (\pubKey -> ZapReaction pubKey) userPubKey
+                , sharing = Just ( model.sharingButtonDialog, SharingButtonDialogMsg )
                 }
                 (Just model.loadedContent)
                 article

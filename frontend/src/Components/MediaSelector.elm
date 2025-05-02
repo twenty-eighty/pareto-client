@@ -15,7 +15,6 @@ module Components.MediaSelector exposing
     )
 
 import BrowserEnv exposing (BrowserEnv)
-import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button as Button
 import Components.Dropdown
 import Components.Icon as Icon
@@ -111,7 +110,6 @@ type Model
         , uploadDialog : UploadDialog.Model
         , mediaType : Maybe Nip96.MediaType
         , errors : List String
-        , alertTimerMessage : AlertTimerMessage.Model
         }
 
 
@@ -167,7 +165,6 @@ init props =
                 }
         , errors = []
         , mediaType = Nothing
-        , alertTimerMessage = AlertTimerMessage.init {}
         }
     , Effect.batch
         [ requestBlossomListAuths props.blossomServers
@@ -220,7 +217,6 @@ type Msg msg
     = FocusedDropdown
     | BlurredDropdown
     | ShowMessage String
-    | AlertSent AlertTimerMessage.Msg
     | CloseDialog
     | DropdownSent (Components.Dropdown.Msg MediaServer (Msg msg))
     | ChangedSelectedServer MediaServer
@@ -269,15 +265,7 @@ update props =
                 |> toParentModel
 
         ShowMessage message ->
-            update { props | msg = AlertSent (AlertTimerMessage.AddMessage message 1000) }
-
-        AlertSent innerMsg ->
-            AlertTimerMessage.update
-                { msg = innerMsg
-                , model = model.alertTimerMessage
-                , toModel = \alertTimerMessage -> Model { model | alertTimerMessage = alertTimerMessage }
-                , toMsg = props.toMsg << AlertSent
-                }
+            ( Model model, Effect.sendSharedMsg <| Shared.Msg.ShowAlert message )
                 |> toParentModel
 
         CloseDialog ->
@@ -854,11 +842,6 @@ viewMediaSelector (Settings settings) =
             }
             |> UploadDialog.view
             |> Html.map settings.toMsg
-        , AlertTimerMessage.new
-            { model = model.alertTimerMessage
-            , theme = settings.theme
-            }
-            |> AlertTimerMessage.view
         ]
 
 

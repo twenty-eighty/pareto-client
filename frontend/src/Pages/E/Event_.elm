@@ -5,6 +5,7 @@ import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, article, div, text)
 import Layouts
+import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article)
@@ -41,8 +42,10 @@ page shared route =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 
@@ -278,6 +281,7 @@ viewContent shared model =
                         , onReaction = Nothing
                         , onRepost = Nothing
                         , onZap = Nothing
+                        , sharing = Nothing
                         }
                         (Just model.loadedContent)
                     )

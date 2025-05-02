@@ -7,6 +7,7 @@ import Html.Styled as Html exposing (Html, a, div, img, span, text)
 import Html.Styled.Attributes as Attr exposing (css, href, src, target, width)
 import I18Next
 import Layouts
+import Layouts.Sidebar
 import Locale exposing (Language(..))
 import Nostr
 import Nostr.Event exposing (Kind(..), KindInformationLink(..), Tag(..), TagReference(..), buildAddress, numberForKind)
@@ -44,8 +45,10 @@ page shared _ =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 

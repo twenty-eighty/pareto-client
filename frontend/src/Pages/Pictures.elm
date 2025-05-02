@@ -13,6 +13,7 @@ import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Lazy as Lazy
 import I18Next
 import Layouts
+import Layouts.Sidebar
 import Material.Icons exposing (category)
 import Nostr
 import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
@@ -53,8 +54,10 @@ page shared route =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 
@@ -358,7 +361,7 @@ availableCategories nostr loginStatus translations =
                 |> Maybe.map (Nostr.isBetaTester nostr)
                 |> Maybe.withDefault False
 
-        memesCategories =
+        _ =
             if isBetaTester then
                 [ memesCategory translations ]
 
@@ -414,7 +417,7 @@ view shared model =
                             [ css
                                 [ Tw.flex
                                 , Tw.mx_8
-                                , Tw.mb_2
+                                , Tw.my_4
                                 ]
                             ]
                             [ Button.new

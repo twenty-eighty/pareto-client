@@ -4,6 +4,7 @@ import Components.EmailSubscriptionDialog as EmailSubscriptionDialog
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
 import Layouts
+import Layouts.Sidebar
 import Nostr
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Nip05 as Nip05 exposing (Nip05, nip05ToString)
@@ -36,8 +37,10 @@ page shared route =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 
@@ -228,6 +231,7 @@ viewProfile shared model profile =
                 , onReaction = Nothing
                 , onRepost = Nothing
                 , onZap = Nothing
+                , sharing = Nothing
                 }
         , viewEmailSubscriptionDialog shared model profile
         ]

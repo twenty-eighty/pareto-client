@@ -26,7 +26,7 @@ type Msg msg
     | ReceivedPayRequest (Result Http.Error PayRequest)
 
 
-type Model msg
+type Model
     = Model
         { state : DialogState
         }
@@ -54,7 +54,7 @@ type alias ZapAmountSelectionData =
 
 type ZapDialog msg
     = Settings
-        { model : Model msg
+        { model : Model
         , toMsg : Msg msg -> msg
         , onPublish : List RelayUrl -> msg
         , nostr : Nostr.Model
@@ -65,7 +65,7 @@ type ZapDialog msg
 
 
 new :
-    { model : Model msg
+    { model : Model
     , toMsg : Msg msg -> msg
     , onPublish : List RelayUrl -> msg
     , nostr : Nostr.Model
@@ -86,14 +86,14 @@ new props =
         }
 
 
-init : {} -> Model msg
+init : {} -> Model
 init props =
     Model
         { state = DialogHidden
         }
 
 
-show : Model msg -> (Msg msg -> msg) -> List Recipient -> ( Model msg, Effect msg )
+show : Model -> (Msg msg -> msg) -> List Recipient -> ( Model, Effect msg )
 show (Model model) toMsg recipients =
     ( Model { model | state = ZapAmountSelection { amount = 21, comment = "", recipients = recipients } }
     , requestPayRequests recipients
@@ -112,15 +112,15 @@ requestPayRequests recipients =
         |> Cmd.batch
 
 
-hide : Model msg -> Model msg
+hide : Model -> Model
 hide (Model model) =
     Model { model | state = DialogHidden }
 
 
 update :
     { msg : Msg msg
-    , model : Model msg
-    , toModel : Model msg -> model
+    , model : Model
+    , toModel : Model -> model
     , toMsg : Msg msg -> msg
     , nostr : Nostr.Model
     }
@@ -130,7 +130,7 @@ update props =
         (Model model) =
             props.model
 
-        toParentModel : ( Model msg, Effect msg ) -> ( model, Effect msg )
+        toParentModel : ( Model, Effect msg ) -> ( model, Effect msg )
         toParentModel ( innerModel, effect ) =
             ( props.toModel innerModel
             , effect

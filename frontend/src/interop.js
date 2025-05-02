@@ -1,4 +1,3 @@
-
 import "./Milkdown/MilkdownEditor.js";
 
 import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
@@ -9,6 +8,10 @@ import "./zap-component.js";
 import "./elm-oembed.js";
 import debug from 'debug';
 
+// Register custom elements
+if (!customElements.get('js-clipboard-component')) {
+  customElements.define('js-clipboard-component', ClipboardComponent);
+}
 
 // This is called BEFORE your Elm app starts up
 // 
@@ -181,6 +184,10 @@ export const onReady = ({ app, env }) => {
       case 'setTestMode':
         setTestMode(app, value);
         break;
+
+      case 'shareLink':
+        shareLink(app, value);
+        break;
     }
   }
 
@@ -245,6 +252,15 @@ export const onReady = ({ app, env }) => {
     sessionStorage.clear();
     // reload client in order to initialize relay and other lists correctly
     location.reload();
+  }
+
+  function shareLink(app, value) {
+    console.log('shareLink', value);
+    if (navigator.share) {
+      navigator.share(value);
+    } else {
+      console.log('navigator.share not supported');
+    }
   }
 
   // 1) A function that imports an AES-GCM key and encrypts `plaintextBytes` with it.

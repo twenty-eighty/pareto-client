@@ -5,6 +5,7 @@ import Components.RelayStatus exposing (Purpose(..))
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
 import Layouts
+import Layouts.Sidebar
 import Nostr
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Nip19 as Nip19
@@ -37,8 +38,10 @@ page shared route =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 
@@ -284,6 +287,7 @@ viewArticles shared pubKey =
             , onReaction = Nothing
             , onRepost = Nothing
             , onZap = Nothing
+            , sharing = Nothing
             }
 
 

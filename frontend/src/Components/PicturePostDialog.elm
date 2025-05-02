@@ -25,7 +25,7 @@ import Shared.Msg exposing (Msg)
 import Tailwind.Utilities as Tw
 import Translations.PicturePostDialog as Translations
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme, stylesForTheme)
+import Ui.Styles exposing (Theme)
 
 
 type Msg
@@ -367,11 +367,21 @@ view picturePostDialog =
 viewPicturePostDialog : PicturePostDialog msg -> PicturePost -> String -> Maybe Msg -> Maybe String -> Html Msg
 viewPicturePostDialog (Settings settings) picturePost postButtonText buttonMsg maybeError =
     let
-        styles =
-            stylesForTheme settings.theme
-
         (Model model) =
             settings.model
+
+        errorMessage =
+            maybeError
+            |> Maybe.map (\error ->
+                div
+                    [ css
+                        [ Tw.mb_4
+                        ]
+                    ]
+                    [ Html.text <| Translations.errorMessageText [ settings.browserEnv.translations ] { errorText = error }
+                    ]
+            )
+            |> Maybe.withDefault emptyHtml
     in
     Ui.Shared.modalDialog settings.theme (Translations.dialogTitle [ settings.browserEnv.translations ])
         [ div
@@ -418,6 +428,7 @@ viewPicturePostDialog (Settings settings) picturePost postButtonText buttonMsg m
                 , theme = settings.theme
                 }
                 |> HashtagEditor.view
+            , errorMessage
             , div
                 [ css
                     [ Tw.flex

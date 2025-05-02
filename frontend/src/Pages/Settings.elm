@@ -20,6 +20,7 @@ import Html.Styled.Events as Events exposing (..)
 import I18Next
 import Json.Decode as Decode
 import Layouts
+import Layouts.Sidebar
 import Nostr
 import Nostr.Blossom exposing (eventWithBlossomServerList)
 import Nostr.ConfigCheck as ConfigCheck
@@ -64,8 +65,10 @@ page user shared route =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 
@@ -1856,19 +1859,30 @@ viewProfileEditor shared configCheckIssues user profileModel =
                 }
                 |> EntryField.withLabel (Translations.profileNameFieldLabel [ shared.browserEnv.translations ])
                 |> EntryField.withPlaceholder (Translations.profileNameFieldPlaceholder [ shared.browserEnv.translations ])
+                |> EntryField.withDescription (Translations.profileNameFieldDescription [ shared.browserEnv.translations ])
                 |> EntryField.withSuggestions "name" (portalUserData |> Maybe.andThen .username |> Maybe.map List.singleton |> Maybe.withDefault [])
                 |> EntryField.view
             , EntryField.new
-                { value = profileModel.nip05
-                , onInput = \nip05 -> UpdateProfileModel { profileModel | nip05 = nip05 }
+                { value = profileModel.displayName
+                , onInput = \displayName -> UpdateProfileModel { profileModel | displayName = displayName }
                 , theme = shared.theme
                 }
-                |> EntryField.withLabel (Translations.profileNip05FieldLabel [ shared.browserEnv.translations ])
-                |> EntryField.withPlaceholder (Translations.profileNip05FieldPlaceholder [ shared.browserEnv.translations ])
-                |> EntryField.withSuggestions "nip05" (portalUserData |> Maybe.andThen .nip05 |> Maybe.map Nip05.nip05ToString |> Maybe.map List.singleton |> Maybe.withDefault [])
-                |> EntryField.withType EntryField.FieldTypeEmail
+                |> EntryField.withLabel (Translations.profileDisplayNameFieldLabel [ shared.browserEnv.translations ])
+                |> EntryField.withPlaceholder (Translations.profileDisplayNameFieldPlaceholder [ shared.browserEnv.translations ])
+                |> EntryField.withDescription (Translations.profileDisplayNameFieldDescription [ shared.browserEnv.translations ])
                 |> EntryField.view
             ]
+        , EntryField.new
+            { value = profileModel.nip05
+            , onInput = \nip05 -> UpdateProfileModel { profileModel | nip05 = nip05 }
+            , theme = shared.theme
+            }
+            |> EntryField.withLabel (Translations.profileNip05FieldLabel [ shared.browserEnv.translations ])
+            |> EntryField.withDescription (Translations.profileNip05FieldDescription [ shared.browserEnv.translations ])
+            |> EntryField.withPlaceholder (Translations.profileNip05FieldPlaceholder [ shared.browserEnv.translations ])
+            |> EntryField.withSuggestions "nip05" (portalUserData |> Maybe.andThen .nip05 |> Maybe.map Nip05.nip05ToString |> Maybe.map List.singleton |> Maybe.withDefault [])
+            |> EntryField.withType EntryField.FieldTypeEmail
+            |> EntryField.view
         , EntryField.new
             { value = profileModel.about
             , onInput = \about -> UpdateProfileModel { profileModel | about = about }
@@ -1876,6 +1890,7 @@ viewProfileEditor shared configCheckIssues user profileModel =
             }
             |> EntryField.withLabel (Translations.profileAboutFieldLabel [ shared.browserEnv.translations ])
             |> EntryField.withPlaceholder (Translations.profileAboutFieldPlaceholder [ shared.browserEnv.translations ])
+            |> EntryField.withDescription (Translations.profileAboutFieldDescription [ shared.browserEnv.translations ])
             |> EntryField.withRows 2
             |> EntryField.view
         , viewImageSelection shared PictureLoaded ImagePicture profileModel
@@ -1886,6 +1901,7 @@ viewProfileEditor shared configCheckIssues user profileModel =
             }
             |> EntryField.withLabel (Translations.profilePictureFieldLabel [ shared.browserEnv.translations ])
             |> EntryField.withPlaceholder (Translations.profilePictureFieldPlaceholder [ shared.browserEnv.translations ])
+            |> EntryField.withDescription (Translations.profilePictureFieldDescription [ shared.browserEnv.translations ])
             |> EntryField.withType EntryField.FieldTypeUrl
             |> EntryField.view
         , viewImageSelection shared BannerLoaded ImageBanner profileModel
@@ -1896,6 +1912,7 @@ viewProfileEditor shared configCheckIssues user profileModel =
             }
             |> EntryField.withLabel (Translations.profileBannerFieldLabel [ shared.browserEnv.translations ])
             |> EntryField.withPlaceholder (Translations.profileBannerFieldPlaceholder [ shared.browserEnv.translations ])
+            |> EntryField.withDescription (Translations.profileBannerFieldDescription [ shared.browserEnv.translations ])
             |> EntryField.withType EntryField.FieldTypeUrl
             |> EntryField.view
         , lud06Field
@@ -1906,16 +1923,9 @@ viewProfileEditor shared configCheckIssues user profileModel =
             }
             |> EntryField.withLabel (Translations.profileLud16FieldLabel [ shared.browserEnv.translations ])
             |> EntryField.withPlaceholder (Translations.profileLud16FieldPlaceholder [ shared.browserEnv.translations ])
+            |> EntryField.withDescription (Translations.profileLud16FieldDescription [ shared.browserEnv.translations ])
             |> EntryField.withSuggestions "lud16" (portalUserData |> Maybe.andThen .lud16 |> Maybe.map Lud16.lud16ToString |> Maybe.map List.singleton |> Maybe.withDefault [])
             |> EntryField.withType EntryField.FieldTypeEmail
-            |> EntryField.view
-        , EntryField.new
-            { value = profileModel.displayName
-            , onInput = \displayName -> UpdateProfileModel { profileModel | displayName = displayName }
-            , theme = shared.theme
-            }
-            |> EntryField.withLabel (Translations.profileDisplayNameFieldLabel [ shared.browserEnv.translations ])
-            |> EntryField.withPlaceholder (Translations.profileDisplayNameFieldPlaceholder [ shared.browserEnv.translations ])
             |> EntryField.view
         , EntryField.new
             { value = profileModel.website

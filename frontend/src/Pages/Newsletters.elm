@@ -11,6 +11,7 @@ import Iso8601
 import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
 import Layouts
+import Layouts.Sidebar
 import Nostr
 import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.External
@@ -60,8 +61,10 @@ page user shared _ =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 

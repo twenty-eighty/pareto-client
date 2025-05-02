@@ -1,19 +1,18 @@
 module Ui.ShortNote exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
-import Html.Styled as Html exposing (Html, a, br, button, div, p, span, text)
+import Html.Styled as Html exposing (Html, br, div, p)
 import Html.Styled.Attributes as Attr exposing (css)
 import Nostr
-import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip27 as Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
 import Nostr.Reactions exposing (Interactions)
 import Nostr.ShortNote exposing (ShortNote)
 import Nostr.Types exposing (EventId, PubKey)
 import Tailwind.Utilities as Tw
-import Ui.Links exposing (linkElementForAuthor)
+import Ui.Interactions exposing (Actions)
 import Ui.Profile
-import Ui.Shared exposing (Actions, emptyHtml, extendedZapRelays, pubkeyRelays)
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme, darkMode, stylesForTheme)
 import Url
 
@@ -40,38 +39,13 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
         styles =
             stylesForTheme shortNotesViewData.theme
 
-        ( authorText, maybeProfile, validationStatus ) =
+        ( _, maybeProfile, validationStatus ) =
             case shortNoteViewData.author of
                 AuthorPubkey pubKey ->
                     ( pubKey, Nothing, ValidationUnknown )
 
                 AuthorProfile profile profileValidation ->
                     ( profileDisplayName profile.pubKey profile, Just profile, profileValidation )
-
-        authorPubKey =
-            case shortNoteViewData.author of
-                AuthorPubkey pubKey ->
-                    pubKey
-
-                AuthorProfile profile _ ->
-                    profile.pubKey
-
-        authorRelays =
-            pubkeyRelays shortNotesViewData.nostr authorPubKey
-
-        maybeNoteId =
-            shortNote.id
-                |> Nip19.Note
-                |> Nip19.encode
-                |> Result.toMaybe
-
-        previewData =
-            { pubKey = shortNote.pubKey
-            , maybeNip19Target = maybeNoteId
-            , zapRelays = extendedZapRelays authorRelays shortNotesViewData.nostr shortNotesViewData.userPubKey
-            , actions = shortNoteViewData.actions
-            , interactions = shortNoteViewData.interactions
-            }
     in
     div
         [ css

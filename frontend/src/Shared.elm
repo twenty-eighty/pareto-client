@@ -13,6 +13,7 @@ module Shared exposing
 
 -}
 
+import Components.AlertTimerMessage as AlertTimerMessage
 import BrowserEnv
 import Effect exposing (Effect)
 import Json.Decode
@@ -104,6 +105,7 @@ init flagsResult _ =
               , nostr = nostr
               , role = ClientReader
               , theme = ParetoTheme
+              , alertTimerMessage = AlertTimerMessage.init
               }
             , Effect.batch
                 [ Effect.sendCmd <| Cmd.map Shared.Msg.BrowserEnvMsg browserEnvCmd
@@ -131,6 +133,7 @@ init flagsResult _ =
               , nostr = Nostr.empty
               , role = ClientReader
               , theme = ParetoTheme
+              , alertTimerMessage = AlertTimerMessage.init
               }
             , Effect.none
             )
@@ -157,7 +160,7 @@ type alias Msg =
 
 
 update : Route () -> Msg -> Model -> ( Model, Effect Msg )
-update _ msg model =
+update route msg model =
     case msg of
         TriggerLogin ->
             ( model, Effect.sendCmd <| Ports.loginSignUp )
@@ -279,6 +282,24 @@ update _ msg model =
             ( model
             , Nostr.loadUserDataByNip05 model.nostr nip05
                 |> Cmd.map NostrMsg
+                |> Effect.sendCmd
+            )
+
+        ShowAlert alert ->
+            update route (AlertSent (AlertTimerMessage.AddMessage alert 1000)) model
+
+        AlertSent innerMsg ->
+            let
+                ( newModel, alertTimerMessageCmd ) =
+                    AlertTimerMessage.update
+                        { msg = innerMsg
+                        , model = model.alertTimerMessage
+                        , toModel = \alertTimerMessage -> { model | alertTimerMessage = alertTimerMessage }
+                        , toMsg = AlertSent
+                        }
+            in
+            ( newModel
+            , alertTimerMessageCmd
                 |> Effect.sendCmd
             )
 

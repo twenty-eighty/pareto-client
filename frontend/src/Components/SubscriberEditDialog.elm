@@ -2,6 +2,7 @@ module Components.SubscriberEditDialog exposing (Model, Msg, SubscriberEditDialo
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
+import Components.ModalDialog as ModalDialog
 import Css
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div, input, label, text)
@@ -155,47 +156,48 @@ view dialog =
             emptyHtml
 
         DialogVisible emailSubscriptionData ->
-            Ui.Shared.modalDialog
-                settings.theme
-                (Translations.dialogTitle [ settings.browserEnv.translations ])
-                [ viewSubscriberDialog dialog emailSubscriptionData.subscriber ]
-                CloseDialog
-                |> Html.map settings.toMsg
-
-
-viewSubscriberDialog : SubscriberEditDialog msg -> Subscriber -> Html Msg
-viewSubscriberDialog (Settings settings) subscriber =
-    let
-        emailIsValid =
-            Subscribers.emailValid subscriber.email
-    in
-    div
-        [ css
-            [ Tw.w_full
-            , Tw.max_w_sm
-            , Tw.mt_2
-            ]
-        ]
-        [ div
-            [ css
-                [ Tw.flex
-                , Tw.flex_col
-                , Tw.gap_3
-                ]
-            ]
-            [ entryField settings.browserEnv Subscribers.FieldEmail subscriber
-            , entryField settings.browserEnv Subscribers.FieldFirstName subscriber
-            , entryField settings.browserEnv Subscribers.FieldLastName subscriber
-            , Button.new
-                { label = Translations.submitButtonTitle [ settings.browserEnv.translations ]
-                , onClick = Just SubmitSubscriber
+            let
+                emailIsValid =
+                    Subscribers.emailValid emailSubscriptionData.subscriber.email
+            in
+            ModalDialog.new
+                { title = Translations.dialogTitle [ settings.browserEnv.translations ]
+                , content =
+                    [ div
+                        [ css
+                            [ Tw.w_full
+                            , Tw.max_w_sm
+                            , Tw.mt_2
+                            ]
+                        ]
+                        [ div
+                            [ css
+                                [ Tw.flex
+                                , Tw.flex_col
+                                , Tw.gap_3
+                                ]
+                            ]
+                            [ entryField settings.browserEnv Subscribers.FieldEmail emailSubscriptionData.subscriber
+                            , entryField settings.browserEnv Subscribers.FieldFirstName emailSubscriptionData.subscriber
+                            , entryField settings.browserEnv Subscribers.FieldLastName emailSubscriptionData.subscriber
+                            ]
+                        ]
+                    ]
+                , onClose = CloseDialog
                 , theme = settings.theme
+                , buttons =
+                    [ Button.new
+                        { label = Translations.submitButtonTitle [ settings.browserEnv.translations ]
+                        , onClick = Just SubmitSubscriber
+                        , theme = settings.theme
+                        }
+                        |> Button.withTypePrimary
+                        |> Button.withDisabled (not emailIsValid)
+                        |> Button.view
+                    ]
                 }
-                |> Button.withTypePrimary
-                |> Button.withDisabled (not emailIsValid)
-                |> Button.view
-            ]
-        ]
+                |> ModalDialog.view
+                |> Html.map settings.toMsg
 
 
 entryField : BrowserEnv -> SubscriberField -> Subscriber -> Html Msg

@@ -11,6 +11,7 @@ import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (..)
 import I18Next
 import Layouts
+import Layouts.Sidebar
 import Nostr
 import Nostr.Article exposing (Article, nip19ForArticle)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
@@ -52,8 +53,10 @@ page user shared route =
 
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
-    Layouts.Sidebar
-        { styles = Ui.Styles.stylesForTheme theme }
+    Layouts.Sidebar.new
+        { styles = Ui.Styles.stylesForTheme theme
+        }
+        |> Layouts.Sidebar
 
 
 
@@ -239,6 +242,7 @@ viewArticles shared model userPubKey =
                     , onReaction = Nothing
                     , onRepost = Nothing
                     , onZap = Nothing
+                    , sharing = Nothing
                     }
 
         Drafts ->

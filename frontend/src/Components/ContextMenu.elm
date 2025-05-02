@@ -1,9 +1,9 @@
 module Components.ContextMenu exposing (..)
 
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, article, aside, button, div, h2, h3, h4, img, input, label, main_, p, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled as Html exposing (Html, button, div, input, text)
+import Html.Styled.Attributes as Attr exposing (class)
+import Html.Styled.Events exposing (..)
 
 
 

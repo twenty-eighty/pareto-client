@@ -5,6 +5,7 @@ import Components.ArticleComments as ArticleComments
 import Components.Button as Button
 import Components.Comment as Comment
 import Components.Icon as Icon
+import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapDialog as ZapDialog
 import Css
 import Dict
@@ -25,6 +26,7 @@ import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profi
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Relay exposing (websocketUrl)
 import Nostr.Types exposing (EventId, PubKey)
+import Pareto
 import Route
 import Route.Path
 import Set
@@ -33,9 +35,10 @@ import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Time
 import Translations.Posts
+import Ui.Interactions exposing (Actions, extendedZapRelays, viewInteractions)
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
-import Ui.Shared exposing (Actions, emptyHtml, extendedZapRelays)
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyInter, fontFamilyRobotoMono, fontFamilyUnbounded)
 
 
@@ -49,6 +52,7 @@ type alias ArticlePreviewsData msg =
     , onReaction : Maybe (EventId -> PubKey -> AddressComponents -> msg)
     , onRepost : Maybe msg
     , onZap : Maybe (List ZapDialog.Recipient -> msg)
+    , sharing : Maybe ( SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg )
     }
 
 
@@ -187,134 +191,175 @@ viewArticle articlePreviewsData articlePreviewData article =
             , zapRelays = extendedZapRelays articleRelays articlePreviewsData.nostr articlePreviewsData.userPubKey
             , actions = articlePreviewData.actions
             , interactions = articlePreviewData.interactions
+            , sharing = articlePreviewsData.sharing
+            , sharingInfo = sharingInfoForArticle article articlePreviewData.author
+            , translations = articlePreviewsData.browserEnv.translations
+            , theme = articlePreviewsData.theme
             }
     in
-    Html.article
-        (langAttr
-            ++ [ css
-                    [ Tw.flex_col
-                    , Tw.justify_start
-                    , Tw.items_center
-                    , Tw.gap_12
-                    , Tw.inline_flex
-                    , Tw.px_2
-                    , Bp.xxl
-                        [ Tw.px_40
-                        ]
-                    , Bp.xl
-                        [ Tw.px_20
-                        ]
-                    , Bp.lg
-                        [ Tw.px_10
-                        ]
-                    , Bp.md
-                        [ Tw.px_5
-                        ]
-                    , Bp.sm
-                        [ Tw.px_3
-                        ]
-                    ]
-               ]
-        )
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_wrap
+            , Tw.w_full
+            , Tw.neg_mb_4
+            , Bp.md [ Tw.mb_0 ]
+            ]
+        ]
         [ div
             [ css
-                [ Tw.self_stretch
-                , Tw.flex_col
-                , Tw.justify_center
-                , Tw.items_center
-                , Tw.gap_4
-                , Tw.flex
-                , Tw.mb_20
+                [ Tw.flex_1
                 ]
             ]
             [ div
-                (css
-                    [ Tw.flex_col
-                    , Tw.justify_start
-                    , Tw.items_start
-                    , Tw.gap_4
-                    , Tw.inline_flex
+                [ css
+                    [ Tw.relative
+                    , Tw.flex
+                    , Tw.flex_col
+                    , Tw.items_center
                     ]
-                    :: contentMargins
-                )
-                [ viewTags article
+                ]
+                [ Ui.Profile.viewBanner (getProfile article.author |> Maybe.andThen .banner)
                 , div
                     [ css
-                        [ Tw.flex_col
-                        , Tw.justify_start
-                        , Tw.items_start
-                        , Tw.gap_6
-                        , Tw.flex
+                        [ Tw.absolute
+                        , Tw.top_3over4
+                        , Tw.z_10
                         ]
                     ]
-                    [ Html.h1
-                        (styles.textStyleH1Article
-                            ++ styles.colorStyleGrayscaleTitle
-                            ++ [ css
-                                    [ Tw.max_w_screen_sm
-                                    , Bp.sm
-                                        [ Tw.max_w_prose
-                                        ]
-                                    ]
-                               ]
-                        )
-                        [ text <| Maybe.withDefault "" article.title ]
-                    , Html.summary
-                        (styles.textStyleH2
-                            ++ styles.colorStyleGrayscaleSummary
-                            ++ [ css
-                                    [ Tw.max_w_screen_sm
-                                    , Bp.sm
-                                        [ Tw.max_w_prose
-                                        , Tw.list_none
-                                        ]
-                                    ]
-                               ]
-                        )
-                        [ text <| Maybe.withDefault "" article.summary ]
-                    , viewAuthorAndDate styles articlePreviewsData.browserEnv article.publishedAt article.createdAt articlePreviewData.author
-                    ]
+                    [ Ui.Profile.viewProfileImage (linkElementForProfilePubKey article.author) (getProfile article.author) ValidationUnknown ]
                 ]
-            , viewArticleImage article.image
-            , div
-                (css
-                    [ Tw.flex_col
-                    , Tw.justify_start
-                    , Tw.items_start
-                    , Tw.gap_4
-                    , Tw.mb_2
-                    , Tw.flex
-                    ]
-                    :: styles.colorStyleGrayscaleMuted
-                    ++ textStyleReactions
-                    ++ contentMargins
-                )
-                [ Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "1"
-                , viewContent styles articlePreviewData.loadedContent getProfile article.content
-                , Ui.Shared.viewInteractions styles articlePreviewsData.browserEnv previewData "2"
-                ]
-            , case articlePreviewsData.commenting of
-                Just ( comment, _ ) ->
-                    comment
-                        |> Comment.view
+            , Html.article
+                (langAttr
+                    ++ [ css
+                            [ Tw.flex_col
+                            , Tw.justify_start
+                            , Tw.items_center
+                            , Tw.gap_12
+                            , Tw.inline_flex
+                            , Tw.px_2
+                            , Tw.my_20
+                            , Tw.w_full
 
-                Nothing ->
-                    emptyHtml
-            , div
-                [ css
-                    [ Tw.mt_2 ]
-                ]
-                [ ArticleComments.new
-                    { browserEnv = articlePreviewsData.browserEnv
-                    , nostr = articlePreviewsData.nostr
-                    , articleComments = articlePreviewData.interactions.articleComments
-                    , articleCommentComments = articlePreviewData.interactions.articleCommentComments
-                    , theme = articlePreviewsData.theme
-                    }
-                    |> ArticleComments.view
+                            -- switch off ligatures - Inter font doesn't have ligatures
+                            , Css.property "font-variant-ligatures" "none"
+                            , Css.property "font-feature-settings" "\"liga\" 0"
+                            ]
+                       ]
+                )
+                [ div
+                    [ css
+                        [ Tw.self_stretch
+                        , Tw.flex_col
+                        , Tw.justify_center
+                        , Tw.items_center
+                        , Tw.gap_4
+                        , Tw.flex
+                        , Tw.mb_20
+                        ]
+                    ]
+                    [ div
+                        (css
+                            [ Tw.flex_col
+                            , Tw.justify_start
+                            , Tw.items_start
+                            , Tw.gap_4
+                            , Tw.inline_flex
+                            ]
+                            :: contentMargins
+                        )
+                        [ div [ css [ Bp.lg [ Tw.hidden ] ] ] [ viewTags article ]
+                        , div
+                            [ css
+                                [ Tw.flex_col
+                                , Tw.justify_start
+                                , Tw.items_start
+                                , Tw.gap_6
+                                , Tw.flex
+                                ]
+                            ]
+                            [ Html.h1
+                                (styles.textStyleH1Article
+                                    ++ styles.colorStyleGrayscaleTitle
+                                    ++ [ css
+                                            [ Tw.max_w_screen_sm
+                                            , Bp.sm
+                                                [ Tw.max_w_prose
+                                                ]
+                                            ]
+                                       ]
+                                )
+                                [ text <| Maybe.withDefault "" article.title ]
+                            , Html.summary
+                                (styles.textStyleH2
+                                    ++ styles.colorStyleGrayscaleSummary
+                                    ++ [ css
+                                            [ Tw.max_w_screen_sm
+                                            , Bp.sm
+                                                [ Tw.max_w_prose
+                                                , Tw.list_none
+                                                ]
+                                            ]
+                                       ]
+                                )
+                                [ text <| Maybe.withDefault "" article.summary ]
+                            , viewAuthorAndDate styles articlePreviewsData.browserEnv article.publishedAt article.createdAt articlePreviewData.author
+                            ]
+                        ]
+                    , viewArticleImage article.image
+                    , div
+                        (css
+                            [ Tw.flex_col
+                            , Tw.justify_start
+                            , Tw.items_start
+                            , Tw.gap_4
+                            , Tw.mb_2
+                            , Tw.flex
+                            ]
+                            :: styles.colorStyleGrayscaleMuted
+                            ++ textStyleReactions
+                            ++ contentMargins
+                        )
+                        [ viewInteractions styles articlePreviewsData.browserEnv previewData "1"
+                        , viewContent styles articlePreviewData.loadedContent getProfile article.content
+                        , viewInteractions styles articlePreviewsData.browserEnv previewData "2"
+                        ]
+                    , case articlePreviewsData.commenting of
+                        Just ( comment, _ ) ->
+                            comment
+                                |> Comment.view
+
+                        Nothing ->
+                            emptyHtml
+                    , div
+                        [ css
+                            [ Tw.mt_2 ]
+                        ]
+                        [ ArticleComments.new
+                            { browserEnv = articlePreviewsData.browserEnv
+                            , nostr = articlePreviewsData.nostr
+                            , articleComments = articlePreviewData.interactions.articleComments
+                            , articleCommentComments = articlePreviewData.interactions.articleCommentComments
+                            , theme = articlePreviewsData.theme
+                            }
+                            |> ArticleComments.view
+                        ]
+                    ]
                 ]
             ]
         ]
+
+
+sharingInfoForArticle : Article -> Author -> SharingButtonDialog.SharingInfo
+sharingInfoForArticle article author =
+    { url =
+        linkToArticle author article
+            |> Maybe.map (\relativeUrl -> Pareto.applicationUrl ++ relativeUrl)
+            |> Maybe.withDefault ""
+    , title = Maybe.withDefault "" article.title
+    , text = Maybe.withDefault "" article.summary
+    , hashtags = article.hashtags
+    }
 
 
 viewArticleImage : Maybe String -> Html msg
@@ -420,6 +465,7 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                     , Tw.items_center
                     , Tw.space_x_2
                     , Tw.mb_4
+                    , Bp.lg [ Tw.hidden ]
                     ]
                 ]
                 [ Ui.Profile.viewProfilePubKey styles pubKey
@@ -433,6 +479,7 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                     , Tw.items_center
                     , Tw.space_x_2
                     , Tw.mb_4
+                    , Bp.lg [ Tw.hidden ]
                     ]
                 ]
                 [ viewArticleProfileSmall profile validationStatus
