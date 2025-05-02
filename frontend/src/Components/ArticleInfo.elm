@@ -50,7 +50,7 @@ view styles author article browserEnv interactions nostr =
         articlesFromAuthor =
             Dict.get pubKey nostr.articlesByAuthor |> Maybe.map List.length |> Maybe.withDefault 0
 
-        _ =
+        followersFromAuthor =
             Dict.get pubKey nostr.followLists |> Maybe.map List.length |> Maybe.withDefault 0
     in
     aside
@@ -95,8 +95,7 @@ view styles author article browserEnv interactions nostr =
                     [ Tw.mt_1 ]
                 ]
                 [ viewAuthorStat styles (Translations.numberOfArticles [ browserEnv.translations ]) articlesFromAuthor
-
-                --, viewAuthorStat styles (Translations.followers [ browserEnv.translations ]) followersFromAuthor
+                , viewAuthorStat styles (Translations.followers [ browserEnv.translations ]) followersFromAuthor
                 ]
             , {- Article Info Section -}
               h3

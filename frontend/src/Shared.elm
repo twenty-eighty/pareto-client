@@ -2,7 +2,7 @@ module Shared exposing
     ( Flags, decoder
     , Model, Msg
     , init, update, subscriptions
-    , loggedIn, loggedInPubKey, loggedInSigningPubKey, signingPubKeyAvailable
+    , createFollowersEffect, loggedIn, loggedInPubKey, loggedInSigningPubKey, signingPubKeyAvailable
     )
 
 {-|
@@ -13,13 +13,13 @@ module Shared exposing
 
 -}
 
-import Components.AlertTimerMessage as AlertTimerMessage
 import BrowserEnv
+import Components.AlertTimerMessage as AlertTimerMessage
 import Effect exposing (Effect)
 import Json.Decode
 import Nostr
 import Nostr.ConfigCheck as ConfigCheck
-import Nostr.Event exposing (Kind(..), emptyEventFilter)
+import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.External
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Types exposing (IncomingMessage, PubKey)
@@ -379,6 +379,21 @@ updateWithUserValue model value =
 
         ( _, _, _ ) ->
             ( model, Effect.none )
+
+
+createFollowersEffect : Nostr.Model -> Maybe PubKey -> Effect msg
+createFollowersEffect nostr maybePubKey =
+    let
+        buildRequestEffect pk =
+            { emptyEventFilter | kinds = Just [ KindFollows ], authors = Nothing, tagReferences = Just [ TagReferencePubKey pk ], limit = Nothing }
+                |> RequestFollowSets
+                |> Nostr.createRequest nostr "Followers of user" []
+                |> Shared.Msg.RequestNostrEvents
+                |> Effect.sendSharedMsg
+    in
+    maybePubKey
+        |> Maybe.map buildRequestEffect
+        |> Maybe.withDefault Effect.none
 
 
 loggedIn : Model -> Bool
