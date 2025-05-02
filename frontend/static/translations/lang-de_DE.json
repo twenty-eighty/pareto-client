@@ -10,7 +10,7 @@
       "about frontend text 2": " in der Programmiersprache ",
       "about frontend text 3": " Programmiersprache.",
       "about backend text": "Das Pareto Backend wurde entwickelt mit dem",
-      "source code text": "Der Quellcode des Pareto Clients is verfügbar unter",
+      "source code text": "Der Quellcode des Pareto Clients ist verfügbar unter",
       "feedback text": "Du hast einen Fehler gefunden oder möchtest uns etwas mitteilen? Bitte schreibe eine E-Mail an ",
       "hint to tech details": "Für ausführliche technische Angaben zu der Pareto-App ",
       "see this": "siehe hier.",
@@ -64,7 +64,7 @@
       "communities title": "Communities",
       "my communities title": "Meine Communities",
       "no communities text": "Anscheinend folgst du noch keinen Communities. Kein Problem, schau dir die Liste unten an und folge denen, die dich interessieren.",
-      "browse communities text": "Communities durchsuchen"
+      "browse communities text": "Gemeinschaften durchsuchen"
    },
    "config check": {
       "outbox relays missing text": "Fehlende Outbox-Relays",
@@ -73,7 +73,7 @@
       "relays offline explanation": "Diese Relays sind nicht erreichbar: {{relays}}.",
       "relays offline solution": "Entferne die Relays, wenn sie dauerhaft offline sind.",
       "media server missing text": "Fehlender Medien-Server",
-      "media server missing explanation": "Der Pareto Medien-Server sollte benutzt werden, um Bilder verlässlich zu speichern: {{servers}}",
+      "media server missing explanation": "Der Pareto Medien-Server sollte benutzt werden, um Bilder verlässlich zu speichern: {{servers}}.",
       "unreliable media servers text": "Unzuverlässige Medien-Server",
       "unreliable media servers explanation": "Diese Medien-Server sind für ihre Unzuverlässigkeit bekannt: {{servers}}.",
       "profile missing text": "Fehlendes Nostr-Profil",
