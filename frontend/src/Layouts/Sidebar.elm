@@ -357,6 +357,7 @@ viewSidebar props shared currentPath toContentMsg content =
                                 , Tw.border_r
                                 ]
                             , darkMode [ Tw.bg_color Theme.black ]
+                            , Tw.z_10
                             ]
                        ]
                 )
