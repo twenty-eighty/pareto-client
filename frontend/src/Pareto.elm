@@ -251,7 +251,7 @@ bootstrapAuthorsList =
     , ( "blingbling@pareto.town", "b8af284d20a109766c55cc5d4aea27f9c3df20f68f8d0eb5b5de3349f82c91dd" )
     , ( "christof_weber@pareto.space", "79271c81ef2fd4994c20d73b0555a3e58d7ee9caaa2328082e3a336de18d9066" )
     , ( "denkbar@grooveix.com", "c631e26716c6b1a404dac828be44fdd403e65a0e5d05af00e24c3524c2b78d3e" )
-    , ( "dieter@pareto.town", "3abd9a2fbeb1615167d6fee8e3cdc70d500a40040c40b32da8f33bbfc0898c19" )
+    , ( "BeateundDieter@pareto.town", "a29cfc651c98569171b8dc7f0b0c6ae7b0bfe6339a7f11abdeac87c5484fac9c" )
     , ( "donjoe@pareto.space", "0f4795bf31824a414148daf1b589bb8138fb0a03963f984c84462e40a8365abe" )
     , ( "eva.schmidt@pareto.town", "1731c73ccb388c5574b97d349c22c5f34271cef841129eb719e418cc1bca4ecc" )
     , ( "free-cities@pareto.town", "fc2470ed196801ddace5c2bcb14a53fa5ee9f81ee365bf4958f94c6117d9ee27" )
