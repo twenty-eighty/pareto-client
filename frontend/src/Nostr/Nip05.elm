@@ -29,7 +29,7 @@ parseNip05 : String -> Maybe Nip05
 parseNip05 nip05String =
     case Email.parse (String.trim nip05String) of
         Ok { local, domain } ->
-            Just { user = local, domain = domain }
+            Just { user = String.toLower local, domain = domain }
 
         Err _ ->
             Nothing
