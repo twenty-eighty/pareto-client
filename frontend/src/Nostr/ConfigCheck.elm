@@ -37,6 +37,7 @@ type Issue
     | ProfileAboutMissing
     | ProfileNip05Missing (Maybe Nip05)
     | ProfileNip05NameMissing (Maybe Nip05)
+    | ProfileNip05NameInvalidChars (Maybe Nip05)
     | ProfileNip05NotMatchingPubKey (Maybe Nip05)
     | ProfileNip05NetworkError Http.Error (Maybe Nip05)
     | ProfileAvatarMissing
@@ -231,6 +232,18 @@ issueText translations issue =
                         ""
             }
 
+        ProfileNip05NameInvalidChars maybeNip05 ->
+            { message = Translations.profileNip05NameInvalidCharsText [ translations ]
+            , explanation = Translations.profileNip05NameInvalidCharsExplanation [ translations ]
+            , solution =
+                case maybeNip05 of
+                    Just nip05 ->
+                        Translations.profileNip05NameInvalidCharsSolution [ translations ] { nip05 = nip05 |> Nip05.nip05ToString }
+
+                    Nothing ->
+                        ""
+            }
+
         ProfileNip05NotMatchingPubKey maybeNip05 ->
             { message = Translations.profileNip05NotMatchingPubkeyText [ translations ]
             , explanation = Translations.profileNip05NotMatchingPubkeyExplanation [ translations ]
@@ -383,6 +396,9 @@ issueType issue =
             ProfileIssue
 
         ProfileNip05NameMissing _ ->
+            ProfileIssue
+
+        ProfileNip05NameInvalidChars _ ->
             ProfileIssue
 
         ProfileNip05NotMatchingPubKey _ ->
@@ -620,24 +636,43 @@ checkMissingProfileNip05 nostr pubKey =
 
 checkInvalidProfileNip05 : PerformLocalCheckFunction
 checkInvalidProfileNip05 nostr pubKey =
+    let
+        suggestedNip05 =
+            Nostr.getPortalUserInfo nostr pubKey
+            |> Maybe.andThen .nip05
+    in
     case Nostr.getProfileValidationStatus nostr pubKey of
         Just ValidationNameMissing ->
-            Just (ProfileNip05NameMissing (Nostr.getPortalUserInfo nostr pubKey |> Maybe.andThen .nip05))
+            Just (ProfileNip05NameMissing suggestedNip05)
 
         Just ValidationNotMatchingPubKey ->
-            Just (ProfileNip05NotMatchingPubKey (Nostr.getPortalUserInfo nostr pubKey |> Maybe.andThen .nip05))
+            Just (ProfileNip05NotMatchingPubKey suggestedNip05)
 
         Just (ValidationNetworkError httpError) ->
-            let
-                portalUserInfo =
-                    Nostr.getPortalUserInfo nostr pubKey
-            in
-            Just (ProfileNip05NetworkError httpError (portalUserInfo |> Maybe.andThen .nip05))
+            Just (ProfileNip05NetworkError httpError suggestedNip05)
+
+        Just ValidationSucceeded ->
+            Nostr.getProfile nostr pubKey
+            |> Maybe.andThen .nip05
+            |> Maybe.andThen (\nip05 ->
+                if nip05NameContainsInvalidChars nip05.user then
+                    Just (ProfileNip05NameInvalidChars suggestedNip05)
+                else
+                    Nothing
+                )
 
         _ ->
             Nothing
 
 
+nip05NameContainsInvalidChars : String -> Bool
+nip05NameContainsInvalidChars nip05Name =
+    let
+        isInvalidChar : Char -> Bool
+        isInvalidChar character =
+            not (Char.isLower character || Char.isDigit character || character == '.' || character == '-' || character == '_')
+    in
+    String.any isInvalidChar nip05Name 
 
 
 checkProfileAvatarStatic : PerformLocalCheckFunction
