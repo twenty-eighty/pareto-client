@@ -51,7 +51,8 @@ page shared route =
 toLayout : Shared.Model -> Model -> Layouts.Layout Msg
 toLayout shared model =
     let
-        styles = Ui.Styles.stylesForTheme shared.theme
+        styles =
+            Ui.Styles.stylesForTheme shared.theme
 
         maybeArticle =
             case model of
@@ -66,16 +67,17 @@ toLayout shared model =
 
         articleInfo =
             maybeArticle
-            |> Maybe.map (\article ->
-                ArticleInfo.view
-                    styles
-                    (Nostr.getAuthor shared.nostr article.author)
-                    article
-                    shared.browserEnv
-                    (Nostr.getInteractionsForArticle shared.nostr userPubKey article)
-                    shared.nostr
-            )
-            |> Maybe.withDefault emptyHtml
+                |> Maybe.map
+                    (\article ->
+                        ArticleInfo.view
+                            styles
+                            (Nostr.getAuthor shared.nostr article.author)
+                            article
+                            shared.browserEnv
+                            (Nostr.getInteractionsForArticle shared.nostr userPubKey article)
+                            shared.nostr
+                    )
+                |> Maybe.withDefault emptyHtml
     in
     Layouts.Sidebar.new
         { styles = styles
@@ -132,33 +134,46 @@ init shared route () =
         effect =
             case ( maybeArticle, model ) of
                 ( Nothing, Nip19Model { nip19 } ) ->
+                    let
+                        maybeAuthorsPubKey =
+                            Nostr.getArticleForNip19 shared.nostr nip19 |> Maybe.map .author
+
+                        followersEffect =
+                            Shared.createFollowersEffect shared.nostr maybeAuthorsPubKey
+                    in
                     -- article not loaded yet, request it now
                     case nip19 of
                         NAddr naddrData ->
-                            Event.eventFilterForNaddr naddrData
-                                |> RequestArticle
-                                    (if naddrData.relays /= [] then
-                                        Just naddrData.relays
+                            Effect.batch
+                                [ followersEffect
+                                , Event.eventFilterForNaddr naddrData
+                                    |> RequestArticle
+                                        (if naddrData.relays /= [] then
+                                            Just naddrData.relays
 
-                                     else
-                                        Nothing
-                                    )
-                                |> Nostr.createRequest shared.nostr "Article described as NIP-19 NAddr" [ KindUserMetadata ]
-                                |> Shared.Msg.RequestNostrEvents
-                                |> Effect.sendSharedMsg
+                                         else
+                                            Nothing
+                                        )
+                                    |> Nostr.createRequest shared.nostr "Article described as NIP-19 NAddr" [ KindUserMetadata ]
+                                    |> Shared.Msg.RequestNostrEvents
+                                    |> Effect.sendSharedMsg
+                                ]
 
                         NEvent neventData ->
-                            Event.eventFilterForNevent neventData
-                                |> RequestArticle
-                                    (if neventData.relays /= [] then
-                                        Just neventData.relays
+                            Effect.batch
+                                [ followersEffect
+                                , Event.eventFilterForNevent neventData
+                                    |> RequestArticle
+                                        (if neventData.relays /= [] then
+                                            Just neventData.relays
 
-                                     else
-                                        Nothing
-                                    )
-                                |> Nostr.createRequest shared.nostr "Article described as NIP-19 NEvent" [ KindUserMetadata ]
-                                |> Shared.Msg.RequestNostrEvents
-                                |> Effect.sendSharedMsg
+                                         else
+                                            Nothing
+                                        )
+                                    |> Nostr.createRequest shared.nostr "Article described as NIP-19 NEvent" [ KindUserMetadata ]
+                                    |> Shared.Msg.RequestNostrEvents
+                                    |> Effect.sendSharedMsg
+                                ]
 
                         _ ->
                             Effect.none
@@ -316,6 +331,7 @@ update shared msg model =
 
                 _ ->
                     ( model, Effect.none )
+
         NoOp ->
             ( model, Effect.none )
 
