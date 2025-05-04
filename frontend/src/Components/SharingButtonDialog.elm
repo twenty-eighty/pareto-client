@@ -184,17 +184,17 @@ shareSocialLink sharingInfo socialMedia =
 
         WhatsApp ->
             Url.Builder.crossOrigin "https://wa.me"
-                [ "?text=" ]
+                [ ]
                 [ Url.Builder.string "text" (sharingInfoToText sharingInfo)
                 ]
 
 sharingInfoToText : SharingInfo -> String
 sharingInfoToText sharingInfo =
-    sharingInfo.url
-        ++ "\n"
-        ++ sharingInfo.title
+    sharingInfo.title
         ++ "\n"
         ++ sharingInfo.text
+        ++ "\n"
+        ++ sharingInfo.url
 
 view : SharingButtonDialog msg -> Html msg
 view (Settings settings) =
