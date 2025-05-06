@@ -297,6 +297,10 @@ defmodule NostrBackend.FeedGenerator do
       # Get content
       content = article["content"] || article[:content] || ""
 
+      # Get article description/summary
+      description = article["description"] || article[:description]
+      Logger.debug("Article description: #{inspect(description)}")
+
       # Create the feed entry using Atomex.Entry
       entry = Atomex.Entry.new(
         nip19_id,
@@ -306,7 +310,14 @@ defmodule NostrBackend.FeedGenerator do
       |> Atomex.Entry.author(author_name)
       |> Atomex.Entry.content(content, type: "html")
       |> Atomex.Entry.link("#{base_url()}/a/#{naddr}", rel: "alternate", type: "text/html")
-      |> Atomex.Entry.build()
+
+      # Add summary if present
+      entry =
+        if description do
+          entry |> Atomex.Entry.summary(description)
+        else
+          entry
+        end
 
       Logger.debug("Created feed entry with author: #{author_name}")
       entry
