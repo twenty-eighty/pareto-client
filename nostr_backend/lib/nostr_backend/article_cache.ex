@@ -27,6 +27,54 @@ defmodule NostrBackend.ArticleCache do
     end
   end
 
+  @doc """
+  Fetches all articles from a specific author.
+  Returns {:ok, articles} or {:error, reason}
+  """
+  def get_author_articles(pubkey, relays \\ []) do
+    case NostrClient.fetch_author_articles(pubkey, relays) do
+      {:ok, events} ->
+        articles = events
+        |> Enum.map(&Content.parse_article_event/1)
+        |> Enum.filter(&(&1 != %{}))
+        |> Enum.sort_by(fn article -> article["published_at"] end, :desc)
+
+        # Cache each article
+        Enum.each(articles, fn article ->
+          Cachex.put(@cache_name, article["article_id"], article, ttl: @ttl_in_seconds)
+        end)
+
+        {:ok, articles}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Fetches articles from multiple authors in a single request.
+  Returns {:ok, articles} or {:error, reason}
+  """
+  def get_multiple_authors_articles(pubkeys, relays \\ []) do
+    case NostrClient.fetch_multiple_authors_articles(pubkeys, relays) do
+      {:ok, events} ->
+        articles = events
+        |> Enum.map(&Content.parse_article_event/1)
+        |> Enum.filter(&(&1 != %{}))
+        |> Enum.sort_by(fn article -> article["published_at"] end, :desc)
+
+        # Cache each article
+        Enum.each(articles, fn article ->
+          Cachex.put(@cache_name, article["article_id"], article, ttl: @ttl_in_seconds)
+        end)
+
+        {:ok, articles}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
   defp load_article(%{kind: kind, identifier: identifier, author: author, relays: relays}) do
     case NostrClient.fetch_article_by_address(kind, author, identifier, relays) do
       {:ok, event} -> {:ok, Content.parse_article_event(event)}
