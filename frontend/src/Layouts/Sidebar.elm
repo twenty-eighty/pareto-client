@@ -381,7 +381,7 @@ viewSidebar props shared currentPath toContentMsg content =
                         , Tw.bg_center
                         , Tw.h_20
                         ]
-                    , Attr.style "background-image" "url('/images/Pareto-Banner-back.png')"
+                    , Attr.style "background-image" "url('/images/Pareto-Banner-back.webp')"
                     ]
                     [ -- viewBanner
                       if roleSwitchButtonEnabled shared.nostr shared.loginStatus then
@@ -458,13 +458,13 @@ viewBannerSmall browserEnv =
     let
         bannerImageWide =
             if browserEnv.darkMode then
-                "/images/icon/Pareto-Log7.png"
+                "/images/icon/Pareto-Log7.webp"
 
             else
-                "/images/icon/Pareto-Log5.png"
+                "/images/icon/Pareto-Log5.webp"
 
         bannerImageNarrow =
-            "/images/icon/Pareto-Log1.png"
+            "/images/icon/Pareto-Log1.webp"
     in
     a
         [ css
