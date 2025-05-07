@@ -75,14 +75,14 @@ defmodule NostrBackend.NIP19 do
     end
 
     # Generate final Bech32 encoding
-    encode_result = Bech32.encode_from_5bit(@naddr_hrp, data_5bit)
+    encoded = Bech32.encode_from_5bit(@naddr_hrp, data_5bit)
 
     # Handle possible return types from encode_from_5bit
-    encoded = case encode_result do
+    encoded = case encoded do
       {:ok, data} -> data
       data when is_binary(data) -> data
       _ ->
-        Logger.error("Unexpected return from Bech32.encode_from_5bit: #{inspect(encode_result)}")
+        Logger.error("Unexpected return from Bech32.encode_from_5bit: #{inspect(encoded)}")
         raise "Failed to encode naddr: unexpected return type"
     end
 
@@ -146,35 +146,60 @@ defmodule NostrBackend.NIP19 do
     # Validate pubkey early - reject non-standard pubkeys
     validate_pubkey!(pubkey_hex)
 
-    # Use native implementation
-    native_encode_nprofile(pubkey_hex, relays)
+    # Directly generate the nprofile using the reference format
+    reference_nprofile_format(pubkey_hex, relays)
   end
 
   @doc """
-  Encode according to NIP-19
+  Reference implementation to generate nprofile that is compatible with nostr-tools and nak
   """
-  def native_encode_nprofile(pubkey_hex, relays \\ []) do
-    Logger.debug("Native encoding of nprofile")
+  def reference_nprofile_format(pubkey_hex, relays \\ []) do
+    Logger.debug("Using reference nprofile encoding format")
 
     # Decode pubkey from hex to binary
     {:ok, pubkey_bin} = Base.decode16(pubkey_hex, case: :mixed)
+    Logger.debug("Decoded pubkey binary (#{byte_size(pubkey_bin)} bytes): #{Base.encode16(pubkey_bin, case: :lower)}")
 
-    # Create TLV data following the reference implementation
-    # Format: (type:0, len:32, pubkey_binary) + relay entries
-    tlv_data = <<@tlv_special, 32>> <> pubkey_bin
+    # Format:
+    # 1. TLV type 0 (special=pubkey) + 32 bytes of pubkey data
+    # 2. TLV type 1 (relay) entries, each with length and relay URL
+
+    # Create the binary TLV data starting with pubkey
+    tlv_data = <<0, 32>> <> pubkey_bin
 
     # Add relay entries
     tlv_data = Enum.reduce(relays, tlv_data, fn relay, acc ->
       relay_str = to_string(relay)
-      acc <> <<@tlv_relay, byte_size(relay_str)>> <> relay_str
+      Logger.debug("Adding relay: '#{relay_str}', length=#{byte_size(relay_str)}")
+      acc <> <<1, byte_size(relay_str)>> <> relay_str
     end)
 
     # Log TLV data for debugging
     Logger.debug("TLV data built for nprofile, size: #{byte_size(tlv_data)} bytes")
     Logger.debug("Full TLV hex dump: #{Base.encode16(tlv_data, case: :lower)}")
 
-    # Encode using bech32
-    encode_to_bech32(@nprofile_hrp, tlv_data)
+    # Set strictpad=false explicitly to match nostr-tools' bech32 implementation
+    # The standard bech32 library in Elixir adds extra padding that the JS version doesn't
+    result = bech32_encode_noprofile(tlv_data)
+    Logger.debug("Reference nprofile result: #{result}")
+    result
+  end
+
+  # Encodes TLV data as Bech32 nprofile strictly per NIP-19 (pad=false)
+  defp bech32_encode_noprofile(tlv_data) do
+    # Convert TLV bytes (8-bit) to 5-bit groups without padding
+    data_5bit = case Bech32.convertbits(tlv_data, 8, 5, false) do
+      {:ok, bits} -> bits
+      bits when is_binary(bits) -> bits
+      other -> raise "Failed to convert bits for nprofile: #{inspect(other)}"
+    end
+
+    # Encode into Bech32 string with no extra padding
+    case Bech32.encode_from_5bit(@nprofile_hrp, data_5bit) do
+      {:ok, encoded} -> encoded
+      encoded when is_binary(encoded) -> encoded
+      other -> raise "Failed to encode nprofile: #{inspect(other)}"
+    end
   end
 
   @doc """
@@ -601,6 +626,15 @@ defmodule NostrBackend.NIP19 do
       {:ok, bits} -> bits
       bits when is_binary(bits) -> bits
       _ -> raise "Failed to convert bits for Bech32"
+    end
+
+    # Log the converted data for debugging
+    Logger.debug("8-bit to 5-bit conversion result (#{byte_size(data)} → #{byte_size(data_5bit)}):")
+    Logger.debug("Original hex: #{Base.encode16(data, case: :lower)}")
+    if is_binary(data_5bit) do
+      Logger.debug("5-bit data hex: #{Base.encode16(data_5bit, case: :lower)}")
+    else
+      Logger.debug("5-bit data (not binary): #{inspect(data_5bit)}")
     end
 
     # Generate final Bech32 encoding

@@ -66,22 +66,27 @@ defmodule NostrBackend.FeedGenerator do
 
   defp generate_all do
     source_pubkey = Application.get_env(:nostr_backend, :feed_generator)[:source_pubkey]
-    with {:ok, follow_list} <- FollowListCache.get_follow_list(source_pubkey),
-         true <- length(follow_list) > 0 do
+    Logger.info("Using source pubkey: #{source_pubkey}")
+
+    with {:ok, follow_list} <- FollowListCache.get_follow_list(source_pubkey) do
       Logger.info("Got follow list with #{length(follow_list)} authors")
-      with {:ok, articles} <- fetch_all_articles(follow_list) do
-        Logger.info("Fetched #{length(articles)} articles")
-        generate_atom_feeds(articles)
-        generate_sitemaps(articles)
+      Logger.debug("Follow list: #{inspect(follow_list)}")
+
+      if length(follow_list) > 0 do
+        with {:ok, articles} <- fetch_all_articles(follow_list) do
+          Logger.info("Fetched #{length(articles)} articles")
+          generate_atom_feeds(articles)
+          generate_sitemaps(articles)
+        else
+          {:error, reason} ->
+            Logger.error("Failed to generate feeds and sitemaps: #{inspect(reason)}")
+        end
       else
-        {:error, reason} ->
-          Logger.error("Failed to generate feeds and sitemaps: #{inspect(reason)}")
+        Logger.info("Follow list is empty, skipping feed generation")
       end
     else
       {:error, reason} ->
         Logger.error("Failed to get follow list: #{inspect(reason)}")
-      false ->
-        Logger.info("Follow list is empty, skipping feed generation")
     end
   end
 
@@ -92,9 +97,13 @@ defmodule NostrBackend.FeedGenerator do
   defp fetch_all_articles(follow_list) do
     relay = get_configured_relay()
     Logger.info("Fetching articles from relay #{relay} for #{length(follow_list)} authors")
+
     case ArticleCache.get_multiple_authors_articles(follow_list, [relay]) do
       {:ok, articles} ->
-        Logger.info("Successfully fetched articles: #{inspect(articles)}")
+        Logger.info("Successfully fetched #{length(articles)} articles")
+        if length(articles) > 0 do
+          Logger.debug("Sample article: #{inspect(hd(articles))}")
+        end
         {:ok, articles}
       {:error, reason} ->
         Logger.error("Failed to fetch articles: #{inspect(reason)}")
@@ -180,8 +189,8 @@ defmodule NostrBackend.FeedGenerator do
   end
 
   defp get_language_tag(article) do
-    # Get tags from either string or atom key
-    tags = article["tags"] || article[:tags] || []
+    # Get tags from atom key
+    tags = article.tags || []
 
     Logger.debug("Article tags: #{inspect(tags)}")
 
@@ -233,8 +242,8 @@ defmodule NostrBackend.FeedGenerator do
   defp article_to_feed_entry(article) do
     Logger.debug("Processing article: #{inspect(article)}")
 
-    # Get author from either string or atom key
-    author = article["author"] || article[:author]
+    # Get author from atom key
+    author = article.author
     Logger.debug("Author from article: #{inspect(author)}")
 
     # Skip articles with nil author
@@ -266,8 +275,8 @@ defmodule NostrBackend.FeedGenerator do
       end
 
       # Create NIP-19 identifier
-      kind = article["kind"] || article[:kind]
-      identifier = article["identifier"] || article[:identifier]
+      kind = article.kind
+      identifier = article.identifier
       nip19_id = "#{kind}:#{author}:#{identifier}"
       Logger.debug("Created NIP-19 ID: #{nip19_id}")
 
@@ -286,19 +295,17 @@ defmodule NostrBackend.FeedGenerator do
       end
 
       # Get the timestamp for updated
-      updated_at = article["published_at"] || article[:published_at] ||
-                  article["created_at"] || article[:created_at] ||
-                  DateTime.utc_now()
+      updated_at = article.published_at || article.created_at || DateTime.utc_now()
       Logger.debug("Using timestamp: #{inspect(updated_at)}")
 
       # Get title
-      title = article["title"] || article[:title] || "Untitled"
+      title = article.title || "Untitled"
 
       # Get content
-      content = article["content"] || article[:content] || ""
+      content = article.content || ""
 
       # Get article description/summary
-      description = article["description"] || article[:description]
+      description = article.description
       Logger.debug("Article description: #{inspect(description)}")
 
       # Create the feed entry using Atomex.Entry
@@ -325,85 +332,100 @@ defmodule NostrBackend.FeedGenerator do
   end
 
   defp generate_sitemaps(articles) do
+    Logger.info("Starting sitemap generation with #{length(articles)} articles")
     source_pubkey = Application.get_env(:nostr_backend, :feed_generator)[:source_pubkey]
+
     with {:ok, follow_list} <- FollowListCache.get_follow_list(source_pubkey) do
+      Logger.info("Got follow list with #{length(follow_list)} authors")
+
       # Group articles by year
       articles_by_year = group_articles_by_year(articles)
-      Logger.info("Grouped articles by year: #{inspect(Map.keys(articles_by_year))}")
 
-      # Create empty sitemaps directory
-      File.rm_rf!(@sitemap_path)
-      File.mkdir_p!(@sitemap_path)
+      if map_size(articles_by_year) == 0 do
+        Logger.warning("No articles to generate sitemaps for")
+        :ok
+      else
+        # Create empty sitemaps directory
+        File.rm_rf!(@sitemap_path)
+        File.mkdir_p!(@sitemap_path)
+        Logger.info("Created sitemap directory at #{@sitemap_path}")
 
-      # Generate year-based sitemaps
-      year_sitemaps = Enum.map(articles_by_year, fn {year, year_articles} ->
-        Logger.info("Processing year #{year} with #{length(year_articles)} articles")
+        # Generate year-based sitemaps
+        year_sitemaps = Enum.map(articles_by_year, fn {year, year_articles} ->
+          Logger.info("Processing year #{year} with #{length(year_articles)} articles")
 
-        # Sort articles to find the most recent one
-        sorted_articles = Enum.sort_by(year_articles, fn article ->
-          article.published_at
-        end, {:desc, DateTime})
+          # Sort articles to find the most recent one
+          sorted_articles = Enum.sort_by(year_articles, fn article ->
+            article.published_at
+          end, {:desc, DateTime})
 
-        most_recent_article = List.first(sorted_articles)
-        most_recent_date = most_recent_article.published_at
-        Logger.info("Most recent article date for year #{year}: #{inspect(most_recent_date)}")
+          most_recent_article = List.first(sorted_articles)
+          most_recent_date = most_recent_article.published_at
+          Logger.info("Most recent article date for year #{year}: #{inspect(most_recent_date)}")
 
-        # Generate sitemap filename with the year
-        filename = "sitemap-#{year}"
-        sitemap_path = "#{@sitemap_path}/#{filename}.xml"
-        Logger.info("Generating sitemap with filename: #{filename}")
+          # Generate sitemap filename with the year
+          filename = "sitemap-#{year}"
+          sitemap_path = "#{@sitemap_path}/#{filename}.xml"
+          Logger.info("Generating sitemap with filename: #{filename}")
 
-        # Get the relay used to fetch articles
-        relay = get_configured_relay()
-        Logger.info("Using relay for sitemap: #{relay}")
+          # Get the relay used to fetch articles
+          relay = get_configured_relay()
+          Logger.info("Using relay for sitemap: #{relay}")
 
-        # Create XML sitemap content
-        urls_xml = Enum.map(year_articles, fn article ->
-          # Get the necessary fields for the naddr
-          kind = article.kind
-          author = article.author
-          identifier = article.identifier
+          # Create XML sitemap content
+          urls_xml = Enum.map(year_articles, fn article ->
+            # Get the necessary fields for the naddr
+            kind = article.kind
+            author = article.author
+            identifier = article.identifier
 
-          # Create naddr with relay information included
-          naddr = NostrBackend.NIP19.encode_naddr(kind, author, identifier, [relay])
+            Logger.debug("Creating sitemap entry for article: kind=#{kind}, author=#{author}, identifier=#{identifier}")
 
-          # Format the lastmod date in W3C format (YYYY-MM-DD)
-          lastmod = Calendar.strftime(article.published_at, "%Y-%m-%d")
+            # Create naddr with relay information included
+            naddr = NostrBackend.NIP19.encode_naddr(kind, author, identifier, [relay])
 
-          ~s(  <url>
+            # Format the lastmod date in W3C format (YYYY-MM-DD)
+            lastmod = Calendar.strftime(article.published_at, "%Y-%m-%d")
+
+            ~s(  <url>
     <loc>#{base_url()}/a/#{naddr}</loc>
     <lastmod>#{lastmod}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>)
-        end) |> Enum.join("\n")
+          end) |> Enum.join("\n")
 
-        # Create complete sitemap XML
-        sitemap_content = ~s(<?xml version="1.0" encoding="UTF-8"?>
+          # Create complete sitemap XML
+          sitemap_content = ~s(<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 #{urls_xml}
 </urlset>)
 
-        # Write the XML file
-        File.write!(sitemap_path, sitemap_content)
+          # Write the XML file
+          File.write!(sitemap_path, sitemap_content)
+          Logger.info("Wrote sitemap file: #{sitemap_path}")
 
-        # Compress the XML file
-        :os.cmd(~c"gzip -f #{sitemap_path}")
-        Logger.info("Year sitemap generated successfully: #{filename}.xml.gz")
+          # Compress the XML file
+          :os.cmd(~c"gzip -f #{sitemap_path}")
+          Logger.info("Compressed sitemap file: #{sitemap_path}.gz")
 
-        # Add to our sitemap index list
-        %{
-          loc: "#{base_url()}/sitemap/#{filename}.xml.gz",
-          lastmod: most_recent_date,
-          year: year
-        }
-      end)
+          # Add to our sitemap index list
+          %{
+            loc: "#{base_url()}/sitemap/#{filename}.xml.gz",
+            lastmod: most_recent_date,
+            year: year
+          }
+        end)
 
-      # Generate the sitemap index file that references all year sitemaps
-      generate_sitemap_index(year_sitemaps)
+        # Generate the sitemap index file that references all year sitemaps
+        generate_sitemap_index(year_sitemaps)
 
-      # Generate author sitemap
-      generate_author_sitemap(follow_list)
+        # Generate author sitemap
+        generate_author_sitemap(follow_list)
+      end
+    else
+      {:error, reason} ->
+        Logger.error("Failed to get follow list: #{inspect(reason)}")
     end
   end
 
@@ -471,8 +493,9 @@ defmodule NostrBackend.FeedGenerator do
         # Use NIP-05 for the URL if available
         "/u/#{author_profile.nip05}"
       else
-        # Fallback to nprofile encoding with relay information
+        # Use the correct nprofile format with relay information
         nprofile = NostrBackend.NIP19.encode_nprofile(pubkey, [relay])
+        Logger.debug("Generated author nprofile: #{nprofile}")
         "/p/#{nprofile}"
       end
 
@@ -539,9 +562,29 @@ defmodule NostrBackend.FeedGenerator do
   end
 
   defp group_articles_by_year(articles) do
+    Logger.info("Grouping #{length(articles)} articles by year")
+
     articles
+    |> Enum.filter(fn article ->
+      case article.published_at do
+        nil ->
+          Logger.warning("Article has nil published_at: #{inspect(article)}")
+          false
+        published_at when is_struct(published_at, DateTime) ->
+          true
+        _ ->
+          Logger.warning("Article has invalid published_at format: #{inspect(article.published_at)}")
+          false
+      end
+    end)
     |> Enum.group_by(fn article ->
       article.published_at.year
+    end)
+    |> tap(fn grouped ->
+      Logger.info("Grouped articles by year: #{inspect(Map.keys(grouped))}")
+      Enum.each(grouped, fn {year, articles} ->
+        Logger.info("Year #{year} has #{length(articles)} articles")
+      end)
     end)
   end
 

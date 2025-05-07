@@ -11,21 +11,29 @@ defmodule NostrBackend.FollowListCache do
   Returns {:ok, follow_list} or {:error, reason}
   """
   def get_follow_list(pubkey, relays \\ []) do
+    Logger.info("FollowListCache: Getting follow list for #{pubkey}")
+
     case Cachex.get(@cache_name, pubkey) do
       {:ok, nil} ->
+        Logger.info("FollowListCache: Follow list not found in cache, loading from relays")
         # Follow list not found in cache, load it
         with {:ok, follow_list} <- load_follow_list(pubkey, relays) do
           # Store the follow list in the cache with a TTL
+          Logger.info("FollowListCache: Loaded follow list with #{length(follow_list)} authors")
           Cachex.put(@cache_name, pubkey, follow_list, ttl: @ttl_in_seconds)
           {:ok, follow_list}
         else
-          error -> error
+          error ->
+            Logger.error("FollowListCache: Error loading follow list: #{inspect(error)}")
+            error
         end
 
       {:ok, follow_list} ->
+        Logger.info("FollowListCache: Found cached follow list with #{length(follow_list)} authors")
         {:ok, follow_list}
 
       {:error, reason} ->
+        Logger.error("FollowListCache: Cache error: #{inspect(reason)}")
         {:error, reason}
     end
   end
@@ -42,11 +50,14 @@ defmodule NostrBackend.FollowListCache do
   end
 
   defp load_follow_list(pubkey, relays) do
+    Logger.info("FollowListCache: Loading follow list for #{pubkey}")
     case NostrClient.fetch_follow_list(pubkey, relays) do
       {:ok, event} ->
-        Logger.debug("Received event in load_follow_list: #{inspect(event)}")
+        Logger.debug("FollowListCache: Received event: #{inspect(event)}")
         {:ok, parse_follow_list(event)}
-      {:error, reason} -> {:error, reason}
+      {:error, reason} ->
+        Logger.error("FollowListCache: Error fetching follow list: #{inspect(reason)}")
+        {:error, reason}
     end
   end
 

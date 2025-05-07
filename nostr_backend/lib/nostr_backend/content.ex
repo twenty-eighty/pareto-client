@@ -26,9 +26,9 @@ defmodule NostrBackend.Content do
   end
 
   # Helper functions to parse events
-  def parse_article_event(event) when is_map(event) do
+  def parse_article_event(%{"id" => id} = event) do
     %{
-      article_id: event["id"],
+      article_id: id,
       kind: event["kind"],
       author: event["pubkey"],
       identifier: extract_first_tag(event, "d"),
@@ -42,7 +42,7 @@ defmodule NostrBackend.Content do
     }
   end
 
-  def parse_article_event({_type, _id, event}) when is_map(event) do
+  def parse_article_event({_type, _sub_id, %{"id" => _id} = event}) do
     parse_article_event(event)
   end
 
@@ -150,10 +150,27 @@ defmodule NostrBackend.Content do
     case Enum.find(tags, fn tag -> List.first(tag) == "published_at" end) do
       ["published_at", timestamp | _rest] ->
         case Integer.parse(timestamp) do
-          {timestamp, _} -> DateTime.from_unix!(timestamp)
-          :error -> DateTime.from_unix!(event["created_at"])
+          {timestamp, _} ->
+            try do
+              DateTime.from_unix!(timestamp)
+            rescue
+              _ -> fallback_to_created_at(event)
+            end
+          :error -> fallback_to_created_at(event)
         end
-      _ -> DateTime.from_unix!(event["created_at"])
+      _ -> fallback_to_created_at(event)
+    end
+  end
+
+  defp fallback_to_created_at(event) do
+    case event["created_at"] do
+      nil -> DateTime.utc_now()
+      created_at ->
+        try do
+          DateTime.from_unix!(created_at)
+        rescue
+          _ -> DateTime.utc_now()
+        end
     end
   end
 

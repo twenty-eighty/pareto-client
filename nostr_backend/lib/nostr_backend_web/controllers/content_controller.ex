@@ -20,6 +20,7 @@ defmodule NostrBackendWeb.ContentController do
       {:ok, {:author_article, query_data}} ->
         case ArticleCache.get_article(query_data) do
           {:ok, article} ->
+
             conn
             |> conn_with_article_meta(article)
             |> put_view(NostrBackendWeb.ContentHTML)

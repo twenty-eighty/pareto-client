@@ -85,6 +85,7 @@ defmodule NostrBackend.NostrClient do
   end
 
   def fetch_author_articles(pubkey, relay_urls) do
+    # Return raw events – ArticleCache will handle parsing and caching
     fetch_from_relays(relay_urls, pubkey, :author_articles)
   end
 
@@ -94,17 +95,24 @@ defmodule NostrBackend.NostrClient do
   end
 
   def fetch_multiple_authors_articles(pubkeys, relay_urls) do
+    Logger.info("Fetching articles for #{length(pubkeys)} authors from #{length(relay_urls)} relays")
     fetch_from_relays(relay_urls, pubkeys, :multiple_authors_articles)
   end
 
   defp fetch_from_relays([], _id, _type) do
+    Logger.error("Failed to fetch data from all relays")
     {:error, "Failed to fetch data from all relays"}
   end
 
   defp fetch_from_relays([relay | rest], id, type) do
+    Logger.info("Fetching from relay: #{relay}")
     case fetch_from_relay(relay, id, type) do
-      {:ok, data} -> {:ok, data}
-      {:error, _reason} -> fetch_from_relays(rest, id, type)
+      {:ok, data} ->
+        Logger.info("Successfully fetched data from relay #{relay}: #{length(data)} items")
+        {:ok, data}
+      {:error, reason} ->
+        Logger.warning("Failed to fetch from relay #{relay}: #{inspect(reason)}, trying next relay")
+        fetch_from_relays(rest, id, type)
     end
   end
 
@@ -140,10 +148,11 @@ defmodule NostrBackend.NostrClient do
     subscription_id = UUID.uuid4()
     request = ["REQ", subscription_id | filters]
 
-    Logger.debug("Sending request: #{inspect(request)}")
+    Logger.info("Sending request to WebSocket: #{inspect(request)}")
 
     WebSockex.send_frame(pid, {:text, Jason.encode!(request)})
 
+    Logger.info("Waiting for events...")
     collect_events(subscription_id, pid, [])
   end
 
@@ -158,25 +167,30 @@ defmodule NostrBackend.NostrClient do
           data when is_map(data) -> data
           _ -> event
         end
+        Logger.debug("Extracted event data: #{inspect(Map.take(event_data, ["id", "pubkey", "kind"]))}")
         collect_events(subscription_id, pid, [event_data | events])
 
       {:eose, ^subscription_id} ->
-        Logger.debug("Received EOSE for subscription_id: #{subscription_id}")
+        Logger.info("Received EOSE for subscription_id: #{subscription_id}, collected #{length(events)} events")
         WebSockex.send_frame(pid, {:text, Jason.encode!(["CLOSE", subscription_id])})
         Process.exit(pid, :normal)
-        if events == [], do: {:error, "No events found"}, else: {:ok, Enum.reverse(events)}
+        if events == [] do
+          Logger.warning("No events found for subscription_id: #{subscription_id}")
+          {:error, "No events found"}
+        else
+          Logger.info("Returning #{length(events)} events")
+          {:ok, Enum.reverse(events)}
+        end
 
       {:notice, notice} ->
-        Logger.debug(
-          "Received notice for subscription_id: #{subscription_id}: #{inspect(notice)}"
-        )
-
+        Logger.warning("Received notice for subscription_id: #{subscription_id}: #{inspect(notice)}")
         WebSockex.send_frame(pid, {:text, Jason.encode!(["CLOSE", subscription_id])})
         Process.exit(pid, :normal)
         {:error, "No events found"}
     after
       15_000 ->
-        Logger.error("Timeout while fetching event")
+        Logger.error("Timeout while fetching event for subscription_id: #{subscription_id}")
+        WebSockex.send_frame(pid, {:text, Jason.encode!(["CLOSE", subscription_id])})
         Process.exit(pid, :normal)
         {:error, "Timeout while fetching event"}
     end
@@ -263,13 +277,16 @@ defmodule NostrBackend.NostrClient do
   end
 
   defp build_filters(pubkeys, :multiple_authors_articles) do
-    [
+    Logger.info("Building filters for multiple authors articles: #{length(pubkeys)} authors")
+    filters = [
       %{
         "authors" => pubkeys,
         "kinds" => [30023],  # Article kind
         "limit" => 1000  # Adjust this based on your needs
       }
     ]
+    Logger.info("Built filters: #{inspect(filters)}")
+    filters
   end
 
   @impl true

@@ -37,11 +37,11 @@ defmodule NostrBackend.ArticleCache do
         articles = events
         |> Enum.map(&Content.parse_article_event/1)
         |> Enum.filter(&(&1 != %{}))
-        |> Enum.sort_by(fn article -> article["published_at"] end, :desc)
+        |> Enum.sort_by(fn article -> article.published_at end, :desc)
 
         # Cache each article
         Enum.each(articles, fn article ->
-          Cachex.put(@cache_name, article["article_id"], article, ttl: @ttl_in_seconds)
+          Cachex.put(@cache_name, article.article_id, article, ttl: @ttl_in_seconds)
         end)
 
         {:ok, articles}
@@ -61,11 +61,11 @@ defmodule NostrBackend.ArticleCache do
         articles = events
         |> Enum.map(&Content.parse_article_event/1)
         |> Enum.filter(&(&1 != %{}))
-        |> Enum.sort_by(fn article -> article["published_at"] end, :desc)
+        |> Enum.sort_by(fn article -> article.published_at end, :desc)
 
         # Cache each article
         Enum.each(articles, fn article ->
-          Cachex.put(@cache_name, article["article_id"], article, ttl: @ttl_in_seconds)
+          Cachex.put(@cache_name, article.article_id, article, ttl: @ttl_in_seconds)
         end)
 
         {:ok, articles}
