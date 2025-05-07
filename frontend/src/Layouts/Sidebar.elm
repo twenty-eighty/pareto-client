@@ -9,6 +9,7 @@ import Css
 import Dict
 import Effect exposing (Effect)
 import FeatherIcons
+import Graphics
 import Html.Styled as Html exposing (Html, a, aside, button, div, img, main_, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css, src)
 import Html.Styled.Events exposing (..)
@@ -455,17 +456,6 @@ viewMainContent content =
 
 viewBannerSmall : BrowserEnv -> Html contentMsg
 viewBannerSmall browserEnv =
-    let
-        bannerImageWide =
-            if browserEnv.darkMode then
-                "/images/icon/Pareto-Log7.webp"
-
-            else
-                "/images/icon/Pareto-Log5.webp"
-
-        bannerImageNarrow =
-            "/images/icon/Pareto-Log1.webp"
-    in
     a
         [ css
             [ Tw.flex
@@ -479,41 +469,35 @@ viewBannerSmall browserEnv =
         , Attr.href <| Route.Path.toString Route.Path.Read
         ]
         [ div
-            [ Attr.src bannerImageWide
-            , Attr.alt "Banner"
+            [ Attr.alt "Logo"
             , css
-                [ Tw.w_0
+                [ Tw.hidden
+                , Tw.overflow_hidden
                 , Bp.xl
-                    [ Tw.w_36
-                    , Tw.h_10
+                    [ Tw.block
                     , Tw.ml_2
                     ]
                 ]
             ]
-            [ img
-                [ Attr.src bannerImageWide
-                , Attr.alt "Banner"
-                ]
-                []
+            [ Graphics.paretoLogo5 150 browserEnv.darkMode
             ]
         , div
-            [ css
-                [ Tw.h_10
+            [ Attr.alt "Logo"
+            , css
+                [ Tw.block
                 , Tw.w_8
                 , Bp.xl
-                    [ Tw.w_0
+                    [ Tw.hidden
                     ]
                 , Bp.sm
-                    [ Tw.w_10
-                    , Tw.mr_0
+                    [ Tw.mr_0
+                    , Tw.h_auto
+                    , Tw.w_auto
+                    , Tw.overflow_hidden
                     ]
                 ]
             ]
-            [ img
-                [ Attr.src bannerImageNarrow
-                , Attr.alt "Banner"
-                ]
-                []
+            [ Graphics.paretoLogo1 30 browserEnv.darkMode
             ]
         ]
 
