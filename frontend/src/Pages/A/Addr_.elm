@@ -333,7 +333,19 @@ update shared msg model =
                     ( model, Effect.none )
 
         NoOp ->
-            ( model, Effect.none )
+            let
+                maybeAuthorPubKey =
+                    case model of
+                        Nip19Model nip19ModelData ->
+                            Nostr.getArticleForNip19 shared.nostr nip19ModelData.nip19 |> Maybe.map .author
+
+                        _ ->
+                            Nothing
+
+                followersEffect =
+                    Shared.createFollowersEffect shared.nostr maybeAuthorPubKey
+            in
+            ( model, followersEffect )
 
 
 showZapDialog : Nip19ModelData -> List ZapDialog.Recipient -> ( Model, Effect Msg )
