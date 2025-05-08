@@ -77,42 +77,48 @@ defmodule NostrBackend.ArticleCache do
 
   defp load_article(%{kind: kind, identifier: identifier, author: author, relays: relays}) do
     case NostrClient.fetch_article_by_address(kind, author, identifier, relays) do
-      {:ok, event} -> {:ok, Content.parse_article_event(event)}
+      {:ok, [event | _]} -> {:ok, Content.parse_article_event(event)}
+      {:ok, []} -> {:error, "No events found for article"}
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp load_article(%{kind: kind, identifier: identifier, author: author}) do
     case NostrClient.fetch_article_by_address(kind, author, identifier) do
-      {:ok, event} -> {:ok, Content.parse_article_event(event)}
+      {:ok, [event | _]} -> {:ok, Content.parse_article_event(event)}
+      {:ok, []} -> {:error, "No events found for article"}
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp load_article(%{kind: kind, identifier: identifier}) do
     case NostrClient.fetch_article_by_address(kind, identifier) do
-      {:ok, event} -> {:ok, Content.parse_article_event(event)}
+      {:ok, [event | _]} -> {:ok, Content.parse_article_event(event)}
+      {:ok, []} -> {:error, "No events found for article"}
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp load_article(%{id: id, relays: relays}) do
     case NostrClient.fetch_article_by_id(id, relays) do
-      {:ok, event} -> {:ok, Content.parse_article_event(event)}
+      {:ok, [event | _]} -> {:ok, Content.parse_article_event(event)}
+      {:ok, []} -> {:error, "No events found for article"}
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp load_article(%{id: id}) do
     case NostrClient.fetch_article_by_id(id, []) do
-      {:ok, event} -> {:ok, Content.parse_article_event(event)}
+      {:ok, [event | _]} -> {:ok, Content.parse_article_event(event)}
+      {:ok, []} -> {:error, "No events found for article"}
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp load_article(article_id) do
     case NostrClient.fetch_article(article_id) do
-      {:ok, event} -> {:ok, Content.parse_article_event(event)}
+      {:ok, [event | _]} -> {:ok, Content.parse_article_event(event)}
+      {:ok, []} -> {:error, "No events found for article"}
       {:error, reason} -> {:error, reason}
     end
   end
