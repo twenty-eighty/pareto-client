@@ -395,14 +395,13 @@ viewSidebar props shared currentPath toContentMsg content =
 
                       else
                         emptyHtml
-                    , img
-                        [ src "/images/Pareto-Banner-Text.svg"
-                        , css
-                            [ Tw.overflow_x_auto
-                            , Tw.h_7
+                    , div
+                        [ css
+                            [ Tw.w_full
+                            , Tw.h_auto
                             ]
                         ]
-                        []
+                        [ Graphics.paretoBannerText ]
                     , div
                         [ css
                             [ Tw.flex_shrink_0
