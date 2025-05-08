@@ -2,7 +2,7 @@
 set -e
 
 # get the short git SHA and an ISO timestamp
-GIT_SHA=$(git rev-parse --short HEAD)
+GIT_SHA=$(git --git-dir ../.git rev-parse --short HEAD)
 BUILD_TIME=$(date --iso-8601=seconds)
 
 mkdir -p gen/BuildInfo
