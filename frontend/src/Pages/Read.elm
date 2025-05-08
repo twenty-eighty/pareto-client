@@ -31,7 +31,6 @@ import Tailwind.Utilities as Tw
 import Translations.Read
 import Translations.Sidebar
 import Ui.ShortNote as ShortNote exposing (ShortNotesViewData)
-import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 
@@ -44,14 +43,29 @@ page shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout shared.theme)
+        |> Page.withLayout (toLayout shared)
 
 
-toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme _ =
+toLayout : Shared.Model -> Model -> Layouts.Layout Msg
+toLayout shared model =
+    let
+        topPart =
+          Components.Categories.new
+            { model = model.categories
+            , toMsg = CategoriesSent
+            , onSelect = CategorySelected
+            , equals = \category1 category2 -> category1 == category2
+            , image = categoryImage shared.browserEnv
+            , categories = availableCategories shared.nostr shared.loginStatus shared.browserEnv.translations
+            , browserEnv = shared.browserEnv
+            , theme = shared.theme
+            }
+            |> Components.Categories.view
+    in
     Layouts.Sidebar.new
-        { styles = Ui.Styles.stylesForTheme theme
+        { theme = shared.theme
         }
+        |> Layouts.Sidebar.withTopPart topPart
         |> Layouts.Sidebar
 
 
@@ -413,27 +427,12 @@ followedCategory translations =
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     let
-        styles =
-            Ui.Styles.stylesForTheme shared.theme
-
         userPubKey =
             Shared.loggedInPubKey shared.loginStatus
     in
     { title = Translations.Sidebar.readMenuItemText [ shared.browserEnv.translations ]
     , body =
-        [ {- Main Content -}
-          Components.Categories.new
-            { model = model.categories
-            , toMsg = CategoriesSent
-            , onSelect = CategorySelected
-            , equals = \category1 category2 -> category1 == category2
-            , image = categoryImage shared.browserEnv
-            , categories = availableCategories shared.nostr shared.loginStatus shared.browserEnv.translations
-            , browserEnv = shared.browserEnv
-            , styles = styles
-            }
-            |> Components.Categories.view
-        , viewContent shared model userPubKey
+        [ viewContent shared model userPubKey
         ]
     }
 

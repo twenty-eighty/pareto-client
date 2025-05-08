@@ -48,14 +48,29 @@ page user shared route =
         , subscriptions = subscriptions
         , view = view shared user
         }
-        |> Page.withLayout (toLayout shared.theme)
+        |> Page.withLayout (toLayout shared)
 
 
-toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme _ =
+toLayout : Shared.Model -> Model -> Layouts.Layout Msg
+toLayout shared model =
+    let
+        topPart =
+            Components.Categories.new
+                { model = model.categories
+                , toMsg = CategoriesSent
+                , onSelect = CategorySelected
+                , equals = \category1 category2 -> category1 == category2
+                , image = \_ -> Nothing
+                , categories = availableCategories shared.browserEnv.translations
+                , browserEnv = shared.browserEnv
+                , theme = shared.theme
+                }
+                |> Components.Categories.view
+    in
     Layouts.Sidebar.new
-        { styles = Ui.Styles.stylesForTheme theme
+        { theme = shared.theme
         }
+        |> Layouts.Sidebar.withTopPart topPart
         |> Layouts.Sidebar
 
 
@@ -210,18 +225,7 @@ view : Shared.Model.Model -> Auth.User -> Model -> View Msg
 view shared user model =
     { title = Translations.Sidebar.postsMenuItemText [ shared.browserEnv.translations ]
     , body =
-        [ Components.Categories.new
-            { model = model.categories
-            , toMsg = CategoriesSent
-            , onSelect = CategorySelected
-            , equals = \category1 category2 -> category1 == category2
-            , image = \_ -> Nothing
-            , categories = availableCategories shared.browserEnv.translations
-            , browserEnv = shared.browserEnv
-            , styles = Ui.Styles.stylesForTheme shared.theme
-            }
-            |> Components.Categories.view
-        , viewArticles shared model user.pubKey
+        [ viewArticles shared model user.pubKey
         ]
     }
 

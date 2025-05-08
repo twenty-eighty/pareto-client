@@ -1,4 +1,4 @@
-module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layout, map, new, withLeftPart)
+module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layout, map, new, withLeftPart, withTopPart)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.AlertTimerMessage as AlertTimerMessage
@@ -11,7 +11,7 @@ import Effect exposing (Effect)
 import FeatherIcons
 import Graphics
 import Html.Styled as Html exposing (Html, a, aside, button, div, img, main_, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, src)
+import Html.Styled.Attributes as Attr exposing (class, css)
 import Html.Styled.Events exposing (..)
 import I18Next
 import Layout exposing (Layout)
@@ -32,36 +32,41 @@ import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
 import Ui.Profile
 import Ui.Shared exposing (countBadge, emptyHtml)
-import Ui.Styles exposing (Styles, Theme(..), darkMode)
+import Ui.Styles exposing (Theme(..), darkMode)
 import View exposing (View)
 
 
 type alias Props contentMsg =
-    { styles : Styles contentMsg
+    { theme : Theme
     , fixedLeftPart : Maybe (Html contentMsg)
+    , fixedTopPart : Maybe (Html contentMsg)
     }
 
 
 map : (msg1 -> msg2) -> Props msg1 -> Props msg2
 map toMsg props =
-    { styles = Ui.Styles.map toMsg props.styles
+    { theme = props.theme
     , fixedLeftPart = Maybe.map (Html.map toMsg) props.fixedLeftPart
+    , fixedTopPart = Maybe.map (Html.map toMsg) props.fixedTopPart
     }
 
 
-new : { styles : Styles contentMsg } -> Props contentMsg
-new { styles } =
-    { styles = styles
+new : { theme : Theme } -> Props contentMsg
+new { theme } =
+    { theme = theme
     , fixedLeftPart = Nothing
+    , fixedTopPart = Nothing
     }
 
 
 withLeftPart : Html contentMsg -> Props contentMsg -> Props contentMsg
 withLeftPart leftPart props =
-    { styles = props.styles
-    , fixedLeftPart = Just leftPart
-    }
+    { props | fixedLeftPart = Just leftPart }
 
+
+withTopPart : Html contentMsg -> Props contentMsg -> Props contentMsg
+withTopPart topPart props =
+    { props | fixedTopPart = Just topPart }
 
 -- this function checks if a route will be available in reader mode after login
 
@@ -251,6 +256,10 @@ subscriptions _ =
 
 view : Props contentMsg -> Shared.Model.Model -> Route.Path.Path -> { toContentMsg : Msg -> contentMsg, content : View contentMsg, model : Model } -> View contentMsg
 view props shared path { toContentMsg, content } =
+    let
+        styles =
+            Ui.Styles.stylesForTheme props.theme
+    in
     { title = content.title ++ " | Pareto"
     , body =
         [ div
@@ -258,7 +267,7 @@ view props shared path { toContentMsg, content } =
                 [ Tw.h_full
                 , Tw.overflow_clip
                 ]
-                :: props.styles.colorStyleBackground
+                :: styles.colorStyleBackground
             )
             [ viewSidebar props shared path toContentMsg content.body
             , viewLinktoInternalPage shared.nostr
@@ -275,6 +284,9 @@ view props shared path { toContentMsg, content } =
 viewSidebar : Props contentMsg -> Shared.Model.Model -> Route.Path.Path -> (Msg -> contentMsg) -> List (Html contentMsg) -> Html contentMsg
 viewSidebar props shared currentPath toContentMsg content =
     let
+        styles =
+            Ui.Styles.stylesForTheme props.theme
+
         maybeBookmarksCount =
             Shared.loggedInPubKey shared.loginStatus
                 |> Maybe.andThen (Nostr.getBookmarks shared.nostr)
@@ -320,7 +332,7 @@ viewSidebar props shared currentPath toContentMsg content =
             }
     in
     Html.div
-        (props.styles.colorStyleGrayscaleTitle
+        (styles.colorStyleGrayscaleTitle
             ++ [ css
                     [ Tw.h_screen
                     , Tw.overflow_hidden
@@ -333,8 +345,8 @@ viewSidebar props shared currentPath toContentMsg content =
                 ]
             ]
             [ aside
-                (props.styles.colorStyleBorders
-                    ++ props.styles.colorStyleBackground
+                (styles.colorStyleBorders
+                    ++ styles.colorStyleBackground
                     ++ [ css
                             [ Tw.p_2
                             , Tw.h_14
@@ -362,7 +374,7 @@ viewSidebar props shared currentPath toContentMsg content =
                        ]
                 )
                 [ viewBannerSmall shared.browserEnv
-                , viewSidebarItems props.styles sidebarItemParams
+                , viewSidebarItems props.theme sidebarItemParams
                 ]
             , div
                 [ css
@@ -419,37 +431,47 @@ viewSidebar props shared currentPath toContentMsg content =
                     ]
                     [ props.fixedLeftPart
                         |> Maybe.withDefault emptyHtml
-                    , viewMainContent content
+                    , viewMainContent content props.fixedTopPart
                     ]
                 ]
             ]
         ]
 
 
-viewMainContent : List (Html contentMsg) -> Html contentMsg
-viewMainContent content =
-    main_
-        [ class "page"
-        , Attr.id Shared.contentId
-        , css
+viewMainContent : List (Html contentMsg) -> Maybe (Html contentMsg) -> Html contentMsg
+viewMainContent content maybeFixedTopPart =
+    div
+        [ css
             [ Tw.flex_1
             , Tw.overflow_y_auto
             , Tw.relative
-            , Css.property "height" "calc(100vh - 5rem - 56px)" -- 5rem = 80px for header
-            , Bp.sm
-                [ Css.property "height" "calc(100vh - 5rem)" -- 5rem = 80px for header
-                ]
             ]
         ]
-        [ div
-            [ css
-                [ Tw.mb_16
+        [ maybeFixedTopPart
+            |> Maybe.withDefault emptyHtml
+        , main_
+            [ class "page"
+            , Attr.id Shared.contentId
+            , css
+                [ Tw.flex_1
+                , Tw.overflow_y_auto
+                , Tw.relative
+                , Css.property "height" "calc(100vh - 5rem - 56px)" -- 5rem = 80px for header
                 , Bp.sm
-                    [ Tw.mb_2
+                    [ Css.property "height" "calc(100vh - 5rem)" -- 5rem = 80px for header
                     ]
                 ]
             ]
-            content
+            [ div
+                [ css
+                    [ Tw.mb_16
+                    , Bp.sm
+                        [ Tw.mb_2
+                        ]
+                    ]
+                ]
+                content
+            ]
         ]
 
 
@@ -563,8 +585,8 @@ profileForUser shared loggedIn =
             Nothing
 
 
-viewSidebarItems : Styles contentMsg -> SidebarItemParams -> Html contentMsg
-viewSidebarItems styles sidebarItemParams =
+viewSidebarItems : Theme -> SidebarItemParams -> Html contentMsg
+viewSidebarItems theme sidebarItemParams =
     let
         visibleSidebarItems =
             sidebarItems sidebarItemParams
@@ -586,7 +608,7 @@ viewSidebarItems styles sidebarItemParams =
                 ]
             ]
         ]
-        (List.map (viewSidebarItem styles sidebarItemParams.currentPath) visibleSidebarItems)
+        (List.map (viewSidebarItem theme sidebarItemParams.currentPath) visibleSidebarItems)
 
 
 sidebarItemVisible : Bool -> Bool -> Bool -> SidebarItemData -> Bool
@@ -607,9 +629,12 @@ sidebarItemVisible isLoggedIn isAuthor isBetaTester sidebarItem =
         True
 
 
-viewSidebarItem : Styles contentMsg -> Route.Path.Path -> SidebarItemData -> Html contentMsg
-viewSidebarItem styles currentPath itemData =
+viewSidebarItem : Theme -> Route.Path.Path -> SidebarItemData -> Html contentMsg
+viewSidebarItem theme currentPath itemData =
     let
+        styles =
+            Ui.Styles.stylesForTheme theme
+
         colorStyleSitebarItemActive =
             [ css
                 [ Tw.text_color styles.color1

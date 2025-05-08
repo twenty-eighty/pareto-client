@@ -19,7 +19,7 @@ import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Tailwind.Breakpoints exposing (lg)
 import Tailwind.Utilities as Tw
-import Ui.Styles exposing (Styles, darkMode)
+import Ui.Styles exposing (Theme, darkMode)
 
 
 type Categories category msg
@@ -31,7 +31,7 @@ type Categories category msg
         , image : category -> Maybe (Html msg)
         , categories : List (CategoryData category)
         , browserEnv : BrowserEnv
-        , styles : Styles msg
+        , theme : Theme
         }
 
 
@@ -53,7 +53,7 @@ new :
     , image : category -> Maybe (Html msg)
     , categories : List (CategoryData category)
     , browserEnv : BrowserEnv
-    , styles : Styles msg
+    , theme : Theme
     }
     -> Categories category msg
 new props =
@@ -65,7 +65,7 @@ new props =
         , image = props.image
         , categories = props.categories
         , browserEnv = props.browserEnv
-        , styles = props.styles
+        , theme = props.theme
         }
 
 
@@ -136,7 +136,7 @@ viewCategories (Settings settings) =
             settings.model
     in
     settings.categories
-        |> List.map (\categoryData -> viewCategory settings.styles settings.toMsg settings.onSelect (settings.image categoryData.category) (settings.equals model.selected categoryData.category) categoryData)
+        |> List.map (\categoryData -> viewCategory settings.theme settings.toMsg settings.onSelect (settings.image categoryData.category) (settings.equals model.selected categoryData.category) categoryData)
         |> div
             [ css
                 [ Tw.flex
@@ -148,11 +148,14 @@ viewCategories (Settings settings) =
             ]
 
 
-viewCategory : Styles msg -> (Msg category msg -> msg) -> (category -> msg) -> Maybe (Html msg) -> Bool -> CategoryData category -> Html msg
-viewCategory styles toMsg onSelect maybeImage active data =
+viewCategory : Theme -> (Msg category msg -> msg) -> (category -> msg) -> Maybe (Html msg) -> Bool -> CategoryData category -> Html msg
+viewCategory theme toMsg onSelect maybeImage active data =
     let
         onClickCategory =
             toMsg (SelectedItem { category = data.category, onSelect = onSelect data.category })
+
+        styles =
+            Ui.Styles.stylesForTheme theme
 
         colorStyleCategoryActive =
             [ css

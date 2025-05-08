@@ -78,7 +78,7 @@ toLayout shared model =
                 |> Maybe.withDefault emptyHtml
     in
     Layouts.Sidebar.new
-        { styles = styles
+        { theme = shared.theme
         }
         |> Layouts.Sidebar.withLeftPart articleInfo
         |> Layouts.Sidebar
