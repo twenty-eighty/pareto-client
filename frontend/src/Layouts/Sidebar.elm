@@ -63,7 +63,6 @@ withLeftPart leftPart props =
     }
 
 
-
 -- this function checks if a route will be available in reader mode after login
 
 
@@ -431,6 +430,7 @@ viewMainContent : List (Html contentMsg) -> Html contentMsg
 viewMainContent content =
     main_
         [ class "page"
+        , Attr.id Shared.contentId
         , css
             [ Tw.flex_1
             , Tw.overflow_y_auto

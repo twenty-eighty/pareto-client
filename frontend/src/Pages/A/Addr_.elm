@@ -1,6 +1,5 @@
 module Pages.A.Addr_ exposing (..)
 
-import Browser.Dom
 import Components.ArticleInfo as ArticleInfo
 import Components.Comment as Comment
 import Components.RelayStatus exposing (Purpose(..))
@@ -28,7 +27,6 @@ import Shared
 import Shared.Model
 import Shared.Msg
 import Tailwind.Utilities as Tw
-import Task
 import Translations.ArticlePage as Translations
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (stylesForTheme)
@@ -186,7 +184,7 @@ init shared route () =
         [ effect
 
         -- jump to top of article
-        , Effect.sendCmd <| Task.perform (\_ -> NoOp) (Browser.Dom.setViewport 0 0)
+        , Effect.scrollContentToTop
         ]
     )
 

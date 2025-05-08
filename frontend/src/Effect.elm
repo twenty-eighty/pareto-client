@@ -6,7 +6,8 @@ module Effect exposing
     , pushRoutePath, replaceRoutePath
     , loadExternalUrl, back
     , map, toCmd
-    , openOnboardingDialog, sendSharedMsg
+    , scrollContentToTop
+    , sendSharedMsg
     )
 
 {-|
@@ -46,8 +47,7 @@ type Effect msg
     | Back
       -- SHARED
     | SendSharedMsg Shared.Msg.Msg
-    | OpenOnboardingDialog
-
+    | ScrollContentToTop
 
 
 -- BASICS
@@ -65,11 +65,6 @@ none =
 batch : List (Effect msg) -> Effect msg
 batch =
     Batch
-
-
-openOnboardingDialog : Effect msg
-openOnboardingDialog =
-    OpenOnboardingDialog
 
 
 {-| Send a normal `Cmd msg` as an effect, something like `Http.get` or `Random.generate`.
@@ -91,7 +86,6 @@ sendMsg msg =
 sendSharedMsg : Shared.Msg.Msg -> Effect msg
 sendSharedMsg =
     SendSharedMsg
-
 
 
 -- ROUTING
@@ -150,6 +144,10 @@ back =
     Back
 
 
+scrollContentToTop : Effect msg
+scrollContentToTop =
+    ScrollContentToTop
+
 
 -- INTERNALS
 
@@ -184,8 +182,8 @@ map fn effect =
         SendSharedMsg sharedMsg ->
             SendSharedMsg sharedMsg
 
-        OpenOnboardingDialog ->
-            OpenOnboardingDialog
+        ScrollContentToTop ->
+            ScrollContentToTop
 
 
 {-| Elm Land depends on this function to perform your effects.
@@ -227,5 +225,6 @@ toCmd options effect =
             Task.succeed sharedMsg
                 |> Task.perform options.fromSharedMsg
 
-        OpenOnboardingDialog ->
-            Cmd.none
+        ScrollContentToTop ->
+            toCmd options (SendSharedMsg Shared.Msg.ScrollContentToTop)
+

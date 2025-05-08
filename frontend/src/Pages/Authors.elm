@@ -75,7 +75,12 @@ init shared _ () =
                 |> Shared.Msg.RequestNostrEvents
                 |> Effect.sendSharedMsg
     in
-    ( { configChecks = Dict.empty }, fetchProfilesEffect )
+    ( { configChecks = Dict.empty }
+    , Effect.batch
+        [ fetchProfilesEffect
+        , Effect.scrollContentToTop
+        ]
+    )
 
 
 

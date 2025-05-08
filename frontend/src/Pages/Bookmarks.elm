@@ -68,7 +68,10 @@ init shared user () =
     ( { categories = Categories.init { selected = ArticleBookmark }
       , selectedBookmarkType = ArticleBookmark
       }
-    , contentRequest
+    , Effect.batch
+        [ contentRequest
+        , Effect.scrollContentToTop
+        ]
     )
 
 

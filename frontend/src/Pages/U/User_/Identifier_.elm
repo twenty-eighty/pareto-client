@@ -1,6 +1,5 @@
 module Pages.U.User_.Identifier_ exposing (Model, Msg, page)
 
-import Browser.Dom
 import Components.ArticleInfo as ArticleInfo
 import Components.Comment as Comment
 import Components.RelayStatus exposing (Purpose(..))
@@ -26,7 +25,6 @@ import Route exposing (Route)
 import Set
 import Shared
 import Shared.Msg
-import Task
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles
 import Ui.View exposing (viewRelayStatus)
@@ -161,7 +159,7 @@ init shared route () =
         [ requestEffect
 
         -- jump to top of article
-        , Effect.sendCmd <| Task.perform (\_ -> NoOp) (Browser.Dom.setViewport 0 0)
+        , Effect.scrollContentToTop
         ]
     )
 

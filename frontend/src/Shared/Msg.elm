@@ -2,8 +2,9 @@ module Shared.Msg exposing (Msg(..))
 
 {-| -}
 
-import Components.AlertTimerMessage as AlertTimerMessage
 import BrowserEnv exposing (TestMode)
+import Browser.Dom
+import Components.AlertTimerMessage as AlertTimerMessage
 import Nostr
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Nip05 as Nip05
@@ -37,3 +38,5 @@ type Msg
     | LoadUserDataByNip05 Nip05.Nip05
     | ShowAlert String
     | AlertSent AlertTimerMessage.Msg
+    | ScrollContentToTop
+    | DomError (Result Browser.Dom.Error ())

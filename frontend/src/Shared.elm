@@ -2,7 +2,7 @@ module Shared exposing
     ( Flags, decoder
     , Model, Msg
     , init, update, subscriptions
-    , createFollowersEffect, loggedIn, loggedInPubKey, loggedInSigningPubKey, signingPubKeyAvailable
+    , contentId, createFollowersEffect, loggedIn, loggedInPubKey, loggedInSigningPubKey, signingPubKeyAvailable
     )
 
 {-|
@@ -13,6 +13,7 @@ module Shared exposing
 
 -}
 
+import Browser.Dom
 import BrowserEnv
 import Components.AlertTimerMessage as AlertTimerMessage
 import Effect exposing (Effect)
@@ -37,6 +38,10 @@ import Ui.Styles exposing (Theme(..))
 type alias Model =
     Shared.Model.Model
 
+
+contentId : String
+contentId =
+    "content-container"
 
 
 -- FLAGS
@@ -302,6 +307,12 @@ update route msg model =
             , alertTimerMessageCmd
                 |> Effect.sendCmd
             )
+
+        ScrollContentToTop ->
+            ( model, Effect.sendCmd <| Task.attempt DomError (Browser.Dom.setViewportOf contentId 0 0) )
+
+        DomError _ ->
+            ( model, Effect.none )
 
 
 updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
