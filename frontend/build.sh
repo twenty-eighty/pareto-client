@@ -13,4 +13,6 @@ npm install
 ./gentranslations.sh
 # ./generate_tailwind_modules.sh
 
+./gen-build-info.sh
+
 elm-land build

@@ -10,7 +10,7 @@ import Dict
 import Effect exposing (Effect)
 import FeatherIcons
 import Graphics
-import Html.Styled as Html exposing (Html, a, aside, button, div, img, main_, span, text)
+import Html.Styled as Html exposing (Html, a, aside, div, img, main_, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css)
 import Html.Styled.Events exposing (..)
 import I18Next
@@ -728,17 +728,17 @@ loginButton : Shared.Model -> Maybe Profile -> Html Msg
 loginButton shared maybeProfile =
     case shared.loginStatus of
         Shared.Model.LoggedIn _ _ ->
-            loggedInButton maybeProfile
+            loggedInButton shared.theme maybeProfile
 
         _ ->
             getStartedButton shared.theme shared.browserEnv
 
 
-loggedInButton : Maybe Profile -> Html Msg
-loggedInButton maybeProfile =
+loggedInButton : Theme -> Maybe Profile -> Html Msg
+loggedInButton theme maybeProfile =
     let
         styles =
-            Ui.Styles.stylesForTheme ParetoTheme
+            Ui.Styles.stylesForTheme theme
     in
     div
         (css

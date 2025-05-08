@@ -1,11 +1,13 @@
 module Pages.About exposing (Model, Msg, page)
 
 import BrowserEnv exposing (BrowserEnv)
+import BuildInfo
 import Components.Button as Button
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, a, div, img, span, text)
 import Html.Styled.Attributes as Attr exposing (css, href, src, target, width)
 import I18Next
+import Iso8601
 import Layouts
 import Layouts.Sidebar
 import Locale exposing (Language(..))
@@ -411,6 +413,7 @@ viewFooter theme browserEnv =
             ]
         , viewPrivacyPolicyLink styles browserEnv.translations browserEnv.language
         , viewImprintLink styles browserEnv.translations browserEnv.language
+        , viewBuildInfo browserEnv.translations browserEnv
         ]
 
 
@@ -442,3 +445,24 @@ viewImprintLink styles translations language =
 
         _ ->
             emptyHtml
+
+
+viewBuildInfo : I18Next.Translations -> BrowserEnv -> Html Msg
+viewBuildInfo translations browserEnv =
+    let
+        buildTime =
+            Iso8601.toTime BuildInfo.buildTime
+            |> Result.toMaybe
+            |> Maybe.map (BrowserEnv.formatDate browserEnv)
+            |> Maybe.withDefault BuildInfo.buildTime
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.gap_2
+            ]
+        ]
+        [ Html.span [] [ text <| Translations.buildTimeText [ translations ] { buildTime = buildTime } ]
+        , Html.span [] [ text <| Translations.gitVersionText [ translations ] { gitVersion = BuildInfo.gitVersion } ]
+        ]
