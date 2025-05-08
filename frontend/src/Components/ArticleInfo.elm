@@ -10,6 +10,7 @@ import Nostr
 import Nostr.Article exposing (Article, publishedTime)
 import Nostr.Profile exposing (Author)
 import Nostr.Reactions exposing (Interactions)
+import Nostr.Types exposing (Following(..))
 import Tailwind.Breakpoints as Bp exposing (..)
 import Tailwind.Theme exposing (..)
 import Tailwind.Utilities as Tw exposing (..)
@@ -51,7 +52,21 @@ view styles author article browserEnv interactions nostr =
             Dict.get pubKey nostr.articlesByAuthor |> Maybe.map List.length |> Maybe.withDefault 0
 
         followersFromAuthor =
-            Dict.get pubKey nostr.followLists |> Maybe.map List.length |> Maybe.withDefault 0
+            nostr.followLists
+                |> Dict.filter
+                    (\_ followings ->
+                        followings
+                            |> List.any
+                                (\f ->
+                                    case f of
+                                        FollowingPubKey fpk ->
+                                            fpk.pubKey == pubKey
+
+                                        FollowingHashtag _ ->
+                                            False
+                                )
+                    )
+                |> Dict.size
     in
     aside
         [ css
