@@ -130,8 +130,8 @@ defmodule NostrBackend.NostrId do
 
         # Pubkey
         0x01 ->
-          pubkey = Base.encode16(tlv.value, case: :lower)
-          Map.put(acc, :pubkey, pubkey)
+          relay = tlv.value
+          Map.put(acc, :relay, relay)
 
         # Author
         0x02 ->
