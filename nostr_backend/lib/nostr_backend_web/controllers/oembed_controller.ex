@@ -7,6 +7,7 @@ defmodule NostrBackendWeb.OembedController do
 
   @allowed_origins [
     "https://pareto.space",
+    "https://test.pareto.space",
     "http://localhost:1234",
     "http://localhost:4000"
   ]
