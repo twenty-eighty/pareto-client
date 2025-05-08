@@ -740,7 +740,7 @@ loggedInButton maybeProfile =
         styles =
             Ui.Styles.stylesForTheme ParetoTheme
     in
-    button
+    div
         (css
             [ Tw.bg_color styles.color1
             , Tw.py_2
