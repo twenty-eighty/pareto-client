@@ -464,7 +464,6 @@ defmodule NostrBackend.FeedGenerator do
     robots_txt = """
     User-agent: *
     Allow: /
-    Disallow: /admin/
     Disallow: /api/
     Sitemap: #{sitemap_url}
     """
