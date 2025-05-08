@@ -137,7 +137,7 @@ defmodule NostrBackend.NostrClient do
   end
 
   defp start_link(relay_url, caller_pid) do
-    IO.inspect(relay_url, label: "Relay URL")
+    Logger.debug("Relay URL: #{relay_url}")
 
     WebSockex.start_link(relay_url, __MODULE__, %{caller_pid: caller_pid},
       handle_initial_conn_failure: true

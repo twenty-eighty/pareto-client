@@ -1,5 +1,6 @@
 defmodule NostrBackendWeb.ContentController do
   use NostrBackendWeb, :controller
+  require Logger
 
   alias NostrBackendWeb.Endpoint
 
@@ -27,7 +28,7 @@ defmodule NostrBackendWeb.ContentController do
             |> render(:article, article: article)
 
           {:error, reason} ->
-            IO.inspect(reason, label: "ERROR REASON")
+            Logger.debug("ERROR REASON: #{inspect(reason)}")
 
             conn
             |> conn_with_default_meta()
@@ -45,7 +46,7 @@ defmodule NostrBackendWeb.ContentController do
             |> render(:article, article: article)
 
           {:error, reason} ->
-            IO.inspect(reason, label: "ERROR REASON")
+            Logger.debug("ERROR REASON: #{inspect(reason)}")
 
             conn
             |> conn_with_default_meta()
@@ -118,7 +119,7 @@ defmodule NostrBackendWeb.ContentController do
             |> render(:note, note: note)
 
           {:error, reason} ->
-            IO.inspect(reason, label: "ERROR REASON")
+            Logger.debug("ERROR REASON: #{inspect(reason)}")
 
             conn
             |> conn_with_default_meta()
@@ -136,7 +137,7 @@ defmodule NostrBackendWeb.ContentController do
             |> render(:article, article: article)
 
           {:error, reason} ->
-            IO.inspect(reason, label: "ERROR REASON")
+            Logger.debug("ERROR REASON: #{inspect(reason)}")
 
             conn
             |> conn_with_default_meta()
@@ -154,7 +155,7 @@ defmodule NostrBackendWeb.ContentController do
             |> render(:article, article: article)
 
           {:error, reason} ->
-            IO.inspect(reason, label: "ERROR REASON")
+            Logger.debug("ERROR REASON: #{inspect(reason)}")
 
             conn
             |> conn_with_default_meta()
@@ -197,7 +198,7 @@ defmodule NostrBackendWeb.ContentController do
             get_and_render_profile(conn, pubkey, relays)
 
           {:error, reason} ->
-            IO.inspect(reason, label: "ERROR REASON")
+            Logger.debug("ERROR REASON: #{inspect(reason)}")
 
             conn
             |> conn_with_default_meta()
@@ -238,7 +239,7 @@ defmodule NostrBackendWeb.ContentController do
             end
 
           {:error, reason} ->
-            IO.inspect(reason, label: "ERROR REASON")
+            Logger.debug("ERROR REASON: #{inspect(reason)}")
 
             conn
             |> conn_with_default_meta()
@@ -298,7 +299,7 @@ defmodule NostrBackendWeb.ContentController do
   end
 
   defp conn_with_community_meta(conn, community) do
-    IO.inspect(community, label: "Community")
+    Logger.debug("Community: #{inspect(community)}")
 
     conn
     |> assign(:page_title, community.name <> " | Pareto")
@@ -309,7 +310,7 @@ defmodule NostrBackendWeb.ContentController do
   end
 
   defp conn_with_profile_meta(conn, profile) do
-    IO.inspect(profile, label: "Profile")
+    Logger.debug("Profile: #{inspect(profile)}")
 
     conn
     |> assign(:page_title, profile.name <> " | Pareto")

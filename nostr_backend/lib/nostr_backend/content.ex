@@ -58,11 +58,12 @@ defmodule NostrBackend.Content do
   end
 
   def parse_note_event(event) do
-    %{
+    note = %{
       note_id: event["id"],
       content: event["content"]
     }
-    |> IO.inspect(label: "Parsed note event")
+    Logger.debug("Parsed note event: #{inspect(note)}")
+    note
   end
 
   def parse_profile_event(event) when is_map(event) do

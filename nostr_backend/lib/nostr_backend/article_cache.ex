@@ -1,4 +1,5 @@
 defmodule NostrBackend.ArticleCache do
+  require Logger
   alias NostrBackend.Content
   alias NostrBackend.NostrClient
 
@@ -19,7 +20,7 @@ defmodule NostrBackend.ArticleCache do
         end
 
       {:ok, article} ->
-        IO.inspect("Article found in cache")
+        Logger.debug("Article found in cache")
         {:ok, article}
 
       {:error, reason} ->

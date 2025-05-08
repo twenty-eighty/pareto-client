@@ -84,9 +84,8 @@ defmodule NostrBackend.NostrId do
   defp parse_data("nprofile", data) do
     case TLVDecoder.decode_tlv_stream(data) do
       {:ok, tlv_list} ->
-        {:ok, pubkey, relays} =
-          extract_tlv_data(:nprofile, tlv_list)
-          |> IO.inspect()
+        {:ok, pubkey, relays} = extract_tlv_data(:nprofile, tlv_list)
+        Logger.debug("Extracted nprofile TLV data: pubkey=#{pubkey}, relays=#{inspect(relays)}")
 
         {:ok, {:profile, pubkey, relays}}
 

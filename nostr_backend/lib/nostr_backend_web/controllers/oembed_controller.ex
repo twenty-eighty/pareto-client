@@ -1,6 +1,7 @@
 defmodule NostrBackendWeb.OembedController do
   use NostrBackendWeb, :controller
   alias Req
+  require Logger
 
   import SweetXml
 
@@ -79,8 +80,8 @@ defmodule NostrBackendWeb.OembedController do
             json(conn, json_body)
 
           {:error, reason} ->
-            IO.inspect(reason, label: "ERROR REASON")
-            IO.inspect(body, label: "BODY")
+            Logger.debug("ERROR REASON: #{inspect(reason)}")
+            Logger.debug("BODY: #{inspect(body)}")
 
             conn
             |> put_status(:unprocessable_entity)
