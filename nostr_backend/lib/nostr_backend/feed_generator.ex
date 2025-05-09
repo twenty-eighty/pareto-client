@@ -153,10 +153,11 @@ defmodule NostrBackend.FeedGenerator do
       end
 
       # Create language specific feed
-      feed = Atomex.Feed.new(base_url(), most_recent_date, title)
+      feed_id = "#{base_url()}/atom/#{language_code}_feed.xml"
+      feed = Atomex.Feed.new(feed_id, most_recent_date, title)
         |> Atomex.Feed.subtitle(subtitle)
-        |> Atomex.Feed.link("#{base_url()}/atom/#{language_code}_feed.xml", rel: "self", type: "application/atom+xml")
-        |> Atomex.Feed.link(base_url(), rel: "alternate", type: "text/html")
+        |> Atomex.Feed.link(feed_id, rel: "self", type: "application/atom+xml")
+        |> Atomex.Feed.link("#{base_url()}/", rel: "alternate", type: "text/html")
 
       # Create entries
       entries = Enum.map(sorted_articles, fn article ->
@@ -228,10 +229,11 @@ defmodule NostrBackend.FeedGenerator do
 
     Logger.debug("Generated #{length(entries)} feed entries")
 
-    feed = Atomex.Feed.new(base_url(), most_recent_date, "Pareto Articles")
+    feed_id = "#{base_url()}/atom/feed.xml"
+    feed = Atomex.Feed.new(feed_id, most_recent_date, "Pareto Articles")
     |> Atomex.Feed.subtitle("Articles from Pareto authors")
-    |> Atomex.Feed.link("#{base_url()}/atom/feed.xml", rel: "self", type: "application/atom+xml")
-    |> Atomex.Feed.link(base_url(), rel: "alternate", type: "text/html")
+    |> Atomex.Feed.link(feed_id, rel: "self", type: "application/atom+xml")
+    |> Atomex.Feed.link("#{base_url()}/", rel: "alternate", type: "text/html")
     |> Atomex.Feed.entries(entries)
     |> Atomex.Feed.build()
     |> Atomex.generate_document()
@@ -325,6 +327,9 @@ defmodule NostrBackend.FeedGenerator do
         else
           entry
         end
+
+      # Build the entry so it's wrapped in <entry> tags
+      entry = Atomex.Entry.build(entry)
 
       Logger.debug("Created feed entry with author: #{author_name}")
       entry
