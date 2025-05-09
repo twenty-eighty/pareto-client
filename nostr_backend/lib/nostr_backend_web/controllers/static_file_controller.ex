@@ -2,8 +2,10 @@ defmodule NostrBackendWeb.StaticFileController do
   use NostrBackendWeb, :controller
 
   @atom_path Path.join(:code.priv_dir(:nostr_backend), "static/atom")
+  @rss_path Path.join(:code.priv_dir(:nostr_backend), "static/rss")
   @sitemap_path Path.join(:code.priv_dir(:nostr_backend), "static/sitemap")
 
+  # Atom feeds
   def atom_feed(conn, _params) do
     file_path = Path.join(@atom_path, "feed.xml")
     serve_feed(conn, file_path)
@@ -16,6 +18,22 @@ defmodule NostrBackendWeb.StaticFileController do
 
   def de_atom_feed(conn, _params) do
     file_path = Path.join(@atom_path, "de_feed.xml")
+    serve_feed(conn, file_path)
+  end
+
+  # RSS feeds
+  def rss_feed(conn, _params) do
+    file_path = Path.join(@rss_path, "feed.xml")
+    serve_feed(conn, file_path)
+  end
+
+  def en_rss_feed(conn, _params) do
+    file_path = Path.join(@rss_path, "en_feed.xml")
+    serve_feed(conn, file_path)
+  end
+
+  def de_rss_feed(conn, _params) do
+    file_path = Path.join(@rss_path, "de_feed.xml")
     serve_feed(conn, file_path)
   end
 
