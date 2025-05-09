@@ -12,6 +12,7 @@ import Dict
 import Html.Styled as Html exposing (Html, a, article, div, h2, h3, img, summary, text)
 import Html.Styled.Attributes as Attr exposing (css, href)
 import Html.Styled.Events as Events exposing (..)
+import I18Next
 import LinkPreview exposing (LoadedContent)
 import Locale
 import Markdown
@@ -35,6 +36,7 @@ import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Time
 import Translations.Posts
+import Translations.ArticleView as Translations
 import Ui.Interactions exposing (Actions, extendedZapRelays, viewInteractions)
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
@@ -803,7 +805,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                             ]
                         ]
                     ]
-                    [ viewTitlePreview styles article.title (linkToArticle articlePreviewData.author article) textWidthAttr
+                    [ viewTitlePreview articlePreviewsData.browserEnv.translations styles article.title (linkToArticle articlePreviewData.author article) textWidthAttr
                     , div
                         (styles.colorStyleGrayscaleText
                             ++ styles.textStyleBody
@@ -812,7 +814,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                                ]
                         )
                         [ text summaryText ]
-                    , viewHashTags article.hashtags (hashtagsHeightAttr :: textWidthAttr)
+                    , viewHashTags articlePreviewsData.browserEnv.translations article.hashtags (hashtagsHeightAttr :: textWidthAttr)
                     ]
                 ]
             ]
@@ -856,8 +858,8 @@ linkToArticle author article =
                 |> Maybe.map (\nevent -> "/a/" ++ nevent)
 
 
-viewTitlePreview : Styles msg -> Maybe String -> Maybe String -> List Css.Style -> Html msg
-viewTitlePreview styles maybeTitle maybeLinkTarget textWidthAttr =
+viewTitlePreview : I18Next.Translations -> Styles msg -> Maybe String -> Maybe String -> List Css.Style -> Html msg
+viewTitlePreview translations styles maybeTitle maybeLinkTarget textWidthAttr =
     case ( maybeTitle, maybeLinkTarget ) of
         ( Just title, Just linkUrl ) ->
             a
@@ -866,6 +868,7 @@ viewTitlePreview styles maybeTitle maybeLinkTarget textWidthAttr =
                     ++ [ css
                             (Tw.line_clamp_2 :: textWidthAttr)
                        , href linkUrl
+                       , Attr.attribute "aria-label" (Translations.linkToArticleAriaLabel [ translations ] { title = title })
                        ]
                 )
                 [ text title ]
@@ -884,11 +887,11 @@ viewTitlePreview styles maybeTitle maybeLinkTarget textWidthAttr =
             emptyHtml
 
 
-viewHashTags : List String -> List Css.Style -> Html msg
-viewHashTags hashTags widthAttr =
+viewHashTags : I18Next.Translations -> List String -> List Css.Style -> Html msg
+viewHashTags translations hashTags widthAttr =
     if List.length hashTags > 0 then
         hashTags
-            |> List.map viewHashTag
+            |> List.map (viewHashTag translations)
             |> List.intersperse (text " / ")
             |> div
                 (css
@@ -907,13 +910,14 @@ viewHashTags hashTags widthAttr =
         emptyHtml
 
 
-viewHashTag : String -> Html msg
-viewHashTag hashTag =
+viewHashTag : I18Next.Translations -> String -> Html msg
+viewHashTag translations hashtag =
     a
         [ css [ Tw.inline_block ]
-        , href ("/t/" ++ hashTag)
+        , href ("/t/" ++ hashtag)
+        , Attr.attribute "aria-label" (Translations.linkToHashtagAriaLabel [ translations ] { hashtag = hashtag })
         ]
-        [ text hashTag ]
+        [ text hashtag ]
 
 
 viewArticlePreviewBigPicture : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
@@ -1046,7 +1050,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                     , Tw.inline_flex
                     ]
                 ]
-                [ viewProfilePubKey pubKey
+                [ viewProfilePubKey articlePreviewsData.browserEnv.translations pubKey
                 , timeParagraph styles articlePreviewsData.browserEnv article.publishedAt article.createdAt
                 ]
 
@@ -1066,7 +1070,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                         , Tw.inline_flex
                         ]
                     ]
-                    [ viewProfileImageSmall (linkElementForProfile profile validationStatus) (Just profile) validationStatus
+                    [ viewProfileImageSmall articlePreviewsData.browserEnv.translations (linkElementForProfile profile validationStatus) (Just profile) validationStatus
                     , div
                         [ css
                             [ Tw.justify_start
@@ -1145,8 +1149,8 @@ timeParagraph styles browserEnv maybePublishedAt createdAt =
         [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
 
 
-viewProfilePubKey : PubKey -> Html msg
-viewProfilePubKey pubKey =
+viewProfilePubKey : I18Next.Translations -> PubKey -> Html msg
+viewProfilePubKey translations pubKey =
     div
         [ css
             [ Tw.flex
@@ -1155,7 +1159,7 @@ viewProfilePubKey pubKey =
             , Tw.mb_4
             ]
         ]
-        [ viewProfileImageSmall (linkElementForProfilePubKey pubKey) Nothing ValidationUnknown
+        [ viewProfileImageSmall translations (linkElementForProfilePubKey pubKey) Nothing ValidationUnknown
         , h2
             [ css
                 [ Tw.text_sm
@@ -1204,8 +1208,8 @@ viewProfileImage linkElement maybeProfile validationStatus =
         ]
 
 
-viewProfileImageSmall : (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
-viewProfileImageSmall linkElement maybeProfile validationStatus =
+viewProfileImageSmall : I18Next.Translations -> (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
+viewProfileImageSmall translations linkElement maybeProfile validationStatus =
     div
         [ css
             [ Tw.relative
@@ -1220,6 +1224,7 @@ viewProfileImageSmall linkElement maybeProfile validationStatus =
                     ]
                 , Attr.src <| Ui.Profile.profilePicture 32 maybeProfile
                 , Attr.alt "profile image"
+                , Attr.attribute "aria-label" (Translations.linkToProfileAriaLabel [ translations ] { author = maybeProfile |> Maybe.map (\profile -> profileDisplayName profile.pubKey profile) |> Maybe.withDefault "" })
                 , Attr.attribute "loading" "lazy"
                 ]
                 []
@@ -1238,8 +1243,8 @@ viewProfileImageSmall linkElement maybeProfile validationStatus =
         ]
 
 
-viewTitleSummaryImagePreview : Styles msg -> Author -> Article -> Html msg
-viewTitleSummaryImagePreview styles author article =
+viewTitleSummaryImagePreview : I18Next.Translations -> Styles msg -> Author -> Article -> Html msg
+viewTitleSummaryImagePreview translations styles author article =
     div
         [ css
             [ Tw.flex
@@ -1248,7 +1253,7 @@ viewTitleSummaryImagePreview styles author article =
             ]
         ]
         [ div []
-            [ viewTitlePreview styles article.title (linkToArticle author article) []
+            [ viewTitlePreview translations styles article.title (linkToArticle author article) []
             , viewSummary styles article.summary
             ]
         , viewArticleImage article.image

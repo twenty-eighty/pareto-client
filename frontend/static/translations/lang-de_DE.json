@@ -21,9 +21,6 @@
       "build time text": "Gebaut am/um: {{buildTime}}",
       "git version text": "Git-Version: {{gitVersion}}"
    },
-   "article page": {
-      "default page title": "Artikel"
-   },
    "article info": {
       "title": "Artikel Info",
       "number of articles": "Beiträge",
@@ -34,6 +31,14 @@
       "sentences": "Sätze:",
       "words": "Wörter:",
       "characters": "Zeichen:"
+   },
+   "article page": {
+      "default page title": "Artikel"
+   },
+   "article view": {
+      "link to article aria label": "Link zum Artikel {{title}}",
+      "link to profile aria label": "Link zum Profil von {{author}}",
+      "link to hashtag aria label": "Link zum Suchen nach Hashtag {{hashtag}}"
    },
    "authors page": {
       "page title": "Autoren",

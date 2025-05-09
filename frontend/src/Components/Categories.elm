@@ -15,7 +15,7 @@ module Components.Categories exposing
 import BrowserEnv exposing (BrowserEnv)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, button, div, text)
-import Html.Styled.Attributes exposing (css)
+import Html.Styled.Attributes exposing (css, attribute)
 import Html.Styled.Events as Events exposing (..)
 import Tailwind.Breakpoints exposing (lg)
 import Tailwind.Utilities as Tw
@@ -201,8 +201,9 @@ viewCategory theme toMsg onSelect maybeImage active data =
             , Tw.items_center
             , Tw.gap_1
             ]
-         , Events.onClick onClickCategory
-         ]
+        , attribute "aria-label" data.title
+        , Events.onClick onClickCategory
+        ]
             ++ attrs
         )
         [ imageElement
