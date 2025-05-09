@@ -123,6 +123,13 @@ defmodule NostrBackendWeb.Router do
     get "/rumble/embed", RumbleController, :fetch_embed_url
   end
 
+  scope "/", NostrBackendWeb do
+    pipe_through([:browser])
+
+    # Google site verification
+    get "/:filename", StaticFileController, :serve_generic_html
+  end
+
   # Enable LiveDashboard in development
   if Application.compile_env(:nostr_backend, :dev_routes) do
     # If you want to use the LiveDashboard in production, you should put
