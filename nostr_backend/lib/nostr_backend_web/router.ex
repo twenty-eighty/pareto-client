@@ -47,6 +47,7 @@ defmodule NostrBackendWeb.Router do
     get("/c", PageController, :communities)
     get("/bookmarks", PageController, :bookmarks)
     get("/imprint", PageController, :imprint)
+    get("/internals", PageController, :internals)
     get("/media", PageController, :media)
     get("/messages", PageController, :messages)
     get("/newsletters", PageController, :newsletters)
@@ -77,6 +78,29 @@ defmodule NostrBackendWeb.Router do
     get("/nostr.json", NostrController, :nip05)
     get("/nostr/nip96.json", NostrController, :nip96)
     get "/lnurlp/:username", LightningController, :lnurlp
+  end
+
+  # Static atom feeds
+  scope "/atom", NostrBackendWeb do
+    pipe_through :browser
+
+    get "/feed.xml", StaticFileController, :atom_feed
+    get "/en_feed.xml", StaticFileController, :en_atom_feed
+    get "/de_feed.xml", StaticFileController, :de_atom_feed
+
+    # Only allow feed generation in development and test environments
+    if Mix.env() != :prod do
+      get "/generate", FeedGenerationController, :generate
+    end
+  end
+
+  # Sitemaps
+  scope "/sitemap", NostrBackendWeb do
+    pipe_through :browser
+
+    get "/sitemap.xml.gz", StaticFileController, :sitemap
+    get "/sitemap-authors.xml.gz", StaticFileController, :authors_sitemap
+    get "/sitemap-:year", StaticFileController, :year_sitemap
   end
 
   scope "/api", NostrBackendWeb do

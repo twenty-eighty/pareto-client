@@ -1,5 +1,6 @@
 defmodule NostrBackendWeb.NostrController do
   use NostrBackendWeb, :controller
+  require Logger
 
   alias NostrBackend.Nip05
 
@@ -122,7 +123,7 @@ defmodule NostrBackendWeb.NostrController do
             |> json(response)
 
           {:error, message} ->
-            IO.inspect(message, label: "Error")
+            Logger.debug("Error: #{inspect(message)}")
 
             conn
             |> put_status(:not_found)

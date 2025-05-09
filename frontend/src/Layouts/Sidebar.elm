@@ -1,4 +1,4 @@
-module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layout, map, new, withLeftPart)
+module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layout, map, new, withLeftPart, withTopPart)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.AlertTimerMessage as AlertTimerMessage
@@ -9,8 +9,9 @@ import Css
 import Dict
 import Effect exposing (Effect)
 import FeatherIcons
-import Html.Styled as Html exposing (Html, a, aside, button, div, img, main_, span, text)
-import Html.Styled.Attributes as Attr exposing (class, css, src)
+import Graphics
+import Html.Styled as Html exposing (Html, a, aside, div, img, main_, span, text)
+import Html.Styled.Attributes as Attr exposing (class, css)
 import Html.Styled.Events exposing (..)
 import I18Next
 import Layout exposing (Layout)
@@ -31,37 +32,41 @@ import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
 import Ui.Profile
 import Ui.Shared exposing (countBadge, emptyHtml)
-import Ui.Styles exposing (Styles, Theme(..), darkMode)
+import Ui.Styles exposing (Theme(..), darkMode)
 import View exposing (View)
 
 
 type alias Props contentMsg =
-    { styles : Styles contentMsg
+    { theme : Theme
     , fixedLeftPart : Maybe (Html contentMsg)
+    , fixedTopPart : Maybe (Html contentMsg)
     }
 
 
 map : (msg1 -> msg2) -> Props msg1 -> Props msg2
 map toMsg props =
-    { styles = Ui.Styles.map toMsg props.styles
+    { theme = props.theme
     , fixedLeftPart = Maybe.map (Html.map toMsg) props.fixedLeftPart
+    , fixedTopPart = Maybe.map (Html.map toMsg) props.fixedTopPart
     }
 
 
-new : { styles : Styles contentMsg } -> Props contentMsg
-new { styles } =
-    { styles = styles
+new : { theme : Theme } -> Props contentMsg
+new { theme } =
+    { theme = theme
     , fixedLeftPart = Nothing
+    , fixedTopPart = Nothing
     }
 
 
 withLeftPart : Html contentMsg -> Props contentMsg -> Props contentMsg
 withLeftPart leftPart props =
-    { styles = props.styles
-    , fixedLeftPart = Just leftPart
-    }
+    { props | fixedLeftPart = Just leftPart }
 
 
+withTopPart : Html contentMsg -> Props contentMsg -> Props contentMsg
+withTopPart topPart props =
+    { props | fixedTopPart = Just topPart }
 
 -- this function checks if a route will be available in reader mode after login
 
@@ -251,6 +256,10 @@ subscriptions _ =
 
 view : Props contentMsg -> Shared.Model.Model -> Route.Path.Path -> { toContentMsg : Msg -> contentMsg, content : View contentMsg, model : Model } -> View contentMsg
 view props shared path { toContentMsg, content } =
+    let
+        styles =
+            Ui.Styles.stylesForTheme props.theme
+    in
     { title = content.title ++ " | Pareto"
     , body =
         [ div
@@ -258,7 +267,7 @@ view props shared path { toContentMsg, content } =
                 [ Tw.h_full
                 , Tw.overflow_clip
                 ]
-                :: props.styles.colorStyleBackground
+                :: styles.colorStyleBackground
             )
             [ viewSidebar props shared path toContentMsg content.body
             , viewLinktoInternalPage shared.nostr
@@ -275,6 +284,9 @@ view props shared path { toContentMsg, content } =
 viewSidebar : Props contentMsg -> Shared.Model.Model -> Route.Path.Path -> (Msg -> contentMsg) -> List (Html contentMsg) -> Html contentMsg
 viewSidebar props shared currentPath toContentMsg content =
     let
+        styles =
+            Ui.Styles.stylesForTheme props.theme
+
         maybeBookmarksCount =
             Shared.loggedInPubKey shared.loginStatus
                 |> Maybe.andThen (Nostr.getBookmarks shared.nostr)
@@ -320,7 +332,7 @@ viewSidebar props shared currentPath toContentMsg content =
             }
     in
     Html.div
-        (props.styles.colorStyleGrayscaleTitle
+        (styles.colorStyleGrayscaleTitle
             ++ [ css
                     [ Tw.h_screen
                     , Tw.overflow_hidden
@@ -333,8 +345,8 @@ viewSidebar props shared currentPath toContentMsg content =
                 ]
             ]
             [ aside
-                (props.styles.colorStyleBorders
-                    ++ props.styles.colorStyleBackground
+                (styles.colorStyleBorders
+                    ++ styles.colorStyleBackground
                     ++ [ css
                             [ Tw.p_2
                             , Tw.h_14
@@ -362,7 +374,7 @@ viewSidebar props shared currentPath toContentMsg content =
                        ]
                 )
                 [ viewBannerSmall shared.browserEnv
-                , viewSidebarItems props.styles sidebarItemParams
+                , viewSidebarItems props.theme sidebarItemParams
                 ]
             , div
                 [ css
@@ -381,7 +393,7 @@ viewSidebar props shared currentPath toContentMsg content =
                         , Tw.bg_center
                         , Tw.h_20
                         ]
-                    , Attr.style "background-image" "url('/images/Pareto-Banner-back.png')"
+                    , Attr.style "background-image" "url('/images/Pareto-Banner-back.webp')"
                     ]
                     [ -- viewBanner
                       if roleSwitchButtonEnabled shared.nostr shared.loginStatus then
@@ -394,14 +406,13 @@ viewSidebar props shared currentPath toContentMsg content =
 
                       else
                         emptyHtml
-                    , img
-                        [ src "/images/Pareto-Banner-Text.svg"
-                        , css
-                            [ Tw.overflow_x_auto
-                            , Tw.h_7
+                    , div
+                        [ css
+                            [ Tw.w_full
+                            , Tw.h_auto
                             ]
                         ]
-                        []
+                        [ Graphics.paretoBannerText ]
                     , div
                         [ css
                             [ Tw.flex_shrink_0
@@ -420,52 +431,52 @@ viewSidebar props shared currentPath toContentMsg content =
                     ]
                     [ props.fixedLeftPart
                         |> Maybe.withDefault emptyHtml
-                    , viewMainContent content
+                    , viewMainContent content props.fixedTopPart
                     ]
                 ]
             ]
         ]
 
 
-viewMainContent : List (Html contentMsg) -> Html contentMsg
-viewMainContent content =
-    main_
-        [ class "page"
-        , css
+viewMainContent : List (Html contentMsg) -> Maybe (Html contentMsg) -> Html contentMsg
+viewMainContent content maybeFixedTopPart =
+    div
+        [ css
             [ Tw.flex_1
             , Tw.overflow_y_auto
             , Tw.relative
-            , Css.property "height" "calc(100vh - 5rem - 56px)" -- 5rem = 80px for header
-            , Bp.sm
-                [ Css.property "height" "calc(100vh - 5rem)" -- 5rem = 80px for header
-                ]
             ]
         ]
-        [ div
-            [ css
-                [ Tw.mb_16
+        [ maybeFixedTopPart
+            |> Maybe.withDefault emptyHtml
+        , main_
+            [ class "page"
+            , Attr.id Shared.contentId
+            , css
+                [ Tw.flex_1
+                , Tw.overflow_y_auto
+                , Tw.relative
+                , Css.property "height" "calc(100vh - 5rem - 56px)" -- 5rem = 80px for header
                 , Bp.sm
-                    [ Tw.mb_2
+                    [ Css.property "height" "calc(100vh - 5rem)" -- 5rem = 80px for header
                     ]
                 ]
             ]
-            content
+            [ div
+                [ css
+                    [ Tw.mb_16
+                    , Bp.sm
+                        [ Tw.mb_2
+                        ]
+                    ]
+                ]
+                content
+            ]
         ]
 
 
 viewBannerSmall : BrowserEnv -> Html contentMsg
 viewBannerSmall browserEnv =
-    let
-        bannerImageWide =
-            if browserEnv.darkMode then
-                "/images/icon/Pareto-Log7.png"
-
-            else
-                "/images/icon/Pareto-Log5.png"
-
-        bannerImageNarrow =
-            "/images/icon/Pareto-Log1.png"
-    in
     a
         [ css
             [ Tw.flex
@@ -479,41 +490,35 @@ viewBannerSmall browserEnv =
         , Attr.href <| Route.Path.toString Route.Path.Read
         ]
         [ div
-            [ Attr.src bannerImageWide
-            , Attr.alt "Banner"
+            [ Attr.alt "Logo"
             , css
-                [ Tw.w_0
+                [ Tw.hidden
+                , Tw.overflow_hidden
                 , Bp.xl
-                    [ Tw.w_36
-                    , Tw.h_10
+                    [ Tw.block
                     , Tw.ml_2
                     ]
                 ]
             ]
-            [ img
-                [ Attr.src bannerImageWide
-                , Attr.alt "Banner"
-                ]
-                []
+            [ Graphics.paretoLogo5 150 browserEnv.darkMode
             ]
         , div
-            [ css
-                [ Tw.h_10
+            [ Attr.alt "Logo"
+            , css
+                [ Tw.block
                 , Tw.w_8
                 , Bp.xl
-                    [ Tw.w_0
+                    [ Tw.hidden
                     ]
                 , Bp.sm
-                    [ Tw.w_10
-                    , Tw.mr_0
+                    [ Tw.mr_0
+                    , Tw.h_auto
+                    , Tw.w_auto
+                    , Tw.overflow_hidden
                     ]
                 ]
             ]
-            [ img
-                [ Attr.src bannerImageNarrow
-                , Attr.alt "Banner"
-                ]
-                []
+            [ Graphics.paretoLogo1 30 browserEnv.darkMode
             ]
         ]
 
@@ -580,8 +585,8 @@ profileForUser shared loggedIn =
             Nothing
 
 
-viewSidebarItems : Styles contentMsg -> SidebarItemParams -> Html contentMsg
-viewSidebarItems styles sidebarItemParams =
+viewSidebarItems : Theme -> SidebarItemParams -> Html contentMsg
+viewSidebarItems theme sidebarItemParams =
     let
         visibleSidebarItems =
             sidebarItems sidebarItemParams
@@ -603,7 +608,7 @@ viewSidebarItems styles sidebarItemParams =
                 ]
             ]
         ]
-        (List.map (viewSidebarItem styles sidebarItemParams.currentPath) visibleSidebarItems)
+        (List.map (viewSidebarItem theme sidebarItemParams.currentPath) visibleSidebarItems)
 
 
 sidebarItemVisible : Bool -> Bool -> Bool -> SidebarItemData -> Bool
@@ -624,9 +629,12 @@ sidebarItemVisible isLoggedIn isAuthor isBetaTester sidebarItem =
         True
 
 
-viewSidebarItem : Styles contentMsg -> Route.Path.Path -> SidebarItemData -> Html contentMsg
-viewSidebarItem styles currentPath itemData =
+viewSidebarItem : Theme -> Route.Path.Path -> SidebarItemData -> Html contentMsg
+viewSidebarItem theme currentPath itemData =
     let
+        styles =
+            Ui.Styles.stylesForTheme theme
+
         colorStyleSitebarItemActive =
             [ css
                 [ Tw.text_color styles.color1
@@ -720,19 +728,19 @@ loginButton : Shared.Model -> Maybe Profile -> Html Msg
 loginButton shared maybeProfile =
     case shared.loginStatus of
         Shared.Model.LoggedIn _ _ ->
-            loggedInButton maybeProfile
+            loggedInButton shared.theme maybeProfile
 
         _ ->
             getStartedButton shared.theme shared.browserEnv
 
 
-loggedInButton : Maybe Profile -> Html Msg
-loggedInButton maybeProfile =
+loggedInButton : Theme -> Maybe Profile -> Html Msg
+loggedInButton theme maybeProfile =
     let
         styles =
-            Ui.Styles.stylesForTheme ParetoTheme
+            Ui.Styles.stylesForTheme theme
     in
-    button
+    div
         (css
             [ Tw.bg_color styles.color1
             , Tw.py_2

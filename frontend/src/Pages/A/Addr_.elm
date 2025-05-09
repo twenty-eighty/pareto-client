@@ -1,6 +1,5 @@
 module Pages.A.Addr_ exposing (..)
 
-import Browser.Dom
 import Components.ArticleInfo as ArticleInfo
 import Components.Comment as Comment
 import Components.RelayStatus exposing (Purpose(..))
@@ -28,7 +27,6 @@ import Shared
 import Shared.Model
 import Shared.Msg
 import Tailwind.Utilities as Tw
-import Task
 import Translations.ArticlePage as Translations
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (stylesForTheme)
@@ -80,7 +78,7 @@ toLayout shared model =
                 |> Maybe.withDefault emptyHtml
     in
     Layouts.Sidebar.new
-        { styles = styles
+        { theme = shared.theme
         }
         |> Layouts.Sidebar.withLeftPart articleInfo
         |> Layouts.Sidebar
@@ -186,7 +184,7 @@ init shared route () =
         [ effect
 
         -- jump to top of article
-        , Effect.sendCmd <| Task.perform (\_ -> NoOp) (Browser.Dom.setViewport 0 0)
+        , Effect.scrollContentToTop
         ]
     )
 
@@ -333,7 +331,19 @@ update shared msg model =
                     ( model, Effect.none )
 
         NoOp ->
-            ( model, Effect.none )
+            let
+                maybeAuthorPubKey =
+                    case model of
+                        Nip19Model nip19ModelData ->
+                            Nostr.getArticleForNip19 shared.nostr nip19ModelData.nip19 |> Maybe.map .author
+
+                        _ ->
+                            Nothing
+
+                followersEffect =
+                    Shared.createFollowersEffect shared.nostr maybeAuthorPubKey
+            in
+            ( model, followersEffect )
 
 
 showZapDialog : Nip19ModelData -> List ZapDialog.Recipient -> ( Model, Effect Msg )

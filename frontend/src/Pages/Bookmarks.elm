@@ -36,16 +36,34 @@ page user shared _ =
         , subscriptions = subscriptions
         , view = view user shared
         }
-        |> Page.withLayout (toLayout shared.theme)
+        |> Page.withLayout (toLayout user shared)
 
 
-toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme _ =
+toLayout : Auth.User -> Shared.Model -> Model -> Layouts.Layout Msg
+toLayout user shared model =
+    let
+        bookmarkList =
+            Nostr.getBookmarks shared.nostr user.pubKey
+                |> Maybe.withDefault emptyBookmarkList
+
+        topPart =
+            Categories.new
+                { model = model.categories
+                , toMsg = CategoriesSent
+                , onSelect = CategorySelected
+                , equals = \category1 category2 -> category1 == category2
+                , image = \_ -> Nothing
+                , categories = availableCategories bookmarkList shared.browserEnv.translations
+                , browserEnv = shared.browserEnv
+                , theme = shared.theme
+                }
+                |> Categories.view
+    in
     Layouts.Sidebar.new
-        { styles = Ui.Styles.stylesForTheme theme
+        { theme = shared.theme
         }
+        |> Layouts.Sidebar.withTopPart topPart
         |> Layouts.Sidebar
-
 
 
 -- INIT
@@ -68,7 +86,10 @@ init shared user () =
     ( { categories = Categories.init { selected = ArticleBookmark }
       , selectedBookmarkType = ArticleBookmark
       }
-    , contentRequest
+    , Effect.batch
+        [ contentRequest
+        , Effect.scrollContentToTop
+        ]
     )
 
 
@@ -242,27 +263,13 @@ subscriptions _ =
 view : Auth.User -> Shared.Model -> Model -> View Msg
 view user shared model =
     let
-        styles =
-            Ui.Styles.stylesForTheme shared.theme
-
         bookmarkList =
             Nostr.getBookmarks shared.nostr user.pubKey
                 |> Maybe.withDefault emptyBookmarkList
     in
     { title = Translations.bookmarksTitle [ shared.browserEnv.translations ]
     , body =
-        [ Categories.new
-            { model = model.categories
-            , toMsg = CategoriesSent
-            , onSelect = CategorySelected
-            , equals = \category1 category2 -> category1 == category2
-            , image = \_ -> Nothing
-            , categories = availableCategories bookmarkList shared.browserEnv.translations
-            , browserEnv = shared.browserEnv
-            , styles = styles
-            }
-            |> Categories.view
-        , viewBookmarks user shared model bookmarkList
+        [ viewBookmarks user shared model bookmarkList
         ]
     }
 

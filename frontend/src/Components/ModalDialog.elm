@@ -85,6 +85,7 @@ view (Settings settings) =
                         , Tw.drop_shadow_md
                         , Tw.backdrop_blur_md
                         , Tw.shadow_color styles.color2
+                        , Tw.max_h_screen
                         , darkMode
                             [ Tw.shadow_color styles.color2DarkMode
                             ]
@@ -136,8 +137,10 @@ view (Settings settings) =
                 ]
             , div
                 [ css
-                    [ Tw.max_h_96
-                    , Tw.overflow_y_auto
+                    [ Tw.overflow_y_auto
+                    , Tw.flex
+                    , Tw.flex_col
+                    , Tw.gap_2
                     , Tw.mt_4
                     ]
                 ]

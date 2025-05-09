@@ -1,4 +1,5 @@
 defmodule NostrBackend.Nip05Cache do
+  require Logger
   alias NostrBackend.Nip05
 
   @cache_name :nip05_cache
@@ -18,7 +19,7 @@ defmodule NostrBackend.Nip05Cache do
         end
 
       {:ok, {pubkey, relays}} ->
-        IO.inspect("nip05 found in cache")
+        Logger.debug("nip05 found in cache")
         {:ok, pubkey, relays}
 
       {:error, reason} ->

@@ -45,7 +45,7 @@ page shared route =
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
     Layouts.Sidebar.new
-        { styles = Ui.Styles.stylesForTheme theme
+        { theme = theme
         }
         |> Layouts.Sidebar
 
@@ -75,7 +75,12 @@ init shared _ () =
                 |> Shared.Msg.RequestNostrEvents
                 |> Effect.sendSharedMsg
     in
-    ( { configChecks = Dict.empty }, fetchProfilesEffect )
+    ( { configChecks = Dict.empty }
+    , Effect.batch
+        [ fetchProfilesEffect
+        , Effect.scrollContentToTop
+        ]
+    )
 
 
 

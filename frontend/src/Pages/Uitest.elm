@@ -45,7 +45,7 @@ page shared _ =
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
     Layouts.Sidebar.new
-        { styles = Ui.Styles.stylesForTheme theme
+        { theme = theme
         }
         |> Layouts.Sidebar
 
@@ -307,10 +307,6 @@ calendarElement shared model =
 
 categoriesElement : Shared.Model -> Model -> Html Msg
 categoriesElement shared model =
-    let
-        styles =
-            Ui.Styles.stylesForTheme model.theme
-    in
     Components.Categories.new
         { model = model.categories
         , toMsg = CategoriesSent
@@ -319,7 +315,7 @@ categoriesElement shared model =
         , image = categoryImage
         , categories = availableCategories shared.browserEnv.translations
         , browserEnv = shared.browserEnv
-        , styles = styles
+        , theme = shared.theme
         }
         |> Components.Categories.view
 

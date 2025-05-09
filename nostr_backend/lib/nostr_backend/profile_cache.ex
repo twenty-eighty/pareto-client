@@ -1,6 +1,7 @@
 defmodule NostrBackend.ProfileCache do
   alias NostrBackend.Content
   alias NostrBackend.NostrClient
+  require Logger
 
   @cache_name :profiles_cache
   # 24 hours
@@ -30,8 +31,19 @@ defmodule NostrBackend.ProfileCache do
     # Implement the logic to load the profile from the Nostr network
     # For example:
     case NostrClient.fetch_profile(pubkey, relays) do
-      {:ok, event} -> {:ok, Content.parse_profile_event(event)}
-      {:error, reason} -> {:error, reason}
+      {:ok, event} ->
+        Logger.debug("Fetched profile event: #{inspect(event)}")
+        # Handle both single event and list of events
+        event_to_parse = case event do
+          [single_event] -> single_event
+          _ -> event
+        end
+        profile = Content.parse_profile_event(event_to_parse)
+        Logger.debug("Parsed profile: #{inspect(profile)}")
+        {:ok, profile}
+      {:error, reason} ->
+        Logger.error("Failed to fetch profile: #{inspect(reason)}")
+        {:error, reason}
     end
   end
 end

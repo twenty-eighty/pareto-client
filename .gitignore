@@ -42,11 +42,13 @@ erl_crash.dump
 nostr_backend-*.tar
 
 # Ignore assets that are produced by build tools.
+/nostr_backend/priv/static/atom
 /nostr_backend/priv/static/index.html
 /nostr_backend/priv/static/assets
 /nostr_backend/priv/static/fonts
 /nostr_backend/priv/static/images
 /nostr_backend/priv/static/js
+/nostr_backend/priv/static/sitemap
 /nostr_backend/priv/static/styles
 /nostr_backend/priv/static/translations
 
@@ -59,3 +61,4 @@ npm-debug.log
 
 
 frontend/.vscode/settings.json
+nostr_backend/priv/static/robots.txt

@@ -62,7 +62,7 @@ page user shared _ =
 toLayout : Theme -> Model -> Layouts.Layout Msg
 toLayout theme _ =
     Layouts.Sidebar.new
-        { styles = Ui.Styles.stylesForTheme theme
+        { theme = theme
         }
         |> Layouts.Sidebar
 

@@ -24,6 +24,12 @@ defmodule NostrBackend.Application do
         id: :communities_cache
       ),
 
+      # Cache for follow lists
+      Supervisor.child_spec(
+        {Cachex, name: :follow_lists_cache, ttl_interval: :timer.minutes(1440)},
+        id: :follow_lists_cache
+      ),
+
       # Cache for profiles
       Supervisor.child_spec(
         {Cachex, name: :profiles_cache, ttl_interval: :timer.minutes(1440)},
@@ -58,7 +64,8 @@ defmodule NostrBackend.Application do
       # Start a worker by calling: NostrBackend.Worker.start_link(arg)
       # {NostrBackend.Worker, arg},
       # Start to serve requests, typically the last entry
-      NostrBackendWeb.Endpoint
+      NostrBackendWeb.Endpoint,
+      NostrBackend.FeedGenerator
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

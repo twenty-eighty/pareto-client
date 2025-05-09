@@ -4,12 +4,32 @@ defmodule NostrBackend.NostrId do
   """
 
   alias NostrBackend.TLVDecoder
+  require Logger
 
   @type nostr_id ::
           {:article, String.t()}
           | {:profile, String.t()}
           | {:community, String.t()}
           | {:address, %{kind: integer(), pubkey: String.t(), identifier: String.t()}}
+
+  @doc """
+  Validates and decodes a NIP-19 identifier (npub, nprofile, nevent, naddr, etc.)
+  Returns {:ok, decoded_data} or {:error, reason}
+  """
+  @spec validate_nip19(String.t()) :: {:ok, any()} | {:error, String.t()}
+  def validate_nip19(nip19_id) when is_binary(nip19_id) do
+    Logger.info("Validating NIP-19 ID: #{nip19_id}")
+
+    case parse(nip19_id) do
+      {:ok, decoded} ->
+        Logger.info("Successfully decoded NIP-19 ID: #{inspect(decoded)}")
+        {:ok, decoded}
+
+      {:error, reason} ->
+        Logger.error("Failed to validate NIP-19 ID: #{reason}")
+        {:error, reason}
+    end
+  end
 
   @spec parse(String.t()) :: {:ok, nostr_id} | {:error, String.t()}
   def parse(nostr_id) when is_binary(nostr_id) do
@@ -41,6 +61,20 @@ defmodule NostrBackend.NostrId do
     end
   end
 
+  # Implementation for decoding npub Bech32 data to a pubkey hex string
+  defp parse_data("npub", data) do
+    try do
+      pubkey_hex = Base.encode16(data, case: :lower)
+      Logger.debug("Extracted pubkey hex: #{pubkey_hex}")
+
+      {:ok, {:pubkey, pubkey_hex}}
+    rescue
+      e ->
+        Logger.error("Failed to decode npub: #{Exception.message(e)}")
+        {:error, "Failed to decode npub: #{Exception.message(e)}"}
+    end
+  end
+
   # TODO: check how ncomm's are built
   defp parse_data("ncomm", data) do
     community_id = Base.encode16(data, case: :lower)
@@ -50,9 +84,8 @@ defmodule NostrBackend.NostrId do
   defp parse_data("nprofile", data) do
     case TLVDecoder.decode_tlv_stream(data) do
       {:ok, tlv_list} ->
-        {:ok, pubkey, relays} =
-          extract_tlv_data(:nprofile, tlv_list)
-          |> IO.inspect()
+        {:ok, pubkey, relays} = extract_tlv_data(:nprofile, tlv_list)
+        Logger.debug("Extracted nprofile TLV data: pubkey=#{pubkey}, relays=#{inspect(relays)}")
 
         {:ok, {:profile, pubkey, relays}}
 
@@ -96,8 +129,8 @@ defmodule NostrBackend.NostrId do
 
         # Pubkey
         0x01 ->
-          pubkey = Base.encode16(tlv.value, case: :lower)
-          Map.put(acc, :pubkey, pubkey)
+          relay = tlv.value
+          Map.put(acc, :relay, relay)
 
         # Author
         0x02 ->
@@ -116,7 +149,7 @@ defmodule NostrBackend.NostrId do
     end)
   end
 
-    defp extract_tlv_data(:nevent, tlv_list) do
+  defp extract_tlv_data(:nevent, tlv_list) do
     Enum.reduce(tlv_list, %{relays: []}, fn tlv, acc ->
       case tlv.tag do
         # Event ID
@@ -138,7 +171,6 @@ defmodule NostrBackend.NostrId do
         0x03 ->
           kind = :binary.decode_unsigned(tlv.value, :big)
           Map.put(acc, :kind, kind)
-
 
         _ ->
           # Ignore unknown tags
@@ -171,49 +203,4 @@ defmodule NostrBackend.NostrId do
       {:ok, pubkey, relays}
     end
   end
-
-  # defp parse_naddr_tlv(data) do
-  #   IO.inspect(data, label: "TLV Data")
-  #   parse_tlv(data, %{})
-  # end
-
-  defp parse_tlv(<<>>, acc) do
-    IO.inspect(acc, label: "Final Accumulator")
-    {:ok, acc}
-  end
-
-  defp parse_tlv(<<t::8, l::8, rest::binary>>, acc) do
-    IO.inspect({t, l}, label: "Type and Length")
-    IO.inspect(rest, label: "Rest before extracting value")
-
-    if byte_size(rest) >= l do
-      <<v::binary-size(l), rest::binary>> = rest
-      IO.inspect(v, label: "Value")
-
-      updated_acc =
-        case t do
-          0x00 ->
-            kind = :binary.decode_unsigned(v, :big)
-            Map.put(acc, :kind, kind)
-
-          0x01 ->
-            pubkey = Base.encode16(v, case: :lower)
-            Map.put(acc, :pubkey, pubkey)
-
-          0x02 ->
-            identifier = v
-            Map.put(acc, :identifier, identifier)
-
-          _ ->
-            # Ignore unknown types
-            acc
-        end
-
-      parse_tlv(rest, updated_acc)
-    else
-      {:error, "Invalid TLV format"}
-    end
-  end
-
-  defp parse_tlv(_, _acc), do: {:error, "Invalid TLV format"}
 end

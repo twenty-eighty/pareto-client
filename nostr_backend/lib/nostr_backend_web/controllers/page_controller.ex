@@ -98,6 +98,12 @@ defmodule NostrBackendWeb.PageController do
     |> render(:imprint)
   end
 
+  def internals(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:internals)
+  end
+
   def media(conn, _params) do
     conn
     |> add_meta_tags

@@ -6,6 +6,7 @@ import Components.Dropdown as Dropdown
 import Components.EntryField as EntryField
 import Components.HashtagEditor as HashtagEditor
 import Components.MediaSelector as MediaSelector
+import Components.ModalDialog as ModalDialog
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes as Attr exposing (css)
@@ -383,17 +384,9 @@ viewPicturePostDialog (Settings settings) picturePost postButtonText buttonMsg m
             )
             |> Maybe.withDefault emptyHtml
     in
-    Ui.Shared.modalDialog settings.theme (Translations.dialogTitle [ settings.browserEnv.translations ])
-        [ div
-            [ css
-                [ Tw.flex
-                , Tw.flex_col
-                , Tw.gap_2
-                , Tw.self_stretch
-                , Tw.h_auto
-                , Tw.max_w_full
-                ]
-            ]
+    ModalDialog.new
+        { title = Translations.dialogTitle [ settings.browserEnv.translations ]
+        , content =
             [ EntryField.new
                 { value = picturePost.title |> Maybe.withDefault ""
                 , onInput = \content -> UpdatePicturePost (setPicturePostTitle picturePost content)
@@ -429,20 +422,6 @@ viewPicturePostDialog (Settings settings) picturePost postButtonText buttonMsg m
                 }
                 |> HashtagEditor.view
             , errorMessage
-            , div
-                [ css
-                    [ Tw.flex
-                    , Tw.items_center
-                    ]
-                ]
-                [ Button.new
-                    { label = postButtonText
-                    , onClick = buttonMsg
-                    , theme = settings.theme
-                    }
-                    |> Button.withDisabled (List.isEmpty picturePost.pictures)
-                    |> Button.view
-                ]
             , MediaSelector.new
                 { model = model.mediaSelector
                 , toMsg = MediaSelectorSent
@@ -453,9 +432,19 @@ viewPicturePostDialog (Settings settings) picturePost postButtonText buttonMsg m
                 }
                 |> MediaSelector.view
             ]
-       ]
-       CloseDialog
-
+        , onClose = CloseDialog
+        , theme = settings.theme
+        , buttons =
+            [ Button.new
+                { label = postButtonText
+                , onClick = buttonMsg
+                , theme = settings.theme
+                }
+                |> Button.withDisabled (List.isEmpty picturePost.pictures)
+                |> Button.view
+            ]
+        }
+        |> ModalDialog.view
 toLabel : Translations -> Maybe Language -> String
 toLabel translations maybeLanguage =
     case maybeLanguage of

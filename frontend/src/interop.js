@@ -924,6 +924,7 @@ export const onReady = ({ app, env }) => {
           break;
         case 'description':
           try {
+            tag[1] = tag[1]?.replace(/\t|\n|\r+/g, '') || '';// some events contain space character and break JSON parsing.
             const json = JSON.parse(tag[1]);
             const tags = json.tags;
             const amountTag = tags.find(tag => tag[0] === 'amount');

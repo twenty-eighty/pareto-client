@@ -60,14 +60,35 @@ page user shared route =
         , subscriptions = subscriptions
         , view = view user shared
         }
-        |> Page.withLayout (toLayout shared.theme)
+        |> Page.withLayout (toLayout shared)
 
 
-toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme _ =
+toLayout : Shared.Model -> Model -> Layouts.Layout Msg
+toLayout shared model =
+    let
+        configCheckIssues =
+            { profileIssues = profileIssues model shared.configCheck
+            , relaysIssues = ConfigCheck.relayIssues shared.configCheck
+            , mediaServersIssues = ConfigCheck.mediaServerIssues shared.configCheck
+            }
+
+        topPart =
+            Categories.new
+                { model = model.categories
+                , toMsg = CategoriesSent
+                , onSelect = CategorySelected
+                , equals = (==)
+                , image = \_ -> Nothing
+                , categories = availableCategories shared.browserEnv.translations configCheckIssues
+                , browserEnv = shared.browserEnv
+                , theme = shared.theme
+                }
+                |> Categories.view
+    in
     Layouts.Sidebar.new
-        { styles = Ui.Styles.stylesForTheme theme
+        { theme = shared.theme
         }
+        |> Layouts.Sidebar.withTopPart topPart
         |> Layouts.Sidebar
 
 
@@ -878,18 +899,7 @@ view user shared model =
     in
     { title = Translations.pageTitle [ shared.browserEnv.translations ]
     , body =
-        [ Categories.new
-            { model = model.categories
-            , toMsg = CategoriesSent
-            , onSelect = CategorySelected
-            , equals = (==)
-            , image = \_ -> Nothing
-            , categories = availableCategories shared.browserEnv.translations configCheckIssues
-            , browserEnv = shared.browserEnv
-            , styles = stylesForTheme shared.theme
-            }
-            |> Categories.view
-        , viewCategory shared configCheckIssues model user
+        [ viewCategory shared configCheckIssues model user
         ]
     }
 

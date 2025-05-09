@@ -49,14 +49,55 @@ page shared route =
         , subscriptions = subscriptions
         , view = view shared
         }
-        |> Page.withLayout (toLayout shared.theme)
+        |> Page.withLayout (toLayout shared)
 
 
-toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme _ =
+toLayout : Shared.Model -> Model -> Layouts.Layout Msg
+toLayout shared model =
+    let
+        postButton =
+            Shared.loggedInSigningPubKey shared.loginStatus
+                |> Maybe.map (\pubKey ->
+                    if Nostr.isBetaTester shared.nostr pubKey then
+                        Html.div
+                            [ css
+                                [ Tw.flex
+                                , Tw.mx_8
+                                , Tw.my_4
+                                ]
+                            ]
+                            [ Button.new
+                                { theme = shared.theme
+                                , onClick = Just (ShowPicturePostDialog pubKey)
+                                , label = Translations.newPicturePostButtonLabel [ shared.browserEnv.translations ]
+                                }
+                                |> Button.view
+                            ]
+                    else
+                        emptyHtml
+                )
+                |> Maybe.withDefault emptyHtml
+        topPart =
+            Html.div
+                []
+                [ postButton
+                ,  Components.Categories.new
+                    { model = model.categories
+                    , toMsg = CategoriesSent
+                    , onSelect = CategorySelected
+                    , equals = \category1 category2 -> category1 == category2
+                    , image = categoryImage shared.browserEnv
+                    , categories = availableCategories shared.nostr shared.loginStatus shared.browserEnv.translations
+                    , browserEnv = shared.browserEnv
+                    , theme = shared.theme
+                    }
+                    |> Components.Categories.view
+                ]
+    in
     Layouts.Sidebar.new
-        { styles = Ui.Styles.stylesForTheme theme
+        { theme = shared.theme
         }
+        |> Layouts.Sidebar.withTopPart topPart
         |> Layouts.Sidebar
 
 
@@ -403,50 +444,12 @@ memesCategory translations =
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     let
-        styles =
-            Ui.Styles.stylesForTheme shared.theme
-
         userPubKey =
             Shared.loggedInPubKey shared.loginStatus
-
-        postButton =
-            Shared.loggedInSigningPubKey shared.loginStatus
-                |> Maybe.map (\pubKey ->
-                    if Nostr.isBetaTester shared.nostr pubKey then
-                        Html.div
-                            [ css
-                                [ Tw.flex
-                                , Tw.mx_8
-                                , Tw.my_4
-                                ]
-                            ]
-                            [ Button.new
-                                { theme = shared.theme
-                                , onClick = Just (ShowPicturePostDialog pubKey)
-                                , label = Translations.newPicturePostButtonLabel [ shared.browserEnv.translations ]
-                                }
-                                |> Button.view
-                            ]
-                    else
-                        emptyHtml
-                )
-                |> Maybe.withDefault emptyHtml
     in
     { title = Translations.pageTitle [ shared.browserEnv.translations ]
     , body =
-        [ postButton
-        ,  Components.Categories.new
-            { model = model.categories
-            , toMsg = CategoriesSent
-            , onSelect = CategorySelected
-            , equals = \category1 category2 -> category1 == category2
-            , image = categoryImage shared.browserEnv
-            , categories = availableCategories shared.nostr shared.loginStatus shared.browserEnv.translations
-            , browserEnv = shared.browserEnv
-            , styles = styles
-            }
-            |> Components.Categories.view
-        , viewContent shared model userPubKey
+        [ viewContent shared model userPubKey
         , model.picturePostDialog
             |> Maybe.map (\picturePostDialog ->
                 PicturePostDialog.new 

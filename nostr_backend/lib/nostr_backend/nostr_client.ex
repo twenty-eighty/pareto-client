@@ -70,14 +70,49 @@ defmodule NostrBackend.NostrClient do
     fetch_from_relays(relays, profile_hex_id, :profile)
   end
 
+  @spec fetch_follow_list(String.t(), list()) :: {:ok, map()} | {:error, String.t()}
+  def fetch_follow_list(pubkey, []) do
+    fetch_follow_list(pubkey, @relay_urls)
+  end
+
+  def fetch_follow_list(pubkey, relay_urls) do
+    fetch_from_relays(relay_urls, pubkey, :follow_list)
+  end
+
+  @spec fetch_author_articles(String.t(), list()) :: {:ok, list(map())} | {:error, String.t()}
+  def fetch_author_articles(pubkey, []) do
+    fetch_author_articles(pubkey, @relay_urls)
+  end
+
+  def fetch_author_articles(pubkey, relay_urls) do
+    # Return raw events – ArticleCache will handle parsing and caching
+    fetch_from_relays(relay_urls, pubkey, :author_articles)
+  end
+
+  @spec fetch_multiple_authors_articles(list(String.t()), list()) :: {:ok, list(map())} | {:error, String.t()}
+  def fetch_multiple_authors_articles(pubkeys, []) do
+    fetch_multiple_authors_articles(pubkeys, @relay_urls)
+  end
+
+  def fetch_multiple_authors_articles(pubkeys, relay_urls) do
+    Logger.info("Fetching articles for #{length(pubkeys)} authors from #{length(relay_urls)} relays")
+    fetch_from_relays(relay_urls, pubkeys, :multiple_authors_articles)
+  end
+
   defp fetch_from_relays([], _id, _type) do
+    Logger.error("Failed to fetch data from all relays")
     {:error, "Failed to fetch data from all relays"}
   end
 
   defp fetch_from_relays([relay | rest], id, type) do
+    Logger.info("Fetching from relay: #{relay}")
     case fetch_from_relay(relay, id, type) do
-      {:ok, data} -> {:ok, data}
-      {:error, _reason} -> fetch_from_relays(rest, id, type)
+      {:ok, data} ->
+        Logger.info("Successfully fetched data from relay #{relay}: #{length(data)} items")
+        {:ok, data}
+      {:error, reason} ->
+        Logger.warning("Failed to fetch from relay #{relay}: #{inspect(reason)}, trying next relay")
+        fetch_from_relays(rest, id, type)
     end
   end
 
@@ -102,7 +137,7 @@ defmodule NostrBackend.NostrClient do
   end
 
   defp start_link(relay_url, caller_pid) do
-    IO.inspect(relay_url, label: "Relay URL")
+    Logger.debug("Relay URL: #{relay_url}")
 
     WebSockex.start_link(relay_url, __MODULE__, %{caller_pid: caller_pid},
       handle_initial_conn_failure: true
@@ -113,34 +148,49 @@ defmodule NostrBackend.NostrClient do
     subscription_id = UUID.uuid4()
     request = ["REQ", subscription_id | filters]
 
-    Logger.debug("Sending request: #{inspect(request)}")
+    Logger.info("Sending request to WebSocket: #{inspect(request)}")
 
     WebSockex.send_frame(pid, {:text, Jason.encode!(request)})
 
+    Logger.info("Waiting for events...")
+    collect_events(subscription_id, pid, [])
+  end
+
+  defp collect_events(subscription_id, pid, events) do
     receive do
       {:event, ^subscription_id, event} ->
         Logger.debug("Received event for subscription_id: #{subscription_id}")
-        WebSockex.send_frame(pid, {:text, Jason.encode!(["CLOSE", subscription_id])})
-        Process.exit(pid, :normal)
-        {:ok, event}
+        # Extract the event data from the tuple/list format
+        event_data = case event do
+          [{"EVENT", _sub_id, data}] -> data
+          {"EVENT", _sub_id, data} -> data
+          data when is_map(data) -> data
+          _ -> event
+        end
+        Logger.debug("Extracted event data: #{inspect(Map.take(event_data, ["id", "pubkey", "kind"]))}")
+        collect_events(subscription_id, pid, [event_data | events])
 
       {:eose, ^subscription_id} ->
-        Logger.debug("Received EOSE for subscription_id: #{subscription_id}, no events found")
+        Logger.info("Received EOSE for subscription_id: #{subscription_id}, collected #{length(events)} events")
         WebSockex.send_frame(pid, {:text, Jason.encode!(["CLOSE", subscription_id])})
         Process.exit(pid, :normal)
-        {:error, "No events found"}
+        if events == [] do
+          Logger.warning("No events found for subscription_id: #{subscription_id}")
+          {:error, "No events found"}
+        else
+          Logger.info("Returning #{length(events)} events")
+          {:ok, Enum.reverse(events)}
+        end
 
       {:notice, notice} ->
-        Logger.debug(
-          "Received notice for subscription_id: #{subscription_id}: #{inspect(notice)}"
-        )
-
+        Logger.warning("Received notice for subscription_id: #{subscription_id}: #{inspect(notice)}")
         WebSockex.send_frame(pid, {:text, Jason.encode!(["CLOSE", subscription_id])})
         Process.exit(pid, :normal)
         {:error, "No events found"}
     after
       15_000 ->
-        Logger.error("Timeout while fetching event")
+        Logger.error("Timeout while fetching event for subscription_id: #{subscription_id}")
+        WebSockex.send_frame(pid, {:text, Jason.encode!(["CLOSE", subscription_id])})
         Process.exit(pid, :normal)
         {:error, "Timeout while fetching event"}
     end
@@ -206,6 +256,39 @@ defmodule NostrBackend.NostrClient do
   defp build_filters(pubkey, :profile),
     do: [%{"authors" => [pubkey], "kinds" => [0], "limit" => 1}]
 
+  defp build_filters(pubkey, :follow_list) do
+    [
+      %{
+        "authors" => [pubkey],
+        "kinds" => [3],
+        "limit" => 1
+      }
+    ]
+  end
+
+  defp build_filters(pubkey, :author_articles) do
+    [
+      %{
+        "authors" => [pubkey],
+        "kinds" => [30023],  # Article kind
+        "limit" => 1000  # Adjust this based on your needs
+      }
+    ]
+  end
+
+  defp build_filters(pubkeys, :multiple_authors_articles) do
+    Logger.info("Building filters for multiple authors articles: #{length(pubkeys)} authors")
+    filters = [
+      %{
+        "authors" => pubkeys,
+        "kinds" => [30023],  # Article kind
+        "limit" => 1000  # Adjust this based on your needs
+      }
+    ]
+    Logger.info("Built filters: #{inspect(filters)}")
+    filters
+  end
+
   @impl true
   def handle_frame({:text, msg}, %{caller_pid: caller_pid} = state) do
     Logger.debug("Received frame: #{msg}")
@@ -213,7 +296,7 @@ defmodule NostrBackend.NostrClient do
     case Jason.decode(msg) do
       {:ok, ["EVENT", subscription_id, event]} ->
         Logger.debug("Received EVENT with subscription_id: #{subscription_id}")
-        send(caller_pid, {:event, subscription_id, event})
+        send(caller_pid, {:event, subscription_id, {"EVENT", subscription_id, event}})
         {:ok, state}
 
       {:ok, ["EOSE", subscription_id]} ->
