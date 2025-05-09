@@ -255,21 +255,7 @@ update shared msg model =
         AddLoadedContent url ->
             case model of
                 Nip19Model nip19ModelData ->
-                    let
-                        maybeAuthorsPubKey =
-                            Nostr.getArticleForNip19 shared.nostr nip19ModelData.nip19 |> Maybe.map .author
-
-                        buildRequestArticlesEffect : Nostr.Model -> PubKey -> Effect Msg
-                        buildRequestArticlesEffect nostr pubKey =
-                            { emptyEventFilter | kinds = Just [ KindFollows ], authors = Nothing, tagReferences = Just [ TagReferencePubKey pubKey ], limit = Just 0 }
-                                |> RequestFollowSets
-                                |> Nostr.createRequest nostr "Followers of user" []
-                                |> Shared.Msg.RequestNostrEvents
-                                |> Effect.sendSharedMsg
-                    in
-                    ( Nip19Model { nip19ModelData | loadedContent = LinkPreview.addLoadedContent nip19ModelData.loadedContent url }
-                    , maybeAuthorsPubKey |> Maybe.map (buildRequestArticlesEffect shared.nostr) |> Maybe.withDefault Effect.none
-                    )
+                    ( Nip19Model { nip19ModelData | loadedContent = LinkPreview.addLoadedContent nip19ModelData.loadedContent url }, Effect.none )
 
                 _ ->
                     ( model, Effect.none )
