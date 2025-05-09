@@ -5,6 +5,7 @@ defmodule NostrBackend.FeedGenerator do
   alias NostrBackend.FollowListCache
   alias NostrBackend.ArticleCache
   alias Sitemapper
+  alias NostrBackend.RSSGenerator
 
   @moduledoc """
   Generates Atom feeds and sitemaps for articles from followed authors.
@@ -118,6 +119,9 @@ defmodule NostrBackend.FeedGenerator do
     # Generate language-specific feeds
     generate_language_feed(articles, "en", "English Articles")
     generate_language_feed(articles, "de", "German Articles")
+
+    # Generate RSS feed for all articles
+    RSSGenerator.generate_rss(articles, "feed.xml", "Pareto Articles", "Articles from Pareto authors")
   end
 
   defp generate_language_feed(articles, language_code, feed_title) do
@@ -175,6 +179,10 @@ defmodule NostrBackend.FeedGenerator do
       xml = Atomex.Feed.build(feed_with_entries) |> Atomex.generate_document()
       File.write!("#{@base_path}/atom/#{language_code}_feed.xml", xml)
       Logger.info("Generated language feed for #{language_code} with #{length(sorted_articles)} articles")
+
+      # Generate RSS feed for this language
+      rss_filename = "#{language_code}_feed.xml"
+      RSSGenerator.generate_rss(sorted_articles, rss_filename, title, subtitle)
     else
       Logger.info("No articles found for language #{language_code}, skipping feed generation")
     end
@@ -319,6 +327,14 @@ defmodule NostrBackend.FeedGenerator do
       |> Atomex.Entry.author(author_name)
       |> Atomex.Entry.content(content, type: "html")
       |> Atomex.Entry.link("#{base_url()}/a/#{naddr}", rel: "alternate", type: "text/html")
+
+      # Add image as enclosure if present, with MIME type derived from extension
+      entry = if article.image_url do
+        mime = image_mime_type(article.image_url)
+        Atomex.Entry.link(entry, article.image_url, rel: "enclosure", type: mime)
+      else
+        entry
+      end
 
       # Add summary if present
       entry =
@@ -594,5 +610,17 @@ defmodule NostrBackend.FeedGenerator do
 
   defp base_url do
     "https://#{Application.get_env(:nostr_backend, NostrBackendWeb.Endpoint)[:url][:host]}"
+  end
+
+  # Derive MIME type based on the file extension of a URL
+  defp image_mime_type(url) do
+    case Path.extname(url) |> String.downcase() do
+      ".jpg" -> "image/jpeg"
+      ".jpeg" -> "image/jpeg"
+      ".png" -> "image/png"
+      ".gif" -> "image/gif"
+      ".svg" -> "image/svg+xml"
+      _ -> "application/octet-stream"
+    end
   end
 end

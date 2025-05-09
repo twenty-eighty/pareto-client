@@ -94,6 +94,15 @@ defmodule NostrBackendWeb.Router do
     end
   end
 
+  # Static atom feeds
+  scope "/rss", NostrBackendWeb do
+    pipe_through :browser
+
+    get "/feed.xml", StaticFileController, :atom_feed
+    get "/en_feed.xml", StaticFileController, :en_atom_feed
+    get "/de_feed.xml", StaticFileController, :de_atom_feed
+  end
+
   # Sitemaps
   scope "/sitemap", NostrBackendWeb do
     pipe_through :browser
