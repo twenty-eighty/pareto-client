@@ -12,9 +12,6 @@ defmodule NostrBackend.RSSGenerator do
   @default_feed_filename "feed.xml"
 
   @doc """
-  Generate the RSS feed from a list of article structs.
-  """
-  @doc """
   Generate the RSS feed for a list of articles.
   You can override the filename, channel title, and channel description.
   """

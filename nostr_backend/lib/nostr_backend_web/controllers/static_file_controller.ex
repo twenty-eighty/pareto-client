@@ -8,33 +8,33 @@ defmodule NostrBackendWeb.StaticFileController do
   # Atom feeds
   def atom_feed(conn, _params) do
     file_path = Path.join(@atom_path, "feed.xml")
-    serve_feed(conn, file_path)
+    serve_atom_feed(conn, file_path)
   end
 
   def en_atom_feed(conn, _params) do
     file_path = Path.join(@atom_path, "en_feed.xml")
-    serve_feed(conn, file_path)
+    serve_atom_feed(conn, file_path)
   end
 
   def de_atom_feed(conn, _params) do
     file_path = Path.join(@atom_path, "de_feed.xml")
-    serve_feed(conn, file_path)
+    serve_atom_feed(conn, file_path)
   end
 
   # RSS feeds
   def rss_feed(conn, _params) do
     file_path = Path.join(@rss_path, "feed.xml")
-    serve_feed(conn, file_path)
+    serve_rss_feed(conn, file_path)
   end
 
   def en_rss_feed(conn, _params) do
     file_path = Path.join(@rss_path, "en_feed.xml")
-    serve_feed(conn, file_path)
+    serve_rss_feed(conn, file_path)
   end
 
   def de_rss_feed(conn, _params) do
     file_path = Path.join(@rss_path, "de_feed.xml")
-    serve_feed(conn, file_path)
+    serve_rss_feed(conn, file_path)
   end
 
   def sitemap(conn, _params) do
@@ -58,19 +58,6 @@ defmodule NostrBackendWeb.StaticFileController do
     serve_gzipped_sitemap(conn, file_path)
   end
 
-  defp serve_feed(conn, file_path) do
-    case File.exists?(file_path) do
-      true ->
-        conn
-        |> put_resp_content_type("application/atom+xml")
-        |> send_file(200, file_path)
-      false ->
-        conn
-        |> put_status(404)
-        |> text("Feed not found")
-    end
-  end
-
   defp serve_gzipped_sitemap(conn, file_path) do
     case File.exists?(file_path) do
       true ->
@@ -82,6 +69,28 @@ defmodule NostrBackendWeb.StaticFileController do
         conn
         |> put_status(404)
         |> text("Sitemap not found")
+    end
+  end
+
+  defp serve_atom_feed(conn, file_path) do
+    serve_file(conn, file_path, "application/atom+xml")
+  end
+
+  defp serve_rss_feed(conn, file_path) do
+    serve_file(conn, file_path, "application/rss+xml")
+  end
+
+  # Generic file serving with MIME type parameter
+  defp serve_file(conn, file_path, content_type) do
+    case File.exists?(file_path) do
+      true ->
+        conn
+        |> put_resp_content_type(content_type)
+        |> send_file(200, file_path)
+      false ->
+        conn
+        |> put_status(404)
+        |> text("File not found")
     end
   end
 end
