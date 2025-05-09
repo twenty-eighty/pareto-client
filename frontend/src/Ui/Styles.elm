@@ -264,6 +264,7 @@ customThemeStyles { color1, color1DarkMode, color2, color2DarkMode, color3, colo
             [ Tw.text_5xl
             , Tw.font_bold
             , Tw.leading_tight
+            , Tw.hyphens_auto
             ]
         , fontFamilyInter
         , Attr.style "line-height" "auto"
