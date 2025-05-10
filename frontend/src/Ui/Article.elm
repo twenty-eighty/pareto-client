@@ -42,6 +42,7 @@ import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyInter, fontFamilyRobotoMono, fontFamilyUnbounded)
+import Url
 
 
 type alias ArticlePreviewsData msg =
@@ -69,7 +70,7 @@ type alias ArticlePreviewData msg =
 
 linkToHashtag : String -> String
 linkToHashtag hashtag =
-    "/t/" ++ hashtag
+    "/t/" ++ Url.percentEncode hashtag
 
 
 -- single article
