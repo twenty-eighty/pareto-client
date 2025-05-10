@@ -459,11 +459,10 @@ viewSidebar props shared currentPath toContentMsg content =
                             , Bp.xl
                                 [ Tw.w_52 ]
                             , Bp.sm
-                                [ Tw.inline
+                                [ Tw.flex_col
                                 , Tw.w_20
-                                , Tw.top_0
                                 , Tw.relative
-                                , Tw.justify_items_center
+                                , Tw.items_center
                                 , Tw.h_screen
                                 , Tw.border_r
                                 ]
@@ -583,9 +582,11 @@ viewBannerSmall browserEnv =
             , Bp.sm
                 [ Tw.mt_3
                 , Tw.mb_11
-                , Tw.items_center
+                , Tw.flex
+                , Tw.justify_center
                 ]
             ]
+        , Attr.attribute "aria-label" (Translations.linkToHomeAriaLabel [ browserEnv.translations ])
         , Attr.href <| Route.Path.toString Route.Path.Read
         ]
         [ div
@@ -610,10 +611,8 @@ viewBannerSmall browserEnv =
                     [ Tw.hidden
                     ]
                 , Bp.sm
-                    [ Tw.mr_0
-                    , Tw.h_auto
+                    [ Tw.h_auto
                     , Tw.w_auto
-                    , Tw.overflow_hidden
                     ]
                 ]
             ]
@@ -703,6 +702,9 @@ viewSidebarItems theme sidebarItemParams =
             , Bp.sm
                 [ Tw.grid_rows_9
                 , Tw.grid_cols_1
+                -- compensate calculated margin left 16
+                , Tw.pr_4
+                , Tw.justify_items_center
                 , Css.property "height" "560px"
                 ]
             ]

@@ -677,7 +677,8 @@
       "settings menu item text": "Settings",
       "subscribers menu item text": "Subscribers",
       "write menu item text": "Write",
-      "about menu item text": "About"
+      "about menu item text": "About",
+      "link to home aria label": "Home"
    },
    "sign-in": {
       "page title": "Sign in/up",

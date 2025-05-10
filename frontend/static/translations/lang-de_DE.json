@@ -673,7 +673,8 @@
       "settings menu item text": "Einstellungen",
       "subscribers menu item text": "Abonnenten",
       "write menu item text": "Schreiben",
-      "about menu item text": "Über"
+      "about menu item text": "Über",
+      "link to home aria label": "Startseite"
    },
    "sign-in": {
       "page title": "Anmelden/Konto anlegen",
