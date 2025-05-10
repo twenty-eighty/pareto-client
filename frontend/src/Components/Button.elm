@@ -281,8 +281,8 @@ stylesForTheme (Settings settings) =
             case settings.type_ of
                 RegularButton ->
                     if settings.isDisabled then
-                        ( [ Tw.text_color styles.color2, darkMode [ Tw.text_color styles.color2DarkMode ] ]
-                        , [ Tw.bg_color styles.color1, darkMode [ Tw.bg_color styles.color1DarkMode ] ]
+                        ( [ Tw.text_color styles.color3, darkMode [ Tw.text_color styles.color3DarkMode ] ]
+                        , [ Tw.bg_color styles.color2, darkMode [ Tw.bg_color styles.color2DarkMode ] ]
                         )
 
                     else
@@ -295,8 +295,8 @@ stylesForTheme (Settings settings) =
 
                 PrimaryButton ->
                     if settings.isDisabled then
-                        ( [ Tw.text_color styles.color2, darkMode [ Tw.text_color styles.color2DarkMode ] ]
-                        , [ Tw.bg_color styles.color1, darkMode [ Tw.bg_color styles.color1DarkMode ] ]
+                        ( [ Tw.text_color styles.color3, darkMode [ Tw.text_color styles.color3DarkMode ] ]
+                        , [ Tw.bg_color styles.color2, darkMode [ Tw.bg_color styles.color2DarkMode ] ]
                         )
 
                     else
@@ -306,8 +306,8 @@ stylesForTheme (Settings settings) =
 
                 SecondaryButton ->
                     if settings.isDisabled then
-                        ( [ Tw.text_color styles.color2, darkMode [ Tw.text_color styles.color2DarkMode ] ]
-                        , [ Tw.bg_color styles.color1, darkMode [ Tw.bg_color styles.color1DarkMode ] ]
+                        ( [ Tw.text_color styles.color3, darkMode [ Tw.text_color styles.color3DarkMode ] ]
+                        , [ Tw.bg_color styles.color2, darkMode [ Tw.bg_color styles.color2DarkMode ] ]
                         )
 
                     else

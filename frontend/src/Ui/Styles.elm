@@ -382,9 +382,9 @@ customThemeStyles { color1, color1DarkMode, color2, color2DarkMode, color3, colo
         ]
     , colorStyleGrayscaleMuted =
         [ css
-            [ Tw.text_color color2
+            [ Tw.text_color color3
             , darkMode
-                [ Tw.text_color color2DarkMode
+                [ Tw.text_color color3DarkMode
                 ]
             ]
         ]
