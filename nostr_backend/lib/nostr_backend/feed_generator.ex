@@ -158,10 +158,6 @@ defmodule NostrBackend.FeedGenerator do
 
       # Create language specific feed
       feed_id = "#{base_url()}/atom/#{language_code}_feed.xml"
-      feed = Atomex.Feed.new(feed_id, most_recent_date, title)
-        |> Atomex.Feed.subtitle(subtitle)
-        |> Atomex.Feed.link(feed_id, rel: "self", type: "application/atom+xml")
-        |> Atomex.Feed.link("#{base_url()}/", rel: "alternate", type: "text/html")
 
       # Create entries
       entries = Enum.map(sorted_articles, fn article ->
@@ -172,12 +168,15 @@ defmodule NostrBackend.FeedGenerator do
       end)
       |> Enum.reject(&is_nil/1)
 
-      # Add entries to feed
-      feed_with_entries = Atomex.Feed.entries(feed, entries)
-
       # Generate XML and write to file
-      xml = Atomex.Feed.build(feed_with_entries) |> Atomex.generate_document()
-      File.write!("#{@base_path}/atom/#{language_code}_feed.xml", xml)
+      xml = Atomex.Feed.new(feed_id, most_recent_date, title)
+      |> Atomex.Feed.subtitle(subtitle)
+      |> Atomex.Feed.link(feed_id, rel: "self", type: "application/atom+xml")
+      |> Atomex.Feed.link("#{base_url()}/", rel: "alternate", type: "text/html")
+      |> Atomex.Feed.entries(entries)
+      |> Atomex.Feed.build(%{"xmlns:media" => "http://search.yahoo.com/mrss/"})
+      |> Atomex.generate_document()
+      atomic_write("#{@atom_path}/#{language_code}_feed.xml", xml)
       Logger.info("Generated language feed for #{language_code} with #{length(sorted_articles)} articles")
 
       # Generate RSS feed for this language
@@ -238,15 +237,14 @@ defmodule NostrBackend.FeedGenerator do
     Logger.debug("Generated #{length(entries)} feed entries")
 
     feed_id = "#{base_url()}/atom/feed.xml"
-    feed = Atomex.Feed.new(feed_id, most_recent_date, "Pareto Articles")
+    xml = Atomex.Feed.new(feed_id, most_recent_date, "Pareto Articles")
     |> Atomex.Feed.subtitle("Articles from Pareto authors")
     |> Atomex.Feed.link(feed_id, rel: "self", type: "application/atom+xml")
     |> Atomex.Feed.link("#{base_url()}/", rel: "alternate", type: "text/html")
     |> Atomex.Feed.entries(entries)
-    |> Atomex.Feed.build()
+    |> Atomex.Feed.build(%{"xmlns:media" => "http://search.yahoo.com/mrss/"})
     |> Atomex.generate_document()
-
-    File.write!("#{@atom_path}/feed.xml", feed)
+    atomic_write("#{@atom_path}/feed.xml", xml)
   end
 
   defp article_to_feed_entry(article) do
@@ -330,8 +328,7 @@ defmodule NostrBackend.FeedGenerator do
 
       # Add image as enclosure if present, with MIME type derived from extension
       entry = if article.image_url do
-        mime = image_mime_type(article.image_url)
-        Atomex.Entry.link(entry, article.image_url, rel: "enclosure", type: mime)
+        Atomex.Entry.add_field(entry, :"media:thumbnail", %{url: article.image_url}, nil)
       else
         entry
       end
@@ -423,7 +420,7 @@ defmodule NostrBackend.FeedGenerator do
 </urlset>)
 
           # Write the XML file
-          File.write!(sitemap_path, sitemap_content)
+          atomic_write(sitemap_path, sitemap_content)
           Logger.info("Wrote sitemap file: #{sitemap_path}")
 
           # Compress the XML file
@@ -470,7 +467,7 @@ defmodule NostrBackend.FeedGenerator do
 
     # Write the index file
     sitemap_index_path = "#{@sitemap_path}/sitemap.xml"
-    File.write!(sitemap_index_path, sitemap_index_content)
+    atomic_write(sitemap_index_path, sitemap_index_content)
 
     # Compress the index file
     :os.cmd(~c"gzip -f #{sitemap_index_path}")
@@ -490,7 +487,7 @@ defmodule NostrBackend.FeedGenerator do
     """
 
     Logger.info("Generating robots.txt file pointing to #{sitemap_url}")
-    File.write!("#{@base_path}/robots.txt", robots_txt)
+    atomic_write("#{@base_path}/robots.txt", robots_txt)
   end
 
   defp generate_author_sitemap(follow_list) do
@@ -502,22 +499,11 @@ defmodule NostrBackend.FeedGenerator do
 
     # Create author sitemap XML content
     urls_xml = Enum.map(follow_list, fn pubkey ->
-      # Get author profile using default relay list
-      author_profile = case NostrBackend.ProfileCache.get_profile(pubkey, []) do
-        {:ok, profile} -> profile
-        _ -> %{}
-      end
+      nprofile = NostrBackend.NIP19.encode_nprofile(pubkey, [relay])
+      Logger.debug("Generated author nprofile: #{nprofile}")
 
-      # Determine the author URL path: use NIP-05 if available, otherwise use nprofile
-      author_url = if author_profile[:nip05] do
-        # Use NIP-05 for the URL if available
-        "/u/#{author_profile.nip05}"
-      else
-        # Use the correct nprofile format with relay information
-        nprofile = NostrBackend.NIP19.encode_nprofile(pubkey, [relay])
-        Logger.debug("Generated author nprofile: #{nprofile}")
+      author_url =
         "/p/#{nprofile}"
-      end
 
       ~s(  <url>
     <loc>#{base_url()}#{author_url}</loc>
@@ -534,7 +520,7 @@ defmodule NostrBackend.FeedGenerator do
 
     # Write the XML file
     sitemap_path = "#{@sitemap_path}/sitemap-authors.xml"
-    File.write!(sitemap_path, sitemap_content)
+    atomic_write(sitemap_path, sitemap_content)
 
     # Compress the XML file
     :os.cmd(~c"gzip -f #{sitemap_path}")
@@ -566,7 +552,7 @@ defmodule NostrBackend.FeedGenerator do
         new_sitemap_index = String.replace(sitemap_index, "</sitemapindex>", "#{author_entry}</sitemapindex>")
 
         # Write the updated sitemap index
-        File.write!(sitemap_index_path, new_sitemap_index)
+        atomic_write(sitemap_index_path, new_sitemap_index)
 
         # Compress the updated index
         :os.cmd(~c"gzip -f #{sitemap_index_path}")
@@ -612,15 +598,10 @@ defmodule NostrBackend.FeedGenerator do
     "https://#{Application.get_env(:nostr_backend, NostrBackendWeb.Endpoint)[:url][:host]}"
   end
 
-  # Derive MIME type based on the file extension of a URL
-  defp image_mime_type(url) do
-    case Path.extname(url) |> String.downcase() do
-      ".jpg" -> "image/jpeg"
-      ".jpeg" -> "image/jpeg"
-      ".png" -> "image/png"
-      ".gif" -> "image/gif"
-      ".svg" -> "image/svg+xml"
-      _ -> "application/octet-stream"
-    end
+  # Atomically write to a temp file then rename to ensure atomic filesystem updates
+  defp atomic_write(path, contents) do
+    tmp = path <> ".tmp"
+    File.write!(tmp, contents)
+    File.rename!(tmp, path)
   end
 end

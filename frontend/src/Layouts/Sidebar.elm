@@ -39,7 +39,7 @@ import View exposing (View)
 type alias Props contentMsg =
     { theme : Theme
     , fixedLeftPart : Maybe (Html contentMsg)
-    , fixedTopPart : Maybe (Html contentMsg)
+    , fixedTopPart : Maybe (Html contentMsg, String)
     }
 
 
@@ -47,7 +47,7 @@ map : (msg1 -> msg2) -> Props msg1 -> Props msg2
 map toMsg props =
     { theme = props.theme
     , fixedLeftPart = Maybe.map (Html.map toMsg) props.fixedLeftPart
-    , fixedTopPart = Maybe.map (Html.map toMsg) props.fixedTopPart
+    , fixedTopPart = Maybe.map (\( html, height ) -> ( Html.map toMsg html, height )) props.fixedTopPart
     }
 
 
@@ -64,9 +64,9 @@ withLeftPart leftPart props =
     { props | fixedLeftPart = Just leftPart }
 
 
-withTopPart : Html contentMsg -> Props contentMsg -> Props contentMsg
-withTopPart topPart props =
-    { props | fixedTopPart = Just topPart }
+withTopPart : Html contentMsg -> String -> Props contentMsg -> Props contentMsg
+withTopPart topPart height props =
+    { props | fixedTopPart = Just ( topPart, height ) }
 
 -- this function checks if a route will be available in reader mode after login
 
@@ -100,6 +100,7 @@ clientRoleForRoutePath environment path =
 type alias SidebarItemData =
     { path : Route.Path.Path
     , title : String
+    , ariaLabel : String
     , icon : Icon
     , requiresLogin : Bool
     , requiresAuthor : Bool
@@ -169,31 +170,129 @@ rawSidebarItems : ClientRole -> I18Next.Translations -> List SidebarItemData
 rawSidebarItems clientRole translations =
     case clientRole of
         ClientReader ->
-            [ { path = Route.Path.Read, title = Translations.readMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bookOpen, requiresLogin = False, requiresAuthor = False, disabled = False }
-            , { path = Route.Path.Pictures, title = Translations.picturesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.image, requiresLogin = False, requiresAuthor = False, disabled = False }
-            , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, requiresAuthor = False, disabled = False }
+            [ { path = Route.Path.Read
+              , title = Translations.readMenuItemText [ translations ]
+              , ariaLabel = Translations.readMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.bookOpen
+              , requiresLogin = False
+              , requiresAuthor = False
+              , disabled = False
+              }
+            , { path = Route.Path.Pictures
+              , title = Translations.picturesMenuItemText [ translations ]
+              , ariaLabel = Translations.picturesMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.image
+              , requiresLogin = False
+              , requiresAuthor = False
+              , disabled = False
+              }
+            , { path = Route.Path.Search
+              , title = Translations.searchMenuItemText [ translations ]
+              , ariaLabel = Translations.searchMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.search
+              , requiresLogin = False
+              , requiresAuthor = False
+              , disabled = False
+              }
 
             --, { path = Route.Path.Communities, title = Translations.communitiesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.globe, requiresLogin = False, requiresAuthor = False, disabled = False }
-            , { path = Route.Path.Bookmarks, title = Translations.bookmarksMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bookmark, requiresLogin = True, requiresAuthor = False, disabled = False }
-            , { path = Route.Path.Authors, title = Translations.authorsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.users, requiresLogin = False, requiresAuthor = False, disabled = False }
+            , { path = Route.Path.Bookmarks
+              , title = Translations.bookmarksMenuItemText [ translations ]
+              , ariaLabel = Translations.bookmarksMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.bookmark
+              , requiresLogin = True
+              , requiresAuthor = False
+              , disabled = False
+              }
+            , { path = Route.Path.Authors
+              , title = Translations.authorsMenuItemText [ translations ]
+              , ariaLabel = Translations.authorsMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.users
+              , requiresLogin = False
+              , requiresAuthor = False
+              , disabled = False
+              }
 
             --, { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, requiresAuthor = False, disabled = True }
             --, { path = Route.Path.Notifications, title = Translations.notificationsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bell, requiresLogin = True, requiresAuthor = False, disabled = True }
-            , { path = Route.Path.Settings, title = Translations.settingsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.settings, requiresLogin = True, requiresAuthor = False, disabled = False }
-            , { path = Route.Path.About, title = Translations.aboutMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.helpCircle, requiresLogin = False, requiresAuthor = False, disabled = False }
+            , { path = Route.Path.Settings
+              , title = Translations.settingsMenuItemText [ translations ]
+              , ariaLabel = Translations.settingsMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.settings
+              , requiresLogin = True
+              , requiresAuthor = False
+              , disabled = False
+              }
+            , { path = Route.Path.About
+              , title = Translations.aboutMenuItemText [ translations ]
+              , ariaLabel = Translations.aboutMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.helpCircle
+              , requiresLogin = False
+              , requiresAuthor = False
+              , disabled = False
+              }
             ]
 
         ClientCreator ->
-            [ { path = Route.Path.Posts, title = Translations.postsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.fileText, requiresLogin = True, requiresAuthor = False, disabled = False }
-            , { path = Route.Path.Write, title = Translations.writeMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.feather, requiresLogin = True, requiresAuthor = False, disabled = False }
-            , { path = Route.Path.Subscribers, title = Translations.subscribersMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.users, requiresLogin = True, requiresAuthor = True, disabled = False }
-            , { path = Route.Path.Newsletters, title = Translations.newslettersMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, requiresAuthor = True, disabled = False }
-            , { path = Route.Path.Search, title = Translations.searchMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.search, requiresLogin = False, requiresAuthor = False, disabled = False }
-            , { path = Route.Path.Media, title = Translations.mediaMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.image, requiresLogin = False, requiresAuthor = False, disabled = False }
+            [ { path = Route.Path.Posts
+              , title = Translations.postsMenuItemText [ translations ]
+              , ariaLabel = Translations.postsMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.fileText
+              , requiresLogin = True
+              , requiresAuthor = False
+              , disabled = False
+              }
+            , { path = Route.Path.Write
+              , title = Translations.writeMenuItemText [ translations ]
+              , ariaLabel = Translations.writeMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.feather
+              , requiresLogin = True
+              , requiresAuthor = False
+              , disabled = False
+              }
+            , { path = Route.Path.Subscribers
+              , title = Translations.subscribersMenuItemText [ translations ]
+              , ariaLabel = Translations.subscribersMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.users
+              , requiresLogin = True
+              , requiresAuthor = True
+              , disabled = False
+              }
+            , { path = Route.Path.Newsletters
+              , title = Translations.newslettersMenuItemText [ translations ]
+              , ariaLabel = Translations.newslettersMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.mail
+              , requiresLogin = True
+              , requiresAuthor = True
+              , disabled = False
+              }
+            , { path = Route.Path.Search
+              , title = Translations.searchMenuItemText [ translations ]
+              , ariaLabel = Translations.searchMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.search
+              , requiresLogin = False
+              , requiresAuthor = False
+              , disabled = False
+              }
+            , { path = Route.Path.Media
+              , title = Translations.mediaMenuItemText [ translations ]
+              , ariaLabel = Translations.mediaMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.image
+              , requiresLogin = False
+              , requiresAuthor = False
+              , disabled = False
+              }
 
-            --, { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, requiresAuthor = False, disabled = True }
-            --, { path = Route.Path.Notifications, title = Translations.notificationsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bell, requiresLogin = True, requiresAuthor = False, disabled = True }
-            , { path = Route.Path.Settings, title = Translations.settingsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.settings, requiresLogin = True, requiresAuthor = False, disabled = False }
+            --, { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], ariaLabel = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, requiresAuthor = False, disabled = True }
+            --, { path = Route.Path.Notifications, title = Translations.notificationsMenuItemText [ translations ], ariaLabel = Translations.notificationsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bell, requiresLogin = True, requiresAuthor = False, disabled = True }
+            , { path = Route.Path.Settings
+              , title = Translations.settingsMenuItemText [ translations ]
+              , ariaLabel = Translations.settingsMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.settings
+              , requiresLogin = True
+              , requiresAuthor = False
+              , disabled = False
+              }
             ]
 
 
@@ -360,11 +459,10 @@ viewSidebar props shared currentPath toContentMsg content =
                             , Bp.xl
                                 [ Tw.w_52 ]
                             , Bp.sm
-                                [ Tw.inline
+                                [ Tw.flex_col
                                 , Tw.w_20
-                                , Tw.top_0
                                 , Tw.relative
-                                , Tw.justify_items_center
+                                , Tw.items_center
                                 , Tw.h_screen
                                 , Tw.border_r
                                 ]
@@ -438,8 +536,14 @@ viewSidebar props shared currentPath toContentMsg content =
         ]
 
 
-viewMainContent : List (Html contentMsg) -> Maybe (Html contentMsg) -> Html contentMsg
+viewMainContent : List (Html contentMsg) -> Maybe (Html contentMsg, String) -> Html contentMsg
 viewMainContent content maybeFixedTopPart =
+    let
+        topPartHeight =
+            maybeFixedTopPart
+                |> Maybe.map (\( _, height ) -> height)
+                |> Maybe.withDefault "0px"
+    in
     div
         [ css
             [ Tw.flex_1
@@ -448,6 +552,7 @@ viewMainContent content maybeFixedTopPart =
             ]
         ]
         [ maybeFixedTopPart
+            |> Maybe.map (\( html, _ ) -> html)
             |> Maybe.withDefault emptyHtml
         , main_
             [ class "page"
@@ -456,17 +561,17 @@ viewMainContent content maybeFixedTopPart =
                 [ Tw.flex_1
                 , Tw.overflow_y_auto
                 , Tw.relative
-                , Css.property "height" "calc(100vh - 5rem - 56px)" -- 5rem = 80px for header
+                , Css.property "height" ("calc(100vh - 5rem - 56px - " ++ topPartHeight ++ ")") -- 5rem = 80px for header
                 , Bp.sm
-                    [ Css.property "height" "calc(100vh - 5rem)" -- 5rem = 80px for header
+                    [ Css.property "height" ("calc(100vh - 5rem - " ++ topPartHeight ++ ")") -- 5rem = 80px for header
                     ]
                 ]
             ]
             [ div
                 [ css
-                    [ Tw.mb_16
+                    [ Tw.mb_4
                     , Bp.sm
-                        [ Tw.mb_2
+                        [ Tw.my_2
                         ]
                     ]
                 ]
@@ -484,9 +589,11 @@ viewBannerSmall browserEnv =
             , Bp.sm
                 [ Tw.mt_3
                 , Tw.mb_11
-                , Tw.items_center
+                , Tw.flex
+                , Tw.justify_center
                 ]
             ]
+        , Attr.attribute "aria-label" (Translations.linkToHomeAriaLabel [ browserEnv.translations ])
         , Attr.href <| Route.Path.toString Route.Path.Read
         ]
         [ div
@@ -511,10 +618,8 @@ viewBannerSmall browserEnv =
                     [ Tw.hidden
                     ]
                 , Bp.sm
-                    [ Tw.mr_0
-                    , Tw.h_auto
+                    [ Tw.h_auto
                     , Tw.w_auto
-                    , Tw.overflow_hidden
                     ]
                 ]
             ]
@@ -604,6 +709,9 @@ viewSidebarItems theme sidebarItemParams =
             , Bp.sm
                 [ Tw.grid_rows_9
                 , Tw.grid_cols_1
+                -- compensate calculated margin left 16
+                , Tw.pr_4
+                , Tw.justify_items_center
                 , Css.property "height" "560px"
                 ]
             ]
@@ -680,7 +788,9 @@ viewSidebarItem theme currentPath itemData =
             else
                 ( a
                 , colorStyleSitebarItemEnabled
-                , [ Attr.href <| Route.toString { path = itemData.path, hash = Nothing, query = Dict.empty } ]
+                , [ Attr.href <| Route.toString { path = itemData.path, hash = Nothing, query = Dict.empty }
+                  , Attr.attribute "aria-label" itemData.ariaLabel
+                  ]
                 )
     in
     element

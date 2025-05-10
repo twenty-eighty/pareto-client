@@ -24,7 +24,7 @@ defmodule NostrBackend.RSSGenerator do
     items = prepare_items(articles)
     xml = build_rss(items, channel_title, channel_desc)
     feed_path = Path.join(@rss_path, feed_filename)
-    File.write!(feed_path, xml)
+    atomic_write(feed_path, xml)
     Logger.info("Generated RSS feed '#{feed_filename}' with #{length(items)} items at #{feed_path}")
   end
 
@@ -123,5 +123,12 @@ defmodule NostrBackend.RSSGenerator do
     |> String.replace("&", "&amp;")
     |> String.replace("<", "&lt;")
     |> String.replace(">", "&gt;")
+  end
+
+  # Atomically write to a temp file then rename for atomic updates
+  defp atomic_write(path, contents) do
+    tmp = path <> ".tmp"
+    File.write!(tmp, contents)
+    File.rename!(tmp, path)
   end
 end

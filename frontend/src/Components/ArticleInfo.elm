@@ -6,6 +6,7 @@ import Dict
 import FeatherIcons
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr exposing (..)
+import I18Next
 import Nostr
 import Nostr.Article exposing (Article, publishedTime)
 import Nostr.Profile exposing (Author)
@@ -16,9 +17,9 @@ import Tailwind.Theme exposing (..)
 import Tailwind.Utilities as Tw exposing (..)
 import TextStats exposing (TextStats)
 import Translations.ArticleInfo as Translations
+import Ui.Article exposing (linkToHashtag)
 import Ui.Profile
 import Ui.Styles exposing (Styles)
-
 
 
 {- Article Info Component -}
@@ -129,7 +130,7 @@ view styles author article browserEnv interactions nostr =
                     ]
                 ]
                 [ text articlePublishedDate ]
-            , viewTags <| List.filter (\hashtag -> not (String.isEmpty hashtag)) <| article.hashtags
+            , viewTags browserEnv.translations <| List.filter (\hashtag -> not (String.isEmpty hashtag)) <| article.hashtags
             , viewArticleStats styles articleStats browserEnv
             , viewInteractions interactions
             ]
@@ -194,8 +195,8 @@ viewAuthorStat styles stat counter =
         ]
 
 
-viewTags : List String -> Html msg
-viewTags tags =
+viewTags : I18Next.Translations -> List String -> Html msg
+viewTags translations tags =
     ul
         [ css
             [ Tw.mt_3
@@ -211,7 +212,11 @@ viewTags tags =
                             , Tw.my_1_dot_5
                             ]
                         ]
-                        [ text <| "# " ++ tag ]
+                        [ a [ href (linkToHashtag tag)
+                            , Attr.attribute "aria-label" (Translations.linkToHashtagAriaLabel [ translations ] { hashtag = tag })
+                            ]
+                            [ text <| "# " ++ tag ]
+                        ]
                 )
         )
 
@@ -219,7 +224,7 @@ viewTags tags =
 viewArticleStats : Styles msg -> TextStats -> BrowserEnv -> Html msg
 viewArticleStats styles textStats browserEnv =
     let
-        toHtml label value unit =
+        toHtml label value =
             div
                 [ css
                     [ Tw.flex
@@ -237,11 +242,14 @@ viewArticleStats styles textStats browserEnv =
                     ]
                     [ text <| label ]
                 , dd []
-                    [ text <| (value ++ " " ++ unit) ]
+                    [ text <| value ]
                 ]
 
-        roundToTwoDecimals num =
-            toFloat (round (num * 10)) / 10
+        readingTime =
+            browserEnv.formatNumber "0.0" textStats.readingTime
+
+        speakingTime =
+            browserEnv.formatNumber "0.0" textStats.speakingTime
     in
     dl
         [ css
@@ -249,11 +257,11 @@ viewArticleStats styles textStats browserEnv =
             , Tw.mt_4
             ]
         ]
-        [ toHtml (Translations.readingTime [ browserEnv.translations ]) (String.fromFloat <| roundToTwoDecimals textStats.readingTime) (Translations.timeUnit [ browserEnv.translations ])
-        , toHtml (Translations.speakingTime [ browserEnv.translations ]) (String.fromFloat <| roundToTwoDecimals textStats.speakingTime) (Translations.timeUnit [ browserEnv.translations ])
-        , toHtml (Translations.sentences [ browserEnv.translations ]) (String.fromInt textStats.sentences) ""
-        , toHtml (Translations.words [ browserEnv.translations ]) (String.fromInt textStats.words) ""
-        , toHtml (Translations.characters [ browserEnv.translations ]) (String.fromInt textStats.characters) ""
+        [ toHtml (Translations.readingTime [ browserEnv.translations ]) (Translations.timeUnit [ browserEnv.translations ] { minutes = readingTime })
+        , toHtml (Translations.speakingTime [ browserEnv.translations ]) (Translations.timeUnit [ browserEnv.translations ] { minutes = speakingTime })
+        , toHtml (Translations.sentences [ browserEnv.translations ]) (String.fromInt textStats.sentences)
+        , toHtml (Translations.words [ browserEnv.translations ]) (String.fromInt textStats.words)
+        , toHtml (Translations.characters [ browserEnv.translations ]) (String.fromInt textStats.characters)
         ]
 
 

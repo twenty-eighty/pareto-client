@@ -21,19 +21,25 @@
       "build time text": "Gebaut am/um: {{buildTime}}",
       "git version text": "Git-Version: {{gitVersion}}"
    },
-   "article page": {
-      "default page title": "Artikel"
-   },
    "article info": {
       "title": "Artikel Info",
       "number of articles": "Beiträge",
       "followers": "Followers",
       "reading time": "Lesezeit:",
       "speaking time": "Hörlänge:",
-      "time unit": "Min",
+      "time unit": "{{minutes}} Min",
       "sentences": "Sätze:",
       "words": "Wörter:",
-      "characters": "Zeichen:"
+      "characters": "Zeichen:",
+      "link to hashtag aria label": "Link zur Suche nach Hashtag {{hashtag}}"
+   },
+   "article page": {
+      "default page title": "Artikel"
+   },
+   "article view": {
+      "link to article aria label": "Link zum Artikel {{title}}",
+      "link to profile aria label": "Link zum Profil von {{author}}",
+      "link to hashtag aria label": "Link zur Suche nach Hashtag {{hashtag}}"
    },
    "authors page": {
       "page title": "Autoren",
@@ -667,7 +673,8 @@
       "settings menu item text": "Einstellungen",
       "subscribers menu item text": "Abonnenten",
       "write menu item text": "Schreiben",
-      "about menu item text": "Über"
+      "about menu item text": "Über",
+      "link to home aria label": "Startseite"
    },
    "sign-in": {
       "page title": "Anmelden/Konto anlegen",

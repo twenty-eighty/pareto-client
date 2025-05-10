@@ -4,7 +4,7 @@ import BrowserEnv exposing (BrowserEnv)
 import BuildInfo
 import Components.Button as Button
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, div, img, span, text)
+import Html.Styled as Html exposing (Html, a, button, div, img, span, text)
 import Html.Styled.Attributes as Attr exposing (css, href, src, target, width)
 import I18Next
 import Iso8601
@@ -26,6 +26,7 @@ import Shared
 import Shared.Model exposing (LoginStatus(..))
 import Shared.Msg
 import Tailwind.Utilities as Tw
+import Tailwind.Theme as Theme
 import Time
 import Translations.About as Translations
 import Ui.Profile exposing (FollowType(..))
@@ -208,11 +209,18 @@ viewDonationInformation theme translations =
                ]
         )
         [ div [ css [ Tw.mb_4 ] ] [ text <| Translations.donationInfoText [ translations ] ]
-        , a
+        , button
             (styles.textStyleLinks
                 ++ styles.colorStyleLinks
                 ++ [ Attr.href <| "https://geyser.fund/project/pareto"
                    , target "_blank"
+                   , css
+                        [ Tw.bg_color Theme.white
+                        , Tw.rounded_full
+                        , Tw.p_2
+                        , Tw.w_56
+                        , Tw.h_20
+                        ]
                    ]
             )
             [ img

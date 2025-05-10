@@ -3,7 +3,7 @@ module Pages.Posts exposing (Model, Msg, page)
 import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
-import Components.Categories
+import Components.Categories as Categories
 import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, article, div)
@@ -55,7 +55,7 @@ toLayout : Shared.Model -> Model -> Layouts.Layout Msg
 toLayout shared model =
     let
         topPart =
-            Components.Categories.new
+            Categories.new
                 { model = model.categories
                 , toMsg = CategoriesSent
                 , onSelect = CategorySelected
@@ -65,12 +65,12 @@ toLayout shared model =
                 , browserEnv = shared.browserEnv
                 , theme = shared.theme
                 }
-                |> Components.Categories.view
+                |> Categories.view
     in
     Layouts.Sidebar.new
         { theme = shared.theme
         }
-        |> Layouts.Sidebar.withTopPart topPart
+        |> Layouts.Sidebar.withTopPart topPart Categories.heightString
         |> Layouts.Sidebar
 
 
@@ -79,7 +79,7 @@ toLayout shared model =
 
 
 type alias Model =
-    { categories : Components.Categories.Model Category
+    { categories : Categories.Model Category
     , path : Route.Path.Path
     }
 
@@ -89,7 +89,7 @@ type Category
     | Drafts
 
 
-availableCategories : I18Next.Translations -> List (Components.Categories.CategoryData Category)
+availableCategories : I18Next.Translations -> List (Categories.CategoryData Category)
 availableCategories translations =
     [ { category = Published
       , title = Translations.publishedCategory [ translations ]
@@ -111,7 +111,7 @@ init user shared route () =
     updateModelWithCategory
         user
         shared
-        { categories = Components.Categories.init { selected = category }
+        { categories = Categories.init { selected = category }
         , path = route.path
         }
         category
@@ -146,7 +146,7 @@ stringFromCategory category =
 
 type Msg
     = CategorySelected Category
-    | CategoriesSent (Components.Categories.Msg Category Msg)
+    | CategoriesSent (Categories.Msg Category Msg)
     | DeleteDraft String (Maybe String) -- draft event id
     | EditDraft String
 
@@ -158,7 +158,7 @@ update user shared msg model =
             updateModelWithCategory user shared model category
 
         CategoriesSent innerMsg ->
-            Components.Categories.update
+            Categories.update
                 { msg = innerMsg
                 , model = model.categories
                 , toModel = \categories -> { model | categories = categories }
@@ -232,7 +232,7 @@ view shared user model =
 
 viewArticles : Shared.Model -> Model -> PubKey -> Html Msg
 viewArticles shared model userPubKey =
-    case Components.Categories.selected model.categories of
+    case Categories.selected model.categories of
         Published ->
             Nostr.getArticlesByDate shared.nostr
                 |> Ui.View.viewArticlePreviews
@@ -301,8 +301,8 @@ viewArticleDraftPreview theme browserEnv author article =
                 , deleteDraftButton theme (Translations.deleteDraftButtonLabel [ browserEnv.translations ]) article
                 , editDraftButton theme (Translations.editDraftButtonLabel [ browserEnv.translations ]) article
                 ]
-            , Ui.Article.viewTitleSummaryImagePreview styles author article
-            , Ui.Article.viewTags article
+            , Ui.Article.viewTitleSummaryImagePreview browserEnv.translations styles author article
+            , Ui.Article.viewTags browserEnv.translations article
             ]
         ]
 

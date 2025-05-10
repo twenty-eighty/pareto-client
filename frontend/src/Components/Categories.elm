@@ -5,6 +5,7 @@ module Components.Categories exposing
     , Msg
     , init
     , new
+    , heightString
     , select
     , selected
     , subscribe
@@ -15,7 +16,7 @@ module Components.Categories exposing
 import BrowserEnv exposing (BrowserEnv)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, button, div, text)
-import Html.Styled.Attributes exposing (css)
+import Html.Styled.Attributes exposing (css, attribute)
 import Html.Styled.Events as Events exposing (..)
 import Tailwind.Breakpoints exposing (lg)
 import Tailwind.Utilities as Tw
@@ -33,6 +34,11 @@ type Categories category msg
         , browserEnv : BrowserEnv
         , theme : Theme
         }
+
+
+heightString : String
+heightString =
+    "60px"
 
 
 select : Model category -> category -> Model category
@@ -142,7 +148,7 @@ viewCategories (Settings settings) =
                 [ Tw.flex
                 , lg [ Tw.space_x_4 ]
                 , Tw.space_x_2_dot_5
-                , Tw.mb_10
+                , Tw.mb_4
                 , Tw.px_4
                 ]
             ]
@@ -201,8 +207,9 @@ viewCategory theme toMsg onSelect maybeImage active data =
             , Tw.items_center
             , Tw.gap_1
             ]
-         , Events.onClick onClickCategory
-         ]
+        , attribute "aria-label" data.title
+        , Events.onClick onClickCategory
+        ]
             ++ attrs
         )
         [ imageElement

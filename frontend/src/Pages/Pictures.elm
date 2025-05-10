@@ -3,7 +3,7 @@ module Pages.Pictures exposing (Model, Msg, init, page, subscriptions, update, v
 import BrowserEnv exposing (BrowserEnv)
 import Color
 import Components.Button as Button
-import Components.Categories
+import Components.Categories as Categories
 import Components.Icon as Icon
 import Components.PicturePostDialog as PicturePostDialog
 import Dict
@@ -81,7 +81,7 @@ toLayout shared model =
             Html.div
                 []
                 [ postButton
-                ,  Components.Categories.new
+                ,  Categories.new
                     { model = model.categories
                     , toMsg = CategoriesSent
                     , onSelect = CategorySelected
@@ -91,13 +91,13 @@ toLayout shared model =
                     , browserEnv = shared.browserEnv
                     , theme = shared.theme
                     }
-                    |> Components.Categories.view
+                    |> Categories.view
                 ]
     in
     Layouts.Sidebar.new
         { theme = shared.theme
         }
-        |> Layouts.Sidebar.withTopPart topPart
+        |> Layouts.Sidebar.withTopPart topPart ("(" ++ Categories.heightString ++ " + " ++ Button.heightString ++ ")")
         |> Layouts.Sidebar
 
 
@@ -106,7 +106,7 @@ toLayout shared model =
 
 
 type alias Model =
-    { categories : Components.Categories.Model Category
+    { categories : Categories.Model Category
     , path : Route.Path.Path
     , picturePostDialog : Maybe PicturePostDialog.Model
     }
@@ -198,7 +198,7 @@ init shared route () =
             else
                 Effect.none
     in
-    ( { categories = Components.Categories.init { selected = correctedCategory }
+    ( { categories = Categories.init { selected = correctedCategory }
       , path = route.path
       , picturePostDialog = Nothing
       }
@@ -219,7 +219,7 @@ init shared route () =
 
 type Msg
     = CategorySelected Category
-    | CategoriesSent (Components.Categories.Msg Category Msg)
+    | CategoriesSent (Categories.Msg Category Msg)
     | AddArticleBookmark PubKey AddressComponents
     | RemoveArticleBookmark PubKey AddressComponents
     | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
@@ -236,7 +236,7 @@ update shared msg model =
             updateModelWithCategory shared model category
 
         CategoriesSent innerMsg ->
-            Components.Categories.update
+            Categories.update
                 { msg = innerMsg
                 , model = model.categories
                 , toModel = \categories -> { model | categories = categories }
@@ -384,7 +384,7 @@ subscriptions model =
 -- VIEW
 
 
-availableCategories : Nostr.Model -> Shared.Model.LoginStatus -> I18Next.Translations -> List (Components.Categories.CategoryData Category)
+availableCategories : Nostr.Model -> Shared.Model.LoginStatus -> I18Next.Translations -> List (Categories.CategoryData Category)
 availableCategories nostr loginStatus translations =
     let
         paretoCategories =
@@ -420,21 +420,21 @@ availableCategories nostr loginStatus translations =
         -}
 
 
-paretoCategory : I18Next.Translations -> Components.Categories.CategoryData Category
+paretoCategory : I18Next.Translations -> Categories.CategoryData Category
 paretoCategory translations =
     { category = Pareto
     , title = Translations.paretoFeedCategory [ translations ]
     }
 
 
-followedCategory : I18Next.Translations -> Components.Categories.CategoryData Category
+followedCategory : I18Next.Translations -> Categories.CategoryData Category
 followedCategory translations =
     { category = Followed
     , title = Translations.followedFeedCategory [ translations ]
     }
 
 
-memesCategory : I18Next.Translations -> Components.Categories.CategoryData Category
+memesCategory : I18Next.Translations -> Categories.CategoryData Category
 memesCategory translations =
     { category = Memes
     , title = Translations.memesFeedCategory [ translations ]
@@ -529,7 +529,7 @@ viewContent shared model _ =
                     , onBookmark = Nothing
                     }
     in
-    case Components.Categories.selected model.categories of
+    case Categories.selected model.categories of
         Global ->
             viewMemes
 
