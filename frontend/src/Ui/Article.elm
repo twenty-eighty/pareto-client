@@ -67,6 +67,10 @@ type alias ArticlePreviewData msg =
     }
 
 
+linkToHashtag : String -> String
+linkToHashtag hashtag =
+    "/t/" ++ hashtag
+
 
 -- single article
 
@@ -270,7 +274,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                             ]
                             :: contentMargins
                         )
-                        [ div [ css [ Bp.lg [ Tw.hidden ] ] ] [ viewTags article ]
+                        [ div [ css [ Bp.lg [ Tw.hidden ] ] ] [ viewTags articlePreviewsData.browserEnv.translations article ]
                         , div
                             [ css
                                 [ Tw.flex_col
@@ -430,11 +434,11 @@ viewSummary styles maybeSummary =
             emptyHtml
 
 
-viewTags : Article -> Html msg
-viewTags article =
+viewTags : I18Next.Translations -> Article -> Html msg
+viewTags translations article =
     article.hashtags
         |> List.map removeHashTag
-        |> List.map viewTag
+        |> List.map (viewHashTag translations)
         |> List.intersperse (text " / ")
         |> div
             (textStyleArticleHashtags ++ colorStyleArticleHashtags)
@@ -447,14 +451,6 @@ removeHashTag hashTag =
 
     else
         hashTag
-
-
-viewTag : String -> Html msg
-viewTag tag =
-    a
-        [ href ("/t/" ++ tag)
-        ]
-        [ text tag ]
 
 
 viewAuthorAndDate : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Nostr.Profile.Author -> Html msg
@@ -914,10 +910,11 @@ viewHashTag : I18Next.Translations -> String -> Html msg
 viewHashTag translations hashtag =
     a
         [ css [ Tw.inline_block ]
-        , href ("/t/" ++ hashtag)
+        , href (linkToHashtag hashtag)
         , Attr.attribute "aria-label" (Translations.linkToHashtagAriaLabel [ translations ] { hashtag = hashtag })
         ]
         [ text hashtag ]
+
 
 
 viewArticlePreviewBigPicture : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg

@@ -302,7 +302,7 @@ viewArticleDraftPreview theme browserEnv author article =
                 , editDraftButton theme (Translations.editDraftButtonLabel [ browserEnv.translations ]) article
                 ]
             , Ui.Article.viewTitleSummaryImagePreview browserEnv.translations styles author article
-            , Ui.Article.viewTags article
+            , Ui.Article.viewTags browserEnv.translations article
             ]
         ]
 

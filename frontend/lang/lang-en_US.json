@@ -27,10 +27,11 @@
       "followers": "Followers",
       "reading time": "Reading Time:",
       "speaking time": "Speaking Time:",
-      "time unit": "min",
+      "time unit": "{{minutes}} min",
       "sentences": "Sentences:",
       "words": "Words:",
-      "characters": "Characters:"
+      "characters": "Characters:",
+      "link to hashtag aria label": "Link to search for hashtag {{hashtag}}"
    },
    "article page": {
       "default page title": "Article"

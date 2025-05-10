@@ -27,10 +27,11 @@
       "followers": "Followers",
       "reading time": "Lesezeit:",
       "speaking time": "Hörlänge:",
-      "time unit": "Min",
+      "time unit": "{{minutes}} Min",
       "sentences": "Sätze:",
       "words": "Wörter:",
-      "characters": "Zeichen:"
+      "characters": "Zeichen:",
+      "link to hashtag aria label": "Link zur Suche nach Hashtag {{hashtag}}"
    },
    "article page": {
       "default page title": "Artikel"
@@ -38,7 +39,7 @@
    "article view": {
       "link to article aria label": "Link zum Artikel {{title}}",
       "link to profile aria label": "Link zum Profil von {{author}}",
-      "link to hashtag aria label": "Link zum Suchen nach Hashtag {{hashtag}}"
+      "link to hashtag aria label": "Link zur Suche nach Hashtag {{hashtag}}"
    },
    "authors page": {
       "page title": "Autoren",
