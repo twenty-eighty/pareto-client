@@ -16,6 +16,15 @@ import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Profile exposing (ProfileValidation(..))
 import Url exposing (Url)
 
+-- size limits are in bytes
+avatarMaxSize : Int 
+avatarMaxSize =
+    100 * 1024
+
+bannerMaxSize : Int
+bannerMaxSize =
+    512 * 1024
+
 type alias Model =
     { issues : List Issue
     }
@@ -136,21 +145,21 @@ update msg model =
             ( { model | issues = model.issues ++ [ ProfileLud16CallbackOffline error ] }, Cmd.none )
 
         ReceivedProfileAvatarSizeResponse (Ok headers) ->
-            ( modelWithImageHeaders headers ProfileAvatarTooLarge model, Cmd.none )
+            ( modelWithImageHeaders headers avatarMaxSize ProfileAvatarTooLarge model, Cmd.none )
 
         ReceivedProfileAvatarSizeResponse (Err _) ->
             -- request may fail due to CORS errors
             ( model, Cmd.none )
 
         ReceivedProfileBannerSizeResponse (Ok headers) ->
-            ( modelWithImageHeaders headers ProfileBannerTooLarge model, Cmd.none )
+            ( modelWithImageHeaders headers bannerMaxSize ProfileBannerTooLarge model, Cmd.none )
 
         ReceivedProfileBannerSizeResponse (Err _) ->
             -- request may fail due to CORS errors
             ( model, Cmd.none )
 
-modelWithImageHeaders : Dict String String -> (Int -> Issue) -> Model -> Model
-modelWithImageHeaders headers onResult model =
+modelWithImageHeaders : Dict String String -> Int -> (Int -> Issue) -> Model -> Model
+modelWithImageHeaders headers maxSize onResult model =
     case Dict.get "content-length" headers of
         Just contentLengthString ->
             let
@@ -158,7 +167,7 @@ modelWithImageHeaders headers onResult model =
                     String.toInt contentLengthString
                     |> Maybe.withDefault 0
             in
-            if contentLength > 512 * 1024 then
+            if contentLength > maxSize then
                 { model | issues = model.issues ++ [ onResult contentLength ] }
             else
                 model
