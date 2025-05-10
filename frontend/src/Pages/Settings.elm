@@ -987,7 +987,7 @@ viewRelays shared configCheckIssues user relaysModel =
             , Tw.gap_2
             ]
         ]
-        [ viewConfigIssues shared.browserEnv.translations (Translations.relayIssuesTitle [ shared.browserEnv.translations ]) configCheckIssues
+        [ viewConfigIssues shared.browserEnv (Translations.relayIssuesTitle [ shared.browserEnv.translations ]) configCheckIssues
         , outboxRelaySection shared user relaysModel
         , inboxRelaySection shared user relaysModel
 
@@ -1419,7 +1419,7 @@ viewMediaServers shared configCheckIssues user mediaServersModel =
             , Tw.gap_8
             ]
         ]
-        [ viewConfigIssues shared.browserEnv.translations (Translations.mediaServerIssuesTitle [ shared.browserEnv.translations ]) configCheckIssues
+        [ viewConfigIssues shared.browserEnv (Translations.mediaServerIssuesTitle [ shared.browserEnv.translations ]) configCheckIssues
         , nip96ServersSection shared user mediaServersModel
         , blossomServersSection shared user mediaServersModel
         ]
@@ -1856,7 +1856,7 @@ viewProfileEditor shared configCheckIssues user profileModel =
             , Tw.gap_3
             ]
         ]
-        [ viewConfigIssues shared.browserEnv.translations (Translations.profileIssuesTitle [ shared.browserEnv.translations ]) configCheckIssues
+        [ viewConfigIssues shared.browserEnv (Translations.profileIssuesTitle [ shared.browserEnv.translations ]) configCheckIssues
         , Button.new
             { label = Translations.profileSaveButtonTitle [ shared.browserEnv.translations ]
             , onClick = Just <| SaveProfile (profileFromProfileModel user.pubKey profileModel)

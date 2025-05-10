@@ -92,7 +92,7 @@ view shared _ =
                 [ text <| Translations.contactInformation [ shared.browserEnv.translations ] ++ " " ++ Pareto.supportEmail
                 ]
             , viewLoginInfo shared
-            , viewConfigIssues shared.browserEnv.translations (Translations.configurationIssuesTitle [ shared.browserEnv.translations ]) (ConfigCheck.getIssues shared.configCheck)
+            , viewConfigIssues shared.browserEnv (Translations.configurationIssuesTitle [ shared.browserEnv.translations ]) (ConfigCheck.getIssues shared.configCheck)
             , viewErrorMessages shared.theme shared.browserEnv.translations shared.nostr
             ]
         ]

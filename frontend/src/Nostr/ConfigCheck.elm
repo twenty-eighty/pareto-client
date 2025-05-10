@@ -1,7 +1,8 @@
 module Nostr.ConfigCheck exposing (..)
 
+import BrowserEnv exposing (BrowserEnv)
+import Dict exposing (Dict)
 import Http
-import I18Next
 import Nostr
 import Nostr.Event exposing (Kind(..), Tag(..))
 import Nostr.Lud06 as Lud06
@@ -43,9 +44,11 @@ type Issue
     | ProfileAvatarMissing
     | ProfileAvatarNotUrl
     | ProfileAvatarError 
+    | ProfileAvatarTooLarge Int
     | ProfileBannerMissing
     | ProfileBannerNotUrl
     | ProfileBannerError 
+    | ProfileBannerTooLarge Int
     | ProfileLud06Configured
     | ProfileLud06FormatError String
     | ProfileLud16Missing
@@ -75,7 +78,9 @@ type alias PerformRemoteCheckFunction =
 type Msg
     = NoOp
     | ReceivedLightningPaymentData (Result Http.Error Lud16.LightningPaymentData)
-    | ReceivedLightningCallbackResponse (Result Http.Error ())
+    | ReceivedLightningCallbackResponse (Result Http.Error (Dict String String))
+    | ReceivedProfileAvatarSizeResponse (Result Http.Error (Dict String String))
+    | ReceivedProfileBannerSizeResponse (Result Http.Error (Dict String String))
 
 
 init : Model
@@ -130,6 +135,38 @@ update msg model =
         ReceivedLightningCallbackResponse (Err error) ->
             ( { model | issues = model.issues ++ [ ProfileLud16CallbackOffline error ] }, Cmd.none )
 
+        ReceivedProfileAvatarSizeResponse (Ok headers) ->
+            ( modelWithImageHeaders headers ProfileAvatarTooLarge model, Cmd.none )
+
+        ReceivedProfileAvatarSizeResponse (Err _) ->
+            -- request may fail due to CORS errors
+            ( model, Cmd.none )
+
+        ReceivedProfileBannerSizeResponse (Ok headers) ->
+            ( modelWithImageHeaders headers ProfileBannerTooLarge model, Cmd.none )
+
+        ReceivedProfileBannerSizeResponse (Err _) ->
+            -- request may fail due to CORS errors
+            ( model, Cmd.none )
+
+modelWithImageHeaders : Dict String String -> (Int -> Issue) -> Model -> Model
+modelWithImageHeaders headers onResult model =
+    case Dict.get "content-length" headers of
+        Just contentLengthString ->
+            let
+                contentLength =
+                    String.toInt contentLengthString
+                    |> Maybe.withDefault 0
+            in
+            if contentLength > 512 * 1024 then
+                { model | issues = model.issues ++ [ onResult contentLength ] }
+            else
+                model
+
+        Nothing ->
+            model
+
+
 checkLightningPaymentData : Model -> Lud16.LightningPaymentData -> Model
 checkLightningPaymentData model lightningPaymentData =
     case (lightningPaymentData.allowsNostr, lightningPaymentData.commentAllowed) of
@@ -157,8 +194,12 @@ performChecks nostr pubKey =
     )
 
 
-issueText : I18Next.Translations -> Issue -> IssueText
-issueText translations issue =
+issueText : BrowserEnv -> Issue -> IssueText
+issueText browserEnv issue =
+    let
+        translations =
+            browserEnv.translations
+    in
     case issue of
         OutboxRelaysMissingIssue relayUrls ->
             { message = Translations.outboxRelaysMissingText [ translations ]
@@ -352,10 +393,22 @@ issueText translations issue =
             , solution = ""
             }
 
+        ProfileAvatarTooLarge size ->
+            { message = Translations.profileAvatarTooLargeText [ translations ]
+            , explanation = Translations.profileAvatarTooLargeExplanation [ translations ] { size = browserEnv.formatNumber "0b" (toFloat size) }
+            , solution = Translations.profileAvatarTooLargeSolution [ translations ]
+            }
+
         ProfileBannerError ->
             { message = Translations.profileBannerErrorText [ translations ]
             , explanation = Translations.profileBannerErrorExplanation [ translations ]
             , solution = ""
+            }
+
+        ProfileBannerTooLarge size ->
+            { message = Translations.profileBannerTooLargeText [ translations ]
+            , explanation = Translations.profileBannerTooLargeExplanation [ translations ] { size = browserEnv.formatNumber "0b" (toFloat size) }
+            , solution = Translations.profileBannerTooLargeSolution [ translations ]
             }
 
         ProfileLud16NotNostrEnabled ->
@@ -449,7 +502,13 @@ issueType issue =
         ProfileAvatarError ->
             ProfileIssue
 
+        ProfileAvatarTooLarge _ ->
+            ProfileIssue
+
         ProfileBannerError ->
+            ProfileIssue
+
+        ProfileBannerTooLarge _ ->
             ProfileIssue
 
         ProfileLud16NotNostrEnabled ->
@@ -480,6 +539,8 @@ localCheckFunctions =
 remoteCheckFunctions : List PerformRemoteCheckFunction
 remoteCheckFunctions =
     [ checkLud16Response
+    , checkProfileAvatarSize
+    , checkProfileBannerSize
     ]
 
 
@@ -804,14 +865,71 @@ checkLud16Response nostr pubKey =
             )
         
 
-httpHeadRequest : Url -> (Result Http.Error () -> Msg) -> Cmd Msg
+-- Note: image sizes can't be reliably checked with HEAD requests - there may be CORS issues or the content-length header may be zero
+checkProfileAvatarSize : PerformRemoteCheckFunction
+checkProfileAvatarSize nostr pubKey =
+    Nostr.getProfile nostr pubKey
+        |> Maybe.andThen
+            (\profile ->
+                profile.picture
+                |> Maybe.andThen Url.fromString
+                |> Maybe.andThen (\pictureUrl ->
+                        httpHeadRequest pictureUrl ReceivedProfileAvatarSizeResponse
+                        |> Just
+                )
+            )
+        
+checkProfileBannerSize : PerformRemoteCheckFunction
+checkProfileBannerSize nostr pubKey =
+    Nostr.getProfile nostr pubKey
+        |> Maybe.andThen
+            (\profile ->
+                profile.banner
+                |> Maybe.andThen Url.fromString
+                |> Maybe.andThen (\bannerUrl ->
+                        httpHeadRequest bannerUrl ReceivedProfileBannerSizeResponse
+                        |> Just
+                )
+            )
+        
+
+
+httpHeadRequest : Url -> (Result Http.Error (Dict String String) -> Msg) -> Cmd Msg
 httpHeadRequest url onResult =
+    let
+        responseToError : Http.Response reponseType -> Http.Error
+        responseToError response =
+            case response of
+                Http.BadUrl_ badUrl ->
+                    Http.BadUrl badUrl
+
+                Http.Timeout_ ->
+                    Http.Timeout
+
+                Http.NetworkError_ ->
+                    Http.NetworkError
+
+                Http.BadStatus_ metadata _ ->
+                    Http.BadStatus metadata.statusCode
+
+                Http.GoodStatus_ metadata _ ->
+                    -- should never get here
+                    Http.BadStatus metadata.statusCode
+                    
+    in
     Http.request
         { method = "HEAD"
         ,url = Url.toString url
-        , expect = Http.expectWhatever onResult
+        , expect = Http.expectBytesResponse onResult (\response ->
+            case response of
+                Http.GoodStatus_ metadata _ ->
+                    (Ok metadata.headers)
+
+                _ ->
+                    (Err (responseToError response))
+        )
         , headers = []
         , body = Http.emptyBody
         , timeout = Nothing
-                        , tracker = Nothing
-                        }
+        , tracker = Nothing
+        }

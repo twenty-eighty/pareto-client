@@ -288,7 +288,7 @@ viewAuthorCard shared profile maybeConfigCheck =
         , div [ css [ Tw.pl_4 ] ]
             [ maybeConfigCheck
                 |> Maybe.map ConfigCheck.getIssues
-                |> Maybe.map (viewConfigIssues shared.browserEnv.translations "Config Issues")
+                |> Maybe.map (viewConfigIssues shared.browserEnv "Config Issues")
                 |> Maybe.withDefault emptyHtml
             ]
         ]
