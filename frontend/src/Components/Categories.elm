@@ -5,6 +5,7 @@ module Components.Categories exposing
     , Msg
     , init
     , new
+    , heightString
     , select
     , selected
     , subscribe
@@ -33,6 +34,11 @@ type Categories category msg
         , browserEnv : BrowserEnv
         , theme : Theme
         }
+
+
+heightString : String
+heightString =
+    "60px"
 
 
 select : Model category -> category -> Model category
@@ -142,7 +148,7 @@ viewCategories (Settings settings) =
                 [ Tw.flex
                 , lg [ Tw.space_x_4 ]
                 , Tw.space_x_2_dot_5
-                , Tw.mb_10
+                , Tw.mb_4
                 , Tw.px_4
                 ]
             ]

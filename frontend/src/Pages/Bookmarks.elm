@@ -62,7 +62,7 @@ toLayout user shared model =
     Layouts.Sidebar.new
         { theme = shared.theme
         }
-        |> Layouts.Sidebar.withTopPart topPart
+        |> Layouts.Sidebar.withTopPart topPart Categories.heightString
         |> Layouts.Sidebar
 
 

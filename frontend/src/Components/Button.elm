@@ -1,6 +1,7 @@
 module Components.Button exposing
     ( Button, new
     , view
+    , heightString
     , withStyleSuccess, withStyleWarning, withStyleDanger
     , withSizeSmall
     , withContentLeft, withContentRight
@@ -39,6 +40,10 @@ import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (darkMode)
 import Svg.Loaders
 
+
+heightString : String
+heightString =
+    "64px"
 
 
 -- SETTINGS

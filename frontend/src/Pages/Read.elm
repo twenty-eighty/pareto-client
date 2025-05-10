@@ -2,7 +2,7 @@ module Pages.Read exposing (Model, Msg, init, page, subscriptions, update, view)
 
 import BrowserEnv exposing (BrowserEnv)
 import Color
-import Components.Categories
+import Components.Categories as Categories
 import Components.Icon as Icon
 import Dict
 import Effect exposing (Effect)
@@ -50,7 +50,7 @@ toLayout : Shared.Model -> Model -> Layouts.Layout Msg
 toLayout shared model =
     let
         topPart =
-          Components.Categories.new
+          Categories.new
             { model = model.categories
             , toMsg = CategoriesSent
             , onSelect = CategorySelected
@@ -60,12 +60,12 @@ toLayout shared model =
             , browserEnv = shared.browserEnv
             , theme = shared.theme
             }
-            |> Components.Categories.view
+            |> Categories.view
     in
     Layouts.Sidebar.new
         { theme = shared.theme
         }
-        |> Layouts.Sidebar.withTopPart topPart
+        |> Layouts.Sidebar.withTopPart topPart Categories.heightString
         |> Layouts.Sidebar
 
 
@@ -74,7 +74,7 @@ toLayout shared model =
 
 
 type alias Model =
-    { categories : Components.Categories.Model Category
+    { categories : Categories.Model Category
     , path : Route.Path.Path
     }
 
@@ -176,7 +176,7 @@ init shared route () =
             else
                 Effect.none
     in
-    ( { categories = Components.Categories.init { selected = correctedCategory }
+    ( { categories = Categories.init { selected = correctedCategory }
       , path = route.path
       }
     , Effect.batch
@@ -196,7 +196,7 @@ init shared route () =
 
 type Msg
     = CategorySelected Category
-    | CategoriesSent (Components.Categories.Msg Category Msg)
+    | CategoriesSent (Categories.Msg Category Msg)
     | AddArticleBookmark PubKey AddressComponents
     | RemoveArticleBookmark PubKey AddressComponents
     | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
@@ -212,7 +212,7 @@ update shared msg model =
             updateModelWithCategory shared model category
 
         CategoriesSent innerMsg ->
-            Components.Categories.update
+            Categories.update
                 { msg = innerMsg
                 , model = model.categories
                 , toModel = \categories -> { model | categories = categories }
@@ -356,7 +356,7 @@ subscriptions _ =
 -- VIEW
 
 
-availableCategories : Nostr.Model -> Shared.Model.LoginStatus -> I18Next.Translations -> List (Components.Categories.CategoryData Category)
+availableCategories : Nostr.Model -> Shared.Model.LoginStatus -> I18Next.Translations -> List (Categories.CategoryData Category)
 availableCategories nostr loginStatus translations =
     let
         paretoCategories =
@@ -393,14 +393,14 @@ availableCategories nostr loginStatus translations =
            ]
 
 
-paretoCategory : I18Next.Translations -> Components.Categories.CategoryData Category
+paretoCategory : I18Next.Translations -> Categories.CategoryData Category
 paretoCategory translations =
     { category = Pareto
     , title = Translations.Read.paretoFeedCategory [ translations ]
     }
 
 
-friedenstaubeCategory : I18Next.Translations -> Components.Categories.CategoryData Category
+friedenstaubeCategory : I18Next.Translations -> Categories.CategoryData Category
 friedenstaubeCategory _ =
     { category = Friedenstaube
     , title = "Friedenstaube"
@@ -409,7 +409,7 @@ friedenstaubeCategory _ =
 
 
 {-
-   paretoRssCategory : I18Next.Translations -> Components.Categories.CategoryData Category
+   paretoRssCategory : I18Next.Translations -> Categories.CategoryData Category
    paretoRssCategory translations =
        { category = Rss
        , title = Translations.Read.rssFeedCategory [ translations ]
@@ -417,7 +417,7 @@ friedenstaubeCategory _ =
 -}
 
 
-followedCategory : I18Next.Translations -> Components.Categories.CategoryData Category
+followedCategory : I18Next.Translations -> Categories.CategoryData Category
 followedCategory translations =
     { category = Followed
     , title = Translations.Read.followedFeedCategory [ translations ]
@@ -510,7 +510,7 @@ viewContent shared model userPubKey =
                     , onBookmark = Maybe.map (\pubKey -> ( AddShortNoteBookmark pubKey, RemoveShortNoteBookmark pubKey )) userPubKey
                     }
     in
-    case Components.Categories.selected model.categories of
+    case Categories.selected model.categories of
         Global ->
             viewArticles
 

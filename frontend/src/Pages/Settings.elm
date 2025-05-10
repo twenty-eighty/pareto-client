@@ -88,7 +88,7 @@ toLayout shared model =
     Layouts.Sidebar.new
         { theme = shared.theme
         }
-        |> Layouts.Sidebar.withTopPart topPart
+        |> Layouts.Sidebar.withTopPart topPart Categories.heightString
         |> Layouts.Sidebar
 
 
@@ -899,7 +899,14 @@ view user shared model =
     in
     { title = Translations.pageTitle [ shared.browserEnv.translations ]
     , body =
-        [ viewCategory shared configCheckIssues model user
+        [ div
+            [ css
+                [ Tw.mx_10
+                , Tw.mb_4
+                ]
+            ]
+            [ viewCategory shared configCheckIssues model user
+            ]
         ]
     }
 
@@ -978,7 +985,6 @@ viewRelays shared configCheckIssues user relaysModel =
             [ Tw.flex
             , Tw.flex_col
             , Tw.gap_2
-            , Tw.m_20
             ]
         ]
         [ viewConfigIssues shared.browserEnv.translations (Translations.relayIssuesTitle [ shared.browserEnv.translations ]) configCheckIssues
@@ -1313,7 +1319,10 @@ viewRelay readOnly removeMsg relay =
             , Tw.gap_2
             , Tw.p_2
             , Tw.border_b_2
-            , Tw.w_96
+            , Tw.w_80
+            , Bp.sm
+                [ Tw.w_96
+                ]
             ]
         ]
         [ viewRelayConnectionIndicator relay
@@ -1321,7 +1330,10 @@ viewRelay readOnly removeMsg relay =
         , div
             [ css
                 [ Tw.grow
-                , Tw.w_96
+                , Tw.w_80
+                , Bp.sm
+                    [ Tw.w_96
+                    ]
                 ]
             ]
             [ text relay.urlWithoutProtocol
@@ -1405,7 +1417,6 @@ viewMediaServers shared configCheckIssues user mediaServersModel =
             [ Tw.flex
             , Tw.flex_col
             , Tw.gap_8
-            , Tw.m_20
             ]
         ]
         [ viewConfigIssues shared.browserEnv.translations (Translations.mediaServerIssuesTitle [ shared.browserEnv.translations ]) configCheckIssues
@@ -1798,7 +1809,6 @@ viewProfile shared configCheckIssues user profileModel =
             [ Tw.flex
             , Tw.flex_col
             , Tw.gap_2
-            , Tw.m_20
             ]
         ]
         [ viewUserProfile
@@ -1859,6 +1869,7 @@ viewProfileEditor shared configCheckIssues user profileModel =
             [ css
                 [ Tw.flex
                 , Tw.flex_row
+                , Tw.flex_wrap
                 , Tw.gap_2
                 ]
             ]

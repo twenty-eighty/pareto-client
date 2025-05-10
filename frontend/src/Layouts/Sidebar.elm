@@ -39,7 +39,7 @@ import View exposing (View)
 type alias Props contentMsg =
     { theme : Theme
     , fixedLeftPart : Maybe (Html contentMsg)
-    , fixedTopPart : Maybe (Html contentMsg)
+    , fixedTopPart : Maybe (Html contentMsg, String)
     }
 
 
@@ -47,7 +47,7 @@ map : (msg1 -> msg2) -> Props msg1 -> Props msg2
 map toMsg props =
     { theme = props.theme
     , fixedLeftPart = Maybe.map (Html.map toMsg) props.fixedLeftPart
-    , fixedTopPart = Maybe.map (Html.map toMsg) props.fixedTopPart
+    , fixedTopPart = Maybe.map (\( html, height ) -> ( Html.map toMsg html, height )) props.fixedTopPart
     }
 
 
@@ -64,9 +64,9 @@ withLeftPart leftPart props =
     { props | fixedLeftPart = Just leftPart }
 
 
-withTopPart : Html contentMsg -> Props contentMsg -> Props contentMsg
-withTopPart topPart props =
-    { props | fixedTopPart = Just topPart }
+withTopPart : Html contentMsg -> String -> Props contentMsg -> Props contentMsg
+withTopPart topPart height props =
+    { props | fixedTopPart = Just ( topPart, height ) }
 
 -- this function checks if a route will be available in reader mode after login
 
@@ -536,8 +536,14 @@ viewSidebar props shared currentPath toContentMsg content =
         ]
 
 
-viewMainContent : List (Html contentMsg) -> Maybe (Html contentMsg) -> Html contentMsg
+viewMainContent : List (Html contentMsg) -> Maybe (Html contentMsg, String) -> Html contentMsg
 viewMainContent content maybeFixedTopPart =
+    let
+        topPartHeight =
+            maybeFixedTopPart
+                |> Maybe.map (\( _, height ) -> height)
+                |> Maybe.withDefault "0px"
+    in
     div
         [ css
             [ Tw.flex_1
@@ -546,6 +552,7 @@ viewMainContent content maybeFixedTopPart =
             ]
         ]
         [ maybeFixedTopPart
+            |> Maybe.map (\( html, _ ) -> html)
             |> Maybe.withDefault emptyHtml
         , main_
             [ class "page"
@@ -554,15 +561,15 @@ viewMainContent content maybeFixedTopPart =
                 [ Tw.flex_1
                 , Tw.overflow_y_auto
                 , Tw.relative
-                , Css.property "height" "calc(100vh - 5rem - 56px)" -- 5rem = 80px for header
+                , Css.property "height" ("calc(100vh - 5rem - 56px - " ++ topPartHeight ++ ")") -- 5rem = 80px for header
                 , Bp.sm
-                    [ Css.property "height" "calc(100vh - 5rem)" -- 5rem = 80px for header
+                    [ Css.property "height" ("calc(100vh - 5rem - " ++ topPartHeight ++ ")") -- 5rem = 80px for header
                     ]
                 ]
             ]
             [ div
                 [ css
-                    [ Tw.mb_16
+                    [ Tw.mb_4
                     , Bp.sm
                         [ Tw.my_2
                         ]
