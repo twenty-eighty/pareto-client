@@ -172,10 +172,12 @@ defmodule NostrBackendWeb.ContentController do
 
   def profile(conn, %{"profile_id" => nostr_id}) do
     case NostrId.parse(nostr_id) do
+      # Handle nprofile identifiers (with optional relays)
       {:ok, {:profile, profile_hex_id, relays}} ->
-        # TODO: use relays for profile lookup
         get_and_render_profile(conn, profile_hex_id, relays)
-
+      # Handle npub identifiers (pubkey only)
+      {:ok, {:pubkey, pubkey_hex}} ->
+        get_and_render_profile(conn, pubkey_hex, [])
       {:error, _reason} ->
         conn
         |> conn_with_default_meta()
