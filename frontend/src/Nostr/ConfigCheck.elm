@@ -404,7 +404,7 @@ issueText browserEnv issue =
 
         ProfileAvatarTooLarge size ->
             { message = Translations.profileAvatarTooLargeText [ translations ]
-            , explanation = Translations.profileAvatarTooLargeExplanation [ translations ] { size = browserEnv.formatNumber "0b" (toFloat size) }
+            , explanation = Translations.profileAvatarTooLargeExplanation [ translations ] { size = browserEnv.formatNumber "0 b" (toFloat size) }
             , solution = Translations.profileAvatarTooLargeSolution [ translations ]
             }
 
@@ -416,7 +416,7 @@ issueText browserEnv issue =
 
         ProfileBannerTooLarge size ->
             { message = Translations.profileBannerTooLargeText [ translations ]
-            , explanation = Translations.profileBannerTooLargeExplanation [ translations ] { size = browserEnv.formatNumber "0b" (toFloat size) }
+            , explanation = Translations.profileBannerTooLargeExplanation [ translations ] { size = browserEnv.formatNumber "0 b" (toFloat size) }
             , solution = Translations.profileBannerTooLargeSolution [ translations ]
             }
 
