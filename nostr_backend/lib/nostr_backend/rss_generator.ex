@@ -72,6 +72,8 @@ defmodule NostrBackend.RSSGenerator do
   # Build the RSS XML string
   defp build_rss(items, channel_title, channel_desc) do
     channel_link = base_url() <> "/"
+    # Self URL for RSS feed
+    self_link = base_url() <> "/rss/feed.xml"
     last_build = List.first(items).pubDate || Calendar.strftime(DateTime.utc_now(), "%a, %d %b %Y %H:%M:%S GMT")
 
     items_xml =
@@ -100,8 +102,9 @@ defmodule NostrBackend.RSSGenerator do
 
     """
 <?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
+    <atom:link href="#{self_link}" rel="self" type="application/rss+xml" />
     <title>#{channel_title}</title>
     <link>#{channel_link}</link>
     <description>#{channel_desc}</description>
