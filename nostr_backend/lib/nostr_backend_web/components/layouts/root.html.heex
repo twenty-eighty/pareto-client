@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <link rel="canonical" href={@canonical_url || @meta_url} />
+    <link rel="sitemap" type="application/xml" title="Sitemap" href="https://pareto.space/sitemap/sitemap.xml.gz">
 
     <title><%= @meta_title %></title>
     <meta name="description" content={@meta_description || "Pareto Project"} />
