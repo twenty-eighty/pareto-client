@@ -172,10 +172,12 @@ defmodule NostrBackendWeb.ContentController do
 
   def profile(conn, %{"profile_id" => nostr_id}) do
     case NostrId.parse(nostr_id) do
+      # Handle nprofile identifiers (with optional relays)
       {:ok, {:profile, profile_hex_id, relays}} ->
-        # TODO: use relays for profile lookup
         get_and_render_profile(conn, profile_hex_id, relays)
-
+      # Handle npub identifiers (pubkey only)
+      {:ok, {:pubkey, pubkey_hex}} ->
+        get_and_render_profile(conn, pubkey_hex, [])
       {:error, _reason} ->
         conn
         |> conn_with_default_meta()
@@ -287,15 +289,18 @@ defmodule NostrBackendWeb.ContentController do
   end
 
   defp conn_with_article_meta(conn, article) do
+    relay = Application.get_env(:nostr_backend, :feed_generator)[:relay_url] || "wss://nostr.pareto.space"
+    relay_naddr = NostrBackend.NIP19.encode_naddr(article.kind, article.author, article.identifier, [relay])
+    plain_naddr = NostrBackend.NIP19.encode_naddr(article.kind, article.author, article.identifier)
+    og_url = Endpoint.url() <> "/a/#{relay_naddr}"
+    canonical_url = Endpoint.url() <> "/a/#{plain_naddr}"
     conn
     |> assign(:page_title, article.title || @meta_title)
     |> assign(:meta_title, article.title || @meta_title)
-    |> assign(:meta_url, Endpoint.url() <> conn.request_path)
+    |> assign(:meta_url, og_url)
+    |> assign(:canonical_url, canonical_url)
     |> assign(:meta_description, article.description || @meta_description)
-    |> assign(
-      :meta_image,
-      article.image_url |> force_https() || @sharing_image
-    )
+    |> assign(:meta_image, article.image_url |> force_https() || @sharing_image)
   end
 
   defp conn_with_community_meta(conn, community) do
@@ -312,16 +317,19 @@ defmodule NostrBackendWeb.ContentController do
   defp conn_with_profile_meta(conn, profile) do
     Logger.debug("Profile: #{inspect(profile)}")
 
+    relay = Application.get_env(:nostr_backend, :feed_generator)[:relay_url] || "wss://nostr.pareto.space"
+    relay_nprofile = NostrBackend.NIP19.encode_nprofile(profile.profile_id, [relay])
+    plain_nprofile = NostrBackend.NIP19.encode_nprofile(profile.profile_id)
+    og_url = Endpoint.url() <> "/p/#{relay_nprofile}"
+    canonical_url = Endpoint.url() <> "/p/#{plain_nprofile}"
     conn
     |> assign(:page_title, profile.name <> " | Pareto")
     |> assign(:meta_title, profile.name <> " | Pareto")
-    |> assign(:meta_url, Endpoint.url() <> conn.request_path)
+    |> assign(:meta_url, og_url)
+    |> assign(:canonical_url, canonical_url)
     |> assign(:meta_description, profile.about)
-    |> assign(
-      :meta_image,
-      profile.image |> force_https() || profile.picture |> force_https() ||
-        profile.banner |> force_https() || @sharing_image
-    )
+    |> assign(:meta_image, profile.image |> force_https() || profile.picture |> force_https() ||
+      profile.banner |> force_https() || @sharing_image)
   end
 
   defp conn_with_default_meta(conn) do
@@ -334,6 +342,7 @@ defmodule NostrBackendWeb.ContentController do
     )
     |> assign(:meta_image, @sharing_image)
     |> assign(:meta_url, Endpoint.url() <> conn.request_path)
+    |> assign(:canonical_url, Endpoint.url() <> conn.request_path)
     |> assign(:article, nil)
   end
 

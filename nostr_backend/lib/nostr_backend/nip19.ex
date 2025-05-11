@@ -60,12 +60,11 @@ defmodule NostrBackend.NIP19 do
     Logger.debug("TLV data built, size: #{byte_size(tlv_data)} bytes")
     Logger.debug("Full TLV hex dump: #{inspect(tlv_data |> Base.encode16(case: :lower))}")
 
-    # Use the ConvertBits function from the Go implementation:
-    # See https://github.com/btcsuite/btcd/blob/master/btcutil/bech32/bech32.go#L384
-    # Note the pad=true parameter which is important
-    convert_result = Bech32.convertbits(tlv_data, 8, 5, true)
+    # Convert TLV data into 5-bit values with dynamic padding based on bit length
+    pad = rem(bit_size(tlv_data), 5) != 0
+    convert_result = Bech32.convertbits(tlv_data, 8, 5, pad)
 
-    # Handle possible return types from convertbits
+    # Handle possible return types from encode_from_5bit
     data_5bit = case convert_result do
       {:ok, data} -> data
       data when is_binary(data) -> data
@@ -180,15 +179,16 @@ defmodule NostrBackend.NIP19 do
 
     # Set strictpad=false explicitly to match nostr-tools' bech32 implementation
     # The standard bech32 library in Elixir adds extra padding that the JS version doesn't
-    result = bech32_encode_noprofile(tlv_data)
+    result = bech32_encode_nprofile(tlv_data)
     Logger.debug("Reference nprofile result: #{result}")
     result
   end
 
   # Encodes TLV data as Bech32 nprofile strictly per NIP-19 (pad=false)
-  defp bech32_encode_noprofile(tlv_data) do
-    # Convert TLV bytes (8-bit) to 5-bit groups without padding
-    data_5bit = case Bech32.convertbits(tlv_data, 8, 5, false) do
+  defp bech32_encode_nprofile(tlv_data) do
+    # Convert TLV bytes (8-bit) to 5-bit groups, padding only if needed
+    pad = rem(bit_size(tlv_data), 5) != 0
+    data_5bit = case Bech32.convertbits(tlv_data, 8, 5, pad) do
       {:ok, bits} -> bits
       bits when is_binary(bits) -> bits
       other -> raise "Failed to convert bits for nprofile: #{inspect(other)}"

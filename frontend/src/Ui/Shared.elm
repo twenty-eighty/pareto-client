@@ -1,11 +1,11 @@
 module Ui.Shared exposing (..)
 
+import BrowserEnv exposing (BrowserEnv)
 import Css
 import Erl
 import Html.Styled as Html exposing (Html, a, button, div, h2, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
-import I18Next
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Nip19 exposing (NIP19Type(..))
 import Pareto
@@ -104,8 +104,8 @@ countBadge count =
             "(" ++ String.fromInt otherNumber ++ ")"
 
 
-viewConfigIssues : I18Next.Translations -> String -> List ConfigCheck.Issue -> Html msg
-viewConfigIssues translations title issues =
+viewConfigIssues : BrowserEnv -> String -> List ConfigCheck.Issue -> Html msg
+viewConfigIssues browserEnv title issues =
     case issues of
         [] ->
             emptyHtml
@@ -120,7 +120,7 @@ viewConfigIssues translations title issues =
                 ]
                 [ Html.span [ css [ Tw.font_bold ] ] [ Html.text title ]
                 , profileIssues
-                    |> List.map (ConfigCheck.issueText translations)
+                    |> List.map (ConfigCheck.issueText browserEnv)
                     |> List.map viewIssueText
                     |> Html.ul
                         [ css

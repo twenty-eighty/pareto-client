@@ -22,7 +22,7 @@ defmodule NostrBackend.RSSGenerator do
   ) do
     File.mkdir_p!(@rss_path)
     items = prepare_items(articles)
-    xml = build_rss(items, channel_title, channel_desc)
+    xml = build_rss(items, channel_title, channel_desc, feed_filename)
     feed_path = Path.join(@rss_path, feed_filename)
     atomic_write(feed_path, xml)
     Logger.info("Generated RSS feed '#{feed_filename}' with #{length(items)} items at #{feed_path}")
@@ -42,11 +42,22 @@ defmodule NostrBackend.RSSGenerator do
         {:ok, prof} -> prof.display_name || prof.name || article.author
         _ -> article.author
       end
+      # Link with relay for RSS <link>
       link = encode_link(article, relay_urls)
+      # Compute guid: canonical naddr without relay or fallback
+      guid = case NIP19.encode_naddr(article.kind, article.author, article.identifier) do
+        naddr when is_binary(naddr) -> base_url() <> "/a/" <> naddr
+        _ ->
+          nip05_id = case ProfileCache.get_profile(article.author, []) do
+            {:ok, prof} -> prof.nip05
+            _ -> nil
+          end
+          base_url() <> "/u/" <> nip05_id <> "/" <> to_string(article.identifier)
+      end
       %{
         title: article.title || "Untitled",
         link: link,
-        guid: link,
+        guid: guid,
         pubDate: Calendar.strftime(article.published_at || DateTime.utc_now(), "%a, %d %b %Y %H:%M:%S GMT"),
         # only summary in description
         description: article.description || "",
@@ -58,9 +69,11 @@ defmodule NostrBackend.RSSGenerator do
     end)
   end
 
-  # Build the RSS XML string
-  defp build_rss(items, channel_title, channel_desc) do
+  # Build the RSS XML string, including a self <atom:link>, passing the feed filename
+  defp build_rss(items, channel_title, channel_desc, feed_filename) do
     channel_link = base_url() <> "/"
+    # Self URL for this RSS feed
+    self_link = base_url() <> "/rss/" <> feed_filename
     last_build = List.first(items).pubDate || Calendar.strftime(DateTime.utc_now(), "%a, %d %b %Y %H:%M:%S GMT")
 
     items_xml =
@@ -76,7 +89,7 @@ defmodule NostrBackend.RSSGenerator do
         <item>
           <title>#{escape(item.title)}</title>
           <link>#{item.link}</link>
-          <author>#{escape(item.author)}</author>
+          <dc:creator>#{escape(item.author)}</dc:creator>
           <guid>#{item.guid}</guid>
           <pubDate>#{item.pubDate}</pubDate>
           <description><![CDATA[#{item.description}]]></description>
@@ -89,8 +102,9 @@ defmodule NostrBackend.RSSGenerator do
 
     """
 <?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
+    <atom:link href="#{self_link}" rel="self" type="application/rss+xml" />
     <title>#{channel_title}</title>
     <link>#{channel_link}</link>
     <description>#{channel_desc}</description>
