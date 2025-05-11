@@ -293,8 +293,7 @@ defmodule NostrBackendWeb.ContentController do
     end
   end
 
-  defp conn_with_article_meta(conn, article, _relays \\ []) do
-    # Determine relays from the article struct or fallback to configured relay
+  defp conn_with_article_meta(conn, article, _relays) do
     relays_list =
       case Map.get(article, :relays) do
         rel when is_list(rel) and rel != [] -> rel
@@ -325,9 +324,9 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_image, community.image |> force_https() || @sharing_image)
   end
 
-  defp conn_with_profile_meta(conn, profile, _relays \\ []) do
+  defp conn_with_profile_meta(conn, profile, _relays) do
     Logger.debug("Profile: #{inspect(profile)}")
-    # Determine relays from the profile struct or fallback to configured relay
+
     relays_list =
       case Map.get(profile, :relays) do
         rel when is_list(rel) and rel != [] -> rel

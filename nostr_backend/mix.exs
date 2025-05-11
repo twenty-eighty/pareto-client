@@ -60,7 +60,6 @@ defmodule NostrBackend.MixProject do
       {:req, "~> 0.4.0"},
       {:floki, "~> 0.37.0"},
       {:sweet_xml, "~> 0.7.5"},
-      {:sitemapper, "~> 0.1"},
       {:atomex, "~> 0.4"}
     ]
   end

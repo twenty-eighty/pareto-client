@@ -109,6 +109,7 @@ defmodule NostrBackendWeb.Router do
 
     get "/sitemap.xml.gz", StaticFileController, :sitemap
     get "/sitemap-authors.xml.gz", StaticFileController, :authors_sitemap
+    get "/sitemap-landing.xml.gz", StaticFileController, :landing_sitemap
     get "/sitemap-:year", StaticFileController, :year_sitemap
   end
 

@@ -4,7 +4,6 @@ defmodule NostrBackend.FeedGenerator do
 
   alias NostrBackend.FollowListCache
   alias NostrBackend.ArticleCache
-  alias Sitemapper
   alias NostrBackend.RSSGenerator
 
   @moduledoc """
@@ -392,8 +391,8 @@ defmodule NostrBackend.FeedGenerator do
           relay = get_configured_relay()
           Logger.info("Using relay for sitemap: #{relay}")
 
-          # Create XML sitemap content
-          urls_xml = Enum.map(year_articles, fn article ->
+          # Create XML sitemap content (sorted by published_at descending)
+          urls_xml = Enum.map(sorted_articles, fn article ->
             # Get the necessary fields for the naddr
             kind = article.kind
             author = article.author
@@ -437,11 +436,12 @@ defmodule NostrBackend.FeedGenerator do
           }
         end)
 
-        # Generate the sitemap index file that references all year sitemaps
-        generate_sitemap_index(year_sitemaps)
-
-        # Generate author sitemap
-        generate_author_sitemap(follow_list)
+        # Generate author and landing sitemap entries
+        author_entry  = generate_author_sitemap(follow_list)
+        landing_entry = generate_landing_sitemap()
+        # Build and write combined sitemap index
+        all_sitemaps = year_sitemaps ++ [author_entry, landing_entry]
+        generate_sitemap_index(all_sitemaps)
       end
     else
       {:error, reason} ->
@@ -449,11 +449,11 @@ defmodule NostrBackend.FeedGenerator do
     end
   end
 
-  defp generate_sitemap_index(year_sitemaps) do
-    Logger.info("Generating sitemap index with entries: #{inspect(year_sitemaps)}")
+  defp generate_sitemap_index(sitemaps) do
+    Logger.info("Generating sitemap index with entries: #{inspect(sitemaps)}")
 
     # Format the lastmod dates in W3C format (YYYY-MM-DD)
-    sitemap_entries = Enum.map(year_sitemaps, fn sitemap ->
+    sitemap_entries = Enum.map(sitemaps, fn sitemap ->
       lastmod = Calendar.strftime(sitemap.lastmod, "%Y-%m-%d")
       ~s(  <sitemap>
     <loc>#{sitemap.loc}</loc>
@@ -527,46 +527,51 @@ defmodule NostrBackend.FeedGenerator do
     # Compress the XML file
     :os.cmd(~c"gzip -f #{sitemap_path}")
 
-    # Update the sitemap index to include the authors sitemap
-    update_sitemap_index_with_authors()
-
     Logger.info("Author sitemap generated successfully")
+    # Return entry for inclusion in index
+    %{loc: "#{base_url()}/sitemap/sitemap-authors.xml.gz", lastmod: DateTime.utc_now()}
   end
 
-  defp update_sitemap_index_with_authors() do
-    sitemap_index_path = "#{@sitemap_path}/sitemap.xml"
+  defp generate_landing_sitemap do
+    Logger.info("Generating landing pages sitemap (/en & /de)")
 
-    if File.exists?("#{sitemap_index_path}.gz") do
-      # Decompress and read the existing sitemap index
-      :os.cmd(~c"gunzip -f #{sitemap_index_path}.gz")
-
-      sitemap_index = File.read!(sitemap_index_path)
-
-      # Only add authors sitemap if it's not already included
-      unless String.contains?(sitemap_index, "sitemap-authors.xml.gz") do
-        # Insert author sitemap entry before the closing sitemapindex tag
-        today = Calendar.strftime(DateTime.utc_now(), "%Y-%m-%d")
-        author_entry = ~s(  <sitemap>
-    <loc>#{base_url()}/sitemap/sitemap-authors.xml.gz</loc>
-    <lastmod>#{today}</lastmod>
-  </sitemap>
-)
-        new_sitemap_index = String.replace(sitemap_index, "</sitemapindex>", "#{author_entry}</sitemapindex>")
-
-        # Write the updated sitemap index
-        atomic_write(sitemap_index_path, new_sitemap_index)
-
-        # Compress the updated index
-        :os.cmd(~c"gzip -f #{sitemap_index_path}")
-
-        Logger.info("Added author sitemap to sitemap index")
-      else
-        # Recompress the unchanged index
-        :os.cmd(~c"gzip -f #{sitemap_index_path}")
+    # Determine last modified time among landing page HTML files
+    landing_dir = Path.join(@base_path, "lp")
+    html_files = Path.wildcard(Path.join(landing_dir, "**/*.html"))
+    lastmod_dt =
+      case html_files do
+        [] -> DateTime.utc_now()
+        files ->
+          files
+          |> Enum.map(fn file -> File.stat!(file).mtime end)
+          |> Enum.max()
+          |> NaiveDateTime.from_erl!()
+          |> DateTime.from_naive!("Etc/UTC")
       end
-    else
-      Logger.warning("Sitemap index not found, skipping author sitemap addition to index", [])
-    end
+    urls = ["#{base_url()}/en", "#{base_url()}/de"]
+
+    # Build each <url> entry using a heredoc for readability
+    urls_xml = Enum.map(urls, fn loc ->
+      """
+  <url>
+    <loc>#{loc}</loc>
+    <lastmod>#{Calendar.strftime(lastmod_dt, "%Y-%m-%d")}</lastmod>
+  </url>
+  """
+    end)
+    |> Enum.join("\n")
+
+    sitemap_content = ~s(<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+#{urls_xml}
+</urlset>)
+
+    sitemap_path = "#{@sitemap_path}/sitemap-landing.xml"
+    atomic_write(sitemap_path, sitemap_content)
+    :os.cmd(~c"gzip -f #{sitemap_path}")
+    Logger.info("Landing pages sitemap generated successfully")
+    # Return entry for inclusion in index with actual lastmod
+    %{loc: "#{base_url()}/sitemap/sitemap-landing.xml.gz", lastmod: lastmod_dt}
   end
 
   defp group_articles_by_year(articles) do
