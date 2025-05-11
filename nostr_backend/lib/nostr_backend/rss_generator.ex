@@ -89,7 +89,7 @@ defmodule NostrBackend.RSSGenerator do
         <item>
           <title>#{escape(item.title)}</title>
           <link>#{item.link}</link>
-          <author>#{escape(item.author)}</author>
+          <dc:creator>#{escape(item.author)}</dc:creator>
           <guid>#{item.guid}</guid>
           <pubDate>#{item.pubDate}</pubDate>
           <description><![CDATA[#{item.description}]]></description>
@@ -102,7 +102,7 @@ defmodule NostrBackend.RSSGenerator do
 
     """
 <?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <atom:link href="#{self_link}" rel="self" type="application/rss+xml" />
     <title>#{channel_title}</title>
