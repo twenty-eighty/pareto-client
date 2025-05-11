@@ -21,9 +21,10 @@ defmodule NostrBackendWeb.ContentController do
       {:ok, {:author_article, query_data}} ->
         case ArticleCache.get_article(query_data) do
           {:ok, article} ->
-
+            relay = Map.get(query_data, :relay)
+            relays_list = Map.get(query_data, :relays, (if relay, do: [relay], else: []))
             conn
-            |> conn_with_article_meta(article)
+            |> conn_with_article_meta(article, relays_list)
             |> put_view(NostrBackendWeb.ContentHTML)
             |> render(:article, article: article)
 
@@ -41,7 +42,7 @@ defmodule NostrBackendWeb.ContentController do
         case ArticleCache.get_article(article_hex_id) do
           {:ok, article} ->
             conn
-            |> conn_with_article_meta(article)
+            |> conn_with_article_meta(article, [])
             |> put_view(NostrBackendWeb.ContentHTML)
             |> render(:article, article: article)
 
@@ -59,7 +60,7 @@ defmodule NostrBackendWeb.ContentController do
         case ArticleCache.get_article(address_info) do
           {:ok, article} ->
             conn
-            |> conn_with_article_meta(article)
+            |> conn_with_article_meta(article, [])
             |> put_view(NostrBackendWeb.ContentHTML)
             |> render(:article, article: article)
 
@@ -75,7 +76,7 @@ defmodule NostrBackendWeb.ContentController do
         case ArticleCache.get_article(event_info) do
           {:ok, article} ->
             conn
-            |> conn_with_article_meta(article)
+            |> conn_with_article_meta(article, event_info.relays || [])
             |> put_view(NostrBackendWeb.ContentHTML)
             |> render(:article, article: article)
 
@@ -131,8 +132,10 @@ defmodule NostrBackendWeb.ContentController do
       {:ok, {:author_event, query_data}} ->
         case ArticleCache.get_article(query_data) do
           {:ok, article} ->
+            relay = Map.get(query_data, :relay)
+            relays_list = Map.get(query_data, :relays, (if relay, do: [relay], else: []))
             conn
-            |> conn_with_article_meta(article)
+            |> conn_with_article_meta(article, relays_list)
             |> put_view(NostrBackendWeb.ContentHTML)
             |> render(:article, article: article)
 
@@ -149,8 +152,10 @@ defmodule NostrBackendWeb.ContentController do
       {:ok, {:author_article, query_data}} ->
         case ArticleCache.get_article(query_data) do
           {:ok, article} ->
+            relay = Map.get(query_data, :relay)
+            relays_list = Map.get(query_data, :relays, (if relay, do: [relay], else: []))
             conn
-            |> conn_with_article_meta(article)
+            |> conn_with_article_meta(article, relays_list)
             |> put_view(NostrBackendWeb.ContentHTML)
             |> render(:article, article: article)
 
@@ -230,7 +235,7 @@ defmodule NostrBackendWeb.ContentController do
                  }) do
               {:ok, article} ->
                 conn
-                |> conn_with_article_meta(article)
+                |> conn_with_article_meta(article, relays)
                 |> put_view(NostrBackendWeb.ContentHTML)
                 |> render(:article, article: article)
 
@@ -277,7 +282,7 @@ defmodule NostrBackendWeb.ContentController do
     case ProfileCache.get_profile(profile_hex_id, relays) do
       {:ok, profile} ->
         conn
-        |> conn_with_profile_meta(profile)
+        |> conn_with_profile_meta(profile, relays)
         |> put_view(NostrBackendWeb.ContentHTML)
         |> render("profile.html", profile: profile)
 
@@ -288,9 +293,14 @@ defmodule NostrBackendWeb.ContentController do
     end
   end
 
-  defp conn_with_article_meta(conn, article) do
-    relay = Application.get_env(:nostr_backend, :feed_generator)[:relay_url] || "wss://nostr.pareto.space"
-    relay_naddr = NostrBackend.NIP19.encode_naddr(article.kind, article.author, article.identifier, [relay])
+  defp conn_with_article_meta(conn, article, _relays) do
+    relays_list =
+      case Map.get(article, :relays) do
+        rel when is_list(rel) and rel != [] -> rel
+        _ -> [Application.get_env(:nostr_backend, :feed_generator)[:relay_url] || "wss://nostr.pareto.space"]
+      end
+
+    relay_naddr = NostrBackend.NIP19.encode_naddr(article.kind, article.author, article.identifier, relays_list)
     plain_naddr = NostrBackend.NIP19.encode_naddr(article.kind, article.author, article.identifier)
     og_url = Endpoint.url() <> "/a/#{relay_naddr}"
     canonical_url = Endpoint.url() <> "/a/#{plain_naddr}"
@@ -314,11 +324,16 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_image, community.image |> force_https() || @sharing_image)
   end
 
-  defp conn_with_profile_meta(conn, profile) do
+  defp conn_with_profile_meta(conn, profile, _relays) do
     Logger.debug("Profile: #{inspect(profile)}")
 
-    relay = Application.get_env(:nostr_backend, :feed_generator)[:relay_url] || "wss://nostr.pareto.space"
-    relay_nprofile = NostrBackend.NIP19.encode_nprofile(profile.profile_id, [relay])
+    relays_list =
+      case Map.get(profile, :relays) do
+        rel when is_list(rel) and rel != [] -> rel
+        _ -> [Application.get_env(:nostr_backend, :feed_generator)[:relay_url] || "wss://nostr.pareto.space"]
+      end
+
+    relay_nprofile = NostrBackend.NIP19.encode_nprofile(profile.profile_id, relays_list)
     plain_nprofile = NostrBackend.NIP19.encode_nprofile(profile.profile_id)
     og_url = Endpoint.url() <> "/p/#{relay_nprofile}"
     canonical_url = Endpoint.url() <> "/p/#{plain_nprofile}"

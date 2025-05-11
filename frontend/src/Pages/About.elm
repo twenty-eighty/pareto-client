@@ -209,25 +209,28 @@ viewDonationInformation theme translations =
                ]
         )
         [ div [ css [ Tw.mb_4 ] ] [ text <| Translations.donationInfoText [ translations ] ]
-        , button
-            (styles.textStyleLinks
-                ++ styles.colorStyleLinks
-                ++ [ Attr.href <| "https://geyser.fund/project/pareto"
-                   , target "_blank"
-                   , css
-                        [ Tw.bg_color Theme.white
-                        , Tw.rounded_full
-                        , Tw.p_2
-                        , Tw.w_56
-                        , Tw.h_20
-                        ]
-                   ]
-            )
-            [ img
-                [ src "https://storage.googleapis.com/geyser-projects-media/app/logo-name-dark.svg"
-                , width 200
+        , a
+            [ Attr.href <| "https://geyser.fund/project/pareto"
+            , target "_blank"
+            ]
+            [ div
+                (styles.textStyleLinks
+                    ++ styles.colorStyleLinks
+                    ++ [css
+                            [ Tw.bg_color Theme.white
+                            , Tw.rounded_full
+                            , Tw.p_2
+                            , Tw.w_56
+                            , Tw.h_20
+                            ]
+                    ]
+                )
+                [ img
+                    [ src "https://storage.googleapis.com/geyser-projects-media/app/logo-name-dark.svg"
+                    , width 200
+                    ]
+                    []
                 ]
-                []
             ]
         ]
 

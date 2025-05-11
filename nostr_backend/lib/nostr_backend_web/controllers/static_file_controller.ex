@@ -58,6 +58,11 @@ defmodule NostrBackendWeb.StaticFileController do
     serve_gzipped_sitemap(conn, file_path)
   end
 
+  def landing_sitemap(conn, _params) do
+    file_path = Path.join(@sitemap_path, "sitemap-landing.xml.gz")
+    serve_gzipped_sitemap(conn, file_path)
+  end
+
   defp serve_gzipped_sitemap(conn, file_path) do
     case File.exists?(file_path) do
       true ->

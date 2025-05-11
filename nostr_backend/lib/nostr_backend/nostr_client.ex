@@ -70,13 +70,17 @@ defmodule NostrBackend.NostrClient do
     fetch_from_relays(relays, profile_hex_id, :profile)
   end
 
-  @spec fetch_follow_list(String.t(), list()) :: {:ok, map()} | {:error, String.t()}
+  @spec fetch_follow_list(String.t(), list()) :: {:ok, any()} | {:error, String.t()}
   def fetch_follow_list(pubkey, []) do
     fetch_follow_list(pubkey, @relay_urls)
   end
 
   def fetch_follow_list(pubkey, relay_urls) do
-    fetch_from_relays(relay_urls, pubkey, :follow_list)
+    # Fetch the follow list event(s) and strip out the relay
+    case fetch_from_relays(relay_urls, pubkey, :follow_list) do
+      {:ok, _relay, event_or_events} -> {:ok, event_or_events}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   @spec fetch_author_articles(String.t(), list()) :: {:ok, list(map())} | {:error, String.t()}
@@ -85,8 +89,11 @@ defmodule NostrBackend.NostrClient do
   end
 
   def fetch_author_articles(pubkey, relay_urls) do
-    # Return raw events – ArticleCache will handle parsing and caching
-    fetch_from_relays(relay_urls, pubkey, :author_articles)
+    # Return raw events – strip out the relay and return only events for caching
+    case fetch_from_relays(relay_urls, pubkey, :author_articles) do
+      {:ok, _relay, events} -> {:ok, events}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   @spec fetch_multiple_authors_articles(list(String.t()), list()) :: {:ok, list(map())} | {:error, String.t()}
@@ -96,7 +103,10 @@ defmodule NostrBackend.NostrClient do
 
   def fetch_multiple_authors_articles(pubkeys, relay_urls) do
     Logger.info("Fetching articles for #{length(pubkeys)} authors from #{length(relay_urls)} relays")
-    fetch_from_relays(relay_urls, pubkeys, :multiple_authors_articles)
+    case fetch_from_relays(relay_urls, pubkeys, :multiple_authors_articles) do
+      {:ok, _relay, events} -> {:ok, events}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp fetch_from_relays([], _id, _type) do
@@ -109,7 +119,7 @@ defmodule NostrBackend.NostrClient do
     case fetch_from_relay(relay, id, type) do
       {:ok, data} ->
         Logger.info("Successfully fetched data from relay #{relay}: #{length(data)} items")
-        {:ok, data}
+        {:ok, relay, data}
       {:error, reason} ->
         Logger.warning("Failed to fetch from relay #{relay}: #{inspect(reason)}, trying next relay")
         fetch_from_relays(rest, id, type)
