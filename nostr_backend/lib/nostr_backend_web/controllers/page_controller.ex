@@ -1,5 +1,6 @@
 defmodule NostrBackendWeb.PageController do
   use NostrBackendWeb, :controller
+  alias NostrBackendWeb.Endpoint
 
   @meta_title "The Pareto Project"
   @meta_description "An open source publishing platform for uncensorable, investigative journalism powered by Nostr, Lightning and eCash."
@@ -195,6 +196,7 @@ defmodule NostrBackendWeb.PageController do
   end
 
   defp add_meta_tags(conn) do
+    current_url = Endpoint.url() <> conn.request_path
     conn
     |> assign(:page_title, @meta_title)
     |> assign(:page_description, @meta_description)
@@ -202,7 +204,8 @@ defmodule NostrBackendWeb.PageController do
     |> assign(:meta_title, @meta_title)
     |> assign(:meta_description, @meta_description)
     |> assign(:meta_image, @sharing_image)
-    |> assign(:meta_url, @meta_url)
+    |> assign(:meta_url, current_url)
+    |> assign(:canonical_url, current_url)
   end
 
   defp get_preferred_language(conn) do
