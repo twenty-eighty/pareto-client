@@ -22,7 +22,7 @@ defmodule NostrBackend.RSSGenerator do
   ) do
     File.mkdir_p!(@rss_path)
     items = prepare_items(articles)
-    xml = build_rss(items, channel_title, channel_desc)
+    xml = build_rss(items, channel_title, channel_desc, feed_filename)
     feed_path = Path.join(@rss_path, feed_filename)
     atomic_write(feed_path, xml)
     Logger.info("Generated RSS feed '#{feed_filename}' with #{length(items)} items at #{feed_path}")
@@ -69,11 +69,11 @@ defmodule NostrBackend.RSSGenerator do
     end)
   end
 
-  # Build the RSS XML string
-  defp build_rss(items, channel_title, channel_desc) do
+  # Build the RSS XML string, including a self <atom:link>, passing the feed filename
+  defp build_rss(items, channel_title, channel_desc, feed_filename) do
     channel_link = base_url() <> "/"
-    # Self URL for RSS feed
-    self_link = base_url() <> "/rss/feed.xml"
+    # Self URL for this RSS feed
+    self_link = base_url() <> "/rss/" <> feed_filename
     last_build = List.first(items).pubDate || Calendar.strftime(DateTime.utc_now(), "%a, %d %b %Y %H:%M:%S GMT")
 
     items_xml =
