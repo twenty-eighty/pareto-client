@@ -550,19 +550,24 @@ defmodule NostrBackend.FeedGenerator do
       end
     urls = ["#{base_url()}/en", "#{base_url()}/de"]
 
-    # Build each <url> entry using a heredoc for readability
+    # Build each <url> entry with alternate language link tags
     urls_xml = Enum.map(urls, fn loc ->
       """
   <url>
     <loc>#{loc}</loc>
+    <xhtml:link rel="alternate" hreflang="x-default" href="#{base_url()}/en" />
+    <xhtml:link rel="alternate" hreflang="en" href="#{base_url()}/en" />
+    <xhtml:link rel="alternate" hreflang="de" href="#{base_url()}/de" />
     <lastmod>#{Calendar.strftime(lastmod_dt, "%Y-%m-%d")}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
   </url>
   """
     end)
     |> Enum.join("\n")
 
     sitemap_content = ~s(<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 #{urls_xml}
 </urlset>)
 
