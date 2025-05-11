@@ -282,7 +282,7 @@ defmodule NostrBackendWeb.ContentController do
     case ProfileCache.get_profile(profile_hex_id, relays) do
       {:ok, profile} ->
         conn
-        |> conn_with_profile_meta(profile)
+        |> conn_with_profile_meta(profile, relays)
         |> put_view(NostrBackendWeb.ContentHTML)
         |> render("profile.html", profile: profile)
 
@@ -293,13 +293,14 @@ defmodule NostrBackendWeb.ContentController do
     end
   end
 
-  defp conn_with_article_meta(conn, article, relays \\ []) do
+  defp conn_with_article_meta(conn, article, _relays \\ []) do
+    # Determine relays from the article struct or fallback to configured relay
     relays_list =
-      if relays != [] do
-        relays
-      else
-        [Application.get_env(:nostr_backend, :feed_generator)[:relay_url] || "wss://nostr.pareto.space"]
+      case Map.get(article, :relays) do
+        rel when is_list(rel) and rel != [] -> rel
+        _ -> [Application.get_env(:nostr_backend, :feed_generator)[:relay_url] || "wss://nostr.pareto.space"]
       end
+
     relay_naddr = NostrBackend.NIP19.encode_naddr(article.kind, article.author, article.identifier, relays_list)
     plain_naddr = NostrBackend.NIP19.encode_naddr(article.kind, article.author, article.identifier)
     og_url = Endpoint.url() <> "/a/#{relay_naddr}"
@@ -324,11 +325,16 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_image, community.image |> force_https() || @sharing_image)
   end
 
-  defp conn_with_profile_meta(conn, profile) do
+  defp conn_with_profile_meta(conn, profile, _relays \\ []) do
     Logger.debug("Profile: #{inspect(profile)}")
+    # Determine relays from the profile struct or fallback to configured relay
+    relays_list =
+      case Map.get(profile, :relays) do
+        rel when is_list(rel) and rel != [] -> rel
+        _ -> [Application.get_env(:nostr_backend, :feed_generator)[:relay_url] || "wss://nostr.pareto.space"]
+      end
 
-    relay = Application.get_env(:nostr_backend, :feed_generator)[:relay_url] || "wss://nostr.pareto.space"
-    relay_nprofile = NostrBackend.NIP19.encode_nprofile(profile.profile_id, [relay])
+    relay_nprofile = NostrBackend.NIP19.encode_nprofile(profile.profile_id, relays_list)
     plain_nprofile = NostrBackend.NIP19.encode_nprofile(profile.profile_id)
     og_url = Endpoint.url() <> "/p/#{relay_nprofile}"
     canonical_url = Endpoint.url() <> "/p/#{plain_nprofile}"

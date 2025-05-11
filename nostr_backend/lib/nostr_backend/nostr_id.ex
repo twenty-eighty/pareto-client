@@ -120,27 +120,24 @@ defmodule NostrBackend.NostrId do
   end
 
   defp extract_tlv_data(:naddr, tlv_list) do
+    # Accumulate identifier, author, kind, and any relay entries as a list
     Enum.reduce(tlv_list, %{}, fn tlv, acc ->
       case tlv.tag do
-        # Identifier
+        # Identifier (type 0)
         0x00 ->
-          identifier = tlv.value
-          Map.put(acc, :identifier, identifier)
+          Map.put(acc, :identifier, tlv.value)
 
-        # Pubkey
+        # Relay entries (type 1)
         0x01 ->
-          relay = tlv.value
-          Map.put(acc, :relay, relay)
+          Map.update(acc, :relays, [tlv.value], fn rels -> rels ++ [tlv.value] end)
 
-        # Author
+        # Author/pubkey (type 2)
         0x02 ->
-          author = Base.encode16(tlv.value, case: :lower)
-          Map.put(acc, :author, author)
+          Map.put(acc, :author, Base.encode16(tlv.value, case: :lower))
 
-        # Kind
+        # Kind (type 3)
         0x03 ->
-          kind = :binary.decode_unsigned(tlv.value, :big)
-          Map.put(acc, :kind, kind)
+          Map.put(acc, :kind, :binary.decode_unsigned(tlv.value, :big))
 
         _ ->
           # Ignore unknown tags

@@ -29,16 +29,17 @@ defmodule NostrBackend.ProfileCache do
 
   defp load_profile(pubkey, relays) do
     # Implement the logic to load the profile from the Nostr network
-    # For example:
     case NostrClient.fetch_profile(pubkey, relays) do
-      {:ok, event} ->
-        Logger.debug("Fetched profile event: #{inspect(event)}")
+      {:ok, relay, event_or_events} ->
+        Logger.debug("Fetched profile event(s) from relay #{relay}: #{inspect(event_or_events)}")
         # Handle both single event and list of events
-        event_to_parse = case event do
+        event_to_parse = case event_or_events do
           [single_event] -> single_event
-          _ -> event
+          _ -> event_or_events
         end
         profile = Content.parse_profile_event(event_to_parse)
+        # Attach the relay used to fetch the profile
+        profile = Map.put(profile, :relays, [relay])
         Logger.debug("Parsed profile: #{inspect(profile)}")
         {:ok, profile}
       {:error, reason} ->
