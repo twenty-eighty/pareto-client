@@ -195,8 +195,11 @@ defmodule NostrBackendWeb.PageController do
   end
 
   defp add_meta_tags(conn) do
+    # Determine page language from Accept-Language header
+    lang = get_preferred_language(conn)
     current_url = Endpoint.url() <> conn.request_path
     conn
+    |> assign(:lang, lang)
     |> assign(:page_title, @meta_title)
     |> assign(:page_description, @meta_description)
     |> assign(:page_image, @sharing_image)

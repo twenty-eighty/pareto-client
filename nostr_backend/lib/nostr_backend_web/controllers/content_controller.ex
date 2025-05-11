@@ -294,6 +294,11 @@ defmodule NostrBackendWeb.ContentController do
   end
 
   defp conn_with_article_meta(conn, article, _relays) do
+    tag_lang = Enum.find_value(article.tags || [], nil, fn
+      ["l", code, "ISO-639-1" | _] when is_binary(code) -> code
+      _ -> nil
+    end)
+    lang = tag_lang || get_preferred_language(conn)
     relays_list =
       case Map.get(article, :relays) do
         rel when is_list(rel) and rel != [] -> rel
@@ -305,6 +310,7 @@ defmodule NostrBackendWeb.ContentController do
     og_url = Endpoint.url() <> "/a/#{relay_naddr}"
     canonical_url = Endpoint.url() <> "/a/#{plain_naddr}"
     conn
+    |> assign(:lang, lang)
     |> assign(:page_title, article.title || @meta_title)
     |> assign(:meta_title, article.title || @meta_title)
     |> assign(:meta_url, og_url)
@@ -317,6 +323,7 @@ defmodule NostrBackendWeb.ContentController do
     Logger.debug("Community: #{inspect(community)}")
 
     conn
+    |> assign(:lang, get_preferred_language(conn))
     |> assign(:page_title, community.name <> " | Pareto")
     |> assign(:meta_title, community.name <> " | Pareto")
     |> assign(:meta_url, Endpoint.url() <> conn.request_path)
@@ -337,7 +344,9 @@ defmodule NostrBackendWeb.ContentController do
     plain_nprofile = NostrBackend.NIP19.encode_nprofile(profile.profile_id)
     og_url = Endpoint.url() <> "/p/#{relay_nprofile}"
     canonical_url = Endpoint.url() <> "/p/#{plain_nprofile}"
+    lang = get_preferred_language(conn)
     conn
+    |> assign(:lang, lang)
     |> assign(:page_title, profile.name <> " | Pareto")
     |> assign(:meta_title, profile.name <> " | Pareto")
     |> assign(:meta_url, og_url)
@@ -359,6 +368,7 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_url, Endpoint.url() <> conn.request_path)
     |> assign(:canonical_url, Endpoint.url() <> conn.request_path)
     |> assign(:article, nil)
+    |> assign(:lang, get_preferred_language(conn))
   end
 
   def force_https(nil), do: nil
@@ -371,5 +381,22 @@ defmodule NostrBackendWeb.ContentController do
 
     # Convert back to string
     URI.to_string(updated_uri)
+  end
+
+  # Helper: determine preferred language from Accept-Language header
+  defp get_preferred_language(conn) do
+    conn
+    |> get_req_header("accept-language")
+    |> List.first()
+    |> parse_language()
+  end
+
+  defp parse_language(nil), do: "en"
+  defp parse_language(lang_header) do
+    lang_header
+    |> String.split(",", trim: true)
+    |> List.first()
+    |> String.split("-", trim: true)
+    |> List.first()
   end
 end
