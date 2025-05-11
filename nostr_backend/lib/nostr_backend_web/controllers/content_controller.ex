@@ -42,7 +42,7 @@ defmodule NostrBackendWeb.ContentController do
         case ArticleCache.get_article(article_hex_id) do
           {:ok, article} ->
             conn
-            |> conn_with_article_meta(article)
+            |> conn_with_article_meta(article, [])
             |> put_view(NostrBackendWeb.ContentHTML)
             |> render(:article, article: article)
 
@@ -60,7 +60,7 @@ defmodule NostrBackendWeb.ContentController do
         case ArticleCache.get_article(address_info) do
           {:ok, article} ->
             conn
-            |> conn_with_article_meta(article)
+            |> conn_with_article_meta(article, [])
             |> put_view(NostrBackendWeb.ContentHTML)
             |> render(:article, article: article)
 
