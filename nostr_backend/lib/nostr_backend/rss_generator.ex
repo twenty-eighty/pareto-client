@@ -42,11 +42,22 @@ defmodule NostrBackend.RSSGenerator do
         {:ok, prof} -> prof.display_name || prof.name || article.author
         _ -> article.author
       end
+      # Link with relay for RSS <link>
       link = encode_link(article, relay_urls)
+      # Compute guid: canonical naddr without relay or fallback
+      guid = case NIP19.encode_naddr(article.kind, article.author, article.identifier) do
+        naddr when is_binary(naddr) -> base_url() <> "/a/" <> naddr
+        _ ->
+          nip05_id = case ProfileCache.get_profile(article.author, []) do
+            {:ok, prof} -> prof.nip05
+            _ -> nil
+          end
+          base_url() <> "/u/" <> nip05_id <> "/" <> to_string(article.identifier)
+      end
       %{
         title: article.title || "Untitled",
         link: link,
-        guid: link,
+        guid: guid,
         pubDate: Calendar.strftime(article.published_at || DateTime.utc_now(), "%a, %d %b %Y %H:%M:%S GMT"),
         # only summary in description
         description: article.description || "",

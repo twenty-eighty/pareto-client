@@ -179,13 +179,13 @@ defmodule NostrBackend.NIP19 do
 
     # Set strictpad=false explicitly to match nostr-tools' bech32 implementation
     # The standard bech32 library in Elixir adds extra padding that the JS version doesn't
-    result = bech32_encode_noprofile(tlv_data)
+    result = bech32_encode_nprofile(tlv_data)
     Logger.debug("Reference nprofile result: #{result}")
     result
   end
 
   # Encodes TLV data as Bech32 nprofile strictly per NIP-19 (pad=false)
-  defp bech32_encode_noprofile(tlv_data) do
+  defp bech32_encode_nprofile(tlv_data) do
     # Convert TLV bytes (8-bit) to 5-bit groups, padding only if needed
     pad = rem(bit_size(tlv_data), 5) != 0
     data_5bit = case Bech32.convertbits(tlv_data, 8, 5, pad) do

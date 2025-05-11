@@ -285,21 +285,23 @@ defmodule NostrBackend.FeedGenerator do
       # Create NIP-19 identifier
       kind = article.kind
       identifier = article.identifier
-      nip19_id = "#{kind}:#{author}:#{identifier}"
-      Logger.debug("Created NIP-19 ID: #{nip19_id}")
 
       # Get the relay used to fetch articles
       relay = get_configured_relay()
       Logger.debug("Using relay for naddr: #{relay}")
 
-      # Create naddr for link with relay included, with error handling
-      naddr = try do
-        NostrBackend.NIP19.encode_naddr(kind, author, identifier, [relay])
-      rescue
-        e ->
-          Logger.error("Failed to encode naddr: #{Exception.message(e)}. Using fallback format.")
-          # Use a fallback format that doesn't require bech32 encoding
-          "fallback/#{kind}/#{author}/#{identifier}"
+      # Compute canonical entry ID (no-relay) or fallback to NIP-05 route
+      entry_id_url = case NostrBackend.NIP19.encode_naddr(kind, author, identifier) do
+        naddr when is_binary(naddr) -> "#{base_url()}/a/#{naddr}"
+        _ ->
+          nip05_id = Map.get(author_profile, :nip05)
+          "#{base_url()}/u/#{nip05_id}/#{identifier}"
+      end
+
+      # Compute alternate link with relay if possible
+      entry_link_url = case NostrBackend.NIP19.encode_naddr(kind, author, identifier, [relay]) do
+        naddr when is_binary(naddr) -> "#{base_url()}/a/#{naddr}"
+        _ -> entry_id_url
       end
 
       # Get the timestamp for updated
@@ -318,13 +320,13 @@ defmodule NostrBackend.FeedGenerator do
 
       # Create the feed entry using Atomex.Entry
       entry = Atomex.Entry.new(
-        nip19_id,
+        entry_id_url,
         updated_at,
         title
       )
       |> Atomex.Entry.author(author_name)
       |> Atomex.Entry.content(content, type: "html")
-      |> Atomex.Entry.link("#{base_url()}/a/#{naddr}", rel: "alternate", type: "text/html")
+      |> Atomex.Entry.link(entry_link_url, rel: "alternate", type: "text/html")
 
       # Add image as enclosure if present, with MIME type derived from extension
       entry = if article.image_url do
