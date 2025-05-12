@@ -440,6 +440,7 @@ viewProfileImage linkElement maybeProfile validationStatus =
             [ Tw.w_fit
             , Tw.border_color Theme.white
             , Tw.rounded_full
+            , Tw.relative
             , Tw.bg_color Theme.white
             ]
         ]
