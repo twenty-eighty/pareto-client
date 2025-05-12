@@ -2,12 +2,10 @@ module Pages.P.Profile_ exposing (Model, Msg, page)
 
 import Components.EmailSubscriptionDialog as EmailSubscriptionDialog
 import Components.RelayStatus exposing (Purpose(..))
-import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
 import Layouts
 import Layouts.Sidebar
-import Locale
 import Nostr
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Nip19 as Nip19
@@ -70,12 +68,6 @@ init shared route () =
                 _ ->
                     EmailSubscriptionDialog.init {}
 
-        changeLocaleEffect =
-            route.query
-                |> Dict.get Locale.localeQueryParam
-                |> Maybe.map Effect.changeLocale
-                |> Maybe.withDefault Effect.none
-
         model =
             decodeParam route.params.profile
                 |> Maybe.map
@@ -125,7 +117,6 @@ init shared route () =
             |> Maybe.map Shared.Msg.LoadUserDataByPubKey
             |> Maybe.map Effect.sendSharedMsg
             |> Maybe.withDefault Effect.none
-        , changeLocaleEffect
         ]
     )
 

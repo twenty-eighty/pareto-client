@@ -27,11 +27,6 @@ type Language
     | Russian
 
 
-localeQueryParam : String
-localeQueryParam =
-    "locale"
-
-
 defaultLanguages : List Language
 defaultLanguages =
     [ English "US", French, German "DE", Italian, Portuguese, Spanish, Swedish ]

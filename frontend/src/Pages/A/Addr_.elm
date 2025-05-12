@@ -111,12 +111,6 @@ init shared route () =
         decoded =
             Nip19.decode route.params.addr
 
-        changeLocaleEffect =
-            route.query
-                |> Dict.get Locale.localeQueryParam
-                |> Maybe.map Effect.changeLocale
-                |> Maybe.withDefault Effect.none
-
         ( model, maybeArticle ) =
             case decoded of
                 Ok nip19 ->
@@ -193,7 +187,6 @@ init shared route () =
 
         -- jump to top of article
         , Effect.scrollContentToTop
-        , changeLocaleEffect
         ]
     )
 

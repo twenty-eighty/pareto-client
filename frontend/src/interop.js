@@ -18,14 +18,17 @@ if (!customElements.get('js-clipboard-component')) {
 // The value returned here will be passed as flags 
 // into your `Shared.init` function.
 export const flags = ({ env }) => {
+  // derive locale from URL parameter or default to browser setting
+  const params = new URLSearchParams(window.location.search);
+  const selectedLocale = params.get('locale') || navigator.language;
   return {
     environment: env.ELM_ENV,
     darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
-    locale: navigator.language,
+    locale: selectedLocale,
     nativeSharingAvailable: (navigator.share != undefined),
     testMode: JSON.parse(localStorage.getItem('testMode')) || false,
   }
-}
+};
 
 const debugLog = debug('pareto-client');
 
