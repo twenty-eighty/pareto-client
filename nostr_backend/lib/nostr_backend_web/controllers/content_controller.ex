@@ -400,8 +400,8 @@ defmodule NostrBackendWeb.ContentController do
   defp is_sharing_bot?(user_agent) do
     ua = (user_agent || "") |> String.downcase()
     cond do
-      String.starts_with?(ua, "facebook bot") -> true
-      String.starts_with?(ua, "facebookexternalhit") -> true
+      String.starts_with?(ua, "facebook") -> true
+      String.starts_with?(ua, "meta-externalagent") -> true
       String.contains?(ua, "google (+https://developers.google.com/+/web/snippet)/") -> true
       String.contains?(ua, "instagram") -> true
       String.starts_with?(ua, "linkedin bot") -> true
