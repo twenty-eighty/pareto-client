@@ -160,6 +160,18 @@ viewArticle articlePreviewsData articlePreviewData article =
         getProfile =
             Nostr.getProfile articlePreviewsData.nostr
 
+        maybeProfile =
+            getProfile article.author
+
+        validationStatus =
+            Nostr.getProfileValidationStatus articlePreviewsData.nostr article.author
+            |> Maybe.withDefault ValidationUnknown
+
+        linkElement =
+            maybeProfile
+                |> Maybe.map (\profile -> linkElementForProfile profile validationStatus)
+                |> Maybe.withDefault (linkElementForProfilePubKey article.author)
+
         langAttr =
             case article.language of
                 Just language ->
@@ -234,7 +246,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                         , Tw.z_10
                         ]
                     ]
-                    [ Ui.Profile.viewProfileImage (linkElementForProfilePubKey article.author) (getProfile article.author) ValidationUnknown ]
+                    [ Ui.Profile.viewProfileImage linkElement maybeProfile ValidationUnknown ]
                 ]
             , Html.article
                 (langAttr

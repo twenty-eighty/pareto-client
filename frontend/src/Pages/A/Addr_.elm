@@ -13,7 +13,7 @@ import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article)
-import Nostr.Event as Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
+import Nostr.Event as Event exposing (AddressComponents, Kind(..), TagReference(..))
 import Nostr.Nip18 exposing (articleRepostEvent)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (CommentType)
