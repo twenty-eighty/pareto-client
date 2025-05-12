@@ -4,7 +4,7 @@ import BrowserEnv exposing (BrowserEnv)
 import BuildInfo
 import Components.Button as Button
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, a, button, div, img, span, text)
+import Html.Styled as Html exposing (Html, a, div, img, span, text)
 import Html.Styled.Attributes as Attr exposing (css, href, src, target, width)
 import I18Next
 import Iso8601

@@ -391,32 +391,28 @@ defmodule NostrBackend.FeedGenerator do
           relay = get_configured_relay()
           Logger.info("Using relay for sitemap: #{relay}")
 
-          # Create XML sitemap content (sorted by published_at descending)
+          # Create XML sitemap content (sorted by published_at descending) with language alternates
           urls_xml = Enum.map(sorted_articles, fn article ->
-            # Get the necessary fields for the naddr
             kind = article.kind
             author = article.author
             identifier = article.identifier
-
             Logger.debug("Creating sitemap entry for article: kind=#{kind}, author=#{author}, identifier=#{identifier}")
-
-            # Create naddr with relay information included
             naddr = NostrBackend.NIP19.encode_naddr(kind, author, identifier, [relay])
-
-            # Format the lastmod date in W3C format (YYYY-MM-DD)
             lastmod = Calendar.strftime(article.published_at, "%Y-%m-%d")
-
+            path = "/a/#{naddr}"
+            alternates_html = alternate_links(path)
             ~s(  <url>
-    <loc>#{base_url()}/a/#{naddr}</loc>
+    <loc>#{base_url()}#{path}</loc>
+#{alternates_html}
     <lastmod>#{lastmod}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>)
           end) |> Enum.join("\n")
 
-          # Create complete sitemap XML
+          # Create complete sitemap XML with xhtml namespace
           sitemap_content = ~s(<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 #{urls_xml}
 </urlset>)
 
@@ -503,20 +499,19 @@ defmodule NostrBackend.FeedGenerator do
     urls_xml = Enum.map(follow_list, fn pubkey ->
       nprofile = NostrBackend.NIP19.encode_nprofile(pubkey, [relay])
       Logger.debug("Generated author nprofile: #{nprofile}")
-
-      author_url =
-        "/p/#{nprofile}"
-
+      author_url = "/p/#{nprofile}"
+      alternates_html = alternate_links(author_url)
       ~s(  <url>
     <loc>#{base_url()}#{author_url}</loc>
+#{alternates_html}
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>)
     end) |> Enum.join("\n")
 
-    # Create complete sitemap XML
+    # Create complete sitemap XML with xhtml namespace
     sitemap_content = ~s(<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 #{urls_xml}
 </urlset>)
 
@@ -550,19 +545,24 @@ defmodule NostrBackend.FeedGenerator do
       end
     urls = ["#{base_url()}/en", "#{base_url()}/de"]
 
-    # Build each <url> entry using a heredoc for readability
+    # Build each <url> entry with alternate language link tags
     urls_xml = Enum.map(urls, fn loc ->
       """
   <url>
     <loc>#{loc}</loc>
+    <xhtml:link rel="alternate" hreflang="x-default" href="#{base_url()}/en" />
+    <xhtml:link rel="alternate" hreflang="en" href="#{base_url()}/en" />
+    <xhtml:link rel="alternate" hreflang="de" href="#{base_url()}/de" />
     <lastmod>#{Calendar.strftime(lastmod_dt, "%Y-%m-%d")}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
   </url>
   """
     end)
     |> Enum.join("\n")
 
     sitemap_content = ~s(<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 #{urls_xml}
 </urlset>)
 
@@ -610,5 +610,20 @@ defmodule NostrBackend.FeedGenerator do
     tmp = path <> ".tmp"
     File.write!(tmp, contents)
     File.rename!(tmp, path)
+  end
+
+  defp alternate_links(path) do
+    default = NostrBackend.Locale.default_language()
+    base = base_url() <> path
+    # x-default entry
+    xdefault = ~s(    <xhtml:link rel="alternate" hreflang="x-default" href="#{base}" />)
+    # per-language entries using configured query param
+    param_key = NostrBackend.Locale.locale_param_key()
+    codes = NostrBackend.Locale.available_languages()
+    |> Enum.map(fn code ->
+      href = if code == default, do: base, else: "#{base}?#{param_key}=#{code}"
+      ~s(    <xhtml:link rel="alternate" hreflang="#{code}" href="#{href}" />)
+    end)
+    Enum.join([xdefault | codes], "\n")
   end
 end

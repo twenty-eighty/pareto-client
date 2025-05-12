@@ -8,7 +8,7 @@ defmodule NostrBackendWeb.PageController do
 
   def landing_page(conn, _params) do
     # Determine the preferred language from the `Accept-Language` header
-    case get_preferred_language(conn) do
+    case NostrBackend.Locale.preferred_language(conn) do
       "de" ->
         redirect(conn, to: "/de")
 
@@ -195,8 +195,10 @@ defmodule NostrBackendWeb.PageController do
   end
 
   defp add_meta_tags(conn) do
+    lang = NostrBackend.Locale.preferred_language(conn)
     current_url = Endpoint.url() <> conn.request_path
     conn
+    |> assign(:lang, lang)
     |> assign(:page_title, @meta_title)
     |> assign(:page_description, @meta_description)
     |> assign(:page_image, @sharing_image)
@@ -205,28 +207,5 @@ defmodule NostrBackendWeb.PageController do
     |> assign(:meta_image, @sharing_image)
     |> assign(:meta_url, current_url)
     |> assign(:canonical_url, current_url)
-  end
-
-  defp get_preferred_language(conn) do
-    # Parse `Accept-Language` to get the primary language code
-    conn
-    |> get_req_header("accept-language")
-    |> List.first()
-    |> parse_language()
-  end
-
-  # Default if no language is provided
-  defp parse_language(nil), do: "en"
-
-  defp parse_language(lang_header) do
-    lang_header
-    # Handle multiple languages
-    |> String.split(",")
-    # Take the first language
-    |> List.first()
-    # Split language and region (e.g., "en-US")
-    |> String.split("-")
-    # Use the main language code
-    |> List.first()
   end
 end

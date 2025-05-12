@@ -40,3 +40,4 @@ type Msg
     | AlertSent AlertTimerMessage.Msg
     | ScrollContentToTop
     | DomError (Result Browser.Dom.Error ())
+    | ChangeLocale String

@@ -1,0 +1,5 @@
+{
+	"available": ["en", "de"],
+	"default": "en",
+	"queryParam": "locale"
+}

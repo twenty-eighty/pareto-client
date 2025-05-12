@@ -26,6 +26,7 @@ type Language
     | Swedish
     | Russian
 
+
 defaultLanguages : List Language
 defaultLanguages =
     [ English "US", French, German "DE", Italian, Portuguese, Spanish, Swedish ]

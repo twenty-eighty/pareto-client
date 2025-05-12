@@ -305,6 +305,7 @@ defmodule NostrBackendWeb.ContentController do
     og_url = Endpoint.url() <> "/a/#{relay_naddr}"
     canonical_url = Endpoint.url() <> "/a/#{plain_naddr}"
     conn
+    |> assign(:lang, NostrBackend.Locale.preferred_language(conn))
     |> assign(:page_title, article.title || @meta_title)
     |> assign(:meta_title, article.title || @meta_title)
     |> assign(:meta_url, og_url)
@@ -317,6 +318,7 @@ defmodule NostrBackendWeb.ContentController do
     Logger.debug("Community: #{inspect(community)}")
 
     conn
+    |> assign(:lang, NostrBackend.Locale.preferred_language(conn))
     |> assign(:page_title, community.name <> " | Pareto")
     |> assign(:meta_title, community.name <> " | Pareto")
     |> assign(:meta_url, Endpoint.url() <> conn.request_path)
@@ -337,7 +339,9 @@ defmodule NostrBackendWeb.ContentController do
     plain_nprofile = NostrBackend.NIP19.encode_nprofile(profile.profile_id)
     og_url = Endpoint.url() <> "/p/#{relay_nprofile}"
     canonical_url = Endpoint.url() <> "/p/#{plain_nprofile}"
+    lang = NostrBackend.Locale.preferred_language(conn)
     conn
+    |> assign(:lang, lang)
     |> assign(:page_title, profile.name <> " | Pareto")
     |> assign(:meta_title, profile.name <> " | Pareto")
     |> assign(:meta_url, og_url)
@@ -359,6 +363,7 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_url, Endpoint.url() <> conn.request_path)
     |> assign(:canonical_url, Endpoint.url() <> conn.request_path)
     |> assign(:article, nil)
+    |> assign(:lang, NostrBackend.Locale.preferred_language(conn))
   end
 
   def force_https(nil), do: nil
