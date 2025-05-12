@@ -5,11 +5,13 @@ import Components.Comment as Comment
 import Components.RelayStatus exposing (Purpose(..))
 import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapDialog as ZapDialog
+import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html)
 import Layouts
 import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
+import Locale
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
@@ -93,6 +95,12 @@ type alias Model =
 init : Shared.Model -> Route { user : String, identifier : String } -> () -> ( Model, Effect Msg )
 init shared route () =
     let
+        changeLocaleEffect =
+            route.query
+                |> Dict.get Locale.localeQueryParam
+                |> Maybe.map Effect.changeLocale
+                |> Maybe.withDefault Effect.none
+
         model =
             { identifier = route.params.identifier
             , comment = Comment.init {}
@@ -160,6 +168,7 @@ init shared route () =
 
         -- jump to top of article
         , Effect.scrollContentToTop
+        , changeLocaleEffect
         ]
     )
 

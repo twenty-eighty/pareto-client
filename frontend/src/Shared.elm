@@ -314,6 +314,9 @@ update route msg model =
         DomError _ ->
             ( model, Effect.none )
 
+        ChangeLocale locale ->
+            update route (BrowserEnvMsg (BrowserEnv.UpdateLocale locale)) model
+
 
 updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage model portMessage =

@@ -5,12 +5,14 @@ import Components.Comment as Comment
 import Components.RelayStatus exposing (Purpose(..))
 import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapDialog as ZapDialog
+import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (div)
 import Html.Styled.Attributes exposing (css)
 import Layouts
 import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
+import Locale
 import Nostr
 import Nostr.Article exposing (Article)
 import Nostr.Event as Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
@@ -109,6 +111,12 @@ init shared route () =
         decoded =
             Nip19.decode route.params.addr
 
+        changeLocaleEffect =
+            route.query
+                |> Dict.get Locale.localeQueryParam
+                |> Maybe.map Effect.changeLocale
+                |> Maybe.withDefault Effect.none
+
         ( model, maybeArticle ) =
             case decoded of
                 Ok nip19 ->
@@ -185,6 +193,7 @@ init shared route () =
 
         -- jump to top of article
         , Effect.scrollContentToTop
+        , changeLocaleEffect
         ]
     )
 

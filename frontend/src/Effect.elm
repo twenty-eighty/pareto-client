@@ -8,6 +8,7 @@ module Effect exposing
     , map, toCmd
     , scrollContentToTop
     , sendSharedMsg
+    , changeLocale
     )
 
 {-|
@@ -48,6 +49,7 @@ type Effect msg
       -- SHARED
     | SendSharedMsg Shared.Msg.Msg
     | ScrollContentToTop
+    | ChangeLocale String
 
 
 -- BASICS
@@ -149,6 +151,11 @@ scrollContentToTop =
     ScrollContentToTop
 
 
+changeLocale : String -> Effect msg
+changeLocale locale =
+    ChangeLocale locale
+
+
 -- INTERNALS
 
 
@@ -184,6 +191,9 @@ map fn effect =
 
         ScrollContentToTop ->
             ScrollContentToTop
+
+        ChangeLocale locale ->
+            ChangeLocale locale
 
 
 {-| Elm Land depends on this function to perform your effects.
@@ -228,3 +238,5 @@ toCmd options effect =
         ScrollContentToTop ->
             toCmd options (SendSharedMsg Shared.Msg.ScrollContentToTop)
 
+        ChangeLocale locale ->
+            toCmd options (SendSharedMsg (Shared.Msg.ChangeLocale locale))

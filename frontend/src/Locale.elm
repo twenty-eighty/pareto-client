@@ -26,6 +26,12 @@ type Language
     | Swedish
     | Russian
 
+
+localeQueryParam : String
+localeQueryParam =
+    "locale"
+
+
 defaultLanguages : List Language
 defaultLanguages =
     [ English "US", French, German "DE", Italian, Portuguese, Spanish, Swedish ]
