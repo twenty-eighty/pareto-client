@@ -149,6 +149,7 @@ defmodule NostrBackendWeb.NostrController do
     conn
     |> put_resp_header("Access-Control-Allow-Origin", "*")
     |> put_resp_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+    |> put_resp_header("x-robots-tag", "noindex")
   end
 
   defp put_same_domain_headers(conn) do

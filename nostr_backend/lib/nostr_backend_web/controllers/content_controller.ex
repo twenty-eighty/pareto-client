@@ -21,6 +21,7 @@ defmodule NostrBackendWeb.ContentController do
       {:ok, {:author_article, query_data}} ->
         case ArticleCache.get_article(query_data) do
           {:ok, article} ->
+            article = apply_substitution_if_bot(conn, article)
             relay = Map.get(query_data, :relay)
             relays_list = Map.get(query_data, :relays, (if relay, do: [relay], else: []))
             conn
@@ -41,6 +42,7 @@ defmodule NostrBackendWeb.ContentController do
       {:ok, {:article, article_hex_id}} ->
         case ArticleCache.get_article(article_hex_id) do
           {:ok, article} ->
+            article = apply_substitution_if_bot(conn, article)
             conn
             |> conn_with_article_meta(article, [])
             |> put_view(NostrBackendWeb.ContentHTML)
@@ -59,6 +61,7 @@ defmodule NostrBackendWeb.ContentController do
       {:ok, {:address, address_info}} ->
         case ArticleCache.get_article(address_info) do
           {:ok, article} ->
+            article = apply_substitution_if_bot(conn, article)
             conn
             |> conn_with_article_meta(article, [])
             |> put_view(NostrBackendWeb.ContentHTML)
@@ -75,6 +78,7 @@ defmodule NostrBackendWeb.ContentController do
       {:ok, {:event, event_info}} ->
         case ArticleCache.get_article(event_info) do
           {:ok, article} ->
+            article = apply_substitution_if_bot(conn, article)
             conn
             |> conn_with_article_meta(article, event_info.relays || [])
             |> put_view(NostrBackendWeb.ContentHTML)
@@ -234,6 +238,7 @@ defmodule NostrBackendWeb.ContentController do
                    relays: relays
                  }) do
               {:ok, article} ->
+                article = apply_substitution_if_bot(conn, article)
                 conn
                 |> conn_with_article_meta(article, relays)
                 |> put_view(NostrBackendWeb.ContentHTML)
@@ -376,5 +381,46 @@ defmodule NostrBackendWeb.ContentController do
 
     # Convert back to string
     URI.to_string(updated_uri)
+  end
+
+  defp apply_substitution_if_bot(conn, article) do
+    user_agent = get_req_header(conn, "user-agent") |> List.first()
+    if is_sharing_bot?(user_agent) do
+      %{article |
+        title: NostrBackend.Substitution.replace_randomly(article.title),
+        description: NostrBackend.Substitution.replace_randomly(article.description),
+        content: ""
+      }
+    else
+      article
+    end
+  end
+
+  # Detect known social-sharing bots via User-Agent
+  defp is_sharing_bot?(user_agent) do
+    ua = (user_agent || "") |> String.downcase()
+    cond do
+      String.starts_with?(ua, "facebook") -> true
+      String.starts_with?(ua, "meta-externalagent") -> true
+      String.contains?(ua, "google (+https://developers.google.com/+/web/snippet)/") -> true
+      String.contains?(ua, "instagram") -> true
+      String.starts_with?(ua, "linkedin bot") -> true
+      String.starts_with?(ua, "linkedinbot") -> true
+      String.starts_with?(ua, "pinterest bot") -> true
+      String.starts_with?(ua, "secondlife") -> true
+      String.contains?(ua, "skypeuripreview") -> true
+      String.starts_with?(ua, "slackbot link checker") -> true
+      String.starts_with?(ua, "slackbot-linkexpanding") -> true
+      String.starts_with?(ua, "snapchat") -> true
+      String.contains?(ua, "telegrambot") -> true
+      String.contains?(ua, "twitterbot") -> true
+      String.starts_with?(ua, "viber") -> true
+      String.starts_with?(ua, "whatsapp") -> true
+      String.starts_with?(ua, "wire linkpreview bot") -> true
+      String.contains?(ua, "xing bot") -> true
+      String.starts_with?(ua, "zoom info bot") -> true
+      String.starts_with?(ua, "zoom.mac") -> true
+      true -> false
+    end
   end
 end

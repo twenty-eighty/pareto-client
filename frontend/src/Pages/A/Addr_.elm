@@ -5,17 +5,15 @@ import Components.Comment as Comment
 import Components.RelayStatus exposing (Purpose(..))
 import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapDialog as ZapDialog
-import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (div)
 import Html.Styled.Attributes exposing (css)
 import Layouts
 import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
-import Locale
 import Nostr
 import Nostr.Article exposing (Article)
-import Nostr.Event as Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
+import Nostr.Event as Event exposing (AddressComponents, Kind(..), TagReference(..))
 import Nostr.Nip18 exposing (articleRepostEvent)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (CommentType)

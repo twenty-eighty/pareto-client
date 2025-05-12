@@ -481,6 +481,7 @@ defmodule NostrBackend.FeedGenerator do
     User-agent: *
     Allow: /
     Disallow: /api/
+    Disallow: /.well-known/
     Sitemap: #{sitemap_url}
     """
 

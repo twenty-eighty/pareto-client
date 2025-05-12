@@ -13,7 +13,7 @@ import Parser
 import SyntaxHighlight
 import Tailwind.Utilities as Tw
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyRobotoMono, stylesForTheme)
+import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyRobotoMono, print, stylesForTheme)
 
 
 textStyleArticleCode : List (Html.Attribute msg)
@@ -42,6 +42,9 @@ renderer styles fnGetProfile =
                         , Css.property "overflow-wrap" "break-word"
 
                         -- , Css.property "word-break" "break-word"
+                        , print
+                            [ Tw.break_inside_avoid_page
+                            ]
                         ]
                    ]
             )
