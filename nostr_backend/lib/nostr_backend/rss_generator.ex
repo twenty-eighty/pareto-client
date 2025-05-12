@@ -54,15 +54,22 @@ defmodule NostrBackend.RSSGenerator do
           end
           base_url() <> "/u/" <> nip05_id <> "/" <> to_string(article.identifier)
       end
+      # Prepare description and content with inline title image
+      description = article.description || ""
+      raw_content = article.content || description
+      content = if article.image_url do
+        img_tag = "<p><img src=\"#{article.image_url}\" /></p>"
+        img_tag <> raw_content
+      else
+        raw_content
+      end
       %{
         title: article.title || "Untitled",
         link: link,
         guid: guid,
         pubDate: Calendar.strftime(article.published_at || DateTime.utc_now(), "%a, %d %b %Y %H:%M:%S GMT"),
-        # only summary in description
-        description: article.description || "",
-        # full HTML content in content:encoded
-        content: article.content || article.description || "",
+        description: description,
+        content: content,
         image_url: article.image_url,
         author: author_name
       }
