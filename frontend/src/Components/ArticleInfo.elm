@@ -250,6 +250,15 @@ viewArticleStats styles textStats browserEnv =
 
         speakingTime =
             browserEnv.formatNumber "0.0" textStats.speakingTime
+
+        sentences =
+            browserEnv.formatNumber "0,0" (toFloat textStats.sentences)
+
+        words =
+            browserEnv.formatNumber "0,0" (toFloat textStats.words)
+
+        characters =
+            browserEnv.formatNumber "0,0" (toFloat textStats.characters)
     in
     dl
         [ css
@@ -259,9 +268,9 @@ viewArticleStats styles textStats browserEnv =
         ]
         [ toHtml (Translations.readingTime [ browserEnv.translations ]) (Translations.timeUnit [ browserEnv.translations ] { minutes = readingTime })
         , toHtml (Translations.speakingTime [ browserEnv.translations ]) (Translations.timeUnit [ browserEnv.translations ] { minutes = speakingTime })
-        , toHtml (Translations.sentences [ browserEnv.translations ]) (String.fromInt textStats.sentences)
-        , toHtml (Translations.words [ browserEnv.translations ]) (String.fromInt textStats.words)
-        , toHtml (Translations.characters [ browserEnv.translations ]) (String.fromInt textStats.characters)
+        , toHtml (Translations.sentences [ browserEnv.translations ]) sentences
+        , toHtml (Translations.words [ browserEnv.translations ]) words
+        , toHtml (Translations.characters [ browserEnv.translations ]) characters
         ]
 
 

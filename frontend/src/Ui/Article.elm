@@ -41,7 +41,7 @@ import Ui.Interactions exposing (Actions, extendedZapRelays, viewInteractions)
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyInter, fontFamilyRobotoMono, fontFamilyUnbounded)
+import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyInter, fontFamilyRobotoMono, fontFamilyUnbounded, print)
 import Url
 
 
@@ -236,6 +236,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                     , Tw.flex
                     , Tw.flex_col
                     , Tw.items_center
+                    , print
+                        [ Tw.hidden
+                        ]
                     ]
                 ]
                 [ Ui.Profile.viewBanner (getProfile article.author |> Maybe.andThen .banner)
@@ -263,6 +266,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                             -- switch off ligatures - Inter font doesn't have ligatures
                             , Css.property "font-variant-ligatures" "none"
                             , Css.property "font-feature-settings" "\"liga\" 0"
+                            , print
+                                [ Tw.my_4
+                                ]
                             ]
                        ]
                 )
@@ -477,6 +483,9 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                     , Tw.space_x_2
                     , Tw.mb_4
                     , Bp.lg [ Tw.hidden ]
+                    , print
+                        [ Tw.block
+                        ]
                     ]
                 ]
                 [ Ui.Profile.viewProfilePubKey styles pubKey
@@ -487,10 +496,15 @@ viewAuthorAndDate styles browserEnv published createdAt author =
             div
                 [ css
                     [ Tw.flex
+                    , Tw.flex_row
+                    , Tw.w_full
                     , Tw.items_center
                     , Tw.space_x_2
                     , Tw.mb_4
                     , Bp.lg [ Tw.hidden ]
+                    , print
+                        [ Tw.block
+                        ]
                     ]
                 ]
                 [ viewArticleProfileSmall profile validationStatus
@@ -525,11 +539,18 @@ viewArticleProfileSmall profile validationStatus =
     div
         [ css
             [ Tw.relative
+            , Tw.w_auto
+            , print
+                [ Tw.hidden
+                ]
             ]
         ]
         [ linkElement
             [ div
-                []
+                [ css
+                    [ Tw.w_12
+                    ]
+                ]
                 [ img
                     [ Attr.src <| Ui.Profile.profilePicture 48 (Just profile)
                     , Attr.alt "Avatar"
@@ -799,6 +820,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                     , Tw.items_start
                     , Tw.gap_4
                     , Tw.inline_flex
+                    , print [ Tw.block ]
                     ]
                 ]
                 [ div

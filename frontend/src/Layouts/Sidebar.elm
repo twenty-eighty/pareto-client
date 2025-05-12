@@ -34,6 +34,7 @@ import Ui.Profile
 import Ui.Shared exposing (countBadge, emptyHtml)
 import Ui.Styles exposing (Theme(..), darkMode)
 import View exposing (View)
+import Ui.Styles exposing (print)
 
 
 type alias Props contentMsg =
@@ -365,6 +366,10 @@ view props shared path { toContentMsg, content } =
             (css
                 [ Tw.h_full
                 , Tw.overflow_clip
+                , print
+                    [ Tw.h_auto
+                    , Tw.overflow_visible
+                    ]
                 ]
                 :: styles.colorStyleBackground
             )
@@ -435,6 +440,10 @@ viewSidebar props shared currentPath toContentMsg content =
             ++ [ css
                     [ Tw.h_screen
                     , Tw.overflow_hidden
+                    , print
+                        [ Tw.h_auto
+                        , Tw.overflow_visible
+                        ]
                     ]
                ]
         )
@@ -468,6 +477,9 @@ viewSidebar props shared currentPath toContentMsg content =
                                 ]
                             , darkMode [ Tw.bg_color Theme.black ]
                             , Tw.z_10
+                            , print
+                                [ Tw.hidden
+                                ]
                             ]
                        ]
                 )
@@ -479,6 +491,7 @@ viewSidebar props shared currentPath toContentMsg content =
                     [ Tw.flex
                     , Tw.flex_col
                     , Tw.w_full
+                    , print [ Tw.block ]
                     ]
                 ]
                 [ Html.header
@@ -490,6 +503,9 @@ viewSidebar props shared currentPath toContentMsg content =
                         , Tw.bg_cover
                         , Tw.bg_center
                         , Tw.h_20
+                        , print
+                            [ Tw.hidden
+                            ]
                         ]
                     , Attr.style "background-image" "url('/images/Pareto-Banner-back.webp')"
                     ]
@@ -525,9 +541,20 @@ viewSidebar props shared currentPath toContentMsg content =
                     [ css
                         [ Tw.flex
                         , Tw.flex_1
+                        , print [ Tw.block ]
                         ]
                     ]
                     [ props.fixedLeftPart
+                        |> Maybe.map (\html ->
+                            div
+                                [ css
+                                    [ print
+                                        [ Tw.hidden
+                                        ]
+                                    ]
+                                ]
+                                [ html ]
+                        )
                         |> Maybe.withDefault emptyHtml
                     , viewMainContent content props.fixedTopPart
                     ]
@@ -547,7 +574,6 @@ viewMainContent content maybeFixedTopPart =
     div
         [ css
             [ Tw.flex_1
-            , Tw.overflow_y_auto
             , Tw.relative
             ]
         ]
@@ -564,6 +590,10 @@ viewMainContent content maybeFixedTopPart =
                 , Css.property "height" ("calc(100vh - 5rem - 56px - " ++ topPartHeight ++ ")") -- 5rem = 80px for header
                 , Bp.sm
                     [ Css.property "height" ("calc(100vh - 5rem - " ++ topPartHeight ++ ")") -- 5rem = 80px for header
+                    ]
+                , print
+                    [ Tw.overflow_y_visible
+                    , Css.property "height" "auto"
                     ]
                 ]
             ]

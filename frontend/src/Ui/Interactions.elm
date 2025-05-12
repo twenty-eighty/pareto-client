@@ -20,6 +20,7 @@ import Set exposing (Set)
 import Tailwind.Utilities as Tw
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme)
+import Ui.Styles exposing (print)
 
 
 type alias Actions msg =
@@ -91,6 +92,9 @@ viewInteractions styles browserEnv previewData instanceId =
             , Tw.items_center
             , Tw.gap_6
             , Tw.inline_flex
+            , print
+                [ Tw.hidden
+                ]
             ]
             :: styles.colorStyleGrayscaleText
         )

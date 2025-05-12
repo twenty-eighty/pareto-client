@@ -414,7 +414,11 @@ customThemeStyles { color1, color1DarkMode, color2, color2DarkMode, color3, colo
         ]
     }
 
-
 darkMode : List Css.Style -> Css.Style
 darkMode =
     Css.Media.withMediaQuery [ "(prefers-color-scheme: dark)" ]
+
+
+print : List Css.Style -> Css.Style
+print =
+    Css.Media.withMediaQuery [ "print" ]

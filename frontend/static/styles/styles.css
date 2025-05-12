@@ -385,3 +385,14 @@ body {
   font-weight: 400;
   line-height: 1.6em;
 }
+
+/* Hide nostr-login window when printing */
+@media print {
+  nl-banner {
+    display: none !important;
+  }
+  p, h1, h2, h3, h4, h5, h6, ul, ol, li, blockquote, article, section {
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
+  }
+}
