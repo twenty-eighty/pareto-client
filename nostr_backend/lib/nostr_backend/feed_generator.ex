@@ -312,6 +312,13 @@ defmodule NostrBackend.FeedGenerator do
 
       # Get content
       content = article.content || ""
+      # Prepend title image to content if present
+      content = if article.image_url do
+        img_tag = "<p><img src=\"#{article.image_url}\" alt=\"#{title}\" /></p>"
+        img_tag <> content
+      else
+        content
+      end
 
       # Get article description/summary
       description = article.description
