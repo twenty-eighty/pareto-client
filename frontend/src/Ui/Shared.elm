@@ -2,13 +2,11 @@ module Ui.Shared exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
 import Css
-import Erl
 import Html.Styled as Html exposing (Html, a, button, div, h2, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Nip19 exposing (NIP19Type(..))
-import Pareto
 import Svg.Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
@@ -18,23 +16,6 @@ import Ui.Styles exposing (Styles, Theme, darkMode, stylesForTheme)
 emptyHtml : Html msg
 emptyHtml =
     text ""
-
-
-extendUrlForScaling : Int -> String -> String
-extendUrlForScaling width urlString =
-    let
-        parsed =
-            urlString
-                |> Erl.parse
-    in
-    if isNip96Server parsed then
-        parsed
-            -- add NIP-96 scaling parameter
-            |> Erl.addQuery "w" (String.fromInt width)
-            |> Erl.toString
-
-    else
-        urlString
 
 
 countBadge : Int -> String
@@ -140,13 +121,6 @@ viewIssueText { message, explanation, solution } =
         [ Html.span [ css [ Tw.italic ] ] [ Html.text message ]
         , Html.text <| " - " ++ explanation
         , Html.p [ css [ Tw.text_sm ] ] [ Html.text solution ]
-        ]
-
-
-isNip96Server : Erl.Url -> Bool
-isNip96Server url =
-    List.member (String.join "." url.host)
-        [ Pareto.paretoNip96Server
         ]
 
 

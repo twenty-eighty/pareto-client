@@ -398,7 +398,7 @@ viewArticleImage maybeImage =
                     ]
                 ]
                 [ img
-                    [ Attr.src (Ui.Shared.extendUrlForScaling 384 image)
+                    [ Attr.src (Ui.Links.scaledImageLink 384 image)
                     , Attr.alt "Post Image"
                     , css
                         [ Tw.rounded_lg
@@ -1004,7 +1004,7 @@ previewListImage article =
                     ]
                 ]
                 [ img
-                    [ Attr.src (Ui.Shared.extendUrlForScaling 384 image)
+                    [ Attr.src (Ui.Links.scaledImageLink 384 image)
                     , Attr.style "top" "50%"
                     , Attr.style "left" "50%"
                     , Attr.style "object-fit" "cover"
