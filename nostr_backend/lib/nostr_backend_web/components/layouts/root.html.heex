@@ -58,6 +58,12 @@
     <link rel="stylesheet" crossorigin href={NostrBackendWeb.FrontendAssets.css_file()} />
     <script type="module" crossorigin src={NostrBackendWeb.FrontendAssets.js_file()}>
     </script>
+    <!-- Schema.org metadata -->
+    <%= if @schema_metadata do %>
+      <script type="application/ld+json">
+        <%= raw @schema_metadata %>
+      </script>
+    <% end %>
   </head>
   <body class="bg-white">
     <%= @inner_content %>
