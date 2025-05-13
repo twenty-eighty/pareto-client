@@ -34,6 +34,11 @@ emailGatewayKey =
     "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345"
 
 
+emailGatewayTestKey : PubKey
+emailGatewayTestKey =
+    "0f479318a753ca86fd9b41a5db955d1f9b416c9790f16f9092ed0fe52a85412e"
+
+
 subscriptionServerKey : PubKey
 subscriptionServerKey =
     "f7721f8728935c943710a2f06288cbd56da7ab20b43400a16d26ac58880e0087"
