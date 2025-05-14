@@ -23,8 +23,8 @@
    },
    "article info": {
       "title": "Artikel Info",
-      "number of articles": "Beiträge",
-      "followers": "Followers",
+      "number of articles": "Articles:",
+      "followers": "Followers:",
       "reading time": "Lesezeit:",
       "speaking time": "Hörlänge:",
       "time unit": "{{minutes}} min",
