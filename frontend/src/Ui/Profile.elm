@@ -39,7 +39,7 @@ profilePicture : Int -> Maybe Profile -> String
 profilePicture width maybeProfile =
     maybeProfile
         |> Maybe.andThen .picture
-        |> Maybe.map (Ui.Shared.extendUrlForScaling width)
+        |> Maybe.map (Ui.Links.scaledImageLink width)
         |> Maybe.withDefault defaultProfilePicture
 
 

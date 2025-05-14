@@ -163,16 +163,24 @@ init user shared () =
 
 loadNewsletters : Nostr.Model -> PubKey -> Shared.Msg.Msg
 loadNewsletters nostr userPubKey =
-    newslettersEventFilter userPubKey
+    newslettersEventFilter nostr userPubKey
         |> RequestSubscribers
         |> Nostr.createRequest nostr "Load newsletters" []
         |> Shared.Msg.RequestNostrEvents
 
 
-newslettersEventFilter : PubKey -> EventFilter
-newslettersEventFilter pubKey =
+newslettersEventFilter : Nostr.Model -> PubKey -> EventFilter
+newslettersEventFilter nostr pubKey =
+    let
+        emailGatewayKey =
+            if nostr.testMode == Nostr.TestModeEnabled then
+                Pareto.emailGatewayTestKey
+
+            else
+                Pareto.emailGatewayKey
+    in
     { emptyEventFilter
-        | authors = Just [ Pareto.emailGatewayKey ]
+        | authors = Just [ emailGatewayKey ]
         , kinds = Just [ KindApplicationSpecificData ]
         , tagReferences = Just [ TagReferencePubKey pubKey ]
     }

@@ -96,7 +96,7 @@ viewPictures imageMetadataList =
 viewImage : String -> Html msg
 viewImage url =
     Html.img
-        [ Attr.src url
+        [ Attr.src <| Ui.Links.scaledImageLink 450 url
         , Attr.attribute "loading" "lazy"
         , css
             [ Tw.rounded_sm

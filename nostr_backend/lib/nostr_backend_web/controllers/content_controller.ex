@@ -292,8 +292,23 @@ defmodule NostrBackendWeb.ContentController do
         |> render("profile.html", profile: profile)
 
       {:error, _reason} ->
+        # Generate minimal schema for unknown profile
+        schema_metadata = %{
+          "@context" => "https://schema.org",
+          "@type" => "Thing",
+          "url" => get_canonical_profile_url(profile_hex_id),
+          "identifier" => get_profile_identifier(profile_hex_id)
+        }
+
         conn
-        |> conn_with_default_meta()
+        |> assign(:lang, NostrBackend.Locale.preferred_language(conn))
+        |> assign(:page_title, "Profile | Pareto")
+        |> assign(:meta_title, "Profile | Pareto")
+        |> assign(:meta_url, get_profile_url_with_relays(profile_hex_id, relays))
+        |> assign(:canonical_url, get_canonical_profile_url(profile_hex_id))
+        |> assign(:meta_description, "Nostr Profile")
+        |> assign(:meta_image, @sharing_image)
+        |> assign(:schema_metadata, Jason.encode!(schema_metadata))
         |> render(:not_found, layout: false)
     end
   end
@@ -309,6 +324,50 @@ defmodule NostrBackendWeb.ContentController do
     plain_naddr = NostrBackend.NIP19.encode_naddr(article.kind, article.author, article.identifier)
     og_url = Endpoint.url() <> "/a/#{relay_naddr}"
     canonical_url = Endpoint.url() <> "/a/#{plain_naddr}"
+
+    # Get author profile for schema.org metadata
+    author_profile = case ProfileCache.get_profile(article.author, []) do
+      {:ok, prof} -> prof
+      _ -> nil
+    end
+
+    # Prepare schema.org metadata
+    schema_metadata = %{
+      "@context" => "https://schema.org",
+      "@type" => "Article",
+      "headline" => article.title || @meta_title,
+      "description" => article.description || @meta_description,
+      "image" => article.image_url |> force_https() || @sharing_image,
+      "datePublished" => Map.get(article, :published_at, article.created_at),
+      "dateModified" => article.created_at,
+      "publisher" => %{
+        "@type" => "Organization",
+        "name" => "Pareto Project",
+        "url" => Endpoint.url()
+      },
+      "mainEntityOfPage" => %{
+        "@type" => "WebPage",
+        "@id" => canonical_url
+      }
+    }
+
+    # Add author information only if we have a valid profile
+    schema_metadata = if author_profile do
+      Map.put(schema_metadata, "author", %{
+        "@type" => "Person",
+        "name" => Map.get(author_profile, :display_name) || Map.get(author_profile, :name),
+        "url" => get_canonical_profile_url(author_profile.profile_id),
+        "identifier" => get_profile_identifier(author_profile)
+      })
+    else
+      # If no profile found, add minimal author information
+      Map.put(schema_metadata, "author", %{
+        "@type" => "Thing",
+        "url" => get_canonical_profile_url(article.author),
+        "identifier" => get_profile_identifier(article.author)
+      })
+    end
+
     conn
     |> assign(:lang, NostrBackend.Locale.preferred_language(conn))
     |> assign(:page_title, article.title || @meta_title)
@@ -317,6 +376,7 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:canonical_url, canonical_url)
     |> assign(:meta_description, article.description || @meta_description)
     |> assign(:meta_image, article.image_url |> force_https() || @sharing_image)
+    |> assign(:schema_metadata, Jason.encode!(schema_metadata))
   end
 
   defp conn_with_community_meta(conn, community) do
@@ -340,20 +400,55 @@ defmodule NostrBackendWeb.ContentController do
         _ -> [Application.get_env(:nostr_backend, :feed_generator)[:relay_url] || "wss://nostr.pareto.space"]
       end
 
-    relay_nprofile = NostrBackend.NIP19.encode_nprofile(profile.profile_id, relays_list)
-    plain_nprofile = NostrBackend.NIP19.encode_nprofile(profile.profile_id)
-    og_url = Endpoint.url() <> "/p/#{relay_nprofile}"
-    canonical_url = Endpoint.url() <> "/p/#{plain_nprofile}"
+    og_url = get_profile_url_with_relays(profile.profile_id, relays_list)
+    canonical_url = get_canonical_profile_url(profile.profile_id)
     lang = NostrBackend.Locale.preferred_language(conn)
+
+    # Prepare schema.org metadata
+    relay_nprofile = NostrBackend.NIP19.encode_nprofile(profile.profile_id, relays_list)
+    same_as = [
+      "https://njump.me/#{relay_nprofile}",
+      "https://snort.social/#{relay_nprofile}"
+    ]
+
+    same_as = if profile.website do
+      same_as ++ [profile.website |> force_https()]
+    else
+      same_as
+    end
+
+    # Get the first available image
+    image_url = Map.get(profile, :image) |> force_https() ||
+                Map.get(profile, :picture) |> force_https() ||
+                Map.get(profile, :banner) |> force_https()
+
+    # Get display name or fall back to name
+    display_name = Map.get(profile, :display_name) || Map.get(profile, :name)
+
+    # Start with required fields
+    schema_metadata = %{
+      "@context" => "https://schema.org",
+      "@type" => "Person",
+      "url" => canonical_url,
+      "sameAs" => same_as
+    }
+
+    # Add optional fields only if they exist
+    schema_metadata = schema_metadata
+      |> maybe_add_field("name", display_name)
+      |> maybe_add_field("description", Map.get(profile, :about))
+      |> maybe_add_field("image", image_url)
+      |> maybe_add_field("identifier", get_profile_identifier(profile))
+
     conn
     |> assign(:lang, lang)
-    |> assign(:page_title, profile.name <> " | Pareto")
-    |> assign(:meta_title, profile.name <> " | Pareto")
+    |> assign(:page_title, (display_name || "Profile") <> " | Pareto")
+    |> assign(:meta_title, (display_name || "Profile") <> " | Pareto")
     |> assign(:meta_url, og_url)
     |> assign(:canonical_url, canonical_url)
-    |> assign(:meta_description, profile.about)
-    |> assign(:meta_image, profile.image |> force_https() || profile.picture |> force_https() ||
-      profile.banner |> force_https() || @sharing_image)
+    |> assign(:meta_description, Map.get(profile, :about))
+    |> assign(:meta_image, image_url || @sharing_image)
+    |> assign(:schema_metadata, Jason.encode!(schema_metadata))
   end
 
   defp conn_with_default_meta(conn) do
@@ -369,6 +464,7 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:canonical_url, Endpoint.url() <> conn.request_path)
     |> assign(:article, nil)
     |> assign(:lang, NostrBackend.Locale.preferred_language(conn))
+    |> assign(:schema_metadata, nil)
   end
 
   def force_https(nil), do: nil
@@ -423,4 +519,51 @@ defmodule NostrBackendWeb.ContentController do
       true -> false
     end
   end
+
+  @doc """
+  Generates a canonical profile URL for a given profile ID.
+  This URL is stable and doesn't include relay information.
+  """
+  def get_canonical_profile_url(profile_id) do
+    plain_nprofile = NostrBackend.NIP19.encode_nprofile(profile_id)
+    Endpoint.url() <> "/p/#{plain_nprofile}"
+  end
+
+  @doc """
+  Generates a profile URL with relay information.
+  This URL includes the relay information for direct access.
+  """
+  def get_profile_url_with_relays(profile_id, relays) do
+    relay_nprofile = NostrBackend.NIP19.encode_nprofile(profile_id, relays)
+    Endpoint.url() <> "/p/#{relay_nprofile}"
+  end
+
+  # Helper function to generate proper identifier structure
+  defp get_profile_identifier(profile_or_pubkey) do
+    case profile_or_pubkey do
+      %{nip05: nip05} when not is_nil(nip05) ->
+        %{
+          "@type" => "PropertyValue",
+          "propertyID" => "Nostr NIP-05",
+          "value" => nip05
+        }
+      %{profile_id: pubkey} ->
+        %{
+          "@type" => "PropertyValue",
+          "propertyID" => "Nostr npub",
+          "value" => NostrBackend.NIP19.encode_npub(pubkey)
+        }
+      pubkey when is_binary(pubkey) ->
+        %{
+          "@type" => "PropertyValue",
+          "propertyID" => "Nostr npub",
+          "value" => NostrBackend.NIP19.encode_npub(pubkey)
+        }
+    end
+  end
+
+  # Helper function to conditionally add fields to the schema metadata
+  defp maybe_add_field(schema, _key, nil), do: schema
+  defp maybe_add_field(schema, key, value) when value != "", do: Map.put(schema, key, value)
+  defp maybe_add_field(schema, _key, _value), do: schema
 end

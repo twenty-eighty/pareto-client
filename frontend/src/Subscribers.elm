@@ -958,6 +958,13 @@ newsletterSubscribersEvent shared pubKey articleAddressComponents articleData su
         senderProfileName =
             Nostr.getProfile shared.nostr pubKey
                 |> Maybe.map (profileDisplayName pubKey)
+
+        emailGatewayKey =
+            if shared.nostr.testMode == Nostr.TestModeEnabled then
+                Pareto.emailGatewayTestKey
+
+            else
+                Pareto.emailGatewayKey
     in
     { pubKey = pubKey
     , createdAt = shared.browserEnv.now
@@ -969,7 +976,7 @@ newsletterSubscribersEvent shared pubKey articleAddressComponents articleData su
             -- reference article to be sent as newsletter
             |> Event.addAddressTag articleAddressComponents Nothing
             -- reference email gateway as encryption target
-            |> Event.addPubKeyTag Pareto.emailGatewayKey Nothing Nothing
+            |> Event.addPubKeyTag emailGatewayKey Nothing Nothing
     , content = emailSendRequestToJson shared.nostr.testMode senderProfileName articleData subscriberEventData
     , id = ""
     , sig = Nothing

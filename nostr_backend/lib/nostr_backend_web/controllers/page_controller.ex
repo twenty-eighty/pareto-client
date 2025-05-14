@@ -197,6 +197,21 @@ defmodule NostrBackendWeb.PageController do
   defp add_meta_tags(conn) do
     lang = NostrBackend.Locale.preferred_language(conn)
     current_url = Endpoint.url() <> conn.request_path
+
+    # Prepare schema.org metadata for static pages
+    schema_metadata = %{
+      "@context" => "https://schema.org",
+      "@type" => "WebPage",
+      "url" => current_url,
+      "name" => @meta_title,
+      "description" => @meta_description,
+      "publisher" => %{
+        "@type" => "Organization",
+        "name" => "Pareto Project",
+        "url" => Endpoint.url()
+      }
+    }
+
     conn
     |> assign(:lang, lang)
     |> assign(:page_title, @meta_title)
@@ -207,5 +222,6 @@ defmodule NostrBackendWeb.PageController do
     |> assign(:meta_image, @sharing_image)
     |> assign(:meta_url, current_url)
     |> assign(:canonical_url, current_url)
+    |> assign(:schema_metadata, Jason.encode!(schema_metadata))
   end
 end
