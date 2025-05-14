@@ -9,7 +9,7 @@ import Html.Styled.Attributes as Attr exposing (..)
 import I18Next
 import Nostr
 import Nostr.Article exposing (Article, publishedTime)
-import Nostr.Profile exposing (Author)
+import Nostr.Profile exposing (Author, shortenedPubKey)
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Types exposing (Following(..))
 import Tailwind.Breakpoints as Bp exposing (..)
@@ -42,7 +42,7 @@ view styles author article browserEnv interactions nostr =
             profile |> Ui.Profile.profilePicture 48
 
         profileName =
-            profile |> Maybe.map (\p -> Nostr.Profile.profileDisplayName p.pubKey p) |> Maybe.withDefault pubKey
+            profile |> Maybe.map (\p -> Nostr.Profile.profileDisplayName p.pubKey p) |> Maybe.withDefault (shortenedPubKey 6 pubKey)
 
         articlePublishedDate =
             BrowserEnv.formatDate browserEnv (publishedTime article.createdAt article.publishedAt)
@@ -175,24 +175,24 @@ viewAuthorStat styles stat counter =
                 , Tw.px_4
                 , Tw.mb_4
                 , Bp.md
-                    [ Tw.w_1over3
-                    , Tw.mb_0
-                    ]
-                ]
-            ]
-            [ text <| String.fromInt counter ]
-        , div
-            [ css
-                [ Tw.w_full
-                , Tw.px_4
-                , Tw.mb_4
-                , Bp.md
                     [ Tw.w_2over3
                     , Tw.mb_0
                     ]
                 ]
             ]
             [ text stat ]
+        , div
+            [ css
+                [ Tw.w_full
+                , Tw.px_4
+                , Tw.mb_4
+                , Bp.md
+                    [ Tw.w_1over3
+                    , Tw.mb_0
+                    ]
+                ]
+            ]
+            [ text <| String.fromInt counter ]
         ]
 
 
