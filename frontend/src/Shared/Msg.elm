@@ -2,8 +2,8 @@ module Shared.Msg exposing (Msg(..))
 
 {-| -}
 
-import BrowserEnv exposing (TestMode)
 import Browser.Dom
+import BrowserEnv exposing (TestMode)
 import Components.AlertTimerMessage as AlertTimerMessage
 import Nostr
 import Nostr.ConfigCheck as ConfigCheck
@@ -27,6 +27,7 @@ type Msg
     | NostrMsg Nostr.Msg
     | BrowserEnvMsg BrowserEnv.Msg
     | RequestNostrEvents Request
+    | RequestNostrCount Request
     | ResetArticles
     | SendNostrEvent SendRequest
     | SetClientRole Bool ClientRole

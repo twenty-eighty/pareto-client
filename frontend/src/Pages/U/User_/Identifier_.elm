@@ -21,8 +21,9 @@ import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (CommentType)
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId, PubKey)
+import Nostr.Types exposing (EventId, IncomingMessage, PubKey)
 import Page exposing (Page)
+import Ports
 import Route exposing (Route)
 import Set
 import Shared
@@ -81,6 +82,12 @@ toLayout shared model =
 -- INIT
 
 
+type alias AuthorCounters =
+    { articles : Int
+    , followers : Int
+    }
+
+
 type alias Model =
     { loadedContent : LoadedContent Msg
     , comment : Comment.Model
@@ -89,6 +96,7 @@ type alias Model =
     , requestId : Maybe RequestId
     , zapDialog : ZapDialog.Model
     , sharingButtonDialog : SharingButtonDialog.Model
+    , authorCounters : AuthorCounters
     }
 
 
@@ -109,6 +117,7 @@ init shared route () =
             , requestId = Nothing
             , zapDialog = ZapDialog.init {}
             , sharingButtonDialog = SharingButtonDialog.init
+            , authorCounters = { articles = 0, followers = 0 }
             }
 
         ( requestEffect, requestId ) =
@@ -121,18 +130,24 @@ init shared route () =
 
                             followersEffect =
                                 Shared.createFollowersEffect shared.nostr maybeAuthorsPubKey
+
+                            followersEffect2 =
+                                Effect.batch
+                                    [ followersEffect
+                                    , Shared.createFollowersCountEffect shared.nostr maybeAuthorsPubKey
+                                    ]
                         in
                         case maybeAuthorsPubKey of
                             Just pubKey ->
                                 case Nostr.getArticleWithIdentifier shared.nostr pubKey model.identifier of
                                     Just _ ->
                                         -- article already loaded, accessible in view function
-                                        ( followersEffect, Nothing )
+                                        ( followersEffect2, Nothing )
 
                                     -- |> Debug.log "User Page -> init: article loaded"
                                     Nothing ->
                                         ( Effect.batch
-                                            [ followersEffect
+                                            [ followersEffect2
                                             , -- pubkey already loaded, request article
                                               { emptyEventFilter
                                                 | authors = Just [ pubKey ]
@@ -150,7 +165,7 @@ init shared route () =
                             --|> Debug.log "User Page -> init: no article"
                             Nothing ->
                                 ( Effect.batch
-                                    [ followersEffect
+                                    [ followersEffect2
                                     , RequestNip05AndArticle nip05 model.identifier
                                         |> Nostr.createRequest shared.nostr ("Article of NIP-05 user " ++ Nip05.nip05ToString nip05) [ KindLongFormContent, KindHighlights, KindBookmarkList, KindBookmarkSets ]
                                         |> Shared.Msg.RequestNostrEvents
@@ -189,6 +204,7 @@ type Msg
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
     | SharingButtonDialogMsg SharingButtonDialog.Msg
+    | ReceiveCountRes IncomingMessage
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -274,6 +290,18 @@ update shared msg model =
                 , toMsg = SharingButtonDialogMsg
                 }
 
+        ReceiveCountRes innerMsg ->
+            let
+                _ =
+                    case innerMsg.messageType of
+                        "count" ->
+                            innerMsg.value |> Debug.log "Received COUNT response: "
+
+                        _ ->
+                            innerMsg.value
+            in
+            ( model, Effect.none )
+
 
 showZapDialog : Model -> List ZapDialog.Recipient -> ( Model, Effect Msg )
 showZapDialog model recipients =
@@ -292,7 +320,10 @@ showZapDialog model recipients =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.map CommentSent (Comment.subscriptions model.comment)
+    Sub.batch
+        [ Sub.map CommentSent (Comment.subscriptions model.comment)
+        , Ports.receiveMessage ReceiveCountRes
+        ]
 
 
 

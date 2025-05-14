@@ -323,6 +323,9 @@ performRequest model description requestId requestData =
         RequestFollowSets eventFilter ->
             ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
 
+        RequestFollowerCount eventFilter ->
+            ( model, model.hooks.requestCount description requestId [ "ws://localhost:7777" ] [ eventFilter ] )
+
         RequestMediaServerLists eventFilter ->
             ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
 
@@ -1421,6 +1424,7 @@ empty =
         { connect = \_ -> Cmd.none
         , receiveMessage = \_ -> Sub.none
         , requestEvents = \_ _ _ _ _ -> Cmd.none
+        , requestCount = \_ _ _ _ -> Cmd.none
         , requestBlossomAuth = \_ _ _ _ -> Cmd.none
         , requestNip96Auth = \_ _ _ _ -> Cmd.none
         , searchEvents = \_ _ _ _ _ -> Cmd.none

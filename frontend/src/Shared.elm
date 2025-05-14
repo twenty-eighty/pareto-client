@@ -2,7 +2,7 @@ module Shared exposing
     ( Flags, decoder
     , Model, Msg
     , init, update, subscriptions
-    , contentId, createFollowersEffect, loggedIn, loggedInPubKey, loggedInSigningPubKey, signingPubKeyAvailable
+    , contentId, createFollowersCountEffect, createFollowersEffect, loggedIn, loggedInPubKey, loggedInSigningPubKey, signingPubKeyAvailable
     )
 
 {-|
@@ -42,6 +42,7 @@ type alias Model =
 contentId : String
 contentId =
     "content-container"
+
 
 
 -- FLAGS
@@ -148,6 +149,7 @@ portHooks : Nostr.External.Hooks msg
 portHooks =
     { connect = Ports.connect
     , requestEvents = Ports.requestEvents
+    , requestCount = Ports.requestCount
     , receiveMessage = Ports.receiveMessage
     , requestBlossomAuth = Ports.requestBlossomAuth
     , requestNip96Auth = Ports.requestNip96Auth
@@ -192,6 +194,15 @@ update route msg model =
             )
 
         RequestNostrEvents request ->
+            let
+                ( newNostr, nostrCmd ) =
+                    Nostr.doRequest model.nostr request
+            in
+            ( { model | nostr = newNostr }
+            , Effect.sendCmd <| Cmd.map Shared.Msg.NostrMsg nostrCmd
+            )
+
+        RequestNostrCount request ->
             let
                 ( newNostr, nostrCmd ) =
                     Nostr.doRequest model.nostr request
@@ -403,6 +414,21 @@ createFollowersEffect nostr maybePubKey =
                 |> RequestFollowSets
                 |> Nostr.createRequest nostr "Followers of user" []
                 |> Shared.Msg.RequestNostrEvents
+                |> Effect.sendSharedMsg
+    in
+    maybePubKey
+        |> Maybe.map buildRequestEffect
+        |> Maybe.withDefault Effect.none
+
+
+createFollowersCountEffect : Nostr.Model -> Maybe PubKey -> Effect msg
+createFollowersCountEffect nostr maybePubKey =
+    let
+        buildRequestEffect pk =
+            { emptyEventFilter | kinds = Just [ KindFollows ], authors = Nothing, tagReferences = Just [ TagReferencePubKey pk ], limit = Nothing }
+                |> RequestFollowerCount
+                |> Nostr.createRequest nostr "Followers of user count" []
+                |> Shared.Msg.RequestNostrCount
                 |> Effect.sendSharedMsg
     in
     maybePubKey

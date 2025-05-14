@@ -36,6 +36,7 @@ type RequestData
     | RequestCommunity (Maybe (List RelayUrl)) EventFilter
     | RequestDeletionRequests EventFilter
     | RequestFollowSets EventFilter
+    | RequestFollowerCount EventFilter
     | RequestMediaServerLists EventFilter
     | RequestNip05AndArticle Nip05 String
     | RequestPicturesFeed (List EventFilter)
@@ -113,6 +114,9 @@ relaysOfRequest request =
                         Nothing
 
                     RequestFollowSets _ ->
+                        Nothing
+
+                    RequestFollowerCount _ ->
                         Nothing
 
                     RequestMediaServerLists _ ->

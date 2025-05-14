@@ -52,6 +52,20 @@ requestEvents description closeOnEose requestId relays filters =
         }
 
 
+requestCount : String -> RequestId -> List String -> List EventFilter -> Cmd msg
+requestCount description requestId relays filters =
+    sendCommand
+        { command = "requestCount"
+        , value =
+            Encode.object
+                [ ( "requestId", Encode.int requestId )
+                , ( "filters", Encode.list encodeEventFilter filters )
+                , ( "description", Encode.string description )
+                , ( "relays", Encode.list Encode.string relays )
+                ]
+        }
+
+
 searchEvents : String -> Bool -> RequestId -> List String -> List EventFilter -> Cmd msg
 searchEvents description closeOnEose requestId relays filters =
     sendCommand
@@ -66,6 +80,7 @@ searchEvents description closeOnEose requestId relays filters =
                 ]
         }
 
+
 setTestMode : Bool -> Cmd msg
 setTestMode testMode =
     sendCommand
@@ -73,12 +88,14 @@ setTestMode testMode =
         , value = Encode.bool testMode
         }
 
+
 shareLink : { url : String, title : String, text : String } -> Cmd msg
 shareLink { url, title, text } =
     sendCommand
         { command = "shareLink"
         , value = Encode.object [ ( "url", Encode.string url ), ( "title", Encode.string title ), ( "text", Encode.string text ) ]
         }
+
 
 requestBlossomAuth : RequestId -> String -> String -> HttpRequestMethod -> Cmd msg
 requestBlossomAuth requestId server content method =

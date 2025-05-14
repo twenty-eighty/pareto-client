@@ -73,6 +73,8 @@ export const onReady = ({ app, env }) => {
   app.ports.sendCommand.subscribe(({ command: command, value: value }) => {
     if (command === 'connect') {
       connect(app, value.client, value.nip89, value.relays);
+    } else if (command === 'requestCount') {
+      processOnlineCommand(app, command, value);
     } else if (connected) {
       processOnlineCommand(app, command, value);
     } else {
@@ -164,6 +166,10 @@ export const onReady = ({ app, env }) => {
       case 'requestEvents':
         requestEvents(app, value);
         break;
+
+      case 'requestCount':
+          requestCount(app, value);
+          break;
 
       case 'searchEvents':
         searchEvents(app, value);
@@ -502,6 +508,50 @@ export const onReady = ({ app, env }) => {
 
       processEvents(app, requestId, description, ndkEvents);
     })
+  }
+
+  function requestCount(app,
+    { requestId: requestId
+      , filters: filters
+      , description: description
+      , relays: relays
+    }
+  ) {
+    debugLog("FILTERS: ", filters, description, " requestId: " + requestId, "relays: ", relays);
+
+    if (relays) {
+      const relaysWithProtocol = relays.map(relay => {
+        if (!relay.startsWith("wss://") && !relay.startsWith("ws://")) {
+          return "wss://" + relay
+        } else {
+          return relay
+        }
+      });
+      
+      const socket = new WebSocket(relaysWithProtocol[0]);
+      socket.onclose = () => {
+        console.log("Connection closed for count request");
+      };
+      socket.onerror = (err) => console.error("Socket Error: ", err);
+      
+      socket.onmessage = (res) => {
+        const parsedRes = JSON.parse(res.data);
+        console.log("Received COUNT response: ", parsedRes);
+        app.ports.receiveMessage.send({ messageType: 'count', value: { requestId: requestId , parsedRes} });
+        socket.close();
+      }
+      
+      try {
+        socket.onopen = () => {
+          const filtersPart = JSON.stringify(filters).substring(1);
+          const envelope = `["COUNT", "${requestId}", ${filtersPart}`;
+          console.log("Sending COUNT request: ", envelope);
+          socket.send(envelope);
+        };
+      } catch (error) {
+        console.error("Error sending count message over websocket: ", error);
+      }
+    }
   }
 
   function searchEvents(app,
