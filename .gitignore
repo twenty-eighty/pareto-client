@@ -63,3 +63,4 @@ npm-debug.log
 
 frontend/.vscode/settings.json
 nostr_backend/priv/static/robots.txt
+nostr_backend/priv/static/BingSiteAuth.xml
