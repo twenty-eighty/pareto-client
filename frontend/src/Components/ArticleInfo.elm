@@ -22,6 +22,7 @@ import Ui.Profile
 import Ui.Styles exposing (Styles)
 
 
+
 {- Article Info Component -}
 -- VIEW
 
@@ -143,8 +144,8 @@ viewProfileImage profileImage =
         [ Attr.src profileImage
         , Attr.alt "Profile avatar"
         , css
-            [ Tw.object_contain
-            , Tw.w_11
+            [ Tw.w_11
+            , Tw.h_11
             , Tw.rounded_3xl
             , Tw.aspect_square
             ]
@@ -212,7 +213,8 @@ viewTags translations tags =
                             , Tw.my_1_dot_5
                             ]
                         ]
-                        [ a [ href (linkToHashtag tag)
+                        [ a
+                            [ href (linkToHashtag tag)
                             , Attr.attribute "aria-label" (Translations.linkToHashtagAriaLabel [ translations ] { hashtag = tag })
                             ]
                             [ text <| "# " ++ tag ]

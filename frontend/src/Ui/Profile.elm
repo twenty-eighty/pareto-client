@@ -449,12 +449,11 @@ viewProfileImage linkElement maybeProfile validationStatus =
                 [ Attr.src <| profilePicture 112 maybeProfile
                 , Attr.alt "Avatar"
                 , css
-                    [ Bp.xl [ Tw.max_w_28 ]
-                    , Bp.lg [ Tw.max_w_24 ]
-                    , Bp.md [ Tw.max_w_16 ]
-                    , Tw.max_w_14
-                    , Tw.object_contain
-                    , Tw.h_auto
+                    [ Bp.xl [ Tw.w_28, Tw.h_28 ]
+                    , Bp.lg [ Tw.w_24, Tw.h_24 ]
+                    , Bp.md [ Tw.w_16, Tw.h_16 ]
+                    , Tw.w_14
+                    , Tw.h_14
                     , Tw.p_1
                     , Tw.rounded_full
                     ]
