@@ -116,6 +116,7 @@ type Category
     | Pareto
     | Followed
     | Memes
+    | Art
 
 
 stringFromCategory : Category -> String
@@ -133,6 +134,8 @@ stringFromCategory category =
         Memes ->
             "memes"
 
+        Art ->
+            "art"
 
 categoryFromString : String -> Maybe Category
 categoryFromString categoryString =
@@ -148,6 +151,9 @@ categoryFromString categoryString =
 
         "memes" ->
             Just Memes
+
+        "art" ->
+            Just Art
 
         _ ->
             Nothing
@@ -182,7 +188,7 @@ init shared route () =
 
                 Followed ->
                     if userFollowsList shared.nostr shared.loginStatus == [] then
-                        Global
+                        Pareto
 
                     else
                         category
@@ -284,7 +290,7 @@ update shared msg model =
         ShowPicturePostDialog pubKey ->
             let
                 ( picturePostDialog, effect ) =
-                    PicturePostDialog.init { nostr = shared.nostr, pubKey = pubKey, language = shared.browserEnv.language }
+                    PicturePostDialog.init { nostr = shared.nostr, pubKey = pubKey, language = shared.browserEnv.language, category = postDialogCategory model }
             in
             ( { model | picturePostDialog = Just <| PicturePostDialog.show picturePostDialog }
             , Effect.map PicturePostDialogMsg effect
@@ -305,6 +311,18 @@ update shared msg model =
                     )
                 |> Maybe.withDefault ( model, Effect.none )
 
+postDialogCategory : Model -> Maybe PicturePostDialog.PostCategory
+postDialogCategory model =
+    case Categories.selected model.categories of
+        Memes ->
+            Just PicturePostDialog.Meme
+
+        Art ->
+            Just PicturePostDialog.Art
+
+        _ ->
+            Nothing
+
 updateModelWithCategory : Shared.Model -> Model -> Category -> ( Model, Effect Msg )
 updateModelWithCategory shared model category =
     ( model
@@ -320,20 +338,33 @@ updateModelWithCategory shared model category =
 
 filterForCategory : Shared.Model -> Category -> EventFilter
 filterForCategory shared category =
+    let
+        paretoAuthors =
+            paretoFollowsList shared.nostr
+    in
     case category of
         Global ->
             { emptyEventFilter | kinds = Just [ KindPicture ], limit = Just 20 }
 
         Pareto ->
-            { emptyEventFilter | kinds = Just [ KindPicture ], authors = Just (paretoFollowsList shared.nostr), limit = Just 20 }
+            { emptyEventFilter | kinds = Just [ KindPicture ], authors = Just (paretoAuthors), limit = Just 20 }
 
         Followed ->
             { emptyEventFilter | kinds = Just [ KindPicture ], authors = Just (userFollowsList shared.nostr shared.loginStatus), limit = Just 20 }
 
         Memes ->
             { emptyEventFilter
-                | kinds = Just [ KindShortTextNote ]
-                , authors = Just [ "a6fdf45b4921d5bfe9d48d2a03d4e71b7340d8166a9da83dae2896239145f104" ]
+                | kinds = Just [ KindPicture ]
+                , authors = Just paretoAuthors
+                , tagReferences = Just [ TagReferenceTag (PicturePostDialog.categoryToHashtag PicturePostDialog.Meme) ]
+                , limit = Just 20
+            }
+
+        Art ->
+            { emptyEventFilter
+                | kinds = Just [ KindPicture ]
+                , authors = Just paretoAuthors
+                , tagReferences = Just [ TagReferenceTag (PicturePostDialog.categoryToHashtag PicturePostDialog.Art) ]
                 , limit = Just 20
             }
 
@@ -396,21 +427,16 @@ availableCategories nostr loginStatus translations =
             else
                 []
 
-        isBetaTester =
-            Shared.loggedInPubKey loginStatus
-                |> Maybe.map (Nostr.isBetaTester nostr)
-                |> Maybe.withDefault False
+        memesCategories =
+            [ memesCategory translations ]
 
-        _ =
-            if isBetaTester then
-                [ memesCategory translations ]
-
-            else
-                []
+        artCategories =
+            [ artCategory translations ]
     in
     paretoCategories
         ++ followedCategories
-        -- ++ memesCategories
+        ++ memesCategories
+        ++ artCategories
         {- apparently the content warning field is not consistently filled, so we don't show the global category
         ++ [ { category = Global
              , title = Translations.Read.globalFeedCategory [ translations ]
@@ -437,6 +463,13 @@ memesCategory : I18Next.Translations -> Categories.CategoryData Category
 memesCategory translations =
     { category = Memes
     , title = Translations.memesFeedCategory [ translations ]
+    }
+
+
+artCategory : I18Next.Translations -> Categories.CategoryData Category
+artCategory translations =
+    { category = Art
+    , title = Translations.artFeedCategory [ translations ]
     }
 
 
@@ -517,7 +550,7 @@ viewContent shared model _ =
                     , nostr = shared.nostr
                     }
 
-        viewShortTextNotes =
+        _ =
             Nostr.getShortNotes shared.nostr
                 |> viewShortNotes
                     shared
@@ -539,7 +572,10 @@ viewContent shared model _ =
             viewMemes
 
         Memes ->
-            viewShortTextNotes
+            viewMemes
+
+        Art ->
+            viewMemes
 
 
 filterPostsWithContentWarning : PicturePost -> Bool

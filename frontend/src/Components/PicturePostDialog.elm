@@ -1,4 +1,4 @@
-module Components.PicturePostDialog exposing (PicturePostDialog, Model, Msg, hide, init, new, show, subscriptions, update, view)
+module Components.PicturePostDialog exposing (PicturePostDialog, PostCategory(..), Model, Msg, hide, init, new, show, subscriptions, update, view, categoryToHashtag)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
@@ -37,9 +37,23 @@ type Msg
     | OpenMediaSelector
     | MediaSelectorSent (MediaSelector.Msg Msg)
     | ImageSelected MediaSelector.UploadedFile
-    | DropdownSent (Dropdown.Msg Language Msg)
+    | CategoryDropdownSent (Dropdown.Msg PostCategory Msg)
+    | LanguageDropdownSent (Dropdown.Msg Language Msg)
     | LanguageChanged (Maybe Language)
     | HashtagEditorMsg HashtagEditor.Msg
+
+type PostCategory
+    = Art
+    | Meme
+    | Food
+    | Animals
+    | Plants
+    | Science
+    | Technology
+    | Politics
+    | Culture
+    | Sports
+
 
 type Model
     = Model
@@ -47,6 +61,7 @@ type Model
         , hashtagEditor : HashtagEditor.Model
         , mediaSelector : MediaSelector.Model
         , pubKey : PubKey
+        , categoryDropdown : Dropdown.Model PostCategory
         , languageSelection : Dropdown.Model Language
         }
 
@@ -94,8 +109,9 @@ init :
     { nostr : Nostr.Model
     , pubKey : PubKey
     , language : Language
+    , category : Maybe PostCategory
     } -> ( Model, Effect Msg )
-init { nostr, pubKey, language } =
+init { nostr, pubKey, language, category } =
     let
         ( mediaSelector, mediaSelectorEffect ) =
             MediaSelector.init
@@ -111,6 +127,7 @@ init { nostr, pubKey, language } =
         , hashtagEditor = HashtagEditor.init { hashtags = [] }
         , mediaSelector = mediaSelector
         , pubKey = pubKey
+        , categoryDropdown = Dropdown.init { selected = category }
         , languageSelection = Dropdown.init { selected = Just language }
         }
     , mediaSelectorEffect
@@ -192,14 +209,26 @@ update props =
                 in
                 ( newModel, Effect.map props.toMsg mediaSelectorEffect )
 
-            DropdownSent innerMsg ->
+            CategoryDropdownSent innerMsg ->
+                let
+                    ( newModel, dropdownEffect ) =
+                        Dropdown.update
+                            { msg = innerMsg
+                            , model = model.categoryDropdown
+                            , toModel = \dropdown -> Model { model | categoryDropdown = dropdown }
+                            , toMsg = CategoryDropdownSent
+                            }
+                in
+                ( newModel, Effect.map props.toMsg dropdownEffect )
+
+            LanguageDropdownSent innerMsg ->
                 let
                     ( newModel, dropdownEffect ) =
                         Dropdown.update
                             { msg = innerMsg
                             , model = model.languageSelection
                             , toModel = \dropdown -> Model { model | languageSelection = dropdown }
-                            , toMsg = DropdownSent
+                            , toMsg = LanguageDropdownSent
                             }
                 in
                 ( newModel, Effect.map props.toMsg dropdownEffect )
@@ -270,8 +299,17 @@ updateWithSending props pubKey picturePost =
         (Model model) =
             props.model
 
+        -- set a hashtag for the category
+        categoryHashtag =
+            model.categoryDropdown
+                |> Dropdown.selectedItem
+                |> Maybe.map categoryToHashtag
+                |> Maybe.map List.singleton
+                |> Maybe.withDefault []
+
+        -- add the hashtags from the hashtag editor
         picturePostWithHashtags =
-            { picturePost | hashtags = model.hashtagEditor |> HashtagEditor.getHashtags }
+            { picturePost | hashtags = categoryHashtag ++ (model.hashtagEditor |> HashtagEditor.getHashtags) }
     in
     ( Model { model | state = DialogSending (Nostr.getLastSendRequestId props.nostr) picturePostWithHashtags }
     , picturePostEvent model.pubKey picturePostWithHashtags
@@ -398,10 +436,10 @@ viewPicturePostDialog (Settings settings) picturePost postButtonText buttonMsg m
             , viewPictures settings.theme settings.browserEnv.translations picturePost
             , Dropdown.new
                 { model = model.languageSelection
-                , toMsg = DropdownSent
+                , toMsg = LanguageDropdownSent
                 , choices = Locale.defaultLanguages
                 , allowNoSelection = True
-                , toLabel = toLabel settings.browserEnv.translations
+                , toLabel = toLanguageLabel settings.browserEnv.translations
                 }
                 |> Dropdown.withOnChange LanguageChanged
                 |> Dropdown.view
@@ -414,6 +452,17 @@ viewPicturePostDialog (Settings settings) picturePost postButtonText buttonMsg m
                 --|> EntryField.withPlaceholder (Translations.dialogTitle [ settings.browserEnv.translations ])
                 |> EntryField.withRows 5
                 |> EntryField.view
+            , div [ css [ Tw.flex, Tw.flex_row, Tw.gap_2, Tw.items_baseline ] ]
+                [ Html.text (Translations.categoryLabel [ settings.browserEnv.translations ])
+                , Dropdown.new
+                    { model = model.categoryDropdown
+                    , toMsg = CategoryDropdownSent
+                    , choices = [ Art, Meme, Food, Animals, Plants, Science, Technology, Politics, Culture, Sports ]
+                    , allowNoSelection = True
+                    , toLabel = toCategoryLabel settings.browserEnv.translations
+                    }
+                |> Dropdown.view
+                ]
             , HashtagEditor.new
                 { model = model.hashtagEditor
                 , toMsg = HashtagEditorMsg
@@ -445,14 +494,92 @@ viewPicturePostDialog (Settings settings) picturePost postButtonText buttonMsg m
             ]
         }
         |> ModalDialog.view
-toLabel : Translations -> Maybe Language -> String
-toLabel translations maybeLanguage =
+
+toLanguageLabel : Translations -> Maybe Language -> String
+toLanguageLabel translations maybeLanguage =
     case maybeLanguage of
         Just language ->
             languageToString translations language
 
         Nothing ->
             Translations.noLanguageText [ translations ]
+
+toCategoryLabel : Translations -> Maybe PostCategory -> String
+toCategoryLabel translations maybeCategory =
+    case maybeCategory of
+        Just category ->
+            categoryToString translations category
+
+        Nothing ->
+            Translations.otherCategoryText [ translations ]
+
+categoryToString : Translations -> PostCategory -> String
+categoryToString translations category =
+    case category of
+        Art ->
+            Translations.artCategoryText [ translations ]
+
+        Meme ->
+            Translations.memeCategoryText [ translations ]
+
+        Food ->
+            Translations.foodCategoryText [ translations ]
+
+        Animals ->
+            Translations.animalsCategoryText [ translations ]
+
+        Plants ->
+            Translations.plantsCategoryText [ translations ]
+
+        Science ->
+            Translations.scienceCategoryText [ translations ]
+
+        Technology ->
+            Translations.technologyCategoryText [ translations ]
+
+        Politics ->
+            Translations.politicsCategoryText [ translations ]
+
+        Culture ->
+            Translations.cultureCategoryText [ translations ]
+
+        Sports ->
+            Translations.sportsCategoryText [ translations ]
+
+
+categoryToHashtag : PostCategory -> String
+categoryToHashtag category =
+    case category of
+        Art ->
+            "art"
+
+        Meme ->
+            "meme"
+
+        Food ->
+            "food"
+
+        Animals ->
+            "animals"
+
+        Plants ->
+            "plants"
+
+        Science ->
+            "science"
+
+        Technology ->
+            "technology"
+
+        Politics ->
+            "politics"
+
+        Culture ->
+            "culture"
+
+        Sports ->
+            "sports"
+
 
 setPicturePostDescription : PicturePost -> String -> PicturePost
 setPicturePostDescription picturePost description =

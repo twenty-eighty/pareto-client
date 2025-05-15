@@ -89,6 +89,7 @@ viewPictures imageMetadataList =
         [ picture ] ->
             viewImage picture.url
 
+        -- TODO: show additional pictures in a gallery
         firstPicture :: pictureList ->
             viewImage firstPicture.url
 
