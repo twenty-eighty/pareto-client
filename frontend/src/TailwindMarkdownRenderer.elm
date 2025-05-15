@@ -498,7 +498,7 @@ renderHtmlImgElement src maybeAlt children =
         altAttr =
             maybeAlt
                 |> Maybe.map (\alt -> [ Attr.alt alt ])
-                |> Maybe.withDefault []
+                |> Maybe.withDefault [ Attr.alt "Image in article" ]
     in
     Html.img
         -- don't reference unsafe (http) resources
