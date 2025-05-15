@@ -78,18 +78,23 @@ defmodule NostrBackendWeb.LightningController do
   end
 
   defp fetch_lnurlp_json(url) do
-    case HTTPoison.get(url, [], follow_redirect: true) do
-      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+    case Req.get(url, redirect: true) do
+      {:ok, %Req.Response{status: 200, body: body}} when is_map(body) ->
+        # Req already decoded the JSON for us
+        {:ok, body}
+
+      {:ok, %Req.Response{status: 200, body: body}} ->
+        # Handle case where Req didn't decode the JSON automatically
         case Jason.decode(body) do
           {:ok, json} -> {:ok, json}
           {:error, _} -> {:error, "Invalid JSON response"}
         end
 
-      {:ok, %HTTPoison.Response{status_code: code}} ->
-        {:error, "HTTP error: #{code}"}
+      {:ok, %Req.Response{status: status}} ->
+        {:error, "HTTP error: #{status}"}
 
-      {:error, reason} ->
-        {:error, reason}
+      {:error, exception} ->
+        {:error, exception}
     end
   end
 

@@ -1,5 +1,5 @@
 defmodule NostrBackend.Nip05 do
-  use HTTPoison.Base
+  # Removing HTTPoison.Base, no longer needed
 
   @cache_name :nip05_cache
   # 24 hours in seconds
@@ -73,18 +73,23 @@ defmodule NostrBackend.Nip05 do
   defp fetch_well_known(name, domain) do
     url = "https://#{domain}/.well-known/nostr.json?name=#{name}"
 
-    case HTTPoison.get(url, [], follow_redirect: true) do
-      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+    case Req.get(url, redirect: true) do
+      {:ok, %Req.Response{status: 200, body: body}} when is_map(body) ->
+        # Req already decoded the JSON for us
+        {:ok, body}
+
+      {:ok, %Req.Response{status: 200, body: body}} ->
+        # Handle case where Req didn't decode the JSON automatically
         case Jason.decode(body) do
           {:ok, data} -> {:ok, data}
           {:error, reason} -> {:error, "Invalid JSON: #{inspect(reason)}"}
         end
 
-      {:ok, %HTTPoison.Response{status_code: status}} when status in [404, 400] ->
+      {:ok, %Req.Response{status: status}} when status in [404, 400] ->
         {:error, "NIP-05 data not found on domain"}
 
-      {:error, %HTTPoison.Error{reason: reason}} ->
-        {:error, "HTTP request failed: #{inspect(reason)}"}
+      {:error, exception} ->
+        {:error, "HTTP request failed: #{inspect(exception)}"}
     end
   end
 
