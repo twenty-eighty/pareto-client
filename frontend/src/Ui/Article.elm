@@ -35,8 +35,8 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Time
-import Translations.Posts
 import Translations.ArticleView as Translations
+import Translations.Posts
 import Ui.Interactions exposing (Actions, extendedZapRelays, viewInteractions)
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
@@ -71,6 +71,7 @@ type alias ArticlePreviewData msg =
 linkToHashtag : String -> String
 linkToHashtag hashtag =
     "/t/" ++ Url.percentEncode hashtag
+
 
 
 -- single article
@@ -165,7 +166,7 @@ viewArticle articlePreviewsData articlePreviewData article =
 
         validationStatus =
             Nostr.getProfileValidationStatus articlePreviewsData.nostr article.author
-            |> Maybe.withDefault ValidationUnknown
+                |> Maybe.withDefault ValidationUnknown
 
         linkElement =
             maybeProfile
@@ -739,13 +740,6 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                 Nothing ->
                     article.content
 
-        summaryLinesAttr =
-            if List.length article.hashtags < 1 then
-                [ Tw.line_clamp_5 ]
-
-            else
-                [ Tw.line_clamp_3 ]
-
         hasInvalidTags =
             article.otherTags
                 |> List.filter
@@ -766,6 +760,9 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
 
             else
                 emptyHtml
+
+        articleUrl =
+            linkToArticle articlePreviewData.author article
     in
     div
         (css
@@ -812,7 +809,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                     ]
                 ]
             ]
-            [ previewListImage article
+            [ previewListImage articlePreviewsData.browserEnv.translations articleUrl article
             , div
                 [ css
                     [ Tw.flex_col
@@ -836,15 +833,8 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                             ]
                         ]
                     ]
-                    [ viewTitlePreview articlePreviewsData.browserEnv.translations styles article.title (linkToArticle articlePreviewData.author article) textWidthAttr
-                    , div
-                        (styles.colorStyleGrayscaleText
-                            ++ styles.textStyleBody
-                            ++ [ css
-                                    (summaryLinesAttr ++ textWidthAttr)
-                               ]
-                        )
-                        [ text summaryText ]
+                    [ viewTitlePreview articlePreviewsData.browserEnv.translations styles article.title articleUrl textWidthAttr
+                    , viewListSummary styles textWidthAttr articleUrl articlePreviewsData.browserEnv.translations article summaryText
                     , viewHashTags articlePreviewsData.browserEnv.translations article.hashtags (hashtagsHeightAttr :: textWidthAttr)
                     ]
                 ]
@@ -918,6 +908,31 @@ viewTitlePreview translations styles maybeTitle maybeLinkTarget textWidthAttr =
             emptyHtml
 
 
+viewListSummary : Styles msg -> List Css.Style -> Maybe String -> I18Next.Translations -> Article -> String -> Html msg
+viewListSummary styles textWidthAttr articleUrl translations article summaryText =
+    let
+        summaryLinesAttr =
+            if List.length article.hashtags < 1 then
+                [ Tw.line_clamp_5 ]
+
+            else
+                [ Tw.line_clamp_3 ]
+    in
+    a
+        [ href (articleUrl |> Maybe.withDefault "")
+        , Attr.attribute "aria-label" (Translations.linkToArticleAriaLabel [ translations ] { title = article.title |> Maybe.withDefault article.id })
+        ]
+        [ div
+            (styles.colorStyleGrayscaleText
+                ++ styles.textStyleBody
+                ++ [ css
+                        (summaryLinesAttr ++ textWidthAttr)
+                   ]
+            )
+            [ text summaryText ]
+        ]
+
+
 viewHashTags : I18Next.Translations -> List String -> List Css.Style -> Html msg
 viewHashTags translations hashTags widthAttr =
     if List.length hashTags > 0 then
@@ -949,7 +964,6 @@ viewHashTag translations hashtag =
         , Attr.attribute "aria-label" (Translations.linkToHashtagAriaLabel [ translations ] { hashtag = hashtag })
         ]
         [ text hashtag ]
-
 
 
 viewArticlePreviewBigPicture : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
@@ -991,30 +1005,35 @@ viewArticlePreviewBigPicture articlePreviewsData articlePreviewData article =
         ]
 
 
-previewListImage : Article -> Html msg
-previewListImage article =
+previewListImage : I18Next.Translations -> Maybe String -> Article -> Html msg
+previewListImage translations articleUrl article =
     case article.image of
         Just image ->
-            div
-                [ css
-                    [ Tw.w_80
-                    , Tw.h_44
-                    , Tw.overflow_hidden
-                    , Tw.relative
-                    ]
+            a
+                [ href (articleUrl |> Maybe.withDefault "")
+                , Attr.attribute "aria-label" (Translations.linkToArticleAriaLabel [ translations ] { title = article.title |> Maybe.withDefault article.id })
                 ]
-                [ img
-                    [ Attr.src (Ui.Links.scaledImageLink 384 image)
-                    , Attr.style "top" "50%"
-                    , Attr.style "left" "50%"
-                    , Attr.style "object-fit" "cover"
-                    , Attr.style "width" "100%"
-                    , Attr.style "height" "100%"
-                    , Attr.style "position" "absolute"
-                    , Attr.style "transform" "translate(-50%, -50%)"
-                    , Attr.attribute "loading" "lazy"
+                [ div
+                    [ css
+                        [ Tw.w_80
+                        , Tw.h_44
+                        , Tw.overflow_hidden
+                        , Tw.relative
+                        ]
                     ]
-                    []
+                    [ img
+                        [ Attr.src (Ui.Links.scaledImageLink 384 image)
+                        , Attr.style "top" "50%"
+                        , Attr.style "left" "50%"
+                        , Attr.style "object-fit" "cover"
+                        , Attr.style "width" "100%"
+                        , Attr.style "height" "100%"
+                        , Attr.style "position" "absolute"
+                        , Attr.style "transform" "translate(-50%, -50%)"
+                        , Attr.attribute "loading" "lazy"
+                        ]
+                        []
+                    ]
                 ]
 
         Nothing ->
@@ -1111,9 +1130,12 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                             , Tw.flex
                             ]
                         ]
-                        [ div
-                            (styles.colorStyleGrayscaleText ++ styles.textStyle14)
-                            [ text (profileDisplayName profile.pubKey profile) ]
+                        [ linkElementForProfile profile
+                            validationStatus
+                            [ div
+                                (styles.colorStyleGrayscaleText ++ styles.textStyle14)
+                                [ text (profileDisplayName profile.pubKey profile) ]
+                            ]
                         , timeParagraph styles articlePreviewsData.browserEnv article.publishedAt article.createdAt
                         ]
                     ]

@@ -32,7 +32,7 @@ import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 
 defaultProfilePicture : String
 defaultProfilePicture =
-    "/images/avatars/placeholder_01.png"
+    "/images/avatars/placeholder_01.webp"
 
 
 profilePicture : Int -> Maybe Profile -> String
