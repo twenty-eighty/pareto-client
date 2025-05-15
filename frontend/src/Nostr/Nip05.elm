@@ -113,8 +113,8 @@ fetchNip05InfoViaProxy toMsg nip05 =
             [ Http.header "Accept" "application/nostr+json"
             ]
 
-        , url = "http://localhost:4000/api/nip05/validate?handle=" ++ nip05ToString nip05
-        -- , url = "https://pareto.space/api/nip05/validate?handle=" ++ nip05ToString nip05
+        -- , url = "http://localhost:4000/api/nip05/validate?handle=" ++ nip05ToString nip05
+        , url = "https://pareto.space/api/nip05/validate?handle=" ++ nip05ToString nip05
         , body = Http.emptyBody
         , expect = Http.expectJson toMsg nip05Decoder
         , timeout = Nothing
