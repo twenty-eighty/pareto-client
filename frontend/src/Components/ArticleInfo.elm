@@ -9,7 +9,7 @@ import Html.Styled.Attributes as Attr exposing (..)
 import I18Next
 import Nostr
 import Nostr.Article exposing (Article, publishedTime)
-import Nostr.Profile exposing (Author)
+import Nostr.Profile exposing (Author, shortenedPubKey)
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Types exposing (Following(..))
 import Tailwind.Breakpoints as Bp exposing (..)
@@ -20,6 +20,7 @@ import Translations.ArticleInfo as Translations
 import Ui.Article exposing (linkToHashtag)
 import Ui.Profile
 import Ui.Styles exposing (Styles)
+
 
 
 {- Article Info Component -}
@@ -41,7 +42,7 @@ view styles author article browserEnv interactions nostr =
             profile |> Ui.Profile.profilePicture 48
 
         profileName =
-            profile |> Maybe.map (\p -> Nostr.Profile.profileDisplayName p.pubKey p) |> Maybe.withDefault pubKey
+            profile |> Maybe.map (\p -> Nostr.Profile.profileDisplayName p.pubKey p) |> Maybe.withDefault (shortenedPubKey 6 pubKey)
 
         articlePublishedDate =
             BrowserEnv.formatDate browserEnv (publishedTime article.createdAt article.publishedAt)
@@ -143,8 +144,8 @@ viewProfileImage profileImage =
         [ Attr.src profileImage
         , Attr.alt "Profile avatar"
         , css
-            [ Tw.object_contain
-            , Tw.w_11
+            [ Tw.w_11
+            , Tw.h_11
             , Tw.rounded_3xl
             , Tw.aspect_square
             ]
@@ -174,24 +175,24 @@ viewAuthorStat styles stat counter =
                 , Tw.px_4
                 , Tw.mb_4
                 , Bp.md
-                    [ Tw.w_1over3
-                    , Tw.mb_0
-                    ]
-                ]
-            ]
-            [ text <| String.fromInt counter ]
-        , div
-            [ css
-                [ Tw.w_full
-                , Tw.px_4
-                , Tw.mb_4
-                , Bp.md
                     [ Tw.w_2over3
                     , Tw.mb_0
                     ]
                 ]
             ]
             [ text stat ]
+        , div
+            [ css
+                [ Tw.w_full
+                , Tw.px_4
+                , Tw.mb_4
+                , Bp.md
+                    [ Tw.w_1over3
+                    , Tw.mb_0
+                    ]
+                ]
+            ]
+            [ text <| String.fromInt counter ]
         ]
 
 
@@ -212,7 +213,8 @@ viewTags translations tags =
                             , Tw.my_1_dot_5
                             ]
                         ]
-                        [ a [ href (linkToHashtag tag)
+                        [ a
+                            [ href (linkToHashtag tag)
                             , Attr.attribute "aria-label" (Translations.linkToHashtagAriaLabel [ translations ] { hashtag = tag })
                             ]
                             [ text <| "# " ++ tag ]
