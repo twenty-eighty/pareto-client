@@ -36,7 +36,6 @@ import Translations.Pictures as Translations
 import Ui.PicturePost as PicturePost exposing (PicturePostsViewData)
 import Ui.Shared exposing (emptyHtml)
 import Ui.ShortNote exposing (ShortNotesViewData)
-import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 
