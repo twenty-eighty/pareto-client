@@ -509,13 +509,30 @@
       "title label": "Titel",
       "title placeholder": "Gib einen Titel ein",
       "add picture button label": "Hinzufügen",
-      "error message text": "Fehler beim Veröffentlichen des Bildes: {{errorText}}"
+      "error message text": "Fehler beim Veröffentlichen des Bildes: {{errorText}}",
+      "category label": "Category:",
+      "art category text": "Art",
+      "meme category text": "Meme",
+      "food category text": "Food",
+      "animals category text": "Animals",
+      "plants category text": "Plants",
+      "science category text": "Science",
+      "technology category text": "Technology",
+      "politics category text": "Politics",
+      "culture category text": "Culture",
+      "sports category text": "Sports",
+      "business category text": "Business",
+      "entertainment category text": "Entertainment",
+      "health category text": "Health",
+      "travel category text": "Travel",
+      "other category text": "Other"
    },
    "pictures": {
       "page title": "Bilder",
       "pareto feed category": "Pareto",
       "followed feed category": "Gefolgt",
       "memes feed category": "Memes",
+      "art feed category": "Art",
       "new picture post button label": "Posten"
    },
    "posts": {
