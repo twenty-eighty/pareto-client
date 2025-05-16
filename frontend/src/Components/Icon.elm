@@ -49,6 +49,8 @@ type ParetoIcon
     | ParetoGlobe
     | ParetoGlobe2
     | ParetoPeaceDove
+    | ParetoArt
+    | ParetoMemes
 
 
 view : Icon -> Html msg
@@ -199,3 +201,9 @@ svgForParetoIcon paretoIcon =
 
         ParetoPeaceDove ->
             Graphics.peaceDove
+
+        ParetoArt ->
+            Graphics.artIcon
+
+        ParetoMemes ->
+            Graphics.memesIcon

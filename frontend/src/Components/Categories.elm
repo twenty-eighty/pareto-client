@@ -194,6 +194,7 @@ viewCategory theme toMsg onSelect maybeImage active data =
 
         imageElement =
             maybeImage
+                |> Maybe.map (\image -> div attrs [ image ])
                 |> Maybe.withDefault (text "")
     in
     element

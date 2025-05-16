@@ -534,8 +534,15 @@ categoryImage _ category =
                 |> Icon.view
                 |> Just
 
-        _ ->
-            Just <| image "/images/icon/Pareto-Log2.png"
+        Memes ->
+            Icon.ParetoIcon Icon.ParetoMemes 16 iconColor
+                |> Icon.view
+                |> Just
+
+        Art ->
+            Icon.ParetoIcon Icon.ParetoArt 16 iconColor
+                |> Icon.view
+                |> Just
 
 
 viewContent : Shared.Model -> Model -> Maybe PubKey -> Html Msg
