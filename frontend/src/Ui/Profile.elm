@@ -62,6 +62,10 @@ type FollowType msg
 
 viewProfileSmall : Styles msg -> Profile -> ProfileValidation -> Html msg
 viewProfileSmall styles profile validationStatus =
+    let
+        linkElementWrapper =
+            linkElementForProfile profile validationStatus
+    in
     div
         [ css
             [ Tw.flex
@@ -77,7 +81,7 @@ viewProfileSmall styles profile validationStatus =
                 , Tw.space_x_2
                 ]
             ]
-            [ viewProfileImageSmall (linkElementForProfile profile validationStatus) (Just profile) validationStatus
+            [ viewProfileImageSmall linkElementWrapper (Just profile) validationStatus
             , h2
                 (css
                     [ Tw.text_sm
@@ -85,7 +89,9 @@ viewProfileSmall styles profile validationStatus =
                     ]
                     :: styles.colorStyleGrayscaleTitle
                 )
-                [ text (profileDisplayName profile.pubKey profile) ]
+                [ linkElementWrapper
+                    [ text (profileDisplayName profile.pubKey profile) ]
+                ]
             ]
         ]
 
@@ -104,6 +110,9 @@ viewAuthorCard profile profileViewData =
 
         zapRelays =
             extendedZapRelays authorRelays profileViewData.nostr userPubKey
+
+        linkElementWrapper =
+            linkElementForProfile profile profileViewData.validation
     in
     div
         [ css
@@ -122,7 +131,7 @@ viewAuthorCard profile profileViewData =
                 ]
             ]
         ]
-        [ viewProfileImageAuthorCard (linkElementForProfile profile profileViewData.validation) (Just profile)
+        [ viewProfileImageAuthorCard linkElementWrapper (Just profile)
         , div
             [ css
                 [ Tw.flex
@@ -142,8 +151,10 @@ viewAuthorCard profile profileViewData =
             ]
             [ h4
                 (styles.colorStyleGrayscaleTitle ++ styles.textStyleH4)
-                [ text (profileDisplayName profile.pubKey profile) ]
-            , viewNip05 styles profile
+                [ linkElementWrapper
+                    [ text (profileDisplayName profile.pubKey profile) ]
+                ]
+            , linkElementWrapper [ viewNip05 styles profile ]
             , viewLNAddress styles profile zapRelays
             ]
         , followBookmarkElement profile.pubKey profileViewData.following
@@ -413,6 +424,10 @@ viewBanner maybeImage =
 
 viewProfilePubKey : Styles msg -> PubKey -> Html msg
 viewProfilePubKey styles pubKey =
+    let
+        linkElementWrapper =
+            linkElementForProfilePubKey pubKey
+    in
     div
         [ css
             [ Tw.flex
@@ -421,7 +436,7 @@ viewProfilePubKey styles pubKey =
             , Tw.mb_4
             ]
         ]
-        [ viewProfileImage (linkElementForProfilePubKey pubKey) Nothing ValidationUnknown
+        [ viewProfileImage linkElementWrapper Nothing ValidationUnknown
         , h2
             (css
                 [ Tw.text_sm
@@ -429,7 +444,7 @@ viewProfilePubKey styles pubKey =
                 ]
                 :: styles.colorStyleGrayscaleTitle
             )
-            [ text pubKey ]
+            [ linkElementWrapper [ text (shortenedPubKey 6 pubKey) ] ]
         ]
 
 

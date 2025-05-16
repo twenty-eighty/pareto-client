@@ -10,6 +10,7 @@ import Nostr.Types exposing (PubKey)
 import Pareto
 import Url.Builder
 
+
 scaledImageLink : Int -> String -> String
 scaledImageLink width url =
     let
@@ -17,15 +18,20 @@ scaledImageLink width url =
             "https://image-caching-server.onrender.com"
     in
     if url /= "" then
-        Url.Builder.crossOrigin imageCacheServerApi [ "api", "scale" ]
+        Url.Builder.crossOrigin imageCacheServerApi
+            [ "api", "scale" ]
             [ Url.Builder.string "url" url
             , Url.Builder.int "width" width
             ]
+
     else
         url
 
 
+
 -- unused as our NIP-96 server doesn't support scaling
+
+
 extendUrlForScaling : Int -> String -> String
 extendUrlForScaling width urlString =
     let
@@ -50,10 +56,9 @@ isNip96Server url =
         ]
 
 
-
-linkElementForAuthor : Author -> ProfileValidation -> (List (Html msg) -> Html msg)
-linkElementForAuthor author validation =
-    case linkToAuthor author validation of
+linkElementForAuthor : Author -> (List (Html msg) -> Html msg)
+linkElementForAuthor author =
+    case linkToAuthor author of
         Just url ->
             a [ href url ]
 
@@ -81,13 +86,13 @@ linkElementForProfilePubKey pubKey =
             div []
 
 
-linkToAuthor : Author -> ProfileValidation -> Maybe String
-linkToAuthor author validation =
+linkToAuthor : Author -> Maybe String
+linkToAuthor author =
     case author of
         AuthorPubkey pubKey ->
             linkToProfilePubKey pubKey
 
-        AuthorProfile profile _ ->
+        AuthorProfile profile validation ->
             linkToProfile profile validation
 
 

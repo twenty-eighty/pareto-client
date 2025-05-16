@@ -525,7 +525,7 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                                     ]
                                ]
                         )
-                        [ text <| profileDisplayName profile.pubKey profile ]
+                        [ linkElementForProfile profile validationStatus [ text <| profileDisplayName profile.pubKey profile ] ]
                     , viewArticleTime browserEnv published createdAt
                     ]
                 ]
@@ -1106,6 +1106,10 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                 ]
 
         Nostr.Profile.AuthorProfile profile validationStatus ->
+            let
+                linkElementWrapper =
+                    linkElementForProfile profile validationStatus
+            in
             div
                 [ css
                     [ Tw.justify_between
@@ -1121,7 +1125,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                         , Tw.inline_flex
                         ]
                     ]
-                    [ viewProfileImageSmall articlePreviewsData.browserEnv.translations (linkElementForProfile profile validationStatus) (Just profile) validationStatus
+                    [ viewProfileImageSmall articlePreviewsData.browserEnv.translations linkElementWrapper (Just profile) validationStatus
                     , div
                         [ css
                             [ Tw.justify_start
@@ -1130,8 +1134,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                             , Tw.flex
                             ]
                         ]
-                        [ linkElementForProfile profile
-                            validationStatus
+                        [ linkElementWrapper
                             [ div
                                 (styles.colorStyleGrayscaleText ++ styles.textStyle14)
                                 [ text (profileDisplayName profile.pubKey profile) ]
