@@ -12,6 +12,7 @@ module Components.MediaSelector exposing
     , update
     , view
     , withMediaType
+    , fileMetadataForUrl
     )
 
 import BrowserEnv exposing (BrowserEnv)
@@ -34,7 +35,7 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import Nostr
 import Nostr.Blossom as Blossom exposing (BlobDescriptor, userServerListFromEvent)
-import Nostr.Event exposing (Event, Kind(..))
+import Nostr.Event exposing (Event, Kind(..), ImageMetadata)
 import Nostr.External
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.Nip94 as Nip94 exposing (FileMetadata)
@@ -63,6 +64,27 @@ type MediaSelector msg
         , browserEnv : BrowserEnv
         , theme : Theme
         }
+
+
+fileMetadataForUrl : Model -> String -> Maybe FileMetadata
+fileMetadataForUrl (Model model) url =
+    (Dict.values model.uploadedNip96Files ++ Dict.values model.uploadedBlossomFiles)
+        |> List.concat
+        |> List.filterMap (\uploadedFile ->
+            case uploadedFile of
+                Nip96File fileMetadata ->
+                    if fileMetadata.url == Just url then
+                        Just fileMetadata
+                    else
+                        Nothing
+
+                BlossomFile blobDescriptor ->
+                    if blobDescriptor.url == url then
+                        blobDescriptor.nip94
+                    else
+                        Nothing
+            )
+        |> List.head
 
 
 new :

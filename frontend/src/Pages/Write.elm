@@ -24,10 +24,11 @@ import Milkdown.MilkdownEditor as Milkdown
 import Nostr
 import Nostr.Article exposing (articleFromEvent)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
-import Nostr.Event as Event exposing (Event, Kind(..), Tag(..), numberForKind)
+import Nostr.Event as Event exposing (Event, ImageMetadata, Kind(..), Tag(..), numberForKind)
 import Nostr.External
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip27 as Nip27
+import Nostr.Nip94 exposing (FileMetadata)
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Types exposing (EventId, IncomingMessage, PubKey, RelayUrl)
@@ -51,6 +52,7 @@ import Ui.Article
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
 import View exposing (View)
+import Markdown
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
@@ -838,6 +840,17 @@ eventWithContent shared model user kind =
         publishedAt =
             model.publishedAt
                 |> Maybe.withDefault model.now
+
+        -- NIP-92: media attachments
+        imageMedatadataList =
+            model.content
+                |> Maybe.andThen (\content -> Markdown.collectImageUrls content |> Result.toMaybe)
+                |> Maybe.withDefault []
+                |> List.append (model.image |> Maybe.map List.singleton |> Maybe.withDefault [])
+                |> Set.fromList
+                |> Set.toList
+                |> List.filterMap (MediaSelector.fileMetadataForUrl model.mediaSelector)
+                |> List.filterMap imageMetadataFromFileMetadata
     in
     { pubKey = user.pubKey
     , createdAt = shared.browserEnv.now
@@ -853,11 +866,27 @@ eventWithContent shared model user kind =
             |> Maybe.withDefault identity (languageISOCode model |> Maybe.map (Event.addLabelTags "ISO-639-1"))
             |> Event.addZapTags model.zapWeights
             |> Event.addAltTag (altText model.identifier user.pubKey kind [ Pareto.paretoRelay ])
+            |> Event.addImetaTags imageMedatadataList
     , content = model.content |> Maybe.withDefault ""
     , id = ""
     , sig = Nothing
     , relays = Nothing
     }
+
+
+imageMetadataFromFileMetadata : FileMetadata -> Maybe ImageMetadata
+imageMetadataFromFileMetadata fileMetadata =
+    fileMetadata.url
+        |> Maybe.map (\url ->
+            { url = url
+            , mimeType = fileMetadata.mimeType
+            , blurHash = fileMetadata.blurhash
+            , dim = fileMetadata.dim
+            , alt = fileMetadata.alt
+            , x = fileMetadata.xHash
+            , fallbacks = fileMetadata.fallbacks |> Maybe.withDefault []
+            }
+        )
 
 
 languageISOCode : Model -> Maybe String
