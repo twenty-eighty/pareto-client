@@ -452,7 +452,7 @@ viewProfileImage : (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileVali
 viewProfileImage linkElement maybeProfile validationStatus =
     div
         [ css
-            [ Tw.w_fit
+            [ Tw.min_w_fit
             , Tw.border_color Theme.white
             , Tw.rounded_full
             , Tw.relative

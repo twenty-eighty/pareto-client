@@ -786,7 +786,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                 [ Css.property "width" "640px"
                 ]
             , Bp.sm
-                [ Tw.h_64
+                [ Tw.h_auto
                 , Css.property "width" "550px"
                 ]
             ]
@@ -802,7 +802,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                 , Tw.flex
                 , Tw.flex_col
                 , Tw.gap_4
-                , Bp.sm
+                , Bp.lg
                     [ Tw.inline_flex
                     , Tw.flex_row_reverse
                     , Tw.gap_10
