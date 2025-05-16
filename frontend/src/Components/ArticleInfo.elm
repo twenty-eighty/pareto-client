@@ -18,6 +18,7 @@ import Tailwind.Utilities as Tw exposing (..)
 import TextStats exposing (TextStats)
 import Translations.ArticleInfo as Translations
 import Ui.Article exposing (linkToHashtag)
+import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
 import Ui.Styles exposing (Styles)
 
@@ -43,6 +44,14 @@ view styles author article browserEnv interactions nostr =
 
         profileName =
             profile |> Maybe.map (\p -> Nostr.Profile.profileDisplayName p.pubKey p) |> Maybe.withDefault (shortenedPubKey 6 pubKey)
+
+        linkElementWrapper =
+            case author of
+                Nostr.Profile.AuthorPubkey pk ->
+                    linkElementForProfilePubKey pk
+
+                Nostr.Profile.AuthorProfile prof validationStatus ->
+                    linkElementForProfile prof validationStatus
 
         articlePublishedDate =
             BrowserEnv.formatDate browserEnv (publishedTime article.createdAt article.publishedAt)
@@ -99,14 +108,16 @@ view styles author article browserEnv interactions nostr =
                 ]
             ]
             {- Profile Section -}
-            [ viewProfileImage profileImage
-            , h2
-                [ css
-                    [ Tw.mt_3
-                    , Tw.leading_4
+            [ linkElementWrapper
+                [ viewProfileImage profileImage
+                , h2
+                    [ css
+                        [ Tw.mt_3
+                        , Tw.leading_4
+                        ]
                     ]
+                    [ text profileName ]
                 ]
-                [ text profileName ]
             , div
                 [ css
                     [ Tw.mt_1 ]
