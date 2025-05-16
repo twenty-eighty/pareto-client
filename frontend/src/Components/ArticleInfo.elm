@@ -18,6 +18,7 @@ import Tailwind.Utilities as Tw exposing (..)
 import TextStats exposing (TextStats)
 import Translations.ArticleInfo as Translations
 import Ui.Article exposing (linkToHashtag)
+import Ui.Links exposing (linkElementForAuthor)
 import Ui.Profile
 import Ui.Styles exposing (Styles)
 
@@ -99,14 +100,16 @@ view styles author article browserEnv interactions nostr =
                 ]
             ]
             {- Profile Section -}
-            [ viewProfileImage profileImage
-            , h2
-                [ css
-                    [ Tw.mt_3
-                    , Tw.leading_4
+            [ linkElementForAuthor author
+                [ viewProfileImage profileImage
+                , h2
+                    [ css
+                        [ Tw.mt_3
+                        , Tw.leading_4
+                        ]
                     ]
+                    [ text profileName ]
                 ]
-                [ text profileName ]
             , div
                 [ css
                     [ Tw.mt_1 ]
