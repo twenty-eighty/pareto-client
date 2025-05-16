@@ -26,6 +26,7 @@ import Route exposing (Route)
 import Shared
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
+import Tailwind.Color exposing (Color)
 import Translations.Uitest as Translations
 import Ui.Styles exposing (Theme)
 import View exposing (View)
@@ -320,8 +321,8 @@ categoriesElement shared model =
         |> Components.Categories.view
 
 
-categoryImage : TestCategory -> Maybe (Html Msg)
-categoryImage category =
+categoryImage : Color -> TestCategory -> Maybe (Html Msg)
+categoryImage _ category =
     case category of
         Category1 ->
             Nothing

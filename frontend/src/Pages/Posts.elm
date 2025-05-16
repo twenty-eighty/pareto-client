@@ -60,7 +60,7 @@ toLayout shared model =
                 , toMsg = CategoriesSent
                 , onSelect = CategorySelected
                 , equals = \category1 category2 -> category1 == category2
-                , image = \_ -> Nothing
+                , image = \_ _ -> Nothing
                 , categories = availableCategories shared.browserEnv.translations
                 , browserEnv = shared.browserEnv
                 , theme = shared.theme

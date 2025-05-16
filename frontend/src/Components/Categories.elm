@@ -20,6 +20,7 @@ import Html.Styled.Attributes exposing (css, attribute)
 import Html.Styled.Events as Events exposing (..)
 import Tailwind.Breakpoints exposing (lg)
 import Tailwind.Utilities as Tw
+import Tailwind.Theme exposing (Color)
 import Ui.Styles exposing (Theme, darkMode)
 
 
@@ -29,7 +30,7 @@ type Categories category msg
         , toMsg : Msg category msg -> msg
         , onSelect : category -> msg
         , equals : category -> category -> Bool
-        , image : category -> Maybe (Html msg)
+        , image : Color -> category -> Maybe (Html msg)
         , categories : List (CategoryData category)
         , browserEnv : BrowserEnv
         , theme : Theme
@@ -56,7 +57,7 @@ new :
     , toMsg : Msg category msg -> msg
     , onSelect : category -> msg
     , equals : category -> category -> Bool
-    , image : category -> Maybe (Html msg)
+    , image : Color -> category -> Maybe (Html msg)
     , categories : List (CategoryData category)
     , browserEnv : BrowserEnv
     , theme : Theme
@@ -142,7 +143,31 @@ viewCategories (Settings settings) =
             settings.model
     in
     settings.categories
-        |> List.map (\categoryData -> viewCategory settings.theme settings.toMsg settings.onSelect (settings.image categoryData.category) (settings.equals model.selected categoryData.category) categoryData)
+        |> List.map (\categoryData ->
+            let
+                active =
+                    settings.equals model.selected categoryData.category
+
+                styles =
+                    Ui.Styles.stylesForTheme settings.theme
+
+                (color, colorDarkMode) =
+                    if active then
+                        ( styles.color4, styles.color4DarkMode )
+                    else
+                        ( styles.color3, styles.color3DarkMode )
+
+                imageColor =
+                    if settings.browserEnv.darkMode then
+                        colorDarkMode
+                    else
+                        color
+
+                image =
+                    settings.image imageColor categoryData.category
+            in
+            viewCategory color colorDarkMode settings.toMsg settings.onSelect image active categoryData
+        )
         |> div
             [ css
                 [ Tw.flex
@@ -154,51 +179,25 @@ viewCategories (Settings settings) =
             ]
 
 
-viewCategory : Theme -> (Msg category msg -> msg) -> (category -> msg) -> Maybe (Html msg) -> Bool -> CategoryData category -> Html msg
-viewCategory theme toMsg onSelect maybeImage active data =
+viewCategory : Color -> Color -> (Msg category msg -> msg) -> (category -> msg) -> Maybe (Html msg) -> Bool -> CategoryData category -> Html msg
+viewCategory color colorDarkMode toMsg onSelect maybeImage active data =
     let
         onClickCategory =
             toMsg (SelectedItem { category = data.category, onSelect = onSelect data.category })
 
-        styles =
-            Ui.Styles.stylesForTheme theme
-
-        colorStyleCategoryActive =
-            [ css
-                [ Tw.text_color styles.color4
-                , darkMode
-                    [ Tw.text_color styles.color4DarkMode
-                    ]
-                ]
-            ]
-
-        colorStyleCategoryInactive =
-            [ css
-                [ Tw.text_color styles.color3
-                , darkMode
-                    [ Tw.text_color styles.color3DarkMode
-                    ]
-                ]
-            ]
-
-        ( element, attrs ) =
+        element =
             if active then
-                ( div
-                , colorStyleCategoryActive
-                )
+                div
 
             else
-                ( button
-                , colorStyleCategoryInactive
-                )
+                button
 
         imageElement =
             maybeImage
-                |> Maybe.map (\image -> div attrs [ image ])
                 |> Maybe.withDefault (text "")
     in
     element
-        ([ css
+        [ css
             [ lg [ Tw.px_4 ]
             , Tw.px_0
             , Tw.py_2
@@ -207,12 +206,14 @@ viewCategory theme toMsg onSelect maybeImage active data =
             , Tw.flex_row
             , Tw.items_center
             , Tw.gap_1
+            , Tw.text_color color
+            , darkMode
+                [ Tw.text_color colorDarkMode
+                ]
             ]
         , attribute "aria-label" data.title
         , Events.onClick onClickCategory
         ]
-            ++ attrs
-        )
         [ imageElement
         , text data.title
         ]

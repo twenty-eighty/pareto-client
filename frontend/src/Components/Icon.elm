@@ -9,7 +9,7 @@ import Material.Icons
 import Material.Icons.Outlined
 import Material.Icons.Types
 import Svg as UnstyledSvg
-import Tailwind.Color as TailwindColor
+import Tailwind.Color as TwColor
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 
@@ -23,6 +23,7 @@ type Icon
 
 type Coloring
     = Color Color
+    | TailwindColor Theme.Color
     | Inherit
 
 
@@ -98,6 +99,9 @@ viewMaterialIcon materialIcon size coloring =
                 Color color ->
                     Material.Icons.Types.Color color
 
+                TailwindColor color ->
+                    Material.Icons.Types.Color (colorFromTailwindColor color)
+
                 Inherit ->
                     Material.Icons.Types.Inherit
     in
@@ -161,6 +165,14 @@ viewParetoIcon paretoIcon size coloring =
                             ]
                             [ icon ]
 
+                TailwindColor color ->
+                    \icon ->
+                        div
+                            [ css
+                                [ Tw.text_color color ]
+                            ]
+                            [ icon ]
+
                 Inherit ->
                     identity
     in
@@ -178,9 +190,44 @@ tailwindColorFromColor color =
         oneToByte value =
             round (value * 255.0)
     in
-    TailwindColor.arbitraryRgba (oneToByte rgba.red) (oneToByte rgba.green) (oneToByte rgba.blue) (rgba.alpha * 100.0)
+    TwColor.arbitraryRgba (oneToByte rgba.red) (oneToByte rgba.green) (oneToByte rgba.blue) (rgba.alpha * 100.0)
 
 
+colorFromTailwindColor : Theme.Color -> Color
+colorFromTailwindColor color =
+    case color of
+        TwColor.Color "rgb" red green blue _ ->
+            case ( String.toFloat red, String.toFloat green, String.toFloat blue ) of
+                ( Just r, Just g, Just b ) ->
+                    Color.fromRgba { red = r, green = g, blue = b, alpha = 1.0 }
+
+                _ ->
+                    Color.black
+
+        TwColor.Color "rgba" red green blue TwColor.ViaVariable ->
+            case ( String.toFloat red, String.toFloat green, String.toFloat blue ) of
+                ( Just r, Just g, Just b ) ->
+                    Color.fromRgba { red = r, green = g, blue = b, alpha = 1.0 }
+
+                _ ->
+                    Color.black
+
+        TwColor.Color "rgba" red green blue (TwColor.Opacity opacity) ->
+            case [ String.toFloat red, String.toFloat green, String.toFloat blue, String.toFloat opacity ] of
+                [ Just r, Just g, Just b, Just o ] ->
+                    Color.fromRgba { red = r, green = g, blue = b, alpha = o }
+
+                _ ->
+                    Color.black
+
+        -- TODO: Handle keyword colors
+        TwColor.Keyword _ ->
+            Color.black
+
+        _ ->
+            Color.black
+
+    
 svgForParetoIcon : ParetoIcon -> (Int -> Html msg)
 svgForParetoIcon paretoIcon =
     case paretoIcon of
