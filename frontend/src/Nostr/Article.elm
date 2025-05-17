@@ -1,8 +1,9 @@
 module Nostr.Article exposing (..)
 
+import Dict exposing (Dict)
 import Json.Decode as Decode exposing (Decoder)
 import Locale exposing (Language, languageFromISOCode)
-import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress)
+import Nostr.Event exposing (AddressComponents, Event, EventFilter, ImageMetadata, Kind(..), Tag(..), TagReference(..), buildAddress)
 import Nostr.Nip19 as Nip19
 import Nostr.Nip27 as Nip27
 import Nostr.Profile exposing (ProfileValidation(..))
@@ -34,6 +35,7 @@ type alias Article =
     , otherTags : List Tag
     , relays : Set String
     , nip27References : List Nip19.NIP19Type
+    , imageMetadata : Dict String ImageMetadata
     }
 
 
@@ -64,6 +66,7 @@ emptyArticle author eventId kind createdAt content relayUrls =
     , relays = Set.fromList relayUrls
     , nip27References =
         Nip27.collectNostrLinks content
+    , imageMetadata = Dict.empty
     }
 
 
@@ -127,6 +130,9 @@ articleFromEvent event =
                                 -- HTTP images make the client appear unsafe
                                 -- all images should be served with HTTPS in 2024
                                 ( { article | image = Just <| Nostr.Shared.ensureHttps image }, errors )
+
+                            ImageMetadataTag imageMetadata ->
+                                ( { article | imageMetadata = Dict.insert imageMetadata.url imageMetadata article.imageMetadata }, errors )
 
                             PublishedAtTag publishedAt ->
                                 ( { article | publishedAt = Just publishedAt }, errors )

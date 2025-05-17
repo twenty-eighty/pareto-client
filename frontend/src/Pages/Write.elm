@@ -9,7 +9,7 @@ import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
 import Components.MessageDialog as MessageDialog
 import Components.PublishArticleDialog as PublishArticleDialog exposing (PublishingInfo(..))
 import Components.PublishDateDialog as PublishDateDialog
-import Dict
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div, img, label, node, text)
 import Html.Styled.Attributes as Attr exposing (css)
@@ -91,6 +91,7 @@ type alias Model =
     , now : Time.Posix
     , mediaSelector : MediaSelector.Model
     , imageSelection : Maybe ImageSelection
+    , imageMetadata : Dict String ImageMetadata
     , publishArticleDialog : PublishArticleDialog.Model
     , publishedAt : Maybe Time.Posix
     , publishDateDialog : PublishDateDialog.Model
@@ -218,6 +219,7 @@ init user shared route () =
                     , now = Time.millisToPosix 0
                     , mediaSelector = mediaSelector
                     , imageSelection = Nothing
+                    , imageMetadata = article.imageMetadata
                     , publishArticleDialog = publishArticleDialog
                     , publishedAt = publishedAt
                     , publishDateDialog = PublishDateDialog.init
@@ -244,6 +246,7 @@ init user shared route () =
                     , now = Time.millisToPosix 0
                     , mediaSelector = mediaSelector
                     , imageSelection = Nothing
+                    , imageMetadata = Dict.empty
                     , publishArticleDialog = publishArticleDialog
                     , publishedAt = Nothing
                     , publishDateDialog = PublishDateDialog.init
@@ -849,8 +852,7 @@ eventWithContent shared model user kind =
                 |> List.append (model.image |> Maybe.map List.singleton |> Maybe.withDefault [])
                 |> Set.fromList
                 |> Set.toList
-                |> List.filterMap (MediaSelector.fileMetadataForUrl model.mediaSelector)
-                |> List.filterMap imageMetadataFromFileMetadata
+                |> List.filterMap (getImageMetadata model)
     in
     { pubKey = user.pubKey
     , createdAt = shared.browserEnv.now
@@ -873,6 +875,17 @@ eventWithContent shared model user kind =
     , relays = Nothing
     }
 
+getImageMetadata : Model -> String -> Maybe ImageMetadata
+getImageMetadata model imageUrl =
+    -- default: check if article has image metadata already
+    case Dict.get imageUrl model.imageMetadata of
+        Just imageMetadata ->
+            Just imageMetadata
+
+        Nothing ->
+            -- check if image is in media selector
+            MediaSelector.fileMetadataForUrl model.mediaSelector imageUrl
+                |> Maybe.andThen imageMetadataFromFileMetadata
 
 imageMetadataFromFileMetadata : FileMetadata -> Maybe ImageMetadata
 imageMetadataFromFileMetadata fileMetadata =
