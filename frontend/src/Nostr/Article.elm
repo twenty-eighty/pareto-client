@@ -129,7 +129,10 @@ articleFromEvent event =
                             ImageTag image _ ->
                                 -- HTTP images make the client appear unsafe
                                 -- all images should be served with HTTPS in 2024
-                                ( { article | image = Just <| Nostr.Shared.ensureHttps image }, errors )
+                                if image /= "" then
+                                    ( { article | image = Just <| Nostr.Shared.ensureHttps image }, errors )
+                                else
+                                    ( article, errors )
 
                             ImageMetadataTag imageMetadata ->
                                 ( { article | imageMetadata = Dict.insert imageMetadata.url imageMetadata article.imageMetadata }, errors )
