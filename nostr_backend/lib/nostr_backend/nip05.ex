@@ -88,6 +88,9 @@ defmodule NostrBackend.Nip05 do
       {:ok, %Req.Response{status: status}} when status in [404, 400] ->
         {:error, "NIP-05 data not found on domain"}
 
+      {:ok, %Req.Response{status: status}} ->
+        {:error, "NIP-05 data not available: HTTP status #{status}"}
+
       {:error, exception} ->
         {:error, "HTTP request failed: #{inspect(exception)}"}
     end

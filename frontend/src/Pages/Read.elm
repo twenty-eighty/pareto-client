@@ -1,7 +1,6 @@
 module Pages.Read exposing (Model, Msg, init, page, subscriptions, update, view)
 
 import BrowserEnv exposing (BrowserEnv)
-import Color
 import Components.Categories as Categories
 import Components.Icon as Icon
 import Dict
@@ -28,6 +27,7 @@ import Shared
 import Shared.Model
 import Shared.Msg
 import Tailwind.Utilities as Tw
+import Tailwind.Theme exposing (Color)
 import Translations.Read
 import Translations.Sidebar
 import Ui.ShortNote as ShortNote exposing (ShortNotesViewData)
@@ -55,7 +55,7 @@ toLayout shared model =
             , toMsg = CategoriesSent
             , onSelect = CategorySelected
             , equals = \category1 category2 -> category1 == category2
-            , image = categoryImage shared.browserEnv
+            , image = categoryImage
             , categories = availableCategories shared.nostr shared.loginStatus shared.browserEnv.translations
             , browserEnv = shared.browserEnv
             , theme = shared.theme
@@ -437,11 +437,11 @@ view shared model =
     }
 
 
-categoryImage : BrowserEnv -> Category -> Maybe (Html msg)
-categoryImage _ category =
+categoryImage : Color -> Category -> Maybe (Html msg)
+categoryImage color category =
     let
         iconColor =
-            Icon.Color <| Color.fromRgba { red = 0.392, green = 0.455, blue = 0.545, alpha = 1.0 }
+            Icon.TailwindColor color
 
         image src =
             Html.div

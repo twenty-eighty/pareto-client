@@ -32,10 +32,11 @@ import Shared
 import Shared.Model
 import Shared.Msg
 import Tailwind.Utilities as Tw
+import Tailwind.Color exposing (Color)
 import Translations.Pictures as Translations
 import Ui.PicturePost as PicturePost exposing (PicturePostsViewData)
-import Ui.Shared exposing (emptyHtml)
 import Ui.ShortNote exposing (ShortNotesViewData)
+import Ui.Shared exposing (emptyHtml)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 
@@ -85,7 +86,7 @@ toLayout shared model =
                     , toMsg = CategoriesSent
                     , onSelect = CategorySelected
                     , equals = \category1 category2 -> category1 == category2
-                    , image = categoryImage shared.browserEnv
+                    , image = categoryImage
                     , categories = availableCategories shared.nostr shared.loginStatus shared.browserEnv.translations
                     , browserEnv = shared.browserEnv
                     , theme = shared.theme
@@ -499,43 +500,33 @@ view shared model =
     }
 
 
-categoryImage : BrowserEnv -> Category -> Maybe (Html msg)
-categoryImage _ category =
-    let
-        iconColor =
-            Icon.Color <| Color.fromRgba { red = 0.392, green = 0.455, blue = 0.545, alpha = 1.0 }
-
-        image src =
-            Html.div
-                [ css
-                    [ Tw.w_4
-                    , Tw.h_4
-                    ]
-                ]
-                [ Html.img
-                    [ Attr.src src
-                    ]
-                    []
-                ]
-    in
+categoryImage : Color -> Category -> Maybe (Html msg)
+categoryImage iconColor category =
     case category of
         Pareto ->
-            Icon.ParetoIcon Icon.ParetoCube 16 iconColor
+            Icon.ParetoIcon Icon.ParetoCube 16 (Icon.TailwindColor iconColor)
                 |> Icon.view
                 |> Just
 
         Followed ->
-            Icon.ParetoIcon Icon.ParetoFollowed 16 iconColor
+            Icon.ParetoIcon Icon.ParetoFollowed 16 (Icon.TailwindColor iconColor)
                 |> Icon.view
                 |> Just
 
         Global ->
-            Icon.ParetoIcon Icon.ParetoGlobe 16 iconColor
+            Icon.ParetoIcon Icon.ParetoGlobe 16 (Icon.TailwindColor iconColor)
                 |> Icon.view
                 |> Just
 
-        _ ->
-            Just <| image "/images/icon/Pareto-Log2.png"
+        Memes ->
+            Icon.ParetoIcon Icon.ParetoMemes 16 (Icon.TailwindColor iconColor)
+                |> Icon.view
+                |> Just
+
+        Art ->
+            Icon.ParetoIcon Icon.ParetoArt 16 (Icon.TailwindColor iconColor)
+                |> Icon.view
+                |> Just
 
 
 viewContent : Shared.Model -> Model -> Maybe PubKey -> Html Msg

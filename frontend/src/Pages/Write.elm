@@ -9,7 +9,7 @@ import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
 import Components.MessageDialog as MessageDialog
 import Components.PublishArticleDialog as PublishArticleDialog exposing (PublishingInfo(..))
 import Components.PublishDateDialog as PublishDateDialog
-import Dict
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div, img, label, node, text)
 import Html.Styled.Attributes as Attr exposing (css)
@@ -24,10 +24,11 @@ import Milkdown.MilkdownEditor as Milkdown
 import Nostr
 import Nostr.Article exposing (articleFromEvent)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
-import Nostr.Event as Event exposing (Event, Kind(..), Tag(..), numberForKind)
+import Nostr.Event as Event exposing (Event, ImageMetadata, Kind(..), Tag(..), numberForKind)
 import Nostr.External
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip27 as Nip27
+import Nostr.Nip94 exposing (FileMetadata)
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Types exposing (EventId, IncomingMessage, PubKey, RelayUrl)
@@ -51,6 +52,7 @@ import Ui.Article
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
 import View exposing (View)
+import Markdown
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
@@ -89,6 +91,7 @@ type alias Model =
     , now : Time.Posix
     , mediaSelector : MediaSelector.Model
     , imageSelection : Maybe ImageSelection
+    , imageMetadata : Dict String ImageMetadata
     , publishArticleDialog : PublishArticleDialog.Model
     , publishedAt : Maybe Time.Posix
     , publishDateDialog : PublishDateDialog.Model
@@ -216,6 +219,7 @@ init user shared route () =
                     , now = Time.millisToPosix 0
                     , mediaSelector = mediaSelector
                     , imageSelection = Nothing
+                    , imageMetadata = article.imageMetadata
                     , publishArticleDialog = publishArticleDialog
                     , publishedAt = publishedAt
                     , publishDateDialog = PublishDateDialog.init
@@ -242,6 +246,7 @@ init user shared route () =
                     , now = Time.millisToPosix 0
                     , mediaSelector = mediaSelector
                     , imageSelection = Nothing
+                    , imageMetadata = Dict.empty
                     , publishArticleDialog = publishArticleDialog
                     , publishedAt = Nothing
                     , publishDateDialog = PublishDateDialog.init
@@ -838,6 +843,16 @@ eventWithContent shared model user kind =
         publishedAt =
             model.publishedAt
                 |> Maybe.withDefault model.now
+
+        -- NIP-92: media attachments
+        imageMedatadataList =
+            model.content
+                |> Maybe.andThen (\content -> Markdown.collectImageUrls content |> Result.toMaybe)
+                |> Maybe.withDefault []
+                |> List.append (model.image |> Maybe.map List.singleton |> Maybe.withDefault [])
+                |> Set.fromList
+                |> Set.toList
+                |> List.filterMap (getImageMetadata model)
     in
     { pubKey = user.pubKey
     , createdAt = shared.browserEnv.now
@@ -853,11 +868,38 @@ eventWithContent shared model user kind =
             |> Maybe.withDefault identity (languageISOCode model |> Maybe.map (Event.addLabelTags "ISO-639-1"))
             |> Event.addZapTags model.zapWeights
             |> Event.addAltTag (altText model.identifier user.pubKey kind [ Pareto.paretoRelay ])
+            |> Event.addImetaTags imageMedatadataList
     , content = model.content |> Maybe.withDefault ""
     , id = ""
     , sig = Nothing
     , relays = Nothing
     }
+
+getImageMetadata : Model -> String -> Maybe ImageMetadata
+getImageMetadata model imageUrl =
+    -- default: check if article has image metadata already
+    case Dict.get imageUrl model.imageMetadata of
+        Just imageMetadata ->
+            Just imageMetadata
+
+        Nothing ->
+            -- check if image is in media selector
+            MediaSelector.fileMetadataForUrl model.mediaSelector imageUrl
+                |> Maybe.andThen imageMetadataFromFileMetadata
+
+imageMetadataFromFileMetadata : FileMetadata -> Maybe ImageMetadata
+imageMetadataFromFileMetadata fileMetadata =
+    fileMetadata.url
+        |> Maybe.map (\url ->
+            { url = url
+            , mimeType = fileMetadata.mimeType
+            , blurHash = fileMetadata.blurhash
+            , dim = fileMetadata.dim
+            , alt = fileMetadata.alt
+            , x = fileMetadata.xHash
+            , fallbacks = fileMetadata.fallbacks |> Maybe.withDefault []
+            }
+        )
 
 
 languageISOCode : Model -> Maybe String

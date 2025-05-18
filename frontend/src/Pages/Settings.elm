@@ -78,7 +78,7 @@ toLayout shared model =
                 , toMsg = CategoriesSent
                 , onSelect = CategorySelected
                 , equals = (==)
-                , image = \_ -> Nothing
+                , image = \_ _ -> Nothing
                 , categories = availableCategories shared.browserEnv.translations configCheckIssues
                 , browserEnv = shared.browserEnv
                 , theme = shared.theme

@@ -1,4 +1,4 @@
-module Markdown exposing (collectText, markdownViewHtml, summaryFromContent)
+module Markdown exposing (collectImageUrls, collectText, markdownViewHtml, summaryFromContent)
 
 -- import Html exposing (Attribute, Html)
 
@@ -159,6 +159,73 @@ render styles loadedContent fnGetProfile markdown =
                         )
             )
 
+filterImageUrls : List Block -> List String
+filterImageUrls blocks =
+    blocks
+        |> List.map
+            (\block ->
+                case block of
+                    HtmlBlock _ ->
+                        []
+
+                    UnorderedList _ listItems ->
+                        listItems 
+                        |> List.map (\(ListItem _ listItemBlocks) -> filterImageUrls listItemBlocks)
+                        |> List.concat
+
+                    OrderedList _ _ listItems ->
+                        listItems 
+                        |> List.map filterImageUrls
+                        |> List.concat
+
+                    BlockQuote quoteBlocks ->
+                        filterImageUrls quoteBlocks
+
+                    Heading _ inlines ->
+                        extractInlineImageUrls inlines
+
+                    Paragraph inlines ->
+                        extractInlineImageUrls inlines
+
+                    Table columnHeaders tableBody ->
+                        let
+                            headerUrls =
+                                columnHeaders
+                                |> List.map (\{ label } -> extractInlineImageUrls label)
+                                |> List.concat
+
+                            bodyUrls =
+                                tableBody
+                                |> List.map (\row ->
+                                        row
+                                        |> List.map extractInlineImageUrls
+                                        |> List.concat
+                                    )
+                                    |> List.concat
+                        in
+                        headerUrls ++ bodyUrls
+
+                    CodeBlock _ ->
+                        []
+
+                    ThematicBreak ->
+                        []
+            )
+        |> List.concat
+
+extractInlineImageUrls : List Markdown.Block.Inline -> List String
+extractInlineImageUrls inlines =
+    inlines
+        |> List.filterMap
+            (\inline ->
+                case inline of
+                    Markdown.Block.Image url _ _ ->
+                        Just url
+
+                    _ ->
+                        Nothing
+            )
+
 collectText : String -> Result String String
 collectText markdown =
     markdown
@@ -166,6 +233,15 @@ collectText markdown =
         |> replaceBrokenColTag
         |> Markdown.Parser.parse
         |> Result.map filterText
+        |> Result.mapError deadEndsToString
+
+collectImageUrls : String -> Result String (List String)
+collectImageUrls markdown =
+    markdown
+        |> replaceImgTags
+        |> replaceBrokenColTag
+        |> Markdown.Parser.parse
+        |> Result.map filterImageUrls
         |> Result.mapError deadEndsToString
 
 filterText : List Block -> String

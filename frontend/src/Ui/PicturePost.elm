@@ -8,10 +8,7 @@ import Nostr
 import Nostr.Event exposing (ImageMetadata)
 import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
-import Nostr.Reactions exposing (Interactions)
-import Nostr.Types exposing (EventId, PubKey)
 import Tailwind.Utilities as Tw
-import Ui.Interactions exposing (Actions, extendedZapRelays, pubkeyRelays)
 import Ui.Links exposing (linkElementForAuthor)
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
@@ -37,7 +34,7 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
         styles =
             stylesForTheme picturePostsViewData.theme
 
-        ( authorText, maybeProfile, validationStatus ) =
+        ( _, maybeProfile, validationStatus ) =
             case picturePostViewData.author of
                 AuthorPubkey pubKey ->
                     ( pubKey, Nothing, ValidationUnknown )
@@ -45,8 +42,8 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
                 AuthorProfile profile profileValidation ->
                     ( profileDisplayName profile.pubKey profile, Just profile, profileValidation )
 
-        profileLinkElement =
-            linkElementForAuthor picturePostViewData.author validationStatus
+        _ =
+            linkElementForAuthor picturePostViewData.author
     in
     div
         [ css
@@ -90,7 +87,7 @@ viewPictures imageMetadataList =
             viewImage picture.url
 
         -- TODO: show additional pictures in a gallery
-        firstPicture :: pictureList ->
+        firstPicture :: _ ->
             viewImage firstPicture.url
 
 
