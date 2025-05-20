@@ -205,7 +205,7 @@ viewArticle articlePreviewsData articlePreviewData article =
         articleRelays =
             article.relays |> Set.map websocketUrl
 
-        previewData =
+        interactionsPreviewData =
             { pubKey = article.author
             , maybeNip19Target = nip19ForArticle article
             , zapRelays = extendedZapRelays articleRelays articlePreviewsData.nostr articlePreviewsData.userPubKey
@@ -346,9 +346,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                             ++ textStyleReactions
                             ++ contentMargins
                         )
-                        [ viewInteractions styles articlePreviewsData.browserEnv previewData "1"
+                        [ viewInteractions styles articlePreviewsData.browserEnv interactionsPreviewData "1"
                         , viewContent styles articlePreviewData.loadedContent getProfile article.content
-                        , viewInteractions styles articlePreviewsData.browserEnv previewData "2"
+                        , viewInteractions styles articlePreviewsData.browserEnv interactionsPreviewData "2"
                         ]
                     , case articlePreviewsData.commenting of
                         Just ( comment, _ ) ->

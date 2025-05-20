@@ -2,21 +2,18 @@ module Components.ArticleComments exposing (ArticleComments, new, view)
 
 import BrowserEnv exposing (BrowserEnv)
 import Dict exposing (Dict)
-import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes exposing (css)
 import Locale exposing (Language(..))
 import Nostr
 import Nostr.Event exposing (Kind(..))
-import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..), articleCommentEvent, commentContent, commentValid, setCommentContent)
-import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName)
-import Nostr.Send exposing (SendRequest(..), SendRequestId)
-import Nostr.Types exposing (EventId, IncomingMessage, PubKey)
-import Shared.Model exposing (LoginStatus(..), Model)
-import Shared.Msg exposing (Msg)
+import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..))
+import Nostr.Profile exposing (ProfileValidation(..))
+import Nostr.Send exposing (SendRequest(..))
+import Nostr.Types exposing (EventId)
+import Shared.Model exposing (LoginStatus(..))
 import Tailwind.Utilities as Tw
 import Time
-import Translations.Comment as Translations
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
@@ -124,7 +121,7 @@ sortComments =
 
 
 viewArticleComment : Styles msg -> BrowserEnv -> Nostr.Model -> Int -> Dict EventId (List ArticleCommentComment) -> ArticleComment -> Html msg
-viewArticleComment styles browserEnv nostr level articleCommentComments articleComment =
+viewArticleComment styles browserEnv nostr _ articleCommentComments articleComment =
     let
         commentsOfComment =
             articleCommentComments
