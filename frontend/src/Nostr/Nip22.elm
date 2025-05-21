@@ -1,5 +1,6 @@
 module Nostr.Nip22 exposing (..)
 
+import Css exposing (content)
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), TagReference(..), emptyEvent, numberForKind)
 import Nostr.Nip19 exposing (NIP19Type(..))
@@ -265,39 +266,72 @@ articleDraftComment pubKey article =
             )
 
 
+type alias ArticleCommentRoot c =
+    { c
+        | rootAddress : AddressComponents
+        , rootKind : Kind
+        , rootPubKey : PubKey
+        , rootRelay : Maybe RelayUrl
+        , content : String
+    }
+
+
 articleCommentEvent : CommentType -> Event
 articleCommentEvent comment =
+    let
+        protocolSafeRelayUrl urlString =
+            if String.startsWith "wss://" urlString || String.startsWith "ws://" urlString then
+                urlString
+
+            else
+                "wss://" ++ urlString
+
+        eventAndRootRelay : ArticleCommentRoot c -> ( Event, Maybe RelayUrl )
+        eventAndRootRelay cmt =
+            let
+                ee =
+                    emptyEvent cmt.rootPubKey KindComment
+
+                rr =
+                    cmt.rootRelay |> Maybe.map protocolSafeRelayUrl
+
+                event =
+                    { ee
+                        | content = cmt.content
+                        , tags =
+                            [ RootAddressTag cmt.rootAddress rr
+                            , RootKindTag cmt.rootKind
+                            , RootPubKeyTag cmt.rootPubKey rr
+                            ]
+                    }
+            in
+            ( event, rr )
+    in
     case comment of
         CommentToArticle articleComment ->
             let
-                event =
-                    emptyEvent articleComment.pubKey KindComment
+                ( event, rootRelay ) =
+                    eventAndRootRelay articleComment
             in
             { event
-                | content = articleComment.content
-                , tags =
-                    [ KindTag articleComment.rootKind
-                    , AddressTag articleComment.rootAddress articleComment.rootRelay
-                    , PublicKeyTag articleComment.rootPubKey articleComment.rootRelay Nothing
-                    , RootAddressTag articleComment.rootAddress articleComment.rootRelay
-                    , RootKindTag articleComment.rootKind
-                    , RootPubKeyTag articleComment.rootPubKey articleComment.rootRelay
-                    ]
+                | tags =
+                    event.tags
+                        ++ [ KindTag articleComment.rootKind
+                           , AddressTag articleComment.rootAddress rootRelay
+                           , PublicKeyTag articleComment.rootPubKey rootRelay Nothing
+                           ]
             }
 
         CommentToArticleComment articleCommentComment ->
             let
-                event =
-                    emptyEvent articleCommentComment.pubKey KindComment
+                ( event, rootRelay ) =
+                    eventAndRootRelay articleCommentComment
             in
             { event
-                | content = articleCommentComment.content
-                , tags =
-                    [ KindTag articleCommentComment.parentKind
-                    , PublicKeyTag articleCommentComment.parentPubKey articleCommentComment.rootRelay Nothing
-                    , EventIdTag articleCommentComment.parentEventId articleCommentComment.rootRelay
-                    , RootAddressTag articleCommentComment.rootAddress articleCommentComment.rootRelay
-                    , RootKindTag articleCommentComment.rootKind
-                    , RootPubKeyTag articleCommentComment.rootPubKey articleCommentComment.rootRelay
-                    ]
+                | tags =
+                    event.tags
+                        ++ [ KindTag articleCommentComment.parentKind
+                           , PublicKeyTag articleCommentComment.parentPubKey rootRelay Nothing
+                           , EventIdTag articleCommentComment.parentEventId rootRelay
+                           ]
             }
