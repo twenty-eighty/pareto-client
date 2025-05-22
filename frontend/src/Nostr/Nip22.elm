@@ -18,6 +18,7 @@ type alias ArticleComment =
     { pubKey : PubKey
     , eventId : EventId
     , createdAt : Posix
+    , rootEventId : Maybe EventId
     , rootAddress : AddressComponents
     , rootKind : Kind
     , rootPubKey : PubKey
@@ -209,34 +210,41 @@ commentFromEvent event =
                     }
     in
     case ( ( collected.parentEventId, collected.parentKind, collected.parentPubKey ), ( collected.rootAddress, collected.rootKind, collected.rootPubKey ) ) of
-        ( ( Just parentEventId, Just parentKind, Just parentPubKey ), ( Just rootAddress, Just rootKind, Just rootPubKey ) ) ->
-            CommentToArticleComment
-                { eventId = event.id
-                , createdAt = event.createdAt
-                , pubKey = event.pubKey
-                , parentEventId = parentEventId
-                , parentKind = parentKind
-                , parentPubKey = parentPubKey
-                , rootAddress = rootAddress
-                , rootKind = rootKind
-                , rootPubKey = rootPubKey
-                , rootRelay = collected.rootRelay
-                , content = event.content
-                }
-                |> Just
+        ( ( maybeEventId, Just parentKind, Just parentPubKey ), ( Just rootAddress, Just rootKind, Just rootPubKey ) ) ->
+            if rootKind == parentKind then
+                CommentToArticle
+                    { eventId = event.id
+                    , createdAt = event.createdAt
+                    , pubKey = event.pubKey
+                    , rootAddress = rootAddress
+                    , rootEventId = maybeEventId
+                    , rootKind = rootKind
+                    , rootPubKey = rootPubKey
+                    , rootRelay = collected.rootRelay
+                    , content = event.content
+                    }
+                    |> Just
 
-        ( ( _, _, _ ), ( Just rootAddress, Just rootKind, Just rootPubKey ) ) ->
-            CommentToArticle
-                { eventId = event.id
-                , createdAt = event.createdAt
-                , pubKey = event.pubKey
-                , rootAddress = rootAddress
-                , rootKind = rootKind
-                , rootPubKey = rootPubKey
-                , rootRelay = collected.rootRelay
-                , content = event.content
-                }
-                |> Just
+            else
+                case maybeEventId of
+                    Just parentEventId ->
+                        CommentToArticleComment
+                            { eventId = event.id
+                            , createdAt = event.createdAt
+                            , pubKey = event.pubKey
+                            , parentEventId = parentEventId
+                            , parentKind = parentKind
+                            , parentPubKey = parentPubKey
+                            , rootAddress = rootAddress
+                            , rootKind = rootKind
+                            , rootPubKey = rootPubKey
+                            , rootRelay = collected.rootRelay
+                            , content = event.content
+                            }
+                            |> Just
+
+                    _ ->
+                        Nothing
 
         _ ->
             Nothing
@@ -258,6 +266,7 @@ articleDraftComment pubKey article =
                     , createdAt = Time.millisToPosix 0
                     , pubKey = pubKey
                     , rootAddress = addressComponents
+                    , rootEventId = Just article.id
                     , rootKind = article.kind
                     , rootPubKey = article.author
                     , rootRelay = firstRelay
@@ -312,6 +321,9 @@ articleCommentEvent comment =
             let
                 ( event, rootRelay ) =
                     eventAndRootRelay articleComment
+
+                maybeEventIdTag =
+                    Maybe.map (\eid -> EventIdTag eid rootRelay) articleComment.rootEventId
             in
             { event
                 | tags =
@@ -320,6 +332,7 @@ articleCommentEvent comment =
                            , AddressTag articleComment.rootAddress rootRelay
                            , PublicKeyTag articleComment.rootPubKey rootRelay Nothing
                            ]
+                        ++ (Maybe.map List.singleton maybeEventIdTag |> Maybe.withDefault [])
             }
 
         CommentToArticleComment articleCommentComment ->
