@@ -19,8 +19,7 @@ import Nostr.Types exposing (PubKey)
 import Set exposing (Set)
 import Tailwind.Utilities as Tw
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Styles, Theme)
-import Ui.Styles exposing (print)
+import Ui.Styles exposing (Styles, Theme, print)
 
 
 type alias Actions msg =

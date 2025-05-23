@@ -279,6 +279,9 @@ viewComment (Settings settings) draftComment postButtonText buttonMsg maybeError
             [ css
                 [ Tw.self_stretch
                 , Tw.max_w_full
+                , Tw.flex
+                , Tw.flex_row
+                , Tw.gap_3
                 ]
             ]
             [ Button.new
@@ -287,6 +290,12 @@ viewComment (Settings settings) draftComment postButtonText buttonMsg maybeError
                 , theme = settings.theme
                 }
                 |> Button.withDisabled (not <| commentValid draftComment)
+                |> Button.view
+            , Button.new
+                { label = Translations.cancelLabel [ settings.browserEnv.translations ]
+                , onClick = Just CloseDialog
+                , theme = settings.theme
+                }
                 |> Button.view
             ]
         ]
