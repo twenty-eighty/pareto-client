@@ -128,13 +128,16 @@ viewArticleComment styles browserEnv nostr _ articleCommentComments articleComme
                 |> Dict.get articleComment.eventId
                 |> Maybe.withDefault []
 
+        followLinks =
+            Nostr.isAuthor nostr articleComment.pubKey
+
         profileDisplay =
             Nostr.getProfile nostr articleComment.pubKey
                 |> Maybe.map
                     (\profile ->
                         Nostr.getProfileValidationStatus nostr profile.pubKey
                             |> Maybe.withDefault ValidationUnknown
-                            |> Ui.Profile.viewProfileSmall styles profile
+                            |> Ui.Profile.viewProfileSmall styles followLinks profile
                     )
                 |> Maybe.withDefault emptyHtml
     in

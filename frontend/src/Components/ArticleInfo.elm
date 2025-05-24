@@ -54,6 +54,9 @@ view styles author article browserEnv interactions nostr =
         articlesFromAuthor =
             Dict.get pubKey nostr.articlesByAuthor |> Maybe.map List.length |> Maybe.withDefault 0
 
+        followLinks =
+            Nostr.isAuthor nostr article.author
+
         followersFromAuthor =
             nostr.followLists
                 |> Dict.filter
@@ -100,7 +103,7 @@ view styles author article browserEnv interactions nostr =
                 ]
             ]
             {- Profile Section -}
-            [ linkElementForAuthor author
+            [ linkElementForAuthor followLinks author
                 [ viewProfileImage profileImage
                 , h2
                     [ css
@@ -218,6 +221,7 @@ viewTags translations tags =
                         ]
                         [ a
                             [ href (linkToHashtag tag)
+                            , Attr.rel "nofollow"
                             , Attr.attribute "aria-label" (Translations.linkToHashtagAriaLabel [ translations ] { hashtag = tag })
                             ]
                             [ text <| "# " ++ tag ]
