@@ -1,6 +1,7 @@
 module Nostr.Nip22 exposing (..)
 
 import Css exposing (content)
+import Html exposing (article)
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), TagReference(..), emptyEvent, numberForKind)
 import Nostr.Nip19 exposing (NIP19Type(..))
@@ -275,16 +276,6 @@ articleDraftComment pubKey article =
             )
 
 
-type alias ArticleCommentRoot c =
-    { c
-        | rootAddress : AddressComponents
-        , rootKind : Kind
-        , rootPubKey : PubKey
-        , rootRelay : Maybe RelayUrl
-        , content : String
-    }
-
-
 articleCommentEvent : CommentType -> Event
 articleCommentEvent comment =
     let
@@ -295,56 +286,50 @@ articleCommentEvent comment =
             else
                 "wss://" ++ urlString
 
-        eventAndRootRelay : ArticleCommentRoot c -> ( Event, Maybe RelayUrl )
-        eventAndRootRelay cmt =
+        createCommonPartCommentEvent cmt specificTags =
             let
-                ee =
+                initialEvent =
                     emptyEvent cmt.rootPubKey KindComment
 
-                rr =
+                maybeRelayUrl =
                     cmt.rootRelay |> Maybe.map protocolSafeRelayUrl
 
-                event =
-                    { ee
+                eventCommonPart =
+                    { initialEvent
                         | content = cmt.content
                         , tags =
-                            [ RootAddressTag cmt.rootAddress rr
+                            [ RootAddressTag cmt.rootAddress maybeRelayUrl
                             , RootKindTag cmt.rootKind
-                            , RootPubKeyTag cmt.rootPubKey rr
+                            , RootPubKeyTag cmt.rootPubKey maybeRelayUrl
                             ]
                     }
             in
-            ( event, rr )
+            { eventCommonPart | tags = eventCommonPart.tags ++ specificTags }
     in
     case comment of
         CommentToArticle articleComment ->
             let
-                ( event, rootRelay ) =
-                    eventAndRootRelay articleComment
+                rootRelay =
+                    articleComment.rootRelay |> Maybe.map protocolSafeRelayUrl
 
                 maybeEventIdTag =
                     Maybe.map (\eid -> EventIdTag eid rootRelay) articleComment.rootEventId
             in
-            { event
-                | tags =
-                    event.tags
-                        ++ [ KindTag articleComment.rootKind
-                           , AddressTag articleComment.rootAddress rootRelay
-                           , PublicKeyTag articleComment.rootPubKey rootRelay Nothing
-                           ]
-                        ++ (Maybe.map List.singleton maybeEventIdTag |> Maybe.withDefault [])
-            }
+            createCommonPartCommentEvent articleComment
+                ([ KindTag articleComment.rootKind
+                 , AddressTag articleComment.rootAddress rootRelay
+                 , PublicKeyTag articleComment.rootPubKey rootRelay Nothing
+                 ]
+                    ++ (Maybe.map List.singleton maybeEventIdTag |> Maybe.withDefault [])
+                )
 
         CommentToArticleComment articleCommentComment ->
             let
-                ( event, rootRelay ) =
-                    eventAndRootRelay articleCommentComment
+                rootRelay =
+                    articleCommentComment.rootRelay |> Maybe.map protocolSafeRelayUrl
             in
-            { event
-                | tags =
-                    event.tags
-                        ++ [ KindTag articleCommentComment.parentKind
-                           , PublicKeyTag articleCommentComment.parentPubKey rootRelay Nothing
-                           , EventIdTag articleCommentComment.parentEventId rootRelay
-                           ]
-            }
+            createCommonPartCommentEvent articleCommentComment
+                [ KindTag articleCommentComment.parentKind
+                , PublicKeyTag articleCommentComment.parentPubKey rootRelay Nothing
+                , EventIdTag articleCommentComment.parentEventId rootRelay
+                ]
