@@ -35,7 +35,7 @@ type InteractionIcon msg
     = Settings
         { icon : Icon
         , actionInProgress : Bool
-        , attributes : List (Html.Attribute msg)
+        , attributes : List (String, String)
         , onClick : Maybe msg
         , theme : Ui.Styles.Theme
         }
@@ -56,12 +56,12 @@ map toMsg (Settings settings) =
     Settings
         { icon = settings.icon
         , actionInProgress = settings.actionInProgress
-        , attributes = List.map (Attr.map toMsg) settings.attributes
+        , attributes = settings.attributes
         , onClick = Maybe.map toMsg settings.onClick
         , theme = settings.theme
         }
 
-withAttributes : List (Html.Attribute msg) -> InteractionIcon msg -> InteractionIcon msg
+withAttributes : List (String, String) -> InteractionIcon msg -> InteractionIcon msg
 withAttributes attributes (Settings settings) =
     Settings { settings | attributes = attributes }
 
@@ -92,18 +92,21 @@ view (Settings settings) =
 
                 ( False, Nothing ) ->
                     ( div, [] )
-    in
+
+        attributes =
+            settings.attributes
+                |> List.map (\(key, value) -> (Attr.attribute key value))
+        in
         div
-            (settings.attributes ++ 
             [ Attr.css
                 [ Tw.flex
                 , Tw.flex_row
                 , Tw.py_2
                 ]
-            ])
+            ]
             [ viewProcessingIndicator
             , element
-                (onClickAttr
+                (attributes ++ onClickAttr
                     ++ [ Attr.css
                             [ Tw.py_2
                             , Tw.px_2

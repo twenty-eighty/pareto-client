@@ -236,6 +236,7 @@ viewProfile shared model profile =
                 , onRepost = Nothing
                 , onZap = Nothing
                 , articleToInteractionsMsg = \_ _ -> NoOp
+                , openCommentMsg = Nothing
                 , sharing = Nothing
                 }
         , viewEmailSubscriptionDialog shared model profile

@@ -44,7 +44,8 @@ type alias PreviewData msg =
     , interactions : Interactions
     , interactionsModel : Components.Interactions.Model
     , interactionObject : Components.InteractionButton.InteractionObject
-    , toInteractionsMsg : Components.Interactions.Msg -> msg
+    , toInteractionsMsg : Components.Interactions.Msg msg -> msg
+    , openCommentMsg : Maybe msg
     , nostr : Nostr.Model
     , sharing : Maybe ( SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg )
     , sharingInfo : SharingButtonDialog.SharingInfo
@@ -117,7 +118,6 @@ viewInteractions styles browserEnv previewData instanceId =
                         { model = sharingButtonDialog
                         , browserEnv = browserEnv
                         , sharingInfo = previewData.sharingInfo
-                        , translations = previewData.translations
                         , theme = previewData.theme
                         , toMsg = sharingButtonDialogMsg
                         }
@@ -126,8 +126,8 @@ viewInteractions styles browserEnv previewData instanceId =
             |> Maybe.withDefault emptyHtml
         ]
 
-viewInteractionsNew : Theme -> BrowserEnv -> PreviewData msg -> String -> Html msg
-viewInteractionsNew theme browserEnv previewData instanceId =
+viewInteractionsNew : PreviewData msg -> String -> Html msg
+viewInteractionsNew previewData instanceId =
     Components.Interactions.new
         { browserEnv = previewData.browserEnv
         , model = Just previewData.interactionsModel
@@ -138,6 +138,14 @@ viewInteractionsNew theme browserEnv previewData instanceId =
         , loginStatus = previewData.loginStatus
         }
         |> Components.Interactions.withRelayUrls previewData.zapRelays
+        |> Components.Interactions.withInteractionElements
+            [ Components.Interactions.CommentButtonElement previewData.openCommentMsg
+            , Components.Interactions.LikeButtonElement
+            , Components.Interactions.RepostButtonElement
+            , Components.Interactions.ZapButtonElement instanceId
+            , Components.Interactions.BookmarkButtonElement
+            , Components.Interactions.ShareButtonElement previewData.sharingInfo
+            ]
         |> Components.Interactions.view
 {-
 -}

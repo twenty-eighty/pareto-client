@@ -1,5 +1,6 @@
 module Components.Interactions exposing
-    ( Interactions, new, withRelayUrls
+    ( Interactions, InteractionElement(..)
+    , new, withRelayUrls, withInteractionElements
     , view
     , init, update, Model, Msg
     , subscriptions
@@ -24,18 +25,25 @@ import Components.BookmarkButton as BookmarkButton
 import Components.CommentButton as CommentButton
 import Components.LikeButton as LikeButton
 import Components.RepostButton as RepostButton
+import Components.SharingButtonDialog as SharingButtonDialog
 import Components.InteractionButton exposing (InteractionObject(..))
 import Components.ZapButton as ZapButton
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr
-import I18Next
 import Nostr
 import Nostr.Types exposing (LoginStatus)
 import Set exposing (Set)
 import Tailwind.Utilities as Tw
 import Ui.Styles
 
+type InteractionElement msg
+    = BookmarkButtonElement
+    | CommentButtonElement (Maybe msg)
+    | LikeButtonElement
+    | RepostButtonElement
+    | ShareButtonElement SharingButtonDialog.SharingInfo
+    | ZapButtonElement String
 
 -- MODEL
 
@@ -45,6 +53,7 @@ type Model =
         , commentButton : CommentButton.Model
         , likeButton : LikeButton.Model
         , repostButton : RepostButton.Model
+        , sharingButtonDialog : SharingButtonDialog.Model
         , zapButton : ZapButton.Model
         }
 
@@ -55,28 +64,32 @@ init =
         , commentButton = CommentButton.init
         , likeButton = LikeButton.init
         , repostButton = RepostButton.init
+        , sharingButtonDialog = SharingButtonDialog.init
         , zapButton = ZapButton.init
         }
 
 
 -- UPDATE
 
-type Msg
+type Msg msg
     = BookmarkButtonMsg BookmarkButton.Msg
-    | CommentButtonMsg CommentButton.Msg
+    | CommentButtonMsg (CommentButton.Msg (Msg msg))
+    | OpenComment msg
     | LikeButtonMsg LikeButton.Msg
     | RepostButtonMsg RepostButton.Msg
+    | SharingButtonDialogMsg SharingButtonDialog.Msg
     | ZapButtonMsg ZapButton.Msg
 
 
 update :
-    { msg : Msg
+    { browserEnv : BrowserEnv
+    , msg : Msg msg
     , model : Maybe Model
     , nostr : Nostr.Model
     , interactionObject : InteractionObject
+    , openCommentMsg : Maybe msg
     , toModel : Model -> model
-    , toMsg : Msg -> msg
-    , translations : I18Next.Translations
+    , toMsg : Msg msg -> msg
     } -> ( model, Effect msg )
 update props =
     let
@@ -84,63 +97,102 @@ update props =
             props.model
             |> Maybe.withDefault init
 
-        toParentModel : ( Model, Effect Msg ) -> ( model, Effect msg )
+        toParentModel : ( Model, Effect msg ) -> ( model, Effect msg )
         toParentModel ( innerModel, effect ) =
             ( props.toModel innerModel
-            , effect |> Effect.map props.toMsg
+            , effect
             )
     in
     toParentModel <|
         case props.msg of
             BookmarkButtonMsg bookmarkMsg ->
-                BookmarkButton.update
-                    { msg = bookmarkMsg
-                    , model = model.bookmarkButton
-                    , toModel = \innerModel -> Model { model | bookmarkButton = innerModel }
-                    , nostr = props.nostr
-                    , toMsg = BookmarkButtonMsg
-                    , translations = props.translations
-                    }
+                let
+                    (updatedModel, effect) =
+                        BookmarkButton.update
+                            { msg = bookmarkMsg
+                            , model = model.bookmarkButton
+                            , toModel = \innerModel -> Model { model | bookmarkButton = innerModel }
+                            , nostr = props.nostr
+                            , toMsg = BookmarkButtonMsg
+                            , translations = props.browserEnv.translations
+                            }
+                in
+                ( updatedModel, effect |> Effect.map props.toMsg )
 
             CommentButtonMsg commentMsg ->
-                CommentButton.update
-                    { msg = commentMsg
-                    , model = model.commentButton
-                    , toModel = \innerModel -> Model { model | commentButton = innerModel }
-                    , nostr = props.nostr
-                    , toMsg = CommentButtonMsg
-                    , translations = props.translations
-                    }
+                let
+                    (updatedModel, effect) =
+                        CommentButton.update
+                            { msg = commentMsg
+                            , model = model.commentButton
+                            , toModel = \innerModel -> Model { model | commentButton = innerModel }
+                            , nostr = props.nostr
+                            , toMsg = CommentButtonMsg
+                            , translations = props.browserEnv.translations
+                            }
+                in
+                ( updatedModel, effect |> Effect.map props.toMsg )
+
+            OpenComment openCommentMsg ->
+                ( Model model
+                , openCommentMsg
+                    |> Effect.sendMsg
+                )
 
             LikeButtonMsg likeMsg ->
-                LikeButton.update
-                    { msg = likeMsg
-                    , model = model.likeButton
-                    , toModel = \innerModel -> Model { model | likeButton = innerModel }
-                    , nostr = props.nostr
-                    , toMsg = LikeButtonMsg
-                    , translations = props.translations
-                    }
+                let
+                    (updatedModel, effect) =
+                        LikeButton.update
+                            { msg = likeMsg
+                            , model = model.likeButton
+                            , toModel = \innerModel -> Model { model | likeButton = innerModel }
+                            , nostr = props.nostr
+                            , toMsg = LikeButtonMsg
+                            , translations = props.browserEnv.translations
+                            }
+                in
+                ( updatedModel, effect |> Effect.map props.toMsg )
 
             RepostButtonMsg repostMsg ->
-                RepostButton.update
-                    { msg = repostMsg
-                    , model = model.repostButton
-                    , toModel = \innerModel -> Model { model | repostButton = innerModel }
-                    , nostr = props.nostr
-                    , toMsg = RepostButtonMsg
-                    , translations = props.translations
-                    }
+                let
+                    (updatedModel, effect) =
+                        RepostButton.update
+                            { msg = repostMsg
+                            , model = model.repostButton
+                            , toModel = \innerModel -> Model { model | repostButton = innerModel }
+                            , nostr = props.nostr
+                            , toMsg = RepostButtonMsg
+                            , translations = props.browserEnv.translations
+                            }
+                in
+                ( updatedModel, effect |> Effect.map props.toMsg )
+
+            SharingButtonDialogMsg sharingButtonDialogMsg ->
+                let
+                    (updatedModel, effect) =
+                        SharingButtonDialog.update
+                            { msg = sharingButtonDialogMsg
+                            , model = model.sharingButtonDialog
+                            , toModel = \innerModel -> Model { model | sharingButtonDialog = innerModel }
+                            , browserEnv = props.browserEnv
+                            , toMsg = SharingButtonDialogMsg
+                            }
+                in
+                ( updatedModel, effect |> Effect.map props.toMsg )
 
             ZapButtonMsg zapMsg ->
-                ZapButton.update
-                    { msg = zapMsg
-                    , model = model.zapButton
-                    , toModel = \innerModel -> Model { model | zapButton = innerModel }
-                    , nostr = props.nostr
-                    , toMsg = ZapButtonMsg
-                    , translations = props.translations
-                    }
+                let
+                    (updatedModel, effect) =
+                        ZapButton.update
+                            { msg = zapMsg
+                            , model = model.zapButton
+                            , toModel = \innerModel -> Model { model | zapButton = innerModel }
+                            , nostr = props.nostr
+                            , toMsg = ZapButtonMsg
+                            , translations = props.browserEnv.translations
+                            }
+                in
+                ( updatedModel, effect |> Effect.map props.toMsg )
 
 
 
@@ -150,13 +202,13 @@ update props =
 type Interactions msg
     = Settings
         { browserEnv : BrowserEnv
+        , interactionElements : List (InteractionElement msg)
         , model : Maybe Model
-        , instanceId : String
         , interactionObject : InteractionObject
         , nostr : Nostr.Model
         , loginStatus : LoginStatus
         , relayUrls : Set String
-        , toMsg : Msg -> msg
+        , toMsg : Msg msg -> msg
         , theme : Ui.Styles.Theme
         }
 
@@ -164,7 +216,7 @@ type Interactions msg
 new : 
     { browserEnv : BrowserEnv
     , model : Maybe Model
-    , toMsg : Msg -> msg
+    , toMsg : Msg msg -> msg
     , theme : Ui.Styles.Theme
     , interactionObject : InteractionObject
     , nostr : Nostr.Model
@@ -173,8 +225,8 @@ new :
 new props =
     Settings
         { browserEnv = props.browserEnv
+        , interactionElements = [ BookmarkButtonElement, LikeButtonElement, RepostButtonElement, ZapButtonElement "0" ]
         , model = props.model
-        , instanceId = "0"
         , toMsg = props.toMsg
         , interactionObject = props.interactionObject
         , loginStatus = props.loginStatus
@@ -183,6 +235,9 @@ new props =
         , theme = props.theme
         }
 
+withInteractionElements : List (InteractionElement msg) -> Interactions msg -> Interactions msg
+withInteractionElements interactionElements (Settings settings) =
+    Settings { settings | interactionElements = interactionElements }
 
 withRelayUrls : Set String -> Interactions msg -> Interactions msg
 withRelayUrls relayUrls (Settings settings) =
@@ -191,7 +246,7 @@ withRelayUrls relayUrls (Settings settings) =
 
 -- HELPERS
 
-getBookmarkButton : Interactions msg -> Html Msg
+getBookmarkButton : Interactions msg -> Html (Msg msg)
 getBookmarkButton (Settings settings) =
     let
         (Model model) =
@@ -209,8 +264,8 @@ getBookmarkButton (Settings settings) =
         |> BookmarkButton.view
 
 
-getCommentButton : Interactions msg -> Html Msg
-getCommentButton (Settings settings) =
+getCommentButton : Interactions msg -> Maybe msg -> Html (Msg msg)
+getCommentButton (Settings settings) openCommentMsg =
     let
         (Model model) =
             settings.model
@@ -224,10 +279,11 @@ getCommentButton (Settings settings) =
         , nostr = settings.nostr
         , loginStatus = settings.loginStatus
         }
+        |> CommentButton.withOpenCommentMsg (openCommentMsg |> Maybe.map OpenComment)
         |> CommentButton.view
 
 
-getLikeButton : Interactions msg -> Html Msg
+getLikeButton : Interactions msg -> Html (Msg msg)
 getLikeButton (Settings settings) =
     let
         (Model model) =
@@ -245,7 +301,7 @@ getLikeButton (Settings settings) =
         |> LikeButton.view
 
 
-getRepostButton : Interactions msg -> Html Msg
+getRepostButton : Interactions msg -> Html (Msg msg)
 getRepostButton (Settings settings) =
     let
         (Model model) =
@@ -263,8 +319,24 @@ getRepostButton (Settings settings) =
         |> RepostButton.view
 
 
-getZapButton : Interactions msg -> Html Msg
-getZapButton (Settings settings) =
+getShareButton : Interactions msg -> SharingButtonDialog.SharingInfo -> Html (Msg msg)
+getShareButton (Settings settings) sharingInfo =
+    let
+        (Model model) =
+            settings.model
+            |> Maybe.withDefault init
+    in
+    SharingButtonDialog.new
+        { browserEnv = settings.browserEnv
+        , model = model.sharingButtonDialog
+        , toMsg = SharingButtonDialogMsg
+        , theme = settings.theme
+        , sharingInfo = sharingInfo
+        }
+        |> SharingButtonDialog.view
+
+getZapButton : Interactions msg -> String -> Html (Msg msg)
+getZapButton (Settings settings) instanceId =
     let
         (Model model) =
             settings.model
@@ -281,7 +353,7 @@ getZapButton (Settings settings) =
         , relayUrls = settings.relayUrls
         }
         |> ZapButton.withRelayUrls settings.relayUrls
-        |> ZapButton.withInstanceId settings.instanceId
+        |> ZapButton.withInstanceId instanceId
         |> ZapButton.view
 
 
@@ -302,16 +374,27 @@ view interactions =
             , Tw.items_center
             ]
         ]
-        [ getBookmarkButton interactions
-        , getCommentButton interactions
-        , getLikeButton interactions
-        , getRepostButton interactions
-        , getZapButton interactions
-        ] 
+        ( settings.interactionElements
+            |> List.map (\interactionElement ->
+                case interactionElement of
+                    BookmarkButtonElement ->
+                        getBookmarkButton interactions
+                    CommentButtonElement openCommentMsg ->
+                        getCommentButton interactions openCommentMsg
+                    LikeButtonElement ->
+                        getLikeButton interactions
+                    RepostButtonElement ->
+                        getRepostButton interactions
+                    ShareButtonElement sharingInfo ->
+                        getShareButton interactions sharingInfo
+                    ZapButtonElement instanceId ->
+                        getZapButton interactions instanceId
+            )
+        ) 
         |> Html.map settings.toMsg
 
 
-subscriptions : Model -> Sub Msg
+subscriptions : Model -> Sub (Msg msg)
 subscriptions (Model model) =
     Sub.batch
         [ BookmarkButton.subscriptions model.bookmarkButton

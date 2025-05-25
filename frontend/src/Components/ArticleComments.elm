@@ -31,7 +31,7 @@ type ArticleComments msg
         , articleComments : List ArticleComment
         , articleCommentComments : Dict EventId (List ArticleCommentComment) -- event ID is the one of the parent comment
         , interactions : Dict EventId Interactions.Model
-        , toInteractionsMsg : InteractionButton.InteractionObject -> Interactions.Msg -> msg
+        , toInteractionsMsg : InteractionButton.InteractionObject -> Interactions.Msg msg -> msg
         , loginStatus : LoginStatus
         , theme : Theme
         }
@@ -43,7 +43,7 @@ new :
     , articleComments : List ArticleComment
     , articleCommentComments : Dict EventId (List ArticleCommentComment) -- event ID is the one of the parent comment
     , interactions : Dict EventId Interactions.Model
-    , toInteractionsMsg : InteractionButton.InteractionObject -> Interactions.Msg -> msg
+    , toInteractionsMsg : InteractionButton.InteractionObject -> Interactions.Msg msg -> msg
     , loginStatus : LoginStatus
     , theme : Theme
     }

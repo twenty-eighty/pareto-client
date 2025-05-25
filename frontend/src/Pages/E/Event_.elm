@@ -286,6 +286,7 @@ viewContent shared model =
                         , onRepost = Nothing
                         , onZap = Nothing
                         , articleToInteractionsMsg = \_ _ -> NoOp
+                        , openCommentMsg = Nothing
                         , sharing = Nothing
                         }
                         (Just model.loadedContent)

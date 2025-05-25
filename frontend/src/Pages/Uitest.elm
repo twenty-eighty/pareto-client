@@ -26,6 +26,7 @@ import Pareto
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
+import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Color exposing (Color)
@@ -125,7 +126,8 @@ type Msg
     | CalendarSent Components.Calendar.Msg
     | CheckboxClicked Bool
     | EntryFieldChanged String
-    | InteractionsSent Components.Interactions.Msg
+    | OpenComment
+    | InteractionsSent (Components.Interactions.Msg Msg)
     | SwitchClicked TestSwitchState
     | DropdownSent (Components.Dropdown.Msg TestDropdownItem Msg)
     | DropdownChanged (Maybe TestDropdownItem)
@@ -169,15 +171,22 @@ update shared msg model =
         EntryFieldChanged value ->
             ( { model | entryFieldValue = value }, Effect.none )
 
+        OpenComment ->
+            ( model
+                , Shared.Msg.ShowAlert "Open comment"
+                    |> Effect.sendSharedMsg
+            )
+
         InteractionsSent innerMsg ->
             Components.Interactions.update
-                { msg = innerMsg
+                { browserEnv = shared.browserEnv
+                , msg = innerMsg
                 , model = Just model.interactions
                 , nostr = shared.nostr
                 , interactionObject = Components.InteractionButton.PicturePost "ABCDEF" "BEEFCAFE"
+                , openCommentMsg = Nothing
                 , toModel = \interactionsModel -> { model | interactions = interactionsModel }
                 , toMsg = InteractionsSent
-                , translations = shared.browserEnv.translations
                 }
 
         SwitchClicked value ->
@@ -417,6 +426,13 @@ interactionsElement shared model =
         , nostr = shared.nostr
         , loginStatus = shared.loginStatus
         }
+        |> Components.Interactions.withInteractionElements
+            [ Components.Interactions.CommentButtonElement (Just OpenComment)
+            , Components.Interactions.LikeButtonElement
+            , Components.Interactions.RepostButtonElement
+            , Components.Interactions.ZapButtonElement "0"
+            , Components.Interactions.BookmarkButtonElement
+            ]
         |> Components.Interactions.view
 
 
@@ -583,6 +599,5 @@ sharingButtonDialogElement shared model =
         , browserEnv = shared.browserEnv
         , sharingInfo = { url = Pareto.applicationUrl, title = Pareto.client, text = Pareto.applicationDomain, hashtags = Pareto.paretoHashtags }
         , theme = model.theme
-        , translations = shared.browserEnv.translations
         }
         |> Components.SharingButtonDialog.view

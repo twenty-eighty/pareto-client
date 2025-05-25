@@ -1,6 +1,6 @@
 module Components.InteractionButton exposing
     ( InteractionButton, new
-    , ClickAction(..)
+    , ClickAction(..), mapAction
     , view
     , init, update, Model, Msg
     , subscriptions
@@ -35,7 +35,7 @@ import Components.InteractionIcon as InteractionIcon
 import Components.Icon exposing (Icon)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (..)
-import Html.Styled.Attributes as Attr exposing (css)
+import Html.Styled.Attributes exposing (css)
 import I18Next
 import Nostr
 import Nostr.Event exposing (AddressComponents)
@@ -64,6 +64,20 @@ type ClickAction msg
     = NoAction
     | Send SendRequest
     | SendMsg msg
+
+
+mapAction : (msg1 -> msg2) -> ClickAction msg1 -> ClickAction msg2
+mapAction toMsg clickAction =
+    case clickAction of
+        NoAction ->
+            NoAction
+
+        Send sendRequest ->
+            Send sendRequest
+
+        SendMsg msg ->
+            SendMsg (toMsg msg)
+
 
 -- MODEL
 
@@ -171,10 +185,10 @@ type InteractionButton msg
         , unreactedIcon : Icon
         , reactedIcon : Icon
         , reacted : Bool
-        , toMsg : Msg msg -> msg
         , theme : Ui.Styles.Theme
+        , toMsg : Msg msg -> msg
         , label : Maybe String
-        , attributes : List (Html.Attribute msg)
+        , attributes : List ( String, String )
         }
 
 new : 
@@ -182,8 +196,8 @@ new :
     , unreactedIcon : Icon
     , reactedIcon : Icon
     , reacted : Bool
-    , toMsg : Msg msg -> msg
     , theme : Ui.Styles.Theme
+    , toMsg : Msg msg -> msg
     } -> InteractionButton msg
 new props =
     Settings
@@ -192,8 +206,8 @@ new props =
         , unreactedIcon = props.unreactedIcon
         , reactedIcon = props.reactedIcon
         , reacted = props.reacted
-        , toMsg = props.toMsg
         , theme = props.theme
+        , toMsg = props.toMsg
         , label = Nothing
         , attributes = []
         }
@@ -208,7 +222,7 @@ withOnClickAction clickAction (Settings settings) =
     Settings { settings | onClickAction = Just clickAction }
 
 
-withAttributes : List (Html.Attribute msg) -> InteractionButton msg -> InteractionButton msg
+withAttributes : List (String, String) -> InteractionButton msg -> InteractionButton msg
 withAttributes attributes (Settings settings) =
     Settings { settings | attributes = attributes }
 
@@ -254,9 +268,9 @@ view (Settings settings) =
             , onClick = onClick
             , theme = settings.theme
             }
-            |> InteractionIcon.map settings.toMsg
             |> InteractionIcon.withAttributes settings.attributes
             |> InteractionIcon.view
+            |> Html.map settings.toMsg
         , settings.label
             |> Maybe.map (\label ->
                 Html.span [ css [ Tw.text_left ] ] [ Html.text label ]

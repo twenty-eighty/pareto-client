@@ -19,10 +19,10 @@ import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), empt
 import Nostr.Nip05 as Nip05
 import Nostr.Nip18 exposing (articleRepostEvent)
 import Nostr.Nip19 exposing (NIP19Type(..))
-import Nostr.Nip22 exposing (CommentType)
+import Nostr.Nip22 exposing (CommentType, commentToArticle)
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId, PubKey, loggedInPubKey, loggedInSigningPubKey)
+import Nostr.Types exposing (EventId, LoginStatus, PubKey, loggedInPubKey, loggedInSigningPubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Set
@@ -32,6 +32,7 @@ import Ui.Shared exposing (emptyHtml)
 import Ui.Styles
 import Ui.View exposing (viewRelayStatus)
 import View exposing (View)
+import Nostr.Nip22 exposing (CommentType(..))
 
 
 page : Shared.Model -> Route { user : String, identifier : String } -> Page Model Msg
@@ -182,10 +183,10 @@ type Msg
     | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
     | AddRepost PubKey Article
     | AddLoadedContent String
-    | ArticleInteractionsSent InteractionButton.InteractionObject Interactions.Msg
+    | ArticleInteractionsSent InteractionButton.InteractionObject (Interactions.Msg Msg)
     | OpenComment CommentType
     | CommentSent Comment.Msg
-    | CommentInteractionsSent EventId PubKey Interactions.Msg
+    | CommentInteractionsSent EventId PubKey (Interactions.Msg Msg)
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
     | SharingButtonDialogMsg SharingButtonDialog.Msg
@@ -243,13 +244,14 @@ update shared msg model =
 
         ArticleInteractionsSent interactionObject innerMsg ->
             Interactions.update
-                { msg = innerMsg
+                { browserEnv = shared.browserEnv
+                , msg = innerMsg
                 , model = Just model.articleInteractions
                 , nostr = shared.nostr
                 , interactionObject = interactionObject
+                , openCommentMsg = Nothing
                 , toModel = \interactionsModel -> { model | articleInteractions = interactionsModel }
                 , toMsg = ArticleInteractionsSent interactionObject
-                , translations = shared.browserEnv.translations
                 }
 
 
@@ -267,13 +269,14 @@ update shared msg model =
 
         CommentInteractionsSent eventId pubKey innerMsg ->
             Interactions.update
-                { msg = innerMsg
+                { browserEnv = shared.browserEnv
+                , msg = innerMsg
                 , model = Dict.get eventId model.commentInteractions
                 , nostr = shared.nostr
                 , interactionObject = InteractionButton.Comment eventId pubKey
+                , openCommentMsg = Nothing
                 , toModel = \interactionsModel -> { model | commentInteractions = Dict.insert eventId interactionsModel model.commentInteractions }
                 , toMsg = CommentInteractionsSent eventId pubKey
-                , translations = shared.browserEnv.translations
                 }
 
         ZapReaction _ recipients ->
@@ -423,6 +426,7 @@ viewArticle shared model maybeArticle =
                 -- signing is possible also with read-only login
                 , onZap = Maybe.map (\pubKey -> ZapReaction pubKey) (loggedInPubKey shared.loginStatus)
                 , articleToInteractionsMsg = ArticleInteractionsSent
+                , openCommentMsg = commentToArticle article shared.loginStatus |> Maybe.map OpenComment
                 , sharing = Just ( model.sharingButtonDialog, SharingButtonDialogMsg )
                 }
                 (Just model.loadedContent)
@@ -431,3 +435,4 @@ viewArticle shared model maybeArticle =
 
         Nothing ->
             viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle model.requestId
+

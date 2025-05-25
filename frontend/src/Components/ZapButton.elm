@@ -162,14 +162,14 @@ view (Settings settings) =
                     Nip19.NAddr naddrData
                     |> Nip19.encode
                     |> Result.toMaybe
-                    |> Maybe.map (\nip19String -> [ Attr.attribute "data-naddr" nip19String ])
+                    |> Maybe.map (\nip19String -> [ ( "data-naddr", nip19String ) ])
                     |> Maybe.withDefault []
 
                 Nip19.NEvent neventData ->
                     Nip19.NEvent neventData
                     |> Nip19.encode
                     |> Result.toMaybe
-                    |> Maybe.map (\nip19String -> [ Attr.attribute "data-note-id" nip19String ])
+                    |> Maybe.map (\nip19String -> [ ( "data-note-id", nip19String ) ])
                     |> Maybe.withDefault []
 
                 _ ->
@@ -192,14 +192,18 @@ view (Settings settings) =
             maybeNpub
                 |> Maybe.map
                     (\npub ->
-                        ( [ Attr.id ("zap-button-" ++ (maybeNip19String |> Maybe.withDefault "") ++ (instanceIdSuffix))
-                          , Attr.attribute "data-npub" npub
-                          , Attr.attribute "data-relays" (zapRelays |> Set.toList |> String.join ",")
-                          , Attr.attribute "data-button-color" "#334155"
+                        let
+                            buttonId =
+                                "zap-button-" ++ (maybeNip19String |> Maybe.withDefault "") ++ instanceIdSuffix
+                        in
+                        ( [ ( "id", buttonId )
+                          , ( "data-npub", npub )
+                          , ( "data-relays", zapRelays |> Set.toList |> String.join "," )
+                          , ( "data-button-color", "#334155" )
                           ]
                             ++ nip19TargetAttr
                         , Html.node "js-zap-component"
-                            [ Attr.property "buttonId" (Encode.string ("zap-button-" ++ instanceIdSuffix)) ]
+                            [ Attr.property "buttonId" (Encode.string buttonId) ]
                             []
                         )
                     )

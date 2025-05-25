@@ -57,7 +57,8 @@ type alias ArticlePreviewsData msg =
     , onReaction : Maybe (EventId -> PubKey -> AddressComponents -> msg)
     , onRepost : Maybe msg
     , onZap : Maybe (List ZapDialog.Recipient -> msg)
-    , articleToInteractionsMsg : InteractionButton.InteractionObject -> Components.Interactions.Msg -> msg
+    , articleToInteractionsMsg : InteractionButton.InteractionObject -> Components.Interactions.Msg msg -> msg
+    , openCommentMsg : Maybe msg
     , sharing : Maybe ( SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg )
     }
 
@@ -224,6 +225,7 @@ viewArticle articlePreviewsData articlePreviewData article =
             , interactionsModel = articlePreviewData.articleInteractions
             , interactionObject = interactionObject
             , toInteractionsMsg = articlePreviewsData.articleToInteractionsMsg interactionObject
+            , openCommentMsg = articlePreviewsData.openCommentMsg
             , nostr = articlePreviewsData.nostr
             , sharing = articlePreviewsData.sharing
             , sharingInfo = sharingInfoForArticle article articlePreviewData.author
@@ -360,15 +362,18 @@ viewArticle articlePreviewsData articlePreviewData article =
                             ++ textStyleReactions
                             ++ contentMargins
                         )
-                        [ viewInteractions styles articlePreviewsData.browserEnv previewData "1"
-                        , viewInteractionsNew articlePreviewsData.theme articlePreviewsData.browserEnv previewData "1"
+                        [ viewInteractionsNew previewData "1"
                         , viewContent styles articlePreviewData.loadedContent getProfile article.content
-                        , viewInteractions styles articlePreviewsData.browserEnv previewData "2"
+                        , viewInteractionsNew previewData "2"
                         ]
                     , case articlePreviewsData.commenting of
                         Just ( comment, _ ) ->
-                            comment
-                                |> Comment.view
+                            div
+                                [ 
+                                ]
+                                [ comment
+                                    |> Comment.view
+                                ]
 
                         Nothing ->
                             emptyHtml

@@ -1,5 +1,6 @@
 module Components.CommentButton exposing
     ( CommentButton, new
+    , withOpenCommentMsg
     , view
     , init, update, Model, Msg
     , subscriptions
@@ -46,11 +47,12 @@ init =
 
 -- UPDATE
 
-type Msg
-    = InteractionButtonMsg (InteractionButton.Msg Msg)
+type Msg msg
+    = InteractionButtonMsg (InteractionButton.Msg (Msg msg))
+    | OpenComment msg
 
 
-update : { msg : Msg, model : Model, nostr : Nostr.Model, toModel : Model -> model, toMsg : Msg -> msg, translations : I18Next.Translations } -> ( model, Effect msg )
+update : { msg : Msg msg, model : Model, nostr : Nostr.Model, toModel : Model -> model, toMsg : Msg msg -> msg, translations : I18Next.Translations } -> ( model, Effect msg )
 update props =
     let
         (Model model) =
@@ -77,6 +79,9 @@ update props =
                 in
                 ( updatedModel, effect |> Effect.map props.toMsg )
 
+            OpenComment openCommentMsg ->
+                ( Model model, Effect.sendMsg openCommentMsg )
+
 
 -- SETTINGS
 
@@ -87,17 +92,22 @@ type CommentButton msg
         , interactionObject : InteractionObject
         , nostr : Nostr.Model
         , loginStatus : LoginStatus
-        , toMsg : Msg -> msg
+        , openCommentMsg : Maybe msg
+        , toMsg : Msg msg -> msg
         , theme : Ui.Styles.Theme
         }
 
+
+withOpenCommentMsg : Maybe msg -> CommentButton msg -> CommentButton msg
+withOpenCommentMsg openCommentMsg (Settings settings) =
+    Settings { settings | openCommentMsg = openCommentMsg }
 
 new : 
     { model : Model
     , interactionObject : InteractionObject
     , nostr : Nostr.Model
     , loginStatus : LoginStatus
-    , toMsg : Msg -> msg
+    , toMsg : Msg msg -> msg
     , theme : Ui.Styles.Theme
     } -> CommentButton msg
 new props =
@@ -106,11 +116,10 @@ new props =
         , interactionObject = props.interactionObject
         , nostr = props.nostr
         , loginStatus = props.loginStatus
+        , openCommentMsg = Nothing
         , toMsg = props.toMsg
         , theme = props.theme
         }
-
-
 
 
 -- VIEW
@@ -132,13 +141,16 @@ view (Settings settings) =
             |> Maybe.map (hasComment settings.interactionObject settings.nostr)
             |> Maybe.withDefault False
 
+        clickAction : InteractionButton.ClickAction (Msg msg)
         clickAction =
-            settings.loginStatus
-            |> loggedInSigningPubKey
-            |> Maybe.map (\_ ->
+            if loggedInSigningPubKey settings.loginStatus /= Nothing then
+                settings.openCommentMsg
+                |> Maybe.map (\openCommentMsg ->
+                    InteractionButton.SendMsg (OpenComment openCommentMsg)
+                )
+                |> Maybe.withDefault InteractionButton.NoAction
+            else
                 InteractionButton.NoAction
-            )
-            |> Maybe.withDefault InteractionButton.NoAction
     in
     InteractionButton.new
         { model = model
@@ -152,22 +164,6 @@ view (Settings settings) =
         |> InteractionButton.withOnClickAction clickAction
         |> InteractionButton.view 
         |> Html.map settings.toMsg
-
-
-getSendRequest : InteractionObject -> PubKey -> SendRequest
-getSendRequest interactionObject pubKey =
-    case interactionObject of
-        Article eventId (( _, articlePubKey, _ ) as addressComponents) ->
-            Nip18.repostEvent pubKey eventId articlePubKey KindLongFormContent (Just addressComponents) Nothing
-            |> SendComment []
-
-        Comment eventId articlePubKey ->
-            Nip18.repostEvent pubKey eventId articlePubKey KindLongFormContent Nothing Nothing
-            |> SendComment []
-
-        PicturePost eventId articlePubKey ->
-            Nip18.repostEvent pubKey eventId articlePubKey KindLongFormContent Nothing Nothing
-            |> SendComment []
 
 
 getCommentsCount : InteractionObject -> Nostr.Model -> Int
@@ -199,7 +195,7 @@ hasComment interactionObject nostr pubKey =
             False
 
 
-subscriptions : Model -> Sub Msg
+subscriptions : Model -> Sub (Msg msg)
 subscriptions (Model model) =
     InteractionButton.subscriptions model
     |> Sub.map InteractionButtonMsg

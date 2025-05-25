@@ -235,7 +235,7 @@ type Msg
     | RemoveShortNoteBookmark PubKey EventId
     | ShowPicturePostDialog PubKey
     | PicturePostDialogMsg PicturePostDialog.Msg
-    | InteractionsSent EventId PubKey Interactions.Msg
+    | InteractionsSent EventId PubKey (Interactions.Msg Msg)
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -317,13 +317,14 @@ update shared msg model =
 
         InteractionsSent eventId pubKey interactionsMsg ->
             Interactions.update
-                { msg = interactionsMsg
+                { browserEnv = shared.browserEnv
+                , msg = interactionsMsg
                 , model = Dict.get eventId model.interactions
                 , nostr = shared.nostr
                 , interactionObject = InteractionButton.PicturePost eventId pubKey
+                , openCommentMsg = Nothing
                 , toModel = \interactionsModel -> { model | interactions = Dict.insert eventId interactionsModel model.interactions }
                 , toMsg = InteractionsSent eventId pubKey
-                , translations = shared.browserEnv.translations
                 }
 
 postDialogCategory : Model -> Maybe PicturePostDialog.PostCategory

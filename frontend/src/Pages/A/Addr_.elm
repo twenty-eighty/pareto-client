@@ -19,7 +19,7 @@ import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Event as Event exposing (AddressComponents, Kind(..), TagReference(..))
 import Nostr.Nip18 exposing (articleRepostEvent)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
-import Nostr.Nip22 exposing (CommentType)
+import Nostr.Nip22 exposing (CommentType(..), commentToArticle)
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (EventId, PubKey, loggedInPubKey, loggedInSigningPubKey)
@@ -214,8 +214,8 @@ type Msg
     | AddLoadedContent String
     | OpenComment CommentType
     | CommentSent Comment.Msg
-    | CommentInteractionsSent EventId PubKey Interactions.Msg
-    | ArticleInteractionsSent InteractionButton.InteractionObject Interactions.Msg
+    | CommentInteractionsSent EventId PubKey (Interactions.Msg Msg)
+    | ArticleInteractionsSent InteractionButton.InteractionObject (Interactions.Msg Msg)
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
     | SharingButtonDialogMsg SharingButtonDialog.Msg
@@ -293,13 +293,14 @@ update shared msg model =
             case model of
                 Nip19Model nip19ModelData ->
                     Interactions.update
-                        { msg = innerMsg
+                        { browserEnv = shared.browserEnv
+                        , msg = innerMsg
                         , model = Dict.get eventId nip19ModelData.commentInteractions
                         , nostr = shared.nostr
                         , interactionObject = InteractionButton.Comment eventId pubKey
+                        , openCommentMsg = Nothing
                         , toModel = \interactionsModel -> Nip19Model { nip19ModelData | commentInteractions = Dict.insert eventId interactionsModel nip19ModelData.commentInteractions }
                         , toMsg = CommentInteractionsSent eventId pubKey
-                        , translations = shared.browserEnv.translations
                         }
 
                 _ ->
@@ -309,13 +310,14 @@ update shared msg model =
             case model of
                 Nip19Model nip19ModelData ->
                     Interactions.update
-                        { msg = innerMsg
+                        { browserEnv = shared.browserEnv
+                        , msg = innerMsg
                         , model = Just nip19ModelData.interactions
                         , nostr = shared.nostr  
                         , interactionObject = interactionObject
+                        , openCommentMsg = Nothing
                         , toModel = \interactionsModel -> Nip19Model { nip19ModelData | interactions = interactionsModel }
                         , toMsg = ArticleInteractionsSent interactionObject
-                        , translations = shared.browserEnv.translations
                         }
 
                 _ ->
@@ -395,6 +397,14 @@ subscriptions shared model =
             Sub.batch
                 [ Sub.map CommentSent (Comment.subscriptions nip19ModelData.comment)
                 , commentInteractionSubscriptions shared nip19ModelData
+                , Nostr.getArticleForNip19 shared.nostr nip19ModelData.nip19
+                    |> Maybe.andThen (\article ->
+                        addressComponentsForArticle article
+                            |> Maybe.map (\addressComponents ->
+                                Sub.map (ArticleInteractionsSent (InteractionButton.Article article.id addressComponents)) (Interactions.subscriptions nip19ModelData.interactions)
+                            )
+                    )
+                    |> Maybe.withDefault Sub.none
                 ]
 
         _ ->
@@ -495,6 +505,7 @@ viewContent shared nip19 comment loadedContent requestId interactions sharingBut
                         -- signing is possible also with read-only login
                         , onZap = Maybe.map (\pubKey -> ZapReaction pubKey) (loggedInPubKey shared.loginStatus)
                         , articleToInteractionsMsg = ArticleInteractionsSent
+                        , openCommentMsg = commentToArticle article shared.loginStatus |> Maybe.map OpenComment
                         , sharing = Just ( sharingButtonDialog, SharingButtonDialogMsg )
                         }
                         (Just loadedContent)

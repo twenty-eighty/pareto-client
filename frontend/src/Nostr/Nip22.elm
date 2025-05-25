@@ -1,9 +1,9 @@
 module Nostr.Nip22 exposing (..)
 
-import Nostr.Article exposing (Article)
+import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), TagReference(..), emptyEvent, numberForKind)
 import Nostr.Nip19 exposing (NIP19Type(..))
-import Nostr.Types exposing (EventId, PubKey, RelayUrl)
+import Nostr.Types exposing (EventId, LoginStatus, PubKey, RelayUrl, loggedInSigningPubKey)
 import Set
 import Time exposing (Posix)
 
@@ -128,6 +128,25 @@ nip19ForComment comment =
                 , kind = KindComment |> numberForKind |> Just
                 , relays = articleCommentComment.rootRelay |> Maybe.map List.singleton |> Maybe.withDefault []
                 }
+
+commentToArticle : Article -> LoginStatus -> Maybe CommentType
+commentToArticle article loginStatus =
+    case (addressComponentsForArticle article, loggedInSigningPubKey loginStatus) of
+        ( Just addressComponents, Just signingPubKey ) ->
+            CommentToArticle
+                { pubKey = signingPubKey
+                , eventId = ""
+                , createdAt = article.createdAt
+                , rootAddress = addressComponents
+                , rootKind = KindLongFormContent
+                , rootPubKey = article.author
+                , rootRelay = Just (Set.toList article.relays |> List.head |> Maybe.withDefault "")
+                , content = ""
+                }
+                |> Just
+
+        _ ->
+            Nothing
 
 
 articleCommentOfComment : CommentType -> Maybe ArticleComment

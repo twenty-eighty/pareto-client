@@ -41,7 +41,6 @@ type SharingButtonDialog msg
         , toMsg : Msg -> msg
         , browserEnv : BrowserEnv
         , sharingInfo : SharingInfo
-        , translations : Translations
         , theme : Theme
         }
 
@@ -57,7 +56,6 @@ new :
     , toMsg : Msg -> msg
     , browserEnv : BrowserEnv
     , sharingInfo : SharingInfo
-    , translations : Translations
     , theme : Theme
     }
     -> SharingButtonDialog msg
@@ -67,7 +65,6 @@ new props =
         , toMsg = props.toMsg
         , browserEnv = props.browserEnv
         , sharingInfo = props.sharingInfo
-        , translations = props.translations
         , theme = props.theme
         }
 
@@ -257,10 +254,10 @@ viewDialog (Settings settings) =
                 |> Result.withDefault (Html.text "")
     in
     ModalDialog.new
-        { title = Translations.dialogTitle [ settings.translations ]
+        { title = Translations.dialogTitle [ settings.browserEnv.translations ]
         , buttons =
             [ Button.new
-                { label = Translations.showSocialDialogButtonTitle [ settings.translations ]
+                { label = Translations.showSocialDialogButtonTitle [ settings.browserEnv.translations ]
                 , onClick = Just (settings.toMsg (UpdateState ShowingSocials))
                 , theme = settings.theme
                 }
@@ -301,10 +298,10 @@ viewDialog (Settings settings) =
 viewSocialDialog : SharingButtonDialog msg -> Html msg
 viewSocialDialog (Settings settings) =
     ModalDialog.new
-        { title = Translations.dialogTitle [ settings.translations ]
+        { title = Translations.dialogTitle [ settings.browserEnv.translations ]
         , buttons =
             [ Button.new
-                { label = Translations.backButtonTitle [ settings.translations ]
+                { label = Translations.backButtonTitle [ settings.browserEnv.translations ]
                 , onClick = Just (settings.toMsg (UpdateState ShowingQrcode))
                 , theme = settings.theme
                 }
@@ -320,7 +317,7 @@ viewSocialDialog (Settings settings) =
                     ]
                 ]
                 [ Button.new
-                    { label = Translations.twitterButtonTitle [ settings.translations ]
+                    { label = Translations.twitterButtonTitle [ settings.browserEnv.translations ]
                     , onClick = Nothing
                     , theme = settings.theme
                     }
@@ -329,7 +326,7 @@ viewSocialDialog (Settings settings) =
                     |> Button.withTypeSecondary
                     |> Button.view
                 , Button.new
-                    { label = Translations.facebookButtonTitle [ settings.translations ]
+                    { label = Translations.facebookButtonTitle [ settings.browserEnv.translations ]
                     , onClick = Nothing
                     , theme = settings.theme
                     }
@@ -338,7 +335,7 @@ viewSocialDialog (Settings settings) =
                     |> Button.withTypeSecondary
                     |> Button.view
                 , Button.new
-                    { label = Translations.linkedinButtonTitle [ settings.translations ]
+                    { label = Translations.linkedinButtonTitle [ settings.browserEnv.translations ]
                     , onClick = Nothing
                     , theme = settings.theme
                     }
@@ -347,7 +344,7 @@ viewSocialDialog (Settings settings) =
                     |> Button.withTypeSecondary
                     |> Button.view
                 , Button.new
-                    { label = Translations.redditButtonTitle [ settings.translations ]
+                    { label = Translations.redditButtonTitle [ settings.browserEnv.translations ]
                     , onClick = Nothing
                     , theme = settings.theme
                     }
@@ -356,7 +353,7 @@ viewSocialDialog (Settings settings) =
                     |> Button.withTypeSecondary
                     |> Button.view
                 , Button.new
-                    { label = Translations.telegramButtonTitle [ settings.translations ]
+                    { label = Translations.telegramButtonTitle [ settings.browserEnv.translations ]
                     , onClick = Nothing
                     , theme = settings.theme
                     }
@@ -365,7 +362,7 @@ viewSocialDialog (Settings settings) =
                     |> Button.withTypeSecondary
                     |> Button.view
                 , Button.new
-                    { label = Translations.whatsappButtonTitle [ settings.translations ]
+                    { label = Translations.whatsappButtonTitle [ settings.browserEnv.translations ]
                     , onClick = Nothing
                     , theme = settings.theme
                     }

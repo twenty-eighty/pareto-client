@@ -1,6 +1,5 @@
 module Pages.Search exposing (Model, Msg, page)
 
-import Components.Interactions as Interactions
 import Components.SearchBar as SearchBar
 import Dict
 import Effect exposing (Effect)
@@ -258,5 +257,6 @@ viewArticles shared =
             , onRepost = Nothing
             , onZap = Nothing
             , articleToInteractionsMsg = \_ _ -> NoOp
+            , openCommentMsg = Nothing
             , sharing = Nothing
             }

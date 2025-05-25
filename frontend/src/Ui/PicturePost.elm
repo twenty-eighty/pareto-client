@@ -11,7 +11,7 @@ import Nostr
 import Nostr.Event exposing (ImageMetadata)
 import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
-import Nostr.Types exposing (EventId, LoginStatus, PubKey)
+import Nostr.Types exposing (EventId, LoginStatus)
 import Tailwind.Utilities as Tw
 import Ui.Links exposing (linkElementForAuthor)
 import Ui.Profile
@@ -31,7 +31,7 @@ type alias PicturePostsViewData =
 
 type alias PicturePostViewData msg =
     { author : Author
-    , toInteractionsMsg : Interactions.Msg -> msg
+    , toInteractionsMsg : Interactions.Msg msg -> msg
     }
 
 
@@ -40,12 +40,6 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
     let
         styles =
             stylesForTheme picturePostsViewData.theme
-
-        debugInfo =
-            picturePost.id
-            |> Html.text
-            |> List.singleton
-            |> div []
 
         ( _, maybeProfile, validationStatus ) =
             case picturePostViewData.author of
@@ -85,8 +79,7 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
             ]
         , Attr.lang (picturePost.language |> Maybe.map languageToISOCode |> Maybe.withDefault "en")
         ]
-        [ debugInfo
-        , case maybeProfile of
+        [ case maybeProfile of
             Just profile ->
                 Ui.Profile.viewProfileSmall styles profile validationStatus
 

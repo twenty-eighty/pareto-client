@@ -311,6 +311,7 @@ viewArticleBookmarks user shared _ addressComponents =
             , onRepost = Nothing
             , onZap = Nothing
             , articleToInteractionsMsg = \_ _ -> NoOp
+            , openCommentMsg = Nothing
             , sharing = Nothing
             }
 
