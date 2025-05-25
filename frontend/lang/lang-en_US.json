@@ -443,6 +443,9 @@
       "label": "Hashtags",
       "placeholder": "Enter hashtags separated by commas"
    },
+   "interaction button": {
+      "error publishing interaction": "Error publishing interaction: {{reason}}"
+   },
    "internals": {
       "page title": "Internals",
       "explanation": "This page shows diagnostic information about the application.",

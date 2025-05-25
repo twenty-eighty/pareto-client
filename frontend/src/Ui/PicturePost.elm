@@ -1,6 +1,9 @@
 module Ui.PicturePost exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
+import Components.InteractionButton as InteractionButton
+import Components.Interactions as Interactions
+import Dict exposing (Dict)
 import Html.Styled as Html exposing (Html, br, div, p, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Locale exposing (languageToISOCode)
@@ -8,6 +11,7 @@ import Nostr
 import Nostr.Event exposing (ImageMetadata)
 import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
+import Nostr.Types exposing (EventId, LoginStatus, PubKey)
 import Tailwind.Utilities as Tw
 import Ui.Links exposing (linkElementForAuthor)
 import Ui.Profile
@@ -20,19 +24,28 @@ type alias PicturePostsViewData =
     { theme : Theme
     , browserEnv : BrowserEnv
     , nostr : Nostr.Model
+    , interactions : Dict EventId Interactions.Model
+    , loginStatus : LoginStatus
     }
 
 
-type alias PicturePostViewData =
+type alias PicturePostViewData msg =
     { author : Author
+    , toInteractionsMsg : Interactions.Msg -> msg
     }
 
 
-viewPicturePost : PicturePostsViewData -> PicturePostViewData -> PicturePost -> Html msg
+viewPicturePost : PicturePostsViewData -> PicturePostViewData msg -> PicturePost -> Html msg
 viewPicturePost picturePostsViewData picturePostViewData picturePost =
     let
         styles =
             stylesForTheme picturePostsViewData.theme
+
+        debugInfo =
+            picturePost.id
+            |> Html.text
+            |> List.singleton
+            |> div []
 
         ( _, maybeProfile, validationStatus ) =
             case picturePostViewData.author of
@@ -44,13 +57,25 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
 
         _ =
             linkElementForAuthor picturePostViewData.author
+
+        viewInteractions =
+            Interactions.new
+                { browserEnv = picturePostsViewData.browserEnv
+                , model = Dict.get picturePost.id picturePostsViewData.interactions
+                , toMsg = picturePostViewData.toInteractionsMsg
+                , theme = picturePostsViewData.theme
+                , interactionObject = InteractionButton.PicturePost picturePost.id picturePost.pubKey
+                , nostr = picturePostsViewData.nostr
+                , loginStatus = picturePostsViewData.loginStatus
+                }
+                |> Interactions.view
     in
     div
         [ css
             [ Tw.flex
             , Tw.flex_col
             , Tw.max_w_md
-            , Tw.my_4
+            , Tw.my_6
             , Tw.gap_2
             , Tw.border_b
             , Tw.border_color styles.color1
@@ -60,7 +85,8 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
             ]
         , Attr.lang (picturePost.language |> Maybe.map languageToISOCode |> Maybe.withDefault "en")
         ]
-        [ case maybeProfile of
+        [ debugInfo
+        , case maybeProfile of
             Just profile ->
                 Ui.Profile.viewProfileSmall styles profile validationStatus
 
@@ -74,6 +100,7 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
                 emptyHtml
         , viewPictures picturePost.pictures
         , viewContent styles picturePost.description
+        , viewInteractions
         ]
 
 
@@ -105,17 +132,20 @@ viewImage url =
 
 viewContent : Styles msg -> String -> Html msg
 viewContent styles description =
-    p
-        (styles.colorStyleGrayscaleText
-            ++ styles.textStyleBody
-            ++ [ css
-                    [ Tw.mb_4
-                    , Tw.overflow_hidden
-                    , Tw.overflow_ellipsis
-                    ]
-               ]
-        )
-        (formattedContent description)
+    if description /= "" then
+        p
+            (styles.colorStyleGrayscaleText
+                ++ styles.textStyleBody
+                ++ [ css
+                        [ Tw.mb_4
+                        , Tw.overflow_hidden
+                        , Tw.overflow_ellipsis
+                        ]
+                ]
+            )
+            (formattedContent description)
+    else
+        emptyHtml
 
 
 formattedContent : String -> List (Html msg)

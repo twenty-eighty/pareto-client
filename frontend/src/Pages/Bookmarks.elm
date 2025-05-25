@@ -2,6 +2,7 @@ module Pages.Bookmarks exposing (Model, Msg, page)
 
 import Auth
 import Components.Categories as Categories
+import Components.Interactions as Interactions
 import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html)
@@ -160,6 +161,7 @@ type Msg
     | CategorySelected BookmarkType
     | AddArticleBookmark PubKey AddressComponents
     | RemoveArticleBookmark PubKey AddressComponents
+    | NoOp
 
 
 update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -210,6 +212,8 @@ update user shared msg model =
                 ]
             )
 
+        NoOp ->
+            ( model, Effect.none )
 
 updateWithMessage : Auth.User -> Shared.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithMessage user shared model message =
@@ -300,12 +304,13 @@ viewArticleBookmarks user shared _ addressComponents =
             { theme = shared.theme
             , browserEnv = shared.browserEnv
             , nostr = shared.nostr
-            , userPubKey = Just user.pubKey
+            , loginStatus = shared.loginStatus
             , onBookmark = Just ( AddArticleBookmark user.pubKey, RemoveArticleBookmark user.pubKey )
             , commenting = Nothing
             , onReaction = Nothing
             , onRepost = Nothing
             , onZap = Nothing
+            , articleToInteractionsMsg = \_ _ -> NoOp
             , sharing = Nothing
             }
 

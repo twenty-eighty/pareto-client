@@ -1,5 +1,6 @@
 module Pages.T.Tag_ exposing (Model, Msg, page)
 
+import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (div, h3, text)
 import Html.Styled.Attributes exposing (css)
@@ -188,12 +189,13 @@ view shared model =
                     { theme = shared.theme
                     , browserEnv = shared.browserEnv
                     , nostr = shared.nostr
-                    , userPubKey = Shared.loggedInPubKey shared.loginStatus
+                    , loginStatus = shared.loginStatus
                     , onBookmark = Nothing
                     , commenting = Nothing
                     , onReaction = Nothing
                     , onRepost = Nothing
                     , onZap = Nothing
+                    , articleToInteractionsMsg = \_ _ -> NoOp
                     , sharing = Nothing
                     }
             ]

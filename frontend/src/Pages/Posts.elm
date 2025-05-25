@@ -4,6 +4,7 @@ import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Categories as Categories
+import Components.Interactions as Interactions
 import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, article, div)
@@ -149,7 +150,7 @@ type Msg
     | CategoriesSent (Categories.Msg Category Msg)
     | DeleteDraft String (Maybe String) -- draft event id
     | EditDraft String
-
+    | NoOp
 
 update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update user shared msg model =
@@ -175,6 +176,9 @@ update user shared msg model =
 
         EditDraft nip19 ->
             ( model, Effect.pushRoute { path = Route.Path.Write, query = Dict.singleton "a" nip19, hash = Nothing } )
+
+        NoOp ->
+            ( model, Effect.none )
 
 
 updateModelWithCategory : Auth.User -> Shared.Model -> Model -> Category -> ( Model, Effect Msg )
@@ -240,12 +244,13 @@ viewArticles shared model userPubKey =
                     { theme = shared.theme
                     , browserEnv = shared.browserEnv
                     , nostr = shared.nostr
-                    , userPubKey = Just userPubKey
+                    , loginStatus = shared.loginStatus
                     , onBookmark = Nothing
                     , commenting = Nothing
                     , onReaction = Nothing
                     , onRepost = Nothing
                     , onZap = Nothing
+                    , articleToInteractionsMsg = \_ _ -> NoOp
                     , sharing = Nothing
                     }
 

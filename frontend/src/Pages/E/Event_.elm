@@ -1,5 +1,6 @@
 module Pages.E.Event_ exposing (..)
 
+import Components.Interactions
 import Components.RelayStatus exposing (Purpose(..))
 import Dict
 import Effect exposing (Effect)
@@ -176,6 +177,7 @@ type Msg
     = AddLoadedContent String
     | ReceivedMessage IncomingMessage
     | NostrMsg Nostr.Msg
+    | NoOp
 
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -190,6 +192,8 @@ update _ msg model =
         NostrMsg _ ->
             ( model, Effect.none )
 
+        NoOp ->
+            ( model, Effect.none )
 
 addArticle : List Article -> Article -> List Article
 addArticle articleList newArticle =
@@ -275,15 +279,17 @@ viewContent shared model =
                         { theme = shared.theme
                         , browserEnv = shared.browserEnv
                         , nostr = shared.nostr
-                        , userPubKey = Shared.loggedInPubKey shared.loginStatus
+                        , loginStatus = shared.loginStatus
                         , onBookmark = Nothing
                         , commenting = Nothing
                         , onReaction = Nothing
                         , onRepost = Nothing
                         , onZap = Nothing
+                        , articleToInteractionsMsg = \_ _ -> NoOp
                         , sharing = Nothing
                         }
                         (Just model.loadedContent)
+                        Components.Interactions.init
                     )
                 |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle model.requestId)
 

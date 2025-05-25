@@ -1,6 +1,8 @@
 module Components.ArticleComments exposing (ArticleComments, new, view)
 
 import BrowserEnv exposing (BrowserEnv)
+import Components.InteractionButton as InteractionButton
+import Components.Interactions as Interactions
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
@@ -11,8 +13,8 @@ import Nostr.Event exposing (Kind(..))
 import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..), articleCommentEvent, commentContent, commentValid, setCommentContent)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
-import Nostr.Types exposing (EventId, IncomingMessage, PubKey)
-import Shared.Model exposing (LoginStatus(..), Model)
+import Nostr.Types exposing (EventId, IncomingMessage, LoginStatus, PubKey)
+import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
 import Tailwind.Utilities as Tw
 import Time
@@ -22,12 +24,15 @@ import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 
 
-type ArticleComments
+type ArticleComments msg
     = Settings
         { nostr : Nostr.Model
         , browserEnv : BrowserEnv
         , articleComments : List ArticleComment
         , articleCommentComments : Dict EventId (List ArticleCommentComment) -- event ID is the one of the parent comment
+        , interactions : Dict EventId Interactions.Model
+        , toInteractionsMsg : InteractionButton.InteractionObject -> Interactions.Msg -> msg
+        , loginStatus : LoginStatus
         , theme : Theme
         }
 
@@ -37,15 +42,21 @@ new :
     , browserEnv : BrowserEnv
     , articleComments : List ArticleComment
     , articleCommentComments : Dict EventId (List ArticleCommentComment) -- event ID is the one of the parent comment
+    , interactions : Dict EventId Interactions.Model
+    , toInteractionsMsg : InteractionButton.InteractionObject -> Interactions.Msg -> msg
+    , loginStatus : LoginStatus
     , theme : Theme
     }
-    -> ArticleComments
+    -> ArticleComments msg
 new props =
     Settings
         { nostr = props.nostr
         , browserEnv = props.browserEnv
         , articleComments = props.articleComments
         , articleCommentComments = props.articleCommentComments
+        , interactions = props.interactions
+        , toInteractionsMsg = props.toInteractionsMsg
+        , loginStatus = props.loginStatus
         , theme = props.theme
         }
 
@@ -54,20 +65,11 @@ new props =
 -- VIEW
 
 
-view : ArticleComments -> Html msg
+view : ArticleComments msg -> Html msg
 view articleComments =
     let
         (Settings settings) =
             articleComments
-    in
-    viewArticleComments settings.theme settings.browserEnv settings.nostr settings.articleComments settings.articleCommentComments
-
-
-viewArticleComments : Theme -> BrowserEnv -> Nostr.Model -> List ArticleComment -> Dict EventId (List ArticleCommentComment) -> Html msg
-viewArticleComments theme browserEnv nostr articleComments articleCommentComments =
-    let
-        styles =
-            stylesForTheme theme
     in
     div
         [ css
@@ -111,9 +113,9 @@ viewArticleComments theme browserEnv nostr articleComments articleCommentComment
                     , Tw.gap_6
                     ]
                 ]
-                (articleComments
+                (settings.articleComments
                     |> sortComments
-                    |> List.map (viewArticleComment styles browserEnv nostr 0 articleCommentComments)
+                    |> List.map (viewArticleComment articleComments 0 settings.articleCommentComments)
                 )
             ]
         ]
@@ -123,23 +125,41 @@ sortComments =
     List.sortBy (\comment -> -1 * Time.posixToMillis comment.createdAt)
 
 
-viewArticleComment : Styles msg -> BrowserEnv -> Nostr.Model -> Int -> Dict EventId (List ArticleCommentComment) -> ArticleComment -> Html msg
-viewArticleComment styles browserEnv nostr level articleCommentComments articleComment =
+viewArticleComment : ArticleComments msg -> Int -> Dict EventId (List ArticleCommentComment) -> ArticleComment -> Html msg
+viewArticleComment articleComments level articleCommentComments articleComment =
     let
+        (Settings settings) =
+            articleComments
+
+        styles =
+            stylesForTheme settings.theme
+
         commentsOfComment =
             articleCommentComments
                 |> Dict.get articleComment.eventId
                 |> Maybe.withDefault []
 
         profileDisplay =
-            Nostr.getProfile nostr articleComment.pubKey
+            Nostr.getProfile settings.nostr articleComment.pubKey
                 |> Maybe.map
                     (\profile ->
-                        Nostr.getProfileValidationStatus nostr profile.pubKey
+                        Nostr.getProfileValidationStatus settings.nostr profile.pubKey
                             |> Maybe.withDefault ValidationUnknown
                             |> Ui.Profile.viewProfileSmall styles profile
                     )
                 |> Maybe.withDefault emptyHtml
+
+        viewInteractions =
+            Interactions.new
+                { browserEnv = settings.browserEnv
+                , model = Dict.get articleComment.eventId settings.interactions
+                , toMsg = settings.toInteractionsMsg (InteractionButton.Comment articleComment.pubKey articleComment.eventId)
+                , theme = settings.theme
+                , interactionObject = InteractionButton.Comment articleComment.pubKey articleComment.eventId
+                , nostr = settings.nostr
+                , loginStatus = settings.loginStatus
+                }
+                |> Interactions.view
     in
     div
         [ css
@@ -160,7 +180,7 @@ viewArticleComment styles browserEnv nostr level articleCommentComments articleC
                 [ css
                     []
                 ]
-                [ Html.text <| BrowserEnv.formatDate browserEnv articleComment.createdAt
+                [ Html.text <| BrowserEnv.formatDate settings.browserEnv articleComment.createdAt
                 ]
             ]
         , div
@@ -182,6 +202,7 @@ viewArticleComment styles browserEnv nostr level articleCommentComments articleC
                 |> List.map Html.text
                 |> List.intersperse (Html.br [] [])
             )
+        , viewInteractions
         , div
             [ css
                 [ Tw.flex
@@ -193,7 +214,7 @@ viewArticleComment styles browserEnv nostr level articleCommentComments articleC
             ]
             (commentsOfComment
                 |> sortComments
-                |> List.map (viewArticleCommentComment styles browserEnv 0 articleCommentComments)
+                |> List.map (viewArticleCommentComment styles settings.browserEnv 0 articleCommentComments)
             )
         ]
 

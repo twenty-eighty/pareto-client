@@ -3,14 +3,14 @@ module Nostr exposing (..)
 import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode
-import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, publishedTime, tagReference)
+import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, publishedTime)
 import Nostr.Blossom exposing (userServerListFromEvent)
 import Nostr.BookmarkList exposing (BookmarkList, bookmarkListEvent, bookmarkListFromEvent, bookmarkListWithArticle, bookmarkListWithShortNote, bookmarkListWithoutArticle, bookmarkListWithoutShortNote, emptyBookmarkList)
 import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.CommunityList exposing (CommunityReference, communityListFromEvent)
 import Nostr.DeletionRequest exposing (deletionRequestFromEvent)
-import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), buildAddress, emptyEvent, emptyEventFilter, informationForKind, kindFromNumber, numberForKind, tagReferenceToString)
+import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), Tag(..), TagReference(..), addAddressTags, buildAddress, emptyEvent, emptyEventFilter, informationForKind, kindFromNumber, numberForKind, tagReferenceToString)
 import Nostr.External exposing (Hooks)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.FollowList exposing (emptyFollowList, followListEvent, followListFromEvent, followListWithPubKey, followListWithoutPubKey, pubKeyIsFollower)
@@ -514,10 +514,10 @@ send model sendRequest =
                 { event
                     | content = "+"
                     , tags =
-                        [ AddressTag addressComponents Nothing
-                        , EventIdTag eventId Nothing
+                        [ EventIdTag eventId Nothing
                         , PublicKeyTag articlePubKey Nothing Nothing
                         ]
+                        |> addAddressTags (addressComponents |> Maybe.map List.singleton |> Maybe.withDefault []) Nothing
                 }
             )
 
@@ -803,7 +803,8 @@ getReactionsForArticle model addressComponents =
 
 getReactionsForEventId : Model -> EventId -> Maybe (Dict PubKey Nostr.Reactions.Reaction)
 getReactionsForEventId model eventid =
-    Dict.get eventid model.reactionsForEventId
+    model.reactionsForEventId
+    |> Dict.get eventid 
 
 
 getRepostsForArticle : Model -> AddressComponents -> Maybe (Dict PubKey Nostr.Nip18.Repost)
@@ -1077,16 +1078,18 @@ getShortNotes model =
 
 getZapReceiptsForArticle : Model -> Article -> Maybe (Dict String Nostr.Zaps.ZapReceipt)
 getZapReceiptsForArticle model article =
-    let
-        tagRef =
-            tagReference article
-    in
-    case tagRef of
+    Nostr.Article.tagReference article
+        |> getZapReceiptsForTagReference model
+
+
+getZapReceiptsForTagReference : Model -> TagReference -> Maybe (Dict String Nostr.Zaps.ZapReceipt)
+getZapReceiptsForTagReference model tagReference =
+    case tagReference of
         TagReferenceEventId eventId ->
             Dict.get eventId model.zapReceiptsEvents
 
         TagReferenceCode _ ->
-            Dict.get (tagReferenceToString tagRef) model.zapReceiptsAddress
+            Dict.get (tagReferenceToString tagReference) model.zapReceiptsAddress
 
         TagReferenceIdentifier _ ->
             Nothing
@@ -1251,6 +1254,15 @@ getInteractionsForEventId model maybePubKey eventId =
 
 isArticleBookmarked : Model -> Article -> PubKey -> Bool
 isArticleBookmarked model article pubKey =
+    addressComponentsForArticle article
+        |> Maybe.map (\addressComponents ->
+            areAddressComponentsBookmarked model addressComponents pubKey
+        )
+        |> Maybe.withDefault False
+
+
+areAddressComponentsBookmarked : Model -> AddressComponents -> PubKey -> Bool
+areAddressComponentsBookmarked model (kind, author, identifier) pubKey =
     let
         bookmarkList =
             getBookmarks model pubKey
@@ -1258,13 +1270,37 @@ isArticleBookmarked model article pubKey =
     in
     bookmarkList.articles
         |> List.filter
-            (\( kind, referencedPubKey, dCode ) ->
-                (article.kind == kind)
-                    && (article.author == referencedPubKey)
-                    && (article.identifier == Just dCode)
+            (\( articleKind, articleAuthor, articleIdentifier ) ->
+                (articleKind == kind)
+                    && (articleAuthor == author)
+                    && (articleIdentifier == identifier)
             )
         |> List.isEmpty
         |> not
+
+
+isEventIdBookmarked : Model -> EventId -> PubKey -> Bool
+isEventIdBookmarked model eventId pubKey =
+    let
+        bookmarkList =
+            getBookmarks model pubKey
+                |> Maybe.withDefault emptyBookmarkList
+    in
+    bookmarkList.notes
+        |> List.filter (\noteEventId -> noteEventId == eventId)
+        |> List.isEmpty
+        |> not
+
+
+getZapReceiptsCountForTagReference : Model -> TagReference -> Maybe Int
+getZapReceiptsCountForTagReference model tagReference =
+    getZapReceiptsForTagReference model tagReference
+        |> Maybe.andThen
+            (\receiptsDict ->
+                Dict.values receiptsDict
+                    |> List.foldl addZapAmount 0
+                    |> Just
+            )
 
 
 getZapReceiptsCountForArticle : Model -> Article -> Maybe Int
@@ -1308,12 +1344,30 @@ getBookmarkListCountForAddressComponents model addressComponents =
             )
         |> List.sum
 
+getBookmarkListCountForEventId : Model -> EventId -> Int
+getBookmarkListCountForEventId model eventId =
+    model.bookmarkLists
+        |> Dict.values
+        |> List.map
+            (\bookmarkList ->
+                bookmarkList.notes
+                    |> List.filter (\bookmarkEventId -> bookmarkEventId == eventId)
+                    |> List.length
+            )
+        |> List.sum
+
 
 getReactionsCountForArticle : Model -> Article -> Maybe Int
 getReactionsCountForArticle model article =
     article
         |> addressComponentsForArticle
         |> Maybe.andThen (getReactionsForArticle model)
+        |> Maybe.map Dict.size
+
+
+getReactionsCountForAddressComponents : Model -> AddressComponents -> Maybe Int
+getReactionsCountForAddressComponents model addressComponents =
+    getReactionsForArticle model addressComponents
         |> Maybe.map Dict.size
 
 
@@ -1327,7 +1381,13 @@ getRepostsCountForArticle : Model -> Article -> Maybe Int
 getRepostsCountForArticle model article =
     article
         |> addressComponentsForArticle
-        |> Maybe.andThen (getRepostsForArticle model)
+        |> Maybe.andThen (getRepostsCountForAddressComponents model)
+
+
+getRepostsCountForAddressComponents : Model -> AddressComponents -> Maybe Int
+getRepostsCountForAddressComponents model addressComponents =
+    addressComponents
+        |> getRepostsForArticle model
         |> Maybe.map Dict.size
 
 

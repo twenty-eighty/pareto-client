@@ -8,11 +8,12 @@ import I18Next
 import Layouts
 import Layouts.Sidebar
 import Nostr
+import Nostr.Types exposing (LoginMethod(..), LoginStatus(..))
 import Page exposing (Page)
 import Pareto
 import Route exposing (Route)
 import Shared
-import Shared.Model exposing (ClientRole(..), LoginMethod(..), LoginStatus(..))
+import Shared.Model exposing (ClientRole(..))
 import Tailwind.Utilities as Tw
 import Translations.Internals as Translations
 import Ui.Shared exposing (emptyHtml)

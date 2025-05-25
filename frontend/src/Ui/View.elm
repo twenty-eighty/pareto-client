@@ -3,6 +3,8 @@ module Ui.View exposing (..)
 -- this module connects the Nostr engine and the UI functions
 
 import BrowserEnv exposing (BrowserEnv)
+import Components.InteractionButton as InteractionButton
+import Components.Interactions
 import Components.RelayStatus as RelayStatus exposing (Purpose(..))
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes exposing (css)
@@ -15,6 +17,7 @@ import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Community exposing (Community)
 import Nostr.Nip22 exposing (articleDraftComment)
 import Nostr.Request exposing (RequestId)
+import Nostr.Types exposing (loggedInSigningPubKey)
 import Tailwind.Utilities as Tw
 import Ui.Article exposing (ArticlePreviewsData)
 import Ui.Community
@@ -27,13 +30,14 @@ type ArticlePreviewType
     | ArticlePreviewBigPicture
 
 
-viewArticle : ArticlePreviewsData msg -> Maybe (LoadedContent msg) -> Article -> Html msg
-viewArticle articlePreviewsData loadedContent article =
+viewArticle : ArticlePreviewsData msg -> Maybe (LoadedContent msg) -> Components.Interactions.Model -> Article -> Html msg
+viewArticle articlePreviewsData loadedContent articleInteractions article =
     Ui.Article.viewArticle
         articlePreviewsData
         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
         , actions = actionsFromArticlePreviewsData articlePreviewsData article
-        , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr articlePreviewsData.userPubKey article
+        , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr (articlePreviewsData.loginStatus |> loggedInSigningPubKey) article
+        , articleInteractions = articleInteractions
         , displayAuthor = True
         , loadedContent = loadedContent
         }
@@ -55,7 +59,8 @@ actionsFromArticlePreviewsData articlePreviewsData article =
                 maybeAddressComponents
 
         startCommentMsg =
-            articlePreviewsData.userPubKey
+            articlePreviewsData.loginStatus
+                |> loggedInSigningPubKey
                 |> Maybe.andThen
                     (\userPubKey ->
                         Maybe.map2
@@ -122,7 +127,8 @@ viewArticlePreviewsList articlePreviewsData articles =
                             { author = Nostr.getAuthor articlePreviewsData.nostr article.author
                             , actions =
                                 actionsFromArticlePreviewsData articlePreviewsData article
-                            , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr articlePreviewsData.userPubKey article
+                            , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr (articlePreviewsData.loginStatus |> loggedInSigningPubKey) article
+                            , articleInteractions = Components.Interactions.init
                             , displayAuthor = True
                             , loadedContent = Nothing
                             }
@@ -153,7 +159,8 @@ viewArticlePreviewsBigPicture articlePreviewsData articles =
                         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
                         , actions =
                             actionsFromArticlePreviewsData articlePreviewsData article
-                        , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr articlePreviewsData.userPubKey article
+                        , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr (articlePreviewsData.loginStatus |> loggedInSigningPubKey) article
+                        , articleInteractions = Components.Interactions.init
                         , displayAuthor = True
                         , loadedContent = Nothing
                         }

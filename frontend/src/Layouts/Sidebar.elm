@@ -19,12 +19,12 @@ import Nostr
 import Nostr.BookmarkList exposing (bookmarksCount)
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Profile exposing (Profile)
-import Nostr.Types exposing (Following(..))
+import Nostr.Types exposing (Following(..), LoginStatus(..), loggedInPubKey)
 import Ports
 import Route exposing (Route)
 import Route.Path
 import Shared
-import Shared.Model exposing (ClientRole(..), LoginStatus(..))
+import Shared.Model exposing (ClientRole(..))
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
@@ -392,7 +392,7 @@ viewSidebar props shared currentPath toContentMsg content =
             Ui.Styles.stylesForTheme props.theme
 
         maybeBookmarksCount =
-            Shared.loggedInPubKey shared.loginStatus
+            loggedInPubKey shared.loginStatus
                 |> Maybe.andThen (Nostr.getBookmarks shared.nostr)
                 |> Maybe.map bookmarksCount
                 |> Maybe.andThen
@@ -405,7 +405,7 @@ viewSidebar props shared currentPath toContentMsg content =
                     )
 
         maybeUserPubKey =
-            Shared.loggedInPubKey shared.loginStatus
+            loggedInPubKey shared.loginStatus
 
         sidebarItemParams =
             { configIssues = ConfigCheck.getIssues shared.configCheck |> List.length
@@ -867,7 +867,7 @@ viewSidebarItem theme currentPath itemData =
 loginButton : Shared.Model -> Maybe Profile -> Html Msg
 loginButton shared maybeProfile =
     case shared.loginStatus of
-        Shared.Model.LoggedIn _ _ ->
+        LoggedIn _ _ ->
             loggedInButton shared.theme maybeProfile
 
         _ ->

@@ -3,6 +3,8 @@ module Ui.Interactions exposing (..)
 import BrowserEnv exposing (BrowserEnv)
 import Color
 import Components.Icon as Icon exposing (Icon)
+import Components.InteractionButton
+import Components.Interactions
 import Components.SharingButtonDialog as SharingButtonDialog
 import Dict
 import FeatherIcons
@@ -15,7 +17,7 @@ import Nostr
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Relay exposing (websocketUrl)
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (LoginStatus, PubKey, loggedInPubKey)
 import Set exposing (Set)
 import Tailwind.Utilities as Tw
 import Ui.Shared exposing (emptyHtml)
@@ -34,11 +36,16 @@ type alias Actions msg =
 
 
 type alias PreviewData msg =
-    { pubKey : PubKey
+    { browserEnv : BrowserEnv
+    , loginStatus : LoginStatus
     , maybeNip19Target : Maybe String
     , zapRelays : Set String
     , actions : Actions msg
     , interactions : Interactions
+    , interactionsModel : Components.Interactions.Model
+    , interactionObject : Components.InteractionButton.InteractionObject
+    , toInteractionsMsg : Components.Interactions.Msg -> msg
+    , nostr : Nostr.Model
     , sharing : Maybe ( SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg )
     , sharingInfo : SharingButtonDialog.SharingInfo
     , translations : I18Next.Translations
@@ -119,6 +126,21 @@ viewInteractions styles browserEnv previewData instanceId =
             |> Maybe.withDefault emptyHtml
         ]
 
+viewInteractionsNew : Theme -> BrowserEnv -> PreviewData msg -> String -> Html msg
+viewInteractionsNew theme browserEnv previewData instanceId =
+    Components.Interactions.new
+        { browserEnv = previewData.browserEnv
+        , model = Just previewData.interactionsModel
+        , toMsg = previewData.toInteractionsMsg
+        , theme = previewData.theme
+        , interactionObject = previewData.interactionObject
+        , nostr = previewData.nostr
+        , loginStatus = previewData.loginStatus
+        }
+        |> Components.Interactions.withRelayUrls previewData.zapRelays
+        |> Components.Interactions.view
+{-
+-}
 
 viewReactions : Icon -> Maybe msg -> Maybe String -> PreviewData msg -> String -> Html msg
 viewReactions icon maybeMsg maybeCount previewData instanceId =
@@ -141,7 +163,7 @@ viewReactions icon maybeMsg maybeCount previewData instanceId =
             ]
         ]
         [ if icon == Icon.FeatherIcon FeatherIcons.zap then
-            zapButton previewData.pubKey previewData.maybeNip19Target previewData.zapRelays instanceId
+            zapButton (previewData.loginStatus |> loggedInPubKey) previewData.maybeNip19Target previewData.zapRelays instanceId
 
           else
             div
@@ -169,8 +191,8 @@ formatZapNum browserEnv milliSats =
     browserEnv.formatNumber "0 a" <| toFloat (milliSats // 1000)
 
 
-zapButton : PubKey -> Maybe String -> Set String -> String -> Html msg
-zapButton pubKey maybeNip19Target zapRelays instanceId =
+zapButton : Maybe PubKey -> Maybe String -> Set String -> String -> Html msg
+zapButton maybePubKey maybeNip19Target zapRelays instanceId =
     let
         maybeNip19TargetAttr =
             maybeNip19Target
@@ -184,7 +206,8 @@ zapButton pubKey maybeNip19Target zapRelays instanceId =
                     )
 
         maybeNpub =
-            Nip19.encode (Npub pubKey) |> Result.toMaybe
+            maybePubKey
+            |> Maybe.andThen (\pubKey -> Nip19.encode (Npub pubKey) |> Result.toMaybe)
 
         ( nostrZapAttributes, zapComponent ) =
             maybeNpub

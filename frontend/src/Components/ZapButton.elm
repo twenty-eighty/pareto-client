@@ -1,0 +1,333 @@
+module Components.ZapButton exposing
+    ( ZapButton, new
+    , view, withRelayUrls, withInstanceId
+    , init, update, Model, Msg
+    , subscriptions
+    )
+
+{-|
+
+
+## Basic usage
+
+@docs ZapButton, new
+@docs view
+
+## State management
+
+@docs init, update, Model, Msg
+
+-}
+
+import BrowserEnv exposing (BrowserEnv)
+import Components.Icon as Icon
+import Components.InteractionButton as InteractionButton exposing (InteractionObject(..))
+import Effect exposing (Effect)
+import FeatherIcons
+import Html.Styled as Html exposing (Html)
+import Html.Styled.Attributes as Attr
+import Html.Styled.Events as Events
+import I18Next
+import Json.Encode as Encode
+import Nostr
+import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
+import Nostr.Event exposing (TagReference(..))
+import Nostr.Relay exposing (websocketUrl)
+import Nostr.Send exposing (SendRequest(..))
+import Nostr.Types exposing (LoginStatus, PubKey, loggedInPubKey)
+import Set exposing (Set)
+import Ui.Styles
+import Ui.Shared exposing (emptyHtml)
+import Nostr.Event exposing (Kind(..))
+
+-- MODEL
+
+type Model =
+    Model InteractionButton.Model
+
+
+init : Model
+init =
+    Model InteractionButton.init
+
+
+-- UPDATE
+
+type Msg
+    = InteractionButtonMsg (InteractionButton.Msg Msg)
+
+
+update : { msg : Msg, model : Model, nostr : Nostr.Model, toModel : Model -> model, toMsg : Msg -> msg, translations : I18Next.Translations } -> ( model, Effect msg )
+update props =
+    let
+        (Model model) =
+            props.model
+
+        toParentModel : ( Model, Effect msg ) -> ( model, Effect msg )
+        toParentModel ( innerModel, effect ) =
+            ( props.toModel innerModel
+            , effect
+            )
+    in
+    toParentModel <|
+        case props.msg of
+            InteractionButtonMsg interactionMsg ->
+                let
+                    (updatedModel, effect) =
+                        InteractionButton.update
+                            { msg = interactionMsg
+                            , model = model
+                            , nostr = props.nostr
+                            , toModel = \interactionButtonModel -> Model interactionButtonModel
+                            , translations = props.translations
+                            }
+                in
+                ( updatedModel, effect |> Effect.map props.toMsg )
+
+
+-- SETTINGS
+
+
+type ZapButton msg
+    = Settings
+        { browserEnv : BrowserEnv
+        , model : Model
+        , instanceId : Maybe String
+        , interactionObject : InteractionObject
+        , loginStatus : LoginStatus
+        , nostr : Nostr.Model
+        , relayUrls : Set String
+        , toMsg : Msg -> msg
+        , theme : Ui.Styles.Theme
+        }
+
+
+new : 
+    { browserEnv : BrowserEnv
+    , model : Model
+    , interactionObject : InteractionObject
+    , loginStatus : LoginStatus
+    , nostr : Nostr.Model
+    , relayUrls : Set String
+    , toMsg : Msg -> msg
+    , theme : Ui.Styles.Theme
+    } -> ZapButton msg
+new props =
+    Settings
+        { browserEnv = props.browserEnv
+        , model = props.model
+        , instanceId = Nothing
+        , interactionObject = props.interactionObject
+        , loginStatus = props.loginStatus
+        , nostr = props.nostr
+        , relayUrls = Set.empty
+        , toMsg = props.toMsg
+        , theme = props.theme
+        }
+
+
+withInstanceId : String -> ZapButton msg -> ZapButton msg
+withInstanceId instanceId (Settings settings) =
+    Settings { settings | instanceId = Just instanceId }
+
+
+withRelayUrls : Set String -> ZapButton msg -> ZapButton msg
+withRelayUrls relayUrls (Settings settings) =
+    Settings { settings | relayUrls = relayUrls }
+
+
+-- VIEW
+
+
+view : ZapButton msg -> Html msg
+view (Settings settings) =
+    let
+        (Model model) =
+            settings.model
+
+        label =
+            getZapAmount settings.browserEnv settings.nostr settings.interactionObject
+
+        nip19 =
+            nip19Target settings.interactionObject
+
+        maybeNip19String =
+            nip19
+            |> Nip19.encode
+            |> Result.toMaybe
+
+        nip19TargetAttr =
+            case nip19 of
+                Nip19.NAddr naddrData ->
+                    Nip19.NAddr naddrData
+                    |> Nip19.encode
+                    |> Result.toMaybe
+                    |> Maybe.map (\nip19String -> [ Attr.attribute "data-naddr" nip19String ])
+                    |> Maybe.withDefault []
+
+                Nip19.NEvent neventData ->
+                    Nip19.NEvent neventData
+                    |> Nip19.encode
+                    |> Result.toMaybe
+                    |> Maybe.map (\nip19String -> [ Attr.attribute "data-note-id" nip19String ])
+                    |> Maybe.withDefault []
+
+                _ ->
+                    []
+
+        maybeNpub =
+            settings.loginStatus
+            |> loggedInPubKey
+            |> Maybe.andThen (\pubKey -> Nip19.encode (Npub pubKey) |> Result.toMaybe)
+
+        zapRelays =
+            extendedZapRelays settings.relayUrls settings.nostr (settings.loginStatus |> loggedInPubKey)
+
+        instanceIdSuffix =
+            settings.instanceId
+            |> Maybe.map (\instanceId -> "-" ++ instanceId)
+            |> Maybe.withDefault ""
+
+        ( nostrZapAttributes, zapComponent ) =
+            maybeNpub
+                |> Maybe.map
+                    (\npub ->
+                        ( [ Attr.id ("zap-button-" ++ (maybeNip19String |> Maybe.withDefault "") ++ (instanceIdSuffix))
+                          , Attr.attribute "data-npub" npub
+                          , Attr.attribute "data-relays" (zapRelays |> Set.toList |> String.join ",")
+                          , Attr.attribute "data-button-color" "#334155"
+                          ]
+                            ++ nip19TargetAttr
+                        , Html.node "js-zap-component"
+                            [ Attr.property "buttonId" (Encode.string ("zap-button-" ++ instanceIdSuffix)) ]
+                            []
+                        )
+                    )
+                |> Maybe.withDefault ( [], emptyHtml )
+    in
+    Html.div []
+        [
+        InteractionButton.new
+            { model = model
+            , unreactedIcon = Icon.FeatherIcon FeatherIcons.zap
+            , reactedIcon = Icon.FeatherIcon FeatherIcons.zap
+            , reacted = False
+            , toMsg = InteractionButtonMsg
+            , theme = settings.theme
+            }
+            |> InteractionButton.withLabel label
+            |> InteractionButton.withAttributes nostrZapAttributes
+            |> InteractionButton.withOnClickAction (InteractionButton.NoAction)
+            |> InteractionButton.view
+            |> Html.map settings.toMsg
+        , zapComponent
+        ]
+
+
+nip19Target : InteractionObject -> Nip19.NIP19Type
+nip19Target interactionObject =
+    case interactionObject of
+        Article _ (kind, pubKey, identifier) ->
+            Nip19.NAddr
+                { identifier = identifier
+                , pubKey = pubKey
+                , kind = Nostr.Event.numberForKind kind
+                , relays = []
+                }
+
+        Comment eventId pubKey ->
+            Nip19.NEvent
+                { id = eventId
+                , author = Just pubKey
+                , kind = Just <| Nostr.Event.numberForKind KindComment
+                , relays = []
+                }
+            
+        PicturePost eventId pubKey ->
+            Nip19.NEvent
+                { id = eventId
+                , author = Just pubKey
+                , kind = Just <| Nostr.Event.numberForKind KindPicture
+                , relays = []
+                }
+
+
+{-
+   Extends the given relays with the inbox relays of the pub-key.
+-}
+
+
+extendedZapRelays : Set String -> Nostr.Model -> Maybe PubKey -> Set String
+extendedZapRelays zapRelays nostr maybePubKey =
+    let
+        pubKeyRelays =
+            maybePubKey
+                |> Maybe.map (pubkeyRelays nostr)
+                |> Maybe.withDefault Set.empty
+
+        defaultRelays =
+            Set.fromList nostr.defaultRelays |> Set.map websocketUrl
+
+        candidateRelays =
+            Set.union zapRelays pubKeyRelays
+    in
+    if Set.size candidateRelays == Set.size zapRelays || Set.size candidateRelays == Set.size pubKeyRelays then
+        Set.union candidateRelays defaultRelays
+
+    else
+        candidateRelays
+
+
+pubkeyRelays : Nostr.Model -> PubKey -> Set String
+pubkeyRelays nostrModel pubKey =
+    pubKey
+        |> Nostr.getNip65RelaysForPubKey nostrModel
+        |> List.map (\( _, relay ) -> websocketUrl relay.urlWithoutProtocol)
+        |> Set.fromList
+
+
+getSendRequest : InteractionObject -> PubKey -> SendRequest
+getSendRequest interactionObject pubKey =
+    case interactionObject of
+        Article eventId (( _, articlePubKey, _ ) as addressComponents) ->
+            SendReaction pubKey eventId articlePubKey (Just addressComponents)
+
+        Comment eventId articlePubKey ->
+            SendReaction pubKey eventId articlePubKey Nothing
+
+        PicturePost eventId articlePubKey ->
+            SendReaction pubKey eventId articlePubKey Nothing
+
+
+getZapAmount : BrowserEnv -> Nostr.Model -> InteractionObject -> String
+getZapAmount browserEnv nostr interactionObject =
+    case interactionObject of
+        Article _ addressComponents ->
+            TagReferenceCode addressComponents
+            |> Nostr.getZapReceiptsCountForTagReference nostr
+            |> Maybe.withDefault 0
+            |> formatZapNum browserEnv
+
+
+        Comment eventId _ ->
+            TagReferenceEventId eventId
+            |> Nostr.getZapReceiptsCountForTagReference nostr
+            |> Maybe.withDefault 0
+            |> formatZapNum browserEnv
+
+        PicturePost eventId _ ->
+            TagReferenceEventId eventId
+            |> Nostr.getZapReceiptsCountForTagReference nostr
+            |> Maybe.withDefault 0
+            |> formatZapNum browserEnv
+
+
+formatZapNum : BrowserEnv -> Int -> String
+formatZapNum browserEnv milliSats =
+    browserEnv.formatNumber "0 a" <| toFloat (milliSats // 1000)
+
+
+subscriptions : Model -> Sub Msg
+subscriptions (Model model) =
+    InteractionButton.subscriptions model
+    |> Sub.map InteractionButtonMsg

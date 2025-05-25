@@ -1,6 +1,5 @@
 module Pages.Read exposing (Model, Msg, init, page, subscriptions, update, view)
 
-import BrowserEnv exposing (BrowserEnv)
 import Components.Categories as Categories
 import Components.Icon as Icon
 import Dict
@@ -17,7 +16,7 @@ import Nostr.FollowList exposing (followingPubKey)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.ShortNote exposing (ShortNote)
-import Nostr.Types exposing (EventId, PubKey)
+import Nostr.Types exposing (EventId, LoginStatus, PubKey, loggedInPubKey)
 import Page exposing (Page)
 import Pareto
 import Ports
@@ -203,7 +202,7 @@ type Msg
     | RemoveArticleReaction PubKey EventId -- event ID of like
     | AddShortNoteBookmark PubKey EventId
     | RemoveShortNoteBookmark PubKey EventId
-
+    | NoOp
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
@@ -235,7 +234,7 @@ update shared msg model =
 
         AddArticleReaction userPubKey eventId articlePubKey addressComponents ->
             ( model
-            , SendReaction userPubKey eventId articlePubKey addressComponents
+            , SendReaction userPubKey eventId articlePubKey (Just addressComponents)
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
@@ -257,6 +256,9 @@ update shared msg model =
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
+
+        NoOp ->
+            ( model, Effect.none )
 
 
 updateModelWithCategory : Shared.Model -> Model -> Category -> ( Model, Effect Msg )
@@ -327,9 +329,9 @@ paretoRssFollowsList nostr =
             []
 
 
-userFollowsList : Nostr.Model -> Shared.Model.LoginStatus -> List PubKey
+userFollowsList : Nostr.Model -> LoginStatus -> List PubKey
 userFollowsList nostr loginStatus =
-    case Shared.loggedInPubKey loginStatus of
+    case loggedInPubKey loginStatus of
         Just pubKey ->
             case Nostr.getFollowsList nostr pubKey of
                 Just followsList ->
@@ -356,7 +358,7 @@ subscriptions _ =
 -- VIEW
 
 
-availableCategories : Nostr.Model -> Shared.Model.LoginStatus -> I18Next.Translations -> List (Categories.CategoryData Category)
+availableCategories : Nostr.Model -> LoginStatus -> I18Next.Translations -> List (Categories.CategoryData Category)
 availableCategories nostr loginStatus translations =
     let
         paretoCategories =
@@ -428,7 +430,7 @@ view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     let
         userPubKey =
-            Shared.loggedInPubKey shared.loginStatus
+            loggedInPubKey shared.loginStatus
     in
     { title = Translations.Sidebar.readMenuItemText [ shared.browserEnv.translations ]
     , body =
@@ -491,12 +493,13 @@ viewContent shared model userPubKey =
                     { theme = shared.theme
                     , browserEnv = shared.browserEnv
                     , nostr = shared.nostr
-                    , userPubKey = userPubKey
+                    , loginStatus = shared.loginStatus
                     , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) userPubKey
                     , commenting = Nothing
                     , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) userPubKey
                     , onRepost = Nothing
                     , onZap = Nothing
+                    , articleToInteractionsMsg = \_ _ -> NoOp
                     , sharing = Nothing
                     }
 

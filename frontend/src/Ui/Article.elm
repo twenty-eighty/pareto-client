@@ -5,10 +5,12 @@ import Components.ArticleComments as ArticleComments
 import Components.Button as Button
 import Components.Comment as Comment
 import Components.Icon as Icon
+import Components.InteractionButton as InteractionButton
+import Components.Interactions
 import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapDialog as ZapDialog
 import Css
-import Dict
+import Dict exposing (Dict)
 import Html.Styled as Html exposing (Html, a, article, div, h2, h3, img, summary, text)
 import Html.Styled.Attributes as Attr exposing (css, href)
 import Html.Styled.Events as Events exposing (..)
@@ -26,7 +28,7 @@ import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Reactions exposing (Interactions)
 import Nostr.Relay exposing (websocketUrl)
-import Nostr.Types exposing (EventId, PubKey)
+import Nostr.Types exposing (EventId, LoginStatus, PubKey, loggedInPubKey, loggedInSigningPubKey)
 import Pareto
 import Route
 import Route.Path
@@ -37,7 +39,7 @@ import Tailwind.Utilities as Tw
 import Time
 import Translations.ArticleView as Translations
 import Translations.Posts
-import Ui.Interactions exposing (Actions, extendedZapRelays, viewInteractions)
+import Ui.Interactions exposing (Actions, extendedZapRelays, viewInteractions, viewInteractionsNew)
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
@@ -49,12 +51,13 @@ type alias ArticlePreviewsData msg =
     { theme : Theme
     , browserEnv : BrowserEnv
     , nostr : Nostr.Model
-    , userPubKey : Maybe PubKey
+    , loginStatus : LoginStatus
     , onBookmark : Maybe ( AddressComponents -> msg, AddressComponents -> msg ) -- msgs for adding/removing a bookmark
     , commenting : Maybe ( Comment.Comment msg, CommentType -> msg )
     , onReaction : Maybe (EventId -> PubKey -> AddressComponents -> msg)
     , onRepost : Maybe msg
     , onZap : Maybe (List ZapDialog.Recipient -> msg)
+    , articleToInteractionsMsg : InteractionButton.InteractionObject -> Components.Interactions.Msg -> msg
     , sharing : Maybe ( SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg )
     }
 
@@ -63,6 +66,7 @@ type alias ArticlePreviewData msg =
     { author : Author
     , actions : Actions msg
     , interactions : Interactions
+    , articleInteractions : Components.Interactions.Model
     , displayAuthor : Bool
     , loadedContent : Maybe (LoadedContent msg)
     }
@@ -205,12 +209,22 @@ viewArticle articlePreviewsData articlePreviewData article =
         articleRelays =
             article.relays |> Set.map websocketUrl
 
+
+        interactionObject =
+            InteractionButton.Article article.id ( article.kind, article.author, article.identifier |> Maybe.withDefault "" )
+
+        previewData : Ui.Interactions.PreviewData msg
         previewData =
-            { pubKey = article.author
+            { browserEnv = articlePreviewsData.browserEnv
+            , loginStatus = articlePreviewsData.loginStatus
             , maybeNip19Target = nip19ForArticle article
-            , zapRelays = extendedZapRelays articleRelays articlePreviewsData.nostr articlePreviewsData.userPubKey
+            , zapRelays = extendedZapRelays articleRelays articlePreviewsData.nostr (articlePreviewsData.loginStatus |> loggedInPubKey)
             , actions = articlePreviewData.actions
             , interactions = articlePreviewData.interactions
+            , interactionsModel = articlePreviewData.articleInteractions
+            , interactionObject = interactionObject
+            , toInteractionsMsg = articlePreviewsData.articleToInteractionsMsg interactionObject
+            , nostr = articlePreviewsData.nostr
             , sharing = articlePreviewsData.sharing
             , sharingInfo = sharingInfoForArticle article articlePreviewData.author
             , translations = articlePreviewsData.browserEnv.translations
@@ -347,6 +361,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                             ++ contentMargins
                         )
                         [ viewInteractions styles articlePreviewsData.browserEnv previewData "1"
+                        , viewInteractionsNew articlePreviewsData.theme articlePreviewsData.browserEnv previewData "1"
                         , viewContent styles articlePreviewData.loadedContent getProfile article.content
                         , viewInteractions styles articlePreviewsData.browserEnv previewData "2"
                         ]
@@ -366,6 +381,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                             , nostr = articlePreviewsData.nostr
                             , articleComments = articlePreviewData.interactions.articleComments
                             , articleCommentComments = articlePreviewData.interactions.articleCommentComments
+                            , interactions = Dict.empty
+                            , toInteractionsMsg = articlePreviewsData.articleToInteractionsMsg
+                            , loginStatus = articlePreviewsData.loginStatus
                             , theme = articlePreviewsData.theme
                             }
                             |> ArticleComments.view
@@ -1149,7 +1167,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
 
 viewArticleEditButton : ArticlePreviewsData msg -> Article -> PubKey -> Html msg
 viewArticleEditButton articlePreviewsData article articleAuthorPubKey =
-    if articlePreviewsData.userPubKey == Just articleAuthorPubKey then
+    if (articlePreviewsData.loginStatus |> loggedInSigningPubKey) == Just articleAuthorPubKey then
         Button.new
             { label = Translations.Posts.editDraftButtonLabel [ articlePreviewsData.browserEnv.translations ]
             , onClick = Nothing
@@ -1166,7 +1184,7 @@ viewArticleBookmarkButton : ArticlePreviewsData msg -> ArticlePreviewData msg ->
 viewArticleBookmarkButton articlePreviewsData articlePreviewData article =
     case
         ( articlePreviewsData.onBookmark
-        , articlePreviewsData.userPubKey
+        , articlePreviewsData.loginStatus |> loggedInSigningPubKey
         , addressComponentsForArticle article
         )
     of
