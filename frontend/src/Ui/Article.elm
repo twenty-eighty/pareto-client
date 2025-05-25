@@ -168,10 +168,13 @@ viewArticle articlePreviewsData articlePreviewData article =
             Nostr.getProfileValidationStatus articlePreviewsData.nostr article.author
                 |> Maybe.withDefault ValidationUnknown
 
+        followLinks =
+            Nostr.isAuthor articlePreviewsData.nostr article.author
+
         linkElement =
             maybeProfile
-                |> Maybe.map (\profile -> linkElementForProfile profile validationStatus)
-                |> Maybe.withDefault (linkElementForProfilePubKey article.author)
+                |> Maybe.map (\profile -> linkElementForProfile followLinks profile validationStatus)
+                |> Maybe.withDefault (linkElementForProfilePubKey followLinks article.author)
 
         langAttr =
             case article.language of
@@ -329,7 +332,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                                        ]
                                 )
                                 [ text <| Maybe.withDefault "" article.summary ]
-                            , viewAuthorAndDate styles articlePreviewsData.browserEnv article.publishedAt article.createdAt articlePreviewData.author
+                            , viewAuthorAndDate styles followLinks articlePreviewsData.browserEnv article.publishedAt article.createdAt articlePreviewData.author
                             ]
                         ]
                     , viewArticleImage article.image
@@ -473,8 +476,8 @@ removeHashTag hashTag =
         hashTag
 
 
-viewAuthorAndDate : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Nostr.Profile.Author -> Html msg
-viewAuthorAndDate styles browserEnv published createdAt author =
+viewAuthorAndDate : Styles msg -> Bool -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Nostr.Profile.Author -> Html msg
+viewAuthorAndDate styles followLinks browserEnv published createdAt author =
     case author of
         Nostr.Profile.AuthorPubkey pubKey ->
             div
@@ -489,7 +492,7 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                         ]
                     ]
                 ]
-                [ Ui.Profile.viewProfilePubKey styles pubKey
+                [ Ui.Profile.viewProfilePubKey styles followLinks pubKey
                 , timeParagraph styles browserEnv published createdAt
                 ]
 
@@ -508,7 +511,7 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                         ]
                     ]
                 ]
-                [ viewArticleProfileSmall profile validationStatus
+                [ viewArticleProfileSmall followLinks profile validationStatus
                 , div
                     [ css
                         [ Tw.h_11
@@ -525,17 +528,17 @@ viewAuthorAndDate styles browserEnv published createdAt author =
                                     ]
                                ]
                         )
-                        [ linkElementForProfile profile validationStatus [ text <| profileDisplayName profile.pubKey profile ] ]
+                        [ linkElementForProfile followLinks profile validationStatus [ text <| profileDisplayName profile.pubKey profile ] ]
                     , viewArticleTime browserEnv published createdAt
                     ]
                 ]
 
 
-viewArticleProfileSmall : Profile -> ProfileValidation -> Html msg
-viewArticleProfileSmall profile validationStatus =
+viewArticleProfileSmall : Bool -> Profile -> ProfileValidation -> Html msg
+viewArticleProfileSmall followLinks profile validationStatus =
     let
         linkElement =
-            linkElementForProfile profile validationStatus
+            linkElementForProfile followLinks profile validationStatus
     in
     div
         [ css
@@ -763,6 +766,9 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
 
         articleUrl =
             linkToArticle articlePreviewData.author article
+
+        followLinks =
+            Nostr.isAuthor articlePreviewsData.nostr article.author
     in
     div
         (css
@@ -833,7 +839,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                             ]
                         ]
                     ]
-                    [ viewTitlePreview articlePreviewsData.browserEnv.translations styles article.title articleUrl textWidthAttr
+                    [ viewTitlePreview articlePreviewsData.browserEnv.translations followLinks styles article.title articleUrl textWidthAttr
                     , viewListSummary styles textWidthAttr articleUrl articlePreviewsData.browserEnv.translations article summaryText
                     , viewHashTags articlePreviewsData.browserEnv.translations article.hashtags (hashtagsHeightAttr :: textWidthAttr)
                     ]
@@ -879,12 +885,21 @@ linkToArticle author article =
                 |> Maybe.map (\nevent -> "/a/" ++ nevent)
 
 
-viewTitlePreview : I18Next.Translations -> Styles msg -> Maybe String -> Maybe String -> List Css.Style -> Html msg
-viewTitlePreview translations styles maybeTitle maybeLinkTarget textWidthAttr =
+viewTitlePreview : I18Next.Translations -> Bool -> Styles msg -> Maybe String -> Maybe String -> List Css.Style -> Html msg
+viewTitlePreview translations followLinks styles maybeTitle maybeLinkTarget textWidthAttr =
     case ( maybeTitle, maybeLinkTarget ) of
         ( Just title, Just linkUrl ) ->
+            let
+                linkAttributes =
+                    if not followLinks then
+                        [ Attr.rel "nofollow" ]
+
+                    else
+                        []
+            in
             a
-                (styles.colorStyleGrayscaleTitle
+                (linkAttributes
+                    ++ styles.colorStyleGrayscaleTitle
                     ++ styles.textStyleH2
                     ++ [ css
                             (Tw.line_clamp_2 :: textWidthAttr)
@@ -961,6 +976,7 @@ viewHashTag translations hashtag =
     a
         [ css [ Tw.inline_block ]
         , href (linkToHashtag hashtag)
+        , Attr.rel "nofollow"
         , Attr.attribute "aria-label" (Translations.linkToHashtagAriaLabel [ translations ] { hashtag = hashtag })
         ]
         [ text hashtag ]
@@ -1090,6 +1106,9 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
     let
         styles =
             Ui.Styles.stylesForTheme articlePreviewsData.theme
+
+        followLinks =
+            Nostr.isAuthor articlePreviewsData.nostr article.author
     in
     case articlePreviewData.author of
         Nostr.Profile.AuthorPubkey pubKey ->
@@ -1108,7 +1127,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
         Nostr.Profile.AuthorProfile profile validationStatus ->
             let
                 linkElementWrapper =
-                    linkElementForProfile profile validationStatus
+                    linkElementForProfile followLinks profile validationStatus
             in
             div
                 [ css
@@ -1216,7 +1235,7 @@ viewProfilePubKey translations pubKey =
             , Tw.mb_4
             ]
         ]
-        [ viewProfileImageSmall translations (linkElementForProfilePubKey pubKey) Nothing ValidationUnknown
+        [ viewProfileImageSmall translations (linkElementForProfilePubKey False pubKey) Nothing ValidationUnknown
         , h2
             [ css
                 [ Tw.text_sm
@@ -1300,8 +1319,8 @@ viewProfileImageSmall translations linkElement maybeProfile validationStatus =
         ]
 
 
-viewTitleSummaryImagePreview : I18Next.Translations -> Styles msg -> Author -> Article -> Html msg
-viewTitleSummaryImagePreview translations styles author article =
+viewTitleSummaryImagePreview : I18Next.Translations -> Bool -> Styles msg -> Author -> Article -> Html msg
+viewTitleSummaryImagePreview translations followLinks styles author article =
     div
         [ css
             [ Tw.flex
@@ -1310,7 +1329,7 @@ viewTitleSummaryImagePreview translations styles author article =
             ]
         ]
         [ div []
-            [ viewTitlePreview translations styles article.title (linkToArticle author article) []
+            [ viewTitlePreview translations followLinks styles article.title (linkToArticle author article) []
             , viewSummary styles article.summary
             ]
         , viewArticleImage article.image

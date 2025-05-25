@@ -46,6 +46,9 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
 
                 AuthorProfile profile profileValidation ->
                     ( profileDisplayName profile.pubKey profile, Just profile, profileValidation )
+
+        followLinks =
+            Nostr.isAuthor shortNotesViewData.nostr shortNote.pubKey
     in
     div
         [ css
@@ -63,7 +66,7 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
         ]
         [ case maybeProfile of
             Just profile ->
-                Ui.Profile.viewProfileSmall styles profile validationStatus
+                Ui.Profile.viewProfileSmall styles followLinks profile validationStatus
 
             Nothing ->
                 emptyHtml

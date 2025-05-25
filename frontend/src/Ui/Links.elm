@@ -2,7 +2,7 @@ module Ui.Links exposing (..)
 
 import Erl
 import Html.Styled as Html exposing (Html, a, div)
-import Html.Styled.Attributes exposing (href)
+import Html.Styled.Attributes as Attr
 import Nostr.Nip05 as Nip05
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..))
@@ -56,31 +56,55 @@ isNip96Server url =
         ]
 
 
-linkElementForAuthor : Author -> (List (Html msg) -> Html msg)
-linkElementForAuthor author =
+linkElementForAuthor : Bool -> Author -> (List (Html msg) -> Html msg)
+linkElementForAuthor followLinks author =
+    let
+        linkAttributes =
+            if not followLinks then
+                [ Attr.rel "nofollow" ]
+
+            else
+                []
+    in
     case linkToAuthor author of
         Just url ->
-            a [ href url ]
+            a (linkAttributes ++ [ Attr.href url ])
 
         Nothing ->
             div []
 
 
-linkElementForProfile : Profile -> ProfileValidation -> (List (Html msg) -> Html msg)
-linkElementForProfile profile validation =
+linkElementForProfile : Bool -> Profile -> ProfileValidation -> (List (Html msg) -> Html msg)
+linkElementForProfile followLinks profile validation =
+    let
+        linkAttributes =
+            if not followLinks then
+                [ Attr.rel "nofollow" ]
+
+            else
+                []
+    in
     case linkToProfile profile validation of
         Just url ->
-            a [ href url ]
+            a (linkAttributes ++ [ Attr.href url ])
 
         Nothing ->
             div []
 
 
-linkElementForProfilePubKey : PubKey -> (List (Html msg) -> Html msg)
-linkElementForProfilePubKey pubKey =
+linkElementForProfilePubKey : Bool -> PubKey -> (List (Html msg) -> Html msg)
+linkElementForProfilePubKey followLinks pubKey =
+    let
+        linkAttributes =
+            if not followLinks then
+                [ Attr.rel "nofollow" ]
+
+            else
+                []
+    in
     case linkToProfilePubKey pubKey of
         Just url ->
-            a [ href url ]
+            a (linkAttributes ++ [ Attr.href url ])
 
         Nothing ->
             div []

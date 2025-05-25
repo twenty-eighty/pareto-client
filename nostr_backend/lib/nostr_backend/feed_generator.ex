@@ -488,6 +488,8 @@ defmodule NostrBackend.FeedGenerator do
     User-agent: *
     Allow: /
     Disallow: /api/
+    Disallow: /friedenstaube/
+    Disallow: /t/
     Disallow: /.well-known/
     Sitemap: #{sitemap_url}
     """

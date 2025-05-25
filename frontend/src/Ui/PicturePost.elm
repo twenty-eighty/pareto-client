@@ -9,7 +9,7 @@ import Nostr.Event exposing (ImageMetadata)
 import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
 import Tailwind.Utilities as Tw
-import Ui.Links exposing (linkElementForAuthor)
+import Ui.Links
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme, darkMode, stylesForTheme)
@@ -42,8 +42,8 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
                 AuthorProfile profile profileValidation ->
                     ( profileDisplayName profile.pubKey profile, Just profile, profileValidation )
 
-        _ =
-            linkElementForAuthor picturePostViewData.author
+        followLinks =
+            Nostr.isAuthor picturePostsViewData.nostr picturePost.pubKey
     in
     div
         [ css
@@ -62,7 +62,7 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
         ]
         [ case maybeProfile of
             Just profile ->
-                Ui.Profile.viewProfileSmall styles profile validationStatus
+                Ui.Profile.viewProfileSmall styles followLinks profile validationStatus
 
             Nothing ->
                 emptyHtml
