@@ -10,11 +10,15 @@ defmodule NostrBackendWeb.PageController do
     # Determine the preferred language from the `Accept-Language` header
     case NostrBackend.Locale.preferred_language(conn) do
       "de" ->
-        redirect(conn, to: "/de")
+        conn
+        |> put_resp_header("X-Robots-Tag", "noindex")
+        |> redirect(to: "/de")
 
       # Default to English
       _ ->
-        redirect(conn, to: "/en")
+        conn
+        |> put_resp_header("X-Robots-Tag", "noindex")
+        |> redirect(to: "/en")
     end
   end
 
