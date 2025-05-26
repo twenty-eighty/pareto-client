@@ -583,6 +583,8 @@ formatLink styles { destination } body =
     Html.a
         (styles.colorStyleLinks
             ++ styles.textStyleLinks
-            ++ [ Attr.href destination ]
+            ++ [ Attr.href destination
+               , Attr.rel "nofollow"
+               ]
         )
         body

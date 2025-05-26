@@ -4,7 +4,6 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.InteractionButton as InteractionButton
 import Components.Interactions as Interactions
 import Dict exposing (Dict)
-import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes exposing (css)
 import Locale exposing (Language(..))
@@ -136,13 +135,16 @@ viewArticleComment articleComments level articleCommentComments articleComment =
                 |> Dict.get articleComment.eventId
                 |> Maybe.withDefault []
 
+        followLinks =
+            Nostr.isAuthor nostr articleComment.pubKey
+
         profileDisplay =
             Nostr.getProfile settings.nostr articleComment.pubKey
                 |> Maybe.map
                     (\profile ->
                         Nostr.getProfileValidationStatus settings.nostr profile.pubKey
                             |> Maybe.withDefault ValidationUnknown
-                            |> Ui.Profile.viewProfileSmall styles profile
+                            |> Ui.Profile.viewProfileSmall styles followLinks profile
                     )
                 |> Maybe.withDefault emptyHtml
 

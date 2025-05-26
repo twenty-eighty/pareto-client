@@ -59,11 +59,11 @@ type FollowType msg
     | UnknownFollowing
 
 
-viewProfileSmall : Styles msg -> Profile -> ProfileValidation -> Html msg
-viewProfileSmall styles profile validationStatus =
+viewProfileSmall : Styles msg -> Bool -> Profile -> ProfileValidation -> Html msg
+viewProfileSmall styles followLinks profile validationStatus =
     let
         linkElementWrapper =
-            linkElementForProfile profile validationStatus
+            linkElementForProfile followLinks profile validationStatus
     in
     div
         [ css
@@ -111,7 +111,7 @@ viewAuthorCard profile profileViewData =
             extendedZapRelays authorRelays profileViewData.nostr userPubKey
 
         linkElementWrapper =
-            linkElementForProfile profile profileViewData.validation
+            linkElementForProfile True profile profileViewData.validation
     in
     div
         [ css
@@ -421,11 +421,11 @@ viewBanner maybeImage =
         ]
 
 
-viewProfilePubKey : Styles msg -> PubKey -> Html msg
-viewProfilePubKey styles pubKey =
+viewProfilePubKey : Styles msg -> Bool -> PubKey -> Html msg
+viewProfilePubKey styles followLinks pubKey =
     let
         linkElementWrapper =
-            linkElementForProfilePubKey pubKey
+            linkElementForProfilePubKey followLinks pubKey
     in
     div
         [ css

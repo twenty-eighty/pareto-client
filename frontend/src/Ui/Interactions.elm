@@ -21,7 +21,6 @@ import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme)
 
 
-
 type alias PreviewData msg =
     { browserEnv : BrowserEnv
     , loginStatus : LoginStatus

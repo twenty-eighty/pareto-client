@@ -63,7 +63,8 @@
       "posted button text": "Gesendet",
       "posting text": "Sende...",
       "posted text": "Gesendet",
-      "error posting text": "Fehler beim Veröffentlichen des Kommentars: {{errorText}}"
+      "error posting text": "Fehler beim Veröffentlichen des Kommentars: {{errorText}}",
+      "cancel label": "Abbrechen"
    },
    "communities": {
       "communities title": "Communities",
