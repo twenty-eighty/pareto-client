@@ -15,9 +15,7 @@ import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Community exposing (Community)
-import Nostr.Nip22 exposing (articleDraftComment)
 import Nostr.Request exposing (RequestId)
-import Nostr.Types exposing (loggedInSigningPubKey)
 import Tailwind.Utilities as Tw
 import Ui.Article exposing (ArticlePreviewsData)
 import Ui.Community
@@ -31,11 +29,16 @@ type ArticlePreviewType
 
 viewArticle : ArticlePreviewsData msg -> Maybe (LoadedContent msg) -> Components.Interactions.Model -> Article -> Html msg
 viewArticle articlePreviewsData loadedContent articleInteractions article =
+    let
+        articleComponents =
+            article
+            |> addressComponentsForArticle
+    in
     Ui.Article.viewArticle
         articlePreviewsData
         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
-        , articleComments = []
-        , articleCommentComments = Dict.empty
+        , articleComments = articleComponents |> Maybe.map (Nostr.getArticleComments articlePreviewsData.nostr) |> Maybe.withDefault []
+        , articleCommentComments = articleComponents |> Maybe.map (Nostr.getArticleCommentComments articlePreviewsData.nostr) |> Maybe.withDefault Dict.empty
         , articleInteractions = articleInteractions
         , displayAuthor = True
         , loadedContent = loadedContent
