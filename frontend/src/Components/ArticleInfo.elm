@@ -65,7 +65,7 @@ view styles author article articleInfoData =
             Dict.get pubKey articleInfoData.nostr.articlesByAuthor |> Maybe.map List.length |> Maybe.withDefault 0
 
         followLinks =
-            Nostr.isAuthor nostr article.author
+            Nostr.isAuthor articleInfoData.nostr article.author
 
         followersFromAuthor =
             articleInfoData.nostr.followLists

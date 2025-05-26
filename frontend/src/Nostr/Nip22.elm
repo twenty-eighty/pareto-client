@@ -139,6 +139,7 @@ commentToArticle article loginStatus =
                 , eventId = ""
                 , createdAt = article.createdAt
                 , rootAddress = addressComponents
+                , rootEventId = Just article.id
                 , rootKind = KindLongFormContent
                 , rootPubKey = article.author
                 , rootRelay = Just (Set.toList article.relays |> List.head |> Maybe.withDefault "")

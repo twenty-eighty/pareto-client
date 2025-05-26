@@ -49,9 +49,6 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
                 AuthorProfile profile profileValidation ->
                     ( profileDisplayName profile.pubKey profile, Just profile, profileValidation )
 
-        _ =
-            linkElementForAuthor picturePostViewData.author
-
         viewInteractions =
             Interactions.new
                 { browserEnv = picturePostsViewData.browserEnv

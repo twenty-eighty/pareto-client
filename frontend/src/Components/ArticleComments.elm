@@ -136,7 +136,7 @@ viewArticleComment articleComments level articleCommentComments articleComment =
                 |> Maybe.withDefault []
 
         followLinks =
-            Nostr.isAuthor nostr articleComment.pubKey
+            Nostr.isAuthor settings.nostr articleComment.pubKey
 
         profileDisplay =
             Nostr.getProfile settings.nostr articleComment.pubKey
