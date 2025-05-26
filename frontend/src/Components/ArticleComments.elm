@@ -148,13 +148,16 @@ viewArticleComment articleComments level articleCommentComments articleComment =
                     )
                 |> Maybe.withDefault emptyHtml
 
+        interactionObject =
+            InteractionButton.Comment articleComment.eventId articleComment.pubKey
+
         viewInteractions =
             Interactions.new
                 { browserEnv = settings.browserEnv
                 , model = Dict.get articleComment.eventId settings.interactions
-                , toMsg = settings.toInteractionsMsg (InteractionButton.Comment articleComment.pubKey articleComment.eventId)
+                , toMsg = settings.toInteractionsMsg interactionObject
                 , theme = settings.theme
-                , interactionObject = InteractionButton.Comment articleComment.pubKey articleComment.eventId
+                , interactionObject = interactionObject
                 , nostr = settings.nostr
                 , loginStatus = settings.loginStatus
                 }

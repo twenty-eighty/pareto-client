@@ -249,6 +249,8 @@ viewArticles shared model userPubKey =
                     , loginStatus = shared.loginStatus
                     , commenting = Nothing
                     , articleToInteractionsMsg = \_ _ -> NoOp
+                    , articleCommentInteractions = Dict.empty
+                    , commentsToInteractionsMsg = \_ _ -> NoOp
                     , openCommentMsg = Nothing
                     , sharing = Nothing
                     }

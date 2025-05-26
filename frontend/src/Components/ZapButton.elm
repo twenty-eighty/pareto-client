@@ -173,18 +173,18 @@ view (Settings settings) =
                 _ ->
                     []
 
-        maybePubKey =
+        pubKey =
             settings.interactionObject
             |> pubKeyOfInteractionObject
 
         maybeNpub =
-            maybePubKey
-            |> Maybe.andThen (\pubKey -> Nip19.encode (Npub pubKey) |> Result.toMaybe)
+            Nip19.encode (Npub pubKey)
+            |> Result.toMaybe
 
 
         lud16 =
-            maybePubKey
-            |> Maybe.andThen (Nostr.getProfile settings.nostr)
+            pubKey
+            |> Nostr.getProfile settings.nostr
             |> Maybe.andThen .lud16
 
         clickAction =

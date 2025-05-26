@@ -55,6 +55,8 @@ type alias ArticlePreviewsData msg =
     , loginStatus : LoginStatus
     , commenting : Maybe ( Comment.Comment msg, CommentType -> msg )
     , articleToInteractionsMsg : InteractionButton.InteractionObject -> Components.Interactions.Msg msg -> msg
+    , commentsToInteractionsMsg : InteractionButton.InteractionObject -> Components.Interactions.Msg msg -> msg
+    , articleCommentInteractions : Dict EventId Components.Interactions.Model
     , openCommentMsg : Maybe msg
     , sharing : Maybe ( SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg )
     }
@@ -383,8 +385,8 @@ viewArticle articlePreviewsData articlePreviewData article =
                             , nostr = articlePreviewsData.nostr
                             , articleComments = articlePreviewData.articleComments
                             , articleCommentComments = articlePreviewData.articleCommentComments
-                            , interactions = Dict.empty
-                            , toInteractionsMsg = articlePreviewsData.articleToInteractionsMsg
+                            , interactions = articlePreviewsData.articleCommentInteractions
+                            , toInteractionsMsg = articlePreviewsData.commentsToInteractionsMsg
                             , loginStatus = articlePreviewsData.loginStatus
                             , theme = articlePreviewsData.theme
                             }

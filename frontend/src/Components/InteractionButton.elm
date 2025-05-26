@@ -7,6 +7,7 @@ module Components.InteractionButton exposing
     , InteractionObject(..)
     , InteractionParams
     , pubKeyOfInteractionObject
+    , eventIdOfInteractionObject
     , withLabel
     , withAttributes
     , withOnClickAction
@@ -66,15 +67,26 @@ type ClickAction msg
     | Send SendRequest
     | SendMsg msg
 
-pubKeyOfInteractionObject : InteractionObject -> Maybe PubKey
+pubKeyOfInteractionObject : InteractionObject -> PubKey
 pubKeyOfInteractionObject interactionObject =
     case interactionObject of
         Article _ (_, pubKey, _) ->
-            Just pubKey
+            pubKey
         Comment _ pubKey ->
-            Just pubKey 
+            pubKey 
         PicturePost _ pubKey ->
-            Just pubKey
+            pubKey
+
+
+eventIdOfInteractionObject : InteractionObject -> EventId
+eventIdOfInteractionObject interactionObject =
+    case interactionObject of
+        Article eventId _ ->
+            eventId
+        Comment eventId _ ->
+            eventId 
+        PicturePost eventId _ ->
+            eventId
 
 
 mapAction : (msg1 -> msg2) -> ClickAction msg1 -> ClickAction msg2

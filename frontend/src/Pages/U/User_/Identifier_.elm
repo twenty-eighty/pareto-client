@@ -2,7 +2,7 @@ module Pages.U.User_.Identifier_ exposing (Model, Msg, page)
 
 import Components.ArticleInfo as ArticleInfo
 import Components.Comment as Comment
-import Components.InteractionButton as InteractionButton
+import Components.InteractionButton as InteractionButton exposing (eventIdOfInteractionObject)
 import Components.Interactions as Interactions
 import Components.RelayStatus exposing (Purpose(..))
 import Components.SharingButtonDialog as SharingButtonDialog
@@ -15,14 +15,13 @@ import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle)
-import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
+import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Nip05 as Nip05
-import Nostr.Nip18 exposing (articleRepostEvent)
 import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (CommentType, commentToArticle)
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId, PubKey, loggedInPubKey, loggedInSigningPubKey)
+import Nostr.Types exposing (EventId, PubKey, loggedInSigningPubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Set
@@ -192,7 +191,7 @@ type Msg
     | ArticleInteractionsSent InteractionButton.InteractionObject (Interactions.Msg Msg)
     | OpenComment CommentType
     | CommentSent Comment.Msg
-    | CommentInteractionsSent EventId PubKey (Interactions.Msg Msg)
+    | CommentInteractionsSent InteractionButton.InteractionObject (Interactions.Msg Msg)
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
     | SharingButtonDialogMsg SharingButtonDialog.Msg
@@ -239,16 +238,20 @@ update shared msg model =
                 , toMsg = CommentSent
                 }
 
-        CommentInteractionsSent eventId pubKey innerMsg ->
+        CommentInteractionsSent interactionObject innerMsg ->
+            let
+                eventId =
+                    eventIdOfInteractionObject interactionObject
+            in
             Interactions.update
                 { browserEnv = shared.browserEnv
                 , msg = innerMsg
                 , model = Dict.get eventId model.commentInteractions
                 , nostr = shared.nostr
-                , interactionObject = InteractionButton.Comment eventId pubKey
+                , interactionObject = interactionObject
                 , openCommentMsg = Nothing
                 , toModel = \interactionsModel -> { model | commentInteractions = Dict.insert eventId interactionsModel model.commentInteractions }
-                , toMsg = CommentInteractionsSent eventId pubKey
+                , toMsg = CommentInteractionsSent interactionObject
                 }
 
         ZapReaction _ recipients ->
@@ -320,12 +323,12 @@ commentInteractionSubscriptions shared model =
                             Nostr.getArticleComments shared.nostr addressComponents
                                 |> List.filter (\articleComment -> articleComment.eventId == eventId)
                                 |> List.head
-                                |> Maybe.map (\picturePost -> picturePost.pubKey)
+                                |> Maybe.map .pubKey
                     in
                     case maybePubKey of
                         Just pubKey ->
                             Interactions.subscriptions interactions
-                                |> Sub.map (CommentInteractionsSent eventId pubKey)
+                                |> Sub.map (CommentInteractionsSent (InteractionButton.Comment eventId pubKey))
 
                         Nothing ->
                             Sub.none
@@ -392,6 +395,8 @@ viewArticle shared model maybeArticle =
                 , loginStatus = shared.loginStatus
                 , commenting = commenting
                 , articleToInteractionsMsg = ArticleInteractionsSent
+                , articleCommentInteractions = model.commentInteractions
+                , commentsToInteractionsMsg = CommentInteractionsSent
                 , bookmarkButtonMsg = \_ _ -> NoOp
                 , bookmarkButtons = Dict.empty
                 , openCommentMsg = commentToArticle article shared.loginStatus |> Maybe.map OpenComment
