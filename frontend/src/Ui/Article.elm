@@ -368,7 +368,12 @@ viewArticle articlePreviewsData articlePreviewData article =
                     , case articlePreviewsData.commenting of
                         Just ( comment, _ ) ->
                             div
-                                [ 
+                                [ css
+                                    [ Tw.w_80
+                                    , Bp.sm
+                                        [ Tw.w_96
+                                        ]
+                                    ]
                                 ]
                                 [ comment
                                     |> Comment.view
