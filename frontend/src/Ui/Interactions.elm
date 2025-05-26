@@ -1,12 +1,10 @@
 module Ui.Interactions exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
-import Color
 import Components.Icon as Icon exposing (Icon)
 import Components.InteractionButton
 import Components.Interactions
 import Components.SharingButtonDialog as SharingButtonDialog
-import Dict
 import FeatherIcons
 import Html.Styled as Html exposing (Html, div, text)
 import Html.Styled.Attributes as Attr exposing (css)
@@ -15,14 +13,12 @@ import I18Next
 import Json.Encode as Encode
 import Nostr
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
-import Nostr.Reactions exposing (Interactions)
 import Nostr.Relay exposing (websocketUrl)
 import Nostr.Types exposing (LoginStatus, PubKey, loggedInPubKey)
 import Set exposing (Set)
 import Tailwind.Utilities as Tw
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Styles, Theme)
-import Ui.Styles exposing (print)
+import Ui.Styles exposing (Theme)
 
 
 type alias Actions msg =
@@ -41,7 +37,6 @@ type alias PreviewData msg =
     , maybeNip19Target : Maybe String
     , zapRelays : Set String
     , actions : Actions msg
-    , interactions : Interactions
     , interactionsModel : Components.Interactions.Model
     , interactionObject : Components.InteractionButton.InteractionObject
     , toInteractionsMsg : Components.Interactions.Msg msg -> msg
@@ -54,80 +49,8 @@ type alias PreviewData msg =
     }
 
 
-viewInteractions : Styles msg -> BrowserEnv -> PreviewData msg -> String -> Html msg
-viewInteractions styles browserEnv previewData instanceId =
-    let
-        actions =
-            previewData.actions
-
-        interactions =
-            previewData.interactions
-
-        ( bookmarkIcon, bookmarkMsg ) =
-            if interactions.isBookmarked then
-                ( Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdded 30 Icon.Inherit, actions.removeBookmark )
-
-            else
-                ( Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdd 30 Icon.Inherit, actions.addBookmark )
-
-        ( reactionIcon, reactionMsg ) =
-            case interactions.reaction of
-                Just _ ->
-                    ( Icon.MaterialIcon Icon.MaterialFavorite 30 (Icon.Color (Color.fromRgba { red = 1.0, green = 0.0, blue = 0.0, alpha = 1.0 })), actions.removeReaction )
-
-                Nothing ->
-                    ( Icon.MaterialIcon Icon.MaterialFavoriteBorder 30 Icon.Inherit, actions.addReaction )
-
-        ( repostIcon, repostMsg ) =
-            case interactions.repost of
-                Just _ ->
-                    ( Icon.MaterialIcon Icon.MaterialRepeatOn 30 Icon.Inherit
-                      -- disable reposting if done already by user
-                    , Nothing
-                    )
-
-                Nothing ->
-                    ( Icon.MaterialIcon Icon.MaterialRepeat 30 Icon.Inherit
-                    , actions.addRepost
-                    )
-
-        commentsCount =
-            List.length interactions.articleComments + Dict.size interactions.articleCommentComments
-    in
-    div
-        (css
-            [ Tw.justify_start
-            , Tw.items_center
-            , Tw.gap_6
-            , Tw.inline_flex
-            , print
-                [ Tw.hidden
-                ]
-            ]
-            :: styles.colorStyleGrayscaleText
-        )
-        [ viewReactions (Icon.FeatherIcon FeatherIcons.messageSquare) actions.startComment (Just <| String.fromInt commentsCount) previewData instanceId
-        , viewReactions reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) previewData instanceId
-        , viewReactions repostIcon repostMsg (Maybe.map String.fromInt interactions.reposts) previewData instanceId
-        , viewReactions (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) previewData instanceId
-        , viewReactions bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks) previewData instanceId
-        , previewData.sharing
-            |> Maybe.map
-                (\( sharingButtonDialog, sharingButtonDialogMsg ) ->
-                    SharingButtonDialog.new
-                        { model = sharingButtonDialog
-                        , browserEnv = browserEnv
-                        , sharingInfo = previewData.sharingInfo
-                        , theme = previewData.theme
-                        , toMsg = sharingButtonDialogMsg
-                        }
-                        |> SharingButtonDialog.view
-                )
-            |> Maybe.withDefault emptyHtml
-        ]
-
-viewInteractionsNew : PreviewData msg -> String -> Html msg
-viewInteractionsNew previewData instanceId =
+viewInteractions : PreviewData msg -> String -> Html msg
+viewInteractions previewData instanceId =
     Components.Interactions.new
         { browserEnv = previewData.browserEnv
         , model = Just previewData.interactionsModel
@@ -137,12 +60,11 @@ viewInteractionsNew previewData instanceId =
         , nostr = previewData.nostr
         , loginStatus = previewData.loginStatus
         }
-        |> Components.Interactions.withRelayUrls previewData.zapRelays
         |> Components.Interactions.withInteractionElements
             [ Components.Interactions.CommentButtonElement previewData.openCommentMsg
             , Components.Interactions.LikeButtonElement
             , Components.Interactions.RepostButtonElement
-            , Components.Interactions.ZapButtonElement instanceId
+            , Components.Interactions.ZapButtonElement instanceId previewData.zapRelays
             , Components.Interactions.BookmarkButtonElement
             , Components.Interactions.ShareButtonElement previewData.sharingInfo
             ]

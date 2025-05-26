@@ -3,9 +3,9 @@ module Ui.View exposing (..)
 -- this module connects the Nostr engine and the UI functions
 
 import BrowserEnv exposing (BrowserEnv)
-import Components.InteractionButton as InteractionButton
 import Components.Interactions
 import Components.RelayStatus as RelayStatus exposing (Purpose(..))
+import Dict
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Keyed as Keyed
@@ -36,7 +36,8 @@ viewArticle articlePreviewsData loadedContent articleInteractions article =
         articlePreviewsData
         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
         , actions = actionsFromArticlePreviewsData articlePreviewsData article
-        , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr (articlePreviewsData.loginStatus |> loggedInSigningPubKey) article
+        , articleComments = []
+        , articleCommentComments = Dict.empty
         , articleInteractions = articleInteractions
         , displayAuthor = True
         , loadedContent = loadedContent
@@ -127,8 +128,9 @@ viewArticlePreviewsList articlePreviewsData articles =
                             { author = Nostr.getAuthor articlePreviewsData.nostr article.author
                             , actions =
                                 actionsFromArticlePreviewsData articlePreviewsData article
-                            , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr (articlePreviewsData.loginStatus |> loggedInSigningPubKey) article
                             , articleInteractions = Components.Interactions.init
+                            , articleComments = []
+                            , articleCommentComments = Dict.empty
                             , displayAuthor = True
                             , loadedContent = Nothing
                             }
@@ -159,8 +161,9 @@ viewArticlePreviewsBigPicture articlePreviewsData articles =
                         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
                         , actions =
                             actionsFromArticlePreviewsData articlePreviewsData article
-                        , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr (articlePreviewsData.loginStatus |> loggedInSigningPubKey) article
                         , articleInteractions = Components.Interactions.init
+                        , articleComments = []
+                        , articleCommentComments = Dict.empty
                         , displayAuthor = True
                         , loadedContent = Nothing
                         }

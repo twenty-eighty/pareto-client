@@ -1,6 +1,6 @@
 module Components.Interactions exposing
     ( Interactions, InteractionElement(..)
-    , new, withRelayUrls, withInteractionElements
+    , new, withInteractionElements
     , view
     , init, update, Model, Msg
     , subscriptions
@@ -32,7 +32,7 @@ import Effect exposing (Effect)
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr
 import Nostr
-import Nostr.Types exposing (LoginStatus)
+import Nostr.Types exposing (LoginStatus, RelayUrl)
 import Set exposing (Set)
 import Tailwind.Utilities as Tw
 import Ui.Styles
@@ -43,7 +43,7 @@ type InteractionElement msg
     | LikeButtonElement
     | RepostButtonElement
     | ShareButtonElement SharingButtonDialog.SharingInfo
-    | ZapButtonElement String
+    | ZapButtonElement String (Set RelayUrl)
 
 -- MODEL
 
@@ -110,7 +110,7 @@ update props =
                     (updatedModel, effect) =
                         BookmarkButton.update
                             { msg = bookmarkMsg
-                            , model = model.bookmarkButton
+                            , model = Just model.bookmarkButton
                             , toModel = \innerModel -> Model { model | bookmarkButton = innerModel }
                             , nostr = props.nostr
                             , toMsg = BookmarkButtonMsg
@@ -207,7 +207,6 @@ type Interactions msg
         , interactionObject : InteractionObject
         , nostr : Nostr.Model
         , loginStatus : LoginStatus
-        , relayUrls : Set String
         , toMsg : Msg msg -> msg
         , theme : Ui.Styles.Theme
         }
@@ -225,23 +224,18 @@ new :
 new props =
     Settings
         { browserEnv = props.browserEnv
-        , interactionElements = [ BookmarkButtonElement, LikeButtonElement, RepostButtonElement, ZapButtonElement "0" ]
+        , interactionElements = [ BookmarkButtonElement, LikeButtonElement, RepostButtonElement, ZapButtonElement "0" Set.empty ]
         , model = props.model
         , toMsg = props.toMsg
         , interactionObject = props.interactionObject
         , loginStatus = props.loginStatus
         , nostr = props.nostr
-        , relayUrls = Set.empty
         , theme = props.theme
         }
 
 withInteractionElements : List (InteractionElement msg) -> Interactions msg -> Interactions msg
 withInteractionElements interactionElements (Settings settings) =
     Settings { settings | interactionElements = interactionElements }
-
-withRelayUrls : Set String -> Interactions msg -> Interactions msg
-withRelayUrls relayUrls (Settings settings) =
-    Settings { settings | relayUrls = relayUrls }
 
 
 -- HELPERS
@@ -254,7 +248,7 @@ getBookmarkButton (Settings settings) =
             |> Maybe.withDefault init
     in
     BookmarkButton.new
-        { model = model.bookmarkButton
+        { model = Just model.bookmarkButton
         , toMsg = BookmarkButtonMsg
         , theme = settings.theme
         , interactionObject = settings.interactionObject
@@ -335,8 +329,8 @@ getShareButton (Settings settings) sharingInfo =
         }
         |> SharingButtonDialog.view
 
-getZapButton : Interactions msg -> String -> Html (Msg msg)
-getZapButton (Settings settings) instanceId =
+getZapButton : Interactions msg -> String -> Set RelayUrl -> Html (Msg msg)
+getZapButton (Settings settings) instanceId relayUrls =
     let
         (Model model) =
             settings.model
@@ -350,9 +344,8 @@ getZapButton (Settings settings) instanceId =
         , interactionObject = settings.interactionObject
         , nostr = settings.nostr
         , loginStatus = settings.loginStatus
-        , relayUrls = settings.relayUrls
         }
-        |> ZapButton.withRelayUrls settings.relayUrls
+        |> ZapButton.withRelayUrls relayUrls
         |> ZapButton.withInstanceId instanceId
         |> ZapButton.view
 
@@ -370,7 +363,8 @@ view interactions =
         [ Attr.css
             [ Tw.flex
             , Tw.flex_row
-            , Tw.gap_4
+            , Tw.flex_wrap
+            , Tw.gap_x_4
             , Tw.items_center
             ]
         ]
@@ -387,8 +381,8 @@ view interactions =
                         getRepostButton interactions
                     ShareButtonElement sharingInfo ->
                         getShareButton interactions sharingInfo
-                    ZapButtonElement instanceId ->
-                        getZapButton interactions instanceId
+                    ZapButtonElement instanceId relayUrls ->
+                        getZapButton interactions instanceId relayUrls
             )
         ) 
         |> Html.map settings.toMsg

@@ -277,6 +277,8 @@ viewContent shared model =
                 |> Maybe.map
                     (Ui.View.viewArticle
                         { theme = shared.theme
+                        , bookmarkButtonMsg = \_ _ -> NoOp
+                        , bookmarkButtons = Dict.empty
                         , browserEnv = shared.browserEnv
                         , nostr = shared.nostr
                         , loginStatus = shared.loginStatus

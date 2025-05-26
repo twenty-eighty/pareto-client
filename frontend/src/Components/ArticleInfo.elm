@@ -1,17 +1,17 @@
 module Components.ArticleInfo exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
-import Components.Icon as Icon exposing (Icon)
+import Components.InteractionButton exposing (InteractionObject)
+import Components.Interactions as Interactions
 import Dict
-import FeatherIcons
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr exposing (..)
 import I18Next
 import Nostr
 import Nostr.Article exposing (Article, publishedTime)
 import Nostr.Profile exposing (Author, shortenedPubKey)
-import Nostr.Reactions exposing (Interactions)
-import Nostr.Types exposing (Following(..))
+import Nostr.Types exposing (Following(..), LoginStatus, RelayUrl)
+import Set exposing (Set)
 import Tailwind.Breakpoints as Bp exposing (..)
 import Tailwind.Theme exposing (..)
 import Tailwind.Utilities as Tw exposing (..)
@@ -23,13 +23,23 @@ import Ui.Profile
 import Ui.Styles exposing (Styles)
 
 
+type alias ArticleInfoData msg =
+    { browserEnv : BrowserEnv
+    , model : Maybe Interactions.Model
+    , toMsg : Interactions.Msg msg -> msg
+    , theme : Ui.Styles.Theme
+    , interactionObject : InteractionObject
+    , nostr : Nostr.Model
+    , loginStatus : LoginStatus
+    , zapRelays : Set RelayUrl
+    }
 
 {- Article Info Component -}
 -- VIEW
 
 
-view : Styles msg -> Author -> Article -> BrowserEnv -> Interactions -> Nostr.Model -> Html msg
-view styles author article browserEnv interactions nostr =
+view : Styles msg -> Author -> Article -> ArticleInfoData msg -> Html msg
+view styles author article articleInfoData =
     let
         ( profile, pubKey ) =
             case author of
@@ -46,16 +56,16 @@ view styles author article browserEnv interactions nostr =
             profile |> Maybe.map (\p -> Nostr.Profile.profileDisplayName p.pubKey p) |> Maybe.withDefault (shortenedPubKey 6 pubKey)
 
         articlePublishedDate =
-            BrowserEnv.formatDate browserEnv (publishedTime article.createdAt article.publishedAt)
+            BrowserEnv.formatDate articleInfoData.browserEnv (publishedTime article.createdAt article.publishedAt)
 
         articleStats =
             TextStats.compute article.language article.content
 
         articlesFromAuthor =
-            Dict.get pubKey nostr.articlesByAuthor |> Maybe.map List.length |> Maybe.withDefault 0
+            Dict.get pubKey articleInfoData.nostr.articlesByAuthor |> Maybe.map List.length |> Maybe.withDefault 0
 
         followersFromAuthor =
-            nostr.followLists
+            articleInfoData.nostr.followLists
                 |> Dict.filter
                     (\_ followings ->
                         followings
@@ -114,8 +124,8 @@ view styles author article browserEnv interactions nostr =
                 [ css
                     [ Tw.mt_1 ]
                 ]
-                [ viewAuthorStat styles (Translations.numberOfArticles [ browserEnv.translations ]) articlesFromAuthor
-                , viewAuthorStat styles (Translations.followers [ browserEnv.translations ]) followersFromAuthor
+                [ viewAuthorStat styles (Translations.numberOfArticles [ articleInfoData.browserEnv.translations ]) articlesFromAuthor
+                , viewAuthorStat styles (Translations.followers [ articleInfoData.browserEnv.translations ]) followersFromAuthor
                 ]
             , {- Article Info Section -}
               h3
@@ -125,7 +135,7 @@ view styles author article browserEnv interactions nostr =
                     , Tw.tracking_wider
                     ]
                 ]
-                [ text (Translations.title [ browserEnv.translations ]) ]
+                [ text (Translations.title [ articleInfoData.browserEnv.translations ]) ]
             , div
                 [ css
                     [ Tw.text_xs
@@ -134,9 +144,9 @@ view styles author article browserEnv interactions nostr =
                     ]
                 ]
                 [ text articlePublishedDate ]
-            , viewTags browserEnv.translations <| List.filter (\hashtag -> not (String.isEmpty hashtag)) <| article.hashtags
-            , viewArticleStats styles articleStats browserEnv
-            , viewInteractions interactions
+            , viewTags articleInfoData.browserEnv.translations <| List.filter (\hashtag -> not (String.isEmpty hashtag)) <| article.hashtags
+            , viewArticleStats styles articleStats articleInfoData.browserEnv
+            , viewInteractions articleInfoData
             ]
         ]
 
@@ -279,57 +289,21 @@ viewArticleStats styles textStats browserEnv =
         ]
 
 
-viewInteractions : Interactions -> Html msg
-viewInteractions interactions =
-    let
-        renderInteraction : Icon -> Maybe Int -> Html msg
-        renderInteraction icon maybeValue =
-            div
-                [ css
-                    [ Tw.flex
-                    , Tw.h_6
-                    , Tw.gap_1_dot_5
-                    ]
-                ]
-                [ div
-                    [ css
-                        [ Tw.w_6
-                        , Tw.h_6
-                        , Tw.justify_center
-                        , Tw.items_center
-                        , Tw.flex
-                        ]
-                    ]
-                    [ Icon.view icon
-                    ]
-                , span [ css [ Tw.py_0_dot_5 ] ]
-                    [ text <| Maybe.withDefault "0" <| Maybe.map String.fromInt maybeValue ]
-                ]
-
-        likkesIcon =
-            Icon.MaterialIcon Icon.MaterialFavoriteBorder 30 Icon.Inherit
-
-        bookmarkIcon =
-            Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdded 30 Icon.Inherit
-
-        repostIcon =
-            Icon.MaterialIcon Icon.MaterialRepeat 30 Icon.Inherit
-
-        itemsList =
-            [ ( Icon.FeatherIcon FeatherIcons.messageSquare, Just (List.length interactions.articleComments) )
-            , ( likkesIcon, interactions.reactions )
-            , ( repostIcon, interactions.reposts )
-            , ( Icon.FeatherIcon FeatherIcons.zap, interactions.zaps |> Maybe.map (\v -> v // 1000) )
-            , ( bookmarkIcon, interactions.bookmarks )
+viewInteractions : ArticleInfoData msg -> Html msg
+viewInteractions articleInfoData =
+    Interactions.new
+        { browserEnv = articleInfoData.browserEnv
+        , model = articleInfoData.model
+        , toMsg = articleInfoData.toMsg
+        , theme = articleInfoData.theme
+        , interactionObject = articleInfoData.interactionObject
+        , nostr = articleInfoData.nostr
+        , loginStatus = articleInfoData.loginStatus
+        }
+        |> Interactions.withInteractionElements
+            [ Interactions.LikeButtonElement
+            , Interactions.RepostButtonElement
+            , Interactions.ZapButtonElement "0" articleInfoData.zapRelays
+            , Interactions.BookmarkButtonElement
             ]
-    in
-    div
-        [ css
-            [ Tw.flex
-            , Tw.gap_6
-            , Tw.self_stretch
-            , Tw.mt_6
-            , Tw.flex_wrap
-            ]
-        ]
-        (itemsList |> List.map (\( url, value ) -> renderInteraction url value))
+        |> Interactions.view

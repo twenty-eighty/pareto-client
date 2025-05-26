@@ -63,21 +63,31 @@ toLayout shared model =
                 ErrorModel _ ->
                     Nothing
 
-        userPubKey =
-            loggedInPubKey shared.loginStatus
-
         articleInfo =
             maybeArticle
-                |> Maybe.map
-                    (\article ->
-                        ArticleInfo.view
-                            styles
-                            (Nostr.getAuthor shared.nostr article.author)
-                            article
-                            shared.browserEnv
-                            (Nostr.getInteractionsForArticle shared.nostr userPubKey article)
-                            shared.nostr
-                    )
+                |> Maybe.map (\article ->
+                    addressComponentsForArticle article
+                        |> Maybe.map (\addressComponents ->
+                            let
+                                interactionObject =
+                                    InteractionButton.Article article.id addressComponents
+                            in
+                            ArticleInfo.view
+                                styles
+                                (Nostr.getAuthor shared.nostr article.author)
+                                article
+                                { browserEnv = shared.browserEnv
+                                , model = Just Interactions.init
+                                , toMsg = ArticleInteractionsSent interactionObject
+                                , theme = shared.theme
+                                , interactionObject = interactionObject
+                                , nostr = shared.nostr
+                                , loginStatus = shared.loginStatus
+                                , zapRelays = Set.empty
+                                }
+                        )
+                        |> Maybe.withDefault emptyHtml
+                ) 
                 |> Maybe.withDefault emptyHtml
     in
     Layouts.Sidebar.new
@@ -505,6 +515,8 @@ viewContent shared nip19 comment loadedContent requestId interactions sharingBut
                         -- signing is possible also with read-only login
                         , onZap = Maybe.map (\pubKey -> ZapReaction pubKey) (loggedInPubKey shared.loginStatus)
                         , articleToInteractionsMsg = ArticleInteractionsSent
+                        , bookmarkButtonMsg = \_ _ -> NoOp
+                        , bookmarkButtons = Dict.empty
                         , openCommentMsg = commentToArticle article shared.loginStatus |> Maybe.map OpenComment
                         , sharing = Just ( sharingButtonDialog, SharingButtonDialogMsg )
                         }

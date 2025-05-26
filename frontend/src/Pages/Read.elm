@@ -1,8 +1,9 @@
 module Pages.Read exposing (Model, Msg, init, page, subscriptions, update, view)
 
+import Components.BookmarkButton as BookmarkButton
 import Components.Categories as Categories
 import Components.Icon as Icon
-import Dict
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes as Attr exposing (css)
@@ -75,6 +76,7 @@ toLayout shared model =
 type alias Model =
     { categories : Categories.Model Category
     , path : Route.Path.Path
+    , bookmarkButtons : Dict EventId BookmarkButton.Model
     }
 
 
@@ -177,6 +179,7 @@ init shared route () =
     in
     ( { categories = Categories.init { selected = correctedCategory }
       , path = route.path
+      , bookmarkButtons = Dict.empty
       }
     , Effect.batch
         [ changeCategoryEffect
@@ -202,6 +205,7 @@ type Msg
     | RemoveArticleReaction PubKey EventId -- event ID of like
     | AddShortNoteBookmark PubKey EventId
     | RemoveShortNoteBookmark PubKey EventId
+    | BookmarkButtonMsg EventId BookmarkButton.Msg
     | NoOp
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -256,6 +260,16 @@ update shared msg model =
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
+
+        BookmarkButtonMsg eventId innerMsg ->
+            BookmarkButton.update
+                { msg = innerMsg
+                , model = Dict.get eventId model.bookmarkButtons
+                , nostr = shared.nostr
+                , toModel = \bookmarkButton -> { model | bookmarkButtons = Dict.insert eventId bookmarkButton model.bookmarkButtons }
+                , toMsg = BookmarkButtonMsg eventId
+                , translations = shared.browserEnv.translations
+                }
 
         NoOp ->
             ( model, Effect.none )
@@ -350,9 +364,11 @@ userFollowsList nostr loginStatus =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
-
+subscriptions model =
+    model.bookmarkButtons
+    |> Dict.toList
+    |> List.map (\(eventId, bookmarkButton) -> BookmarkButton.subscriptions bookmarkButton |> Sub.map (BookmarkButtonMsg eventId))
+    |> Sub.batch
 
 
 -- VIEW
@@ -491,6 +507,8 @@ viewContent shared model userPubKey =
                 |> Ui.View.viewArticlePreviews
                     ArticlePreviewList
                     { theme = shared.theme
+                    , bookmarkButtonMsg = BookmarkButtonMsg
+                    , bookmarkButtons = model.bookmarkButtons
                     , browserEnv = shared.browserEnv
                     , nostr = shared.nostr
                     , loginStatus = shared.loginStatus

@@ -1200,41 +1200,6 @@ getCommunityList model pubKey =
     Dict.get pubKey model.communityLists
 
 
-getInteractionsForArticle : Model -> Maybe PubKey -> Article -> Nostr.Reactions.Interactions
-getInteractionsForArticle model maybePubKey article =
-    let
-        maybeAddressComponents =
-            addressComponentsForArticle article
-    in
-    { zaps = getZapReceiptsCountForArticle model article
-    , articleComments = maybeAddressComponents |> Maybe.map (getArticleComments model) |> Maybe.withDefault []
-    , articleCommentComments = maybeAddressComponents |> Maybe.map (getArticleCommentComments model) |> Maybe.withDefault Dict.empty
-    , highlights = Nothing
-    , reactions = getReactionsCountForArticle model article
-    , reposts = getRepostsCountForArticle model article
-    , notes = Nothing
-    , bookmarks = Maybe.map (getBookmarkListCountForAddressComponents model) maybeAddressComponents
-    , isBookmarked =
-        Maybe.map (isArticleBookmarked model article) maybePubKey
-            |> Maybe.withDefault False
-    , reaction =
-        case ( maybePubKey, maybeAddressComponents ) of
-            ( Just userPubKey, Just addressComponents ) ->
-                getReactionForArticle model userPubKey addressComponents
-
-            ( _, _ ) ->
-                Nothing
-    , repost =
-        case ( maybePubKey, maybeAddressComponents ) of
-            ( Just userPubKey, Just addressComponents ) ->
-                getRepostsForArticle model addressComponents
-                    |> Maybe.andThen (Dict.get userPubKey)
-
-            _ ->
-                Nothing
-    }
-
-
 getInteractionsForEventId : Model -> Maybe PubKey -> EventId -> Nostr.Reactions.Interactions
 getInteractionsForEventId model maybePubKey eventId =
     { zaps = getZapReceiptsCountForComment model eventId

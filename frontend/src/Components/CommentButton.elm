@@ -28,7 +28,6 @@ import FeatherIcons
 import Html.Styled as Html exposing (Html)
 import I18Next
 import Nostr
-import Nostr.Nip18 as Nip18
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (LoginStatus, PubKey, loggedInPubKey, loggedInSigningPubKey)
 import Ui.Styles

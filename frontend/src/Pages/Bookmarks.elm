@@ -302,6 +302,8 @@ viewArticleBookmarks user shared _ addressComponents =
         |> Ui.View.viewArticlePreviews
             ArticlePreviewList
             { theme = shared.theme
+            , bookmarkButtonMsg = \_ _ -> NoOp
+            , bookmarkButtons = Dict.empty
             , browserEnv = shared.browserEnv
             , nostr = shared.nostr
             , loginStatus = shared.loginStatus

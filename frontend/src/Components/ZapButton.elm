@@ -26,7 +26,6 @@ import Effect exposing (Effect)
 import FeatherIcons
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as Attr
-import Html.Styled.Events as Events
 import I18Next
 import Json.Encode as Encode
 import Nostr
@@ -108,7 +107,6 @@ new :
     , interactionObject : InteractionObject
     , loginStatus : LoginStatus
     , nostr : Nostr.Model
-    , relayUrls : Set String
     , toMsg : Msg -> msg
     , theme : Ui.Styles.Theme
     } -> ZapButton msg
@@ -288,19 +286,6 @@ pubkeyRelays nostrModel pubKey =
         |> Nostr.getNip65RelaysForPubKey nostrModel
         |> List.map (\( _, relay ) -> websocketUrl relay.urlWithoutProtocol)
         |> Set.fromList
-
-
-getSendRequest : InteractionObject -> PubKey -> SendRequest
-getSendRequest interactionObject pubKey =
-    case interactionObject of
-        Article eventId (( _, articlePubKey, _ ) as addressComponents) ->
-            SendReaction pubKey eventId articlePubKey (Just addressComponents)
-
-        Comment eventId articlePubKey ->
-            SendReaction pubKey eventId articlePubKey Nothing
-
-        PicturePost eventId articlePubKey ->
-            SendReaction pubKey eventId articlePubKey Nothing
 
 
 getZapAmount : BrowserEnv -> Nostr.Model -> InteractionObject -> String

@@ -48,11 +48,19 @@ type Msg
     = InteractionButtonMsg (InteractionButton.Msg Msg)
 
 
-update : { msg : Msg, model : Model, nostr : Nostr.Model, toModel : Model -> model, toMsg : Msg -> msg, translations : I18Next.Translations } -> ( model, Effect msg )
+update :
+    { msg : Msg
+    , model : Maybe Model
+    , nostr : Nostr.Model
+    , toModel : Model -> model
+    , toMsg : Msg -> msg
+    , translations : I18Next.Translations
+    } -> ( model, Effect msg )
 update props =
     let
         (Model model) =
             props.model
+                |> Maybe.withDefault (Model InteractionButton.init)
 
         toParentModel : ( Model, Effect msg ) -> ( model, Effect msg )
         toParentModel ( innerModel, effect ) =
@@ -91,7 +99,7 @@ type BookmarkButton msg
 
 
 new : 
-    { model : Model
+    { model : Maybe Model
     , interactionObject : InteractionObject
     , nostr : Nostr.Model
     , loginStatus : LoginStatus
@@ -100,7 +108,7 @@ new :
     } -> BookmarkButton msg
 new props =
     Settings
-        { model = props.model
+        { model = props.model |> Maybe.withDefault (Model InteractionButton.init)
         , interactionObject = props.interactionObject
         , nostr = props.nostr
         , loginStatus = props.loginStatus

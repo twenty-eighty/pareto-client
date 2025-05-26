@@ -25,6 +25,7 @@ import Material.Icons exposing (category)
 import Pareto
 import Page exposing (Page)
 import Route exposing (Route)
+import Set
 import Shared
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
@@ -430,7 +431,7 @@ interactionsElement shared model =
             [ Components.Interactions.CommentButtonElement (Just OpenComment)
             , Components.Interactions.LikeButtonElement
             , Components.Interactions.RepostButtonElement
-            , Components.Interactions.ZapButtonElement "0"
+            , Components.Interactions.ZapButtonElement "0" Set.empty
             , Components.Interactions.BookmarkButtonElement
             ]
         |> Components.Interactions.view

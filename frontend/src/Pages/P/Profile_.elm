@@ -1,8 +1,8 @@
 module Pages.P.Profile_ exposing (Model, Msg, page)
 
 import Components.EmailSubscriptionDialog as EmailSubscriptionDialog
-import Components.Interactions as Interactions
 import Components.RelayStatus exposing (Purpose(..))
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
 import Layouts
@@ -282,6 +282,8 @@ viewArticles shared pubKey =
         |> Ui.View.viewArticlePreviews
             ArticlePreviewList
             { theme = shared.theme
+            , bookmarkButtonMsg = \_ _ -> NoOp
+            , bookmarkButtons = Dict.empty
             , browserEnv = shared.browserEnv
             , nostr = shared.nostr
             , loginStatus = shared.loginStatus

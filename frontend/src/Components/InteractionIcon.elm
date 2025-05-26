@@ -101,7 +101,6 @@ view (Settings settings) =
             [ Attr.css
                 [ Tw.flex
                 , Tw.flex_row
-                , Tw.py_2
                 ]
             ]
             [ viewProcessingIndicator

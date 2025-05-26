@@ -3,9 +3,10 @@ module Ui.Article exposing (..)
 import BrowserEnv exposing (BrowserEnv)
 import Components.ArticleComments as ArticleComments
 import Components.Button as Button
+import Components.BookmarkButton as BookmarkButton
 import Components.Comment as Comment
 import Components.Icon as Icon
-import Components.InteractionButton as InteractionButton
+import Components.InteractionButton as InteractionButton exposing (InteractionObject(..))
 import Components.Interactions
 import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapDialog as ZapDialog
@@ -23,10 +24,9 @@ import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArt
 import Nostr.Event exposing (AddressComponents, Kind(..), Tag(..), TagReference(..))
 import Nostr.Nip05 exposing (nip05ToString)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
-import Nostr.Nip22 exposing (CommentType)
+import Nostr.Nip22 exposing (CommentType, ArticleComment, ArticleCommentComment)
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
-import Nostr.Reactions exposing (Interactions)
 import Nostr.Relay exposing (websocketUrl)
 import Nostr.Types exposing (EventId, LoginStatus, PubKey, loggedInPubKey, loggedInSigningPubKey)
 import Pareto
@@ -39,7 +39,7 @@ import Tailwind.Utilities as Tw
 import Time
 import Translations.ArticleView as Translations
 import Translations.Posts
-import Ui.Interactions exposing (Actions, extendedZapRelays, viewInteractions, viewInteractionsNew)
+import Ui.Interactions exposing (Actions, extendedZapRelays, viewInteractions)
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
@@ -49,6 +49,8 @@ import Url
 
 type alias ArticlePreviewsData msg =
     { theme : Theme
+    , bookmarkButtonMsg : EventId -> BookmarkButton.Msg -> msg
+    , bookmarkButtons : Dict EventId BookmarkButton.Model
     , browserEnv : BrowserEnv
     , nostr : Nostr.Model
     , loginStatus : LoginStatus
@@ -66,7 +68,8 @@ type alias ArticlePreviewsData msg =
 type alias ArticlePreviewData msg =
     { author : Author
     , actions : Actions msg
-    , interactions : Interactions
+    , articleComments : List ArticleComment
+    , articleCommentComments : Dict EventId (List ArticleCommentComment) -- event ID is the one of the parent comment
     , articleInteractions : Components.Interactions.Model
     , displayAuthor : Bool
     , loadedContent : Maybe (LoadedContent msg)
@@ -221,7 +224,6 @@ viewArticle articlePreviewsData articlePreviewData article =
             , maybeNip19Target = nip19ForArticle article
             , zapRelays = extendedZapRelays articleRelays articlePreviewsData.nostr (articlePreviewsData.loginStatus |> loggedInPubKey)
             , actions = articlePreviewData.actions
-            , interactions = articlePreviewData.interactions
             , interactionsModel = articlePreviewData.articleInteractions
             , interactionObject = interactionObject
             , toInteractionsMsg = articlePreviewsData.articleToInteractionsMsg interactionObject
@@ -362,9 +364,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                             ++ textStyleReactions
                             ++ contentMargins
                         )
-                        [ viewInteractionsNew previewData "1"
+                        [ viewInteractions previewData "1"
                         , viewContent styles articlePreviewData.loadedContent getProfile article.content
-                        , viewInteractionsNew previewData "2"
+                        , viewInteractions previewData "2"
                         ]
                     , case articlePreviewsData.commenting of
                         Just ( comment, _ ) ->
@@ -384,8 +386,8 @@ viewArticle articlePreviewsData articlePreviewData article =
                         [ ArticleComments.new
                             { browserEnv = articlePreviewsData.browserEnv
                             , nostr = articlePreviewsData.nostr
-                            , articleComments = articlePreviewData.interactions.articleComments
-                            , articleCommentComments = articlePreviewData.interactions.articleCommentComments
+                            , articleComments = articlePreviewData.articleComments
+                            , articleCommentComments = articlePreviewData.articleCommentComments
                             , interactions = Dict.empty
                             , toInteractionsMsg = articlePreviewsData.articleToInteractionsMsg
                             , loginStatus = articlePreviewsData.loginStatus
@@ -1187,32 +1189,19 @@ viewArticleEditButton articlePreviewsData article articleAuthorPubKey =
 
 viewArticleBookmarkButton : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
 viewArticleBookmarkButton articlePreviewsData articlePreviewData article =
-    case
-        ( articlePreviewsData.onBookmark
-        , articlePreviewsData.loginStatus |> loggedInSigningPubKey
-        , addressComponentsForArticle article
-        )
-    of
-        ( Just ( onAddBookmark, onRemoveBookmark ), Just _, Just addressComponents ) ->
-            let
-                ( bookmarkMsg, bookmarkIcon ) =
-                    if articlePreviewData.interactions.isBookmarked then
-                        ( onRemoveBookmark, Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdded 30 Icon.Inherit )
+    case (loggedInSigningPubKey articlePreviewsData.loginStatus, addressComponentsForArticle article) of
+        ( Just _, Just addressComponents ) ->
+            BookmarkButton.new
+                { model = Dict.get article.id articlePreviewsData.bookmarkButtons
+                , interactionObject = InteractionButton.Article article.id addressComponents
+                , loginStatus = articlePreviewsData.loginStatus
+                , nostr = articlePreviewsData.nostr
+                , toMsg = articlePreviewsData.bookmarkButtonMsg article.id
+                , theme = articlePreviewsData.theme
+                }
+                |> BookmarkButton.view
 
-                    else
-                        ( onAddBookmark, Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdd 30 Icon.Inherit )
-            in
-            div
-                [ css
-                    [ Tw.cursor_pointer
-                    ]
-                , Events.onClick <| bookmarkMsg addressComponents
-                ]
-                [ bookmarkIcon
-                    |> Icon.view
-                ]
-
-        ( _, _, _ ) ->
+        _ ->
             emptyHtml
 
 
