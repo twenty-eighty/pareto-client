@@ -21,7 +21,7 @@ module Components.ZapButton exposing
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Icon as Icon
-import Components.InteractionButton as InteractionButton exposing (InteractionObject(..))
+import Components.InteractionButton as InteractionButton exposing (InteractionObject(..), pubKeyOfInteractionObject)
 import Effect exposing (Effect)
 import FeatherIcons
 import Html.Styled as Html exposing (Html)
@@ -173,10 +173,26 @@ view (Settings settings) =
                 _ ->
                     []
 
+        maybePubKey =
+            settings.interactionObject
+            |> pubKeyOfInteractionObject
+
         maybeNpub =
-            settings.loginStatus
-            |> loggedInPubKey
+            maybePubKey
             |> Maybe.andThen (\pubKey -> Nip19.encode (Npub pubKey) |> Result.toMaybe)
+
+
+        lud16 =
+            maybePubKey
+            |> Maybe.andThen (Nostr.getProfile settings.nostr)
+            |> Maybe.andThen .lud16
+
+        clickAction =
+            -- make clickable only if lud16 is set
+            if lud16 /= Nothing then
+                Just InteractionButton.NoAction
+            else
+                Nothing
 
         zapRelays =
             extendedZapRelays settings.relayUrls settings.nostr (settings.loginStatus |> loggedInPubKey)
@@ -187,9 +203,8 @@ view (Settings settings) =
             |> Maybe.withDefault ""
 
         ( nostrZapAttributes, zapComponent ) =
-            maybeNpub
-                |> Maybe.map
-                    (\npub ->
+                Maybe.map2
+                    (\npub _ ->
                         let
                             buttonId =
                                 "zap-button-" ++ (maybeNip19String |> Maybe.withDefault "") ++ instanceIdSuffix
@@ -205,6 +220,7 @@ view (Settings settings) =
                             []
                         )
                     )
+                    maybeNpub lud16
                 |> Maybe.withDefault ( [], emptyHtml )
     in
     Html.div []
@@ -219,7 +235,7 @@ view (Settings settings) =
             }
             |> InteractionButton.withLabel label
             |> InteractionButton.withAttributes nostrZapAttributes
-            |> InteractionButton.withOnClickAction (Just InteractionButton.NoAction)
+            |> InteractionButton.withOnClickAction clickAction
             |> InteractionButton.view
             |> Html.map settings.toMsg
         , zapComponent

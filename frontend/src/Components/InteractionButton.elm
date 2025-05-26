@@ -6,6 +6,7 @@ module Components.InteractionButton exposing
     , subscriptions
     , InteractionObject(..)
     , InteractionParams
+    , pubKeyOfInteractionObject
     , withLabel
     , withAttributes
     , withOnClickAction
@@ -64,6 +65,16 @@ type ClickAction msg
     = NoAction
     | Send SendRequest
     | SendMsg msg
+
+pubKeyOfInteractionObject : InteractionObject -> Maybe PubKey
+pubKeyOfInteractionObject interactionObject =
+    case interactionObject of
+        Article _ (_, pubKey, _) ->
+            Just pubKey
+        Comment _ pubKey ->
+            Just pubKey 
+        PicturePost _ pubKey ->
+            Just pubKey
 
 
 mapAction : (msg1 -> msg2) -> ClickAction msg1 -> ClickAction msg2
