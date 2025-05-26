@@ -586,7 +586,6 @@ viewContent shared model _ =
                     , browserEnv = shared.browserEnv
                     , nostr = shared.nostr
                     , userPubKey = Nothing
-                    , onBookmark = Nothing
                     }
     in
     case Categories.selected model.categories of
@@ -630,7 +629,7 @@ viewPicturePosts picturePostsViewData picturePosts =
             ]
 
 
-viewShortNotes : Shared.Model -> ShortNotesViewData msg -> List ShortNote -> Html msg
+viewShortNotes : Shared.Model -> ShortNotesViewData -> List ShortNote -> Html msg
 viewShortNotes shared shortNotesViewData shortNotes =
     shortNotes
         |> List.map
@@ -638,14 +637,6 @@ viewShortNotes shared shortNotesViewData shortNotes =
                 Ui.ShortNote.viewShortNote
                     shortNotesViewData
                     { author = Nostr.getAuthor shared.nostr shortNote.pubKey
-                    , actions =
-                        { addBookmark = Nothing
-                        , removeBookmark = Nothing
-                        , addReaction = Nothing
-                        , removeReaction = Nothing
-                        , addRepost = Nothing
-                        , startComment = Nothing
-                        }
                     , interactions =
                         { zaps = Nothing
                         , articleComments = []

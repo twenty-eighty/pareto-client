@@ -5,7 +5,6 @@ import Components.ArticleComments as ArticleComments
 import Components.Button as Button
 import Components.BookmarkButton as BookmarkButton
 import Components.Comment as Comment
-import Components.Icon as Icon
 import Components.InteractionButton as InteractionButton exposing (InteractionObject(..))
 import Components.Interactions
 import Components.SharingButtonDialog as SharingButtonDialog
@@ -39,7 +38,7 @@ import Tailwind.Utilities as Tw
 import Time
 import Translations.ArticleView as Translations
 import Translations.Posts
-import Ui.Interactions exposing (Actions, extendedZapRelays, viewInteractions)
+import Ui.Interactions exposing (extendedZapRelays, viewInteractions)
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
@@ -54,11 +53,7 @@ type alias ArticlePreviewsData msg =
     , browserEnv : BrowserEnv
     , nostr : Nostr.Model
     , loginStatus : LoginStatus
-    , onBookmark : Maybe ( AddressComponents -> msg, AddressComponents -> msg ) -- msgs for adding/removing a bookmark
     , commenting : Maybe ( Comment.Comment msg, CommentType -> msg )
-    , onReaction : Maybe (EventId -> PubKey -> AddressComponents -> msg)
-    , onRepost : Maybe msg
-    , onZap : Maybe (List ZapDialog.Recipient -> msg)
     , articleToInteractionsMsg : InteractionButton.InteractionObject -> Components.Interactions.Msg msg -> msg
     , openCommentMsg : Maybe msg
     , sharing : Maybe ( SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg )
@@ -67,7 +62,6 @@ type alias ArticlePreviewsData msg =
 
 type alias ArticlePreviewData msg =
     { author : Author
-    , actions : Actions msg
     , articleComments : List ArticleComment
     , articleCommentComments : Dict EventId (List ArticleCommentComment) -- event ID is the one of the parent comment
     , articleInteractions : Components.Interactions.Model
@@ -223,7 +217,6 @@ viewArticle articlePreviewsData articlePreviewData article =
             , loginStatus = articlePreviewsData.loginStatus
             , maybeNip19Target = nip19ForArticle article
             , zapRelays = extendedZapRelays articleRelays articlePreviewsData.nostr (articlePreviewsData.loginStatus |> loggedInPubKey)
-            , actions = articlePreviewData.actions
             , interactionsModel = articlePreviewData.articleInteractions
             , interactionObject = interactionObject
             , toInteractionsMsg = articlePreviewsData.articleToInteractionsMsg interactionObject

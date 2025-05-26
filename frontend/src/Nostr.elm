@@ -1200,23 +1200,6 @@ getCommunityList model pubKey =
     Dict.get pubKey model.communityLists
 
 
-getInteractionsForEventId : Model -> Maybe PubKey -> EventId -> Nostr.Reactions.Interactions
-getInteractionsForEventId model maybePubKey eventId =
-    { zaps = getZapReceiptsCountForComment model eventId
-    , articleComments = []
-    , articleCommentComments = Dict.empty
-    , highlights = Nothing
-    , reactions = getReactionsCountForEventId model eventId
-    , reposts = getRepostsCountForEventId model eventId
-    , notes = Nothing
-    , bookmarks = Nothing
-    , isBookmarked = False
-    , reaction = maybePubKey |> Maybe.andThen (\pubKey -> getReactionForEventId model pubKey eventId)
-    , repost =
-        Nothing
-    }
-
-
 isArticleBookmarked : Model -> Article -> PubKey -> Bool
 isArticleBookmarked model article pubKey =
     addressComponentsForArticle article

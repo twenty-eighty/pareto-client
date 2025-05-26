@@ -10,30 +10,27 @@ import Nostr.Reactions exposing (Interactions)
 import Nostr.ShortNote exposing (ShortNote)
 import Nostr.Types exposing (EventId, PubKey)
 import Tailwind.Utilities as Tw
-import Ui.Interactions exposing (Actions)
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme, darkMode, stylesForTheme)
 import Url
 
 
-type alias ShortNotesViewData msg =
+type alias ShortNotesViewData =
     { theme : Theme
     , browserEnv : BrowserEnv
     , nostr : Nostr.Model
     , userPubKey : Maybe PubKey
-    , onBookmark : Maybe ( EventId -> msg, EventId -> msg ) -- msgs for adding/removing a bookmark
     }
 
 
-type alias ShortNoteViewData msg =
+type alias ShortNoteViewData =
     { author : Author
-    , actions : Actions msg
     , interactions : Interactions
     }
 
 
-viewShortNote : ShortNotesViewData msg -> ShortNoteViewData msg -> ShortNote -> Html msg
+viewShortNote : ShortNotesViewData -> ShortNoteViewData -> ShortNote -> Html msg
 viewShortNote shortNotesViewData shortNoteViewData shortNote =
     let
         styles =

@@ -55,20 +55,15 @@ bookmarkListFromEvent event =
                             HashTag hashtag ->
                                 { bml | hashtags = hashtag :: bml.hashtags }
 
-                            EventDelegationTag identifier ->
-                                { bml | notes = identifier :: bml.notes }
+                            EventIdTag eventId _ ->
+                                { bml | notes = eventId :: bml.notes }
 
                             UrlTag urls _ ->
                                 { bml | urls = urls :: bml.urls }
 
                             _ ->
                                 bml
-                    )
-                    { notes = []
-                    , articles = []
-                    , hashtags = []
-                    , urls = []
-                    }
+                    ) emptyBookmarkList
     in
     ( event.pubKey, bookmarkList )
 

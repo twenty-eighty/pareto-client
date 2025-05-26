@@ -21,7 +21,6 @@ import Nostr.Types exposing (loggedInSigningPubKey)
 import Tailwind.Utilities as Tw
 import Ui.Article exposing (ArticlePreviewsData)
 import Ui.Community
-import Ui.Interactions exposing (Actions)
 import Ui.Styles exposing (Theme)
 
 
@@ -35,7 +34,6 @@ viewArticle articlePreviewsData loadedContent articleInteractions article =
     Ui.Article.viewArticle
         articlePreviewsData
         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
-        , actions = actionsFromArticlePreviewsData articlePreviewsData article
         , articleComments = []
         , articleCommentComments = Dict.empty
         , articleInteractions = articleInteractions
@@ -43,53 +41,6 @@ viewArticle articlePreviewsData loadedContent articleInteractions article =
         , loadedContent = loadedContent
         }
         article
-
-
-actionsFromArticlePreviewsData : ArticlePreviewsData msg -> Article -> Actions msg
-actionsFromArticlePreviewsData articlePreviewsData article =
-    let
-        maybeAddressComponents =
-            addressComponentsForArticle article
-
-        addReactionMsg =
-            Maybe.map2
-                (\addReaction addressComponents ->
-                    addReaction article.id article.author addressComponents
-                )
-                articlePreviewsData.onReaction
-                maybeAddressComponents
-
-        startCommentMsg =
-            articlePreviewsData.loginStatus
-                |> loggedInSigningPubKey
-                |> Maybe.andThen
-                    (\userPubKey ->
-                        Maybe.map2
-                            (\( _, openCommentMsg ) draftComment ->
-                                openCommentMsg draftComment
-                            )
-                            articlePreviewsData.commenting
-                            (articleDraftComment userPubKey article)
-                    )
-    in
-    case ( articlePreviewsData.onBookmark, maybeAddressComponents ) of
-        ( Just ( addArticleBookmark, removeArticleBookmark ), Just addressComponents ) ->
-            { addBookmark = Just <| addArticleBookmark addressComponents
-            , removeBookmark = Just <| removeArticleBookmark addressComponents
-            , addReaction = addReactionMsg
-            , removeReaction = Nothing
-            , addRepost = articlePreviewsData.onRepost
-            , startComment = startCommentMsg
-            }
-
-        ( _, _ ) ->
-            { addBookmark = Nothing
-            , removeBookmark = Nothing
-            , addReaction = Nothing
-            , removeReaction = Nothing
-            , addRepost = Nothing
-            , startComment = Nothing
-            }
 
 
 viewArticlePreviews : ArticlePreviewType -> ArticlePreviewsData msg -> List Article -> Html msg
@@ -126,8 +77,6 @@ viewArticlePreviewsList articlePreviewsData articles =
                             Ui.Article.viewArticlePreviewList
                             articlePreviewsData
                             { author = Nostr.getAuthor articlePreviewsData.nostr article.author
-                            , actions =
-                                actionsFromArticlePreviewsData articlePreviewsData article
                             , articleInteractions = Components.Interactions.init
                             , articleComments = []
                             , articleCommentComments = Dict.empty
@@ -159,8 +108,6 @@ viewArticlePreviewsBigPicture articlePreviewsData articles =
                     Ui.Article.viewArticlePreviewBigPicture
                         articlePreviewsData
                         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
-                        , actions =
-                            actionsFromArticlePreviewsData articlePreviewsData article
                         , articleInteractions = Components.Interactions.init
                         , articleComments = []
                         , articleCommentComments = Dict.empty

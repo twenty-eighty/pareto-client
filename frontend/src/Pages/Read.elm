@@ -199,12 +199,6 @@ init shared route () =
 type Msg
     = CategorySelected Category
     | CategoriesSent (Categories.Msg Category Msg)
-    | AddArticleBookmark PubKey AddressComponents
-    | RemoveArticleBookmark PubKey AddressComponents
-    | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
-    | RemoveArticleReaction PubKey EventId -- event ID of like
-    | AddShortNoteBookmark PubKey EventId
-    | RemoveShortNoteBookmark PubKey EventId
     | BookmarkButtonMsg EventId BookmarkButton.Msg
     | NoOp
 
@@ -221,45 +215,6 @@ update shared msg model =
                 , toModel = \categories -> { model | categories = categories }
                 , toMsg = CategoriesSent
                 }
-
-        AddArticleBookmark pubKey addressComponents ->
-            ( model
-            , SendBookmarkListWithArticle pubKey addressComponents
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        RemoveArticleBookmark pubKey addressComponents ->
-            ( model
-            , SendBookmarkListWithoutArticle pubKey addressComponents
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        AddArticleReaction userPubKey eventId articlePubKey addressComponents ->
-            ( model
-            , SendReaction userPubKey eventId articlePubKey (Just addressComponents)
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        RemoveArticleReaction _ _ ->
-            -- TODO: Delete like
-            ( model, Effect.none )
-
-        AddShortNoteBookmark pubKey eventId ->
-            ( model
-            , SendBookmarkListWithShortNote pubKey eventId
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        RemoveShortNoteBookmark pubKey eventId ->
-            ( model
-            , SendBookmarkListWithoutShortNote pubKey eventId
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
 
         BookmarkButtonMsg eventId innerMsg ->
             BookmarkButton.update
@@ -512,11 +467,7 @@ viewContent shared model userPubKey =
                     , browserEnv = shared.browserEnv
                     , nostr = shared.nostr
                     , loginStatus = shared.loginStatus
-                    , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) userPubKey
                     , commenting = Nothing
-                    , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) userPubKey
-                    , onRepost = Nothing
-                    , onZap = Nothing
                     , articleToInteractionsMsg = \_ _ -> NoOp
                     , openCommentMsg = Nothing
                     , sharing = Nothing
@@ -529,7 +480,6 @@ viewContent shared model userPubKey =
                     , browserEnv = shared.browserEnv
                     , nostr = shared.nostr
                     , userPubKey = userPubKey
-                    , onBookmark = Maybe.map (\pubKey -> ( AddShortNoteBookmark pubKey, RemoveShortNoteBookmark pubKey )) userPubKey
                     }
     in
     case Categories.selected model.categories of
@@ -552,7 +502,7 @@ viewContent shared model userPubKey =
             viewNotes
 
 
-viewShortNotes : ShortNotesViewData Msg -> List ShortNote -> Html Msg
+viewShortNotes : ShortNotesViewData -> List ShortNote -> Html Msg
 viewShortNotes shortNotesViewData shortNotes =
     shortNotes
         |> List.map
@@ -560,14 +510,6 @@ viewShortNotes shortNotesViewData shortNotes =
                 ShortNote.viewShortNote
                     shortNotesViewData
                     { author = Nostr.getAuthor shortNotesViewData.nostr shortNote.pubKey
-                    , actions =
-                        { addBookmark = Nothing
-                        , removeBookmark = Nothing
-                        , addReaction = Nothing
-                        , removeReaction = Nothing
-                        , addRepost = Nothing
-                        , startComment = Nothing
-                        }
                     , interactions =
                         { zaps = Nothing
                         , articleComments = []

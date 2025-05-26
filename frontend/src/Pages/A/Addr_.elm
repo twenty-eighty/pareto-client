@@ -217,11 +217,7 @@ decodedTagParam tag =
 
 
 type Msg
-    = AddArticleBookmark PubKey AddressComponents
-    | RemoveArticleBookmark PubKey AddressComponents
-    | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
-    | AddRepost PubKey Article
-    | AddLoadedContent String
+    = AddLoadedContent String
     | OpenComment CommentType
     | CommentSent Comment.Msg
     | CommentInteractionsSent EventId PubKey (Interactions.Msg Msg)
@@ -235,40 +231,6 @@ type Msg
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
-        AddArticleBookmark pubKey addressComponents ->
-            ( model
-            , SendBookmarkListWithArticle pubKey addressComponents
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        RemoveArticleBookmark pubKey addressComponents ->
-            ( model
-            , SendBookmarkListWithoutArticle pubKey addressComponents
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        AddArticleReaction userPubKey eventId articlePubKey addressComponents ->
-            ( model
-            , SendReaction userPubKey eventId articlePubKey (Just addressComponents)
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        AddRepost userPubKey article ->
-            let
-                relays =
-                    article.relays
-                        |> Set.toList
-                        |> List.append (Nostr.getWriteRelayUrlsForPubKey shared.nostr userPubKey)
-            in
-            ( model
-            , SendRepost relays (articleRepostEvent userPubKey article)
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
         AddLoadedContent url ->
             case model of
                 Nip19Model nip19ModelData ->
@@ -507,13 +469,7 @@ viewContent shared nip19 comment loadedContent requestId interactions sharingBut
                         , browserEnv = shared.browserEnv
                         , nostr = shared.nostr
                         , loginStatus = shared.loginStatus
-                        , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) signingUserPubKey
                         , commenting = commenting
-                        , onRepost = Maybe.map (\pubKey -> AddRepost pubKey article) signingUserPubKey
-                        , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) signingUserPubKey
-
-                        -- signing is possible also with read-only login
-                        , onZap = Maybe.map (\pubKey -> ZapReaction pubKey) (loggedInPubKey shared.loginStatus)
                         , articleToInteractionsMsg = ArticleInteractionsSent
                         , bookmarkButtonMsg = \_ _ -> NoOp
                         , bookmarkButtons = Dict.empty

@@ -21,22 +21,12 @@ import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme)
 
 
-type alias Actions msg =
-    { addBookmark : Maybe msg
-    , removeBookmark : Maybe msg
-    , addReaction : Maybe msg
-    , removeReaction : Maybe msg
-    , addRepost : Maybe msg
-    , startComment : Maybe msg
-    }
-
 
 type alias PreviewData msg =
     { browserEnv : BrowserEnv
     , loginStatus : LoginStatus
     , maybeNip19Target : Maybe String
     , zapRelays : Set String
-    , actions : Actions msg
     , interactionsModel : Components.Interactions.Model
     , interactionObject : Components.InteractionButton.InteractionObject
     , toInteractionsMsg : Components.Interactions.Msg msg -> msg
