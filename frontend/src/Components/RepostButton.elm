@@ -133,10 +133,14 @@ view (Settings settings) =
             settings.loginStatus
             |> loggedInSigningPubKey
             |> Maybe.map (\pubKey ->
-                getSendRequest settings.interactionObject pubKey
-                |> InteractionButton.Send
+                if not reposted then
+                    getSendRequest settings.interactionObject pubKey
+                    |> InteractionButton.Send
+                    |> Just
+                else
+                    Nothing
             )
-            |> Maybe.withDefault InteractionButton.NoAction
+            |> Maybe.withDefault Nothing
     in
     InteractionButton.new
         { model = model

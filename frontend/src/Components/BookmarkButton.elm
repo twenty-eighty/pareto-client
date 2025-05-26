@@ -143,12 +143,11 @@ view (Settings settings) =
             |> loggedInSigningPubKey
             |> Maybe.map (\pubKey ->
                 if isBookmarked then
-                    getAddBookmarkRequest settings.interactionObject pubKey
-                else
                     getRemoveBookmarkRequest settings.interactionObject pubKey
+                else
+                    getAddBookmarkRequest settings.interactionObject pubKey
             )
             |> Maybe.map InteractionButton.Send
-            |> Maybe.withDefault InteractionButton.NoAction
     in
     InteractionButton.new
         { model = model

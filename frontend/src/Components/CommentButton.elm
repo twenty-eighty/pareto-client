@@ -140,16 +140,17 @@ view (Settings settings) =
             |> Maybe.map (hasComment settings.interactionObject settings.nostr)
             |> Maybe.withDefault False
 
-        clickAction : InteractionButton.ClickAction (Msg msg)
+        clickAction : Maybe (InteractionButton.ClickAction (Msg msg))
         clickAction =
             if loggedInSigningPubKey settings.loginStatus /= Nothing then
                 settings.openCommentMsg
                 |> Maybe.map (\openCommentMsg ->
                     InteractionButton.SendMsg (OpenComment openCommentMsg)
+                    |> Just
                 )
-                |> Maybe.withDefault InteractionButton.NoAction
+                |> Maybe.withDefault Nothing
             else
-                InteractionButton.NoAction
+                Nothing
     in
     InteractionButton.new
         { model = model

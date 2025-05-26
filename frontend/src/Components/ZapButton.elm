@@ -219,7 +219,7 @@ view (Settings settings) =
             }
             |> InteractionButton.withLabel label
             |> InteractionButton.withAttributes nostrZapAttributes
-            |> InteractionButton.withOnClickAction (InteractionButton.NoAction)
+            |> InteractionButton.withOnClickAction (Just InteractionButton.NoAction)
             |> InteractionButton.view
             |> Html.map settings.toMsg
         , zapComponent

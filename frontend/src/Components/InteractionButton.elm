@@ -144,7 +144,7 @@ update props =
 updateWithMessage : Model -> I18Next.Translations -> IncomingMessage -> ( Model, Effect msg )
 updateWithMessage (Model model) translations message =
     case message.messageType of
-        "events" ->
+        "published" ->
             case (model.sendRequestId, Nostr.External.decodeSendId message.value) of
                 ( Just sendRequestId, Ok incomingSendRequestId ) ->
                     if sendRequestId == incomingSendRequestId then
@@ -217,9 +217,9 @@ withLabel label (Settings settings) =
     Settings { settings | label = Just label }
 
 
-withOnClickAction : ClickAction msg -> InteractionButton msg -> InteractionButton msg
+withOnClickAction : Maybe (ClickAction msg) -> InteractionButton msg -> InteractionButton msg
 withOnClickAction clickAction (Settings settings) =
-    Settings { settings | onClickAction = Just clickAction }
+    Settings { settings | onClickAction = clickAction }
 
 
 withAttributes : List (String, String) -> InteractionButton msg -> InteractionButton msg
@@ -252,8 +252,11 @@ view (Settings settings) =
                 settings.unreactedIcon
 
         onClick =
-            settings.onClickAction
-            |> Maybe.map Clicked
+            if settings.onClickAction /= Nothing then
+                settings.onClickAction
+                |> Maybe.map Clicked
+            else
+                Nothing
     in
     div
         [ css

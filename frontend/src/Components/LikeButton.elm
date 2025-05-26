@@ -123,20 +123,30 @@ view (Settings settings) =
             getReactionsCount settings.interactionObject settings.nostr
             |> String.fromInt
 
+        reacted =
+            settings.loginStatus
+            |> loggedInPubKey
+            |> Maybe.map (isLiked settings.interactionObject settings.nostr)
+            |> Maybe.withDefault False
+
         clickAction =
             settings.loginStatus
             |> loggedInSigningPubKey
             |> Maybe.map (\pubKey ->
-                getSendRequest settings.interactionObject pubKey
-                |> InteractionButton.Send
+                if not reacted then
+                    getSendRequest settings.interactionObject pubKey
+                    |> InteractionButton.Send
+                    |> Just
+                else
+                    Nothing
             )
-            |> Maybe.withDefault InteractionButton.NoAction
+            |> Maybe.withDefault Nothing
     in
     InteractionButton.new
         { model = model
         , unreactedIcon = Icon.MaterialIcon Icon.MaterialFavoriteBorder 20 Icon.Inherit
         , reactedIcon = Icon.MaterialIcon Icon.MaterialFavorite 20 (Icon.Color (Color.fromRgba { red = 1.0, green = 0.0, blue = 0.0, alpha = 1.0 }))
-        , reacted = settings.loginStatus |> loggedInPubKey |> Maybe.map (isLiked settings.interactionObject settings.nostr) |> Maybe.withDefault False
+        , reacted = reacted
         , toMsg = InteractionButtonMsg
         , theme = settings.theme
         }
