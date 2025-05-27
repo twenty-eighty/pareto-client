@@ -19,6 +19,7 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Dropdown
 import Components.Icon as Icon
+import Components.ModalDialog as ModalDialog
 import Components.UploadDialog as UploadDialog exposing (UploadResponse(..), UploadServer)
 import Css
 import Dict exposing (Dict)
@@ -776,11 +777,14 @@ view (Settings settings) =
             emptyHtml
 
         DisplayModalDialog True ->
-            Ui.Shared.modalDialog
-                settings.theme
-                (Translations.selectImageDialogTitle [ settings.browserEnv.translations ])
-                [ viewMediaSelector (Settings settings) ]
-                (settings.toMsg CloseDialog)
+            ModalDialog.new
+                { title = Translations.selectImageDialogTitle [ settings.browserEnv.translations ]
+                , content = [ viewMediaSelector (Settings settings) ]
+                , onClose = settings.toMsg CloseDialog
+                , theme = settings.theme
+                , buttons = [ ]
+                }
+                |> ModalDialog.view
 
         DisplayEmbedded ->
             viewMediaSelector (Settings settings)
@@ -931,7 +935,13 @@ viewImages (Settings settings) filesToShow =
                 DisplayModalDialog _ ->
                     [ Tw.max_h_96
                     , Tw.overflow_y_auto
-                    , Tw.grid_cols_3
+                    , Bp.lg
+                        [ Tw.grid_cols_4
+                        ]
+                    , Bp.md
+                        [ Tw.grid_cols_3
+                        ]
+                    , Tw.grid_cols_2
                     ]
 
                 DisplayEmbedded ->
