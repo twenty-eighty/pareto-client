@@ -61,6 +61,7 @@
    "comment": {
       "comment label": "Kommentar",
       "comment placeholder": "Schreibe deinen Kommentar ...",
+      "comment button text": "Comment",
       "post button text": "Senden",
       "posting button text": "Sende ...",
       "posted button text": "Gesendet",
@@ -443,6 +444,9 @@
    "hashtag editor": {
       "label": "Hashtags",
       "placeholder": "Gib Hashtags mit Komma getrennt ein"
+   },
+   "interaction button": {
+      "error publishing interaction": "Error publishing interaction: {{reason}}"
    },
    "internals": {
       "page title": "Interne Informationen",
