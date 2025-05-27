@@ -1,9 +1,10 @@
 module Pages.Read exposing (Model, Msg, init, page, subscriptions, update, view)
 
-import BrowserEnv exposing (BrowserEnv)
+import Components.ArticleComments as ArticleComments
+import Components.BookmarkButton as BookmarkButton
 import Components.Categories as Categories
 import Components.Icon as Icon
-import Dict
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes as Attr exposing (css)
@@ -17,7 +18,7 @@ import Nostr.FollowList exposing (followingPubKey)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.ShortNote exposing (ShortNote)
-import Nostr.Types exposing (EventId, PubKey)
+import Nostr.Types exposing (EventId, LoginStatus, PubKey, loggedInPubKey)
 import Page exposing (Page)
 import Pareto
 import Ports
@@ -76,6 +77,7 @@ toLayout shared model =
 type alias Model =
     { categories : Categories.Model Category
     , path : Route.Path.Path
+    , bookmarkButtons : Dict EventId BookmarkButton.Model
     }
 
 
@@ -178,6 +180,7 @@ init shared route () =
     in
     ( { categories = Categories.init { selected = correctedCategory }
       , path = route.path
+      , bookmarkButtons = Dict.empty
       }
     , Effect.batch
         [ changeCategoryEffect
@@ -197,13 +200,8 @@ init shared route () =
 type Msg
     = CategorySelected Category
     | CategoriesSent (Categories.Msg Category Msg)
-    | AddArticleBookmark PubKey AddressComponents
-    | RemoveArticleBookmark PubKey AddressComponents
-    | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
-    | RemoveArticleReaction PubKey EventId -- event ID of like
-    | AddShortNoteBookmark PubKey EventId
-    | RemoveShortNoteBookmark PubKey EventId
-
+    | BookmarkButtonMsg EventId BookmarkButton.Msg
+    | NoOp
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
@@ -219,44 +217,18 @@ update shared msg model =
                 , toMsg = CategoriesSent
                 }
 
-        AddArticleBookmark pubKey addressComponents ->
-            ( model
-            , SendBookmarkListWithArticle pubKey addressComponents
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
+        BookmarkButtonMsg eventId innerMsg ->
+            BookmarkButton.update
+                { msg = innerMsg
+                , model = Dict.get eventId model.bookmarkButtons
+                , nostr = shared.nostr
+                , toModel = \bookmarkButton -> { model | bookmarkButtons = Dict.insert eventId bookmarkButton model.bookmarkButtons }
+                , toMsg = BookmarkButtonMsg eventId
+                , translations = shared.browserEnv.translations
+                }
 
-        RemoveArticleBookmark pubKey addressComponents ->
-            ( model
-            , SendBookmarkListWithoutArticle pubKey addressComponents
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        AddArticleReaction userPubKey eventId articlePubKey addressComponents ->
-            ( model
-            , SendReaction userPubKey eventId articlePubKey addressComponents
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        RemoveArticleReaction _ _ ->
-            -- TODO: Delete like
+        NoOp ->
             ( model, Effect.none )
-
-        AddShortNoteBookmark pubKey eventId ->
-            ( model
-            , SendBookmarkListWithShortNote pubKey eventId
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        RemoveShortNoteBookmark pubKey eventId ->
-            ( model
-            , SendBookmarkListWithoutShortNote pubKey eventId
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
 
 
 updateModelWithCategory : Shared.Model -> Model -> Category -> ( Model, Effect Msg )
@@ -327,9 +299,9 @@ paretoRssFollowsList nostr =
             []
 
 
-userFollowsList : Nostr.Model -> Shared.Model.LoginStatus -> List PubKey
+userFollowsList : Nostr.Model -> LoginStatus -> List PubKey
 userFollowsList nostr loginStatus =
-    case Shared.loggedInPubKey loginStatus of
+    case loggedInPubKey loginStatus of
         Just pubKey ->
             case Nostr.getFollowsList nostr pubKey of
                 Just followsList ->
@@ -348,15 +320,17 @@ userFollowsList nostr loginStatus =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
-
+subscriptions model =
+    model.bookmarkButtons
+    |> Dict.toList
+    |> List.map (\(eventId, bookmarkButton) -> BookmarkButton.subscriptions bookmarkButton |> Sub.map (BookmarkButtonMsg eventId))
+    |> Sub.batch
 
 
 -- VIEW
 
 
-availableCategories : Nostr.Model -> Shared.Model.LoginStatus -> I18Next.Translations -> List (Categories.CategoryData Category)
+availableCategories : Nostr.Model -> LoginStatus -> I18Next.Translations -> List (Categories.CategoryData Category)
 availableCategories nostr loginStatus translations =
     let
         paretoCategories =
@@ -428,7 +402,7 @@ view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     let
         userPubKey =
-            Shared.loggedInPubKey shared.loginStatus
+            loggedInPubKey shared.loginStatus
     in
     { title = Translations.Sidebar.readMenuItemText [ shared.browserEnv.translations ]
     , body =
@@ -488,16 +462,16 @@ viewContent shared model userPubKey =
             Nostr.getArticlesByDate shared.nostr
                 |> Ui.View.viewArticlePreviews
                     ArticlePreviewList
-                    { theme = shared.theme
+                    { articleComments = ArticleComments.init
+                    , articleToInteractionsMsg = \_ _ -> NoOp
+                    , bookmarkButtonMsg = BookmarkButtonMsg
+                    , bookmarkButtons = model.bookmarkButtons
                     , browserEnv = shared.browserEnv
+                    , commentsToMsg = \_ -> NoOp
                     , nostr = shared.nostr
-                    , userPubKey = userPubKey
-                    , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) userPubKey
-                    , commenting = Nothing
-                    , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) userPubKey
-                    , onRepost = Nothing
-                    , onZap = Nothing
+                    , loginStatus = shared.loginStatus
                     , sharing = Nothing
+                    , theme = shared.theme
                     }
 
         viewNotes =
@@ -507,7 +481,6 @@ viewContent shared model userPubKey =
                     , browserEnv = shared.browserEnv
                     , nostr = shared.nostr
                     , userPubKey = userPubKey
-                    , onBookmark = Maybe.map (\pubKey -> ( AddShortNoteBookmark pubKey, RemoveShortNoteBookmark pubKey )) userPubKey
                     }
     in
     case Categories.selected model.categories of
@@ -530,7 +503,7 @@ viewContent shared model userPubKey =
             viewNotes
 
 
-viewShortNotes : ShortNotesViewData Msg -> List ShortNote -> Html Msg
+viewShortNotes : ShortNotesViewData -> List ShortNote -> Html Msg
 viewShortNotes shortNotesViewData shortNotes =
     shortNotes
         |> List.map
@@ -538,14 +511,6 @@ viewShortNotes shortNotesViewData shortNotes =
                 ShortNote.viewShortNote
                     shortNotesViewData
                     { author = Nostr.getAuthor shortNotesViewData.nostr shortNote.pubKey
-                    , actions =
-                        { addBookmark = Nothing
-                        , removeBookmark = Nothing
-                        , addReaction = Nothing
-                        , removeReaction = Nothing
-                        , addRepost = Nothing
-                        , startComment = Nothing
-                        }
                     , interactions =
                         { zaps = Nothing
                         , articleComments = []

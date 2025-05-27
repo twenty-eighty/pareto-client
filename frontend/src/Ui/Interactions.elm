@@ -1,10 +1,10 @@
 module Ui.Interactions exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
-import Color
 import Components.Icon as Icon exposing (Icon)
+import Components.InteractionButton
+import Components.Interactions
 import Components.SharingButtonDialog as SharingButtonDialog
-import Dict
 import FeatherIcons
 import Html.Styled as Html exposing (Html, div, text)
 import Html.Styled.Attributes as Attr exposing (css)
@@ -13,31 +13,23 @@ import I18Next
 import Json.Encode as Encode
 import Nostr
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
-import Nostr.Reactions exposing (Interactions)
 import Nostr.Relay exposing (websocketUrl)
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (LoginStatus, PubKey, loggedInPubKey)
 import Set exposing (Set)
 import Tailwind.Utilities as Tw
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Styles, Theme, print)
-
-
-type alias Actions msg =
-    { addBookmark : Maybe msg
-    , removeBookmark : Maybe msg
-    , addReaction : Maybe msg
-    , removeReaction : Maybe msg
-    , addRepost : Maybe msg
-    , startComment : Maybe msg
-    }
+import Ui.Styles exposing (Theme)
 
 
 type alias PreviewData msg =
-    { pubKey : PubKey
+    { browserEnv : BrowserEnv
+    , loginStatus : LoginStatus
     , maybeNip19Target : Maybe String
     , zapRelays : Set String
-    , actions : Actions msg
-    , interactions : Interactions
+    , interactionsModel : Components.Interactions.Model
+    , interactionObject : Components.InteractionButton.InteractionObject
+    , toInteractionsMsg : Components.Interactions.Msg msg -> msg
+    , nostr : Nostr.Model
     , sharing : Maybe ( SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg )
     , sharingInfo : SharingButtonDialog.SharingInfo
     , translations : I18Next.Translations
@@ -45,79 +37,28 @@ type alias PreviewData msg =
     }
 
 
-viewInteractions : Styles msg -> BrowserEnv -> PreviewData msg -> String -> Html msg
-viewInteractions styles browserEnv previewData instanceId =
-    let
-        actions =
-            previewData.actions
-
-        interactions =
-            previewData.interactions
-
-        ( bookmarkIcon, bookmarkMsg ) =
-            if interactions.isBookmarked then
-                ( Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdded 30 Icon.Inherit, actions.removeBookmark )
-
-            else
-                ( Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdd 30 Icon.Inherit, actions.addBookmark )
-
-        ( reactionIcon, reactionMsg ) =
-            case interactions.reaction of
-                Just _ ->
-                    ( Icon.MaterialIcon Icon.MaterialFavorite 30 (Icon.Color (Color.fromRgba { red = 1.0, green = 0.0, blue = 0.0, alpha = 1.0 })), actions.removeReaction )
-
-                Nothing ->
-                    ( Icon.MaterialIcon Icon.MaterialFavoriteBorder 30 Icon.Inherit, actions.addReaction )
-
-        ( repostIcon, repostMsg ) =
-            case interactions.repost of
-                Just _ ->
-                    ( Icon.MaterialIcon Icon.MaterialRepeatOn 30 Icon.Inherit
-                      -- disable reposting if done already by user
-                    , Nothing
-                    )
-
-                Nothing ->
-                    ( Icon.MaterialIcon Icon.MaterialRepeat 30 Icon.Inherit
-                    , actions.addRepost
-                    )
-
-        commentsCount =
-            List.length interactions.articleComments + Dict.size interactions.articleCommentComments
-    in
-    div
-        (css
-            [ Tw.justify_start
-            , Tw.items_center
-            , Tw.gap_6
-            , Tw.inline_flex
-            , print
-                [ Tw.hidden
-                ]
+viewInteractions : PreviewData msg -> String -> Html msg
+viewInteractions previewData instanceId =
+    Components.Interactions.new
+        { browserEnv = previewData.browserEnv
+        , model = Just previewData.interactionsModel
+        , toMsg = previewData.toInteractionsMsg
+        , theme = previewData.theme
+        , interactionObject = previewData.interactionObject
+        , nostr = previewData.nostr
+        , loginStatus = previewData.loginStatus
+        }
+        |> Components.Interactions.withInteractionElements
+            [ Components.Interactions.CommentButtonElement Nothing
+            , Components.Interactions.LikeButtonElement
+            , Components.Interactions.RepostButtonElement
+            , Components.Interactions.ZapButtonElement instanceId previewData.zapRelays
+            , Components.Interactions.BookmarkButtonElement
+            , Components.Interactions.ShareButtonElement previewData.sharingInfo
             ]
-            :: styles.colorStyleGrayscaleText
-        )
-        [ viewReactions (Icon.FeatherIcon FeatherIcons.messageSquare) actions.startComment (Just <| String.fromInt commentsCount) previewData instanceId
-        , viewReactions reactionIcon reactionMsg (Maybe.map String.fromInt interactions.reactions) previewData instanceId
-        , viewReactions repostIcon repostMsg (Maybe.map String.fromInt interactions.reposts) previewData instanceId
-        , viewReactions (Icon.FeatherIcon FeatherIcons.zap) Nothing (Maybe.map (formatZapNum browserEnv) interactions.zaps) previewData instanceId
-        , viewReactions bookmarkIcon bookmarkMsg (Maybe.map String.fromInt interactions.bookmarks) previewData instanceId
-        , previewData.sharing
-            |> Maybe.map
-                (\( sharingButtonDialog, sharingButtonDialogMsg ) ->
-                    SharingButtonDialog.new
-                        { model = sharingButtonDialog
-                        , browserEnv = browserEnv
-                        , sharingInfo = previewData.sharingInfo
-                        , translations = previewData.translations
-                        , theme = previewData.theme
-                        , toMsg = sharingButtonDialogMsg
-                        }
-                        |> SharingButtonDialog.view
-                )
-            |> Maybe.withDefault emptyHtml
-        ]
-
+        |> Components.Interactions.view
+{-
+-}
 
 viewReactions : Icon -> Maybe msg -> Maybe String -> PreviewData msg -> String -> Html msg
 viewReactions icon maybeMsg maybeCount previewData instanceId =
@@ -140,7 +81,7 @@ viewReactions icon maybeMsg maybeCount previewData instanceId =
             ]
         ]
         [ if icon == Icon.FeatherIcon FeatherIcons.zap then
-            zapButton previewData.pubKey previewData.maybeNip19Target previewData.zapRelays instanceId
+            zapButton (previewData.loginStatus |> loggedInPubKey) previewData.maybeNip19Target previewData.zapRelays instanceId
 
           else
             div
@@ -168,8 +109,8 @@ formatZapNum browserEnv milliSats =
     browserEnv.formatNumber "0 a" <| toFloat (milliSats // 1000)
 
 
-zapButton : PubKey -> Maybe String -> Set String -> String -> Html msg
-zapButton pubKey maybeNip19Target zapRelays instanceId =
+zapButton : Maybe PubKey -> Maybe String -> Set String -> String -> Html msg
+zapButton maybePubKey maybeNip19Target zapRelays instanceId =
     let
         maybeNip19TargetAttr =
             maybeNip19Target
@@ -183,7 +124,8 @@ zapButton pubKey maybeNip19Target zapRelays instanceId =
                     )
 
         maybeNpub =
-            Nip19.encode (Npub pubKey) |> Result.toMaybe
+            maybePubKey
+            |> Maybe.andThen (\pubKey -> Nip19.encode (Npub pubKey) |> Result.toMaybe)
 
         ( nostrZapAttributes, zapComponent ) =
             maybeNpub
@@ -224,19 +166,21 @@ zapButton pubKey maybeNip19Target zapRelays instanceId =
 -}
 
 
-extendedZapRelays : Set String -> Nostr.Model -> Maybe PubKey -> Set String
-extendedZapRelays zapRelays nostrModel maybePubKey =
+extendedZapRelays : Set String -> Nostr.Model -> LoginStatus -> Set String
+extendedZapRelays zapRelays nostrModel loginStatus =
     let
         pubKeyRelays =
-            maybePubKey
+            loginStatus
+                |> loggedInPubKey
                 |> Maybe.map (pubkeyRelays nostrModel)
                 |> Maybe.withDefault Set.empty
 
         defaultRelays =
-            Set.fromList nostrModel.defaultRelays |> Set.map websocketUrl
+            Set.fromList nostrModel.defaultRelays
 
         candidateRelays =
             Set.union zapRelays pubKeyRelays
+            |> Set.map websocketUrl
     in
     if Set.size candidateRelays == Set.size zapRelays || Set.size candidateRelays == Set.size pubKeyRelays then
         Set.union candidateRelays defaultRelays

@@ -1,5 +1,7 @@
 module Pages.E.Event_ exposing (..)
 
+import Components.ArticleComments as ArticleComments
+import Components.Interactions
 import Components.RelayStatus exposing (Purpose(..))
 import Dict
 import Effect exposing (Effect)
@@ -176,6 +178,7 @@ type Msg
     = AddLoadedContent String
     | ReceivedMessage IncomingMessage
     | NostrMsg Nostr.Msg
+    | NoOp
 
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -190,6 +193,8 @@ update _ msg model =
         NostrMsg _ ->
             ( model, Effect.none )
 
+        NoOp ->
+            ( model, Effect.none )
 
 addArticle : List Article -> Article -> List Article
 addArticle articleList newArticle =
@@ -239,17 +244,8 @@ viewContent shared model =
                             , browserEnv = shared.browserEnv
                             , nostr = shared.nostr
                             , userPubKey = Nothing
-                            , onBookmark = Nothing
                             }
                             { author = Nostr.getAuthor shared.nostr shortNote.pubKey
-                            , actions =
-                                { addBookmark = Nothing
-                                , removeBookmark = Nothing
-                                , addReaction = Nothing
-                                , removeReaction = Nothing
-                                , addRepost = Nothing
-                                , startComment = Nothing
-                                }
                             , interactions =
                                 { zaps = Nothing
                                 , articleComments = []
@@ -272,18 +268,19 @@ viewContent shared model =
             Nostr.getArticleForAddressComponents shared.nostr addressComponents
                 |> Maybe.map
                     (Ui.View.viewArticle
-                        { theme = shared.theme
+                        { articleComments = ArticleComments.init
+                        , articleToInteractionsMsg = \_ _ -> NoOp
+                        , bookmarkButtonMsg = \_ _ -> NoOp
+                        , bookmarkButtons = Dict.empty
                         , browserEnv = shared.browserEnv
+                        , commentsToMsg = \_ -> NoOp
                         , nostr = shared.nostr
-                        , userPubKey = Shared.loggedInPubKey shared.loginStatus
-                        , onBookmark = Nothing
-                        , commenting = Nothing
-                        , onReaction = Nothing
-                        , onRepost = Nothing
-                        , onZap = Nothing
+                        , loginStatus = shared.loginStatus
                         , sharing = Nothing
+                        , theme = shared.theme
                         }
                         (Just model.loadedContent)
+                        Components.Interactions.init
                     )
                 |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle model.requestId)
 

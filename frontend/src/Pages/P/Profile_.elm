@@ -1,7 +1,9 @@
 module Pages.P.Profile_ exposing (Model, Msg, page)
 
+import Components.ArticleComments as ArticleComments
 import Components.EmailSubscriptionDialog as EmailSubscriptionDialog
 import Components.RelayStatus exposing (Purpose(..))
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
 import Layouts
@@ -12,7 +14,7 @@ import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (Following(..), PubKey)
+import Nostr.Types exposing (Following(..), PubKey, loggedInSigningPubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
@@ -161,7 +163,7 @@ type Msg
     | Unfollow PubKey PubKey
     | OpenSubscribeDialog
     | EmailSubscriptionDialogSent (EmailSubscriptionDialog.Msg Msg)
-
+    | NoOp
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
@@ -194,6 +196,8 @@ update shared msg model =
                 , nostr = shared.nostr
                 }
 
+        NoOp ->
+            ( model, Effect.none )
 
 
 -- SUBSCRIPTIONS
@@ -244,7 +248,7 @@ viewProfile : Shared.Model -> Model -> Profile -> Html Msg
 viewProfile shared model profile =
     let
         userPubKey =
-            Shared.loggedInSigningPubKey shared.loginStatus
+            loggedInSigningPubKey shared.loginStatus
 
         sendsNewsletter =
             Nostr.sendsNewsletterPubKey shared.nostr profile.pubKey
@@ -278,16 +282,16 @@ viewArticles shared pubKey =
     Nostr.getArticlesForAuthor shared.nostr pubKey
         |> Ui.View.viewArticlePreviews
             ArticlePreviewList
-            { theme = shared.theme
+            { articleComments = ArticleComments.init
+            , articleToInteractionsMsg = \_ _ -> NoOp
+            , commentsToMsg = \_ -> NoOp
+            , bookmarkButtonMsg = \_ _ -> NoOp
+            , bookmarkButtons = Dict.empty
             , browserEnv = shared.browserEnv
+            , loginStatus = shared.loginStatus
             , nostr = shared.nostr
-            , userPubKey = Shared.loggedInPubKey shared.loginStatus
-            , onBookmark = Nothing
-            , commenting = Nothing
-            , onReaction = Nothing
-            , onRepost = Nothing
-            , onZap = Nothing
             , sharing = Nothing
+            , theme = shared.theme
             }
 
 

@@ -18,10 +18,10 @@ import Nostr.Event exposing (Kind(..), ImageMetadata)
 import Nostr.External
 import Nostr.Nip68 exposing (PicturePost, emptyPicturePost, picturePostEvent)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
-import Nostr.Types exposing (IncomingMessage, PubKey)
+import Nostr.Types exposing (IncomingMessage, LoginStatus, PubKey, loggedInSigningPubKey)
 import Ports
 import Shared
-import Shared.Model exposing (LoginStatus(..), Model)
+import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
 import Tailwind.Utilities as Tw
 import Translations.PicturePostDialog as Translations
@@ -377,7 +377,7 @@ view picturePostDialog =
             settings.model
 
         signingPubKey =
-            Shared.loggedInSigningPubKey settings.loginStatus
+            loggedInSigningPubKey settings.loginStatus
 
         postButtonMsg =
             signingPubKey |> Maybe.map PostClicked

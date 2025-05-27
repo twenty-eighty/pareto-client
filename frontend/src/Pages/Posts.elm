@@ -2,6 +2,7 @@ module Pages.Posts exposing (Model, Msg, page)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
+import Components.ArticleComments as ArticleComments
 import Components.Button as Button
 import Components.Categories as Categories
 import Dict
@@ -149,7 +150,7 @@ type Msg
     | CategoriesSent (Categories.Msg Category Msg)
     | DeleteDraft String (Maybe String) -- draft event id
     | EditDraft String
-
+    | NoOp
 
 update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update user shared msg model =
@@ -175,6 +176,9 @@ update user shared msg model =
 
         EditDraft nip19 ->
             ( model, Effect.pushRoute { path = Route.Path.Write, query = Dict.singleton "a" nip19, hash = Nothing } )
+
+        NoOp ->
+            ( model, Effect.none )
 
 
 updateModelWithCategory : Auth.User -> Shared.Model -> Model -> Category -> ( Model, Effect Msg )
@@ -237,16 +241,16 @@ viewArticles shared model userPubKey =
             Nostr.getArticlesByDate shared.nostr
                 |> Ui.View.viewArticlePreviews
                     ArticlePreviewList
-                    { theme = shared.theme
+                    { articleComments = ArticleComments.init
+                    , articleToInteractionsMsg = \_ _ -> NoOp
+                    , bookmarkButtonMsg = \_ _ -> NoOp
+                    , bookmarkButtons = Dict.empty
                     , browserEnv = shared.browserEnv
+                    , commentsToMsg = \_ -> NoOp
                     , nostr = shared.nostr
-                    , userPubKey = Just userPubKey
-                    , onBookmark = Nothing
-                    , commenting = Nothing
-                    , onReaction = Nothing
-                    , onRepost = Nothing
-                    , onZap = Nothing
+                    , loginStatus = shared.loginStatus
                     , sharing = Nothing
+                    , theme = shared.theme
                     }
 
         Drafts ->

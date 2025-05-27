@@ -1,20 +1,19 @@
 module Pages.Pictures exposing (Model, Msg, init, page, subscriptions, update, view)
 
-import BrowserEnv exposing (BrowserEnv)
-import Color
 import Components.Button as Button
 import Components.Categories as Categories
 import Components.Icon as Icon
 import Components.PicturePostDialog as PicturePostDialog
+import Components.InteractionButton as InteractionButton
+import Components.Interactions as Interactions
 import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html)
-import Html.Styled.Attributes as Attr exposing (css)
+import Html.Styled.Attributes exposing (css)
 import Html.Styled.Lazy as Lazy
 import I18Next
 import Layouts
 import Layouts.Sidebar
-import Material.Icons exposing (category)
 import Nostr
 import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.FollowList exposing (followingPubKey)
@@ -22,7 +21,7 @@ import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.ShortNote exposing (ShortNote)
-import Nostr.Types exposing (EventId, PubKey)
+import Nostr.Types exposing (EventId, LoginStatus, PubKey, loggedInPubKey, loggedInSigningPubKey)
 import Page exposing (Page)
 import Pareto
 import Ports
@@ -46,7 +45,7 @@ page shared route =
     Page.new
         { init = init shared route
         , update = update shared
-        , subscriptions = subscriptions
+        , subscriptions = subscriptions shared
         , view = view shared
         }
         |> Page.withLayout (toLayout shared)
@@ -56,7 +55,7 @@ toLayout : Shared.Model -> Model -> Layouts.Layout Msg
 toLayout shared model =
     let
         postButton =
-            Shared.loggedInSigningPubKey shared.loginStatus
+            loggedInSigningPubKey shared.loginStatus
                 |> Maybe.map (\pubKey ->
                     if Nostr.isBetaTester shared.nostr pubKey then
                         Html.div
@@ -109,6 +108,7 @@ type alias Model =
     { categories : Categories.Model Category
     , path : Route.Path.Path
     , picturePostDialog : Maybe PicturePostDialog.Model
+    , interactions : Dict.Dict EventId Interactions.Model
     }
 
 
@@ -207,6 +207,7 @@ init shared route () =
     ( { categories = Categories.init { selected = correctedCategory }
       , path = route.path
       , picturePostDialog = Nothing
+      , interactions = Dict.empty
       }
     , Effect.batch
         [ changeCategoryEffect
@@ -234,6 +235,8 @@ type Msg
     | RemoveShortNoteBookmark PubKey EventId
     | ShowPicturePostDialog PubKey
     | PicturePostDialogMsg PicturePostDialog.Msg
+    | InteractionsSent EventId PubKey (Interactions.Msg Msg)
+
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
@@ -265,7 +268,7 @@ update shared msg model =
 
         AddArticleReaction userPubKey eventId articlePubKey addressComponents ->
             ( model
-            , SendReaction userPubKey eventId articlePubKey addressComponents
+            , SendReaction userPubKey eventId articlePubKey (Just addressComponents)
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
@@ -311,6 +314,18 @@ update shared msg model =
                         }
                     )
                 |> Maybe.withDefault ( model, Effect.none )
+
+        InteractionsSent eventId pubKey interactionsMsg ->
+            Interactions.update
+                { browserEnv = shared.browserEnv
+                , msg = interactionsMsg
+                , model = Dict.get eventId model.interactions
+                , nostr = shared.nostr
+                , interactionObject = InteractionButton.PicturePost eventId pubKey
+                , openCommentMsg = Nothing
+                , toModel = \interactionsModel -> { model | interactions = Dict.insert eventId interactionsModel model.interactions }
+                , toMsg = InteractionsSent eventId pubKey
+                }
 
 postDialogCategory : Model -> Maybe PicturePostDialog.PostCategory
 postDialogCategory model =
@@ -381,9 +396,9 @@ paretoFollowsList nostr =
             []
 
 
-userFollowsList : Nostr.Model -> Shared.Model.LoginStatus -> List PubKey
+userFollowsList : Nostr.Model -> LoginStatus -> List PubKey
 userFollowsList nostr loginStatus =
-    case Shared.loggedInPubKey loginStatus of
+    case loggedInPubKey loginStatus of
         Just pubKey ->
             case Nostr.getFollowsList nostr pubKey of
                 Just followsList ->
@@ -401,21 +416,41 @@ userFollowsList nostr loginStatus =
 -- SUBSCRIPTIONS
 
 
-subscriptions : Model -> Sub Msg
-subscriptions model =
-    model.picturePostDialog
-        |> Maybe.map (\picturePostDialog ->
-            PicturePostDialog.subscriptions picturePostDialog
-                |> Sub.map PicturePostDialogMsg
-        )
-        |> Maybe.withDefault Sub.none
+subscriptions : Shared.Model -> Model -> Sub Msg
+subscriptions shared model =
+    Sub.batch
+        [ model.picturePostDialog
+            |> Maybe.map (\picturePostDialog ->
+                PicturePostDialog.subscriptions picturePostDialog
+                    |> Sub.map PicturePostDialogMsg
+            )
+            |> Maybe.withDefault Sub.none
+        , Dict.toList model.interactions
+            |> List.map (\(eventId, interactions) ->
+                let
+                    maybePubKey =
+                        Nostr.getPicturePosts shared.nostr
+                            |> List.filter (\picturePost -> picturePost.id == eventId)
+                            |> List.head
+                            |> Maybe.map (\picturePost -> picturePost.pubKey)
+                in
+                case maybePubKey of
+                    Just pubKey ->
+                        Interactions.subscriptions interactions
+                            |> Sub.map (InteractionsSent eventId pubKey)
+
+                    Nothing ->
+                        Sub.none
+            )
+            |> Sub.batch
+        ]
 
 
 
 -- VIEW
 
 
-availableCategories : Nostr.Model -> Shared.Model.LoginStatus -> I18Next.Translations -> List (Categories.CategoryData Category)
+availableCategories : Nostr.Model -> LoginStatus -> I18Next.Translations -> List (Categories.CategoryData Category)
 availableCategories nostr loginStatus translations =
     let
         paretoCategories =
@@ -478,7 +513,7 @@ view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     let
         userPubKey =
-            Shared.loggedInPubKey shared.loginStatus
+            loggedInPubKey shared.loginStatus
     in
     { title = Translations.pageTitle [ shared.browserEnv.translations ]
     , body =
@@ -539,6 +574,8 @@ viewContent shared model _ =
                     { theme = shared.theme
                     , browserEnv = shared.browserEnv
                     , nostr = shared.nostr
+                    , interactions = model.interactions
+                    , loginStatus = shared.loginStatus
                     }
 
         _ =
@@ -549,7 +586,6 @@ viewContent shared model _ =
                     , browserEnv = shared.browserEnv
                     , nostr = shared.nostr
                     , userPubKey = Nothing
-                    , onBookmark = Nothing
                     }
     in
     case Categories.selected model.categories of
@@ -582,6 +618,7 @@ viewPicturePosts picturePostsViewData picturePosts =
                 Lazy.lazy2
                     (PicturePost.viewPicturePost picturePostsViewData)
                     { author = Nostr.getAuthor picturePostsViewData.nostr picturePost.pubKey
+                    , toInteractionsMsg = InteractionsSent picturePost.id picturePost.pubKey
                     }
                     picturePost
             )
@@ -592,7 +629,7 @@ viewPicturePosts picturePostsViewData picturePosts =
             ]
 
 
-viewShortNotes : Shared.Model -> ShortNotesViewData msg -> List ShortNote -> Html msg
+viewShortNotes : Shared.Model -> ShortNotesViewData -> List ShortNote -> Html msg
 viewShortNotes shared shortNotesViewData shortNotes =
     shortNotes
         |> List.map
@@ -600,14 +637,6 @@ viewShortNotes shared shortNotesViewData shortNotes =
                 Ui.ShortNote.viewShortNote
                     shortNotesViewData
                     { author = Nostr.getAuthor shared.nostr shortNote.pubKey
-                    , actions =
-                        { addBookmark = Nothing
-                        , removeBookmark = Nothing
-                        , addReaction = Nothing
-                        , removeReaction = Nothing
-                        , addRepost = Nothing
-                        , startComment = Nothing
-                        }
                     , interactions =
                         { zaps = Nothing
                         , articleComments = []

@@ -5,19 +5,17 @@ import Components.Button as Button
 import Components.EntryField as EntryField
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
-import Html.Styled.Attributes exposing (css)
+import Html.Styled.Attributes as Attr exposing (css)
 import Json.Decode as Decode
 import Locale exposing (Language(..))
 import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.External
 import Nostr.Nip22 exposing (CommentType(..), articleCommentEvent, commentContent, commentValid, setCommentContent)
-import Nostr.Profile exposing (Profile)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
-import Nostr.Types exposing (IncomingMessage, PubKey)
+import Nostr.Types exposing (IncomingMessage, LoginStatus, PubKey, loggedInSigningPubKey)
 import Ports
-import Shared
-import Shared.Model exposing (LoginStatus(..), Model)
+import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
 import Tailwind.Utilities as Tw
 import Translations.Comment as Translations
@@ -27,6 +25,7 @@ import Ui.Styles exposing (Theme, stylesForTheme)
 
 type Msg
     = CloseDialog
+    | Show CommentType
     | UpdateComment CommentType
     | PostClicked PubKey
     | ReceivedMessage IncomingMessage
@@ -50,8 +49,8 @@ type Comment msg
     = Settings
         { model : Model
         , toMsg : Msg -> msg
+        , newComment : Maybe CommentType
         , nostr : Nostr.Model
-        , profile : Profile
         , loginStatus : LoginStatus
         , browserEnv : BrowserEnv
         , theme : Theme
@@ -59,21 +58,21 @@ type Comment msg
 
 
 new :
-    { model : Model
-    , toMsg : Msg -> msg
-    , nostr : Nostr.Model
-    , profile : Profile
+    { browserEnv : BrowserEnv
     , loginStatus : LoginStatus
-    , browserEnv : BrowserEnv
+    , model : Model
+    , newComment : Maybe CommentType
+    , nostr : Nostr.Model
     , theme : Theme
+    , toMsg : Msg -> msg
     }
     -> Comment msg
 new props =
     Settings
         { model = props.model
         , toMsg = props.toMsg
+        , newComment = props.newComment
         , nostr = props.nostr
-        , profile = props.profile
         , loginStatus = props.loginStatus
         , browserEnv = props.browserEnv
         , theme = props.theme
@@ -124,6 +123,9 @@ update props =
                 ( Model { model | state = CommentHidden }
                 , Effect.none
                 )
+
+            Show comment ->
+                ( show (Model model) comment, Effect.none )
 
             UpdateComment comment ->
                 ( Model { model | state = CommentEditing comment }, Effect.none )
@@ -212,14 +214,20 @@ view comment =
             settings.model
 
         signingPubKey =
-            Shared.loggedInSigningPubKey settings.loginStatus
+            loggedInSigningPubKey settings.loginStatus
 
         postButtonMsg =
             signingPubKey |> Maybe.map PostClicked
     in
     case model.state of
         CommentHidden ->
-            emptyHtml
+            Button.new
+                { label = Translations.commentButtonText [ settings.browserEnv.translations ]
+                , onClick = settings.newComment |> Maybe.map Show
+                , theme = settings.theme
+                }
+                |> Button.view
+                |> Html.map settings.toMsg
 
         CommentEditing commentData ->
             viewComment comment commentData (Translations.postButtonText [ settings.browserEnv.translations ]) postButtonMsg Nothing

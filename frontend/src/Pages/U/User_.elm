@@ -1,6 +1,8 @@
 module Pages.U.User_ exposing (Model, Msg, page)
 
+import Components.ArticleComments as ArticleComments
 import Components.EmailSubscriptionDialog as EmailSubscriptionDialog
+import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
 import Layouts
@@ -11,7 +13,7 @@ import Nostr.Nip05 as Nip05 exposing (Nip05, nip05ToString)
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (Following(..), PubKey)
+import Nostr.Types exposing (Following(..), PubKey, loggedInSigningPubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
@@ -120,6 +122,7 @@ type Msg
     | Unfollow PubKey PubKey
     | OpenSubscribeDialog
     | EmailSubscriptionDialogSent (EmailSubscriptionDialog.Msg Msg)
+    | NoOp
 
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -153,6 +156,8 @@ update shared msg model =
                 , nostr = shared.nostr
                 }
 
+        NoOp ->
+            ( model, Effect.none )
 
 
 -- SUBSCRIPTIONS
@@ -194,7 +199,7 @@ viewProfile : Shared.Model -> Model -> Profile -> Html Msg
 viewProfile shared model profile =
     let
         userPubKey =
-            Shared.loggedInSigningPubKey shared.loginStatus
+            loggedInSigningPubKey shared.loginStatus
 
         sendsNewsletter =
             model.nip05
@@ -222,16 +227,16 @@ viewProfile shared model profile =
         , Nostr.getArticlesForAuthor shared.nostr profile.pubKey
             |> Ui.View.viewArticlePreviews
                 ArticlePreviewList
-                { theme = shared.theme
+                { articleComments = ArticleComments.init
+                , articleToInteractionsMsg = \_ _ -> NoOp
+                , bookmarkButtonMsg = \_ _ -> NoOp
+                , bookmarkButtons = Dict.empty
                 , browserEnv = shared.browserEnv
+                , commentsToMsg = \_ -> NoOp
                 , nostr = shared.nostr
-                , userPubKey = Shared.loggedInPubKey shared.loginStatus
-                , onBookmark = Nothing
-                , commenting = Nothing
-                , onReaction = Nothing
-                , onRepost = Nothing
-                , onZap = Nothing
+                , loginStatus = shared.loginStatus
                 , sharing = Nothing
+                , theme = shared.theme
                 }
         , viewEmailSubscriptionDialog shared model profile
         ]

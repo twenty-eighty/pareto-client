@@ -1,7 +1,7 @@
 module Nostr.BookmarkList exposing (..)
 
 import Json.Decode exposing (list)
-import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), TagReference(..), addAddressTags, emptyEvent)
+import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), TagReference(..), addAddressTags, addEventIdTags, emptyEvent)
 import Nostr.Types exposing (EventId, PubKey)
 
 
@@ -55,20 +55,15 @@ bookmarkListFromEvent event =
                             HashTag hashtag ->
                                 { bml | hashtags = hashtag :: bml.hashtags }
 
-                            EventDelegationTag identifier ->
-                                { bml | notes = identifier :: bml.notes }
+                            EventIdTag eventId _ ->
+                                { bml | notes = eventId :: bml.notes }
 
                             UrlTag urls _ ->
                                 { bml | urls = urls :: bml.urls }
 
                             _ ->
                                 bml
-                    )
-                    { notes = []
-                    , articles = []
-                    , hashtags = []
-                    , urls = []
-                    }
+                    ) emptyBookmarkList
     in
     ( event.pubKey, bookmarkList )
 
@@ -112,8 +107,8 @@ bookmarkListWithShortNote bookmarks eventId =
         listContainsNote =
             bookmarks.notes
                 |> List.filter
-                    (\referencedAddressComponents ->
-                        referencedAddressComponents == eventId
+                    (\referencedEventId ->
+                        referencedEventId == eventId
                     )
                 |> List.isEmpty
                 |> not
@@ -149,4 +144,5 @@ bookmarkListEvent pubKey list =
         | tags =
             []
                 |> addAddressTags list.articles Nothing
+                |> addEventIdTags list.notes Nothing
     }

@@ -1,5 +1,6 @@
 module Pages.Search exposing (Model, Msg, page)
 
+import Components.ArticleComments as ArticleComments
 import Components.SearchBar as SearchBar
 import Dict
 import Effect exposing (Effect)
@@ -84,7 +85,7 @@ init shared route () =
 type Msg
     = Search (Maybe String)
     | SearchBarSent (SearchBar.Msg Msg)
-
+    | NoOp
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
@@ -100,6 +101,9 @@ update shared msg model =
                 , toMsg = SearchBarSent
                 , onSearch = Search
                 }
+
+        NoOp ->
+            ( model, Effect.none )
 
 
 performSearch : Shared.Model -> Model -> Maybe String -> ( Model, Effect Msg )
@@ -244,14 +248,14 @@ viewArticles shared =
     Nostr.getArticlesByDate shared.nostr
         |> Ui.View.viewArticlePreviews
             ArticlePreviewList
-            { theme = shared.theme
+            { articleComments = ArticleComments.init
+            , articleToInteractionsMsg = \_ _ -> NoOp
+            , bookmarkButtonMsg = \_ _ -> NoOp
+            , bookmarkButtons = Dict.empty
             , browserEnv = shared.browserEnv
+            , commentsToMsg = \_ -> NoOp
             , nostr = shared.nostr
-            , userPubKey = Shared.loggedInPubKey shared.loginStatus
-            , onBookmark = Nothing
-            , commenting = Nothing
-            , onReaction = Nothing
-            , onRepost = Nothing
-            , onZap = Nothing
+            , loginStatus = shared.loginStatus
             , sharing = Nothing
+            , theme = shared.theme
             }

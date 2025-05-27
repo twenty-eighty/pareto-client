@@ -1,17 +1,23 @@
-module Components.ArticleComments exposing (ArticleComments, new, view)
+module Components.ArticleComments exposing (ArticleComments, Model, Msg, init, new, subscriptions, update, view, withNewComment, withZapRelayUrls)
 
 import BrowserEnv exposing (BrowserEnv)
+import Components.Comment as Comment
+import Components.InteractionButton as InteractionButton exposing (eventIdOfInteractionObject)
+import Components.Interactions as Interactions
 import Dict exposing (Dict)
+import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes exposing (css)
+import I18Next
 import Locale exposing (Language(..))
 import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..))
 import Nostr.Profile exposing (ProfileValidation(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId)
-import Shared.Model exposing (LoginStatus(..))
+import Nostr.Types exposing (EventId, LoginStatus, RelayUrl)
+import Set exposing (Set)
+import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Time
 import Ui.Profile
@@ -19,52 +25,135 @@ import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme, stylesForTheme)
 
 
-type ArticleComments
+type ArticleComments msg
     = Settings
-        { nostr : Nostr.Model
-        , browserEnv : BrowserEnv
-        , articleComments : List ArticleComment
+        { articleComments : List ArticleComment
         , articleCommentComments : Dict EventId (List ArticleCommentComment) -- event ID is the one of the parent comment
+        , browserEnv : BrowserEnv
+        , loginStatus : LoginStatus
+        , model : Model
+        , newComment : Maybe CommentType
+        , nostr : Nostr.Model
+        , toMsg : Msg msg -> msg
         , theme : Theme
+        , zapRelayUrls : Set RelayUrl
         }
 
 
 new :
-    { nostr : Nostr.Model
-    , browserEnv : BrowserEnv
+    { browserEnv : BrowserEnv
     , articleComments : List ArticleComment
     , articleCommentComments : Dict EventId (List ArticleCommentComment) -- event ID is the one of the parent comment
+    , loginStatus : LoginStatus
+    , model : Model
+    , nostr : Nostr.Model
     , theme : Theme
+    , toMsg : Msg msg -> msg
     }
-    -> ArticleComments
+    -> ArticleComments msg
 new props =
     Settings
-        { nostr = props.nostr
-        , browserEnv = props.browserEnv
+        { browserEnv = props.browserEnv
         , articleComments = props.articleComments
         , articleCommentComments = props.articleCommentComments
+        , loginStatus = props.loginStatus
+        , model = props.model
+        , newComment = Nothing
+        , nostr = props.nostr
         , theme = props.theme
+        , toMsg = props.toMsg
+        , zapRelayUrls = Set.empty
+        }
+
+withNewComment : Maybe CommentType -> ArticleComments msg -> ArticleComments msg
+withNewComment newComment (Settings settings) =
+    Settings { settings | newComment = newComment } 
+
+withZapRelayUrls : Set RelayUrl -> ArticleComments msg -> ArticleComments msg
+withZapRelayUrls zapRelayUrls (Settings settings) =
+    Settings { settings | zapRelayUrls = zapRelayUrls }
+
+
+type Model =
+    Model
+        { comment : Comment.Model
+        , interactions : Dict EventId Interactions.Model
         }
 
 
+init : Model
+init =
+    Model
+        { comment = Comment.init {}
+        , interactions = Dict.empty
+        }
+
+type Msg msg
+    = CommentSent Comment.Msg
+    | InteractionsMsg InteractionButton.InteractionObject (Interactions.Msg (Msg msg))
+
+update :
+    { browserEnv : BrowserEnv
+    , msg : Msg msg
+    , model : Model
+    , nostr : Nostr.Model
+    , toModel : Model -> model
+    , toMsg : Msg msg -> msg
+    , translations : I18Next.Translations
+    } -> ( model, Effect msg )
+update props =
+    let
+        (Model model) =
+            props.model
+
+        toParentModel : ( Model, Effect msg ) -> ( model, Effect msg )
+        toParentModel ( innerModel, effect ) =
+            ( props.toModel innerModel
+            , effect
+            )
+    in
+    toParentModel <|
+        case props.msg of
+            CommentSent innerMsg ->
+                Comment.update
+                    { nostr = props.nostr
+                    , msg = innerMsg
+                    , model = model.comment
+                    , toModel = \comment -> Model { model | comment = comment }
+                    , toMsg = CommentSent >> props.toMsg
+                    }
+
+
+            InteractionsMsg interactionObject innerMsg ->
+                let
+                    eventId =
+                        eventIdOfInteractionObject interactionObject
+                    
+                    ( updatedInteractions, effect ) =
+                        Interactions.update
+                            { browserEnv = props.browserEnv
+                            , msg = innerMsg
+                            , model = Dict.get eventId model.interactions
+                            , nostr = props.nostr
+                            , interactionObject = interactionObject
+                            , openCommentMsg = Nothing
+                            , toModel = \interactionsModel -> Model { model | interactions = Dict.insert eventId interactionsModel model.interactions }
+                            , toMsg = InteractionsMsg interactionObject
+                            }
+                in
+                ( updatedInteractions, effect |> Effect.map props.toMsg )
 
 -- VIEW
 
 
-view : ArticleComments -> Html msg
+view : ArticleComments msg -> Html msg
 view articleComments =
     let
         (Settings settings) =
             articleComments
-    in
-    viewArticleComments settings.theme settings.browserEnv settings.nostr settings.articleComments settings.articleCommentComments
 
-
-viewArticleComments : Theme -> BrowserEnv -> Nostr.Model -> List ArticleComment -> Dict EventId (List ArticleCommentComment) -> Html msg
-viewArticleComments theme browserEnv nostr articleComments articleCommentComments =
-    let
-        styles =
-            stylesForTheme theme
+        (Model model) =
+            settings.model
     in
     div
         [ css
@@ -99,7 +188,8 @@ viewArticleComments theme browserEnv nostr articleComments articleCommentComment
                 , Tw.flex
                 ]
             ]
-            [ div
+            [ viewCommenting (Settings settings)
+            , div
                 [ css
                     [ Tw.flex
                     , Tw.flex_col
@@ -108,38 +198,97 @@ viewArticleComments theme browserEnv nostr articleComments articleCommentComment
                     , Tw.gap_6
                     ]
                 ]
-                (articleComments
+                (settings.articleComments
                     |> sortComments
-                    |> List.map (viewArticleComment styles browserEnv nostr 0 articleCommentComments)
+                    |> List.map (viewArticleComment articleComments 0 settings.articleCommentComments)
                 )
             ]
         ]
 
+viewCommenting : ArticleComments msg -> Html msg
+viewCommenting articleComments =
+    let
+        (Settings settings) =
+            articleComments
+
+        (Model model) =
+            settings.model
+    in
+    div
+        [ css
+            [ Tw.w_80
+            , Tw.mb_4
+            , Bp.sm
+                [ Tw.w_96
+                ]
+            ]
+        ]
+        [ Comment.new
+            { browserEnv = settings.browserEnv
+            , loginStatus = settings.loginStatus
+            , model = model.comment
+            , newComment = settings.newComment
+            , nostr = settings.nostr
+            , theme = settings.theme
+            , toMsg = CommentSent
+            }
+            |> Comment.view
+        ]
+        |> Html.map settings.toMsg
 
 sortComments =
     List.sortBy (\comment -> -1 * Time.posixToMillis comment.createdAt)
 
 
-viewArticleComment : Styles msg -> BrowserEnv -> Nostr.Model -> Int -> Dict EventId (List ArticleCommentComment) -> ArticleComment -> Html msg
-viewArticleComment styles browserEnv nostr _ articleCommentComments articleComment =
+viewArticleComment : ArticleComments msg -> Int -> Dict EventId (List ArticleCommentComment) -> ArticleComment -> Html msg
+viewArticleComment articleComments level articleCommentComments articleComment =
     let
+        (Settings settings) =
+            articleComments
+
+        (Model model) =
+            settings.model
+
+        styles =
+            stylesForTheme settings.theme
+
         commentsOfComment =
             articleCommentComments
                 |> Dict.get articleComment.eventId
                 |> Maybe.withDefault []
 
         followLinks =
-            Nostr.isAuthor nostr articleComment.pubKey
+            Nostr.isAuthor settings.nostr articleComment.pubKey
 
         profileDisplay =
-            Nostr.getProfile nostr articleComment.pubKey
+            Nostr.getProfile settings.nostr articleComment.pubKey
                 |> Maybe.map
                     (\profile ->
-                        Nostr.getProfileValidationStatus nostr profile.pubKey
+                        Nostr.getProfileValidationStatus settings.nostr profile.pubKey
                             |> Maybe.withDefault ValidationUnknown
                             |> Ui.Profile.viewProfileSmall styles followLinks profile
                     )
                 |> Maybe.withDefault emptyHtml
+
+        interactionObject =
+            InteractionButton.Comment articleComment.eventId articleComment.pubKey
+
+        viewInteractions =
+            Interactions.new
+                { browserEnv = settings.browserEnv
+                , model = Dict.get articleComment.eventId model.interactions
+                , toMsg = InteractionsMsg interactionObject
+                , theme = settings.theme
+                , interactionObject = interactionObject
+                , nostr = settings.nostr
+                , loginStatus = settings.loginStatus
+                }
+                |> Interactions.withInteractionElements
+                    [ Interactions.LikeButtonElement
+                    , Interactions.RepostButtonElement
+                    , Interactions.ZapButtonElement "0" settings.zapRelayUrls
+                    ]
+                |> Interactions.view
     in
     div
         [ css
@@ -160,7 +309,7 @@ viewArticleComment styles browserEnv nostr _ articleCommentComments articleComme
                 [ css
                     []
                 ]
-                [ Html.text <| BrowserEnv.formatDate browserEnv articleComment.createdAt
+                [ Html.text <| BrowserEnv.formatDate settings.browserEnv articleComment.createdAt
                 ]
             ]
         , div
@@ -182,6 +331,7 @@ viewArticleComment styles browserEnv nostr _ articleCommentComments articleComme
                 |> List.map Html.text
                 |> List.intersperse (Html.br [] [])
             )
+        , viewInteractions
         , div
             [ css
                 [ Tw.flex
@@ -193,9 +343,10 @@ viewArticleComment styles browserEnv nostr _ articleCommentComments articleComme
             ]
             (commentsOfComment
                 |> sortComments
-                |> List.map (viewArticleCommentComment styles browserEnv 0 articleCommentComments)
+                |> List.map (viewArticleCommentComment styles settings.browserEnv 0 articleCommentComments)
             )
         ]
+        |> Html.map settings.toMsg
 
 
 viewArticleCommentComment : Styles msg -> BrowserEnv -> Int -> Dict EventId (List ArticleCommentComment) -> ArticleCommentComment -> Html msg
@@ -245,3 +396,27 @@ viewArticleCommentComment styles browserEnv level articleCommentComments article
                 )
             ]
         ]
+
+
+subscriptions : Model -> List ArticleComment -> Sub (Msg msg)
+subscriptions (Model model) articleComments =
+    Sub.batch
+        [ Sub.map CommentSent (Comment.subscriptions model.comment)
+        , interactionSubscriptions (Model model) articleComments
+        ]
+
+
+-- only some comments had an interaction/model, we only subscribe to the ones that have one
+interactionSubscriptions : Model -> List ArticleComment -> Sub (Msg msg)
+interactionSubscriptions (Model model) articleComments =
+    articleComments
+    |> List.map (\articleComment ->
+        Dict.get articleComment.eventId model.interactions
+        |> Maybe.map (\interactions ->
+            Interactions.subscriptions interactions
+            |> Sub.map (InteractionsMsg (InteractionButton.Comment articleComment.eventId articleComment.pubKey))
+        )
+        |> Maybe.withDefault Sub.none
+    )
+    |> Sub.batch
+

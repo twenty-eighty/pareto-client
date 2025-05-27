@@ -47,19 +47,25 @@ repostFromEvent event =
 articleRepostEvent : PubKey -> Article -> Event
 articleRepostEvent pubKey article =
     let
-        event =
-            emptyEvent pubKey KindGenericRepost
-
         firstRelay =
             article.relays
                 |> Set.toList
                 |> List.head
     in
+    repostEvent pubKey article.id article.author article.kind (addressComponentsForArticle article) firstRelay
+
+
+repostEvent : PubKey -> EventId -> PubKey -> Kind -> Maybe AddressComponents -> Maybe RelayUrl -> Event
+repostEvent pubKey eventId author kind maybeAddressComponents maybeRelayUrl =
+    let
+        event =
+            emptyEvent pubKey KindGenericRepost
+    in
     { event
         | tags =
-            [ EventIdTag article.id firstRelay
-            , PublicKeyTag article.author Nothing Nothing
-            , KindTag article.kind
+            [ EventIdTag eventId maybeRelayUrl
+            , PublicKeyTag author Nothing Nothing
+            , KindTag kind
             ]
-                |> addAddressTags (addressComponentsForArticle article |> Maybe.map List.singleton |> Maybe.withDefault []) firstRelay
+                |> addAddressTags (maybeAddressComponents |> Maybe.map List.singleton |> Maybe.withDefault []) maybeRelayUrl
     }

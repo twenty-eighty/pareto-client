@@ -40,7 +40,11 @@ iconUrl relay =
 
 websocketUrl : String -> String
 websocketUrl urlWithoutProtocol =
-    "wss://" ++ urlWithoutProtocol
+    if not (String.startsWith "wss://" urlWithoutProtocol || String.startsWith "ws://" urlWithoutProtocol) then
+        "wss://" ++ urlWithoutProtocol
+
+    else
+        urlWithoutProtocol
 
 
 relayUrlDecoder : Decode.Decoder RelayUrl

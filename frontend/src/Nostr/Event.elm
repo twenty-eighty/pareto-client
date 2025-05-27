@@ -2542,6 +2542,12 @@ addEventIdTag : EventId -> Maybe RelayUrl -> List Tag -> List Tag
 addEventIdTag eventId maybeRelayUrl tags =
     EventIdTag eventId maybeRelayUrl :: tags
 
+addEventIdTags : List EventId -> Maybe RelayUrl -> List Tag -> List Tag
+addEventIdTags eventIds maybeRelayUrl tags =
+    eventIds
+    |> List.map (\eventId -> EventIdTag eventId maybeRelayUrl)
+    |> List.append tags
+
 addHashValueTags : List String -> List Tag -> List Tag
 addHashValueTags hashValues tags =
     hashValues

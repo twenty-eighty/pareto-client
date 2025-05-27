@@ -11,12 +11,11 @@ import Nostr
 import Nostr.Community exposing (Community, communityDefinitionFromEvent)
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), decodeEvent, emptyEventFilter, numberForKind)
 import Nostr.Nip19 as Nip19
-import Nostr.Types exposing (IncomingMessage, PubKey)
+import Nostr.Types exposing (IncomingMessage, LoginStatus(..), PubKey)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
 import Shared
-import Shared.Model exposing (LoginStatus(..))
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.Communities as Translations

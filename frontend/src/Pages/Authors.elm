@@ -14,7 +14,7 @@ import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (Following(..), PubKey)
+import Nostr.Types exposing (Following(..), PubKey, loggedInPubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
@@ -207,7 +207,7 @@ view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     let
         isBetaTester =
-            Shared.loggedInPubKey shared.loginStatus
+            loggedInPubKey shared.loginStatus
                 |> Maybe.map (Nostr.isBetaTester shared.nostr)
                 |> Maybe.withDefault False
 
@@ -270,7 +270,7 @@ viewAuthorCard : Shared.Model -> Profile -> Maybe ConfigCheck.Model -> Html Msg
 viewAuthorCard shared profile maybeConfigCheck =
     let
         userPubKey =
-            Shared.loggedInPubKey shared.loginStatus
+            loggedInPubKey shared.loginStatus
     in
     div [ css [ Tw.flex, Tw.flex_col, Tw.gap_2 ] ]
         [ Ui.Profile.viewAuthorCard

@@ -19,12 +19,12 @@ import Nostr
 import Nostr.BookmarkList exposing (bookmarksCount)
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Profile exposing (Profile)
-import Nostr.Types exposing (Following(..))
+import Nostr.Types exposing (Following(..), LoginStatus(..), loggedInPubKey)
 import Ports
 import Route exposing (Route)
 import Route.Path
 import Shared
-import Shared.Model exposing (ClientRole(..), LoginStatus(..))
+import Shared.Model exposing (ClientRole(..))
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
@@ -105,6 +105,7 @@ type alias SidebarItemData =
     , icon : Icon
     , requiresLogin : Bool
     , requiresAuthor : Bool
+    , requiresBetaTester : Bool
     , disabled : Bool
     }
 
@@ -177,6 +178,7 @@ rawSidebarItems clientRole translations =
               , icon = FeatherIcon FeatherIcons.bookOpen
               , requiresLogin = False
               , requiresAuthor = False
+              , requiresBetaTester = False
               , disabled = False
               }
             , { path = Route.Path.Pictures
@@ -185,6 +187,7 @@ rawSidebarItems clientRole translations =
               , icon = FeatherIcon FeatherIcons.image
               , requiresLogin = False
               , requiresAuthor = False
+              , requiresBetaTester = False
               , disabled = False
               }
             , { path = Route.Path.Search
@@ -193,6 +196,7 @@ rawSidebarItems clientRole translations =
               , icon = FeatherIcon FeatherIcons.search
               , requiresLogin = False
               , requiresAuthor = False
+              , requiresBetaTester = False
               , disabled = False
               }
 
@@ -203,6 +207,7 @@ rawSidebarItems clientRole translations =
               , icon = FeatherIcon FeatherIcons.bookmark
               , requiresLogin = True
               , requiresAuthor = False
+              , requiresBetaTester = False
               , disabled = False
               }
             , { path = Route.Path.Authors
@@ -211,6 +216,7 @@ rawSidebarItems clientRole translations =
               , icon = FeatherIcon FeatherIcons.users
               , requiresLogin = False
               , requiresAuthor = False
+              , requiresBetaTester = False
               , disabled = False
               }
 
@@ -222,6 +228,7 @@ rawSidebarItems clientRole translations =
               , icon = FeatherIcon FeatherIcons.settings
               , requiresLogin = True
               , requiresAuthor = False
+              , requiresBetaTester = False
               , disabled = False
               }
             , { path = Route.Path.About
@@ -230,6 +237,7 @@ rawSidebarItems clientRole translations =
               , icon = FeatherIcon FeatherIcons.helpCircle
               , requiresLogin = False
               , requiresAuthor = False
+              , requiresBetaTester = False
               , disabled = False
               }
             ]
@@ -241,6 +249,7 @@ rawSidebarItems clientRole translations =
               , icon = FeatherIcon FeatherIcons.fileText
               , requiresLogin = True
               , requiresAuthor = False
+              , requiresBetaTester = False
               , disabled = False
               }
             , { path = Route.Path.Write
@@ -249,6 +258,7 @@ rawSidebarItems clientRole translations =
               , icon = FeatherIcon FeatherIcons.feather
               , requiresLogin = True
               , requiresAuthor = False
+              , requiresBetaTester = False
               , disabled = False
               }
             , { path = Route.Path.Subscribers
@@ -257,6 +267,7 @@ rawSidebarItems clientRole translations =
               , icon = FeatherIcon FeatherIcons.users
               , requiresLogin = True
               , requiresAuthor = True
+              , requiresBetaTester = False
               , disabled = False
               }
             , { path = Route.Path.Newsletters
@@ -265,6 +276,7 @@ rawSidebarItems clientRole translations =
               , icon = FeatherIcon FeatherIcons.mail
               , requiresLogin = True
               , requiresAuthor = True
+              , requiresBetaTester = False
               , disabled = False
               }
             , { path = Route.Path.Search
@@ -273,6 +285,7 @@ rawSidebarItems clientRole translations =
               , icon = FeatherIcon FeatherIcons.search
               , requiresLogin = False
               , requiresAuthor = False
+              , requiresBetaTester = False
               , disabled = False
               }
             , { path = Route.Path.Media
@@ -281,6 +294,7 @@ rawSidebarItems clientRole translations =
               , icon = FeatherIcon FeatherIcons.image
               , requiresLogin = False
               , requiresAuthor = False
+              , requiresBetaTester = False
               , disabled = False
               }
 
@@ -292,6 +306,7 @@ rawSidebarItems clientRole translations =
               , icon = FeatherIcon FeatherIcons.settings
               , requiresLogin = True
               , requiresAuthor = False
+              , requiresBetaTester = False
               , disabled = False
               }
             ]
@@ -392,7 +407,7 @@ viewSidebar props shared currentPath toContentMsg content =
             Ui.Styles.stylesForTheme props.theme
 
         maybeBookmarksCount =
-            Shared.loggedInPubKey shared.loginStatus
+            loggedInPubKey shared.loginStatus
                 |> Maybe.andThen (Nostr.getBookmarks shared.nostr)
                 |> Maybe.map bookmarksCount
                 |> Maybe.andThen
@@ -405,7 +420,7 @@ viewSidebar props shared currentPath toContentMsg content =
                     )
 
         maybeUserPubKey =
-            Shared.loggedInPubKey shared.loginStatus
+            loggedInPubKey shared.loginStatus
 
         sidebarItemParams =
             { configIssues = ConfigCheck.getIssues shared.configCheck |> List.length
@@ -754,7 +769,7 @@ sidebarItemVisible isLoggedIn isAuthor isBetaTester sidebarItem =
     if isBetaTester then
         True
 
-    else if sidebarItem.path == Route.Path.Pictures then
+    else if sidebarItem.requiresBetaTester then
         isBetaTester
 
     else if sidebarItem.requiresAuthor then
@@ -867,7 +882,7 @@ viewSidebarItem theme currentPath itemData =
 loginButton : Shared.Model -> Maybe Profile -> Html Msg
 loginButton shared maybeProfile =
     case shared.loginStatus of
-        Shared.Model.LoggedIn _ _ ->
+        LoggedIn _ _ ->
             loggedInButton shared.theme maybeProfile
 
         _ ->

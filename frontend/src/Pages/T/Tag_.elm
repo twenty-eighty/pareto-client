@@ -1,5 +1,7 @@
 module Pages.T.Tag_ exposing (Model, Msg, page)
 
+import Components.ArticleComments as ArticleComments
+import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (div, h3, text)
 import Html.Styled.Attributes exposing (css)
@@ -185,16 +187,16 @@ view shared model =
             , Nostr.getArticlesByDate shared.nostr
                 |> Ui.View.viewArticlePreviews
                     ArticlePreviewList
-                    { theme = shared.theme
+                    { articleComments = ArticleComments.init
+                    , articleToInteractionsMsg = \_ _ -> NoOp
+                    , bookmarkButtonMsg = \_ _ -> NoOp
+                    , bookmarkButtons = Dict.empty
                     , browserEnv = shared.browserEnv
+                    , commentsToMsg = \_ -> NoOp
                     , nostr = shared.nostr
-                    , userPubKey = Shared.loggedInPubKey shared.loginStatus
-                    , onBookmark = Nothing
-                    , commenting = Nothing
-                    , onReaction = Nothing
-                    , onRepost = Nothing
-                    , onZap = Nothing
+                    , loginStatus = shared.loginStatus
                     , sharing = Nothing
+                    , theme = shared.theme
                     }
             ]
         ]

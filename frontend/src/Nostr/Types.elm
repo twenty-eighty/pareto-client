@@ -24,6 +24,20 @@ type alias Address =
     String
 
 
+type LoginStatus
+    = LoggedOut
+    | LoggedInUnknown
+    | LoggedIn PubKey LoginMethod
+
+
+type LoginMethod
+    = LoginMethodConnect
+    | LoginMethodExtension
+    | LoginMethodLocal
+    | LoginMethodOther String
+    | LoginMethodReadOnly
+
+
 type RelayRole
     = ReadRelay
     | WriteRelay
@@ -50,6 +64,43 @@ type alias IncomingMessage =
     , value : Encode.Value
     }
 
+
+loggedInPubKey : LoginStatus -> Maybe PubKey
+loggedInPubKey loginStatus =
+    case loginStatus of
+        LoggedIn pubKey _ ->
+            Just pubKey
+
+        _ ->
+            Nothing
+
+
+
+-- return a pubkey if the user can sign events
+
+
+loggedInSigningPubKey : LoginStatus -> Maybe PubKey
+loggedInSigningPubKey loginStatus =
+    case loginStatus of
+        LoggedIn _ LoginMethodReadOnly ->
+            Nothing
+
+        LoggedIn pubKey _ ->
+            Just pubKey
+
+        _ ->
+            Nothing
+
+
+
+-- check if user can sign events
+
+
+signingPubKeyAvailable : LoginStatus -> Bool
+signingPubKeyAvailable loginStatus =
+    loggedInSigningPubKey loginStatus 
+    |> Maybe.map (\_ -> True)
+    |> Maybe.withDefault False
 
 relayRoleFromString : String -> RelayRole
 relayRoleFromString role =

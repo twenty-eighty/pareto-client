@@ -8,6 +8,8 @@ import Components.Checkbox
 import Components.Dropdown
 import Components.EntryField
 import Components.Icon
+import Components.InteractionButton
+import Components.Interactions
 import Components.SearchBar
 import Components.SharingButtonDialog
 import Components.Switch
@@ -23,7 +25,9 @@ import Material.Icons exposing (category)
 import Pareto
 import Page exposing (Page)
 import Route exposing (Route)
+import Set
 import Shared
+import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Tailwind.Color exposing (Color)
@@ -61,6 +65,7 @@ type alias Model =
     , checkboxValue : Bool
     , dropdown : Components.Dropdown.Model TestDropdownItem
     , entryFieldValue : String
+    , interactions : Components.Interactions.Model
     , searchbar : Components.SearchBar.Model
     , searchValue : Maybe String
     , sharingButtonDialog : Components.SharingButtonDialog.Model
@@ -96,6 +101,7 @@ init shared () =
       , checkboxValue = True
       , dropdown = Components.Dropdown.init { selected = Just DropdownItem2 }
       , entryFieldValue = ""
+      , interactions = Components.Interactions.init 
       , searchbar = Components.SearchBar.init { searchText = Nothing }
       , searchValue = Nothing
       , sharingButtonDialog = Components.SharingButtonDialog.init
@@ -121,6 +127,8 @@ type Msg
     | CalendarSent Components.Calendar.Msg
     | CheckboxClicked Bool
     | EntryFieldChanged String
+    | OpenComment
+    | InteractionsSent (Components.Interactions.Msg Msg)
     | SwitchClicked TestSwitchState
     | DropdownSent (Components.Dropdown.Msg TestDropdownItem Msg)
     | DropdownChanged (Maybe TestDropdownItem)
@@ -163,6 +171,24 @@ update shared msg model =
 
         EntryFieldChanged value ->
             ( { model | entryFieldValue = value }, Effect.none )
+
+        OpenComment ->
+            ( model
+                , Shared.Msg.ShowAlert "Open comment"
+                    |> Effect.sendSharedMsg
+            )
+
+        InteractionsSent innerMsg ->
+            Components.Interactions.update
+                { browserEnv = shared.browserEnv
+                , msg = innerMsg
+                , model = Just model.interactions
+                , nostr = shared.nostr
+                , interactionObject = Components.InteractionButton.PicturePost "ABCDEF" "BEEFCAFE"
+                , openCommentMsg = Nothing
+                , toModel = \interactionsModel -> { model | interactions = interactionsModel }
+                , toMsg = InteractionsSent
+                }
 
         SwitchClicked value ->
             ( { model | switchValue = value }, Effect.none )
@@ -209,7 +235,11 @@ update shared msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.map SearchBarSent (Components.SearchBar.subscribe model.searchbar)
+    Sub.batch
+        [ Sub.map SearchBarSent (Components.SearchBar.subscribe model.searchbar)
+        , Components.Interactions.subscriptions model.interactions
+            |> Sub.map InteractionsSent
+        ]
 
 
 
@@ -261,6 +291,7 @@ elementList shared model =
     , ( "Categories selector", categoriesElement shared model )
     , ( "Dropdown listbox", dropdownElement shared model )
     , ( "Checkbox", checkboxElement shared model )
+    , ( "Interactions", interactionsElement shared model )
     , ( "Switch", switchElement shared model )
     , ( "primary button", primaryButtonElement shared model )
     , ( "primary button (disabled)", primaryButtonDisabledElement shared model )
@@ -382,6 +413,28 @@ checkboxElement shared model =
         }
         |> Components.Checkbox.view
 
+
+-- interactions
+
+interactionsElement : Shared.Model -> Model -> Html Msg
+interactionsElement shared model =
+    Components.Interactions.new
+        { browserEnv = shared.browserEnv
+        , model = Just model.interactions
+        , toMsg = InteractionsSent
+        , theme = shared.theme
+        , interactionObject = Components.InteractionButton.PicturePost "abcd" "cdef"
+        , nostr = shared.nostr
+        , loginStatus = shared.loginStatus
+        }
+        |> Components.Interactions.withInteractionElements
+            [ Components.Interactions.CommentButtonElement (Just OpenComment)
+            , Components.Interactions.LikeButtonElement
+            , Components.Interactions.RepostButtonElement
+            , Components.Interactions.ZapButtonElement "0" Set.empty
+            , Components.Interactions.BookmarkButtonElement
+            ]
+        |> Components.Interactions.view
 
 
 -- switch
@@ -547,6 +600,5 @@ sharingButtonDialogElement shared model =
         , browserEnv = shared.browserEnv
         , sharingInfo = { url = Pareto.applicationUrl, title = Pareto.client, text = Pareto.applicationDomain, hashtags = Pareto.paretoHashtags }
         , theme = model.theme
-        , translations = shared.browserEnv.translations
         }
         |> Components.SharingButtonDialog.view
