@@ -2,9 +2,9 @@ module Pages.Posts exposing (Model, Msg, page)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
+import Components.ArticleComments as ArticleComments
 import Components.Button as Button
 import Components.Categories as Categories
-import Components.Interactions as Interactions
 import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, article, div)
@@ -241,18 +241,16 @@ viewArticles shared model userPubKey =
             Nostr.getArticlesByDate shared.nostr
                 |> Ui.View.viewArticlePreviews
                     ArticlePreviewList
-                    { theme = shared.theme
+                    { articleComments = ArticleComments.init
+                    , articleToInteractionsMsg = \_ _ -> NoOp
                     , bookmarkButtonMsg = \_ _ -> NoOp
                     , bookmarkButtons = Dict.empty
                     , browserEnv = shared.browserEnv
+                    , commentsToMsg = \_ -> NoOp
                     , nostr = shared.nostr
                     , loginStatus = shared.loginStatus
-                    , commenting = Nothing
-                    , articleToInteractionsMsg = \_ _ -> NoOp
-                    , articleCommentInteractions = Dict.empty
-                    , commentsToInteractionsMsg = \_ _ -> NoOp
-                    , openCommentMsg = Nothing
                     , sharing = Nothing
+                    , theme = shared.theme
                     }
 
         Drafts ->

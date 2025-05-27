@@ -1,5 +1,6 @@
 module Pages.U.User_.Identifier_ exposing (Model, Msg, page)
 
+import Components.ArticleComments as ArticleComments
 import Components.ArticleInfo as ArticleInfo
 import Components.Comment as Comment
 import Components.InteractionButton as InteractionButton exposing (eventIdOfInteractionObject)
@@ -18,20 +19,20 @@ import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Nip05 as Nip05
 import Nostr.Nip19 exposing (NIP19Type(..))
-import Nostr.Nip22 exposing (CommentType, commentToArticle)
+import Nostr.Nip22 exposing (CommentType(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId, PubKey, loggedInSigningPubKey)
+import Nostr.Types exposing (EventId, PubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Set
 import Shared
 import Shared.Msg
+import Ui.Article exposing (sharingInfoForArticle)
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles
 import Ui.View exposing (viewRelayStatus)
 import View exposing (View)
-import Nostr.Nip22 exposing (CommentType(..))
 
 
 page : Shared.Model -> Route { user : String, identifier : String } -> Page Model Msg
@@ -74,6 +75,7 @@ toLayout shared model =
                                 , interactionObject = interactionObject
                                 , nostr = shared.nostr
                                 , loginStatus = shared.loginStatus
+                                , shareInfo = sharingInfoForArticle article (Nostr.getAuthor shared.nostr article.author)
                                 , zapRelays = Set.empty
                                 }
                         )
@@ -96,6 +98,7 @@ type alias Model =
     { loadedContent : LoadedContent Msg
     , comment : Comment.Model
     , commentInteractions : Dict EventId Interactions.Model
+    , articleComments : ArticleComments.Model
     , articleInteractions : Interactions.Model
     , identifier : String
     , nip05 : Maybe Nip05.Nip05
@@ -112,6 +115,7 @@ init shared route () =
             { identifier = route.params.identifier
             , comment = Comment.init {}
             , commentInteractions = Dict.empty
+            , articleComments = ArticleComments.init
             , articleInteractions = Interactions.init
             , nip05 = Nip05.parseNip05 route.params.user
             , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
@@ -189,8 +193,7 @@ type Msg
     = NoOp
     | AddLoadedContent String
     | ArticleInteractionsSent InteractionButton.InteractionObject (Interactions.Msg Msg)
-    | OpenComment CommentType
-    | CommentSent Comment.Msg
+    | CommentsSent (ArticleComments.Msg Msg)
     | CommentInteractionsSent InteractionButton.InteractionObject (Interactions.Msg Msg)
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
@@ -225,17 +228,15 @@ update shared msg model =
                 , toMsg = ArticleInteractionsSent interactionObject
                 }
 
-
-        OpenComment comment ->
-            ( { model | comment = Comment.show model.comment comment }, Effect.none )
-
-        CommentSent innerMsg ->
-            Comment.update
-                { nostr = shared.nostr
+        CommentsSent innerMsg ->
+            ArticleComments.update
+                { browserEnv = shared.browserEnv
                 , msg = innerMsg
-                , model = model.comment
-                , toModel = \comment -> { model | comment = comment }
-                , toMsg = CommentSent
+                , model = model.articleComments
+                , nostr = shared.nostr
+                , toModel = \articleComments -> { model | articleComments = articleComments }
+                , toMsg = CommentsSent
+                , translations = shared.browserEnv.translations
                 }
 
         CommentInteractionsSent interactionObject innerMsg ->
@@ -294,8 +295,7 @@ showZapDialog model recipients =
 subscriptions : Shared.Model -> Model -> Sub Msg
 subscriptions shared model =
     Sub.batch
-        [ Sub.map CommentSent (Comment.subscriptions model.comment)
-        , commentInteractionSubscriptions shared model
+        [ commentInteractionSubscriptions shared model
         , articleFromModel shared model
             |> Maybe.andThen (\article ->
                 addressComponentsForArticle article
@@ -304,7 +304,20 @@ subscriptions shared model =
                     )
             )
             |> Maybe.withDefault Sub.none
+        , articleCommentsSubscriptions shared model
         ]
+
+articleCommentsSubscriptions : Shared.Model -> Model -> Sub Msg
+articleCommentsSubscriptions shared model =
+    let
+        articleComments =
+            articleFromModel shared model
+                |> Maybe.andThen addressComponentsForArticle
+                |> Maybe.map (Nostr.getArticleComments shared.nostr)
+                |> Maybe.withDefault []
+    in
+    ArticleComments.subscriptions model.articleComments articleComments
+        |> Sub.map CommentsSent
 
 
 commentInteractionSubscriptions : Shared.Model -> Model -> Sub Msg
@@ -363,44 +376,19 @@ articleFromModel shared model =
 
 viewArticle : Shared.Model -> Model -> Maybe Article -> Html Msg
 viewArticle shared model maybeArticle =
-    let
-        signingUserPubKey =
-            loggedInSigningPubKey shared.loginStatus
-
-        commenting =
-            signingUserPubKey
-                |> Maybe.andThen (Nostr.getProfile shared.nostr)
-                |> Maybe.andThen
-                    (\profile ->
-                        ( Comment.new
-                            { model = model.comment
-                            , toMsg = CommentSent
-                            , nostr = shared.nostr
-                            , profile = profile
-                            , loginStatus = shared.loginStatus
-                            , browserEnv = shared.browserEnv
-                            , theme = shared.theme
-                            }
-                        , OpenComment
-                        )
-                            |> Just
-                    )
-    in
     case maybeArticle of
         Just article ->
             Ui.View.viewArticle
-                { theme = shared.theme
-                , browserEnv = shared.browserEnv
-                , nostr = shared.nostr
-                , loginStatus = shared.loginStatus
-                , commenting = commenting
+                { articleComments = model.articleComments
                 , articleToInteractionsMsg = ArticleInteractionsSent
-                , articleCommentInteractions = model.commentInteractions
-                , commentsToInteractionsMsg = CommentInteractionsSent
                 , bookmarkButtonMsg = \_ _ -> NoOp
                 , bookmarkButtons = Dict.empty
-                , openCommentMsg = commentToArticle article shared.loginStatus |> Maybe.map OpenComment
+                , browserEnv = shared.browserEnv
+                , commentsToMsg = CommentsSent
+                , nostr = shared.nostr
+                , loginStatus = shared.loginStatus
                 , sharing = Just ( model.sharingButtonDialog, SharingButtonDialogMsg )
+                , theme = shared.theme
                 }
                 (Just model.loadedContent)
                 model.articleInteractions

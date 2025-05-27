@@ -3,6 +3,7 @@ module Components.ArticleInfo exposing (..)
 import BrowserEnv exposing (BrowserEnv)
 import Components.InteractionButton exposing (InteractionObject)
 import Components.Interactions as Interactions
+import Components.SharingButtonDialog exposing (SharingInfo)
 import Dict
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr exposing (..)
@@ -31,6 +32,7 @@ type alias ArticleInfoData msg =
     , interactionObject : InteractionObject
     , nostr : Nostr.Model
     , loginStatus : LoginStatus
+    , shareInfo : SharingInfo
     , zapRelays : Set RelayUrl
     }
 
@@ -305,9 +307,11 @@ viewInteractions articleInfoData =
         , loginStatus = articleInfoData.loginStatus
         }
         |> Interactions.withInteractionElements
-            [ Interactions.LikeButtonElement
+            [ Interactions.CommentButtonElement Nothing
+            , Interactions.LikeButtonElement
             , Interactions.RepostButtonElement
             , Interactions.ZapButtonElement "0" articleInfoData.zapRelays
             , Interactions.BookmarkButtonElement
+            , Interactions.ShareButtonElement articleInfoData.shareInfo
             ]
         |> Interactions.view

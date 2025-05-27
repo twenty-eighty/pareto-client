@@ -1,5 +1,6 @@
 module Pages.E.Event_ exposing (..)
 
+import Components.ArticleComments as ArticleComments
 import Components.Interactions
 import Components.RelayStatus exposing (Purpose(..))
 import Dict
@@ -267,18 +268,16 @@ viewContent shared model =
             Nostr.getArticleForAddressComponents shared.nostr addressComponents
                 |> Maybe.map
                     (Ui.View.viewArticle
-                        { theme = shared.theme
+                        { articleComments = ArticleComments.init
+                        , articleToInteractionsMsg = \_ _ -> NoOp
                         , bookmarkButtonMsg = \_ _ -> NoOp
                         , bookmarkButtons = Dict.empty
                         , browserEnv = shared.browserEnv
+                        , commentsToMsg = \_ -> NoOp
                         , nostr = shared.nostr
                         , loginStatus = shared.loginStatus
-                        , commenting = Nothing
-                        , articleToInteractionsMsg = \_ _ -> NoOp
-                        , articleCommentInteractions = Dict.empty
-                        , commentsToInteractionsMsg = \_ _ -> NoOp
-                        , openCommentMsg = Nothing
                         , sharing = Nothing
+                        , theme = shared.theme
                         }
                         (Just model.loadedContent)
                         Components.Interactions.init

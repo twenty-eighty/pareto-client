@@ -1,6 +1,6 @@
 module Components.CommentButton exposing
     ( CommentButton, new
-    , withOpenCommentMsg
+    , withClickedMsg
     , view
     , init, update, Model, Msg
     , subscriptions
@@ -33,7 +33,9 @@ import Nostr.Types exposing (LoginStatus, PubKey, loggedInPubKey, loggedInSignin
 import Ui.Styles
 import Nostr.Event exposing (Kind(..))
 
+
 -- MODEL
+
 
 type Model =
     Model InteractionButton.Model
@@ -48,7 +50,7 @@ init =
 
 type Msg msg
     = InteractionButtonMsg (InteractionButton.Msg (Msg msg))
-    | OpenComment msg
+    | Clicked msg
 
 
 update : { msg : Msg msg, model : Model, nostr : Nostr.Model, toModel : Model -> model, toMsg : Msg msg -> msg, translations : I18Next.Translations } -> ( model, Effect msg )
@@ -78,8 +80,11 @@ update props =
                 in
                 ( updatedModel, effect |> Effect.map props.toMsg )
 
-            OpenComment openCommentMsg ->
-                ( Model model, Effect.sendMsg openCommentMsg )
+            Clicked clickedMsg ->
+                ( Model model
+                , Effect.sendMsg clickedMsg
+                )
+
 
 
 -- SETTINGS
@@ -91,15 +96,15 @@ type CommentButton msg
         , interactionObject : InteractionObject
         , nostr : Nostr.Model
         , loginStatus : LoginStatus
-        , openCommentMsg : Maybe msg
+        , clickedMsg : Maybe msg
         , toMsg : Msg msg -> msg
         , theme : Ui.Styles.Theme
         }
 
 
-withOpenCommentMsg : Maybe msg -> CommentButton msg -> CommentButton msg
-withOpenCommentMsg openCommentMsg (Settings settings) =
-    Settings { settings | openCommentMsg = openCommentMsg }
+withClickedMsg : Maybe msg -> CommentButton msg -> CommentButton msg
+withClickedMsg clickedMsg (Settings settings) =
+    Settings { settings | clickedMsg = clickedMsg }
 
 new : 
     { model : Model
@@ -115,7 +120,7 @@ new props =
         , interactionObject = props.interactionObject
         , nostr = props.nostr
         , loginStatus = props.loginStatus
-        , openCommentMsg = Nothing
+        , clickedMsg = Nothing
         , toMsg = props.toMsg
         , theme = props.theme
         }
@@ -143,12 +148,10 @@ view (Settings settings) =
         clickAction : Maybe (InteractionButton.ClickAction (Msg msg))
         clickAction =
             if loggedInSigningPubKey settings.loginStatus /= Nothing then
-                settings.openCommentMsg
-                |> Maybe.map (\openCommentMsg ->
-                    InteractionButton.SendMsg (OpenComment openCommentMsg)
-                    |> Just
+                settings.clickedMsg
+                |> Maybe.map (\clickedMsg ->
+                    InteractionButton.SendMsg (Clicked clickedMsg)
                 )
-                |> Maybe.withDefault Nothing
             else
                 Nothing
     in

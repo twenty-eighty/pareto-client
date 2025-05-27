@@ -4,11 +4,9 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.ArticleComments as ArticleComments
 import Components.Button as Button
 import Components.BookmarkButton as BookmarkButton
-import Components.Comment as Comment
 import Components.InteractionButton as InteractionButton exposing (InteractionObject(..))
 import Components.Interactions
 import Components.SharingButtonDialog as SharingButtonDialog
-import Components.ZapDialog as ZapDialog
 import Css
 import Dict exposing (Dict)
 import Html.Styled as Html exposing (Html, a, article, div, h2, h3, img, summary, text)
@@ -23,7 +21,7 @@ import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArt
 import Nostr.Event exposing (AddressComponents, Kind(..), Tag(..), TagReference(..))
 import Nostr.Nip05 exposing (nip05ToString)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
-import Nostr.Nip22 exposing (CommentType, ArticleComment, ArticleCommentComment)
+import Nostr.Nip22 exposing (CommentType(..), ArticleComment, ArticleCommentComment)
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Relay exposing (websocketUrl)
@@ -47,18 +45,16 @@ import Url
 
 
 type alias ArticlePreviewsData msg =
-    { theme : Theme
+    { articleComments : ArticleComments.Model
+    , articleToInteractionsMsg : InteractionButton.InteractionObject -> Components.Interactions.Msg msg -> msg
     , bookmarkButtonMsg : EventId -> BookmarkButton.Msg -> msg
     , bookmarkButtons : Dict EventId BookmarkButton.Model
     , browserEnv : BrowserEnv
-    , nostr : Nostr.Model
+    , commentsToMsg : ArticleComments.Msg msg -> msg
     , loginStatus : LoginStatus
-    , commenting : Maybe ( Comment.Comment msg, CommentType -> msg )
-    , articleToInteractionsMsg : InteractionButton.InteractionObject -> Components.Interactions.Msg msg -> msg
-    , commentsToInteractionsMsg : InteractionButton.InteractionObject -> Components.Interactions.Msg msg -> msg
-    , articleCommentInteractions : Dict EventId Components.Interactions.Model
-    , openCommentMsg : Maybe msg
+    , nostr : Nostr.Model
     , sharing : Maybe ( SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg )
+    , theme : Theme
     }
 
 
@@ -224,13 +220,28 @@ viewArticle articlePreviewsData articlePreviewData article =
             , interactionsModel = articlePreviewData.articleInteractions
             , interactionObject = interactionObject
             , toInteractionsMsg = articlePreviewsData.articleToInteractionsMsg interactionObject
-            , openCommentMsg = articlePreviewsData.openCommentMsg
             , nostr = articlePreviewsData.nostr
             , sharing = articlePreviewsData.sharing
             , sharingInfo = sharingInfoForArticle article articlePreviewData.author
             , translations = articlePreviewsData.browserEnv.translations
             , theme = articlePreviewsData.theme
             }
+        newComment =
+            loggedInSigningPubKey articlePreviewsData.loginStatus
+            |> Maybe.map2 (\addressComponents signingPubKey ->
+                CommentToArticle
+                    { pubKey = signingPubKey
+                    , eventId = ""
+                    , createdAt = Time.millisToPosix 0
+                    , rootEventId = Just article.id
+                    , rootAddress = addressComponents
+                    , rootKind = article.kind
+                    , rootPubKey = article.author
+                    , rootRelay = article.relays |> Set.toList |> List.head
+                    , content = ""
+                    }
+                )
+                (addressComponentsForArticle article)
     in
     div
         [ css
@@ -365,36 +376,21 @@ viewArticle articlePreviewsData articlePreviewData article =
                         , viewContent styles articlePreviewData.loadedContent getProfile article.content
                         , viewInteractions previewData "2"
                         ]
-                    , case articlePreviewsData.commenting of
-                        Just ( comment, _ ) ->
-                            div
-                                [ css
-                                    [ Tw.w_80
-                                    , Bp.sm
-                                        [ Tw.w_96
-                                        ]
-                                    ]
-                                ]
-                                [ comment
-                                    |> Comment.view
-                                ]
-
-                        Nothing ->
-                            emptyHtml
                     , div
                         [ css
                             [ Tw.mt_2 ]
                         ]
                         [ ArticleComments.new
                             { browserEnv = articlePreviewsData.browserEnv
+                            , model = articlePreviewsData.articleComments
                             , nostr = articlePreviewsData.nostr
                             , articleComments = articlePreviewData.articleComments
                             , articleCommentComments = articlePreviewData.articleCommentComments
-                            , interactions = articlePreviewsData.articleCommentInteractions
-                            , toInteractionsMsg = articlePreviewsData.commentsToInteractionsMsg
+                            , toMsg = articlePreviewsData.commentsToMsg
                             , loginStatus = articlePreviewsData.loginStatus
                             , theme = articlePreviewsData.theme
                             }
+                            |> ArticleComments.withNewComment newComment
                             |> ArticleComments.view
                         ]
                     ]

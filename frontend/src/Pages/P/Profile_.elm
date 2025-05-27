@@ -1,5 +1,6 @@
 module Pages.P.Profile_ exposing (Model, Msg, page)
 
+import Components.ArticleComments as ArticleComments
 import Components.EmailSubscriptionDialog as EmailSubscriptionDialog
 import Components.RelayStatus exposing (Purpose(..))
 import Dict exposing (Dict)
@@ -281,18 +282,16 @@ viewArticles shared pubKey =
     Nostr.getArticlesForAuthor shared.nostr pubKey
         |> Ui.View.viewArticlePreviews
             ArticlePreviewList
-            { theme = shared.theme
+            { articleComments = ArticleComments.init
+            , articleToInteractionsMsg = \_ _ -> NoOp
+            , commentsToMsg = \_ -> NoOp
             , bookmarkButtonMsg = \_ _ -> NoOp
             , bookmarkButtons = Dict.empty
             , browserEnv = shared.browserEnv
-            , nostr = shared.nostr
             , loginStatus = shared.loginStatus
-            , commenting = Nothing
-            , articleToInteractionsMsg = \_ _ -> NoOp
-            , articleCommentInteractions = Dict.empty
-            , commentsToInteractionsMsg = \_ _ -> NoOp
-            , openCommentMsg = Nothing
+            , nostr = shared.nostr
             , sharing = Nothing
+            , theme = shared.theme
             }
 
 

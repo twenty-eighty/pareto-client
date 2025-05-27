@@ -1,5 +1,6 @@
 module Pages.Read exposing (Model, Msg, init, page, subscriptions, update, view)
 
+import Components.ArticleComments as ArticleComments
 import Components.BookmarkButton as BookmarkButton
 import Components.Categories as Categories
 import Components.Icon as Icon
@@ -461,18 +462,16 @@ viewContent shared model userPubKey =
             Nostr.getArticlesByDate shared.nostr
                 |> Ui.View.viewArticlePreviews
                     ArticlePreviewList
-                    { theme = shared.theme
+                    { articleComments = ArticleComments.init
+                    , articleToInteractionsMsg = \_ _ -> NoOp
                     , bookmarkButtonMsg = BookmarkButtonMsg
                     , bookmarkButtons = model.bookmarkButtons
                     , browserEnv = shared.browserEnv
+                    , commentsToMsg = \_ -> NoOp
                     , nostr = shared.nostr
                     , loginStatus = shared.loginStatus
-                    , commenting = Nothing
-                    , articleToInteractionsMsg = \_ _ -> NoOp
-                    , articleCommentInteractions = Dict.empty
-                    , commentsToInteractionsMsg = \_ _ -> NoOp
-                    , openCommentMsg = Nothing
                     , sharing = Nothing
+                    , theme = shared.theme
                     }
 
         viewNotes =

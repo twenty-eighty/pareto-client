@@ -29,7 +29,6 @@ type alias PreviewData msg =
     , interactionsModel : Components.Interactions.Model
     , interactionObject : Components.InteractionButton.InteractionObject
     , toInteractionsMsg : Components.Interactions.Msg msg -> msg
-    , openCommentMsg : Maybe msg
     , nostr : Nostr.Model
     , sharing : Maybe ( SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg )
     , sharingInfo : SharingButtonDialog.SharingInfo
@@ -50,7 +49,7 @@ viewInteractions previewData instanceId =
         , loginStatus = previewData.loginStatus
         }
         |> Components.Interactions.withInteractionElements
-            [ Components.Interactions.CommentButtonElement previewData.openCommentMsg
+            [ Components.Interactions.CommentButtonElement Nothing
             , Components.Interactions.LikeButtonElement
             , Components.Interactions.RepostButtonElement
             , Components.Interactions.ZapButtonElement instanceId previewData.zapRelays

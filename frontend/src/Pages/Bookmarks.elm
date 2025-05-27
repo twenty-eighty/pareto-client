@@ -1,8 +1,8 @@
 module Pages.Bookmarks exposing (Model, Msg, page)
 
 import Auth
+import Components.ArticleComments as ArticleComments
 import Components.Categories as Categories
-import Components.Interactions as Interactions
 import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html)
@@ -301,18 +301,16 @@ viewArticleBookmarks user shared _ addressComponents =
         |> Nostr.sortArticlesByDate
         |> Ui.View.viewArticlePreviews
             ArticlePreviewList
-            { theme = shared.theme
+            { articleComments = ArticleComments.init
+            , articleToInteractionsMsg = \_ _ -> NoOp
             , bookmarkButtonMsg = \_ _ -> NoOp
             , bookmarkButtons = Dict.empty
             , browserEnv = shared.browserEnv
+            , commentsToMsg = \_ -> NoOp
             , nostr = shared.nostr
             , loginStatus = shared.loginStatus
-            , commenting = Nothing
-            , articleToInteractionsMsg = \_ _ -> NoOp
-            , articleCommentInteractions = Dict.empty
-            , commentsToInteractionsMsg = \_ _ -> NoOp
-            , openCommentMsg = Nothing
             , sharing = Nothing
+            , theme = shared.theme
             }
 
 

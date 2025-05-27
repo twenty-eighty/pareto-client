@@ -74,7 +74,7 @@ init =
 type Msg msg
     = BookmarkButtonMsg BookmarkButton.Msg
     | CommentButtonMsg (CommentButton.Msg (Msg msg))
-    | OpenComment msg
+    | CommentButtonClicked msg
     | LikeButtonMsg LikeButton.Msg
     | RepostButtonMsg RepostButton.Msg
     | SharingButtonDialogMsg SharingButtonDialog.Msg
@@ -133,9 +133,9 @@ update props =
                 in
                 ( updatedModel, effect |> Effect.map props.toMsg )
 
-            OpenComment openCommentMsg ->
+            CommentButtonClicked commentButtonClickedMsg ->
                 ( Model model
-                , openCommentMsg
+                , commentButtonClickedMsg
                     |> Effect.sendMsg
                 )
 
@@ -259,7 +259,7 @@ getBookmarkButton (Settings settings) =
 
 
 getCommentButton : Interactions msg -> Maybe msg -> Html (Msg msg)
-getCommentButton (Settings settings) openCommentMsg =
+getCommentButton (Settings settings) clickedMsg =
     let
         (Model model) =
             settings.model
@@ -273,7 +273,7 @@ getCommentButton (Settings settings) openCommentMsg =
         , nostr = settings.nostr
         , loginStatus = settings.loginStatus
         }
-        |> CommentButton.withOpenCommentMsg (openCommentMsg |> Maybe.map OpenComment)
+        |> CommentButton.withClickedMsg (clickedMsg |> Maybe.map CommentButtonClicked)
         |> CommentButton.view
 
 
@@ -373,8 +373,8 @@ view interactions =
                 case interactionElement of
                     BookmarkButtonElement ->
                         getBookmarkButton interactions
-                    CommentButtonElement openCommentMsg ->
-                        getCommentButton interactions openCommentMsg
+                    CommentButtonElement clickedMsg ->
+                        getCommentButton interactions clickedMsg
                     LikeButtonElement ->
                         getLikeButton interactions
                     RepostButtonElement ->
