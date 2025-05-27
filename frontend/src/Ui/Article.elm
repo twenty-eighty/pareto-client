@@ -35,7 +35,7 @@ import Tailwind.Utilities as Tw
 import Time
 import Translations.ArticleView as Translations
 import Translations.Posts
-import Ui.Interactions exposing (viewInteractions)
+import Ui.Interactions
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
@@ -399,6 +399,34 @@ viewArticle articlePreviewsData articlePreviewData article =
             ]
         ]
 
+
+viewInteractions : Ui.Interactions.PreviewData msg -> String -> Html msg
+viewInteractions previewData instanceId =
+    div
+        [ css
+            [ Tw.block
+            , Bp.lg [Tw.hidden]
+            ]
+        ]
+        [ Components.Interactions.new
+            { browserEnv = previewData.browserEnv
+            , model = Just previewData.interactionsModel
+            , toMsg = previewData.toInteractionsMsg
+            , theme = previewData.theme
+            , interactionObject = previewData.interactionObject
+            , nostr = previewData.nostr
+            , loginStatus = previewData.loginStatus
+            }
+            |> Components.Interactions.withInteractionElements
+                [ Components.Interactions.CommentButtonElement Nothing
+                , Components.Interactions.LikeButtonElement
+                , Components.Interactions.RepostButtonElement
+                , Components.Interactions.ZapButtonElement instanceId previewData.zapRelays
+                , Components.Interactions.BookmarkButtonElement
+                , Components.Interactions.ShareButtonElement previewData.sharingInfo
+                ]
+            |> Components.Interactions.view
+        ]
 
 sharingInfoForArticle : Article -> Author -> SharingButtonDialog.SharingInfo
 sharingInfoForArticle article author =
