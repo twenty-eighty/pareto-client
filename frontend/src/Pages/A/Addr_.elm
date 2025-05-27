@@ -1,10 +1,13 @@
 module Pages.A.Addr_ exposing (..)
 
+import Components.ArticleComments as ArticleComments
 import Components.ArticleInfo as ArticleInfo
-import Components.Comment as Comment
+import Components.InteractionButton as InteractionButton
+import Components.Interactions as Interactions
 import Components.RelayStatus exposing (Purpose(..))
 import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapDialog as ZapDialog
+import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (div)
 import Html.Styled.Attributes exposing (css)
@@ -12,14 +15,13 @@ import Layouts
 import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
 import Nostr
-import Nostr.Article exposing (Article)
-import Nostr.Event as Event exposing (AddressComponents, Kind(..), TagReference(..))
-import Nostr.Nip18 exposing (articleRepostEvent)
+import Nostr.Article exposing (addressComponentsForArticle)
+import Nostr.Event as Event exposing (Kind(..), TagReference(..))
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
-import Nostr.Nip22 exposing (CommentType)
+import Nostr.Nip22 exposing (CommentType(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId, PubKey)
+import Nostr.Types exposing (PubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Set
@@ -28,6 +30,8 @@ import Shared.Model
 import Shared.Msg
 import Tailwind.Utilities as Tw
 import Translations.ArticlePage as Translations
+import Ui.Article exposing (sharingInfoForArticle)
+import Ui.Interactions exposing (extendedZapRelays)
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (stylesForTheme)
 import Ui.View exposing (viewRelayStatus)
@@ -40,7 +44,7 @@ page shared route =
     Page.new
         { init = init shared route
         , update = update shared
-        , subscriptions = subscriptions
+        , subscriptions = subscriptions shared
         , view = view shared
         }
         |> Page.withLayout (toLayout shared)
@@ -60,21 +64,32 @@ toLayout shared model =
                 ErrorModel _ ->
                     Nothing
 
-        userPubKey =
-            Shared.loggedInPubKey shared.loginStatus
-
         articleInfo =
             maybeArticle
-                |> Maybe.map
-                    (\article ->
-                        ArticleInfo.view
-                            styles
-                            (Nostr.getAuthor shared.nostr article.author)
-                            article
-                            shared.browserEnv
-                            (Nostr.getInteractionsForArticle shared.nostr userPubKey article)
-                            shared.nostr
-                    )
+                |> Maybe.map (\article ->
+                    addressComponentsForArticle article
+                        |> Maybe.map (\addressComponents ->
+                            let
+                                interactionObject =
+                                    InteractionButton.Article article.id addressComponents
+                            in
+                            ArticleInfo.view
+                                styles
+                                (Nostr.getAuthor shared.nostr article.author)
+                                article
+                                { browserEnv = shared.browserEnv
+                                , model = Just Interactions.init
+                                , toMsg = ArticleInteractionsSent interactionObject
+                                , theme = shared.theme
+                                , interactionObject = interactionObject
+                                , nostr = shared.nostr
+                                , loginStatus = shared.loginStatus
+                                , shareInfo = sharingInfoForArticle article (Nostr.getAuthor shared.nostr article.author)
+                                , zapRelays = article.relays
+                                }
+                        )
+                        |> Maybe.withDefault emptyHtml
+                ) 
                 |> Maybe.withDefault emptyHtml
     in
     Layouts.Sidebar.new
@@ -95,11 +110,12 @@ type Model
 
 type alias Nip19ModelData =
     { loadedContent : LoadedContent Msg
-    , comment : Comment.Model
+    , articleComments : ArticleComments.Model
     , nip19 : NIP19Type
     , requestId : RequestId
-    , zapDialog : ZapDialog.Model
+    , interactions : Interactions.Model
     , sharingButtonDialog : SharingButtonDialog.Model
+    , zapDialog : ZapDialog.Model
     }
 
 
@@ -113,14 +129,15 @@ init shared route () =
             case decoded of
                 Ok nip19 ->
                     ( Nip19Model
-                        { loadedContent =
+                        { articleComments = ArticleComments.init
+                        , loadedContent =
                             { loadedUrls = Set.empty
                             , addLoadedContentFunction = AddLoadedContent
                             }
-                        , comment = Comment.init {}
                         , nip19 = nip19
                         , requestId = Nostr.getLastRequestId shared.nostr
                         , zapDialog = ZapDialog.init {}
+                        , interactions = Interactions.init
                         , sharingButtonDialog = SharingButtonDialog.init
                         }
                     , Nostr.getArticleForNip19 shared.nostr nip19
@@ -200,13 +217,9 @@ decodedTagParam tag =
 
 
 type Msg
-    = AddArticleBookmark PubKey AddressComponents
-    | RemoveArticleBookmark PubKey AddressComponents
-    | AddArticleReaction PubKey EventId PubKey AddressComponents -- 2nd pubkey author of article to be liked
-    | AddRepost PubKey Article
-    | AddLoadedContent String
-    | OpenComment CommentType
-    | CommentSent Comment.Msg
+    = AddLoadedContent String
+    | CommentsSent (ArticleComments.Msg Msg)
+    | ArticleInteractionsSent InteractionButton.InteractionObject (Interactions.Msg Msg)
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
     | SharingButtonDialogMsg SharingButtonDialog.Msg
@@ -216,40 +229,6 @@ type Msg
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
-        AddArticleBookmark pubKey addressComponents ->
-            ( model
-            , SendBookmarkListWithArticle pubKey addressComponents
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        RemoveArticleBookmark pubKey addressComponents ->
-            ( model
-            , SendBookmarkListWithoutArticle pubKey addressComponents
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        AddArticleReaction userPubKey eventId articlePubKey addressComponents ->
-            ( model
-            , SendReaction userPubKey eventId articlePubKey addressComponents
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        AddRepost userPubKey article ->
-            let
-                relays =
-                    article.relays
-                        |> Set.toList
-                        |> List.append (Nostr.getWriteRelayUrlsForPubKey shared.nostr userPubKey)
-            in
-            ( model
-            , SendRepost relays (articleRepostEvent userPubKey article)
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
         AddLoadedContent url ->
             case model of
                 Nip19Model nip19ModelData ->
@@ -258,23 +237,34 @@ update shared msg model =
                 _ ->
                     ( model, Effect.none )
 
-        OpenComment comment ->
+        CommentsSent innerMsg ->
             case model of
                 Nip19Model nip19ModelData ->
-                    ( Nip19Model { nip19ModelData | comment = Comment.show nip19ModelData.comment comment }, Effect.none )
+                    ArticleComments.update
+                        { browserEnv = shared.browserEnv
+                        , msg = innerMsg
+                        , model = nip19ModelData.articleComments
+                        , nostr = shared.nostr
+                        , toModel = \articleComments -> Nip19Model { nip19ModelData | articleComments = articleComments }
+                        , toMsg = CommentsSent
+                        , translations = shared.browserEnv.translations
+                        }
 
                 _ ->
                     ( model, Effect.none )
 
-        CommentSent innerMsg ->
+        ArticleInteractionsSent interactionObject innerMsg ->
             case model of
                 Nip19Model nip19ModelData ->
-                    Comment.update
-                        { nostr = shared.nostr
+                    Interactions.update
+                        { browserEnv = shared.browserEnv
                         , msg = innerMsg
-                        , model = nip19ModelData.comment
-                        , toModel = \comment -> Nip19Model { nip19ModelData | comment = comment }
-                        , toMsg = CommentSent
+                        , model = Just nip19ModelData.interactions
+                        , nostr = shared.nostr  
+                        , interactionObject = interactionObject
+                        , openCommentMsg = Nothing
+                        , toModel = \interactionsModel -> Nip19Model { nip19ModelData | interactions = interactionsModel }
+                        , toMsg = ArticleInteractionsSent interactionObject
                         }
 
                 _ ->
@@ -347,15 +337,31 @@ showZapDialog nip19ModelData recipients =
 -- SUBSCRIPTIONS
 
 
-subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions : Shared.Model -> Model -> Sub Msg
+subscriptions shared model =
     case model of
         Nip19Model nip19ModelData ->
-            Sub.map CommentSent (Comment.subscriptions nip19ModelData.comment)
+            let
+                articleComments =
+                    Nostr.getArticleForNip19 shared.nostr nip19ModelData.nip19
+                        |> Maybe.andThen addressComponentsForArticle
+                        |> Maybe.map (Nostr.getArticleComments shared.nostr)
+                        |> Maybe.withDefault []
+            in
+            Sub.batch
+                [ ArticleComments.subscriptions nip19ModelData.articleComments articleComments |> Sub.map CommentsSent
+                , Nostr.getArticleForNip19 shared.nostr nip19ModelData.nip19
+                    |> Maybe.andThen (\article ->
+                        addressComponentsForArticle article
+                            |> Maybe.map (\addressComponents ->
+                                Sub.map (ArticleInteractionsSent (InteractionButton.Article article.id addressComponents)) (Interactions.subscriptions nip19ModelData.interactions)
+                            )
+                    )
+                    |> Maybe.withDefault Sub.none
+                ]
 
         _ ->
             Sub.none
-
 
 
 -- VIEW
@@ -364,43 +370,19 @@ subscriptions model =
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     case model of
-        Nip19Model { loadedContent, comment, nip19, requestId, sharingButtonDialog } ->
-            viewContent shared nip19 comment loadedContent requestId sharingButtonDialog
+        Nip19Model { articleComments, loadedContent, nip19, requestId, interactions, sharingButtonDialog } ->
+            viewContent shared nip19 articleComments loadedContent requestId interactions sharingButtonDialog 
 
         ErrorModel error ->
             viewError shared error
 
 
-viewContent : Shared.Model -> NIP19Type -> Comment.Model -> LoadedContent Msg -> RequestId -> SharingButtonDialog.Model -> View Msg
-viewContent shared nip19 comment loadedContent requestId sharingButtonDialog =
+viewContent : Shared.Model -> NIP19Type -> ArticleComments.Model -> LoadedContent Msg -> RequestId -> Interactions.Model -> SharingButtonDialog.Model -> View Msg
+viewContent shared nip19 articleComments loadedContent requestId interactions sharingButtonDialog =
     let
         maybeArticle =
             Nostr.getArticleForNip19 shared.nostr nip19
 
-        userPubKey =
-            Shared.loggedInPubKey shared.loginStatus
-
-        signingUserPubKey =
-            Shared.loggedInSigningPubKey shared.loginStatus
-
-        commenting =
-            signingUserPubKey
-                |> Maybe.andThen (Nostr.getProfile shared.nostr)
-                |> Maybe.andThen
-                    (\profile ->
-                        ( Comment.new
-                            { model = comment
-                            , toMsg = CommentSent
-                            , nostr = shared.nostr
-                            , profile = profile
-                            , loginStatus = shared.loginStatus
-                            , browserEnv = shared.browserEnv
-                            , theme = shared.theme
-                            }
-                        , OpenComment
-                        )
-                            |> Just
-                    )
     in
     { title =
         maybeArticle
@@ -411,20 +393,19 @@ viewContent shared nip19 comment loadedContent requestId sharingButtonDialog =
             |> Maybe.map
                 (\article ->
                     Ui.View.viewArticle
-                        { theme = shared.theme
+                        { articleComments = articleComments
+                        , articleToInteractionsMsg = ArticleInteractionsSent
+                        , bookmarkButtonMsg = \_ _ -> NoOp
+                        , bookmarkButtons = Dict.empty
                         , browserEnv = shared.browserEnv
+                        , commentsToMsg = CommentsSent
+                        , loginStatus = shared.loginStatus
                         , nostr = shared.nostr
-                        , userPubKey = Shared.loggedInPubKey shared.loginStatus
-                        , onBookmark = Maybe.map (\pubKey -> ( AddArticleBookmark pubKey, RemoveArticleBookmark pubKey )) signingUserPubKey
-                        , commenting = commenting
-                        , onRepost = Maybe.map (\pubKey -> AddRepost pubKey article) signingUserPubKey
-                        , onReaction = Maybe.map (\pubKey -> AddArticleReaction pubKey) signingUserPubKey
-
-                        -- signing is possible also with read-only login
-                        , onZap = Maybe.map (\pubKey -> ZapReaction pubKey) userPubKey
                         , sharing = Just ( sharingButtonDialog, SharingButtonDialogMsg )
+                        , theme = shared.theme
                         }
                         (Just loadedContent)
+                        interactions
                         article
                 )
             |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle (Just requestId))

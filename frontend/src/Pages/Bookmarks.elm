@@ -1,6 +1,7 @@
 module Pages.Bookmarks exposing (Model, Msg, page)
 
 import Auth
+import Components.ArticleComments as ArticleComments
 import Components.Categories as Categories
 import Dict
 import Effect exposing (Effect)
@@ -160,6 +161,7 @@ type Msg
     | CategorySelected BookmarkType
     | AddArticleBookmark PubKey AddressComponents
     | RemoveArticleBookmark PubKey AddressComponents
+    | NoOp
 
 
 update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -210,6 +212,8 @@ update user shared msg model =
                 ]
             )
 
+        NoOp ->
+            ( model, Effect.none )
 
 updateWithMessage : Auth.User -> Shared.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithMessage user shared model message =
@@ -297,16 +301,16 @@ viewArticleBookmarks user shared _ addressComponents =
         |> Nostr.sortArticlesByDate
         |> Ui.View.viewArticlePreviews
             ArticlePreviewList
-            { theme = shared.theme
+            { articleComments = ArticleComments.init
+            , articleToInteractionsMsg = \_ _ -> NoOp
+            , bookmarkButtonMsg = \_ _ -> NoOp
+            , bookmarkButtons = Dict.empty
             , browserEnv = shared.browserEnv
+            , commentsToMsg = \_ -> NoOp
             , nostr = shared.nostr
-            , userPubKey = Just user.pubKey
-            , onBookmark = Just ( AddArticleBookmark user.pubKey, RemoveArticleBookmark user.pubKey )
-            , commenting = Nothing
-            , onReaction = Nothing
-            , onRepost = Nothing
-            , onZap = Nothing
+            , loginStatus = shared.loginStatus
             , sharing = Nothing
+            , theme = shared.theme
             }
 
 

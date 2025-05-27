@@ -1,10 +1,10 @@
-module Shared.Model exposing (ClientRole(..), LoginMethod(..), LoginStatus(..), Model)
+module Shared.Model exposing (ClientRole(..), Model)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.AlertTimerMessage as AlertTimerMessage
 import Nostr
 import Nostr.ConfigCheck as ConfigCheck
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (LoginStatus)
 import Ui.Styles exposing (Theme)
 
 
@@ -24,20 +24,6 @@ type alias Model =
     , theme : Theme
     , alertTimerMessage : AlertTimerMessage.Model
     }
-
-
-type LoginStatus
-    = LoggedOut
-    | LoggedInUnknown
-    | LoggedIn PubKey LoginMethod
-
-
-type LoginMethod
-    = LoginMethodConnect
-    | LoginMethodExtension
-    | LoginMethodLocal
-    | LoginMethodOther String
-    | LoginMethodReadOnly
 
 
 type ClientRole

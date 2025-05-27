@@ -17,13 +17,12 @@ import Nostr.HandlerInformation exposing (HandlerInformation, buildHandlerInform
 import Nostr.Profile exposing (Profile, ProfileValidation(..), eventFromProfile)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (Following(..), PubKey)
+import Nostr.Types exposing (Following(..), LoginStatus(..), PubKey)
 import Page exposing (Page)
 import Pareto
 import Route exposing (Route)
 import Route.Path
 import Shared
-import Shared.Model exposing (LoginStatus(..))
 import Shared.Msg
 import Tailwind.Utilities as Tw
 import Tailwind.Theme as Theme

@@ -15,10 +15,9 @@ import Nostr.Nip05 as Nip05
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Shared exposing (httpErrorToString)
-import Nostr.Types exposing (Following(..), PubKey)
+import Nostr.Types exposing (Following(..), LoginStatus, PubKey, loggedInPubKey)
 import Set exposing (Set)
 import Shared
-import Shared.Model exposing (LoginStatus)
 import Tailwind.Breakpoints as Bp exposing (..)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
@@ -105,11 +104,8 @@ viewAuthorCard profile profileViewData =
         authorRelays =
             pubkeyRelays profileViewData.nostr profile.pubKey
 
-        userPubKey =
-            Shared.loggedInPubKey profileViewData.loginStatus
-
         zapRelays =
-            extendedZapRelays authorRelays profileViewData.nostr userPubKey
+            extendedZapRelays authorRelays profileViewData.nostr profileViewData.loginStatus
 
         linkElementWrapper =
             linkElementForProfile True profile profileViewData.validation
@@ -221,11 +217,8 @@ viewProfile profile profileViewData =
         authorRelays =
             pubkeyRelays profileViewData.nostr profile.pubKey
 
-        userPubKey =
-            Shared.loggedInPubKey profileViewData.loginStatus
-
         zapRelays =
-            extendedZapRelays authorRelays profileViewData.nostr userPubKey
+            extendedZapRelays authorRelays profileViewData.nostr profileViewData.loginStatus
     in
     div
         [ css
@@ -370,7 +363,7 @@ viewLNAddress styles profile zapRelays =
             (\lud16 ->
                 p
                     (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ [ css [ Tw.flex, Tw.items_center, Tw.overflow_hidden, Tw.text_ellipsis ] ])
-                    [ zapButton profile.pubKey Nothing zapRelays "0"
+                    [ zapButton (Just profile.pubKey) Nothing zapRelays "0"
                     , text <| lud16
                     ]
             )

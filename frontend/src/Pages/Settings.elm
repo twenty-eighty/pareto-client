@@ -33,7 +33,7 @@ import Nostr.Relay as Relay exposing (Relay, RelayState(..), hostWithoutProtocol
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList, removeFromRelayList)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
-import Nostr.Types exposing (IncomingMessage, PubKey, RelayRole(..), RelayUrl, ServerUrl)
+import Nostr.Types exposing (IncomingMessage, PubKey, RelayRole(..), RelayUrl, ServerUrl, signingPubKeyAvailable)
 import Page exposing (Page)
 import Pareto
 import Route exposing (Route)
@@ -1015,7 +1015,7 @@ outboxRelaySection shared user relaysModel =
             }
 
         readOnly =
-            Shared.signingPubKeyAvailable shared.loginStatus
+            signingPubKeyAvailable shared.loginStatus
                 |> not
 
         saving =
@@ -1068,7 +1068,7 @@ inboxRelaySection shared user relaysModel =
             }
 
         readOnly =
-            Shared.signingPubKeyAvailable shared.loginStatus
+            signingPubKeyAvailable shared.loginStatus
                 |> not
 
         saving =
@@ -1444,7 +1444,7 @@ nip96ServersSection shared user mediaServersModel =
             }
 
         readOnly =
-            Shared.signingPubKeyAvailable shared.loginStatus
+            signingPubKeyAvailable shared.loginStatus
                 |> not
 
         saving =
@@ -1515,7 +1515,7 @@ blossomServersSection shared user mediaServersModel =
             }
 
         readOnly =
-            Shared.signingPubKeyAvailable shared.loginStatus
+            signingPubKeyAvailable shared.loginStatus
                 |> not
 
         saving =
@@ -1762,7 +1762,7 @@ viewProfile : Shared.Model -> List ConfigCheck.Issue -> Auth.User -> ProfileMode
 viewProfile shared configCheckIssues user profileModel =
     let
         readOnly =
-            Shared.signingPubKeyAvailable shared.loginStatus
+            signingPubKeyAvailable shared.loginStatus
                 |> not
 
         viewUserProfile =

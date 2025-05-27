@@ -35,7 +35,7 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import Nostr
 import Nostr.Blossom as Blossom exposing (BlobDescriptor, userServerListFromEvent)
-import Nostr.Event exposing (Event, Kind(..), ImageMetadata)
+import Nostr.Event exposing (Event, Kind(..))
 import Nostr.External
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.Nip94 as Nip94 exposing (FileMetadata)

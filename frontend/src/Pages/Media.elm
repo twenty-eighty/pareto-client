@@ -12,10 +12,10 @@ import Nostr.Event exposing (Kind(..), Tag(..))
 import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
+import Nostr.Types exposing (LoginMethod(..), LoginStatus(..))
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
-import Shared.Model exposing (LoginMethod(..), LoginStatus(..))
 import Tailwind.Utilities as Tw
 import Translations.MediaPage as Translations
 import Ui.Styles exposing (Theme)

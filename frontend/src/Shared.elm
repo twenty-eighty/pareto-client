@@ -2,7 +2,7 @@ module Shared exposing
     ( Flags, decoder
     , Model, Msg
     , init, update, subscriptions
-    , contentId, createFollowersEffect, loggedIn, loggedInPubKey, loggedInSigningPubKey, signingPubKeyAvailable
+    , contentId, createFollowersEffect, loggedIn
     )
 
 {-|
@@ -23,13 +23,13 @@ import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.External
 import Nostr.Request exposing (RequestData(..))
-import Nostr.Types exposing (IncomingMessage, PubKey)
+import Nostr.Types exposing (IncomingMessage, LoginMethod(..), LoginStatus(..), PubKey, loggedInPubKey, loggedInSigningPubKey)
 import Pareto
 import Ports
 import Process
 import Route exposing (Route)
 import Route.Path
-import Shared.Model exposing (ClientRole(..), LoginMethod(..), LoginStatus(..))
+import Shared.Model exposing (ClientRole(..))
 import Shared.Msg exposing (Msg(..))
 import Task
 import Ui.Styles exposing (Theme(..))
@@ -104,7 +104,7 @@ init flagsResult _ =
                         |> Nostr.createRequest nostrInit "Follow list/sets of Pareto user" []
                         |> Nostr.doRequest nostrInit
             in
-            ( { loginStatus = Shared.Model.LoggedInUnknown
+            ( { loginStatus = LoggedInUnknown
               , browserEnv = browserEnv
               , configCheck = ConfigCheck.init
               , nostr = nostr
@@ -132,7 +132,7 @@ init flagsResult _ =
                         , testMode = False
                         }
             in
-            ( { loginStatus = Shared.Model.LoggedOut
+            ( { loginStatus = LoggedOut
               , browserEnv = browserEnv
               , configCheck = ConfigCheck.init
               , nostr = Nostr.empty
@@ -291,7 +291,7 @@ update route msg model =
             )
 
         ShowAlert alert ->
-            update route (AlertSent (AlertTimerMessage.AddMessage alert 1000)) model
+            update route (AlertSent (AlertTimerMessage.AddMessage alert 2000)) model
 
         AlertSent innerMsg ->
             let
@@ -325,7 +325,7 @@ updateWithPortMessage model portMessage =
             updateWithUserValue model portMessage.value
 
         "loggedOut" ->
-            ( { model | loginStatus = Shared.Model.LoggedOut }, Effect.none )
+            ( { model | loginStatus = LoggedOut }, Effect.none )
 
         _ ->
             ( model, Effect.none )
@@ -339,7 +339,7 @@ updateWithUserValue model value =
         , model.loginStatus
         )
     of
-        ( Ok pubKeyNew, Ok loginMethod, Shared.Model.LoggedIn pubKeyLoggedIn _ ) ->
+        ( Ok pubKeyNew, Ok loginMethod, LoggedIn pubKeyLoggedIn _ ) ->
             let
                 ( nostr, cmdNostr ) =
                     if pubKeyNew /= pubKeyLoggedIn then
@@ -360,7 +360,7 @@ updateWithUserValue model value =
                         Cmd.none
             in
             ( { model
-                | loginStatus = Shared.Model.LoggedIn pubKeyNew loginMethod
+                | loginStatus = LoggedIn pubKeyNew loginMethod
                 , nostr = nostr
               }
             , [ cmdNostr
@@ -380,7 +380,7 @@ updateWithUserValue model value =
                 ( nostr, cmd ) =
                     Nostr.requestUserData model.nostr pubKeyNew
             in
-            ( { model | loginStatus = Shared.Model.LoggedIn pubKeyNew loginMethod, nostr = nostr }
+            ( { model | loginStatus = LoggedIn pubKeyNew loginMethod, nostr = nostr }
             , [ cmd
 
               -- check if user sends newsletters
@@ -412,59 +412,10 @@ createFollowersEffect nostr maybePubKey =
 
 loggedIn : Model -> Bool
 loggedIn model =
-    case model.loginStatus of
-        LoggedOut ->
-            False
+    loggedInPubKey model.loginStatus
+    |> Maybe.map (\_ -> True)
+    |> Maybe.withDefault False
 
-        LoggedInUnknown ->
-            False
-
-        LoggedIn _ _ ->
-            True
-
-
-loggedInPubKey : Shared.Model.LoginStatus -> Maybe PubKey
-loggedInPubKey loginStatus =
-    case loginStatus of
-        Shared.Model.LoggedIn pubKey _ ->
-            Just pubKey
-
-        _ ->
-            Nothing
-
-
-
--- return a pubkey if the user can sign events
-
-
-loggedInSigningPubKey : Shared.Model.LoginStatus -> Maybe PubKey
-loggedInSigningPubKey loginStatus =
-    case loginStatus of
-        Shared.Model.LoggedIn _ LoginMethodReadOnly ->
-            Nothing
-
-        Shared.Model.LoggedIn pubKey _ ->
-            Just pubKey
-
-        _ ->
-            Nothing
-
-
-
--- check if user can sign events
-
-
-signingPubKeyAvailable : Shared.Model.LoginStatus -> Bool
-signingPubKeyAvailable loginStatus =
-    case loginStatus of
-        Shared.Model.LoggedIn _ LoginMethodReadOnly ->
-            False
-
-        Shared.Model.LoggedIn _ _ ->
-            True
-
-        _ ->
-            False
 
 
 pubkeyDecoder : Json.Decode.Decoder PubKey
@@ -472,26 +423,26 @@ pubkeyDecoder =
     Json.Decode.field "pubKey" Json.Decode.string
 
 
-loginMethodDecoder : Json.Decode.Decoder Shared.Model.LoginMethod
+loginMethodDecoder : Json.Decode.Decoder LoginMethod
 loginMethodDecoder =
     Json.Decode.field "method" Json.Decode.string
         |> Json.Decode.andThen
             (\method ->
                 case String.toLower method of
                     "connect" ->
-                        Json.Decode.succeed Shared.Model.LoginMethodConnect
+                        Json.Decode.succeed LoginMethodConnect
 
                     "extension" ->
-                        Json.Decode.succeed Shared.Model.LoginMethodExtension
+                        Json.Decode.succeed LoginMethodExtension
 
                     "local" ->
-                        Json.Decode.succeed Shared.Model.LoginMethodLocal
+                        Json.Decode.succeed LoginMethodLocal
 
                     "readonly" ->
-                        Json.Decode.succeed Shared.Model.LoginMethodReadOnly
+                        Json.Decode.succeed LoginMethodReadOnly
 
                     other ->
-                        Json.Decode.succeed (Shared.Model.LoginMethodOther other)
+                        Json.Decode.succeed (LoginMethodOther other)
             )
 
 

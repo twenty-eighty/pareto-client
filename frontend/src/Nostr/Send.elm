@@ -25,6 +25,6 @@ type SendRequest
     | SendLongFormDraft (List RelayUrl) Event
     | SendLongFormArticle (List RelayUrl) Event
     | SendProfile (List RelayUrl) Event
-    | SendReaction PubKey EventId PubKey AddressComponents
+    | SendReaction PubKey EventId PubKey (Maybe AddressComponents)
     | SendRelayList (List RelayUrl) Event
     | SendRepost (List RelayUrl) Event

@@ -3,7 +3,9 @@ module Ui.View exposing (..)
 -- this module connects the Nostr engine and the UI functions
 
 import BrowserEnv exposing (BrowserEnv)
+import Components.Interactions
 import Components.RelayStatus as RelayStatus exposing (Purpose(..))
+import Dict
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Keyed as Keyed
@@ -13,12 +15,10 @@ import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Community exposing (Community)
-import Nostr.Nip22 exposing (articleDraftComment)
 import Nostr.Request exposing (RequestId)
 import Tailwind.Utilities as Tw
 import Ui.Article exposing (ArticlePreviewsData)
 import Ui.Community
-import Ui.Interactions exposing (Actions)
 import Ui.Styles exposing (Theme)
 
 
@@ -27,63 +27,23 @@ type ArticlePreviewType
     | ArticlePreviewBigPicture
 
 
-viewArticle : ArticlePreviewsData msg -> Maybe (LoadedContent msg) -> Article -> Html msg
-viewArticle articlePreviewsData loadedContent article =
+viewArticle : ArticlePreviewsData msg -> Maybe (LoadedContent msg) -> Components.Interactions.Model -> Article -> Html msg
+viewArticle articlePreviewsData loadedContent articleInteractions article =
+    let
+        articleComponents =
+            article
+            |> addressComponentsForArticle
+    in
     Ui.Article.viewArticle
         articlePreviewsData
         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
-        , actions = actionsFromArticlePreviewsData articlePreviewsData article
-        , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr articlePreviewsData.userPubKey article
+        , articleComments = articleComponents |> Maybe.map (Nostr.getArticleComments articlePreviewsData.nostr) |> Maybe.withDefault []
+        , articleCommentComments = articleComponents |> Maybe.map (Nostr.getArticleCommentComments articlePreviewsData.nostr) |> Maybe.withDefault Dict.empty
+        , articleInteractions = articleInteractions
         , displayAuthor = True
         , loadedContent = loadedContent
         }
         article
-
-
-actionsFromArticlePreviewsData : ArticlePreviewsData msg -> Article -> Actions msg
-actionsFromArticlePreviewsData articlePreviewsData article =
-    let
-        maybeAddressComponents =
-            addressComponentsForArticle article
-
-        addReactionMsg =
-            Maybe.map2
-                (\addReaction addressComponents ->
-                    addReaction article.id article.author addressComponents
-                )
-                articlePreviewsData.onReaction
-                maybeAddressComponents
-
-        startCommentMsg =
-            articlePreviewsData.userPubKey
-                |> Maybe.andThen
-                    (\userPubKey ->
-                        Maybe.map2
-                            (\( _, openCommentMsg ) draftComment ->
-                                openCommentMsg draftComment
-                            )
-                            articlePreviewsData.commenting
-                            (articleDraftComment userPubKey article)
-                    )
-    in
-    case ( articlePreviewsData.onBookmark, maybeAddressComponents ) of
-        ( Just ( addArticleBookmark, removeArticleBookmark ), Just addressComponents ) ->
-            { addBookmark = Just <| addArticleBookmark addressComponents
-            , removeBookmark = Just <| removeArticleBookmark addressComponents
-            , addReaction = addReactionMsg
-            , removeReaction = Nothing
-            , addRepost = articlePreviewsData.onRepost
-            , startComment = startCommentMsg
-            }
-
-        ( _, _ ) ->
-            { addBookmark = Nothing
-            , removeBookmark = Nothing
-            , addReaction = Nothing
-            , removeReaction = Nothing
-            , addRepost = Nothing
-            , startComment = Nothing
-            }
 
 
 viewArticlePreviews : ArticlePreviewType -> ArticlePreviewsData msg -> List Article -> Html msg
@@ -120,9 +80,9 @@ viewArticlePreviewsList articlePreviewsData articles =
                             Ui.Article.viewArticlePreviewList
                             articlePreviewsData
                             { author = Nostr.getAuthor articlePreviewsData.nostr article.author
-                            , actions =
-                                actionsFromArticlePreviewsData articlePreviewsData article
-                            , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr articlePreviewsData.userPubKey article
+                            , articleInteractions = Components.Interactions.init
+                            , articleComments = []
+                            , articleCommentComments = Dict.empty
                             , displayAuthor = True
                             , loadedContent = Nothing
                             }
@@ -151,9 +111,9 @@ viewArticlePreviewsBigPicture articlePreviewsData articles =
                     Ui.Article.viewArticlePreviewBigPicture
                         articlePreviewsData
                         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
-                        , actions =
-                            actionsFromArticlePreviewsData articlePreviewsData article
-                        , interactions = Nostr.getInteractionsForArticle articlePreviewsData.nostr articlePreviewsData.userPubKey article
+                        , articleInteractions = Components.Interactions.init
+                        , articleComments = []
+                        , articleCommentComments = Dict.empty
                         , displayAuthor = True
                         , loadedContent = Nothing
                         }

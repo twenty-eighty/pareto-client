@@ -6,7 +6,7 @@ import Nostr.Types exposing (PubKey)
 import Route exposing (Route)
 import Route.Path
 import Shared
-import Shared.Model exposing (LoginStatus(..))
+import Nostr.Types exposing (LoginStatus(..), loggedInPubKey)
 import View exposing (View)
 
 
@@ -19,25 +19,17 @@ type alias User =
 -}
 onPageLoad : Shared.Model -> Route () -> Auth.Action.Action User
 onPageLoad shared route =
-    case shared.loginStatus of
-        LoggedIn pubKey _ ->
-            Auth.Action.loadPageWithUser
-                { pubKey = pubKey
-                }
+    shared.loginStatus
+    |> loggedInPubKey
+    |> Maybe.map (\pubKey -> Auth.Action.loadPageWithUser { pubKey = pubKey })
+    |> Maybe.withDefault (
+        Auth.Action.pushRoute
+            { path = Route.Path.SignIn
+            , query = Dict.fromList [ ( "from", route.url.path ) ]
+            , hash = Nothing
+            }
+        )
 
-        _ ->
-            let
-                queryParams =
-                    route.query
-                        |> Dict.toList
-            in
-            Auth.Action.pushRoute
-                { path = Route.Path.SignIn
-                , query =
-                    Dict.fromList
-                        (( "from", route.url.path ) :: queryParams)
-                , hash = Nothing
-                }
 
 
 {-| Renders whenever `Auth.Action.loadCustomPage` is returned from `onPageLoad`.
