@@ -372,9 +372,8 @@ viewArticle articlePreviewsData articlePreviewData article =
                             ++ textStyleReactions
                             ++ contentMargins
                         )
-                        [ viewInteractions previewData "1"
-                        , viewContent styles articlePreviewData.loadedContent getProfile article.content
-                        , viewInteractions previewData "2"
+                        [ viewContent styles articlePreviewData.loadedContent getProfile article.content
+                        , viewInteractions previewData "1"
                         ]
                     , div
                         [ css
