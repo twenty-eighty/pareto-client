@@ -137,7 +137,7 @@ svgForMaterialIcon materialIcon =
             Material.Icons.info
 
         MaterialOutlineBookmark ->
-            Material.Icons.Outlined.bookmark
+            Material.Icons.Outlined.bookmark_border
 
         MaterialOutlineBookmarkAdd ->
             Material.Icons.Outlined.bookmark_add
