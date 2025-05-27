@@ -56,13 +56,13 @@ toLayout shared model =
         styles =
             Ui.Styles.stylesForTheme shared.theme
 
-        maybeArticle =
+        (maybeArticle, interactionsModel) =
             case model of
-                Nip19Model { nip19 } ->
-                    Nostr.getArticleForNip19 shared.nostr nip19
+                Nip19Model { nip19, interactions } ->
+                    (Nostr.getArticleForNip19 shared.nostr nip19, Just interactions)
 
                 ErrorModel _ ->
-                    Nothing
+                    (Nothing, Nothing)
 
         articleInfo =
             maybeArticle
@@ -78,7 +78,7 @@ toLayout shared model =
                                 (Nostr.getAuthor shared.nostr article.author)
                                 article
                                 { browserEnv = shared.browserEnv
-                                , model = Just Interactions.init
+                                , model = interactionsModel
                                 , toMsg = ArticleInteractionsSent interactionObject
                                 , theme = shared.theme
                                 , interactionObject = interactionObject
