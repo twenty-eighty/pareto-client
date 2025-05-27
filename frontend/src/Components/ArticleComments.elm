@@ -1,4 +1,4 @@
-module Components.ArticleComments exposing (ArticleComments, Model, Msg, init, new, subscriptions, update, view, withNewComment)
+module Components.ArticleComments exposing (ArticleComments, Model, Msg, init, new, subscriptions, update, view, withNewComment, withZapRelayUrls)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Comment as Comment
@@ -15,7 +15,8 @@ import Nostr.Event exposing (Kind(..))
 import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..))
 import Nostr.Profile exposing (ProfileValidation(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId, LoginStatus)
+import Nostr.Types exposing (EventId, LoginStatus, RelayUrl)
+import Set exposing (Set)
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Time
@@ -35,6 +36,7 @@ type ArticleComments msg
         , nostr : Nostr.Model
         , toMsg : Msg msg -> msg
         , theme : Theme
+        , zapRelayUrls : Set RelayUrl
         }
 
 
@@ -60,11 +62,17 @@ new props =
         , nostr = props.nostr
         , theme = props.theme
         , toMsg = props.toMsg
+        , zapRelayUrls = Set.empty
         }
 
 withNewComment : Maybe CommentType -> ArticleComments msg -> ArticleComments msg
 withNewComment newComment (Settings settings) =
     Settings { settings | newComment = newComment } 
+
+withZapRelayUrls : Set RelayUrl -> ArticleComments msg -> ArticleComments msg
+withZapRelayUrls zapRelayUrls (Settings settings) =
+    Settings { settings | zapRelayUrls = zapRelayUrls }
+
 
 type Model =
     Model
@@ -275,6 +283,11 @@ viewArticleComment articleComments level articleCommentComments articleComment =
                 , nostr = settings.nostr
                 , loginStatus = settings.loginStatus
                 }
+                |> Interactions.withInteractionElements
+                    [ Interactions.LikeButtonElement
+                    , Interactions.RepostButtonElement
+                    , Interactions.ZapButtonElement "0" settings.zapRelayUrls
+                    ]
                 |> Interactions.view
     in
     div

@@ -33,7 +33,7 @@ import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Event exposing (TagReference(..))
 import Nostr.Relay exposing (websocketUrl)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (LoginStatus, PubKey, loggedInPubKey)
+import Nostr.Types exposing (LoginStatus, PubKey, RelayUrl, loggedInPubKey)
 import Set exposing (Set)
 import Ui.Styles
 import Ui.Shared exposing (emptyHtml)
@@ -95,7 +95,7 @@ type ZapButton msg
         , interactionObject : InteractionObject
         , loginStatus : LoginStatus
         , nostr : Nostr.Model
-        , relayUrls : Set String
+        , relayUrls : Set RelayUrl
         , toMsg : Msg -> msg
         , theme : Ui.Styles.Theme
         }
@@ -129,7 +129,7 @@ withInstanceId instanceId (Settings settings) =
     Settings { settings | instanceId = Just instanceId }
 
 
-withRelayUrls : Set String -> ZapButton msg -> ZapButton msg
+withRelayUrls : Set RelayUrl -> ZapButton msg -> ZapButton msg
 withRelayUrls relayUrls (Settings settings) =
     Settings { settings | relayUrls = relayUrls }
 
@@ -284,10 +284,12 @@ extendedZapRelays zapRelays nostr maybePubKey =
                 |> Maybe.withDefault Set.empty
 
         defaultRelays =
-            Set.fromList nostr.defaultRelays |> Set.map websocketUrl
+            Set.fromList nostr.defaultRelays
+                |> Set.map websocketUrl
 
         candidateRelays =
             Set.union zapRelays pubKeyRelays
+                |> Set.map websocketUrl
     in
     if Set.size candidateRelays == Set.size zapRelays || Set.size candidateRelays == Set.size pubKeyRelays then
         Set.union candidateRelays defaultRelays

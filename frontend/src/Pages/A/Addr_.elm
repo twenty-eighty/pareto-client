@@ -2,13 +2,12 @@ module Pages.A.Addr_ exposing (..)
 
 import Components.ArticleComments as ArticleComments
 import Components.ArticleInfo as ArticleInfo
-import Components.Comment as Comment
-import Components.InteractionButton as InteractionButton exposing (eventIdOfInteractionObject)
+import Components.InteractionButton as InteractionButton
 import Components.Interactions as Interactions
 import Components.RelayStatus exposing (Purpose(..))
 import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapDialog as ZapDialog
-import Dict exposing (Dict)
+import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (div)
 import Html.Styled.Attributes exposing (css)
@@ -19,10 +18,10 @@ import Nostr
 import Nostr.Article exposing (addressComponentsForArticle)
 import Nostr.Event as Event exposing (Kind(..), TagReference(..))
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
-import Nostr.Nip22 exposing (CommentType(..), commentToArticle)
+import Nostr.Nip22 exposing (CommentType(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId, PubKey, loggedInSigningPubKey)
+import Nostr.Types exposing (PubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Set
@@ -32,6 +31,7 @@ import Shared.Msg
 import Tailwind.Utilities as Tw
 import Translations.ArticlePage as Translations
 import Ui.Article exposing (sharingInfoForArticle)
+import Ui.Interactions exposing (extendedZapRelays)
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (stylesForTheme)
 import Ui.View exposing (viewRelayStatus)
@@ -85,7 +85,7 @@ toLayout shared model =
                                 , nostr = shared.nostr
                                 , loginStatus = shared.loginStatus
                                 , shareInfo = sharingInfoForArticle article (Nostr.getAuthor shared.nostr article.author)
-                                , zapRelays = Set.empty
+                                , zapRelays = article.relays
                                 }
                         )
                         |> Maybe.withDefault emptyHtml

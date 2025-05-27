@@ -104,11 +104,8 @@ viewAuthorCard profile profileViewData =
         authorRelays =
             pubkeyRelays profileViewData.nostr profile.pubKey
 
-        userPubKey =
-            loggedInPubKey profileViewData.loginStatus
-
         zapRelays =
-            extendedZapRelays authorRelays profileViewData.nostr userPubKey
+            extendedZapRelays authorRelays profileViewData.nostr profileViewData.loginStatus
 
         linkElementWrapper =
             linkElementForProfile True profile profileViewData.validation
@@ -220,11 +217,8 @@ viewProfile profile profileViewData =
         authorRelays =
             pubkeyRelays profileViewData.nostr profile.pubKey
 
-        userPubKey =
-            loggedInPubKey profileViewData.loginStatus
-
         zapRelays =
-            extendedZapRelays authorRelays profileViewData.nostr userPubKey
+            extendedZapRelays authorRelays profileViewData.nostr profileViewData.loginStatus
     in
     div
         [ css

@@ -11,21 +11,20 @@ import Css
 import Dict exposing (Dict)
 import Html.Styled as Html exposing (Html, a, article, div, h2, h3, img, summary, text)
 import Html.Styled.Attributes as Attr exposing (css, href)
-import Html.Styled.Events as Events exposing (..)
 import I18Next
 import LinkPreview exposing (LoadedContent)
 import Locale
 import Markdown
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
-import Nostr.Event exposing (AddressComponents, Kind(..), Tag(..), TagReference(..))
+import Nostr.Event exposing (Kind(..), Tag(..), TagReference(..))
 import Nostr.Nip05 exposing (nip05ToString)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (CommentType(..), ArticleComment, ArticleCommentComment)
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Relay exposing (websocketUrl)
-import Nostr.Types exposing (EventId, LoginStatus, PubKey, loggedInPubKey, loggedInSigningPubKey)
+import Nostr.Types exposing (EventId, LoginStatus, PubKey, loggedInSigningPubKey)
 import Pareto
 import Route
 import Route.Path
@@ -36,7 +35,7 @@ import Tailwind.Utilities as Tw
 import Time
 import Translations.ArticleView as Translations
 import Translations.Posts
-import Ui.Interactions exposing (extendedZapRelays, viewInteractions)
+import Ui.Interactions exposing (viewInteractions)
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
@@ -206,7 +205,8 @@ viewArticle articlePreviewsData articlePreviewData article =
             ]
 
         articleRelays =
-            article.relays |> Set.map websocketUrl
+            article.relays
+                |> Set.map websocketUrl
 
         interactionObject =
             InteractionButton.Article article.id ( article.kind, article.author, article.identifier |> Maybe.withDefault "" )
@@ -216,7 +216,7 @@ viewArticle articlePreviewsData articlePreviewData article =
             { browserEnv = articlePreviewsData.browserEnv
             , loginStatus = articlePreviewsData.loginStatus
             , maybeNip19Target = nip19ForArticle article
-            , zapRelays = extendedZapRelays articleRelays articlePreviewsData.nostr (articlePreviewsData.loginStatus |> loggedInPubKey)
+            , zapRelays = articleRelays
             , interactionsModel = articlePreviewData.articleInteractions
             , interactionObject = interactionObject
             , toInteractionsMsg = articlePreviewsData.articleToInteractionsMsg interactionObject
@@ -391,6 +391,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                             , theme = articlePreviewsData.theme
                             }
                             |> ArticleComments.withNewComment newComment
+                            |> ArticleComments.withZapRelayUrls articleRelays
                             |> ArticleComments.view
                         ]
                     ]
@@ -1182,7 +1183,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                         ]
                     ]
                 , viewArticleEditButton articlePreviewsData article profile.pubKey
-                , viewArticleBookmarkButton articlePreviewsData articlePreviewData article
+                , viewArticleBookmarkButton articlePreviewsData article
                 ]
 
 
@@ -1201,8 +1202,8 @@ viewArticleEditButton articlePreviewsData article articleAuthorPubKey =
         emptyHtml
 
 
-viewArticleBookmarkButton : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
-viewArticleBookmarkButton articlePreviewsData articlePreviewData article =
+viewArticleBookmarkButton : ArticlePreviewsData msg -> Article -> Html msg
+viewArticleBookmarkButton articlePreviewsData article =
     case (loggedInSigningPubKey articlePreviewsData.loginStatus, addressComponentsForArticle article) of
         ( Just _, Just addressComponents ) ->
             BookmarkButton.new

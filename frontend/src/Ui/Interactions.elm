@@ -166,19 +166,21 @@ zapButton maybePubKey maybeNip19Target zapRelays instanceId =
 -}
 
 
-extendedZapRelays : Set String -> Nostr.Model -> Maybe PubKey -> Set String
-extendedZapRelays zapRelays nostrModel maybePubKey =
+extendedZapRelays : Set String -> Nostr.Model -> LoginStatus -> Set String
+extendedZapRelays zapRelays nostrModel loginStatus =
     let
         pubKeyRelays =
-            maybePubKey
+            loginStatus
+                |> loggedInPubKey
                 |> Maybe.map (pubkeyRelays nostrModel)
                 |> Maybe.withDefault Set.empty
 
         defaultRelays =
-            Set.fromList nostrModel.defaultRelays |> Set.map websocketUrl
+            Set.fromList nostrModel.defaultRelays
 
         candidateRelays =
             Set.union zapRelays pubKeyRelays
+            |> Set.map websocketUrl
     in
     if Set.size candidateRelays == Set.size zapRelays || Set.size candidateRelays == Set.size pubKeyRelays then
         Set.union candidateRelays defaultRelays

@@ -29,6 +29,7 @@ import Set
 import Shared
 import Shared.Msg
 import Ui.Article exposing (sharingInfoForArticle)
+import Ui.Interactions exposing (extendedZapRelays)
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles
 import Ui.View exposing (viewRelayStatus)
@@ -76,7 +77,7 @@ toLayout shared model =
                                 , nostr = shared.nostr
                                 , loginStatus = shared.loginStatus
                                 , shareInfo = sharingInfoForArticle article (Nostr.getAuthor shared.nostr article.author)
-                                , zapRelays = Set.empty
+                                , zapRelays = article.relays
                                 }
                         )
                         |> Maybe.withDefault emptyHtml
