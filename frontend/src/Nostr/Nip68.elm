@@ -26,6 +26,7 @@ type alias PicturePost =
     , location : Maybe String
     , geohash : Maybe String
     , language : Maybe Language
+    , relays : Maybe (List RelayUrl)
     }
 
 
@@ -46,6 +47,7 @@ emptyPicturePost =
     , location = Nothing
     , geohash = Nothing
     , language = Nothing
+    , relays = Nothing
     }
 
 picturePostFromEvent : Event -> PicturePost
@@ -103,6 +105,7 @@ picturePostFromEvent event =
             , location = Nothing
             , geohash = Nothing
             , language = Nothing
+            , relays = event.relays
             }
 
 picturePostEvent : PubKey -> PicturePost -> Event

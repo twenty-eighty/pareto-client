@@ -12,6 +12,7 @@ import Nostr.Event exposing (ImageMetadata)
 import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
 import Nostr.Types exposing (EventId, LoginStatus)
+import Set exposing (Set)
 import Tailwind.Utilities as Tw
 import Ui.Links
 import Ui.Profile
@@ -21,11 +22,11 @@ import Url
 
 
 type alias PicturePostsViewData =
-    { theme : Theme
-    , browserEnv : BrowserEnv
+    { browserEnv : BrowserEnv
     , nostr : Nostr.Model
     , interactions : Dict EventId Interactions.Model
     , loginStatus : LoginStatus
+    , theme : Theme
     }
 
 
@@ -59,6 +60,11 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
                 , nostr = picturePostsViewData.nostr
                 , loginStatus = picturePostsViewData.loginStatus
                 }
+                |> Interactions.withInteractionElements
+                    [ Interactions.LikeButtonElement
+                    , Interactions.RepostButtonElement
+                    , Interactions.ZapButtonElement "0" (picturePost.relays |> Maybe.map Set.fromList |> Maybe.withDefault Set.empty)
+                    ]
                 |> Interactions.view
 
         followLinks =
