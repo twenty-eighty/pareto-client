@@ -11,6 +11,7 @@ module Components.InteractionButton exposing
     , withLabel
     , withAttributes
     , withOnClickAction
+    , withReactIcon
     )
 
 {-|
@@ -206,6 +207,7 @@ type InteractionButton msg
         { model : Model
         , onClickAction : Maybe (ClickAction msg)
         , unreactedIcon : Icon
+        , reactIcon : Maybe Icon
         , reactedIcon : Icon
         , reacted : Bool
         , theme : Ui.Styles.Theme
@@ -227,6 +229,7 @@ new props =
         { model = props.model
         , onClickAction = Nothing
         , unreactedIcon = props.unreactedIcon
+        , reactIcon = Nothing
         , reactedIcon = props.reactedIcon
         , reacted = props.reacted
         , theme = props.theme
@@ -244,6 +247,9 @@ withOnClickAction : Maybe (ClickAction msg) -> InteractionButton msg -> Interact
 withOnClickAction clickAction (Settings settings) =
     Settings { settings | onClickAction = clickAction }
 
+withReactIcon : Icon -> InteractionButton msg -> InteractionButton msg
+withReactIcon icon (Settings settings) =
+    Settings { settings | reactIcon = Just icon }
 
 withAttributes : List (String, String) -> InteractionButton msg -> InteractionButton msg
 withAttributes attributes (Settings settings) =
@@ -272,7 +278,13 @@ view (Settings settings) =
             if settings.reacted then
                 settings.reactedIcon
             else
-                settings.unreactedIcon
+                case (settings.reactIcon, settings.onClickAction) of
+                    (Just reactIcon, Just _) ->
+                        reactIcon
+
+                    _ ->
+                        settings.unreactedIcon
+
 
         onClick =
             if settings.onClickAction /= Nothing then

@@ -151,7 +151,7 @@ view (Settings settings) =
     in
     InteractionButton.new
         { model = model
-        , unreactedIcon = Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdd 30 Icon.Inherit
+        , unreactedIcon = Icon.MaterialIcon Icon.MaterialOutlineBookmark 30 Icon.Inherit
         , reactedIcon = Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdded 30 Icon.Inherit
         , reacted = isBookmarked
         , toMsg = InteractionButtonMsg
@@ -159,6 +159,7 @@ view (Settings settings) =
         }
         |> InteractionButton.withLabel label
         |> InteractionButton.withOnClickAction clickAction
+        |> InteractionButton.withReactIcon (Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdd 30 Icon.Inherit)
         |> InteractionButton.view 
         |> Html.map settings.toMsg
 
