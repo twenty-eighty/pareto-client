@@ -6,6 +6,7 @@ defmodule NostrBackend.NostrClient do
   # List of relay URLs
   @relay_urls [
     "wss://nostr.pareto.space",
+    "wss://nostr.pareto.town",
     "wss://pareto.nostr1.com",
     "wss://nos.lol",
     "wss://relay.nostr.band",
