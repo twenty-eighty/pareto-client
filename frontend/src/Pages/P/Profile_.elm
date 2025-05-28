@@ -3,7 +3,7 @@ module Pages.P.Profile_ exposing (Model, Msg, page)
 import Components.ArticleComments as ArticleComments
 import Components.EmailSubscriptionDialog as EmailSubscriptionDialog
 import Components.RelayStatus exposing (Purpose(..))
-import Dict exposing (Dict)
+import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
 import Layouts

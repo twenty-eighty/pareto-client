@@ -15,9 +15,8 @@ import Nostr.Nip05 as Nip05
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Shared exposing (httpErrorToString)
-import Nostr.Types exposing (Following(..), LoginStatus, PubKey, loggedInPubKey)
+import Nostr.Types exposing (Following(..), LoginStatus, PubKey)
 import Set exposing (Set)
-import Shared
 import Tailwind.Breakpoints as Bp exposing (..)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw

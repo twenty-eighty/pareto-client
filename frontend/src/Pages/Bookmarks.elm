@@ -15,7 +15,7 @@ import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), empt
 import Nostr.External
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (IncomingMessage, PubKey)
+import Nostr.Types exposing (EventId, IncomingMessage, PubKey)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
@@ -24,7 +24,6 @@ import Shared
 import Shared.Msg
 import Translations.Bookmarks as Translations
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 
@@ -273,29 +272,29 @@ view user shared model =
     in
     { title = Translations.bookmarksTitle [ shared.browserEnv.translations ]
     , body =
-        [ viewBookmarks user shared model bookmarkList
+        [ viewBookmarks shared model bookmarkList
         ]
     }
 
 
-viewBookmarks : Auth.User -> Shared.Model -> Model -> BookmarkList -> Html Msg
-viewBookmarks user shared model bookmarkList =
+viewBookmarks : Shared.Model -> Model -> BookmarkList -> Html Msg
+viewBookmarks shared model bookmarkList =
     case model.selectedBookmarkType of
         ArticleBookmark ->
-            viewArticleBookmarks user shared model bookmarkList.articles
+            viewArticleBookmarks shared model bookmarkList.articles
 
         HashtagBookmark ->
-            viewHashtagBookmarks user shared model bookmarkList.hashtags
+            viewHashtagBookmarks shared model bookmarkList.hashtags
 
         NoteBookmark ->
-            viewNoteBookmarks user shared model bookmarkList.notes
+            viewNoteBookmarks shared model bookmarkList.notes
 
         UrlBookmark ->
-            viewUrlBookmarks user shared model bookmarkList.urls
+            viewUrlBookmarks shared model bookmarkList.urls
 
 
-viewArticleBookmarks : Auth.User -> Shared.Model -> Model -> List AddressComponents -> Html Msg
-viewArticleBookmarks user shared _ addressComponents =
+viewArticleBookmarks : Shared.Model -> Model -> List AddressComponents -> Html Msg
+viewArticleBookmarks shared _ addressComponents =
     addressComponents
         |> List.filterMap (Nostr.getArticle shared.nostr)
         |> Nostr.sortArticlesByDate
@@ -314,15 +313,18 @@ viewArticleBookmarks user shared _ addressComponents =
             }
 
 
-viewHashtagBookmarks user shared model hashtags =
+viewHashtagBookmarks : Shared.Model -> Model -> List String -> Html Msg
+viewHashtagBookmarks _ _ _ =
     emptyHtml
 
 
-viewNoteBookmarks user shared model notes =
+viewNoteBookmarks : Shared.Model -> Model -> List EventId -> Html Msg
+viewNoteBookmarks _ _ _ =
     emptyHtml
 
 
-viewUrlBookmarks user shared model urls =
+viewUrlBookmarks : Shared.Model -> Model -> List String -> Html Msg
+viewUrlBookmarks _ _ _ =
     emptyHtml
 
 

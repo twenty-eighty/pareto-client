@@ -29,7 +29,6 @@ import Set
 import Shared
 import Shared.Msg
 import Ui.Article exposing (sharingInfoForArticle)
-import Ui.Interactions exposing (extendedZapRelays)
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles
 import Ui.View exposing (viewRelayStatus)

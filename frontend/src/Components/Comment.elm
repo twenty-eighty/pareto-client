@@ -5,7 +5,7 @@ import Components.Button as Button
 import Components.EntryField as EntryField
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
-import Html.Styled.Attributes as Attr exposing (css)
+import Html.Styled.Attributes exposing (css)
 import Json.Decode as Decode
 import Locale exposing (Language(..))
 import Nostr
