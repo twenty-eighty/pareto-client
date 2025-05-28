@@ -221,13 +221,16 @@ view comment =
     in
     case model.state of
         CommentHidden ->
-            Button.new
-                { label = Translations.commentButtonText [ settings.browserEnv.translations ]
-                , onClick = settings.newComment |> Maybe.map Show
-                , theme = settings.theme
-                }
-                |> Button.view
-                |> Html.map settings.toMsg
+            if signingPubKey /= Nothing then
+                Button.new
+                    { label = Translations.commentButtonText [ settings.browserEnv.translations ]
+                    , onClick = settings.newComment |> Maybe.map Show
+                    , theme = settings.theme
+                    }
+                    |> Button.view
+                    |> Html.map settings.toMsg
+            else
+                emptyHtml
 
         CommentEditing commentData ->
             viewComment comment commentData (Translations.postButtonText [ settings.browserEnv.translations ]) postButtonMsg Nothing
