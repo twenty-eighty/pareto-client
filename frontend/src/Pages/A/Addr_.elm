@@ -31,7 +31,6 @@ import Shared.Msg
 import Tailwind.Utilities as Tw
 import Translations.ArticlePage as Translations
 import Ui.Article exposing (sharingInfoForArticle)
-import Ui.Interactions exposing (extendedZapRelays)
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (stylesForTheme)
 import Ui.View exposing (viewRelayStatus)

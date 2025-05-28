@@ -1241,6 +1241,7 @@ viewArticleBookmarkButton articlePreviewsData article =
                 , toMsg = articlePreviewsData.bookmarkButtonMsg article.id
                 , theme = articlePreviewsData.theme
                 }
+                |> BookmarkButton.withoutLabel
                 |> BookmarkButton.view
 
         _ ->

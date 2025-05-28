@@ -54,11 +54,11 @@ page shared route =
 toLayout : Shared.Model -> Model -> Layouts.Layout Msg
 toLayout shared model =
     let
-        postButton =
+        (postButton, postButtonHeightString) =
             loggedInSigningPubKey shared.loginStatus
                 |> Maybe.map (\pubKey ->
-                    if Nostr.isBetaTester shared.nostr pubKey then
-                        Html.div
+                    if Nostr.isAuthor shared.nostr pubKey then
+                        ( Html.div
                             [ css
                                 [ Tw.flex
                                 , Tw.mx_8
@@ -72,13 +72,23 @@ toLayout shared model =
                                 }
                                 |> Button.view
                             ]
+                        , Button.heightString
+                        )
+
                     else
-                        emptyHtml
+                        ( emptyHtml, "0px" )
                 )
-                |> Maybe.withDefault emptyHtml
+                |> Maybe.withDefault (emptyHtml, "0px")
+
+                 
+
         topPart =
             Html.div
-                []
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_col
+                    ]
+                ]
                 [ postButton
                 ,  Categories.new
                     { model = model.categories
@@ -96,7 +106,7 @@ toLayout shared model =
     Layouts.Sidebar.new
         { theme = shared.theme
         }
-        |> Layouts.Sidebar.withTopPart topPart ("(" ++ Categories.heightString ++ " + " ++ Button.heightString ++ ")")
+        |> Layouts.Sidebar.withTopPart topPart ("(" ++ Categories.heightString ++ " + " ++ postButtonHeightString ++ ")")
         |> Layouts.Sidebar
 
 

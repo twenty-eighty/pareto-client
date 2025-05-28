@@ -151,9 +151,6 @@ view articleComments =
     let
         (Settings settings) =
             articleComments
-
-        (Model model) =
-            settings.model
     in
     div
         [ css
@@ -165,21 +162,7 @@ view articleComments =
             , Tw.flex
             ]
         ]
-        [ {- div
-                 [ css
-                     [ Tw.justify_start
-                     , Tw.items_center
-                     , Tw.gap_3
-                     , Tw.inline_flex
-                     ]
-                 ]
-                 [ div
-                     (styles.textStyleH2 ++ styles.colorStyleGrayscaleTitle)
-                     [ Html.text "Comments" ]
-                 ]
-             ,
-          -}
-          div
+        [ div
             [ css
                 [ Tw.flex_col
                 , Tw.justify_end
@@ -236,8 +219,9 @@ viewCommenting articleComments =
         ]
         |> Html.map settings.toMsg
 
-sortComments =
-    List.sortBy (\comment -> -1 * Time.posixToMillis comment.createdAt)
+sortComments : List { a | createdAt : Time.Posix } -> List { a | createdAt : Time.Posix }
+sortComments comments =
+    List.sortBy (\comment -> -1 * Time.posixToMillis comment.createdAt) comments
 
 
 viewArticleComment : ArticleComments msg -> Int -> Dict EventId (List ArticleCommentComment) -> ArticleComment -> Html msg

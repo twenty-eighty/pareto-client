@@ -17,7 +17,6 @@ import Nostr.Profile exposing (Profile, profileDisplayName)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Types exposing (IncomingMessage, LoginStatus, PubKey, loggedInPubKey, loggedInSigningPubKey)
 import Ports
-import Shared
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
 import Subscribers exposing (SubscribeInfo)

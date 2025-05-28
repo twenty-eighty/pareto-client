@@ -2,6 +2,7 @@ module Components.BookmarkButton exposing
     ( BookmarkButton, new
     , view
     , init, update, Model, Msg
+    , withoutLabel
     , subscriptions
     )
 
@@ -93,6 +94,7 @@ type BookmarkButton msg
         , interactionObject : InteractionObject
         , nostr : Nostr.Model
         , loginStatus : LoginStatus
+        , showLabel : Bool
         , toMsg : Msg -> msg
         , theme : Ui.Styles.Theme
         }
@@ -112,11 +114,15 @@ new props =
         , interactionObject = props.interactionObject
         , nostr = props.nostr
         , loginStatus = props.loginStatus
+        , showLabel = True
         , toMsg = props.toMsg
         , theme = props.theme
         }
 
 
+withoutLabel : BookmarkButton msg -> BookmarkButton msg
+withoutLabel (Settings settings) =
+    Settings { settings | showLabel = False }
 
 
 -- VIEW
@@ -128,9 +134,13 @@ view (Settings settings) =
         (Model model) =
             settings.model
 
-        label =
-            getBookmarksCount settings.interactionObject settings.nostr
-            |> String.fromInt
+        labelModifier =
+            if settings.showLabel then
+                getBookmarksCount settings.interactionObject settings.nostr
+                |> String.fromInt
+                |> InteractionButton.withLabel
+            else
+                identity
 
         isBookmarked =
             settings.loginStatus
@@ -157,7 +167,7 @@ view (Settings settings) =
         , toMsg = InteractionButtonMsg
         , theme = settings.theme
         }
-        |> InteractionButton.withLabel label
+        |> labelModifier
         |> InteractionButton.withOnClickAction clickAction
         |> InteractionButton.withReactIcon (Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdd 30 Icon.Inherit)
         |> InteractionButton.view 

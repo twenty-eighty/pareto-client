@@ -12,7 +12,7 @@ import Nostr.Event exposing (ImageMetadata)
 import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
 import Nostr.Types exposing (EventId, LoginStatus)
-import Set exposing (Set)
+import Set
 import Tailwind.Utilities as Tw
 import Ui.Links
 import Ui.Profile

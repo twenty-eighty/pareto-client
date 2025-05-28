@@ -5,7 +5,7 @@ import Components.Button as Button
 import Components.EntryField as EntryField
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
-import Html.Styled.Attributes as Attr exposing (css)
+import Html.Styled.Attributes exposing (css)
 import Json.Decode as Decode
 import Locale exposing (Language(..))
 import Nostr
@@ -221,13 +221,16 @@ view comment =
     in
     case model.state of
         CommentHidden ->
-            Button.new
-                { label = Translations.commentButtonText [ settings.browserEnv.translations ]
-                , onClick = settings.newComment |> Maybe.map Show
-                , theme = settings.theme
-                }
-                |> Button.view
-                |> Html.map settings.toMsg
+            if signingPubKey /= Nothing then
+                Button.new
+                    { label = Translations.commentButtonText [ settings.browserEnv.translations ]
+                    , onClick = settings.newComment |> Maybe.map Show
+                    , theme = settings.theme
+                    }
+                    |> Button.view
+                    |> Html.map settings.toMsg
+            else
+                emptyHtml
 
         CommentEditing commentData ->
             viewComment comment commentData (Translations.postButtonText [ settings.browserEnv.translations ]) postButtonMsg Nothing
