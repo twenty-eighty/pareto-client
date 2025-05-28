@@ -4,6 +4,7 @@ module Components.EntryField exposing
     , new
     , view
     , withDescription
+    , withId
     , withLabel
     , withPlaceholder
     , withRequired
@@ -25,6 +26,7 @@ import Ui.Styles exposing (Theme, stylesForTheme)
 type EntryField msg
     = Settings
         { description : Maybe String
+        , id : Maybe String
         , label : Maybe String
         , onSubmit : Maybe msg
         , onInput : String -> msg
@@ -66,6 +68,7 @@ new :
 new props =
     Settings
         { description = Nothing
+        , id = Nothing
         , label = Nothing
         , onSubmit = Nothing
         , onInput = props.onInput
@@ -84,6 +87,11 @@ new props =
 withDescription : String -> EntryField msg -> EntryField msg
 withDescription description (Settings settings) =
     Settings { settings | description = Just description }
+
+
+withId : String -> EntryField msg -> EntryField msg
+withId id (Settings settings) =
+    Settings { settings | id = Just id }
 
 
 withRows : Int -> EntryField msg -> EntryField msg
@@ -158,6 +166,13 @@ view (Settings settings) =
                 Nothing ->
                     emptyHtml
 
+        idAttr =
+            case settings.id of
+                Just id ->
+                    [ Attr.id id ]
+
+                Nothing ->
+                    []
         readOnlyAttr =
             if settings.readOnly then
                 [ Attr.readonly True ]
@@ -235,8 +250,9 @@ view (Settings settings) =
         [ labelElement
         , elementType
             (styles.colorStyleBackground
-                ++ readOnlyAttr
                 ++ attrs
+                ++ idAttr
+                ++ readOnlyAttr
                 ++ nameAttr
                 ++ placeholderAttr
                 ++ requiredAttr

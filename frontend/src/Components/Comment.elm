@@ -1,5 +1,6 @@
 module Components.Comment exposing (Comment, Model, Msg, hide, init, new, show, subscriptions, update, view)
 
+import Browser.Dom
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.EntryField as EntryField
@@ -18,6 +19,7 @@ import Ports
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
 import Tailwind.Utilities as Tw
+import Task
 import Translations.Comment as Translations
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme, stylesForTheme)
@@ -29,6 +31,7 @@ type Msg
     | UpdateComment CommentType
     | PostClicked PubKey
     | ReceivedMessage IncomingMessage
+    | NoOp
 
 
 type Model
@@ -125,7 +128,12 @@ update props =
                 )
 
             Show comment ->
-                ( show (Model model) comment, Effect.none )
+                ( show (Model model) comment
+                , Browser.Dom.focus commentEntryFieldId
+                    |> Task.attempt (\_ -> NoOp)
+                    |> Cmd.map props.toMsg
+                    |> Effect.sendCmd
+                )
 
             UpdateComment comment ->
                 ( Model { model | state = CommentEditing comment }, Effect.none )
@@ -143,6 +151,9 @@ update props =
 
             ReceivedMessage message ->
                 ( updateWithMessage (Model model) message, Effect.none )
+
+            NoOp ->
+                ( Model model, Effect.none )
 
 
 updateWithSending : Props model msg -> PubKey -> CommentType -> ( Model, Effect msg )
@@ -284,6 +295,7 @@ viewComment (Settings settings) draftComment postButtonText buttonMsg maybeError
             |> EntryField.withLabel (Translations.commentLabel [ settings.browserEnv.translations ])
             |> EntryField.withPlaceholder (Translations.commentPlaceholder [ settings.browserEnv.translations ])
             |> EntryField.withRows 5
+            |> EntryField.withId commentEntryFieldId
             |> EntryField.view
         , errorMessage
         , div
@@ -310,3 +322,7 @@ viewComment (Settings settings) draftComment postButtonText buttonMsg maybeError
                 |> Button.view
             ]
         ]
+
+commentEntryFieldId : String
+commentEntryFieldId =
+    "comment-input"
