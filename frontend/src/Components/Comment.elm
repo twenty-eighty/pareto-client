@@ -238,6 +238,7 @@ view comment =
                     , onClick = settings.newComment |> Maybe.map Show
                     , theme = settings.theme
                     }
+                    |> Button.withTypeSecondary
                     |> Button.view
                     |> Html.map settings.toMsg
             else
@@ -319,6 +320,7 @@ viewComment (Settings settings) draftComment postButtonText buttonMsg maybeError
                 , onClick = Just CloseDialog
                 , theme = settings.theme
                 }
+                |> Button.withTypeSecondary
                 |> Button.view
             ]
         ]
