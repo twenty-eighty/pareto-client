@@ -36,6 +36,8 @@ type alias ArticleInfoData msg =
     , zapRelays : Set RelayUrl
     }
 
+
+
 {- Article Info Component -}
 -- VIEW
 
@@ -94,7 +96,6 @@ view styles author article articleInfoData =
             , Tw.text_color styles.color1
             , Tw.bg_color styles.color3
             , Ui.Styles.darkMode [ Tw.bg_color styles.color4 ]
-            , Tw.hidden
             , Bp.lg
                 [ Tw.block
                 , Tw.max_w_60
@@ -115,7 +116,8 @@ view styles author article articleInfoData =
                 ]
             ]
             {- Profile Section -}
-            [ linkElementForAuthor followLinks author
+            [ linkElementForAuthor followLinks
+                author
                 [ viewProfileImage profileImage
                 , h2
                     [ css
