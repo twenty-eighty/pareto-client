@@ -583,12 +583,13 @@ viewSidebar props shared model currentPath toContentMsg content =
                                 div
                                     [ css
                                         [ print [ Tw.hidden ]
-                                        , Bp.lg [ Tw.block ]
+                                        , Bp.lg [ Tw.block, Tw.grow_0 ]
                                         , if not model.articleInfoToggle then
                                             Tw.hidden
 
                                           else
                                             Tw.block
+                                        , Tw.grow
                                         ]
                                     ]
                                     [ html ]
