@@ -610,26 +610,24 @@ viewSidebar props shared model currentPath toContentMsg content =
                         [ css
                             [ Tw.fixed
                             , Tw.top_96
-                            , Tw.right_0
+                            , Tw.right_2
                             , Tw.z_10
+                            , darkMode [ Tw.text_color styles.color5DarkMode ]
+                            , Tw.text_color styles.color5
                             , Bp.lg [ Tw.hidden ]
-                            , case currentPath of
-                                Route.Path.A_Addr_ _ ->
-                                    Tw.block
+                            , if isArticlePage then
+                                Tw.block
 
-                                Route.Path.U_User__Identifier_ _ ->
-                                    Tw.block
-
-                                _ ->
-                                    Tw.hidden
+                              else
+                                Tw.hidden
                             ]
                         , Events.onClick (toContentMsg (ToggleArticleInfo (not model.articleInfoToggle)))
                         ]
                         [ if model.articleInfoToggle == True then
-                            text "*Article*"
+                            Icon.FeatherIcon FeatherIcons.bookOpen |> Icon.view
 
                           else
-                            text "*Info*"
+                            Icon.FeatherIcon FeatherIcons.info |> Icon.view
                         ]
                     ]
                 ]
