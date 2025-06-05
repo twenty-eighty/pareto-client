@@ -106,8 +106,9 @@ view styles author article articleInfoData =
         [ section
             [ css
                 [ Tw.flex
-                , Tw.flex_col
-                , Tw.items_start
+                , Bp.lg [ Tw.flex_col, Tw.items_start ]
+                , Tw.flex_row
+                , Tw.items_end
                 , Tw.px_7
                 , Tw.pt_6
                 , Tw.pb_96
@@ -115,45 +116,51 @@ view styles author article articleInfoData =
                 , Tw.h_full
                 ]
             ]
-            {- Profile Section -}
-            [ linkElementForAuthor followLinks
-                author
-                [ viewProfileImage profileImage
-                , h2
+            [ div
+                [ css
+                    [--Tw.flex_1
+                    ]
+                ]
+                [ {- Profile Section -}
+                  linkElementForAuthor followLinks
+                    author
+                    [ viewProfileImage profileImage
+                    , h2
+                        [ css
+                            [ Tw.mt_3
+                            , Tw.leading_4
+                            ]
+                        ]
+                        [ text profileName ]
+                    ]
+                , div
                     [ css
-                        [ Tw.mt_3
-                        , Tw.leading_4
+                        [ Tw.mt_1 ]
+                    ]
+                    [ viewAuthorStat styles (Translations.numberOfArticles [ articleInfoData.browserEnv.translations ]) articlesFromAuthor
+                    , viewAuthorStat styles (Translations.followers [ articleInfoData.browserEnv.translations ]) followersFromAuthor
+                    ]
+                , {- Article Info Section -}
+                  h3
+                    [ css
+                        [ Tw.mt_5
+                        , Tw.text_xl
+                        , Tw.tracking_wider
                         ]
                     ]
-                    [ text profileName ]
-                ]
-            , div
-                [ css
-                    [ Tw.mt_1 ]
-                ]
-                [ viewAuthorStat styles (Translations.numberOfArticles [ articleInfoData.browserEnv.translations ]) articlesFromAuthor
-                , viewAuthorStat styles (Translations.followers [ articleInfoData.browserEnv.translations ]) followersFromAuthor
-                ]
-            , {- Article Info Section -}
-              h3
-                [ css
-                    [ Tw.mt_5
-                    , Tw.text_xl
-                    , Tw.tracking_wider
+                    [ text (Translations.title [ articleInfoData.browserEnv.translations ]) ]
+                , div
+                    [ css
+                        [ Tw.text_xs
+                        , Tw.tracking_wide
+                        , Tw.text_color styles.color2
+                        ]
                     ]
+                    [ text articlePublishedDate ]
+                , viewTags articleInfoData.browserEnv.translations <| List.filter (\hashtag -> not (String.isEmpty hashtag)) <| article.hashtags
+                , viewArticleStats styles articleStats articleInfoData.browserEnv
                 ]
-                [ text (Translations.title [ articleInfoData.browserEnv.translations ]) ]
-            , div
-                [ css
-                    [ Tw.text_xs
-                    , Tw.tracking_wide
-                    , Tw.text_color styles.color2
-                    ]
-                ]
-                [ text articlePublishedDate ]
-            , viewTags articleInfoData.browserEnv.translations <| List.filter (\hashtag -> not (String.isEmpty hashtag)) <| article.hashtags
-            , viewArticleStats styles articleStats articleInfoData.browserEnv
-            , viewInteractions articleInfoData
+            , div [ css [ Tw.flex_1 ] ] [ viewInteractions articleInfoData ]
             ]
         ]
 
@@ -178,9 +185,7 @@ viewAuthorStat styles stat counter =
     div
         [ css
             [ Tw.flex
-            , Tw.flex_wrap
             , Tw.neg_mx_4
-            , Tw.neg_mb_4
             , Tw.text_xs
             , Tw.tracking_wide
             , Tw.text_color styles.color2
@@ -193,7 +198,6 @@ viewAuthorStat styles stat counter =
             [ css
                 [ Tw.w_full
                 , Tw.px_4
-                , Tw.mb_4
                 , Bp.md
                     [ Tw.w_2over3
                     , Tw.mb_0
@@ -205,11 +209,9 @@ viewAuthorStat styles stat counter =
             [ css
                 [ Tw.w_full
                 , Tw.px_4
-                , Tw.mb_4
+                , Tw.text_right
                 , Bp.md
-                    [ Tw.w_1over3
-                    , Tw.mb_0
-                    ]
+                    [ Tw.w_1over3, Tw.mb_0 ]
                 ]
             ]
             [ text <| String.fromInt counter ]
@@ -251,7 +253,7 @@ viewArticleStats styles textStats browserEnv =
             div
                 [ css
                     [ Tw.flex
-                    , Tw.gap_1_dot_5
+                    , Tw.gap_4
                     , Tw.text_sm
                     , Tw.tracking_wide
                     , Tw.leading_none
@@ -316,4 +318,5 @@ viewInteractions articleInfoData =
             , Interactions.BookmarkButtonElement
             , Interactions.ShareButtonElement articleInfoData.shareInfo
             ]
+        |> Interactions.withoutIgnoringDeviceSize
         |> Interactions.view

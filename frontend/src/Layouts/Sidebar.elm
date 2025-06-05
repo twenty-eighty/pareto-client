@@ -467,6 +467,31 @@ viewSidebar props shared model currentPath toContentMsg content =
 
                 _ ->
                     False
+
+        articleInfoToggle =
+            div
+                [ css
+                    [ Tw.fixed
+                    , Tw.top_96
+                    , Tw.right_4
+                    , Tw.z_10
+                    , darkMode [ Tw.text_color styles.color5DarkMode ]
+                    , Tw.text_color styles.color5
+                    , Bp.lg [ Tw.hidden ]
+                    , if isArticlePage then
+                        Tw.block
+
+                      else
+                        Tw.hidden
+                    ]
+                , Events.onClick (toContentMsg (ToggleArticleInfo (not model.articleInfoToggle)))
+                ]
+                [ if model.articleInfoToggle == True then
+                    Icon.FeatherIcon FeatherIcons.bookOpen |> Icon.view
+
+                  else
+                    Icon.FeatherIcon FeatherIcons.info |> Icon.view
+                ]
     in
     Html.div
         (styles.colorStyleGrayscaleTitle
@@ -606,29 +631,7 @@ viewSidebar props shared model currentPath toContentMsg content =
                             ]
                         ]
                         [ viewMainContent content props.fixedTopPart ]
-                    , div
-                        [ css
-                            [ Tw.fixed
-                            , Tw.top_96
-                            , Tw.right_2
-                            , Tw.z_10
-                            , darkMode [ Tw.text_color styles.color5DarkMode ]
-                            , Tw.text_color styles.color5
-                            , Bp.lg [ Tw.hidden ]
-                            , if isArticlePage then
-                                Tw.block
-
-                              else
-                                Tw.hidden
-                            ]
-                        , Events.onClick (toContentMsg (ToggleArticleInfo (not model.articleInfoToggle)))
-                        ]
-                        [ if model.articleInfoToggle == True then
-                            Icon.FeatherIcon FeatherIcons.bookOpen |> Icon.view
-
-                          else
-                            Icon.FeatherIcon FeatherIcons.info |> Icon.view
-                        ]
+                    , articleInfoToggle
                     ]
                 ]
             ]

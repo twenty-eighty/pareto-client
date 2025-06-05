@@ -1,9 +1,8 @@
 module Components.Interactions exposing
-    ( Interactions, InteractionElement(..)
-    , new, withInteractionElements
+    ( Interactions, new
     , view
     , init, update, Model, Msg
-    , subscriptions
+    , InteractionElement(..), subscriptions, withInteractionElements, withoutIgnoringDeviceSize
     )
 
 {-|
@@ -14,6 +13,7 @@ module Components.Interactions exposing
 @docs Interactions, new
 @docs view
 
+
 ## State management
 
 @docs init, update, Model, Msg
@@ -23,10 +23,10 @@ module Components.Interactions exposing
 import BrowserEnv exposing (BrowserEnv)
 import Components.BookmarkButton as BookmarkButton
 import Components.CommentButton as CommentButton
+import Components.InteractionButton exposing (InteractionObject(..))
 import Components.LikeButton as LikeButton
 import Components.RepostButton as RepostButton
 import Components.SharingButtonDialog as SharingButtonDialog
-import Components.InteractionButton exposing (InteractionObject(..))
 import Components.ZapButton as ZapButton
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (..)
@@ -34,8 +34,10 @@ import Html.Styled.Attributes as Attr
 import Nostr
 import Nostr.Types exposing (LoginStatus, RelayUrl)
 import Set exposing (Set)
+import Tailwind.Breakpoints as Bp exposing (..)
 import Tailwind.Utilities as Tw
 import Ui.Styles
+
 
 type InteractionElement msg
     = BookmarkButtonElement
@@ -45,10 +47,13 @@ type InteractionElement msg
     | ShareButtonElement SharingButtonDialog.SharingInfo
     | ZapButtonElement String (Set RelayUrl)
 
+
+
 -- MODEL
 
-type Model =
-    Model
+
+type Model
+    = Model
         { bookmarkButton : BookmarkButton.Model
         , commentButton : CommentButton.Model
         , likeButton : LikeButton.Model
@@ -56,6 +61,7 @@ type Model =
         , sharingButtonDialog : SharingButtonDialog.Model
         , zapButton : ZapButton.Model
         }
+
 
 init : Model
 init =
@@ -69,7 +75,9 @@ init =
         }
 
 
+
 -- UPDATE
+
 
 type Msg msg
     = BookmarkButtonMsg BookmarkButton.Msg
@@ -90,12 +98,13 @@ update :
     , openCommentMsg : Maybe msg
     , toModel : Model -> model
     , toMsg : Msg msg -> msg
-    } -> ( model, Effect msg )
+    }
+    -> ( model, Effect msg )
 update props =
     let
         (Model model) =
             props.model
-            |> Maybe.withDefault init
+                |> Maybe.withDefault init
 
         toParentModel : ( Model, Effect msg ) -> ( model, Effect msg )
         toParentModel ( innerModel, effect ) =
@@ -107,7 +116,7 @@ update props =
         case props.msg of
             BookmarkButtonMsg bookmarkMsg ->
                 let
-                    (updatedModel, effect) =
+                    ( updatedModel, effect ) =
                         BookmarkButton.update
                             { msg = bookmarkMsg
                             , model = Just model.bookmarkButton
@@ -121,7 +130,7 @@ update props =
 
             CommentButtonMsg commentMsg ->
                 let
-                    (updatedModel, effect) =
+                    ( updatedModel, effect ) =
                         CommentButton.update
                             { msg = commentMsg
                             , model = model.commentButton
@@ -141,7 +150,7 @@ update props =
 
             LikeButtonMsg likeMsg ->
                 let
-                    (updatedModel, effect) =
+                    ( updatedModel, effect ) =
                         LikeButton.update
                             { msg = likeMsg
                             , model = model.likeButton
@@ -155,7 +164,7 @@ update props =
 
             RepostButtonMsg repostMsg ->
                 let
-                    (updatedModel, effect) =
+                    ( updatedModel, effect ) =
                         RepostButton.update
                             { msg = repostMsg
                             , model = model.repostButton
@@ -169,7 +178,7 @@ update props =
 
             SharingButtonDialogMsg sharingButtonDialogMsg ->
                 let
-                    (updatedModel, effect) =
+                    ( updatedModel, effect ) =
                         SharingButtonDialog.update
                             { msg = sharingButtonDialogMsg
                             , model = model.sharingButtonDialog
@@ -182,7 +191,7 @@ update props =
 
             ZapButtonMsg zapMsg ->
                 let
-                    (updatedModel, effect) =
+                    ( updatedModel, effect ) =
                         ZapButton.update
                             { msg = zapMsg
                             , model = model.zapButton
@@ -209,10 +218,11 @@ type Interactions msg
         , loginStatus : LoginStatus
         , toMsg : Msg msg -> msg
         , theme : Ui.Styles.Theme
+        , ignoreDeviceSize : Bool
         }
 
 
-new : 
+new :
     { browserEnv : BrowserEnv
     , model : Maybe Model
     , toMsg : Msg msg -> msg
@@ -220,7 +230,8 @@ new :
     , interactionObject : InteractionObject
     , nostr : Nostr.Model
     , loginStatus : LoginStatus
-    } -> Interactions msg
+    }
+    -> Interactions msg
 new props =
     Settings
         { browserEnv = props.browserEnv
@@ -231,21 +242,30 @@ new props =
         , loginStatus = props.loginStatus
         , nostr = props.nostr
         , theme = props.theme
+        , ignoreDeviceSize = True
         }
+
+
+withoutIgnoringDeviceSize : Interactions msg -> Interactions msg
+withoutIgnoringDeviceSize (Settings settings) =
+    Settings { settings | ignoreDeviceSize = False }
+
 
 withInteractionElements : List (InteractionElement msg) -> Interactions msg -> Interactions msg
 withInteractionElements interactionElements (Settings settings) =
     Settings { settings | interactionElements = interactionElements }
 
 
+
 -- HELPERS
+
 
 getBookmarkButton : Interactions msg -> Html (Msg msg)
 getBookmarkButton (Settings settings) =
     let
         (Model model) =
             settings.model
-            |> Maybe.withDefault init
+                |> Maybe.withDefault init
     in
     BookmarkButton.new
         { model = Just model.bookmarkButton
@@ -263,7 +283,7 @@ getCommentButton (Settings settings) clickedMsg =
     let
         (Model model) =
             settings.model
-            |> Maybe.withDefault init
+                |> Maybe.withDefault init
     in
     CommentButton.new
         { model = model.commentButton
@@ -282,10 +302,10 @@ getLikeButton (Settings settings) =
     let
         (Model model) =
             settings.model
-            |> Maybe.withDefault init
+                |> Maybe.withDefault init
     in
     LikeButton.new
-        {interactionObject = settings.interactionObject
+        { interactionObject = settings.interactionObject
         , loginStatus = settings.loginStatus
         , model = model.likeButton
         , nostr = settings.nostr
@@ -300,7 +320,7 @@ getRepostButton (Settings settings) =
     let
         (Model model) =
             settings.model
-            |> Maybe.withDefault init
+                |> Maybe.withDefault init
     in
     RepostButton.new
         { model = model.repostButton
@@ -318,7 +338,7 @@ getShareButton (Settings settings) sharingInfo =
     let
         (Model model) =
             settings.model
-            |> Maybe.withDefault init
+                |> Maybe.withDefault init
     in
     SharingButtonDialog.new
         { browserEnv = settings.browserEnv
@@ -329,12 +349,13 @@ getShareButton (Settings settings) sharingInfo =
         }
         |> SharingButtonDialog.view
 
+
 getZapButton : Interactions msg -> String -> Set RelayUrl -> Html (Msg msg)
 getZapButton (Settings settings) instanceId relayUrls =
     let
         (Model model) =
             settings.model
-            |> Maybe.withDefault init
+                |> Maybe.withDefault init
     in
     ZapButton.new
         { browserEnv = settings.browserEnv
@@ -350,6 +371,7 @@ getZapButton (Settings settings) instanceId relayUrls =
         |> ZapButton.view
 
 
+
 -- VIEW
 
 
@@ -358,33 +380,47 @@ view interactions =
     let
         (Settings settings) =
             interactions
+
+        flexDirections =
+            if settings.ignoreDeviceSize then
+                [ Tw.flex_row ]
+
+            else
+                [ Bp.lg [ Tw.flex_row ], Tw.flex_col ]
     in
     div
         [ Attr.css
-            [ Tw.flex
-            , Tw.flex_row
-            , Tw.flex_wrap
-            , Tw.gap_x_4
-            , Tw.items_center
-            ]
-        ]
-        ( settings.interactionElements
-            |> List.map (\interactionElement ->
-                case interactionElement of
-                    BookmarkButtonElement ->
-                        getBookmarkButton interactions
-                    CommentButtonElement clickedMsg ->
-                        getCommentButton interactions clickedMsg
-                    LikeButtonElement ->
-                        getLikeButton interactions
-                    RepostButtonElement ->
-                        getRepostButton interactions
-                    ShareButtonElement sharingInfo ->
-                        getShareButton interactions sharingInfo
-                    ZapButtonElement instanceId relayUrls ->
-                        getZapButton interactions instanceId relayUrls
+            ([ Tw.flex
+             , Tw.flex_wrap
+             , Tw.gap_x_4
+             , Tw.items_center
+             ]
+                ++ flexDirections
             )
-        ) 
+        ]
+        (settings.interactionElements
+            |> List.map
+                (\interactionElement ->
+                    case interactionElement of
+                        BookmarkButtonElement ->
+                            getBookmarkButton interactions
+
+                        CommentButtonElement clickedMsg ->
+                            getCommentButton interactions clickedMsg
+
+                        LikeButtonElement ->
+                            getLikeButton interactions
+
+                        RepostButtonElement ->
+                            getRepostButton interactions
+
+                        ShareButtonElement sharingInfo ->
+                            getShareButton interactions sharingInfo
+
+                        ZapButtonElement instanceId relayUrls ->
+                            getZapButton interactions instanceId relayUrls
+                )
+        )
         |> Html.map settings.toMsg
 
 
