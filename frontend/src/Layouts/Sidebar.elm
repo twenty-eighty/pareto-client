@@ -1,5 +1,7 @@
 module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layout, map, new, withLeftPart, withTopPart)
 
+--import Browser.Events as Events
+
 import BrowserEnv exposing (BrowserEnv)
 import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button
@@ -12,7 +14,7 @@ import FeatherIcons
 import Graphics
 import Html.Styled as Html exposing (Html, a, aside, div, img, main_, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css)
-import Html.Styled.Events exposing (..)
+import Html.Styled.Events as Events exposing (..)
 import I18Next
 import Layout exposing (Layout)
 import Nostr
@@ -32,15 +34,14 @@ import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
 import Ui.Profile
 import Ui.Shared exposing (countBadge, emptyHtml)
-import Ui.Styles exposing (Theme(..), darkMode)
+import Ui.Styles exposing (Theme(..), darkMode, print)
 import View exposing (View)
-import Ui.Styles exposing (print)
 
 
 type alias Props contentMsg =
     { theme : Theme
     , fixedLeftPart : Maybe (Html contentMsg)
-    , fixedTopPart : Maybe (Html contentMsg, String)
+    , fixedTopPart : Maybe ( Html contentMsg, String )
     }
 
 
@@ -68,6 +69,8 @@ withLeftPart leftPart props =
 withTopPart : Html contentMsg -> String -> Props contentMsg -> Props contentMsg
 withTopPart topPart height props =
     { props | fixedTopPart = Just ( topPart, height ) }
+
+
 
 -- this function checks if a route will be available in reader mode after login
 
@@ -327,12 +330,12 @@ layout props shared route =
 
 
 type alias Model =
-    {}
+    { articleInfoToggle : Bool }
 
 
 init : () -> ( Model, Effect Msg )
 init _ =
-    ( {}
+    ( { articleInfoToggle = False }
     , Effect.none
     )
 
@@ -345,6 +348,7 @@ type Msg
     = OpenGetStarted
     | SetClientRole Bool ClientRole
     | SetTestMode BrowserEnv.TestMode
+    | ToggleArticleInfo Bool
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -359,6 +363,9 @@ update _ msg model =
         SetTestMode testMode ->
             ( model, Effect.sendSharedMsg <| Shared.Msg.SetTestMode testMode )
 
+        ToggleArticleInfo flag ->
+            ( { model | articleInfoToggle = flag }, Effect.none )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -370,7 +377,7 @@ subscriptions _ =
 
 
 view : Props contentMsg -> Shared.Model.Model -> Route.Path.Path -> { toContentMsg : Msg -> contentMsg, content : View contentMsg, model : Model } -> View contentMsg
-view props shared path { toContentMsg, content } =
+view props shared path { toContentMsg, content, model } =
     let
         styles =
             Ui.Styles.stylesForTheme props.theme
@@ -388,7 +395,7 @@ view props shared path { toContentMsg, content } =
                 ]
                 :: styles.colorStyleBackground
             )
-            [ viewSidebar props shared path toContentMsg content.body
+            [ viewSidebar props shared model path toContentMsg content.body
             , viewLinktoInternalPage shared.nostr
             , AlertTimerMessage.new
                 { model = shared.alertTimerMessage
@@ -400,8 +407,8 @@ view props shared path { toContentMsg, content } =
     }
 
 
-viewSidebar : Props contentMsg -> Shared.Model.Model -> Route.Path.Path -> (Msg -> contentMsg) -> List (Html contentMsg) -> Html contentMsg
-viewSidebar props shared currentPath toContentMsg content =
+viewSidebar : Props contentMsg -> Shared.Model.Model -> Model -> Route.Path.Path -> (Msg -> contentMsg) -> List (Html contentMsg) -> Html contentMsg
+viewSidebar props shared model currentPath toContentMsg content =
     let
         styles =
             Ui.Styles.stylesForTheme props.theme
@@ -449,6 +456,42 @@ viewSidebar props shared currentPath toContentMsg content =
             , testMode = shared.browserEnv.testMode
             , theme = shared.theme
             }
+
+        isArticlePage =
+            case currentPath of
+                Route.Path.A_Addr_ _ ->
+                    True
+
+                Route.Path.U_User__Identifier_ _ ->
+                    True
+
+                _ ->
+                    False
+
+        articleInfoToggle =
+            div
+                [ css
+                    [ Tw.fixed
+                    , Tw.top_96
+                    , Tw.right_4
+                    , Tw.z_10
+                    , darkMode [ Tw.text_color styles.color5DarkMode ]
+                    , Tw.text_color styles.color5
+                    , Bp.lg [ Tw.hidden ]
+                    , if isArticlePage then
+                        Tw.block
+
+                      else
+                        Tw.hidden
+                    ]
+                , Events.onClick (toContentMsg (ToggleArticleInfo (not model.articleInfoToggle)))
+                ]
+                [ if model.articleInfoToggle == True then
+                    Icon.FeatherIcon FeatherIcons.bookOpen |> Icon.view
+
+                  else
+                    Icon.FeatherIcon FeatherIcons.info |> Icon.view
+                ]
     in
     Html.div
         (styles.colorStyleGrayscaleTitle
@@ -560,25 +603,42 @@ viewSidebar props shared currentPath toContentMsg content =
                         ]
                     ]
                     [ props.fixedLeftPart
-                        |> Maybe.map (\html ->
-                            div
-                                [ css
-                                    [ print
-                                        [ Tw.hidden
+                        |> Maybe.map
+                            (\html ->
+                                div
+                                    [ css
+                                        [ print [ Tw.hidden ]
+                                        , Bp.lg [ Tw.block, Tw.grow_0 ]
+                                        , if not model.articleInfoToggle then
+                                            Tw.hidden
+
+                                          else
+                                            Tw.block
+                                        , Tw.grow
                                         ]
                                     ]
-                                ]
-                                [ html ]
-                        )
+                                    [ html ]
+                            )
                         |> Maybe.withDefault emptyHtml
-                    , viewMainContent content props.fixedTopPart
+                    , div
+                        [ css
+                            [ Bp.lg [ Tw.contents ]
+                            , if model.articleInfoToggle && isArticlePage then
+                                Tw.hidden
+
+                              else
+                                Tw.contents
+                            ]
+                        ]
+                        [ viewMainContent content props.fixedTopPart ]
+                    , articleInfoToggle
                     ]
                 ]
             ]
         ]
 
 
-viewMainContent : List (Html contentMsg) -> Maybe (Html contentMsg, String) -> Html contentMsg
+viewMainContent : List (Html contentMsg) -> Maybe ( Html contentMsg, String ) -> Html contentMsg
 viewMainContent content maybeFixedTopPart =
     let
         topPartHeight =
@@ -754,6 +814,7 @@ viewSidebarItems theme sidebarItemParams =
             , Bp.sm
                 [ Tw.grid_rows_9
                 , Tw.grid_cols_1
+
                 -- compensate calculated margin left 16
                 , Tw.pr_4
                 , Tw.justify_items_center

@@ -2,8 +2,8 @@ module Ui.Article exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.ArticleComments as ArticleComments
-import Components.Button as Button
 import Components.BookmarkButton as BookmarkButton
+import Components.Button as Button
 import Components.InteractionButton as InteractionButton exposing (InteractionObject(..))
 import Components.Interactions
 import Components.SharingButtonDialog as SharingButtonDialog
@@ -20,7 +20,7 @@ import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArt
 import Nostr.Event exposing (Kind(..), Tag(..), TagReference(..))
 import Nostr.Nip05 exposing (nip05ToString)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
-import Nostr.Nip22 exposing (CommentType(..), ArticleComment, ArticleCommentComment)
+import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..))
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Relay exposing (websocketUrl)
@@ -226,22 +226,24 @@ viewArticle articlePreviewsData articlePreviewData article =
             , translations = articlePreviewsData.browserEnv.translations
             , theme = articlePreviewsData.theme
             }
+
         newComment =
             loggedInSigningPubKey articlePreviewsData.loginStatus
-            |> Maybe.map2 (\addressComponents signingPubKey ->
-                CommentToArticle
-                    { pubKey = signingPubKey
-                    , eventId = ""
-                    , createdAt = Time.millisToPosix 0
-                    , rootEventId = Just article.id
-                    , rootAddress = addressComponents
-                    , rootKind = article.kind
-                    , rootPubKey = article.author
-                    , rootRelay = article.relays |> Set.toList |> List.head
-                    , content = ""
-                    }
-                )
-                (addressComponentsForArticle article)
+                |> Maybe.map2
+                    (\addressComponents signingPubKey ->
+                        CommentToArticle
+                            { pubKey = signingPubKey
+                            , eventId = ""
+                            , createdAt = Time.millisToPosix 0
+                            , rootEventId = Just article.id
+                            , rootAddress = addressComponents
+                            , rootKind = article.kind
+                            , rootPubKey = article.author
+                            , rootRelay = article.relays |> Set.toList |> List.head
+                            , content = ""
+                            }
+                    )
+                    (addressComponentsForArticle article)
     in
     div
         [ css
@@ -320,8 +322,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                             ]
                             :: contentMargins
                         )
-                        [ div [ css [ Bp.lg [ Tw.hidden ] ] ] [ viewTags articlePreviewsData.browserEnv.translations article ]
-                        , div
+                        [ div
                             [ css
                                 [ Tw.flex_col
                                 , Tw.justify_start
@@ -355,7 +356,6 @@ viewArticle articlePreviewsData articlePreviewData article =
                                        ]
                                 )
                                 [ text <| Maybe.withDefault "" article.summary ]
-                            , viewAuthorAndDate styles followLinks articlePreviewsData.browserEnv article.publishedAt article.createdAt articlePreviewData.author
                             ]
                         ]
                     , viewArticleImage article.image
@@ -404,7 +404,7 @@ viewInteractions previewData instanceId =
     div
         [ css
             [ Tw.block
-            , Bp.lg [Tw.hidden]
+            , Bp.lg [ Tw.hidden ]
             ]
         ]
         [ Components.Interactions.new
@@ -426,6 +426,7 @@ viewInteractions previewData instanceId =
                 ]
             |> Components.Interactions.view
         ]
+
 
 sharingInfoForArticle : Article -> Author -> SharingButtonDialog.SharingInfo
 sharingInfoForArticle article author =
@@ -522,64 +523,6 @@ removeHashTag hashTag =
 
     else
         hashTag
-
-
-viewAuthorAndDate : Styles msg -> Bool -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Nostr.Profile.Author -> Html msg
-viewAuthorAndDate styles followLinks browserEnv published createdAt author =
-    case author of
-        Nostr.Profile.AuthorPubkey pubKey ->
-            div
-                [ css
-                    [ Tw.flex
-                    , Tw.items_center
-                    , Tw.space_x_2
-                    , Tw.mb_4
-                    , Bp.lg [ Tw.hidden ]
-                    , print
-                        [ Tw.block
-                        ]
-                    ]
-                ]
-                [ Ui.Profile.viewProfilePubKey styles followLinks pubKey
-                , timeParagraph styles browserEnv published createdAt
-                ]
-
-        Nostr.Profile.AuthorProfile profile validationStatus ->
-            div
-                [ css
-                    [ Tw.flex
-                    , Tw.flex_row
-                    , Tw.w_full
-                    , Tw.items_center
-                    , Tw.space_x_2
-                    , Tw.mb_4
-                    , Bp.lg [ Tw.hidden ]
-                    , print
-                        [ Tw.block
-                        ]
-                    ]
-                ]
-                [ viewArticleProfileSmall followLinks profile validationStatus
-                , div
-                    [ css
-                        [ Tw.h_11
-                        , Tw.left_16
-                        , Tw.top_1
-                        ]
-                    ]
-                    [ div
-                        (textStyleArticleAuthor
-                            ++ styles.colorStyleLinks
-                            ++ [ css
-                                    [ Tw.left_0
-                                    , Tw.top_0
-                                    ]
-                               ]
-                        )
-                        [ linkElementForProfile followLinks profile validationStatus [ text <| profileDisplayName profile.pubKey profile ] ]
-                    , viewArticleTime browserEnv published createdAt
-                    ]
-                ]
 
 
 viewArticleProfileSmall : Bool -> Profile -> ProfileValidation -> Html msg
@@ -1231,7 +1174,7 @@ viewArticleEditButton articlePreviewsData article articleAuthorPubKey =
 
 viewArticleBookmarkButton : ArticlePreviewsData msg -> Article -> Html msg
 viewArticleBookmarkButton articlePreviewsData article =
-    case (loggedInSigningPubKey articlePreviewsData.loginStatus, addressComponentsForArticle article) of
+    case ( loggedInSigningPubKey articlePreviewsData.loginStatus, addressComponentsForArticle article ) of
         ( Just _, Just addressComponents ) ->
             BookmarkButton.new
                 { model = Dict.get article.id articlePreviewsData.bookmarkButtons
