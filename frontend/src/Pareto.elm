@@ -277,6 +277,7 @@ bootstrapAuthorsList =
     , ( "nexus@pareto.town", "d1d190fa3ecb81a45669bd343d3b9952eb73611cb3cb4c4349980e4de4ce6a6a" )
     , ( "norbs@pareto.town", "0d1702d6ab3cfdbd6a5687118b9f0008022e129003d8a9627c444d4a8f1ac66f" )
     , ( "patric@pareto.town", "0b65f96a7f23a5739c3b58375d36822e68deb5efdaf2afaccbb365fe7fda4c8f" )
+    , ( "patrickreiser@pareto.town", "56dbb22fcd72819a43e37222c2a84463c53b6b5ce31f2c3ae97576dee6bb47f8" )
     , ( "paul@pareto.town", "2516d14559174be1a2e578c333ef584e2f32b45931bddb624d0178e4070c8fa1" )
     , ( "peter@pareto.town", "c3b2802bd061e0ea1c670604f87ad4d7ab8b487f01ccb417224baedb4850599c" )
     , ( "psychobabble@pareto.town", "6734e11d8d67d9ca4dedb920f81182ded2bca918e3e0f3528bd5f4c4c7e34e8f" )
