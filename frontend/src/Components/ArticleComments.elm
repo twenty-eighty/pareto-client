@@ -4,6 +4,7 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.Comment as Comment
 import Components.InteractionButton as InteractionButton exposing (eventIdOfInteractionObject)
 import Components.Interactions as Interactions
+import Css
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
@@ -15,14 +16,16 @@ import Nostr.Event exposing (Kind(..))
 import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..))
 import Nostr.Profile exposing (ProfileValidation(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId, LoginStatus, RelayUrl)
+import Nostr.Types exposing (EventId, LoginStatus, PubKey, RelayUrl)
 import Set exposing (Set)
+import Svg.Styled as Svg
+import Svg.Styled.Attributes as SvgAttr
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Time
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Styles, Theme, stylesForTheme)
+import Ui.Styles exposing (Styles, Theme, darkMode, stylesForTheme)
 
 
 type ArticleComments msg
@@ -160,6 +163,7 @@ view articleComments =
             , Tw.items_start
             , Tw.gap_6
             , Tw.flex
+            , Tw.mb_4
             ]
         ]
         [ div
@@ -183,7 +187,7 @@ view articleComments =
                 ]
                 (settings.articleComments
                     |> sortComments
-                    |> List.map (viewArticleComment articleComments 0 settings.articleCommentComments)
+                    |> List.map (viewArticleComment articleComments settings.articleCommentComments)
                 )
             ]
         ]
@@ -224,14 +228,11 @@ sortComments comments =
     List.sortBy (\comment -> -1 * Time.posixToMillis comment.createdAt) comments
 
 
-viewArticleComment : ArticleComments msg -> Int -> Dict EventId (List ArticleCommentComment) -> ArticleComment -> Html msg
-viewArticleComment articleComments level articleCommentComments articleComment =
+viewArticleComment : ArticleComments msg -> Dict EventId (List ArticleCommentComment) -> ArticleComment -> Html msg
+viewArticleComment articleComments articleCommentComments articleComment =
     let
         (Settings settings) =
             articleComments
-
-        (Model model) =
-            settings.model
 
         styles =
             stylesForTheme settings.theme
@@ -240,146 +241,338 @@ viewArticleComment articleComments level articleCommentComments articleComment =
             articleCommentComments
                 |> Dict.get articleComment.eventId
                 |> Maybe.withDefault []
-
-        followLinks =
-            Nostr.isAuthor settings.nostr articleComment.pubKey
-
-        profileDisplay =
-            Nostr.getProfile settings.nostr articleComment.pubKey
-                |> Maybe.map
-                    (\profile ->
-                        Nostr.getProfileValidationStatus settings.nostr profile.pubKey
-                            |> Maybe.withDefault ValidationUnknown
-                            |> Ui.Profile.viewProfileSmall styles followLinks profile
-                    )
-                |> Maybe.withDefault emptyHtml
-
-        interactionObject =
-            InteractionButton.Comment articleComment.eventId articleComment.pubKey
-
-        viewInteractions =
-            Interactions.new
-                { browserEnv = settings.browserEnv
-                , model = Dict.get articleComment.eventId model.interactions
-                , toMsg = InteractionsMsg interactionObject
-                , theme = settings.theme
-                , interactionObject = interactionObject
-                , nostr = settings.nostr
-                , loginStatus = settings.loginStatus
-                }
-                |> Interactions.withInteractionElements
-                    [ Interactions.LikeButtonElement
-                    , Interactions.RepostButtonElement
-                    , Interactions.ZapButtonElement "0" settings.zapRelayUrls
-                    ]
-                |> Interactions.view
     in
     div
         [ css
-            [ Tw.w_96
+            [ Tw.relative
+            , Tw.mt_6
+            , Tw.pl_4
+            , Tw.w_auto
+            , Tw.max_w_sm
+            , Bp.sm
+                [ Tw.max_w_lg
+                ]
+            , Bp.md
+                [ Tw.max_w_2xl
+                ]
             ]
         ]
-        [ div
-            [ css
-                [ Tw.flex
-                , Tw.flex_row
-                , Tw.items_center
-                , Tw.gap_2
-                , Tw.mb_2
-                ]
-            ]
-            [ profileDisplay
-            , div
-                [ css
-                    []
-                ]
-                [ Html.text <| BrowserEnv.formatDate settings.browserEnv articleComment.createdAt
-                ]
-            ]
-        , div
-            (styles.textStyleBody
-                ++ styles.colorStyleGrayscaleMuted
-                ++ [ css
-                        [ Tw.h_auto
-                        , Tw.p_4
-                        , Tw.left_0
-                        , Tw.top_0
-                        , Tw.text_color styles.color4
-                        , Tw.bg_color styles.color1
-                        , Tw.rounded_xl
-                        ]
-                   ]
-            )
-            (articleComment.content
-                |> String.split "\n"
-                |> List.map Html.text
-                |> List.intersperse (Html.br [] [])
-            )
-        , viewInteractions
+        [ viewCommentHeader settings.browserEnv styles settings.nostr articleComment.pubKey articleComment.createdAt
+            |> Html.map settings.toMsg
+        , viewCommentContent styles articleComment.content
+            |> Html.map settings.toMsg
+        , viewInteractions articleComments articleComment.eventId articleComment.pubKey
+            |> Html.map settings.toMsg
         , div
             [ css
                 [ Tw.flex
                 , Tw.flex_col
                 , Tw.justify_start
                 , Tw.items_start
-                , Tw.gap_4
+                , Tw.overflow_visible
+                , Tw.relative
                 ]
             ]
             (commentsOfComment
                 |> sortComments
-                |> List.map (viewArticleCommentComment styles settings.browserEnv 0 articleCommentComments)
+                |> List.map (viewArticleCommentComment articleComments 1 articleCommentComments)
             )
         ]
-        |> Html.map settings.toMsg
 
-
-viewArticleCommentComment : Styles msg -> BrowserEnv -> Int -> Dict EventId (List ArticleCommentComment) -> ArticleCommentComment -> Html msg
-viewArticleCommentComment styles browserEnv level articleCommentComments articleCommentComment =
+viewInteractions : ArticleComments msg -> EventId -> PubKey -> Html (Msg msg)
+viewInteractions articleComments eventId pubKey =
     let
-        commentsOfComment =
-            articleCommentComments
-                |> Dict.get articleCommentComment.eventId
+        (Settings settings) =
+            articleComments
+
+        (Model model) =
+            settings.model
+
+        interactionObject =
+            InteractionButton.Comment eventId pubKey
+    in
+    div [ css [ Tw.flex, Tw.justify_center, Tw.w_full ] ]
+        [ Interactions.new
+            { browserEnv = settings.browserEnv
+            , model = Dict.get eventId model.interactions
+            , toMsg = InteractionsMsg interactionObject
+            , theme = settings.theme
+            , interactionObject = interactionObject
+            , nostr = settings.nostr
+            , loginStatus = settings.loginStatus
+            }
+            |> Interactions.withInteractionElements
+                [ Interactions.LikeButtonElement
+                , Interactions.RepostButtonElement
+                , Interactions.ZapButtonElement "0" settings.zapRelayUrls
+                ]
+            |> Interactions.view
+        ]
+
+
+viewInteractionsAndReplies :
+    ArticleComments msg
+    -> Int
+    -> ArticleCommentComment
+    -> Dict EventId (List ArticleCommentComment)
+    -> Html msg          -- NOTE: return Html (Msg msg)
+viewInteractionsAndReplies articleComments level parent dict =
+    let
+        (Settings settings) =
+            articleComments
+
+        styles =
+            stylesForTheme settings.theme
+
+        interactions : Html msg
+        interactions =
+            viewInteractions articleComments parent.eventId parent.pubKey
+            |> Html.map settings.toMsg
+
+        replies : List (Html msg)
+        replies =
+            dict
+                |> Dict.get parent.eventId
                 |> Maybe.withDefault []
+                |> List.map (viewArticleCommentComment articleComments (level + 1) dict)
+    in
+    replyGroupWrapper
+        styles
+        (level * indentPerLevel)
+        elbowHeight
+        interactions
+        replies
+
+
+
+viewCommentHeader : BrowserEnv -> Styles msg -> Nostr.Model -> PubKey -> Time.Posix -> Html msg
+viewCommentHeader browserEnv styles nostr pubKey createdAt =
+    let
+        followLinks =
+            Nostr.isAuthor nostr pubKey
+
+        profileDisplay =
+            Nostr.getProfile nostr pubKey
+                |> Maybe.map
+                    (\profile ->
+                        Nostr.getProfileValidationStatus nostr profile.pubKey
+                            |> Maybe.withDefault ValidationUnknown
+                            |> Ui.Profile.viewProfileSmall styles followLinks profile
+                    )
+                |> Maybe.withDefault emptyHtml
     in
     div
         [ css
-            [ Tw.w_96
-            , Tw.h_28
+            [ Tw.flex
+            , Tw.flex_row
+            , Tw.items_center
+            , Tw.gap_2
+            , Tw.mb_2
             ]
         ]
-        [ div
-            []
-            [ Html.text <| BrowserEnv.formatDate browserEnv articleCommentComment.createdAt
-            ]
+        [ profileDisplay
         , div
-            (styles.textStyleBody
-                ++ styles.colorStyleGrayscaleMuted
-                ++ [ css
-                        [ Tw.w_96
-                        , Tw.h_28
-                        , Tw.p_2
-                        , Tw.left_0
-                        , Tw.top_0
-                        , Tw.bg_color styles.color1
-                        , Tw.rounded_xl
-                        ]
-                   ]
-            )
-            [ Html.text articleCommentComment.content
-            , div
-                [ css
-                    [ Tw.flex
-                    , Tw.flex_col
-                    , Tw.justify_start
-                    , Tw.items_start
-                    , Tw.gap_4
+            [ css
+                []
+            ]
+            [ Html.text <| BrowserEnv.formatDate browserEnv createdAt
+            ]
+        ]
+
+viewCommentContent : Styles msg -> String -> Html msg
+viewCommentContent styles content =
+    div
+        (styles.textStyleBody
+            ++ styles.colorStyleGrayscaleMuted
+            ++ [ css
+                    [ Tw.h_auto
+                    , Tw.p_4
+                    , Tw.left_0
+                    , Tw.top_0
+                    , Tw.text_color styles.color4
+                    , Tw.bg_color styles.color1
+                    , Tw.rounded_xl
                     ]
                 ]
-                (commentsOfComment
-                    |> List.map (viewArticleCommentComment styles browserEnv (level + 1) articleCommentComments)
-                )
+        )
+        (content
+            |> String.split "\n"
+            |> List.map Html.text
+            |> List.intersperse (Html.br [] [])
+        )
+
+
+replyGroupWrapper :
+    Styles msg
+    -> Int               -- indentPx
+    -> Float             -- elbowHeight   ( = bendY – 10 )
+    -> Html msg    -- interaction-row
+    -> List (Html msg)
+    -> Html msg
+replyGroupWrapper styles indentPx elbowH interactionRow replyNodes =
+    let
+        hasReplies = not (List.isEmpty replyNodes)
+    in
+    div
+        [ css
+            ([ Tw.relative
+            , indentTailwind indentPx
+            , Tw.overflow_visible
+            , Css.marginTop  (Css.px (-elbowH))
+            , Css.paddingTop (Css.px   elbowH)
+            ] ++
+            (if hasReplies then
+                [ Css.before
+                    [ Tw.absolute
+                    , Css.left (Css.px (toFloat threadLineX))
+                    , Css.top (Css.px (toFloat (-threadLineGapOffset)))
+                    , Css.bottom (Css.px 0)
+                    , Tw.w_px
+                    , Tw.rounded_full
+                    , Tw.bg_color styles.color2
+                    ]
+                ]
+            else
+                []
+            ))
+        ]
+        (interactionRow :: replyNodes)
+
+
+viewArticleCommentComment : ArticleComments msg -> Int -> Dict EventId (List ArticleCommentComment) -> ArticleCommentComment -> Html msg
+viewArticleCommentComment articleComments level articleCommentComments articleCommentComment =
+    let
+        (Settings settings) =
+            articleComments
+
+        styles =
+            stylesForTheme settings.theme
+
+        indentPx =
+            level * indentPerLevel
+    in
+    div
+        [ css
+            [ Tw.relative
+            , Tw.w_auto
+            , Tw.max_w_sm
+            , Bp.sm
+                [ Tw.max_w_lg
+                ]
+            , Bp.md
+                [ Tw.max_w_2xl
+                ]
             ]
         ]
+        [ svgElbowConnector styles indentPerLevel bendY
+        , div
+            [ css [ indentTailwind indentPx, Tw.pl_4 ] ]
+            [ viewCommentHeader settings.browserEnv styles settings.nostr articleCommentComment.pubKey articleCommentComment.createdAt
+            , viewCommentContent styles articleCommentComment.content
+            , viewInteractionsAndReplies
+                articleComments
+                level
+                articleCommentComment
+                articleCommentComments
+            ]
+        ]
+
+
+
+indentPerLevel : Int
+indentPerLevel =
+    32
+
+interactionH : Int
+interactionH =
+    30
+
+
+baseBend : Int
+baseBend =
+    54     -- header+bubble top before the icons row
+
+
+bendY : Int
+bendY =
+    baseBend + interactionH
+
+elbowHeight : Float
+elbowHeight =
+    toFloat (bendY - 10)
+
+-- Threading line positioning constants
+threadLineX : Int
+threadLineX =
+    14
+
+threadLineGapOffset : Int
+threadLineGapOffset =
+    100
+
+threadLineCurveRadius : Int
+threadLineCurveRadius =
+    10
+
+svgElbowConnector : Styles msg -> Int -> Int -> Html msg
+svgElbowConnector styles indentPx bndY =
+    let
+        startX = threadLineX
+        horizontalStart = startX + threadLineCurveRadius
+        verticalStart = 0
+        svgHeight = bndY + threadLineGapOffset + 10
+        -- Instead of extending upward, connect the horizontal line higher up in the comment
+        horizontalConnectionY = 70  -- How far down from top of comment to connect horizontally
+    in
+    div
+        [ css [ Tw.absolute, Tw.left_0, Css.top (Css.px (toFloat (-threadLineGapOffset))), Tw.text_color styles.color1, darkMode [ Tw.text_color styles.color1DarkMode ] ] ]
+        [ Svg.svg
+            [ SvgAttr.width (String.fromInt indentPx)
+            , SvgAttr.height (String.fromInt svgHeight)
+            , SvgAttr.viewBox ("0 0 " ++ String.fromInt indentPx ++ " " ++ String.fromInt svgHeight)
+            ]
+            [ Svg.path
+                [ SvgAttr.d
+                    ("M" ++ String.fromInt startX ++ "," ++ String.fromInt verticalStart ++
+                    "V" ++ String.fromInt (threadLineGapOffset + horizontalConnectionY - 10) ++
+                    " Q" ++ String.fromInt startX ++ "," ++ String.fromInt (threadLineGapOffset + horizontalConnectionY) ++
+                    " " ++ String.fromInt horizontalStart ++ "," ++ String.fromInt (threadLineGapOffset + horizontalConnectionY) ++
+                    " H" ++ String.fromInt indentPx)
+                , SvgAttr.stroke "currentColor"
+                , SvgAttr.fill "none"
+                , SvgAttr.strokeWidth "1"
+                ]
+                []
+            ]
+        ]
+
+
+indentTailwind : Int -> Css.Style
+indentTailwind indentPx =
+    case indentPx // indentPerLevel of
+        0 ->
+            Tw.ml_0
+
+        1 ->
+            Tw.ml_4
+
+        2 ->
+            Tw.ml_8
+
+        3 ->
+            Tw.ml_12
+
+        4 ->
+            Tw.ml_4
+
+        5 ->
+            Tw.ml_20
+
+        6 ->
+            Tw.ml_6
+
+        _ ->
+            Tw.ml_auto
 
 
 subscriptions : Model -> List ArticleComment -> Sub (Msg msg)
