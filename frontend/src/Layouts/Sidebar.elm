@@ -470,13 +470,21 @@ viewSidebar props shared model currentPath toContentMsg content =
 
         articleInfoToggle =
             div
-                [ css
+                ([ css
                     [ Tw.fixed
                     , Tw.top_96
-                    , Tw.right_4
+                    , Tw.right_0
+                    , Tw.w_12
+                    , Tw.h_11
                     , Tw.z_10
                     , darkMode [ Tw.text_color styles.color5DarkMode ]
                     , Tw.text_color styles.color5
+                    , Tw.pl_3
+                    , Tw.pt_2_dot_5
+                    , Tw.border
+                    , Tw.rounded_l_lg
+                    , darkMode [ Tw.border_color styles.color2DarkMode ]
+                    , Tw.border_color styles.color2
                     , Bp.lg [ Tw.hidden ]
                     , if isArticlePage then
                         Tw.block
@@ -484,8 +492,10 @@ viewSidebar props shared model currentPath toContentMsg content =
                       else
                         Tw.hidden
                     ]
-                , Events.onClick (toContentMsg (ToggleArticleInfo (not model.articleInfoToggle)))
-                ]
+                 , Events.onClick (toContentMsg (ToggleArticleInfo (not model.articleInfoToggle)))
+                 ]
+                    ++ styles.colorStyleBackground
+                )
                 [ if model.articleInfoToggle == True then
                     Icon.FeatherIcon FeatherIcons.bookOpen |> Icon.view
 
