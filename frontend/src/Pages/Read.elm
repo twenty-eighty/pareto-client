@@ -15,9 +15,9 @@ import Material.Icons exposing (category)
 import Nostr
 import Nostr.Event exposing (EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.FollowList exposing (followingPubKey)
+import Nostr.Nip10 exposing (TextNote)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.ShortNote exposing (ShortNote)
 import Nostr.Types exposing (EventId, LoginStatus, PubKey, loggedInPubKey)
 import Page exposing (Page)
 import Pareto
@@ -503,14 +503,14 @@ viewContent shared model userPubKey =
             viewNotes
 
 
-viewShortNotes : ShortNotesViewData -> List ShortNote -> Html Msg
+viewShortNotes : ShortNotesViewData -> List TextNote -> Html Msg
 viewShortNotes shortNotesViewData shortNotes =
     shortNotes
         |> List.map
-            (\shortNote ->
+            (\textNote ->
                 ShortNote.viewShortNote
                     shortNotesViewData
-                    { author = Nostr.getAuthor shortNotesViewData.nostr shortNote.pubKey
+                    { author = Nostr.getAuthor shortNotesViewData.nostr textNote.pubKey
                     , interactions =
                         { zaps = Nothing
                         , articleComments = []
@@ -525,6 +525,6 @@ viewShortNotes shortNotesViewData shortNotes =
                         , repost = Nothing
                         }
                     }
-                    shortNote
+                    textNote
             )
         |> div []

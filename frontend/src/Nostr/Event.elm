@@ -14,13 +14,13 @@ type Tag
     = GenericTag (List String)
     | InvalidTag (List String)
     | AboutTag String
-    | AddressTag AddressComponents (Maybe String)
+    | AddressTag AddressComponents (Maybe RelayUrl) (Maybe EventTagMarker)
     | AltTag String
     | ClientTag String (Maybe String) (Maybe String)
     | ContentWarningTag String
     | DescriptionTag String
     | DirTag
-    | EventIdTag EventId (Maybe RelayUrl)
+    | EventIdTag EventId (Maybe RelayUrl) (Maybe EventTagMarker) (Maybe PubKey)
     | EventDelegationTag PubKey
     | ExpirationTag Time.Posix
     | ExternalIdTag String
@@ -39,7 +39,7 @@ type Tag
     | NameTag String
     | PublicKeyTag PubKey (Maybe RelayUrl) (Maybe String)
     | PublishedAtTag Time.Posix
-    | QuotedEventTag EventId
+    | QuotedEventTag EventId (Maybe RelayUrl) (Maybe PubKey)
     | ReferenceTag String (Maybe String)
     | RelayTag String
     | RelaysTag (List String)
@@ -54,6 +54,9 @@ type Tag
     | WebTag String (Maybe String)
     | ZapTag PubKey RelayUrl (Maybe Int)
 
+type EventTagMarker
+    = EventTagRootMarker
+    | EventTagReplyMarker
 
 type alias ImageMetadata =
     { url : String
@@ -1635,7 +1638,7 @@ decodeTag =
                 (\typeStr ->
                     case typeStr of
                         "a" ->
-                            Decode.map2 AddressTag (Decode.index 1 decodeAddress) (Decode.maybe (Decode.index 2 Decode.string))
+                            Decode.map3 AddressTag (Decode.index 1 decodeAddress) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 eventTagMarkerDecoder))
 
                         "A" ->
                             Decode.map2 RootAddressTag (Decode.index 1 decodeAddress) (Decode.maybe (Decode.index 2 Decode.string))
@@ -1664,7 +1667,7 @@ decodeTag =
                             Decode.map DescriptionTag (Decode.index 1 Decode.string)
 
                         "e" ->
-                            Decode.map2 EventIdTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
+                            Decode.map4 EventIdTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 eventTagMarkerDecoder)) (Decode.maybe (Decode.index 4 Decode.string))
 
                         "expiration" ->
                             Decode.map ExpirationTag (Decode.index 1 decodeUnixTimeString)
@@ -1725,7 +1728,7 @@ decodeTag =
                             Decode.map PublishedAtTag (Decode.index 1 decodeUnixTimeString)
 
                         "q" ->
-                            Decode.map QuotedEventTag (Decode.index 1 Decode.string)
+                            Decode.map3 QuotedEventTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 Decode.string))
 
                         "r" ->
                             Decode.oneOf
@@ -1766,6 +1769,34 @@ decodeTag =
                 )
         , decodeInvalidTag
         ]
+
+
+eventTagMarkerDecoder : Decode.Decoder EventTagMarker
+eventTagMarkerDecoder =
+    Decode.string
+        |> Decode.andThen
+            (\markerString ->
+                case markerString of
+                    "root" ->
+                        Decode.succeed EventTagRootMarker
+
+                    "reply" ->
+                        Decode.succeed EventTagReplyMarker
+
+                    _ ->
+                        Decode.fail <| "Invalid event tag marker: " ++ markerString
+
+            )
+
+
+eventTagMarkerToString : EventTagMarker -> String
+eventTagMarkerToString marker =
+    case marker of
+        EventTagRootMarker ->
+            "root"
+
+        EventTagReplyMarker ->
+            "reply"
 
 
 imageMetadataFromTagList : List String -> Result String ImageMetadata
@@ -1908,12 +1939,15 @@ tagToList tag =
         AboutTag value ->
             [ "about", value ]
 
-        AddressTag addressComponents maybeRelayUrl ->
-            case maybeRelayUrl of
-                Just relayUrl ->
+        AddressTag addressComponents maybeRelayUrl maybeMarker ->
+            case ( maybeRelayUrl, maybeMarker ) of
+                ( Just relayUrl, Just marker ) ->
+                    [ "a", buildAddress addressComponents, relayUrl, eventTagMarkerToString marker ]
+
+                ( Just relayUrl, Nothing ) ->
                     [ "a", buildAddress addressComponents, relayUrl ]
 
-                Nothing ->
+                ( Nothing, _ ) ->
                     [ "a", buildAddress addressComponents ]
 
         AltTag value ->
@@ -1939,13 +1973,20 @@ tagToList tag =
         DirTag ->
             [ "dir" ]
 
-        EventIdTag eventId maybeRelayUrl ->
-            case maybeRelayUrl of
-                Just relayUrl ->
+        EventIdTag eventId maybeRelayUrl maybeMarker maybePubKey ->
+            case ( maybeRelayUrl, maybeMarker, maybePubKey ) of
+                ( Just relayUrl, Just marker, Just pubKey ) ->
+                    [ "e", eventId, relayUrl, eventTagMarkerToString marker, pubKey ]
+
+                ( Just relayUrl, Just marker, Nothing ) ->
+                    [ "e", eventId, relayUrl, eventTagMarkerToString marker ]
+
+                ( Just relayUrl, Nothing, _ ) ->
                     [ "e", eventId, relayUrl ]
 
-                Nothing ->
+                _ ->
                     [ "e", eventId ]
+
 
         EventDelegationTag pubKey ->
             [ "d", pubKey ]
@@ -2026,8 +2067,16 @@ tagToList tag =
             -- Nostr works with seconds, not milliseconds
             [ "published_at", Time.posixToMillis time // 1000 |> String.fromInt ]
 
-        QuotedEventTag eventId ->
-            [ "q", eventId ]
+        QuotedEventTag eventId maybeRelayUrl maybePubKey ->
+            case ( maybeRelayUrl, maybePubKey ) of
+                ( Just relayUrl, Just pubKey ) ->
+                    [ "q", eventId, relayUrl, pubKey ]
+
+                ( Just relayUrl, Nothing ) ->
+                    [ "q", eventId, relayUrl ]
+
+                _ ->
+                    [ "q", eventId ]
 
         ReferenceTag reference maybeType ->
             case maybeType of
@@ -2513,13 +2562,13 @@ appendTags tags eventElements =
 
 addAddressTag : AddressComponents -> Maybe RelayUrl -> List Tag -> List Tag
 addAddressTag addressComponents maybeRelayUrl tags =
-    tags ++ [ AddressTag addressComponents maybeRelayUrl ]
+    tags ++ [ AddressTag addressComponents maybeRelayUrl Nothing ]
 
 
 addAddressTags : List AddressComponents -> Maybe RelayUrl -> List Tag -> List Tag
 addAddressTags addresses maybeRelayUrl tags =
     addresses
-        |> List.map (\address -> AddressTag address maybeRelayUrl)
+        |> List.map (\address -> AddressTag address maybeRelayUrl Nothing)
         |> List.append tags
 
 
@@ -2538,14 +2587,14 @@ addDTag identifier tags =
     EventDelegationTag identifier :: tags
 
 
-addEventIdTag : EventId -> Maybe RelayUrl -> List Tag -> List Tag
-addEventIdTag eventId maybeRelayUrl tags =
-    EventIdTag eventId maybeRelayUrl :: tags
+addEventIdTag : EventId -> Maybe RelayUrl -> Maybe EventTagMarker -> Maybe PubKey -> List Tag -> List Tag
+addEventIdTag eventId maybeRelayUrl maybeMarker maybePubKey tags =
+    EventIdTag eventId maybeRelayUrl maybeMarker maybePubKey :: tags
 
-addEventIdTags : List EventId -> Maybe RelayUrl -> List Tag -> List Tag
-addEventIdTags eventIds maybeRelayUrl tags =
+addEventIdTags : List EventId -> Maybe RelayUrl -> Maybe EventTagMarker -> Maybe PubKey -> List Tag -> List Tag
+addEventIdTags eventIds maybeRelayUrl maybeMarker maybePubKey tags =
     eventIds
-    |> List.map (\eventId -> EventIdTag eventId maybeRelayUrl)
+    |> List.map (\eventId -> EventIdTag eventId maybeRelayUrl maybeMarker maybePubKey)
     |> List.append tags
 
 addHashValueTags : List String -> List Tag -> List Tag

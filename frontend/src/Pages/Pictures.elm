@@ -17,10 +17,10 @@ import Layouts.Sidebar
 import Nostr
 import Nostr.Event exposing (AddressComponents, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.FollowList exposing (followingPubKey)
+import Nostr.Nip10 exposing (TextNote)
 import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.ShortNote exposing (ShortNote)
 import Nostr.Types exposing (EventId, LoginStatus, PubKey, loggedInPubKey, loggedInSigningPubKey)
 import Page exposing (Page)
 import Pareto
@@ -639,14 +639,14 @@ viewPicturePosts picturePostsViewData picturePosts =
             ]
 
 
-viewShortNotes : Shared.Model -> ShortNotesViewData -> List ShortNote -> Html msg
+viewShortNotes : Shared.Model -> ShortNotesViewData -> List TextNote -> Html msg
 viewShortNotes shared shortNotesViewData shortNotes =
     shortNotes
         |> List.map
-            (\shortNote ->
+            (\textNote ->
                 Ui.ShortNote.viewShortNote
                     shortNotesViewData
-                    { author = Nostr.getAuthor shared.nostr shortNote.pubKey
+                    { author = Nostr.getAuthor shared.nostr textNote.pubKey
                     , interactions =
                         { zaps = Nothing
                         , articleComments = []
@@ -661,7 +661,7 @@ viewShortNotes shared shortNotesViewData shortNotes =
                         , repost = Nothing
                         }
                     }
-                    shortNote
+                    textNote
             )
         |> Html.div
             [ css

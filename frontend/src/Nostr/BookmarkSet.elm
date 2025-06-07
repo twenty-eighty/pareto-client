@@ -24,7 +24,7 @@ bookmarkSetFromEvent event =
                 |> List.foldl
                     (\tag bml ->
                         case tag of
-                            AddressTag addressComponents _ ->
+                            AddressTag addressComponents _ _ ->
                                 { bml | articles = bml.articles ++ [ addressComponents ] }
 
                             HashTag hashtag ->

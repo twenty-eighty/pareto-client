@@ -29,10 +29,10 @@ repostFromEvent event =
         |> List.foldl
             (\tag res ->
                 case tag of
-                    AddressTag address maybeRelayUrl ->
+                    AddressTag address maybeRelayUrl _ ->
                         { res | repostedAddress = Just ( address, maybeRelayUrl ) }
 
-                    EventIdTag eventId maybeRelayUrl ->
+                    EventIdTag eventId maybeRelayUrl _ _ ->
                         { res | repostedEvent = Just ( eventId, maybeRelayUrl ) }
 
                     PublicKeyTag repostedPubKey maybeRelayUrl _ ->
@@ -63,7 +63,7 @@ repostEvent pubKey eventId author kind maybeAddressComponents maybeRelayUrl =
     in
     { event
         | tags =
-            [ EventIdTag eventId maybeRelayUrl
+            [ EventIdTag eventId maybeRelayUrl Nothing Nothing
             , PublicKeyTag author Nothing Nothing
             , KindTag kind
             ]

@@ -53,6 +53,8 @@ import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
 import View exposing (View)
 import Markdown
+import Nostr.Article exposing (addressComponentsForArticle)
+import Nostr.Event exposing (AddressComponents)
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
@@ -80,6 +82,7 @@ toLayout theme _ =
 
 type alias Model =
     { draftEventId : Maybe EventId -- event ID of draft (when editing one)
+    , draftAddressComponents : Maybe AddressComponents -- address components of draft (when editing one)
     , title : Maybe String
     , summary : Maybe String
     , image : Maybe String
@@ -203,6 +206,7 @@ init user shared route () =
                                 Just article.createdAt
                     in
                     { draftEventId = Just article.id
+                    , draftAddressComponents = addressComponentsForArticle article
                     , title = article.title
                     , summary = article.summary
                     , image = article.image
@@ -235,6 +239,7 @@ init user shared route () =
 
                 Nothing ->
                     { draftEventId = Nothing
+                    , draftAddressComponents = Nothing
                     , title = Nothing
                     , summary = Nothing
                     , image = Nothing
@@ -677,6 +682,7 @@ updateModelWithDraftRequest model value =
                     ( { model
                         | articleState = ArticleDraftSaved
                         , draftEventId = Just draft.id
+                        , draftAddressComponents = addressComponentsForArticle draft
                         , title = draft.title
                         , summary = draft.summary
                         , image = draft.image
@@ -828,7 +834,7 @@ sendDraftDeletionCmd : Shared.Model -> Model -> Auth.User -> Effect Msg
 sendDraftDeletionCmd shared model user =
     case model.draftEventId of
         Just draftEventId ->
-            draftDeletionEvent user.pubKey shared.browserEnv.now draftEventId "Deleting draft after publishing article" model.identifier
+            draftDeletionEvent user.pubKey shared.browserEnv.now draftEventId "Deleting draft after publishing article" model.draftAddressComponents
                 |> SendDeletionRequest (Nostr.getDraftRelayUrls shared.nostr draftEventId)
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
