@@ -585,6 +585,7 @@ export const onReady = ({ app, env }) => {
             break;
           }
 
+        case 10000: // mute list
         case 10002: // relay list metadata
         case 10003: // bookmark list
         case 10004: // community lists

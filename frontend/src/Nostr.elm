@@ -58,6 +58,7 @@ type alias Model =
     , fileStorageServerLists : Dict PubKey (List String)
     , followLists : Dict PubKey (List Following)
     , followSets : Dict PubKey (Dict String FollowSet) -- follow sets; keys pubKey / identifier
+    , muteLists : Dict PubKey (List Following)
     , picturePosts : Dict EventId PicturePost
     , pubKeyByNip05 : Dict Nip05String PubKey
     , poolState : RelayState
@@ -111,6 +112,29 @@ getAuthorsFollowList : Model -> List Following
 getAuthorsFollowList model =
     getFollowsList model Pareto.authorsKey
         |> Maybe.withDefault paretoAuthorsFollowList
+
+
+getAuthorsMuteList : Model -> List Following
+getAuthorsMuteList model =
+    getMuteList model Pareto.authorsKey
+        |> Maybe.withDefault []
+
+isMuted : Model -> Maybe PubKey -> PubKey -> Bool
+isMuted model maybeUserPubKey authorPubKey =
+    let
+        mutedByUser =
+            maybeUserPubKey
+                |> Maybe.andThen (getMuteList model)
+                |> Maybe.map (pubKeyIsFollower authorPubKey)
+                |> Maybe.withDefault False
+
+        mutedByAuthor =
+            getMuteList model Pareto.authorsKey
+                |> Maybe.map (pubKeyIsFollower authorPubKey)
+                |> Maybe.withDefault False
+    in
+    mutedByUser || mutedByAuthor
+
 
 
 getAuthorsPubKeys : Model -> List PubKey
@@ -763,8 +787,13 @@ getFollowsList model pubKey =
     Dict.get pubKey model.followLists
 
 
-getArticleComments : Model -> AddressComponents -> List ArticleComment
-getArticleComments model addressComponents =
+getMuteList : Model -> PubKey -> Maybe (List Following)
+getMuteList model pubKey =
+    Dict.get pubKey model.muteLists
+
+
+getArticleComments : Model -> Maybe PubKey -> AddressComponents -> List ArticleComment
+getArticleComments model maybeUserPubKey addressComponents =
     let
         articleComments =
             Dict.get (buildAddress addressComponents) model.commentsByAddress
@@ -784,6 +813,7 @@ getArticleComments model addressComponents =
                 )
     in
     articleComments ++ textNoteComments
+    |> List.filter (\comment -> not (isMuted model maybeUserPubKey comment.pubKey))
 
 getTextNoteCommentsForArticle : Model -> AddressComponents -> List CommentType
 getTextNoteCommentsForArticle model addressComponents =
@@ -1497,6 +1527,7 @@ empty =
     , poolState = RelayStateUnknown
     , followLists = Dict.singleton Pareto.authorsKey paretoAuthorsFollowList
     , followSets = Dict.empty
+    , muteLists = Dict.empty
     , portalUserInfoPubKey = Dict.empty
     , portalUserInfoNip05 = Dict.empty
     , profiles = Dict.empty
@@ -1825,6 +1856,9 @@ updateModelWithEvents model requestId kind events =
 
         KindFollows ->
             updateModelWithFollowLists model events
+
+        KindMuteList ->
+            updateModelWithMuteLists model events
 
         KindFollowSets ->
             updateModelWithFollowSets model events
@@ -2804,6 +2838,21 @@ updateModelWithFollowLists model events =
                     model.followLists
     in
     ( { model | followLists = followLists }, Cmd.none )
+
+
+updateModelWithMuteLists : Model -> List Event -> ( Model, Cmd Msg )
+updateModelWithMuteLists model events =
+    let
+        muteLists =
+            events
+                |> List.map followListFromEvent
+                |> List.foldl
+                    (\{ pubKey, following } dict ->
+                        Dict.insert pubKey following dict
+                    )
+                    model.muteLists
+    in
+    ( { model | muteLists = muteLists }, Cmd.none )
 
 
 updateModelWithFollowSets : Model -> List Event -> ( Model, Cmd Msg )
