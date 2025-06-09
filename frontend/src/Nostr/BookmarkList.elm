@@ -49,13 +49,13 @@ bookmarkListFromEvent event =
                 |> List.foldl
                     (\tag bml ->
                         case tag of
-                            AddressTag addressComponents Nothing ->
+                            AddressTag addressComponents _ _ ->
                                 { bml | articles = bml.articles ++ [ addressComponents ] }
 
                             HashTag hashtag ->
                                 { bml | hashtags = hashtag :: bml.hashtags }
 
-                            EventIdTag eventId _ ->
+                            EventIdTag eventId _ _ _ ->
                                 { bml | notes = eventId :: bml.notes }
 
                             UrlTag urls _ ->
@@ -144,5 +144,5 @@ bookmarkListEvent pubKey list =
         | tags =
             []
                 |> addAddressTags list.articles Nothing
-                |> addEventIdTags list.notes Nothing
+                |> addEventIdTags list.notes Nothing Nothing Nothing
     }

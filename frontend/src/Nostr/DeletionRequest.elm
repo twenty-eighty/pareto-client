@@ -5,6 +5,8 @@ import Nostr.Profile exposing (ProfileValidation(..))
 import Nostr.Types exposing (EventId, PubKey)
 import Set exposing (Set)
 import Time
+import Nostr.Event exposing (addEventIdTag)
+import Nostr.Event exposing (AddressComponents)
 
 
 
@@ -12,7 +14,8 @@ import Time
 
 
 type alias DeletionRequest =
-    { eventIds : Set EventId
+    { pubKey : PubKey
+    , eventIds : Set EventId
     , kinds : Set Int
     , addresses : Set String
     , reason : String
@@ -25,10 +28,15 @@ deletionRequestFromEvent event =
         |> List.foldl
             (\tag acc ->
                 case tag of
-                    AddressTag addressComponents _ ->
-                        { acc | addresses = Set.insert (buildAddress addressComponents) acc.addresses }
+                    AddressTag ((_, addressPubKey, _) as addressComponents) _ _ ->
+                        -- only accept deletion requests a pubkey made for own articles/addresses
+                        if addressPubKey == event.pubKey then
+                            { acc | addresses = Set.insert (buildAddress addressComponents) acc.addresses }
+                        else
+                            acc
 
-                    EventIdTag eventId _ ->
+                    EventIdTag eventId _ _ _ ->
+                        -- we don't know at this point if the creator of the deletion event also created the event to be deleted
                         { acc | eventIds = Set.insert eventId acc.eventIds }
 
                     KindTag kind ->
@@ -37,16 +45,28 @@ deletionRequestFromEvent event =
                     _ ->
                         acc
             )
-            { eventIds = Set.empty, addresses = Set.empty, reason = event.content, kinds = Set.empty }
+            (emptyDeletionRequest event.pubKey)
+
+emptyDeletionRequest : PubKey -> DeletionRequest
+emptyDeletionRequest pubKey =
+    { pubKey = pubKey
+    , eventIds = Set.empty
+    , addresses = Set.empty
+    , reason = ""
+    , kinds = Set.empty
+    }
 
 
-draftDeletionEvent : PubKey -> Time.Posix -> EventId -> String -> Maybe String -> Event
-draftDeletionEvent pubKey createdAt _ content maybeIdentifier =
+draftDeletionEvent : PubKey -> Time.Posix -> EventId -> String -> Maybe AddressComponents -> Event
+draftDeletionEvent pubKey createdAt eventId content maybeAddressComponents =
     let
-        addIdentifer =
-            case maybeIdentifier of
-                Just identifier ->
-                    addAddressTag ( KindDraftLongFormContent, pubKey, identifier ) Nothing
+        addAddress =
+            case maybeAddressComponents of
+                Just ((_, articlePubKey, _) as addressComponents) ->
+                    if articlePubKey == pubKey then
+                        addAddressTag addressComponents Nothing
+                    else
+                        identity
 
                 Nothing ->
                     identity
@@ -56,7 +76,8 @@ draftDeletionEvent pubKey createdAt _ content maybeIdentifier =
     , kind = KindEventDeletionRequest
     , tags =
         []
-            |> addIdentifer
+            |> addAddress
+            |> addEventIdTag eventId Nothing Nothing Nothing
             |> addKindTag KindDraftLongFormContent
             |> addKindTag KindDraft
     , content = content

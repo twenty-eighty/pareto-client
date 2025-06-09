@@ -14,7 +14,6 @@ import Nostr.Article exposing (Article)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), eventFilterForNip19, informationForKind, kindFromNumber)
 import Nostr.Nip19 as Nip19
 import Nostr.Request exposing (RequestData(..), RequestId)
-import Nostr.ShortNote exposing (ShortNote)
 import Nostr.Types exposing (IncomingMessage, RelayUrl)
 import Page exposing (Page)
 import Ports

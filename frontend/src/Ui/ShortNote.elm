@@ -4,11 +4,11 @@ import BrowserEnv exposing (BrowserEnv)
 import Html.Styled as Html exposing (Html, br, div, p)
 import Html.Styled.Attributes as Attr exposing (css)
 import Nostr
+import Nostr.Nip10 exposing (TextNote)
 import Nostr.Nip27 as Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
 import Nostr.Reactions exposing (Interactions)
-import Nostr.ShortNote exposing (ShortNote)
-import Nostr.Types exposing (EventId, PubKey)
+import Nostr.Types exposing (PubKey)
 import Tailwind.Utilities as Tw
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
@@ -30,8 +30,8 @@ type alias ShortNoteViewData =
     }
 
 
-viewShortNote : ShortNotesViewData -> ShortNoteViewData -> ShortNote -> Html msg
-viewShortNote shortNotesViewData shortNoteViewData shortNote =
+viewShortNote : ShortNotesViewData -> ShortNoteViewData -> TextNote -> Html msg
+viewShortNote shortNotesViewData shortNoteViewData textNote =
     let
         styles =
             stylesForTheme shortNotesViewData.theme
@@ -45,7 +45,7 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
                     ( profileDisplayName profile.pubKey profile, Just profile, profileValidation )
 
         followLinks =
-            Nostr.isAuthor shortNotesViewData.nostr shortNote.pubKey
+            Nostr.isAuthor shortNotesViewData.nostr textNote.pubKey
     in
     div
         [ css
@@ -67,7 +67,7 @@ viewShortNote shortNotesViewData shortNoteViewData shortNote =
 
             Nothing ->
                 emptyHtml
-        , viewContent styles (Nostr.getProfile shortNotesViewData.nostr) shortNote.content
+        , viewContent styles (Nostr.getProfile shortNotesViewData.nostr) (Just textNote.content)
         ]
 
 

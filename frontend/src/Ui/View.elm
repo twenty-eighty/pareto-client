@@ -16,6 +16,7 @@ import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Community exposing (Community)
 import Nostr.Request exposing (RequestId)
+import Nostr.Types exposing (loggedInPubKey)
 import Tailwind.Utilities as Tw
 import Ui.Article exposing (ArticlePreviewsData)
 import Ui.Community
@@ -37,7 +38,7 @@ viewArticle articlePreviewsData loadedContent articleInteractions article =
     Ui.Article.viewArticle
         articlePreviewsData
         { author = Nostr.getAuthor articlePreviewsData.nostr article.author
-        , articleComments = articleComponents |> Maybe.map (Nostr.getArticleComments articlePreviewsData.nostr) |> Maybe.withDefault []
+        , articleComments = articleComponents |> Maybe.map (Nostr.getArticleComments articlePreviewsData.nostr (loggedInPubKey articlePreviewsData.loginStatus)) |> Maybe.withDefault []
         , articleCommentComments = articleComponents |> Maybe.map (Nostr.getArticleCommentComments articlePreviewsData.nostr) |> Maybe.withDefault Dict.empty
         , articleInteractions = articleInteractions
         , displayAuthor = True

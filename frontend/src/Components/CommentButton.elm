@@ -135,14 +135,17 @@ view (Settings settings) =
         (Model model) =
             settings.model
 
+        maybeUserPubKey =
+            settings.loginStatus
+            |> loggedInPubKey
+
         label =
-            getCommentsCount settings.interactionObject settings.nostr
+            getCommentsCount settings.interactionObject maybeUserPubKey settings.nostr
             |> String.fromInt
 
         commented =
-            settings.loginStatus
-            |> loggedInPubKey
-            |> Maybe.map (hasComment settings.interactionObject settings.nostr)
+            maybeUserPubKey
+            |> Maybe.map (hasComment settings.interactionObject maybeUserPubKey settings.nostr)
             |> Maybe.withDefault False
 
         clickAction : Maybe (InteractionButton.ClickAction (Msg msg))
@@ -169,11 +172,11 @@ view (Settings settings) =
         |> Html.map settings.toMsg
 
 
-getCommentsCount : InteractionObject -> Nostr.Model -> Int
-getCommentsCount interactionObject nostr =
+getCommentsCount : InteractionObject -> Maybe PubKey -> Nostr.Model -> Int
+getCommentsCount interactionObject maybeUserPubKey nostr =
     case interactionObject of
         Article _ addressComponents ->
-            List.length (Nostr.getArticleComments nostr addressComponents)
+            List.length (Nostr.getArticleComments nostr maybeUserPubKey addressComponents)
             + List.length (Nostr.getArticleCommentComments nostr addressComponents |> Dict.values)
 
         Comment _ _ ->
@@ -182,11 +185,11 @@ getCommentsCount interactionObject nostr =
         PicturePost _ _ ->
             0
 
-hasComment : InteractionObject -> Nostr.Model -> PubKey -> Bool
-hasComment interactionObject nostr pubKey =
+hasComment : InteractionObject -> Maybe PubKey -> Nostr.Model -> PubKey -> Bool
+hasComment interactionObject maybeUserPubKey nostr pubKey =
     case interactionObject of
         Article _ addressComponents ->
-            Nostr.getArticleComments nostr addressComponents
+            Nostr.getArticleComments nostr maybeUserPubKey addressComponents
             |> List.filter (\articleComment -> articleComment.pubKey == pubKey)
             |> List.isEmpty
             |> not

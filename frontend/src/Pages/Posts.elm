@@ -14,13 +14,13 @@ import I18Next
 import Layouts
 import Layouts.Sidebar
 import Nostr
-import Nostr.Article exposing (Article, nip19ForArticle)
+import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
-import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
+import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Profile exposing (Author)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (EventId, PubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Route.Path
@@ -148,7 +148,7 @@ stringFromCategory category =
 type Msg
     = CategorySelected Category
     | CategoriesSent (Categories.Msg Category Msg)
-    | DeleteDraft String (Maybe String) -- draft event id
+    | DeleteDraft EventId (Maybe AddressComponents) -- draft event id
     | EditDraft String
     | NoOp
 
@@ -166,9 +166,9 @@ update user shared msg model =
                 , toMsg = CategoriesSent
                 }
 
-        DeleteDraft draftArticleId draftIdentifier ->
+        DeleteDraft draftArticleId maybeAddressComponents ->
             ( model
-            , draftDeletionEvent user.pubKey shared.browserEnv.now draftArticleId "Deleting draft" draftIdentifier
+            , draftDeletionEvent user.pubKey shared.browserEnv.now draftArticleId "Deleting draft" maybeAddressComponents
                 |> SendDeletionRequest (Nostr.getDraftRelayUrls shared.nostr draftArticleId)
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
@@ -194,8 +194,8 @@ updateModelWithCategory user shared model category =
 
                 Drafts ->
                     ( RequestArticleDrafts
-                    , [ { emptyEventFilter | kinds = Just [ KindDraftLongFormContent, KindDraft ], authors = Just [ user.pubKey ], limit = Just 20 }
-                      , { emptyEventFilter | kinds = Just [ KindDraftLongFormContent ], tagReferences = Just [ TagReferencePubKey user.pubKey ], limit = Just 20 }
+                    , [ { emptyEventFilter | kinds = Just [ KindDraftLongFormContent, KindDraft ], authors = Just [ user.pubKey ] }
+                      , { emptyEventFilter | kinds = Just [ KindDraftLongFormContent ], tagReferences = Just [ TagReferencePubKey user.pubKey ] }
                       ]
                     , "Drafts of user"
                     )
@@ -315,7 +315,7 @@ deleteDraftButton : Theme -> String -> Article -> Html Msg
 deleteDraftButton theme label article =
     Button.new
         { label = label
-        , onClick = Just <| DeleteDraft article.id article.identifier
+        , onClick = Just <| DeleteDraft article.id (addressComponentsForArticle article)
         , theme = theme
         }
         |> Button.withStyleDanger

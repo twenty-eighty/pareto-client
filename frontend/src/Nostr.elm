@@ -16,10 +16,11 @@ import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.FollowList exposing (emptyFollowList, followListEvent, followListFromEvent, followListWithPubKey, followListWithoutPubKey, pubKeyIsFollower)
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
 import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05Info, nip05ToString)
+import Nostr.Nip10 exposing (TextNote, tagReference)
 import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
 import Nostr.Nip18 exposing (Repost, repostFromEvent)
 import Nostr.Nip19 exposing (NIP19Type(..))
-import Nostr.Nip22 as Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..), articleCommentCommentOfComment, articleCommentOfComment, commentEventId, commentFromEvent, commentRootAddress)
+import Nostr.Nip22 as Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..), articleCommentCommentOfComment, articleCommentOfComment, commentEventId, commentFromEvent, commentFromTextNote, commentRootAddress)
 import Nostr.Nip68 exposing (PicturePost, picturePostFromEvent)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileFromEvent)
 import Nostr.Reactions exposing (Reaction, reactionFromEvent)
@@ -29,7 +30,6 @@ import Nostr.RelayListMetadata exposing (RelayMetadata, relayMetadataListFromEve
 import Nostr.Request as Request exposing (Request, RequestData(..), RequestId, RequestState(..), relatedKindsForRequest)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
-import Nostr.ShortNote exposing (ShortNote, shortNoteFromEvent)
 import Nostr.Types exposing (Address, EventId, Following(..), IncomingMessage, PubKey, RelayRole(..), RelayUrl)
 import Nostr.Zaps exposing (ZapReceipt)
 import Pareto
@@ -54,10 +54,11 @@ type alias Model =
     , defaultRelays : List String
     , defaultUser : Maybe PubKey
     , deletedAddresses : Set Address
-    , deletedEvents : Set EventId
+    , deletedEvents : Dict EventId (Set PubKey) -- all pubkeys that tried to delete an event
     , fileStorageServerLists : Dict PubKey (List String)
     , followLists : Dict PubKey (List Following)
     , followSets : Dict PubKey (Dict String FollowSet) -- follow sets; keys pubKey / identifier
+    , muteLists : Dict PubKey (List Following)
     , picturePosts : Dict EventId PicturePost
     , pubKeyByNip05 : Dict Nip05String PubKey
     , poolState : RelayState
@@ -73,7 +74,8 @@ type alias Model =
     , repostsByAddress : Dict Address (Dict PubKey Repost)
     , repostsByEventId : Dict EventId (Dict PubKey Repost)
     , searchRelayLists : Dict PubKey (List RelayUrl)
-    , shortTextNotes : Dict String ShortNote
+    , shortTextNotes : Dict EventId TextNote
+    , shortTextNotesReplies : Dict EventId (Dict EventId TextNote)
     , userServerLists : Dict PubKey (List String)
     , zapReceiptsAddress : Dict String (Dict String Nostr.Zaps.ZapReceipt)
     , zapReceiptsEvents : Dict String (Dict String Nostr.Zaps.ZapReceipt)
@@ -110,6 +112,29 @@ getAuthorsFollowList : Model -> List Following
 getAuthorsFollowList model =
     getFollowsList model Pareto.authorsKey
         |> Maybe.withDefault paretoAuthorsFollowList
+
+
+getAuthorsMuteList : Model -> List Following
+getAuthorsMuteList model =
+    getMuteList model Pareto.authorsKey
+        |> Maybe.withDefault []
+
+isMuted : Model -> Maybe PubKey -> PubKey -> Bool
+isMuted model maybeUserPubKey authorPubKey =
+    let
+        mutedByUser =
+            maybeUserPubKey
+                |> Maybe.andThen (getMuteList model)
+                |> Maybe.map (pubKeyIsFollower authorPubKey)
+                |> Maybe.withDefault False
+
+        mutedByAuthor =
+            getMuteList model Pareto.authorsKey
+                |> Maybe.map (pubKeyIsFollower authorPubKey)
+                |> Maybe.withDefault False
+    in
+    mutedByUser || mutedByAuthor
+
 
 
 getAuthorsPubKeys : Model -> List PubKey
@@ -514,7 +539,7 @@ send model sendRequest =
                 { event
                     | content = "+"
                     , tags =
-                        [ EventIdTag eventId Nothing
+                        [ EventIdTag eventId Nothing Nothing Nothing
                         , PublicKeyTag articlePubKey Nothing Nothing
                         ]
                         |> addAddressTags (addressComponents |> Maybe.map List.singleton |> Maybe.withDefault []) Nothing
@@ -628,8 +653,13 @@ getArticlesForAuthor model pubKey =
 
 filterDeletedArticle : Model -> Article -> Bool
 filterDeletedArticle model article =
-    Set.member article.id model.deletedEvents
-        || Set.member (addressForArticle article |> Maybe.withDefault "") model.deletedAddresses
+    let
+        articleEventIdDeleted =
+            Dict.get article.id model.deletedEvents
+                |> Maybe.map (Set.member article.author)
+                |> Maybe.withDefault False
+    in
+        articleEventIdDeleted || Set.member (addressForArticle article |> Maybe.withDefault "") model.deletedAddresses
         |> not
 
 
@@ -757,39 +787,97 @@ getFollowsList model pubKey =
     Dict.get pubKey model.followLists
 
 
-getArticleComments : Model -> AddressComponents -> List ArticleComment
-getArticleComments model addressComponents =
-    Dict.get (buildAddress addressComponents) model.commentsByAddress
-        |> Maybe.map Dict.values
-        |> Maybe.map (List.filterMap articleCommentOfComment)
-        |> Maybe.withDefault []
+getMuteList : Model -> PubKey -> Maybe (List Following)
+getMuteList model pubKey =
+    Dict.get pubKey model.muteLists
+
+
+getArticleComments : Model -> Maybe PubKey -> AddressComponents -> List ArticleComment
+getArticleComments model maybeUserPubKey addressComponents =
+    let
+        articleComments =
+            Dict.get (buildAddress addressComponents) model.commentsByAddress
+                |> Maybe.map Dict.values
+                |> Maybe.map (List.filterMap articleCommentOfComment)
+                |> Maybe.withDefault []
+
+        textNoteComments =
+            getTextNoteCommentsForArticle model addressComponents
+                |> List.filterMap (\comment ->
+                    case comment of
+                        CommentToArticle commentValue ->
+                            Just commentValue
+
+                        _ ->
+                            Nothing
+                )
+    in
+    articleComments ++ textNoteComments
+    |> List.filter (\comment -> not (isMuted model maybeUserPubKey comment.pubKey))
+
+getTextNoteCommentsForArticle : Model -> AddressComponents -> List CommentType
+getTextNoteCommentsForArticle model addressComponents =
+    model.shortTextNotes
+        |> Dict.values
+        |> List.filterMap (\textNote ->
+            if textNote.rootAddressComponents == Just addressComponents then
+                commentFromTextNote textNote
+            else
+                Nothing
+        )
 
 
 getArticleCommentComments : Model -> AddressComponents -> Dict EventId (List ArticleCommentComment)
 getArticleCommentComments model addressComponents =
-    Dict.get (buildAddress addressComponents) model.commentsByAddress
-        |> Maybe.map
-            (\commentsDict ->
-                commentsDict
-                    |> Dict.toList
-                    |> List.filterMap (\( _, comment ) -> articleCommentCommentOfComment comment)
-                    |> List.foldl
-                        (\articleCommentComment acc ->
-                            Dict.update articleCommentComment.parentEventId
-                                (\maybeArticleCommentCommentList ->
-                                    case maybeArticleCommentCommentList of
-                                        Just articleCommentCommentList ->
-                                            Just <| articleCommentComment :: articleCommentCommentList
+    let
+        articleComments =
+            Dict.get (buildAddress addressComponents) model.commentsByAddress
+                |> Maybe.map
+                    (\commentsDict ->
+                        commentsDict
+                            |> Dict.toList
+                            |> List.filterMap (\( _, comment ) -> articleCommentCommentOfComment comment)
+                            |> List.foldl
+                                (\articleCommentComment acc ->
+                                    Dict.update articleCommentComment.parentEventId
+                                        (\maybeArticleCommentCommentList ->
+                                            case maybeArticleCommentCommentList of
+                                                Just articleCommentCommentList ->
+                                                    Just <| articleCommentComment :: articleCommentCommentList
 
-                                        Nothing ->
-                                            Just [ articleCommentComment ]
+                                                Nothing ->
+                                                    Just [ articleCommentComment ]
+                                        )
+                                        acc
                                 )
-                                acc
-                        )
-                        Dict.empty
-            )
-        |> Maybe.withDefault Dict.empty
+                                Dict.empty
+                    )
+                |> Maybe.withDefault Dict.empty
 
+        textNoteComments =
+            getTextNoteCommentsForArticle model addressComponents
+                |> List.filterMap (\comment ->
+                    case comment of
+                        CommentToArticleComment commentValue ->
+                            Just commentValue
+
+                        _ ->
+                            Nothing
+                )
+                |> List.foldl (\comment acc ->
+                    Dict.update comment.parentEventId (\maybeArticleCommentCommentList ->
+                        case maybeArticleCommentCommentList of
+                            Just articleCommentCommentList ->
+                                Just <| comment :: articleCommentCommentList
+
+                            Nothing ->
+                                Just [ comment ]
+                    )
+                    acc
+            )
+            Dict.empty
+    in
+    Dict.union articleComments textNoteComments
 
 getBookmarks : Model -> PubKey -> Maybe BookmarkList
 getBookmarks model pubKey =
@@ -1066,12 +1154,12 @@ getRequest model requestId =
     Dict.get requestId model.requests
 
 
-getShortNoteById : Model -> String -> Maybe ShortNote
+getShortNoteById : Model -> EventId -> Maybe TextNote
 getShortNoteById model noteId =
     Dict.get noteId model.shortTextNotes
 
 
-getShortNotes : Model -> List ShortNote
+getShortNotes : Model -> List TextNote
 getShortNotes model =
     Dict.values model.shortTextNotes
 
@@ -1423,7 +1511,7 @@ empty =
     , defaultRelays = []
     , defaultUser = Nothing
     , deletedAddresses = Set.empty
-    , deletedEvents = Set.empty
+    , deletedEvents = Dict.empty
     , fileStorageServerLists = Dict.empty
     , hooks =
         { connect = \_ -> Cmd.none
@@ -1439,6 +1527,7 @@ empty =
     , poolState = RelayStateUnknown
     , followLists = Dict.singleton Pareto.authorsKey paretoAuthorsFollowList
     , followSets = Dict.empty
+    , muteLists = Dict.empty
     , portalUserInfoPubKey = Dict.empty
     , portalUserInfoNip05 = Dict.empty
     , profiles = Dict.empty
@@ -1452,6 +1541,7 @@ empty =
     , repostsByEventId = Dict.empty
     , searchRelayLists = Dict.empty
     , shortTextNotes = Dict.empty
+    , shortTextNotesReplies = Dict.empty
     , userServerLists = Dict.empty
     , zapReceiptsAddress = Dict.empty
     , zapReceiptsEvents = Dict.empty
@@ -1767,6 +1857,9 @@ updateModelWithEvents model requestId kind events =
         KindFollows ->
             updateModelWithFollowLists model events
 
+        KindMuteList ->
+            updateModelWithMuteLists model events
+
         KindFollowSets ->
             updateModelWithFollowSets model events
 
@@ -1861,13 +1954,28 @@ updateModelWithCommunityLists model events =
 updateModelWithDeletionRequests : Model -> List Event -> ( Model, Cmd Msg )
 updateModelWithDeletionRequests model events =
     let
+        updateDeletedEvents : Dict EventId (Set PubKey) -> Set EventId -> PubKey -> Dict EventId (Set PubKey)
+        updateDeletedEvents dict eventIds pubKey =
+            eventIds
+                |> Set.foldl
+                    (\eventId acc ->
+                        Dict.update eventId (\setToUpdate ->
+                            setToUpdate
+                                |> Maybe.map (Set.insert pubKey)
+                                |> Maybe.withDefault (Set.singleton pubKey)
+                                |> Just
+                        )
+                        acc
+                    )
+                    dict
+
         ( deletedAddresses, deletedEventIds ) =
             events
                 |> List.map deletionRequestFromEvent
                 |> List.foldl
                     (\deletionRequest ( accAddresses, accEvents ) ->
                         ( Set.union accAddresses deletionRequest.addresses
-                        , Set.union accEvents deletionRequest.eventIds
+                        , updateDeletedEvents accEvents deletionRequest.eventIds deletionRequest.pubKey
                         )
                     )
                     ( model.deletedAddresses, model.deletedEvents )
@@ -2331,16 +2439,31 @@ requestRelatedKindsForArticles model articles request =
                 |> Maybe.map (addToRequest requestProfileModel extendedRequestProfile)
                 |> Maybe.withDefault ( requestProfileModel, extendedRequestProfile )
 
-        ( modelWithDeletionRequests, extendedRequestDeletionRequests ) =
+        deletionRequestsForAddressComponents =
             articles
                 |> List.filterMap Nostr.Article.addressComponentsForArticle
-                |> List.map Nostr.Event.TagReferenceCode
+                |> List.map TagReferenceCode
+
+        ( modelWithAddressDeletionRequests, extendedRequestAddressDeletionRequests ) =
+            deletionRequestsForAddressComponents
                 |> eventFilterForDeletionRequests
                 |> Maybe.map RequestDeletionRequests
                 |> Maybe.map (addToRequest extendedModel extendedRequestReactions)
                 |> Maybe.withDefault ( extendedModel, extendedRequestReactions )
+
+        deletionRequestsForEventIds =
+            articles
+                |> List.map .id
+                |> List.map TagReferenceEventId
+
+        ( modelWithEventIdDeletionRequests, extendedRequestEventIdDeletionRequests ) =
+            deletionRequestsForEventIds
+                |> eventFilterForDeletionRequests
+                |> Maybe.map RequestDeletionRequests
+                |> Maybe.map (addToRequest modelWithAddressDeletionRequests extendedRequestAddressDeletionRequests)
+                |> Maybe.withDefault ( modelWithAddressDeletionRequests, extendedRequestAddressDeletionRequests )
     in
-    doRequest modelWithDeletionRequests extendedRequestDeletionRequests
+    doRequest modelWithEventIdDeletionRequests extendedRequestEventIdDeletionRequests
 
 
 appendNip27ProfileRequests : Model -> Request -> List NIP19Type -> ( Model, Request )
@@ -2498,15 +2621,15 @@ extendReactionsDict reaction reactionDict =
 updateModelWithShortTextNotes : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
 updateModelWithShortTextNotes model requestId events =
     let
-        shortTextNotes =
+        textNotes =
             events
-                |> List.map shortNoteFromEvent
+                |> List.map Nostr.Nip10.textNoteFromEvent
 
-        shortTextNotesDict =
-            shortTextNotes
+        textNotesDict =
+            textNotes
                 |> List.foldl
-                    (\shortNote acc ->
-                        Dict.insert shortNote.id shortNote acc
+                    (\textNote acc ->
+                        Dict.insert textNote.eventId textNote acc
                     )
                     model.shortTextNotes
 
@@ -2516,15 +2639,15 @@ updateModelWithShortTextNotes model requestId events =
         ( requestModel, requestCmd ) =
             case maybeRequest of
                 Just request ->
-                    requestRelatedKindsForShortNotes model shortTextNotes request
+                    requestRelatedKindsForShortNotes model textNotes request
 
                 Nothing ->
                     ( model, Cmd.none )
     in
-    ( { requestModel | shortTextNotes = shortTextNotesDict }, requestCmd )
+    ( { requestModel | shortTextNotes = textNotesDict }, requestCmd )
 
 
-requestRelatedKindsForShortNotes : Model -> List ShortNote -> Request -> ( Model, Cmd Msg )
+requestRelatedKindsForShortNotes : Model -> List TextNote -> Request -> ( Model, Cmd Msg )
 requestRelatedKindsForShortNotes model shortNotes request =
     let
         authorPubKeys =
@@ -2551,7 +2674,7 @@ requestRelatedKindsForShortNotes model shortNotes request =
 
         ( extendedModel, extendedRequestReactions ) =
             shortNotes
-                |> List.map Nostr.ShortNote.tagReference
+                |> List.map Nostr.Nip10.tagReference
                 |> eventFilterForReactions
                 |> Maybe.map RequestReactions
                 |> Maybe.map (addToRequest requestProfileModel extendedRequestProfile)
@@ -2715,6 +2838,21 @@ updateModelWithFollowLists model events =
                     model.followLists
     in
     ( { model | followLists = followLists }, Cmd.none )
+
+
+updateModelWithMuteLists : Model -> List Event -> ( Model, Cmd Msg )
+updateModelWithMuteLists model events =
+    let
+        muteLists =
+            events
+                |> List.map followListFromEvent
+                |> List.foldl
+                    (\{ pubKey, following } dict ->
+                        Dict.insert pubKey following dict
+                    )
+                    model.muteLists
+    in
+    ( { model | muteLists = muteLists }, Cmd.none )
 
 
 updateModelWithFollowSets : Model -> List Event -> ( Model, Cmd Msg )

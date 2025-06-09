@@ -43,10 +43,10 @@ reactionFromEvent event =
         |> List.foldl
             (\tag acc ->
                 case tag of
-                    AddressTag addressComponents _ ->
+                    AddressTag addressComponents _ _ ->
                         { acc | addressComponentsReactedTo = Just addressComponents }
 
-                    EventIdTag eventId _ ->
+                    EventIdTag eventId _ _ _ ->
                         { acc | noteIdReactedTo = Just eventId }
 
                     KindTag kind ->

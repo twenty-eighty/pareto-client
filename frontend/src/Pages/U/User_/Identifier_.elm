@@ -22,7 +22,7 @@ import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (CommentType(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId, PubKey)
+import Nostr.Types exposing (EventId, PubKey, loggedInPubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Set
@@ -313,7 +313,7 @@ articleCommentsSubscriptions shared model =
         articleComments =
             articleFromModel shared model
                 |> Maybe.andThen addressComponentsForArticle
-                |> Maybe.map (Nostr.getArticleComments shared.nostr)
+                |> Maybe.map (Nostr.getArticleComments shared.nostr (loggedInPubKey shared.loginStatus))
                 |> Maybe.withDefault []
     in
     ArticleComments.subscriptions model.articleComments articleComments
@@ -333,7 +333,7 @@ commentInteractionSubscriptions shared model =
                 |> List.map (\(eventId, interactions) ->
                     let
                         maybePubKey =
-                            Nostr.getArticleComments shared.nostr addressComponents
+                            Nostr.getArticleComments shared.nostr (loggedInPubKey shared.loginStatus) addressComponents
                                 |> List.filter (\articleComment -> articleComment.eventId == eventId)
                                 |> List.head
                                 |> Maybe.map .pubKey

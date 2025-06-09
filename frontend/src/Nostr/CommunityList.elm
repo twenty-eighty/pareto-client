@@ -34,7 +34,7 @@ communityListFromEvent event =
                 |> List.filterMap
                     (\tag ->
                         case tag of
-                            AddressTag ( KindCommunityDefinition, pubKey, identifier ) _ ->
+                            AddressTag ( KindCommunityDefinition, pubKey, identifier ) _ _ ->
                                 Just { identifier = identifier, pubKey = pubKey }
 
                             _ ->

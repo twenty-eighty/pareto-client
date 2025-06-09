@@ -21,7 +21,7 @@ import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (CommentType(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (PubKey)
+import Nostr.Types exposing (PubKey, loggedInPubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Set
@@ -344,7 +344,7 @@ subscriptions shared model =
                 articleComments =
                     Nostr.getArticleForNip19 shared.nostr nip19ModelData.nip19
                         |> Maybe.andThen addressComponentsForArticle
-                        |> Maybe.map (Nostr.getArticleComments shared.nostr)
+                        |> Maybe.map (Nostr.getArticleComments shared.nostr (loggedInPubKey shared.loginStatus))
                         |> Maybe.withDefault []
             in
             Sub.batch

@@ -2,6 +2,7 @@ module Nostr.Nip22 exposing (..)
 
 import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), TagReference(..), emptyEvent, numberForKind)
+import Nostr.Nip10 exposing (TextNote)
 import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Types exposing (EventId, LoginStatus, PubKey, RelayUrl, loggedInSigningPubKey)
 import Set
@@ -12,6 +13,44 @@ type CommentType
     = CommentToArticle ArticleComment
     | CommentToArticleComment ArticleCommentComment
 
+commentFromTextNote : TextNote -> Maybe CommentType
+commentFromTextNote textNote =
+    textNote.rootAddressComponents
+    |> Maybe.andThen (\addressComponents ->
+        case (textNote.parentEventId, textNote.parentPubKey) of
+            (Just parentEventId, Just parentPubKey) ->
+                CommentToArticleComment
+                    { pubKey = textNote.pubKey
+                    , eventId = textNote.eventId
+                    , createdAt = textNote.createdAt
+                    , parentEventId = parentEventId
+                    , parentKind = KindLongFormContent
+                    , parentPubKey = parentPubKey
+                    , rootAddress = addressComponents
+                    , rootKind = KindLongFormContent
+                    , rootPubKey = textNote.pubKey
+                    , rootRelay = textNote.rootRelay
+                    , content = textNote.content
+                    }
+                    |> Just
+
+            (Nothing, _) ->
+                CommentToArticle
+                    { pubKey = textNote.pubKey
+                    , eventId = textNote.eventId
+                    , createdAt = textNote.createdAt
+                    , rootAddress = addressComponents
+                    , rootKind = KindLongFormContent
+                    , rootPubKey = textNote.pubKey
+                    , rootRelay = textNote.rootRelay
+                    , content = textNote.content
+                    , rootEventId = Just textNote.eventId
+                    }
+                    |> Just
+
+            _ ->
+                Nothing
+    )
 
 type alias ArticleComment =
     { pubKey : PubKey
@@ -39,7 +78,6 @@ type alias ArticleCommentComment =
     , rootRelay : Maybe RelayUrl
     , content : String
     }
-
 
 commentContent : CommentType -> String
 commentContent comment =
@@ -203,7 +241,7 @@ commentFromEvent event =
                             PublicKeyTag parentPubKey rootRelay _ ->
                                 { acc | parentPubKey = Just parentPubKey, rootRelay = rootRelay }
 
-                            EventIdTag parentEventId rootRelay ->
+                            EventIdTag parentEventId rootRelay _ _ ->
                                 { acc | parentEventId = Just parentEventId, rootRelay = rootRelay }
 
                             RootAddressTag rootAddress rootRelay ->
@@ -331,11 +369,11 @@ articleCommentEvent comment =
                     articleComment.rootRelay |> Maybe.map protocolSafeRelayUrl
 
                 maybeEventIdTag =
-                    Maybe.map (\eid -> EventIdTag eid rootRelay) articleComment.rootEventId
+                    Maybe.map (\eid -> EventIdTag eid rootRelay Nothing Nothing) articleComment.rootEventId
             in
             createCommonPartCommentEvent articleComment
                 ([ KindTag articleComment.rootKind
-                 , AddressTag articleComment.rootAddress rootRelay
+                 , AddressTag articleComment.rootAddress rootRelay Nothing
                  , PublicKeyTag articleComment.rootPubKey rootRelay Nothing
                  ]
                     ++ (Maybe.map List.singleton maybeEventIdTag |> Maybe.withDefault [])
@@ -349,5 +387,5 @@ articleCommentEvent comment =
             createCommonPartCommentEvent articleCommentComment
                 [ KindTag articleCommentComment.parentKind
                 , PublicKeyTag articleCommentComment.parentPubKey rootRelay Nothing
-                , EventIdTag articleCommentComment.parentEventId rootRelay
+                , EventIdTag articleCommentComment.parentEventId rootRelay Nothing Nothing
                 ]
