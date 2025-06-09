@@ -108,6 +108,14 @@ export const onReady = ({ app, env }) => {
     newScript.setAttribute("data-outbox-relays", relays);
     newScript.setAttribute("data-signup-nstart", "true");
     newScript.setAttribute("data-follow-npubs", suggestedPubKeys.join(','));
+    newScript.setAttribute("data-nstart-app-name", "Pareto");
+    newScript.setAttribute("data-nstart-modal-url", "/js/nstart-modal.js");
+    newScript.setAttribute("data-nstart-accent-color", "94a3b8");
+    newScript.setAttribute("data-nstart-force-bunker", "false");
+    newScript.setAttribute("data-nstart-skip-bunker", "true");
+    newScript.setAttribute("data-nstart-avoid-nsec", "true");
+    newScript.setAttribute("data-nstart-avoid-ncryptsec", "false");
+
     document.body.appendChild(newScript);
   }
 
