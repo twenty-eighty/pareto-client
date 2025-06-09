@@ -4,7 +4,7 @@ import Erl
 import Html.Styled as Html exposing (Html, a, div)
 import Html.Styled.Attributes as Attr
 import Nostr.Nip05 as Nip05
-import Nostr.Nip19 as Nip19
+import Nostr.Nip19  as Nip19 exposing (NIP19Type(..))
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..))
 import Nostr.Types exposing (PubKey)
 import Pareto
@@ -130,6 +130,16 @@ linkToProfile profile validation =
 
         ( _, _ ) ->
             linkToProfilePubKey profile.pubKey
+
+
+linkToNJump : NIP19Type -> Maybe String
+linkToNJump nip19 =
+    case Nip19.encode nip19 of
+        Ok encoded ->
+            Just <| "https://njump.me/" ++ encoded
+
+        Err _ ->
+            Nothing
 
 
 linkToProfilePubKey : PubKey -> Maybe String
