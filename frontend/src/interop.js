@@ -1,6 +1,6 @@
 import "./Milkdown/MilkdownEditor.js";
 
-import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
+import NDK, { NDKUser, NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKNip46Signer, NDKNostrRpc, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
 import { BlossomClient } from "blossom-client-sdk/client";
 import "./clipboard-component.js";
@@ -12,6 +12,14 @@ import debug from 'debug';
 if (!customElements.get('js-clipboard-component')) {
   customElements.define('js-clipboard-component', ClipboardComponent);
 }
+
+// Make NDK available globally for nostr-login external version
+window.NDK = NDK;
+window.NDKUser = NDKUser;
+window.NDKEvent = NDKEvent;
+window.NDKPrivateKeySigner = NDKPrivateKeySigner;
+window.NDKNip46Signer = NDKNip46Signer;
+window.NDKNostrRpc = NDKNostrRpc;
 
 // This is called BEFORE your Elm app starts up
 // 
