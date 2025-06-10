@@ -12,7 +12,8 @@ import Html.Styled.Attributes exposing (css)
 import I18Next
 import Locale exposing (Language(..))
 import Nostr
-import Nostr.Event exposing (Kind(..))
+import Nostr.Event exposing (Kind(..), numberForKind)
+import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..))
 import Nostr.Profile exposing (ProfileValidation(..))
 import Nostr.Send exposing (SendRequest(..))
@@ -23,6 +24,7 @@ import Svg.Styled.Attributes as SvgAttr
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Time
+import Ui.Links
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme, darkMode, stylesForTheme)
@@ -261,7 +263,7 @@ viewArticleComment articleComments articleCommentComments articleComment =
             |> Html.map settings.toMsg
         , viewCommentContent styles articleComment.content
             |> Html.map settings.toMsg
-        , viewInteractions articleComments articleComment.eventId articleComment.pubKey
+        , viewInteractions articleComments articleComment.eventId articleComment.pubKey articleComment.kind Nothing (Just articleComment.content)
             |> Html.map settings.toMsg
         , div
             [ css
@@ -279,8 +281,8 @@ viewArticleComment articleComments articleCommentComments articleComment =
             )
         ]
 
-viewInteractions : ArticleComments msg -> EventId -> PubKey -> Html (Msg msg)
-viewInteractions articleComments eventId pubKey =
+viewInteractions : ArticleComments msg -> EventId -> PubKey -> Kind -> Maybe String -> Maybe String -> Html (Msg msg)
+viewInteractions articleComments eventId pubKey kind title description =
     let
         (Settings settings) =
             articleComments
@@ -290,6 +292,20 @@ viewInteractions articleComments eventId pubKey =
 
         interactionObject =
             InteractionButton.Comment eventId pubKey
+
+        shareButtonElement =
+            Nip19.NEvent { id = eventId, author = Just pubKey, kind = Just (kind |> numberForKind), relays = settings.zapRelayUrls |> Set.toList }
+            |> Ui.Links.linkToNJump
+            |> Maybe.map (\url ->
+                [ Interactions.ShareButtonElement
+                    { url = url
+                    , title = title |> Maybe.withDefault ""
+                    , text = description |> Maybe.withDefault ""
+                    , hashtags = []
+                    }
+                ]
+            )
+            |> Maybe.withDefault []
     in
     div [ css [ Tw.flex, Tw.justify_center, Tw.w_full ] ]
         [ Interactions.new
@@ -302,10 +318,10 @@ viewInteractions articleComments eventId pubKey =
             , loginStatus = settings.loginStatus
             }
             |> Interactions.withInteractionElements
-                [ Interactions.LikeButtonElement
+                ([ Interactions.LikeButtonElement
                 , Interactions.RepostButtonElement
                 , Interactions.ZapButtonElement "0" settings.zapRelayUrls
-                ]
+                ] ++ shareButtonElement)
             |> Interactions.view
         ]
 
@@ -326,7 +342,7 @@ viewInteractionsAndReplies articleComments level parent dict =
 
         interactions : Html msg
         interactions =
-            viewInteractions articleComments parent.eventId parent.pubKey
+            viewInteractions articleComments parent.eventId parent.pubKey parent.kind Nothing (Just parent.content)
             |> Html.map settings.toMsg
 
         replies : List (Html msg)
