@@ -11,7 +11,6 @@ module Components.SharingButtonDialog exposing
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
-import Components.EntryField as EntryField
 import Components.Icon as Icon
 import Components.ModalDialog as ModalDialog
 import Json.Encode as Encode
@@ -22,7 +21,6 @@ import Graphics
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events as Events
-import I18Next exposing (Translations)
 import Ports
 import QRCode
 import SHA256

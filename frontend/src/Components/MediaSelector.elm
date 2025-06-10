@@ -934,6 +934,8 @@ viewImages (Settings settings) filesToShow =
             case model.displayType of
                 DisplayModalDialog _ ->
                     [ Tw.max_h_96
+                    , Tw.w_screen
+                    , Tw.max_w_full
                     , Tw.overflow_y_auto
                     , Bp.lg
                         [ Tw.grid_cols_4
