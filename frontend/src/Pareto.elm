@@ -175,6 +175,7 @@ defaultNip96ServersPublic =
 applicationDataRelays : List RelayUrl
 applicationDataRelays =
     [ "wss://portal-relay.pareto.space"
+    , "wss://portal-relay.pareto.town"
     ]
 
 
