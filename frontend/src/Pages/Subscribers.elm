@@ -455,6 +455,7 @@ subscribersTableConfig browserEnv =
             , Table.stringColumn (Subscribers.fieldName FieldDateUnsubscription) (translatedFieldName browserEnv.translations FieldDateUnsubscription) (\subscriber -> subscriber.dateUnsubscription |> Maybe.map (BrowserEnv.formatDate browserEnv) |> Maybe.withDefault "")
             , Table.stringColumn (Subscribers.fieldName FieldSource) (translatedFieldName browserEnv.translations FieldSource) (\subscriber -> subscriber.source |> Maybe.withDefault "")
             , Table.stringColumn (Subscribers.fieldName FieldUndeliverable) (translatedFieldName browserEnv.translations FieldUndeliverable) (\subscriber -> subscriber.undeliverable |> Maybe.withDefault "")
+            , Table.stringColumn (Subscribers.fieldName FieldDnd) (translatedFieldName browserEnv.translations FieldDnd) (\subscriber -> subscriber.dnd |> booleanValue)
             , Table.stringColumn (Subscribers.fieldName FieldLocale) (translatedFieldName browserEnv.translations FieldLocale) (\subscriber -> subscriber.locale |> Maybe.withDefault "")
             , Table.veryCustomColumn
                 { id = "delete_entry"
@@ -469,6 +470,13 @@ subscribersTableConfig browserEnv =
             }
         }
 
+booleanValue : Maybe Bool -> String
+booleanValue value =
+    case value of
+        Just True ->
+            "☑️"
+        _ ->
+            "❎"
 
 editSubscriberButton : Subscriber -> Table.HtmlDetails Msg
 editSubscriberButton subscriber =

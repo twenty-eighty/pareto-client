@@ -2,17 +2,16 @@ module Components.SubscriberEditDialog exposing (Model, Msg, SubscriberEditDialo
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
+import Components.Checkbox as Checkbox
+import Components.EntryField as EntryField
 import Components.ModalDialog as ModalDialog
-import Css
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, div, input, label, text)
-import Html.Styled.Attributes as Attr exposing (css)
-import Html.Styled.Events as Events
+import Html.Styled as Html exposing (Html, div)
+import Html.Styled.Attributes exposing (css)
 import Locale exposing (Language(..))
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
 import Subscribers exposing (Subscriber, SubscriberField(..))
-import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.SubscriberEditDialog as Translations
 import Ui.Shared exposing (emptyHtml)
@@ -159,6 +158,9 @@ view dialog =
             let
                 emailIsValid =
                     Subscribers.emailValid emailSubscriptionData.subscriber.email
+
+                subscriber =
+                    emailSubscriptionData.subscriber
             in
             ModalDialog.new
                 { title = Translations.dialogTitle [ settings.browserEnv.translations ]
@@ -177,9 +179,16 @@ view dialog =
                                 , Tw.gap_3
                                 ]
                             ]
-                            [ entryField settings.browserEnv Subscribers.FieldEmail emailSubscriptionData.subscriber
-                            , entryField settings.browserEnv Subscribers.FieldFirstName emailSubscriptionData.subscriber
-                            , entryField settings.browserEnv Subscribers.FieldLastName emailSubscriptionData.subscriber
+                            [ entryField settings.theme settings.browserEnv Subscribers.FieldEmail emailSubscriptionData.subscriber
+                            , entryField settings.theme settings.browserEnv Subscribers.FieldFirstName emailSubscriptionData.subscriber
+                            , entryField settings.theme settings.browserEnv Subscribers.FieldLastName emailSubscriptionData.subscriber
+                            , Checkbox.new
+                                { label = (Subscribers.translatedFieldName settings.browserEnv.translations FieldDnd)
+                                , onClick = (\value -> { subscriber | dnd = Just value } |> UpdateSubscriber)
+                                , checked = subscriber.dnd |> Maybe.withDefault False
+                                , theme = settings.theme
+                                }
+                                |> Checkbox.view
                             ]
                         ]
                     ]
@@ -200,56 +209,31 @@ view dialog =
                 |> Html.map settings.toMsg
 
 
-entryField : BrowserEnv -> SubscriberField -> Subscriber -> Html Msg
-entryField browserEnv field subscriber =
-    let
-        styles =
-            Ui.Styles.stylesForTheme ParetoTheme
-    in
-    div
-        [ css
-            [ Tw.mb_1
-            ]
-        ]
-        [ label
-            ([ Attr.for (Subscribers.fieldName field)
-             , css
-                [ Tw.block
-                , Tw.mb_2
-                , Tw.text_sm
-                , Tw.font_medium
-                ]
-             ]
-                ++ styles.colorStyleLabel
-            )
-            [ text <| Subscribers.translatedFieldName browserEnv.translations field ]
-        , input
-            ([ Attr.type_ "email"
-             , Attr.id (Subscribers.fieldName field)
-             , Attr.name "email"
-             , css
-                [ Tw.w_full
-                , Tw.px_4
-                , Tw.py_2
-                , Tw.border
-                , Tw.rounded
-                , Css.focus
-                    [ Tw.outline_none
-                    , Tw.ring_2
-                    , Tw.ring_color Theme.blue_500
-                    ]
-                ]
-             , Attr.required True
-             , Attr.value (Subscribers.subscriberValue browserEnv subscriber field)
-             , Events.onInput
-                (\value ->
-                    Subscribers.setSubscriberField field value subscriber
-                        |> UpdateSubscriber
-                )
-             ]
-                ++ styles.colorStyleBackground
-                ++ styles.colorStyleGrayscaleText
-                ++ styles.colorStyleBorders
-            )
-            []
-        ]
+entryField : Theme -> BrowserEnv -> SubscriberField -> Subscriber -> Html Msg
+entryField theme browserEnv field subscriber =
+    EntryField.new
+        { value = (Subscribers.subscriberValue browserEnv subscriber field)
+        , onInput = (\value -> Subscribers.setSubscriberField field value subscriber |> UpdateSubscriber)
+        , theme = theme
+        }
+        |> EntryField.withLabel (Subscribers.translatedFieldName browserEnv.translations field)
+        |> EntryField.withType (entryFieldType field)
+        |> EntryField.view
+
+ 
+entryFieldType : SubscriberField -> EntryField.FieldType
+entryFieldType field =
+    case field of
+        FieldDnd -> EntryField.FieldTypeText
+        FieldEmail -> EntryField.FieldTypeEmail
+        FieldName -> EntryField.FieldTypeText
+        FieldFirstName -> EntryField.FieldTypeText
+        FieldLastName -> EntryField.FieldTypeText
+        FieldPubKey -> EntryField.FieldTypeText
+        FieldSource -> EntryField.FieldTypeText
+        FieldDateSubscription -> EntryField.FieldTypeDate
+        FieldDateUnsubscription -> EntryField.FieldTypeDate
+        FieldTags -> EntryField.FieldTypeText
+        FieldUndeliverable -> EntryField.FieldTypeText
+        FieldLocale -> EntryField.FieldTypeText
+
