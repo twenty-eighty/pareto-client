@@ -22,6 +22,7 @@ commentFromTextNote textNote =
                 CommentToArticleComment
                     { pubKey = textNote.pubKey
                     , eventId = textNote.eventId
+                    , kind = KindShortTextNote
                     , createdAt = textNote.createdAt
                     , parentEventId = parentEventId
                     , parentKind = KindLongFormContent
@@ -38,6 +39,7 @@ commentFromTextNote textNote =
                 CommentToArticle
                     { pubKey = textNote.pubKey
                     , eventId = textNote.eventId
+                    , kind = KindShortTextNote
                     , createdAt = textNote.createdAt
                     , rootAddress = addressComponents
                     , rootKind = KindLongFormContent
@@ -55,6 +57,7 @@ commentFromTextNote textNote =
 type alias ArticleComment =
     { pubKey : PubKey
     , eventId : EventId
+    , kind : Kind
     , createdAt : Posix
     , rootEventId : Maybe EventId
     , rootAddress : AddressComponents
@@ -68,6 +71,7 @@ type alias ArticleComment =
 type alias ArticleCommentComment =
     { pubKey : PubKey
     , eventId : EventId
+    , kind : Kind
     , createdAt : Posix
     , parentEventId : EventId
     , parentKind : Kind
@@ -77,6 +81,21 @@ type alias ArticleCommentComment =
     , rootPubKey : PubKey
     , rootRelay : Maybe RelayUrl
     , content : String
+    }
+
+
+emptyArticleComment : AddressComponents -> ArticleComment
+emptyArticleComment addressComponents =
+    { pubKey = ""
+    , eventId = ""
+    , kind = KindComment
+    , createdAt = Time.millisToPosix 0
+    , rootEventId = Nothing
+    , rootAddress = addressComponents
+    , rootKind = KindComment
+    , rootPubKey = ""
+    , rootRelay = Nothing
+    , content = ""
     }
 
 commentContent : CommentType -> String
@@ -175,6 +194,7 @@ commentToArticle article loginStatus =
             CommentToArticle
                 { pubKey = signingPubKey
                 , eventId = ""
+                , kind = KindComment
                 , createdAt = article.createdAt
                 , rootAddress = addressComponents
                 , rootEventId = Just article.id
@@ -273,6 +293,7 @@ commentFromEvent event =
                     { eventId = event.id
                     , createdAt = event.createdAt
                     , pubKey = event.pubKey
+                    , kind = event.kind
                     , rootAddress = rootAddress
                     , rootEventId = maybeEventId
                     , rootKind = rootKind
@@ -289,6 +310,7 @@ commentFromEvent event =
                             { eventId = event.id
                             , createdAt = event.createdAt
                             , pubKey = event.pubKey
+                            , kind = event.kind
                             , parentEventId = parentEventId
                             , parentKind = parentKind
                             , parentPubKey = parentPubKey
@@ -322,6 +344,7 @@ articleDraftComment pubKey article =
                     { eventId = ""
                     , createdAt = Time.millisToPosix 0
                     , pubKey = pubKey
+                    , kind = article.kind
                     , rootAddress = addressComponents
                     , rootEventId = Just article.id
                     , rootKind = article.kind

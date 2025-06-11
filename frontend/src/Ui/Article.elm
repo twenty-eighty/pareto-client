@@ -20,7 +20,7 @@ import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArt
 import Nostr.Event exposing (Kind(..), Tag(..), TagReference(..))
 import Nostr.Nip05 exposing (nip05ToString)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
-import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..))
+import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..), emptyArticleComment)
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Relay exposing (websocketUrl)
@@ -231,16 +231,17 @@ viewArticle articlePreviewsData articlePreviewData article =
             loggedInSigningPubKey articlePreviewsData.loginStatus
                 |> Maybe.map2
                     (\addressComponents signingPubKey ->
-                        CommentToArticle
-                            { pubKey = signingPubKey
-                            , eventId = ""
-                            , createdAt = Time.millisToPosix 0
+                        let
+                            articleComment =
+                                emptyArticleComment addressComponents
+                        in
+                        CommentToArticle 
+                            { articleComment
+                            | pubKey = signingPubKey
                             , rootEventId = Just article.id
-                            , rootAddress = addressComponents
                             , rootKind = article.kind
                             , rootPubKey = article.author
                             , rootRelay = article.relays |> Set.toList |> List.head
-                            , content = ""
                             }
                     )
                     (addressComponentsForArticle article)

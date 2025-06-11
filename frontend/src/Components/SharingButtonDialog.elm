@@ -11,7 +11,6 @@ module Components.SharingButtonDialog exposing
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
-import Components.EntryField as EntryField
 import Components.Icon as Icon
 import Components.ModalDialog as ModalDialog
 import Json.Encode as Encode
@@ -22,7 +21,6 @@ import Graphics
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events as Events
-import I18Next exposing (Translations)
 import Ports
 import QRCode
 import SHA256
@@ -264,10 +262,9 @@ viewDialog (Settings settings) =
                 |> Button.view
             ]
         , content =
-            [ Html.div [ Attr.css [ Tw.flex, Tw.flex_col, Tw.gap_2 ] ]
+            [ Html.div [ Attr.css [ Tw.flex, Tw.flex_col, Tw.gap_2, Tw.max_w_80 ] ]
                 [ Html.div [ Attr.css [ Tw.flex, Tw.flex_row, Tw.items_end, Tw.bg_color Theme.white ] ]
                     [ qrCode
-{-
                     , copyButton settings.theme
                         settings.sharingInfo.url
                         (settings.sharingInfo.url
@@ -275,6 +272,7 @@ viewDialog (Settings settings) =
                             |> SHA256.toHex
                         )
                         |> Html.map settings.toMsg
+{-
 -}
                     ]
 {-
@@ -403,7 +401,7 @@ copyButton theme copyText uniqueId =
             , Attr.id elementId
             ]
             [ Icon.FeatherIcon FeatherIcons.clipboard
-                |> Icon.viewWithSize 50
+                |> Icon.viewWithSize 100
             ]
         , Html.node "js-clipboard-component"
             [ Attr.property "buttonId" (Encode.string elementId)

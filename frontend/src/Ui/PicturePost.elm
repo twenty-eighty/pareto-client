@@ -8,7 +8,8 @@ import Html.Styled as Html exposing (Html, br, div, p, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Locale exposing (languageToISOCode)
 import Nostr
-import Nostr.Event exposing (ImageMetadata)
+import Nostr.Event exposing (ImageMetadata, Kind(..), numberForKind)
+import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
 import Nostr.Types exposing (EventId, LoginStatus)
@@ -51,6 +52,21 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
                     ( profileDisplayName profile.pubKey profile, Just profile, profileValidation )
 
         viewInteractions =
+            let
+                shareButtonElement =
+                    Nip19.NEvent { id = picturePost.id, author = Just picturePost.pubKey, kind = Just (KindPicture |> numberForKind), relays = picturePost.relays |> Maybe.withDefault [] }
+                    |> Ui.Links.linkToNJump
+                    |> Maybe.map (\url ->
+                        [ Interactions.ShareButtonElement
+                            { url = url
+                            , title = picturePost.title |> Maybe.withDefault ""
+                            , text = picturePost.description
+                            , hashtags = []
+                            }
+                        ]
+                    )
+                    |> Maybe.withDefault []
+            in
             Interactions.new
                 { browserEnv = picturePostsViewData.browserEnv
                 , model = Dict.get picturePost.id picturePostsViewData.interactions
@@ -61,10 +77,12 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
                 , loginStatus = picturePostsViewData.loginStatus
                 }
                 |> Interactions.withInteractionElements
+                    (
                     [ Interactions.LikeButtonElement
                     , Interactions.RepostButtonElement
                     , Interactions.ZapButtonElement "0" (picturePost.relays |> Maybe.map Set.fromList |> Maybe.withDefault Set.empty)
-                    ]
+                    ] ++ shareButtonElement
+                    )
                 |> Interactions.view
 
         followLinks =
