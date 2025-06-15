@@ -204,9 +204,16 @@ init user shared route () =
                             else
                                 -- assume published date equals creation date of article event
                                 Just article.createdAt
+
+                        draftAddressComponents =
+                            if article.kind == KindDraftLongFormContent then
+                                addressComponentsForArticle article
+
+                            else
+                                Nothing
                     in
                     { draftEventId = Just article.id
-                    , draftAddressComponents = addressComponentsForArticle article
+                    , draftAddressComponents = draftAddressComponents
                     , title = article.title
                     , summary = article.summary
                     , image = article.image
