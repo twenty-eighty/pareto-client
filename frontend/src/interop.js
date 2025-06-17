@@ -724,10 +724,10 @@ export const onReady = ({ app, env }) => {
   }
 
 
-  function requestNip96Auth(app, { requestId: requestId, fileId: fileId, serverUrl: serverUrl, apiUrl: apiUrl, method: method, hash: sha256Hash }) {
+  function requestNip96Auth(app, { requestId: requestId, fileId: fileId, serverUrl: serverUrl, apiUrl: apiUrl, method: method, hash: sha256Hash, content: content }) {
     debugLog("Nip96 auth request with requestId: " + requestId);
 
-    generateNip98Header(apiUrl, method, sha256Hash).then(nip98AuthHeader => {
+    generateNip98Header(apiUrl, method, sha256Hash, content).then(nip98AuthHeader => {
       debugLog('nip98 header', nip98AuthHeader);
       // encode it using base64
       app.ports.receiveMessage.send(
@@ -980,8 +980,9 @@ export const onReady = ({ app, env }) => {
     return urlObj.hostname + urlObj.pathname;
   }
 
-  async function generateNip98Header(requestUrl, httpMethod, sha256Hash) {
+  async function generateNip98Header(requestUrl, httpMethod, sha256Hash, content) {
     const event = new NDKEvent(window.ndk, {
+      content: content,
       kind: NDKKind.HttpAuth,
       tags: [
         ["u", requestUrl],

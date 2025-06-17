@@ -6,6 +6,7 @@ import Components.Button as Button
 import Components.EmailImportDialog as EmailImportDialog
 import Components.Icon as Icon
 import Components.SubscriberEditDialog as SubscriberEditDialog
+import ContactDatabase
 import Csv.Encode
 import Dict exposing (Dict)
 import Effect exposing (Effect)
@@ -332,7 +333,7 @@ updateWithMessage user shared model message =
                         | state = RequestingNip96Auth apiUrl decoded.file decoded.keyHex decoded.ivHex decoded.sha256 decoded.size active total
                       }
                     , PostRequest 1 decoded.sha256
-                        |> RequestNip98Auth serverUrl apiUrl
+                        |> RequestNip98Auth serverUrl apiUrl ""
                         |> Nostr.createRequest shared.nostr "NIP-96 auth request for files to be uploaded" []
                         |> Shared.Msg.RequestNostrEvents
                         |> Effect.sendSharedMsg

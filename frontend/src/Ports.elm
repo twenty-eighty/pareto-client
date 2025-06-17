@@ -95,8 +95,8 @@ requestBlossomAuth requestId server content method =
         }
 
 
-requestNip96Auth : RequestId -> String -> String -> HttpRequestMethod -> Cmd msg
-requestNip96Auth requestId serverUrl apiUrl method =
+requestNip96Auth : RequestId -> String -> String -> String -> HttpRequestMethod -> Cmd msg
+requestNip96Auth requestId serverUrl apiUrl content method =
     sendCommand
         { command = "requestNip96Auth"
         , value =
@@ -104,6 +104,7 @@ requestNip96Auth requestId serverUrl apiUrl method =
                 ([ ( "requestId", Encode.int requestId )
                  , ( "serverUrl", Encode.string serverUrl )
                  , ( "apiUrl", Encode.string apiUrl )
+                 , ( "content", Encode.string content )
                  ]
                     ++ httpMethodParams method
                 )
