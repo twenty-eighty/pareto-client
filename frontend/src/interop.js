@@ -1,6 +1,6 @@
 import "./Milkdown/MilkdownEditor.js";
 
-import NDK, { NDKUser, NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKNip46Signer, NDKNostrRpc, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
+import NDK, { NDKUser, NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKNip46Signer, NDKNostrRpc, NDKSubscription, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
 import { BlossomClient } from "blossom-client-sdk/client";
 import "./clipboard-component.js";
@@ -20,6 +20,8 @@ window.NDKEvent = NDKEvent;
 window.NDKPrivateKeySigner = NDKPrivateKeySigner;
 window.NDKNip46Signer = NDKNip46Signer;
 window.NDKNostrRpc = NDKNostrRpc;
+window.NDKNostrRpc = NDKNostrRpc;
+window.NDKSubscription = NDKSubscription;
 
 // This is called BEFORE your Elm app starts up
 // 
