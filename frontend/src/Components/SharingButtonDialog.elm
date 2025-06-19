@@ -246,45 +246,45 @@ viewDialog (Settings settings) =
                 |> Result.map
                     (\qrcode ->
                         qrcode
-                            |> QRCode.toSvg [ SvgAttr.width "200px", SvgAttr.height "200px" ]
+                            |> QRCode.toSvg [ SvgAttr.width "220px", SvgAttr.height "220px" ]
                             |> Html.fromUnstyled
                     )
                 |> Result.withDefault (Html.text "")
     in
     ModalDialog.new
         { title = Translations.dialogTitle [ settings.browserEnv.translations ]
-        , buttons =
-            [ Button.new
-                { label = Translations.showSocialDialogButtonTitle [ settings.browserEnv.translations ]
-                , onClick = Just (settings.toMsg (UpdateState ShowingSocials))
-                , theme = settings.theme
-                }
-                |> Button.view
-            ]
+        , buttons = [ ]
         , content =
-            [ Html.div [ Attr.css [ Tw.flex, Tw.flex_col, Tw.gap_2, Tw.max_w_80 ] ]
-                [ Html.div [ Attr.css [ Tw.flex, Tw.flex_row, Tw.items_end, Tw.bg_color Theme.white ] ]
+            [ Html.div
+                [ Attr.css
+                    [ Tw.flex
+                    , Tw.flex_row
+                    , Tw.items_end
+                    , Tw.bg_color Theme.white
+                    , Tw.gap_2
+                    ]
+                ]
+                [ Html.div
+                    [ Attr.css
+                        [ Tw.flex
+                        , Tw.flex_col
+                        , Tw.h_full
+                        , Tw.gap_2
+                        , Tw.justify_items_center
+                        , Tw.max_w_80
+                        , Tw.border_r_2
+                        ]
+                    ]
                     [ qrCode
-                    , copyButton settings.theme
+                    , copyButton (Settings settings)
                         settings.sharingInfo.url
                         (settings.sharingInfo.url
                             |> SHA256.fromString
                             |> SHA256.toHex
                         )
                         |> Html.map settings.toMsg
-{-
--}
                     ]
-{-
-                , EntryField.new
-                    { value = settings.sharingInfo.url
-                    , onInput = \_ -> NoOp
-                    , theme = settings.theme
-                    }
-                    |> EntryField.withReadOnly
-                    |> EntryField.view
-                    |> Html.map settings.toMsg
--}
+                , socialMediaButtons (Settings settings)
                 ]
             ]
         , onClose = settings.toMsg (UpdateState Hidden)
@@ -306,69 +306,7 @@ viewSocialDialog (Settings settings) =
                 |> Button.view
             ]
         , content =
-            [ Html.div
-                [ Attr.css
-                    [ Tw.flex
-                    , Tw.flex_col
-                    , Tw.items_center
-                    , Tw.gap_2
-                    ]
-                ]
-                [ Button.new
-                    { label = Translations.twitterButtonTitle [ settings.browserEnv.translations ]
-                    , onClick = Nothing
-                    , theme = settings.theme
-                    }
-                    |> Button.withNewTabLink (shareSocialLink settings.sharingInfo Twitter)
-                    |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.twitter)
-                    |> Button.withTypeSecondary
-                    |> Button.view
-                , Button.new
-                    { label = Translations.facebookButtonTitle [ settings.browserEnv.translations ]
-                    , onClick = Nothing
-                    , theme = settings.theme
-                    }
-                    |> Button.withNewTabLink (shareSocialLink settings.sharingInfo Facebook)
-                    |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.facebook)
-                    |> Button.withTypeSecondary
-                    |> Button.view
-                , Button.new
-                    { label = Translations.linkedinButtonTitle [ settings.browserEnv.translations ]
-                    , onClick = Nothing
-                    , theme = settings.theme
-                    }
-                    |> Button.withNewTabLink (shareSocialLink settings.sharingInfo LinkedIn)
-                    |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.linkedin)
-                    |> Button.withTypeSecondary
-                    |> Button.view
-                , Button.new
-                    { label = Translations.redditButtonTitle [ settings.browserEnv.translations ]
-                    , onClick = Nothing
-                    , theme = settings.theme
-                    }
-                    |> Button.withNewTabLink (shareSocialLink settings.sharingInfo Reddit)
-                    |> Button.withContentLeft (Graphics.redditIcon 20)
-                    |> Button.withTypeSecondary
-                    |> Button.view
-                , Button.new
-                    { label = Translations.telegramButtonTitle [ settings.browserEnv.translations ]
-                    , onClick = Nothing
-                    , theme = settings.theme
-                    }
-                    |> Button.withNewTabLink (shareSocialLink settings.sharingInfo Telegram)
-                    |> Button.withContentLeft (Graphics.telegramIcon 20)
-                    |> Button.withTypeSecondary
-                    |> Button.view
-                , Button.new
-                    { label = Translations.whatsappButtonTitle [ settings.browserEnv.translations ]
-                    , onClick = Nothing
-                    , theme = settings.theme
-                    }
-                    |> Button.withNewTabLink (shareSocialLink settings.sharingInfo WhatsApp)
-                    |> Button.withContentLeft (Graphics.whatsappIcon 20)
-                    |> Button.withTypeSecondary
-                    |> Button.view
-                ]
+            [ socialMediaButtons (Settings settings)
             ]
         , onClose = settings.toMsg (UpdateState Hidden)
         , theme = settings.theme
@@ -376,11 +314,83 @@ viewSocialDialog (Settings settings) =
         |> ModalDialog.view
 
 
-copyButton : Theme -> String -> String -> Html Msg 
-copyButton theme copyText uniqueId =
+socialMediaButtons : SharingButtonDialog msg -> Html msg
+socialMediaButtons (Settings settings) =
+    Html.div
+        [ Attr.css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.w_auto
+            , Tw.gap_2
+            ]
+        ]
+        [ Button.new
+            { label = Translations.twitterButtonTitle [ settings.browserEnv.translations ]
+            , onClick = Nothing
+            , theme = settings.theme
+            }
+            |> Button.withNewTabLink (shareSocialLink settings.sharingInfo Twitter)
+            |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.twitter)
+            |> Button.withTypeSecondary
+            |> Button.withWidthFull
+            |> Button.view
+        , Button.new
+            { label = Translations.facebookButtonTitle [ settings.browserEnv.translations ]
+            , onClick = Nothing
+            , theme = settings.theme
+            }
+            |> Button.withNewTabLink (shareSocialLink settings.sharingInfo Facebook)
+            |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.facebook)
+            |> Button.withTypeSecondary
+            |> Button.view
+        , Button.new
+            { label = Translations.linkedinButtonTitle [ settings.browserEnv.translations ]
+            , onClick = Nothing
+            , theme = settings.theme
+            }
+            |> Button.withNewTabLink (shareSocialLink settings.sharingInfo LinkedIn)
+            |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.linkedin)
+            |> Button.withTypeSecondary
+            |> Button.withWidthFull
+            |> Button.view
+        , Button.new
+            { label = Translations.redditButtonTitle [ settings.browserEnv.translations ]
+            , onClick = Nothing
+            , theme = settings.theme
+            }
+            |> Button.withNewTabLink (shareSocialLink settings.sharingInfo Reddit)
+            |> Button.withContentLeft (Graphics.redditIcon 20)
+            |> Button.withTypeSecondary
+            |> Button.withWidthFull
+            |> Button.view
+        , Button.new
+            { label = Translations.telegramButtonTitle [ settings.browserEnv.translations ]
+            , onClick = Nothing
+            , theme = settings.theme
+            }
+            |> Button.withNewTabLink (shareSocialLink settings.sharingInfo Telegram)
+            |> Button.withContentLeft (Graphics.telegramIcon 20)
+            |> Button.withTypeSecondary
+            |> Button.withWidthFull
+            |> Button.view
+        , Button.new
+            { label = Translations.whatsappButtonTitle [ settings.browserEnv.translations ]
+            , onClick = Nothing
+            , theme = settings.theme
+            }
+            |> Button.withNewTabLink (shareSocialLink settings.sharingInfo WhatsApp)
+            |> Button.withContentLeft (Graphics.whatsappIcon 20)
+            |> Button.withTypeSecondary
+            |> Button.withWidthFull
+            |> Button.view
+        ]
+
+
+copyButton : SharingButtonDialog msg -> String -> String -> Html Msg 
+copyButton (Settings settings) copyText uniqueId =
     let
         styles =
-            stylesForTheme theme
+            stylesForTheme settings.theme
         elementId =
             "copy-to-clipboard-" ++ uniqueId
     in
@@ -400,8 +410,14 @@ copyButton theme copyText uniqueId =
                 ]
             , Attr.id elementId
             ]
-            [ Icon.FeatherIcon FeatherIcons.clipboard
-                |> Icon.viewWithSize 100
+            [ Button.new
+                { label = Translations.copyToClipboardButtonTitle [ settings.browserEnv.translations ]
+                , onClick = Nothing
+                , theme = settings.theme
+                }
+                |> Button.withContentLeft (Icon.FeatherIcon FeatherIcons.copy |> Icon.viewWithSize 20)
+                |> Button.withTypeSecondary
+                |> Button.view
             ]
         , Html.node "js-clipboard-component"
             [ Attr.property "buttonId" (Encode.string elementId)

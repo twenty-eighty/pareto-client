@@ -675,7 +675,7 @@
    },
    "sharing button dialog": {
       "dialog title": "Share",
-      "submit button title": "Copy to clipboard",
+      "copy to clipboard button title": "Copy to clipboard",
       "copied to clipboard alert message": "Copied to clipboard",
       "show social dialog button title": "Share on social media",
       "back button title": "Back",
