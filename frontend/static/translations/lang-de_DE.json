@@ -669,6 +669,7 @@
       "profile lud16 field label": "Lightning-Wallet-Adresse (LUD-16)",
       "profile lud16 field placeholder": "Gib deine Lightning-Wallet-Adresse ein",
       "profile lud16 field description": "Dies ist das LUD-16-Feld. Es wird verwendet, um die Lightning-Wallet-Adresse zu speichern. Du kannst eine gültige Adresse mit der Wallet of Satoshi-App (Android, iOS) erhalten. Es sieht aus wie eine E-Mail-Adresse: <wallet name>@walletofsatoshi.com.",
+      "profile lud16 field redirect description": "This is the LUD-16 field. It is used to store the Lightning wallet address for payments. You can use {{redirectUrl}} - it's a redirect to your personal wallet.",
       "profile website field label": "Webseite",
       "profile website field placeholder": "Gib deine Website ein"
    },
