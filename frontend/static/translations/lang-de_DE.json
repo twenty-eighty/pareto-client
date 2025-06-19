@@ -675,7 +675,7 @@
    },
    "sharing button dialog": {
       "dialog title": "Teilen",
-      "submit button title": "In Zwischenablage kopieren",
+      "copy to clipboard button title": "Copy to clipboard",
       "copied to clipboard alert message": "In Zwischenablage kopiert",
       "show social dialog button title": "Auf sozialen Medien teilen",
       "back button title": "Zurück",
