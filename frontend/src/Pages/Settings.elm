@@ -1848,6 +1848,20 @@ viewProfileEditor shared configCheckIssues user profileModel =
                         emptyHtml
                 )
                 |> Maybe.withDefault emptyHtml
+
+        lud16Suggestion =
+            portalUserData
+                |> Maybe.andThen .lud16
+                |> Maybe.map Lud16.lud16ToString
+
+        lud16FieldDescription =
+            case lud16Suggestion of
+                Just lud16 ->
+                    Translations.profileLud16FieldRedirectDescription [ shared.browserEnv.translations ] { redirectUrl = lud16 }
+
+                Nothing ->
+                    Translations.profileLud16FieldDescription [ shared.browserEnv.translations ]
+
     in
     div
         [ css
@@ -1944,8 +1958,8 @@ viewProfileEditor shared configCheckIssues user profileModel =
             }
             |> EntryField.withLabel (Translations.profileLud16FieldLabel [ shared.browserEnv.translations ])
             |> EntryField.withPlaceholder (Translations.profileLud16FieldPlaceholder [ shared.browserEnv.translations ])
-            |> EntryField.withDescription (Translations.profileLud16FieldDescription [ shared.browserEnv.translations ])
-            |> EntryField.withSuggestions "lud16" (portalUserData |> Maybe.andThen .lud16 |> Maybe.map Lud16.lud16ToString |> Maybe.map List.singleton |> Maybe.withDefault [])
+            |> EntryField.withDescription lud16FieldDescription
+            |> EntryField.withSuggestions "lud16" (lud16Suggestion |> Maybe.map List.singleton |> Maybe.withDefault [])
             |> EntryField.withType EntryField.FieldTypeEmail
             |> EntryField.view
         , EntryField.new

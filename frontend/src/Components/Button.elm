@@ -6,6 +6,7 @@ module Components.Button exposing
     , withSizeSmall
     , withContentLeft, withContentRight
     , withIconLeft, withIconRight
+    , withWidthFull
     , withDisabled
     , withHidden, withLink, withNewTabLink, withTypePrimary, withTypeSecondary
     , withIntermediateState
@@ -56,6 +57,7 @@ type Button msg
         , style : Style
         , size : Size
         , type_ : ButtonType
+        , width : Width
         , contentLeft : Content msg
         , contentRight : Content msg
         , isOutlined : Bool
@@ -74,6 +76,7 @@ new props =
         , style = Default
         , size = Normal
         , type_ = RegularButton
+        , width = Auto
         , contentLeft = NoContent
         , contentRight = NoContent
         , isOutlined = False
@@ -156,6 +159,16 @@ withSizeSmall (Settings settings) =
     Settings { settings | size = Small }
 
 
+type Width
+    = Full
+    | Auto
+
+
+withWidthFull : Button msg -> Button msg
+withWidthFull (Settings settings) =
+    Settings { settings | width = Full }
+
+
 withIconLeft : Icon -> Button msg -> Button msg
 withIconLeft icon (Settings settings) =
     Settings { settings | contentLeft = ContentIcon icon }
@@ -234,6 +247,14 @@ view (Settings settings) =
 
                 ( _, _) ->
                     ( div, [ Attr.disabled True ] )
+    
+        widthStyles =
+            case settings.width of
+                Full ->
+                    [ Tw.w_full ]
+
+                Auto ->
+                    [ Tw.w_auto ]
     in
     if not settings.isHidden then
         div
@@ -247,6 +268,7 @@ view (Settings settings) =
                 (buttonStyles
                     ++ onClickAttr
                     ++ [ Attr.css
+                            ( widthStyles ++
                             [ Tw.py_2
                             , Tw.px_4
                             , Tw.flex
@@ -255,7 +277,7 @@ view (Settings settings) =
                             , Tw.rounded_full
                             , Css.hover
                                 []
-                            ]
+                            ])
                        , Attr.classList
                             [ ( "is-success", settings.style == Success )
                             , ( "is-warning", settings.style == Warning )
