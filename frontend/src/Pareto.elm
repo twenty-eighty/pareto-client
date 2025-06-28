@@ -333,6 +333,7 @@ supportedKinds =
     [ KindUserMetadata
     , KindEventDeletionRequest
     , KindRepost
+    , KindPicture
     , KindComment
     , KindFileMetadata
     , KindZapRequest

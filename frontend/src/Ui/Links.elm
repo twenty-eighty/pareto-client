@@ -8,6 +8,7 @@ import Nostr.Nip19  as Nip19 exposing (NIP19Type(..))
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..))
 import Nostr.Types exposing (PubKey)
 import Pareto
+import Route.Path exposing (Path(..))
 import Url.Builder
 
 
@@ -126,7 +127,10 @@ linkToProfile profile validation =
         ( ValidationSucceeded, Just nip05 ) ->
             -- only link to NIP-05 if profile was validated
             -- otherwise the page may not be loadable
-            Just <| "/u/" ++ Nip05.nip05ToString nip05
+            U_User_ { user = Nip05.nip05ToString nip05 }
+            |> Route.Path.toString
+            |> String.append Pareto.applicationUrl
+            |> Just
 
         ( _, _ ) ->
             linkToProfilePubKey profile.pubKey
@@ -142,11 +146,29 @@ linkToNJump nip19 =
             Nothing
 
 
+
+linkToPicturePost : NIP19Type -> Maybe String
+linkToPicturePost nip19 =
+    case Nip19.encode nip19 of
+        Ok encoded ->
+            E_Event_ { event = encoded }
+            |> Route.Path.toString
+            |> String.append Pareto.applicationUrl
+            |> Just
+
+        Err _ ->
+            Nothing
+
+
+
 linkToProfilePubKey : PubKey -> Maybe String
 linkToProfilePubKey pubKey =
     case Nip19.encode <| Nip19.NProfile { pubKey = pubKey, relays = [] } of
         Ok nprofile ->
-            Just <| "/p/" ++ nprofile
+            P_Profile_ { profile = nprofile }
+            |> Route.Path.toString
+            |> String.append Pareto.applicationUrl
+            |> Just
 
         Err _ ->
             Nothing
