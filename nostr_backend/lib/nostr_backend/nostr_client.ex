@@ -3,6 +3,24 @@ defmodule NostrBackend.NostrClient do
 
   require Logger
 
+  # Type definitions
+  @type relay_url :: binary()
+  @type relay_urls :: [relay_url()]
+  @type subscription_id :: binary()
+  @type nostr_event :: map()
+  @type event_list :: [nostr_event()]
+  @type pubkey :: binary()
+  @type event_id :: binary()
+  @type address_info :: %{kind: integer(), author: binary(), identifier: binary()}
+                     | %{kind: integer(), identifier: binary()}
+                     | %{kind: integer(), pubkey: binary(), identifier: binary()}
+  @type event_info :: %{id: event_id()}
+  @type picture_post_info :: %{id: event_id()}
+  @type fetch_result :: {:ok, nostr_event() | event_list()} | {:error, binary()}
+  @type fetch_result_with_relay :: {:ok, relay_url(), nostr_event() | event_list()} | {:error, binary()}
+  @type filter_map :: map()
+  @type filters :: [filter_map()]
+
   # List of relay URLs
   @relay_urls [
     "wss://nostr.pareto.space",
@@ -16,28 +34,34 @@ defmodule NostrBackend.NostrClient do
     # Add more relay URLs as needed
   ]
 
+  @spec fetch_article_by_address(integer(), binary(), binary()) :: fetch_result()
   def fetch_article_by_address(kind, author, identifier) do
     fetch_article_by_address(kind, author, identifier, @relay_urls)
   end
 
+  @spec fetch_article_by_address(integer(), binary(), binary(), relay_urls()) :: fetch_result_with_relay()
   def fetch_article_by_address(kind, author, identifier, []) do
     fetch_article_by_address(kind, author, identifier, @relay_urls)
   end
 
+  @spec fetch_article_by_address(integer(), binary(), binary(), relay_urls()) :: fetch_result_with_relay()
   def fetch_article_by_address(kind, author, identifier, relay_urls) do
     address_info = %{kind: kind, author: author, identifier: identifier}
     fetch_from_relays(relay_urls, address_info, :address)
   end
 
+  @spec fetch_article_by_address(integer(), binary()) :: fetch_result_with_relay()
   def fetch_article_by_address(kind, identifier) do
     address_info = %{kind: kind, identifier: identifier}
     fetch_from_relays(@relay_urls, address_info, :address)
   end
 
+  @spec fetch_article_by_id(event_id(), relay_urls()) :: fetch_result_with_relay()
   def fetch_article_by_id(id, []) do
     fetch_article_by_id(id, @relay_urls)
   end
 
+  @spec fetch_article_by_id(event_id(), relay_urls()) :: fetch_result_with_relay()
   def fetch_article_by_id(id, relay_urls) do
     event_info = %{id: id}
     fetch_from_relays(relay_urls, event_info, :event)
@@ -45,21 +69,39 @@ defmodule NostrBackend.NostrClient do
 
   @spec fetch_article(String.t()) :: {:ok, map()} | {:error, String.t()}
   def fetch_article(article_hex_id) do
-    fetch_from_relays(@relay_urls, article_hex_id, :article)
+    case fetch_from_relays(@relay_urls, article_hex_id, :article) do
+      {:ok, _relay, event_or_events} -> {:ok, event_or_events}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
-  @spec fetch_community(String.t(), list()) :: {:ok, map()} | {:error, String.t()}
+  @spec fetch_community(String.t()) :: {:ok, map()} | {:error, String.t()}
   def fetch_community(community_data) do
-    fetch_community(community_data, @relay_urls)
+    case fetch_community(community_data, @relay_urls) do
+      {:ok, _relay, event_or_events} -> {:ok, event_or_events}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
+  @spec fetch_community(String.t(), relay_urls()) :: fetch_result_with_relay()
   def fetch_community(community_data, relays) do
     fetch_from_relays(relays, community_data, :community)
   end
 
   @spec fetch_note(String.t()) :: {:ok, map()} | {:error, String.t()}
   def fetch_note(note_id) do
-    fetch_from_relays(@relay_urls, note_id, :note)
+    case fetch_from_relays(@relay_urls, note_id, :note) do
+      {:ok, _relay, event_or_events} -> {:ok, event_or_events}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @spec fetch_picture_post(event_id(), relay_urls()) :: fetch_result()
+  def fetch_picture_post(id, relays) do
+    case fetch_from_relays(relays, %{id: id}, :picture_post) do
+      {:ok, _relay, event_or_events} -> {:ok, event_or_events}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   @spec fetch_profile(String.t(), list()) :: {:ok, map()} | {:error, String.t()}
@@ -67,6 +109,7 @@ defmodule NostrBackend.NostrClient do
     fetch_profile(profile_hex_id, @relay_urls)
   end
 
+  @spec fetch_profile(pubkey(), relay_urls()) :: fetch_result_with_relay()
   def fetch_profile(profile_hex_id, relays) do
     fetch_from_relays(relays, profile_hex_id, :profile)
   end
@@ -76,6 +119,7 @@ defmodule NostrBackend.NostrClient do
     fetch_follow_list(pubkey, @relay_urls)
   end
 
+  @spec fetch_follow_list(pubkey(), relay_urls()) :: fetch_result()
   def fetch_follow_list(pubkey, relay_urls) do
     # Fetch the follow list event(s) and strip out the relay
     case fetch_from_relays(relay_urls, pubkey, :follow_list) do
@@ -89,6 +133,7 @@ defmodule NostrBackend.NostrClient do
     fetch_author_articles(pubkey, @relay_urls)
   end
 
+  @spec fetch_author_articles(pubkey(), relay_urls()) :: fetch_result()
   def fetch_author_articles(pubkey, relay_urls) do
     # Return raw events – strip out the relay and return only events for caching
     case fetch_from_relays(relay_urls, pubkey, :author_articles) do
@@ -102,6 +147,7 @@ defmodule NostrBackend.NostrClient do
     fetch_multiple_authors_articles(pubkeys, @relay_urls)
   end
 
+  @spec fetch_multiple_authors_articles([pubkey()], relay_urls()) :: fetch_result()
   def fetch_multiple_authors_articles(pubkeys, relay_urls) do
     Logger.info("Fetching articles for #{length(pubkeys)} authors from #{length(relay_urls)} relays")
     case fetch_from_relays(relay_urls, pubkeys, :multiple_authors_articles) do
@@ -110,11 +156,13 @@ defmodule NostrBackend.NostrClient do
     end
   end
 
+  @spec fetch_from_relays(relay_urls(), any(), atom()) :: fetch_result_with_relay()
   defp fetch_from_relays([], _id, _type) do
     Logger.error("Failed to fetch data from all relays")
     {:error, "Failed to fetch data from all relays"}
   end
 
+  @spec fetch_from_relays(relay_urls(), any(), atom()) :: fetch_result_with_relay()
   defp fetch_from_relays([relay | rest], id, type) do
     Logger.info("Fetching from relay: #{relay}")
     case fetch_from_relay(relay, id, type) do
@@ -127,6 +175,7 @@ defmodule NostrBackend.NostrClient do
     end
   end
 
+  @spec fetch_from_relay(relay_url(), any(), atom()) :: fetch_result()
   defp fetch_from_relay(relay_url, id, type) do
     case start_link(relay_url, self()) do
       {:ok, pid} ->
@@ -147,6 +196,7 @@ defmodule NostrBackend.NostrClient do
     end
   end
 
+  @spec start_link(relay_url(), pid()) :: {:ok, pid()} | {:error, any()}
   defp start_link(relay_url, caller_pid) do
     Logger.debug("Relay URL: #{relay_url}")
 
@@ -155,6 +205,7 @@ defmodule NostrBackend.NostrClient do
     )
   end
 
+  @spec request_event(pid(), filters()) :: fetch_result()
   defp request_event(pid, filters) do
     subscription_id = UUID.uuid4()
     request = ["REQ", subscription_id | filters]
@@ -167,6 +218,7 @@ defmodule NostrBackend.NostrClient do
     collect_events(subscription_id, pid, [])
   end
 
+  @spec collect_events(subscription_id(), pid(), event_list()) :: fetch_result()
   defp collect_events(subscription_id, pid, events) do
     receive do
       {:event, ^subscription_id, event} ->
@@ -207,6 +259,7 @@ defmodule NostrBackend.NostrClient do
     end
   end
 
+  @spec build_filters(address_info(), :address) :: filters()
   defp build_filters(%{kind: kind, author: author, identifier: identifier}, :address) do
     [
       %{
@@ -217,6 +270,7 @@ defmodule NostrBackend.NostrClient do
     ]
   end
 
+  @spec build_filters(address_info(), :address) :: filters()
   defp build_filters(%{kind: kind, identifier: identifier}, :address) do
     [
       %{
@@ -226,6 +280,7 @@ defmodule NostrBackend.NostrClient do
     ]
   end
 
+  @spec build_filters(address_info(), :address) :: filters()
   defp build_filters(%{kind: kind, pubkey: pubkey, identifier: identifier}, :address) do
     [
       %{
@@ -236,6 +291,7 @@ defmodule NostrBackend.NostrClient do
     ]
   end
 
+  @spec build_filters(address_info(), :community) :: filters()
   defp build_filters(%{kind: kind, author: author, identifier: identifier}, :community) do
     [
       %{
@@ -246,6 +302,7 @@ defmodule NostrBackend.NostrClient do
     ]
   end
 
+  @spec build_filters(event_info(), :event) :: filters()
   defp build_filters(%{id: id}, :event) do
     [
       %{
@@ -254,6 +311,7 @@ defmodule NostrBackend.NostrClient do
     ]
   end
 
+  @spec build_filters(event_id(), :note) :: filters()
   defp build_filters(note_id, :note) do
     [
       %{
@@ -262,11 +320,18 @@ defmodule NostrBackend.NostrClient do
     ]
   end
 
+  @spec build_filters(event_id(), :article) :: filters()
   defp build_filters(event_id, :article), do: [%{"ids" => [event_id]}]
 
+  @spec build_filters(picture_post_info(), :picture_post) :: filters()
+  defp build_filters(%{id: id}, :picture_post),
+    do: [%{ "ids" => [id], "kinds" => [20], "limit" => 1}]
+
+  @spec build_filters(pubkey(), :profile) :: filters()
   defp build_filters(pubkey, :profile),
     do: [%{"authors" => [pubkey], "kinds" => [0], "limit" => 1}]
 
+  @spec build_filters(pubkey(), :follow_list) :: filters()
   defp build_filters(pubkey, :follow_list) do
     [
       %{
@@ -277,6 +342,7 @@ defmodule NostrBackend.NostrClient do
     ]
   end
 
+  @spec build_filters(pubkey(), :author_articles) :: filters()
   defp build_filters(pubkey, :author_articles) do
     [
       %{
@@ -287,6 +353,7 @@ defmodule NostrBackend.NostrClient do
     ]
   end
 
+  @spec build_filters([pubkey()], :multiple_authors_articles) :: filters()
   defp build_filters(pubkeys, :multiple_authors_articles) do
     Logger.info("Building filters for multiple authors articles: #{length(pubkeys)} authors")
     filters = [
@@ -301,6 +368,7 @@ defmodule NostrBackend.NostrClient do
   end
 
   @impl true
+  @spec handle_frame({:text, binary()}, map()) :: {:ok, map()}
   def handle_frame({:text, msg}, %{caller_pid: caller_pid} = state) do
     Logger.debug("Received frame: #{msg}")
 
@@ -331,12 +399,14 @@ defmodule NostrBackend.NostrClient do
   end
 
   @impl true
+  @spec handle_connect(any(), map()) :: {:ok, map()}
   def handle_connect(conn, state) do
     Logger.info("Connected to Nostr relay " <> conn.host)
     {:ok, state}
   end
 
   @impl true
+  @spec handle_disconnect(map(), map()) :: {:ok, map()}
   def handle_disconnect(%{reason: _reason} = _disconnect_map, state) do
     Logger.error("Disconnected from Nostr relay")
     {:ok, state}

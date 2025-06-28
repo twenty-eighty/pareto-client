@@ -133,6 +133,24 @@ defmodule NostrBackendWeb.ContentController do
             #            |> render(NostrBackendWeb.ErrorHTML, :"404")
         end
 
+      {:ok, {:event, query_data}} ->
+        case NoteCache.get_note(query_data) do
+          {:ok, note} ->
+            conn
+            |> conn_with_default_meta()
+            |> put_view(NostrBackendWeb.ContentHTML)
+            |> render(:note, note: note)
+
+          {:error, reason} ->
+            Logger.debug("ERROR REASON: #{inspect(reason)}")
+
+            conn
+            |> conn_with_default_meta()
+            |> render(:not_found, layout: false)
+
+            #            |> render(NostrBackendWeb.ErrorHTML, :"404")
+        end
+
       {:ok, {:author_event, query_data}} ->
         case ArticleCache.get_article(query_data) do
           {:ok, article} ->
