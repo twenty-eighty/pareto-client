@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -u
+set -e
+
 INDEX_ORG_EN="https://pareto.onepage.me/en"
 INDEX_ORG_DE="https://pareto.onepage.me/de"
 
