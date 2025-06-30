@@ -271,6 +271,7 @@ bootstrapAuthorsList =
     , ( "marcel@pareto.town", "7f29628df734cf02f3407580184af73d941e940f4a91c61d1e15aa08e160cccc" )
     , ( "martin@enlund.org", "4234223996ce6549720e66dd6bc4bb7efb9f25c60c4816d7bc47a65e1d80db24" )
     , ( "matej@pareto.space", "5aa5e38abbb37f89c863419bd1e4e60aa31d82fa3c39397e386586e3961b8021" )
+    , ( "mathias-broeckers@pareto.town", "6e4b486f698ee18dde7e5bec088c786d31f82c93d7d47cd0cdbcd63ddcadf247" )
     , ( "metamsol@pareto.town", "d7e3ec2295429efc6a1067bacc8ca78af80aae94cc04a9b48156de85a38eac4e" )
     , ( "michael_meyen@pareto.town", "044da3442a54bd55202b66ca0c4f5fd58cbb158b67f2fb067cc0467c073a8a0e" )
     , ( "milosz@pareto.space", "2c917bfcfe4f3777ccacb4c968d6a3e9266d39a22db65c2cf2ca0c09fddf8638" )
@@ -306,7 +307,6 @@ bootstrapAuthorsList =
 
     -- , ( "1bis19@pareto.town", "df32e891bfcbe0aed4518b21466c1807ea68394fe4f1fcd8c826a3ca1ed0b7e7" )
     -- , ( "alix@pareto.town", "c93ea055634fb683be4202dd04e336663fb7823c5f1c35ad26b522a3eed5ac4c" )
-    -- , ( "mathias-broeckers@pareto.town", "6e4b486f698ee18dde7e5bec088c786d31f82c93d7d47cd0cdbcd63ddcadf247" )
     -- , ( "nachhall@pareto.town", "712db8c83700aca0ffa1c3b759929e18d26fcc2b6eeb07305bdf33760b42cbce" )
     -- , ( "volker.schubert@pareto.town", "80f49d824217e4730aadb729d38775bb2a31405b92a3d70ea37b73fcab3cb150" )
     ]
