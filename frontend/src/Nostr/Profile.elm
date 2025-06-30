@@ -226,9 +226,13 @@ httpsUrlDecoder =
     Decode.string
         |> Decode.andThen
             (\url ->
-                url
-                    |> Nostr.Shared.ensureHttps
-                    |> Decode.succeed
+                if url /= "" then
+                    url
+                        |> Nostr.Shared.ensureHttps
+                        |> Decode.succeed
+
+                else
+                    Decode.fail "Empty URL"
             )
 
 

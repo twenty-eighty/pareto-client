@@ -1,5 +1,6 @@
 ### Supported Web Targets
 https://pareto.space/a/<bech32> (naddr)\
+https://pareto.space/e/<bech32> (nevent)\
 https://pareto.space/p/<bech32> (nprofile)
 
 ### Supported Nostr "Kinds"
