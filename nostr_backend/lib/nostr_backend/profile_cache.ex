@@ -3,10 +3,17 @@ defmodule NostrBackend.ProfileCache do
   alias NostrBackend.NostrClient
   require Logger
 
+  # Type definitions
+  @type pubkey :: binary()
+  @type relay_urls :: [binary()]
+  @type profile :: Content.profile()
+  @type cache_result :: {:ok, profile()} | {:error, binary()}
+
   @cache_name :profiles_cache
   # 24 hours
   @ttl_in_seconds 86_400
 
+  @spec get_profile(pubkey(), relay_urls()) :: cache_result()
   def get_profile(pubkey, relays) do
     case Cachex.get(@cache_name, pubkey) do
       {:ok, nil} ->
@@ -27,6 +34,7 @@ defmodule NostrBackend.ProfileCache do
     end
   end
 
+  @spec load_profile(pubkey(), relay_urls()) :: cache_result()
   defp load_profile(pubkey, relays) do
     # Implement the logic to load the profile from the Nostr network
     case NostrClient.fetch_profile(pubkey, relays) do

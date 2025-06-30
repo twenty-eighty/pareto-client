@@ -1,11 +1,13 @@
 ### Supported Web Targets
 https://pareto.space/a/<bech32> (naddr)\
+https://pareto.space/e/<bech32> (nevent)\
 https://pareto.space/p/<bech32> (nprofile)
 
 ### Supported Nostr "Kinds"
 0: User Metadata [(NIP 1)](https://nips.nostr.com/1)\
 5: Event Deletion Request [(NIP 9)](https://nips.nostr.com/9)\
 16: Generic Reposts [(NIP 18)](https://nips.nostr.com/18)\
+20: Picture [(NIP 68)](https://nips.nostr.com/68)\
 1063: File Metadata [(NIP 94)](https://nips.nostr.com/94)\
 1111: Comment [(NIP 22)](https://nips.nostr.com/22)\
 9734: Zap Request [(NIP 57)](https://nips.nostr.com/57)\
@@ -42,7 +44,9 @@ https://pareto.space/p/<bech32> (nprofile)
 [NIP-51 (Lists)](https://nips.nostr.com/51)\
 [NIP-57 (Lightning Zaps)](https://nips.nostr.com/57)\
 [NIP-65 (Relay List Metadata)](https://nips.nostr.com/65)\
+[NIP-68 (Picture-first feeds)](https://nips.nostr.com/68)\
 [NIP-89 (Recommended Application Handlers)](https://nips.nostr.com/89)\
+[NIP-92 (Media Attachments)](https://nips.nostr.com/92)\
 [NIP-94 (File Metadata)](https://nips.nostr.com/94)\
 [NIP-96 (HTTP File Storage Integration)](https://nips.nostr.com/96)\
 [NIP-98 (HTTP Auth)](https://nips.nostr.com/98)

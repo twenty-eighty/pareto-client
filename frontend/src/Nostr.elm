@@ -595,6 +595,12 @@ getPicturePosts model =
         |> List.sortBy (\picturePost -> picturePost.createdAt |> Time.posixToMillis |> negate)
 
 
+getPicturePostById : Model -> EventId -> Maybe PicturePost
+getPicturePostById model id =
+    model.picturePosts
+        |> Dict.get id
+
+
 getProfileValidationStatus : Model -> PubKey -> Maybe ProfileValidation
 getProfileValidationStatus model pubKey =
     Dict.get pubKey model.profileValidations

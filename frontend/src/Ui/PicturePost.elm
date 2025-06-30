@@ -12,6 +12,7 @@ import Nostr.Event exposing (ImageMetadata, Kind(..), numberForKind)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
+import Nostr.Relay exposing (websocketUrl)
 import Nostr.Types exposing (EventId, LoginStatus)
 import Set
 import Tailwind.Utilities as Tw
@@ -54,8 +55,15 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
         viewInteractions =
             let
                 shareButtonElement =
-                    Nip19.NEvent { id = picturePost.id, author = Just picturePost.pubKey, kind = Just (KindPicture |> numberForKind), relays = picturePost.relays |> Maybe.withDefault [] }
-                    |> Ui.Links.linkToNJump
+                    Nip19.NEvent
+                        { id = picturePost.id
+                        , author = Just picturePost.pubKey
+                        , kind = Just (KindPicture |> numberForKind)
+                        , relays = picturePost.relays
+                            |> Maybe.map (Set.fromList >> Set.toList >> List.map websocketUrl >> List.take 5)
+                            |> Maybe.withDefault []
+                        }
+                    |> Ui.Links.linkToPicturePost
                     |> Maybe.map (\url ->
                         [ Interactions.ShareButtonElement
                             { url = url
