@@ -28,8 +28,7 @@ import Shared.Msg
 import Svg.Attributes as SvgAttr
 import Tailwind.Utilities as Tw
 import Translations.SharingButtonDialog as Translations
-import Ui.Styles exposing (Theme, stylesForTheme)
-import Ui.Styles exposing (darkMode)
+import Ui.Styles exposing (Theme, darkMode, stylesForTheme)
 import Url.Builder
 import Tailwind.Theme as Theme
 
