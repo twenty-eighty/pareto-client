@@ -54,11 +54,11 @@ const defaultRelays =
   ["wss://nostr.pareto.space"
     , "wss://nostr.pareto.town"
     , "wss://pareto.nostr1.com"
-    , "relay.nostr.band"
-    , "relay.damus.io"
-    , "nos.lol"
-    , "offchain.pub"
-    , "nostr.wine"
+    , "wss://relay.nostr.band"
+    , "wss://relay.damus.io"
+    , "wss://nos.lol"
+    , "wss://offchain.pub"
+    , "wss://nostr.wine"
   ];
 
 const suggestedPubKeys =
