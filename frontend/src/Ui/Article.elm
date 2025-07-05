@@ -172,7 +172,7 @@ viewArticle articlePreviewsData articlePreviewData article =
 
         linkElement =
             maybeProfile
-                |> Maybe.map (\profile -> linkElementForProfile followLinks profile validationStatus)
+                |> Maybe.map (\profile -> linkElementForProfile True followLinks profile validationStatus)
                 |> Maybe.withDefault (linkElementForProfilePubKey followLinks article.author)
 
         langAttr =
@@ -530,7 +530,7 @@ viewArticleProfileSmall : Bool -> Profile -> ProfileValidation -> Html msg
 viewArticleProfileSmall followLinks profile validationStatus =
     let
         linkElement =
-            linkElementForProfile followLinks profile validationStatus
+            linkElementForProfile True followLinks profile validationStatus
     in
     div
         [ css
@@ -1119,7 +1119,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
         Nostr.Profile.AuthorProfile profile validationStatus ->
             let
                 linkElementWrapper =
-                    linkElementForProfile followLinks profile validationStatus
+                    linkElementForProfile True followLinks profile validationStatus
             in
             div
                 [ css

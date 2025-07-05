@@ -11,7 +11,6 @@ import Html.Styled as Html exposing (Html, a, div, h2, h4, img, p, text)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events
 import Json.Encode as Encode
-import Json.Decode as Decode
 import Nostr
 import Nostr.Nip05 as Nip05
 import Nostr.Nip19 as Nip19
@@ -64,7 +63,7 @@ viewProfileSmall : Styles msg -> Bool -> Profile -> ProfileValidation -> Html ms
 viewProfileSmall styles followLinks profile validationStatus =
     let
         linkElementWrapper =
-            linkElementForProfile followLinks profile validationStatus
+            linkElementForProfile True followLinks profile validationStatus
     in
     div
         [ css
@@ -109,7 +108,7 @@ viewAuthorCard profile profileViewData =
             extendedZapRelays authorRelays profileViewData.nostr profileViewData.loginStatus
 
         linkElementWrapper =
-            linkElementForProfile True profile profileViewData.validation
+            linkElementForProfile True True profile profileViewData.validation
     in
     div
         [ css
