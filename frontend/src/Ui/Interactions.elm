@@ -177,6 +177,7 @@ extendedZapRelays zapRelays nostrModel loginStatus =
 
         defaultRelays =
             Set.fromList nostrModel.defaultRelays
+            |> Set.map websocketUrl
 
         candidateRelays =
             Set.union zapRelays pubKeyRelays
