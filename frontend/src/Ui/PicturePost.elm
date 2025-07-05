@@ -63,7 +63,7 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
                             |> Maybe.map (Set.fromList >> Set.toList >> List.map websocketUrl >> List.take 5)
                             |> Maybe.withDefault []
                         }
-                    |> Ui.Links.linkToPicturePost
+                    |> Ui.Links.linkToPicturePost False
                     |> Maybe.map (\url ->
                         [ Interactions.ShareButtonElement
                             { url = url

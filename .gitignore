@@ -45,6 +45,7 @@ nostr_backend-*.tar
 /nostr_backend/priv/static/atom
 /nostr_backend/priv/static/index.html
 /nostr_backend/priv/static/assets
+/nostr_backend/priv/static/atom
 /nostr_backend/priv/static/fonts
 /nostr_backend/priv/static/images
 /nostr_backend/priv/static/js
