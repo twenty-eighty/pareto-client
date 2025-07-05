@@ -54,7 +54,7 @@ view styles author article articleInfoData =
                     ( Just p, p.pubKey )
 
         profileImage =
-            profile |> Ui.Profile.profilePicture 48
+            profile |> Ui.Profile.profilePicture articleInfoData.browserEnv.environment 48
 
         profileName =
             profile |> Maybe.map (\p -> Nostr.Profile.profileDisplayName p.pubKey p) |> Maybe.withDefault (shortenedPubKey 6 pubKey)

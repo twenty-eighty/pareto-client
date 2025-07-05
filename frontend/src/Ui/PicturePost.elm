@@ -1,6 +1,6 @@
 module Ui.PicturePost exposing (..)
 
-import BrowserEnv exposing (BrowserEnv)
+import BrowserEnv exposing (BrowserEnv, Environment)
 import Components.InteractionButton as InteractionButton
 import Components.Interactions as Interactions
 import Dict exposing (Dict)
@@ -113,7 +113,7 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
         ]
         [ case maybeProfile of
             Just profile ->
-                Ui.Profile.viewProfileSmall styles followLinks profile validationStatus
+                Ui.Profile.viewProfileSmall picturePostsViewData.browserEnv.environment styles followLinks profile validationStatus
 
             Nothing ->
                 emptyHtml
@@ -123,30 +123,30 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
 
             Nothing ->
                 emptyHtml
-        , viewPictures picturePost.pictures
+        , viewPictures picturePostsViewData.browserEnv.environment picturePost.pictures
         , viewContent styles picturePost.description
         , viewInteractions
         ]
 
 
-viewPictures : List ImageMetadata -> Html msg
-viewPictures imageMetadataList =
+viewPictures : Environment -> List ImageMetadata -> Html msg
+viewPictures environment imageMetadataList =
     case imageMetadataList of
         [] ->
             emptyHtml
 
         [ picture ] ->
-            viewImage picture.url
+            viewImage environment picture.url
 
         -- TODO: show additional pictures in a gallery
         firstPicture :: _ ->
-            viewImage firstPicture.url
+            viewImage environment firstPicture.url
 
 
-viewImage : String -> Html msg
-viewImage url =
+viewImage : Environment -> String -> Html msg
+viewImage environment url =
     Html.img
-        [ Attr.src <| Ui.Links.scaledImageLink 450 url
+        [ Attr.src <| Ui.Links.scaledImageLink environment 450 url
         , Attr.attribute "loading" "lazy"
         , css
             [ Tw.rounded_sm

@@ -64,6 +64,7 @@ type alias InitParams =
 type Environment
     = Production
     | Development
+    | StandAlone
 
 type TestMode
     = TestModeOff
@@ -125,6 +126,9 @@ environmentFromString envString =
     case envString of
         Just "dev" ->
             Development
+
+        Just "standalone" ->
+            StandAlone
 
         _ ->
             Production

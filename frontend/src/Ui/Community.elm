@@ -1,6 +1,6 @@
 module Ui.Community exposing (..)
 
-import BrowserEnv exposing (BrowserEnv)
+import BrowserEnv exposing (BrowserEnv, Environment)
 import Dict exposing (Dict)
 import Html.Styled as Html exposing (Html, div, h1, h3, h4, img, p, text)
 import Html.Styled.Attributes as Attr exposing (css)
@@ -16,7 +16,7 @@ import Ui.Styles exposing (Styles, Theme(..), fontFamilyUnbounded)
 
 
 viewCommunity : BrowserEnv -> Dict PubKey Profile -> Community -> Html msg
-viewCommunity _ profiles community =
+viewCommunity browserEnv profiles community =
     let
         styles =
             Ui.Styles.stylesForTheme ParetoTheme
@@ -43,7 +43,7 @@ viewCommunity _ profiles community =
             [ viewImage community.image
             , viewName styles <| communityName community
             , viewSummary styles community.description
-            , viewModerators styles profiles community.moderators
+            , viewModerators browserEnv.environment styles profiles community.moderators
             ]
         ]
 
@@ -107,8 +107,8 @@ viewSummary styles maybeDescription =
             emptyHtml
 
 
-viewModerators : Styles msg -> Dict PubKey Profile -> List Moderator -> Html msg
-viewModerators styles profiles moderators =
+viewModerators : Environment -> Styles msg -> Dict PubKey Profile -> List Moderator -> Html msg
+viewModerators environment styles profiles moderators =
     if not (List.isEmpty moderators) then
         h3
             ([ css
@@ -123,7 +123,7 @@ viewModerators styles profiles moderators =
             [ text "Moderators"
 
             -- TODO: get actual validation status
-            , List.map (\moderator -> viewModerator (Dict.get moderator.pubKey profiles) ValidationUnknown moderator) moderators
+            , List.map (\moderator -> viewModerator environment (Dict.get moderator.pubKey profiles) ValidationUnknown moderator) moderators
                 |> div []
             ]
 
@@ -131,18 +131,18 @@ viewModerators styles profiles moderators =
         emptyHtml
 
 
-viewModerator : Maybe Profile -> ProfileValidation -> Moderator -> Html msg
-viewModerator maybeProfile validationStatus moderator =
+viewModerator : Environment -> Maybe Profile -> ProfileValidation -> Moderator -> Html msg
+viewModerator environment maybeProfile validationStatus moderator =
     case maybeProfile of
         Just profile ->
-            viewProfile profile validationStatus moderator
+            viewProfile environment profile validationStatus moderator
 
         Nothing ->
             viewPubKey moderator.pubKey
 
 
-viewProfile : Profile -> ProfileValidation -> Moderator -> Html msg
-viewProfile profile validationStatus moderator =
+viewProfile : Environment -> Profile -> ProfileValidation -> Moderator -> Html msg
+viewProfile environment profile validationStatus moderator =
     let
         styles =
             Ui.Styles.stylesForTheme ParetoTheme
@@ -155,7 +155,7 @@ viewProfile profile validationStatus moderator =
             , Tw.mb_4
             ]
         ]
-        [ Ui.Profile.viewProfileImage (div []) (Just profile) validationStatus
+        [ Ui.Profile.viewProfileImage environment (div []) (Just profile) validationStatus
         , div []
             [ h4
                 (css
