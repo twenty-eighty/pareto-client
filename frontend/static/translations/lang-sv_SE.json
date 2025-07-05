@@ -113,7 +113,7 @@
       "profile nip-05 invalid explanation": "NIP-05-hanteraren i profilen är ogiltig.",
       "profile avatar missing text": "Profilavatar saknas",
       "profile avatar missing explanation": "Det finns ingen profilbild satt.",
-      "profile avatar not url text": "Profilavatar är inte en URL",   
+      "profile avatar not url text": "Profilavatar är inte en URL",
       "profile avatar not url explanation": "Profilavatarbilden är inte en giltig URL.",
       "profile avatar too large text": "Profilavatar för stor",
       "profile avatar too large explanation": "Profilavatarbilden är mycket stor: ({{size}}). Detta rekommenderas inte eftersom det kan sakta ner sidladdningen.",

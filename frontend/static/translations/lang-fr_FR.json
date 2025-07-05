@@ -187,7 +187,6 @@
       "country BR": "Brésil",
       "country BS": "Bahamas",
       "country BT": "Bhoutan",
-      "country BV": "Île Bouvet",
       "country BW": "Botswana",
       "country BY": "Biélorussie",
       "country BZ": "Belize",
@@ -839,8 +838,5 @@
    },
    "tech details": {
       "page title": "Détails techniques"
-   },
-   "calendar": {
-      "time zone": "Fuseau horaire"
    }
 }
