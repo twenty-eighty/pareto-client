@@ -34,6 +34,19 @@ defaultProfilePicture =
     "/images/avatars/placeholder_01.webp"
 
 
+defaultBannerPicture : String
+defaultBannerPicture =
+    "/images/pareto-banner.png"
+
+
+bannerPicture : Environment -> Int -> Maybe Profile -> String
+bannerPicture environment width maybeProfile =
+    maybeProfile
+        |> Maybe.andThen .banner
+        |> Maybe.map (Ui.Links.scaledImageLink environment width)
+        |> Maybe.withDefault defaultBannerPicture
+
+
 profilePicture : Environment -> Int -> Maybe Profile -> String
 profilePicture environment width maybeProfile =
     maybeProfile
@@ -229,7 +242,7 @@ viewProfile profile profileViewData =
             , Tw.mb_6
             ]
         ]
-        [ viewBanner profile.banner
+        [ viewBanner profileViewData.browserEnv.environment (Just profile)
         , div
             [ css
                 [ Tw.flex
@@ -429,12 +442,8 @@ copyButton theme copyText uniqueId =
         ]
 
 
-viewBanner : Maybe String -> Html msg
-viewBanner maybeImage =
-    let
-        imageSrc =
-            Maybe.withDefault "/images/pareto-banner.png" maybeImage
-    in
+viewBanner : Environment -> Maybe Profile -> Html msg
+viewBanner environment maybeProfile =
     div
         [ css
             [ Tw.w_full
@@ -445,7 +454,7 @@ viewBanner maybeImage =
             ]
         ]
         [ img
-            [ Attr.src imageSrc
+            [ Attr.src (bannerPicture environment 1280 maybeProfile)
             , Attr.alt "Banner Image"
             , css
                 [ Tw.w_full

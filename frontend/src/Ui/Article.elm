@@ -271,7 +271,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                         ]
                     ]
                 ]
-                [ Ui.Profile.viewBanner (getProfile article.author |> Maybe.andThen .banner)
+                [ Ui.Profile.viewBanner articlePreviewsData.browserEnv.environment (getProfile article.author)
                 , div
                     [ css
                         [ Tw.absolute
