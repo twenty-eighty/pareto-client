@@ -84,7 +84,7 @@ view shared model =
             [ model.markdown
                 |> foldMaybe (emptyHtml)
                     (\markdown ->
-                        case Markdown.markdownViewHtml styles Nothing (\_ -> Nothing) markdown of
+                        case Markdown.markdownViewHtml shared.browserEnv.environment styles Nothing (\_ -> Nothing) markdown of
                             Ok html ->
                                 html
 

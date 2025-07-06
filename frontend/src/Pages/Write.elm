@@ -1379,7 +1379,7 @@ viewEditor shared model =
                 styles =
                     stylesForTheme shared.theme
             in
-            Ui.Article.viewContentMarkdown styles (Just model.loadedContent) (Nostr.getProfile shared.nostr) (Maybe.withDefault "" model.content)
+            Ui.Article.viewContentMarkdown shared.browserEnv.environment styles (Just model.loadedContent) (Nostr.getProfile shared.nostr) (Maybe.withDefault "" model.content)
 
 
 milkdownEditor : Milkdown.Model -> BrowserEnv -> Milkdown.Content -> Html Msg

@@ -1,5 +1,6 @@
 module TailwindMarkdownRenderer exposing (renderer)
 
+import BrowserEnv exposing (Environment)
 import Css
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as Attr exposing (css)
@@ -12,8 +13,10 @@ import Nostr.Shared exposing (ensureHttps)
 import Parser
 import SyntaxHighlight
 import Tailwind.Utilities as Tw
+import Ui.Links
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyRobotoMono, print, stylesForTheme)
+import Html.Styled.Attributes exposing (src)
 
 
 textStyleArticleCode : List (Html.Attribute msg)
@@ -28,8 +31,8 @@ textStyleArticleCode =
     ]
 
 
-renderer : Styles msg -> GetProfileFunction -> Markdown.Renderer.Renderer (Html msg)
-renderer styles fnGetProfile =
+renderer : Environment -> Styles msg -> GetProfileFunction -> Markdown.Renderer.Renderer (Html msg)
+renderer environment styles fnGetProfile =
     { heading = heading styles
     , paragraph =
         Html.p
@@ -79,17 +82,23 @@ renderer styles fnGetProfile =
     , hardLineBreak = Html.br [] []
     , image =
         \image ->
+            let
+                imagesrc =
+                    image.src
+                    |> ensureHttps
+                    |> Ui.Links.scaledImageLink environment 650
+            in
             case ( image.title, image.src ) of
                 ( _, "" ) ->
                     -- ignore images without src attribute
                     emptyHtml
 
-                ( Just "1.00", src ) ->
+                ( Just "1.00", _ ) ->
                     -- dirty fix - route96 server delivers caption as "1.00" even if it wasn't set explicitly
                     Html.node "center"
                         []
                         [ Html.img
-                            [ Attr.src (ensureHttps src)
+                            [ Attr.src imagesrc
                             , Attr.alt image.alt
                             , css
                                 [ Tw.max_h_96
@@ -98,7 +107,7 @@ renderer styles fnGetProfile =
                             []
                         ]
 
-                ( Just title, src ) ->
+                ( Just title, _ ) ->
                     Html.node "center"
                         []
                         [ Html.figure
@@ -106,7 +115,7 @@ renderer styles fnGetProfile =
                                 []
                             ]
                             [ Html.img
-                                [ Attr.src (ensureHttps src)
+                                [ Attr.src imagesrc
                                 , Attr.alt image.alt
                                 ]
                                 []
@@ -116,11 +125,11 @@ renderer styles fnGetProfile =
                             ]
                         ]
 
-                ( Nothing, src ) ->
+                ( Nothing, _ ) ->
                     Html.node "center"
                         []
                         [ Html.img
-                            [ Attr.src (ensureHttps src)
+                            [ Attr.src imagesrc
                             , Attr.alt image.alt
                             , css
                                 [ Tw.max_h_96
