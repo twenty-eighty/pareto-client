@@ -2,7 +2,7 @@ module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layo
 
 --import Browser.Events as Events
 
-import BrowserEnv exposing (BrowserEnv)
+import BrowserEnv exposing (BrowserEnv, Environment)
 import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button
 import Components.Icon as Icon exposing (Icon(..))
@@ -954,14 +954,14 @@ loginButton : Shared.Model -> Maybe Profile -> Html Msg
 loginButton shared maybeProfile =
     case shared.loginStatus of
         LoggedIn _ _ ->
-            loggedInButton shared.theme maybeProfile
+            loggedInButton shared.browserEnv.environment shared.theme maybeProfile
 
         _ ->
             getStartedButton shared.theme shared.browserEnv
 
 
-loggedInButton : Theme -> Maybe Profile -> Html Msg
-loggedInButton theme maybeProfile =
+loggedInButton : Environment -> Theme -> Maybe Profile -> Html Msg
+loggedInButton environment theme maybeProfile =
     let
         styles =
             Ui.Styles.stylesForTheme theme
@@ -977,7 +977,7 @@ loggedInButton theme maybeProfile =
             :: styles.colorStyleIcons
         )
         [ img
-            [ Attr.src <| Ui.Profile.profilePicture 56 maybeProfile
+            [ Attr.src <| Ui.Profile.profilePicture environment 56 maybeProfile
             , css
                 [ Tw.w_14
                 , Tw.h_14

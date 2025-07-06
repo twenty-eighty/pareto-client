@@ -1,6 +1,6 @@
 module Ui.Profile exposing (..)
 
-import BrowserEnv exposing (BrowserEnv)
+import BrowserEnv exposing (BrowserEnv, Environment)
 import Color
 import Components.Button as Button
 import Components.Icon as Icon exposing (Icon(..), MaterialIcon(..))
@@ -34,11 +34,11 @@ defaultProfilePicture =
     "/images/avatars/placeholder_01.webp"
 
 
-profilePicture : Int -> Maybe Profile -> String
-profilePicture width maybeProfile =
+profilePicture : Environment -> Int -> Maybe Profile -> String
+profilePicture environment width maybeProfile =
     maybeProfile
         |> Maybe.andThen .picture
-        |> Maybe.map (Ui.Links.scaledImageLink width)
+        |> Maybe.map (Ui.Links.scaledImageLink environment width)
         |> Maybe.withDefault defaultProfilePicture
 
 
@@ -59,8 +59,8 @@ type FollowType msg
     | UnknownFollowing
 
 
-viewProfileSmall : Styles msg -> Bool -> Profile -> ProfileValidation -> Html msg
-viewProfileSmall styles followLinks profile validationStatus =
+viewProfileSmall : Environment -> Styles msg -> Bool -> Profile -> ProfileValidation -> Html msg
+viewProfileSmall environment styles followLinks profile validationStatus =
     let
         linkElementWrapper =
             linkElementForProfile True followLinks profile validationStatus
@@ -80,7 +80,7 @@ viewProfileSmall styles followLinks profile validationStatus =
                 , Tw.space_x_2
                 ]
             ]
-            [ viewProfileImageSmall linkElementWrapper (Just profile) validationStatus
+            [ viewProfileImageSmall environment linkElementWrapper (Just profile) validationStatus
             , h2
                 (css
                     [ Tw.text_sm
@@ -127,7 +127,7 @@ viewAuthorCard profile profileViewData =
                 ]
             ]
         ]
-        [ viewProfileImageAuthorCard linkElementWrapper (Just profile)
+        [ viewProfileImageAuthorCard profileViewData.browserEnv.environment linkElementWrapper (Just profile)
         , div
             [ css
                 [ Tw.flex
@@ -157,8 +157,8 @@ viewAuthorCard profile profileViewData =
         ]
 
 
-viewProfileImageAuthorCard : (List (Html msg) -> Html msg) -> Maybe Profile -> Html msg
-viewProfileImageAuthorCard linkElement maybeProfile =
+viewProfileImageAuthorCard : Environment -> (List (Html msg) -> Html msg) -> Maybe Profile -> Html msg
+viewProfileImageAuthorCard environment linkElement maybeProfile =
     div
         [ css
             [ Tw.min_w_16
@@ -166,7 +166,7 @@ viewProfileImageAuthorCard linkElement maybeProfile =
         ]
         [ linkElement
             [ img
-                [ Attr.src <| profilePicture 64 maybeProfile
+                [ Attr.src <| profilePicture environment 64 maybeProfile
                 , Attr.alt "Avatar"
                 , css
                     [ Tw.w_16
@@ -240,7 +240,7 @@ viewProfile profile profileViewData =
                 , Tw.mb_4
                 ]
             ]
-            [ viewProfileImage (div [ css [ Tw.flex_none ] ]) (Just profile) profileViewData.validation
+            [ viewProfileImage profileViewData.browserEnv.environment (div [ css [ Tw.flex_none ] ]) (Just profile) profileViewData.validation
             , div
                 [ css
                     [ Tw.flex
@@ -456,8 +456,8 @@ viewBanner maybeImage =
         ]
 
 
-viewProfilePubKey : Styles msg -> Bool -> PubKey -> Html msg
-viewProfilePubKey styles followLinks pubKey =
+viewProfilePubKey : Environment -> Styles msg -> Bool -> PubKey -> Html msg
+viewProfilePubKey environment styles followLinks pubKey =
     let
         linkElementWrapper =
             linkElementForProfilePubKey followLinks pubKey
@@ -470,7 +470,7 @@ viewProfilePubKey styles followLinks pubKey =
             , Tw.mb_4
             ]
         ]
-        [ viewProfileImage linkElementWrapper Nothing ValidationUnknown
+        [ viewProfileImage environment linkElementWrapper Nothing ValidationUnknown
         , h2
             (css
                 [ Tw.text_sm
@@ -482,8 +482,8 @@ viewProfilePubKey styles followLinks pubKey =
         ]
 
 
-viewProfileImage : (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
-viewProfileImage linkElement maybeProfile validationStatus =
+viewProfileImage : Environment -> (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
+viewProfileImage environment linkElement maybeProfile validationStatus =
     div
         [ css
             [ Tw.min_w_fit
@@ -495,7 +495,7 @@ viewProfileImage linkElement maybeProfile validationStatus =
         ]
         [ linkElement
             [ img
-                [ Attr.src <| profilePicture 112 maybeProfile
+                [ Attr.src <| profilePicture environment 112 maybeProfile
                 , Attr.alt "Avatar"
                 , css
                     [ Bp.xl [ Tw.w_28, Tw.h_28 ]
@@ -567,8 +567,8 @@ validationTooltipText status =
             "Profile validated successfully"
 
 
-viewProfileImageSmall : (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
-viewProfileImageSmall linkElement maybeProfile validationStatus =
+viewProfileImageSmall : Environment -> (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
+viewProfileImageSmall environment linkElement maybeProfile validationStatus =
     div
         [ css
             [ Tw.relative
@@ -576,7 +576,7 @@ viewProfileImageSmall linkElement maybeProfile validationStatus =
         ]
         [ linkElement
             [ img
-                [ Attr.src <| profilePicture 40 maybeProfile
+                [ Attr.src <| profilePicture environment 40 maybeProfile
                 , Attr.alt "Avatar"
                 , css
                     [ Tw.w_10

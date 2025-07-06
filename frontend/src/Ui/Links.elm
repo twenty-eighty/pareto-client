@@ -1,5 +1,6 @@
 module Ui.Links exposing (..)
 
+import BrowserEnv exposing (Environment(..))
 import Erl
 import Html.Styled as Html exposing (Html, a, div)
 import Html.Styled.Attributes as Attr
@@ -12,13 +13,13 @@ import Route.Path exposing (Path(..))
 import Url.Builder
 
 
-scaledImageLink : Int -> String -> String
-scaledImageLink width url =
+scaledImageLink : Environment -> Int -> String -> String
+scaledImageLink environment width url =
     let
         imageCacheServerApi =
             "https://image-caching-server.onrender.com"
     in
-    if url /= "" then
+    if url /= "" && environment /= StandAlone then
         Url.Builder.crossOrigin imageCacheServerApi
             [ "api", "scale" ]
             [ Url.Builder.string "url" url

@@ -154,6 +154,11 @@
         },
         {
           "src": "/js/script-element.js"
+        },
+        {
+          "src": "https://sdk.feedback.one/v0/core.min.js",
+          "data-project-id": "0197b2f7-ff12-73a1-bc85-554049b435ef",
+          "defer" : "true"
         }
       ]
     },

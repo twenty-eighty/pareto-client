@@ -94,7 +94,7 @@ init flagsResult _ =
                         Nostr.TestModeOff
 
                 ( nostrInit, nostrInitCmd ) =
-                    Nostr.init portHooks nostrTestMode Pareto.defaultRelays
+                    Nostr.init portHooks browserEnv.environment nostrTestMode Pareto.defaultRelays
 
                 -- request bookmark list of Pareto creators
                 -- as well as bookmark sets for different purposes

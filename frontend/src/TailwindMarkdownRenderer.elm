@@ -567,11 +567,16 @@ defaultFormatCodeBlock body =
         [ css
             [ Tw.bg_scroll
             , Tw.overflow_x_auto
-            , Tw.max_w_prose
+            , Tw.max_w_full
             , Tw.p_3
             , Tw.rounded_2xl
-            , Tw.bg_color styles.color2
-            , darkMode [ Tw.bg_color styles.color2DarkMode ]
+            , Tw.text_sm
+            , Tw.text_color styles.color1
+            , Tw.bg_color styles.color4
+            , darkMode
+                [ Tw.text_color styles.color4DarkMode
+                , Tw.bg_color styles.color2DarkMode
+                ]
             , Tw.mb_3
             ]
         ]

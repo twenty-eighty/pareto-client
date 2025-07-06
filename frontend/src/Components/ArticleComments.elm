@@ -373,7 +373,7 @@ viewCommentHeader browserEnv styles nostr pubKey createdAt =
                     (\profile ->
                         Nostr.getProfileValidationStatus nostr profile.pubKey
                             |> Maybe.withDefault ValidationUnknown
-                            |> Ui.Profile.viewProfileSmall styles followLinks profile
+                            |> Ui.Profile.viewProfileSmall browserEnv.environment styles followLinks profile
                     )
                 |> Maybe.withDefault emptyHtml
     in
