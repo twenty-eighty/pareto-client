@@ -489,7 +489,7 @@
    },
    "newsletters": {
       "newsletters title": "Рассылки",
-      "loading newsletters text": "Рассылки",
+      "loading newsletters text": "Загрузка рассылок...",
       "error loading newsletters text": "Рассылки",
       "no newsletters text": "Рассылки",
       "date column name": "Дата",
