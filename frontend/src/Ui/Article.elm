@@ -271,7 +271,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                         ]
                     ]
                 ]
-                [ Ui.Profile.viewBanner (getProfile article.author |> Maybe.andThen .banner)
+                [ Ui.Profile.viewBanner articlePreviewsData.browserEnv.environment (getProfile article.author)
                 , div
                     [ css
                         [ Tw.absolute
@@ -373,7 +373,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                             ++ textStyleReactions
                             ++ contentMargins
                         )
-                        [ viewContent styles articlePreviewData.loadedContent getProfile article.content
+                        [ viewContent articlePreviewsData.browserEnv.environment styles articlePreviewData.loadedContent getProfile article.content
                         , viewInteractions previewData "1"
                         ]
                     , div
@@ -589,8 +589,8 @@ viewArticleTime browserEnv maybePublishedAt createdAt =
         [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
 
 
-viewContent : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Html msg
-viewContent styles loadedContent fnGetProfile content =
+viewContent : Environment -> Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Html msg
+viewContent environment styles loadedContent fnGetProfile content =
     article
         [ css
             [ Tw.flex_col
@@ -602,13 +602,13 @@ viewContent styles loadedContent fnGetProfile content =
                 ]
             ]
         ]
-        [ viewContentMarkdown styles loadedContent fnGetProfile content
+        [ viewContentMarkdown environment styles loadedContent fnGetProfile content
         ]
 
 
-viewContentMarkdown : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Html msg
-viewContentMarkdown styles loadedContent fnGetProfile content =
-    case Markdown.markdownViewHtml styles loadedContent fnGetProfile content of
+viewContentMarkdown : Environment -> Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Html msg
+viewContentMarkdown environment styles loadedContent fnGetProfile content =
+    case Markdown.markdownViewHtml environment styles loadedContent fnGetProfile content of
         Ok html ->
             html
 
@@ -662,7 +662,7 @@ viewArticleInternal environment styles loadedContent fnGetProfile article =
                        ]
                 )
                 [ text <| Maybe.withDefault "" article.summary ]
-            , viewContent styles loadedContent fnGetProfile article.content
+            , viewContent environment styles loadedContent fnGetProfile article.content
             ]
         ]
 

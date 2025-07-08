@@ -476,12 +476,16 @@ generateYouTubePreview maybeLoadedContent urlString videoId =
 generateOdyseePreview : Maybe (LoadedContent msg) -> String -> Html msg
 generateOdyseePreview maybeLoadedContent urlString =
     let
+        odyseeNormalizedUrlString =
+            urlString
+                |> normalizeOdyseeUrl
+
         ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
                 Just loadedContent ->
-                    ( Set.member urlString loadedContent.loadedUrls
+                    ( Set.member odyseeNormalizedUrlString loadedContent.loadedUrls
                     , Html.div
-                    , [ Events.onClick (loadedContent.addLoadedContentFunction urlString)
+                    , [ Events.onClick (loadedContent.addLoadedContentFunction odyseeNormalizedUrlString)
                       , css
                             [ Tw.cursor_pointer
                             ]
@@ -489,9 +493,9 @@ generateOdyseePreview maybeLoadedContent urlString =
                     )
 
                 Nothing ->
-                    ( False, Html.a, [ href urlString ] )
+                    ( False, Html.a, [ href odyseeNormalizedUrlString ] )
     in
-    case ( showEmbedded, Url.fromString urlString ) of
+    case ( showEmbedded, Url.fromString odyseeNormalizedUrlString ) of
         -- The Erl URL parser apparently doesn't deliver the correct path for Odysee URLS with path segments like "@abcd:7" - the ":7" is missing
         -- once this is fixed we could avoid parsing the URL here (again)
         ( True, Just url ) ->
@@ -505,6 +509,37 @@ generateOdyseePreview maybeLoadedContent urlString =
 
         ( _, _ ) ->
             videoThumbnailPreview linkElement clickAttr ("https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString)
+
+
+-- Function to normalize Odysee URL strings by decoding percent-encoded text in the path
+-- and removing /$/embed/ or /%24/embed/ prefixes
+-- Example: "https://odysee.com/%24/embed/%40MWGFD%3A0%2Ftillenburg_katja%3Ae?autoplay=true"
+-- becomes: "https://odysee.com/@MWGFD:0/tillenburg_katja:e?autoplay=true"
+normalizeOdyseeUrl : String -> String
+normalizeOdyseeUrl urlString =
+    case Url.fromString urlString of
+        Just url ->
+            let
+                decodedPath =
+                    url.path
+                        |> Url.percentDecode
+                        |> Maybe.withDefault url.path
+                
+                -- Remove /$/embed/ prefix if present (after decoding)
+                cleanedPath =
+                    if String.startsWith "/$/embed/" decodedPath then
+                        String.dropLeft 7 decodedPath
+                    else
+                        decodedPath
+                
+                normalizedUrl =
+                    { url | path = cleanedPath }
+            in
+            Url.toString normalizedUrl
+            
+        Nothing ->
+            urlString
+
 
 
 

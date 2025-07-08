@@ -2,6 +2,7 @@ module Markdown exposing (collectImageUrls, collectText, markdownViewHtml, summa
 
 -- import Html exposing (Attribute, Html)
 
+import BrowserEnv exposing (Environment)
 import Html.Styled as Html exposing (..)
 import LinkPreview exposing (LoadedContent)
 import Markdown.Block exposing (Block(..), ListItem(..), Task(..))
@@ -136,14 +137,14 @@ deadEndsToString deadEnds =
         |> String.join "\n"
 
 
-markdownViewHtml : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Result String (Html msg)
-markdownViewHtml styles loadedContent fnGetProfile markdown =
-    render styles loadedContent fnGetProfile markdown
+markdownViewHtml : Environment -> Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Result String (Html msg)
+markdownViewHtml environment styles loadedContent fnGetProfile markdown =
+    render environment styles loadedContent fnGetProfile markdown
         |> Result.map elementFromHtmlList
 
 
-render : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Result String (List (Html msg))
-render styles loadedContent fnGetProfile markdown =
+render : Environment -> Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Result String (List (Html msg))
+render environment styles loadedContent fnGetProfile markdown =
     markdown
         |> replaceImgTags
         |> replaceBrokenColTag
@@ -155,7 +156,7 @@ render styles loadedContent fnGetProfile markdown =
                 ast
                     |> Renderer.renderWithMeta
                         (\blockType ->
-                            rendererForBlockType styles loadedContent fnGetProfile blockType
+                            rendererForBlockType environment styles loadedContent fnGetProfile blockType
                         )
             )
 
@@ -344,11 +345,11 @@ generateEmbedForParagraph inlines =
             False
 
 
-rendererForBlockType : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> BlockType -> Renderer.Renderer (Html msg)
-rendererForBlockType styles loadedContent fnGetProfile blockType =
+rendererForBlockType : Environment -> Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> BlockType -> Renderer.Renderer (Html msg)
+rendererForBlockType environment styles loadedContent fnGetProfile blockType =
     let
         defaultRenderer =
-            TailwindMarkdownRenderer.renderer styles fnGetProfile
+            TailwindMarkdownRenderer.renderer environment styles fnGetProfile
     in
     case blockType of
         DefaultBlock ->
