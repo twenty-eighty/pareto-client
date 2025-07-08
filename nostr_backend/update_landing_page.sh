@@ -11,10 +11,12 @@ INDEX_EN_MOBILE=priv/static/lp/en/index_mobile.html
 INDEX_DE_DESKTOP=priv/static/lp/de/index.html
 INDEX_DE_MOBILE=priv/static/lp/de/index_mobile.html
 
+
 # Common replacements
 COMMON_REPLACEMENTS=(
   -e 's|pareto.onepage.me|pareto.space|g'
   -e 's|/sitemap.xml|/sitemap/sitemap.xml.gz|g'
+  -e 's|</head>|<script src="https://sdk.feedback.one/v0/core.min.js" data-project-id="0197b2f7-ff12-73a1-bc85-554049b435ef" defer ></script></head>|g'
 )
 
 # EN/desktop
