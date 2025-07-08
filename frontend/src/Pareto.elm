@@ -299,7 +299,6 @@ bootstrapAuthorsList =
     , ( "sinautoshi@pareto.town", "04ea4f8350f1562aa1d60dc070561f5bb8386a11d1a00570fd7440da210e1713" )
     , ( "snicklink@pareto.town", "d898c64d7901515fbe9d54c64d740713a92e5b4c1783a16e37ff1c531298b265" )
     , ( "someone@pareto.town", "9fec72d579baaa772af9e71e638b529215721ace6e0f8320725ecbf9f77f85b1" )
-    , ( "schwurbeloase@pareto.town", "6bba4af1d6fe611658705e949c3e921836592f1a11e03d4d13771dfe5ff587e1" )
     , ( "te@pareto.town", "fe02e8ece33b9e01b4225a01bb373552dc6f78744ad8121698c30bfaf07fbe0b" )
     , ( "unsere-verfassung@pareto.town", "56f279150240a326e2bd58f6b7a2486c84f4cfb4baacbdbdf1e8145d5fee3024" )
     , ( "unzicker@pareto.town", "0e5b795a07479e4e5fcbe197a09284b6a8fecb89e63481818453baf19176f766" )
@@ -310,6 +309,7 @@ bootstrapAuthorsList =
     -- , ( "1bis19@pareto.town", "df32e891bfcbe0aed4518b21466c1807ea68394fe4f1fcd8c826a3ca1ed0b7e7" )
     -- , ( "alix@pareto.town", "c93ea055634fb683be4202dd04e336663fb7823c5f1c35ad26b522a3eed5ac4c" )
     -- , ( "nachhall@pareto.town", "712db8c83700aca0ffa1c3b759929e18d26fcc2b6eeb07305bdf33760b42cbce" )
+    -- , ( "schwurbeloase@pareto.town", "6bba4af1d6fe611658705e949c3e921836592f1a11e03d4d13771dfe5ff587e1" )
     -- , ( "volker.schubert@pareto.town", "80f49d824217e4730aadb729d38775bb2a31405b92a3d70ea37b73fcab3cb150" )
     ]
         |> Dict.fromList
