@@ -113,7 +113,7 @@
       "profile nip-05 invalid explanation": "El identificador NIP-05 en el perfil es inválido.",
       "profile avatar missing text": "Falta imagen de avatar en el perfil",
       "profile avatar missing explanation": "No hay imagen de perfil establecida.",
-      "profile avatar not url text": "La imagen de avatar del perfil no es una URL",   
+      "profile avatar not url text": "La imagen de avatar del perfil no es una URL",
       "profile avatar not url explanation": "La imagen de avatar del perfil no es una URL válida.",
       "profile avatar too large text": "Imagen de avatar del perfil muy grande",
       "profile avatar too large explanation": "La imagen de avatar del perfil es muy grande: ({{size}}). Esto no se recomienda ya que puede ralentizar la carga de la página.",
@@ -839,4 +839,4 @@
    "tech details": {
       "page title": "Detalles Técnicos"
    }
-} 
+}
