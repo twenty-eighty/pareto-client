@@ -15,4 +15,12 @@ npm install
 
 ./gen-build-info.sh
 
+if [ -n "${ELM_ENV+x}" ]; then
+    sed -i "s/env.ELM_ENV/\"${ELM_ENV}\"/g" src/interop.js
+fi
+
 elm-land build
+
+if [ -n "${ELM_ENV+x}" ]; then
+    git checkout -- src/interop.js
+fi
