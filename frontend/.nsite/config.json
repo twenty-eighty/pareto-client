@@ -15,6 +15,7 @@
     "display_name": "Pareto Client",
     "about": "An open source publishing ecosystem for uncensorable citizen journalism, powered by Nostr, Lightning and eCash. See more on pareto.space."
   },
+  "fallback": "/index.html",
   "publishProfile": true,
   "publishRelayList": true,
   "publishServerList": true
