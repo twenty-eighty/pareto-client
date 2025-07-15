@@ -28,9 +28,9 @@
       "reading time": "Время чтения",
       "speaking time": "Время чтения вслух:",
       "time unit": "{{minutes}} мин",
-      "sentences": "Предложения",
-      "words": "Слова",
-      "characters": "Символы",
+      "sentences": "Количество предложений:",
+      "words": "Количество слов:",
+      "characters": "Количество символов:",
       "link to hashtag aria label": "Ссылка на поиск хештега {{hashtag}}"
    },
    "article page": {
