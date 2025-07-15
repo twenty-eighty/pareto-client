@@ -47,12 +47,13 @@ type PostCategory
     | Meme
     | Food
     | Animals
-    | Plants
+    | Nature
     | Science
     | Technology
     | Politics
     | Culture
     | Sports
+    | Travel
 
 
 type Model
@@ -457,7 +458,7 @@ viewPicturePostDialog (Settings settings) picturePost postButtonText buttonMsg m
                 , Dropdown.new
                     { model = model.categoryDropdown
                     , toMsg = CategoryDropdownSent
-                    , choices = [ Art, Meme, Food, Animals, Plants, Science, Technology, Politics, Culture, Sports ]
+                    , choices = [ Art, Meme, Food, Animals, Nature, Science, Technology, Politics, Culture, Sports, Travel ]
                     , allowNoSelection = True
                     , toLabel = toCategoryLabel settings.browserEnv.translations
                     }
@@ -528,8 +529,8 @@ categoryToString translations category =
         Animals ->
             Translations.animalsCategoryText [ translations ]
 
-        Plants ->
-            Translations.plantsCategoryText [ translations ]
+        Nature ->
+            Translations.natureCategoryText [ translations ]
 
         Science ->
             Translations.scienceCategoryText [ translations ]
@@ -545,6 +546,9 @@ categoryToString translations category =
 
         Sports ->
             Translations.sportsCategoryText [ translations ]
+
+        Travel ->
+            Translations.travelCategoryText [ translations ]
 
 
 categoryToHashtag : PostCategory -> String
@@ -562,8 +566,8 @@ categoryToHashtag category =
         Animals ->
             "animals"
 
-        Plants ->
-            "plants"
+        Nature ->
+            "nature"
 
         Science ->
             "science"
@@ -579,6 +583,9 @@ categoryToHashtag category =
 
         Sports ->
             "sports"
+
+        Travel ->
+            "travel"
 
 
 setPicturePostDescription : PicturePost -> String -> PicturePost
