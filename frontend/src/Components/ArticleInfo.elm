@@ -93,9 +93,9 @@ view styles author article articleInfoData =
             [ Tw.text_sm
             , Tw.font_semibold
             , Tw.tracking_wide
-            , Tw.text_color styles.color1
-            , Tw.bg_color styles.color3
-            , Ui.Styles.darkMode [ Tw.bg_color styles.color4 ]
+            , Tw.text_color styles.colorB1
+            , Tw.bg_color styles.colorB3
+            , Ui.Styles.darkMode [ Tw.bg_color styles.colorB4 ]
             , Bp.lg
                 [ Tw.block
                 , Tw.max_w_60
@@ -153,7 +153,7 @@ view styles author article articleInfoData =
                     [ css
                         [ Tw.text_xs
                         , Tw.tracking_wide
-                        , Tw.text_color styles.color2
+                        , Tw.text_color styles.colorB2
                         ]
                     ]
                     [ text articlePublishedDate ]
@@ -188,7 +188,7 @@ viewAuthorStat styles stat counter =
             , Tw.neg_mx_4
             , Tw.text_xs
             , Tw.tracking_wide
-            , Tw.text_color styles.color2
+            , Tw.text_color styles.colorB2
             , Bp.md
                 [ Tw.mb_0
                 ]
@@ -257,7 +257,7 @@ viewArticleStats styles textStats browserEnv =
                     , Tw.text_sm
                     , Tw.tracking_wide
                     , Tw.leading_none
-                    , Tw.text_color styles.color2
+                    , Tw.text_color styles.colorB2
                     , Tw.my_1_dot_5
                     ]
                 ]

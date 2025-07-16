@@ -407,7 +407,7 @@ viewNpub theme profile =
             emptyHtml
 
 
-copyButton : Theme -> String -> String -> Html msg 
+copyButton : Theme -> String -> String -> Html msg
 copyButton theme copyText uniqueId =
     let
         styles =
@@ -418,16 +418,15 @@ copyButton theme copyText uniqueId =
     in
     Html.div
         [ Attr.css
-            [ 
-            ]
+            []
         ]
         [ Html.div
             [ Attr.css
                 [ Tw.flex
                 , Tw.flex_row
                 , Tw.cursor_pointer
-                , Tw.text_color styles.color4
-                , darkMode [ Tw.text_color styles.color4DarkMode ]
+                , Tw.text_color styles.colorB4
+                , darkMode [ Tw.text_color styles.colorB4DarkMode ]
                 ]
             , Attr.id elementId
             ]
@@ -436,7 +435,8 @@ copyButton theme copyText uniqueId =
         , Html.node "js-clipboard-component"
             [ Attr.property "buttonId" (Encode.string elementId)
             , Attr.property "copyContent" (Encode.string copyText)
---          , Events.on "copiedToClipboard" (Decode.succeed ShowCopiedMessage)
+
+            --          , Events.on "copiedToClipboard" (Decode.succeed ShowCopiedMessage)
             ]
             []
         ]

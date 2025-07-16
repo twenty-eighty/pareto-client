@@ -20,11 +20,12 @@ import Layouts
 import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
 import Locale exposing (Language(..), languageToISOCode, languageToString)
+import Markdown
 import Milkdown.MilkdownEditor as Milkdown
 import Nostr
-import Nostr.Article exposing (articleFromEvent)
+import Nostr.Article exposing (addressComponentsForArticle, articleFromEvent)
 import Nostr.DeletionRequest exposing (draftDeletionEvent)
-import Nostr.Event as Event exposing (Event, ImageMetadata, Kind(..), Tag(..), numberForKind)
+import Nostr.Event as Event exposing (AddressComponents, Event, ImageMetadata, Kind(..), Tag(..), numberForKind)
 import Nostr.External
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip27 as Nip27
@@ -52,9 +53,6 @@ import Ui.Article
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
 import View exposing (View)
-import Markdown
-import Nostr.Article exposing (addressComponentsForArticle)
-import Nostr.Event exposing (AddressComponents)
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
@@ -290,6 +288,7 @@ defaultZapWeights pubKey =
         [ ( pubKey, Pareto.paretoRelay, Just 80 )
         , ( Pareto.paretoClientPubKey, Pareto.paretoRelay, Just 20 )
         ]
+
 
 
 -- UPDATE
@@ -888,6 +887,7 @@ eventWithContent shared model user kind =
     , relays = Nothing
     }
 
+
 getImageMetadata : Model -> String -> Maybe ImageMetadata
 getImageMetadata model imageUrl =
     -- default: check if article has image metadata already
@@ -900,19 +900,21 @@ getImageMetadata model imageUrl =
             MediaSelector.fileMetadataForUrl model.mediaSelector imageUrl
                 |> Maybe.andThen imageMetadataFromFileMetadata
 
+
 imageMetadataFromFileMetadata : FileMetadata -> Maybe ImageMetadata
 imageMetadataFromFileMetadata fileMetadata =
     fileMetadata.url
-        |> Maybe.map (\url ->
-            { url = url
-            , mimeType = fileMetadata.mimeType
-            , blurHash = fileMetadata.blurhash
-            , dim = fileMetadata.dim
-            , alt = fileMetadata.alt
-            , x = fileMetadata.xHash
-            , fallbacks = fileMetadata.fallbacks |> Maybe.withDefault []
-            }
-        )
+        |> Maybe.map
+            (\url ->
+                { url = url
+                , mimeType = fileMetadata.mimeType
+                , blurHash = fileMetadata.blurhash
+                , dim = fileMetadata.dim
+                , alt = fileMetadata.alt
+                , x = fileMetadata.xHash
+                , fallbacks = fileMetadata.fallbacks |> Maybe.withDefault []
+                }
+            )
 
 
 languageISOCode : Model -> Maybe String
@@ -1343,11 +1345,11 @@ viewImage translations model =
                     [ Tw.w_48
                     , Tw.h_32
                     , Tw.flex
-                    , Tw.bg_color styles.color2
+                    , Tw.bg_color styles.colorB2
                     , Tw.justify_center
                     , Tw.items_center
                     , Tw.cursor_pointer
-                    , darkMode [ Tw.bg_color styles.color2DarkMode ]
+                    , darkMode [ Tw.bg_color styles.colorB2DarkMode ]
                     ]
                 , Events.onClick (SelectImage ArticleImageSelection)
                 ]

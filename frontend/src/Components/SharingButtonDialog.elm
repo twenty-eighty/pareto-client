@@ -13,24 +13,25 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Icon as Icon
 import Components.ModalDialog as ModalDialog
-import Json.Encode as Encode
-import Json.Decode as Decode
 import Effect exposing (Effect)
 import FeatherIcons
 import Graphics
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events as Events
+import Json.Decode as Decode
+import Json.Encode as Encode
 import Ports
 import QRCode
 import SHA256
 import Shared.Msg
 import Svg.Attributes as SvgAttr
+import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.SharingButtonDialog as Translations
 import Ui.Styles exposing (Theme, darkMode, stylesForTheme)
 import Url.Builder
-import Tailwind.Theme as Theme
+
 
 type SharingButtonDialog msg
     = Settings
@@ -41,12 +42,14 @@ type SharingButtonDialog msg
         , theme : Theme
         }
 
+
 type alias SharingInfo =
     { url : String
     , title : String
     , text : String
     , hashtags : List String
     }
+
 
 new :
     { model : Model
@@ -71,10 +74,12 @@ type Model
         { state : State
         }
 
+
 type State
     = Hidden
     | ShowingQrcode
     | ShowingSocials
+
 
 type SocialMedia
     = Facebook
@@ -83,6 +88,7 @@ type SocialMedia
     | Reddit
     | Telegram
     | WhatsApp
+
 
 init : Model
 init =
@@ -96,6 +102,7 @@ type Msg
     | NoOp
     | UpdateState State
     | ShowCopiedMessage
+
 
 update :
     { msg : Msg
@@ -139,6 +146,7 @@ update props =
                 , Effect.sendSharedMsg <| Shared.Msg.ShowAlert (Translations.copiedToClipboardAlertMessage [ props.browserEnv.translations ])
                 )
 
+
 shareSocialLink : SharingInfo -> SocialMedia -> String
 shareSocialLink sharingInfo socialMedia =
     case socialMedia of
@@ -178,9 +186,10 @@ shareSocialLink sharingInfo socialMedia =
 
         WhatsApp ->
             Url.Builder.crossOrigin "https://wa.me"
-                [ ]
+                []
                 [ Url.Builder.string "text" (sharingInfoToText sharingInfo)
                 ]
+
 
 sharingInfoToText : SharingInfo -> String
 sharingInfoToText sharingInfo =
@@ -189,6 +198,7 @@ sharingInfoToText sharingInfo =
         ++ sharingInfo.text
         ++ "\n"
         ++ sharingInfo.url
+
 
 view : SharingButtonDialog msg -> Html msg
 view (Settings settings) =
@@ -210,9 +220,10 @@ view (Settings settings) =
         buttonMsg =
             if BrowserEnv.isNativeSharingAvailable settings.browserEnv then
                 ShareLink settings.sharingInfo
+
             else
                 UpdateState ShowingQrcode
-    
+
         button =
             Html.button
                 [ Attr.type_ "button"
@@ -224,6 +235,7 @@ view (Settings settings) =
     in
     if BrowserEnv.isNativeSharingAvailable settings.browserEnv then
         button
+
     else
         Html.div
             [ Attr.css
@@ -236,12 +248,13 @@ view (Settings settings) =
             , dialog
             ]
 
+
 viewDialog : SharingButtonDialog msg -> Html msg
 viewDialog (Settings settings) =
     let
         qrCode =
             settings.sharingInfo.url
-                |> QRCode.fromString 
+                |> QRCode.fromString
                 |> Result.map
                     (\qrcode ->
                         qrcode
@@ -252,7 +265,7 @@ viewDialog (Settings settings) =
     in
     ModalDialog.new
         { title = Translations.dialogTitle [ settings.browserEnv.translations ]
-        , buttons = [ ]
+        , buttons = []
         , content =
             [ Html.div
                 [ Attr.css
@@ -385,11 +398,12 @@ socialMediaButtons (Settings settings) =
         ]
 
 
-copyButton : SharingButtonDialog msg -> String -> String -> Html Msg 
+copyButton : SharingButtonDialog msg -> String -> String -> Html Msg
 copyButton (Settings settings) copyText uniqueId =
     let
         styles =
             stylesForTheme settings.theme
+
         elementId =
             "copy-to-clipboard-" ++ uniqueId
     in
@@ -404,8 +418,8 @@ copyButton (Settings settings) copyText uniqueId =
                 [ Tw.flex
                 , Tw.flex_row
                 , Tw.cursor_pointer
-                , Tw.text_color styles.color4
-                , darkMode [ Tw.text_color styles.color4DarkMode ]
+                , Tw.text_color styles.colorB4
+                , darkMode [ Tw.text_color styles.colorB4DarkMode ]
                 ]
             , Attr.id elementId
             ]

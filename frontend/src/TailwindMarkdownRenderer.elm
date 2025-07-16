@@ -3,7 +3,7 @@ module TailwindMarkdownRenderer exposing (renderer)
 import BrowserEnv exposing (Environment)
 import Css
 import Html.Styled as Html exposing (Html)
-import Html.Styled.Attributes as Attr exposing (css)
+import Html.Styled.Attributes as Attr exposing (css, src)
 import LinkPreview
 import Markdown.Block as Block
 import Markdown.Html
@@ -16,7 +16,6 @@ import Tailwind.Utilities as Tw
 import Ui.Links
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyRobotoMono, print, stylesForTheme)
-import Html.Styled.Attributes exposing (src)
 
 
 textStyleArticleCode : List (Html.Attribute msg)
@@ -85,8 +84,8 @@ renderer environment styles fnGetProfile =
             let
                 imagesrc =
                     image.src
-                    |> ensureHttps
-                    |> Ui.Links.scaledImageLink environment 650
+                        |> ensureHttps
+                        |> Ui.Links.scaledImageLink environment 650
             in
             case ( image.title, image.src ) of
                 ( _, "" ) ->
@@ -580,11 +579,11 @@ defaultFormatCodeBlock body =
             , Tw.p_3
             , Tw.rounded_2xl
             , Tw.text_sm
-            , Tw.text_color styles.color1
-            , Tw.bg_color styles.color4
+            , Tw.text_color styles.colorB1
+            , Tw.bg_color styles.colorB4
             , darkMode
-                [ Tw.text_color styles.color4DarkMode
-                , Tw.bg_color styles.color2DarkMode
+                [ Tw.text_color styles.colorB4DarkMode
+                , Tw.bg_color styles.colorB2DarkMode
                 ]
             , Tw.mb_3
             ]

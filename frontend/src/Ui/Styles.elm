@@ -41,16 +41,16 @@ type Theme
 
 
 type alias CustomThemeParams =
-    { color1 : Theme.Color
-    , color1DarkMode : Theme.Color
-    , color2 : Theme.Color
-    , color2DarkMode : Theme.Color
-    , color3 : Theme.Color
-    , color3DarkMode : Theme.Color
-    , color4 : Theme.Color
-    , color4DarkMode : Theme.Color
-    , color5 : Theme.Color
-    , color5DarkMode : Theme.Color
+    { colorB1 : Theme.Color
+    , colorB1DarkMode : Theme.Color
+    , colorB2 : Theme.Color
+    , colorB2DarkMode : Theme.Color
+    , colorB3 : Theme.Color
+    , colorB3DarkMode : Theme.Color
+    , colorB4 : Theme.Color
+    , colorB4DarkMode : Theme.Color
+    , colorB5 : Theme.Color
+    , colorB5DarkMode : Theme.Color
     }
 
 
@@ -76,16 +76,16 @@ mapStyleBundle toMsg styles =
 
 map : (msg1 -> msg2) -> Styles msg1 -> Styles msg2
 map toMsg props =
-    { color1 = props.color1
-    , color1DarkMode = props.color1DarkMode
-    , color2 = props.color2
-    , color2DarkMode = props.color1DarkMode
-    , color3 = props.color3
-    , color3DarkMode = props.color1DarkMode
-    , color4 = props.color4
-    , color4DarkMode = props.color1DarkMode
-    , color5 = props.color5
-    , color5DarkMode = props.color5DarkMode
+    { colorB1 = props.colorB1
+    , colorB1DarkMode = props.colorB1DarkMode
+    , colorB2 = props.colorB2
+    , colorB2DarkMode = props.colorB1DarkMode
+    , colorB3 = props.colorB3
+    , colorB3DarkMode = props.colorB1DarkMode
+    , colorB4 = props.colorB4
+    , colorB4DarkMode = props.colorB1DarkMode
+    , colorB5 = props.colorB5
+    , colorB5DarkMode = props.colorB5DarkMode
     , textStyleLinks = mapStyleBundle toMsg props.textStyleLinks
     , textStyleBody = mapStyleBundle toMsg props.textStyleBody
     , textStyleSemiboldLabel = mapStyleBundle toMsg props.textStyleSemiboldLabel
@@ -114,16 +114,16 @@ map toMsg props =
 
 
 type alias Styles msg =
-    { color1 : Theme.Color
-    , color1DarkMode : Theme.Color
-    , color2 : Theme.Color
-    , color2DarkMode : Theme.Color
-    , color3 : Theme.Color
-    , color3DarkMode : Theme.Color
-    , color4 : Theme.Color
-    , color4DarkMode : Theme.Color
-    , color5 : Theme.Color
-    , color5DarkMode : Theme.Color
+    { colorB1 : Theme.Color
+    , colorB1DarkMode : Theme.Color
+    , colorB2 : Theme.Color
+    , colorB2DarkMode : Theme.Color
+    , colorB3 : Theme.Color
+    , colorB3DarkMode : Theme.Color
+    , colorB4 : Theme.Color
+    , colorB4DarkMode : Theme.Color
+    , colorB5 : Theme.Color
+    , colorB5DarkMode : Theme.Color
     , textStyleLinks : StyleBundle msg
     , textStyleBody : StyleBundle msg
     , textStyleSemiboldLabel : StyleBundle msg
@@ -154,62 +154,62 @@ type alias Styles msg =
 paretoThemeStyles : Styles msg
 paretoThemeStyles =
     let
-        color1 =
+        colorB1 =
             TwColor.arbitraryRgb 203 213 225
 
-        color1Inverse =
-            color5
+        colorB1Inverse =
+            colorB5
 
-        color2 =
+        colorB2 =
             TwColor.arbitraryRgb 148 163 184
 
-        color2Inverse =
-            color4
+        colorB2Inverse =
+            colorB4
 
-        color3 =
+        colorB3 =
             TwColor.arbitraryRgb 100 116 139
 
-        color3Inverse =
-            color3
+        colorB3Inverse =
+            colorB3
 
-        color4 =
+        colorB4 =
             TwColor.arbitraryRgb 51 65 85
 
-        color4Inverse =
-            color2
+        colorB4Inverse =
+            colorB2
 
-        color5 =
+        colorB5 =
             TwColor.arbitraryRgb 23 36 52
 
-        color5Inverse =
-            color1
+        colorB5Inverse =
+            colorB1
     in
     customThemeStyles
-        { color1 = color1
-        , color1DarkMode = color1Inverse
-        , color2 = color2
-        , color2DarkMode = color2Inverse
-        , color3 = color3
-        , color3DarkMode = color3Inverse
-        , color4 = color4
-        , color4DarkMode = color4Inverse
-        , color5 = color5
-        , color5DarkMode = color5Inverse
+        { colorB1 = colorB1
+        , colorB1DarkMode = colorB1Inverse
+        , colorB2 = colorB2
+        , colorB2DarkMode = colorB2Inverse
+        , colorB3 = colorB3
+        , colorB3DarkMode = colorB3Inverse
+        , colorB4 = colorB4
+        , colorB4DarkMode = colorB4Inverse
+        , colorB5 = colorB5
+        , colorB5DarkMode = colorB5Inverse
         }
 
 
 customThemeStyles : CustomThemeParams -> Styles msg
-customThemeStyles { color1, color1DarkMode, color2, color2DarkMode, color3, color3DarkMode, color4, color4DarkMode, color5, color5DarkMode } =
-    { color1 = color1
-    , color1DarkMode = color1DarkMode
-    , color2 = color2
-    , color2DarkMode = color2DarkMode
-    , color3 = color3
-    , color3DarkMode = color3DarkMode
-    , color4 = color4
-    , color4DarkMode = color4DarkMode
-    , color5 = color5
-    , color5DarkMode = color5DarkMode
+customThemeStyles { colorB1, colorB1DarkMode, colorB2, colorB2DarkMode, colorB3, colorB3DarkMode, colorB4, colorB4DarkMode, colorB5, colorB5DarkMode } =
+    { colorB1 = colorB1
+    , colorB1DarkMode = colorB1DarkMode
+    , colorB2 = colorB2
+    , colorB2DarkMode = colorB2DarkMode
+    , colorB3 = colorB3
+    , colorB3DarkMode = colorB3DarkMode
+    , colorB4 = colorB4
+    , colorB4DarkMode = colorB4DarkMode
+    , colorB5 = colorB5
+    , colorB5DarkMode = colorB5DarkMode
     , textStyleLinks =
         [ css
             [ Tw.text_base
@@ -314,46 +314,46 @@ customThemeStyles { color1, color1DarkMode, color2, color2DarkMode, color3, colo
         [ css
             [ Tw.bg_color Theme.white
             , darkMode
-                [ Tw.bg_color color1DarkMode
+                [ Tw.bg_color colorB1DarkMode
                 ]
             ]
         ]
     , colorStyleLabel =
         [ css
-            [ Tw.text_color color2
+            [ Tw.text_color colorB2
             , darkMode
-                [ Tw.text_color color2DarkMode
+                [ Tw.text_color colorB2DarkMode
                 ]
             ]
         ]
     , colorStyleLinks =
         [ css
-            [ Tw.text_color color4
+            [ Tw.text_color colorB4
             , darkMode
-                [ Tw.text_color color4DarkMode ]
+                [ Tw.text_color colorB4DarkMode ]
             ]
         ]
     , colorStyleMedia =
         [ css
-            [ Tw.text_color color2
+            [ Tw.text_color colorB2
             , darkMode
-                [ Tw.text_color color2DarkMode
+                [ Tw.text_color colorB2DarkMode
                 ]
             ]
         ]
     , colorStyleBorders =
         [ css
-            [ Tw.border_color color4
+            [ Tw.border_color colorB4
             , darkMode
-                [ Tw.border_color color4DarkMode
+                [ Tw.border_color colorB4DarkMode
                 ]
             ]
         ]
     , colorStyleIcons =
         [ css
-            [ Tw.text_color color3
+            [ Tw.text_color colorB3
             , darkMode
-                [ Tw.text_color color3DarkMode
+                [ Tw.text_color colorB3DarkMode
                 ]
             ]
         ]
@@ -366,53 +366,54 @@ customThemeStyles { color1, color1DarkMode, color2, color2DarkMode, color3, colo
         ]
     , colorStyleGrayscaleTitle =
         [ css
-            [ Tw.text_color color4
+            [ Tw.text_color colorB4
             , darkMode
-                [ Tw.text_color color4DarkMode
+                [ Tw.text_color colorB4DarkMode
                 ]
             ]
         ]
     , colorStyleGrayscaleSummary =
         [ css
-            [ Tw.text_color color4
+            [ Tw.text_color colorB4
             , darkMode
-                [ Tw.text_color color4DarkMode
+                [ Tw.text_color colorB4DarkMode
                 ]
             ]
         ]
     , colorStyleGrayscaleMuted =
         [ css
-            [ Tw.text_color color3
+            [ Tw.text_color colorB3
             , darkMode
-                [ Tw.text_color color3DarkMode
+                [ Tw.text_color colorB3DarkMode
                 ]
             ]
         ]
     , colorStyleGrayscaleText =
         [ css
-            [ Tw.text_color color4
+            [ Tw.text_color colorB4
             , darkMode
-                [ Tw.text_color color4DarkMode
+                [ Tw.text_color colorB4DarkMode
                 ]
             ]
         ]
     , colorStyleGrayscaleDisabled =
         [ css
-            [ Tw.text_color color2
+            [ Tw.text_color colorB2
             , darkMode
-                [ Tw.text_color color2DarkMode
+                [ Tw.text_color colorB2DarkMode
                 ]
             ]
         ]
     , colorStyleCode =
         [ css
-            [ Tw.text_color color4
+            [ Tw.text_color colorB4
             , darkMode
-                [ Tw.text_color color4DarkMode
+                [ Tw.text_color colorB4DarkMode
                 ]
             ]
         ]
     }
+
 
 darkMode : List Css.Style -> Css.Style
 darkMode =
