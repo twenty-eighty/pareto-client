@@ -309,6 +309,7 @@ viewInteractions articleInfoData =
         , interactionObject = articleInfoData.interactionObject
         , nostr = articleInfoData.nostr
         , loginStatus = articleInfoData.loginStatus
+        , showLabel = True
         }
         |> Interactions.withInteractionElements
             [ Interactions.CommentButtonElement Nothing

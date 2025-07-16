@@ -85,6 +85,7 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
                 , interactionObject = InteractionButton.PicturePost picturePost.id picturePost.pubKey
                 , nostr = picturePostsViewData.nostr
                 , loginStatus = picturePostsViewData.loginStatus
+                , showLabel = True
                 }
                 |> Interactions.withInteractionElements
                     ([ Interactions.LikeButtonElement
