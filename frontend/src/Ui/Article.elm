@@ -37,7 +37,7 @@ import Translations.ArticleView as Translations
 import Translations.Posts
 import Ui.Interactions
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
-import Ui.Profile
+import Ui.Profile exposing (viewProfileSmall)
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyInter, fontFamilyRobotoMono, fontFamilyUnbounded, print)
 import Url
@@ -128,9 +128,9 @@ colorStyleDate =
             Ui.Styles.stylesForTheme ParetoTheme
     in
     [ css
-        [ Tw.text_color styles.color3
+        [ Tw.text_color styles.colorB3
         , darkMode
-            [ Tw.text_color styles.color3DarkMode
+            [ Tw.text_color styles.colorB3DarkMode
             ]
         ]
     ]
@@ -143,9 +143,9 @@ colorStyleArticleHashtags =
             Ui.Styles.stylesForTheme ParetoTheme
     in
     [ css
-        [ Tw.text_color styles.color4
+        [ Tw.text_color styles.colorB4
         , darkMode
-            [ Tw.text_color styles.color4DarkMode
+            [ Tw.text_color styles.colorB4DarkMode
             ]
         ]
     ]
@@ -166,14 +166,6 @@ viewArticle articlePreviewsData articlePreviewData article =
         validationStatus =
             Nostr.getProfileValidationStatus articlePreviewsData.nostr article.author
                 |> Maybe.withDefault ValidationUnknown
-
-        followLinks =
-            Nostr.isAuthor articlePreviewsData.nostr article.author
-
-        linkElement =
-            maybeProfile
-                |> Maybe.map (\profile -> linkElementForProfile True followLinks profile validationStatus)
-                |> Maybe.withDefault (linkElementForProfilePubKey followLinks article.author)
 
         langAttr =
             case article.language of
@@ -264,22 +256,23 @@ viewArticle articlePreviewsData articlePreviewData article =
                 [ css
                     [ Tw.relative
                     , Tw.flex
-                    , Tw.flex_col
-                    , Tw.items_center
-                    , print
-                        [ Tw.hidden
-                        ]
+                    , Tw.flex_row
+                    , Tw.items_start
+                    , Tw.gap_5
+                    , Tw.p_3
+                    , Tw.bg_color styles.colorB1
+                    , print [ Tw.hidden ]
                     ]
                 ]
-                [ Ui.Profile.viewBanner articlePreviewsData.browserEnv.environment (getProfile article.author)
+                [ div [] [ text "<--" ]
                 , div
                     [ css
-                        [ Tw.absolute
-                        , Tw.top_3over4
-                        , Tw.z_10
-                        ]
+                        []
                     ]
-                    [ Ui.Profile.viewProfileImage articlePreviewsData.browserEnv.environment linkElement maybeProfile ValidationUnknown ]
+                    [ maybeProfile
+                        |> Maybe.map (\profile -> viewProfileSmall articlePreviewsData.browserEnv.environment styles True profile validationStatus)
+                        |> Maybe.withDefault (viewProfilePubKey articlePreviewsData.browserEnv.environment articlePreviewsData.browserEnv.translations article.author)
+                    ]
                 ]
             , Html.article
                 (langAttr

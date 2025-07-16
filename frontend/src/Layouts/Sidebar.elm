@@ -475,8 +475,8 @@ viewSidebar props shared model currentPath toContentMsg content =
                     , Tw.top_96
                     , Tw.right_4
                     , Tw.z_10
-                    , darkMode [ Tw.text_color styles.color5DarkMode ]
-                    , Tw.text_color styles.color5
+                    , darkMode [ Tw.text_color styles.colorB5DarkMode ]
+                    , Tw.text_color styles.colorB5
                     , Bp.lg [ Tw.hidden ]
                     , if isArticlePage then
                         Tw.block
@@ -843,28 +843,28 @@ viewSidebarItem theme currentPath itemData =
 
         colorStyleSitebarItemActive =
             [ css
-                [ Tw.text_color styles.color1
-                , Tw.bg_color styles.color3
-                , darkMode [ Tw.bg_color styles.color4 ]
+                [ Tw.text_color styles.colorB1
+                , Tw.bg_color styles.colorB3
+                , darkMode [ Tw.bg_color styles.colorB4 ]
                 ]
             ]
 
         colorStyleSitebarItemEnabled =
             [ css
-                [ Tw.text_color styles.color3
+                [ Tw.text_color styles.colorB3
                 , darkMode
-                    [ Tw.text_color styles.color2
+                    [ Tw.text_color styles.colorB2
                     ]
                 ]
             ]
 
         colorStyleSitebarItemDisabled =
             [ css
-                [ Tw.text_color styles.color2
+                [ Tw.text_color styles.colorB2
                 , Bp.sm
-                    [ Tw.text_color styles.color2
+                    [ Tw.text_color styles.colorB2
                     , darkMode
-                        [ Tw.text_color styles.color2DarkMode
+                        [ Tw.text_color styles.colorB2DarkMode
                         ]
                     ]
                 ]
@@ -950,7 +950,7 @@ loggedInButton environment theme maybeProfile =
     in
     div
         (css
-            [ Tw.bg_color styles.color1
+            [ Tw.bg_color styles.colorB1
             , Tw.py_2
             , Tw.px_2
             , Tw.rounded_full
