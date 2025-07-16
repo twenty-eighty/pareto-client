@@ -4,11 +4,13 @@ import BrowserEnv exposing (BrowserEnv, Environment)
 import Components.ArticleComments as ArticleComments
 import Components.BookmarkButton as BookmarkButton
 import Components.Button as Button
+import Components.Icon
 import Components.InteractionButton as InteractionButton exposing (InteractionObject(..))
 import Components.Interactions
 import Components.SharingButtonDialog as SharingButtonDialog
 import Css
 import Dict exposing (Dict)
+import FeatherIcons
 import Html.Styled as Html exposing (Html, a, article, div, h2, h3, img, summary, text)
 import Html.Styled.Attributes as Attr exposing (css, href)
 import I18Next
@@ -256,7 +258,8 @@ viewArticle articlePreviewsData articlePreviewData article =
                 [ css
                     [ Tw.relative
                     , Tw.flex
-                    , Tw.flex_row
+                    , Bp.lg [ Tw.flex_row ]
+                    , Tw.flex_col
                     , Tw.items_start
                     , Tw.gap_5
                     , Tw.p_3
@@ -265,14 +268,27 @@ viewArticle articlePreviewsData articlePreviewData article =
                     , print [ Tw.hidden ]
                     ]
                 ]
-                [ div [] [ text "<--" ]
-                , div
+                [ div
                     [ css
-                        []
+                        [ Tw.flex
+                        , Tw.flex_row
+                        ]
                     ]
-                    [ maybeProfile
+                    [ div [] [ text "<--" ]
+                    , maybeProfile
                         |> Maybe.map (\profile -> viewProfileSmall articlePreviewsData.browserEnv.environment styles True profile validationStatus)
                         |> Maybe.withDefault (viewProfilePubKey articlePreviewsData.browserEnv.environment articlePreviewsData.browserEnv.translations article.author)
+                    ]
+                , div [ css [] ]
+                    [ viewInteractions previewData "1" ]
+                , div [ css [ Tw.absolute, Tw.right_0, Tw.mr_4 ] ]
+                    [ Button.new
+                        { label = Translations.followAuthor [ articlePreviewsData.browserEnv.translations ]
+                        , onClick = Nothing
+                        , theme = articlePreviewsData.theme
+                        }
+                        |> Button.withIconLeft (Components.Icon.FeatherIcon FeatherIcons.plus)
+                        |> Button.view
                     ]
                 ]
             , Html.article
@@ -368,7 +384,6 @@ viewArticle articlePreviewsData articlePreviewData article =
                             ++ contentMargins
                         )
                         [ viewContent articlePreviewsData.browserEnv.environment styles articlePreviewData.loadedContent getProfile article.content
-                        , viewInteractions previewData "1"
                         ]
                     , div
                         [ css
@@ -398,9 +413,7 @@ viewInteractions : Ui.Interactions.PreviewData msg -> String -> Html msg
 viewInteractions previewData instanceId =
     div
         [ css
-            [ Tw.block
-            , Bp.lg [ Tw.hidden ]
-            ]
+            [ Tw.block ]
         ]
         [ Components.Interactions.new
             { browserEnv = previewData.browserEnv
