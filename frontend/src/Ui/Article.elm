@@ -260,7 +260,8 @@ viewArticle articlePreviewsData articlePreviewData article =
                     , Tw.items_start
                     , Tw.gap_5
                     , Tw.p_3
-                    , Tw.bg_color styles.colorB1
+                    , Tw.bg_color styles.colorG5
+                    , darkMode [ Tw.bg_color styles.colorG2 ]
                     , print [ Tw.hidden ]
                     ]
                 ]

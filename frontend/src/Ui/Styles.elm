@@ -51,6 +51,16 @@ type alias CustomThemeParams =
     , colorB4DarkMode : Theme.Color
     , colorB5 : Theme.Color
     , colorB5DarkMode : Theme.Color
+    , colorG1 : Theme.Color
+    , colorG1DarkMode : Theme.Color
+    , colorG2 : Theme.Color
+    , colorG2DarkMode : Theme.Color
+    , colorG3 : Theme.Color
+    , colorG3DarkMode : Theme.Color
+    , colorG4 : Theme.Color
+    , colorG4DarkMode : Theme.Color
+    , colorG5 : Theme.Color
+    , colorG5DarkMode : Theme.Color
     }
 
 
@@ -86,6 +96,16 @@ map toMsg props =
     , colorB4DarkMode = props.colorB1DarkMode
     , colorB5 = props.colorB5
     , colorB5DarkMode = props.colorB5DarkMode
+    , colorG1 = props.colorG1
+    , colorG1DarkMode = props.colorG1DarkMode
+    , colorG2 = props.colorG2
+    , colorG2DarkMode = props.colorG1DarkMode
+    , colorG3 = props.colorG3
+    , colorG3DarkMode = props.colorG1DarkMode
+    , colorG4 = props.colorG4
+    , colorG4DarkMode = props.colorG1DarkMode
+    , colorG5 = props.colorG5
+    , colorG5DarkMode = props.colorG5DarkMode
     , textStyleLinks = mapStyleBundle toMsg props.textStyleLinks
     , textStyleBody = mapStyleBundle toMsg props.textStyleBody
     , textStyleSemiboldLabel = mapStyleBundle toMsg props.textStyleSemiboldLabel
@@ -124,6 +144,16 @@ type alias Styles msg =
     , colorB4DarkMode : Theme.Color
     , colorB5 : Theme.Color
     , colorB5DarkMode : Theme.Color
+    , colorG1 : Theme.Color
+    , colorG1DarkMode : Theme.Color
+    , colorG2 : Theme.Color
+    , colorG2DarkMode : Theme.Color
+    , colorG3 : Theme.Color
+    , colorG3DarkMode : Theme.Color
+    , colorG4 : Theme.Color
+    , colorG4DarkMode : Theme.Color
+    , colorG5 : Theme.Color
+    , colorG5DarkMode : Theme.Color
     , textStyleLinks : StyleBundle msg
     , textStyleBody : StyleBundle msg
     , textStyleSemiboldLabel : StyleBundle msg
@@ -183,6 +213,36 @@ paretoThemeStyles =
 
         colorB5Inverse =
             colorB1
+
+        colorG1 =
+            TwColor.arbitraryRgb 230 239 241
+
+        colorG1Inverse =
+            colorG5
+
+        colorG2 =
+            TwColor.arbitraryRgb 190 209 208
+
+        colorG2Inverse =
+            colorG4
+
+        colorG3 =
+            TwColor.arbitraryRgb 140 160 157
+
+        colorG3Inverse =
+            colorG3
+
+        colorG4 =
+            TwColor.arbitraryRgb 72 90 90
+
+        colorG4Inverse =
+            colorG2
+
+        colorG5 =
+            TwColor.arbitraryRgb 36 50 52
+
+        colorG5Inverse =
+            colorG1
     in
     customThemeStyles
         { colorB1 = colorB1
@@ -195,11 +255,21 @@ paretoThemeStyles =
         , colorB4DarkMode = colorB4Inverse
         , colorB5 = colorB5
         , colorB5DarkMode = colorB5Inverse
+        , colorG1 = colorG1
+        , colorG1DarkMode = colorG1Inverse
+        , colorG2 = colorG2
+        , colorG2DarkMode = colorG2Inverse
+        , colorG3 = colorG3
+        , colorG3DarkMode = colorG3Inverse
+        , colorG4 = colorG4
+        , colorG4DarkMode = colorG4Inverse
+        , colorG5 = colorG5
+        , colorG5DarkMode = colorG5Inverse
         }
 
 
 customThemeStyles : CustomThemeParams -> Styles msg
-customThemeStyles { colorB1, colorB1DarkMode, colorB2, colorB2DarkMode, colorB3, colorB3DarkMode, colorB4, colorB4DarkMode, colorB5, colorB5DarkMode } =
+customThemeStyles { colorB1, colorB1DarkMode, colorB2, colorB2DarkMode, colorB3, colorB3DarkMode, colorB4, colorB4DarkMode, colorB5, colorB5DarkMode, colorG1, colorG1DarkMode, colorG2, colorG2DarkMode, colorG3, colorG3DarkMode, colorG4, colorG4DarkMode, colorG5, colorG5DarkMode } =
     { colorB1 = colorB1
     , colorB1DarkMode = colorB1DarkMode
     , colorB2 = colorB2
@@ -210,6 +280,16 @@ customThemeStyles { colorB1, colorB1DarkMode, colorB2, colorB2DarkMode, colorB3,
     , colorB4DarkMode = colorB4DarkMode
     , colorB5 = colorB5
     , colorB5DarkMode = colorB5DarkMode
+    , colorG1 = colorG1
+    , colorG1DarkMode = colorG1DarkMode
+    , colorG2 = colorG2
+    , colorG2DarkMode = colorG2DarkMode
+    , colorG3 = colorG3
+    , colorG3DarkMode = colorG3DarkMode
+    , colorG4 = colorG4
+    , colorG4DarkMode = colorG4DarkMode
+    , colorG5 = colorG5
+    , colorG5DarkMode = colorG5DarkMode
     , textStyleLinks =
         [ css
             [ Tw.text_base
