@@ -326,6 +326,7 @@ viewInteractions articleComments eventId pubKey kind title description =
             , interactionObject = interactionObject
             , nostr = settings.nostr
             , loginStatus = settings.loginStatus
+            , showLabel = True
             }
             |> Interactions.withInteractionElements
                 ([ Interactions.LikeButtonElement

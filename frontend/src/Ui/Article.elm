@@ -410,14 +410,14 @@ viewInteractions previewData instanceId =
             , interactionObject = previewData.interactionObject
             , nostr = previewData.nostr
             , loginStatus = previewData.loginStatus
+            , showLabel = False
             }
             |> Components.Interactions.withInteractionElements
-                [ Components.Interactions.CommentButtonElement Nothing
-                , Components.Interactions.LikeButtonElement
-                , Components.Interactions.RepostButtonElement
+                [ Components.Interactions.LikeButtonElement
                 , Components.Interactions.ZapButtonElement instanceId previewData.zapRelays
-                , Components.Interactions.BookmarkButtonElement
+                , Components.Interactions.RepostButtonElement
                 , Components.Interactions.ShareButtonElement previewData.sharingInfo
+                , Components.Interactions.BookmarkButtonElement
                 ]
             |> Components.Interactions.view
         ]
