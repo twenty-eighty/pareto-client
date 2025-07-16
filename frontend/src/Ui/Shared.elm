@@ -137,12 +137,12 @@ thinBorderButton styles onClickMsg title =
             [ Tw.py_2
             , Tw.px_4
             , Tw.rounded_full
-            , Tw.bg_color styles.color4
+            , Tw.bg_color styles.colorB4
             , Css.hover
-                [ Tw.bg_color styles.color4 ]
+                [ Tw.bg_color styles.colorB4 ]
             , darkMode
-                [ Tw.bg_color styles.color4DarkMode
-                , Css.hover [ Tw.bg_color styles.color4DarkMode ]
+                [ Tw.bg_color styles.colorB4DarkMode
+                , Css.hover [ Tw.bg_color styles.colorB4DarkMode ]
                 ]
             ]
         , Events.onClick onClickMsg
@@ -157,10 +157,10 @@ linkButton styles title url =
             [ Tw.py_2
             , Tw.px_4
             , Tw.rounded_full
-            , Tw.bg_color styles.color4
+            , Tw.bg_color styles.colorB4
             , Css.hover
-                [ Tw.bg_color styles.color4 ]
-            , darkMode [ Tw.bg_color styles.color4DarkMode, Css.hover [ Tw.bg_color styles.color4DarkMode ] ]
+                [ Tw.bg_color styles.colorB4 ]
+            , darkMode [ Tw.bg_color styles.colorB4DarkMode, Css.hover [ Tw.bg_color styles.colorB4DarkMode ] ]
             ]
         , Attr.href url
         ]
@@ -192,9 +192,9 @@ modalDialog theme title content onClose =
                         , Tw.shadow_lg
                         , Tw.drop_shadow_md
                         , Tw.backdrop_blur_md
-                        , Tw.shadow_color styles.color2
+                        , Tw.shadow_color styles.colorB2
                         , darkMode
-                            [ Tw.shadow_color styles.color2DarkMode
+                            [ Tw.shadow_color styles.colorB2DarkMode
                             ]
                         , Tw.p_8
                         , Tw.max_w_sm
@@ -221,18 +221,18 @@ modalDialog theme title content onClose =
                     [ css
                         [ Tw.text_lg
                         , Tw.font_semibold
-                        , Tw.text_color styles.color4
-                        , darkMode [ Tw.text_color styles.color4DarkMode ]
+                        , Tw.text_color styles.colorB4
+                        , darkMode [ Tw.text_color styles.colorB4DarkMode ]
                         ]
                     ]
                     [ text title ]
                 , button
                     ([ css
                         [ Css.hover
-                            [ Tw.text_color styles.color2 ]
+                            [ Tw.text_color styles.colorB2 ]
                         , darkMode
                             [ Css.hover
-                                [ Tw.text_color styles.color2DarkMode ]
+                                [ Tw.text_color styles.colorB2DarkMode ]
                             ]
                         ]
                      , Attr.id "close-modal"

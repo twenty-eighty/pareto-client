@@ -140,9 +140,9 @@ view (Settings settings) =
                         , Tw.rounded_full
                         , Tw.transition_all
                         , Tw.duration_300
-                        , Tw.bg_color styles.color1
+                        , Tw.bg_color styles.colorB1
                         , darkMode
-                            [ Tw.bg_color styles.color1DarkMode
+                            [ Tw.bg_color styles.colorB1DarkMode
                             ]
                         ]
                     ]
