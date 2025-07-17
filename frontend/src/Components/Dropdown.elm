@@ -262,12 +262,16 @@ view (Settings settings) =
         viewDropdownMenu =
             if model.isMenuOpen then
                 let
+                    sortedChoices =
+                        settings.choices
+                            |> List.sortBy (Just >> settings.toLabel)
+
                     choices =
                         if settings.allowNoSelection then
-                            Nothing :: (settings.choices |> List.map Just)
+                            Nothing :: (sortedChoices |> List.map Just)
 
                         else
-                            settings.choices |> List.map Just
+                            sortedChoices |> List.map Just
 
                     selectedIndex =
                         choices
