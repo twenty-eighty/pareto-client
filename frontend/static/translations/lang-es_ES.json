@@ -52,7 +52,7 @@
       "my bookmarks title": "Mis marcadores",
       "articles title": "Artículos",
       "notes title": "Notas",
-      "hashtags title": "Hashtags",
+      "hashtags title": "hashtag",
       "urls title": "URLs"
    },
    "calendar": {
@@ -154,7 +154,7 @@
       "profile banner error explanation": "La imagen de banner del perfil no se puede cargar."
    },
    "countries timezones": {
-      "country AD": "Andorra",
+      "country AD": "",
       "country AE": "Emiratos Árabes Unidos",
       "country AF": "Afganistán",
       "country AG": "Antigua y Barbuda",
