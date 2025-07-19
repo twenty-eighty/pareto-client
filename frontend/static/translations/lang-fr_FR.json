@@ -520,6 +520,8 @@
       "meme category text": "Mème",
       "food category text": "Nourriture",
       "animals category text": "Animaux",
+      "nature category text": "Nature",
+      "peace category text": "Peace",
       "plants category text": "Plantes",
       "science category text": "Science",
       "technology category text": "Technologie",
@@ -538,6 +540,7 @@
       "followed feed category": "Suivis",
       "memes feed category": "Mèmes",
       "art feed category": "Art",
+      "peace feed category": "Peace",
       "new picture post button label": "Publier"
    },
    "posts": {

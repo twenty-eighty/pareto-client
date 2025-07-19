@@ -28,9 +28,9 @@
       "reading time": "Время чтения",
       "speaking time": "Время чтения вслух:",
       "time unit": "{{minutes}} мин",
-      "sentences": "Предложения",
-      "words": "Слова",
-      "characters": "Символы",
+      "sentences": "Количество предложений:",
+      "words": "Количество слов:",
+      "characters": "Количество символов:",
       "link to hashtag aria label": "Ссылка на поиск хештега {{hashtag}}"
    },
    "article page": {
@@ -520,6 +520,8 @@
       "meme category text": "Мем",
       "food category text": "Еда",
       "animals category text": "Животные",
+      "nature category text": "Nature",
+      "peace category text": "Peace",
       "plants category text": "Растения",
       "science category text": "Наука",
       "technology category text": "Технологии",
@@ -538,6 +540,7 @@
       "followed feed category": "Подписки",
       "memes feed category": "Мемы",
       "art feed category": "Искусство",
+      "peace feed category": "Peace",
       "new picture post button label": "Опубликовать"
    },
    "posts": {

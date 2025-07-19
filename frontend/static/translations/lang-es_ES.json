@@ -52,7 +52,7 @@
       "my bookmarks title": "Mis marcadores",
       "articles title": "Artículos",
       "notes title": "Notas",
-      "hashtags title": "Hashtags",
+      "hashtags title": "hashtag",
       "urls title": "URLs"
    },
    "calendar": {
@@ -154,7 +154,7 @@
       "profile banner error explanation": "La imagen de banner del perfil no se puede cargar."
    },
    "countries timezones": {
-      "country AD": "Andorra",
+      "country AD": "",
       "country AE": "Emiratos Árabes Unidos",
       "country AF": "Afganistán",
       "country AG": "Antigua y Barbuda",
@@ -434,7 +434,7 @@
       "subscribe button title": "Suscribirse",
       "close button title": "Cerrar",
       "info text": "Recibe nuevos artículos de {{profileName}} en tu bandeja de entrada.",
-      "email label": "Email",
+      "email label": "Correo electrónico",
       "email placeholder": "juan@ejemplo.com",
       "privacy info": "El email es almacenado por el autor, no por el proyecto Pareto",
       "sending message text": "Enviando confirmación...",
@@ -520,6 +520,8 @@
       "meme category text": "Meme",
       "food category text": "Comida",
       "animals category text": "Animales",
+      "nature category text": "Nature",
+      "peace category text": "Peace",
       "plants category text": "Plantas",
       "science category text": "Ciencia",
       "technology category text": "Tecnología",
@@ -538,6 +540,7 @@
       "followed feed category": "Seguidos",
       "memes feed category": "Memes",
       "art feed category": "Arte",
+      "peace feed category": "Peace",
       "new picture post button label": "Publicar"
    },
    "posts": {

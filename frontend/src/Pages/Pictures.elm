@@ -128,6 +128,7 @@ type Category
     | Followed
     | Memes
     | Art
+    | Peace
 
 
 stringFromCategory : Category -> String
@@ -148,6 +149,9 @@ stringFromCategory category =
         Art ->
             "art"
 
+        Peace ->
+            "peace"
+
 categoryFromString : String -> Maybe Category
 categoryFromString categoryString =
     case categoryString of
@@ -165,6 +169,9 @@ categoryFromString categoryString =
 
         "art" ->
             Just Art
+
+        "peace" ->
+            Just Peace
 
         _ ->
             Nothing
@@ -346,6 +353,9 @@ postDialogCategory model =
         Art ->
             Just PicturePostDialog.Art
 
+        Peace ->
+            Just PicturePostDialog.Peace
+
         _ ->
             Nothing
 
@@ -391,6 +401,18 @@ filterForCategory shared category =
                 | kinds = Just [ KindPicture ]
                 , authors = Just paretoAuthors
                 , tagReferences = Just [ TagReferenceTag (PicturePostDialog.categoryToHashtag PicturePostDialog.Art) ]
+                , limit = Just 20
+            }
+
+        Peace ->
+            { emptyEventFilter
+                | kinds = Just [ KindPicture ]
+                , authors = Just paretoAuthors
+                , tagReferences =
+                    [ TagReferenceTag (PicturePostDialog.categoryToHashtag PicturePostDialog.Peace)
+                    , TagReferenceTag "frieden"
+                    ]
+                        |> Just
                 , limit = Just 20
             }
 
@@ -476,13 +498,16 @@ availableCategories nostr loginStatus translations =
         memesCategories =
             [ memesCategory translations ]
 
-        artCategories =
-            [ artCategory translations ]
+--      artCategories =
+--          [ artCategory translations ]
+
+        peaceCategories =
+            [ peaceCategory translations ]
     in
     paretoCategories
         ++ followedCategories
         ++ memesCategories
-        ++ artCategories
+        ++ peaceCategories
         {- apparently the content warning field is not consistently filled, so we don't show the global category
         ++ [ { category = Global
              , title = Translations.Read.globalFeedCategory [ translations ]
@@ -516,6 +541,12 @@ artCategory : I18Next.Translations -> Categories.CategoryData Category
 artCategory translations =
     { category = Art
     , title = Translations.artFeedCategory [ translations ]
+    }
+
+peaceCategory : I18Next.Translations -> Categories.CategoryData Category
+peaceCategory translations =
+    { category = Peace
+    , title = Translations.peaceFeedCategory [ translations ]
     }
 
 
@@ -573,6 +604,10 @@ categoryImage iconColor category =
                 |> Icon.view
                 |> Just
 
+        Peace ->
+            Icon.ParetoIcon Icon.ParetoPeaceDove 16 (Icon.TailwindColor iconColor)
+                |> Icon.view
+                |> Just
 
 viewContent : Shared.Model -> Model -> Maybe PubKey -> Html Msg
 viewContent shared model _ =
@@ -612,6 +647,9 @@ viewContent shared model _ =
             viewMemes
 
         Art ->
+            viewMemes
+
+        Peace ->
             viewMemes
 
 
