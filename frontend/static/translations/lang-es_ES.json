@@ -434,7 +434,7 @@
       "subscribe button title": "Suscribirse",
       "close button title": "Cerrar",
       "info text": "Recibe nuevos artículos de {{profileName}} en tu bandeja de entrada.",
-      "email label": "Email",
+      "email label": "Correo electrónico",
       "email placeholder": "juan@ejemplo.com",
       "privacy info": "El email es almacenado por el autor, no por el proyecto Pareto",
       "sending message text": "Enviando confirmación...",
