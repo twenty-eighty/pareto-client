@@ -521,6 +521,7 @@
       "food category text": "Essen",
       "animals category text": "Tiere",
       "nature category text": "Natur",
+      "peace category text": "Peace",
       "plants category text": "Pflanzen",
       "science category text": "Wissenschaft",
       "technology category text": "Technologie",
@@ -539,6 +540,7 @@
       "followed feed category": "Gefolgt",
       "memes feed category": "Memes",
       "art feed category": "Kunst",
+      "peace feed category": "Peace",
       "new picture post button label": "Posten"
    },
    "posts": {
