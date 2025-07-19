@@ -20,7 +20,6 @@ import Nostr.Nip68 exposing (PicturePost, emptyPicturePost, picturePostEvent)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Types exposing (IncomingMessage, LoginStatus, PubKey, loggedInSigningPubKey)
 import Ports
-import Shared
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
 import Tailwind.Utilities as Tw
@@ -44,14 +43,15 @@ type Msg
 
 type PostCategory
     = Art
+    | Culture
     | Meme
     | Food
     | Animals
     | Nature
+    | Peace
     | Science
     | Technology
     | Politics
-    | Culture
     | Sports
     | Travel
 
@@ -458,7 +458,7 @@ viewPicturePostDialog (Settings settings) picturePost postButtonText buttonMsg m
                 , Dropdown.new
                     { model = model.categoryDropdown
                     , toMsg = CategoryDropdownSent
-                    , choices = [ Art, Meme, Food, Animals, Nature, Science, Technology, Politics, Culture, Sports, Travel ]
+                    , choices = [ Art, Meme, Food, Animals, Nature, Peace, Science, Technology, Politics, Culture, Sports, Travel ]
                     , allowNoSelection = True
                     , toLabel = toCategoryLabel settings.browserEnv.translations
                     }
@@ -532,6 +532,9 @@ categoryToString translations category =
         Nature ->
             Translations.natureCategoryText [ translations ]
 
+        Peace ->
+            Translations.peaceCategoryText [ translations ]
+
         Science ->
             Translations.scienceCategoryText [ translations ]
 
@@ -568,6 +571,9 @@ categoryToHashtag category =
 
         Nature ->
             "nature"
+
+        Peace ->
+            "peace"
 
         Science ->
             "science"

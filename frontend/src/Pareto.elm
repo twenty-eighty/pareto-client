@@ -249,6 +249,7 @@ defaultRelayUrls =
 bootstrapAuthorsList : Dict String PubKey
 bootstrapAuthorsList =
     [ ( "_@pareto.space", "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84" )
+    , ( "1millionstimmen@pareto.town", "dfff06f24536cded1e33d5d5473d011553dc80d13f55f25c195c6dcc186c221b" )
     , ( "arottmann@grooveix.com", "a95c624384c60902aaac9de52ab0fce39a9e8daa3d2b14236573a093d345522c" )
     , ( "ashoka@pareto.space", "e373ca4101e25a4d4fcb2a53473fa4113b91dba2c2e451d039d8528eb82abcc5" )
     , ( "barbouille@pareto.town", "68c969eafadfc88d5937770d81031fb314b1bb1c201671403de6d930ab67edb9" )
