@@ -442,7 +442,7 @@
       "error message text": "Error suscribiéndose a la lista: {{error}}. Por favor contáctanos en support@pareto.space"
    },
    "hashtag editor": {
-      "label": "Hashtags",
+      "label": "Hashtag",
       "placeholder": "Ingresa hashtags separados por comas"
    },
    "interaction button": {
@@ -520,8 +520,8 @@
       "meme category text": "Meme",
       "food category text": "Comida",
       "animals category text": "Animales",
-      "nature category text": "Nature",
-      "peace category text": "Peace",
+      "nature category text": "Naturaleza",
+      "peace category text": "Paz",
       "plants category text": "Plantas",
       "science category text": "Ciencia",
       "technology category text": "Tecnología",
@@ -540,7 +540,7 @@
       "followed feed category": "Seguidos",
       "memes feed category": "Memes",
       "art feed category": "Arte",
-      "peace feed category": "Peace",
+      "peace feed category": "Paz",
       "new picture post button label": "Publicar"
    },
    "posts": {
