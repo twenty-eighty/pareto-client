@@ -24,6 +24,7 @@ defmodule NostrBackend.FeedGenerator do
 
   def init(_) do
     Logger.warn("FeedGenerator GenServer starting (this should only happen once unless there is a crash or code reload)")
+    Process.flag(:trap_exit, true)
     # Create necessary directories
     File.mkdir_p!(@atom_path)
     File.mkdir_p!(@sitemap_path)
@@ -57,6 +58,11 @@ defmodule NostrBackend.FeedGenerator do
   def handle_info({:eose, _subscription_id}, state) do
     # Ignore EOSE (end of stream) events; do not trigger feed generation
     Logger.info("Received EOSE (ignored)")
+    {:noreply, state}
+  end
+
+  def handle_info({:EXIT, pid, reason}, state) do
+    Logger.error("Linked process #{inspect(pid)} exited: #{inspect(reason)} (ignored, FeedGenerator will not crash)")
     {:noreply, state}
   end
 
