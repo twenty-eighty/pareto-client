@@ -54,9 +54,7 @@ defmodule NostrBackend.FeedGenerator do
   end
 
   def handle_info({:eose, _subscription_id}, state) do
-    # Start feed generation after receiving EOSE
-    Logger.info("Received EOSE, starting feed generation")
-    generate_all()
+    Logger.info("Received EOSE")
     {:noreply, state}
   end
 
