@@ -23,6 +23,7 @@ defmodule NostrBackend.FeedGenerator do
   end
 
   def init(_) do
+    Logger.warn("FeedGenerator GenServer starting (this should only happen once unless there is a crash or code reload)")
     # Create necessary directories
     File.mkdir_p!(@atom_path)
     File.mkdir_p!(@sitemap_path)
@@ -36,13 +37,13 @@ defmodule NostrBackend.FeedGenerator do
   end
 
   def handle_info(:generate, state) do
-    Logger.info("Starting feed and sitemap generation")
+    Logger.info("Starting feed and sitemap generation (manual or scheduled)")
     generate_all()
     {:noreply, state}
   end
 
   def handle_info(:regenerate, state) do
-    Logger.info("Regenerating feeds and sitemaps")
+    Logger.info("Regenerating feeds and sitemaps (scheduled)")
     generate_all()
     schedule_regeneration()
     {:noreply, state}
@@ -54,7 +55,8 @@ defmodule NostrBackend.FeedGenerator do
   end
 
   def handle_info({:eose, _subscription_id}, state) do
-    Logger.info("Received EOSE")
+    # Ignore EOSE (end of stream) events; do not trigger feed generation
+    Logger.info("Received EOSE (ignored)")
     {:noreply, state}
   end
 
@@ -63,28 +65,53 @@ defmodule NostrBackend.FeedGenerator do
   end
 
   defp generate_all do
-    source_pubkey = Application.get_env(:nostr_backend, :feed_generator)[:source_pubkey]
-    Logger.info("Using source pubkey: #{source_pubkey}")
+    try do
+      source_pubkey = Application.get_env(:nostr_backend, :feed_generator)[:source_pubkey]
+      Logger.info("Using source pubkey: #{source_pubkey}")
 
-    with {:ok, follow_list} <- FollowListCache.get_follow_list(source_pubkey) do
-      Logger.info("Got follow list with #{length(follow_list)} authors")
-      Logger.debug("Follow list: #{inspect(follow_list)}")
+      with {:ok, follow_list} <- safe_follow_list(source_pubkey) do
+        Logger.info("Got follow list with #{length(follow_list)} authors")
+        Logger.debug("Follow list: #{inspect(follow_list)}")
 
-      if length(follow_list) > 0 do
-        with {:ok, articles} <- fetch_all_articles(follow_list) do
-          Logger.info("Fetched #{length(articles)} articles")
-          generate_atom_feeds(articles)
-          generate_sitemaps(articles)
+        if length(follow_list) > 0 do
+          case safe_fetch_all_articles(follow_list) do
+            {:ok, articles} ->
+              Logger.info("Fetched #{length(articles)} articles")
+              generate_atom_feeds(articles)
+              generate_sitemaps(articles)
+            {:error, reason} ->
+              Logger.error("Failed to generate feeds and sitemaps: #{inspect(reason)}")
+          end
         else
-          {:error, reason} ->
-            Logger.error("Failed to generate feeds and sitemaps: #{inspect(reason)}")
+          Logger.info("Follow list is empty, skipping feed generation")
         end
       else
-        Logger.info("Follow list is empty, skipping feed generation")
+        {:error, reason} ->
+          Logger.error("Failed to get follow list: #{inspect(reason)}")
       end
-    else
-      {:error, reason} ->
-        Logger.error("Failed to get follow list: #{inspect(reason)}")
+    rescue
+      e ->
+        Logger.error("Exception in generate_all: #{inspect(e)}\n" <> Exception.format(:error, e, __STACKTRACE__))
+    end
+  end
+
+  defp safe_follow_list(source_pubkey) do
+    try do
+      FollowListCache.get_follow_list(source_pubkey)
+    rescue
+      e ->
+        Logger.error("Exception in FollowListCache.get_follow_list: #{inspect(e)}\n" <> Exception.format(:error, e, __STACKTRACE__))
+        {:error, e}
+    end
+  end
+
+  defp safe_fetch_all_articles(follow_list) do
+    try do
+      fetch_all_articles(follow_list)
+    rescue
+      e ->
+        Logger.error("Exception in fetch_all_articles: #{inspect(e)}\n" <> Exception.format(:error, e, __STACKTRACE__))
+        {:error, e}
     end
   end
 
