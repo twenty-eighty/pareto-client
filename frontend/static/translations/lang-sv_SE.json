@@ -520,6 +520,8 @@
       "meme category text": "Meme",
       "food category text": "Mat",
       "animals category text": "Djur",
+      "nature category text": "Nature",
+      "peace category text": "Peace",
       "plants category text": "Växter",
       "science category text": "Vetenskap",
       "technology category text": "Teknik",
@@ -538,6 +540,7 @@
       "followed feed category": "Följda",
       "memes feed category": "Memes",
       "art feed category": "Konst",
+      "peace feed category": "Peace",
       "new picture post button label": "Posta"
    },
    "posts": {
