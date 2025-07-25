@@ -200,7 +200,7 @@ defmodule NostrBackend.NostrClient do
   defp start_link(relay_url, caller_pid) do
     Logger.debug("Relay URL: #{relay_url}")
 
-    WebSockex.start_link(relay_url, __MODULE__, %{caller_pid: caller_pid},
+    WebSockex.start(relay_url, __MODULE__, %{caller_pid: caller_pid},
       handle_initial_conn_failure: true
     )
   end
@@ -407,8 +407,10 @@ defmodule NostrBackend.NostrClient do
 
   @impl true
   @spec handle_disconnect(map(), map()) :: {:ok, map()}
-  def handle_disconnect(%{reason: _reason} = _disconnect_map, state) do
-    Logger.error("Disconnected from Nostr relay")
+  def handle_disconnect(%{conn: conn, reason: reason} = _disconnect_map, state) do
+    relay = if conn && Map.has_key?(conn, :host), do: conn.host, else: "unknown"
+    level = if reason == :normal or reason == :closed, do: :info, else: :error
+    Logger.log(level, "Disconnected from Nostr relay #{relay} (reason: #{inspect(reason)})")
     {:ok, state}
   end
 end
