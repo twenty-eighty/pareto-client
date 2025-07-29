@@ -57,7 +57,9 @@ defmodule NostrBackend.MixProject do
       {:ua_inspector, "~> 3.0"},
       {:remote_ip, "~> 1.2"},
       {:posthog, "~> 0.1"},
-      {:req, "~> 0.4.0"},
+      {:req, "~> 0.5.15"},
+      {:http_cookie, "~> 0.9.0"},
+      {:brotli, "~> 0.3.0"},
       {:floki, "~> 0.37.0"},
       {:sweet_xml, "~> 0.7.5"},
       {:atomex, "~> 0.4"}

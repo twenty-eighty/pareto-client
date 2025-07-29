@@ -695,7 +695,7 @@ generateRumblePreview maybeLoadedContent urlString =
         Html.iframe
             [ Attr.width 560
             , Attr.height 315
-            , Attr.src <| "https://pareto.space/api/rumble/embed?url=" ++ Url.percentEncode urlString
+            , Attr.src <| rumbleProxyUrl urlString
             , Attr.attribute "allowfullscreen" ""
             ]
             []
@@ -703,6 +703,10 @@ generateRumblePreview maybeLoadedContent urlString =
     else
         videoThumbnailPreview linkElement clickAttr thumbnailUrl
 
+rumbleProxyUrl : String -> String
+rumbleProxyUrl urlString =
+    "https://pareto.space/api/rumble/embed?url=" ++ Url.percentEncode urlString
+    -- "http://localhost:4000/api/rumble/embed?url=" ++ Url.percentEncode urlString
 
 videoThumbnailPreview : (List (Html.Attribute msg) -> List (Html msg) -> Html msg) -> List (Html.Attribute msg) -> String -> Html msg
 videoThumbnailPreview linkElement clickAttr thumbnailUrl =
