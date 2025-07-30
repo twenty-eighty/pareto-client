@@ -279,7 +279,10 @@ viewArticle articlePreviewsData articlePreviewData article =
                         |> Maybe.map (\profile -> viewProfileSmall articlePreviewsData.browserEnv.environment styles True profile validationStatus)
                         |> Maybe.withDefault (viewProfilePubKey articlePreviewsData.browserEnv.environment articlePreviewsData.browserEnv.translations article.author)
                     ]
-                , div [ css [] ]
+                , div
+                    [ css
+                        [ Bp.lg [ Tw.absolute, Tw.right_48, Tw.mr_4 ] ]
+                    ]
                     [ viewInteractions previewData "1" ]
                 , div [ css [ Tw.absolute, Tw.right_0, Tw.mr_4 ] ]
                     [ Button.new
