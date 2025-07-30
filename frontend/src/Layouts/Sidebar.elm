@@ -674,11 +674,7 @@ viewMainContent content maybeFixedTopPart =
             ]
             [ div
                 [ css
-                    [ Tw.mb_4
-                    , Bp.sm
-                        [ Tw.my_2
-                        ]
-                    ]
+                    [ Tw.mb_4 ]
                 ]
                 content
             ]
