@@ -11,7 +11,8 @@ import Html.Styled.Attributes exposing (css)
 import Locale exposing (Language(..))
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
-import Subscribers exposing (Subscriber, SubscriberField(..))
+import Newsletters.Subscribers as Subscribers
+import Newsletters.Types exposing (Subscriber, SubscriberField(..))
 import Tailwind.Utilities as Tw
 import Translations.SubscriberEditDialog as Translations
 import Ui.Shared exposing (emptyHtml)
@@ -179,9 +180,9 @@ view dialog =
                                 , Tw.gap_3
                                 ]
                             ]
-                            [ entryField settings.theme settings.browserEnv Subscribers.FieldEmail emailSubscriptionData.subscriber
-                            , entryField settings.theme settings.browserEnv Subscribers.FieldFirstName emailSubscriptionData.subscriber
-                            , entryField settings.theme settings.browserEnv Subscribers.FieldLastName emailSubscriptionData.subscriber
+                            [ entryField settings.theme settings.browserEnv FieldEmail emailSubscriptionData.subscriber
+                            , entryField settings.theme settings.browserEnv FieldFirstName emailSubscriptionData.subscriber
+                            , entryField settings.theme settings.browserEnv FieldLastName emailSubscriptionData.subscriber
                             , Checkbox.new
                                 { label = (Subscribers.translatedFieldName settings.browserEnv.translations FieldDnd)
                                 , onClick = (\value -> { subscriber | dnd = Just value } |> UpdateSubscriber)

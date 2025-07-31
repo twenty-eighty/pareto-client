@@ -1,4 +1,5 @@
 import "./Milkdown/MilkdownEditor.js";
+import { Contacts } from "./Newsletters/Contacts.js";
 
 import NDK, { NDKUser, NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKNip46Signer, NDKNostrRpc, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
@@ -7,6 +8,8 @@ import "./clipboard-component.js";
 import "./zap-component.js";
 import "./elm-oembed.js";
 import debug from 'debug';
+
+var contacts = null;
 
 // Register custom elements
 if (!customElements.get('js-clipboard-component')) {
@@ -206,6 +209,19 @@ export const onReady = ({ app, env }) => {
 
       case 'shareLink':
         shareLink(app, value);
+        break;
+
+      // Contacts
+      case 'initContactDatabase':
+        initContactDatabase(app, value);
+        break;
+
+      case 'loadContacts':
+        loadContacts(app, value);
+        break;
+
+      case 'storeContacts':
+        storeContacts(app, value);
         break;
     }
   }
@@ -723,6 +739,58 @@ export const onReady = ({ app, env }) => {
     })
   }
 
+  function initContactDatabase(app, { url: url, pubkey: pubkey }) {
+    contacts = new Contacts(window.ndk, url, pubkey);
+
+    contacts.authenticate().then(authHeader => {
+      console.log('authHeader', authHeader);
+
+      loadContacts(app, { page: 1, perPage: 100 });
+
+      // TODO: get contacts from the database
+      const sampleContacts = [
+        {
+          firstName: "Alice",
+          lastName: "Johnson",
+          email: "alice@example.com",
+          locale: "en-US",
+          pubkey: "79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f432",
+          datesub: 1717334400,
+          source: "seed",
+          dnd: false,
+          tags: ["work", "conference", "blockchain"]
+        },
+        {
+          firstName: "Bob",
+          lastName: "Smith",
+          email: "bob@example.com",
+          locale: "de-DE",
+          pubkey: "79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f433",
+          datesub: 1717334401,
+          source: "test",
+          dnd: false,
+          tags: ["work", "design", "mobile"]
+        }
+      ];
+      
+      // 4. Store contacts
+      console.log('📝 Storing contacts...');
+      storeContacts(app, {subscribers: sampleContacts});
+      console.log('✅ Contacts stored successfully');
+
+    });
+  }
+
+  function loadContacts(app, { page: page, perPage: perPage }) {
+     contacts.getContacts(page, perPage).then(result => {
+       console.log('Contacts:', result.contacts);
+       app.ports.receiveMessage.send({ messageType: 'contacts', value: { page: page, contacts: result.contacts, errors: result.errors } });
+     });
+  }
+
+  function storeContacts(app, { subscribers: subscribers }) {
+    contacts.storeContactsBulk(subscribers, true);
+  }
 
   function requestNip96Auth(app, { requestId: requestId, fileId: fileId, serverUrl: serverUrl, apiUrl: apiUrl, method: method, hash: sha256Hash, content: content }) {
     debugLog("Nip96 auth request with requestId: " + requestId);

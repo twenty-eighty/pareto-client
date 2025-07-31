@@ -721,6 +721,7 @@
       "page title": "Subscribers",
       "export button title": "Export",
       "import button title": "Import",
+      "load button title": "Load",
       "save button title": "Save",
       "process modifications button title": "Process",
       "loading subscribers text": "Loading subscribers...",
