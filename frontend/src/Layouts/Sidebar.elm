@@ -630,7 +630,7 @@ viewSidebar props shared model currentPath toContentMsg content =
                                 Tw.contents
                             ]
                         ]
-                        [ viewMainContent content props.fixedTopPart ]
+                        [ viewMainContent content props.fixedTopPart isArticlePage ]
                     , articleInfoToggle
                     ]
                 ]
@@ -638,8 +638,8 @@ viewSidebar props shared model currentPath toContentMsg content =
         ]
 
 
-viewMainContent : List (Html contentMsg) -> Maybe ( Html contentMsg, String ) -> Html contentMsg
-viewMainContent content maybeFixedTopPart =
+viewMainContent : List (Html contentMsg) -> Maybe ( Html contentMsg, String ) -> Bool -> Html contentMsg
+viewMainContent content maybeFixedTopPart isArticlePage =
     let
         topPartHeight =
             maybeFixedTopPart
@@ -660,7 +660,11 @@ viewMainContent content maybeFixedTopPart =
             , Attr.id Shared.contentId
             , css
                 [ Tw.flex_1
-                , Tw.overflow_y_auto
+                , if not isArticlePage then
+                    Tw.overflow_y_auto
+
+                  else
+                    Tw.overflow_clip
                 , Tw.relative
                 , Css.property "height" ("calc(100vh - 5rem - 56px - " ++ topPartHeight ++ ")") -- 5rem = 80px for header
                 , Bp.sm

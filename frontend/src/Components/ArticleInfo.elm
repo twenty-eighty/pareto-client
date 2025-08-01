@@ -18,10 +18,10 @@ import Tailwind.Theme exposing (..)
 import Tailwind.Utilities as Tw exposing (..)
 import TextStats exposing (TextStats)
 import Translations.ArticleInfo as Translations
-import Ui.Article exposing (linkToHashtag)
 import Ui.Links exposing (linkElementForAuthor)
 import Ui.Profile
 import Ui.Styles exposing (Styles)
+import Url
 
 
 type alias ArticleInfoData msg =
@@ -216,6 +216,11 @@ viewAuthorStat styles stat counter =
             ]
             [ text <| String.fromInt counter ]
         ]
+
+
+linkToHashtag : String -> String
+linkToHashtag hashtag =
+    "/t/" ++ Url.percentEncode hashtag
 
 
 viewTags : I18Next.Translations -> List String -> Html msg

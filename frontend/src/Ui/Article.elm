@@ -2,6 +2,7 @@ module Ui.Article exposing (..)
 
 import BrowserEnv exposing (BrowserEnv, Environment)
 import Components.ArticleComments as ArticleComments
+import Components.ArticleInfo as ArticleInfo
 import Components.BookmarkButton as BookmarkButton
 import Components.Button as Button
 import Components.Icon
@@ -239,22 +240,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                             }
                     )
                     (addressComponentsForArticle article)
-    in
-    div
-        [ css
-            [ Tw.flex
-            , Tw.flex_wrap
-            , Tw.w_full
-            , Tw.neg_mb_4
-            , Bp.md [ Tw.mb_0 ]
-            ]
-        ]
-        [ div
-            [ css
-                [ Tw.flex_1
-                ]
-            ]
-            [ div
+
+        interactionsBar =
+            div
                 [ css
                     [ Tw.relative
                     , Tw.flex
@@ -294,7 +282,9 @@ viewArticle articlePreviewsData articlePreviewData article =
                         |> Button.view
                     ]
                 ]
-            , Html.article
+
+        articleView =
+            Html.article
                 (langAttr
                     ++ [ css
                             [ Tw.flex_col
@@ -408,7 +398,47 @@ viewArticle articlePreviewsData articlePreviewData article =
                         ]
                     ]
                 ]
+
+        articleInfo =
+            div
+                [ css
+                    [ print [ Tw.hidden ]
+                    , Bp.lg [ Tw.contents ]
+                    , Tw.hidden
+                    , Tw.grow
+                    ]
+                ]
+                [ ArticleInfo.view
+                    styles
+                    (Nostr.getAuthor articlePreviewsData.nostr article.author)
+                    article
+                    { browserEnv = articlePreviewsData.browserEnv
+                    , model = Just articlePreviewData.articleInteractions
+                    , toMsg = articlePreviewsData.articleToInteractionsMsg interactionObject
+                    , theme = articlePreviewsData.theme
+                    , interactionObject = interactionObject
+                    , nostr = articlePreviewsData.nostr
+                    , loginStatus = articlePreviewsData.loginStatus
+                    , shareInfo = sharingInfoForArticle article (Nostr.getAuthor articlePreviewsData.nostr article.author)
+                    , zapRelays = article.relays
+                    }
+                ]
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_wrap
+            , Tw.w_full
+            , Tw.neg_mb_4
+            , Bp.md [ Tw.mb_0 ]
             ]
+        ]
+        [ div
+            [ css [ Tw.flex_1, Tw.overflow_y_auto, Tw.h_screen ] ]
+            [ interactionsBar, articleView ]
+        , div
+            [ css [ Tw.flex ] ]
+            [ articleInfo ]
         ]
 
 
