@@ -537,11 +537,13 @@ memesCategory translations =
     }
 
 
+{-
 artCategory : I18Next.Translations -> Categories.CategoryData Category
 artCategory translations =
     { category = Art
     , title = Translations.artFeedCategory [ translations ]
     }
+-}
 
 peaceCategory : I18Next.Translations -> Categories.CategoryData Category
 peaceCategory translations =
