@@ -4,58 +4,60 @@ defmodule NostrBackendWeb.RumbleController do
 
   alias Req
   alias Floki
+  alias NostrBackendWeb.SharedHttpClient
 
   def fetch_embed_url(conn, %{"url" => url}) do
-    Logger.debug("URL: #{url}")
-    headers = [
-      {"User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"},
-      {"Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"},
-      {"Accept-Language", "en-US,en;q=0.5"},
-      {"Accept-Encoding", "gzip, deflate, br"},
-      {"DNT", "1"},
-      {"Connection", "keep-alive"},
-      {"Upgrade-Insecure-Requests", "1"},
-      {"Sec-Fetch-Dest", "document"},
-      {"Sec-Fetch-Mode", "navigate"},
-      {"Sec-Fetch-Site", "none"}
-    ]
+    Logger.debug("Rumble: Fetching embed URL for: #{url}")
 
-    # Create a cookie jar and attach the HttpCookie plugin
-    empty_jar = HttpCookie.Jar.new()
+    # Check cache first
+    case Cachex.get(:rumble_cache, url) do
+      {:ok, nil} ->
+        # Not in cache, fetch and cache it
+        fetch_and_cache_embed_url(conn, url)
 
-    req = Req.new(headers: headers, max_redirects: 5)
-    |> HttpCookie.ReqPlugin.attach()
+      {:ok, cached_embed_url} ->
+        # Serve cached result
+        Logger.debug("Rumble: Serving cached embed URL: #{cached_embed_url}")
+        redirect(conn, external: cached_embed_url)
 
-    case Req.get(req, url: url, cookie_jar: empty_jar) do
+      {:error, reason} ->
+        Logger.error("Rumble: Cache error: #{inspect(reason)}")
+        conn
+        |> put_status(:internal_server_error)
+        |> text("Cache error: #{inspect(reason)}")
+    end
+  end
+
+  defp fetch_and_cache_embed_url(conn, url) do
+    # Use the shared HTTP client
+    case SharedHttpClient.fetch_url_with_cookies(url) do
       {:ok, %Req.Response{body: body, status: 200}} ->
-        Logger.debug("Received HTML: #{url}")
-        process_html_response(body, conn)
+        Logger.debug("Rumble: Received HTML for: #{url}")
+        case extract_embed_url(body) do
+          {:ok, embed_url} ->
+            Logger.debug("Rumble: Extracted embed URL: #{embed_url}")
+            # Cache the result
+            Cachex.put(:rumble_cache, url, embed_url)
+            redirect(conn, external: embed_url)
+
+          :error ->
+            Logger.error("Rumble: Failed to extract embed URL from HTML")
+            conn
+            |> put_status(:not_found)
+            |> text("Embed URL not found in the provided page")
+        end
 
       {:ok, %Req.Response{status: status}} ->
-        Logger.error("HTTP request failed with status: #{status}")
+        Logger.error("Rumble: HTTP request failed with status: #{status}")
         conn
         |> put_status(:bad_request)
         |> text("HTTP request failed with status: #{status}")
 
       {:error, reason} ->
-        Logger.error("Failed to fetch URL: #{inspect(reason)}")
+        Logger.error("Rumble: Failed to fetch URL: #{inspect(reason)}")
         conn
         |> put_status(:bad_request)
         |> text("Failed to fetch URL: #{inspect(reason)}")
-    end
-  end
-
-  defp process_html_response(body, conn) do
-    case extract_embed_url(body) do
-      {:ok, embed_url} ->
-        Logger.debug("Extracted embed URL: #{embed_url}")
-        redirect(conn, external: embed_url)
-
-      :error ->
-        Logger.error("Failed to extract embed URL from HTML")
-        conn
-        |> put_status(:not_found)
-        |> text("Embed URL not found in the provided page")
     end
   end
 

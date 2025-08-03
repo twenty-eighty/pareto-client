@@ -29,6 +29,11 @@ addLoadedContent : LoadedContent msg -> String -> LoadedContent msg
 addLoadedContent loadedContent url =
     { loadedContent | loadedUrls = Set.insert url loadedContent.loadedUrls }
 
+openGraphImageUrl : String -> String
+openGraphImageUrl urlString =
+    "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
+    -- "http://localhost:4000/api/opengraph/image?url=" ++ Url.percentEncode urlString
+
 
 type LinkType
     = YouTubeVideo String
@@ -508,8 +513,7 @@ generateOdyseePreview maybeLoadedContent urlString =
                 []
 
         ( _, _ ) ->
-            videoThumbnailPreview linkElement clickAttr ("https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString)
-
+            videoThumbnailPreview linkElement clickAttr (openGraphImageUrl urlString)
 
 -- Function to normalize Odysee URL strings by decoding percent-encoded text in the path
 -- and removing /$/embed/ or /%24/embed/ prefixes
@@ -550,7 +554,7 @@ generatePodbeanPreview : Maybe (LoadedContent msg) -> String -> String -> Html m
 generatePodbeanPreview maybeLoadedContent urlString iFrameUrl =
     let
         thumbnailUrl =
-            "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
+            openGraphImageUrl urlString
 
         ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
@@ -629,7 +633,7 @@ generateGenericPreview : Maybe (LoadedContent msg) -> String -> List (Html.Attri
 generateGenericPreview maybeLoadedContent urlString linkAttr body =
     let
         thumbnailUrl =
-            "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
+            openGraphImageUrl urlString
 
         ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
@@ -674,7 +678,7 @@ generateRumblePreview : Maybe (LoadedContent msg) -> String -> Html msg
 generateRumblePreview maybeLoadedContent urlString =
     let
         thumbnailUrl =
-            "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
+            openGraphImageUrl urlString
 
         ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of

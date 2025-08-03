@@ -59,6 +59,18 @@ defmodule NostrBackend.Application do
         {Cachex, name: :oembed_cache, ttl_interval: :timer.minutes(1440)},
         id: :oembed_cache
       ),
+
+      # Cache for OpenGraph calls
+      Supervisor.child_spec(
+        {Cachex, name: :opengraph_cache, ttl_interval: :timer.minutes(1440)},
+        id: :opengraph_cache
+      ),
+
+      # Cache for Rumble embed calls
+      Supervisor.child_spec(
+        {Cachex, name: :rumble_cache, ttl_interval: :timer.minutes(1440)},
+        id: :rumble_cache
+      ),
       NostrBackend.PostHogBuffer,
 
       # Start a worker by calling: NostrBackend.Worker.start_link(arg)

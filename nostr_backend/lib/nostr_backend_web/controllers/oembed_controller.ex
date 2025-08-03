@@ -1,7 +1,9 @@
 defmodule NostrBackendWeb.OembedController do
   use NostrBackendWeb, :controller
-  alias Req
   require Logger
+
+  alias Req
+  alias NostrBackendWeb.SharedHttpClient
 
   import SweetXml
 
@@ -70,7 +72,10 @@ defmodule NostrBackendWeb.OembedController do
   end
 
   defp fetch_and_cache_oembed(conn, oembed_url) do
-    case Req.get(oembed_url, headers: default_headers()) do
+    Logger.debug("OEmbed: Fetching oEmbed URL: #{oembed_url}")
+
+    # Use the shared HTTP client
+    case SharedHttpClient.fetch_url_with_cookies(oembed_url) do
       {:ok, %Req.Response{status: 200, body: body, headers: headers}} ->
         content_type = get_content_type(headers)
 
@@ -90,6 +95,7 @@ defmodule NostrBackendWeb.OembedController do
         end
 
       {:error, reason} ->
+        Logger.error("OEmbed: Failed to fetch oEmbed URL: #{inspect(reason)}")
         conn
         |> put_status(:bad_request)
         |> text("Failed to fetch oEmbed URL: #{inspect(reason)}")
@@ -155,13 +161,6 @@ defmodule NostrBackendWeb.OembedController do
       [value] when is_binary(value) -> String.split(value, ";") |> List.first()
       _ -> ""
     end
-  end
-
-  defp default_headers do
-    [
-      {"User-Agent",
-       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
-    ]
   end
 
   defp put_acces_control_headers(conn) do
