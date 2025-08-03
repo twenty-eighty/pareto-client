@@ -52,7 +52,7 @@ defmodule NostrBackendWeb.OpenGraphController do
         end
 
       {:error, reason} ->
-        Logger.error("OpenGraph: Failed to fetch URL: #{inspect(reason)}")
+        Logger.error("OpenGraph: Failed to fetch URL #{url}: #{inspect(reason)}")
         conn
         |> put_status(:bad_request)
         |> text("Failed to fetch URL: #{inspect(reason)}")
@@ -111,7 +111,7 @@ defmodule NostrBackendWeb.OpenGraphController do
         |> json(metadata)
 
       {:error, reason} ->
-        Logger.error("OpenGraph: Failed to fetch URL: #{inspect(reason)}")
+        Logger.error("OpenGraph: Failed to fetch URL #{url}: #{inspect(reason)}")
         conn
         |> put_status(:bad_request)
         |> json(%{error: "Failed to fetch URL: #{inspect(reason)}"})
