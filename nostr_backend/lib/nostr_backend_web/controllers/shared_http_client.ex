@@ -36,7 +36,12 @@ defmodule NostrBackendWeb.SharedHttpClient do
     # Create a cookie jar and attach the HttpCookie plugin
     empty_jar = HttpCookie.Jar.new()
 
-    req = Req.new(headers: headers, max_redirects: 5)
+    req = Req.new(
+      headers: headers,
+      max_redirects: 5,
+      connect_options: [timeout: 60_000],  # 60 seconds connection timeout
+      receive_timeout: 60_000              # 60 seconds receive timeout
+    )
     |> HttpCookie.ReqPlugin.attach()
 
     Req.get(req, url: url, cookie_jar: empty_jar)
@@ -69,7 +74,12 @@ defmodule NostrBackendWeb.SharedHttpClient do
     # Create a cookie jar and attach the HttpCookie plugin
     empty_jar = HttpCookie.Jar.new()
 
-    req = Req.new(headers: headers, max_redirects: 5)
+    req = Req.new(
+      headers: headers,
+      max_redirects: 5,
+      connect_options: [timeout: 60_000],  # 60 seconds connection timeout
+      receive_timeout: 60_000              # 60 seconds receive timeout
+    )
     |> HttpCookie.ReqPlugin.attach()
 
     Req.get(req, url: url, cookie_jar: empty_jar)
