@@ -23,7 +23,7 @@ defmodule NostrBackend.FeedGenerator do
   end
 
   def init(_) do
-    Logger.warn("FeedGenerator GenServer starting (this should only happen once unless there is a crash or code reload)")
+    Logger.warning("FeedGenerator GenServer starting (this should only happen once unless there is a crash or code reload)")
     Process.flag(:trap_exit, true)
     # Create necessary directories
     File.mkdir_p!(@atom_path)

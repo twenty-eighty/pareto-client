@@ -858,7 +858,7 @@ eventWithContent shared model user kind =
                 |> Maybe.withDefault model.now
 
         -- NIP-92: media attachments
-        imageMedatadataList =
+        imageMetadataList =
             model.content
                 |> Maybe.andThen (\content -> Markdown.collectImageUrls content |> Result.toMaybe)
                 |> Maybe.withDefault []
@@ -881,7 +881,7 @@ eventWithContent shared model user kind =
             |> Maybe.withDefault identity (languageISOCode model |> Maybe.map (Event.addLabelTags "ISO-639-1"))
             |> Event.addZapTags model.zapWeights
             |> Event.addAltTag (altText model.identifier user.pubKey kind [ Pareto.paretoRelay ])
-            |> Event.addImetaTags imageMedatadataList
+            |> Event.addImetaTags imageMetadataList
     , content = model.content |> Maybe.withDefault ""
     , id = ""
     , sig = Nothing
