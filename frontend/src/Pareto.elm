@@ -271,6 +271,7 @@ bootstrapAuthorsList =
     , ( "janosch@pareto.space", "89bae92f9d9b0f6d97a300496cfb0b73c92a74c9675a724c0689975f8074dc01" )
     , ( "jklnz@getalby.com", "a38a5cd0ec24d3f20c4870a032c1989109bf107c4ce8648fdc5a9c4492b1b8f0" )
     , ( "k-ai-katoura@pareto.town", "43c002e9425ff9146772391958f91cc4d6a5cd4a18270c2f3828b5b0cde0c29a" )
+    , ( "kw@pareto.town", "362cb42dafd4aa582078817ae9eba58c5cdaf3a4023baacc58be75ab312c3984" )
     , ( "kaydee@pareto.town", "69eea7349187e4c96c42dbaec1ef76ba4eea0d0f3fa9bd08364e502a4ae31ae6" )
     , ( "kulturkolorist@pareto.town", "41959693dbfe58d58430c0215ed0cb15545b6574a22e14163de3c3213888319c" )
     , ( "marcel@pareto.town", "7f29628df734cf02f3407580184af73d941e940f4a91c61d1e15aa08e160cccc" )
@@ -290,6 +291,7 @@ bootstrapAuthorsList =
     , ( "patrickreiser@pareto.town", "56dbb22fcd72819a43e37222c2a84463c53b6b5ce31f2c3ae97576dee6bb47f8" )
     , ( "paul@pareto.town", "2516d14559174be1a2e578c333ef584e2f32b45931bddb624d0178e4070c8fa1" )
     , ( "peter@pareto.town", "c3b2802bd061e0ea1c670604f87ad4d7ab8b487f01ccb417224baedb4850599c" )
+    , ( "power-epgenetics@pareto.town", "04b126500b5e03571ab3f06babe2bab8e0549246a9f82cb023460dc3064a4882" )
     , ( "psychobabble@pareto.town", "6734e11d8d67d9ca4dedb920f81182ded2bca918e3e0f3528bd5f4c4c7e34e8f" )
     , ( "quillie@nostria.space", "6c2d68ba016c291417fd18ea7c06b737ec143f7d56d78fdd44a5b248846525ec" )
     , ( "ralph-boes@pareto.town", "e0a24c5cb212e5a1911d70e148769361e00a92ca4f57990c21051bdefa44b1e7" )
@@ -309,6 +311,7 @@ bootstrapAuthorsList =
     , ( "wagschale@pareto.town", "4f2dadc9135248d24832e1a50c43ac438e8ccfcd81c29abdcf060176ad1a034c" )
     , ( "walter_siegrist@pareto.space", "78c90fc422bdadafb4df0de5d1ed87133265f896949705bebc61aee44bff983c" )
     , ( "womanbynature@pareto.town", "fbb0eb9dec0e6f31f1a677d1eca902a5deb405af8fe0e50ac61c73dcbdb78256" )
+    , ( "worteimfluss@pareto.town", "f29724712fed4a85e3b34d23a24e90f8586fba79f93ab0c6dbc2a5e8067b7e16" )
 
     -- , ( "1bis19@pareto.town", "df32e891bfcbe0aed4518b21466c1807ea68394fe4f1fcd8c826a3ca1ed0b7e7" )
     -- , ( "alix@pareto.town", "c93ea055634fb683be4202dd04e336663fb7823c5f1c35ad26b522a3eed5ac4c" )
