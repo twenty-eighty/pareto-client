@@ -56,8 +56,13 @@ config :file_system, :fs_inotify, executable_file: "/usr/bin/inotifywait"
 # Enable dev routes for dashboard and mailbox
 config :nostr_backend, dev_routes: true
 
-# Do not include metadata nor timestamps in development logs
-config :logger, :console, format: "[$level] $message\n"
+# Enhanced logger format to include request information
+config :logger, :console,
+  format: "[$level] $message\n",
+  metadata: [:request_id, :method, :path, :query_string]
+
+# Disable Phoenix's built-in request logging since we have our custom RequestLogger
+config :phoenix, :logger, false
 
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.

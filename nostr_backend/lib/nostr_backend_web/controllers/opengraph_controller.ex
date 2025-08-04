@@ -47,16 +47,16 @@ defmodule NostrBackendWeb.OpenGraphController do
   defp fetch_and_cache_image(conn, url) do
     # Use the shared HTTP client
     case SharedHttpClient.fetch_url_with_cookies(url) do
-      {:ok, %Req.Response{body: body, status: 200}} ->
+      {:ok, %Req.Response{body: body, status: status}} when status in 200..299 ->
         case extract_image_url(body) do
           {:ok, image_url} ->
             Logger.debug("OpenGraph: Extracted image URL: #{image_url}")
             # Cache successful results for 24 hours
             Cachex.put(:opengraph_cache, "image:#{url}", image_url, ttl: :timer.hours(24))
-                    conn
-        |> put_resp_header("access-control-allow-origin", "pareto.space")
-        |> put_resp_header("access-control-allow-methods", "GET, OPTIONS")
-        |> redirect(external: image_url)
+            conn
+            |> put_resp_header("access-control-allow-origin", "pareto.space")
+            |> put_resp_header("access-control-allow-methods", "GET, OPTIONS")
+            |> redirect(external: image_url)
 
           :error ->
             Logger.debug("OpenGraph: Failed to extract image URL")
@@ -66,6 +66,14 @@ defmodule NostrBackendWeb.OpenGraphController do
             |> put_status(:not_found)
             |> text("OpenGraph image not found")
         end
+
+      {:ok, %Req.Response{status: status}} ->
+        Logger.debug("OpenGraph: HTTP #{status} for #{url}")
+        # Cache HTTP errors for 30 minutes
+        Cachex.put(:opengraph_cache, "image:#{url}", :fetch_error, ttl: :timer.minutes(30))
+        conn
+        |> put_status(:bad_request)
+        |> text("Failed to fetch URL: HTTP #{status}")
 
       {:error, reason} ->
         Logger.error("OpenGraph: Failed to fetch URL #{url}: #{inspect(reason)}")
