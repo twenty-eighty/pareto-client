@@ -235,13 +235,13 @@ viewArticle articlePreviewsData articlePreviewData article =
                             articleComment =
                                 emptyArticleComment addressComponents
                         in
-                        CommentToArticle 
+                        CommentToArticle
                             { articleComment
-                            | pubKey = signingPubKey
-                            , rootEventId = Just article.id
-                            , rootKind = article.kind
-                            , rootPubKey = article.author
-                            , rootRelay = article.relays |> Set.toList |> List.head
+                                | pubKey = signingPubKey
+                                , rootEventId = Just article.id
+                                , rootKind = article.kind
+                                , rootPubKey = article.author
+                                , rootRelay = article.relays |> Set.toList |> List.head
                             }
                     )
                     (addressComponentsForArticle article)

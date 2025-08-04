@@ -2,6 +2,7 @@ module Pages.U.User_.Identifier_ exposing (Model, Msg, page)
 
 import Components.ArticleComments as ArticleComments
 import Components.ArticleInfo as ArticleInfo
+import Components.AuthorInteractionsBar as AuthorInteractionsBar
 import Components.Comment as Comment
 import Components.InteractionButton as InteractionButton exposing (eventIdOfInteractionObject)
 import Components.Interactions as Interactions
@@ -10,7 +11,7 @@ import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapDialog as ZapDialog
 import Dict exposing (Dict)
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html)
+import Html.Styled as Html exposing (Html, article)
 import Layouts
 import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
@@ -84,10 +85,34 @@ toLayout shared model =
                             |> Maybe.withDefault emptyHtml
                     )
                 |> Maybe.withDefault emptyHtml
+
+        articlePreviewsData =
+            { articleComments = model.articleComments
+            , articleToInteractionsMsg = ArticleInteractionsSent
+            , bookmarkButtonMsg = \_ _ -> NoOp
+            , bookmarkButtons = Dict.empty
+            , browserEnv = shared.browserEnv
+            , commentsToMsg = CommentsSent
+            , nostr = shared.nostr
+            , loginStatus = shared.loginStatus
+            , sharing = Just ( model.sharingButtonDialog, SharingButtonDialogMsg )
+            , theme = shared.theme
+            }
+
+        authorInteractionsBar =
+            maybeArticle
+                |> Maybe.map
+                    (\article ->
+                        (AuthorInteractionsBar.new { articlePreviewsData = articlePreviewsData, interactionsModel = model.articleInteractions, article = article }
+                            |> AuthorInteractionsBar.view
+                        )
+                            { articleInfoToggle = False }
+                    )
+                |> Maybe.withDefault emptyHtml
     in
     Layouts.Sidebar.new
-        { theme = shared.theme
-        }
+        { theme = shared.theme }
+        |> Layouts.Sidebar.withTopPart authorInteractionsBar "64px"
         |> Layouts.Sidebar.withRightPart articleInfo
         |> Layouts.Sidebar
 
