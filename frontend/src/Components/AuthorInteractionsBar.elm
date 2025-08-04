@@ -73,8 +73,8 @@ view (Settings { articlePreviewsData, interactionsModel, article }) model =
         articleInfoToggle =
             div
                 [ css
-                    [ darkMode [ Tw.text_color styles.color4DarkMode ]
-                    , Tw.text_color styles.color4
+                    [ darkMode [ Tw.text_color styles.colorB4DarkMode ]
+                    , Tw.text_color styles.colorB4
                     , Bp.lg [ Tw.hidden ]
                     , Tw.block
                     ]
@@ -123,8 +123,8 @@ view (Settings { articlePreviewsData, interactionsModel, article }) model =
             , Tw.items_start
             , Tw.gap_5
             , Tw.p_3
-            , Tw.bg_color styles.color1 -- G5
-            , darkMode [ Tw.bg_color styles.color5 ] -- G2
+            , Tw.bg_color styles.colorG5
+            , darkMode [ Tw.bg_color styles.colorG2 ]
             , print [ Tw.hidden ]
             ]
         ]
@@ -168,6 +168,7 @@ viewInteractions previewData instanceId =
         , interactionObject = previewData.interactionObject
         , nostr = previewData.nostr
         , loginStatus = previewData.loginStatus
+        , showLabel = False
         }
         |> Interactions.withInteractionElements
             [ Interactions.CommentButtonElement Nothing
