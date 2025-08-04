@@ -33,18 +33,22 @@ viewArticle articlePreviewsData loadedContent articleInteractions article =
     let
         articleComponents =
             article
-            |> addressComponentsForArticle
+                |> addressComponentsForArticle
     in
-    Ui.Article.viewArticle
-        articlePreviewsData
-        { author = Nostr.getAuthor articlePreviewsData.nostr article.author
-        , articleComments = articleComponents |> Maybe.map (Nostr.getArticleComments articlePreviewsData.nostr (loggedInPubKey articlePreviewsData.loginStatus)) |> Maybe.withDefault []
-        , articleCommentComments = articleComponents |> Maybe.map (Nostr.getArticleCommentComments articlePreviewsData.nostr) |> Maybe.withDefault Dict.empty
-        , articleInteractions = articleInteractions
-        , displayAuthor = True
-        , loadedContent = loadedContent
+    Ui.Article.new
+        { articlePreviewsData = articlePreviewsData
+        , articlePreviewData =
+            { author = Nostr.getAuthor articlePreviewsData.nostr article.author
+            , articleComments = articleComponents |> Maybe.map (Nostr.getArticleComments articlePreviewsData.nostr (loggedInPubKey articlePreviewsData.loginStatus)) |> Maybe.withDefault []
+            , articleCommentComments = articleComponents |> Maybe.map (Nostr.getArticleCommentComments articlePreviewsData.nostr) |> Maybe.withDefault Dict.empty
+            , articleInteractions = articleInteractions
+            , displayAuthor = True
+            , loadedContent = loadedContent
+            }
+        , article = article
+        , articleInfoToggle = False
         }
-        article
+        |> Ui.Article.view
 
 
 viewArticlePreviews : ArticlePreviewType -> ArticlePreviewsData msg -> List Article -> Html msg

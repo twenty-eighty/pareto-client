@@ -5,7 +5,7 @@ import Components.ArticleComments as ArticleComments
 import Components.ArticleInfo as ArticleInfo
 import Components.BookmarkButton as BookmarkButton
 import Components.Button as Button
-import Components.Icon
+import Components.Icon as Icon
 import Components.InteractionButton as InteractionButton exposing (InteractionObject(..))
 import Components.Interactions
 import Components.SharingButtonDialog as SharingButtonDialog
@@ -14,6 +14,7 @@ import Dict exposing (Dict)
 import FeatherIcons
 import Html.Styled as Html exposing (Html, a, article, div, h2, h3, img, summary, text)
 import Html.Styled.Attributes as Attr exposing (css, href)
+import Html.Styled.Events as Events
 import I18Next
 import LinkPreview exposing (LoadedContent)
 import Locale
@@ -68,6 +69,39 @@ type alias ArticlePreviewData msg =
     , displayAuthor : Bool
     , loadedContent : Maybe (LoadedContent msg)
     }
+
+
+type alias Model msg =
+    { articlePreviewsData : ArticlePreviewsData msg
+    , articlePreviewData : ArticlePreviewData msg
+    , article : Article
+    , articleInfoToggle : Bool
+    }
+
+
+type Msg
+    = ToggleArticleInfo Bool
+
+
+type ArticleComponent msg
+    = Settings (Model msg)
+
+
+new : Model msg -> ArticleComponent msg
+new props =
+    Settings props
+
+
+update : Msg -> Model msg -> Model msg
+update msg model =
+    case msg of
+        ToggleArticleInfo flag ->
+            { model | articleInfoToggle = flag }
+
+
+view : ArticleComponent msg -> Html msg
+view (Settings model) =
+    viewArticle model
 
 
 linkToHashtag : String -> String
@@ -154,24 +188,24 @@ colorStyleArticleHashtags =
     ]
 
 
-viewArticle : ArticlePreviewsData msg -> ArticlePreviewData msg -> Article -> Html msg
-viewArticle articlePreviewsData articlePreviewData article =
+viewArticle : Model msg -> Html msg
+viewArticle model =
     let
         styles =
-            Ui.Styles.stylesForTheme articlePreviewsData.theme
+            Ui.Styles.stylesForTheme model.articlePreviewsData.theme
 
         getProfile =
-            Nostr.getProfile articlePreviewsData.nostr
+            Nostr.getProfile model.articlePreviewsData.nostr
 
         maybeProfile =
-            getProfile article.author
+            getProfile model.article.author
 
         validationStatus =
-            Nostr.getProfileValidationStatus articlePreviewsData.nostr article.author
+            Nostr.getProfileValidationStatus model.articlePreviewsData.nostr model.article.author
                 |> Maybe.withDefault ValidationUnknown
 
         langAttr =
-            case article.language of
+            case model.article.language of
                 Just language ->
                     [ Attr.lang (language |> Locale.languageToISOCode) ]
 
@@ -200,30 +234,30 @@ viewArticle articlePreviewsData articlePreviewData article =
             ]
 
         articleRelays =
-            article.relays
+            model.article.relays
                 |> Set.map websocketUrl
 
         interactionObject =
-            InteractionButton.Article article.id ( article.kind, article.author, article.identifier |> Maybe.withDefault "" )
+            InteractionButton.Article model.article.id ( model.article.kind, model.article.author, model.article.identifier |> Maybe.withDefault "" )
 
         previewData : Ui.Interactions.PreviewData msg
         previewData =
-            { browserEnv = articlePreviewsData.browserEnv
-            , loginStatus = articlePreviewsData.loginStatus
-            , maybeNip19Target = nip19ForArticle article
+            { browserEnv = model.articlePreviewsData.browserEnv
+            , loginStatus = model.articlePreviewsData.loginStatus
+            , maybeNip19Target = nip19ForArticle model.article
             , zapRelays = articleRelays
-            , interactionsModel = articlePreviewData.articleInteractions
+            , interactionsModel = model.articlePreviewData.articleInteractions
             , interactionObject = interactionObject
-            , toInteractionsMsg = articlePreviewsData.articleToInteractionsMsg interactionObject
-            , nostr = articlePreviewsData.nostr
-            , sharing = articlePreviewsData.sharing
-            , sharingInfo = sharingInfoForArticle article articlePreviewData.author
-            , translations = articlePreviewsData.browserEnv.translations
-            , theme = articlePreviewsData.theme
+            , toInteractionsMsg = model.articlePreviewsData.articleToInteractionsMsg interactionObject
+            , nostr = model.articlePreviewsData.nostr
+            , sharing = model.articlePreviewsData.sharing
+            , sharingInfo = sharingInfoForArticle model.article model.articlePreviewData.author
+            , translations = model.articlePreviewsData.browserEnv.translations
+            , theme = model.articlePreviewsData.theme
             }
 
         newComment =
-            loggedInSigningPubKey articlePreviewsData.loginStatus
+            loggedInSigningPubKey model.articlePreviewsData.loginStatus
                 |> Maybe.map2
                     (\addressComponents signingPubKey ->
                         let
@@ -233,13 +267,13 @@ viewArticle articlePreviewsData articlePreviewData article =
                         CommentToArticle
                             { articleComment
                                 | pubKey = signingPubKey
-                                , rootEventId = Just article.id
-                                , rootKind = article.kind
-                                , rootPubKey = article.author
-                                , rootRelay = article.relays |> Set.toList |> List.head
+                                , rootEventId = Just model.article.id
+                                , rootKind = model.article.kind
+                                , rootPubKey = model.article.author
+                                , rootRelay = model.article.relays |> Set.toList |> List.head
                             }
                     )
-                    (addressComponentsForArticle article)
+                    (addressComponentsForArticle model.article)
 
         interactionsBar =
             div
@@ -264,23 +298,43 @@ viewArticle articlePreviewsData articlePreviewData article =
                     ]
                     [ div [] [ text "<--" ]
                     , maybeProfile
-                        |> Maybe.map (\profile -> viewProfileSmall articlePreviewsData.browserEnv.environment styles True profile validationStatus)
-                        |> Maybe.withDefault (viewProfilePubKey articlePreviewsData.browserEnv.environment articlePreviewsData.browserEnv.translations article.author)
+                        |> Maybe.map (\profile -> viewProfileSmall model.articlePreviewsData.browserEnv.environment styles True profile validationStatus)
+                        |> Maybe.withDefault (viewProfilePubKey model.articlePreviewsData.browserEnv.environment model.articlePreviewsData.browserEnv.translations model.article.author)
                     ]
                 , div
                     [ css
                         [ Bp.lg [ Tw.absolute, Tw.right_48, Tw.mr_4 ] ]
                     ]
-                    [ viewInteractions previewData "1" ]
+                    [ viewInteractions previewData "1"
+                    , articleInfoToggle
+                    ]
                 , div [ css [ Tw.absolute, Tw.right_0, Tw.mr_4 ] ]
                     [ Button.new
-                        { label = Translations.followAuthor [ articlePreviewsData.browserEnv.translations ]
+                        { label = Translations.followAuthor [ model.articlePreviewsData.browserEnv.translations ]
                         , onClick = Nothing
-                        , theme = articlePreviewsData.theme
+                        , theme = model.articlePreviewsData.theme
                         }
-                        |> Button.withIconLeft (Components.Icon.FeatherIcon FeatherIcons.plus)
+                        |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.plus)
                         |> Button.view
                     ]
+                ]
+
+        articleInfoToggle =
+            div
+                [ css
+                    [ darkMode [ Tw.text_color styles.colorB1DarkMode ]
+                    , Tw.text_color styles.colorB1
+                    , Bp.lg [ Tw.hidden ]
+                    , Tw.block
+                    ]
+
+                --, Events.onClick (ToggleArticleInfo (not model.articleInfoToggle))
+                ]
+                [ if model.articleInfoToggle == True then
+                    Icon.FeatherIcon FeatherIcons.bookOpen |> Icon.view
+
+                  else
+                    Icon.FeatherIcon FeatherIcons.info |> Icon.view
                 ]
 
         articleView =
@@ -299,9 +353,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                             -- switch off ligatures - Inter font doesn't have ligatures
                             , Css.property "font-variant-ligatures" "none"
                             , Css.property "font-feature-settings" "\"liga\" 0"
-                            , print
-                                [ Tw.my_4
-                                ]
+                            , print [ Tw.my_4 ]
                             ]
                        ]
                 )
@@ -346,7 +398,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                                             ]
                                        ]
                                 )
-                                [ text <| Maybe.withDefault "" article.title ]
+                                [ text <| Maybe.withDefault "" model.article.title ]
                             , Html.summary
                                 (styles.textStyleH2
                                     ++ styles.colorStyleGrayscaleSummary
@@ -359,10 +411,10 @@ viewArticle articlePreviewsData articlePreviewData article =
                                             ]
                                        ]
                                 )
-                                [ text <| Maybe.withDefault "" article.summary ]
+                                [ text <| Maybe.withDefault "" model.article.summary ]
                             ]
                         ]
-                    , viewArticleImage articlePreviewsData.browserEnv.environment article.image
+                    , viewArticleImage model.articlePreviewsData.browserEnv.environment model.article.image
                     , div
                         (css
                             [ Tw.flex_col
@@ -376,21 +428,21 @@ viewArticle articlePreviewsData articlePreviewData article =
                             ++ textStyleReactions
                             ++ contentMargins
                         )
-                        [ viewContent articlePreviewsData.browserEnv.environment styles articlePreviewData.loadedContent getProfile article.content
+                        [ viewContent model.articlePreviewsData.browserEnv.environment styles model.articlePreviewData.loadedContent getProfile model.article.content
                         ]
                     , div
                         [ css
                             [ Tw.mt_2 ]
                         ]
                         [ ArticleComments.new
-                            { browserEnv = articlePreviewsData.browserEnv
-                            , model = articlePreviewsData.articleComments
-                            , nostr = articlePreviewsData.nostr
-                            , articleComments = articlePreviewData.articleComments
-                            , articleCommentComments = articlePreviewData.articleCommentComments
-                            , toMsg = articlePreviewsData.commentsToMsg
-                            , loginStatus = articlePreviewsData.loginStatus
-                            , theme = articlePreviewsData.theme
+                            { browserEnv = model.articlePreviewsData.browserEnv
+                            , model = model.articlePreviewsData.articleComments
+                            , nostr = model.articlePreviewsData.nostr
+                            , articleComments = model.articlePreviewData.articleComments
+                            , articleCommentComments = model.articlePreviewData.articleCommentComments
+                            , toMsg = model.articlePreviewsData.commentsToMsg
+                            , loginStatus = model.articlePreviewsData.loginStatus
+                            , theme = model.articlePreviewsData.theme
                             }
                             |> ArticleComments.withNewComment newComment
                             |> ArticleComments.withZapRelayUrls articleRelays
@@ -410,17 +462,17 @@ viewArticle articlePreviewsData articlePreviewData article =
                 ]
                 [ ArticleInfo.view
                     styles
-                    (Nostr.getAuthor articlePreviewsData.nostr article.author)
-                    article
-                    { browserEnv = articlePreviewsData.browserEnv
-                    , model = Just articlePreviewData.articleInteractions
-                    , toMsg = articlePreviewsData.articleToInteractionsMsg interactionObject
-                    , theme = articlePreviewsData.theme
+                    (Nostr.getAuthor model.articlePreviewsData.nostr model.article.author)
+                    model.article
+                    { browserEnv = model.articlePreviewsData.browserEnv
+                    , model = Just model.articlePreviewData.articleInteractions
+                    , toMsg = model.articlePreviewsData.articleToInteractionsMsg interactionObject
+                    , theme = model.articlePreviewsData.theme
                     , interactionObject = interactionObject
-                    , nostr = articlePreviewsData.nostr
-                    , loginStatus = articlePreviewsData.loginStatus
-                    , shareInfo = sharingInfoForArticle article (Nostr.getAuthor articlePreviewsData.nostr article.author)
-                    , zapRelays = article.relays
+                    , nostr = model.articlePreviewsData.nostr
+                    , loginStatus = model.articlePreviewsData.loginStatus
+                    , shareInfo = sharingInfoForArticle model.article (Nostr.getAuthor model.articlePreviewsData.nostr model.article.author)
+                    , zapRelays = model.article.relays
                     }
                 ]
     in
