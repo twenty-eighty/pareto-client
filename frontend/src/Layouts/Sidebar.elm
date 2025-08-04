@@ -1,4 +1,4 @@
-module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layout, map, new, withLeftPart, withTopPart)
+module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layout, map, new, withRightPart, withTopPart)
 
 --import Browser.Events as Events
 
@@ -40,7 +40,7 @@ import View exposing (View)
 
 type alias Props contentMsg =
     { theme : Theme
-    , fixedLeftPart : Maybe (Html contentMsg)
+    , fixedRightPart : Maybe (Html contentMsg)
     , fixedTopPart : Maybe ( Html contentMsg, String )
     }
 
@@ -48,7 +48,7 @@ type alias Props contentMsg =
 map : (msg1 -> msg2) -> Props msg1 -> Props msg2
 map toMsg props =
     { theme = props.theme
-    , fixedLeftPart = Maybe.map (Html.map toMsg) props.fixedLeftPart
+    , fixedRightPart = Maybe.map (Html.map toMsg) props.fixedRightPart
     , fixedTopPart = Maybe.map (\( html, height ) -> ( Html.map toMsg html, height )) props.fixedTopPart
     }
 
@@ -56,14 +56,14 @@ map toMsg props =
 new : { theme : Theme } -> Props contentMsg
 new { theme } =
     { theme = theme
-    , fixedLeftPart = Nothing
+    , fixedRightPart = Nothing
     , fixedTopPart = Nothing
     }
 
 
-withLeftPart : Html contentMsg -> Props contentMsg -> Props contentMsg
-withLeftPart leftPart props =
-    { props | fixedLeftPart = Just leftPart }
+withRightPart : Html contentMsg -> Props contentMsg -> Props contentMsg
+withRightPart rightPart props =
+    { props | fixedRightPart = Just rightPart }
 
 
 withTopPart : Html contentMsg -> String -> Props contentMsg -> Props contentMsg
@@ -595,6 +595,9 @@ viewSidebar props shared model currentPath toContentMsg content =
                         ]
                     ]
                     |> Html.map toContentMsg
+                , props.fixedTopPart
+                    |> Maybe.map (\( html, _ ) -> html)
+                    |> Maybe.withDefault emptyHtml
                 , div
                     [ css
                         [ Tw.flex
@@ -602,7 +605,18 @@ viewSidebar props shared model currentPath toContentMsg content =
                         , print [ Tw.block ]
                         ]
                     ]
-                    [ props.fixedLeftPart
+                    [ div
+                        [ css
+                            [ Bp.lg [ Tw.contents ]
+                            , if model.articleInfoToggle && isArticlePage then
+                                Tw.hidden
+
+                              else
+                                Tw.contents
+                            ]
+                        ]
+                        [ viewMainContent content (props.fixedTopPart |> Maybe.map (\( _, height ) -> height)) ]
+                    , props.fixedRightPart
                         |> Maybe.map
                             (\html ->
                                 div
@@ -620,17 +634,6 @@ viewSidebar props shared model currentPath toContentMsg content =
                                     [ html ]
                             )
                         |> Maybe.withDefault emptyHtml
-                    , div
-                        [ css
-                            [ Bp.lg [ Tw.contents ]
-                            , if model.articleInfoToggle && isArticlePage then
-                                Tw.hidden
-
-                              else
-                                Tw.contents
-                            ]
-                        ]
-                        [ viewMainContent content props.fixedTopPart ]
                     , articleInfoToggle
                     ]
                 ]
@@ -638,13 +641,11 @@ viewSidebar props shared model currentPath toContentMsg content =
         ]
 
 
-viewMainContent : List (Html contentMsg) -> Maybe ( Html contentMsg, String ) -> Html contentMsg
-viewMainContent content maybeFixedTopPart =
+viewMainContent : List (Html contentMsg) -> Maybe String -> Html contentMsg
+viewMainContent content maybeFixedTopPartHeight =
     let
         topPartHeight =
-            maybeFixedTopPart
-                |> Maybe.map (\( _, height ) -> height)
-                |> Maybe.withDefault "0px"
+            maybeFixedTopPartHeight |> Maybe.withDefault "0px"
     in
     div
         [ css
@@ -652,10 +653,7 @@ viewMainContent content maybeFixedTopPart =
             , Tw.relative
             ]
         ]
-        [ maybeFixedTopPart
-            |> Maybe.map (\( html, _ ) -> html)
-            |> Maybe.withDefault emptyHtml
-        , main_
+        [ main_
             [ class "page"
             , Attr.id Shared.contentId
             , css
@@ -673,13 +671,7 @@ viewMainContent content maybeFixedTopPart =
                 ]
             ]
             [ div
-                [ css
-                    [ Tw.mb_4
-                    , Bp.sm
-                        [ Tw.my_2
-                        ]
-                    ]
-                ]
+                [ css [ Tw.mb_4 ] ]
                 content
             ]
         ]

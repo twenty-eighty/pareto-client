@@ -57,36 +57,38 @@ toLayout shared model =
 
         articleInfo =
             maybeArticle
-                |> Maybe.map (\article ->
-                    addressComponentsForArticle article
-                        |> Maybe.map (\addressComponents ->
-                            let
-                                interactionObject =
-                                    InteractionButton.Article article.id addressComponents
-                            in
-                            ArticleInfo.view
-                                styles
-                                (Nostr.getAuthor shared.nostr article.author)
-                                article
-                                { browserEnv = shared.browserEnv
-                                , model = Just model.articleInteractions
-                                , toMsg = ArticleInteractionsSent interactionObject
-                                , theme = shared.theme
-                                , interactionObject = interactionObject
-                                , nostr = shared.nostr
-                                , loginStatus = shared.loginStatus
-                                , shareInfo = sharingInfoForArticle article (Nostr.getAuthor shared.nostr article.author)
-                                , zapRelays = article.relays
-                                }
-                        )
-                        |> Maybe.withDefault emptyHtml
-                ) 
+                |> Maybe.map
+                    (\article ->
+                        addressComponentsForArticle article
+                            |> Maybe.map
+                                (\addressComponents ->
+                                    let
+                                        interactionObject =
+                                            InteractionButton.Article article.id addressComponents
+                                    in
+                                    ArticleInfo.view
+                                        styles
+                                        (Nostr.getAuthor shared.nostr article.author)
+                                        article
+                                        { browserEnv = shared.browserEnv
+                                        , model = Just model.articleInteractions
+                                        , toMsg = ArticleInteractionsSent interactionObject
+                                        , theme = shared.theme
+                                        , interactionObject = interactionObject
+                                        , nostr = shared.nostr
+                                        , loginStatus = shared.loginStatus
+                                        , shareInfo = sharingInfoForArticle article (Nostr.getAuthor shared.nostr article.author)
+                                        , zapRelays = article.relays
+                                        }
+                                )
+                            |> Maybe.withDefault emptyHtml
+                    )
                 |> Maybe.withDefault emptyHtml
     in
     Layouts.Sidebar.new
         { theme = shared.theme
         }
-        |> Layouts.Sidebar.withLeftPart articleInfo
+        |> Layouts.Sidebar.withRightPart articleInfo
         |> Layouts.Sidebar
 
 
@@ -297,15 +299,18 @@ subscriptions shared model =
     Sub.batch
         [ commentInteractionSubscriptions shared model
         , articleFromModel shared model
-            |> Maybe.andThen (\article ->
-                addressComponentsForArticle article
-                    |> Maybe.map (\addressComponents ->
-                        Sub.map (ArticleInteractionsSent (InteractionButton.Article article.id addressComponents)) (Interactions.subscriptions model.articleInteractions)
-                    )
-            )
+            |> Maybe.andThen
+                (\article ->
+                    addressComponentsForArticle article
+                        |> Maybe.map
+                            (\addressComponents ->
+                                Sub.map (ArticleInteractionsSent (InteractionButton.Article article.id addressComponents)) (Interactions.subscriptions model.articleInteractions)
+                            )
+                )
             |> Maybe.withDefault Sub.none
         , articleCommentsSubscriptions shared model
         ]
+
 
 articleCommentsSubscriptions : Shared.Model -> Model -> Sub Msg
 articleCommentsSubscriptions shared model =
@@ -330,22 +335,23 @@ commentInteractionSubscriptions shared model =
     case maybeAddressComponents of
         Just addressComponents ->
             Dict.toList model.commentInteractions
-                |> List.map (\(eventId, interactions) ->
-                    let
-                        maybePubKey =
-                            Nostr.getArticleComments shared.nostr (loggedInPubKey shared.loginStatus) addressComponents
-                                |> List.filter (\articleComment -> articleComment.eventId == eventId)
-                                |> List.head
-                                |> Maybe.map .pubKey
-                    in
-                    case maybePubKey of
-                        Just pubKey ->
-                            Interactions.subscriptions interactions
-                                |> Sub.map (CommentInteractionsSent (InteractionButton.Comment eventId pubKey))
+                |> List.map
+                    (\( eventId, interactions ) ->
+                        let
+                            maybePubKey =
+                                Nostr.getArticleComments shared.nostr (loggedInPubKey shared.loginStatus) addressComponents
+                                    |> List.filter (\articleComment -> articleComment.eventId == eventId)
+                                    |> List.head
+                                    |> Maybe.map .pubKey
+                        in
+                        case maybePubKey of
+                            Just pubKey ->
+                                Interactions.subscriptions interactions
+                                    |> Sub.map (CommentInteractionsSent (InteractionButton.Comment eventId pubKey))
 
-                        Nothing ->
-                            Sub.none
-                )
+                            Nothing ->
+                                Sub.none
+                    )
                 |> Sub.batch
 
         Nothing ->
@@ -396,4 +402,3 @@ viewArticle shared model maybeArticle =
 
         Nothing ->
             viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle model.requestId
-

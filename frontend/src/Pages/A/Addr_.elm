@@ -55,46 +55,48 @@ toLayout shared model =
         styles =
             Ui.Styles.stylesForTheme shared.theme
 
-        (maybeArticle, interactionsModel) =
+        ( maybeArticle, interactionsModel ) =
             case model of
                 Nip19Model { nip19, interactions } ->
-                    (Nostr.getArticleForNip19 shared.nostr nip19, Just interactions)
+                    ( Nostr.getArticleForNip19 shared.nostr nip19, Just interactions )
 
                 ErrorModel _ ->
-                    (Nothing, Nothing)
+                    ( Nothing, Nothing )
 
         articleInfo =
             maybeArticle
-                |> Maybe.map (\article ->
-                    addressComponentsForArticle article
-                        |> Maybe.map (\addressComponents ->
-                            let
-                                interactionObject =
-                                    InteractionButton.Article article.id addressComponents
-                            in
-                            ArticleInfo.view
-                                styles
-                                (Nostr.getAuthor shared.nostr article.author)
-                                article
-                                { browserEnv = shared.browserEnv
-                                , model = interactionsModel
-                                , toMsg = ArticleInteractionsSent interactionObject
-                                , theme = shared.theme
-                                , interactionObject = interactionObject
-                                , nostr = shared.nostr
-                                , loginStatus = shared.loginStatus
-                                , shareInfo = sharingInfoForArticle article (Nostr.getAuthor shared.nostr article.author)
-                                , zapRelays = article.relays
-                                }
-                        )
-                        |> Maybe.withDefault emptyHtml
-                ) 
+                |> Maybe.map
+                    (\article ->
+                        addressComponentsForArticle article
+                            |> Maybe.map
+                                (\addressComponents ->
+                                    let
+                                        interactionObject =
+                                            InteractionButton.Article article.id addressComponents
+                                    in
+                                    ArticleInfo.view
+                                        styles
+                                        (Nostr.getAuthor shared.nostr article.author)
+                                        article
+                                        { browserEnv = shared.browserEnv
+                                        , model = interactionsModel
+                                        , toMsg = ArticleInteractionsSent interactionObject
+                                        , theme = shared.theme
+                                        , interactionObject = interactionObject
+                                        , nostr = shared.nostr
+                                        , loginStatus = shared.loginStatus
+                                        , shareInfo = sharingInfoForArticle article (Nostr.getAuthor shared.nostr article.author)
+                                        , zapRelays = article.relays
+                                        }
+                                )
+                            |> Maybe.withDefault emptyHtml
+                    )
                 |> Maybe.withDefault emptyHtml
     in
     Layouts.Sidebar.new
         { theme = shared.theme
         }
-        |> Layouts.Sidebar.withLeftPart articleInfo
+        |> Layouts.Sidebar.withRightPart articleInfo
         |> Layouts.Sidebar
 
 
@@ -259,7 +261,7 @@ update shared msg model =
                         { browserEnv = shared.browserEnv
                         , msg = innerMsg
                         , model = Just nip19ModelData.interactions
-                        , nostr = shared.nostr  
+                        , nostr = shared.nostr
                         , interactionObject = interactionObject
                         , openCommentMsg = Nothing
                         , toModel = \interactionsModel -> Nip19Model { nip19ModelData | interactions = interactionsModel }
@@ -350,17 +352,20 @@ subscriptions shared model =
             Sub.batch
                 [ ArticleComments.subscriptions nip19ModelData.articleComments articleComments |> Sub.map CommentsSent
                 , Nostr.getArticleForNip19 shared.nostr nip19ModelData.nip19
-                    |> Maybe.andThen (\article ->
-                        addressComponentsForArticle article
-                            |> Maybe.map (\addressComponents ->
-                                Sub.map (ArticleInteractionsSent (InteractionButton.Article article.id addressComponents)) (Interactions.subscriptions nip19ModelData.interactions)
-                            )
-                    )
+                    |> Maybe.andThen
+                        (\article ->
+                            addressComponentsForArticle article
+                                |> Maybe.map
+                                    (\addressComponents ->
+                                        Sub.map (ArticleInteractionsSent (InteractionButton.Article article.id addressComponents)) (Interactions.subscriptions nip19ModelData.interactions)
+                                    )
+                        )
                     |> Maybe.withDefault Sub.none
                 ]
 
         _ ->
             Sub.none
+
 
 
 -- VIEW
@@ -370,7 +375,7 @@ view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     case model of
         Nip19Model { articleComments, loadedContent, nip19, requestId, interactions, sharingButtonDialog } ->
-            viewContent shared nip19 articleComments loadedContent requestId interactions sharingButtonDialog 
+            viewContent shared nip19 articleComments loadedContent requestId interactions sharingButtonDialog
 
         ErrorModel error ->
             viewError shared error
@@ -381,7 +386,6 @@ viewContent shared nip19 articleComments loadedContent requestId interactions sh
     let
         maybeArticle =
             Nostr.getArticleForNip19 shared.nostr nip19
-
     in
     { title =
         maybeArticle
