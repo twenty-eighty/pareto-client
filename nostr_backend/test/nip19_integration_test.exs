@@ -64,24 +64,7 @@ defmodule NostrBackend.NIP19IntegrationTest do
     end
   end
 
-  # Function to run NAK encode command for naddr
-  defp nak_encode_naddr(kind, pubkey, identifier, relays) do
-    # Build NAK command for naddr with correct flag format
-    # First all the option flags
-    relay_args = Enum.flat_map(relays, fn relay -> ["--relay", relay] end)
-    args = ["encode", "naddr",
-            "--kind", to_string(kind),
-            "--pubkey", pubkey,
-            "--identifier", identifier] ++ relay_args
 
-    # Run NAK command
-    case System.cmd("nak", args, stderr_to_stdout: true) do
-      {output, 0} -> String.trim(output)
-      {error, _} ->
-        IO.puts("NAK ERROR: #{error}")
-        nil
-    end
-  end
 
   # Helper to run with timeout guard
   defp with_timeout(fun, timeout \\ 5_000) do

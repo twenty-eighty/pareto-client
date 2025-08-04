@@ -1,29 +1,83 @@
 defmodule NostrBackendWeb.Nip11Controller do
   use NostrBackendWeb, :controller
   alias Req
+  require Logger
 
   @cache_name :nip11_cache
-  @cache_ttl :timer.hours(1) # Cache TTL: 1 hour
+  @success_cache_ttl :timer.hours(24)  # Cache successful results for 24 hours
+  @error_cache_ttl :timer.minutes(30)  # Cache errors for 30 minutes
   @timeout 5_000 # 5 seconds timeout for HTTP requests
 
   def fetch_nip11(conn, %{"url" => relay_url}) do
+    Logger.debug("NIP-11: Fetching data for relay: #{relay_url}")
+
     conn =
       conn
-      |> put_resp_header("Access-Control-Allow-Origin", "*")
-      # |> put_resp_header("Access-Control-Allow-Origin", "pareto.space")
-      |> put_resp_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+      |> put_resp_header("access-control-allow-origin", "*")
+      # |> put_resp_header("access-control-allow-origin", "pareto.space")
+      |> put_resp_header("access-control-allow-methods", "GET, OPTIONS")
 
+    # Check cache first
+    case Cachex.get(@cache_name, relay_url) do
+      {:ok, nil} ->
+        # Not in cache, validate and fetch
+        validate_and_fetch_nip11(conn, relay_url)
+
+      {:ok, cached_data} when is_map(cached_data) ->
+        # Serve cached successful result
+        Logger.debug("NIP-11: Serving cached data for: #{relay_url}")
+        json(conn, cached_data)
+
+      {:ok, :invalid_url} ->
+        # Serve cached invalid URL result
+        Logger.debug("NIP-11: Serving cached invalid URL result for: #{relay_url}")
+        conn
+        |> put_status(:bad_request)
+        |> text("Invalid relay URL")
+
+      {:ok, :http_error} ->
+        # Serve cached HTTP error result
+        Logger.debug("NIP-11: Serving cached HTTP error result for: #{relay_url}")
+        conn
+        |> put_status(:bad_request)
+        |> text("Failed to fetch NIP-11 data: HTTP error")
+
+      {:ok, :invalid_json} ->
+        # Serve cached JSON error result
+        Logger.debug("NIP-11: Serving cached JSON error result for: #{relay_url}")
+        conn
+        |> put_status(:bad_request)
+        |> text("Failed to fetch NIP-11 data: Invalid JSON")
+
+      {:ok, :request_failed} ->
+        # Serve cached request failed result
+        Logger.debug("NIP-11: Serving cached request failed result for: #{relay_url}")
+        conn
+        |> put_status(:bad_request)
+        |> text("Failed to fetch NIP-11 data: Request failed")
+
+      {:error, reason} ->
+        Logger.error("NIP-11: Cache error: #{inspect(reason)}")
+        conn
+        |> put_status(:internal_server_error)
+        |> text("Cache error: #{inspect(reason)}")
+    end
+  end
+
+  defp validate_and_fetch_nip11(conn, relay_url) do
     with :ok <- validate_url(relay_url),
-         {:ok, nip11_data} <- get_cached_nip11(relay_url) do
-      conn
-      |> json(nip11_data)
+         {:ok, nip11_data} <- fetch_and_cache_nip11(relay_url) do
+      json(conn, nip11_data)
     else
       {:error, :invalid_url} ->
+        # Cache invalid URL error for 1 hour
+        Cachex.put(@cache_name, relay_url, :invalid_url, ttl: :timer.hours(1))
         conn
         |> put_status(:bad_request)
         |> text("Invalid relay URL")
 
       {:error, reason} ->
+        Logger.error("NIP-11: Failed to fetch data for #{relay_url}: #{inspect(reason)}")
         conn
         |> put_status(:bad_request)
         |> text("Failed to fetch NIP-11 data: #{inspect(reason)}")
@@ -31,26 +85,34 @@ defmodule NostrBackendWeb.Nip11Controller do
   end
 
   # Fetches and caches NIP-11 data
-  defp get_cached_nip11(relay_url) do
-    case Cachex.get(@cache_name, relay_url) do
-      {:ok, nil} ->
-        # Not in cache, fetch from the relay
-        case fetch_nip11_data(relay_url) do
-          {:ok, nip11_data} ->
-            # Cache the data with TTL and return it
-            Cachex.put(@cache_name, relay_url, nip11_data, ttl: @cache_ttl)
-            {:ok, nip11_data}
+  defp fetch_and_cache_nip11(relay_url) do
+    case fetch_nip11_data(relay_url) do
+      {:ok, nip11_data} ->
+        Logger.debug("NIP-11: Successfully fetched data for: #{relay_url}")
+        # Cache successful results for 24 hours
+        Cachex.put(@cache_name, relay_url, nip11_data, ttl: @success_cache_ttl)
+        {:ok, nip11_data}
 
-          error ->
-            error
-        end
+      {:error, :http_error} ->
+        Logger.debug("NIP-11: HTTP error for: #{relay_url}")
+        # Cache HTTP errors for 30 minutes
+        Cachex.put(@cache_name, relay_url, :http_error, ttl: @error_cache_ttl)
+        {:error, :http_error}
 
-      {:ok, cached_data} ->
-        # Found in cache, return it
-        {:ok, cached_data}
+      {:error, :invalid_json} ->
+        Logger.debug("NIP-11: Invalid JSON for: #{relay_url}")
+        # Cache JSON errors for 30 minutes
+        Cachex.put(@cache_name, relay_url, :invalid_json, ttl: @error_cache_ttl)
+        {:error, :invalid_json}
 
-      {:error, reason} ->
-        {:error, {:cache_error, reason}}
+      {:error, :request_failed} ->
+        Logger.debug("NIP-11: Request failed for: #{relay_url}")
+        # Cache request failures for 30 minutes
+        Cachex.put(@cache_name, relay_url, :request_failed, ttl: @error_cache_ttl)
+        {:error, :request_failed}
+
+      error ->
+        error
     end
   end
 
@@ -65,14 +127,14 @@ defmodule NostrBackendWeb.Nip11Controller do
       {:ok, %Req.Response{status: 200, body: body}} ->
         case Jason.decode(body) do
           {:ok, json_data} -> {:ok, json_data}
-          {:error, decode_error} -> {:error, {:invalid_json, decode_error}}
+          {:error, _decode_error} -> {:error, :invalid_json}
         end
 
-      {:ok, %Req.Response{status: status}} ->
-        {:error, {:http_error, "Received HTTP status #{status}"}}
+      {:ok, %Req.Response{status: _status}} ->
+        {:error, :http_error}
 
-      {:error, error} ->
-        {:error, {:http_request_failed, error}}
+      {:error, _error} ->
+        {:error, :request_failed}
     end
   end
 

@@ -60,9 +60,15 @@ defmodule NostrBackendWeb.OembedController do
         # If not in cache, fetch the oEmbed data
         fetch_and_cache_oembed(conn, oembed_url)
 
-      {:ok, cached_result} ->
-        # Serve cached result
+      {:ok, cached_result} when is_map(cached_result) ->
+        # Serve cached successful result
         json(conn, cached_result)
+
+      {:ok, :fetch_error} ->
+        # Serve cached fetch error
+        conn
+        |> put_status(:bad_request)
+        |> text("Failed to fetch oEmbed URL")
 
       {:error, reason} ->
         conn
@@ -88,6 +94,8 @@ defmodule NostrBackendWeb.OembedController do
           {:error, reason} ->
             Logger.debug("ERROR REASON: #{inspect(reason)}")
             Logger.debug("BODY: #{inspect(body)}")
+            # Cache processing errors for 30 minutes
+            Cachex.put(:oembed_cache, oembed_url, :fetch_error, ttl: :timer.minutes(30))
 
             conn
             |> put_status(:unprocessable_entity)
@@ -96,6 +104,8 @@ defmodule NostrBackendWeb.OembedController do
 
       {:error, reason} ->
         Logger.error("OEmbed: Failed to fetch oEmbed URL: #{inspect(reason)}")
+        # Cache fetch errors for 30 minutes
+        Cachex.put(:oembed_cache, oembed_url, :fetch_error, ttl: :timer.minutes(30))
         conn
         |> put_status(:bad_request)
         |> text("Failed to fetch oEmbed URL: #{inspect(reason)}")
@@ -165,8 +175,8 @@ defmodule NostrBackendWeb.OembedController do
 
   defp put_acces_control_headers(conn) do
     conn
-    |> put_resp_header("Access-Control-Allow-Origin", "*")
-    # |> put_resp_header("Access-Control-Allow-Origin", "pareto.space")
-    |> put_resp_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+          |> put_resp_header("access-control-allow-origin", "*")
+      # |> put_resp_header("access-control-allow-origin", "pareto.space")
+      |> put_resp_header("access-control-allow-methods", "GET, OPTIONS")
   end
 end

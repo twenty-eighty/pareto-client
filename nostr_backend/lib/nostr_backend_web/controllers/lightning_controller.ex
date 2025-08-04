@@ -100,8 +100,8 @@ defmodule NostrBackendWeb.LightningController do
 
   defp put_required_headers(conn) do
     conn
-    |> put_resp_header("Access-Control-Allow-Origin", "*")
-    |> put_resp_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> put_resp_header("access-control-allow-methods", "GET, OPTIONS")
     |> put_resp_header("x-robots-tag", "noindex")
   end
 end
