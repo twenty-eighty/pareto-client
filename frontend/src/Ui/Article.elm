@@ -4,13 +4,11 @@ import BrowserEnv exposing (BrowserEnv, Environment)
 import Components.ArticleComments as ArticleComments
 import Components.BookmarkButton as BookmarkButton
 import Components.Button as Button
-import Components.Icon
 import Components.InteractionButton as InteractionButton exposing (InteractionObject(..))
 import Components.Interactions
 import Components.SharingButtonDialog as SharingButtonDialog
 import Css
 import Dict exposing (Dict)
-import FeatherIcons
 import Html.Styled as Html exposing (Html, a, article, div, h2, h3, img, summary, text)
 import Html.Styled.Attributes as Attr exposing (css, href)
 import I18Next
@@ -39,7 +37,7 @@ import Translations.ArticleView as Translations
 import Translations.Posts
 import Ui.Interactions
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
-import Ui.Profile exposing (viewProfileSmall)
+import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyInter, fontFamilyRobotoMono, fontFamilyUnbounded, print)
 import Url
@@ -162,13 +160,6 @@ viewArticle articlePreviewsData articlePreviewData article =
         getProfile =
             Nostr.getProfile articlePreviewsData.nostr
 
-        maybeProfile =
-            getProfile article.author
-
-        validationStatus =
-            Nostr.getProfileValidationStatus articlePreviewsData.nostr article.author
-                |> Maybe.withDefault ValidationUnknown
-
         langAttr =
             case article.language of
                 Just language ->
@@ -201,25 +192,6 @@ viewArticle articlePreviewsData articlePreviewData article =
         articleRelays =
             article.relays
                 |> Set.map websocketUrl
-
-        interactionObject =
-            InteractionButton.Article article.id ( article.kind, article.author, article.identifier |> Maybe.withDefault "" )
-
-        previewData : Ui.Interactions.PreviewData msg
-        previewData =
-            { browserEnv = articlePreviewsData.browserEnv
-            , loginStatus = articlePreviewsData.loginStatus
-            , maybeNip19Target = nip19ForArticle article
-            , zapRelays = articleRelays
-            , interactionsModel = articlePreviewData.articleInteractions
-            , interactionObject = interactionObject
-            , toInteractionsMsg = articlePreviewsData.articleToInteractionsMsg interactionObject
-            , nostr = articlePreviewsData.nostr
-            , sharing = articlePreviewsData.sharing
-            , sharingInfo = sharingInfoForArticle article articlePreviewData.author
-            , translations = articlePreviewsData.browserEnv.translations
-            , theme = articlePreviewsData.theme
-            }
 
         newComment =
             loggedInSigningPubKey articlePreviewsData.loginStatus
@@ -254,44 +226,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                 [ Tw.flex_1
                 ]
             ]
-            [ div
-                [ css
-                    [ Tw.relative
-                    , Tw.flex
-                    , Bp.lg [ Tw.flex_row ]
-                    , Tw.flex_col
-                    , Tw.items_start
-                    , Tw.gap_5
-                    , Tw.p_3
-                    , Tw.bg_color styles.colorG5
-                    , darkMode [ Tw.bg_color styles.colorG2 ]
-                    , print [ Tw.hidden ]
-                    ]
-                ]
-                [ div
-                    [ css
-                        [ Tw.flex
-                        , Tw.flex_row
-                        ]
-                    ]
-                    [ div [] [ text "<--" ]
-                    , maybeProfile
-                        |> Maybe.map (\profile -> viewProfileSmall articlePreviewsData.browserEnv.environment styles True profile validationStatus)
-                        |> Maybe.withDefault (viewProfilePubKey articlePreviewsData.browserEnv.environment articlePreviewsData.browserEnv.translations article.author)
-                    ]
-                , div [ css [] ]
-                    [ viewInteractions previewData "1" ]
-                , div [ css [ Tw.absolute, Tw.right_0, Tw.mr_4 ] ]
-                    [ Button.new
-                        { label = Translations.followAuthor [ articlePreviewsData.browserEnv.translations ]
-                        , onClick = Nothing
-                        , theme = articlePreviewsData.theme
-                        }
-                        |> Button.withIconLeft (Components.Icon.FeatherIcon FeatherIcons.plus)
-                        |> Button.view
-                    ]
-                ]
-            , Html.article
+            [ Html.article
                 (langAttr
                     ++ [ css
                             [ Tw.flex_col
