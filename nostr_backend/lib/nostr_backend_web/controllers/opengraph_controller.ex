@@ -14,13 +14,27 @@ defmodule NostrBackendWeb.OpenGraphController do
         # Not in cache, fetch and cache it
         fetch_and_cache_image(conn, url)
 
-      {:ok, cached_image_url} ->
-        # Serve cached result
+      {:ok, cached_image_url} when is_binary(cached_image_url) ->
+        # Serve cached successful result
         Logger.debug("OpenGraph: Serving cached image URL: #{cached_image_url}")
         conn
         |> put_resp_header("Access-Control-Allow-Origin", "pareto.space")
         |> put_resp_header("Access-Control-Allow-Methods", "GET, OPTIONS")
         |> redirect(external: cached_image_url)
+
+      {:ok, :not_found} ->
+        # Serve cached failure result
+        Logger.debug("OpenGraph: Serving cached not found result")
+        conn
+        |> put_status(:not_found)
+        |> text("OpenGraph image not found")
+
+      {:ok, :fetch_error} ->
+        # Serve cached fetch error result
+        Logger.debug("OpenGraph: Serving cached fetch error result")
+        conn
+        |> put_status(:bad_request)
+        |> text("Failed to fetch URL")
 
       {:error, reason} ->
         Logger.error("OpenGraph: Cache error: #{inspect(reason)}")
@@ -37,7 +51,7 @@ defmodule NostrBackendWeb.OpenGraphController do
         case extract_image_url(body) do
           {:ok, image_url} ->
             Logger.debug("OpenGraph: Extracted image URL: #{image_url}")
-            # Cache the result
+            # Cache the successful result
             Cachex.put(:opengraph_cache, "image:#{url}", image_url)
             conn
             |> put_resp_header("Access-Control-Allow-Origin", "pareto.space")
@@ -46,6 +60,8 @@ defmodule NostrBackendWeb.OpenGraphController do
 
           :error ->
             Logger.debug("OpenGraph: Failed to extract image URL")
+            # Cache the failure for 1 hour to prevent repeated attempts
+            Cachex.put(:opengraph_cache, "image:#{url}", :not_found, ttl: :timer.hours(1))
             conn
             |> put_status(:not_found)
             |> text("OpenGraph image not found")
@@ -53,6 +69,8 @@ defmodule NostrBackendWeb.OpenGraphController do
 
       {:error, reason} ->
         Logger.error("OpenGraph: Failed to fetch URL #{url}: #{inspect(reason)}")
+        # Cache the failure for 1 hour to prevent repeated attempts
+        Cachex.put(:opengraph_cache, "image:#{url}", :fetch_error, ttl: :timer.hours(1))
         conn
         |> put_status(:bad_request)
         |> text("Failed to fetch URL: #{inspect(reason)}")
@@ -80,13 +98,20 @@ defmodule NostrBackendWeb.OpenGraphController do
         # Not in cache, fetch and cache it
         fetch_and_cache_metadata(conn, url)
 
-      {:ok, cached_metadata} ->
-        # Serve cached result
+      {:ok, cached_metadata} when is_map(cached_metadata) ->
+        # Serve cached successful result
         Logger.debug("OpenGraph: Serving cached metadata")
         conn
         |> put_resp_header("Access-Control-Allow-Origin", "pareto.space")
         |> put_resp_header("Access-Control-Allow-Methods", "GET, OPTIONS")
         |> json(cached_metadata)
+
+      {:ok, :fetch_error} ->
+        # Serve cached fetch error result
+        Logger.debug("OpenGraph: Serving cached fetch error result")
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Failed to fetch URL"})
 
       {:error, reason} ->
         Logger.error("OpenGraph: Cache error: #{inspect(reason)}")
@@ -102,7 +127,7 @@ defmodule NostrBackendWeb.OpenGraphController do
       {:ok, %Req.Response{body: body, status: 200}} ->
         metadata = extract_opengraph_metadata(body)
         Logger.debug("OpenGraph: Extracted metadata: #{inspect(metadata)}")
-        # Cache the result
+        # Cache the successful result
         Cachex.put(:opengraph_cache, "metadata:#{url}", metadata)
 
         conn
@@ -112,6 +137,8 @@ defmodule NostrBackendWeb.OpenGraphController do
 
       {:error, reason} ->
         Logger.error("OpenGraph: Failed to fetch URL #{url}: #{inspect(reason)}")
+        # Cache the failure for 1 hour to prevent repeated attempts
+        Cachex.put(:opengraph_cache, "metadata:#{url}", :fetch_error, ttl: :timer.hours(1))
         conn
         |> put_status(:bad_request)
         |> json(%{error: "Failed to fetch URL: #{inspect(reason)}"})
