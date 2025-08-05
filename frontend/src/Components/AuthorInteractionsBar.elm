@@ -1,10 +1,13 @@
 module Components.AuthorInteractionsBar exposing (..)
 
+import Components.Icon as Icon
 import Components.InteractionButton as InteractionButton
 import Components.Interactions as Interactions
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, div, text)
+import FeatherIcons
+import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes exposing (css)
+import Html.Styled.Events as Events
 import Nostr
 import Nostr.Article exposing (Article, nip19ForArticle)
 import Nostr.Profile exposing (ProfileValidation(..))
@@ -29,6 +32,7 @@ type Msg
     = Follow PubKey PubKey
     | Unfollow PubKey PubKey
     | ToggleArticleInfo Bool
+    | NavBack
 
 
 type AuthorInteractionsBar msg
@@ -70,6 +74,9 @@ update msg model =
 
         ToggleArticleInfo flag ->
             ( { model | articleInfoToggle = flag }, Effect.none )
+
+        _ ->
+            ( model, Effect.none )
 
 
 view : AuthorInteractionsBar msg -> Model -> Html msg
@@ -116,6 +123,14 @@ view (Settings { articlePreviewsData, interactionsModel, article, toMsg }) model
 
         authorFollowButton =
             createAuthorFollowButton articlePreviewsData article toMsg
+
+        backButton =
+            div
+                [ css [ Tw.cursor_pointer ]
+                , Events.onClick NavBack
+                ]
+                [ Icon.FeatherIcon FeatherIcons.arrowLeft |> Icon.view ]
+                |> Html.map toMsg
     in
     div
         [ css
@@ -135,9 +150,11 @@ view (Settings { articlePreviewsData, interactionsModel, article, toMsg }) model
             [ css
                 [ Tw.flex
                 , Tw.flex_row
+                , Tw.items_center
+                , Tw.gap_10
                 ]
             ]
-            [ div [] [ text "<--" ]
+            [ backButton
             , maybeProfile
                 |> Maybe.map (\profile -> viewProfileSmall articlePreviewsData.browserEnv.environment styles True profile validationStatus)
                 |> Maybe.withDefault (viewProfilePubKey articlePreviewsData.browserEnv.environment articlePreviewsData.browserEnv.translations article.author)

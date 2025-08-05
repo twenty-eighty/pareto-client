@@ -2,7 +2,7 @@ module Pages.U.User_.Identifier_ exposing (Model, Msg, page)
 
 import Components.ArticleComments as ArticleComments
 import Components.ArticleInfo as ArticleInfo
-import Components.AuthorInteractionsBar as AuthorInteractionsBar
+import Components.AuthorInteractionsBar as AuthorInteractionsBar exposing (Msg(..))
 import Components.Comment as Comment
 import Components.InteractionButton as InteractionButton exposing (eventIdOfInteractionObject)
 import Components.Interactions as Interactions
@@ -99,6 +99,14 @@ toLayout shared model =
             , theme = shared.theme
             }
 
+        fromAuthorBarMsg msg =
+            case msg of
+                NavBack ->
+                    NavigateBack
+
+                _ ->
+                    NoOp
+
         authorInteractionsBar =
             maybeArticle
                 |> Maybe.map
@@ -107,7 +115,7 @@ toLayout shared model =
                             { articlePreviewsData = articlePreviewsData
                             , interactionsModel = model.articleInteractions
                             , article = article
-                            , toMsg = \_ -> NoOp
+                            , toMsg = fromAuthorBarMsg
                             }
                             |> AuthorInteractionsBar.view
                         )
@@ -230,6 +238,7 @@ type Msg
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
     | SharingButtonDialogMsg SharingButtonDialog.Msg
+    | NavigateBack
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -307,6 +316,9 @@ update shared msg model =
                 , toModel = \sharingButtonDialog -> { model | sharingButtonDialog = sharingButtonDialog }
                 , toMsg = SharingButtonDialogMsg
                 }
+
+        NavigateBack ->
+            ( model, Effect.back )
 
 
 showZapDialog : Model -> List ZapDialog.Recipient -> ( Model, Effect Msg )
