@@ -103,7 +103,12 @@ toLayout shared model =
             maybeArticle
                 |> Maybe.map
                     (\article ->
-                        (AuthorInteractionsBar.new { articlePreviewsData = articlePreviewsData, interactionsModel = model.articleInteractions, article = article }
+                        (AuthorInteractionsBar.new
+                            { articlePreviewsData = articlePreviewsData
+                            , interactionsModel = model.articleInteractions
+                            , article = article
+                            , toMsg = \_ -> NoOp
+                            }
                             |> AuthorInteractionsBar.view
                         )
                             { articleInfoToggle = False }

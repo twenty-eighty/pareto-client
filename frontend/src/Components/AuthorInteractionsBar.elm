@@ -1,23 +1,23 @@
 module Components.AuthorInteractionsBar exposing (..)
 
-import Components.Button as Button
-import Components.Icon as Icon
 import Components.InteractionButton as InteractionButton
 import Components.Interactions as Interactions
-import FeatherIcons
+import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div, text)
 import Html.Styled.Attributes exposing (css)
 import Nostr
 import Nostr.Article exposing (Article, nip19ForArticle)
 import Nostr.Profile exposing (ProfileValidation(..))
 import Nostr.Relay exposing (websocketUrl)
+import Nostr.Send exposing (SendRequest(..))
+import Nostr.Types exposing (Following(..), PubKey, loggedInPubKey)
 import Set
+import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
-import Translations.ArticleView as Translations
 import Ui.Article exposing (ArticlePreviewsData, sharingInfoForArticle, viewInteractions, viewProfilePubKey)
 import Ui.Interactions
-import Ui.Profile exposing (viewProfileSmall)
+import Ui.Profile exposing (FollowType(..), followButton, viewProfileSmall)
 import Ui.Styles exposing (Theme(..), darkMode, print)
 
 
@@ -26,7 +26,9 @@ type alias Model =
 
 
 type Msg
-    = ToggleArticleInfo Bool
+    = Follow PubKey PubKey
+    | Unfollow PubKey PubKey
+    | ToggleArticleInfo Bool
 
 
 type AuthorInteractionsBar msg
@@ -34,6 +36,7 @@ type AuthorInteractionsBar msg
         { articlePreviewsData : ArticlePreviewsData msg
         , interactionsModel : Interactions.Model
         , article : Article
+        , toMsg : Msg -> msg
         }
 
 
@@ -41,21 +44,36 @@ new :
     { articlePreviewsData : ArticlePreviewsData msg
     , interactionsModel : Interactions.Model
     , article : Article
+    , toMsg : Msg -> msg
     }
     -> AuthorInteractionsBar msg
 new props =
     Settings props
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        Follow pubKeyUser pubKeyToBeFollowed ->
+            ( model
+            , SendFollowListWithPubKey pubKeyUser pubKeyToBeFollowed
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        Unfollow pubKeyUser pubKeyToBeUnfollowed ->
+            ( model
+            , SendFollowListWithoutPubKey pubKeyUser pubKeyToBeUnfollowed
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
         ToggleArticleInfo flag ->
-            { model | articleInfoToggle = flag }
+            ( { model | articleInfoToggle = flag }, Effect.none )
 
 
 view : AuthorInteractionsBar msg -> Model -> Html msg
-view (Settings { articlePreviewsData, interactionsModel, article }) model =
+view (Settings { articlePreviewsData, interactionsModel, article, toMsg }) model =
     let
         styles =
             Ui.Styles.stylesForTheme articlePreviewsData.theme
@@ -95,6 +113,9 @@ view (Settings { articlePreviewsData, interactionsModel, article }) model =
             , translations = articlePreviewsData.browserEnv.translations
             , theme = articlePreviewsData.theme
             }
+
+        authorFollowButton =
+            createAuthorFollowButton articlePreviewsData article toMsg
     in
     div
         [ css
@@ -127,14 +148,7 @@ view (Settings { articlePreviewsData, interactionsModel, article }) model =
             ]
             [ viewInteractions previewData "1" ]
         , div [ css [ Tw.absolute, Tw.right_0, Tw.mr_4 ] ]
-            [ Button.new
-                { label = Translations.followAuthor [ articlePreviewsData.browserEnv.translations ]
-                , onClick = Nothing
-                , theme = articlePreviewsData.theme
-                }
-                |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.plus)
-                |> Button.view
-            ]
+            [ authorFollowButton ]
         ]
 
 
@@ -158,3 +172,54 @@ viewInteractions previewData instanceId =
             , Interactions.BookmarkButtonElement
             ]
         |> Interactions.view
+
+
+followingProfile : Nostr.Model -> PubKey -> Maybe PubKey -> FollowType Msg
+followingProfile nostr profilePubKey maybePubKey =
+    case maybePubKey of
+        Just userPubKey ->
+            Nostr.getFollowsList nostr userPubKey
+                |> Maybe.andThen
+                    (\followList ->
+                        followList
+                            |> List.filterMap
+                                (\following ->
+                                    case following of
+                                        FollowingPubKey { pubKey } ->
+                                            if profilePubKey == pubKey then
+                                                Just (Following (Unfollow userPubKey))
+
+                                            else
+                                                Nothing
+
+                                        FollowingHashtag _ ->
+                                            Nothing
+                                )
+                            |> List.head
+                    )
+                |> Maybe.withDefault (NotFollowing (Follow userPubKey))
+
+        Nothing ->
+            UnknownFollowing
+
+
+createAuthorFollowButton : ArticlePreviewsData msg -> Article -> (Msg -> msg) -> Html msg
+createAuthorFollowButton articleData article toMsg =
+    let
+        followType =
+            mapFollowType toMsg (followingProfile articleData.nostr article.author (loggedInPubKey articleData.loginStatus))
+    in
+    followButton articleData.theme articleData.browserEnv article.author followType
+
+
+mapFollowType : (Msg -> msg) -> FollowType Msg -> FollowType msg
+mapFollowType toMsg followType =
+    case followType of
+        Following msgConstructor ->
+            Following (\pubKey -> toMsg (msgConstructor pubKey))
+
+        NotFollowing msgConstructor ->
+            NotFollowing (\pubKey -> toMsg (msgConstructor pubKey))
+
+        UnknownFollowing ->
+            UnknownFollowing
