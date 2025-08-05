@@ -70,24 +70,6 @@ view (Settings { articlePreviewsData, interactionsModel, article }) model =
             Nostr.getProfileValidationStatus articlePreviewsData.nostr article.author
                 |> Maybe.withDefault ValidationUnknown
 
-        articleInfoToggle =
-            div
-                [ css
-                    [ darkMode [ Tw.text_color styles.colorB4DarkMode ]
-                    , Tw.text_color styles.colorB4
-                    , Bp.lg [ Tw.hidden ]
-                    , Tw.block
-                    ]
-
-                --, Events.onClick (ToggleArticleInfo (not model.articleInfoToggle))
-                ]
-                [ if model.articleInfoToggle == True then
-                    Icon.FeatherIcon FeatherIcons.bookOpen |> Icon.view
-
-                  else
-                    Icon.FeatherIcon FeatherIcons.info |> Icon.view
-                ]
-
         interactionObject =
             InteractionButton.Article article.id ( article.kind, article.author, article.identifier |> Maybe.withDefault "" )
 
@@ -143,9 +125,7 @@ view (Settings { articlePreviewsData, interactionsModel, article }) model =
             [ css
                 [ Bp.lg [ Tw.absolute, Tw.right_48, Tw.mr_4 ] ]
             ]
-            [ viewInteractions previewData "1"
-            , articleInfoToggle
-            ]
+            [ viewInteractions previewData "1" ]
         , div [ css [ Tw.absolute, Tw.right_0, Tw.mr_4 ] ]
             [ Button.new
                 { label = Translations.followAuthor [ articlePreviewsData.browserEnv.translations ]
@@ -171,11 +151,10 @@ viewInteractions previewData instanceId =
         , showLabel = False
         }
         |> Interactions.withInteractionElements
-            [ Interactions.CommentButtonElement Nothing
-            , Interactions.LikeButtonElement
-            , Interactions.RepostButtonElement
+            [ Interactions.LikeButtonElement
             , Interactions.ZapButtonElement instanceId previewData.zapRelays
-            , Interactions.BookmarkButtonElement
+            , Interactions.RepostButtonElement
             , Interactions.ShareButtonElement previewData.sharingInfo
+            , Interactions.BookmarkButtonElement
             ]
         |> Interactions.view
