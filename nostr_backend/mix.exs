@@ -20,7 +20,7 @@ defmodule NostrBackend.MixProject do
     [
       # applications: [:websockex],
       mod: {NostrBackend.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :poolboy]
     ]
   end
 
@@ -49,6 +49,7 @@ defmodule NostrBackend.MixProject do
       {:bandit, "~> 1.5"},
       {:bech32, "~> 1.0"},
       {:websockex, "~> 0.4.3"},
+      {:poolboy, "~> 1.5"},
       {:cachex, "~> 3.4"},
       {:uuid, "~> 1.1"},
       {:httpoison, "~> 1.8"},
