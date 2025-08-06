@@ -15,7 +15,6 @@ import Nostr.Relay exposing (websocketUrl)
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (Following(..), PubKey, loggedInPubKey)
 import Set
-import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Ui.Article exposing (ArticlePreviewsData, sharingInfoForArticle, viewInteractions, viewProfilePubKey)
@@ -58,20 +57,6 @@ new props =
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
-        Follow pubKeyUser pubKeyToBeFollowed ->
-            ( model
-            , SendFollowListWithPubKey pubKeyUser pubKeyToBeFollowed
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        Unfollow pubKeyUser pubKeyToBeUnfollowed ->
-            ( model
-            , SendFollowListWithoutPubKey pubKeyUser pubKeyToBeUnfollowed
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
         ToggleArticleInfo flag ->
             ( { model | articleInfoToggle = flag }, Effect.none )
 

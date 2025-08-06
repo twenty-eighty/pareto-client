@@ -99,10 +99,17 @@ toLayout shared model =
             , theme = shared.theme
             }
 
+        fromAuthorBarMsg : AuthorInteractionsBar.Msg -> Msg
         fromAuthorBarMsg msg =
             case msg of
                 NavBack ->
                     NavigateBack
+
+                Follow pubKeyUser pubKeyToFollow ->
+                    FollowAuthor pubKeyUser pubKeyToFollow
+
+                Unfollow pubKeyUser pubKeyToUnfollow ->
+                    UnfollowAuthor pubKeyUser pubKeyToUnfollow
 
                 _ ->
                     NoOp
@@ -238,6 +245,8 @@ type Msg
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
     | SharingButtonDialogMsg SharingButtonDialog.Msg
+    | FollowAuthor PubKey PubKey
+    | UnfollowAuthor PubKey PubKey
     | NavigateBack
 
 
@@ -316,6 +325,20 @@ update shared msg model =
                 , toModel = \sharingButtonDialog -> { model | sharingButtonDialog = sharingButtonDialog }
                 , toMsg = SharingButtonDialogMsg
                 }
+
+        FollowAuthor pubKeyUser pubKeyToBeFollowed ->
+            ( model
+            , SendFollowListWithPubKey pubKeyUser pubKeyToBeFollowed
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        UnfollowAuthor pubKeyUser pubKeyToBeUnfollowed ->
+            ( model
+            , SendFollowListWithoutPubKey pubKeyUser pubKeyToBeUnfollowed
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
 
         NavigateBack ->
             ( model, Effect.back )
