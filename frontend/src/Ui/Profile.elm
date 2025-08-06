@@ -99,7 +99,7 @@ viewProfileSmall environment styles followLinks profile validationStatus =
                     [ Tw.text_sm
                     , Tw.font_semibold
                     ]
-                    :: styles.colorStyleGrayscaleTitle
+                    :: styles.colorStyleLabel
                 )
                 [ linkElementWrapper
                     [ text (profileDisplayName profile.pubKey profile) ]

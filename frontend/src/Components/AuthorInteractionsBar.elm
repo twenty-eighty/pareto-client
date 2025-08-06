@@ -16,6 +16,7 @@ import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (Following(..), PubKey, loggedInPubKey)
 import Set
 import Tailwind.Breakpoints as Bp
+import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Ui.Article exposing (ArticlePreviewsData, sharingInfoForArticle, viewInteractions, viewProfilePubKey)
 import Ui.Interactions
@@ -126,8 +127,9 @@ view (Settings { articlePreviewsData, interactionsModel, article, toMsg }) model
             , Tw.items_start
             , Tw.gap_5
             , Tw.p_3
-            , Tw.bg_color styles.colorG5
-            , darkMode [ Tw.bg_color styles.colorG2 ]
+            , Tw.bg_color styles.colorG4
+            , Tw.text_color Theme.white
+            , darkMode [ Tw.bg_color styles.colorG4DarkMode, Tw.text_color Theme.black ]
             , print [ Tw.hidden ]
             ]
         ]
