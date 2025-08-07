@@ -15,10 +15,31 @@ defmodule NostrBackendWeb.RumbleController do
         # Not in cache, fetch and cache it
         fetch_and_cache_embed_url(conn, url)
 
-      {:ok, cached_embed_url} ->
-        # Serve cached result
+      {:ok, cached_embed_url} when is_binary(cached_embed_url) ->
+        # Serve cached successful result
         Logger.debug("Rumble: Serving cached embed URL: #{cached_embed_url}")
         redirect(conn, external: cached_embed_url)
+
+      {:ok, :not_found} ->
+        # Serve cached not found result
+        Logger.debug("Rumble: Serving cached not found result")
+        conn
+        |> put_status(:not_found)
+        |> text("Embed URL not found in the provided page")
+
+      {:ok, :http_error} ->
+        # Serve cached HTTP error result
+        Logger.debug("Rumble: Serving cached HTTP error result")
+        conn
+        |> put_status(:bad_request)
+        |> text("HTTP request failed")
+
+      {:ok, :fetch_error} ->
+        # Serve cached fetch error result
+        Logger.debug("Rumble: Serving cached fetch error result")
+        conn
+        |> put_status(:bad_request)
+        |> text("Failed to fetch URL")
 
       {:error, reason} ->
         Logger.error("Rumble: Cache error: #{inspect(reason)}")
@@ -36,12 +57,14 @@ defmodule NostrBackendWeb.RumbleController do
         case extract_embed_url(body) do
           {:ok, embed_url} ->
             Logger.debug("Rumble: Extracted embed URL: #{embed_url}")
-            # Cache the result
-            Cachex.put(:rumble_cache, url, embed_url)
+            # Cache successful results for 24 hours
+            Cachex.put(:rumble_cache, url, embed_url, ttl: :timer.hours(24))
             redirect(conn, external: embed_url)
 
           :error ->
             Logger.error("Rumble: Failed to extract embed URL from HTML")
+            # Cache extraction failures for 1 hour
+            Cachex.put(:rumble_cache, url, :not_found, ttl: :timer.hours(1))
             conn
             |> put_status(:not_found)
             |> text("Embed URL not found in the provided page")
@@ -49,12 +72,16 @@ defmodule NostrBackendWeb.RumbleController do
 
       {:ok, %Req.Response{status: status}} ->
         Logger.error("Rumble: HTTP request failed with status: #{status}")
+        # Cache HTTP errors for 30 minutes
+        Cachex.put(:rumble_cache, url, :http_error, ttl: :timer.minutes(30))
         conn
         |> put_status(:bad_request)
         |> text("HTTP request failed with status: #{status}")
 
       {:error, reason} ->
         Logger.error("Rumble: Failed to fetch URL: #{inspect(reason)}")
+        # Cache fetch errors for 30 minutes
+        Cachex.put(:rumble_cache, url, :fetch_error, ttl: :timer.minutes(30))
         conn
         |> put_status(:bad_request)
         |> text("Failed to fetch URL: #{inspect(reason)}")

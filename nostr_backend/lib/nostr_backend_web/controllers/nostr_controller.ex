@@ -2,7 +2,7 @@ defmodule NostrBackendWeb.NostrController do
   use NostrBackendWeb, :controller
   require Logger
 
-  alias NostrBackend.Nip05
+  alias NostrBackend.Nip05Cache
 
   @default_relays [
         "wss://nostr.pareto.space",
@@ -115,25 +115,22 @@ defmodule NostrBackendWeb.NostrController do
     conn =
       put_same_domain_headers(conn)
 
-    case Nip05.parse_identifier(handle) do
-      {:ok, name, domain} ->
-        case Nip05.get_cached_well_known(name, domain) do
-          {:ok, response} ->
-            conn
-            |> json(response)
+    # Use the core NIP-05 cache directly - no redundant caching
+    case Nip05Cache.get_pubkey_and_relays(handle) do
+      {:ok, pubkey, relays} ->
+        Logger.debug("NIP-05: Validated handle successfully: #{handle}")
+        # Format response for API
+        response = %{
+          pubkey: pubkey,
+          relays: relays
+        }
+        json(conn, response)
 
-          {:error, message} ->
-            Logger.debug("Error: #{inspect(message)}")
-
-            conn
-            |> put_status(:not_found)
-            |> text(message)
-        end
-
-      {:error, message} ->
+      {:error, reason} ->
+        Logger.debug("NIP-05: Validation failed for: #{handle}, error: #{inspect(reason)}")
         conn
-        |> put_status(:bad_request)
-        |> text(message)
+        |> put_status(:not_found)
+        |> text(reason)
     end
   end
 
@@ -147,16 +144,16 @@ defmodule NostrBackendWeb.NostrController do
 
   defp put_required_headers(conn) do
     conn
-    |> put_resp_header("Access-Control-Allow-Origin", "*")
-    |> put_resp_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> put_resp_header("access-control-allow-methods", "GET, OPTIONS")
     |> put_resp_header("x-robots-tag", "noindex")
   end
 
   defp put_same_domain_headers(conn) do
     conn
     # change this to pareto.space in case the API endpoint is (mis)used by other Nostr applications
-    #   |> put_resp_header("Access-Control-Allow-Origin", "pareto.space")
-    |> put_resp_header("Access-Control-Allow-Origin", "*")
-    |> put_resp_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+    #   |> put_resp_header("access-control-allow-origin", "pareto.space")
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> put_resp_header("access-control-allow-methods", "GET, OPTIONS")
   end
 end

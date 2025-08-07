@@ -50,6 +50,11 @@ defmodule NostrBackend.FeedGenerator do
     {:noreply, state}
   end
 
+  def handle_info({_ref, {:error, reason}}, state) do
+    Logger.error("Feed generation task failed: #{inspect(reason)}")
+    {:noreply, state}
+  end
+
   def handle_info({:event, _subscription_id, _event}, state) do
     # Ignore WebSocket events as they are handled by NostrClient
     {:noreply, state}

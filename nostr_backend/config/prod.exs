@@ -11,5 +11,13 @@ config :nostr_backend, NostrBackendWeb.Endpoint,
 # Do not print debug messages in production
 config :logger, level: :info
 
+# Enhanced logger format for production to include request information
+config :logger, :console,
+  format: "[$level] $message\n",
+  metadata: [:request_id, :method, :path, :query_string]
+
+# Disable Phoenix's built-in request logging since we have our custom RequestLogger
+config :phoenix, :logger, false
+
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.
