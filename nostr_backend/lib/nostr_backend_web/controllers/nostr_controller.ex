@@ -89,15 +89,18 @@ defmodule NostrBackendWeb.NostrController do
   def nip05(conn, %{"name" => name}) do
     conn = put_required_headers(conn)
 
-    case Map.get(@nostr_data["names"], String.downcase(name)) do
+    downcased = String.downcase(name)
+
+    case Map.get(@nostr_data["names"], downcased) do
       nil ->
         # return empty data if name is not found
         json(conn, @empty_data)
 
       pubkey ->
+        relays_for_pubkey = Map.get(@nostr_data["relays"], pubkey, [])
         data = %{
-          "names" => %{name => pubkey},
-          "relays" => %{pubkey => Map.get(@nostr_data["relays"], pubkey)}
+          "names" => %{downcased => pubkey},
+          "relays" => %{pubkey => relays_for_pubkey}
         }
 
         json(conn, data)
@@ -112,18 +115,25 @@ defmodule NostrBackendWeb.NostrController do
   end
 
   def validate_nip05_handle(conn, %{"handle" => handle}) do
-    conn =
-      put_same_domain_headers(conn)
+    conn = put_same_domain_headers(conn)
 
     # Use the core NIP-05 cache directly - no redundant caching
     case Nip05Cache.get_pubkey_and_relays(handle) do
       {:ok, pubkey, relays} ->
         Logger.debug("NIP-05: Validated handle successfully: #{handle}")
-        # Format response for API
+
+        name =
+          case NostrBackend.Nip05.parse_identifier(handle) do
+            {:ok, parsed_name, _domain} -> String.downcase(parsed_name)
+            _ -> handle
+          end
+
+        # Return NIP-05 formatted response
         response = %{
-          pubkey: pubkey,
-          relays: relays
+          "names" => %{name => pubkey},
+          "relays" => %{pubkey => relays}
         }
+
         json(conn, response)
 
       {:error, reason} ->
