@@ -1,5 +1,4 @@
 defmodule NostrBackend.NostrClient do
-  use WebSockex
 
   require Logger
 
@@ -161,15 +160,102 @@ defmodule NostrBackend.NostrClient do
 
   @spec fetch_from_relays(relay_urls(), any(), atom()) :: fetch_result_with_relay()
   defp fetch_from_relays(relay_urls, id, type) do
-    # Use the new connection pool instead of creating new connections
-    case NostrBackend.RelayConnectionPoolV2.fetch_from_relays(relay_urls, id, type) do
-      {:ok, relay_url, data} ->
-        Logger.info("Successfully fetched data from relay #{relay_url}: #{length(data)} items")
-        {:ok, relay_url, data}
+    filter = build_filters(id, type)
+
+    base_opts = [overall_timeout: 60_000, cache?: false]
+    opts =
+      case type do
+        :author_articles -> Keyword.put(base_opts, :paginate, true)
+        :multiple_authors_articles -> Keyword.put(base_opts, :paginate, true)
+        _ -> base_opts
+      end
+
+    case NostrAccess.fetch(relay_urls, filter, opts) do
+      {:ok, events} ->
+        relay_url = List.first(relay_urls) || "unknown"
+        Logger.info("Successfully fetched data from relay #{relay_url}: #{length(events)} items")
+        {:ok, relay_url, events}
       {:error, reason} ->
-        Logger.error("Failed to fetch data from relays: #{reason}")
-        {:error, reason}
+        Logger.error("Failed to fetch data from relays: #{inspect(reason)}")
+        {:error, "No results from any relay"}
     end
+  end
+
+  # Filters moved here from the removed RelayConnectionPool
+  defp build_filters(%{kind: kind, author: author, identifier: identifier}, :address) do
+    %{
+      :"#d" => [identifier],
+      kinds: [kind],
+      authors: [author]
+    }
+  end
+
+  defp build_filters(%{kind: kind, identifier: identifier}, :address) do
+    %{
+      :"#d" => [identifier],
+      kinds: [kind]
+    }
+  end
+
+  defp build_filters(%{kind: kind, pubkey: pubkey, identifier: identifier}, :address) do
+    %{
+      :"#d" => [identifier],
+      kinds: [kind],
+      authors: [pubkey]
+    }
+  end
+
+  defp build_filters(%{kind: kind, author: author, identifier: identifier}, :community) do
+    %{
+      :"#d" => [identifier],
+      kinds: [kind],
+      authors: [author]
+    }
+  end
+
+  defp build_filters(%{id: id}, :event) do
+    %{
+      ids: [id]
+    }
+  end
+
+  defp build_filters(note_id, :note) do
+    %{
+      ids: [note_id]
+    }
+  end
+
+  defp build_filters(event_id, :article), do: %{ids: [event_id]}
+
+  defp build_filters(%{id: id}, :picture_post),
+    do: %{ids: [id], kinds: [20], limit: 1}
+
+  defp build_filters(pubkey, :profile),
+    do: %{authors: [pubkey], kinds: [0], limit: 1}
+
+  defp build_filters(pubkey, :follow_list) do
+    %{
+      authors: [pubkey],
+      kinds: [3],
+      limit: 1
+    }
+  end
+
+  defp build_filters(pubkey, :author_articles) do
+    %{
+      authors: [pubkey],
+      kinds: [30023],
+      limit: 1000
+    }
+  end
+
+  defp build_filters(pubkeys, :multiple_authors_articles) do
+    Logger.info("Building filters for multiple authors articles: #{length(pubkeys)} authors")
+    %{
+      authors: pubkeys,
+      kinds: [30023],
+      limit: 1000
+    }
   end
 
 

@@ -91,31 +91,39 @@ defmodule NostrBackend.RSSGenerator do
     channel_link = base_url() <> "/"
     # Self URL for this RSS feed
     self_link = base_url() <> "/rss/" <> feed_filename
-    last_build = List.first(items).pubDate || Calendar.strftime(DateTime.utc_now(), "%a, %d %b %Y %H:%M:%S GMT")
+    last_build = if length(items) > 0 do
+      List.first(items).pubDate || Calendar.strftime(DateTime.utc_now(), "%a, %d %b %Y %H:%M:%S GMT")
+    else
+      Calendar.strftime(DateTime.utc_now(), "%a, %d %b %Y %H:%M:%S GMT")
+    end
 
     items_xml =
-      items
-      |> Enum.map(fn item ->
-        # include <media:thumbnail> if image_url is present
-        thumbnail_xml = if item.image_url do
-          ~s(          <media:thumbnail url="#{item.image_url}" />)
-        else
-          ""
-        end
-        """
-        <item>
-          <title>#{escape(item.title)}</title>
-          <link>#{item.link}</link>
-          <dc:creator>#{escape(item.author)}</dc:creator>
-          <guid>#{item.guid}</guid>
-          <pubDate>#{item.pubDate}</pubDate>
-          <description><![CDATA[#{item.description}]]></description>
-          <content:encoded><![CDATA[#{item.content}]]></content:encoded>
+      if length(items) > 0 do
+        items
+        |> Enum.map(fn item ->
+          # include <media:thumbnail> if image_url is present
+          thumbnail_xml = if item.image_url do
+            ~s(          <media:thumbnail url="#{item.image_url}" />)
+          else
+            ""
+          end
+          """
+          <item>
+            <title>#{escape(item.title)}</title>
+            <link>#{item.link}</link>
+            <dc:creator>#{escape(item.author)}</dc:creator>
+            <guid>#{item.guid}</guid>
+            <pubDate>#{item.pubDate}</pubDate>
+            <description><![CDATA[#{item.description}]]></description>
+            <content:encoded><![CDATA[#{item.content}]]></content:encoded>
 #{thumbnail_xml}
-        </item>
-        """
-      end)
-      |> Enum.join("\n")
+          </item>
+          """
+        end)
+        |> Enum.join("\n")
+      else
+        ""
+      end
 
     """
 <?xml version="1.0" encoding="UTF-8"?>

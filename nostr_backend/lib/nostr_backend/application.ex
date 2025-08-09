@@ -75,9 +75,6 @@ defmodule NostrBackend.Application do
 
       NostrBackend.PostHogBuffer,
 
-      # Start the Nostr relay connection pool
-      NostrBackend.RelayConnectionPoolV2,
-
       # Start a worker by calling: NostrBackend.Worker.start_link(arg)
       # {NostrBackend.Worker, arg},
       # Start to serve requests, typically the last entry

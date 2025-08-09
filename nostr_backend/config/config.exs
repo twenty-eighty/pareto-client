@@ -13,7 +13,15 @@ config :nostr_backend,
     source_pubkey: System.get_env("FEED_SOURCE_PUBKEY", "0f47948ccf4d12064ede2e0aa744868a2443cb1c42b32c06191e0d902205abef"), # authors@pareto.space
     feed_size: String.to_integer(System.get_env("FEED_SIZE", "20")),
     relay_url: System.get_env("FEED_RELAY_URL", "wss://nostr.pareto.space")
-  }
+  },
+  relay_urls: [
+    "wss://nostr.pareto.space",
+    "wss://nostr.pareto.town",
+    "wss://nos.lol",
+    "wss://relay.nostr.band",
+    "wss://relay.damus.io",
+    "wss://pareto.nostr1.com"
+  ]
 
 # Configures the endpoint
 config :nostr_backend, NostrBackendWeb.Endpoint,
