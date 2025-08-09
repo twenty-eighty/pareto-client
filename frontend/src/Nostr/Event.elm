@@ -54,9 +54,11 @@ type Tag
     | WebTag String (Maybe String)
     | ZapTag PubKey RelayUrl (Maybe Int)
 
+
 type EventTagMarker
     = EventTagRootMarker
     | EventTagReplyMarker
+
 
 type alias ImageMetadata =
     { url : String
@@ -250,6 +252,7 @@ type Kind
     | KindCashuWalletEvent
     | KindPeerToPeerOrder
     | KindGroupMetadataEvent Int
+    | KindSatshootService
 
 
 type alias KindInformation =
@@ -650,6 +653,9 @@ informationForKind kind =
 
         KindUnknown number ->
             { description = "Unknown kind: " ++ String.fromInt number, link = Nothing }
+
+        KindSatshootService ->
+            { description = "Satshoot marketplace service", link = Nothing }
 
 
 kindFromNumber : Int -> Kind
@@ -1464,6 +1470,9 @@ numberForKind kind =
         KindGroupMetadataEvent num ->
             num
 
+        KindSatshootService ->
+            32765
+
 
 kindDecoder : Decoder Kind
 kindDecoder =
@@ -1785,7 +1794,6 @@ eventTagMarkerDecoder =
 
                     _ ->
                         Decode.fail <| "Invalid event tag marker: " ++ markerString
-
             )
 
 
@@ -1987,7 +1995,6 @@ tagToList tag =
                 _ ->
                     [ "e", eventId ]
 
-
         EventDelegationTag pubKey ->
             [ "d", pubKey ]
 
@@ -2182,7 +2189,13 @@ buildImageMetadataTag imageMetadata =
     in
     [ "imeta"
     , "url " ++ imageMetadata.url
-    ] ++ mimeTypeEntry ++ blurHashEntry ++ dimEntry ++ altEntry ++ xEntry ++ fallbacksEntries
+    ]
+        ++ mimeTypeEntry
+        ++ blurHashEntry
+        ++ dimEntry
+        ++ altEntry
+        ++ xEntry
+        ++ fallbacksEntries
 
 
 identityToString : Identity -> String
@@ -2591,11 +2604,13 @@ addEventIdTag : EventId -> Maybe RelayUrl -> Maybe EventTagMarker -> Maybe PubKe
 addEventIdTag eventId maybeRelayUrl maybeMarker maybePubKey tags =
     EventIdTag eventId maybeRelayUrl maybeMarker maybePubKey :: tags
 
+
 addEventIdTags : List EventId -> Maybe RelayUrl -> Maybe EventTagMarker -> Maybe PubKey -> List Tag -> List Tag
 addEventIdTags eventIds maybeRelayUrl maybeMarker maybePubKey tags =
     eventIds
-    |> List.map (\eventId -> EventIdTag eventId maybeRelayUrl maybeMarker maybePubKey)
-    |> List.append tags
+        |> List.map (\eventId -> EventIdTag eventId maybeRelayUrl maybeMarker maybePubKey)
+        |> List.append tags
+
 
 addHashValueTags : List String -> List Tag -> List Tag
 addHashValueTags hashValues tags =
@@ -2609,7 +2624,6 @@ addImetaTags imageMetadataList tags =
     imageMetadataList
         |> List.map ImageMetadataTag
         |> List.append tags
-
 
 
 addKindTag : Kind -> List Tag -> List Tag
@@ -2630,12 +2644,13 @@ addMimeTypeTags mimeTypes tags =
         |> List.map MimeTypeTag
         |> List.append tags
 
+
 addPubKeyTag : PubKey -> Maybe RelayUrl -> Maybe String -> List Tag -> List Tag
 addPubKeyTag pubKey maybeRelay maybePetName tags =
     PublicKeyTag pubKey maybeRelay maybePetName :: tags
 
 
-addPubKeyTags : List (PubKey, Maybe RelayUrl, Maybe String) -> List Tag -> List Tag
+addPubKeyTags : List ( PubKey, Maybe RelayUrl, Maybe String ) -> List Tag -> List Tag
 addPubKeyTags entries tags =
     entries
         |> List.map (\( pubKey, maybeRelay, maybePetName ) -> PublicKeyTag pubKey maybeRelay maybePetName)

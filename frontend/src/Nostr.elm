@@ -16,6 +16,7 @@ import Nostr.External exposing (Hooks)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.FollowList exposing (emptyFollowList, followListEvent, followListFromEvent, followListWithPubKey, followListWithoutPubKey, pubKeyIsFollower)
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
+import Nostr.MarketplaceService exposing (MarketplaceService)
 import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05Info, nip05ToString)
 import Nostr.Nip10 exposing (TextNote, tagReference)
 import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
@@ -52,6 +53,7 @@ type alias Model =
     , commentsByAddress : Dict Address (Dict EventId CommentType)
     , communities : Dict PubKey (List Community)
     , communityLists : Dict PubKey (List CommunityReference)
+    , marketplaceServices : List MarketplaceService
     , defaultRelays : List String
     , defaultUser : Maybe PubKey
     , deletedAddresses : Set Address
@@ -121,6 +123,7 @@ getAuthorsMuteList model =
     getMuteList model Pareto.authorsKey
         |> Maybe.withDefault []
 
+
 isMuted : Model -> Maybe PubKey -> PubKey -> Bool
 isMuted model maybeUserPubKey authorPubKey =
     let
@@ -136,7 +139,6 @@ isMuted model maybeUserPubKey authorPubKey =
                 |> Maybe.withDefault False
     in
     mutedByUser || mutedByAuthor
-
 
 
 getAuthorsPubKeys : Model -> List PubKey
@@ -330,6 +332,11 @@ performRequest model description requestId requestData =
 
         RequestArticlesFeed eventFilters ->
             ( { model | articlesByDate = [] }
+            , model.hooks.requestEvents description False requestId configuredRelays eventFilters
+            )
+
+        RequestMarketplaceServices eventFilters ->
+            ( { model | marketplaceServices = [] }
             , model.hooks.requestEvents description False requestId configuredRelays eventFilters
             )
 
@@ -544,7 +551,7 @@ send model sendRequest =
                         [ EventIdTag eventId Nothing Nothing Nothing
                         , PublicKeyTag articlePubKey Nothing Nothing
                         ]
-                        |> addAddressTags (addressComponents |> Maybe.map List.singleton |> Maybe.withDefault []) Nothing
+                            |> addAddressTags (addressComponents |> Maybe.map List.singleton |> Maybe.withDefault []) Nothing
                 }
             )
 
@@ -667,7 +674,8 @@ filterDeletedArticle model article =
                 |> Maybe.map (Set.member article.author)
                 |> Maybe.withDefault False
     in
-        articleEventIdDeleted || Set.member (addressForArticle article |> Maybe.withDefault "") model.deletedAddresses
+    articleEventIdDeleted
+        || Set.member (addressForArticle article |> Maybe.withDefault "") model.deletedAddresses
         |> not
 
 
@@ -811,28 +819,33 @@ getArticleComments model maybeUserPubKey addressComponents =
 
         textNoteComments =
             getTextNoteCommentsForArticle model addressComponents
-                |> List.filterMap (\comment ->
-                    case comment of
-                        CommentToArticle commentValue ->
-                            Just commentValue
+                |> List.filterMap
+                    (\comment ->
+                        case comment of
+                            CommentToArticle commentValue ->
+                                Just commentValue
 
-                        _ ->
-                            Nothing
-                )
+                            _ ->
+                                Nothing
+                    )
     in
-    articleComments ++ textNoteComments
-    |> List.filter (\comment -> not (isMuted model maybeUserPubKey comment.pubKey))
+    articleComments
+        ++ textNoteComments
+        |> List.filter (\comment -> not (isMuted model maybeUserPubKey comment.pubKey))
+
 
 getTextNoteCommentsForArticle : Model -> AddressComponents -> List CommentType
 getTextNoteCommentsForArticle model addressComponents =
     model.shortTextNotes
         |> Dict.values
-        |> List.filterMap (\textNote ->
-            if textNote.rootAddressComponents == Just addressComponents then
-                commentFromTextNote textNote
-            else
-                Nothing
-        )
+        |> List.filterMap
+            (\textNote ->
+                if textNote.rootAddressComponents == Just addressComponents then
+                    commentFromTextNote textNote
+
+                else
+                    Nothing
+            )
 
 
 getArticleCommentComments : Model -> AddressComponents -> Dict EventId (List ArticleCommentComment)
@@ -864,28 +877,32 @@ getArticleCommentComments model addressComponents =
 
         textNoteComments =
             getTextNoteCommentsForArticle model addressComponents
-                |> List.filterMap (\comment ->
-                    case comment of
-                        CommentToArticleComment commentValue ->
-                            Just commentValue
+                |> List.filterMap
+                    (\comment ->
+                        case comment of
+                            CommentToArticleComment commentValue ->
+                                Just commentValue
 
-                        _ ->
-                            Nothing
-                )
-                |> List.foldl (\comment acc ->
-                    Dict.update comment.parentEventId (\maybeArticleCommentCommentList ->
-                        case maybeArticleCommentCommentList of
-                            Just articleCommentCommentList ->
-                                Just <| comment :: articleCommentCommentList
-
-                            Nothing ->
-                                Just [ comment ]
+                            _ ->
+                                Nothing
                     )
-                    acc
-            )
-            Dict.empty
+                |> List.foldl
+                    (\comment acc ->
+                        Dict.update comment.parentEventId
+                            (\maybeArticleCommentCommentList ->
+                                case maybeArticleCommentCommentList of
+                                    Just articleCommentCommentList ->
+                                        Just <| comment :: articleCommentCommentList
+
+                                    Nothing ->
+                                        Just [ comment ]
+                            )
+                            acc
+                    )
+                    Dict.empty
     in
     Dict.union articleComments textNoteComments
+
 
 getBookmarks : Model -> PubKey -> Maybe BookmarkList
 getBookmarks model pubKey =
@@ -900,7 +917,7 @@ getReactionsForArticle model addressComponents =
 getReactionsForEventId : Model -> EventId -> Maybe (Dict PubKey Nostr.Reactions.Reaction)
 getReactionsForEventId model eventid =
     model.reactionsForEventId
-    |> Dict.get eventid 
+        |> Dict.get eventid
 
 
 getRepostsForArticle : Model -> AddressComponents -> Maybe (Dict PubKey Nostr.Nip18.Repost)
@@ -1299,14 +1316,15 @@ getCommunityList model pubKey =
 isArticleBookmarked : Model -> Article -> PubKey -> Bool
 isArticleBookmarked model article pubKey =
     addressComponentsForArticle article
-        |> Maybe.map (\addressComponents ->
-            areAddressComponentsBookmarked model addressComponents pubKey
-        )
+        |> Maybe.map
+            (\addressComponents ->
+                areAddressComponentsBookmarked model addressComponents pubKey
+            )
         |> Maybe.withDefault False
 
 
 areAddressComponentsBookmarked : Model -> AddressComponents -> PubKey -> Bool
-areAddressComponentsBookmarked model (kind, author, identifier) pubKey =
+areAddressComponentsBookmarked model ( kind, author, identifier ) pubKey =
     let
         bookmarkList =
             getBookmarks model pubKey
@@ -1387,6 +1405,7 @@ getBookmarkListCountForAddressComponents model addressComponents =
                     |> List.length
             )
         |> List.sum
+
 
 getBookmarkListCountForEventId : Model -> EventId -> Int
 getBookmarkListCountForEventId model eventId =
@@ -1516,6 +1535,7 @@ empty =
     , commentsByAddress = Dict.empty
     , communities = Dict.empty
     , communityLists = Dict.empty
+    , marketplaceServices = []
     , defaultRelays = []
     , defaultUser = Nothing
     , deletedAddresses = Set.empty
@@ -1577,11 +1597,11 @@ init hooks environment testMode relayUrls =
 
         model =
             { empty
-            | hooks = hooks
-            , environment = environment
-            , relays = initRelayList relayUrls
-            , defaultRelays = relayUrls
-            , testMode = testMode
+                | hooks = hooks
+                , environment = environment
+                , relays = initRelayList relayUrls
+                , defaultRelays = relayUrls
+                , testMode = testMode
             }
     in
     ( model
@@ -1972,13 +1992,14 @@ updateModelWithDeletionRequests model events =
             eventIds
                 |> Set.foldl
                     (\eventId acc ->
-                        Dict.update eventId (\setToUpdate ->
-                            setToUpdate
-                                |> Maybe.map (Set.insert pubKey)
-                                |> Maybe.withDefault (Set.singleton pubKey)
-                                |> Just
-                        )
-                        acc
+                        Dict.update eventId
+                            (\setToUpdate ->
+                                setToUpdate
+                                    |> Maybe.map (Set.insert pubKey)
+                                    |> Maybe.withDefault (Set.singleton pubKey)
+                                    |> Just
+                            )
+                            acc
                     )
                     dict
 

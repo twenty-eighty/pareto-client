@@ -49,6 +49,7 @@ type RequestData
     | RequestNip98Auth String String HttpRequestMethod
     | RequestSearchResults (List EventFilter)
     | RequestShortNote (Maybe (List RelayUrl)) EventFilter
+    | RequestMarketplaceServices (List EventFilter)
 
 
 type HttpRequestMethod
@@ -113,6 +114,9 @@ relaysOfRequest request =
                         Nothing
 
                     RequestFollowSets _ ->
+                        Nothing
+
+                    RequestMarketplaceServices _ ->
                         Nothing
 
                     RequestMediaServerLists _ ->

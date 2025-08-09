@@ -291,6 +291,15 @@ rawSidebarItems clientRole translations =
               , requiresBetaTester = False
               , disabled = False
               }
+            , { path = Route.Path.Marketplace
+              , title = "Marketplace"
+              , ariaLabel = "Marketplace"
+              , icon = FeatherIcon FeatherIcons.shoppingCart
+              , requiresLogin = True
+              , requiresAuthor = True
+              , requiresBetaTester = False
+              , disabled = False
+              }
             , { path = Route.Path.Media
               , title = Translations.mediaMenuItemText [ translations ]
               , ariaLabel = Translations.mediaMenuItemText [ translations ]
