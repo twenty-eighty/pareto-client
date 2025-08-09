@@ -10,7 +10,7 @@ import Layouts.Sidebar
 import Nostr
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Nip05 as Nip05 exposing (Nip05, nip05ToString)
-import Nostr.Profile exposing (Profile, ProfileValidation(..))
+import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (Following(..), PubKey, loggedInSigningPubKey)
@@ -182,8 +182,17 @@ view shared model =
                     (\nip05 ->
                         Nostr.getProfileByNip05 shared.nostr nip05
                     )
+
+        maybePubKey =
+            model.nip05
+                |> Maybe.andThen
+                    (\nip05 ->
+                        Nostr.getPubKeyByNip05 shared.nostr nip05
+                    )
     in
-    { title = "Profile"
+    { title =
+            Maybe.map2 profileDisplayName maybePubKey maybeProfile
+            |> Maybe.withDefault "Profile"
     , body =
         [ case maybeProfile of
             Just profile ->
