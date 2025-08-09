@@ -1034,6 +1034,9 @@ kindFromNumber num =
             31990 ->
                 KindHandlerInformation
 
+            32765 ->
+                KindSatshootService
+
             34235 ->
                 KindVideoEvent
 

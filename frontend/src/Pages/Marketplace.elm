@@ -165,7 +165,7 @@ init shared route () =
     , Effect.batch
         [ changeCategoryEffect
         , RequestMarketplaceServices [ filterForCategory shared correctedCategory ]
-            |> Nostr.createRequest shared.nostr "Marketplace services" [ KindUserMetadata, KindEventDeletionRequest ]
+            |> Nostr.createRequest shared.nostr "Marketplace services" [ KindUserMetadata ]
             |> Shared.Msg.RequestNostrEvents
             |> Effect.sendSharedMsg
         , signUpEffect
@@ -196,12 +196,18 @@ filterForCategory shared category =
             { emptyEventFilter | kinds = Just [ KindSatshootService ], limit = Just 20 }
 
         Pareto ->
-            { emptyEventFilter | kinds = Just [ KindSatshootService ], authors = Just (paretoFollowsList shared.nostr), limit = Just 20 }
+            { emptyEventFilter
+                | kinds = Just [ KindSatshootService ]
+
+                --, authors = Just (paretoFollowsList shared.nostr)
+                , limit = Just 20
+            }
 
         Friedenstaube ->
             { emptyEventFilter
                 | kinds = Just [ KindSatshootService ]
-                , authors = Just (paretoFollowsList shared.nostr)
+
+                --, authors = Just (paretoFollowsList shared.nostr)
                 , tagReferences =
                     Just
                         [ TagReferenceTag "Frieden"

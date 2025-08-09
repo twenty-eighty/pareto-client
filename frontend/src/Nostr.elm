@@ -16,7 +16,7 @@ import Nostr.External exposing (Hooks)
 import Nostr.FileStorageServerList exposing (fileStorageServerListFromEvent)
 import Nostr.FollowList exposing (emptyFollowList, followListEvent, followListFromEvent, followListWithPubKey, followListWithoutPubKey, pubKeyIsFollower)
 import Nostr.FollowSet exposing (FollowSet, followSetFromEvent)
-import Nostr.MarketplaceService exposing (MarketplaceService)
+import Nostr.MarketplaceService exposing (MarketplaceService, marketplaceServiceFromEvent)
 import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05Info, nip05ToString)
 import Nostr.Nip10 exposing (TextNote, tagReference)
 import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
@@ -1703,7 +1703,7 @@ update msg model =
                 "events" ->
                     case
                         ( Nostr.External.decodeRequestId message.value
-                        , Nostr.External.decodeEventsKind message.value
+                        , Nostr.External.decodeEventsKind message.value |> Debug.log "Received event kind: "
                         )
                     of
                         ( Ok requestId, Ok kind ) ->
@@ -1916,6 +1916,9 @@ updateModelWithEvents model requestId kind events =
 
         KindRelayListMetadata ->
             updateModelWithRelayListMetadata model events
+
+        KindSatshootService ->
+            updateModelWithMarketplaceServices model events |> Debug.log "Satshoot Service received!!! Updating model..."
 
         _ ->
             ( model, Cmd.none )
@@ -2226,6 +2229,31 @@ updateModelWithFileStorageServerLists model _ events =
                     model.fileStorageServerLists
     in
     ( { model | fileStorageServerLists = fileStorageServerLists }, Cmd.none )
+
+
+updateModelWithMarketplaceServices : Model -> List Event -> ( Model, Cmd Msg )
+updateModelWithMarketplaceServices model events =
+    let
+        ( marketplaceService, newErrors ) =
+            events
+                |> List.map marketplaceServiceFromEvent
+                |> List.foldl
+                    (\decodingResult ( serviceAcc, errors ) ->
+                        case decodingResult of
+                            Ok service ->
+                                ( service :: serviceAcc, errors )
+
+                            Err decodingErrors ->
+                                ( serviceAcc, decodingErrors ++ errors )
+                    )
+                    ( [], [] )
+    in
+    ( { model
+        | marketplaceServices = marketplaceService
+        , errors = newErrors ++ model.errors
+      }
+    , Cmd.none
+    )
 
 
 updateModelWithLongFormContent : Model -> RequestId -> List Event -> ( Model, Cmd Msg )

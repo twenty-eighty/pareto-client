@@ -614,6 +614,7 @@ export const onReady = ({ app, env }) => {
         case 30003: // bookmark sets
         case 30023: // long-form article
         case 30024: // long-form draft
+        case 32765: // satshoot marketplace service
         case 34550: // community definition
           {
             eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
