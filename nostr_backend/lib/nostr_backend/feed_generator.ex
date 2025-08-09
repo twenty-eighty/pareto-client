@@ -131,10 +131,9 @@ defmodule NostrBackend.FeedGenerator do
   end
 
   defp fetch_all_articles(follow_list) do
-    relay = get_configured_relay()
-    Logger.info("Fetching articles from relay #{relay} for #{length(follow_list)} authors")
+    Logger.info("Fetching articles for #{length(follow_list)} authors")
 
-    case ArticleCache.get_multiple_authors_articles(follow_list, [relay]) do
+    case ArticleCache.get_multiple_authors_articles(follow_list, []) do
       {:ok, articles} ->
         Logger.info("Successfully fetched #{length(articles)} articles")
         if length(articles) > 0 do

@@ -63,7 +63,7 @@ defmodule NostrBackend.MixProject do
       {:floki, "~> 0.37.0"},
       {:sweet_xml, "~> 0.7.5"},
       {:atomex, "~> 0.4"},
-      {:nostr_access, "~> 0.1.0"}
+      {:nostr_access, "~> 0.1.1"}
     ]
   end
 
