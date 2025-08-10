@@ -25,6 +25,7 @@ import Shared.Msg
 import Tailwind.Theme exposing (Color)
 import Translations.Read
 import Translations.Sidebar
+import Ui.View
 import View exposing (View)
 
 
@@ -198,8 +199,7 @@ filterForCategory shared category =
         Pareto ->
             { emptyEventFilter
                 | kinds = Just [ KindSatshootService ]
-
-                --, authors = Just (paretoFollowsList shared.nostr)
+                , authors = Just (paretoFollowsList shared.nostr)
                 , limit = Just 20
             }
 
@@ -316,7 +316,19 @@ view shared model =
 
 viewContent : Shared.Model.Model -> Model -> Maybe PubKey -> Html Msg
 viewContent shared model maybePubkey =
-    text "Marketplace of ideas"
+    let
+        servicesView =
+            shared.nostr.marketplaceServices
+                |> Ui.View.viewMarketplaceServicePreviewList
+                    { bookmarkButtonMsg = BookmarkButtonMsg
+                    , bookmarkButtons = model.bookmarkButtons
+                    , browserEnv = shared.browserEnv
+                    , nostr = shared.nostr
+                    , loginStatus = shared.loginStatus
+                    , theme = shared.theme
+                    }
+    in
+    servicesView
 
 
 categoryImage : Color -> Category -> Maybe (Html msg)

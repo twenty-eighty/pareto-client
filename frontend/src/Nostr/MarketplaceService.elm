@@ -72,6 +72,9 @@ marketplaceServiceFromEvent event =
                 |> List.foldl
                     (\tag ( service, errors ) ->
                         case tag of
+                            EventDelegationTag id ->
+                                ( { service | identifier = id }, errors )
+
                             HashTag hashtag ->
                                 ( { service | hashtags = service.hashtags ++ [ hashtag ] }, errors )
 
@@ -86,6 +89,9 @@ marketplaceServiceFromEvent event =
 
                             TitleTag title ->
                                 ( { service | title = title }, errors )
+
+                            AmountTag amountS ->
+                                ( { service | amount = String.toInt amountS |> Maybe.withDefault 0 }, errors )
 
                             ZapTag pubKey relayUrl maybeWeight ->
                                 ( { service | zapWeights = service.zapWeights ++ [ ( pubKey, relayUrl, Maybe.withDefault 0 maybeWeight ) ] }, errors )

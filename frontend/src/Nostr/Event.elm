@@ -53,6 +53,7 @@ type Tag
     | UrlTag String RelayRole
     | WebTag String (Maybe String)
     | ZapTag PubKey RelayUrl (Maybe Int)
+    | AmountTag String
 
 
 type EventTagMarker
@@ -1776,6 +1777,10 @@ decodeTag =
                         "zap" ->
                             Decode.map3 ZapTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string) (Decode.maybe (Decode.index 3 decodeStringInt))
 
+                        "amount" ->
+                            Decode.map AmountTag (Decode.index 1 Decode.string)
+
+                        -- |> Decode.map (\s -> String.toInt s |> Maybe.withDefault 0)))
                         _ ->
                             decodeGenericTag
                 )
@@ -2156,6 +2161,9 @@ tagToList tag =
 
                 Nothing ->
                     [ "zap", pubKey, relayUrl ]
+
+        AmountTag amount ->
+            [ "amount", amount ]
 
 
 buildImageMetadataTag : ImageMetadata -> List String

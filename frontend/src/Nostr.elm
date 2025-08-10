@@ -1703,7 +1703,7 @@ update msg model =
                 "events" ->
                     case
                         ( Nostr.External.decodeRequestId message.value
-                        , Nostr.External.decodeEventsKind message.value |> Debug.log "Received event kind: "
+                        , Nostr.External.decodeEventsKind message.value
                         )
                     of
                         ( Ok requestId, Ok kind ) ->
@@ -1918,7 +1918,7 @@ updateModelWithEvents model requestId kind events =
             updateModelWithRelayListMetadata model events
 
         KindSatshootService ->
-            updateModelWithMarketplaceServices model events |> Debug.log "Satshoot Service received!!! Updating model..."
+            updateModelWithMarketplaceServices model events
 
         _ ->
             ( model, Cmd.none )
@@ -2234,7 +2234,7 @@ updateModelWithFileStorageServerLists model _ events =
 updateModelWithMarketplaceServices : Model -> List Event -> ( Model, Cmd Msg )
 updateModelWithMarketplaceServices model events =
     let
-        ( marketplaceService, newErrors ) =
+        ( marketplaceServices, newErrors ) =
             events
                 |> List.map marketplaceServiceFromEvent
                 |> List.foldl
@@ -2249,7 +2249,7 @@ updateModelWithMarketplaceServices model events =
                     ( [], [] )
     in
     ( { model
-        | marketplaceServices = marketplaceService
+        | marketplaceServices = marketplaceServices
         , errors = newErrors ++ model.errors
       }
     , Cmd.none

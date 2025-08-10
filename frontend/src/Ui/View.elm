@@ -15,11 +15,13 @@ import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Community exposing (Community)
+import Nostr.MarketplaceService exposing (MarketplaceService)
 import Nostr.Request exposing (RequestId)
 import Nostr.Types exposing (loggedInPubKey)
 import Tailwind.Utilities as Tw
 import Ui.Article exposing (ArticlePreviewsData)
 import Ui.Community
+import Ui.MarketplaceService exposing (MarketplaceServicePreviewsData)
 import Ui.Styles exposing (Theme)
 
 
@@ -33,7 +35,7 @@ viewArticle articlePreviewsData loadedContent articleInteractions article =
     let
         articleComponents =
             article
-            |> addressComponentsForArticle
+                |> addressComponentsForArticle
     in
     Ui.Article.viewArticle
         articlePreviewsData
@@ -126,6 +128,37 @@ viewArticlePreviewsBigPicture articlePreviewsData articles =
 viewCommunity : BrowserEnv -> Nostr.Model -> Community -> Html msg
 viewCommunity browserEnv nostr community =
     Ui.Community.viewCommunity browserEnv nostr.profiles community
+
+
+viewMarketplaceServicePreviewList : MarketplaceServicePreviewsData msg -> List MarketplaceService -> Html msg
+viewMarketplaceServicePreviewList servicePreviewsData services =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.justify_center
+            ]
+        ]
+        [ Keyed.node "div"
+            [ css
+                [ Tw.flex
+                , Tw.flex_col
+                , Tw.gap_8
+                ]
+            ]
+            (services
+                |> List.map
+                    (\service ->
+                        ( -- unique identifier for Keyed.node
+                          service.id
+                        , Lazy.lazy3
+                            Ui.MarketplaceService.viewMarketplaceServicePreview
+                            servicePreviewsData
+                            (Nostr.getAuthor servicePreviewsData.nostr service.author)
+                            service
+                        )
+                    )
+            )
+        ]
 
 
 viewRelayStatus : Theme -> I18Next.Translations -> Nostr.Model -> Purpose -> Maybe RequestId -> Html msg
