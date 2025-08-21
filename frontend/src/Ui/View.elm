@@ -19,6 +19,7 @@ import Nostr.Community exposing (Community)
 import Nostr.Request exposing (RequestId)
 import Nostr.Types exposing (loggedInPubKey)
 import Tailwind.Utilities as Tw
+import Translations.View as Translations
 import Ui.Article exposing (ArticlePreviewsData)
 import Ui.Community
 import Ui.Styles exposing (Theme)
@@ -66,7 +67,7 @@ viewArticlePreviewsList articlePreviewsData articles =
             articlePreviewsData.onLoadMore
                 |> Maybe.map (\onLoadMore ->
                     Button.new
-                        { label = "Load more"
+                        { label = Translations.loadMore [ articlePreviewsData.browserEnv.translations ]
                         , onClick = Just onLoadMore
                         ,theme = articlePreviewsData.theme
                         }
