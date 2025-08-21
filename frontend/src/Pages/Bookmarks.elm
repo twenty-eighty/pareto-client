@@ -111,7 +111,7 @@ requestForBookmarkContent nostr bookmarkType bookmarkList =
                             , tagReferences = Just [ TagReferenceIdentifier identifier ]
                           }
                         ]
-                            |> RequestArticlesFeed
+                            |> RequestArticlesFeed False
                             |> Nostr.createRequest nostr "Bookmark articles" [ KindUserMetadata ]
                             |> Shared.Msg.RequestNostrEvents
                             |> Effect.sendSharedMsg
@@ -308,6 +308,7 @@ viewArticleBookmarks shared _ addressComponents =
             , commentsToMsg = \_ -> NoOp
             , nostr = shared.nostr
             , loginStatus = shared.loginStatus
+            , onLoadMore = Nothing
             , sharing = Nothing
             , theme = shared.theme
             }
