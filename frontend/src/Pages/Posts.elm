@@ -187,7 +187,7 @@ updateModelWithCategory user shared model category =
         ( request, filters, description ) =
             case category of
                 Published ->
-                    ( RequestArticlesFeed
+                    ( RequestArticlesFeed False
                     , [ { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ user.pubKey ], limit = Just 20 } ]
                     , "Posts of user"
                     )
@@ -249,6 +249,7 @@ viewArticles shared model userPubKey =
                     , commentsToMsg = \_ -> NoOp
                     , nostr = shared.nostr
                     , loginStatus = shared.loginStatus
+                    , onLoadMore = Nothing
                     , sharing = Nothing
                     , theme = shared.theme
                     }

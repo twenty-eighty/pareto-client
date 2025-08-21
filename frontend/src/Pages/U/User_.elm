@@ -79,7 +79,7 @@ init shared route () =
                         case Nostr.getPubKeyByNip05 shared.nostr nip05 of
                             Just pubKey ->
                                 -- already validated, don't do again
-                                [ buildRequestArticlesEffect shared.nostr pubKey
+                                [ buildRequestArticlesEffect shared.nostr pubKey False
 
                                 -- check if author offers newsletter
                                 , Effect.sendSharedMsg (Shared.Msg.LoadUserDataByPubKey pubKey)
@@ -104,10 +104,10 @@ init shared route () =
     )
 
 
-buildRequestArticlesEffect : Nostr.Model -> PubKey -> Effect Msg
-buildRequestArticlesEffect nostr pubKey =
+buildRequestArticlesEffect : Nostr.Model -> PubKey -> Bool -> Effect Msg
+buildRequestArticlesEffect nostr pubKey loadMore =
     [ { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ pubKey ], limit = Just 20 } ]
-        |> RequestArticlesFeed
+        |> RequestArticlesFeed loadMore
         |> Nostr.createRequest nostr "Posts of user" [ KindUserMetadata ]
         |> Shared.Msg.RequestNostrEvents
         |> Effect.sendSharedMsg
@@ -120,6 +120,7 @@ buildRequestArticlesEffect nostr pubKey =
 type Msg
     = Follow PubKey PubKey
     | Unfollow PubKey PubKey
+    | LoadMoreArticles PubKey
     | OpenSubscribeDialog
     | EmailSubscriptionDialogSent (EmailSubscriptionDialog.Msg Msg)
     | NoOp
@@ -141,6 +142,10 @@ update shared msg model =
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
+
+        LoadMoreArticles pubKey ->
+            ( model, buildRequestArticlesEffect shared.nostr pubKey True )
+
 
         OpenSubscribeDialog ->
             ( { model | emailSubscriptionDialog = EmailSubscriptionDialog.show model.emailSubscriptionDialog }
@@ -244,6 +249,7 @@ viewProfile shared model profile =
                 , commentsToMsg = \_ -> NoOp
                 , nostr = shared.nostr
                 , loginStatus = shared.loginStatus
+                , onLoadMore = Just (LoadMoreArticles profile.pubKey)
                 , sharing = Nothing
                 , theme = shared.theme
                 }

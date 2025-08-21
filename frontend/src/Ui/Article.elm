@@ -50,6 +50,7 @@ type alias ArticlePreviewsData msg =
     , bookmarkButtons : Dict EventId BookmarkButton.Model
     , browserEnv : BrowserEnv
     , commentsToMsg : ArticleComments.Msg msg -> msg
+    , onLoadMore : Maybe msg
     , loginStatus : LoginStatus
     , nostr : Nostr.Model
     , sharing : Maybe ( SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg )

@@ -3,6 +3,7 @@ module Ui.View exposing (..)
 -- this module connects the Nostr engine and the UI functions
 
 import BrowserEnv exposing (BrowserEnv)
+import Components.Button as Button
 import Components.Interactions
 import Components.RelayStatus as RelayStatus exposing (Purpose(..))
 import Dict
@@ -18,9 +19,11 @@ import Nostr.Community exposing (Community)
 import Nostr.Request exposing (RequestId)
 import Nostr.Types exposing (loggedInPubKey)
 import Tailwind.Utilities as Tw
+import Translations.View as Translations
 import Ui.Article exposing (ArticlePreviewsData)
 import Ui.Community
 import Ui.Styles exposing (Theme)
+import Ui.Shared exposing (emptyHtml)
 
 
 type ArticlePreviewType
@@ -59,9 +62,24 @@ viewArticlePreviews previewType articlePreviewsData articles =
 
 viewArticlePreviewsList : ArticlePreviewsData msg -> List Article -> Html msg
 viewArticlePreviewsList articlePreviewsData articles =
+    let
+        loadMoreButton =
+            articlePreviewsData.onLoadMore
+                |> Maybe.map (\onLoadMore ->
+                    Button.new
+                        { label = Translations.loadMore [ articlePreviewsData.browserEnv.translations ]
+                        , onClick = Just onLoadMore
+                        ,theme = articlePreviewsData.theme
+                        }
+                        |> Button.withTypeSecondary
+                        |> Button.view
+                )
+                |> Maybe.withDefault (emptyHtml)
+    in
     div
         [ css
             [ Tw.flex
+            , Tw.flex_col
             , Tw.justify_center
             ]
         ]
@@ -69,6 +87,7 @@ viewArticlePreviewsList articlePreviewsData articles =
             [ css
                 [ Tw.flex
                 , Tw.flex_col
+                , Tw.justify_center
                 , Tw.gap_8
                 ]
             ]
@@ -91,6 +110,14 @@ viewArticlePreviewsList articlePreviewsData articles =
                         )
                     )
             )
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.justify_center
+                , Tw.mt_8
+                ]
+            ]
+            [ loadMoreButton ]
         ]
 
 

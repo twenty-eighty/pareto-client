@@ -2,6 +2,7 @@ module Nostr.Article exposing (..)
 
 import Dict exposing (Dict)
 import Json.Decode as Decode exposing (Decoder)
+import List.Extra exposing (minimumBy)
 import Locale exposing (Language, languageFromISOCode)
 import Nostr.Event exposing (AddressComponents, Event, EventFilter, ImageMetadata, Kind(..), Tag(..), TagReference(..), buildAddress)
 import Nostr.Nip19 as Nip19
@@ -68,6 +69,13 @@ emptyArticle author eventId kind createdAt content relayUrls =
         Nip27.collectNostrLinks content
     , imageMetadata = Dict.empty
     }
+
+
+firstCreatedAt : List Article -> Maybe Time.Posix
+firstCreatedAt articles =
+    articles
+        |> List.map .createdAt
+        |> minimumBy Time.posixToMillis
 
 
 nip19ForArticle : Article -> Maybe String

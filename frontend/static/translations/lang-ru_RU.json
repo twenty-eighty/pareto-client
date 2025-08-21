@@ -794,6 +794,9 @@
       "no NIP-94 provided text": "Данные NIP-94 не предоставлены.",
       "error uploading to NIP-96 server text": "или"
    },
+   "view": {
+      "load more": "Load more"
+   },
    "write": {
       "article image": "Изображение",
       "editor title placeholder text": "Заголовок",
