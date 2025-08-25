@@ -38,7 +38,7 @@ type Language
 
 defaultLanguages : List Language
 defaultLanguages =
-    [ English "US", French, German "DE", Italian, Portuguese, Spanish, Swedish ]
+    [ English "US", French, German "DE", Italian, Portuguese, Russian, Spanish, Swedish ]
 
 languageFromLocale : String -> Language
 languageFromLocale locale =
@@ -90,6 +90,9 @@ languageToString translations language =
         Portuguese ->
             Translations.portugueseText [ translations ]
 
+        Russian ->
+            Translations.russianText [ translations ]
+
         Spanish ->
             Translations.spanishText [ translations ]
 
@@ -118,6 +121,9 @@ languageFromISOCode code =
         "pt" ->
             Just Portuguese
 
+        "ru" ->
+            Just Russian
+
         "es" ->
             Just Spanish
 
@@ -145,6 +151,9 @@ languageToISOCode language =
 
         Portuguese ->
             "pt"
+
+        Russian ->
+            "ru"
 
         Spanish ->
             "es"

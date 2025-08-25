@@ -193,17 +193,14 @@ init user shared route () =
                 Just article ->
                     let
                         publishedAt =
-                            if article.kind == KindDraftLongFormContent then
-                                -- output fresh published date when publishing article
-                                Nothing
-
-                            else if article.publishedAt /= Nothing then
-                                -- keep published date if present
-                                article.publishedAt
-
-                            else
+                            if article.kind == KindLongFormContent && article.publishedAt == Nothing then
                                 -- assume published date equals creation date of article event
                                 Just article.createdAt
+                            else
+                                -- keep published date if present.
+                                -- this allows to keep original published date when publishing older articles from RSS or other sources.
+                                article.publishedAt
+
 
                         draftAddressComponents =
                             if article.kind == KindDraftLongFormContent then
@@ -823,7 +820,12 @@ updateWithPublishedResults shared model user value =
 
 sendPublishCmd : Shared.Model -> Model -> Auth.User -> List RelayUrl -> Effect Msg
 sendPublishCmd shared model user relayUrls =
-    eventWithContent shared model user KindLongFormContent
+    let
+        publishedAt =
+            model.publishedAt
+                |> Maybe.withDefault model.now
+    in
+    eventWithContent shared model user KindLongFormContent (Just publishedAt)
         |> SendLongFormArticle relayUrls
         |> Shared.Msg.SendNostrEvent
         |> Effect.sendSharedMsg
@@ -831,7 +833,7 @@ sendPublishCmd shared model user relayUrls =
 
 sendDraftCmd : Shared.Model -> Model -> Auth.User -> Effect Msg
 sendDraftCmd shared model user =
-    eventWithContent shared model user KindDraftLongFormContent
+    eventWithContent shared model user KindDraftLongFormContent model.publishedAt
         |> SendLongFormDraft (Nostr.getDefaultRelays shared.nostr)
         |> Shared.Msg.SendNostrEvent
         |> Effect.sendSharedMsg
@@ -850,13 +852,9 @@ sendDraftDeletionCmd shared model user =
             Effect.none
 
 
-eventWithContent : Shared.Model -> Model -> Auth.User -> Kind -> Event
-eventWithContent shared model user kind =
+eventWithContent : Shared.Model -> Model -> Auth.User -> Kind -> Maybe Time.Posix -> Event
+eventWithContent shared model user kind publishedAt =
     let
-        publishedAt =
-            model.publishedAt
-                |> Maybe.withDefault model.now
-
         -- NIP-92: media attachments
         imageMetadataList =
             model.content
@@ -877,7 +875,7 @@ eventWithContent shared model user kind =
             |> Event.addImageTag model.image
             |> Event.addIdentifierTag model.identifier
             |> Event.addHashtagsToTags (HashtagEditor.getHashtags model.hashtagEditor)
-            |> Event.addPublishedAtTag publishedAt
+            |> Maybe.withDefault identity (publishedAt |> Maybe.map Event.addPublishedAtTag)
             |> Maybe.withDefault identity (languageISOCode model |> Maybe.map (Event.addLabelTags "ISO-639-1"))
             |> Event.addZapTags model.zapWeights
             |> Event.addAltTag (altText model.identifier user.pubKey kind [ Pareto.paretoRelay ])

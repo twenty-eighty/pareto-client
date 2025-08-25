@@ -62,10 +62,13 @@ generatePreviewHtml loadedContent urlString linkAttr body =
 
         sanitizedUrl =
             filterTrackingParams parsed
+
+        linkType =
+            detectLinkType sanitizedUrl urlString
     in
     case Url.fromString urlString of
         Just _ ->
-            case detectLinkType sanitizedUrl urlString of
+            case linkType of
                 YouTubeVideo videoId ->
                     generateYouTubePreview loadedContent urlString videoId
 
@@ -255,7 +258,7 @@ isPlainLinkkUrl url =
 
 isEmbeddable : String -> Bool
 isEmbeddable urlString =
-    Oembed.matchesProvider [] urlString
+    Oembed.matchesProvider oemProviders urlString
 
 
 type alias DetectMimeTypeFromPathFunction =
@@ -825,6 +828,9 @@ oemProviders =
       }
     , { url = "https://www.facebook.com/oembed_video"
       , schemes = [ regex "https://www\\.facebook\\.com/.*/videos/.*", regex "https://www\\.facebook\\.com/video\\.php" ]
+      }
+    , { url = "https://rutube.ru/api/oembed"
+      , schemes = [ regex "https://rutube\\.ru/video/.*" ]
       }
     ]
 
