@@ -94,6 +94,11 @@ defmodule NostrBackend.FollowListCache do
     end
   end
 
+  defp parse_follow_list([]) do
+    Logger.debug("No follow list events found - user may not have a follow list")
+    []
+  end
+
   defp parse_follow_list(other) do
     Logger.debug("Unexpected event format: #{inspect(other)}")
     []

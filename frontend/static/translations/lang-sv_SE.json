@@ -794,6 +794,9 @@
       "no NIP-94 provided text": "Inga NIP-94-data angivna.",
       "error uploading to NIP-96 server text": "Fel vid uppladdning till NIP-96-server"
    },
+   "view": {
+      "load more": "Load more"
+   },
    "write": {
       "article image": "Bild",
       "editor title placeholder text": "Titel",

@@ -50,6 +50,11 @@ defmodule NostrBackend.FeedGenerator do
     {:noreply, state}
   end
 
+  def handle_info({_ref, {:error, reason}}, state) do
+    Logger.error("Feed generation task failed: #{inspect(reason)}")
+    {:noreply, state}
+  end
+
   def handle_info({:event, _subscription_id, _event}, state) do
     # Ignore WebSocket events as they are handled by NostrClient
     {:noreply, state}
@@ -126,10 +131,9 @@ defmodule NostrBackend.FeedGenerator do
   end
 
   defp fetch_all_articles(follow_list) do
-    relay = get_configured_relay()
-    Logger.info("Fetching articles from relay #{relay} for #{length(follow_list)} authors")
+    Logger.info("Fetching articles for #{length(follow_list)} authors")
 
-    case ArticleCache.get_multiple_authors_articles(follow_list, [relay]) do
+    case ArticleCache.get_multiple_authors_articles(follow_list, []) do
       {:ok, articles} ->
         Logger.info("Successfully fetched #{length(articles)} articles")
         if length(articles) > 0 do

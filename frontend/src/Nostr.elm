@@ -4,7 +4,7 @@ import BrowserEnv exposing (Environment(..))
 import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode
-import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, publishedTime)
+import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, firstCreatedAt, publishedTime)
 import Nostr.Blossom exposing (userServerListFromEvent)
 import Nostr.BookmarkList exposing (BookmarkList, bookmarkListEvent, bookmarkListFromEvent, bookmarkListWithArticle, bookmarkListWithShortNote, bookmarkListWithoutArticle, bookmarkListWithoutShortNote, emptyBookmarkList)
 import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
@@ -36,7 +36,7 @@ import Nostr.Zaps exposing (ZapReceipt)
 import Pareto
 import Portal
 import Set exposing (Set)
-import Time
+import Time exposing (Posix)
 
 
 type alias Model =
@@ -328,9 +328,17 @@ performRequest model description requestId requestData =
             , model.hooks.requestEvents description True requestId configuredRelays eventFilters
             )
 
-        RequestArticlesFeed eventFilters ->
-            ( { model | articlesByDate = [] }
-            , model.hooks.requestEvents description False requestId configuredRelays eventFilters
+        RequestArticlesFeed loadMore eventFilters ->
+            let
+                (until, articlesByDate) =
+                    if loadMore then    
+                        (firstCreatedAt model.articlesByDate, model.articlesByDate)
+
+                    else
+                        ( Nothing, [] )
+            in
+            ( { model | articlesByDate = articlesByDate }
+            , model.hooks.requestEvents description False requestId configuredRelays (eventFiltersWithUntil eventFilters until)
             )
 
         RequestArticleDrafts eventFilters ->
@@ -392,6 +400,11 @@ performRequest model description requestId requestData =
         RequestShortNote relays eventFilter ->
             ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) [ eventFilter ] )
 
+
+eventFiltersWithUntil : List EventFilter -> Maybe Posix -> List EventFilter
+eventFiltersWithUntil eventFilters maybeUntil =
+    eventFilters
+        |> List.map (\eventFilter -> { eventFilter | until = maybeUntil })
 
 send : Model -> SendRequest -> ( Model, Cmd Msg )
 send model sendRequest =
@@ -2776,7 +2789,7 @@ requestRelatedKindsForProfiles model profiles kinds =
 
 requestArticlesForAuthors : Model -> List PubKey -> ( Model, Cmd Msg )
 requestArticlesForAuthors model pubKeys =
-    createRequest model "Articles for authors" [] (RequestArticlesFeed [ { emptyEventFilter | authors = Just pubKeys, kinds = Just [ KindLongFormContent ] } ])
+    createRequest model "Articles for authors" [] (RequestArticlesFeed False [ { emptyEventFilter | authors = Just pubKeys, kinds = Just [ KindLongFormContent ] } ])
         |> doRequest model
 
 

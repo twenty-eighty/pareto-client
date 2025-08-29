@@ -795,6 +795,9 @@
       "no NIP-94 provided text": "Keine NIP-94-Daten angegeben.",
       "error uploading to NIP-96 server text": "Fehler beim Hochladen auf NIP-96 Server"
    },
+   "view": {
+      "load more": "Mehr laden"
+   },
    "write": {
       "article image": "Bild",
       "editor title placeholder text": "Titel",

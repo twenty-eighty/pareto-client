@@ -21,7 +21,9 @@ defmodule NostrBackend.RSSGenerator do
     channel_desc \\ "Articles from Pareto authors"
   ) do
     File.mkdir_p!(@rss_path)
-    items = prepare_items(articles)
+    feed_size = Application.get_env(:nostr_backend, :feed_generator)[:feed_size]
+    relay_urls = Application.get_env(:nostr_backend, :feed_generator)[:relay_url] |> List.wrap()
+    items = prepare_items(articles, feed_size, relay_urls)
     xml = build_rss(items, channel_title, channel_desc, feed_filename)
     feed_path = Path.join(@rss_path, feed_filename)
     atomic_write(feed_path, xml)
@@ -29,31 +31,38 @@ defmodule NostrBackend.RSSGenerator do
   end
 
   # Prepare the items for the RSS channel
-  defp prepare_items(articles) do
-    feed_size = Application.get_env(:nostr_backend, :feed_generator)[:feed_size]
-    relay_urls = Application.get_env(:nostr_backend, :feed_generator)[:relay_url] |> List.wrap()
-
+  defp prepare_items(articles, feed_size, relay_urls) do
     articles
     |> Enum.sort_by(& &1.published_at, {:desc, DateTime})
     |> Enum.take(feed_size)
     |> Enum.map(fn article ->
-      # Get author name from ProfileCache
+      # Get author name from ProfileCache with robust fallback
       author_name = case ProfileCache.get_profile(article.author, []) do
-        {:ok, prof} -> prof.display_name || prof.name || article.author
-        _ -> article.author
+        {:ok, prof} when is_map(prof) and map_size(prof) > 1 ->
+          # Profile has meaningful data (more than just relays)
+          prof.display_name || prof.name || article.author
+        {:ok, _prof} ->
+          # Profile is incomplete (only has relays or is empty)
+          article.author
+        _ ->
+          # Profile fetch failed
+          article.author
       end
+
       # Link with relay for RSS <link>
       link = encode_link(article, relay_urls)
+
       # Compute guid: canonical naddr without relay or fallback
       guid = case NIP19.encode_naddr(article.kind, article.author, article.identifier) do
         naddr when is_binary(naddr) -> base_url() <> "/a/" <> naddr
         _ ->
           nip05_id = case ProfileCache.get_profile(article.author, []) do
-            {:ok, prof} -> prof.nip05
+            {:ok, prof} when is_map(prof) and map_size(prof) > 1 -> prof.nip05
             _ -> nil
           end
-          base_url() <> "/u/" <> nip05_id <> "/" <> to_string(article.identifier)
+          base_url() <> "/u/" <> (nip05_id || article.author) <> "/" <> to_string(article.identifier)
       end
+
       # Prepare description and content with inline title image
       description = article.description || ""
       raw_content = article.content || description
@@ -63,6 +72,7 @@ defmodule NostrBackend.RSSGenerator do
       else
         raw_content
       end
+
       %{
         title: article.title || "Untitled",
         link: link,
@@ -81,31 +91,39 @@ defmodule NostrBackend.RSSGenerator do
     channel_link = base_url() <> "/"
     # Self URL for this RSS feed
     self_link = base_url() <> "/rss/" <> feed_filename
-    last_build = List.first(items).pubDate || Calendar.strftime(DateTime.utc_now(), "%a, %d %b %Y %H:%M:%S GMT")
+    last_build = if length(items) > 0 do
+      List.first(items).pubDate || Calendar.strftime(DateTime.utc_now(), "%a, %d %b %Y %H:%M:%S GMT")
+    else
+      Calendar.strftime(DateTime.utc_now(), "%a, %d %b %Y %H:%M:%S GMT")
+    end
 
     items_xml =
-      items
-      |> Enum.map(fn item ->
-        # include <media:thumbnail> if image_url is present
-        thumbnail_xml = if item.image_url do
-          ~s(          <media:thumbnail url="#{item.image_url}" />)
-        else
-          ""
-        end
-        """
-        <item>
-          <title>#{escape(item.title)}</title>
-          <link>#{item.link}</link>
-          <dc:creator>#{escape(item.author)}</dc:creator>
-          <guid>#{item.guid}</guid>
-          <pubDate>#{item.pubDate}</pubDate>
-          <description><![CDATA[#{item.description}]]></description>
-          <content:encoded><![CDATA[#{item.content}]]></content:encoded>
+      if length(items) > 0 do
+        items
+        |> Enum.map(fn item ->
+          # include <media:thumbnail> if image_url is present
+          thumbnail_xml = if item.image_url do
+            ~s(          <media:thumbnail url="#{item.image_url}" />)
+          else
+            ""
+          end
+          """
+          <item>
+            <title>#{escape(item.title)}</title>
+            <link>#{item.link}</link>
+            <dc:creator>#{escape(item.author)}</dc:creator>
+            <guid>#{item.guid}</guid>
+            <pubDate>#{item.pubDate}</pubDate>
+            <description><![CDATA[#{item.description}]]></description>
+            <content:encoded><![CDATA[#{item.content}]]></content:encoded>
 #{thumbnail_xml}
-        </item>
-        """
-      end)
-      |> Enum.join("\n")
+          </item>
+          """
+        end)
+        |> Enum.join("\n")
+      else
+        ""
+      end
 
     """
 <?xml version="1.0" encoding="UTF-8"?>

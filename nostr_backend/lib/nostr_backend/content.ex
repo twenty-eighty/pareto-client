@@ -137,45 +137,57 @@ defmodule NostrBackend.Content do
 
     # Handle both event formats: direct map and tuple with type/id/event
     event_map = case event do
-      {_type, _id, event_data} -> event_data
-      _ -> event
-    end
-
-    content = case event_map do
-      %{"content" => content} -> content
-      %{content: content} -> content
-      _ -> "{}"
-    end
-
-    decoded = case Jason.decode(content) do
-      {:ok, decoded} ->
-        Logger.debug("Decoded profile content: #{inspect(decoded)}")
-        decoded
-      error ->
-        Logger.error("Failed to decode profile content: #{inspect(error)}")
+      {_type, _id, event_data} when is_map(event_data) -> event_data
+      event_data when is_map(event_data) -> event_data
+      _ ->
+        Logger.warning("Invalid profile event format: #{inspect(event)}")
         %{}
     end
 
-    # Get pubkey from either string or atom key
-    pubkey = event_map["pubkey"] || event_map[:pubkey]
-    Logger.debug("Extracted pubkey: #{inspect(pubkey)}")
+    # Early return if event_map is empty
+    if map_size(event_map) == 0 do
+      Logger.warning("Empty event map for profile parsing")
+      %{}
+    else
+      content = case event_map do
+        %{"content" => content} when is_binary(content) -> content
+        %{content: content} when is_binary(content) -> content
+        _ -> "{}"
+      end
 
-    profile = %{
-      profile_id: pubkey,
-      name: decoded["name"] || decoded["displayName"],
-      username: decoded["username"],
-      about: decoded["about"],
-      banner: decoded["banner"],
-      image: decoded["image"] || decoded["picture"],
-      display_name: decoded["display_name"] || decoded["displayName"],
-      website: decoded["website"],
-      lud16: decoded["lud16"],
-      nip05: decoded["nip05"],
-      picture: decoded["picture"]
-    }
+      decoded = case Jason.decode(content) do
+        {:ok, decoded} when is_map(decoded) ->
+          Logger.debug("Decoded profile content: #{inspect(decoded)}")
+          decoded
+        {:ok, _} ->
+          Logger.warning("Profile content decoded but not a map: #{inspect(content)}")
+          %{}
+        error ->
+          Logger.error("Failed to decode profile content: #{inspect(error)}")
+          %{}
+      end
 
-    Logger.debug("Parsed profile: #{inspect(profile)}")
-    profile
+      # Get pubkey from either string or atom key
+      pubkey = event_map["pubkey"] || event_map[:pubkey]
+      Logger.debug("Extracted pubkey: #{inspect(pubkey)}")
+
+      profile = %{
+        profile_id: pubkey,
+        name: decoded["name"] || decoded["displayName"],
+        username: decoded["username"],
+        about: decoded["about"],
+        banner: decoded["banner"],
+        image: decoded["image"] || decoded["picture"],
+        display_name: decoded["display_name"] || decoded["displayName"],
+        website: decoded["website"],
+        lud16: decoded["lud16"],
+        nip05: decoded["nip05"],
+        picture: decoded["picture"]
+      }
+
+      Logger.debug("Parsed profile: #{inspect(profile)}")
+      profile
+    end
   end
 
   @spec parse_profile_event(any()) :: map()

@@ -11,6 +11,7 @@ defmodule NostrBackend.Application do
       NostrBackendWeb.Telemetry,
       {DNSCluster, query: Application.get_env(:nostr_backend, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: NostrBackend.PubSub},
+      {Registry, keys: :unique, name: NostrBackend.Registry},
 
       # Cache for articles
       Supervisor.child_spec(

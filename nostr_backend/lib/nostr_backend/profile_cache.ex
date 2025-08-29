@@ -46,10 +46,18 @@ defmodule NostrBackend.ProfileCache do
           _ -> event_or_events
         end
         profile = Content.parse_profile_event(event_to_parse)
-        # Attach the relay used to fetch the profile
-        profile = Map.put(profile, :relays, [relay])
-        Logger.debug("Parsed profile: #{inspect(profile)}")
-        {:ok, profile}
+
+        # Only return the profile if it has meaningful data (more than just relays)
+        if is_map(profile) and map_size(profile) > 1 do
+          # Attach the relay used to fetch the profile
+          profile = Map.put(profile, :relays, [relay])
+          Logger.debug("Parsed profile: #{inspect(profile)}")
+          {:ok, profile}
+        else
+          Logger.warning("Profile parsing returned incomplete data for pubkey #{pubkey}")
+          {:error, "Incomplete profile data"}
+        end
+
       {:error, reason} ->
         Logger.error("Failed to fetch profile: #{inspect(reason)}")
         {:error, reason}

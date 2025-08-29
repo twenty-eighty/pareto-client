@@ -421,6 +421,7 @@ viewCommentContent styles content =
                     , Tw.text_color styles.colorB4
                     , Tw.bg_color styles.colorB1
                     , Tw.rounded_xl
+                    , Tw.break_words
                     ]
                ]
         )

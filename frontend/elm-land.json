@@ -9,7 +9,7 @@
       }
     },
     "env": [
-      "ELM_ENV"
+      "ELM_ENV", "IMAGE_CACHING_SERVER"
     ],
     "html": {
       "attributes": {

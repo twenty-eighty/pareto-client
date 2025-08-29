@@ -794,6 +794,9 @@
       "no NIP-94 provided text": "Aucune donnée NIP-94 fournie.",
       "error uploading to NIP-96 server text": "Erreur lors du téléchargement vers le serveur NIP-96"
    },
+   "view": {
+      "load more": "Load more"
+   },
    "write": {
       "article image": "Image",
       "editor title placeholder text": "Titre",

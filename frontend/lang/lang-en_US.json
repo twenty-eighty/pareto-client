@@ -467,6 +467,7 @@
       "german text": "German",
       "italian text": "Italian",
       "portuguese text": "Portuguese",
+      "russian text": "Russian",
       "spanish text": "Spanish",
       "swedish text": "Swedish"
    },
@@ -794,6 +795,9 @@
       "original file hash text": "Original File Hash (ox):",
       "no NIP-94 provided text": "No NIP-94 data provided.",
       "error uploading to NIP-96 server text": "Error uploading to NIP-96 server"
+   },
+   "view": {
+      "load more": "Load more"
    },
    "write": {
       "article image": "Image",

@@ -458,6 +458,7 @@ viewArticle shared model maybeArticle =
                 , commentsToMsg = CommentsSent
                 , nostr = shared.nostr
                 , loginStatus = shared.loginStatus
+                , onLoadMore = Nothing
                 , sharing = Just ( model.sharingButtonDialog, SharingButtonDialogMsg )
                 , theme = shared.theme
                 }
