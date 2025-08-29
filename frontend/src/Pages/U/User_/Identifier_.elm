@@ -93,6 +93,7 @@ toLayout shared model =
             , bookmarkButtons = Dict.empty
             , browserEnv = shared.browserEnv
             , commentsToMsg = CommentsSent
+            , onLoadMore = Nothing
             , nostr = shared.nostr
             , loginStatus = shared.loginStatus
             , sharing = Just ( model.sharingButtonDialog, SharingButtonDialogMsg )
