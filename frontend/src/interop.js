@@ -13,16 +13,6 @@ if (!customElements.get('js-clipboard-component')) {
   customElements.define('js-clipboard-component', ClipboardComponent);
 }
 
-// Make NDK available globally for nostr-login external version
-window.NDK = NDK;
-window.NDKUser = NDKUser;
-window.NDKEvent = NDKEvent;
-window.NDKPrivateKeySigner = NDKPrivateKeySigner;
-window.NDKNip46Signer = NDKNip46Signer;
-window.NDKNostrRpc = NDKNostrRpc;
-window.NDKNostrRpc = NDKNostrRpc;
-window.NDKSubscription = NDKSubscription;
-
 // This is called BEFORE your Elm app starts up
 // 
 // The value returned here will be passed as flags 
@@ -34,6 +24,7 @@ export const flags = ({ env }) => {
   return {
     environment: env.ELM_ENV,
     darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
+    imageCachingServer: env.IMAGE_CACHING_SERVER || "https://image-caching-server.onrender.com",
     locale: selectedLocale,
     nativeSharingAvailable: (navigator.share != undefined),
     testMode: JSON.parse(localStorage.getItem('testMode')) || false,
