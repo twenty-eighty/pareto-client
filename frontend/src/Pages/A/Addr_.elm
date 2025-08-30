@@ -2,6 +2,7 @@ module Pages.A.Addr_ exposing (..)
 
 import Components.ArticleComments as ArticleComments
 import Components.ArticleInfo as ArticleInfo
+import Components.AuthorInteractionsBar as AuthorInteractionsBar exposing (Msg(..))
 import Components.InteractionButton as InteractionButton
 import Components.Interactions as Interactions
 import Components.RelayStatus exposing (Purpose(..))
@@ -92,10 +93,56 @@ toLayout shared model =
                             |> Maybe.withDefault emptyHtml
                     )
                 |> Maybe.withDefault emptyHtml
+
+        articlePreviewsData =
+            { articleComments = ArticleComments.init
+            , articleToInteractionsMsg = ArticleInteractionsSent
+            , bookmarkButtonMsg = \_ _ -> NoOp
+            , bookmarkButtons = Dict.empty
+            , browserEnv = shared.browserEnv
+            , commentsToMsg = CommentsSent
+            , onLoadMore = Nothing
+            , nostr = shared.nostr
+            , loginStatus = shared.loginStatus
+            , sharing = Just ( SharingButtonDialog.init, SharingButtonDialogMsg )
+            , theme = shared.theme
+            }
+
+        fromAuthorBarMsg : AuthorInteractionsBar.Msg -> Msg
+        fromAuthorBarMsg msg =
+            case msg of
+                NavBack ->
+                    NavigateBack
+
+                Follow pubKeyUser pubKeyToFollow ->
+                    FollowAuthor pubKeyUser pubKeyToFollow
+
+                Unfollow pubKeyUser pubKeyToUnfollow ->
+                    UnfollowAuthor pubKeyUser pubKeyToUnfollow
+
+                _ ->
+                    NoOp
+
+        authorInteractionsBar =
+            maybeArticle
+                |> Maybe.map
+                    (\article ->
+                        (AuthorInteractionsBar.new
+                            { articlePreviewsData = articlePreviewsData
+                            , interactionsModel = Maybe.withDefault Interactions.init interactionsModel
+                            , article = article
+                            , toMsg = fromAuthorBarMsg
+                            }
+                            |> AuthorInteractionsBar.view
+                        )
+                            { articleInfoToggle = False }
+                    )
+                |> Maybe.withDefault emptyHtml
     in
     Layouts.Sidebar.new
         { theme = shared.theme
         }
+        |> Layouts.Sidebar.withTopPart authorInteractionsBar "64px"
         |> Layouts.Sidebar.withRightPart articleInfo
         |> Layouts.Sidebar
 
@@ -224,6 +271,9 @@ type Msg
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
     | SharingButtonDialogMsg SharingButtonDialog.Msg
+    | FollowAuthor PubKey PubKey
+    | UnfollowAuthor PubKey PubKey
+    | NavigateBack
     | NoOp
 
 
@@ -306,6 +356,23 @@ update shared msg model =
 
                 _ ->
                     ( model, Effect.none )
+
+        FollowAuthor pubKeyUser pubKeyToBeFollowed ->
+            ( model
+            , SendFollowListWithPubKey pubKeyUser pubKeyToBeFollowed
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        UnfollowAuthor pubKeyUser pubKeyToBeUnfollowed ->
+            ( model
+            , SendFollowListWithoutPubKey pubKeyUser pubKeyToBeUnfollowed
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        NavigateBack ->
+            ( model, Effect.back )
 
         NoOp ->
             let
