@@ -117,6 +117,39 @@ export const onReady = ({ app, env }) => {
     newScript.setAttribute("data-nstart-avoid-nsec", "true");
     newScript.setAttribute("data-nstart-avoid-ncryptsec", "false");
 
+    newScript.addEventListener("load", () => {
+      const nlElement = document.getElementsByTagName("nl-banner").item(0);
+      const style = document.createElement('style');
+      style.textContent = `
+        .pareto-custom-nl {
+          top: 19% !important;
+        }
+
+        @media (min-width: 768px) {
+          .pareto-custom-nl {
+            top: 14% !important;
+          }
+        }
+
+        @media (min-width: 1024px) {
+          .pareto-custom-nl {
+            top: 13% !important;
+          }
+        }
+      `;
+      nlElement.shadowRoot.appendChild(style);
+
+      if (nlElement) {
+        const observer = new MutationObserver((_mutations) => {
+          const nlChild = nlElement.shadowRoot.querySelector('.nl-banner');
+          if (nlChild) {
+            nlChild.classList.add("pareto-custom-nl");
+          }
+        });
+        observer.observe(nlElement.shadowRoot, {childList: true, subtree: true});
+      }
+    });
+    
     document.body.appendChild(newScript);
   }
 
