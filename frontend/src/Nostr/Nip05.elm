@@ -84,10 +84,12 @@ nip05StringDecoder =
 -- (didn't do exact statistics but still saw many failed validations)
 
 
-fetchNip05Info : (Result Http.Error Nip05Data -> msg) -> Nip05 -> Cmd msg
-fetchNip05Info toMsg nip05 =
-    fetchNip05InfoViaProxy toMsg nip05
-    -- fetchNip05InfoDirectly toMsg nip05
+fetchNip05Info : Bool -> (Result Http.Error Nip05Data -> msg) -> Nip05 -> Cmd msg
+fetchNip05Info useProxy toMsg nip05 =
+    if useProxy then
+        fetchNip05InfoViaProxy toMsg nip05
+    else
+        fetchNip05InfoDirectly toMsg nip05
 
 
 fetchNip05InfoDirectly : (Result Http.Error Nip05Data -> msg) -> Nip05 -> Cmd msg

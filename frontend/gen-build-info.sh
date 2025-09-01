@@ -15,7 +15,11 @@ elif [ -d ../.git ]; then
 else
     GIT_SHA="unknown"
 fi
-BUILD_TIME=$(date --iso-8601=seconds)
+
+# Universal ISO 8601 timestamp generation
+# Use standard date format that works on all Unix-like systems
+# Then add colon to timezone offset for proper ISO 8601 format
+BUILD_TIME=$(date +"%Y-%m-%dT%H:%M:%S%z" | sed 's/\([+-][0-9][0-9]\)\([0-9][0-9]\)/\1:\2/')
 
 mkdir -p gen/BuildInfo
 

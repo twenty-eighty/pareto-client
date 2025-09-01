@@ -1,6 +1,6 @@
 module Ui.PicturePost exposing (..)
 
-import BrowserEnv exposing (BrowserEnv)
+import BrowserEnv exposing (BrowserEnv, Environment)
 import Components.InteractionButton as InteractionButton
 import Components.Interactions as Interactions
 import Dict exposing (Dict)
@@ -12,6 +12,7 @@ import Nostr.Event exposing (ImageMetadata, Kind(..), numberForKind)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
+import Nostr.Relay exposing (websocketUrl)
 import Nostr.Types exposing (EventId, LoginStatus)
 import Set
 import Tailwind.Utilities as Tw
@@ -54,8 +55,15 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
         viewInteractions =
             let
                 shareButtonElement =
-                    Nip19.NEvent { id = picturePost.id, author = Just picturePost.pubKey, kind = Just (KindPicture |> numberForKind), relays = picturePost.relays |> Maybe.withDefault [] }
-                    |> Ui.Links.linkToNJump
+                    Nip19.NEvent
+                        { id = picturePost.id
+                        , author = Just picturePost.pubKey
+                        , kind = Just (KindPicture |> numberForKind)
+                        , relays = picturePost.relays
+                            |> Maybe.map (Set.fromList >> Set.toList >> List.map websocketUrl >> List.take 5)
+                            |> Maybe.withDefault []
+                        }
+                    |> Ui.Links.linkToPicturePost False
                     |> Maybe.map (\url ->
                         [ Interactions.ShareButtonElement
                             { url = url
@@ -105,7 +113,7 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
         ]
         [ case maybeProfile of
             Just profile ->
-                Ui.Profile.viewProfileSmall styles followLinks profile validationStatus
+                Ui.Profile.viewProfileSmall picturePostsViewData.browserEnv.environment styles followLinks profile validationStatus
 
             Nothing ->
                 emptyHtml
@@ -115,30 +123,30 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
 
             Nothing ->
                 emptyHtml
-        , viewPictures picturePost.pictures
+        , viewPictures picturePostsViewData.browserEnv.environment picturePost.pictures
         , viewContent styles picturePost.description
         , viewInteractions
         ]
 
 
-viewPictures : List ImageMetadata -> Html msg
-viewPictures imageMetadataList =
+viewPictures : Environment -> List ImageMetadata -> Html msg
+viewPictures environment imageMetadataList =
     case imageMetadataList of
         [] ->
             emptyHtml
 
         [ picture ] ->
-            viewImage picture.url
+            viewImage environment picture.url
 
         -- TODO: show additional pictures in a gallery
         firstPicture :: _ ->
-            viewImage firstPicture.url
+            viewImage environment firstPicture.url
 
 
-viewImage : String -> Html msg
-viewImage url =
+viewImage : Environment -> String -> Html msg
+viewImage environment url =
     Html.img
-        [ Attr.src <| Ui.Links.scaledImageLink 450 url
+        [ Attr.src <| Ui.Links.scaledImageLink environment 450 url
         , Attr.attribute "loading" "lazy"
         , css
             [ Tw.rounded_sm

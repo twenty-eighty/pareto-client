@@ -20,7 +20,7 @@ defmodule NostrBackend.MixProject do
     [
       # applications: [:websockex],
       mod: {NostrBackend.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :nostr_access]
     ]
   end
 
@@ -48,8 +48,8 @@ defmodule NostrBackend.MixProject do
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
       {:bech32, "~> 1.0"},
-      {:websockex, "~> 0.4.3"},
-      {:cachex, "~> 3.4"},
+      # websockex/pool management provided by nostr_access
+      {:cachex, "~> 4.0"},
       {:uuid, "~> 1.1"},
       {:httpoison, "~> 1.8"},
       {:earmark, "~> 1.4"},
@@ -57,10 +57,13 @@ defmodule NostrBackend.MixProject do
       {:ua_inspector, "~> 3.0"},
       {:remote_ip, "~> 1.2"},
       {:posthog, "~> 0.1"},
-      {:req, "~> 0.4.0"},
+      {:req, "~> 0.5.15"},
+      {:http_cookie, "~> 0.9.0"},
+      {:brotli, "~> 0.3.0"},
       {:floki, "~> 0.37.0"},
       {:sweet_xml, "~> 0.7.5"},
-      {:atomex, "~> 0.4"}
+      {:atomex, "~> 0.4"},
+      {:nostr_access, "~> 0.1.1"}
     ]
   end
 

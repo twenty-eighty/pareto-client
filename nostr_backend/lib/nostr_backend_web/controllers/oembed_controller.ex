@@ -1,7 +1,9 @@
 defmodule NostrBackendWeb.OembedController do
   use NostrBackendWeb, :controller
-  alias Req
   require Logger
+
+  alias Req
+  alias NostrBackendWeb.SharedHttpClient
 
   import SweetXml
 
@@ -58,9 +60,15 @@ defmodule NostrBackendWeb.OembedController do
         # If not in cache, fetch the oEmbed data
         fetch_and_cache_oembed(conn, oembed_url)
 
-      {:ok, cached_result} ->
-        # Serve cached result
+      {:ok, cached_result} when is_map(cached_result) ->
+        # Serve cached successful result
         json(conn, cached_result)
+
+      {:ok, :fetch_error} ->
+        # Serve cached fetch error
+        conn
+        |> put_status(:bad_request)
+        |> text("Failed to fetch oEmbed URL")
 
       {:error, reason} ->
         conn
@@ -70,7 +78,10 @@ defmodule NostrBackendWeb.OembedController do
   end
 
   defp fetch_and_cache_oembed(conn, oembed_url) do
-    case Req.get(oembed_url, headers: default_headers()) do
+    Logger.debug("OEmbed: Fetching oEmbed URL: #{oembed_url}")
+
+    # Use the shared HTTP client
+    case SharedHttpClient.fetch_url_with_cookies(oembed_url) do
       {:ok, %Req.Response{status: 200, body: body, headers: headers}} ->
         content_type = get_content_type(headers)
 
@@ -83,6 +94,8 @@ defmodule NostrBackendWeb.OembedController do
           {:error, reason} ->
             Logger.debug("ERROR REASON: #{inspect(reason)}")
             Logger.debug("BODY: #{inspect(body)}")
+            # Cache processing errors for 30 minutes
+            Cachex.put(:oembed_cache, oembed_url, :fetch_error, ttl: :timer.minutes(30))
 
             conn
             |> put_status(:unprocessable_entity)
@@ -90,6 +103,9 @@ defmodule NostrBackendWeb.OembedController do
         end
 
       {:error, reason} ->
+        Logger.error("OEmbed: Failed to fetch oEmbed URL: #{inspect(reason)}")
+        # Cache fetch errors for 30 minutes
+        Cachex.put(:oembed_cache, oembed_url, :fetch_error, ttl: :timer.minutes(30))
         conn
         |> put_status(:bad_request)
         |> text("Failed to fetch oEmbed URL: #{inspect(reason)}")
@@ -157,17 +173,10 @@ defmodule NostrBackendWeb.OembedController do
     end
   end
 
-  defp default_headers do
-    [
-      {"User-Agent",
-       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
-    ]
-  end
-
   defp put_acces_control_headers(conn) do
     conn
-    |> put_resp_header("Access-Control-Allow-Origin", "*")
-    # |> put_resp_header("Access-Control-Allow-Origin", "pareto.space")
-    |> put_resp_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+          |> put_resp_header("access-control-allow-origin", "*")
+      # |> put_resp_header("access-control-allow-origin", "pareto.space")
+      |> put_resp_header("access-control-allow-methods", "GET, OPTIONS")
   end
 end

@@ -6,6 +6,7 @@ import Components.RelayStatus exposing (Purpose(..))
 import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, article, div, text)
+import Html.Styled.Attributes exposing (css)    
 import Layouts
 import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
@@ -22,7 +23,10 @@ import Set
 import Shared
 import Shared.Model
 import Shared.Msg
+import Tailwind.Breakpoints as Bp
+import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
+import Ui.PicturePost
 import Ui.ShortNote
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (viewRelayStatus)
@@ -226,7 +230,18 @@ view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     { title = Translations.readMenuItemText [ shared.browserEnv.translations ]
     , body =
-        [ viewContent shared model
+        [ div
+            [ css
+                [ Tw.flex
+                , Tw.flex_col
+                , Bp.lg [ Tw.m_16 ]
+                , Bp.md [ Tw.m_8 ]
+                , Bp.sm [ Tw.m_4 ]
+                , Tw.m_2
+                ]
+            ]
+            [ viewContent shared model
+            ]
         ]
     }
 
@@ -235,9 +250,9 @@ viewContent : Shared.Model -> Model -> Html Msg
 viewContent shared model =
     case model.contentToView of
         ShortNote noteId _ ->
-            Nostr.getShortNoteById shared.nostr noteId
-                |> Maybe.map
-                    (\shortNote ->
+            -- The event ID could be a note or a picture post   
+            case (Nostr.getShortNoteById shared.nostr noteId, Nostr.getPicturePostById shared.nostr noteId) of
+                ( Just shortNote, _ ) ->
                         Ui.ShortNote.viewShortNote
                             { theme = shared.theme
                             , browserEnv = shared.browserEnv
@@ -260,8 +275,22 @@ viewContent shared model =
                                 }
                             }
                             shortNote
-                    )
-                |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingNote model.requestId)
+
+                ( Nothing, Just picturePost ) ->
+                    Ui.PicturePost.viewPicturePost
+                        { browserEnv = shared.browserEnv
+                        , nostr = shared.nostr
+                        , interactions = Dict.empty
+                        , loginStatus = shared.loginStatus
+                        , theme = shared.theme
+                        }
+                        { author = Nostr.getAuthor shared.nostr picturePost.pubKey
+                        , toInteractionsMsg = \_ -> NoOp
+                        }
+                        picturePost
+
+                _ ->
+                    viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingNote model.requestId
 
         Article addressComponents _ ->
             Nostr.getArticleForAddressComponents shared.nostr addressComponents
@@ -275,6 +304,7 @@ viewContent shared model =
                         , commentsToMsg = \_ -> NoOp
                         , nostr = shared.nostr
                         , loginStatus = shared.loginStatus
+                        , onLoadMore = Nothing
                         , sharing = Nothing
                         , theme = shared.theme
                         }

@@ -89,7 +89,6 @@ view (Settings settings) =
                         , darkMode
                             [ Tw.shadow_color styles.color2DarkMode
                             ]
-                        , Tw.p_8
                         , Tw.w_auto
                         , Bp.xxl
                             [ Tw.max_w_3xl
@@ -102,11 +101,14 @@ view (Settings settings) =
                             ]
                         , Bp.md
                             [ Tw.max_w_lg
+                            , Tw.p_8
                             ]
                         , Bp.sm
                             [ Tw.max_w_md
+                            , Tw.p_4
                             ]
                         , Tw.max_w_sm
+                        , Tw.p_2
                         ]
                    ]
             )

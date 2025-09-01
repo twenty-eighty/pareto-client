@@ -1,0 +1,22 @@
+{
+  "relays": [
+    "wss://relay.primal.net",
+    "wss://relay.damus.io",
+    "wss://nostr.einundzwanzig.space",
+    "wss://nos.lol"
+  ],
+  "servers": [
+    "https://cdn.nostrcheck.me",
+    "https://cdn.hzrd149.com",
+    "https://nostr.download"
+  ],
+  "profile": {
+    "name": "Pareto Client",
+    "display_name": "Pareto Client",
+    "about": "An open source publishing ecosystem for uncensorable citizen journalism, powered by Nostr, Lightning and eCash. See more on pareto.space."
+  },
+  "fallback": "/index.html",
+  "publishProfile": true,
+  "publishRelayList": true,
+  "publishServerList": true
+}

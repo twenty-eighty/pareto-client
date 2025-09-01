@@ -400,6 +400,7 @@ viewContent shared nip19 articleComments loadedContent requestId interactions sh
                         , commentsToMsg = CommentsSent
                         , loginStatus = shared.loginStatus
                         , nostr = shared.nostr
+                        , onLoadMore = Nothing
                         , sharing = Just ( sharingButtonDialog, SharingButtonDialogMsg )
                         , theme = shared.theme
                         }

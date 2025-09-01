@@ -29,6 +29,11 @@ addLoadedContent : LoadedContent msg -> String -> LoadedContent msg
 addLoadedContent loadedContent url =
     { loadedContent | loadedUrls = Set.insert url loadedContent.loadedUrls }
 
+openGraphImageUrl : String -> String
+openGraphImageUrl urlString =
+    "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
+    -- "http://localhost:4000/api/opengraph/image?url=" ++ Url.percentEncode urlString
+
 
 type LinkType
     = YouTubeVideo String
@@ -57,10 +62,13 @@ generatePreviewHtml loadedContent urlString linkAttr body =
 
         sanitizedUrl =
             filterTrackingParams parsed
+
+        linkType =
+            detectLinkType sanitizedUrl urlString
     in
     case Url.fromString urlString of
         Just _ ->
-            case detectLinkType sanitizedUrl urlString of
+            case linkType of
                 YouTubeVideo videoId ->
                     generateYouTubePreview loadedContent urlString videoId
 
@@ -250,7 +258,7 @@ isPlainLinkkUrl url =
 
 isEmbeddable : String -> Bool
 isEmbeddable urlString =
-    Oembed.matchesProvider [] urlString
+    Oembed.matchesProvider oemProviders urlString
 
 
 type alias DetectMimeTypeFromPathFunction =
@@ -476,12 +484,16 @@ generateYouTubePreview maybeLoadedContent urlString videoId =
 generateOdyseePreview : Maybe (LoadedContent msg) -> String -> Html msg
 generateOdyseePreview maybeLoadedContent urlString =
     let
+        odyseeNormalizedUrlString =
+            urlString
+                |> normalizeOdyseeUrl
+
         ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
                 Just loadedContent ->
-                    ( Set.member urlString loadedContent.loadedUrls
+                    ( Set.member odyseeNormalizedUrlString loadedContent.loadedUrls
                     , Html.div
-                    , [ Events.onClick (loadedContent.addLoadedContentFunction urlString)
+                    , [ Events.onClick (loadedContent.addLoadedContentFunction odyseeNormalizedUrlString)
                       , css
                             [ Tw.cursor_pointer
                             ]
@@ -489,9 +501,9 @@ generateOdyseePreview maybeLoadedContent urlString =
                     )
 
                 Nothing ->
-                    ( False, Html.a, [ href urlString ] )
+                    ( False, Html.a, [ href odyseeNormalizedUrlString ] )
     in
-    case ( showEmbedded, Url.fromString urlString ) of
+    case ( showEmbedded, Url.fromString odyseeNormalizedUrlString ) of
         -- The Erl URL parser apparently doesn't deliver the correct path for Odysee URLS with path segments like "@abcd:7" - the ":7" is missing
         -- once this is fixed we could avoid parsing the URL here (again)
         ( True, Just url ) ->
@@ -504,7 +516,37 @@ generateOdyseePreview maybeLoadedContent urlString =
                 []
 
         ( _, _ ) ->
-            videoThumbnailPreview linkElement clickAttr ("https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString)
+            videoThumbnailPreview linkElement clickAttr (openGraphImageUrl urlString)
+
+-- Function to normalize Odysee URL strings by decoding percent-encoded text in the path
+-- and removing /$/embed/ or /%24/embed/ prefixes
+-- Example: "https://odysee.com/%24/embed/%40MWGFD%3A0%2Ftillenburg_katja%3Ae?autoplay=true"
+-- becomes: "https://odysee.com/@MWGFD:0/tillenburg_katja:e?autoplay=true"
+normalizeOdyseeUrl : String -> String
+normalizeOdyseeUrl urlString =
+    case Url.fromString urlString of
+        Just url ->
+            let
+                decodedPath =
+                    url.path
+                        |> Url.percentDecode
+                        |> Maybe.withDefault url.path
+                
+                -- Remove /$/embed/ prefix if present (after decoding)
+                cleanedPath =
+                    if String.startsWith "/$/embed/" decodedPath then
+                        String.dropLeft 7 decodedPath
+                    else
+                        decodedPath
+                
+                normalizedUrl =
+                    { url | path = cleanedPath }
+            in
+            Url.toString normalizedUrl
+            
+        Nothing ->
+            urlString
+
 
 
 
@@ -515,7 +557,7 @@ generatePodbeanPreview : Maybe (LoadedContent msg) -> String -> String -> Html m
 generatePodbeanPreview maybeLoadedContent urlString iFrameUrl =
     let
         thumbnailUrl =
-            "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
+            openGraphImageUrl urlString
 
         ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
@@ -594,7 +636,7 @@ generateGenericPreview : Maybe (LoadedContent msg) -> String -> List (Html.Attri
 generateGenericPreview maybeLoadedContent urlString linkAttr body =
     let
         thumbnailUrl =
-            "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
+            openGraphImageUrl urlString
 
         ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
@@ -639,7 +681,7 @@ generateRumblePreview : Maybe (LoadedContent msg) -> String -> Html msg
 generateRumblePreview maybeLoadedContent urlString =
     let
         thumbnailUrl =
-            "https://pareto.space/api/opengraph/image?url=" ++ Url.percentEncode urlString
+            openGraphImageUrl urlString
 
         ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
@@ -660,7 +702,7 @@ generateRumblePreview maybeLoadedContent urlString =
         Html.iframe
             [ Attr.width 560
             , Attr.height 315
-            , Attr.src <| "https://pareto.space/api/rumble/embed?url=" ++ Url.percentEncode urlString
+            , Attr.src <| rumbleProxyUrl urlString
             , Attr.attribute "allowfullscreen" ""
             ]
             []
@@ -668,6 +710,10 @@ generateRumblePreview maybeLoadedContent urlString =
     else
         videoThumbnailPreview linkElement clickAttr thumbnailUrl
 
+rumbleProxyUrl : String -> String
+rumbleProxyUrl urlString =
+    "https://pareto.space/api/rumble/embed?url=" ++ Url.percentEncode urlString
+    -- "http://localhost:4000/api/rumble/embed?url=" ++ Url.percentEncode urlString
 
 videoThumbnailPreview : (List (Html.Attribute msg) -> List (Html msg) -> Html msg) -> List (Html.Attribute msg) -> String -> Html msg
 videoThumbnailPreview linkElement clickAttr thumbnailUrl =
@@ -782,6 +828,9 @@ oemProviders =
       }
     , { url = "https://www.facebook.com/oembed_video"
       , schemes = [ regex "https://www\\.facebook\\.com/.*/videos/.*", regex "https://www\\.facebook\\.com/video\\.php" ]
+      }
+    , { url = "https://rutube.ru/api/oembed"
+      , schemes = [ regex "https://rutube\\.ru/video/.*" ]
       }
     ]
 

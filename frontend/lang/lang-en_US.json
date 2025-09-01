@@ -466,6 +466,7 @@
       "german text": "German",
       "italian text": "Italian",
       "portuguese text": "Portuguese",
+      "russian text": "Russian",
       "spanish text": "Spanish",
       "swedish text": "Swedish"
    },
@@ -520,6 +521,8 @@
       "meme category text": "Meme",
       "food category text": "Food",
       "animals category text": "Animals",
+      "nature category text": "Nature",
+      "peace category text": "Peace",
       "plants category text": "Plants",
       "science category text": "Science",
       "technology category text": "Technology",
@@ -538,6 +541,7 @@
       "followed feed category": "Followed",
       "memes feed category": "Memes",
       "art feed category": "Art",
+      "peace feed category": "Peace",
       "new picture post button label": "Post"
    },
    "posts": {
@@ -669,12 +673,13 @@
       "profile lud16 field label": "Lightning wallet address (LUD-16)",
       "profile lud16 field placeholder": "Enter your Lightning wallet address",
       "profile lud16 field description": "This is the LUD-16 field. It is used to store the Lightning wallet address for payments. You can obtain a valid address using the Wallet of Satoshi mobile app (Android, iOS). It looks like an email address: <wallet name>@walletofsatoshi.com.",
+      "profile lud16 field redirect description": "This is the LUD-16 field. It is used to store the Lightning wallet address for payments. You can use {{redirectUrl}} - it's a redirect to your personal wallet.",
       "profile website field label": "Website",
       "profile website field placeholder": "Enter your website"
    },
    "sharing button dialog": {
       "dialog title": "Share",
-      "submit button title": "Copy to clipboard",
+      "copy to clipboard button title": "Copy to clipboard",
       "copied to clipboard alert message": "Copied to clipboard",
       "show social dialog button title": "Share on social media",
       "back button title": "Back",
@@ -790,6 +795,9 @@
       "original file hash text": "Original File Hash (ox):",
       "no NIP-94 provided text": "No NIP-94 data provided.",
       "error uploading to NIP-96 server text": "Error uploading to NIP-96 server"
+   },
+   "view": {
+      "load more": "Load more"
    },
    "write": {
       "article image": "Image",

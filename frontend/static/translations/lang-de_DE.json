@@ -8,9 +8,9 @@
       "recommend client button title": "Pareto-Client empfehlen",
       "about frontend text": "Der Pareto Client wurde entwickelt mit",
       "about frontend text 2": " in der Programmiersprache ",
-      "about frontend text 3": ".",
+      "about frontend text 3": " Programmiersprache.",
       "about backend text": "Das Pareto Backend wurde entwickelt mit dem",
-      "source code text": "Der Quellcode des Pareto Clients is verfügbar unter",
+      "source code text": "Der Quellcode des Pareto Clients ist verfügbar unter",
       "feedback text": "Du hast einen Fehler gefunden oder möchtest uns etwas mitteilen? Bitte schreibe eine E-Mail an ",
       "hint to tech details": "Für ausführliche technische Angaben zu der Pareto-App ",
       "see this": "siehe hier.",
@@ -55,6 +55,9 @@
       "hashtags title": "Hashtags",
       "urls title": "Links"
    },
+   "calendar": {
+      "time zone": "Zeitzone"
+   },
    "comment": {
       "comment label": "Kommentar",
       "comment placeholder": "Schreibe deinen Kommentar ...",
@@ -71,7 +74,7 @@
       "communities title": "Communities",
       "my communities title": "Meine Communities",
       "no communities text": "Anscheinend folgst du noch keinen Communities. Kein Problem, schau dir die Liste unten an und folge denen, die dich interessieren.",
-      "browse communities text": "Communities durchsuchen"
+      "browse communities text": "Gemeinschaften durchsuchen"
    },
    "config check": {
       "outbox relays missing text": "Fehlende Outbox-Relays",
@@ -80,7 +83,7 @@
       "relays offline explanation": "Diese Relays sind nicht erreichbar: {{relays}}.",
       "relays offline solution": "Entferne die Relays, wenn sie dauerhaft offline sind.",
       "media server missing text": "Fehlender Medien-Server",
-      "media server missing explanation": "Der Pareto Medien-Server sollte benutzt werden, um Bilder verlässlich zu speichern: {{servers}}",
+      "media server missing explanation": "Der Pareto Medien-Server sollte benutzt werden, um Bilder verlässlich zu speichern: {{servers}}.",
       "unreliable media servers text": "Unzuverlässige Medien-Server",
       "unreliable media servers explanation": "Diese Medien-Server sind für ihre Unzuverlässigkeit bekannt: {{servers}}.",
       "profile missing text": "Fehlendes Nostr-Profil",
@@ -94,14 +97,14 @@
       "profile nip-05 missing text": "Fehlendes NIP-05-Handle im Profil",
       "profile nip-05 missing explanation": "Es ist kein NIP-05-Handle im Profil gesetzt.",
       "profile nip-05 missing solution": "Du kannst das vorgeschlagene Handle {{nip05}} im Profil verwenden.",
-      "profile nip-05 name missing text": "Fehlender Name für NIP-05-Handle im Profil",
-      "profile nip-05 name missing explanation": "Der Name im NIP-05-Handle wurde nicht auf dem Server gefunden.",
-      "profile nip-05 name missing solution": "Du kannst das vorgeschlagene Handle {{nip05}} im Profil verwenden.",
       "profile nip-05 name invalid chars text": "NIP-05-Handle im Profil enthält unzulässige Zeichen",
       "profile nip-05 name invalid chars explanation": "Der Name im NIP-05-Handle enthält unzulässige Zeichen. Erlaubte Zeichen sind Kleinbuchstaben, Ziffern und die folgenden Sonderzeichen: . - _",
       "profile nip-05 name invalid chars solution": "Du kannst das vorgeschlagene Handle {{nip05}} im Profil verwenden.",
-      "profile nip-05 not matching pubkey text": "NIP-05-Handle im Profil nicht mit Pubkey übereinstimmt",
-      "profile nip-05 not matching pubkey explanation": "Zum Name im NIP-05-Handle im Profil wird ein anderer Pubkey auf dem Server gefunden.",
+      "profile nip-05 name missing text": "Fehlender Name für NIP-05-Handle im Profil",
+      "profile nip-05 name missing explanation": "Der Name im NIP-05-Handle wurde nicht auf dem Server gefunden.",
+      "profile nip-05 name missing solution": "Du kannst das vorgeschlagene Handle {{nip05}} im Profil verwenden.",
+      "profile nip-05 not matching pubkey text": "Profil NIP-05 NIP-05-Handle im Profil passt nicht zu öffentlichem Schlüssel",
+      "profile nip-05 not matching pubkey explanation": "Zum Name im NIP-05-Handle im Profil wird ein anderer öffentlicher Schlüssel auf dem Server gefunden.",
       "profile nip-05 not matching pubkey solution": "Du kannst das vorgeschlagene Handle {{nip05}} im Profil verwenden.",
       "profile nip-05 network error text": "NIP-05-Handle im Profil nicht erreichbar",
       "profile nip-05 network error explanation": "Das NIP-05-Handle im Profil ist nicht erreichbar. ({{error}})",
@@ -133,8 +136,10 @@
       "profile lud-16 whitespace explanation": "Das Feld LUD-16 im Profil enthält Leerzeichen, was dazu führen kann, dass es nicht funktioniert.",
       "profile lud-16 bitcoin address text": "LUD-16 im Profil enthält eine Bitcoin-Adresse",
       "profile lud-16 bitcoin address explanation": "Du hast in das Feld LUD-16 eine Bitcoin-Adresse eingetragen, dort sollte allerdings eine Lightning-Wallet-Adresse stehen.",
+      "profile lud-16 bitcoin address solution": "Du kannst eine gültige Adresse über die App Wallet of Satoshi bekommen (Android, iOS). Sie sollte wie eine E-Mail-Adresse aussehen: <wallet name>@walletofsatoshi.com.",
       "profile lud-16 invalid text": "LUD-16 im Profil ist ungültig",
-      "profile lud-16 invalid explanation": "Die Lightning-Wallet im Feld LUD-16 im Profil ist ungültig. Du kannst eine gültige Adresse über die App Wallet of Satoshi bekommen (Android, iOS). Sie sollte wie eine E-Mail-Adresse aussehen: <wallet name>@walletofsatoshi.com.",
+      "profile lud-16 invalid explanation": "Die Lightning-Wallet im Feld LUD-16 im Profil ist ungültig.",
+      "profile lud-16 invalid solution": "Du kannst eine gültige Adresse über die App Wallet of Satoshi bekommen (Android, iOS). Sie sollte wie eine E-Mail-Adresse aussehen: <wallet name>@walletofsatoshi.com.",
       "profile lud-16 offline text": "Lightning Wallet (LUD-16) nicht erreichbar",
       "profile lud-16 offline explanation": "Die im Profil im Feld LUD-16 konfigurierte Lightning-Wallet ist anscheinend nicht erreichbar. ({{error}})",
       "profile lud-16 callback offline text": "Lightning Wallet (LUD-16) nicht erreichbar (Callback)",
@@ -176,7 +181,7 @@
       "country BJ": "Benin",
       "country BL": "St. Barthélemy",
       "country BM": "Bermuda",
-      "country BN": "Brunei Darussalam",
+      "country BN": "Brunei",
       "country BO": "Bolivien",
       "country BQ": "Bonaire, Sint Eustatius und Saba",
       "country BR": "Brasilien",
@@ -191,7 +196,7 @@
       "country CF": "Zentralafrikanische Republik",
       "country CG": "Kongo",
       "country CH": "Schweiz",
-      "country CI": "Côte d'Ivoire",
+      "country CI": "Elfenbeinküste",
       "country CK": "Cookinseln",
       "country CL": "Chile",
       "country CM": "Kamerun",
@@ -242,7 +247,7 @@
       "country GU": "Guam",
       "country GW": "Guinea-Bissau",
       "country GY": "Guyana",
-      "country HK": "Hong Kong",
+      "country HK": "Hongkong",
       "country HN": "Honduras",
       "country HR": "Kroatien",
       "country HT": "Haiti",
@@ -276,7 +281,7 @@
       "country LB": "Libanon",
       "country LC": "St. Lucia",
       "country LI": "Liechtenstein",
-      "country LK": "Sri Lanka",
+      "country LK": "Sri-Lanka",
       "country LR": "Liberia",
       "country LS": "Lesotho",
       "country LT": "Litauen",
@@ -359,7 +364,7 @@
       "country SV": "El Salvador",
       "country SX": "Sint Maarten",
       "country SY": "Syrien",
-      "country SZ": "Eswatini",
+      "country SZ": "Swasiland",
       "country TC": "Turks- und Caicosinseln",
       "country TD": "Tschad",
       "country TF": "Französische Südgebiete",
@@ -448,7 +453,7 @@
       "explanation": "Diese Seite zeigt Diagnoseinformationen über diese Anwendung.",
       "error reporting": "Wenn du einen Fehler meldest, sende bitte die Informationen unten mit.",
       "contact information": "Bitte kontaktiere",
-      "login info title": "Login",
+      "login info title": "Anmelden",
       "configuration issues title": "Konfigurationsprobleme",
       "error messages title": "Fehlermeldungen",
       "logged out status text": "Nicht angemeldet",
@@ -470,11 +475,10 @@
    },
    "media selector": {
       "upload files": "Bild auswählen",
-      "select image": "Bild auswählen",
       "upload button title": "Bilder hochladen",
       "all servers listbox entry": "Alle Server",
       "no server listbox entry": "Kein Server konfiguriert",
-      "no server configured message": "Anscheinend wurde noch kein Medien-Server eingerichtet. Soll der Medienserver des Pareto Projekts verwendet werden?",
+      "no server configured message": "Anscheinend wurde noch kein Medien-Server eingerichtet. Soll der Medien-Server des Pareto Projekts verwendet werden?",
       "configure server button title": "Pareto Medien-Server konfigurieren",
       "select image dialog title": "Bild auswählen",
       "copied link alert message": "Link wurde kopiert",
@@ -513,9 +517,11 @@
       "error message text": "Fehler beim Veröffentlichen des Bildes: {{errorText}}",
       "category label": "Kategorie:",
       "art category text": "Kunst",
-      "meme category text": "Meme",
+      "meme category text": "Memes",
       "food category text": "Essen",
       "animals category text": "Tiere",
+      "nature category text": "Natur",
+      "peace category text": "Peace",
       "plants category text": "Pflanzen",
       "science category text": "Wissenschaft",
       "technology category text": "Technologie",
@@ -534,6 +540,7 @@
       "followed feed category": "Gefolgt",
       "memes feed category": "Memes",
       "art feed category": "Kunst",
+      "peace feed category": "Frieden",
       "new picture post button label": "Posten"
    },
    "posts": {
@@ -613,7 +620,7 @@
       "outbox relays description": "Dieser Relay-Typ speichert alle deine Inhalte.",
       "outbox relays test mode information": "Outbox-Relays können im Testmodus nicht konfiguriert werden",
       "inbox section title": "Öffentliche Inbox-Relays",
-      "inbox relays description": "Dieser Relaytyp erhält alle Antworten, Kommentare, Likes und Zaps zu deinen Posts.",
+      "inbox relays description": "Dieser Relay-Typ erhält alle Antworten, Kommentare, Likes und Zaps zu deinen Posts.",
       "add relay button title": "Hinzufügen",
       "add relay placeholder": "Gib die URL eines Relays ein",
       "relay read only login info": "Im Nur-Lesen-Modus kann die Konfiguration nicht geändert werden.",
@@ -634,7 +641,7 @@
       "add blossom media server placeholder": "Gib die URL eines Blossom-Servers ein",
       "profile category": "Profil",
       "profile editor title": "Profil-Editor",
-      "profile issues title": "Probleme im Profil:",
+      "profile issues title": "Probleme im Profil",
       "profile editor not implemented text": "Der Profil-Editor ist noch nicht implementiert. Bitte benutze eine der bestehenden Alternativen.",
       "profile save button title": "Speichern",
       "no profile read only informational text": "Du scheinst kein Profil zu haben, kannst allerdings auch keines anlegen im Nur-Lesen-Modus",
@@ -665,12 +672,13 @@
       "profile lud16 field label": "Lightning-Wallet-Adresse (LUD-16)",
       "profile lud16 field placeholder": "Gib deine Lightning-Wallet-Adresse ein",
       "profile lud16 field description": "Dies ist das LUD-16-Feld. Es wird verwendet, um die Lightning-Wallet-Adresse zu speichern. Du kannst eine gültige Adresse mit der Wallet of Satoshi-App (Android, iOS) erhalten. Es sieht aus wie eine E-Mail-Adresse: <wallet name>@walletofsatoshi.com.",
-      "profile website field label": "Website",
+      "profile lud16 field redirect description": "Dies ist das LUD-16-Feld. Es wird verwendet, um die Lightning-Wallet-Adresse für Zahlungen zu speichern. Du kannst hier {{redirectUrl}} eintragen - es ist eine Weiterleitung zu deiner persönlichen Wallet.",
+      "profile website field label": "Webseite",
       "profile website field placeholder": "Gib deine Website ein"
    },
    "sharing button dialog": {
       "dialog title": "Teilen",
-      "submit button title": "In Zwischenablage kopieren",
+      "copy to clipboard button title": "In Zwischenablage kopieren",
       "copied to clipboard alert message": "In Zwischenablage kopiert",
       "show social dialog button title": "Auf sozialen Medien teilen",
       "back button title": "Zurück",
@@ -728,7 +736,7 @@
       "name field name": "Name",
       "first name field name": "Vorname",
       "last name field name": "Nachname",
-      "pubkey field name": "Pubkey",
+      "pubkey field name": "Öffentl. Schlüssel",
       "source field name": "Quelle",
       "datesub field name": "Start Abonnement",
       "dateunsub field name": "Ende Abonnement",
@@ -746,7 +754,7 @@
       "Speaking time label": "Sprechzeit:"
    },
    "uitest": {
-      "dialog title": "UI Test",
+      "dialog title": "UI-Test",
       "category 1 text": "Kategorie 1",
       "category 2 text": "Kategorie 2",
       "no dropdown item text": "Keine Dropdown-Auswahl",
@@ -757,8 +765,8 @@
       "text area label": "Textbereich Label",
       "text area placeholder": "Textbereich Platzhalter",
       "checkbox label": "Checkbox-Text",
-      "switch off label": "Switch aus label",
-      "switch on label": "Switch an label"
+      "switch off label": "Label Ausschalter",
+      "switch on label": "Label Schalter"
    },
    "upload dialog": {
       "dialog title": "Hochladen",
@@ -769,7 +777,7 @@
       "image alt text form label": "Alternativtext (optional):",
       "media type form label": "Medientyp (optional):",
       "media type explanation text": "Medientyp wählen",
-      "avatar media type": "Avatar",
+      "avatar media type": "Profilbild",
       "banner media type": "Banner",
       "no transform checkbox text": "Keine Umwandlung",
       "start upload button text": "Upload starten",
@@ -785,6 +793,9 @@
       "original file hash text": "Originaler Datei-Hash (ox):",
       "no NIP-94 provided text": "Keine NIP-94-Daten angegeben.",
       "error uploading to NIP-96 server text": "Fehler beim Hochladen auf NIP-96 Server"
+   },
+   "view": {
+      "load more": "Mehr laden"
    },
    "write": {
       "article image": "Bild",
@@ -833,8 +844,5 @@
    },
    "tech details": {
       "page title": "Technische Details"
-   },
-   "calendar": {
-      "time zone": "Zeitzone"
    }
 }

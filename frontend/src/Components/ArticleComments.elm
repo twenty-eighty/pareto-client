@@ -373,7 +373,7 @@ viewCommentHeader browserEnv styles nostr pubKey createdAt =
                     (\profile ->
                         Nostr.getProfileValidationStatus nostr profile.pubKey
                             |> Maybe.withDefault ValidationUnknown
-                            |> Ui.Profile.viewProfileSmall styles followLinks profile
+                            |> Ui.Profile.viewProfileSmall browserEnv.environment styles followLinks profile
                     )
                 |> Maybe.withDefault emptyHtml
     in
@@ -408,6 +408,7 @@ viewCommentContent styles content =
                     , Tw.text_color styles.color4
                     , Tw.bg_color styles.color1
                     , Tw.rounded_xl
+                    , Tw.break_words
                     ]
                 ]
         )

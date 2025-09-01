@@ -7,7 +7,7 @@ import MimeType exposing (MimeType)
 import Nostr.Nip19 as Nip19 exposing (NAddrData, NEventData, NIP19Type(..))
 import Nostr.Relay
 import Nostr.Types exposing (Address, EventId, PubKey, RelayRole(..), RelayUrl, decodeRelayRole, relayRoleToString)
-import Time
+import Time exposing (Posix)
 
 
 type Tag
@@ -99,8 +99,8 @@ type alias EventFilter =
     , kinds : Maybe (List Kind)
     , tagReferences : Maybe (List TagReference)
     , limit : Maybe Int
-    , since : Maybe Int
-    , until : Maybe Int
+    , since : Maybe Posix
+    , until : Maybe Posix
     , search : Maybe String
     }
 
@@ -2316,8 +2316,8 @@ encodeEventFilter filter =
             |> appendKindList filter.kinds
             |> appendTagReferenceList filter.tagReferences
             |> appendString "search" filter.search
-            |> appendInt "since" filter.since
-            |> appendInt "until" filter.until
+            |> appendUnixIntTime "since" filter.since
+            |> appendUnixIntTime "until" filter.until
             |> appendInt "limit" filter.limit
         )
 
@@ -2527,6 +2527,14 @@ appendInt key maybeInt encodeList =
         Nothing ->
             encodeList
 
+appendUnixIntTime : String -> Maybe Posix -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
+appendUnixIntTime key maybePosix encodeList =
+    case maybePosix of
+        Just posix ->
+            ( key, Encode.int <| (Time.posixToMillis posix) // 1000 ) :: encodeList
+
+        Nothing ->
+            encodeList
 
 encodeEvent : Event -> Encode.Value
 encodeEvent event =

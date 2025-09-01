@@ -11,6 +11,6 @@ defmodule NostrBackendWeb.Plugs.Hsts do
     )
     # Disable XSS filtering
     # see https://stackoverflow.com/questions/9090577/what-is-the-http-header-x-xss-protection
-    |> put_resp_header("X-XSS-Protection", "0")
+    |> put_resp_header("x-xss-protection", "0")
   end
 end

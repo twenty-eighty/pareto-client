@@ -1,6 +1,6 @@
 module Ui.Article exposing (..)
 
-import BrowserEnv exposing (BrowserEnv)
+import BrowserEnv exposing (BrowserEnv, Environment)
 import Components.ArticleComments as ArticleComments
 import Components.BookmarkButton as BookmarkButton
 import Components.Button as Button
@@ -50,6 +50,7 @@ type alias ArticlePreviewsData msg =
     , bookmarkButtons : Dict EventId BookmarkButton.Model
     , browserEnv : BrowserEnv
     , commentsToMsg : ArticleComments.Msg msg -> msg
+    , onLoadMore : Maybe msg
     , loginStatus : LoginStatus
     , nostr : Nostr.Model
     , sharing : Maybe ( SharingButtonDialog.Model, SharingButtonDialog.Msg -> msg )
@@ -172,7 +173,7 @@ viewArticle articlePreviewsData articlePreviewData article =
 
         linkElement =
             maybeProfile
-                |> Maybe.map (\profile -> linkElementForProfile followLinks profile validationStatus)
+                |> Maybe.map (\profile -> linkElementForProfile True followLinks profile validationStatus)
                 |> Maybe.withDefault (linkElementForProfilePubKey followLinks article.author)
 
         langAttr =
@@ -271,7 +272,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                         ]
                     ]
                 ]
-                [ Ui.Profile.viewBanner (getProfile article.author |> Maybe.andThen .banner)
+                [ Ui.Profile.viewBanner articlePreviewsData.browserEnv.environment (getProfile article.author)
                 , div
                     [ css
                         [ Tw.absolute
@@ -279,7 +280,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                         , Tw.z_10
                         ]
                     ]
-                    [ Ui.Profile.viewProfileImage linkElement maybeProfile ValidationUnknown ]
+                    [ Ui.Profile.viewProfileImage articlePreviewsData.browserEnv.environment linkElement maybeProfile ValidationUnknown ]
                 ]
             , Html.article
                 (langAttr
@@ -359,7 +360,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                                 [ text <| Maybe.withDefault "" article.summary ]
                             ]
                         ]
-                    , viewArticleImage article.image
+                    , viewArticleImage articlePreviewsData.browserEnv.environment article.image
                     , div
                         (css
                             [ Tw.flex_col
@@ -373,7 +374,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                             ++ textStyleReactions
                             ++ contentMargins
                         )
-                        [ viewContent styles articlePreviewData.loadedContent getProfile article.content
+                        [ viewContent articlePreviewsData.browserEnv.environment styles articlePreviewData.loadedContent getProfile article.content
                         , viewInteractions previewData "1"
                         ]
                     , div
@@ -441,8 +442,8 @@ sharingInfoForArticle article author =
     }
 
 
-viewArticleImage : Maybe String -> Html msg
-viewArticleImage maybeImage =
+viewArticleImage : Environment -> Maybe String -> Html msg
+viewArticleImage environment maybeImage =
     case maybeImage of
         Just image ->
             div
@@ -452,7 +453,7 @@ viewArticleImage maybeImage =
                     ]
                 ]
                 [ img
-                    [ Attr.src (Ui.Links.scaledImageLink 384 image)
+                    [ Attr.src (Ui.Links.scaledImageLink environment 384 image)
                     , Attr.alt "Post Image"
                     , css
                         [ Tw.rounded_lg
@@ -526,11 +527,11 @@ removeHashTag hashTag =
         hashTag
 
 
-viewArticleProfileSmall : Bool -> Profile -> ProfileValidation -> Html msg
-viewArticleProfileSmall followLinks profile validationStatus =
+viewArticleProfileSmall : Environment -> Bool -> Profile -> ProfileValidation -> Html msg
+viewArticleProfileSmall environment followLinks profile validationStatus =
     let
         linkElement =
-            linkElementForProfile followLinks profile validationStatus
+            linkElementForProfile True followLinks profile validationStatus
     in
     div
         [ css
@@ -548,7 +549,7 @@ viewArticleProfileSmall followLinks profile validationStatus =
                     ]
                 ]
                 [ img
-                    [ Attr.src <| Ui.Profile.profilePicture 48 (Just profile)
+                    [ Attr.src <| Ui.Profile.profilePicture environment 48 (Just profile)
                     , Attr.alt "Avatar"
                     , css
                         [ Tw.min_w_12
@@ -589,8 +590,8 @@ viewArticleTime browserEnv maybePublishedAt createdAt =
         [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
 
 
-viewContent : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Html msg
-viewContent styles loadedContent fnGetProfile content =
+viewContent : Environment -> Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Html msg
+viewContent environment styles loadedContent fnGetProfile content =
     article
         [ css
             [ Tw.flex_col
@@ -602,13 +603,13 @@ viewContent styles loadedContent fnGetProfile content =
                 ]
             ]
         ]
-        [ viewContentMarkdown styles loadedContent fnGetProfile content
+        [ viewContentMarkdown environment styles loadedContent fnGetProfile content
         ]
 
 
-viewContentMarkdown : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Html msg
-viewContentMarkdown styles loadedContent fnGetProfile content =
-    case Markdown.markdownViewHtml styles loadedContent fnGetProfile content of
+viewContentMarkdown : Environment -> Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Html msg
+viewContentMarkdown environment styles loadedContent fnGetProfile content =
+    case Markdown.markdownViewHtml environment styles loadedContent fnGetProfile content of
         Ok html ->
             html
 
@@ -616,8 +617,8 @@ viewContentMarkdown styles loadedContent fnGetProfile content =
             div [] [ text <| "Error rendering Markdown: " ++ error ]
 
 
-viewArticleInternal : Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> BrowserEnv -> Article -> Html msg
-viewArticleInternal styles loadedContent fnGetProfile _ article =
+viewArticleInternal : Environment -> Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> Article -> Html msg
+viewArticleInternal environment styles loadedContent fnGetProfile article =
     div
         [ css
             [ Tw.flex
@@ -643,7 +644,7 @@ viewArticleInternal styles loadedContent fnGetProfile _ article =
                     ]
                 ]
             ]
-            [ viewArticleImage article.image
+            [ viewArticleImage environment article.image
             , div
                 (styles.textStyleH1Article
                     ++ styles.colorStyleGrayscaleTitle
@@ -662,7 +663,7 @@ viewArticleInternal styles loadedContent fnGetProfile _ article =
                        ]
                 )
                 [ text <| Maybe.withDefault "" article.summary ]
-            , viewContent styles loadedContent fnGetProfile article.content
+            , viewContent environment styles loadedContent fnGetProfile article.content
             ]
         ]
 
@@ -750,7 +751,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                 |> (\length -> length > 0)
 
         invalidTagIndicator =
-            if articlePreviewsData.browserEnv.environment == BrowserEnv.Development && hasInvalidTags then
+            if BrowserEnv.isDevEnvironment articlePreviewsData.browserEnv && hasInvalidTags then
                 div [] [ text "-> has invalid tags <-" ]
 
             else
@@ -807,7 +808,7 @@ viewArticlePreviewList articlePreviewsData articlePreviewData article =
                     ]
                 ]
             ]
-            [ previewListImage articlePreviewsData.browserEnv.translations articleUrl article
+            [ previewListImage articlePreviewsData.browserEnv.environment articlePreviewsData.browserEnv.translations articleUrl article
             , div
                 [ css
                     [ Tw.flex_col
@@ -1013,8 +1014,8 @@ viewArticlePreviewBigPicture articlePreviewsData articlePreviewData article =
         ]
 
 
-previewListImage : I18Next.Translations -> Maybe String -> Article -> Html msg
-previewListImage translations articleUrl article =
+previewListImage : Environment -> I18Next.Translations -> Maybe String -> Article -> Html msg
+previewListImage environment translations articleUrl article =
     case article.image of
         Just image ->
             a
@@ -1030,7 +1031,7 @@ previewListImage translations articleUrl article =
                         ]
                     ]
                     [ img
-                        [ Attr.src (Ui.Links.scaledImageLink 384 image)
+                        [ Attr.src (Ui.Links.scaledImageLink environment 384 image)
                         , Attr.style "top" "50%"
                         , Attr.style "left" "50%"
                         , Attr.style "object-fit" "cover"
@@ -1112,14 +1113,14 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                     , Tw.inline_flex
                     ]
                 ]
-                [ viewProfilePubKey articlePreviewsData.browserEnv.translations pubKey
+                [ viewProfilePubKey articlePreviewsData.browserEnv.environment articlePreviewsData.browserEnv.translations pubKey
                 , timeParagraph styles articlePreviewsData.browserEnv article.publishedAt article.createdAt
                 ]
 
         Nostr.Profile.AuthorProfile profile validationStatus ->
             let
                 linkElementWrapper =
-                    linkElementForProfile followLinks profile validationStatus
+                    linkElementForProfile True followLinks profile validationStatus
             in
             div
                 [ css
@@ -1136,7 +1137,7 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                         , Tw.inline_flex
                         ]
                     ]
-                    [ viewProfileImageSmall articlePreviewsData.browserEnv.translations linkElementWrapper (Just profile) validationStatus
+                    [ viewProfileImageSmall articlePreviewsData.browserEnv.environment articlePreviewsData.browserEnv.translations linkElementWrapper (Just profile) validationStatus
                     , div
                         [ css
                             [ Tw.justify_start
@@ -1205,8 +1206,8 @@ timeParagraph styles browserEnv maybePublishedAt createdAt =
         [ text <| BrowserEnv.formatDate browserEnv (publishedTime createdAt maybePublishedAt) ]
 
 
-viewProfilePubKey : I18Next.Translations -> PubKey -> Html msg
-viewProfilePubKey translations pubKey =
+viewProfilePubKey : Environment -> I18Next.Translations -> PubKey -> Html msg
+viewProfilePubKey environment translations pubKey =
     div
         [ css
             [ Tw.flex
@@ -1215,7 +1216,7 @@ viewProfilePubKey translations pubKey =
             , Tw.mb_4
             ]
         ]
-        [ viewProfileImageSmall translations (linkElementForProfilePubKey False pubKey) Nothing ValidationUnknown
+        [ viewProfileImageSmall environment translations (linkElementForProfilePubKey False pubKey) Nothing ValidationUnknown
         , h2
             [ css
                 [ Tw.text_sm
@@ -1228,8 +1229,8 @@ viewProfilePubKey translations pubKey =
         ]
 
 
-viewProfileImage : (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
-viewProfileImage linkElement maybeProfile validationStatus =
+viewProfileImage : Environment -> (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
+viewProfileImage environment linkElement maybeProfile validationStatus =
     div
         [ css
             [ Tw.relative
@@ -1237,7 +1238,7 @@ viewProfileImage linkElement maybeProfile validationStatus =
         ]
         [ linkElement
             [ img
-                [ Attr.src <| Ui.Profile.profilePicture 112 maybeProfile
+                [ Attr.src <| Ui.Profile.profilePicture environment 112 maybeProfile
                 , Attr.alt "Avatar"
                 , css
                     [ Tw.min_w_28
@@ -1264,8 +1265,8 @@ viewProfileImage linkElement maybeProfile validationStatus =
         ]
 
 
-viewProfileImageSmall : I18Next.Translations -> (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
-viewProfileImageSmall translations linkElement maybeProfile validationStatus =
+viewProfileImageSmall : Environment -> I18Next.Translations -> (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
+viewProfileImageSmall environment translations linkElement maybeProfile validationStatus =
     div
         [ css
             [ Tw.relative
@@ -1278,7 +1279,7 @@ viewProfileImageSmall translations linkElement maybeProfile validationStatus =
                     , Tw.h_8
                     , Tw.rounded_3xl
                     ]
-                , Attr.src <| Ui.Profile.profilePicture 32 maybeProfile
+                , Attr.src <| Ui.Profile.profilePicture environment 32 maybeProfile
                 , Attr.alt "profile image"
                 , Attr.attribute "aria-label" (Translations.linkToProfileAriaLabel [ translations ] { author = maybeProfile |> Maybe.map (\profile -> profileDisplayName profile.pubKey profile) |> Maybe.withDefault "" })
                 , Attr.attribute "loading" "lazy"
@@ -1299,8 +1300,8 @@ viewProfileImageSmall translations linkElement maybeProfile validationStatus =
         ]
 
 
-viewTitleSummaryImagePreview : I18Next.Translations -> Bool -> Styles msg -> Author -> Article -> Html msg
-viewTitleSummaryImagePreview translations followLinks styles author article =
+viewTitleSummaryImagePreview : Environment -> I18Next.Translations -> Bool -> Styles msg -> Author -> Article -> Html msg
+viewTitleSummaryImagePreview environment translations followLinks styles author article =
     div
         [ css
             [ Tw.flex
@@ -1312,5 +1313,5 @@ viewTitleSummaryImagePreview translations followLinks styles author article =
             [ viewTitlePreview translations followLinks styles article.title (linkToArticle author article) []
             , viewSummary styles article.summary
             ]
-        , viewArticleImage article.image
+        , viewArticleImage environment article.image
         ]

@@ -63,7 +63,7 @@ viewShortNote shortNotesViewData shortNoteViewData textNote =
         ]
         [ case maybeProfile of
             Just profile ->
-                Ui.Profile.viewProfileSmall styles followLinks profile validationStatus
+                Ui.Profile.viewProfileSmall shortNotesViewData.browserEnv.environment styles followLinks profile validationStatus
 
             Nothing ->
                 emptyHtml

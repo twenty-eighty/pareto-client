@@ -256,6 +256,7 @@ viewArticles shared =
             , commentsToMsg = \_ -> NoOp
             , nostr = shared.nostr
             , loginStatus = shared.loginStatus
+            , onLoadMore = Nothing
             , sharing = Nothing
             , theme = shared.theme
             }

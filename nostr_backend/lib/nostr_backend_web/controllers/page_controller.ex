@@ -11,13 +11,13 @@ defmodule NostrBackendWeb.PageController do
     case NostrBackend.Locale.preferred_language(conn) do
       "de" ->
         conn
-        |> put_resp_header("X-Robots-Tag", "noindex")
+        |> put_resp_header("x-robots-tag", "noindex")
         |> redirect(to: "/de")
 
       # Default to English
       _ ->
         conn
-        |> put_resp_header("X-Robots-Tag", "noindex")
+        |> put_resp_header("x-robots-tag", "noindex")
         |> redirect(to: "/en")
     end
   end

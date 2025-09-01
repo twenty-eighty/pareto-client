@@ -16,6 +16,7 @@ defmodule NostrBackendWeb.Endpoint do
     longpoll: [connect_info: [session: @session_options]]
 
   plug NostrBackendWeb.Plugs.Hsts
+  plug NostrBackendWeb.Plugs.RequestLogger
 
   # Serve at "/" the static files from "priv/static" directory.
   #

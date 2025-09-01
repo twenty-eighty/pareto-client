@@ -187,7 +187,7 @@ updateModelWithCategory user shared model category =
         ( request, filters, description ) =
             case category of
                 Published ->
-                    ( RequestArticlesFeed
+                    ( RequestArticlesFeed False
                     , [ { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ user.pubKey ], limit = Just 20 } ]
                     , "Posts of user"
                     )
@@ -249,6 +249,7 @@ viewArticles shared model userPubKey =
                     , commentsToMsg = \_ -> NoOp
                     , nostr = shared.nostr
                     , loginStatus = shared.loginStatus
+                    , onLoadMore = Nothing
                     , sharing = Nothing
                     , theme = shared.theme
                     }
@@ -305,7 +306,7 @@ viewArticleDraftPreview theme browserEnv author article =
                 , deleteDraftButton theme (Translations.deleteDraftButtonLabel [ browserEnv.translations ]) article
                 , editDraftButton theme (Translations.editDraftButtonLabel [ browserEnv.translations ]) article
                 ]
-            , Ui.Article.viewTitleSummaryImagePreview browserEnv.translations False styles author article
+            , Ui.Article.viewTitleSummaryImagePreview browserEnv.environment browserEnv.translations False styles author article
             , Ui.Article.viewTags browserEnv.translations article
             ]
         ]

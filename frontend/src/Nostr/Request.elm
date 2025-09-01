@@ -30,7 +30,7 @@ type alias RequestId =
 type RequestData
     = RequestArticle (Maybe (List RelayUrl)) EventFilter
     | RequestArticles (List EventFilter)
-    | RequestArticlesFeed (List EventFilter)
+    | RequestArticlesFeed Bool (List EventFilter)
     | RequestArticleDrafts (List EventFilter)
     | RequestBookmarks EventFilter
     | RequestCommunity (Maybe (List RelayUrl)) EventFilter
@@ -94,7 +94,7 @@ relaysOfRequest request =
                     RequestArticles _ ->
                         Nothing
 
-                    RequestArticlesFeed _ ->
+                    RequestArticlesFeed _ _ ->
                         Nothing
 
                     RequestArticleDrafts _ ->

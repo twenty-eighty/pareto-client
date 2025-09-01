@@ -1,9 +1,10 @@
 module Nostr exposing (..)
 
+import BrowserEnv exposing (Environment(..))
 import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode
-import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, publishedTime)
+import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, firstCreatedAt, publishedTime)
 import Nostr.Blossom exposing (userServerListFromEvent)
 import Nostr.BookmarkList exposing (BookmarkList, bookmarkListEvent, bookmarkListFromEvent, bookmarkListWithArticle, bookmarkListWithShortNote, bookmarkListWithoutArticle, bookmarkListWithoutShortNote, emptyBookmarkList)
 import Nostr.BookmarkSet exposing (BookmarkSet, bookmarkSetFromEvent)
@@ -35,7 +36,7 @@ import Nostr.Zaps exposing (ZapReceipt)
 import Pareto
 import Portal
 import Set exposing (Set)
-import Time
+import Time exposing (Posix)
 
 
 type alias Model =
@@ -55,6 +56,7 @@ type alias Model =
     , defaultUser : Maybe PubKey
     , deletedAddresses : Set Address
     , deletedEvents : Dict EventId (Set PubKey) -- all pubkeys that tried to delete an event
+    , environment : Environment
     , fileStorageServerLists : Dict PubKey (List String)
     , followLists : Dict PubKey (List Following)
     , followSets : Dict PubKey (Dict String FollowSet) -- follow sets; keys pubKey / identifier
@@ -326,9 +328,17 @@ performRequest model description requestId requestData =
             , model.hooks.requestEvents description True requestId configuredRelays eventFilters
             )
 
-        RequestArticlesFeed eventFilters ->
-            ( { model | articlesByDate = [] }
-            , model.hooks.requestEvents description False requestId configuredRelays eventFilters
+        RequestArticlesFeed loadMore eventFilters ->
+            let
+                (until, articlesByDate) =
+                    if loadMore then    
+                        (firstCreatedAt model.articlesByDate, model.articlesByDate)
+
+                    else
+                        ( Nothing, [] )
+            in
+            ( { model | articlesByDate = articlesByDate }
+            , model.hooks.requestEvents description False requestId configuredRelays (eventFiltersWithUntil eventFilters until)
             )
 
         RequestArticleDrafts eventFilters ->
@@ -353,7 +363,7 @@ performRequest model description requestId requestData =
 
         RequestNip05AndArticle nip05 _ ->
             -- identifier not needed here, only after getting nip05 data
-            ( model, fetchNip05Info (Nip05FetchedForNip05 requestId nip05) nip05 )
+            ( model, fetchNip05Info (model.environment /= StandAlone) (Nip05FetchedForNip05 requestId nip05) nip05 )
 
         RequestPicturesFeed eventFilters ->
             ( { model | picturePosts = Dict.empty }
@@ -364,7 +374,7 @@ performRequest model description requestId requestData =
             ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) [ eventFilter ] )
 
         RequestProfileByNip05 nip05 ->
-            ( model, fetchNip05Info (Nip05FetchedForNip05 requestId nip05) nip05 )
+            ( model, fetchNip05Info (model.environment /= StandAlone) (Nip05FetchedForNip05 requestId nip05) nip05 )
 
         RequestReactions eventFilter ->
             ( model, model.hooks.requestEvents description False requestId configuredRelays [ eventFilter ] )
@@ -390,6 +400,11 @@ performRequest model description requestId requestData =
         RequestShortNote relays eventFilter ->
             ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) [ eventFilter ] )
 
+
+eventFiltersWithUntil : List EventFilter -> Maybe Posix -> List EventFilter
+eventFiltersWithUntil eventFilters maybeUntil =
+    eventFilters
+        |> List.map (\eventFilter -> { eventFilter | until = maybeUntil })
 
 send : Model -> SendRequest -> ( Model, Cmd Msg )
 send model sendRequest =
@@ -593,6 +608,12 @@ getPicturePosts model =
     model.picturePosts
         |> Dict.values
         |> List.sortBy (\picturePost -> picturePost.createdAt |> Time.posixToMillis |> negate)
+
+
+getPicturePostById : Model -> EventId -> Maybe PicturePost
+getPicturePostById model id =
+    model.picturePosts
+        |> Dict.get id
 
 
 getProfileValidationStatus : Model -> PubKey -> Maybe ProfileValidation
@@ -1512,6 +1533,7 @@ empty =
     , defaultUser = Nothing
     , deletedAddresses = Set.empty
     , deletedEvents = Dict.empty
+    , environment = StandAlone
     , fileStorageServerLists = Dict.empty
     , hooks =
         { connect = \_ -> Cmd.none
@@ -1555,8 +1577,8 @@ empty =
     }
 
 
-init : Hooks Msg -> TestMode -> List String -> ( Model, Cmd Msg )
-init hooks testMode relayUrls =
+init : Hooks Msg -> Environment -> TestMode -> List String -> ( Model, Cmd Msg )
+init hooks environment testMode relayUrls =
     let
         actualRelayUrls =
             -- make sure we get NIP-11 information for test relays
@@ -1565,16 +1587,20 @@ init hooks testMode relayUrls =
 
             else
                 relayUrls
+
+        model =
+            { empty
+            | hooks = hooks
+            , environment = environment
+            , relays = initRelayList relayUrls
+            , defaultRelays = relayUrls
+            , testMode = testMode
+            }
     in
-    ( { empty
-        | hooks = hooks
-        , relays = initRelayList relayUrls
-        , defaultRelays = relayUrls
-        , testMode = testMode
-      }
+    ( model
     , Cmd.batch
         [ hooks.connect (List.map Nostr.Relay.websocketUrl relayUrls)
-        , requestRelayNip11 actualRelayUrls
+        , requestRelayNip11 model actualRelayUrls
         ]
     )
 
@@ -1599,10 +1625,10 @@ paretoKnownPubKey nip05 =
         |> Dict.get (nip05ToString nip05)
 
 
-requestRelayNip11 : List String -> Cmd Msg
-requestRelayNip11 relayUrls =
+requestRelayNip11 : Model -> List String -> Cmd Msg
+requestRelayNip11 model relayUrls =
     relayUrls
-        |> List.map (\urlWithoutProtocol -> fetchNip11 (Nip11Fetched urlWithoutProtocol) urlWithoutProtocol)
+        |> List.map (\urlWithoutProtocol -> fetchNip11 (model.environment /= StandAlone) (Nip11Fetched urlWithoutProtocol) urlWithoutProtocol)
         |> Cmd.batch
 
 
@@ -1749,7 +1775,7 @@ update msg model =
 
                 -- don't store relays here, only response for NIP-11 request
                 requestNip11Cmd =
-                    requestRelayNip11 unknownRelays
+                    requestRelayNip11 model unknownRelays
             in
             ( updateProfileWithValidationStatus model pubKey validationStatus
             , requestNip11Cmd
@@ -2546,7 +2572,7 @@ updateModelWithSearchRelays model _ events =
                     )
 
         requestNip11Cmd =
-            requestRelayNip11 unknownRelays
+            requestRelayNip11 model unknownRelays
     in
     ( { model | searchRelayLists = relayListDict }, requestNip11Cmd )
 
@@ -2732,7 +2758,7 @@ updateModelWithUserMetadata model requestId events =
             profiles
                 |> List.filterMap
                     (\profile ->
-                        Maybe.map (\nip05 -> fetchNip05Info (Nip05FetchedForPubKey profile.pubKey nip05) nip05) profile.nip05
+                        Maybe.map (\nip05 -> fetchNip05Info (model.environment /= StandAlone) (Nip05FetchedForPubKey profile.pubKey nip05) nip05) profile.nip05
                     )
 
         relatedKinds =
@@ -2763,7 +2789,7 @@ requestRelatedKindsForProfiles model profiles kinds =
 
 requestArticlesForAuthors : Model -> List PubKey -> ( Model, Cmd Msg )
 requestArticlesForAuthors model pubKeys =
-    createRequest model "Articles for authors" [] (RequestArticlesFeed [ { emptyEventFilter | authors = Just pubKeys, kinds = Just [ KindLongFormContent ] } ])
+    createRequest model "Articles for authors" [] (RequestArticlesFeed False [ { emptyEventFilter | authors = Just pubKeys, kinds = Just [ KindLongFormContent ] } ])
         |> doRequest model
 
 
@@ -2804,7 +2830,7 @@ updateModelWithRelayListMetadata model events =
                     model.relays
 
         requestNip11Cmd =
-            requestRelayNip11 unknownRelays
+            requestRelayNip11 model unknownRelays
     in
     ( { model | relayMetadataLists = relayListDict, relays = relays }, requestNip11Cmd )
 
@@ -2987,7 +3013,7 @@ updateWithPubkeyProfiles model pubkeyProfiles =
             pubkeyProfiles
                 |> List.filterMap
                     (\{ pubKey, profile } ->
-                        Maybe.map (\nip05 -> fetchNip05Info (Nip05FetchedForPubKey pubKey nip05) nip05) profile.nip05
+                        Maybe.map (\nip05 -> fetchNip05Info (model.environment /= StandAlone) (Nip05FetchedForPubKey pubKey nip05) nip05) profile.nip05
                     )
                 |> Cmd.batch
 

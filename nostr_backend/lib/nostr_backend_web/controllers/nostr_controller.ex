@@ -2,7 +2,7 @@ defmodule NostrBackendWeb.NostrController do
   use NostrBackendWeb, :controller
   require Logger
 
-  alias NostrBackend.Nip05
+  alias NostrBackend.Nip05Cache
 
   @default_relays [
         "wss://nostr.pareto.space",
@@ -89,15 +89,18 @@ defmodule NostrBackendWeb.NostrController do
   def nip05(conn, %{"name" => name}) do
     conn = put_required_headers(conn)
 
-    case Map.get(@nostr_data["names"], String.downcase(name)) do
+    downcased = String.downcase(name)
+
+    case Map.get(@nostr_data["names"], downcased) do
       nil ->
         # return empty data if name is not found
         json(conn, @empty_data)
 
       pubkey ->
+        relays_for_pubkey = Map.get(@nostr_data["relays"], pubkey, [])
         data = %{
-          "names" => %{name => pubkey},
-          "relays" => %{pubkey => Map.get(@nostr_data["relays"], pubkey)}
+          "names" => %{downcased => pubkey},
+          "relays" => %{pubkey => relays_for_pubkey}
         }
 
         json(conn, data)
@@ -112,28 +115,32 @@ defmodule NostrBackendWeb.NostrController do
   end
 
   def validate_nip05_handle(conn, %{"handle" => handle}) do
-    conn =
-      put_same_domain_headers(conn)
+    conn = put_same_domain_headers(conn)
 
-    case Nip05.parse_identifier(handle) do
-      {:ok, name, domain} ->
-        case Nip05.get_cached_well_known(name, domain) do
-          {:ok, response} ->
-            conn
-            |> json(response)
+    # Use the core NIP-05 cache directly - no redundant caching
+    case Nip05Cache.get_pubkey_and_relays(handle) do
+      {:ok, pubkey, relays} ->
+        Logger.debug("NIP-05: Validated handle successfully: #{handle}")
 
-          {:error, message} ->
-            Logger.debug("Error: #{inspect(message)}")
+        name =
+          case NostrBackend.Nip05.parse_identifier(handle) do
+            {:ok, parsed_name, _domain} -> String.downcase(parsed_name)
+            _ -> handle
+          end
 
-            conn
-            |> put_status(:not_found)
-            |> text(message)
-        end
+        # Return NIP-05 formatted response
+        response = %{
+          "names" => %{name => pubkey},
+          "relays" => %{pubkey => relays}
+        }
 
-      {:error, message} ->
+        json(conn, response)
+
+      {:error, reason} ->
+        Logger.debug("NIP-05: Validation failed for: #{handle}, error: #{inspect(reason)}")
         conn
-        |> put_status(:bad_request)
-        |> text(message)
+        |> put_status(:not_found)
+        |> text(reason)
     end
   end
 
@@ -147,16 +154,16 @@ defmodule NostrBackendWeb.NostrController do
 
   defp put_required_headers(conn) do
     conn
-    |> put_resp_header("Access-Control-Allow-Origin", "*")
-    |> put_resp_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> put_resp_header("access-control-allow-methods", "GET, OPTIONS")
     |> put_resp_header("x-robots-tag", "noindex")
   end
 
   defp put_same_domain_headers(conn) do
     conn
     # change this to pareto.space in case the API endpoint is (mis)used by other Nostr applications
-    #   |> put_resp_header("Access-Control-Allow-Origin", "pareto.space")
-    |> put_resp_header("Access-Control-Allow-Origin", "*")
-    |> put_resp_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+    #   |> put_resp_header("access-control-allow-origin", "pareto.space")
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> put_resp_header("access-control-allow-methods", "GET, OPTIONS")
   end
 end

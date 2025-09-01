@@ -41,7 +41,7 @@ defmodule NostrBackend.NaddrFormatTest do
     assert String.starts_with?(naddr, "naddr1"), "Expected naddr format not fallback format"
 
     # For full test coverage, we should attempt to decode, but we'll handle errors
-    case NIP19.native_decode(naddr) do
+    case NIP19.decode(naddr) do
       {:ok, decoded_kind, decoded_pubkey, decoded_identifier, _decoded_relays} ->
         # Basic structural validation if decode works
         assert decoded_kind == kind, "Decoded kind should match original"

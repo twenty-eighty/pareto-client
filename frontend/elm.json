@@ -56,7 +56,7 @@
         },
         "indirect": {
             "danfishgold/base64-bytes": "1.1.0",
-            "elm/virtual-dom": "1.0.3",
+            "elm/virtual-dom": "1.0.4",
             "folkertdev/elm-flate": "2.0.5",
             "justgook/elm-image": "5.0.0",
             "justinmimbs/date": "4.1.0",

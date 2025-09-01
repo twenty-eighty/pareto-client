@@ -1,4 +1,4 @@
-module BrowserEnv exposing (BrowserEnv, Environment(..), Msg(..), formatDate, formatIsoDate, init, subscriptions, update, updateTimeZone, TestMode(..), setTestMode, isNativeSharingAvailable)
+module BrowserEnv exposing (BrowserEnv, Environment(..), Msg(..), formatDate, formatIsoDate, init, isDevEnvironment, subscriptions, update, updateTimeZone, TestMode(..), setTestMode, isNativeSharingAvailable)
 
 import DateFormat
 import DateFormat.Language
@@ -54,6 +54,7 @@ type alias InitParams =
     { backendUrl : String
     , darkMode : Bool
     , environment : Maybe String
+    , imageCachingServer : String
     , frontendUrl : String
     , locale : String
     , nativeSharingAvailable : Bool
@@ -62,8 +63,9 @@ type alias InitParams =
 
 
 type Environment
-    = Production
-    | Development
+    = Production { imageCachingServer : String }
+    | Development { imageCachingServer : String }
+    | StandAlone
 
 type TestMode
     = TestModeOff
@@ -72,6 +74,14 @@ type TestMode
 isNativeSharingAvailable : BrowserEnv -> Bool
 isNativeSharingAvailable browserEnv =
     browserEnv.nativeSharingAvailable
+
+isDevEnvironment : BrowserEnv -> Bool
+isDevEnvironment browserEnv =
+    case browserEnv.environment of
+        Development _ ->
+            True
+        _ ->
+            False
 
 init : InitParams -> ( BrowserEnv, Cmd Msg )
 init initParams =
@@ -93,7 +103,7 @@ init initParams =
             , dateFormatTokensWithoutYear = dateFormatTokensWithoutYear
             , dateFormatRelativeTimeOptions = relativeTimeOptions
             , darkMode = initParams.darkMode
-            , environment = environmentFromString initParams.environment
+            , environment = environmentFromString initParams.environment initParams.imageCachingServer
             , formatNumber = numberFormatFromLanguage language
             , errors = []
             , installPromptAvailable = False
@@ -120,28 +130,50 @@ init initParams =
     )
 
 
-environmentFromString : Maybe String -> Environment
-environmentFromString envString =
+environmentFromString : Maybe String -> String -> Environment
+environmentFromString envString imageCachingServer =
     case envString of
         Just "dev" ->
-            Development
+            Development { imageCachingServer = imageCachingServer }
+
+        Just "standalone" ->
+            StandAlone
 
         _ ->
-            Production
+            Production { imageCachingServer = imageCachingServer }
 
 
 requestTranslations : Language -> Cmd Msg
 requestTranslations language =
     case language of
         German _ ->
-            Http.get
-                { url = "/translations/lang-" ++ translationsLocale language ++ ".json"
-                , expect = Http.expectJson UpdateTranslations I18Next.translationsDecoder
-                }
+            translationRequest (translationsLocale language)
+
+        Italian ->
+            translationRequest (translationsLocale language)
+
+        French ->
+            translationRequest (translationsLocale language)
+
+        Russian ->
+            translationRequest (translationsLocale language)
+
+        Spanish ->
+            translationRequest (translationsLocale language)
+
+        Swedish ->
+            translationRequest (translationsLocale language)
 
         _ ->
             Cmd.none
 
+
+translationRequest : String -> Cmd Msg
+translationRequest locale =
+    Http.get
+        { url = "/translations/lang-" ++ locale ++ ".json"
+        , expect = Http.expectJson UpdateTranslations I18Next.translationsDecoder
+        }
 
 formatDate : BrowserEnv -> Posix -> String
 formatDate browserEnv time =
@@ -215,6 +247,21 @@ translationsLocale language =
     case language of
         German _ ->
             "de_DE"
+
+        Italian ->
+            "it_IT"
+
+        French ->
+            "fr_FR"
+
+        Spanish ->
+            "es_ES"
+
+        Swedish ->
+            "sv_SE"
+
+        Russian ->
+            "ru_RU"
 
         _ ->
             "en_GB"
@@ -299,37 +346,6 @@ updateLocale locale browserEnv =
       }
     , requestTranslations language
     )
-
-
-
---  dateFormatConfigFromLanguage : Language -> Derberos.Date.Core.Config
---  dateFormatConfigFromLanguage language =
---      let
---          config =
---              case language of
---                  English "us" ->
---                      Derberos.Date.L10n.EN_US.config
---                  German _ ->
---                      CalendarConfigDE.config
---                  Spanish ->
---                      Derberos.Date.L10n.ES_ES.config
---                  _ ->
---                      Derberos.Date.L10n.EN_US.config
---      in
---      { config | getCommonFormatTime = getShortFormatTime }
---   getShortFormatTime : Time.Zone -> Posix -> String
---   getShortFormatTime tz time =
---       let
---           hour =
---               Time.toHour tz time
---                   |> String.fromInt
---                   |> String.padLeft 2 '0'
---           minute =
---               Time.toMinute tz time
---                   |> String.fromInt
---                   |> String.padLeft 2 '0'
---       in
---       hour ++ ":" ++ minute
 
 
 updateTimeZone : String -> BrowserEnv -> BrowserEnv
