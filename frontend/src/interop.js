@@ -122,18 +122,18 @@ export const onReady = ({ app, env }) => {
       const style = document.createElement('style');
       style.textContent = `
         .pareto-custom-nl {
-          top: 19% !important;
+          top: 145px !important;
         }
 
         @media (min-width: 768px) {
           .pareto-custom-nl {
-            top: 14% !important;
+            top: 145px !important;
           }
         }
 
         @media (min-width: 1024px) {
           .pareto-custom-nl {
-            top: 13% !important;
+            top: 160px !important;
           }
         }
       `;
