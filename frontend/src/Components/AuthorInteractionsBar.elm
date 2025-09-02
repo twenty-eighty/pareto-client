@@ -69,13 +69,13 @@ update msg model =
     case msg of
         ReceivedMessage { messageType } ->
             if messageType == "toggleArticleInfo" then
-                ( { model | articleInfoToggle = not model.articleInfoToggle }, Effect.none ) |> Debug.log "AuthorBar.update"
+                ( { model | articleInfoToggle = not model.articleInfoToggle }, Effect.none )
 
             else
                 ( model, Effect.none )
 
         _ ->
-            ( model, Effect.none ) |> Debug.log "AuthorBar.update default"
+            ( model, Effect.none )
 
 
 subscriptions : Model -> Sub Msg
