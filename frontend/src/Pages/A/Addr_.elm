@@ -24,6 +24,7 @@ import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey, loggedInPubKey)
 import Page exposing (Page)
+import Ports
 import Route exposing (Route)
 import Set
 import Shared
@@ -120,6 +121,9 @@ toLayout shared model =
                 Unfollow pubKeyUser pubKeyToUnfollow ->
                     UnfollowAuthor pubKeyUser pubKeyToUnfollow
 
+                AuthorInteractionsBar.ToggleArticleInfo ->
+                    ToggleArticleInfo
+
                 _ ->
                     NoOp
 
@@ -129,6 +133,7 @@ toLayout shared model =
                     (\article ->
                         (AuthorInteractionsBar.new
                             { articlePreviewsData = articlePreviewsData
+                            , model = AuthorInteractionsBar.init
                             , interactionsModel = Maybe.withDefault Interactions.init interactionsModel
                             , article = article
                             , toMsg = fromAuthorBarMsg
@@ -274,6 +279,7 @@ type Msg
     | FollowAuthor PubKey PubKey
     | UnfollowAuthor PubKey PubKey
     | NavigateBack
+    | ToggleArticleInfo
     | NoOp
 
 
@@ -373,6 +379,9 @@ update shared msg model =
 
         NavigateBack ->
             ( model, Effect.back )
+
+        ToggleArticleInfo ->
+            ( model, Effect.sendCmd Ports.toggleArticleInfo )
 
         NoOp ->
             let

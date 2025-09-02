@@ -13,7 +13,8 @@ import Nostr.Article exposing (Article, nip19ForArticle)
 import Nostr.Profile exposing (ProfileValidation(..))
 import Nostr.Relay exposing (websocketUrl)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (Following(..), PubKey, loggedInPubKey)
+import Nostr.Types exposing (Following(..), IncomingMessage, PubKey, loggedInPubKey)
+import Ports
 import Set
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
@@ -31,13 +32,15 @@ type alias Model =
 type Msg
     = Follow PubKey PubKey
     | Unfollow PubKey PubKey
-    | ToggleArticleInfo Bool
+    | ToggleArticleInfo
     | NavBack
+    | ReceivedMessage IncomingMessage
 
 
 type AuthorInteractionsBar msg
     = Settings
         { articlePreviewsData : ArticlePreviewsData msg
+        , model : Model
         , interactionsModel : Interactions.Model
         , article : Article
         , toMsg : Msg -> msg
@@ -46,6 +49,7 @@ type AuthorInteractionsBar msg
 
 new :
     { articlePreviewsData : ArticlePreviewsData msg
+    , model : Model
     , interactionsModel : Interactions.Model
     , article : Article
     , toMsg : Msg -> msg
@@ -55,14 +59,28 @@ new props =
     Settings props
 
 
+init : Model
+init =
+    Model False
+
+
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
-        ToggleArticleInfo flag ->
-            ( { model | articleInfoToggle = flag }, Effect.none )
+        ReceivedMessage { messageType } ->
+            if messageType == "toggleArticleInfo" then
+                ( { model | articleInfoToggle = not model.articleInfoToggle }, Effect.none ) |> Debug.log "AuthorBar.update"
+
+            else
+                ( model, Effect.none )
 
         _ ->
-            ( model, Effect.none )
+            ( model, Effect.none ) |> Debug.log "AuthorBar.update default"
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Ports.receiveMessage ReceivedMessage
 
 
 view : AuthorInteractionsBar msg -> Model -> Html msg
@@ -148,9 +166,32 @@ view (Settings { articlePreviewsData, interactionsModel, article, toMsg }) model
             ]
         , div
             [ css
-                [ Bp.lg [ Tw.absolute, Tw.right_48, Tw.mr_4 ] ]
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.items_center
+                , Tw.gap_x_4
+                , Bp.lg [ Tw.absolute, Tw.right_48, Tw.mr_4 ]
+                ]
             ]
-            [ viewInteractions previewData "1" ]
+            [ div
+                [ css [] ]
+                [ viewInteractions previewData "1" ]
+            , div
+                [ css
+                    [ Tw.text_color Theme.white
+                    , darkMode [ Tw.text_color Theme.black ]
+                    , Bp.lg [ Tw.hidden ]
+                    , Tw.cursor_pointer
+                    ]
+                , Events.onClick (toMsg ToggleArticleInfo)
+                ]
+                [ if model.articleInfoToggle then
+                    Icon.FeatherIcon FeatherIcons.bookOpen |> Icon.viewWithSize 20
+
+                  else
+                    Icon.FeatherIcon FeatherIcons.info |> Icon.viewWithSize 20
+                ]
+            ]
         , div [ css [ Tw.absolute, Tw.right_0, Tw.mr_4 ] ]
             [ authorFollowButton ]
         ]

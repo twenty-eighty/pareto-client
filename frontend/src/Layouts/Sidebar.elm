@@ -14,14 +14,14 @@ import FeatherIcons
 import Graphics
 import Html.Styled as Html exposing (Html, a, aside, div, img, main_, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled.Events exposing (..)
 import I18Next
 import Layout exposing (Layout)
 import Nostr
 import Nostr.BookmarkList exposing (bookmarksCount)
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Profile exposing (Profile)
-import Nostr.Types exposing (Following(..), LoginStatus(..), loggedInPubKey)
+import Nostr.Types exposing (Following(..), IncomingMessage, LoginStatus(..), loggedInPubKey)
 import Ports
 import Route exposing (Route)
 import Route.Path
@@ -330,12 +330,12 @@ layout props shared route =
 
 
 type alias Model =
-    { articleInfoToggle : Bool }
+    { rightPartToggle : Bool }
 
 
 init : () -> ( Model, Effect Msg )
 init _ =
-    ( { articleInfoToggle = False }
+    ( { rightPartToggle = False }
     , Effect.none
     )
 
@@ -348,7 +348,7 @@ type Msg
     = OpenGetStarted
     | SetClientRole Bool ClientRole
     | SetTestMode BrowserEnv.TestMode
-    | ToggleArticleInfo Bool
+    | ReceivedMessage IncomingMessage
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -363,13 +363,17 @@ update _ msg model =
         SetTestMode testMode ->
             ( model, Effect.sendSharedMsg <| Shared.Msg.SetTestMode testMode )
 
-        ToggleArticleInfo flag ->
-            ( { model | articleInfoToggle = flag }, Effect.none )
+        ReceivedMessage { messageType } ->
+            if messageType == "toggleArticleInfo" then
+                ( { model | rightPartToggle = not model.rightPartToggle }, Effect.none )
+
+            else
+                ( model, Effect.none )
 
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.none
+    Ports.receiveMessage ReceivedMessage
 
 
 
@@ -467,31 +471,6 @@ viewSidebar props shared model currentPath toContentMsg content =
 
                 _ ->
                     False
-
-        articleInfoToggle =
-            div
-                [ css
-                    [ Tw.fixed
-                    , Tw.top_96
-                    , Tw.right_4
-                    , Tw.z_10
-                    , darkMode [ Tw.text_color styles.colorB5DarkMode ]
-                    , Tw.text_color styles.colorB5
-                    , Bp.lg [ Tw.hidden ]
-                    , if isArticlePage then
-                        Tw.block
-
-                      else
-                        Tw.hidden
-                    ]
-                , Events.onClick (toContentMsg (ToggleArticleInfo (not model.articleInfoToggle)))
-                ]
-                [ if model.articleInfoToggle == True then
-                    Icon.FeatherIcon FeatherIcons.bookOpen |> Icon.view
-
-                  else
-                    Icon.FeatherIcon FeatherIcons.info |> Icon.view
-                ]
     in
     Html.div
         (styles.colorStyleGrayscaleTitle
@@ -608,7 +587,7 @@ viewSidebar props shared model currentPath toContentMsg content =
                     [ div
                         [ css
                             [ Bp.lg [ Tw.contents ]
-                            , if model.articleInfoToggle && isArticlePage then
+                            , if model.rightPartToggle && isArticlePage then
                                 Tw.hidden
 
                               else
@@ -623,7 +602,7 @@ viewSidebar props shared model currentPath toContentMsg content =
                                     [ css
                                         [ print [ Tw.hidden ]
                                         , Bp.lg [ Tw.block, Tw.grow_0 ]
-                                        , if not model.articleInfoToggle then
+                                        , if not model.rightPartToggle then
                                             Tw.hidden
 
                                           else
@@ -634,7 +613,6 @@ viewSidebar props shared model currentPath toContentMsg content =
                                     [ html ]
                             )
                         |> Maybe.withDefault emptyHtml
-                    , articleInfoToggle
                     ]
                 ]
             ]

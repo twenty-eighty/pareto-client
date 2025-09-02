@@ -233,6 +233,10 @@ export const onReady = ({ app, env }) => {
       case 'shareLink':
         shareLink(app, value);
         break;
+
+      case 'toggleArticleInfo':
+        toggleArticleInfo(app);
+        break;
     }
   }
 
@@ -306,6 +310,10 @@ export const onReady = ({ app, env }) => {
     } else {
       console.log('navigator.share not supported');
     }
+  }
+
+  function toggleArticleInfo(app) {
+    app.ports.receiveMessage.send({ messageType: 'toggleArticleInfo', value: null });
   }
 
   // 1) A function that imports an AES-GCM key and encrypts `plaintextBytes` with it.

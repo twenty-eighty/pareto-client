@@ -25,6 +25,7 @@ import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (EventId, PubKey, loggedInPubKey)
 import Page exposing (Page)
+import Ports
 import Route exposing (Route)
 import Set
 import Shared
@@ -112,6 +113,9 @@ toLayout shared model =
                 Unfollow pubKeyUser pubKeyToUnfollow ->
                     UnfollowAuthor pubKeyUser pubKeyToUnfollow
 
+                AuthorInteractionsBar.ToggleArticleInfo ->
+                    ToggleArticleInfo
+
                 _ ->
                     NoOp
 
@@ -121,6 +125,7 @@ toLayout shared model =
                     (\article ->
                         (AuthorInteractionsBar.new
                             { articlePreviewsData = articlePreviewsData
+                            , model = AuthorInteractionsBar.init
                             , interactionsModel = model.articleInteractions
                             , article = article
                             , toMsg = fromAuthorBarMsg
@@ -249,6 +254,7 @@ type Msg
     | FollowAuthor PubKey PubKey
     | UnfollowAuthor PubKey PubKey
     | NavigateBack
+    | ToggleArticleInfo
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -343,6 +349,9 @@ update shared msg model =
 
         NavigateBack ->
             ( model, Effect.back )
+
+        ToggleArticleInfo ->
+            ( model, Effect.sendCmd Ports.toggleArticleInfo )
 
 
 showZapDialog : Model -> List ZapDialog.Recipient -> ( Model, Effect Msg )
