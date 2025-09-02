@@ -1,7 +1,6 @@
 module Ui.Profile exposing (..)
 
 import BrowserEnv exposing (BrowserEnv, Environment)
-import Color
 import Components.Button as Button
 import Components.Icon as Icon exposing (Icon(..), MaterialIcon(..))
 import Css.Media
@@ -317,7 +316,7 @@ followButton theme browserEnv profilePubKey following =
                 , onClick = Just (msg profilePubKey)
                 , theme = theme
                 }
-                |> Button.withIconLeft (Icon.MaterialIcon MaterialCheck 24 (Icon.Color (Color.fromRgba { red = 0.28, green = 0.73, blue = 0.47, alpha = 1.0 })))
+                |> Button.withIconLeft (Icon.FeatherIcon (FeatherIcons.checkCircle |> FeatherIcons.withSize (toFloat 24)))
                 |> Button.view
 
         NotFollowing msg ->
@@ -326,6 +325,7 @@ followButton theme browserEnv profilePubKey following =
                 , onClick = Just (msg profilePubKey)
                 , theme = theme
                 }
+                |> Button.withIconLeft (Icon.FeatherIcon (FeatherIcons.plus |> FeatherIcons.withSize (toFloat 24)))
                 |> Button.view
 
         UnknownFollowing ->

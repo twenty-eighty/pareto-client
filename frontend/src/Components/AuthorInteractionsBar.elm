@@ -156,7 +156,7 @@ view (Settings { articlePreviewsData, interactionsModel, article, toMsg }) model
                 [ Tw.flex
                 , Tw.flex_row
                 , Tw.items_center
-                , Tw.gap_10
+                , Bp.md [ Tw.gap_10 ]
                 ]
             ]
             [ backButton

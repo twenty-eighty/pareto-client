@@ -34,6 +34,7 @@ import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events as Events
 import Svg.Loaders
+import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (darkMode)
@@ -274,11 +275,12 @@ view (Settings settings) =
                     ++ [ Attr.css
                             (widthStyles
                                 ++ [ Tw.py_2
-                                   , Tw.px_4
+                                   , Bp.lg [ Tw.px_4, Tw.gap_2 ]
+                                   , Tw.px_2
+                                   , Tw.gap_1
                                    , Tw.flex
                                    , Tw.flex_row
-                                   , Tw.gap_2
-                                   , Tw.rounded_full
+                                   , Tw.rounded_lg
                                    , Css.hover
                                         []
                                    ]
