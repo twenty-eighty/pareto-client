@@ -39,7 +39,8 @@
    "article view": {
       "link to article aria label": "Länk till artikel {{title}}",
       "link to profile aria label": "Länk till profil för {{author}}",
-      "link to hashtag aria label": "Länk för att söka efter hashtag {{hashtag}}"
+      "link to hashtag aria label": "Länk för att söka efter hashtag {{hashtag}}",
+      "follow author": "Follow author"
    },
    "authors page": {
       "page title": "Författare",
