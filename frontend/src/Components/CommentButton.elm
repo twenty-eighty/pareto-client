@@ -1,9 +1,8 @@
 module Components.CommentButton exposing
     ( CommentButton, new
-    , withClickedMsg
     , view
     , init, update, Model, Msg
-    , subscriptions
+    , subscriptions, withClickedMsg, withoutLabel
     )
 
 {-|
@@ -13,6 +12,7 @@ module Components.CommentButton exposing
 
 @docs CommentButton, new
 @docs view
+
 
 ## State management
 
@@ -24,21 +24,22 @@ import Components.Icon as Icon
 import Components.InteractionButton as InteractionButton exposing (InteractionObject(..))
 import Dict
 import Effect exposing (Effect)
-import FeatherIcons
+import FeatherIcons exposing (settings)
 import Html.Styled as Html exposing (Html)
 import I18Next
 import Nostr
+import Nostr.Event exposing (Kind(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (LoginStatus, PubKey, loggedInPubKey, loggedInSigningPubKey)
 import Ui.Styles
-import Nostr.Event exposing (Kind(..))
+
 
 
 -- MODEL
 
 
-type Model =
-    Model InteractionButton.Model
+type Model
+    = Model InteractionButton.Model
 
 
 init : Model
@@ -46,7 +47,9 @@ init =
     Model InteractionButton.init
 
 
+
 -- UPDATE
+
 
 type Msg msg
     = InteractionButtonMsg (InteractionButton.Msg (Msg msg))
@@ -69,7 +72,7 @@ update props =
         case props.msg of
             InteractionButtonMsg interactionMsg ->
                 let
-                    (updatedModel, effect) =
+                    ( updatedModel, effect ) =
                         InteractionButton.update
                             { msg = interactionMsg
                             , model = model
@@ -96,6 +99,7 @@ type CommentButton msg
         , interactionObject : InteractionObject
         , nostr : Nostr.Model
         , loginStatus : LoginStatus
+        , showLabel : Bool
         , clickedMsg : Maybe msg
         , toMsg : Msg msg -> msg
         , theme : Ui.Styles.Theme
@@ -106,24 +110,33 @@ withClickedMsg : Maybe msg -> CommentButton msg -> CommentButton msg
 withClickedMsg clickedMsg (Settings settings) =
     Settings { settings | clickedMsg = clickedMsg }
 
-new : 
+
+withoutLabel : CommentButton msg -> CommentButton msg
+withoutLabel (Settings settings) =
+    Settings { settings | showLabel = False }
+
+
+new :
     { model : Model
     , interactionObject : InteractionObject
     , nostr : Nostr.Model
     , loginStatus : LoginStatus
     , toMsg : Msg msg -> msg
     , theme : Ui.Styles.Theme
-    } -> CommentButton msg
+    }
+    -> CommentButton msg
 new props =
     Settings
         { model = props.model
         , interactionObject = props.interactionObject
         , nostr = props.nostr
         , loginStatus = props.loginStatus
+        , showLabel = True
         , clickedMsg = Nothing
         , toMsg = props.toMsg
         , theme = props.theme
         }
+
 
 
 -- VIEW
@@ -137,24 +150,31 @@ view (Settings settings) =
 
         maybeUserPubKey =
             settings.loginStatus
-            |> loggedInPubKey
+                |> loggedInPubKey
 
         label =
-            getCommentsCount settings.interactionObject maybeUserPubKey settings.nostr
-            |> String.fromInt
+            if settings.showLabel then
+                getCommentsCount settings.interactionObject maybeUserPubKey settings.nostr
+                    |> String.fromInt
+                    |> Just
+
+            else
+                Nothing
 
         commented =
             maybeUserPubKey
-            |> Maybe.map (hasComment settings.interactionObject maybeUserPubKey settings.nostr)
-            |> Maybe.withDefault False
+                |> Maybe.map (hasComment settings.interactionObject maybeUserPubKey settings.nostr)
+                |> Maybe.withDefault False
 
         clickAction : Maybe (InteractionButton.ClickAction (Msg msg))
         clickAction =
             if loggedInSigningPubKey settings.loginStatus /= Nothing then
                 settings.clickedMsg
-                |> Maybe.map (\clickedMsg ->
-                    InteractionButton.SendMsg (Clicked clickedMsg)
-                )
+                    |> Maybe.map
+                        (\clickedMsg ->
+                            InteractionButton.SendMsg (Clicked clickedMsg)
+                        )
+
             else
                 Nothing
     in
@@ -168,7 +188,7 @@ view (Settings settings) =
         }
         |> InteractionButton.withLabel label
         |> InteractionButton.withOnClickAction clickAction
-        |> InteractionButton.view 
+        |> InteractionButton.view
         |> Html.map settings.toMsg
 
 
@@ -177,7 +197,7 @@ getCommentsCount interactionObject maybeUserPubKey nostr =
     case interactionObject of
         Article _ addressComponents ->
             List.length (Nostr.getArticleComments nostr maybeUserPubKey addressComponents)
-            + List.length (Nostr.getArticleCommentComments nostr addressComponents |> Dict.values)
+                + List.length (Nostr.getArticleCommentComments nostr addressComponents |> Dict.values)
 
         Comment _ _ ->
             0
@@ -185,14 +205,15 @@ getCommentsCount interactionObject maybeUserPubKey nostr =
         PicturePost _ _ ->
             0
 
+
 hasComment : InteractionObject -> Maybe PubKey -> Nostr.Model -> PubKey -> Bool
 hasComment interactionObject maybeUserPubKey nostr pubKey =
     case interactionObject of
         Article _ addressComponents ->
             Nostr.getArticleComments nostr maybeUserPubKey addressComponents
-            |> List.filter (\articleComment -> articleComment.pubKey == pubKey)
-            |> List.isEmpty
-            |> not
+                |> List.filter (\articleComment -> articleComment.pubKey == pubKey)
+                |> List.isEmpty
+                |> not
 
         Comment _ _ ->
             False
@@ -204,4 +225,4 @@ hasComment interactionObject maybeUserPubKey nostr pubKey =
 subscriptions : Model -> Sub (Msg msg)
 subscriptions (Model model) =
     InteractionButton.subscriptions model
-    |> Sub.map InteractionButtonMsg
+        |> Sub.map InteractionButtonMsg

@@ -11,15 +11,16 @@
       "about frontend text 3": ".",
       "about backend text": "Pareto-backend utvecklades med",
       "source code text": "Källkoden för Pareto-klienten finns tillgänglig på",
-      "feedback text": "Hittade du en bugg eller vill ge feedback? Skicka gärna ett e-mail till ",
       "hint to tech details": "För detaljerad teknisk information om Pareto-appen ",
       "see this": "se detta.",
       "imprint link text": "Utgivaransvar",
       "privacy policy link text": "Integritetspolicy",
-      "feedback email info text": "Hittade du en bugg eller vill ge feedback? Skicka gärna ett e-mail till ",
       "donation info text": "Stöd den fortsatta utvecklingen av Pareto-projektet på ",
       "build time text": "Byggtid: {{buildTime}}",
-      "git version text": "Git-version: {{gitVersion}}"
+      "git version text": "Git-version: {{gitVersion}}",
+      "recommendation sent alert text": "Recommendation sent",
+      "feedback info text": "You found a bug or want to give feedback? Please contact us ",
+      "support page link text": "here"
    },
    "article info": {
       "title": "Artikelinformation",
@@ -39,7 +40,8 @@
    "article view": {
       "link to article aria label": "Länk till artikel {{title}}",
       "link to profile aria label": "Länk till profil för {{author}}",
-      "link to hashtag aria label": "Länk för att söka efter hashtag {{hashtag}}"
+      "link to hashtag aria label": "Länk för att söka efter hashtag {{hashtag}}",
+      "follow author": "Follow author"
    },
    "authors page": {
       "page title": "Författare",
@@ -152,6 +154,12 @@
       "profile avatar error explanation": "Profilavatarbilden kan inte laddas.",
       "profile banner error text": "Fel med profilbanner",
       "profile banner error explanation": "Profilbannerbilden kan inte laddas."
+   },
+   "contact": {
+      "page title": "Contact",
+      "support information": "You can contact the Pareto team via email at",
+      "encrypted contact information": "Encrypted emails can be sent to",
+      "pgp key info text": "Den publika PGP-nyckeln kan laddas ner från"
    },
    "countries timezones": {
       "country AD": "Andorra",
@@ -466,6 +474,7 @@
       "german text": "Tyska",
       "italian text": "Italienska",
       "portuguese text": "Portugisiska",
+      "russian text": "Russian",
       "spanish text": "Spanska",
       "swedish text": "Svenska"
    },

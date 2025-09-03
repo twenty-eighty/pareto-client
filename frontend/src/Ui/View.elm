@@ -87,7 +87,7 @@ viewArticlePreviewsList articlePreviewsData articles =
             [ css
                 [ Tw.flex
                 , Tw.flex_col
-                , Tw.justify_center
+                , Tw.items_center
                 , Tw.gap_8
                 ]
             ]

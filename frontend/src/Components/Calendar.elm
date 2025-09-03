@@ -1,8 +1,8 @@
-module Components.Calendar exposing (Model, Msg(..), SelectableRange(..), SelectionMode(..), init, new, selectedZone, update, view, dayRows, selectedTime)
+module Components.Calendar exposing (Model, Msg(..), SelectableRange(..), SelectionMode(..), dayRows, init, new, selectedTime, selectedZone, update, view)
 
 import BrowserEnv exposing (BrowserEnv)
-import Countries
 import Components.Dropdown as Dropdown
+import Countries
 import CountriesTimezones exposing (Country)
 import Css
 import Derberos.Date.Core exposing (DateRecord, civilToPosix, newDateRecord)
@@ -14,36 +14,36 @@ import Html.Styled as Html exposing (Html, div, text)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (onClick)
 import I18Next
-import Task
 import Tailwind.Utilities as Tw
-import Translations.Calendar as Translations
+import Task
 import Time exposing (Month, Posix, Weekday(..), Zone)
 import TimeZone
+import Translations.Calendar as Translations
 import Ui.Styles exposing (Styles, Theme, darkMode, stylesForTheme)
 
 
-type Model =
-    Model
-    { currentTime : Maybe Posix
-    , selectedZone : Zone
-    , selectedZoneName : Maybe String
-    , selectedCountry : Maybe CountriesTimezones.Country
-    , selectedTime : Maybe Posix
-    , displayedMonth : Maybe Month
-    , displayedYear : Maybe Int
-    , firstSelectableMonth : Maybe Month
-    , firstSelectableYear : Maybe Int
-    , lastSelectableMonth : Maybe Month
-    , lastSelectableYear : Maybe Int
-    , selectableRange : SelectableRange
-    , selectionMode : SelectionMode
-    , availableTimes : List Posix
-    , timezoneSelectorOpen : Bool
-    , timezoneCountryDict : Dict String CountriesTimezones.Country
-    , codeToCountryDict : Dict String CountriesTimezones.Country
-    , countrySelectionDropdown : Dropdown.Model CountriesTimezones.Country
-    , timezoneSelectionDropdown : Dropdown.Model String
-    }
+type Model
+    = Model
+        { currentTime : Maybe Posix
+        , selectedZone : Zone
+        , selectedZoneName : Maybe String
+        , selectedCountry : Maybe CountriesTimezones.Country
+        , selectedTime : Maybe Posix
+        , displayedMonth : Maybe Month
+        , displayedYear : Maybe Int
+        , firstSelectableMonth : Maybe Month
+        , firstSelectableYear : Maybe Int
+        , lastSelectableMonth : Maybe Month
+        , lastSelectableYear : Maybe Int
+        , selectableRange : SelectableRange
+        , selectionMode : SelectionMode
+        , availableTimes : List Posix
+        , timezoneSelectorOpen : Bool
+        , timezoneCountryDict : Dict String CountriesTimezones.Country
+        , codeToCountryDict : Dict String CountriesTimezones.Country
+        , countrySelectionDropdown : Dropdown.Model CountriesTimezones.Country
+        , timezoneSelectionDropdown : Dropdown.Model String
+        }
 
 
 type SelectableRange
@@ -51,9 +51,11 @@ type SelectableRange
     | Past
     | Future
 
+
 type SelectionMode
     = DaySelection
     | AvailableTimeSelection
+
 
 type Msg
     = UpdateCurrentTime Posix
@@ -79,7 +81,7 @@ type DayState
 
 type Calendar msg
     = Settings
-        { model : Model 
+        { model : Model
         , toMsg : Msg -> msg
         , browserEnv : BrowserEnv
         , theme : Theme
@@ -87,7 +89,7 @@ type Calendar msg
 
 
 new :
-    { model : Model 
+    { model : Model
     , toMsg : Msg -> msg
     , browserEnv : BrowserEnv
     , theme : Theme
@@ -105,34 +107,35 @@ new props =
 init : { selectableRange : SelectableRange, selectionMode : SelectionMode, selectedPublishDate : Maybe Posix } -> ( Model, Cmd Msg )
 init { selectableRange, selectionMode, selectedPublishDate } =
     ( Model
-      { currentTime = Nothing
-      , selectedZone = Time.utc
-      , selectedZoneName = Just "Etc/UTC"
-      , selectedCountry = Nothing
-      , selectedTime = selectedPublishDate
-      , displayedMonth = Nothing
-      , displayedYear = Nothing
-      , firstSelectableMonth = Nothing
-      , firstSelectableYear = Nothing
-      , lastSelectableMonth = Nothing
-      , lastSelectableYear = Nothing
-      , selectableRange = selectableRange
-      , selectionMode = selectionMode
-      , availableTimes = []
-      , timezoneSelectorOpen = False
-      , timezoneCountryDict = CountriesTimezones.timezoneToCountryDict
-      , codeToCountryDict = CountriesTimezones.codeToCountryDict
-      , countrySelectionDropdown = Dropdown.init { selected = Just CountriesTimezones.DE }
-      , timezoneSelectionDropdown = Dropdown.init { selected = Nothing }
-      }
+        { currentTime = Nothing
+        , selectedZone = Time.utc
+        , selectedZoneName = Just "Etc/UTC"
+        , selectedCountry = Nothing
+        , selectedTime = selectedPublishDate
+        , displayedMonth = Nothing
+        , displayedYear = Nothing
+        , firstSelectableMonth = Nothing
+        , firstSelectableYear = Nothing
+        , lastSelectableMonth = Nothing
+        , lastSelectableYear = Nothing
+        , selectableRange = selectableRange
+        , selectionMode = selectionMode
+        , availableTimes = []
+        , timezoneSelectorOpen = False
+        , timezoneCountryDict = CountriesTimezones.timezoneToCountryDict
+        , codeToCountryDict = CountriesTimezones.codeToCountryDict
+        , countrySelectionDropdown = Dropdown.init { selected = Just CountriesTimezones.DE }
+        , timezoneSelectionDropdown = Dropdown.init { selected = Nothing }
+        }
     , Cmd.batch
         [ Task.perform UpdateCurrentTime Time.now
         , Task.attempt UpdateSelectedZone TimeZone.getZone
         ]
     )
 
+
 update :
-    { msg : Msg 
+    { msg : Msg
     , model : Model
     , toModel : Model -> model
     , toMsg : Msg -> msg
@@ -187,7 +190,7 @@ update props =
             ToggleTimezoneSelector ->
                 ( Model { model | timezoneSelectorOpen = not model.timezoneSelectorOpen }, Effect.none )
 
-            CountryDropdownSent innerMsg->
+            CountryDropdownSent innerMsg ->
                 Dropdown.update
                     { msg = innerMsg
                     , model = model.countrySelectionDropdown
@@ -240,6 +243,7 @@ selectedZone : Model -> Zone
 selectedZone (Model model) =
     model.selectedZone
 
+
 selectedTime : Model -> Maybe Posix
 selectedTime (Model model) =
     model.selectedTime
@@ -281,7 +285,7 @@ modelWithTimeAndZone (Model model) maybeCurrentTime zone =
                 (Model tempModel) =
                     case model.selectedTime of
                         Just time ->
-                            (Model { model | displayedMonth = Just (Time.toMonth zone time), displayedYear = Just (Time.toYear zone time) })
+                            Model { model | displayedMonth = Just (Time.toMonth zone time), displayedYear = Just (Time.toYear zone time) }
 
                         Nothing ->
                             modelWithFirstAvailableDate (Model { model | currentTime = Just currentTime, selectedZone = zone }) zone currentTime model.availableTimes
@@ -317,21 +321,22 @@ modelWithFirstAvailableDate (Model model) zone currentTime availableTimes =
     case availableTimes of
         [] ->
             Model
-              { model
-              | displayedMonth = Just (Time.toMonth zone first)
-              , displayedYear = Just (Time.toYear zone first)
-              }
+                { model
+                    | displayedMonth = Just (Time.toMonth zone first)
+                    , displayedYear = Just (Time.toYear zone first)
+                }
 
         _ ->
             Model
-              { model
-              | displayedMonth = Just (Time.toMonth zone first)
-              , displayedYear = Just (Time.toYear zone first)
-              , selectedTime = Just first
---            , selectedDay = Just (Time.toDay zone first)
---            , selectedMonth = Just (Time.toMonth zone first)
---            , selectedYear = Just (Time.toYear zone first)
-              }
+                { model
+                    | displayedMonth = Just (Time.toMonth zone first)
+                    , displayedYear = Just (Time.toYear zone first)
+                    , selectedTime = Just first
+
+                    --            , selectedDay = Just (Time.toDay zone first)
+                    --            , selectedMonth = Just (Time.toMonth zone first)
+                    --            , selectedYear = Just (Time.toYear zone first)
+                }
 
 
 firstTime : List Posix -> Posix -> Posix
@@ -370,11 +375,11 @@ view (Settings settings) =
                     , Tw.h_10
                     , Tw.px_5
                     , Tw.font_bold
-                    , Tw.text_color styles.color4
-                    , Tw.bg_color styles.color1
+                    , Tw.text_color styles.colorB4
+                    , Tw.bg_color styles.colorB1
                     , darkMode
-                        [ Tw.text_color styles.color4DarkMode
-                        , Tw.bg_color styles.color1DarkMode
+                        [ Tw.text_color styles.colorB4DarkMode
+                        , Tw.bg_color styles.colorB1DarkMode
                         ]
                     ]
                 ]
@@ -386,11 +391,11 @@ view (Settings settings) =
                 [ css
                     [ Tw.flex
                     , Tw.h_8
-                    , Tw.text_color styles.color4
-                    , Tw.bg_color styles.color1
+                    , Tw.text_color styles.colorB4
+                    , Tw.bg_color styles.colorB1
                     , darkMode
-                        [ Tw.text_color styles.color4DarkMode
-                        , Tw.bg_color styles.color1DarkMode
+                        [ Tw.text_color styles.colorB4DarkMode
+                        , Tw.bg_color styles.colorB1DarkMode
                         ]
                     , Tw.text_xs
                     ]
@@ -406,20 +411,19 @@ view (Settings settings) =
              ]
                 ++ dayRows (Settings settings) availableTimes
             )
-{-
-        , div [ css [ Tw.w_full, Tw.space_y_6, Tw.text_sm ] ]
-            [ timezoneSelectorElement (Settings settings)
-                model.selectedCountry
-                model.selectedZoneName
-                settings.browserEnv.translations
-            , viewAvailableTimes styles timesOfSelectedDay model.selectedZoneName
-            ]
--}
-        ] 
+
+        {-
+           , div [ css [ Tw.w_full, Tw.space_y_6, Tw.text_sm ] ]
+               [ timezoneSelectorElement (Settings settings)
+                   model.selectedCountry
+                   model.selectedZoneName
+                   settings.browserEnv.translations
+               , viewAvailableTimes styles timesOfSelectedDay model.selectedZoneName
+               ]
+        -}
+        ]
         |> Html.map settings.toMsg
- 
- 
- 
+
 
 availableTimesForMonth : Model -> List Posix
 availableTimesForMonth (Model model) =
@@ -430,33 +434,33 @@ availableTimesForMonth (Model model) =
                 |> Maybe.withDefault 0
 
         currentMonthDisplayed =
-            case (model.currentTime, model.displayedMonth, model.displayedYear) of
-                (Just currentTime, Just displayedMonth, Just displayedYear) ->
+            case ( model.currentTime, model.displayedMonth, model.displayedYear ) of
+                ( Just currentTime, Just displayedMonth, Just displayedYear ) ->
                     (Time.toMonth model.selectedZone currentTime == displayedMonth)
                         && (Time.toYear model.selectedZone currentTime == displayedYear)
 
                 _ ->
                     False
     in
-    case (model.selectableRange, model.displayedMonth, model.displayedYear) of
-        (PastAndFuture, Just displayedMonth, Just displayedYear) ->
+    case ( model.selectableRange, model.displayedMonth, model.displayedYear ) of
+        ( PastAndFuture, Just displayedMonth, Just displayedYear ) ->
             if currentMonthDisplayed then
                 noonDatesForMonth (Model model) displayedMonth displayedYear 1 (currentDayInMonth - 1)
-                ++ (model.currentTime |> Maybe.withDefault (Time.millisToPosix 0))
-                :: noonDatesForMonth (Model model) displayedMonth displayedYear (currentDayInMonth + 1) (numberOfDaysInMonth displayedYear displayedMonth)
+                    ++ (model.currentTime |> Maybe.withDefault (Time.millisToPosix 0))
+                    :: noonDatesForMonth (Model model) displayedMonth displayedYear (currentDayInMonth + 1) (numberOfDaysInMonth displayedYear displayedMonth)
 
             else
                 noonDatesForMonth (Model model) displayedMonth displayedYear 1 (numberOfDaysInMonth displayedYear displayedMonth)
 
-        (Past, Just displayedMonth, Just displayedYear) ->
+        ( Past, Just displayedMonth, Just displayedYear ) ->
             if currentMonthDisplayed then
                 noonDatesForMonth (Model model) displayedMonth displayedYear 1 (currentDayInMonth - 1)
-                ++ [model.currentTime |> Maybe.withDefault (Time.millisToPosix 0)]
+                    ++ [ model.currentTime |> Maybe.withDefault (Time.millisToPosix 0) ]
 
             else
                 noonDatesForMonth (Model model) displayedMonth displayedYear 1 (numberOfDaysInMonth displayedYear displayedMonth)
 
-        (Future, Just displayedMonth, Just displayedYear) ->
+        ( Future, Just displayedMonth, Just displayedYear ) ->
             if currentMonthDisplayed then
                 noonDatesForMonth (Model model) displayedMonth displayedYear (currentDayInMonth + 1) (numberOfDaysInMonth displayedYear displayedMonth)
 
@@ -470,8 +474,8 @@ availableTimesForMonth (Model model) =
 noonDatesForMonth : Model -> Month -> Int -> Int -> Int -> List Posix
 noonDatesForMonth (Model model) month year firstDay lastDay =
     List.range firstDay lastDay
-    |> List.map (\day -> newDateRecord year (monthToNumber1 month) day 12 0 0 0 model.selectedZone)
-    |> List.map civilToPosix
+        |> List.map (\day -> newDateRecord year (monthToNumber1 month) day 12 0 0 0 model.selectedZone)
+        |> List.map civilToPosix
 
 
 timezoneSelectorElement : Calendar msg -> Maybe CountriesTimezones.Country -> Maybe String -> I18Next.Translations -> Html Msg
@@ -482,7 +486,7 @@ timezoneSelectorElement (Settings settings) selectedCountry selectedZoneName tra
     in
     if model.timezoneSelectorOpen then
         div
-            [ css [ Tw.flex, Tw.flex_col, Tw.gap_2] ]
+            [ css [ Tw.flex, Tw.flex_col, Tw.gap_2 ] ]
             [ Dropdown.new
                 { model = model.countrySelectionDropdown
                 , toMsg = CountryDropdownSent
@@ -502,7 +506,7 @@ timezoneSelectorElement (Settings settings) selectedCountry selectedZoneName tra
             ]
 
     else
-        div [ css [ Tw.flex, Tw.flex_row, Tw.gap_2]]
+        div [ css [ Tw.flex, Tw.flex_row, Tw.gap_2 ] ]
             [ Html.text <| Translations.timeZone [ translations ]
             , div
                 [ css [ Tw.flex, Tw.flex_row, Tw.cursor_pointer ]
@@ -513,6 +517,7 @@ timezoneSelectorElement (Settings settings) selectedCountry selectedZoneName tra
                 , Graphics.angleDownIcon 15 "rgb(27, 151, 140)"
                 ]
             ]
+
 
 timezoneDisplayString : Maybe CountriesTimezones.Country -> Maybe String -> I18Next.Translations -> String
 timezoneDisplayString selectedCountry selectedZoneName translations =
@@ -536,16 +541,18 @@ countryToLabel translations maybeCountry =
         Nothing ->
             "No country"
 
+
 timezoneToLabel : Maybe String -> String
 timezoneToLabel maybeTimezone =
     maybeTimezone
-    |> Maybe.withDefault "UTC"
+        |> Maybe.withDefault "UTC"
+
 
 viewAvailableTimes : Styles Msg -> List ( DateRecord, Posix ) -> Maybe String -> Html Msg
 viewAvailableTimes styles times maybeTimeZone =
     case maybeTimeZone of
         Just timeZone ->
-            div [ css [ Tw.flex, Tw.space_x_4, Tw.font_bold, Tw.text_color styles.color1 ] ]
+            div [ css [ Tw.flex, Tw.space_x_4, Tw.font_bold, Tw.text_color styles.colorB1 ] ]
                 (List.map (viewAvailableTime styles timeZone) times)
 
         Nothing ->
@@ -555,7 +562,7 @@ viewAvailableTimes styles times maybeTimeZone =
 viewAvailableTime : Styles Msg -> String -> ( DateRecord, Posix ) -> Html Msg
 viewAvailableTime styles timeZone ( dateRecord, time ) =
     div
-        [ css [ Tw.w_20, Tw.h_10, Tw.bg_color styles.color4, Tw.rounded, Css.hover [ Tw.bg_color styles.color4 ], Css.hover [ Tw.text_color styles.color1 ], Tw.cursor_pointer, Tw.flex, Tw.items_center, Tw.justify_center ]
+        [ css [ Tw.w_20, Tw.h_10, Tw.bg_color styles.colorB4, Tw.rounded, Css.hover [ Tw.bg_color styles.colorB4 ], Css.hover [ Tw.text_color styles.colorB1 ], Tw.cursor_pointer, Tw.flex, Tw.items_center, Tw.justify_center ]
         , onClick (SelectTime time timeZone)
         ]
         [ text <| String.fromInt dateRecord.hour ++ ":" ++ (String.fromInt dateRecord.minute |> String.padLeft 2 '0') ]
@@ -594,18 +601,18 @@ dayRows (Settings settings) availableTimes =
                                             timesForDay =
                                                 availableTimesForDay (Model model) displayedYear displayedMonth day availableTimes
                                         in
-                                        case (model.selectedTime, timesForDay) of
-                                            (_, []) ->
+                                        case ( model.selectedTime, timesForDay ) of
+                                            ( _, [] ) ->
                                                 DayNotAvailable day
 
-                                            (Just time, _) ->
+                                            ( Just time, _ ) ->
                                                 if (day == Time.toDay model.selectedZone time) && (displayedMonth == Time.toMonth model.selectedZone time) && (displayedYear == Time.toYear model.selectedZone time) then
                                                     DaySelected day timesForDay
 
-                                                else 
+                                                else
                                                     DayAvailable day timesForDay
 
-                                            (Nothing, _) ->
+                                            ( Nothing, _ ) ->
                                                 DayAvailable day timesForDay
                                     )
                            )
@@ -616,10 +623,12 @@ dayRows (Settings settings) availableTimes =
         ( _, _ ) ->
             [ Html.text "" ]
 
+
 availableTimesForDay : Model -> Int -> Month -> Int -> List Posix -> List Posix
 availableTimesForDay (Model model) year month day availableTimes =
     availableTimes
         |> List.filter (\availableTime -> Time.toYear model.selectedZone availableTime == year && Time.toMonth model.selectedZone availableTime == month && Time.toDay model.selectedZone availableTime == day)
+
 
 dayRow : Theme -> List DayState -> List (Html Msg)
 dayRow theme days =
@@ -652,56 +661,57 @@ viewDayCell theme dayState =
         ( cellStyles, cellText ) =
             case dayState of
                 DayNotPresent ->
-                    ( [ Tw.bg_color styles.color1
-                      , darkMode [ Tw.bg_color styles.color1DarkMode ]
+                    ( [ Tw.bg_color styles.colorB1
+                      , darkMode [ Tw.bg_color styles.colorB1DarkMode ]
                       ]
                     , ""
                     )
 
                 DayNotAvailable day ->
-                    ( [ Tw.bg_color styles.color2
-                      , Tw.text_color styles.color3
-                      , darkMode [ Tw.bg_color styles.color2DarkMode, Tw.text_color styles.color3DarkMode ]
+                    ( [ Tw.bg_color styles.colorB2
+                      , Tw.text_color styles.colorB3
+                      , darkMode [ Tw.bg_color styles.colorB2DarkMode, Tw.text_color styles.colorB3DarkMode ]
                       ]
                     , String.fromInt day
                     )
 
                 DayAvailable day _ ->
-                    ( [ Tw.bg_color styles.color3
-                      , Css.hover [Tw.bg_color styles.color4]
-                      , Tw.cursor_pointer, Tw.text_color styles.color1
+                    ( [ Tw.bg_color styles.colorB3
+                      , Css.hover [ Tw.bg_color styles.colorB4 ]
+                      , Tw.cursor_pointer
+                      , Tw.text_color styles.colorB1
                       , darkMode
-                        [ Tw.bg_color styles.color3DarkMode
-                        , Tw.text_color styles.color1DarkMode
-                        , Css.hover [Tw.bg_color styles.color4DarkMode]
-                        ]
+                            [ Tw.bg_color styles.colorB3DarkMode
+                            , Tw.text_color styles.colorB1DarkMode
+                            , Css.hover [ Tw.bg_color styles.colorB4DarkMode ]
+                            ]
                       ]
                     , String.fromInt day
                     )
 
                 DaySelected day _ ->
-                    ( [ Tw.bg_color styles.color4
-                      , Css.hover [ Tw.bg_color styles.color4 ]
+                    ( [ Tw.bg_color styles.colorB4
+                      , Css.hover [ Tw.bg_color styles.colorB4 ]
                       , Tw.cursor_pointer
-                      , Tw.text_color styles.color1
-                      , darkMode [ Tw.bg_color styles.color4DarkMode, Tw.text_color styles.color1DarkMode ]
+                      , Tw.text_color styles.colorB1
+                      , darkMode [ Tw.bg_color styles.colorB4DarkMode, Tw.text_color styles.colorB1DarkMode ]
                       ]
                     , String.fromInt day
                     )
     in
     div
         [ css
-            (cellStyles ++
-                [ Tw.w_20
-                , Tw.h_full
-                , Tw.border
-                , Tw.border_color styles.color1
-                , Tw.flex
-                , Tw.items_center
-                , Tw.justify_center
-                , Tw.text_xs
-                , darkMode [ Tw.border_color styles.color1DarkMode ]
-                ]
+            (cellStyles
+                ++ [ Tw.w_20
+                   , Tw.h_full
+                   , Tw.border
+                   , Tw.border_color styles.colorB1
+                   , Tw.flex
+                   , Tw.items_center
+                   , Tw.justify_center
+                   , Tw.text_xs
+                   , darkMode [ Tw.border_color styles.colorB1DarkMode ]
+                   ]
             )
         , case dayState of
             DayAvailable day availableTimes ->
@@ -711,7 +721,6 @@ viewDayCell theme dayState =
 
                     _ ->
                         onClick (SelectDay day)
-
 
             DaySelected _ _ ->
                 css []
@@ -724,7 +733,7 @@ viewDayCell theme dayState =
 
 commonCellAttributes : Styles Msg -> List (Html.Attribute Msg)
 commonCellAttributes styles =
-    [ css [ Tw.w_20, Tw.h_full, Tw.border, Tw.border_color styles.color4 ] ]
+    [ css [ Tw.w_20, Tw.h_full, Tw.border, Tw.border_color styles.colorB4 ] ]
 
 
 firstDayOfMonth : Month -> Int -> Zone -> Posix
@@ -744,7 +753,6 @@ prevMonthButton (Settings settings) =
     in
     case ( model.firstSelectableMonth, model.firstSelectableYear ) of
         ( Just firstSelectableMonth, Just firstSelectableYear ) ->
-
             case ( model.displayedMonth, model.displayedYear ) of
                 ( Just displayedMonth, Just displayedYear ) ->
                     let
@@ -755,11 +763,10 @@ prevMonthButton (Settings settings) =
                         div [ css [ Tw.cursor_pointer ], onClick GoToPrevMonth ] [ text "<" ]
 
                     else
-                        div [ css [ Tw.text_color styles.color3 ] ] [ text "<" ]
+                        div [ css [ Tw.text_color styles.colorB3 ] ] [ text "<" ]
 
                 _ ->
                     div [ css [ Tw.cursor_pointer ], onClick GoToPrevMonth ] [ text "<" ]
-
 
         _ ->
             div [ css [ Tw.cursor_pointer ], onClick GoToPrevMonth ] [ text "<" ]
@@ -776,9 +783,8 @@ nextMonthButton (Settings settings) =
     in
     case ( model.lastSelectableMonth, model.lastSelectableYear ) of
         ( Just lastSelectableMonth, Just lastSelectableYear ) ->
-
             case ( model.displayedMonth, model.displayedYear ) of
-                ( Just displayedMonth, Just displayedYear )  ->
+                ( Just displayedMonth, Just displayedYear ) ->
                     let
                         lastSelectable =
                             lastSelectableYear * 100 + monthToNumber lastSelectableMonth
@@ -787,10 +793,10 @@ nextMonthButton (Settings settings) =
                         div [ css [ Tw.cursor_pointer ], onClick GoToNextMonth ] [ text ">" ]
 
                     else
-                        div [ css [ Tw.text_color styles.color3 ] ] [ text ">" ]
+                        div [ css [ Tw.text_color styles.colorB3 ] ] [ text ">" ]
 
                 _ ->
-                    div [ css [ Tw.text_color styles.color3 ] ] [ text ">" ]
+                    div [ css [ Tw.text_color styles.colorB3 ] ] [ text ">" ]
 
         _ ->
             div [ css [ Tw.cursor_pointer ], onClick GoToNextMonth ] [ text ">" ]
@@ -801,18 +807,41 @@ monthName (Model model) browserEnv =
     case model.displayedMonth of
         Just month ->
             case month of
-                Time.Jan -> "January"
-                Time.Feb -> "February"
-                Time.Mar -> "March"
-                Time.Apr -> "April"
-                Time.May -> "May"
-                Time.Jun -> "June"
-                Time.Jul -> "July"
-                Time.Aug -> "August"
-                Time.Sep -> "September"
-                Time.Oct -> "October"
-                Time.Nov -> "November"
-                Time.Dec -> "December"
+                Time.Jan ->
+                    "January"
+
+                Time.Feb ->
+                    "February"
+
+                Time.Mar ->
+                    "March"
+
+                Time.Apr ->
+                    "April"
+
+                Time.May ->
+                    "May"
+
+                Time.Jun ->
+                    "June"
+
+                Time.Jul ->
+                    "July"
+
+                Time.Aug ->
+                    "August"
+
+                Time.Sep ->
+                    "September"
+
+                Time.Oct ->
+                    "October"
+
+                Time.Nov ->
+                    "November"
+
+                Time.Dec ->
+                    "December"
 
         Nothing ->
             ""
@@ -821,13 +850,26 @@ monthName (Model model) browserEnv =
 firstCharOfWeekday : BrowserEnv -> Weekday -> String
 firstCharOfWeekday browserEnv weekday =
     case weekday of
-        Time.Mon -> "M"
-        Time.Tue -> "T"
-        Time.Wed -> "W"
-        Time.Thu -> "T"
-        Time.Fri -> "F"
-        Time.Sat -> "S"
-        Time.Sun -> "S"
+        Time.Mon ->
+            "M"
+
+        Time.Tue ->
+            "T"
+
+        Time.Wed ->
+            "W"
+
+        Time.Thu ->
+            "T"
+
+        Time.Fri ->
+            "F"
+
+        Time.Sat ->
+            "S"
+
+        Time.Sun ->
+            "S"
 
 
 weekDayCell : String -> Html Msg

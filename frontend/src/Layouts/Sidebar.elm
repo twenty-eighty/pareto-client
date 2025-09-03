@@ -1,4 +1,4 @@
-module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layout, map, new, withLeftPart, withTopPart)
+module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layout, map, new, withRightPart, withTopPart)
 
 --import Browser.Events as Events
 
@@ -14,14 +14,14 @@ import FeatherIcons
 import Graphics
 import Html.Styled as Html exposing (Html, a, aside, div, img, main_, span, text)
 import Html.Styled.Attributes as Attr exposing (class, css)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled.Events exposing (..)
 import I18Next
 import Layout exposing (Layout)
 import Nostr
 import Nostr.BookmarkList exposing (bookmarksCount)
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Profile exposing (Profile)
-import Nostr.Types exposing (Following(..), LoginStatus(..), loggedInPubKey)
+import Nostr.Types exposing (Following(..), IncomingMessage, LoginStatus(..), loggedInPubKey)
 import Ports
 import Route exposing (Route)
 import Route.Path
@@ -40,7 +40,7 @@ import View exposing (View)
 
 type alias Props contentMsg =
     { theme : Theme
-    , fixedLeftPart : Maybe (Html contentMsg)
+    , fixedRightPart : Maybe (Html contentMsg)
     , fixedTopPart : Maybe ( Html contentMsg, String )
     }
 
@@ -48,7 +48,7 @@ type alias Props contentMsg =
 map : (msg1 -> msg2) -> Props msg1 -> Props msg2
 map toMsg props =
     { theme = props.theme
-    , fixedLeftPart = Maybe.map (Html.map toMsg) props.fixedLeftPart
+    , fixedRightPart = Maybe.map (Html.map toMsg) props.fixedRightPart
     , fixedTopPart = Maybe.map (\( html, height ) -> ( Html.map toMsg html, height )) props.fixedTopPart
     }
 
@@ -56,14 +56,14 @@ map toMsg props =
 new : { theme : Theme } -> Props contentMsg
 new { theme } =
     { theme = theme
-    , fixedLeftPart = Nothing
+    , fixedRightPart = Nothing
     , fixedTopPart = Nothing
     }
 
 
-withLeftPart : Html contentMsg -> Props contentMsg -> Props contentMsg
-withLeftPart leftPart props =
-    { props | fixedLeftPart = Just leftPart }
+withRightPart : Html contentMsg -> Props contentMsg -> Props contentMsg
+withRightPart rightPart props =
+    { props | fixedRightPart = Just rightPart }
 
 
 withTopPart : Html contentMsg -> String -> Props contentMsg -> Props contentMsg
@@ -330,12 +330,12 @@ layout props shared route =
 
 
 type alias Model =
-    { articleInfoToggle : Bool }
+    { rightPartToggle : Bool }
 
 
 init : () -> ( Model, Effect Msg )
 init _ =
-    ( { articleInfoToggle = False }
+    ( { rightPartToggle = False }
     , Effect.none
     )
 
@@ -348,7 +348,7 @@ type Msg
     = OpenGetStarted
     | SetClientRole Bool ClientRole
     | SetTestMode BrowserEnv.TestMode
-    | ToggleArticleInfo Bool
+    | ReceivedMessage IncomingMessage
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -363,13 +363,17 @@ update _ msg model =
         SetTestMode testMode ->
             ( model, Effect.sendSharedMsg <| Shared.Msg.SetTestMode testMode )
 
-        ToggleArticleInfo flag ->
-            ( { model | articleInfoToggle = flag }, Effect.none )
+        ReceivedMessage { messageType } ->
+            if messageType == "toggleArticleInfo" then
+                ( { model | rightPartToggle = not model.rightPartToggle }, Effect.none )
+
+            else
+                ( model, Effect.none )
 
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.none
+    Ports.receiveMessage ReceivedMessage
 
 
 
@@ -467,41 +471,6 @@ viewSidebar props shared model currentPath toContentMsg content =
 
                 _ ->
                     False
-
-        articleInfoToggle =
-            div
-                ([ css
-                    [ Tw.fixed
-                    , Tw.top_96
-                    , Tw.right_0
-                    , Tw.w_12
-                    , Tw.h_11
-                    , Tw.z_10
-                    , darkMode [ Tw.text_color styles.color5DarkMode ]
-                    , Tw.text_color styles.color5
-                    , Tw.pl_3
-                    , Tw.pt_2_dot_5
-                    , Tw.border
-                    , Tw.rounded_l_lg
-                    , darkMode [ Tw.border_color styles.color2DarkMode ]
-                    , Tw.border_color styles.color2
-                    , Bp.lg [ Tw.hidden ]
-                    , if isArticlePage then
-                        Tw.block
-
-                      else
-                        Tw.hidden
-                    ]
-                 , Events.onClick (toContentMsg (ToggleArticleInfo (not model.articleInfoToggle)))
-                 ]
-                    ++ styles.colorStyleBackground
-                )
-                [ if model.articleInfoToggle == True then
-                    Icon.FeatherIcon FeatherIcons.bookOpen |> Icon.view
-
-                  else
-                    Icon.FeatherIcon FeatherIcons.info |> Icon.view
-                ]
     in
     Html.div
         (styles.colorStyleGrayscaleTitle
@@ -605,6 +574,9 @@ viewSidebar props shared model currentPath toContentMsg content =
                         ]
                     ]
                     |> Html.map toContentMsg
+                , props.fixedTopPart
+                    |> Maybe.map (\( html, _ ) -> html)
+                    |> Maybe.withDefault emptyHtml
                 , div
                     [ css
                         [ Tw.flex
@@ -612,14 +584,25 @@ viewSidebar props shared model currentPath toContentMsg content =
                         , print [ Tw.block ]
                         ]
                     ]
-                    [ props.fixedLeftPart
+                    [ div
+                        [ css
+                            [ Bp.lg [ Tw.contents ]
+                            , if model.rightPartToggle && isArticlePage then
+                                Tw.hidden
+
+                              else
+                                Tw.contents
+                            ]
+                        ]
+                        [ viewMainContent content (props.fixedTopPart |> Maybe.map (\( _, height ) -> height)) ]
+                    , props.fixedRightPart
                         |> Maybe.map
                             (\html ->
                                 div
                                     [ css
                                         [ print [ Tw.hidden ]
                                         , Bp.lg [ Tw.block, Tw.grow_0 ]
-                                        , if not model.articleInfoToggle then
+                                        , if not model.rightPartToggle then
                                             Tw.hidden
 
                                           else
@@ -630,31 +613,17 @@ viewSidebar props shared model currentPath toContentMsg content =
                                     [ html ]
                             )
                         |> Maybe.withDefault emptyHtml
-                    , div
-                        [ css
-                            [ Bp.lg [ Tw.contents ]
-                            , if model.articleInfoToggle && isArticlePage then
-                                Tw.hidden
-
-                              else
-                                Tw.contents
-                            ]
-                        ]
-                        [ viewMainContent content props.fixedTopPart ]
-                    , articleInfoToggle
                     ]
                 ]
             ]
         ]
 
 
-viewMainContent : List (Html contentMsg) -> Maybe ( Html contentMsg, String ) -> Html contentMsg
-viewMainContent content maybeFixedTopPart =
+viewMainContent : List (Html contentMsg) -> Maybe String -> Html contentMsg
+viewMainContent content maybeFixedTopPartHeight =
     let
         topPartHeight =
-            maybeFixedTopPart
-                |> Maybe.map (\( _, height ) -> height)
-                |> Maybe.withDefault "0px"
+            maybeFixedTopPartHeight |> Maybe.withDefault "0px"
     in
     div
         [ css
@@ -662,10 +631,7 @@ viewMainContent content maybeFixedTopPart =
             , Tw.relative
             ]
         ]
-        [ maybeFixedTopPart
-            |> Maybe.map (\( html, _ ) -> html)
-            |> Maybe.withDefault emptyHtml
-        , main_
+        [ main_
             [ class "page"
             , Attr.id Shared.contentId
             , css
@@ -683,13 +649,7 @@ viewMainContent content maybeFixedTopPart =
                 ]
             ]
             [ div
-                [ css
-                    [ Tw.mb_4
-                    , Bp.sm
-                        [ Tw.my_2
-                        ]
-                    ]
-                ]
+                [ css [ Tw.mb_4 ] ]
                 content
             ]
         ]
@@ -861,28 +821,28 @@ viewSidebarItem theme currentPath itemData =
 
         colorStyleSitebarItemActive =
             [ css
-                [ Tw.text_color styles.color1
-                , Tw.bg_color styles.color3
-                , darkMode [ Tw.bg_color styles.color4 ]
+                [ Tw.text_color styles.colorB1
+                , Tw.bg_color styles.colorB3
+                , darkMode [ Tw.bg_color styles.colorB4 ]
                 ]
             ]
 
         colorStyleSitebarItemEnabled =
             [ css
-                [ Tw.text_color styles.color3
+                [ Tw.text_color styles.colorB3
                 , darkMode
-                    [ Tw.text_color styles.color2
+                    [ Tw.text_color styles.colorB2
                     ]
                 ]
             ]
 
         colorStyleSitebarItemDisabled =
             [ css
-                [ Tw.text_color styles.color2
+                [ Tw.text_color styles.colorB2
                 , Bp.sm
-                    [ Tw.text_color styles.color2
+                    [ Tw.text_color styles.colorB2
                     , darkMode
-                        [ Tw.text_color styles.color2DarkMode
+                        [ Tw.text_color styles.colorB2DarkMode
                         ]
                     ]
                 ]
@@ -968,7 +928,7 @@ loggedInButton environment theme maybeProfile =
     in
     div
         (css
-            [ Tw.bg_color styles.color1
+            [ Tw.bg_color styles.colorB1
             , Tw.py_2
             , Tw.px_2
             , Tw.rounded_full

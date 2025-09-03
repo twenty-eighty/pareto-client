@@ -88,6 +88,11 @@ applicationUrl =
     "https://" ++ applicationDomain
 
 
+secureEmail : String
+secureEmail =
+    "secure@" ++ applicationDomain
+
+
 supportEmail : String
 supportEmail =
     "support@" ++ applicationDomain

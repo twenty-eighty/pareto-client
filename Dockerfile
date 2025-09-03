@@ -28,7 +28,9 @@ WORKDIR /app/frontend
 
 # Copy the frontend code to the container and run the build script
 COPY frontend /app/frontend
-RUN chmod +x build.sh && ./build.sh
+ARG IMAGE_CACHING_SERVER
+RUN chmod +x build.sh && \
+    if [ -n "$IMAGE_CACHING_SERVER" ]; then IMAGE_CACHING_SERVER="$IMAGE_CACHING_SERVER" ./build.sh; else ./build.sh; fi
 
 # Set the working directory for the backend build
 WORKDIR /app/nostr_backend

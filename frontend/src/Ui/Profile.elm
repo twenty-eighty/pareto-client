@@ -1,7 +1,6 @@
 module Ui.Profile exposing (..)
 
 import BrowserEnv exposing (BrowserEnv, Environment)
-import Color
 import Components.Button as Button
 import Components.Icon as Icon exposing (Icon(..), MaterialIcon(..))
 import Css.Media
@@ -99,7 +98,7 @@ viewProfileSmall environment styles followLinks profile validationStatus =
                     [ Tw.text_sm
                     , Tw.font_semibold
                     ]
-                    :: styles.colorStyleGrayscaleTitle
+                    :: styles.colorStyleLabel
                 )
                 [ linkElementWrapper
                     [ text (profileDisplayName profile.pubKey profile) ]
@@ -317,7 +316,7 @@ followButton theme browserEnv profilePubKey following =
                 , onClick = Just (msg profilePubKey)
                 , theme = theme
                 }
-                |> Button.withIconLeft (Icon.MaterialIcon MaterialCheck 24 (Icon.Color (Color.fromRgba { red = 0.28, green = 0.73, blue = 0.47, alpha = 1.0 })))
+                |> Button.withIconLeft (Icon.FeatherIcon (FeatherIcons.checkCircle |> FeatherIcons.withSize (toFloat 24)))
                 |> Button.view
 
         NotFollowing msg ->
@@ -326,6 +325,7 @@ followButton theme browserEnv profilePubKey following =
                 , onClick = Just (msg profilePubKey)
                 , theme = theme
                 }
+                |> Button.withIconLeft (Icon.FeatherIcon (FeatherIcons.plus |> FeatherIcons.withSize (toFloat 24)))
                 |> Button.view
 
         UnknownFollowing ->
@@ -407,7 +407,7 @@ viewNpub theme profile =
             emptyHtml
 
 
-copyButton : Theme -> String -> String -> Html msg 
+copyButton : Theme -> String -> String -> Html msg
 copyButton theme copyText uniqueId =
     let
         styles =
@@ -418,16 +418,15 @@ copyButton theme copyText uniqueId =
     in
     Html.div
         [ Attr.css
-            [ 
-            ]
+            []
         ]
         [ Html.div
             [ Attr.css
                 [ Tw.flex
                 , Tw.flex_row
                 , Tw.cursor_pointer
-                , Tw.text_color styles.color4
-                , darkMode [ Tw.text_color styles.color4DarkMode ]
+                , Tw.text_color styles.colorB4
+                , darkMode [ Tw.text_color styles.colorB4DarkMode ]
                 ]
             , Attr.id elementId
             ]
@@ -436,7 +435,8 @@ copyButton theme copyText uniqueId =
         , Html.node "js-clipboard-component"
             [ Attr.property "buttonId" (Encode.string elementId)
             , Attr.property "copyContent" (Encode.string copyText)
---          , Events.on "copiedToClipboard" (Decode.succeed ShowCopiedMessage)
+
+            --          , Events.on "copiedToClipboard" (Decode.succeed ShowCopiedMessage)
             ]
             []
         ]
