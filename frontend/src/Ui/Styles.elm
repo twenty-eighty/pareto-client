@@ -334,7 +334,7 @@ customThemeStyles { colorB1, colorB1DarkMode, colorB2, colorB2DarkMode, colorB3,
         [ css
             [ Tw.text_3xl
             , Tw.font_semibold
-            , Tw.tracking_tighter
+            , Tw.tracking_tight
             ]
         , fontFamilyInter
         , Attr.style "line-height" "auto"
