@@ -19,7 +19,7 @@
       "build time text": "Gebaut am/um: {{buildTime}}",
       "git version text": "Git-Version: {{gitVersion}}",
       "recommendation sent alert text": "Recommendation sent",
-      "feedback info text": "You found a bug or want to give feedback? Please contact us ",
+      "feedback info text": "Du hast einen Fehler gefunden oder möchtest Feedback geben? Bitte kontaktiere uns ",
       "support page link text": "here"
    },
    "article info": {
