@@ -11,15 +11,16 @@
       "about frontend text 3": " Programmiersprache.",
       "about backend text": "Das Pareto Backend wurde entwickelt mit dem",
       "source code text": "Der Quellcode des Pareto Clients ist verfügbar unter",
-      "feedback text": "Du hast einen Fehler gefunden oder möchtest uns etwas mitteilen? Bitte schreibe eine E-Mail an ",
       "hint to tech details": "Für ausführliche technische Angaben zu der Pareto-App ",
       "see this": "siehe hier.",
       "imprint link text": "Impressum",
       "privacy policy link text": "Datenschutzerklärung",
-      "feedback email info text": "Du hast einen Fehler gefunden oder möchtest einfach Rückmeldung geben? Schreibe einfach eine E-Mail an ",
       "donation info text": "Unterstütze die Weiterentwicklung des Pareto Projekts unter ",
       "build time text": "Gebaut am/um: {{buildTime}}",
-      "git version text": "Git-Version: {{gitVersion}}"
+      "git version text": "Git-Version: {{gitVersion}}",
+      "recommendation sent alert text": "Recommendation sent",
+      "feedback info text": "Du hast einen Fehler gefunden oder möchtest Feedback geben? Bitte kontaktiere uns ",
+      "support page link text": "here"
    },
    "article info": {
       "title": "Artikel Info",
@@ -153,6 +154,12 @@
       "profile avatar error explanation": "Das Profilbild kann nicht geladen werden.",
       "profile banner error text": "Fehler beim Laden des Profilbanners",
       "profile banner error explanation": "Das Profilbanner kann nicht geladen werden."
+   },
+   "contact": {
+      "page title": "Contact",
+      "support information": "You can contact the Pareto team via email at",
+      "encrypted contact information": "Encrypted emails can be sent to",
+      "pgp key info text": "The public PGP key can be downloaded from"
    },
    "countries timezones": {
       "country AD": "Andorra",
@@ -467,6 +474,7 @@
       "german text": "Deutsch",
       "italian text": "Italienisch",
       "portuguese text": "Portugiesich",
+      "russian text": "Russian",
       "spanish text": "Spanisch",
       "swedish text": "Schwedisch"
    },
