@@ -11,15 +11,16 @@
       "about frontend text 3": " язык программирования.",
       "about backend text": "Бэкенд Pareto был разработан с использованием",
       "source code text": "Исходный код клиента Pareto доступен на",
-      "feedback text": "Вы нашли ошибку или хотите оставить отзыв? Пожалуйста, напишите email на",
       "hint to tech details": "Для подробной технической информации о приложении Pareto",
       "see this": "смотрите здесь.",
       "imprint link text": "Выходные данные",
       "privacy policy link text": "Политика конфиденциальности",
-      "feedback email info text": "Вы нашли ошибку или хотите оставить отзыв? Пожалуйста, напишите email на",
       "donation info text": "Поддержите дальнейшее развитие проекта Pareto на",
       "build time text": "Время сборки: {{buildTime}}",
-      "git version text": "Версия Git: {{gitVersion}}"
+      "git version text": "Версия Git: {{gitVersion}}",
+      "recommendation sent alert text": "Recommendation sent",
+      "feedback info text": "You found a bug or want to give feedback? Please contact us ",
+      "support page link text": "here"
    },
    "article info": {
       "title": "Информация о статье",
@@ -153,6 +154,12 @@
       "profile avatar error explanation": "Изображение аватара профиля не может быть загружено.",
       "profile banner error text": "Публикация...",
       "profile banner error explanation": "Изображение баннера профиля не может быть загружено."
+   },
+   "contact": {
+      "page title": "Contact",
+      "support information": "You can contact the Pareto team via email at",
+      "encrypted contact information": "Encrypted emails can be sent to",
+      "pgp key info text": "The public PGP key can be downloaded from"
    },
    "countries timezones": {
       "country AD": "Андорра",
