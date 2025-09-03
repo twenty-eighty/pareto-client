@@ -55,9 +55,9 @@ viewShortNote shortNotesViewData shortNoteViewData textNote =
             , Tw.my_4
             , Tw.gap_2
             , Tw.border_b
-            , Tw.border_color styles.color1
+            , Tw.border_color styles.colorB1
             , darkMode
-                [ Tw.border_color styles.color1DarkMode
+                [ Tw.border_color styles.colorB1DarkMode
                 ]
             ]
         ]

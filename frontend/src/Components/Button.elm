@@ -1,15 +1,12 @@
 module Components.Button exposing
     ( Button, new
     , view
-    , heightString
     , withStyleSuccess, withStyleWarning, withStyleDanger
     , withSizeSmall
     , withContentLeft, withContentRight
     , withIconLeft, withIconRight
-    , withWidthFull
     , withDisabled
-    , withHidden, withLink, withNewTabLink, withTypePrimary, withTypeSecondary
-    , withIntermediateState
+    , heightString, withHidden, withIntermediateState, withLink, withNewTabLink, withTypePrimary, withTypeSecondary, withWidthFull
     )
 
 {-|
@@ -36,15 +33,17 @@ import Css
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events as Events
+import Svg.Loaders
+import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (darkMode)
-import Svg.Loaders
 
 
 heightString : String
 heightString =
     "64px"
+
 
 
 -- SETTINGS
@@ -86,10 +85,12 @@ new props =
         , theme = props.theme
         }
 
+
 type Content msg
     = ContentIcon Icon
     | ContentHtml (Html msg)
     | NoContent
+
 
 type Action msg
     = OnClick msg
@@ -98,12 +99,13 @@ type Action msg
     | NoOp
 
 
+
 -- MODIFIERS
 
 
 withLink : Maybe String -> Button msg -> Button msg
 withLink url (Settings settings) =
-    Settings { settings | action =  url |> Maybe.map Link |> Maybe.withDefault NoOp }
+    Settings { settings | action = url |> Maybe.map Link |> Maybe.withDefault NoOp }
 
 
 withNewTabLink : String -> Button msg -> Button msg
@@ -173,13 +175,16 @@ withIconLeft : Icon -> Button msg -> Button msg
 withIconLeft icon (Settings settings) =
     Settings { settings | contentLeft = ContentIcon icon }
 
+
 withContentLeft : Html msg -> Button msg -> Button msg
 withContentLeft content (Settings settings) =
     Settings { settings | contentLeft = ContentHtml content }
 
+
 withIconRight : Icon -> Button msg -> Button msg
 withIconRight icon (Settings settings) =
     Settings { settings | contentRight = ContentIcon icon }
+
 
 withContentRight : Html msg -> Button msg -> Button msg
 withContentRight content (Settings settings) =
@@ -245,9 +250,9 @@ view (Settings settings) =
                 ( False, NewTabLink url ) ->
                     ( a, [ Attr.target "_blank", Attr.href url ] )
 
-                ( _, _) ->
+                ( _, _ ) ->
                     ( div, [ Attr.disabled True ] )
-    
+
         widthStyles =
             case settings.width of
                 Full ->
@@ -268,16 +273,18 @@ view (Settings settings) =
                 (buttonStyles
                     ++ onClickAttr
                     ++ [ Attr.css
-                            ( widthStyles ++
-                            [ Tw.py_2
-                            , Tw.px_4
-                            , Tw.flex
-                            , Tw.flex_row
-                            , Tw.gap_2
-                            , Tw.rounded_full
-                            , Css.hover
-                                []
-                            ])
+                            (widthStyles
+                                ++ [ Tw.py_2
+                                   , Bp.lg [ Tw.px_4, Tw.gap_2 ]
+                                   , Tw.px_2
+                                   , Tw.gap_1
+                                   , Tw.flex
+                                   , Tw.flex_row
+                                   , Tw.rounded_lg
+                                   , Css.hover
+                                        []
+                                   ]
+                            )
                        , Attr.classList
                             [ ( "is-success", settings.style == Success )
                             , ( "is-warning", settings.style == Warning )
@@ -289,7 +296,7 @@ view (Settings settings) =
                 [ viewOptionalContent settings.contentLeft
                 , text settings.label
                 , viewOptionalContent settings.contentRight
-                , viewIntermediateStateIndicator 
+                , viewIntermediateStateIndicator
                 ]
             ]
 
@@ -308,38 +315,38 @@ stylesForTheme (Settings settings) =
             case settings.type_ of
                 RegularButton ->
                     if settings.isDisabled then
-                        ( [ Tw.text_color styles.color3, darkMode [ Tw.text_color styles.color3DarkMode ] ]
-                        , [ Tw.bg_color styles.color2, darkMode [ Tw.bg_color styles.color2DarkMode ] ]
+                        ( [ Tw.text_color styles.colorB3, darkMode [ Tw.text_color styles.colorB3DarkMode ] ]
+                        , [ Tw.bg_color styles.colorB2, darkMode [ Tw.bg_color styles.colorB2DarkMode ] ]
                         )
 
                     else
-                        ( [ Tw.text_color styles.color1, darkMode [ Tw.text_color styles.color1DarkMode ] ]
-                        , [ Tw.bg_color styles.color4
-                          , Tw.border_color styles.color1
-                          , darkMode [ Tw.bg_color styles.color4DarkMode, Tw.border_color styles.color1DarkMode ]
+                        ( [ Tw.text_color styles.colorB1, darkMode [ Tw.text_color styles.colorB1DarkMode ] ]
+                        , [ Tw.bg_color styles.colorB4
+                          , Tw.border_color styles.colorB1
+                          , darkMode [ Tw.bg_color styles.colorB4DarkMode, Tw.border_color styles.colorB1DarkMode ]
                           ]
                         )
 
                 PrimaryButton ->
                     if settings.isDisabled then
-                        ( [ Tw.text_color styles.color3, darkMode [ Tw.text_color styles.color3DarkMode ] ]
-                        , [ Tw.bg_color styles.color2, darkMode [ Tw.bg_color styles.color2DarkMode ] ]
+                        ( [ Tw.text_color styles.colorB3, darkMode [ Tw.text_color styles.colorB3DarkMode ] ]
+                        , [ Tw.bg_color styles.colorB2, darkMode [ Tw.bg_color styles.colorB2DarkMode ] ]
                         )
 
                     else
-                        ( [ Tw.text_color styles.color1, darkMode [ Tw.text_color styles.color1DarkMode ] ]
-                        , [ Tw.bg_color styles.color4, darkMode [ Tw.bg_color styles.color4DarkMode ] ]
+                        ( [ Tw.text_color styles.colorB1, darkMode [ Tw.text_color styles.colorB1DarkMode ] ]
+                        , [ Tw.bg_color styles.colorB4, darkMode [ Tw.bg_color styles.colorB4DarkMode ] ]
                         )
 
                 SecondaryButton ->
                     if settings.isDisabled then
-                        ( [ Tw.text_color styles.color3, darkMode [ Tw.text_color styles.color3DarkMode ] ]
-                        , [ Tw.bg_color styles.color2, darkMode [ Tw.bg_color styles.color2DarkMode ] ]
+                        ( [ Tw.text_color styles.colorB3, darkMode [ Tw.text_color styles.colorB3DarkMode ] ]
+                        , [ Tw.bg_color styles.colorB2, darkMode [ Tw.bg_color styles.colorB2DarkMode ] ]
                         )
 
                     else
-                        ( [ Tw.text_color styles.color1, darkMode [ Tw.text_color styles.color1DarkMode ] ]
-                        , [ Tw.bg_color styles.color3, darkMode [ Tw.bg_color styles.color3DarkMode ] ]
+                        ( [ Tw.text_color styles.colorB1, darkMode [ Tw.text_color styles.colorB1DarkMode ] ]
+                        , [ Tw.bg_color styles.colorB3, darkMode [ Tw.bg_color styles.colorB3DarkMode ] ]
                         )
     in
     [ Attr.css (foregroundStyles ++ backgroundStyles) ]
