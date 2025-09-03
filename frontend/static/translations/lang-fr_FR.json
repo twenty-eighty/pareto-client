@@ -39,7 +39,8 @@
    "article view": {
       "link to article aria label": "Lien vers l'article {{title}}",
       "link to profile aria label": "Lien vers le profil de {{author}}",
-      "link to hashtag aria label": "Lien pour rechercher le hashtag {{hashtag}}"
+      "link to hashtag aria label": "Lien pour rechercher le hashtag {{hashtag}}",
+      "follow author": "Follow author"
    },
    "authors page": {
       "page title": "Auteurs",
