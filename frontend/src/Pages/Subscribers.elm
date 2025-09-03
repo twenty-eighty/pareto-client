@@ -426,11 +426,11 @@ updateWithMessage user shared model message =
 
         "published" ->
             -- currently this page only publishes the list of subscribers so we don't have to check details
-            ( model, Effect.sendSharedMsg (Shared.Msg.ShowAlert "saved subscribers sucessfully" ))
+            ( model, Effect.sendSharedMsg (Shared.Msg.ShowAlert "saved subscribers sucessfully") )
 
         "error" ->
             -- currently this page only publishes the list of subscribers so we don't have to check details
-            ( model, Effect.sendSharedMsg (Shared.Msg.ShowAlert "error saving subscribers" ))
+            ( model, Effect.sendSharedMsg (Shared.Msg.ShowAlert "error saving subscribers") )
 
         _ ->
             ( model, Effect.none )
@@ -506,13 +506,16 @@ subscribersTableConfig browserEnv =
             }
         }
 
+
 booleanValue : Maybe Bool -> String
 booleanValue value =
     case value of
         Just True ->
             "☑️"
+
         _ ->
             "❎"
+
 
 editSubscriberButton : Subscriber -> Table.HtmlDetails Msg
 editSubscriberButton subscriber =
@@ -524,9 +527,9 @@ editSubscriberButton subscriber =
         [ div
             [ css
                 [ Tw.cursor_pointer
-                , Tw.text_color styles.color3
+                , Tw.text_color styles.colorB3
                 , darkMode
-                    [ Tw.text_color styles.color3DarkMode
+                    [ Tw.text_color styles.colorB3DarkMode
                     ]
                 ]
             , Events.onClick (OpenEditSubscriberDialog subscriber)
@@ -547,9 +550,9 @@ removeSubscriberButton removeMsg =
         [ div
             [ css
                 [ Tw.cursor_pointer
-                , Tw.text_color styles.color3
+                , Tw.text_color styles.colorB3
                 , darkMode
-                    [ Tw.text_color styles.color3DarkMode
+                    [ Tw.text_color styles.colorB3DarkMode
                     ]
                 ]
             , Events.onClick removeMsg

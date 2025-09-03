@@ -102,11 +102,12 @@ defmodule NostrBackendWeb.StaticFileController do
   # Generic static HTML serving (e.g. google site verification)
   def serve_generic_html(conn, %{"filename" => filename}) do
     # Sanitize to avoid directory traversal
-    if filename =~ ~r/^[a-zA-Z0-9_\-]+\.(html|xml)$/ do
+    if filename =~ ~r/^[a-zA-Z0-9_\-]+\.(html|xml|asc)$/ do
       file_path = Path.join(:code.priv_dir(:nostr_backend), "static/" <> filename)
       content_type = case Path.extname(filename) do
         ".html" -> "text/html"
         ".xml" -> "application/xml"
+        ".asc" -> "application/pgp-keys"
       end
       serve_file(conn, file_path, content_type)
     else

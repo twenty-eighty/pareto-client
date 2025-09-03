@@ -82,7 +82,11 @@ update shared msg model =
     case msg of
         RecommendClient pubKey handlerInformation ->
             ( model
-            , sendClientRecommendation shared.nostr pubKey handlerInformation
+            , Effect.batch
+                [ sendClientRecommendation shared.nostr pubKey handlerInformation
+                , Shared.Msg.ShowAlert (Translations.recommendationSentAlertText [ shared.browserEnv.translations ])
+                    |> Effect.sendSharedMsg
+                ]
             )
 
         PublishHandlerInformation pubKey handlerInformation ->
@@ -181,15 +185,16 @@ viewSupportInformation theme translations =
                     ]
                ]
         )
-        [ text <| Translations.feedbackEmailInfoText [ translations ]
+        [ text <| Translations.feedbackInfoText [ translations ]
         , a
             (styles.textStyleLinks
                 ++ styles.colorStyleLinks
-                ++ [ Attr.href <| "mailto:" ++ Pareto.supportEmail
+                ++ [ Attr.href <| Route.Path.toString Route.Path.Contact
                    ]
             )
-            [ text Pareto.supportEmail
+            [ text (Translations.supportPageLinkText [ translations ])
             ]
+        , text "."
         ]
 
 

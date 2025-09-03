@@ -88,6 +88,11 @@ applicationUrl =
     "https://" ++ applicationDomain
 
 
+secureEmail : String
+secureEmail =
+    "secure@" ++ applicationDomain
+
+
 supportEmail : String
 supportEmail =
     "support@" ++ applicationDomain
@@ -250,6 +255,7 @@ bootstrapAuthorsList : Dict String PubKey
 bootstrapAuthorsList =
     [ ( "_@pareto.space", "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84" )
     , ( "1millionstimmen@pareto.town", "dfff06f24536cded1e33d5d5473d011553dc80d13f55f25c195c6dcc186c221b" )
+    , ( "andreaspanaceha@pareto.town", "ec3caec1f7fbd096d022e162c89d8e878d072644ab708d352a17430491d41c08" )
     , ( "arottmann@grooveix.com", "a95c624384c60902aaac9de52ab0fce39a9e8daa3d2b14236573a093d345522c" )
     , ( "ashoka@pareto.space", "e373ca4101e25a4d4fcb2a53473fa4113b91dba2c2e451d039d8528eb82abcc5" )
     , ( "barbouille@pareto.town", "68c969eafadfc88d5937770d81031fb314b1bb1c201671403de6d930ab67edb9" )
@@ -257,6 +263,7 @@ bootstrapAuthorsList =
     , ( "bitcoinlighthouse@nsec.app", "638384700918e6a472477045dbcc229362ac0e64a48d927c48af609a956b9348" )
     , ( "bitmax@pareto.town", "aa8de34ff8b18ac3cc56decdfe56f17ec3007385993c834c9b99c839a6ffe696" )
     , ( "blingbling@pareto.town", "b8af284d20a109766c55cc5d4aea27f9c3df20f68f8d0eb5b5de3349f82c91dd" )
+    , ( "bujac@pareto.town", "eb61c681c792331a253441d98f0346071011763836fa0de928b578c7cdb47a37" )
     , ( "christof_weber@pareto.space", "79271c81ef2fd4994c20d73b0555a3e58d7ee9caaa2328082e3a336de18d9066" )
     , ( "corbett-report@pareto.town", "c0f2b5f38dacea67dcfdd073848bf11eb1f29550ab8579d587e4c41c452446a1" )
     , ( "denkbar@grooveix.com", "c631e26716c6b1a404dac828be44fdd403e65a0e5d05af00e24c3524c2b78d3e" )

@@ -2,8 +2,7 @@ module Components.BookmarkButton exposing
     ( BookmarkButton, new
     , view
     , init, update, Model, Msg
-    , withoutLabel
-    , subscriptions
+    , subscriptions, withoutLabel
     )
 
 {-|
@@ -14,12 +13,12 @@ module Components.BookmarkButton exposing
 @docs BookmarkButton, new
 @docs view
 
+
 ## State management
 
 @docs init, update, Model, Msg
 
 -}
-
 
 import Components.Icon as Icon
 import Components.InteractionButton as InteractionButton exposing (InteractionObject(..))
@@ -27,15 +26,18 @@ import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html)
 import I18Next
 import Nostr exposing (areAddressComponentsBookmarked, isEventIdBookmarked)
+import Nostr.Event exposing (Kind(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (LoginStatus, PubKey, loggedInPubKey, loggedInSigningPubKey)
 import Ui.Styles
-import Nostr.Event exposing (Kind(..))
+
+
 
 -- MODEL
 
-type Model =
-    Model InteractionButton.Model
+
+type Model
+    = Model InteractionButton.Model
 
 
 init : Model
@@ -43,7 +45,9 @@ init =
     Model InteractionButton.init
 
 
+
 -- UPDATE
+
 
 type Msg
     = InteractionButtonMsg (InteractionButton.Msg Msg)
@@ -56,7 +60,8 @@ update :
     , toModel : Model -> model
     , toMsg : Msg -> msg
     , translations : I18Next.Translations
-    } -> ( model, Effect msg )
+    }
+    -> ( model, Effect msg )
 update props =
     let
         (Model model) =
@@ -73,7 +78,7 @@ update props =
         case props.msg of
             InteractionButtonMsg interactionMsg ->
                 let
-                    (updatedModel, effect) =
+                    ( updatedModel, effect ) =
                         InteractionButton.update
                             { msg = interactionMsg
                             , model = model
@@ -83,6 +88,7 @@ update props =
                             }
                 in
                 ( updatedModel, effect |> Effect.map props.toMsg )
+
 
 
 -- SETTINGS
@@ -100,14 +106,15 @@ type BookmarkButton msg
         }
 
 
-new : 
+new :
     { model : Maybe Model
     , interactionObject : InteractionObject
     , nostr : Nostr.Model
     , loginStatus : LoginStatus
     , toMsg : Msg -> msg
     , theme : Ui.Styles.Theme
-    } -> BookmarkButton msg
+    }
+    -> BookmarkButton msg
 new props =
     Settings
         { model = props.model |> Maybe.withDefault (Model InteractionButton.init)
@@ -125,6 +132,7 @@ withoutLabel (Settings settings) =
     Settings { settings | showLabel = False }
 
 
+
 -- VIEW
 
 
@@ -137,8 +145,10 @@ view (Settings settings) =
         labelModifier =
             if settings.showLabel then
                 getBookmarksCount settings.interactionObject settings.nostr
-                |> String.fromInt
-                |> InteractionButton.withLabel
+                    |> String.fromInt
+                    |> Just
+                    |> InteractionButton.withLabel
+
             else
                 identity
 
@@ -150,14 +160,16 @@ view (Settings settings) =
 
         clickAction =
             settings.loginStatus
-            |> loggedInSigningPubKey
-            |> Maybe.map (\pubKey ->
-                if isBookmarked then
-                    getRemoveBookmarkRequest settings.interactionObject pubKey
-                else
-                    getAddBookmarkRequest settings.interactionObject pubKey
-            )
-            |> Maybe.map InteractionButton.Send
+                |> loggedInSigningPubKey
+                |> Maybe.map
+                    (\pubKey ->
+                        if isBookmarked then
+                            getRemoveBookmarkRequest settings.interactionObject pubKey
+
+                        else
+                            getAddBookmarkRequest settings.interactionObject pubKey
+                    )
+                |> Maybe.map InteractionButton.Send
     in
     InteractionButton.new
         { model = model
@@ -170,7 +182,7 @@ view (Settings settings) =
         |> labelModifier
         |> InteractionButton.withOnClickAction clickAction
         |> InteractionButton.withReactIcon (Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdd 30 Icon.Inherit)
-        |> InteractionButton.view 
+        |> InteractionButton.view
         |> Html.map settings.toMsg
 
 
@@ -229,4 +241,4 @@ hasBookmark interactionObject nostr pubKey =
 subscriptions : Model -> Sub Msg
 subscriptions (Model model) =
     InteractionButton.subscriptions model
-    |> Sub.map InteractionButtonMsg
+        |> Sub.map InteractionButtonMsg

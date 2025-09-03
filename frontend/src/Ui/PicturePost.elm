@@ -59,21 +59,23 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
                         { id = picturePost.id
                         , author = Just picturePost.pubKey
                         , kind = Just (KindPicture |> numberForKind)
-                        , relays = picturePost.relays
-                            |> Maybe.map (Set.fromList >> Set.toList >> List.map websocketUrl >> List.take 5)
-                            |> Maybe.withDefault []
+                        , relays =
+                            picturePost.relays
+                                |> Maybe.map (Set.fromList >> Set.toList >> List.map websocketUrl >> List.take 5)
+                                |> Maybe.withDefault []
                         }
-                    |> Ui.Links.linkToPicturePost False
-                    |> Maybe.map (\url ->
-                        [ Interactions.ShareButtonElement
-                            { url = url
-                            , title = picturePost.title |> Maybe.withDefault ""
-                            , text = picturePost.description
-                            , hashtags = []
-                            }
-                        ]
-                    )
-                    |> Maybe.withDefault []
+                        |> Ui.Links.linkToPicturePost False
+                        |> Maybe.map
+                            (\url ->
+                                [ Interactions.ShareButtonElement
+                                    { url = url
+                                    , title = picturePost.title |> Maybe.withDefault ""
+                                    , text = picturePost.description
+                                    , hashtags = []
+                                    }
+                                ]
+                            )
+                        |> Maybe.withDefault []
             in
             Interactions.new
                 { browserEnv = picturePostsViewData.browserEnv
@@ -83,13 +85,14 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
                 , interactionObject = InteractionButton.PicturePost picturePost.id picturePost.pubKey
                 , nostr = picturePostsViewData.nostr
                 , loginStatus = picturePostsViewData.loginStatus
+                , showLabel = True
                 }
                 |> Interactions.withInteractionElements
-                    (
-                    [ Interactions.LikeButtonElement
-                    , Interactions.RepostButtonElement
-                    , Interactions.ZapButtonElement "0" (picturePost.relays |> Maybe.map Set.fromList |> Maybe.withDefault Set.empty)
-                    ] ++ shareButtonElement
+                    ([ Interactions.LikeButtonElement
+                     , Interactions.RepostButtonElement
+                     , Interactions.ZapButtonElement "0" (picturePost.relays |> Maybe.map Set.fromList |> Maybe.withDefault Set.empty)
+                     ]
+                        ++ shareButtonElement
                     )
                 |> Interactions.view
 
@@ -104,9 +107,9 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
             , Tw.my_6
             , Tw.gap_2
             , Tw.border_b
-            , Tw.border_color styles.color1
+            , Tw.border_color styles.colorB1
             , darkMode
-                [ Tw.border_color styles.color1DarkMode
+                [ Tw.border_color styles.colorB1DarkMode
                 ]
             ]
         , Attr.lang (picturePost.language |> Maybe.map languageToISOCode |> Maybe.withDefault "en")
@@ -166,9 +169,10 @@ viewContent styles description =
                         , Tw.overflow_hidden
                         , Tw.overflow_ellipsis
                         ]
-                ]
+                   ]
             )
             (formattedContent description)
+
     else
         emptyHtml
 

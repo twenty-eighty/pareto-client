@@ -2,6 +2,7 @@ module Pages.U.User_.Identifier_ exposing (Model, Msg, page)
 
 import Components.ArticleComments as ArticleComments
 import Components.ArticleInfo as ArticleInfo
+import Components.AuthorInteractionsBar as AuthorInteractionsBar exposing (Msg(..))
 import Components.Comment as Comment
 import Components.InteractionButton as InteractionButton exposing (eventIdOfInteractionObject)
 import Components.Interactions as Interactions
@@ -10,7 +11,7 @@ import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapDialog as ZapDialog
 import Dict exposing (Dict)
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html)
+import Html.Styled as Html exposing (Html, article)
 import Layouts
 import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
@@ -24,6 +25,7 @@ import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (EventId, PubKey, loggedInPubKey)
 import Page exposing (Page)
+import Ports
 import Route exposing (Route)
 import Set
 import Shared
@@ -57,36 +59,87 @@ toLayout shared model =
 
         articleInfo =
             maybeArticle
-                |> Maybe.map (\article ->
-                    addressComponentsForArticle article
-                        |> Maybe.map (\addressComponents ->
-                            let
-                                interactionObject =
-                                    InteractionButton.Article article.id addressComponents
-                            in
-                            ArticleInfo.view
-                                styles
-                                (Nostr.getAuthor shared.nostr article.author)
-                                article
-                                { browserEnv = shared.browserEnv
-                                , model = Just model.articleInteractions
-                                , toMsg = ArticleInteractionsSent interactionObject
-                                , theme = shared.theme
-                                , interactionObject = interactionObject
-                                , nostr = shared.nostr
-                                , loginStatus = shared.loginStatus
-                                , shareInfo = sharingInfoForArticle article (Nostr.getAuthor shared.nostr article.author)
-                                , zapRelays = article.relays
-                                }
+                |> Maybe.map
+                    (\article ->
+                        addressComponentsForArticle article
+                            |> Maybe.map
+                                (\addressComponents ->
+                                    let
+                                        interactionObject =
+                                            InteractionButton.Article article.id addressComponents
+                                    in
+                                    ArticleInfo.view
+                                        styles
+                                        (Nostr.getAuthor shared.nostr article.author)
+                                        article
+                                        { browserEnv = shared.browserEnv
+                                        , model = Just model.articleInteractions
+                                        , toMsg = ArticleInteractionsSent interactionObject
+                                        , theme = shared.theme
+                                        , interactionObject = interactionObject
+                                        , nostr = shared.nostr
+                                        , loginStatus = shared.loginStatus
+                                        , shareInfo = sharingInfoForArticle article (Nostr.getAuthor shared.nostr article.author)
+                                        , zapRelays = article.relays
+                                        }
+                                )
+                            |> Maybe.withDefault emptyHtml
+                    )
+                |> Maybe.withDefault emptyHtml
+
+        articlePreviewsData =
+            { articleComments = model.articleComments
+            , articleToInteractionsMsg = ArticleInteractionsSent
+            , bookmarkButtonMsg = \_ _ -> NoOp
+            , bookmarkButtons = Dict.empty
+            , browserEnv = shared.browserEnv
+            , commentsToMsg = CommentsSent
+            , onLoadMore = Nothing
+            , nostr = shared.nostr
+            , loginStatus = shared.loginStatus
+            , sharing = Just ( model.sharingButtonDialog, SharingButtonDialogMsg )
+            , theme = shared.theme
+            }
+
+        fromAuthorBarMsg : AuthorInteractionsBar.Msg -> Msg
+        fromAuthorBarMsg msg =
+            case msg of
+                NavBack ->
+                    NavigateBack
+
+                Follow pubKeyUser pubKeyToFollow ->
+                    FollowAuthor pubKeyUser pubKeyToFollow
+
+                Unfollow pubKeyUser pubKeyToUnfollow ->
+                    UnfollowAuthor pubKeyUser pubKeyToUnfollow
+
+                AuthorInteractionsBar.ToggleArticleInfo ->
+                    ToggleArticleInfo
+
+                _ ->
+                    NoOp
+
+        authorInteractionsBar =
+            maybeArticle
+                |> Maybe.map
+                    (\article ->
+                        (AuthorInteractionsBar.new
+                            { articlePreviewsData = articlePreviewsData
+                            , model = AuthorInteractionsBar.init
+                            , interactionsModel = model.articleInteractions
+                            , article = article
+                            , toMsg = fromAuthorBarMsg
+                            }
+                            |> AuthorInteractionsBar.view
                         )
-                        |> Maybe.withDefault emptyHtml
-                ) 
+                            { articleInfoToggle = False }
+                    )
                 |> Maybe.withDefault emptyHtml
     in
     Layouts.Sidebar.new
-        { theme = shared.theme
-        }
-        |> Layouts.Sidebar.withLeftPart articleInfo
+        { theme = shared.theme }
+        |> Layouts.Sidebar.withTopPart authorInteractionsBar "64px"
+        |> Layouts.Sidebar.withRightPart articleInfo
         |> Layouts.Sidebar
 
 
@@ -198,6 +251,10 @@ type Msg
     | ZapReaction PubKey (List ZapDialog.Recipient)
     | ZapDialogSent (ZapDialog.Msg Msg)
     | SharingButtonDialogMsg SharingButtonDialog.Msg
+    | FollowAuthor PubKey PubKey
+    | UnfollowAuthor PubKey PubKey
+    | NavigateBack
+    | ToggleArticleInfo
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -276,6 +333,26 @@ update shared msg model =
                 , toMsg = SharingButtonDialogMsg
                 }
 
+        FollowAuthor pubKeyUser pubKeyToBeFollowed ->
+            ( model
+            , SendFollowListWithPubKey pubKeyUser pubKeyToBeFollowed
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        UnfollowAuthor pubKeyUser pubKeyToBeUnfollowed ->
+            ( model
+            , SendFollowListWithoutPubKey pubKeyUser pubKeyToBeUnfollowed
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        NavigateBack ->
+            ( model, Effect.back )
+
+        ToggleArticleInfo ->
+            ( model, Effect.sendCmd Ports.toggleArticleInfo )
+
 
 showZapDialog : Model -> List ZapDialog.Recipient -> ( Model, Effect Msg )
 showZapDialog model recipients =
@@ -297,15 +374,18 @@ subscriptions shared model =
     Sub.batch
         [ commentInteractionSubscriptions shared model
         , articleFromModel shared model
-            |> Maybe.andThen (\article ->
-                addressComponentsForArticle article
-                    |> Maybe.map (\addressComponents ->
-                        Sub.map (ArticleInteractionsSent (InteractionButton.Article article.id addressComponents)) (Interactions.subscriptions model.articleInteractions)
-                    )
-            )
+            |> Maybe.andThen
+                (\article ->
+                    addressComponentsForArticle article
+                        |> Maybe.map
+                            (\addressComponents ->
+                                Sub.map (ArticleInteractionsSent (InteractionButton.Article article.id addressComponents)) (Interactions.subscriptions model.articleInteractions)
+                            )
+                )
             |> Maybe.withDefault Sub.none
         , articleCommentsSubscriptions shared model
         ]
+
 
 articleCommentsSubscriptions : Shared.Model -> Model -> Sub Msg
 articleCommentsSubscriptions shared model =
@@ -330,22 +410,23 @@ commentInteractionSubscriptions shared model =
     case maybeAddressComponents of
         Just addressComponents ->
             Dict.toList model.commentInteractions
-                |> List.map (\(eventId, interactions) ->
-                    let
-                        maybePubKey =
-                            Nostr.getArticleComments shared.nostr (loggedInPubKey shared.loginStatus) addressComponents
-                                |> List.filter (\articleComment -> articleComment.eventId == eventId)
-                                |> List.head
-                                |> Maybe.map .pubKey
-                    in
-                    case maybePubKey of
-                        Just pubKey ->
-                            Interactions.subscriptions interactions
-                                |> Sub.map (CommentInteractionsSent (InteractionButton.Comment eventId pubKey))
+                |> List.map
+                    (\( eventId, interactions ) ->
+                        let
+                            maybePubKey =
+                                Nostr.getArticleComments shared.nostr (loggedInPubKey shared.loginStatus) addressComponents
+                                    |> List.filter (\articleComment -> articleComment.eventId == eventId)
+                                    |> List.head
+                                    |> Maybe.map .pubKey
+                        in
+                        case maybePubKey of
+                            Just pubKey ->
+                                Interactions.subscriptions interactions
+                                    |> Sub.map (CommentInteractionsSent (InteractionButton.Comment eventId pubKey))
 
-                        Nothing ->
-                            Sub.none
-                )
+                            Nothing ->
+                                Sub.none
+                    )
                 |> Sub.batch
 
         Nothing ->
@@ -397,4 +478,3 @@ viewArticle shared model maybeArticle =
 
         Nothing ->
             viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle model.requestId
-

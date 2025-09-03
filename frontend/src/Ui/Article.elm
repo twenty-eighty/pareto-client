@@ -129,9 +129,9 @@ colorStyleDate =
             Ui.Styles.stylesForTheme ParetoTheme
     in
     [ css
-        [ Tw.text_color styles.color3
+        [ Tw.text_color styles.colorB3
         , darkMode
-            [ Tw.text_color styles.color3DarkMode
+            [ Tw.text_color styles.colorB3DarkMode
             ]
         ]
     ]
@@ -144,9 +144,9 @@ colorStyleArticleHashtags =
             Ui.Styles.stylesForTheme ParetoTheme
     in
     [ css
-        [ Tw.text_color styles.color4
+        [ Tw.text_color styles.colorB4
         , darkMode
-            [ Tw.text_color styles.color4DarkMode
+            [ Tw.text_color styles.colorB4DarkMode
             ]
         ]
     ]
@@ -160,21 +160,6 @@ viewArticle articlePreviewsData articlePreviewData article =
 
         getProfile =
             Nostr.getProfile articlePreviewsData.nostr
-
-        maybeProfile =
-            getProfile article.author
-
-        validationStatus =
-            Nostr.getProfileValidationStatus articlePreviewsData.nostr article.author
-                |> Maybe.withDefault ValidationUnknown
-
-        followLinks =
-            Nostr.isAuthor articlePreviewsData.nostr article.author
-
-        linkElement =
-            maybeProfile
-                |> Maybe.map (\profile -> linkElementForProfile True followLinks profile validationStatus)
-                |> Maybe.withDefault (linkElementForProfilePubKey followLinks article.author)
 
         langAttr =
             case article.language of
@@ -209,25 +194,6 @@ viewArticle articlePreviewsData articlePreviewData article =
             article.relays
                 |> Set.map websocketUrl
 
-        interactionObject =
-            InteractionButton.Article article.id ( article.kind, article.author, article.identifier |> Maybe.withDefault "" )
-
-        previewData : Ui.Interactions.PreviewData msg
-        previewData =
-            { browserEnv = articlePreviewsData.browserEnv
-            , loginStatus = articlePreviewsData.loginStatus
-            , maybeNip19Target = nip19ForArticle article
-            , zapRelays = articleRelays
-            , interactionsModel = articlePreviewData.articleInteractions
-            , interactionObject = interactionObject
-            , toInteractionsMsg = articlePreviewsData.articleToInteractionsMsg interactionObject
-            , nostr = articlePreviewsData.nostr
-            , sharing = articlePreviewsData.sharing
-            , sharingInfo = sharingInfoForArticle article articlePreviewData.author
-            , translations = articlePreviewsData.browserEnv.translations
-            , theme = articlePreviewsData.theme
-            }
-
         newComment =
             loggedInSigningPubKey articlePreviewsData.loginStatus
                 |> Maybe.map2
@@ -236,13 +202,13 @@ viewArticle articlePreviewsData articlePreviewData article =
                             articleComment =
                                 emptyArticleComment addressComponents
                         in
-                        CommentToArticle 
+                        CommentToArticle
                             { articleComment
-                            | pubKey = signingPubKey
-                            , rootEventId = Just article.id
-                            , rootKind = article.kind
-                            , rootPubKey = article.author
-                            , rootRelay = article.relays |> Set.toList |> List.head
+                                | pubKey = signingPubKey
+                                , rootEventId = Just article.id
+                                , rootKind = article.kind
+                                , rootPubKey = article.author
+                                , rootRelay = article.relays |> Set.toList |> List.head
                             }
                     )
                     (addressComponentsForArticle article)
@@ -261,28 +227,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                 [ Tw.flex_1
                 ]
             ]
-            [ div
-                [ css
-                    [ Tw.relative
-                    , Tw.flex
-                    , Tw.flex_col
-                    , Tw.items_center
-                    , print
-                        [ Tw.hidden
-                        ]
-                    ]
-                ]
-                [ Ui.Profile.viewBanner articlePreviewsData.browserEnv.environment (getProfile article.author)
-                , div
-                    [ css
-                        [ Tw.absolute
-                        , Tw.top_3over4
-                        , Tw.z_10
-                        ]
-                    ]
-                    [ Ui.Profile.viewProfileImage articlePreviewsData.browserEnv.environment linkElement maybeProfile ValidationUnknown ]
-                ]
-            , Html.article
+            [ Html.article
                 (langAttr
                     ++ [ css
                             [ Tw.flex_col
@@ -375,7 +320,6 @@ viewArticle articlePreviewsData articlePreviewData article =
                             ++ contentMargins
                         )
                         [ viewContent articlePreviewsData.browserEnv.environment styles articlePreviewData.loadedContent getProfile article.content
-                        , viewInteractions previewData "1"
                         ]
                     , div
                         [ css
@@ -405,9 +349,7 @@ viewInteractions : Ui.Interactions.PreviewData msg -> String -> Html msg
 viewInteractions previewData instanceId =
     div
         [ css
-            [ Tw.block
-            , Bp.lg [ Tw.hidden ]
-            ]
+            [ Tw.block ]
         ]
         [ Components.Interactions.new
             { browserEnv = previewData.browserEnv
@@ -417,14 +359,14 @@ viewInteractions previewData instanceId =
             , interactionObject = previewData.interactionObject
             , nostr = previewData.nostr
             , loginStatus = previewData.loginStatus
+            , showLabel = False
             }
             |> Components.Interactions.withInteractionElements
-                [ Components.Interactions.CommentButtonElement Nothing
-                , Components.Interactions.LikeButtonElement
-                , Components.Interactions.RepostButtonElement
+                [ Components.Interactions.LikeButtonElement
                 , Components.Interactions.ZapButtonElement instanceId previewData.zapRelays
-                , Components.Interactions.BookmarkButtonElement
+                , Components.Interactions.RepostButtonElement
                 , Components.Interactions.ShareButtonElement previewData.sharingInfo
+                , Components.Interactions.BookmarkButtonElement
                 ]
             |> Components.Interactions.view
         ]
