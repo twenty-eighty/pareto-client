@@ -40,7 +40,7 @@ import Route exposing (Route)
 import Set
 import Shared
 import Shared.Msg
-import Subscribers
+import Newsletters.Subscribers as Subscribers
 import Svg.Loaders as Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme

@@ -539,7 +539,7 @@ update props =
 
                             Just (UploadServerNip96 serverUrl nip96ServerDescriptorData) ->
                                 PostRequest fileId hash
-                                    |> RequestNip98Auth serverUrl nip96ServerDescriptorData.apiUrl
+                                    |> RequestNip98Auth serverUrl nip96ServerDescriptorData.apiUrl ""
                                     |> Nostr.createRequest props.nostr "NIP-96 auth request for files to be uploaded" []
                                     |> Shared.Msg.RequestNostrEvents
                                     |> Effect.sendSharedMsg

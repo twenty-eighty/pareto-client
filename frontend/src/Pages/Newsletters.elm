@@ -25,7 +25,7 @@ import Route exposing (Route)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Subscribers
+import Newsletters.Subscribers as Subscribers
 import Svg.Loaders as Loaders
 import Table.Paginated as Table exposing (defaultCustomizations)
 import Tailwind.Utilities as Tw

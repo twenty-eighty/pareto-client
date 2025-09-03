@@ -21,7 +21,8 @@ import Nostr.Event exposing (Kind(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
 import Shared.Model exposing (Model)
-import Subscribers exposing (CsvColumnNameMap, CsvData, Modification(..), Subscriber, SubscriberField(..), emptySubscriber, translatedFieldName)
+import Newsletters.Subscribers as Subscribers exposing (CsvColumnNameMap, CsvData, Modification(..), emptySubscriber, translatedFieldName)
+import Newsletters.Types exposing (Subscriber, SubscriberField(..), fieldName)
 import Table.Paginated as Table exposing (defaultCustomizations)
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
@@ -286,7 +287,7 @@ update props =
                     processedData =
                         { subscribers = subscribers
                         , subscriberTable =
-                            Table.initialState (Subscribers.fieldName FieldEmail) 25
+                            Table.initialState (fieldName FieldEmail) 25
                                 |> Table.setTotal (List.length subscribers)
                         , overwriteExisting = False
                         , tags = Just <| defaultTag props.browserEnv
@@ -452,7 +453,7 @@ update props =
                     processedData =
                         { subscribers = subscribers
                         , subscriberTable =
-                            Table.initialState (Subscribers.fieldName FieldEmail) 25
+                            Table.initialState (fieldName FieldEmail) 25
                                 |> Table.setTotal (List.length subscribers)
                         , overwriteExisting = False
                         , tags = Just <| defaultTag props.browserEnv
@@ -1196,9 +1197,9 @@ subscribersTableConfig translations =
         { toId = .email
         , toMsg = NewTableState
         , columns =
-            [ Table.stringColumn (Subscribers.fieldName FieldEmail) (translatedFieldName translations FieldEmail) .email
-            , Table.stringColumn (Subscribers.fieldName FieldFirstName) (translatedFieldName translations FieldFirstName) (\subscriber -> subscriber.firstName |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldLastName) (translatedFieldName translations FieldLastName) (\subscriber -> subscriber.lastName |> Maybe.withDefault "")
+            [ Table.stringColumn (fieldName FieldEmail) (translatedFieldName translations FieldEmail) .email
+            , Table.stringColumn (fieldName FieldFirstName) (translatedFieldName translations FieldFirstName) (\subscriber -> subscriber.firstName |> Maybe.withDefault "")
+            , Table.stringColumn (fieldName FieldLastName) (translatedFieldName translations FieldLastName) (\subscriber -> subscriber.lastName |> Maybe.withDefault "")
             ]
         , customizations =
             { defaultCustomizations
