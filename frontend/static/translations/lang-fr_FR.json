@@ -11,15 +11,16 @@
       "about frontend text 3": ".",
       "about backend text": "Le backend Pareto a été développé en utilisant",
       "source code text": "Le code source du client Pareto est disponible sur",
-      "feedback text": "Vous avez trouvé un bug ou souhaitez donner un retour ? Veuillez écrire un email à ",
       "hint to tech details": "Pour des informations techniques détaillées sur l'application Pareto ",
       "see this": "voir ceci.",
       "imprint link text": "Mentions légales",
       "privacy policy link text": "Politique de confidentialité",
-      "feedback email info text": "Vous avez trouvé un bug ou souhaitez donner un retour ? Veuillez écrire un email à ",
       "donation info text": "Soutenez le développement continu du projet Pareto sur ",
       "build time text": "Heure de construction : {{buildTime}}",
-      "git version text": "Version Git : {{gitVersion}}"
+      "git version text": "Version Git : {{gitVersion}}",
+      "recommendation sent alert text": "Recommendation sent",
+      "feedback info text": "You found a bug or want to give feedback? Please contact us ",
+      "support page link text": "here"
    },
    "article info": {
       "title": "Informations sur l'article",
@@ -153,6 +154,12 @@
       "profile avatar error explanation": "L'image d'avatar du profil ne peut pas être chargée.",
       "profile banner error text": "Erreur de bannière du profil",
       "profile banner error explanation": "L'image de bannière du profil ne peut pas être chargée."
+   },
+   "contact": {
+      "page title": "Contact",
+      "support information": "You can contact the Pareto team via email at",
+      "encrypted contact information": "Encrypted emails can be sent to",
+      "pgp key info text": "The public PGP key can be downloaded from"
    },
    "countries timezones": {
       "country AD": "Andorre",
