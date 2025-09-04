@@ -231,6 +231,9 @@ view (Settings settings) =
                     , Tw.px_4
                     , Tw.py_2
                     , Tw.cursor_pointer
+                    , Tw.flex
+                    , Tw.items_center
+                    , Tw.justify_between
                     , Css.focus
                         [ Tw.outline_none
                         , Tw.ring_2
@@ -247,6 +250,10 @@ view (Settings settings) =
                     ++ styles.colorStyleBackground
                 )
                 [ viewSelectedValueOverlay
+                , if not model.isMenuOpen then
+                    viewTriangleIndicator
+                  else
+                    text ""
                 ]
 
         -- If a value is selected, this overlay should
@@ -257,6 +264,26 @@ view (Settings settings) =
                 [ class "dropdown__selected"
                 ]
                 [ text (settings.toLabel model.selected) ]
+
+        -- Triangle indicator showing that the dropdown can be opened
+        viewTriangleIndicator : Html msg
+        viewTriangleIndicator =
+            div
+                [ css
+                    [ Tw.w_0
+                    , Tw.h_0
+                    , Tw.border_l_4
+                    , Tw.border_r_4
+                    , Tw.border_t_4
+                    , Tw.border_l_color Theme.transparent
+                    , Tw.border_r_color Theme.transparent
+                    , Tw.border_t_color Theme.gray_500
+                    , darkMode
+                        [ Tw.border_t_color Theme.gray_400
+                        ]
+                    ]
+                ]
+                []
 
         viewDropdownMenu : Html msg
         viewDropdownMenu =
