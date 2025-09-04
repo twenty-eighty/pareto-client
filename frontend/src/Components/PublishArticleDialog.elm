@@ -24,7 +24,7 @@ import Pareto
 import Ports
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
-import Newsletters.Subscribers as Subscribers
+import Subscribers
 import Tailwind.Utilities as Tw
 import Translations.PublishArticleDialog as Translations
 import Ui.Shared exposing (emptyHtml)
