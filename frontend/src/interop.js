@@ -635,10 +635,12 @@ export const onReady = ({ app, env }) => {
             break;
           }
 
+        case 1111: // comment (NIP-22)
         case 10000: // mute list
         case 10002: // relay list metadata
         case 10003: // bookmark list
         case 10004: // community lists
+        case 10007: // search relays list
         case 10050: // relay list for DMs
         case 10063: // relay list for file uploads (Blossom)
         case 10096: // relay list for file uploads (NIP-96)
