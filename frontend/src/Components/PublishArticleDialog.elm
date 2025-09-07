@@ -367,6 +367,7 @@ viewPublishArticleDialog (Settings settings) relays =
                     , allowNoSelection = False
                     , toLabel = toLabel settings.browserEnv.translations activeSubscribersCount
                     }
+                    |> Dropdown.withMenuPosition Dropdown.MenuPositionTop
                     |> Dropdown.view
 
             else
@@ -393,6 +394,7 @@ viewPublishArticleDialog (Settings settings) relays =
             , Tw.flex_col
             , Tw.justify_start
             , Tw.gap_2
+            , Tw.min_h_40
             ]
         ]
         [ optionalListBox

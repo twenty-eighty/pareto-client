@@ -22,12 +22,17 @@ type Dropdown item msg
         , toMsg : Msg item msg -> msg
         , choices : List item
         , allowNoSelection : Bool
+        , menuPosition : MenuPosition
         , toLabel : Maybe item -> String
         , size : Size
         , isDisabled : Bool
         , onChange : Maybe (Maybe item -> msg)
         }
 
+type MenuPosition
+    = MenuPositionAuto
+    | MenuPositionTop
+    | MenuPositionBottom
 
 new :
     { model : Model item
@@ -43,6 +48,7 @@ new props =
         , toMsg = props.toMsg
         , choices = props.choices
         , allowNoSelection = props.allowNoSelection
+        , menuPosition = MenuPositionAuto
         , toLabel = props.toLabel
         , size = Normal
         , isDisabled = False
@@ -68,6 +74,10 @@ withDisabled : Dropdown item msg -> Dropdown item msg
 withDisabled (Settings settings) =
     Settings { settings | isDisabled = True }
 
+
+withMenuPosition : MenuPosition -> Dropdown item msg -> Dropdown item msg
+withMenuPosition menuPosition (Settings settings) =
+    Settings { settings | menuPosition = menuPosition }
 
 withOnChange :
     (Maybe item -> msg)
@@ -313,13 +323,24 @@ view (Settings settings) =
                                 )
                             |> List.head
                             |> Maybe.withDefault 0
+
+                    menuPositionAttr =
+                        case settings.menuPosition of
+                            MenuPositionAuto ->
+                                Attr.style "top" (String.fromInt (selectedIndex * -40 - 15) ++ "px")
+
+                            MenuPositionTop ->
+                                Attr.style "top" "-15px"
+
+                            MenuPositionBottom ->
+                                Attr.style "bottom" "0px"
                 in
                 div
                     ([ Attr.id "dropdownMenu"
                      , Attr.tabindex 1
 
                      -- position listbox on top of dropdown element, approx. so that selected element is on top of dropdown
-                     , Attr.style "top" (String.fromInt (selectedIndex * -40 - 15) ++ "px")
+                     , menuPositionAttr
                      , onBlur (settings.toMsg BlurredDropdown)
                      , css
                         [ Tw.absolute
