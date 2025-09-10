@@ -288,6 +288,7 @@ viewArticles shared pubKey =
             , bookmarkButtonMsg = \_ _ -> NoOp
             , bookmarkButtons = Dict.empty
             , browserEnv = shared.browserEnv
+            , deleteButtonMsg = Nothing
             , loginStatus = shared.loginStatus
             , nostr = shared.nostr
             , onLoadMore = Nothing
