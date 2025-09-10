@@ -24,7 +24,7 @@ import Markdown
 import Milkdown.MilkdownEditor as Milkdown
 import Nostr
 import Nostr.Article exposing (addressComponentsForArticle, articleFromEvent)
-import Nostr.DeletionRequest exposing (draftDeletionEvent)
+import Nostr.DeletionRequest exposing (deletionEvent)
 import Nostr.Event as Event exposing (AddressComponents, Event, ImageMetadata, Kind(..), Tag(..), numberForKind)
 import Nostr.External
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
@@ -842,7 +842,7 @@ sendDraftDeletionCmd : Shared.Model -> Model -> Auth.User -> Effect Msg
 sendDraftDeletionCmd shared model user =
     case model.draftEventId of
         Just draftEventId ->
-            draftDeletionEvent user.pubKey shared.browserEnv.now draftEventId "Deleting draft after publishing article" model.draftAddressComponents
+            deletionEvent user.pubKey shared.browserEnv.now draftEventId "Deleting draft after publishing article" model.draftAddressComponents [ KindDraftLongFormContent, KindDraft ]
                 |> SendDeletionRequest (Nostr.getDraftRelayUrls shared.nostr draftEventId)
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg

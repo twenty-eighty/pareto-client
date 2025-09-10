@@ -17,18 +17,18 @@ import Locale
 import Markdown
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
-import Nostr.Event exposing (Kind(..), Tag(..), TagReference(..))
+import Nostr.Event exposing (AddressComponents, Kind(..), Tag(..), TagReference(..))
 import Nostr.Nip05 exposing (nip05ToString)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..), emptyArticleComment)
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Relay exposing (websocketUrl)
-import Nostr.Types exposing (EventId, LoginStatus, PubKey, loggedInSigningPubKey)
+import Nostr.Types exposing (EventId, LoginStatus, PubKey, RelayUrl, loggedInSigningPubKey)
 import Pareto
 import Route
 import Route.Path
-import Set
+import Set exposing (Set)
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
@@ -50,6 +50,7 @@ type alias ArticlePreviewsData msg =
     , bookmarkButtons : Dict EventId BookmarkButton.Model
     , browserEnv : BrowserEnv
     , commentsToMsg : ArticleComments.Msg msg -> msg
+    , deleteButtonMsg : Maybe (Set RelayUrl -> List Kind -> EventId -> Maybe AddressComponents -> msg)
     , onLoadMore : Maybe msg
     , loginStatus : LoginStatus
     , nostr : Nostr.Model
@@ -1097,8 +1098,25 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                         ]
                     ]
                 , viewArticleEditButton articlePreviewsData article profile.pubKey
+                , viewArticleDeleteButton articlePreviewsData article profile.pubKey
                 , viewArticleBookmarkButton articlePreviewsData article
                 ]
+
+
+viewArticleDeleteButton : ArticlePreviewsData msg -> Article -> PubKey -> Html msg
+viewArticleDeleteButton articlePreviewsData article articleAuthorPubKey =
+    if (articlePreviewsData.loginStatus |> loggedInSigningPubKey) == Just articleAuthorPubKey then
+        Button.new
+            { label = Translations.Posts.deleteDraftButtonLabel [ articlePreviewsData.browserEnv.translations ]
+            , onClick =
+                articlePreviewsData.deleteButtonMsg
+                |> Maybe.map (\deleteButtonMsg -> deleteButtonMsg article.relays [ article.kind, KindDraft ] article.id (addressComponentsForArticle article))
+            , theme = articlePreviewsData.theme
+            }
+            |> Button.view
+
+    else
+        emptyHtml
 
 
 viewArticleEditButton : ArticlePreviewsData msg -> Article -> PubKey -> Html msg
