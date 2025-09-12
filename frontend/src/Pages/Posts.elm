@@ -48,7 +48,7 @@ page user shared route =
         { init = init user shared route
         , update = update user shared
         , subscriptions = subscriptions
-        , view = view shared user
+        , view = view shared
         }
         |> Page.withLayout (toLayout shared)
 
@@ -226,50 +226,40 @@ subscriptions _ =
 -- VIEW
 
 
-view : Shared.Model.Model -> Auth.User -> Model -> View Msg
-view shared user model =
+view : Shared.Model.Model -> Model -> View Msg
+view shared model =
     { title = Translations.Sidebar.postsMenuItemText [ shared.browserEnv.translations ]
     , body =
-        [ viewArticles shared model user.pubKey
+        [ viewArticles shared model
         ]
     }
 
 
-viewArticles : Shared.Model -> Model -> PubKey -> Html Msg
-viewArticles shared model userPubKey =
-    case Categories.selected model.categories of
-        Published ->
-            Nostr.getArticlesByDate shared.nostr
-                |> Ui.View.viewArticlePreviews
-                    ArticlePreviewList
-                    { articleComments = ArticleComments.init
-                    , articleToInteractionsMsg = \_ _ -> NoOp
-                    , bookmarkButtonMsg = \_ _ -> NoOp
-                    , bookmarkButtons = Dict.empty
-                    , browserEnv = shared.browserEnv
-                    , commentsToMsg = \_ -> NoOp
-                    , deleteButtonMsg = Just DeleteEvent
-                    , nostr = shared.nostr
-                    , loginStatus = shared.loginStatus
-                    , onLoadMore = Nothing
-                    , sharing = Nothing
-                    , theme = shared.theme
-                    }
+viewArticles : Shared.Model -> Model -> Html Msg
+viewArticles shared model =
+    let
+        articles =
+            case Categories.selected model.categories of
+                Published ->
+                    Nostr.getArticlesByDate shared.nostr
 
-        Drafts ->
-            Nostr.getArticleDraftsByDate shared.nostr
-                |> Ui.View.viewArticlePreviews
-                    ArticlePreviewList
-                    { articleComments = ArticleComments.init
-                    , articleToInteractionsMsg = \_ _ -> NoOp
-                    , bookmarkButtonMsg = \_ _ -> NoOp
-                    , bookmarkButtons = Dict.empty
-                    , browserEnv = shared.browserEnv
-                    , commentsToMsg = \_ -> NoOp
-                    , deleteButtonMsg = Just DeleteEvent
-                    , nostr = shared.nostr
-                    , loginStatus = shared.loginStatus
-                    , onLoadMore = Nothing
-                    , sharing = Nothing
-                    , theme = shared.theme
-                    }
+                Drafts ->
+                    Nostr.getArticleDraftsByDate shared.nostr
+    in
+    articles
+        |> Ui.View.viewArticlePreviews
+            ArticlePreviewList
+            { articleComments = ArticleComments.init
+            , articleToInteractionsMsg = \_ _ -> NoOp
+            , bookmarkButtonMsg = \_ _ -> NoOp
+            , bookmarkButtons = Dict.empty
+            , browserEnv = shared.browserEnv
+            , commentsToMsg = \_ -> NoOp
+            , deleteButtonMsg = Just DeleteEvent
+            , nostr = shared.nostr
+            , loginStatus = shared.loginStatus
+            , onLoadMore = Nothing
+            , sharing = Nothing
+            , theme = shared.theme
+            }
+
