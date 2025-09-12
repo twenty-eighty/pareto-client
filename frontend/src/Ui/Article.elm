@@ -1124,7 +1124,6 @@ viewArticleEditButton articlePreviewsData article =
     let
         signingPubKey =
             articlePreviewsData.loginStatus |> loggedInSigningPubKey   
-                |> Debug.log "signingPubKey"
 
         pubKeyMentioned =
             signingPubKey
