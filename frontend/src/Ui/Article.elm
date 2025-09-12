@@ -794,11 +794,12 @@ linkToArticle author article =
                 |> List.take 5
                 |> List.map websocketUrl
     in
-    case ( author, article.identifier ) of
-        ( Nostr.Profile.AuthorProfile { nip05 } ValidationSucceeded, Just identifier ) ->
+    case ( article.kind, author, article.identifier ) of
+
+        ( KindLongFormContent, Nostr.Profile.AuthorProfile { nip05 } ValidationSucceeded, Just identifier ) ->
             Just <| "/u/" ++ (nip05 |> Maybe.map nip05ToString |> Maybe.withDefault "") ++ "/" ++ identifier
 
-        ( _, Just identifier ) ->
+        ( KindLongFormContent, _, Just identifier ) ->
             Nip19.NAddr
                 { identifier = identifier
                 , pubKey = article.author
@@ -809,7 +810,7 @@ linkToArticle author article =
                 |> Result.toMaybe
                 |> Maybe.map (\naddr -> "/a/" ++ naddr)
 
-        ( _, Nothing ) ->
+        ( KindLongFormContent, _, Nothing ) ->
             NEvent
                 { id = article.id
                 , author = Just article.author
@@ -820,6 +821,9 @@ linkToArticle author article =
                 |> Result.toMaybe
                 |> Maybe.map (\nevent -> "/a/" ++ nevent)
 
+        _ ->
+            -- link to draft would not work because it's not published yet
+            Nothing
 
 viewTitlePreview : I18Next.Translations -> Bool -> Styles msg -> Maybe String -> Maybe String -> List Css.Style -> Html msg
 viewTitlePreview translations followLinks styles maybeTitle maybeLinkTarget textWidthAttr =
@@ -868,11 +872,11 @@ viewListSummary styles textWidthAttr articleUrl translations article summaryText
 
             else
                 [ Tw.line_clamp_3 ]
+
+        (element, linkAttributes) =
+            articleElementAttrs articleUrl translations article
     in
-    a
-        [ href (articleUrl |> Maybe.withDefault "")
-        , Attr.attribute "aria-label" (Translations.linkToArticleAriaLabel [ translations ] { title = article.title |> Maybe.withDefault article.id })
-        ]
+    element linkAttributes
         [ div
             (styles.colorStyleGrayscaleText
                 ++ styles.textStyleBody
@@ -956,15 +960,29 @@ viewArticlePreviewBigPicture articlePreviewsData articlePreviewData article =
             ]
         ]
 
+articleElementAttrs : Maybe String -> I18Next.Translations -> Article -> (List (Html.Attribute msg) -> List (Html msg) -> Html msg, List (Html.Attribute msg))
+articleElementAttrs maybeArticleUrl translations article =
+    case maybeArticleUrl of
+        Just articleUrl ->
+            ( a
+            , [ href articleUrl
+              , Attr.attribute "aria-label" (Translations.linkToArticleAriaLabel [ translations ] { title = article.title |> Maybe.withDefault article.id })
+              ]
+            )
+
+        Nothing ->
+            (div, [ ])
+
 
 previewListImage : Environment -> I18Next.Translations -> Maybe String -> Article -> Html msg
 previewListImage environment translations articleUrl article =
     case article.image of
         Just image ->
-            a
-                [ href (articleUrl |> Maybe.withDefault "")
-                , Attr.attribute "aria-label" (Translations.linkToArticleAriaLabel [ translations ] { title = article.title |> Maybe.withDefault article.id })
-                ]
+            let
+                (element, linkAttributes) =
+                    articleElementAttrs articleUrl translations article
+            in
+            element linkAttributes
                 [ div
                     [ css
                         [ Tw.w_80
