@@ -1097,15 +1097,15 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                         , timeParagraph styles articlePreviewsData.browserEnv article.publishedAt article.createdAt
                         ]
                     ]
-                , viewArticleEditButton articlePreviewsData article profile.pubKey
-                , viewArticleDeleteButton articlePreviewsData article profile.pubKey
+                , viewArticleEditButton articlePreviewsData article
+                , viewArticleDeleteButton articlePreviewsData article
                 , viewArticleBookmarkButton articlePreviewsData article
                 ]
 
 
-viewArticleDeleteButton : ArticlePreviewsData msg -> Article -> PubKey -> Html msg
-viewArticleDeleteButton articlePreviewsData article articleAuthorPubKey =
-    if (articlePreviewsData.loginStatus |> loggedInSigningPubKey) == Just articleAuthorPubKey then
+viewArticleDeleteButton : ArticlePreviewsData msg -> Article -> Html msg
+viewArticleDeleteButton articlePreviewsData article =
+    if (articlePreviewsData.loginStatus |> loggedInSigningPubKey) == Just article.author then
         Button.new
             { label = Translations.Posts.deleteDraftButtonLabel [ articlePreviewsData.browserEnv.translations ]
             , onClick =
@@ -1119,9 +1119,21 @@ viewArticleDeleteButton articlePreviewsData article articleAuthorPubKey =
         emptyHtml
 
 
-viewArticleEditButton : ArticlePreviewsData msg -> Article -> PubKey -> Html msg
-viewArticleEditButton articlePreviewsData article articleAuthorPubKey =
-    if (articlePreviewsData.loginStatus |> loggedInSigningPubKey) == Just articleAuthorPubKey then
+viewArticleEditButton : ArticlePreviewsData msg -> Article -> Html msg
+viewArticleEditButton articlePreviewsData article =
+    let
+        signingPubKey =
+            articlePreviewsData.loginStatus |> loggedInSigningPubKey   
+
+        pubKeyMentioned =
+            signingPubKey
+            |> Maybe.map (\pubKey -> eventMentionsPubKey article pubKey)
+            |> Maybe.withDefault False
+
+        canEdit =
+            signingPubKey == Just article.author || pubKeyMentioned
+    in
+    if canEdit then
         Button.new
             { label = Translations.Posts.editDraftButtonLabel [ articlePreviewsData.browserEnv.translations ]
             , onClick = Nothing
@@ -1133,6 +1145,17 @@ viewArticleEditButton articlePreviewsData article articleAuthorPubKey =
     else
         emptyHtml
 
+eventMentionsPubKey : Article -> PubKey -> Bool
+eventMentionsPubKey article pubKey =
+    article.otherTags
+        |> List.any (\tag ->
+            case tag of
+                PublicKeyTag tagPubKey _ _ ->
+                    tagPubKey == pubKey
+
+                _ ->
+                    False
+            )
 
 viewArticleBookmarkButton : ArticlePreviewsData msg -> Article -> Html msg
 viewArticleBookmarkButton articlePreviewsData article =
