@@ -20,15 +20,15 @@
       "git version text": "Git-Version: {{gitVersion}}",
       "recommendation sent alert text": "Recommendation sent",
       "feedback info text": "Du hast einen Fehler gefunden oder möchtest Feedback geben? Bitte kontaktiere uns ",
-      "support page link text": "here"
+      "support page link text": "hier"
    },
    "article info": {
       "title": "Artikel Info",
-      "number of articles": "Beiträge:",
-      "followers": "Followers:",
+      "number of articles": "Beiträge",
+      "followers": "Followers",
       "reading time": "Lesezeit:",
       "speaking time": "Hörlänge:",
-      "time unit": "{{minutes}} Min",
+      "time unit": "Min",
       "sentences": "Sätze:",
       "words": "Wörter:",
       "characters": "Zeichen:",
