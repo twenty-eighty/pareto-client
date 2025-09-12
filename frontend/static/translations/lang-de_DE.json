@@ -28,7 +28,7 @@
       "followers": "Followers",
       "reading time": "Lesezeit:",
       "speaking time": "Hörlänge:",
-      "time unit": "Min",
+      "time unit": "{{minutes}} min",
       "sentences": "Sätze:",
       "words": "Wörter:",
       "characters": "Zeichen:",
