@@ -55,6 +55,14 @@ import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
 import View exposing (View)
 
 
+type NewsletterVersion
+    = NewsletterVersion1
+    | NewsletterVersion2
+
+newsletterVersion : NewsletterVersion
+newsletterVersion =
+    NewsletterVersion2
+
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
 page user shared route =
     Page.new
@@ -444,20 +452,7 @@ update shared user msg model =
 
                 NewsletterOnly subscriberEventData ->
                     ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
-                    , Subscribers.newsletterSubscribersEvent
-                        shared
-                        user.pubKey
-                        ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier )
-                        { title = Maybe.withDefault "" model.title
-                        , summary = Maybe.withDefault "" model.summary
-                        , content = Maybe.withDefault "" model.content
-                        , imageUrl = Maybe.withDefault "" model.image
-                        , language = languageISOCode model
-                        }
-                        subscriberEventData
-                        |> SendApplicationData
-                        |> Shared.Msg.SendNostrEvent
-                        |> Effect.sendSharedMsg
+                    , sendNewsletterEffect shared model user subscriberEventData
                     )
 
                 ArticleAndNewsletter relayUrls subscriberEventData ->
@@ -579,6 +574,39 @@ update shared user msg model =
                         ( { model | debounceStatus = Active (remainingTime - 100) }
                         , Effect.none
                         )
+
+
+sendNewsletterEffect : Shared.Model -> Model -> Auth.User -> Subscribers.SubscriberEventData -> Effect Msg
+sendNewsletterEffect shared model user subscriberEventData =
+    case newsletterVersion of
+        NewsletterVersion1 ->
+            Subscribers.newsletterSubscribersEvent
+                shared
+                user.pubKey
+                ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier )
+                { title = Maybe.withDefault "" model.title
+                , summary = Maybe.withDefault "" model.summary
+                , content = Maybe.withDefault "" model.content
+                , imageUrl = Maybe.withDefault "" model.image
+                , language = languageISOCode model
+                }
+                subscriberEventData
+                |> SendApplicationData
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+
+        NewsletterVersion2 ->
+            Ports.sendNewsletter
+                user.pubKey
+                { title = Maybe.withDefault "" model.title
+                , summary = Maybe.withDefault "" model.summary
+                , content = Maybe.withDefault "" model.content
+                , imageUrl = Maybe.withDefault "" model.image
+                , language = languageISOCode model
+                , test = shared.browserEnv.testMode == BrowserEnv.TestModeEnabled
+                }
+                (Maybe.withDefault "" model.identifier)
+                |> Effect.sendCmd
 
 
 loadReferencedNip27Profiles : Nostr.Model -> String -> Effect Msg
@@ -743,20 +771,7 @@ updateWithPublishedResults shared model user value =
 
                     ( Nothing, Just subscriberEventData ) ->
                         ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
-                        , Subscribers.newsletterSubscribersEvent
-                            shared
-                            user.pubKey
-                            ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier )
-                            { title = Maybe.withDefault "" model.title
-                            , summary = Maybe.withDefault "" model.summary
-                            , content = Maybe.withDefault "" model.content
-                            , imageUrl = Maybe.withDefault "" model.image
-                            , language = languageISOCode model
-                            }
-                            subscriberEventData
-                            |> SendApplicationData
-                            |> Shared.Msg.SendNostrEvent
-                            |> Effect.sendSharedMsg
+                        , sendNewsletterEffect shared model user subscriberEventData
                         )
 
                     ( Nothing, Nothing ) ->
@@ -776,19 +791,7 @@ updateWithPublishedResults shared model user value =
                 case maybeSubscriberEventData of
                     Just subscriberEventData ->
                         ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
-                        , Subscribers.newsletterSubscribersEvent shared
-                            user.pubKey
-                            ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier )
-                            { title = Maybe.withDefault "" model.title
-                            , summary = Maybe.withDefault "" model.summary
-                            , content = Maybe.withDefault "" model.content
-                            , imageUrl = Maybe.withDefault "" model.image
-                            , language = languageISOCode model
-                            }
-                            subscriberEventData
-                            |> SendApplicationData
-                            |> Shared.Msg.SendNostrEvent
-                            |> Effect.sendSharedMsg
+                        , sendNewsletterEffect shared model user subscriberEventData
                         )
 
                     Nothing ->

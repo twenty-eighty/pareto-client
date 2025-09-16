@@ -1,0 +1,491 @@
+{
+  "components": {
+    "responses": {},
+    "schemas": {
+      "BulkResult": {
+        "properties": {
+          "accepted": {
+            "type": "integer"
+          },
+          "duplicates": {
+            "type": "integer"
+          },
+          "errors": {
+            "type": "integer"
+          },
+          "last_id": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "accepted",
+          "duplicates",
+          "errors"
+        ],
+        "title": "BulkResult",
+        "type": "object"
+      },
+      "CampaignCreate": {
+        "properties": {
+          "ciphertext_b64": {
+            "description": "NIP-44 encrypted campaign JSON (base64)",
+            "type": "string"
+          },
+          "enc": {
+            "properties": {
+              "alg": {
+                "enum": [
+                  "nip44",
+                  "plain"
+                ],
+                "type": "string"
+              },
+              "kid": {
+                "nullable": true,
+                "type": "string"
+              }
+            },
+            "required": [
+              "alg"
+            ],
+            "type": "object"
+          },
+          "externalId": {
+            "description": "Client-assigned idempotency key for the campaign",
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "queue": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ownerId",
+          "queue"
+        ],
+        "title": "CampaignCreate",
+        "type": "object"
+      },
+      "CampaignCreateResponse": {
+        "properties": {
+          "campaign_id": {
+            "description": "Server-generated numeric ID as string",
+            "type": "string"
+          }
+        },
+        "required": [
+          "campaign_id"
+        ],
+        "title": "CampaignCreateResponse",
+        "type": "object"
+      },
+      "CampaignStatus": {
+        "properties": {
+          "campaign_id": {
+            "type": "string"
+          },
+          "counts": {
+            "properties": {
+              "available": {
+                "type": "integer"
+              },
+              "done": {
+                "type": "integer"
+              },
+              "failed": {
+                "type": "integer"
+              },
+              "leased": {
+                "type": "integer"
+              },
+              "retryable": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "available",
+              "leased",
+              "retryable",
+              "done",
+              "failed"
+            ],
+            "type": "object"
+          },
+          "expected_jobs": {
+            "nullable": true,
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date_time",
+            "type": "string"
+          },
+          "uploaded_jobs": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "campaign_id",
+          "counts",
+          "updated_at"
+        ],
+        "title": "CampaignStatus",
+        "type": "object"
+      },
+      "CommitRequest": {
+        "properties": {
+          "expected_jobs": {
+            "type": "integer"
+          }
+        },
+        "title": "CommitRequest",
+        "type": "object"
+      },
+      "CommitResponse": {
+        "properties": {
+          "campaign_id": {
+            "type": "string"
+          },
+          "expected_jobs": {
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "campaign_id",
+          "state",
+          "expected_jobs"
+        ],
+        "title": "CommitResponse",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "description": "JWT Bearer token for authenticated requests",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "ConsumerAuth": {
+        "description": "Static token or mTLS for consumer authentication",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "NostrAuth": {
+        "description": "NIP-98 HTTP Auth via Nostr event in Authorization header",
+        "scheme": "nostr",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "A secure, privacy-preserving queue server for newsletter jobs",
+    "title": "Queue Server API",
+    "version": "1.0"
+  },
+  "openapi": "3.0.0",
+  "paths": {
+    "/campaigns": {
+      "post": {
+        "callbacks": {},
+        "deprecated": false,
+        "operationId": "createCampaign",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignCreateResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Create campaign",
+        "tags": []
+      }
+    },
+    "/campaigns/{id}/commit": {
+      "patch": {
+        "callbacks": {},
+        "deprecated": false,
+        "operationId": "commitCampaign",
+        "parameters": [
+          {
+            "description": "Campaign ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommitRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommitResponse"
+                }
+              }
+            },
+            "description": "Committed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid expected"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Commit campaign uploads and enable processing",
+        "tags": []
+      }
+    },
+    "/campaigns/{id}/jobs/bulk": {
+      "post": {
+        "callbacks": {},
+        "deprecated": false,
+        "operationId": "bulkEnqueueJobs",
+        "parameters": [
+          {
+            "description": "Campaign ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-ndjson": {
+              "schema": {
+                "description": "NDJSON lines of job specs",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkResult"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid NDJSON"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid state"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid job data"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Bulk enqueue jobs (NDJSON)",
+        "tags": []
+      }
+    },
+    "/campaigns/{id}/status": {
+      "get": {
+        "callbacks": {},
+        "deprecated": false,
+        "operationId": "getCampaignStatus",
+        "parameters": [
+          {
+            "description": "Campaign ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignStatus"
+                }
+              }
+            },
+            "description": "Status"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get campaign status",
+        "tags": []
+      }
+    }
+  },
+  "security": [
+    {
+      "NostrAuth": []
+    },
+    {
+      "BearerAuth": []
+    },
+    {
+      "ConsumerAuth": []
+    }
+  ],
+  "servers": [
+    {
+      "description": "Queue Server API v1",
+      "url": "/v1",
+      "variables": {}
+    }
+  ],
+  "tags": []
+}

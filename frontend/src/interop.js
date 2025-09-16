@@ -1,5 +1,6 @@
 import "./Milkdown/MilkdownEditor.js";
 import { Contacts } from "./Newsletters/Contacts.js";
+import { createNewsletterSender } from "./Newsletters/Send.js";
 
 import NDK, { NDKUser, NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKNip46Signer, NDKNostrRpc, NDKSubscription, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
@@ -10,6 +11,7 @@ import "./elm-oembed.js";
 import debug from 'debug';
 
 var contacts = null;
+var newsletterSendClient = null;
 
 // Register custom elements
 if (!customElements.get('js-clipboard-component')) {
@@ -239,6 +241,7 @@ export const onReady = ({ app, env }) => {
 
       case 'toggleArticleInfo':
         toggleArticleInfo(app);
+        break;
 
       // Contacts
       case 'initContactDatabase':
@@ -251,6 +254,10 @@ export const onReady = ({ app, env }) => {
 
       case 'storeContacts':
         storeContacts(app, value);
+        break;
+
+      case 'sendNewsletter':
+        sendNewsletter(app, value);
         break;
     }
   }
@@ -773,12 +780,17 @@ export const onReady = ({ app, env }) => {
   }
 
   function initContactDatabase(app, { url: url, pubkey: pubkey }) {
+    if (contacts) {
+      return;
+    }
+
     contacts = new Contacts(window.ndk, url, pubkey);
 
     contacts.authenticate().then(authHeader => {
       console.log('authHeader', authHeader);
 
       loadContacts(app, { page: 1, perPage: 100 });
+      return;
 
       // TODO: get contacts from the database
       const sampleContacts = [
@@ -823,6 +835,22 @@ export const onReady = ({ app, env }) => {
 
   function storeContacts(app, { subscribers: subscribers }) {
     contacts.storeContactsBulk(subscribers, true);
+  }
+
+  function sendNewsletter(app, { author: author, newsletterData: newsletterData, identifier: identifier }) {
+    initContactDatabase(app, { url: "http://localhost:4003", pubkey: author });
+
+    const baseUrl = "http://localhost:4433/v1";
+    const targetPubkey = "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345";
+
+    newsletterSendClient = createNewsletterSender({ ndk: window.ndk, baseUrl: baseUrl, targetPubkey: targetPubkey, contacts: contacts });
+    newsletterSendClient.sendNewsletter({ author: author, newsletterData: newsletterData, identifier: identifier, onProgress: bindNewsletterProgress(app) });
+  }
+
+  function bindNewsletterProgress(app) {
+    return (progress) => {
+      app.ports.receiveMessage.send({ messageType: 'newsletterProgress', value: progress });
+    };
   }
 
   function requestNip96Auth(app, { requestId: requestId, fileId: fileId, serverUrl: serverUrl, apiUrl: apiUrl, method: method, hash: sha256Hash, content: content }) {

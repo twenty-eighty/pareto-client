@@ -220,3 +220,38 @@ storeContacts subscribers =
             [ ( "subscribers", encodeSubscribers subscribers )
             ]
         }
+
+
+-- NEWSLETTERS
+
+type alias NewsletterData =
+    { title : String
+    , summary : String
+    , content : String
+    , imageUrl : String
+    , language : Maybe String
+    , test : Bool
+    }
+
+
+sendNewsletter : String -> NewsletterData -> String -> Cmd msg
+sendNewsletter author newsletterData identifier =
+    sendCommand
+        { command = "sendNewsletter"
+        , value = Encode.object
+            [ ( "author", Encode.string author )
+            , ( "newsletterData", encodeNewsletterData newsletterData )
+            , ( "identifier", Encode.string identifier )
+            ]
+        }
+
+encodeNewsletterData : NewsletterData -> Encode.Value
+encodeNewsletterData newsletterData =
+    Encode.object
+        [ ( "title", Encode.string newsletterData.title )
+        , ( "summary", Encode.string newsletterData.summary )
+        , ( "content", Encode.string newsletterData.content )
+        , ( "imageUrl", Encode.string newsletterData.imageUrl )
+        , ( "language", Encode.string <| Maybe.withDefault "" newsletterData.language )
+        , ( "test", Encode.bool newsletterData.test )
+        ]
