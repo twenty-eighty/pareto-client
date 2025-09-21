@@ -301,6 +301,7 @@ type Msg
     | UpdateTitle String
     | UpdateSubtitle String
     | HashtagEditorMsg HashtagEditor.Msg
+    | HashtagsModified Bool
     | SelectImage ImageSelection
     | ImageSelected ImageSelection MediaSelector.UploadedFile
     | Publish
@@ -391,9 +392,17 @@ update shared user msg model =
             HashtagEditor.update
                 { msg = innerMsg
                 , model = model.hashtagEditor
+                , modifiedMsg = Just HashtagsModified
                 , toModel = \hashtagEditor -> { model | hashtagEditor = hashtagEditor }
                 , toMsg = HashtagEditorMsg
                 }
+
+        HashtagsModified modified ->
+            if modified then
+                ( { model | articleState = ArticleModified }, Effect.none )
+
+            else
+                ( model, Effect.none )
 
         SelectImage imageSelection ->
             ( { model
