@@ -1115,7 +1115,8 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                         , timeParagraph styles articlePreviewsData.browserEnv article.publishedAt article.createdAt
                         ]
                     ]
-                , viewArticleEditButton articlePreviewsData article
+                , viewArticleEditButton articlePreviewsData article False
+                , viewArticleEditButton articlePreviewsData article True
                 , viewArticleDeleteButton articlePreviewsData article
                 , viewArticleBookmarkButton articlePreviewsData article
                 ]
@@ -1137,8 +1138,8 @@ viewArticleDeleteButton articlePreviewsData article =
         emptyHtml
 
 
-viewArticleEditButton : ArticlePreviewsData msg -> Article -> Html msg
-viewArticleEditButton articlePreviewsData article =
+viewArticleEditButton : ArticlePreviewsData msg -> Article -> Bool -> Html msg
+viewArticleEditButton articlePreviewsData article copy =
     let
         signingPubKey =
             articlePreviewsData.loginStatus |> loggedInSigningPubKey   
@@ -1150,14 +1151,20 @@ viewArticleEditButton articlePreviewsData article =
 
         canEdit =
             signingPubKey == Just article.author || pubKeyMentioned
+
+        buttonLabel =
+            if copy then
+                Translations.Posts.copyDraftButtonLabel [ articlePreviewsData.browserEnv.translations ]
+            else
+                Translations.Posts.editDraftButtonLabel [ articlePreviewsData.browserEnv.translations ]
     in
     if canEdit then
         Button.new
-            { label = Translations.Posts.editDraftButtonLabel [ articlePreviewsData.browserEnv.translations ]
+            { label = buttonLabel
             , onClick = Nothing
             , theme = articlePreviewsData.theme
             }
-            |> Button.withLink (editLink article)
+            |> Button.withLink (editLink article copy)
             |> Button.view
 
     else
@@ -1194,10 +1201,25 @@ viewArticleBookmarkButton articlePreviewsData article =
             emptyHtml
 
 
-editLink : Article -> Maybe String
-editLink article =
+editLink : Article -> Bool -> Maybe String
+editLink article copy =
+    let
+        copyParams =
+            if copy then
+                [ ("copy", "true") ]
+            else
+                []
+    in
     nip19ForArticle article
-        |> Maybe.map (\nip19 -> Route.toString { path = Route.Path.Write, query = Dict.singleton "a" nip19, hash = Nothing })
+        |> Maybe.map (\nip19 ->
+                { path = Route.Path.Write
+                , query =
+                    copyParams ++ [ ("a", nip19) ]
+                    |> Dict.fromList
+                , hash = Nothing
+                }
+                    |> Route.toString
+            )
 
 
 timeParagraph : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg
