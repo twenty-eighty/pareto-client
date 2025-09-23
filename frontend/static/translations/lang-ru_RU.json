@@ -557,6 +557,7 @@
       "published category": "Опубликовано",
       "drafts category": "Черновики",
       "edit draft button label": "Редактировать",
+      "copy draft button label": "Copy",
       "delete draft button label": "Удалить"
    },
    "privacy": {
