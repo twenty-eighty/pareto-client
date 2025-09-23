@@ -18,7 +18,7 @@
       "donation info text": "Unterstütze die Weiterentwicklung des Pareto Projekts unter ",
       "build time text": "Gebaut am/um: {{buildTime}}",
       "git version text": "Git-Version: {{gitVersion}}",
-      "recommendation sent alert text": "Recommendation sent",
+      "recommendation sent alert text": "Empfehlung gesendet",
       "feedback info text": "Du hast einen Fehler gefunden oder möchtest Feedback geben? Bitte kontaktiere uns ",
       "support page link text": "hier"
    },
@@ -156,10 +156,10 @@
       "profile banner error explanation": "Das Profilbanner kann nicht geladen werden."
    },
    "contact": {
-      "page title": "Contact",
-      "support information": "You can contact the Pareto team via email at",
-      "encrypted contact information": "Encrypted emails can be sent to",
-      "pgp key info text": "The public PGP key can be downloaded from"
+      "page title": "Kontakt",
+      "support information": "Du kannst das Pareto-Team per E-Mail kontaktieren unter",
+      "encrypted contact information": "Verschlüsselte E-Mails können gesendet werden an",
+      "pgp key info text": "Der öffentliche PGP-Schlüssel kann heruntergeladen werden von"
    },
    "countries timezones": {
       "country AD": "Andorra",
@@ -474,7 +474,7 @@
       "german text": "Deutsch",
       "italian text": "Italienisch",
       "portuguese text": "Portugiesich",
-      "russian text": "Russian",
+      "russian text": "Russisch",
       "spanish text": "Spanisch",
       "swedish text": "Schwedisch"
    },
@@ -530,7 +530,7 @@
       "food category text": "Essen",
       "animals category text": "Tiere",
       "nature category text": "Natur",
-      "peace category text": "Peace",
+      "peace category text": "Frieden",
       "plants category text": "Pflanzen",
       "science category text": "Wissenschaft",
       "technology category text": "Technologie",
@@ -557,7 +557,7 @@
       "published category": "Veröffentlicht",
       "drafts category": "Entwürfe",
       "edit draft button label": "Bearbeiten",
-      "copy draft button label": "Copy",
+      "copy draft button label": "Kopieren",
       "delete draft button label": "Löschen"
    },
    "privacy": {
