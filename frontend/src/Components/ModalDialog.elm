@@ -69,7 +69,7 @@ view (Settings settings) =
             , Tw.flex
             , Tw.justify_center
             , Tw.items_center
-            , Tw.z_50
+            , Tw.z_30
             ]
             :: styles.colorStyleBackground
         )

@@ -24,7 +24,7 @@ import Markdown
 import Milkdown.MilkdownEditor as Milkdown
 import Nostr
 import Nostr.Article exposing (addressComponentsForArticle, articleFromEvent)
-import Nostr.DeletionRequest exposing (draftDeletionEvent)
+import Nostr.DeletionRequest exposing (deletionEvent)
 import Nostr.Event as Event exposing (AddressComponents, Event, ImageMetadata, Kind(..), Tag(..), numberForKind)
 import Nostr.External
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
@@ -40,7 +40,7 @@ import Route exposing (Route)
 import Set
 import Shared
 import Shared.Msg
-import Newsletters.Subscribers as Subscribers
+import Subscribers
 import Svg.Loaders as Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
@@ -158,6 +158,11 @@ init user shared route () =
                             |> Result.toMaybe
                     )
 
+        createCopy =
+            Dict.get "copy" route.query
+                |> Maybe.map (\copy -> copy == "true")
+                |> Maybe.withDefault False
+
         maybeArticle =
             maybeNip19
                 |> Maybe.andThen (\nip19 -> Nostr.getArticleForNip19 shared.nostr nip19)
@@ -191,7 +196,10 @@ init user shared route () =
                 Just article ->
                     let
                         publishedAt =
-                            if article.kind == KindLongFormContent && article.publishedAt == Nothing then
+                            if createCopy then
+                                -- published date will equal creation date of article event
+                                Nothing
+                            else if (article.kind == KindLongFormContent && article.publishedAt == Nothing) then
                                 -- assume published date equals creation date of article event
                                 Just article.createdAt
                             else
@@ -200,21 +208,28 @@ init user shared route () =
                                 article.publishedAt
 
 
-                        draftAddressComponents =
-                            if article.kind == KindDraftLongFormContent then
-                                addressComponentsForArticle article
+                        (draftEventId, draftAddressComponents) =
+                            if article.kind == KindDraftLongFormContent && not createCopy then
+                                (Just article.id, addressComponentsForArticle article)
 
                             else
+                                (Nothing, Nothing)
+
+                        identifier =
+                            if createCopy then
+                                -- create new identifier for copy
                                 Nothing
+                            else
+                                article.identifier
                     in
-                    { draftEventId = Just article.id
+                    { draftEventId = draftEventId
                     , draftAddressComponents = draftAddressComponents
                     , title = article.title
                     , summary = article.summary
                     , image = article.image
                     , content = Just article.content
                     , milkdown = Milkdown.init
-                    , identifier = article.identifier
+                    , identifier = identifier
                     , otherTags = article.otherTags
                     , zapWeights =
                         if List.length article.zapWeights > 0 then
@@ -301,6 +316,7 @@ type Msg
     | UpdateTitle String
     | UpdateSubtitle String
     | HashtagEditorMsg HashtagEditor.Msg
+    | HashtagsModified Bool
     | SelectImage ImageSelection
     | ImageSelected ImageSelection MediaSelector.UploadedFile
     | Publish
@@ -391,9 +407,17 @@ update shared user msg model =
             HashtagEditor.update
                 { msg = innerMsg
                 , model = model.hashtagEditor
+                , modifiedMsg = Just HashtagsModified
                 , toModel = \hashtagEditor -> { model | hashtagEditor = hashtagEditor }
                 , toMsg = HashtagEditorMsg
                 }
+
+        HashtagsModified modified ->
+            if modified then
+                ( { model | articleState = ArticleModified }, Effect.none )
+
+            else
+                ( model, Effect.none )
 
         SelectImage imageSelection ->
             ( { model
@@ -842,7 +866,7 @@ sendDraftDeletionCmd : Shared.Model -> Model -> Auth.User -> Effect Msg
 sendDraftDeletionCmd shared model user =
     case model.draftEventId of
         Just draftEventId ->
-            draftDeletionEvent user.pubKey shared.browserEnv.now draftEventId "Deleting draft after publishing article" model.draftAddressComponents
+            deletionEvent user.pubKey shared.browserEnv.now draftEventId "Deleting draft after publishing article" model.draftAddressComponents [ KindDraftLongFormContent, KindDraft ]
                 |> SendDeletionRequest (Nostr.getDraftRelayUrls shared.nostr draftEventId)
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg

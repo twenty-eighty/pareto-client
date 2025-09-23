@@ -1,6 +1,6 @@
 module Nostr.DeletionRequest exposing (..)
 
-import Nostr.Event exposing (Event, Kind(..), Tag(..), addAddressTag, addKindTag, buildAddress)
+import Nostr.Event exposing (Event, Kind(..), Tag(..), addAddressTag, addKindTags, buildAddress)
 import Nostr.Profile exposing (ProfileValidation(..))
 import Nostr.Types exposing (EventId, PubKey)
 import Set exposing (Set)
@@ -57,8 +57,8 @@ emptyDeletionRequest pubKey =
     }
 
 
-draftDeletionEvent : PubKey -> Time.Posix -> EventId -> String -> Maybe AddressComponents -> Event
-draftDeletionEvent pubKey createdAt eventId content maybeAddressComponents =
+deletionEvent : PubKey -> Time.Posix -> EventId -> String -> Maybe AddressComponents -> List Kind -> Event
+deletionEvent pubKey createdAt eventId content maybeAddressComponents kinds =
     let
         addAddress =
             case maybeAddressComponents of
@@ -78,8 +78,7 @@ draftDeletionEvent pubKey createdAt eventId content maybeAddressComponents =
         []
             |> addAddress
             |> addEventIdTag eventId Nothing Nothing Nothing
-            |> addKindTag KindDraftLongFormContent
-            |> addKindTag KindDraft
+            |> addKindTags kinds
     , content = content
     , id = ""
     , sig = Nothing

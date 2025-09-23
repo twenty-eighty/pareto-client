@@ -49,7 +49,8 @@ new props =
 
 type Model
     = Model
-        { editValue : String
+        { initialHashtags : List String
+        , editValue : String
         }
 
 
@@ -57,6 +58,7 @@ init : { hashtags : List String } -> Model
 init props =
     Model
         { editValue = props.hashtags |> String.join ", "
+        , initialHashtags = props.hashtags
         }
 
 
@@ -66,6 +68,7 @@ type Msg
 update :
     { msg : Msg
     , model : Model
+    , modifiedMsg : Maybe (Bool -> msg)
     , toModel : Model -> model
     , toMsg : Msg -> msg
     }
@@ -84,8 +87,17 @@ update props =
     toParentModel <|
         case props.msg of
             UpdateHashtags hashtags ->
-                ( Model { model | editValue = hashtags }
-                , Effect.none
+                let
+                    newModel =
+                        Model { model | editValue = hashtags }
+
+                    modified =
+                        model.initialHashtags /= getHashtags newModel
+                in
+                ( newModel
+                , props.modifiedMsg
+                    |> Maybe.map (\msg -> msg modified |> Effect.sendMsg)
+                    |> Maybe.withDefault Effect.none
                 )
 
 

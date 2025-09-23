@@ -1,11 +1,10 @@
 port module Ports exposing (..)
 
 import Json.Encode as Encode
-import Newsletters.Types exposing (Subscriber, encodeSubscribers)
 import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), buildAddress, encodeEvent, encodeEventFilter)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestId)
 import Nostr.Send exposing (SendRequestId)
-import Nostr.Types exposing (IncomingMessage, OutgoingCommand, PubKey)
+import Nostr.Types exposing (IncomingMessage, OutgoingCommand)
 import Pareto
 
 
@@ -106,8 +105,9 @@ requestBlossomAuth requestId server content method =
                 )
         }
 
-requestNip96Auth : RequestId -> String -> String -> String -> HttpRequestMethod -> Cmd msg
-requestNip96Auth requestId serverUrl apiUrl content method =
+
+requestNip96Auth : RequestId -> String -> String -> HttpRequestMethod -> Cmd msg
+requestNip96Auth requestId serverUrl apiUrl method =
     sendCommand
         { command = "requestNip96Auth"
         , value =
@@ -115,7 +115,6 @@ requestNip96Auth requestId serverUrl apiUrl content method =
                 ([ ( "requestId", Encode.int requestId )
                  , ( "serverUrl", Encode.string serverUrl )
                  , ( "apiUrl", Encode.string apiUrl )
-                 , ( "content", Encode.string content )
                  ]
                     ++ httpMethodParams method
                 )
@@ -186,37 +185,4 @@ downloadAndDecryptFile url keyHex ivHex =
                 , ( "key", Encode.string keyHex )
                 , ( "iv", Encode.string ivHex )
                 ]
-        }
-
--- CONTACTS
-
-initContactDatabase : String -> PubKey -> Cmd msg
-initContactDatabase url pubkey =
-    sendCommand
-        { command = "initContactDatabase"
-        , value = Encode.object
-            [ ( "url", Encode.string url )
-            , ( "pubkey", Encode.string pubkey )
-            ]
-        }
-
-
-loadContacts : Int -> Int -> Cmd msg
-loadContacts page perPage =
-    sendCommand
-        { command = "loadContacts"
-        , value = Encode.object
-            [ ( "page", Encode.int page )
-            , ( "perPage", Encode.int perPage )
-            ]
-        }
-
-
-storeContacts : List Subscriber -> Cmd msg
-storeContacts subscribers =
-    sendCommand
-        { command = "storeContacts"
-        , value = Encode.object
-            [ ( "subscribers", encodeSubscribers subscribers )
-            ]
         }

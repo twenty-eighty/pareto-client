@@ -260,6 +260,7 @@ update props =
                         HashtagEditor.update
                             { msg = innerMsg
                             , model = model.hashtagEditor
+                            , modifiedMsg = Nothing
                             , toModel = \hashtagEditor -> Model { model | hashtagEditor = hashtagEditor }
                             , toMsg = HashtagEditorMsg
                             }

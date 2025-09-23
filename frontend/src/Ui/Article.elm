@@ -17,18 +17,18 @@ import Locale
 import Markdown
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle, publishedTime)
-import Nostr.Event exposing (Kind(..), Tag(..), TagReference(..))
+import Nostr.Event exposing (AddressComponents, Kind(..), Tag(..), TagReference(..))
 import Nostr.Nip05 exposing (nip05ToString)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..), emptyArticleComment)
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
 import Nostr.Relay exposing (websocketUrl)
-import Nostr.Types exposing (EventId, LoginStatus, PubKey, loggedInSigningPubKey)
+import Nostr.Types exposing (EventId, LoginStatus, PubKey, RelayUrl, loggedInSigningPubKey)
 import Pareto
 import Route
 import Route.Path
-import Set
+import Set exposing (Set)
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
@@ -50,6 +50,7 @@ type alias ArticlePreviewsData msg =
     , bookmarkButtons : Dict EventId BookmarkButton.Model
     , browserEnv : BrowserEnv
     , commentsToMsg : ArticleComments.Msg msg -> msg
+    , deleteButtonMsg : Maybe (Set RelayUrl -> List Kind -> EventId -> Maybe AddressComponents -> msg)
     , onLoadMore : Maybe msg
     , loginStatus : LoginStatus
     , nostr : Nostr.Model
@@ -793,11 +794,12 @@ linkToArticle author article =
                 |> List.take 5
                 |> List.map websocketUrl
     in
-    case ( author, article.identifier ) of
-        ( Nostr.Profile.AuthorProfile { nip05 } ValidationSucceeded, Just identifier ) ->
+    case ( article.kind, author, article.identifier ) of
+
+        ( KindLongFormContent, Nostr.Profile.AuthorProfile { nip05 } ValidationSucceeded, Just identifier ) ->
             Just <| "/u/" ++ (nip05 |> Maybe.map nip05ToString |> Maybe.withDefault "") ++ "/" ++ identifier
 
-        ( _, Just identifier ) ->
+        ( KindLongFormContent, _, Just identifier ) ->
             Nip19.NAddr
                 { identifier = identifier
                 , pubKey = article.author
@@ -808,7 +810,7 @@ linkToArticle author article =
                 |> Result.toMaybe
                 |> Maybe.map (\naddr -> "/a/" ++ naddr)
 
-        ( _, Nothing ) ->
+        ( KindLongFormContent, _, Nothing ) ->
             NEvent
                 { id = article.id
                 , author = Just article.author
@@ -819,6 +821,9 @@ linkToArticle author article =
                 |> Result.toMaybe
                 |> Maybe.map (\nevent -> "/a/" ++ nevent)
 
+        _ ->
+            -- link to draft would not work because it's not published yet
+            Nothing
 
 viewTitlePreview : I18Next.Translations -> Bool -> Styles msg -> Maybe String -> Maybe String -> List Css.Style -> Html msg
 viewTitlePreview translations followLinks styles maybeTitle maybeLinkTarget textWidthAttr =
@@ -867,11 +872,11 @@ viewListSummary styles textWidthAttr articleUrl translations article summaryText
 
             else
                 [ Tw.line_clamp_3 ]
+
+        (element, linkAttributes) =
+            articleElementAttrs articleUrl translations article
     in
-    a
-        [ href (articleUrl |> Maybe.withDefault "")
-        , Attr.attribute "aria-label" (Translations.linkToArticleAriaLabel [ translations ] { title = article.title |> Maybe.withDefault article.id })
-        ]
+    element linkAttributes
         [ div
             (styles.colorStyleGrayscaleText
                 ++ styles.textStyleBody
@@ -955,15 +960,29 @@ viewArticlePreviewBigPicture articlePreviewsData articlePreviewData article =
             ]
         ]
 
+articleElementAttrs : Maybe String -> I18Next.Translations -> Article -> (List (Html.Attribute msg) -> List (Html msg) -> Html msg, List (Html.Attribute msg))
+articleElementAttrs maybeArticleUrl translations article =
+    case maybeArticleUrl of
+        Just articleUrl ->
+            ( a
+            , [ href articleUrl
+              , Attr.attribute "aria-label" (Translations.linkToArticleAriaLabel [ translations ] { title = article.title |> Maybe.withDefault article.id })
+              ]
+            )
+
+        Nothing ->
+            (div, [ ])
+
 
 previewListImage : Environment -> I18Next.Translations -> Maybe String -> Article -> Html msg
 previewListImage environment translations articleUrl article =
     case article.image of
         Just image ->
-            a
-                [ href (articleUrl |> Maybe.withDefault "")
-                , Attr.attribute "aria-label" (Translations.linkToArticleAriaLabel [ translations ] { title = article.title |> Maybe.withDefault article.id })
-                ]
+            let
+                (element, linkAttributes) =
+                    articleElementAttrs articleUrl translations article
+            in
+            element linkAttributes
                 [ div
                     [ css
                         [ Tw.w_80
@@ -1096,25 +1115,72 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
                         , timeParagraph styles articlePreviewsData.browserEnv article.publishedAt article.createdAt
                         ]
                     ]
-                , viewArticleEditButton articlePreviewsData article profile.pubKey
+                , viewArticleEditButton articlePreviewsData article False
+                , viewArticleEditButton articlePreviewsData article True
+                , viewArticleDeleteButton articlePreviewsData article
                 , viewArticleBookmarkButton articlePreviewsData article
                 ]
 
 
-viewArticleEditButton : ArticlePreviewsData msg -> Article -> PubKey -> Html msg
-viewArticleEditButton articlePreviewsData article articleAuthorPubKey =
-    if (articlePreviewsData.loginStatus |> loggedInSigningPubKey) == Just articleAuthorPubKey then
+viewArticleDeleteButton : ArticlePreviewsData msg -> Article -> Html msg
+viewArticleDeleteButton articlePreviewsData article =
+    if (articlePreviewsData.loginStatus |> loggedInSigningPubKey) == Just article.author then
         Button.new
-            { label = Translations.Posts.editDraftButtonLabel [ articlePreviewsData.browserEnv.translations ]
-            , onClick = Nothing
+            { label = Translations.Posts.deleteDraftButtonLabel [ articlePreviewsData.browserEnv.translations ]
+            , onClick =
+                articlePreviewsData.deleteButtonMsg
+                |> Maybe.map (\deleteButtonMsg -> deleteButtonMsg article.relays [ article.kind, KindDraft ] article.id (addressComponentsForArticle article))
             , theme = articlePreviewsData.theme
             }
-            |> Button.withLink (editLink article)
             |> Button.view
 
     else
         emptyHtml
 
+
+viewArticleEditButton : ArticlePreviewsData msg -> Article -> Bool -> Html msg
+viewArticleEditButton articlePreviewsData article copy =
+    let
+        signingPubKey =
+            articlePreviewsData.loginStatus |> loggedInSigningPubKey   
+
+        pubKeyMentioned =
+            signingPubKey
+            |> Maybe.map (\pubKey -> eventMentionsPubKey article pubKey)
+            |> Maybe.withDefault False
+
+        canEdit =
+            signingPubKey == Just article.author || pubKeyMentioned
+
+        buttonLabel =
+            if copy then
+                Translations.Posts.copyDraftButtonLabel [ articlePreviewsData.browserEnv.translations ]
+            else
+                Translations.Posts.editDraftButtonLabel [ articlePreviewsData.browserEnv.translations ]
+    in
+    if canEdit then
+        Button.new
+            { label = buttonLabel
+            , onClick = Nothing
+            , theme = articlePreviewsData.theme
+            }
+            |> Button.withLink (editLink article copy)
+            |> Button.view
+
+    else
+        emptyHtml
+
+eventMentionsPubKey : Article -> PubKey -> Bool
+eventMentionsPubKey article pubKey =
+    article.otherTags
+        |> List.any (\tag ->
+            case tag of
+                PublicKeyTag tagPubKey _ _ ->
+                    tagPubKey == pubKey
+
+                _ ->
+                    False
+            )
 
 viewArticleBookmarkButton : ArticlePreviewsData msg -> Article -> Html msg
 viewArticleBookmarkButton articlePreviewsData article =
@@ -1135,10 +1201,25 @@ viewArticleBookmarkButton articlePreviewsData article =
             emptyHtml
 
 
-editLink : Article -> Maybe String
-editLink article =
+editLink : Article -> Bool -> Maybe String
+editLink article copy =
+    let
+        copyParams =
+            if copy then
+                [ ("copy", "true") ]
+            else
+                []
+    in
     nip19ForArticle article
-        |> Maybe.map (\nip19 -> Route.toString { path = Route.Path.Write, query = Dict.singleton "a" nip19, hash = Nothing })
+        |> Maybe.map (\nip19 ->
+                { path = Route.Path.Write
+                , query =
+                    copyParams ++ [ ("a", nip19) ]
+                    |> Dict.fromList
+                , hash = Nothing
+                }
+                    |> Route.toString
+            )
 
 
 timeParagraph : Styles msg -> BrowserEnv -> Maybe Time.Posix -> Time.Posix -> Html msg

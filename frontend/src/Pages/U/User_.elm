@@ -247,6 +247,7 @@ viewProfile shared model profile =
                 , bookmarkButtons = Dict.empty
                 , browserEnv = shared.browserEnv
                 , commentsToMsg = \_ -> NoOp
+                , deleteButtonMsg = Nothing
                 , nostr = shared.nostr
                 , loginStatus = shared.loginStatus
                 , onLoadMore = Just (LoadMoreArticles profile.pubKey)

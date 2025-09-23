@@ -475,6 +475,7 @@ viewContent shared model userPubKey =
                     , bookmarkButtons = model.bookmarkButtons
                     , browserEnv = shared.browserEnv
                     , commentsToMsg = \_ -> NoOp
+                    , deleteButtonMsg = Nothing
                     , nostr = shared.nostr
                     , loginStatus = shared.loginStatus
                     , onLoadMore = Just LoadMoreArticles
