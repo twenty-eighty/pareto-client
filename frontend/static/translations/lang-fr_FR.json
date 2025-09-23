@@ -557,6 +557,7 @@
       "published category": "Publiées",
       "drafts category": "Brouillons",
       "edit draft button label": "Modifier",
+      "copy draft button label": "Copy",
       "delete draft button label": "Supprimer"
    },
    "privacy": {
