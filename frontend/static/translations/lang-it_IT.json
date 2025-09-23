@@ -18,9 +18,9 @@
       "donation info text": "Supporta lo sviluppo continuo del progetto Pareto su ",
       "build time text": "Tempo di build: {{buildTime}}",
       "git version text": "Versione Git: {{gitVersion}}",
-      "recommendation sent alert text": "Recommendation sent",
-      "feedback info text": "You found a bug or want to give feedback? Please contact us ",
-      "support page link text": "here"
+      "recommendation sent alert text": "Raccomandazione inviata",
+      "feedback info text": "Hai trovato un bug o vuoi dare un feedback? Contattaci ",
+      "support page link text": "qui"
    },
    "article info": {
       "title": "Informazioni Articolo",
@@ -41,7 +41,7 @@
       "link to article aria label": "Link all'articolo {{title}}",
       "link to profile aria label": "Link al profilo di {{author}}",
       "link to hashtag aria label": "Link per cercare hashtag {{hashtag}}",
-      "follow author": "Follow author"
+      "follow author": "Segui l'autore"
    },
    "authors page": {
       "page title": "Autori",
@@ -156,9 +156,9 @@
       "profile banner error explanation": "L'immagine banner del profilo non può essere caricata."
    },
    "contact": {
-      "page title": "Contact",
-      "support information": "You can contact the Pareto team via email at",
-      "encrypted contact information": "Encrypted emails can be sent to",
+      "page title": "Contatto",
+      "support information": "Puoi contattare il team di Pareto via email all'indirizzo",
+      "encrypted contact information": "Le email cifrate possono essere inviate a",
       "pgp key info text": "La chiave PGP pubblica può essere scaricata da"
    },
    "countries timezones": {
@@ -474,7 +474,7 @@
       "german text": "Tedesco",
       "italian text": "Italiano",
       "portuguese text": "Portoghese",
-      "russian text": "Russian",
+      "russian text": "Russo",
       "spanish text": "Spagnolo",
       "swedish text": "Svedese"
    },
@@ -529,8 +529,8 @@
       "meme category text": "Meme",
       "food category text": "Cibo",
       "animals category text": "Animali",
-      "nature category text": "Nature",
-      "peace category text": "Peace",
+      "nature category text": "Natura",
+      "peace category text": "Pace",
       "plants category text": "Piante",
       "science category text": "Scienza",
       "technology category text": "Tecnologia",
@@ -549,7 +549,7 @@
       "followed feed category": "Seguiti",
       "memes feed category": "Meme",
       "art feed category": "Arte",
-      "peace feed category": "Peace",
+      "peace feed category": "Pace",
       "new picture post button label": "Pubblica"
    },
    "posts": {
@@ -557,6 +557,7 @@
       "published category": "Pubblicati",
       "drafts category": "Bozze",
       "edit draft button label": "Modifica",
+      "copy draft button label": "Copia",
       "delete draft button label": "Elimina"
    },
    "privacy": {
@@ -672,7 +673,7 @@
       "profile picture field label": "Immagine",
       "profile picture field placeholder": "Inserisci un URL di un'immagine",
       "profile picture field description": "Questa è la piccola immagine mostrata con il tuo nome in vari luoghi.",
-      "profile banner field label": "Banner",
+      "profile banner field label": "Stendardo",
       "profile banner field placeholder": "Inserisci un URL di un banner",
       "profile banner field description": "Questo è il banner mostrato in cima alla tua pagina del profilo.",
       "profile lud06 field label": "LUD-06 (LNURL di un portafoglio Lightning)",
@@ -719,7 +720,7 @@
       "subscribers menu item text": "Iscritti",
       "write menu item text": "Scrivi",
       "about menu item text": "Informazioni",
-      "link to home aria label": "Home"
+      "link to home aria label": "Inizio"
    },
    "sign-in": {
       "page title": "Accedi/Registrati",
@@ -745,7 +746,7 @@
       "name field name": "Nome",
       "first name field name": "Nome",
       "last name field name": "Cognome",
-      "pubkey field name": "Pubkey",
+      "pubkey field name": "Chiave pubblica",
       "source field name": "Fonte",
       "datesub field name": "Data iscrizione",
       "dateunsub field name": "Data disiscrizione",
@@ -786,8 +787,8 @@
       "image alt text form label": "Testo Alt (opzionale):",
       "media type form label": "Tipo Media (opzionale):",
       "media type explanation text": "Seleziona Tipo Media",
-      "avatar media type": "Avatar",
-      "banner media type": "Banner",
+      "avatar media type": "Foto profilo",
+      "banner media type": "Stendardo",
       "no transform checkbox text": "Nessuna Trasformazione",
       "start upload button text": "Inizia Caricamento",
       "computing file hash state text": "Calcolo hash file...",
@@ -804,7 +805,7 @@
       "error uploading to NIP-96 server text": "Errore nel caricamento sul server NIP-96"
    },
    "view": {
-      "load more": "Load more"
+      "load more": "Carica altri"
    },
    "write": {
       "article image": "Immagine",
