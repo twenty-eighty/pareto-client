@@ -557,6 +557,7 @@
       "published category": "Publicadas",
       "drafts category": "Borradores",
       "edit draft button label": "Editar",
+      "copy draft button label": "Copy",
       "delete draft button label": "Eliminar"
    },
    "privacy": {
