@@ -96,6 +96,12 @@ defmodule NostrBackendWeb.PageController do
     |> render(:bookmarks)
   end
 
+  def contact(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:contact)
+  end
+
   def imprint(conn, _params) do
     conn
     |> add_meta_tags
