@@ -18,9 +18,9 @@
       "donation info text": "Apoya el desarrollo continuo del proyecto Pareto en ",
       "build time text": "Fecha de confección: {{buildTime}}",
       "git version text": "Versión en Git: {{gitVersion}}",
-      "recommendation sent alert text": "Recommendation sent",
-      "feedback info text": "You found a bug or want to give feedback? Please contact us ",
-      "support page link text": "here"
+      "recommendation sent alert text": "¡Recomendación enviada!",
+      "feedback info text": "¿Encontraste un error o quieres dar tu opinión? Por favor escribe un email a ",
+      "support page link text": "aquí"
    },
    "article info": {
       "title": "Información sobre el Artículo",
@@ -41,7 +41,7 @@
       "link to article aria label": "Enlace al artículo {{title}}",
       "link to profile aria label": "Enlace al perfil de {{author}}",
       "link to hashtag aria label": "Enlace para buscar hashtag {{hashtag}}",
-      "follow author": "Follow author"
+      "follow author": "Seguir autor"
    },
    "authors page": {
       "page title": "Autores",
@@ -156,10 +156,10 @@
       "profile banner error explanation": "La imagen de estandarte del perfil no se puede cargar."
    },
    "contact": {
-      "page title": "Contact",
-      "support information": "You can contact the Pareto team via email at",
-      "encrypted contact information": "Encrypted emails can be sent to",
-      "pgp key info text": "The public PGP key can be downloaded from"
+      "page title": "Contactar",
+      "support information": "Puedes contactar con el equipo de Pareto por correo electrónico en",
+      "encrypted contact information": "Los correos cifrados pueden ser enviados a",
+      "pgp key info text": "La clave pública PGP se puede descargar desde"
    },
    "countries timezones": {
       "country AD": "Andorra",
@@ -474,7 +474,7 @@
       "german text": "Alemán",
       "italian text": "Italiano",
       "portuguese text": "Portugués",
-      "russian text": "Russian",
+      "russian text": "Ruso",
       "spanish text": "Español",
       "swedish text": "Sueco"
    },
@@ -557,6 +557,7 @@
       "published category": "Publicadas",
       "drafts category": "Borradores",
       "edit draft button label": "Editar",
+      "copy draft button label": "Copiar",
       "delete draft button label": "Eliminar"
    },
    "privacy": {

@@ -557,6 +557,7 @@
       "published category": "Published",
       "drafts category": "Drafts",
       "edit draft button label": "Edit",
+      "copy draft button label": "Copy",
       "delete draft button label": "Delete"
    },
    "privacy": {
