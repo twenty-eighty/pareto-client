@@ -102,6 +102,7 @@ toLayout shared model =
             , bookmarkButtons = Dict.empty
             , browserEnv = shared.browserEnv
             , commentsToMsg = CommentsSent
+            , deleteButtonMsg = Nothing
             , onLoadMore = Nothing
             , nostr = shared.nostr
             , loginStatus = shared.loginStatus
@@ -478,6 +479,7 @@ viewContent shared nip19 articleComments loadedContent requestId interactions sh
                         , bookmarkButtons = Dict.empty
                         , browserEnv = shared.browserEnv
                         , commentsToMsg = CommentsSent
+                        , deleteButtonMsg = Nothing
                         , loginStatus = shared.loginStatus
                         , nostr = shared.nostr
                         , onLoadMore = Nothing

@@ -50,7 +50,6 @@
             "rtfeldman/elm-iso8601-date-strings": "1.1.4",
             "ryan-haskell/date-format": "1.0.0",
             "samuelstevens/elm-csv": "1.0.1",
-            "simonh1000/elm-jwt": "7.1.1",
             "supermario/elm-countries": "1.1.1",
             "tj/elm-svg-loaders": "1.0.0"
         },

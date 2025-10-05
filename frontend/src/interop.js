@@ -657,10 +657,12 @@ export const onReady = ({ app, env }) => {
             break;
           }
 
+        case 1111: // comment (NIP-22)
         case 10000: // mute list
         case 10002: // relay list metadata
         case 10003: // bookmark list
         case 10004: // community lists
+        case 10007: // search relays list
         case 10050: // relay list for DMs
         case 10063: // relay list for file uploads (Blossom)
         case 10096: // relay list for file uploads (NIP-96)
@@ -856,7 +858,7 @@ export const onReady = ({ app, env }) => {
   function requestNip96Auth(app, { requestId: requestId, fileId: fileId, serverUrl: serverUrl, apiUrl: apiUrl, method: method, hash: sha256Hash, content: content }) {
     debugLog("Nip96 auth request with requestId: " + requestId);
 
-    generateNip98Header(apiUrl, method, sha256Hash, content).then(nip98AuthHeader => {
+    generateNip98Header(apiUrl, method, sha256Hash).then(nip98AuthHeader => {
       debugLog('nip98 header', nip98AuthHeader);
       // encode it using base64
       app.ports.receiveMessage.send(
@@ -1109,9 +1111,8 @@ export const onReady = ({ app, env }) => {
     return urlObj.hostname + urlObj.pathname;
   }
 
-  async function generateNip98Header(requestUrl, httpMethod, sha256Hash, content) {
+  async function generateNip98Header(requestUrl, httpMethod, sha256Hash) {
     const event = new NDKEvent(window.ndk, {
-      content: content,
       kind: NDKKind.HttpAuth,
       tags: [
         ["u", requestUrl],

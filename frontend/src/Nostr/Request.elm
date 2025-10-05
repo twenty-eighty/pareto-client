@@ -46,7 +46,7 @@ type RequestData
     | RequestSubscribers EventFilter
     | RequestUserData EventFilter
     | RequestBlossomAuth String String HttpRequestMethod
-    | RequestNip98Auth String String String HttpRequestMethod
+    | RequestNip98Auth String String HttpRequestMethod
     | RequestSearchResults (List EventFilter)
     | RequestShortNote (Maybe (List RelayUrl)) EventFilter
 
@@ -148,7 +148,7 @@ relaysOfRequest request =
                     RequestBlossomAuth _ _ _ ->
                         Nothing
 
-                    RequestNip98Auth _ _ _ _ ->
+                    RequestNip98Auth _ _ _ ->
                         Nothing
 
                     RequestSearchResults _ ->

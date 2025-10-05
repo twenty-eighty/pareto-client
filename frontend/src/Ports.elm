@@ -1,11 +1,10 @@
 port module Ports exposing (..)
 
 import Json.Encode as Encode
-import Newsletters.Types exposing (Subscriber, encodeSubscribers)
 import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), buildAddress, encodeEvent, encodeEventFilter)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestId)
 import Nostr.Send exposing (SendRequestId)
-import Nostr.Types exposing (IncomingMessage, OutgoingCommand, PubKey)
+import Nostr.Types exposing (IncomingMessage, OutgoingCommand)
 import Pareto
 
 
@@ -106,8 +105,9 @@ requestBlossomAuth requestId server content method =
                 )
         }
 
-requestNip96Auth : RequestId -> String -> String -> String -> HttpRequestMethod -> Cmd msg
-requestNip96Auth requestId serverUrl apiUrl content method =
+
+requestNip96Auth : RequestId -> String -> String -> HttpRequestMethod -> Cmd msg
+requestNip96Auth requestId serverUrl apiUrl method =
     sendCommand
         { command = "requestNip96Auth"
         , value =
@@ -115,7 +115,6 @@ requestNip96Auth requestId serverUrl apiUrl content method =
                 ([ ( "requestId", Encode.int requestId )
                  , ( "serverUrl", Encode.string serverUrl )
                  , ( "apiUrl", Encode.string apiUrl )
-                 , ( "content", Encode.string content )
                  ]
                     ++ httpMethodParams method
                 )
@@ -187,6 +186,7 @@ downloadAndDecryptFile url keyHex ivHex =
                 , ( "iv", Encode.string ivHex )
                 ]
         }
+
 
 -- CONTACTS
 
