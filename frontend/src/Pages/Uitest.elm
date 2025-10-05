@@ -5,8 +5,10 @@ import Components.Button
 import Components.Calendar
 import Components.Categories
 import Components.Checkbox
+import Components.CriteriaBuilder
 import Components.Dropdown
 import Components.EntryField
+import Components.HashtagEditor
 import Components.Icon
 import Components.InteractionButton
 import Components.Interactions
@@ -63,8 +65,10 @@ type alias Model =
     { calendar : Components.Calendar.Model
     , categories : Components.Categories.Model TestCategory
     , checkboxValue : Bool
+    , criteriaBuilder : Components.CriteriaBuilder.Model
     , dropdown : Components.Dropdown.Model TestDropdownItem
     , entryFieldValue : String
+    , hashtagEditor : Components.HashtagEditor.Model
     , interactions : Components.Interactions.Model
     , searchbar : Components.SearchBar.Model
     , searchValue : Maybe String
@@ -99,8 +103,10 @@ init shared () =
     ( { calendar = calendar
       , categories = Components.Categories.init { selected = Category2 }
       , checkboxValue = True
+      , criteriaBuilder = Components.CriteriaBuilder.init { }
       , dropdown = Components.Dropdown.init { selected = Just DropdownItem2 }
       , entryFieldValue = ""
+      , hashtagEditor = Components.HashtagEditor.init { hashtags = ["hashtag1", "hashtag2"] }
       , interactions = Components.Interactions.init
       , searchbar = Components.SearchBar.init { searchText = Nothing }
       , searchValue = Nothing
@@ -126,8 +132,10 @@ type Msg
     | CategorySelected TestCategory
     | CalendarSent Components.Calendar.Msg
     | CheckboxClicked Bool
+    | CriteriaBuilderSent (Components.CriteriaBuilder.Msg Msg)
     | EntryFieldChanged String
     | OpenComment
+    | HashtagEditorSent Components.HashtagEditor.Msg
     | InteractionsSent (Components.Interactions.Msg Msg)
     | SwitchClicked TestSwitchState
     | DropdownSent (Components.Dropdown.Msg TestDropdownItem Msg)
@@ -136,7 +144,6 @@ type Msg
     | SearchBarSent (Components.SearchBar.Msg Msg)
     | SharingButtonDialogSent Components.SharingButtonDialog.Msg
     | TextAreaChanged String
-
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
@@ -169,6 +176,16 @@ update shared msg model =
         CheckboxClicked value ->
             ( { model | checkboxValue = value }, Effect.none )
 
+        CriteriaBuilderSent innerMsg ->
+            Components.CriteriaBuilder.update
+                { msg = innerMsg
+                , model = model.criteriaBuilder
+                , toModel = \criteriaBuilder -> { model | criteriaBuilder = criteriaBuilder }
+                , toMsg = CriteriaBuilderSent
+                , nostr = shared.nostr
+                , testMode = shared.browserEnv.testMode
+                }
+
         EntryFieldChanged value ->
             ( { model | entryFieldValue = value }, Effect.none )
 
@@ -177,6 +194,15 @@ update shared msg model =
             , Shared.Msg.ShowAlert "Open comment"
                 |> Effect.sendSharedMsg
             )
+
+        HashtagEditorSent innerMsg ->
+            Components.HashtagEditor.update
+                { msg = innerMsg
+                , model = model.hashtagEditor
+                , modifiedMsg = Nothing
+                , toModel = \hashtagEditor -> { model | hashtagEditor = hashtagEditor }
+                , toMsg = HashtagEditorSent
+                }
 
         InteractionsSent innerMsg ->
             Components.Interactions.update
@@ -303,6 +329,8 @@ elementList shared model =
     , ( "text area", textAreaElement shared model )
     , ( "sharing button/dialog", sharingButtonDialogElement shared model )
     , ( "search bar", searchbarElement shared model )
+    , ( "hashtag editor", hashtagEditorElement shared model )
+    , ( "criteria builder", criteriaBuilderElement shared model )
     ]
 
 
@@ -371,6 +399,19 @@ availableCategories translations =
     , { category = Category2, title = Translations.category2Text [ translations ] }
     ]
 
+
+-- criteria builder
+
+criteriaBuilderElement : Shared.Model -> Model -> Html Msg
+criteriaBuilderElement shared model =
+    Components.CriteriaBuilder.new
+        { model = model.criteriaBuilder
+        , toMsg = CriteriaBuilderSent
+        , browserEnv = shared.browserEnv
+        , tags = ["tag1", "tag2", "tag3"]
+        , theme = model.theme
+        }
+        |> Components.CriteriaBuilder.view
 
 
 -- dropdown listbox
@@ -549,6 +590,28 @@ entryFieldElement shared model =
         |> Components.EntryField.withLabel (Translations.entryFieldLabel [ shared.browserEnv.translations ])
         |> Components.EntryField.withPlaceholder (Translations.entryFieldPlaceholder [ shared.browserEnv.translations ])
         |> Components.EntryField.view
+
+
+-- hashtag editor
+
+
+hashtagEditorElement : Shared.Model -> Model -> Html Msg
+hashtagEditorElement shared model =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            ]
+        ]
+        [ Components.HashtagEditor.new
+            { model = model.hashtagEditor
+            , toMsg = HashtagEditorSent
+            , translations = shared.browserEnv.translations
+            , theme = model.theme
+            }
+            |> Components.HashtagEditor.view
+        ]
+
 
 
 textAreaElement : Shared.Model -> Model -> Html Msg

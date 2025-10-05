@@ -4,7 +4,8 @@ import Json.Encode as Encode
 import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), buildAddress, encodeEvent, encodeEventFilter)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestId)
 import Nostr.Send exposing (SendRequestId)
-import Nostr.Types exposing (IncomingMessage, OutgoingCommand)
+import Nostr.Types exposing (IncomingMessage, OutgoingCommand, PubKey)
+import Newsletters.Types exposing (Subscriber, encodeSubscribers)
 import Pareto
 
 
@@ -106,8 +107,8 @@ requestBlossomAuth requestId server content method =
         }
 
 
-requestNip96Auth : RequestId -> String -> String -> HttpRequestMethod -> Cmd msg
-requestNip96Auth requestId serverUrl apiUrl method =
+requestNip96Auth : RequestId -> String -> String -> String -> HttpRequestMethod -> Cmd msg
+requestNip96Auth requestId serverUrl apiUrl content method =
     sendCommand
         { command = "requestNip96Auth"
         , value =
@@ -115,6 +116,7 @@ requestNip96Auth requestId serverUrl apiUrl method =
                 ([ ( "requestId", Encode.int requestId )
                  , ( "serverUrl", Encode.string serverUrl )
                  , ( "apiUrl", Encode.string apiUrl )
+                 , ( "content", Encode.string content )
                  ]
                     ++ httpMethodParams method
                 )
@@ -187,7 +189,6 @@ downloadAndDecryptFile url keyHex ivHex =
                 ]
         }
 
-
 -- CONTACTS
 
 initContactDatabase : String -> PubKey -> Cmd msg
@@ -221,6 +222,15 @@ storeContacts subscribers =
             ]
         }
 
+
+loadContactTags : PubKey -> Cmd msg
+loadContactTags pubkey =
+    sendCommand
+        { command = "loadContactTags"
+        , value = Encode.object
+            [ ( "pubkey", Encode.string pubkey )
+            ]
+        }
 
 -- NEWSLETTERS
 

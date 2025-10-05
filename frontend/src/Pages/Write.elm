@@ -9,6 +9,7 @@ import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
 import Components.MessageDialog as MessageDialog
 import Components.PublishArticleDialog as PublishArticleDialog exposing (PublishingInfo(..))
 import Components.PublishDateDialog as PublishDateDialog
+import Components.SendNewsletterDialog as SendNewsletterDialog
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div, img, label, node, text)
@@ -104,6 +105,7 @@ type alias Model =
     , publishArticleDialog : PublishArticleDialog.Model
     , publishedAt : Maybe Time.Posix
     , publishDateDialog : PublishDateDialog.Model
+    , sendNewsletterDialog : SendNewsletterDialog.Model
     , articleState : ArticleState
     , editorMode : EditorMode
     , loadedContent : LoadedContent Msg
@@ -199,6 +201,9 @@ init user shared route () =
         publishArticleDialog =
             PublishArticleDialog.init {}
 
+        ( sendNewsletterDialog, sendNewsletterDialogEffect ) =
+            SendNewsletterDialog.init { pubKey = user.pubKey }
+
         model =
             case maybeArticle of
                 Just article ->
@@ -252,6 +257,7 @@ init user shared route () =
                     , publishArticleDialog = publishArticleDialog
                     , publishedAt = publishedAt
                     , publishDateDialog = PublishDateDialog.init
+                    , sendNewsletterDialog = sendNewsletterDialog
                     , articleState = ArticleDraftSaved
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
@@ -280,6 +286,7 @@ init user shared route () =
                     , publishArticleDialog = publishArticleDialog
                     , publishedAt = Nothing
                     , publishDateDialog = PublishDateDialog.init
+                    , sendNewsletterDialog = sendNewsletterDialog
                     , articleState = ArticleEmpty
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
@@ -293,6 +300,7 @@ init user shared route () =
     ( model
     , Effect.batch
         [ mediaSelectorEffect
+        , sendNewsletterDialogEffect |> Effect.map SendNewsletterDialogSent
         , effect
         ]
     )
@@ -329,6 +337,8 @@ type Msg
     | ImageSelected ImageSelection MediaSelector.UploadedFile
     | Publish
     | PublishArticle PublishArticleDialog.PublishingInfo
+    | ShowSendNewsletterDialog
+    | SendNewsletterDialogSent (SendNewsletterDialog.Msg Msg)
     | SaveDraft
     | Now Time.Posix
     | OpenMediaSelector
@@ -483,6 +493,20 @@ update shared user msg model =
                     ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) (Just subscriberEventData) }
                     , sendPublishCmd shared model user relayUrls
                     )
+
+        ShowSendNewsletterDialog ->
+            ( { model | sendNewsletterDialog = SendNewsletterDialog.show model.sendNewsletterDialog }, Effect.none )
+
+        SendNewsletterDialogSent innerMsg ->
+            SendNewsletterDialog.update
+                { msg = innerMsg
+                , model = model.sendNewsletterDialog
+                , toModel = \sendNewsletterDialog -> { model | sendNewsletterDialog = sendNewsletterDialog }
+                , toMsg = SendNewsletterDialogSent
+                , nostr = shared.nostr
+                , pubKey = user.pubKey
+                , testMode = shared.browserEnv.testMode
+                }
 
         SaveDraft ->
             ( { model | articleState = ArticleSavingDraft (Nostr.getLastSendRequestId shared.nostr) }, sendDraftCmd shared model user )
@@ -980,6 +1004,7 @@ subscriptions model =
         , Sub.map MediaSelectorSent (MediaSelector.subscribe model.mediaSelector)
         , Ports.receiveMessage ReceivedPortMessage
         , PublishArticleDialog.subscriptions model.publishArticleDialog PublishArticleDialogSent
+        , SendNewsletterDialog.subscriptions model.sendNewsletterDialog SendNewsletterDialogSent
         , debounceSubscription model.debounceStatus
         ]
 
@@ -1072,6 +1097,14 @@ view user shared model =
             , theme = shared.theme
             }
             |> PublishArticleDialog.view
+        , SendNewsletterDialog.new
+            { model = model.sendNewsletterDialog
+            , toMsg = SendNewsletterDialogSent
+            , pubKey = user.pubKey
+            , browserEnv = shared.browserEnv
+            , theme = shared.theme
+            }
+            |> SendNewsletterDialog.view
         , viewModalDialog shared.theme shared.browserEnv model.articleState model.modalDialog
         ]
     }
@@ -1531,9 +1564,21 @@ saveButtons browserEnv theme model =
         ]
         [ previewButton browserEnv model theme
         , saveDraftButton browserEnv model theme
+        , sendNewsletterButton browserEnv model theme
         , publishButton browserEnv model theme
         ]
 
+
+sendNewsletterButton : BrowserEnv -> Model -> Theme -> Html Msg
+sendNewsletterButton browserEnv model theme =
+    Button.new
+        { label = Translations.sendNewsletterButtonTitle [ browserEnv.translations ]
+        , onClick = Just ShowSendNewsletterDialog
+        , theme = theme
+        }
+        |> Button.withDisabled (not <| articleReadyForPublishing model)
+        |> Button.withTypePrimary
+        |> Button.view
 
 publishButton : BrowserEnv -> Model -> Theme -> Html Msg
 publishButton browserEnv model theme =

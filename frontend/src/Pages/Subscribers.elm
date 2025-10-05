@@ -20,6 +20,9 @@ import Json.Decode as Decode
 import Layouts
 import Layouts.Sidebar
 import Material.Icons exposing (email)
+import Newsletters.ContactDatabase as ContactDatabase
+import Newsletters.Subscribers as Subscribers exposing (Email, Modification(..), modificationToString, translatedFieldName)
+import Newsletters.Types exposing (Subscriber, SubscriberField(..), fieldName)
 import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.External exposing (decodeAuthHeaderReceived)
@@ -35,7 +38,6 @@ import Route exposing (Route)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Subscribers exposing (Email, Modification(..), Subscriber, SubscriberField(..), modificationToString, translatedFieldName)
 import Svg.Loaders as Loaders
 import Table.Paginated as Table exposing (defaultCustomizations)
 import Tailwind.Utilities as Tw
@@ -71,7 +73,8 @@ toLayout theme _ =
 
 
 type alias Model =
-    { emailImportDialog : EmailImportDialog.Model
+    { contactDatabase : ContactDatabase.Model
+    , emailImportDialog : EmailImportDialog.Model
     , errors : List String
     , modifications : List Modification
     , requestId : RequestId
@@ -98,14 +101,19 @@ type ModelState
 
 init : Auth.User -> Shared.Model -> () -> ( Model, Effect Msg )
 init user shared () =
-    ( { emailImportDialog = EmailImportDialog.init {}
+    let
+        ( contactDatabase, contactDatabaseEffects ) =
+            ContactDatabase.init user.pubKey
+    in
+    ( { contactDatabase = contactDatabase
+      , emailImportDialog = EmailImportDialog.init {}
       , errors = []
       , modifications = []
       , requestId = Nostr.getLastRequestId shared.nostr
       , state = Loading
       , subscriberEditDialog = SubscriberEditDialog.init {}
       , subscribers = Dict.empty
-      , subscriberTable = Table.initialState (Subscribers.fieldName FieldEmail) 25
+      , subscriberTable = Table.initialState (fieldName FieldEmail) 25
       , serverDesc = Nothing
       , fileId = 1
       }
@@ -117,6 +125,9 @@ init user shared () =
             [ Nip96.fetchServerSpec
                 (ReceivedNip96ServerDesc ("https://" ++ Pareto.paretoNip96Server))
                 ("https://" ++ Pareto.paretoNip96Server)
+                |> Effect.sendCmd
+            , Effect.map ContactDatabaseMsg contactDatabaseEffects
+            , ContactDatabase.loadContactTags user.pubKey
                 |> Effect.sendCmd
             ]
         |> Effect.batch
@@ -131,6 +142,9 @@ type Msg
     = ImportClicked
     | ExportClicked
     | SaveClicked String String
+    | LoadClickedDB String String
+    | SaveClickedDB String String
+    | ContactDatabaseMsg ContactDatabase.Msg
     | ProcessModificationsClicked
     | EmailImportDialogSent (EmailImportDialog.Msg Msg)
     | AddSubscribers (List Subscriber) Bool
@@ -173,6 +187,25 @@ update user shared msg model =
                 |> Ports.encryptString
                 |> Effect.sendCmd
             )
+
+        LoadClickedDB serverUrl apipUrl ->
+            ( model
+            , ContactDatabase.loadContacts 1 100
+                |> Effect.map ContactDatabaseMsg
+            )
+
+        SaveClickedDB serverUrl apipUrl ->
+            ( model
+            , Ports.storeContacts (Dict.values model.subscribers)
+                |> Effect.sendCmd
+            )
+
+        ContactDatabaseMsg contactDatabaseMsg ->
+            let
+                ( contactDatabase, contactDatabaseEffects ) =
+                    ContactDatabase.update shared.nostr contactDatabaseMsg model.contactDatabase
+            in
+            ( { model | contactDatabase = contactDatabase }, Effect.map ContactDatabaseMsg contactDatabaseEffects )
 
         ProcessModificationsClicked ->
             ( { model | state = Modified, subscribers = Subscribers.processModifications model.subscribers model.modifications }, Effect.none )
@@ -332,7 +365,7 @@ updateWithMessage user shared model message =
                         | state = RequestingNip96Auth apiUrl decoded.file decoded.keyHex decoded.ivHex decoded.sha256 decoded.size active total
                       }
                     , PostRequest 1 decoded.sha256
-                        |> RequestNip98Auth serverUrl apiUrl
+                        |> RequestNip98Auth serverUrl apiUrl ""
                         |> Nostr.createRequest shared.nostr "NIP-96 auth request for files to be uploaded" []
                         |> Shared.Msg.RequestNostrEvents
                         |> Effect.sendSharedMsg
@@ -428,9 +461,12 @@ receivedDataDecoder =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Ports.receiveMessage ReceivedMessage
-
+subscriptions model =
+    Sub.batch
+        [ Ports.receiveMessage ReceivedMessage
+        , ContactDatabase.subscriptions model.contactDatabase
+            |> Sub.map ContactDatabaseMsg
+        ]
 
 
 -- VIEW
@@ -443,20 +479,20 @@ subscribersTableConfig browserEnv =
         , toMsg = NewTableState
         , columns =
             [ Table.veryCustomColumn
-                { id = Subscribers.fieldName FieldEmail
+                { id = fieldName FieldEmail
                 , name = translatedFieldName browserEnv.translations FieldEmail
                 , viewData = \subscriber -> editSubscriberButton subscriber
                 , sorter = Table.unsortable
                 }
-            , Table.stringColumn (Subscribers.fieldName FieldFirstName) (translatedFieldName browserEnv.translations FieldFirstName) (\subscriber -> subscriber.firstName |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldLastName) (translatedFieldName browserEnv.translations FieldLastName) (\subscriber -> subscriber.lastName |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldTags) (translatedFieldName browserEnv.translations FieldTags) (\subscriber -> subscriber.tags |> Maybe.map (String.join ", ") |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldDateSubscription) (translatedFieldName browserEnv.translations FieldDateSubscription) (\subscriber -> subscriber.dateSubscription |> BrowserEnv.formatDate browserEnv)
-            , Table.stringColumn (Subscribers.fieldName FieldDateUnsubscription) (translatedFieldName browserEnv.translations FieldDateUnsubscription) (\subscriber -> subscriber.dateUnsubscription |> Maybe.map (BrowserEnv.formatDate browserEnv) |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldSource) (translatedFieldName browserEnv.translations FieldSource) (\subscriber -> subscriber.source |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldUndeliverable) (translatedFieldName browserEnv.translations FieldUndeliverable) (\subscriber -> subscriber.undeliverable |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldDnd) (translatedFieldName browserEnv.translations FieldDnd) (\subscriber -> subscriber.dnd |> booleanValue)
-            , Table.stringColumn (Subscribers.fieldName FieldLocale) (translatedFieldName browserEnv.translations FieldLocale) (\subscriber -> subscriber.locale |> Maybe.withDefault "")
+            , Table.stringColumn (fieldName FieldFirstName) (translatedFieldName browserEnv.translations FieldFirstName) (\subscriber -> subscriber.firstName |> Maybe.withDefault "")
+            , Table.stringColumn (fieldName FieldLastName) (translatedFieldName browserEnv.translations FieldLastName) (\subscriber -> subscriber.lastName |> Maybe.withDefault "")
+            , Table.stringColumn (fieldName FieldTags) (translatedFieldName browserEnv.translations FieldTags) (\subscriber -> subscriber.tags |> Maybe.map (String.join ", ") |> Maybe.withDefault "")
+            , Table.stringColumn (fieldName FieldDateSubscription) (translatedFieldName browserEnv.translations FieldDateSubscription) (\subscriber -> subscriber.dateSubscription |> BrowserEnv.formatDate browserEnv)
+            , Table.stringColumn (fieldName FieldDateUnsubscription) (translatedFieldName browserEnv.translations FieldDateUnsubscription) (\subscriber -> subscriber.dateUnsubscription |> Maybe.map (BrowserEnv.formatDate browserEnv) |> Maybe.withDefault "")
+            , Table.stringColumn (fieldName FieldSource) (translatedFieldName browserEnv.translations FieldSource) (\subscriber -> subscriber.source |> Maybe.withDefault "")
+            , Table.stringColumn (fieldName FieldUndeliverable) (translatedFieldName browserEnv.translations FieldUndeliverable) (\subscriber -> subscriber.undeliverable |> Maybe.withDefault "")
+            , Table.stringColumn (fieldName FieldDnd) (translatedFieldName browserEnv.translations FieldDnd) (\subscriber -> subscriber.dnd |> booleanValue)
+            , Table.stringColumn (fieldName FieldLocale) (translatedFieldName browserEnv.translations FieldLocale) (\subscriber -> subscriber.locale |> Maybe.withDefault "")
             , Table.veryCustomColumn
                 { id = "delete_entry"
                 , name = ""
@@ -543,6 +579,35 @@ view user shared model =
 
             else
                 ""
+
+        loadButtonDb =
+            if Nostr.isBetaTester shared.nostr user.pubKey then
+                 Button.new
+                    { label = Translations.loadButtonTitle [ shared.browserEnv.translations ]
+                    , onClick = model.serverDesc |> Maybe.map (\serverDesc -> LoadClickedDB Pareto.paretoNip96Server serverDesc.apiUrl)
+                    , theme = shared.theme
+                    }
+                    |> Button.withTypePrimary
+                    -- |> Button.withDisabled (model.state /= Modified)
+                    |> Button.view
+
+            else
+                emptyHtml
+
+        saveButtonDb =
+            if Nostr.isBetaTester shared.nostr user.pubKey then
+                 Button.new
+                    { label = Translations.saveButtonTitle [ shared.browserEnv.translations ]
+                    , onClick = model.serverDesc |> Maybe.map (\serverDesc -> SaveClickedDB Pareto.paretoNip96Server serverDesc.apiUrl)
+                    , theme = shared.theme
+                    }
+                    |> Button.withTypePrimary
+                    -- |> Button.withDisabled (model.state /= Modified)
+                    |> Button.view
+
+            else
+                emptyHtml
+
     in
     { title = Translations.Sidebar.subscribersMenuItemText [ shared.browserEnv.translations ]
     , body =
@@ -586,6 +651,8 @@ view user shared model =
                     |> Button.withTypePrimary
                     |> Button.withDisabled (model.state /= Modified)
                     |> Button.view
+                , loadButtonDb
+                , saveButtonDb
                 , div
                     (styles.colorStyleGrayscaleMuted
                         ++ [ css

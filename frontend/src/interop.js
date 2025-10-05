@@ -1,5 +1,5 @@
 import "./Milkdown/MilkdownEditor.js";
-import { Contacts } from "./Newsletters/Contacts.js";
+import { HttpClient, ContactsApi } from "./Newsletters/EncryptedContacts/index.js";
 import { createNewsletterSender } from "./Newsletters/Send.js";
 
 import NDK, { NDKUser, NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKNip46Signer, NDKNostrRpc, NDKSubscription, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
@@ -11,7 +11,12 @@ import "./elm-oembed.js";
 import debug from 'debug';
 
 var contacts = null;
+var httpClient = null;
+var contactsApi = null;
 var newsletterSendClient = null;
+var encryptionPubkey = null;
+var userSalt = null;
+var contactsAuthReady = false;
 
 // Register custom elements
 if (!customElements.get('js-clipboard-component')) {
@@ -256,6 +261,10 @@ export const onReady = ({ app, env }) => {
         storeContacts(app, value);
         break;
 
+      case 'loadContactTags':
+        loadContactTags(app, value);
+        break;
+
       case 'sendNewsletter':
         sendNewsletter(app, value);
         break;
@@ -479,6 +488,87 @@ export const onReady = ({ app, env }) => {
       result[i / 2] = parseInt(hexString.substring(i, i + 2), 16);
     }
     return result;
+  }
+
+  // Helper: SHA-256 hex of a string
+  async function sha256Hex(str) {
+    const data = new TextEncoder().encode(str || "");
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    return bytesToHex(new Uint8Array(hash));
+  }
+
+  // Helper: Encrypt/Decrypt using NIP-44 with NDK signer
+  async function encryptFor(pubkeyHex, objOrString) {
+    const plaintext = (typeof objOrString === 'string') ? objOrString : JSON.stringify(objOrString);
+    return await window.ndk.signer.encrypt({ pubkey: pubkeyHex }, plaintext, 'nip44');
+  }
+  async function decryptFrom(pubkeyHex, ciphertext) {
+    return await window.ndk.signer.decrypt({ pubkey: pubkeyHex }, ciphertext, 'nip44');
+  }
+
+  function generateRandomHex(numBytes = 16) {
+    const array = new Uint8Array(numBytes);
+    crypto.getRandomValues(array);
+    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function createNip42Event(loginUrl, challenge) {
+    const event = new NDKEvent(window.ndk, {
+      content: "",
+      kind: 22242,
+      tags: [
+        ["server", loginUrl],
+        ["challenge", challenge],
+      ],
+    });
+    await event.sign();
+    return event;
+  }
+
+  async function loginToContacts() {
+    // Get challenge
+    const challengeRes = await httpClient.request('GET', '/api/auth/challenge');
+    const challenge = challengeRes && challengeRes.challenge ? challengeRes.challenge : null;
+    if (!challenge) throw new Error('failed to get auth challenge');
+
+    // Generate salt and encrypt for our pubkey
+    const saltPlain = generateRandomHex(16);
+    const saltCipher = await encryptFor(encryptionPubkey, saltPlain);
+    const saltParam = btoa(saltCipher);
+
+    // Create NIP-42 auth event and header
+    const loginUrl = httpClient.buildUrl('/api/auth/login');
+    const ev = await createNip42Event(loginUrl, challenge);
+    const authHeader = 'Bearer Nostr ' + btoa(JSON.stringify(ev.rawEvent()));
+
+    // POST login
+    const resp = await fetch(loginUrl + '?salt=' + encodeURIComponent(saltParam), {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!resp.ok) {
+      throw new Error('contacts login failed: ' + resp.status);
+    }
+    const data = await resp.json();
+    const token = data && data.token;
+    if (!token) throw new Error('no token returned');
+    httpClient.setStaticToken(token);
+    contactsAuthReady = true;
+
+    try {
+      const encryptedSaltB64 = data && data.salt;
+      if (encryptedSaltB64) {
+        const decrypted = await decryptFrom(encryptionPubkey, atob(encryptedSaltB64));
+        userSalt = decrypted;
+      } else {
+        userSalt = saltPlain;
+      }
+    } catch (_) {
+      userSalt = saltPlain;
+    }
   }
 
   function connect(app, client, nip89, relays) {
@@ -781,51 +871,70 @@ export const onReady = ({ app, env }) => {
     })
   }
 
-  function initContactDatabase(app, { url: url, pubkey: pubkey }) {
+
+  async function initContactDatabase(app, { url: url, pubkey: _pubkey }) {
+    const base = url;
     if (contacts) {
+      // Update encryption key if provided and ensure auth
+      encryptionPubkey = _pubkey || encryptionPubkey;
+      if (!contactsAuthReady) {
+        try {
+          await loginToContacts();
+        } catch (e) {
+          console.error('Contact DB auth failed', e);
+          app.ports.receiveMessage.send({ messageType: 'error', value: { reason: 'contacts auth failed' } });
+        }
+      }
+      return;
+    }
+    httpClient = new HttpClient({ baseUrl: base });
+    contactsApi = new ContactsApi(httpClient);
+    encryptionPubkey = _pubkey || encryptionPubkey;
+
+    // Minimal compatibility adapter used by NewsletterSendClient
+    contacts = {
+      async generateEmailHash(email) {
+        const lower = (email || '').toLowerCase();
+        const basis = userSalt ? `${userSalt}:${lower}` : lower;
+        return await sha256Hex(basis);
+      },
+      async getContacts(page, perPage) {
+        try {
+          const res = await contactsApi.list({ page: page, per_page: perPage });
+          const list = res && res.contacts ? res.contacts : (Array.isArray(res) ? res : []);
+          if (!encryptionPubkey) {
+            return { contacts: list, errors: res && res.errors ? res.errors : [] };
+          }
+          const decrypted = [];
+          const errors = [];
+          for (const item of list) {
+            try {
+              if (item && item.encrypted_data) {
+                const decoded = await decryptFrom(encryptionPubkey, item.encrypted_data);
+                decrypted.push(JSON.parse(decoded));
+              } else {
+                decrypted.push(item);
+              }
+            } catch (e) {
+              errors.push(e && e.message ? e.message : 'decrypt_failed');
+            }
+          }
+          return { contacts: decrypted, errors: errors };
+        } catch (e) {
+          return { contacts: [], errors: [e.message || 'Failed to load contacts'] };
+        }
+      }
+    };
+    try {
+      contactsAuthReady = false;
+      await loginToContacts();
+    } catch (e) {
+      console.error('Contact DB auth failed', e);
+      app.ports.receiveMessage.send({ messageType: 'error', value: { reason: 'contacts auth failed' } });
       return;
     }
 
-    contacts = new Contacts(window.ndk, url, pubkey);
-
-    contacts.authenticate().then(authHeader => {
-      console.log('authHeader', authHeader);
-
-      loadContacts(app, { page: 1, perPage: 100 });
-      return;
-
-      // TODO: get contacts from the database
-      const sampleContacts = [
-        {
-          firstName: "Alice",
-          lastName: "Johnson",
-          email: "alice@example.com",
-          locale: "en-US",
-          pubkey: "79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f432",
-          datesub: 1717334400,
-          source: "seed",
-          dnd: false,
-          tags: ["work", "conference", "blockchain"]
-        },
-        {
-          firstName: "Bob",
-          lastName: "Smith",
-          email: "bob@example.com",
-          locale: "de-DE",
-          pubkey: "79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f433",
-          datesub: 1717334401,
-          source: "test",
-          dnd: false,
-          tags: ["work", "design", "mobile"]
-        }
-      ];
-      
-      // 4. Store contacts
-      console.log('📝 Storing contacts...');
-      storeContacts(app, {subscribers: sampleContacts});
-      console.log('✅ Contacts stored successfully');
-
-    });
+    loadContacts(app, { page: 1, perPage: 100 });
   }
 
   function loadContacts(app, { page: page, perPage: perPage }) {
@@ -835,8 +944,105 @@ export const onReady = ({ app, env }) => {
      });
   }
 
-  function storeContacts(app, { subscribers: subscribers }) {
-    contacts.storeContactsBulk(subscribers, true);
+  async function storeContacts(app, { subscribers: subscribers }) {
+    if (!contactsApi) {
+      console.warn('Contacts API not initialized');
+      return;
+    }
+    try {
+      const rows = [];
+      for (const sub of (subscribers || [])) {
+        // Derive hashes and tokens
+        const email = (sub && sub.email) ? String(sub.email).toLowerCase() : '';
+        const email_hash = await sha256Hex(userSalt ? `${userSalt}:${email}` : email);
+        const searchableTerms = [sub.firstName, sub.lastName, sub.email, sub.company]
+          .concat((sub.notes ? String(sub.notes).split(/\s+/).filter(w => w && w.length > 2) : []))
+          .filter(Boolean)
+          .map(s => String(s).toLowerCase());
+        const search_tokens = [];
+        for (const term of searchableTerms) {
+          search_tokens.push(await sha256Hex(userSalt ? `${userSalt}:search:${term}` : term));
+        }
+
+        // Upsert tags and collect blind indexes
+        const tags = Array.isArray(sub.tags) ? sub.tags : [];
+        const tag_hashes = [];
+        for (const tag of tags) {
+          const tagLower = String(tag).toLowerCase();
+          const blind_index = await sha256Hex(userSalt ? `${userSalt}:tag:${tagLower}` : tagLower);
+          tag_hashes.push(blind_index);
+          try {
+            const ciphertext_tag = encryptionPubkey ? await encryptFor(encryptionPubkey, tagLower) : tagLower;
+            await contactsApi.upsertTag({ blind_index, ciphertext_tag, key_version: 1 });
+          } catch (e) {
+            console.warn('Failed to upsert tag', tag, e);
+          }
+        }
+
+        // Encrypt full contact payload
+        const encrypted_data = encryptionPubkey ? await encryptFor(encryptionPubkey, sub) : JSON.stringify(sub);
+        rows.push({
+          encrypted_data,
+          email_hash,
+          search_tokens,
+          tag_hashes,
+          version: 1
+        });
+      }
+      if (rows.length > 0) {
+        // Prefer bulk import for efficiency
+        await httpClient.request('POST', '/api/contacts/bulk', { contacts: rows, overwrite: true });
+      }
+    } catch (e) {
+      console.error('Failed to store contacts', e);
+      app.ports.receiveMessage.send({ messageType: 'error', value: { reason: 'failed to store contacts' } });
+    }
+  }
+
+  async function loadContactTags(app, { pubkey: pubkey }) {
+    encryptionPubkey = pubkey || encryptionPubkey;
+
+    // Ensure client is initialized
+    if (!httpClient) {
+      const defaultBase = "http://localhost:4003";
+      httpClient = new HttpClient({ baseUrl: defaultBase });
+    }
+    if (!contactsApi) {
+      contactsApi = new ContactsApi(httpClient);
+    }
+
+    // Ensure authentication is established
+    if (!contactsAuthReady) {
+      try {
+        await loginToContacts();
+      } catch (e) {
+        console.error('Auth not ready for tags', e);
+        app.ports.receiveMessage.send({ messageType: 'contactTags', value: [] });
+        return;
+      }
+    }
+    contactsApi.listTags().then(async result => {
+      const list = result && result.tags ? result.tags : (Array.isArray(result) ? result : []);
+      let decrypted = list;
+      if (encryptionPubkey) {
+        decrypted = await Promise.all(list.map(async (item) => {
+          let tag = null;
+          if (item && item.ciphertext_tag) {
+            try {
+              tag = await decryptFrom(encryptionPubkey, item.ciphertext_tag);
+            } catch (e) {
+              tag = null;
+            }
+          }
+          return { ...item, tag };
+        }));
+      }
+      console.log('Contact tags:', decrypted);
+      app.ports.receiveMessage.send({ messageType: 'contactTags', value: decrypted });
+    }).catch(e => {
+      console.error('Failed to load tags', e);
+      app.ports.receiveMessage.send({ messageType: 'contactTags', value: [] });
+    });
   }
 
   function sendNewsletter(app, { author: author, newsletterData: newsletterData, identifier: identifier }) {
@@ -854,6 +1060,7 @@ export const onReady = ({ app, env }) => {
       app.ports.receiveMessage.send({ messageType: 'newsletterProgress', value: progress });
     };
   }
+
 
   function requestNip96Auth(app, { requestId: requestId, fileId: fileId, serverUrl: serverUrl, apiUrl: apiUrl, method: method, hash: sha256Hash, content: content }) {
     debugLog("Nip96 auth request with requestId: " + requestId);

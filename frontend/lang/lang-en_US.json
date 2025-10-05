@@ -410,6 +410,11 @@
       "country ZM": "Zambia",
       "country ZW": "Zimbabwe"
    },
+   "criteria builder": {
+      "and condition": "And",
+      "or condition": "Or",
+      "not condition": "Not"
+   },
    "email import dialog": {
       "dialog title": "Import Email List",
       "import button title": "Import",
@@ -622,6 +627,14 @@
    "search bar": {
       "placeholder": "URL, Nostr ID, or Nostr Address"
    },
+   "send newsletter dialog": {
+      "dialog title": "Send Newsletter",
+      "send button title": "Send newsletter",
+      "send only via email singular checkbox text": "Send email to one recipient",
+      "send only via email plural checkbox text": "Send email to {{recipientCount}} recipients",
+      "send also via email singular checkbox text": "Publish newsletter and send via email to one recipient",
+      "send also via email plural checkbox text": "Publish newsletter and send via email to {{recipientCount}} recipients"
+   },
    "settings": {
       "page title": "Settings",
       "relays category": "Relays",
@@ -813,6 +826,7 @@
       "editor subtitle placeholder text": "Add a summary...",
       "page title": "Write article",
       "publish button title": "Publish...",
+      "send newsletter button title": "Send newsletter...",
       "preview button title": "Preview",
       "edit button title": "Continue Editing",
       "save draft button title": "Save draft",
