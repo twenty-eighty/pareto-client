@@ -269,7 +269,7 @@ rawSidebarItems clientRole translations =
               , ariaLabel = Translations.subscribersMenuItemText [ translations ]
               , icon = FeatherIcon FeatherIcons.users
               , requiresLogin = True
-              , requiresAuthor = True
+              , requiresAuthor = False
               , requiresBetaTester = False
               , disabled = False
               }
@@ -278,7 +278,7 @@ rawSidebarItems clientRole translations =
               , ariaLabel = Translations.newslettersMenuItemText [ translations ]
               , icon = FeatherIcon FeatherIcons.mail
               , requiresLogin = True
-              , requiresAuthor = True
+              , requiresAuthor = False
               , requiresBetaTester = False
               , disabled = False
               }
