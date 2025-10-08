@@ -163,7 +163,7 @@ viewAuthorCard profile profileViewData =
                     [ text (profileDisplayName profile.pubKey profile) ]
                 ]
             , linkElementWrapper [ viewNip05 styles profile ]
-            , viewLNAddress styles profile zapRelays
+            , viewLNAddress styles profile zapRelays profileViewData.loginStatus
             ]
         , followBookmarkElement profile.pubKey profileViewData.following
         ]
@@ -270,7 +270,7 @@ viewProfile profile profileViewData =
                     [ text (profile.about |> Maybe.withDefault "") ]
                 , viewWebsite styles profile
                 , viewNip05 styles profile
-                , viewLNAddress styles profile zapRelays
+                , viewLNAddress styles profile zapRelays profileViewData.loginStatus
                 , viewNpub profileViewData.theme profile
                 ]
             , div
@@ -369,14 +369,14 @@ viewNip05 styles profile =
             emptyHtml
 
 
-viewLNAddress : Styles msg -> Profile -> Set String -> Html msg
-viewLNAddress styles profile zapRelays =
+viewLNAddress : Styles msg -> Profile -> Set String -> LoginStatus -> Html msg
+viewLNAddress styles profile zapRelays loginStatus =
     profile.lud16
         |> Maybe.map
             (\lud16 ->
                 p
                     (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ [ css [ Tw.flex, Tw.items_center, Tw.overflow_hidden, Tw.text_ellipsis ] ])
-                    [ zapButton (Just profile.pubKey) Nothing zapRelays "0"
+                    [ zapButton (Just profile.pubKey) Nothing zapRelays "0" loginStatus
                     , text <| lud16
                     ]
             )
