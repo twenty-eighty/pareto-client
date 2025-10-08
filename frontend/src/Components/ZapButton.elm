@@ -34,7 +34,7 @@ import Nostr.Event exposing (Kind(..), TagReference(..))
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Relay exposing (websocketUrl)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (LoginStatus, PubKey, RelayUrl, loggedInPubKey)
+import Nostr.Types exposing (LoginStatus(..), PubKey, RelayUrl, loggedInPubKey)
 import Set exposing (Set)
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles
@@ -221,6 +221,14 @@ view (Settings settings) =
                 |> Maybe.map (\instanceId -> "-" ++ instanceId)
                 |> Maybe.withDefault ""
 
+        anonAttr =
+            case settings.loginStatus of
+                LoggedIn _ _ ->
+                    []
+
+                _ ->
+                    [ ( "data-anon", "true" ) ]
+
         ( nostrZapAttributes, zapComponent ) =
             Maybe.map2
                 (\npub _ ->
@@ -234,6 +242,7 @@ view (Settings settings) =
                       , ( "data-button-color", "#334155" )
                       ]
                         ++ nip19TargetAttr
+                        ++ anonAttr
                     , Html.node "js-zap-component"
                         [ Attr.property "buttonId" (Encode.string buttonId) ]
                         []
