@@ -113,16 +113,8 @@ generatePreviewHtml loadedContent urlString linkAttr body =
 
 detectLinkType : Erl.Url -> String -> LinkType
 detectLinkType url originalUrl =
-    if isYouTubeWatchUrl url then
-        case getYouTubeVideoIdFromQuery url.query of
-            Just videoId ->
-                YouTubeVideo videoId
-
-            Nothing ->
-                PlainLink
-
-    else if isYouTubeShortUrl url then
-        case getYouTubeVideoIdFromPath url.path of
+    if isYouTubeUrl url then
+        case getYouTubeVideoId url of
             Just videoId ->
                 YouTubeVideo videoId
 
@@ -231,17 +223,17 @@ filteredParams =
 -- Helper functions to identify and extract data from URLs
 
 
-isYouTubeWatchUrl : Erl.Url -> Bool
-isYouTubeWatchUrl url =
+isYouTubeUrl : Erl.Url -> Bool
+isYouTubeUrl url =
     let
         hosts =
             [ [ "www", "youtube", "com" ]
             , [ "youtube", "com" ]
             , [ "m", "youtube", "com" ]
+            , [ "youtu", "be" ]
             ]
     in
-    List.member url.host hosts && url.path == [ "watch" ]
-
+    List.member url.host hosts
 
 
 -- don't embed Facebook content - requires App registration to use oEmbed
@@ -336,24 +328,29 @@ getObjectMimeTypeFromUrl urlPath =
         |> getMimeTypeFromUrl urlPath
 
 
-getYouTubeVideoIdFromQuery : List ( String, String ) -> Maybe String
-getYouTubeVideoIdFromQuery query =
-    query
-        |> List.filterMap
-            (\( key, value ) ->
-                if key == "v" then
-                    Just value
+getYouTubeVideoId : Erl.Url -> Maybe String
+getYouTubeVideoId url =
+    case url.path of
+        [ "embed", videoId ] ->
+            Just videoId
 
-                else
-                    Nothing
-            )
-        |> List.head
+        [ "watch" ] ->
+            url.query
+                |> List.filterMap
+                    (\( key, value ) ->
+                        if key == "v" then
+                            Just value
 
+                        else
+                            Nothing
+                    )
+                |> List.head
 
-isYouTubeShortUrl : Erl.Url -> Bool
-isYouTubeShortUrl url =
-    url.host == [ "youtu", "be" ]
+        [ videoId ] ->
+            Just videoId
 
+        _ ->
+            Nothing
 
 isOdyseeUrl : Erl.Url -> Bool
 isOdyseeUrl url =
@@ -368,16 +365,6 @@ isPodBeanUrl url =
 isRumbleUrl : Erl.Url -> Bool
 isRumbleUrl url =
     url.host == [ "rumble", "com" ]
-
-
-getYouTubeVideoIdFromPath : List String -> Maybe String
-getYouTubeVideoIdFromPath path =
-    case path of
-        [ videoId ] ->
-            Just videoId
-
-        _ ->
-            Nothing
 
 
 isTelegramUrl : Erl.Url -> Bool
