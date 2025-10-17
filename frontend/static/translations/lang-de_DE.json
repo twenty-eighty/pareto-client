@@ -24,8 +24,8 @@
    },
    "article info": {
       "title": "Artikel Info",
-      "number of articles": "Beiträge:",
-      "followers": "Followers:",
+      "number of articles": "Beiträge",
+      "followers": "Followers",
       "reading time": "Lesezeit:",
       "speaking time": "Hörlänge:",
       "time unit": "{{minutes}} min",
@@ -473,6 +473,7 @@
       "french text": "Französisch",
       "german text": "Deutsch",
       "italian text": "Italienisch",
+      "polish text": "Polish",
       "portuguese text": "Portugiesich",
       "russian text": "Russisch",
       "spanish text": "Spanisch",
