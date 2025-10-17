@@ -286,6 +286,7 @@ bootstrapAuthorsList =
     , ( "kudzaikutukwa@pareto.town", "54609048284d2a151c8df625f40c389d423ed057fcef927db88956d28e22ba03" )
     , ( "kulturkolorist@pareto.town", "41959693dbfe58d58430c0215ed0cb15545b6574a22e14163de3c3213888319c" )
     , ( "marcel@pareto.town", "7f29628df734cf02f3407580184af73d941e940f4a91c61d1e15aa08e160cccc" )
+    , ( "markusturm@pareto.town", "f240be2b684f85cc81566f2081386af81d7427ea86250c8bde6b7a8500c761ba" )
     , ( "martin@enlund.org", "4234223996ce6549720e66dd6bc4bb7efb9f25c60c4816d7bc47a65e1d80db24" )
     , ( "matej@pareto.space", "5aa5e38abbb37f89c863419bd1e4e60aa31d82fa3c39397e386586e3961b8021" )
     , ( "mathias-broeckers@pareto.town", "6e4b486f698ee18dde7e5bec088c786d31f82c93d7d47cd0cdbcd63ddcadf247" )
