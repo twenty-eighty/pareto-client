@@ -44,6 +44,7 @@ contentId =
     "content-container"
 
 
+
 -- FLAGS
 
 
@@ -114,6 +115,7 @@ init flagsResult _ =
               , role = ClientReader
               , theme = ParetoTheme
               , alertTimerMessage = AlertTimerMessage.init
+              , readPageScrollPosition = 0
               }
             , Effect.batch
                 [ Effect.sendCmd <| Cmd.map Shared.Msg.BrowserEnvMsg browserEnvCmd
@@ -143,6 +145,7 @@ init flagsResult _ =
               , role = ClientReader
               , theme = ParetoTheme
               , alertTimerMessage = AlertTimerMessage.init
+              , readPageScrollPosition = 0
               }
             , Effect.none
             )
@@ -321,6 +324,11 @@ update route msg model =
         ChangeLocale locale ->
             update route (BrowserEnvMsg (BrowserEnv.UpdateLocale locale)) model
 
+        SetReadPageScrollPosition scrollPosition ->
+            ( { model | readPageScrollPosition = scrollPosition }
+            , Effect.none
+            )
+
 
 updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage model portMessage =
@@ -417,9 +425,8 @@ createFollowersEffect nostr maybePubKey =
 loggedIn : Model -> Bool
 loggedIn model =
     loggedInPubKey model.loginStatus
-    |> Maybe.map (\_ -> True)
-    |> Maybe.withDefault False
-
+        |> Maybe.map (\_ -> True)
+        |> Maybe.withDefault False
 
 
 pubkeyDecoder : Json.Decode.Decoder PubKey

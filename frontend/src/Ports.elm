@@ -14,6 +14,12 @@ port sendCommand : OutgoingCommand -> Cmd msg
 port receiveMessage : (IncomingMessage -> msg) -> Sub msg
 
 
+port restoreScrollPosition : Float -> Cmd msg
+
+
+port receiveScrollPosition : (Float -> msg) -> Sub msg
+
+
 connect : List String -> Cmd msg
 connect relays =
     sendCommand

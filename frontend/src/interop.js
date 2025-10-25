@@ -85,6 +85,77 @@ export const onReady = ({ app, env }) => {
     }
   });
 
+  // Scroll position tracking for Read page only
+  let lastScrollPosition = 0;
+  const scrollThreshold = 50;
+
+  function isReadPage() {
+    const pathname = window.location.pathname;
+    // Check if current path is /read or / (root which shows Read page by default)
+    return pathname === '/read' || pathname === '/' || pathname.startsWith('/read?');
+  }
+
+  // Get the content container element
+  const contentContainer = document.getElementById('content-container');
+  
+  app.ports.restoreScrollPosition.subscribe((scrollPosition) => {
+    if (contentContainer && isReadPage()) {
+      // Polling approach: keep trying to restore scroll until it succeeds
+      // This handles cases where Elm is still rendering
+      let attempts = 0;
+      const maxAttempts = 50; // ~5 seconds with 100ms intervals
+      
+      const attemptScroll = () => {
+        attempts++;
+        const currentScrollTop = contentContainer.scrollTop;
+        const scrollHeight = contentContainer.scrollHeight;
+        
+        // Try to set scroll position
+        contentContainer.scrollTop = scrollPosition;
+        
+        // Verify it was set
+        const newScrollTop = contentContainer.scrollTop;
+        
+        // If scroll was applied successfully or we've exceeded max attempts, stop
+        if (newScrollTop === scrollPosition || attempts >= maxAttempts) {
+          if (attempts >= maxAttempts) {
+            console.warn('max attempts reached, stopping scroll restoration');
+          } else {
+            console.log('scroll restoration successful');
+          }
+          lastScrollPosition = scrollPosition;
+          return;
+        }
+        
+        // Schedule next attempt
+        setTimeout(attemptScroll, 100);
+      };
+      
+      // Start attempting to restore scroll
+      attemptScroll();
+    }
+  });
+
+  // Listen to scroll events on the content-container element
+  if (contentContainer) {
+    contentContainer.addEventListener('scroll', function() {
+      // Only send scroll position updates when on the Read page
+      if (!isReadPage()) {
+        return;
+      }
+
+      const currentScrollPosition = contentContainer.scrollTop;
+      
+      // Only send update if scroll position changed by at least 50px
+      if (Math.abs(currentScrollPosition - lastScrollPosition) >= scrollThreshold) {
+        lastScrollPosition = currentScrollPosition;
+        app.ports.receiveScrollPosition.send(currentScrollPosition);
+      }
+    }, { passive: true });
+  } else {
+    console.log('WARNING: content-container element not found!');
+  }
+
   window.onload = function () {
     // make sure to load Nostr-Login after browser extensions had a chance to create window.nostr
     loadNostrLogin();
