@@ -2,8 +2,8 @@ module Shared.Msg exposing (Msg(..))
 
 {-| -}
 
-import BrowserEnv exposing (TestMode)
 import Browser.Dom
+import BrowserEnv exposing (TestMode)
 import Components.AlertTimerMessage as AlertTimerMessage
 import Nostr
 import Nostr.ConfigCheck as ConfigCheck
@@ -41,3 +41,4 @@ type Msg
     | ScrollContentToTop
     | DomError (Result Browser.Dom.Error ())
     | ChangeLocale String
+    | SetReadPageScrollPosition Float
