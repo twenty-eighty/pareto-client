@@ -227,6 +227,7 @@ view (Settings settings) =
         button =
             Html.button
                 [ Attr.type_ "button"
+                , Attr.attribute "data-test" "sharing-button"
                 , Events.onClick (settings.toMsg buttonMsg)
                 ]
                 [ Icon.FeatherIcon FeatherIcons.share2
@@ -258,7 +259,10 @@ viewDialog (Settings settings) =
                 |> Result.map
                     (\qrcode ->
                         qrcode
-                            |> QRCode.toSvg [ SvgAttr.width "220px", SvgAttr.height "220px" ]
+                            |> QRCode.toSvg
+                                [ SvgAttr.width "220px"
+                                , SvgAttr.height "220px"
+                                ]
                             |> Html.fromUnstyled
                     )
                 |> Result.withDefault (Html.text "")
@@ -287,7 +291,9 @@ viewDialog (Settings settings) =
                         , Tw.border_r_2
                         ]
                     ]
-                    [ qrCode
+                    [ Html.div
+                        [ Attr.attribute "data-test" "sharing-qr-code" ]
+                        [ qrCode ]
                     , copyButton (Settings settings)
                         settings.sharingInfo.url
                         (settings.sharingInfo.url
@@ -344,6 +350,7 @@ socialMediaButtons (Settings settings) =
             |> Button.withNewTabLink (shareSocialLink settings.sharingInfo Twitter)
             |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.twitter)
             |> Button.withTypeSecondary
+            |> Button.withTestAttribute "twitter-button"
             |> Button.withWidthFull
             |> Button.view
         , Button.new
@@ -354,6 +361,7 @@ socialMediaButtons (Settings settings) =
             |> Button.withNewTabLink (shareSocialLink settings.sharingInfo Facebook)
             |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.facebook)
             |> Button.withTypeSecondary
+            |> Button.withTestAttribute "facebook-button"
             |> Button.view
         , Button.new
             { label = Translations.linkedinButtonTitle [ settings.browserEnv.translations ]
@@ -363,6 +371,7 @@ socialMediaButtons (Settings settings) =
             |> Button.withNewTabLink (shareSocialLink settings.sharingInfo LinkedIn)
             |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.linkedin)
             |> Button.withTypeSecondary
+            |> Button.withTestAttribute "linkedin-button"
             |> Button.withWidthFull
             |> Button.view
         , Button.new
@@ -373,6 +382,7 @@ socialMediaButtons (Settings settings) =
             |> Button.withNewTabLink (shareSocialLink settings.sharingInfo Reddit)
             |> Button.withContentLeft (Graphics.redditIcon 20)
             |> Button.withTypeSecondary
+            |> Button.withTestAttribute "reddit-button"
             |> Button.withWidthFull
             |> Button.view
         , Button.new
@@ -383,6 +393,7 @@ socialMediaButtons (Settings settings) =
             |> Button.withNewTabLink (shareSocialLink settings.sharingInfo Telegram)
             |> Button.withContentLeft (Graphics.telegramIcon 20)
             |> Button.withTypeSecondary
+            |> Button.withTestAttribute "telegram-button"
             |> Button.withWidthFull
             |> Button.view
         , Button.new
@@ -393,6 +404,7 @@ socialMediaButtons (Settings settings) =
             |> Button.withNewTabLink (shareSocialLink settings.sharingInfo WhatsApp)
             |> Button.withContentLeft (Graphics.whatsappIcon 20)
             |> Button.withTypeSecondary
+            |> Button.withTestAttribute "whatsapp-button"
             |> Button.withWidthFull
             |> Button.view
         ]
@@ -430,6 +442,7 @@ copyButton (Settings settings) copyText uniqueId =
                 }
                 |> Button.withContentLeft (Icon.FeatherIcon FeatherIcons.copy |> Icon.viewWithSize 20)
                 |> Button.withTypeSecondary
+                |> Button.withTestAttribute "copy-to-clipboard-button"
                 |> Button.view
             ]
         , Html.node "js-clipboard-component"

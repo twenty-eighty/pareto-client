@@ -2,7 +2,7 @@ module Components.InteractionButton exposing
     ( InteractionButton, new
     , view
     , init, update, Model, Msg
-    , ClickAction(..), InteractionObject(..), InteractionParams, eventIdOfInteractionObject, mapAction, pubKeyOfInteractionObject, subscriptions, withAttributes, withLabel, withOnClickAction, withReactIcon
+    , ClickAction(..), InteractionObject(..), InteractionParams, eventIdOfInteractionObject, mapAction, pubKeyOfInteractionObject, subscriptions, withAttributes, withLabel, withOnClickAction, withReactIcon, withTestAttribute
     )
 
 {-|
@@ -219,6 +219,7 @@ type InteractionButton msg
         , reactIcon : Maybe Icon
         , reactedIcon : Icon
         , reacted : Bool
+        , testAttribute : String
         , theme : Ui.Styles.Theme
         , toMsg : Msg msg -> msg
         , label : Maybe String
@@ -243,6 +244,7 @@ new props =
         , reactIcon = Nothing
         , reactedIcon = props.reactedIcon
         , reacted = props.reacted
+        , testAttribute = "unnamed"
         , theme = props.theme
         , toMsg = props.toMsg
         , label = Nothing
@@ -268,6 +270,11 @@ withReactIcon icon (Settings settings) =
 withAttributes : List ( String, String ) -> InteractionButton msg -> InteractionButton msg
 withAttributes attributes (Settings settings) =
     Settings { settings | attributes = attributes }
+
+
+withTestAttribute : String -> InteractionButton msg -> InteractionButton msg
+withTestAttribute testAttribute (Settings settings) =
+    Settings { settings | testAttribute = testAttribute }
 
 
 subscriptions : Model -> Sub (Msg msg)
@@ -324,6 +331,7 @@ view (Settings settings) =
             , theme = settings.theme
             }
             |> InteractionIcon.withAttributes settings.attributes
+            |> InteractionIcon.withTestAttribute settings.testAttribute
             |> InteractionIcon.view
             |> Html.map settings.toMsg
         , settings.label

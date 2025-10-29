@@ -22,6 +22,7 @@ type Dropdown item msg
         , toMsg : Msg item msg -> msg
         , choices : List item
         , allowNoSelection : Bool
+        , testAttribute : String
         , menuPosition : MenuPosition
         , toLabel : Maybe item -> String
         , size : Size
@@ -48,6 +49,7 @@ new props =
         , toMsg = props.toMsg
         , choices = props.choices
         , allowNoSelection = props.allowNoSelection
+        , testAttribute = "unnamed"
         , menuPosition = MenuPositionAuto
         , toLabel = props.toLabel
         , size = Normal
@@ -78,6 +80,10 @@ withDisabled (Settings settings) =
 withMenuPosition : MenuPosition -> Dropdown item msg -> Dropdown item msg
 withMenuPosition menuPosition (Settings settings) =
     Settings { settings | menuPosition = menuPosition }
+
+withTestAttribute : String -> Dropdown item msg -> Dropdown item msg
+withTestAttribute testAttribute (Settings settings) =
+    Settings { settings | testAttribute = testAttribute }
 
 withOnChange :
     (Maybe item -> msg)
@@ -232,6 +238,7 @@ view (Settings settings) =
         viewDropdownInput =
             button
                 ([ class "dropdown__toggle"
+                 , Attr.attribute "data-test" ("dropdown-" ++ (settings.testAttribute))
                  , css
                     [ Tw.w_full
                     , Tw.text_left
@@ -368,17 +375,7 @@ view (Settings settings) =
         viewDropdownMenuItem item =
             li
                 [ onClick (onMenuItemClick item)
-                , css
-                    [ Tw.block
-                    , Tw.px_4
-                    , Tw.py_2
-                    , Css.hover
-                        [ Tw.bg_color Theme.blue_100
-                        , darkMode
-                            [ Tw.bg_color Theme.blue_900
-                            ]
-                        ]
-                    ]
+                , Attr.attribute "data-test" ("dropdown-item-" ++ (settings.toLabel item |> String.replace " " "-"))
                 ]
                 [ text (settings.toLabel item)
                 ]

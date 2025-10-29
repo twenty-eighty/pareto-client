@@ -865,6 +865,7 @@ viewSidebarItem theme currentPath itemData =
                 ( a
                 , colorStyleSitebarItemEnabled
                 , [ Attr.href <| Route.toString { path = itemData.path, hash = Nothing, query = Dict.empty }
+                  , Attr.attribute "data-test" ("sidebar-item-" ++ itemData.ariaLabel)
                   , Attr.attribute "aria-label" itemData.ariaLabel
                   ]
                 )

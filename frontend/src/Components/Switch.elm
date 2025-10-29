@@ -123,6 +123,7 @@ view (Settings settings) =
             [ {- Hidden checkbox -}
               input
                 [ Attr.type_ "checkbox"
+                , Attr.attribute "data-test" ("switch-" ++ settings.labelOff ++ "-" ++ settings.labelOn)
                 , Attr.id settings.id
                 , Events.onClick (settings.onClick otherState)
                 , css
