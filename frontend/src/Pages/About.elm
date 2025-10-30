@@ -4,6 +4,7 @@ import BrowserEnv exposing (BrowserEnv)
 import BuildInfo
 import Components.Button as Button
 import Effect exposing (Effect)
+import Graphics
 import Html.Styled as Html exposing (Html, a, div, img, span, text)
 import Html.Styled.Attributes as Attr exposing (css, href, src, target, width)
 import I18Next
@@ -292,6 +293,7 @@ viewActionButtons theme browserEnv handlerInformation loginStatus =
                     , theme = theme
                     }
                     |> Button.view
+                , viewTelegramLink theme browserEnv
                 , viewPublishProfileButton theme browserEnv pubKey handlerInformation
                 , viewPublishHandlerInformationButton theme browserEnv pubKey handlerInformation
                 , viewPublishAuthorsListButton theme browserEnv pubKey
@@ -327,6 +329,30 @@ viewPublishProfileButton theme browserEnv pubKey handlerInformation =
 
     else
         emptyHtml
+
+
+viewTelegramLink : Theme -> BrowserEnv -> Html Msg
+viewTelegramLink theme browserEnv =
+    let
+        styles =
+            stylesForTheme theme
+    in
+    a
+        (styles.textStyleLinks
+         ++ styles.colorStyleLinks
+         ++ [ Attr.href "https://t.me/pareto_artikel"
+            , target "_blank"
+            , css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.items_center
+                , Tw.my_2
+                , Tw.gap_2
+                ]
+            ]
+        )
+        [ Graphics.telegramIcon 30
+        , text (Translations.telegramLinkText [ browserEnv.translations ]) ]
 
 
 viewPublishHandlerInformationButton : Theme -> BrowserEnv -> PubKey -> HandlerInformation -> Html Msg
