@@ -20,7 +20,8 @@
       "git version text": "Versión en Git: {{gitVersion}}",
       "recommendation sent alert text": "¡Recomendación enviada!",
       "feedback info text": "¿Encontraste un error o quieres dar tu opinión? Por favor escribe un email a ",
-      "support page link text": "aquí"
+      "support page link text": "aquí",
+      "telegram link text": "Pareto Telegram Channel"
    },
    "article info": {
       "title": "Información sobre el Artículo",
