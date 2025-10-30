@@ -20,7 +20,8 @@
       "git version text": "Версия Git: {{gitVersion}}",
       "recommendation sent alert text": "Recommendation sent",
       "feedback info text": "You found a bug or want to give feedback? Please contact us ",
-      "support page link text": "here"
+      "support page link text": "here",
+      "telegram link text": "Pareto Telegram Channel"
    },
    "article info": {
       "title": "Информация о статье",
