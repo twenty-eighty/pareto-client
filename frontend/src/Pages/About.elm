@@ -263,6 +263,7 @@ viewContent shared handlerInformation =
             }
         , viewSupportInformation shared.theme shared.browserEnv.translations
         , viewDonationInformation shared.theme shared.browserEnv.translations
+        , viewTelegramLink shared.theme shared.browserEnv
         , viewActionButtons shared.theme shared.browserEnv handlerInformation shared.loginStatus
         , viewTechDetails shared.theme shared.browserEnv
         ]
@@ -293,7 +294,6 @@ viewActionButtons theme browserEnv handlerInformation loginStatus =
                     , theme = theme
                     }
                     |> Button.view
-                , viewTelegramLink theme browserEnv
                 , viewPublishProfileButton theme browserEnv pubKey handlerInformation
                 , viewPublishHandlerInformationButton theme browserEnv pubKey handlerInformation
                 , viewPublishAuthorsListButton theme browserEnv pubKey
