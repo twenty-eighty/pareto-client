@@ -266,6 +266,53 @@
         "tags": []
       }
     },
+    "/campaigns/external/{external_id}/status": {
+      "get": {
+        "callbacks": {},
+        "deprecated": false,
+        "operationId": "getCampaignStatusByExternalId",
+        "parameters": [
+          {
+            "description": "External ID",
+            "in": "path",
+            "name": "external_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignStatus"
+                }
+              }
+            },
+            "description": "Status"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get campaign status by external ID",
+        "tags": []
+      }
+    },
     "/campaigns/{id}/commit": {
       "patch": {
         "callbacks": {},

@@ -391,8 +391,8 @@ performRequest model description requestId requestData =
         RequestBlossomAuth serverUrl content method ->
             ( model, model.hooks.requestBlossomAuth requestId serverUrl content method )
 
-        RequestNip98Auth serverUrl apiUrl method ->
-            ( model, model.hooks.requestNip96Auth requestId serverUrl apiUrl method )
+        RequestNip98Auth serverUrl apiUrl content method ->
+            ( model, model.hooks.requestNip96Auth requestId serverUrl apiUrl content method )
 
         RequestSearchResults eventFilters ->
             ( { model | articlesByDate = [] }, model.hooks.searchEvents description True requestId (getSearchRelayUrls model model.defaultUser) eventFilters )
@@ -1540,7 +1540,7 @@ empty =
         , receiveMessage = \_ -> Sub.none
         , requestEvents = \_ _ _ _ _ -> Cmd.none
         , requestBlossomAuth = \_ _ _ _ -> Cmd.none
-        , requestNip96Auth = \_ _ _ _ -> Cmd.none
+        , requestNip96Auth = \_ _ _ _ _ -> Cmd.none
         , searchEvents = \_ _ _ _ _ -> Cmd.none
         , sendEvent = \_ _ _ -> Cmd.none
         }

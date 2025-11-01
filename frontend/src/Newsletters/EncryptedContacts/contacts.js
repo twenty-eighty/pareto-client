@@ -15,6 +15,10 @@ export class ContactsApi {
         const { page, per_page } = opts;
         return await this.http.request("GET", "/api/contacts", undefined, { page: page ?? 1, per_page: per_page ?? 100 });
     }
+    /** Count total contacts for the authenticated user. */
+    async count() {
+        return await this.http.request("GET", "/api/contacts/count");
+    }
     /** Get one contact by id. */
     async show(id) {
         return await this.http.request("GET", `/api/contacts/${encodeURIComponent(id)}`);
@@ -49,5 +53,9 @@ export class ContactsApi {
     /** Upsert a tag blind index and ciphertext. */
     async upsertTag(payload) {
         return await this.http.request("POST", "/api/tags", payload);
+    }
+    /** Delete a tag by blind index. */
+    async deleteTag(blindIndex) {
+        return await this.http.request("DELETE", `/api/tags/${encodeURIComponent(blindIndex)}`);
     }
 }

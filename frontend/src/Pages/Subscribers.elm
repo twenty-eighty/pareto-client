@@ -3,7 +3,9 @@ module Pages.Subscribers exposing (Model, Msg, page)
 import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
+import Components.Categories as Categories
 import Components.EmailImportDialog as EmailImportDialog
+import Components.EntryField as EntryField
 import Components.Icon as Icon
 import Components.SubscriberEditDialog as SubscriberEditDialog
 import Csv.Encode
@@ -13,9 +15,10 @@ import FeatherIcons
 import File exposing (File)
 import File.Download
 import Html.Styled as Html exposing (Html, b, div, li, text, ul)
-import Html.Styled.Attributes exposing (css)
+import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events
 import Http
+import I18Next
 import Json.Decode as Decode
 import Layouts
 import Layouts.Sidebar
@@ -40,6 +43,7 @@ import Shared.Model
 import Shared.Msg
 import Svg.Loaders as Loaders
 import Table.Paginated as Table exposing (defaultCustomizations)
+import Tailwind.Theme exposing (Color)
 import Tailwind.Utilities as Tw
 import Translations.Sidebar
 import Translations.Subscribers as Translations
@@ -57,23 +61,79 @@ page user shared _ =
         , subscriptions = subscriptions
         , view = view user shared
         }
-        |> Page.withLayout (toLayout shared.theme)
+        |> Page.withLayout (toLayout shared)
 
 
-toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme _ =
+toLayout : Shared.Model -> Model -> Layouts.Layout Msg
+toLayout shared model =
+    let
+        topPart =
+          Categories.new
+            { model = model.categories
+            , toMsg = CategoriesSent
+            , onSelect = CategorySelected
+            , equals = \category1 category2 -> category1 == category2
+            , image = categoryImage
+            , categories = availableCategories shared.browserEnv.translations
+            , browserEnv = shared.browserEnv
+            , theme = shared.theme
+            }
+            |> Categories.view
+    in
     Layouts.Sidebar.new
-        { theme = theme
+        { theme = shared.theme
         }
+        |> Layouts.Sidebar.withTopPart topPart Categories.heightString
         |> Layouts.Sidebar
 
 
+categoryImage : Color -> Category -> Maybe (Html msg)
+categoryImage color category =
+    let
+        iconColor =
+            Icon.TailwindColor color
+
+        image src =
+            Html.div
+                [ css
+                    [ Tw.w_4
+                    , Tw.h_4
+                    ]
+                ]
+                [ Html.img
+                    [ Attr.src src
+                    ]
+                    []
+                ]
+    in
+    case category of
+        Subscribers ->
+            Icon.ParetoIcon Icon.ParetoCube 16 iconColor
+                |> Icon.view
+                |> Just
+
+        Tags ->
+            Icon.ParetoIcon Icon.ParetoPeaceDove 16 iconColor
+                |> Icon.view
+                |> Just
+
+
+availableCategories : I18Next.Translations -> List (Categories.CategoryData Category)
+availableCategories translations =
+        [ { category = Subscribers
+          , title = Translations.subscribersCategory [ translations ]
+          }
+        , { category = Tags
+          , title = Translations.tagsCategory [ translations ]
+          }
+        ]
 
 -- INIT
 
 
 type alias Model =
-    { contactDatabase : ContactDatabase.Model
+    { categories : Categories.Model Category
+    , contactDatabase : ContactDatabase.Model
     , emailImportDialog : EmailImportDialog.Model
     , errors : List String
     , modifications : List Modification
@@ -84,8 +144,12 @@ type alias Model =
     , subscriberTable : Table.State
     , serverDesc : Maybe Nip96.ServerDescriptorData
     , fileId : Int
+    , tagFieldValue : String
     }
 
+type Category
+    = Subscribers
+    | Tags
 
 type ModelState
     = Loading
@@ -103,9 +167,10 @@ init : Auth.User -> Shared.Model -> () -> ( Model, Effect Msg )
 init user shared () =
     let
         ( contactDatabase, contactDatabaseEffects ) =
-            ContactDatabase.init user.pubKey
+            ContactDatabase.init user.pubKey [ ContactDatabase.LoadTags, ContactDatabase.LoadContacts ]
     in
-    ( { contactDatabase = contactDatabase
+    ( { categories = Categories.init { selected = Subscribers }
+      , contactDatabase = contactDatabase
       , emailImportDialog = EmailImportDialog.init {}
       , errors = []
       , modifications = []
@@ -116,6 +181,7 @@ init user shared () =
       , subscriberTable = Table.initialState (fieldName FieldEmail) 25
       , serverDesc = Nothing
       , fileId = 1
+      , tagFieldValue = ""
       }
     , [ Subscribers.load shared.nostr user.pubKey
       , Subscribers.loadModifications shared.nostr user.pubKey
@@ -127,8 +193,6 @@ init user shared () =
                 ("https://" ++ Pareto.paretoNip96Server)
                 |> Effect.sendCmd
             , Effect.map ContactDatabaseMsg contactDatabaseEffects
-            , ContactDatabase.loadContactTags user.pubKey
-                |> Effect.sendCmd
             ]
         |> Effect.batch
     )
@@ -156,6 +220,11 @@ type Msg
     | OpenEditSubscriberDialog Subscriber
     | SubscriberEditDialogSent SubscriberEditDialog.Msg
     | UpdateSubscriber String Subscriber
+    | CategorySelected Category
+    | CategoriesSent (Categories.Msg Category Msg)
+    | UpdateTagFieldValue String
+    | AddTagClicked
+    | DeleteTagClicked String
 
 
 update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -203,7 +272,7 @@ update user shared msg model =
         ContactDatabaseMsg contactDatabaseMsg ->
             let
                 ( contactDatabase, contactDatabaseEffects ) =
-                    ContactDatabase.update shared.nostr contactDatabaseMsg model.contactDatabase
+                    ContactDatabase.update contactDatabaseMsg model.contactDatabase
             in
             ( { model | contactDatabase = contactDatabase }, Effect.map ContactDatabaseMsg contactDatabaseEffects )
 
@@ -304,6 +373,41 @@ update user shared msg model =
             ( { model | state = Modified, subscribers = Dict.update email (\_ -> Just subscriber) model.subscribers }
             , Effect.none
             )
+
+        CategorySelected category ->
+            updateModelWithCategory shared model category
+
+        CategoriesSent innerMsg ->
+            Categories.update
+                { msg = innerMsg
+                , model = model.categories
+                , toModel = \categories -> { model | categories = categories }
+                , toMsg = CategoriesSent
+                }
+
+        UpdateTagFieldValue value ->
+            ( { model | tagFieldValue = value }, Effect.none )
+
+        AddTagClicked ->
+            ( { model | tagFieldValue = "" }
+            , ContactDatabase.addTag model.tagFieldValue
+                |> Effect.map ContactDatabaseMsg
+            )
+
+        DeleteTagClicked tag ->
+            ( model
+            , ContactDatabase.deleteTag tag
+                |> Effect.map ContactDatabaseMsg
+            )
+
+updateModelWithCategory : Shared.Model -> Model -> Category -> ( Model, Effect Msg )
+updateModelWithCategory shared model category =
+    ( model
+    , Effect.batch
+        [ -- Effect.replaceRoute { path = model.path, query = Dict.singleton categoryParamName (stringFromCategory category), hash = Nothing }
+        -- , requestArticlesEffect shared category False
+        ]
+    )
 
 
 csvDownloadFileName : BrowserEnv -> String
@@ -567,6 +671,22 @@ removeSubscriberButton removeMsg =
 view : Auth.User -> Shared.Model.Model -> Model -> View Msg
 view user shared model =
     let
+        contentArea =
+            case Categories.selected model.categories of
+                Subscribers ->
+                    viewSubscribers user shared model
+
+                Tags ->
+                    viewTags user shared model
+    in
+    { title = Translations.Sidebar.subscribersMenuItemText [ shared.browserEnv.translations ]
+    , body =
+        [ contentArea ]
+    }
+
+viewSubscribers : Auth.User -> Shared.Model.Model -> Model -> Html Msg
+viewSubscribers user shared model =
+    let
         styles =
             stylesForTheme shared.theme
 
@@ -609,8 +729,92 @@ view user shared model =
                 emptyHtml
 
     in
-    { title = Translations.Sidebar.subscribersMenuItemText [ shared.browserEnv.translations ]
-    , body =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.gap_2
+            , Tw.m_2
+            ]
+        ]
+        [ div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.items_center
+                , Tw.gap_2
+                , Tw.m_2
+                ]
+            ]
+            [ Button.new
+                { label = Translations.importButtonTitle [ shared.browserEnv.translations ]
+                , onClick = Just <| ImportClicked
+                , theme = shared.theme
+                }
+                |> Button.withTypePrimary
+                |> Button.view
+            , Button.new
+                { label = Translations.exportButtonTitle [ shared.browserEnv.translations ]
+                , onClick = Just <| ExportClicked
+                , theme = shared.theme
+                }
+                |> Button.withTypePrimary
+                |> Button.withDisabled (Dict.size model.subscribers < 1)
+                |> Button.view
+            , Button.new
+                { label = Translations.saveButtonTitle [ shared.browserEnv.translations ]
+                , onClick = model.serverDesc |> Maybe.map (\serverDesc -> SaveClicked Pareto.paretoNip96Server serverDesc.apiUrl)
+                , theme = shared.theme
+                }
+                |> Button.withTypePrimary
+                |> Button.withDisabled (model.state /= Modified)
+                |> Button.view
+            , loadButtonDb
+            , saveButtonDb
+            , div
+                (styles.colorStyleGrayscaleMuted
+                    ++ [ css
+                            [ Tw.ml_4
+                            ]
+                        ]
+                )
+                [ text subscribersCountText ]
+            ]
+        , viewSubscribersTable shared.browserEnv model
+        , viewModifications shared.theme shared.browserEnv model
+        , EmailImportDialog.new
+            { model = model.emailImportDialog
+            , toMsg = EmailImportDialogSent
+            , nostr = shared.nostr
+            , pubKey = user.pubKey
+            , browserEnv = shared.browserEnv
+            , theme = shared.theme
+            }
+            |> EmailImportDialog.view
+        , SubscriberEditDialog.new
+            { model = model.subscriberEditDialog
+            , toMsg = SubscriberEditDialogSent
+            , browserEnv = shared.browserEnv
+            , theme = shared.theme
+            }
+            |> SubscriberEditDialog.view
+        ]
+
+
+viewTags : Auth.User -> Shared.Model.Model -> Model -> Html Msg
+viewTags user shared model =
+    let
+        tags =
+            ContactDatabase.tags model.contactDatabase
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.gap_2
+            , Tw.m_2
+            ]
+        ]
         [ div
             [ css
                 [ Tw.flex
@@ -619,74 +823,77 @@ view user shared model =
                 , Tw.m_2
                 ]
             ]
-            [ div
-                [ css
-                    [ Tw.flex
-                    , Tw.flex_row
-                    , Tw.items_center
-                    , Tw.gap_2
-                    , Tw.m_2
-                    ]
+            (List.map viewTag tags)
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.items_center
+                , Tw.gap_2
+                , Tw.m_2
+                , Tw.max_w_sm
+                , Tw.items_end
                 ]
-                [ Button.new
-                    { label = Translations.importButtonTitle [ shared.browserEnv.translations ]
-                    , onClick = Just <| ImportClicked
-                    , theme = shared.theme
-                    }
-                    |> Button.withTypePrimary
-                    |> Button.view
-                , Button.new
-                    { label = Translations.exportButtonTitle [ shared.browserEnv.translations ]
-                    , onClick = Just <| ExportClicked
-                    , theme = shared.theme
-                    }
-                    |> Button.withTypePrimary
-                    |> Button.withDisabled (Dict.size model.subscribers < 1)
-                    |> Button.view
-                , Button.new
-                    { label = Translations.saveButtonTitle [ shared.browserEnv.translations ]
-                    , onClick = model.serverDesc |> Maybe.map (\serverDesc -> SaveClicked Pareto.paretoNip96Server serverDesc.apiUrl)
-                    , theme = shared.theme
-                    }
-                    |> Button.withTypePrimary
-                    |> Button.withDisabled (model.state /= Modified)
-                    |> Button.view
-                , loadButtonDb
-                , saveButtonDb
-                , div
-                    (styles.colorStyleGrayscaleMuted
-                        ++ [ css
-                                [ Tw.ml_4
-                                ]
-                           ]
-                    )
-                    [ text subscribersCountText ]
-                ]
-            , viewSubscribers shared.browserEnv model
-            , viewModifications shared.theme shared.browserEnv model
-            , EmailImportDialog.new
-                { model = model.emailImportDialog
-                , toMsg = EmailImportDialogSent
-                , nostr = shared.nostr
-                , pubKey = user.pubKey
-                , browserEnv = shared.browserEnv
+            ]
+            [ EntryField.new
+                { value = model.tagFieldValue
+                , onInput = UpdateTagFieldValue
                 , theme = shared.theme
                 }
-                |> EmailImportDialog.view
-            , SubscriberEditDialog.new
-                { model = model.subscriberEditDialog
-                , toMsg = SubscriberEditDialogSent
-                , browserEnv = shared.browserEnv
+                |> EntryField.withLabel (Translations.addTagFieldLabel [ shared.browserEnv.translations ])
+                |> EntryField.withSubmitMsg (Just AddTagClicked)
+                |> EntryField.view
+            , Button.new
+                { label = Translations.addTagButtonTitle [ shared.browserEnv.translations ]
+                , onClick = Just <| AddTagClicked
                 , theme = shared.theme
                 }
-                |> SubscriberEditDialog.view
+                |> Button.withTypeSecondary
+                |> Button.withDisabled (model.tagFieldValue == "")
+                |> Button.view
             ]
         ]
-    }
 
 
-viewSubscribers : BrowserEnv -> Model -> Html Msg
-viewSubscribers browserEnv model =
+viewTag : String -> Html Msg
+viewTag tag =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_row
+            , Tw.gap_2
+            , Tw.m_2
+            ]
+        ]
+        [ text tag
+        , deleteTagButton tag
+        ]
+
+
+deleteTagButton : String -> Html Msg
+deleteTagButton tag =
+    let
+        styles =
+            stylesForTheme ParetoTheme
+    in
+    div
+        [ css
+            [ Tw.cursor_pointer
+            , Tw.text_color styles.colorB3
+            , darkMode
+                [ Tw.text_color styles.colorB3DarkMode
+                ]
+            ]
+        , Events.onClick (DeleteTagClicked tag)
+        ]
+        [ Icon.FeatherIcon FeatherIcons.delete
+            |> Icon.view
+        ]
+
+
+
+viewSubscribersTable : BrowserEnv -> Model -> Html Msg
+viewSubscribersTable browserEnv model =
     case ( model.state, Dict.size model.subscribers ) of
         ( Loading, _ ) ->
             div

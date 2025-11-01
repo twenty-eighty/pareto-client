@@ -2,6 +2,7 @@ module Components.CriteriaBuilder exposing (Model, Msg(..), CriteriaBuilder, ini
 
 import BrowserEnv exposing (BrowserEnv, Environment(..))
 import Components.Button as Button
+import Components.Checkbox as Checkbox
 import Components.Dropdown as Dropdown
 import Dict exposing (Dict)
 import Effect exposing (Effect)
@@ -9,7 +10,6 @@ import Html.Styled as Html exposing (Html, div, h2, li, p, text, ul)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events exposing (..)
 import I18Next
-import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (IncomingMessage, RelayRole(..), RelayUrl)
@@ -27,9 +27,15 @@ type Condition
     | AndCondition (List Condition)
     | OrCondition (List Condition)
 
+type AllOrOneSelection
+    = AnyTags
+    | AllSelectedTags
+    | AtLeastOneSelectedTag
+
 type Model
     = Model
-        { errors : List String
+        { dropdown : Dropdown.Model AllOrOneSelection
+        , errors : List String
         , selectedTags : List String
         }
 
@@ -39,7 +45,7 @@ type Model
 type CriteriaBuilder msg
     = Settings
         { model : Model
-        , toMsg : Msg msg -> msg
+        , toMsg : Msg -> msg
         , browserEnv : BrowserEnv
         , tags : List String
         , theme : Theme
@@ -48,7 +54,7 @@ type CriteriaBuilder msg
 
 new :
     { model : Model
-    , toMsg : Msg msg -> msg
+    , toMsg : Msg -> msg
     , browserEnv : BrowserEnv
     , tags : List String
     , theme : Theme
@@ -67,23 +73,24 @@ new props =
 init : {  } -> Model
 init props =
     Model
-        { errors = []
+        { dropdown = Dropdown.init { selected = Just AllSelectedTags }
+        , errors = []
         , selectedTags = []
         }
 
 
-type Msg msg
-    = NoOp
+type Msg
+    = UpdateTagChecked String Bool
+    | DropdownSent (Dropdown.Msg AllOrOneSelection Msg)
+    | DropdownChanged (Maybe AllOrOneSelection)
 
 
 
 update :
-    { msg : Msg msg
+    { msg : Msg
     , model : Model
     , toModel : Model -> model
-    , toMsg : Msg msg -> msg
-    , nostr : Nostr.Model
-    , testMode : BrowserEnv.TestMode
+    , toMsg : Msg -> msg
     }
     -> ( model, Effect msg )
 update props =
@@ -99,14 +106,32 @@ update props =
     in
     toParentModel <|
         case props.msg of
-            NoOp ->
-                ( Model model, Effect.none )
+            UpdateTagChecked tag checked ->
+                if checked then
+                    ( Model { model | selectedTags = tag :: model.selectedTags }, Effect.none )
+                else
+                    ( Model { model | selectedTags = List.filter (\t -> t /= tag) model.selectedTags }, Effect.none )
+
+            DropdownSent innerMsg ->
+                let
+                    ( newModel, effect ) =  
+                        Dropdown.update
+                            { msg = innerMsg
+                            , model = model.dropdown
+                            , toModel = \dropdown -> Model { model | dropdown = dropdown }
+                            , toMsg = DropdownSent 
+                            }
+                in
+                ( newModel, Effect.map props.toMsg effect )
+
+            DropdownChanged maybeSelection ->
+                ( Model  model, Effect.none )
 
 
 -- SUBSCRIPTIONS
 
 
-subscriptions : Model -> (Msg msg -> msg) -> Sub msg
+subscriptions : Model -> (Msg -> msg) -> Sub msg
 subscriptions _ toMsg =
     Sub.none
         |> Sub.map toMsg
@@ -125,12 +150,11 @@ view dialog =
         (Model model) =
             settings.model
     in
-            emptyHtml
+    viewCriteriaBuilder dialog
+    |> Html.map settings.toMsg
 
 
-
-
-viewCriteriaBuilder : CriteriaBuilder msg -> Html (Msg msg)
+viewCriteriaBuilder : CriteriaBuilder msg -> Html Msg 
 viewCriteriaBuilder (Settings settings) =
     let
         (Model model) =
@@ -146,6 +170,63 @@ viewCriteriaBuilder (Settings settings) =
             , Tw.gap_2
             ]
         ]
-        [ 
+        [ Dropdown.new
+            { model = model.dropdown
+            , toMsg = DropdownSent
+            , choices = [ AnyTags, AtLeastOneSelectedTag, AllSelectedTags ]
+            , allowNoSelection = False
+            , toLabel = dropdownItemToText settings.browserEnv.translations
+            }
+            |> Dropdown.withOnChange DropdownChanged
+            |> Dropdown.view
+        , viewTagCheckboxes settings.theme settings.tags model.selectedTags
         ]
 
+dropdownItemToText : I18Next.Translations -> Maybe AllOrOneSelection -> String
+dropdownItemToText translations maybeItem =
+    case maybeItem of
+        Just item ->
+            case item of
+                AnyTags ->
+                    Translations.anyTagsText [ translations ]
+
+                AllSelectedTags ->
+                    Translations.allSelectedTagsText [ translations ]
+
+                AtLeastOneSelectedTag ->
+                    Translations.atLeastOneSelectedTagText [ translations ]
+
+        Nothing ->
+            -- there should always be a selection
+            ""
+
+
+viewTagCheckboxes : Theme -> List String -> List String -> Html Msg
+viewTagCheckboxes theme tags selectedTags =
+    tags
+    |> List.map (\tag -> ( tag, List.member tag selectedTags ))
+    |> List.map (\( tag, checked ) -> viewTagCheckbox theme tag checked )
+    |> div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.gap_2
+            ]
+        ]
+
+viewTagCheckbox : Theme -> String -> Bool -> Html Msg
+viewTagCheckbox theme tag checked =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.items_center
+            ]
+        ]
+        [ Checkbox.new
+            { label = tag
+            , checked = checked
+            , onClick = UpdateTagChecked tag
+            , theme = theme
+            }
+            |> Checkbox.view
+        ]

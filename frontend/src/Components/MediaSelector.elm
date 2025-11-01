@@ -452,7 +452,7 @@ update props =
                             , nip96Servers = updateServerState model.nip96Servers serverUrl ServerFunctioning
                         }
                     , GetRequest
-                        |> RequestNip98Auth serverUrl serverDescWithExtendedUrls.apiUrl
+                        |> RequestNip98Auth serverUrl serverDescWithExtendedUrls.apiUrl ""
                         |> Nostr.createRequest props.nostr "NIP-96 auth request for file list of server" []
                         |> Shared.Msg.RequestNostrEvents
                         |> Effect.sendSharedMsg

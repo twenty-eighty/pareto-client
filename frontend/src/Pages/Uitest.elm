@@ -132,7 +132,7 @@ type Msg
     | CategorySelected TestCategory
     | CalendarSent Components.Calendar.Msg
     | CheckboxClicked Bool
-    | CriteriaBuilderSent (Components.CriteriaBuilder.Msg Msg)
+    | CriteriaBuilderSent Components.CriteriaBuilder.Msg
     | EntryFieldChanged String
     | OpenComment
     | HashtagEditorSent Components.HashtagEditor.Msg
@@ -182,8 +182,6 @@ update shared msg model =
                 , model = model.criteriaBuilder
                 , toModel = \criteriaBuilder -> { model | criteriaBuilder = criteriaBuilder }
                 , toMsg = CriteriaBuilderSent
-                , nostr = shared.nostr
-                , testMode = shared.browserEnv.testMode
                 }
 
         EntryFieldChanged value ->

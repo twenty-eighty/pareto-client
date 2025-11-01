@@ -9,7 +9,7 @@ import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
 import Components.MessageDialog as MessageDialog
 import Components.PublishArticleDialog as PublishArticleDialog exposing (PublishingInfo(..))
 import Components.PublishDateDialog as PublishDateDialog
-import Components.SendNewsletterDialog as SendNewsletterDialog
+import Components.SendNewsletterDialog as SendNewsletterDialog exposing (NewsletterData)
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div, img, label, node, text)
@@ -23,6 +23,7 @@ import LinkPreview exposing (LoadedContent)
 import Locale exposing (Language(..), languageToISOCode, languageToString)
 import Markdown
 import Milkdown.MilkdownEditor as Milkdown
+import Newsletters.Subscribers as Subscribers
 import Nostr
 import Nostr.Article exposing (addressComponentsForArticle, articleFromEvent)
 import Nostr.DeletionRequest exposing (deletionEvent)
@@ -33,7 +34,7 @@ import Nostr.Nip27 as Nip27
 import Nostr.Nip94 exposing (FileMetadata)
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
-import Nostr.Types exposing (EventId, IncomingMessage, PubKey, RelayUrl)
+import Nostr.Types exposing (EventId, IncomingMessage, PubKey, RelayUrl, loggedInSigningPubKey)
 import Page exposing (Page)
 import Pareto
 import Ports
@@ -41,7 +42,6 @@ import Route exposing (Route)
 import Set
 import Shared
 import Shared.Msg
-import Subscribers
 import Svg.Loaders as Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
@@ -202,7 +202,9 @@ init user shared route () =
             PublishArticleDialog.init {}
 
         ( sendNewsletterDialog, sendNewsletterDialogEffect ) =
-            SendNewsletterDialog.init { pubKey = user.pubKey }
+            SendNewsletterDialog.init
+                { pubKey = user.pubKey
+                }
 
         model =
             case maybeArticle of
@@ -495,7 +497,22 @@ update shared user msg model =
                     )
 
         ShowSendNewsletterDialog ->
-            ( { model | sendNewsletterDialog = SendNewsletterDialog.show model.sendNewsletterDialog }, Effect.none )
+            let
+                ( sendNewsletterDialog, effect ) =
+                    SendNewsletterDialog.show model.sendNewsletterDialog
+                        { author = user.pubKey
+                        , title = Maybe.withDefault "" model.title
+                        , summary = Maybe.withDefault "" model.summary
+                        , content = Maybe.withDefault "" model.content
+                        , imageUrl = Maybe.withDefault "" model.image
+                        , language = languageISOCode model
+                        , identifier = model.identifier |> Maybe.withDefault ""
+                        , test = shared.browserEnv.testMode == BrowserEnv.TestModeEnabled
+                        }
+            in
+            ( { model | sendNewsletterDialog = sendNewsletterDialog }
+            , Effect.map SendNewsletterDialogSent effect
+            )
 
         SendNewsletterDialogSent innerMsg ->
             SendNewsletterDialog.update
@@ -645,15 +662,15 @@ sendNewsletterEffect shared model user subscriberEventData =
 
         NewsletterVersion2 ->
             Ports.sendNewsletter
-                user.pubKey
-                { title = Maybe.withDefault "" model.title
+                { author = user.pubKey
+                , title = Maybe.withDefault "" model.title
                 , summary = Maybe.withDefault "" model.summary
                 , content = Maybe.withDefault "" model.content
                 , imageUrl = Maybe.withDefault "" model.image
                 , language = languageISOCode model
+                , identifier = Maybe.withDefault "" model.identifier
                 , test = shared.browserEnv.testMode == BrowserEnv.TestModeEnabled
                 }
-                (Maybe.withDefault "" model.identifier)
                 |> Effect.sendCmd
 
 
@@ -1075,7 +1092,7 @@ view user shared model =
             , viewTags shared.theme shared.browserEnv model
             , viewPublishDate shared.browserEnv shared.theme model
             , viewArticleState shared.browserEnv shared.theme model.articleState
-            , saveButtons shared.browserEnv shared.theme model
+            , saveButtons shared model
             , TextStats.view shared.browserEnv shared.theme model.textStats
             , viewMediaSelector user shared model
             ]
@@ -1553,8 +1570,16 @@ viewPublishDate browserEnv theme model =
         ]
 
 
-saveButtons : BrowserEnv -> Theme -> Model -> Html Msg
-saveButtons browserEnv theme model =
+saveButtons : Shared.Model -> Model -> Html Msg
+saveButtons shared model =
+    let
+        newsletterButton =
+            if authorSendsNewsletters shared then
+                sendNewsletterButton shared.browserEnv model shared.theme
+
+            else
+                emptyHtml
+    in
     div
         [ css
             [ Tw.flex
@@ -1562,10 +1587,10 @@ saveButtons browserEnv theme model =
             , Tw.mb_10
             ]
         ]
-        [ previewButton browserEnv model theme
-        , saveDraftButton browserEnv model theme
-        , sendNewsletterButton browserEnv model theme
-        , publishButton browserEnv model theme
+        [ previewButton shared.browserEnv model shared.theme
+        , saveDraftButton shared.browserEnv model shared.theme
+        , newsletterButton 
+        , publishButton shared.browserEnv model shared.theme
         ]
 
 
@@ -1579,6 +1604,12 @@ sendNewsletterButton browserEnv model theme =
         |> Button.withDisabled (not <| articleReadyForPublishing model)
         |> Button.withTypePrimary
         |> Button.view
+
+authorSendsNewsletters : Shared.Model -> Bool
+authorSendsNewsletters shared =
+            loggedInSigningPubKey shared.loginStatus
+                |> Maybe.andThen (Nostr.sendsNewsletterPubKey shared.nostr)
+                |> Maybe.withDefault False
 
 publishButton : BrowserEnv -> Model -> Theme -> Html Msg
 publishButton browserEnv model theme =

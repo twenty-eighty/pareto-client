@@ -3,6 +3,7 @@ module Newsletters.ContactDatabase exposing (..)
 import Effect exposing (Effect)
 import Http
 import Json.Decode as Decode
+import List.Extra as ListExtra
 import Newsletters.Types exposing (Subscriber)
 import Nostr
 import Nostr.External exposing (decodeAuthHeaderReceived)
@@ -17,6 +18,7 @@ type alias Model =
     { subscribers : List Subscriber
     , tags : List String
     , errors : List String
+    , loadingFlags : List LoadingFlag
     , pubkey : PubKey
     }
 
@@ -31,15 +33,26 @@ contactDatabaseServerUrl : String
 contactDatabaseServerUrl =
     "http://localhost:4003"
 
-init : PubKey -> (Model, Effect Msg)
-init pubkey =
+
+init : PubKey -> List LoadingFlag -> (Model, Effect Msg)
+init pubkey loadingFlags =
     ( { subscribers = []
       , errors = []
+      , loadingFlags = loadingFlags
       , pubkey = pubkey
       , tags = []
       }
     , initContactDatabase contactDatabaseServerUrl pubkey
     )
+
+type LoadingFlag
+    = LoadTags
+    | LoadContacts
+
+tags : Model -> List String
+tags model =
+    model.tags
+
 
 initContactDatabase : String -> PubKey -> Effect Msg
 initContactDatabase url pubkey =
@@ -50,6 +63,18 @@ initContactDatabase url pubkey =
 loadContacts : Int -> Int -> Effect Msg
 loadContacts page perPage =
     Ports.loadContacts page perPage
+        |> Effect.sendCmd
+
+
+addTag : String -> Effect Msg
+addTag tag =
+    Ports.addContactTag tag
+        |> Effect.sendCmd
+
+
+deleteTag : String -> Effect Msg
+deleteTag tag =
+    Ports.deleteContactTag tag
         |> Effect.sendCmd
 
 
@@ -64,8 +89,8 @@ loadContactTags pubkey =
     Ports.loadContactTags pubkey
 
 
-update : Nostr.Model -> Msg -> Model -> (Model, Effect Msg)
-update nostr msg model =
+update : Msg -> Model -> (Model, Effect Msg)
+update msg model =
     case msg of
         ReceivedMessage message ->
             updateWithMessage model message
@@ -74,6 +99,25 @@ update nostr msg model =
 updateWithMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithMessage model message =
     case message.messageType of
+        "contactDatabaseAuthenticated" ->
+            let
+                loadTagsEffect =
+                    if List.member LoadTags model.loadingFlags then
+                        loadContactTags model.pubkey
+                            |> Effect.sendCmd
+                    else
+                        Effect.none
+
+                loadContactsEffect =
+                    if List.member LoadContacts model.loadingFlags then
+                        loadContacts 1 100
+                    else
+                        Effect.none
+            in
+            ( model |> Debug.log "contactDatabaseAuthenticated"
+            , Effect.batch [ loadTagsEffect, loadContactsEffect ]
+            )
+
         "contacts" ->
             case ( Decode.decodeValue (Decode.field "contacts" Subscribers.subscribersDecoder) message.value
                  , Decode.decodeValue (Decode.field "errors" (Decode.list Decode.string)) message.value ) of
@@ -89,14 +133,46 @@ updateWithMessage model message =
 
         "contactTags" ->
             case Decode.decodeValue (Decode.field "tags" (Decode.list Decode.string)) message.value of
-                Ok tags ->
-                    ( Model { model | tags = tags }, Effect.none )
+                Ok decodedTags ->
+                    ( { model | tags = decodedTags }, Effect.none )
 
                 Err error ->
-                    ( Model { model | errors = ("Error receiving tags: " ++ Decode.errorToString error) :: model.errors }, Effect.none )
+                    ( { model | errors = ("Error receiving tags: " ++ Decode.errorToString error) :: model.errors }, Effect.none )
+
+        "contactTagAdded" ->
+            case Decode.decodeValue (Decode.field "tag" Decode.string) message.value of
+                Ok decoded ->
+                    ( { model | tags = addTagToList model.tags decoded }, Effect.none )
+
+                Err error ->
+                    ( { model | errors = ("Error receiving tags: " ++ Decode.errorToString error) :: model.errors }, Effect.none )
+
+        "contactTagDeleted" ->
+            case Decode.decodeValue (Decode.field "tag" Decode.string) message.value of
+                Ok decoded ->
+                    ( { model | tags = filterTags decoded model.tags }, Effect.none )
+
+                Err error ->
+                    ( { model | errors = ("Error receiving tags: " ++ Decode.errorToString error) :: model.errors }, Effect.none )
 
         _ ->
             ( model, Effect.none )
+
+
+-- HELPERS
+
+addTagToList : List String -> String -> List String
+addTagToList tagList tag =
+    tag :: tagList
+        |> List.sort
+        |> ListExtra.unique
+
+
+filterTags : String -> List String -> List String
+filterTags tag tagList =
+    tagList
+        |> List.filter (\t -> t /= tag)
+
 
 -- SUBSCRIPTIONS
 

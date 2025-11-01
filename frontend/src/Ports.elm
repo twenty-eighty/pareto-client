@@ -232,26 +232,80 @@ loadContactTags pubkey =
             ]
         }
 
+
+addContactTag : String -> Cmd msg
+addContactTag tag =
+    sendCommand
+        { command = "addContactTag"
+        , value = Encode.object
+            [ ( "tag", Encode.string tag )
+            ]
+        }
+
+
+deleteContactTag : String -> Cmd msg
+deleteContactTag tag =
+    sendCommand
+        { command = "deleteContactTag"
+        , value = Encode.object
+            [ ( "tag", Encode.string tag )
+            ]
+        }
+
+
 -- NEWSLETTERS
 
 type alias NewsletterData =
-    { title : String
+    { author : PubKey
+    , title : String
     , summary : String
     , content : String
     , imageUrl : String
     , language : Maybe String
+    , identifier : String
     , test : Bool
     }
 
 
-sendNewsletter : String -> NewsletterData -> String -> Cmd msg
-sendNewsletter author newsletterData identifier =
+sendNewsletter : NewsletterData -> Cmd msg
+sendNewsletter newsletterData =
     sendCommand
         { command = "sendNewsletter"
         , value = Encode.object
-            [ ( "author", Encode.string author )
+            [ ( "author", Encode.string newsletterData.author )
             , ( "newsletterData", encodeNewsletterData newsletterData )
+            ]
+        }
+
+sendNewsletterTest : String -> NewsletterData -> Cmd msg
+sendNewsletterTest email newsletterData =
+    sendCommand
+        { command = "sendNewsletterTest"
+        , value = Encode.object
+            [ ( "email", Encode.string email )
+            , ( "author", Encode.string newsletterData.author )
+            , ( "newsletterData", encodeNewsletterData newsletterData )
+            ]
+        }
+
+
+getNewsletterStatus : String -> String -> Cmd msg
+getNewsletterStatus author identifier =
+    sendCommand
+        { command = "getNewsletterStatus"
+        , value = Encode.object
+            [ ( "author", Encode.string author )
             , ( "identifier", Encode.string identifier )
+            ]
+        }
+
+
+getNewsletterRecipientCount : String -> Cmd msg
+getNewsletterRecipientCount author =
+    sendCommand
+        { command = "getNewsletterRecipientCount"
+        , value = Encode.object
+            [ ( "author", Encode.string author )
             ]
         }
 
@@ -263,5 +317,6 @@ encodeNewsletterData newsletterData =
         , ( "content", Encode.string newsletterData.content )
         , ( "imageUrl", Encode.string newsletterData.imageUrl )
         , ( "language", Encode.string <| Maybe.withDefault "" newsletterData.language )
+        , ( "identifier", Encode.string <| newsletterData.identifier )
         , ( "test", Encode.bool newsletterData.test )
         ]

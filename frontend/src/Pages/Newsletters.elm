@@ -12,6 +12,7 @@ import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
 import Layouts
 import Layouts.Sidebar
+import Newsletters.Subscribers as Subscribers
 import Nostr
 import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.External
@@ -25,7 +26,6 @@ import Route exposing (Route)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Subscribers
 import Svg.Loaders as Loaders
 import Table.Paginated as Table exposing (defaultCustomizations)
 import Tailwind.Utilities as Tw

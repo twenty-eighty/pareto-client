@@ -413,7 +413,10 @@
    "criteria builder": {
       "and condition": "And",
       "or condition": "Or",
-      "not condition": "Not"
+      "not condition": "Not",
+      "any tags text": "Any tags",
+      "all selected tags text": "All selected tags",
+      "at least one selected tag text": "At least one selected tag"
    },
    "email import dialog": {
       "dialog title": "Import Email List",
@@ -633,7 +636,14 @@
       "send only via email singular checkbox text": "Send email to one recipient",
       "send only via email plural checkbox text": "Send email to {{recipientCount}} recipients",
       "send also via email singular checkbox text": "Publish newsletter and send via email to one recipient",
-      "send also via email plural checkbox text": "Publish newsletter and send via email to {{recipientCount}} recipients"
+      "send also via email plural checkbox text": "Publish newsletter and send via email to {{recipientCount}} recipients",
+      "send newsletter to criteria builder text": "Send newsletter to subscribers with...",
+      "test email field label": "Test email",
+      "test email field placeholder": "Enter a test email",
+      "submit test email button title": "Submit",
+      "test email sending text": "Sending test email...",
+      "test email sent text": "Test email sent",
+      "test email error text": "Error sending test email: {{error}}"
    },
    "settings": {
       "page title": "Settings",
@@ -748,6 +758,7 @@
       "page title": "Subscribers",
       "export button title": "Export",
       "import button title": "Import",
+      "load button title": "Load",
       "save button title": "Save",
       "process modifications button title": "Process",
       "loading subscribers text": "Loading subscribers...",
@@ -766,7 +777,11 @@
       "tags field name": "Tags",
       "undeliverable field name": "Undeliverable",
       "locale field name": "Locale",
-      "subscribers count": "{{subscribersCount}} subscribers"
+      "subscribers count": "{{subscribersCount}} subscribers",
+      "subscribers category": "Subscribers",
+      "tags category": "Tags",
+      "add tag field label": "Add tag",
+      "add tag button title": "Add"
    },
    "text stats": {
       "Bytes label": "Bytes:",

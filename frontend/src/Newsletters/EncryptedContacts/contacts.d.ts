@@ -14,6 +14,10 @@ export declare class ContactsApi {
     list(opts?: PaginationOptions): Promise<{
         contacts: ContactRecord[];
     }>;
+    /** Count total contacts for the authenticated user. */
+    count(): Promise<{
+        count: number;
+    }>;
     /** Get one contact by id. */
     show(id: string): Promise<ContactRecord>;
     /** Update a contact by id. */
@@ -43,5 +47,9 @@ export declare class ContactsApi {
     /** Upsert a tag blind index and ciphertext. */
     upsertTag(payload: UpsertTagRequest): Promise<{
         tag: TagRecord;
+    }>;
+    /** Delete a tag by blind index. */
+    deleteTag(blindIndex: string): Promise<{
+        ok: boolean;
     }>;
 }

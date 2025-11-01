@@ -142,6 +142,26 @@ self.addEventListener('message', event => {
         reply(true, ct.includes('application/json') ? await res.json() : null);
         break;
       }
+      case 'get-campaign-status-by-external-id': {
+        if (!state.jwt) throw new Error('Missing JWT');
+        const { externalId } = payload || {};
+        if (!externalId) throw new Error('Missing externalId');
+        const encodedId = encodeURIComponent(externalId);
+        const res = await fetch(`${state.baseUrl}/campaigns/external/${encodedId}/status`, {
+          headers: { Authorization: `Bearer ${state.jwt}` },
+        });
+        if (res.status === 404) {
+          reply(true, null);
+          break;
+        }
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`HTTP ${res.status} ${res.statusText} ${text}`);
+        }
+        const ct = res.headers.get('content-type') || '';
+        reply(true, ct.includes('application/json') ? await res.json() : null);
+        break;
+      }
       default:
         throw new Error(`Unknown message type: ${type}`);
     }

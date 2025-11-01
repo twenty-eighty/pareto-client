@@ -2,19 +2,28 @@
 // ES6 module version for clean imports
 
 import { NDKEvent, NDKKind } from "@nostr-dev-kit/ndk";
+import { HttpClient } from "./EncryptedContacts/http.js";
+import { ContactsApi } from "./EncryptedContacts/contacts.js";
 
-const API_URL = 'http://localhost:4003/api';
+const API_URL = 'http://localhost:4003';
 
 // =============================================================================
 // CONTACTS CLASS
 // =============================================================================
 
 export class Contacts {
-  constructor(ndk, apiUrl = API_URL, pubkey = null) {
-    console.log('Contacts constructor called with:', { ndk, apiUrl, pubkey });
+  constructor(ndk, pubkey, apiUrl = API_URL) {
+    console.log('Contacts constructor called with:', { ndk, pubkey, apiUrl });
     this.ndk = ndk;
     this.apiUrl = apiUrl;
     this.pubkey = pubkey;
+
+    // Initialize HTTP client and Contacts API wrapper (token provided after authenticate)
+    this.http = new HttpClient({
+      baseUrl: this.apiUrl,
+      getAuthToken: async () => this.jwt
+    });
+    this.contactsApi = new ContactsApi(this.http);
   }
 
   // =============================================================================
@@ -27,7 +36,7 @@ export class Contacts {
   async authenticate() {
     try {
       // 1. Get challenge from server
-      const challengeResponse = await fetch(`${API_URL}/auth/challenge`);
+      const challengeResponse = await fetch(`${API_URL}/api/auth/challenge`);
       if (!challengeResponse.ok) {
         throw new Error('Failed to get challenge');
       }
@@ -38,7 +47,7 @@ export class Contacts {
       const salt = await this.generateSalt();
       
       // 2. Create NIP-42 event
-      const loginUrl = `${API_URL}/auth/login`;
+      const loginUrl = `${API_URL}/api/auth/login`;
       const nip42Event = await this.createNIP42Event(loginUrl, challenge);
       
       // 3. Send authentication request
@@ -142,6 +151,37 @@ export class Contacts {
   }
 
   /**
+   * Decrypt tag data using NDK's NIP-44 implementation
+   */
+  async decryptTag(encryptedData, senderPubkey) {
+    // Use NDK's NIP-44 decryption
+    const decryptedData = await this.ndk.signer.decrypt({ pubkey: senderPubkey }, encryptedData, 'nip44');
+    
+    return decryptedData;
+  }
+
+  async _decryptContactRecords(records) {
+    const senderPubkey = this.pubkey;
+    const decryptedContacts = [];
+    const decryptionErrors = [];
+
+    if (!records || !records.length) {
+      return { contacts: decryptedContacts, errors: decryptionErrors };
+    }
+
+    for (const record of records) {
+      try {
+        const decryptedData = await this.decryptContact(record.encrypted_data, senderPubkey);
+        decryptedContacts.push(decryptedData);
+      } catch (decryptError) {
+        decryptionErrors.push(decryptError.message);
+      }
+    }
+
+    return { contacts: decryptedContacts, errors: decryptionErrors };
+  }
+
+  /**
    * Generate SHA256 hash using NDK
    */
   async generateHash(input) {
@@ -173,14 +213,50 @@ export class Contacts {
   /**
    * Generate tag hashes for encrypted tag filtering
    */
+  async generateTagHash(tag) {
+    const hash = await this.generateHash(`${this.salt}:tag:${tag.toLowerCase()}`);
+    return hash;
+  }
+
+  /**
+   * Generate tag hashes for encrypted tag filtering
+   */
   async generateTagHashes(tags) {
     const hashes = [];
     for (const tag of tags) {
-      const hash = await this.generateHash(`${this.salt}:tag:${tag.toLowerCase()}`);
+      const hash = await this.generateTagHash(tag);
       hashes.push(hash);
     }
     return hashes;
   }
+
+  /**
+   * Add a tag to the database
+   */
+  async addTag(tag) {
+    if (!this.jwt || !this.pubkey) {
+      throw new Error('Not authenticated. Call authenticate() first.');
+    }
+
+    const blindIndex = await this.generateTagHash(tag);
+    const ciphertextTag = await this.ndk.signer.encrypt({ pubkey: this.pubkey }, tag, 'nip44');
+    return await this.contactsApi.upsertTag({ blind_index: blindIndex, ciphertext_tag: ciphertextTag, key_version: 1 });
+  }
+
+  /**
+   * Delete a tag from the database
+   */
+  async deleteTag(tag) {
+    if (!this.jwt) {
+      throw new Error('Not authenticated. Call authenticate() first.');
+    }
+
+    const blindIndex = await this.generateTagHash(tag);
+    // Use the ContactsApi wrapper to call the DELETE endpoint
+    await this.contactsApi.deleteTag(blindIndex);
+    return { result: true };
+  }
+
 
   // =============================================================================
   // CONTACT OPERATIONS
@@ -211,30 +287,14 @@ export class Contacts {
       const searchTokens = await this.generateSearchTokens(searchableTerms);
       const tagHashes = await this.generateTagHashes(contact.tags || []);
       
-      // 5. Send to API
-      const response = await fetch(`${API_URL}/contacts`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.jwt}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          contact: {
-            encrypted_data: encryptedData,
-            email_hash: emailHash,
-            search_tokens: searchTokens,
-            tag_hashes: tagHashes,
-            version: 1
-          }
-        })
+      // 5. Send to API via EncryptedContacts ContactsApi
+      return await this.contactsApi.create({
+        encrypted_data: encryptedData,
+        email_hash: emailHash,
+        search_tokens: searchTokens,
+        tag_hashes: tagHashes,
+        version: 1
       });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || `HTTP error! status: ${response.status}`);
-      }
-      
-      return await response.json();
       
     } catch (error) {
       throw new Error(`Failed to store contact: ${error.message}`);
@@ -279,24 +339,7 @@ export class Contacts {
         });
       }
       
-      const response = await fetch(`${API_URL}/contacts/bulk`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.jwt}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          contacts: processedContacts,
-          overwrite
-        })
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || `HTTP error! status: ${response.status}`);
-      }
-      
-      return await response.json();
+      return await this.http.request("POST", "/api/contacts/bulk", { contacts: processedContacts, overwrite });
       
     } catch (error) {
       throw new Error(`Failed to store contacts: ${error.message} ${error.stack}`);
@@ -312,39 +355,49 @@ export class Contacts {
     }
 
     try {
-      const response = await fetch(`${API_URL}/contacts?page=${page}&per_page=${perPage}`, {
-        headers: {
-          'Authorization': `Bearer ${this.jwt}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
-      // Decrypt the contacts
-      const senderPubkey = this.pubkey;
-      const decryptedContacts = [];
-      const decryptionErrors = [];
-      
-      for (const contact of result.contacts) {
-        try {
-          const decryptedData = await this.decryptContact(contact.encrypted_data, senderPubkey);
-          decryptedContacts.push( decryptedData );
-        } catch (decryptError) {
-          decryptionErrors.push(decryptError.message);
-        }
-      }
-      
-      return {
-        contacts: decryptedContacts,
-        errors: decryptionErrors
-      };
+      const result = await this.contactsApi.list({ page: page, per_page: perPage });
+      return await this._decryptContactRecords(result.contacts);
       
     } catch (error) {
       throw new Error(`Failed to get contacts: ${error.message}`);
+    }
+  }
+
+  async countContacts(filter = undefined) {
+    if (!this.jwt) {
+      throw new Error('Not authenticated. Call authenticate() first.');
+    }
+
+    try {
+      const hasFilter = filter && typeof filter === 'object' && Object.keys(filter).length > 0;
+
+      if (hasFilter) {
+        const result = await this.contactsApi.tagsCount(filter);
+        return result?.count ?? 0;
+      }
+
+      const total = await this.contactsApi.count();
+      return total?.count ?? 0;
+    } catch (error) {
+      throw new Error(`Failed to count contacts: ${error.message}`);
+    }
+  }
+
+  async getContactsByCriteria(filter, page = 1, perPage = 100) {
+    if (!this.jwt) {
+      throw new Error('Not authenticated. Call authenticate() first.');
+    }
+
+    if (!filter) {
+      throw new Error('Filter is required to fetch contacts by criteria');
+    }
+
+    try {
+      const result = await this.contactsApi.tagsFilter(filter, { page: page, per_page: perPage });
+      return await this._decryptContactRecords(result.contacts);
+
+    } catch (error) {
+      throw new Error(`Failed to get contacts by criteria: ${error.message}`);
     }
   }
 
@@ -358,17 +411,27 @@ export class Contacts {
 
 
     try {
-      const response = await fetch(`${API_URL}/tags`, {
-        headers: {
-          'Authorization': `Bearer ${this.jwt}`
+      const result = await this.contactsApi.listTags();
+
+      // Decrypt the contacts
+      const senderPubkey = this.pubkey;
+      const decryptedTags = [];
+      const decryptionErrors = [];
+      
+      for (const tag of result.tags) {
+        try {
+          const decryptedData = await this.decryptTag(tag.ciphertext_tag, senderPubkey);
+          decryptedTags.push( decryptedData );
+        } catch (decryptError) {
+          decryptionErrors.push(decryptError.message);
         }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
       }
-
-      return await response.json();
+      
+      return {
+        tags: decryptedTags,
+        errors: decryptionErrors
+      };
+      
 
     } catch (error) {
       throw new Error(`Failed to get contact tags: ${error.message}`);
@@ -387,17 +450,7 @@ export class Contacts {
     try {
       const searchToken = await this.generateHash(`${this.pubkey}:search:${searchTerm.toLowerCase()}`);
       
-      const response = await fetch(`${API_URL}/contacts/search?search_token=${searchToken}`, {
-        headers: {
-          'Authorization': `Bearer ${this.jwt}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result = await response.json();
+      const result = await this.contactsApi.searchByToken(searchToken);
       
       // Decrypt the search results
       const senderPubkey = this.pubkey;

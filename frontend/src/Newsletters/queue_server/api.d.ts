@@ -313,6 +313,14 @@ export declare const DefaultApiAxiosParamCreator: (configuration?: Configuration
      * @throws {RequiredError}
      */
     getCampaignStatus: (id: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
+     * @summary Get campaign status by external ID
+     * @param {string} externalId External ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getCampaignStatusByExternalId: (externalId: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
 };
 /**
  * DefaultApi - functional programming interface
@@ -353,6 +361,14 @@ export declare const DefaultApiFp: (configuration?: Configuration) => {
      * @throws {RequiredError}
      */
     getCampaignStatus(id: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<CampaignStatus>>;
+    /**
+     *
+     * @summary Get campaign status by external ID
+     * @param {string} externalId External ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getCampaignStatusByExternalId(externalId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<CampaignStatus>>;
 };
 /**
  * DefaultApi - factory interface
@@ -393,6 +409,14 @@ export declare const DefaultApiFactory: (configuration?: Configuration, basePath
      * @throws {RequiredError}
      */
     getCampaignStatus(id: string, options?: RawAxiosRequestConfig): AxiosPromise<CampaignStatus>;
+    /**
+     *
+     * @summary Get campaign status by external ID
+     * @param {string} externalId External ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getCampaignStatusByExternalId(externalId: string, options?: RawAxiosRequestConfig): AxiosPromise<CampaignStatus>;
 };
 /**
  * DefaultApi - object-oriented interface
@@ -439,4 +463,13 @@ export declare class DefaultApi extends BaseAPI {
      * @memberof DefaultApi
      */
     getCampaignStatus(id: string, options?: RawAxiosRequestConfig): Promise<import("axios").AxiosResponse<CampaignStatus, any, {}>>;
+    /**
+     *
+     * @summary Get campaign status by external ID
+     * @param {string} externalId External ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof DefaultApi
+     */
+    getCampaignStatusByExternalId(externalId: string, options?: RawAxiosRequestConfig): Promise<import("axios").AxiosResponse<CampaignStatus, any, {}>>;
 }

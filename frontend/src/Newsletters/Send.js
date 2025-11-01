@@ -258,12 +258,16 @@ class NewsletterSendClient {
     };
   }
 
-  // Stream contacts in pages, encrypt, and bulk enqueue
-  async sendNewsletter({ author, newsletterData, identifier, perPage = 500, onProgress } = {}) {
+  // Stream recipients, encrypt payloads, and enqueue jobs
+  async sendNewsletter({ author, newsletterData, identifier, perPage = 500, onProgress, selection } = {}) {
     if (!this.contacts) throw new Error('Contacts instance not set');
     if (!newsletterData || !newsletterData.title || !newsletterData.summary || !newsletterData.content) {
       throw new Error('Newsletter data must include at least title, summary and content');
     }
+
+    const normalizedSelection = this._normalizeSelection(selection);
+    const pageSize = normalizedSelection.perPage ?? perPage;
+    const isTest = normalizedSelection.type === 'single' || !!(newsletterData && newsletterData.test);
 
     // Ensure SW configured with JWT
     await this.init();
@@ -283,23 +287,29 @@ class NewsletterSendClient {
     };
 
     if (onProgress) onProgress({ phase: 'start', campaignId, page: 0, totals });
-    this._log('Send newsletter start', { external_id: identifier, campaignId, perPage, test: !!(newsletterData && newsletterData.test) });
+    this._log('Send newsletter start', {
+      external_id: identifier,
+      campaignId,
+      perPage: pageSize,
+      selection: normalizedSelection.type,
+      test: isTest
+    });
 
-    let page = 1;
-    while (true) {
-      const result = await this.contacts.getContacts(page, perPage);
-      const list = result && result.contacts ? result.contacts : [];
-      if (!list.length) break;
+    let lastPageNumber = 0;
+    for await (const { page, contacts } of this._recipientStream(normalizedSelection, pageSize)) {
+      if (!contacts || !contacts.length) {
+        continue;
+      }
 
+      lastPageNumber = page;
       totals.pages += 1;
-      totals.fetched += list.length;
-      if (onProgress) onProgress({ phase: 'page_fetched', campaignId, page, fetched: list.length, totals });
-      this._log('Page fetched', { page, count: list.length });
+      totals.fetched += contacts.length;
+      if (onProgress) onProgress({ phase: 'page_fetched', campaignId, page, fetched: contacts.length, totals });
+      this._log('Page fetched', { page, count: contacts.length });
 
       // Build job specs
       const jobs = [];
-      const isTest = !!(newsletterData && newsletterData.test);
-      for (const contact of list) {
+      for (const contact of contacts) {
         try {
           const job = await this.buildJobSpec(String(campaignId), contact, isTest);
           jobs.push(job);
@@ -311,7 +321,7 @@ class NewsletterSendClient {
       }
 
       totals.built += jobs.length;
-      if (onProgress) onProgress({ phase: 'page_built', campaignId, page, built: jobs.length, skipped: list.length - jobs.length, totals });
+      if (onProgress) onProgress({ phase: 'page_built', campaignId, page, built: jobs.length, skipped: contacts.length - jobs.length, totals });
       this._log('Page built', { page, jobs: jobs.length });
 
       if (jobs.length) {
@@ -325,9 +335,6 @@ class NewsletterSendClient {
         if (onProgress) onProgress({ phase: 'page_enqueued', campaignId, page, accepted, duplicates, errors, totals });
         this._log('Page enqueued', { campaignId, page, accepted, duplicates, errors });
       }
-
-      if (list.length < perPage) break; // last page
-      page += 1;
     }
 
     // Commit uploads to start processing
@@ -342,9 +349,113 @@ class NewsletterSendClient {
       if (onProgress) onProgress({ phase: 'commit_failed', campaignId, error: e?.message, totals });
     }
 
-    if (onProgress) onProgress({ phase: 'done', campaignId, page: page - 1, totals });
+    if (onProgress) onProgress({ phase: 'done', campaignId, page: lastPageNumber, totals });
     this._log('Send newsletter done', { campaignId, totals });
     return { ok: true, totals };
+  }
+
+  async *_recipientStream(selection, perPage) {
+    switch (selection.type) {
+      case 'single': {
+        const contact = selection.contact;
+        if (!contact) return;
+        yield { page: 1, contacts: [contact] };
+        return;
+      }
+      case 'criteria': {
+        const filter = selection.filter ?? selection.criteria;
+        if (!filter && typeof selection.fetchPage !== 'function') {
+          throw new Error('Criteria selection requires a filter or fetchPage function');
+        }
+        let page = 1;
+        while (true) {
+          let result;
+          if (typeof selection.fetchPage === 'function') {
+            result = await selection.fetchPage({ page, perPage });
+          } else {
+            result = await this.contacts.getContactsByCriteria(filter, page, perPage);
+          }
+          const contacts = result?.contacts ?? [];
+          if (!contacts.length) break;
+          yield { page, contacts };
+          if (contacts.length < perPage) break;
+          page += 1;
+        }
+        return;
+      }
+      case 'all':
+      default: {
+        let page = 1;
+        while (true) {
+          const result = await this.contacts.getContacts(page, perPage);
+          const contacts = result?.contacts ?? [];
+          if (!contacts.length) break;
+          yield { page, contacts };
+          if (contacts.length < perPage) break;
+          page += 1;
+        }
+      }
+    }
+  }
+
+  _normalizeSelection(selection) {
+    if (!selection || typeof selection !== 'object') {
+      return { type: 'all' };
+    }
+
+    const type = selection.type ?? 'all';
+    switch (type) {
+      case 'single': {
+        const contact = selection.contact ? { ...selection.contact } : {};
+        if (selection.email) {
+          contact.email = selection.email;
+        }
+        const email = contact.email || contact.Email || contact.emailAddress;
+        if (!email) {
+          throw new Error('Single-recipient selection requires a contact with an email');
+        }
+        return {
+          type: 'single',
+          contact,
+          perPage: 1
+        };
+      }
+      case 'criteria': {
+        if (!selection.filter && !selection.criteria && typeof selection.fetchPage !== 'function') {
+          throw new Error('Criteria selection requires a filter, criteria, or fetchPage function');
+        }
+        return {
+          type: 'criteria',
+          filter: selection.filter ?? selection.criteria,
+          fetchPage: selection.fetchPage,
+          perPage: selection.perPage
+        };
+      }
+      case 'all':
+      default:
+        return { type: 'all', perPage: selection.perPage };
+    }
+  }
+
+  async sendNewsletterTest({ email, contact, author, newsletterData, identifier, onProgress } = {}) {
+    const contactRecord = contact ? { ...contact } : {};
+    if (email) {
+      contactRecord.email = email;
+    }
+    const resolvedEmail = contactRecord.email || contactRecord.Email || contactRecord.emailAddress;
+    if (!resolvedEmail) {
+      throw new Error('sendNewsletterTest requires an email address');
+    }
+
+    const data = { ...(newsletterData || {}), test: true };
+    return this.sendNewsletter({
+      author,
+      newsletterData: data,
+      identifier,
+      perPage: 1,
+      onProgress,
+      selection: { type: 'single', contact: contactRecord }
+    });
   }
 
   async commitCampaign({ campaignId, expectedJobs }) {
@@ -352,6 +463,21 @@ class NewsletterSendClient {
     const jwt = await this.getJwt();
     await this.swCall('set-jwt', { jwt });
     return await this.swCall('commit-campaign', { campaignId, expected_jobs: expectedJobs });
+  }
+
+  async getCampaignStatusByExternalId(externalId) {
+    if (!externalId) throw new Error('externalId is required');
+    await this.ensureServiceWorker();
+    const jwt = await this.getJwt();
+    await this.swCall('set-jwt', { jwt });
+    try {
+      return await this.swCall('get-campaign-status-by-external-id', { externalId });
+    } catch (error) {
+      if (error?.message && /404/.test(error.message)) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async getCampaignStatus(campaignId) {
