@@ -1053,7 +1053,7 @@ outboxRelaySection shared user relaysModel =
             , p [] [ text <| Translations.outboxRelaysDescription [ shared.browserEnv.translations ] ]
             , viewRelayList shared.theme shared.browserEnv.translations readOnly (AddDefaultOutboxRelays suggestedOutboxRelays) (RemoveRelay user.pubKey WriteRelay) outboxRelays
             , if not readOnly then
-                addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay outboxRelaySuggestions (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey) saving
+                addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay outboxRelaySuggestions (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey) saving "outbox-relay-add-button"
 
               else
                 emptyHtml
@@ -1100,7 +1100,7 @@ inboxRelaySection shared user relaysModel =
         , p [] [ text <| Translations.inboxRelaysDescription [ shared.browserEnv.translations ] ]
         , viewRelayList shared.theme shared.browserEnv.translations readOnly (AddDefaultInboxRelays suggestedInboxRelays) (RemoveRelay user.pubKey ReadRelay) inboxRelays
         , if not readOnly then
-            addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay inboxRelaySuggestions (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey) saving
+            addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay inboxRelaySuggestions (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey) saving "inbox-relay-add-button"
 
           else
             emptyHtml
@@ -1158,8 +1158,8 @@ updateRelayModelInbox relaysModel value =
 --       { relaysModel | searchRelay = value }
 
 
-addRelayBox : Theme -> I18Next.Translations -> Maybe String -> Suggestions -> (Maybe String -> RelaysModel) -> (String -> Msg) -> Bool -> Html Msg
-addRelayBox theme translations maybeValue suggestions updateRelayFn addRelayMsg saving =
+addRelayBox : Theme -> I18Next.Translations -> Maybe String -> Suggestions -> (Maybe String -> RelaysModel) -> (String -> Msg) -> Bool -> String -> Html Msg
+addRelayBox theme translations maybeValue suggestions updateRelayFn addRelayMsg saving testAttribute =
     let
         styles =
             stylesForTheme theme
@@ -1253,6 +1253,7 @@ addRelayBox theme translations maybeValue suggestions updateRelayFn addRelayMsg 
             }
             |> Button.withDisabled (not <| relayUrlValid maybeValue)
             |> Button.withIntermediateState saving
+            |> Button.withTestAttribute testAttribute
             |> Button.view
         ]
 
@@ -1415,6 +1416,7 @@ removeRelayButton relay removeMsg =
                 ]
             ]
         , Events.onClick (removeMsg relay.urlWithoutProtocol)
+        , Attr.attribute "data-test" ("remove-relay-button-" ++ relay.urlWithoutProtocol)
         ]
         [ Icon.FeatherIcon FeatherIcons.delete
             |> Icon.view
@@ -1473,7 +1475,7 @@ nip96ServersSection shared user mediaServersModel =
         , p [] [ text <| Translations.nip96ServersDescription [ shared.browserEnv.translations ] ]
         , viewMediaServersList shared.theme shared.browserEnv.translations readOnly (Just <| AddDefaultNip96MediaServers user.pubKey suggestedServers) (RemoveNip96MediaServer user.pubKey) nip96Servers
         , if not readOnly then
-            addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.nip96Server nip96ServerSuggestions (updateNip96Server mediaServersModel) (AddNip96MediaServer user.pubKey) saving
+            addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.nip96Server nip96ServerSuggestions (updateNip96Server mediaServersModel) (AddNip96MediaServer user.pubKey) saving "nip96-server-add-button"
 
           else
             text <| Translations.mediaServerReadOnlyLoginInfo [ shared.browserEnv.translations ]
@@ -1544,7 +1546,7 @@ blossomServersSection shared user mediaServersModel =
         , p [] [ text <| Translations.blossomServersDescription [ shared.browserEnv.translations ] ]
         , viewMediaServersList shared.theme shared.browserEnv.translations readOnly Nothing (RemoveBlossomMediaServer user.pubKey) blossomServers
         , if not readOnly then
-            addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.blossomServer blossomServerSuggestions (updateBlossomServer mediaServersModel) (AddBlossomMediaServer user.pubKey) saving
+            addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.blossomServer blossomServerSuggestions (updateBlossomServer mediaServersModel) (AddBlossomMediaServer user.pubKey) saving "blossom-server-add-button"
 
           else
             text <| Translations.mediaServerReadOnlyLoginInfo [ shared.browserEnv.translations ]
@@ -1652,8 +1654,8 @@ removeMediaServerButton mediaServer removeMsg =
         ]
 
 
-addMediaServerBox : Theme -> I18Next.Translations -> Maybe String -> Suggestions -> (Maybe String -> MediaServersModel) -> (String -> Msg) -> Bool -> Html Msg
-addMediaServerBox theme translations maybeValue suggestions updateMediaServerFn addMediaServerMsg saving =
+addMediaServerBox : Theme -> I18Next.Translations -> Maybe String -> Suggestions -> (Maybe String -> MediaServersModel) -> (String -> Msg) -> Bool -> String -> Html Msg
+addMediaServerBox theme translations maybeValue suggestions updateMediaServerFn addMediaServerMsg saving testAttribute =
     let
         styles =
             stylesForTheme theme
@@ -1755,6 +1757,7 @@ addMediaServerBox theme translations maybeValue suggestions updateMediaServerFn 
             }
             |> Button.withDisabled (not <| mediaServerUrlValid serverUrlWithProtocol)
             |> Button.withIntermediateState saving
+            |> Button.withTestAttribute testAttribute
             |> Button.view
         ]
 
@@ -1998,13 +2001,13 @@ viewProfileEditor shared configCheckIssues user profileModel =
 viewImageSelection : Shared.Model -> (Bool -> Msg) -> ImageUploadType -> ProfileModel -> Html Msg
 viewImageSelection shared onImageLoadedMsg imageUploadType profileModel =
     let
-        imageUrl =
+        ( imageUrl, testAttribute ) =
             case imageUploadType of
                 ImagePicture ->
-                    profileModel.picture
+                    ( profileModel.picture, "profile-picture-button" )
 
                 ImageBanner ->
-                    profileModel.banner
+                    ( profileModel.banner, "profile-banner-button" )
     in
     div
         [ css
@@ -2022,6 +2025,7 @@ viewImageSelection shared onImageLoadedMsg imageUploadType profileModel =
             , theme = shared.theme
             }
             |> Button.withTypeSecondary
+            |> Button.withTestAttribute testAttribute
             |> Button.view
         ]
 

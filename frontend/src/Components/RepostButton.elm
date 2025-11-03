@@ -176,6 +176,7 @@ view (Settings settings) =
         }
         |> InteractionButton.withLabel label
         |> InteractionButton.withOnClickAction clickAction
+        |> InteractionButton.withTestAttribute "repost-button"
         |> InteractionButton.view
         |> Html.map settings.toMsg
 

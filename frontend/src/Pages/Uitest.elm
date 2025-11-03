@@ -386,6 +386,7 @@ dropdownElement shared model =
         , toLabel = dropdownItemToText shared.browserEnv.translations
         }
         |> Components.Dropdown.withOnChange DropdownChanged
+        |> Components.Dropdown.withTestAttribute "test"
         |> Components.Dropdown.view
 
 
@@ -474,6 +475,7 @@ primaryButtonElement shared model =
         , theme = model.theme
         }
         |> Components.Button.withTypePrimary
+        |> Components.Button.withTestAttribute "primary-button-enabled"
         |> Components.Button.view
 
 
@@ -486,6 +488,7 @@ primaryButtonDisabledElement shared model =
         }
         |> Components.Button.withTypePrimary
         |> Components.Button.withDisabled True
+        |> Components.Button.withTestAttribute "primary-button-disabled"
         |> Components.Button.view
 
 
@@ -497,6 +500,7 @@ secondaryButtonElement shared model =
         , theme = model.theme
         }
         |> Components.Button.withTypeSecondary
+        |> Components.Button.withTestAttribute "secondary-button-enabled"
         |> Components.Button.view
 
 
@@ -509,6 +513,7 @@ secondaryButtonDisabledElement shared model =
         }
         |> Components.Button.withTypeSecondary
         |> Components.Button.withDisabled True
+        |> Components.Button.withTestAttribute "secondary-button-disabled"
         |> Components.Button.view
 
 
@@ -521,6 +526,7 @@ regularButtonElement shared model =
         }
         |> Components.Button.withIconLeft (Components.Icon.FeatherIcon FeatherIcons.feather)
         |> Components.Button.withIconRight (Components.Icon.MaterialIcon Components.Icon.MaterialFavorite 20 Components.Icon.Inherit)
+        |> Components.Button.withTestAttribute "regular-button-enabled"
         |> Components.Button.view
 
 
@@ -532,6 +538,7 @@ regularButtonDisabledElement shared model =
         , theme = model.theme
         }
         |> Components.Button.withDisabled True
+        |> Components.Button.withTestAttribute "regular-button-disabled"
         |> Components.Button.view
 
 
@@ -548,6 +555,7 @@ entryFieldElement shared model =
         }
         |> Components.EntryField.withLabel (Translations.entryFieldLabel [ shared.browserEnv.translations ])
         |> Components.EntryField.withPlaceholder (Translations.entryFieldPlaceholder [ shared.browserEnv.translations ])
+        |> Components.EntryField.withTestAttribute "test"
         |> Components.EntryField.view
 
 
@@ -561,6 +569,7 @@ textAreaElement shared model =
         |> Components.EntryField.withLabel (Translations.textAreaLabel [ shared.browserEnv.translations ])
         |> Components.EntryField.withPlaceholder (Translations.textAreaPlaceholder [ shared.browserEnv.translations ])
         |> Components.EntryField.withRows 5
+        |> Components.EntryField.withTestAttribute "test"
         |> Components.EntryField.view
 
 

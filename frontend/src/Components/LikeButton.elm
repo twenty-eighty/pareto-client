@@ -174,6 +174,7 @@ view (Settings settings) =
         }
         |> InteractionButton.withOnClickAction clickAction
         |> InteractionButton.withLabel label
+        |> InteractionButton.withTestAttribute "like-button"
         |> InteractionButton.view
         |> Html.map settings.toMsg
 

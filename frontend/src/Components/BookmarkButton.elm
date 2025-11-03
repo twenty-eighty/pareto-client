@@ -182,6 +182,7 @@ view (Settings settings) =
         |> labelModifier
         |> InteractionButton.withOnClickAction clickAction
         |> InteractionButton.withReactIcon (Icon.MaterialIcon Icon.MaterialOutlineBookmarkAdd 30 Icon.Inherit)
+        |> InteractionButton.withTestAttribute "bookmark-button"
         |> InteractionButton.view
         |> Html.map settings.toMsg
 
