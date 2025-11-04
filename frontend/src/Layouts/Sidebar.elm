@@ -2,6 +2,7 @@ module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layo
 
 --import Browser.Events as Events
 
+import Browser.Dom as Dom
 import BrowserEnv exposing (BrowserEnv, Environment)
 import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button
@@ -16,6 +17,7 @@ import Html.Styled as Html exposing (Html, a, aside, div, img, main_, span, text
 import Html.Styled.Attributes as Attr exposing (class, css)
 import Html.Styled.Events exposing (..)
 import I18Next
+import Json.Decode as Decode
 import Layout exposing (Layout)
 import Nostr
 import Nostr.BookmarkList exposing (bookmarksCount)
@@ -31,6 +33,7 @@ import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
+import Task
 import Translations.Sidebar as Translations
 import Ui.Profile
 import Ui.Shared exposing (countBadge, emptyHtml)
@@ -330,12 +333,16 @@ layout props shared route =
 
 
 type alias Model =
-    { rightPartToggle : Bool }
+    { rightPartToggle : Bool
+    , scrollPosition : Int
+    }
 
 
 init : () -> ( Model, Effect Msg )
 init _ =
-    ( { rightPartToggle = False }
+    ( { rightPartToggle = False
+      , scrollPosition = 0
+      }
     , Effect.none
     )
 
@@ -349,6 +356,9 @@ type Msg
     | SetClientRole Bool ClientRole
     | SetTestMode BrowserEnv.TestMode
     | ReceivedMessage IncomingMessage
+    | Scrolled Int
+    | ScrollToPosition Int
+    | NoOp
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -370,10 +380,40 @@ update _ msg model =
             else
                 ( model, Effect.none )
 
+        Scrolled pos ->
+            let
+                oldPosition =
+                    model.scrollPosition
+
+                ( newPosition, effect ) =
+                    if abs (oldPosition - pos) > 50 then
+                        ( pos, Effect.sendMsg (ScrollToPosition pos) )
+
+                    else
+                        ( oldPosition, Effect.none )
+            in
+            ( { model | scrollPosition = newPosition }, Effect.none )
+
+        ScrollToPosition pos ->
+            let
+                jumpToPosition : Cmd Msg
+                jumpToPosition =
+                    Dom.setViewportOf Shared.contentId 0 (toFloat pos)
+                        |> Task.attempt (\_ -> NoOp)
+            in
+            ( model, Effect.sendCmd jumpToPosition )
+
+        NoOp ->
+            ( model, Effect.none )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Ports.receiveMessage ReceivedMessage
+    Sub.batch
+        [ Ports.receiveMessage ReceivedMessage
+
+        -- TODO: add subscription to react on URL changes and triggering ScrollToPosition message
+        ]
 
 
 
@@ -594,7 +634,7 @@ viewSidebar props shared model currentPath toContentMsg content =
                                 Tw.contents
                             ]
                         ]
-                        [ viewMainContent content (props.fixedTopPart |> Maybe.map (\( _, height ) -> height)) ]
+                        [ viewMainContent content toContentMsg (props.fixedTopPart |> Maybe.map (\( _, height ) -> height)) ]
                     , props.fixedRightPart
                         |> Maybe.map
                             (\html ->
@@ -619,8 +659,15 @@ viewSidebar props shared model currentPath toContentMsg content =
         ]
 
 
-viewMainContent : List (Html contentMsg) -> Maybe String -> Html contentMsg
-viewMainContent content maybeFixedTopPartHeight =
+scrollHandler : (Msg -> contentMsg) -> Decode.Decoder contentMsg
+scrollHandler toContentMsg =
+    Decode.map Scrolled
+        (Decode.at [ "target", "scrollTop" ] Decode.int)
+        |> Decode.map toContentMsg
+
+
+viewMainContent : List (Html contentMsg) -> (Msg -> contentMsg) -> Maybe String -> Html contentMsg
+viewMainContent content toContentMsg maybeFixedTopPartHeight =
     let
         topPartHeight =
             maybeFixedTopPartHeight |> Maybe.withDefault "0px"
@@ -647,6 +694,7 @@ viewMainContent content maybeFixedTopPartHeight =
                     , Css.property "height" "auto"
                     ]
                 ]
+            , on "scroll" (scrollHandler toContentMsg)
             ]
             [ div
                 [ css [ Tw.mb_4 ] ]
