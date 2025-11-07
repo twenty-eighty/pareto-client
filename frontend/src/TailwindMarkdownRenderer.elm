@@ -593,11 +593,22 @@ defaultFormatCodeBlock body =
 
 formatLink : Styles msg -> { title : Maybe String, destination : String } -> List (Html msg) -> Html msg
 formatLink styles { destination } body =
+    let
+        -- open external links in new tab.
+        -- Most users don't know how to control opening external links in their browser.
+        relAttr =
+            if String.startsWith "http" destination then
+                [ Attr.rel "nofollow noopener noreferrer"
+                , Attr.target "_blank"
+                ]
+            else
+                []
+    in
     Html.a
         (styles.colorStyleLinks
             ++ styles.textStyleLinks
+            ++ relAttr
             ++ [ Attr.href destination
-               , Attr.rel "nofollow"
                ]
         )
         body
