@@ -138,21 +138,22 @@ defmodule NostrBackend.PostHogPlug do
   end
 
   defp ua_info(%UAInspector.Result{
-      user_agent: user_agent,
-      browser_family: browser_family,
-      client: %UAInspector.Result.Client{
+         user_agent: user_agent,
+         browser_family: browser_family,
+         client: %UAInspector.Result.Client{
            engine: client_engine,
            engine_version: client_engine_version,
            name: client_name,
            type: client_type,
            version: client_version
-        },
-      os: %UAInspector.Result.OS{
+         },
+         os: %UAInspector.Result.OS{
            name: os_name,
            platform: os_platform,
            version: os_version
-        },
-      os_family: os_family}) do
+         },
+         os_family: os_family
+       }) do
     %{
       client: %{
         engine: client_engine,
@@ -221,14 +222,13 @@ defmodule NostrBackend.PostHogPlug do
   # fallback case
   defp ua_info(_result) do
     %{
-    browser_family: "unknown",
-    engine_version: "unknown",
-    name: "unknown",
-    version: "unknown",
-    type: "unknown",
+      browser_family: "unknown",
+      engine_version: "unknown",
+      name: "unknown",
+      version: "unknown",
+      type: "unknown"
     }
   end
-
 
   defp extract_client_hints(conn) do
     Enum.reduce(@client_hint_headers, %{}, fn header, acc ->

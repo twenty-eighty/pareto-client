@@ -5,9 +5,9 @@ defmodule NostrBackendWeb.NostrController do
   alias NostrBackend.Nip05Cache
 
   @default_relays [
-        "wss://nostr.pareto.space",
-        "wss://nostr.pareto.town",
-        "wss://pareto.nostr1.com"
+    "wss://nostr.pareto.space",
+    "wss://nostr.pareto.town",
+    "wss://pareto.nostr1.com"
   ]
 
   # Define the names and relays in a module attribute
@@ -102,6 +102,7 @@ defmodule NostrBackendWeb.NostrController do
 
       pubkey ->
         relays_for_pubkey = Map.get(@nostr_data["relays"], pubkey, [])
+
         data = %{
           "names" => %{downcased => pubkey},
           "relays" => %{pubkey => relays_for_pubkey}
@@ -142,6 +143,7 @@ defmodule NostrBackendWeb.NostrController do
 
       {:error, reason} ->
         Logger.debug("NIP-05: Validation failed for: #{handle}, error: #{inspect(reason)}")
+
         conn
         |> put_status(:not_found)
         |> text(reason)

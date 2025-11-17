@@ -41,10 +41,12 @@ defmodule NostrBackend.ProfileCache do
       {:ok, relay, event_or_events} ->
         Logger.debug("Fetched profile event(s) from relay #{relay}: #{inspect(event_or_events)}")
         # Handle both single event and list of events
-        event_to_parse = case event_or_events do
-          [single_event] -> single_event
-          _ -> event_or_events
-        end
+        event_to_parse =
+          case event_or_events do
+            [single_event] -> single_event
+            _ -> event_or_events
+          end
+
         profile = Content.parse_profile_event(event_to_parse)
 
         # Only return the profile if it has meaningful data (more than just relays)

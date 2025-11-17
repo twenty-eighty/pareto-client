@@ -4,9 +4,12 @@ defmodule NostrBackendWeb.Nip11Controller do
   require Logger
 
   @cache_name :nip11_cache
-  @success_cache_ttl :timer.hours(24)  # Cache successful results for 24 hours
-  @error_cache_ttl :timer.minutes(30)  # Cache errors for 30 minutes
-  @timeout 5_000 # 5 seconds timeout for HTTP requests
+  # Cache successful results for 24 hours
+  @success_cache_ttl :timer.hours(24)
+  # Cache errors for 30 minutes
+  @error_cache_ttl :timer.minutes(30)
+  # 5 seconds timeout for HTTP requests
+  @timeout 5_000
 
   def fetch_nip11(conn, %{"url" => relay_url}) do
     Logger.debug("NIP-11: Fetching data for relay: #{relay_url}")
@@ -31,6 +34,7 @@ defmodule NostrBackendWeb.Nip11Controller do
       {:ok, :invalid_url} ->
         # Serve cached invalid URL result
         Logger.debug("NIP-11: Serving cached invalid URL result for: #{relay_url}")
+
         conn
         |> put_status(:bad_request)
         |> text("Invalid relay URL")
@@ -38,6 +42,7 @@ defmodule NostrBackendWeb.Nip11Controller do
       {:ok, :http_error} ->
         # Serve cached HTTP error result
         Logger.debug("NIP-11: Serving cached HTTP error result for: #{relay_url}")
+
         conn
         |> put_status(:bad_request)
         |> text("Failed to fetch NIP-11 data: HTTP error")
@@ -45,6 +50,7 @@ defmodule NostrBackendWeb.Nip11Controller do
       {:ok, :invalid_json} ->
         # Serve cached JSON error result
         Logger.debug("NIP-11: Serving cached JSON error result for: #{relay_url}")
+
         conn
         |> put_status(:bad_request)
         |> text("Failed to fetch NIP-11 data: Invalid JSON")
@@ -52,12 +58,14 @@ defmodule NostrBackendWeb.Nip11Controller do
       {:ok, :request_failed} ->
         # Serve cached request failed result
         Logger.debug("NIP-11: Serving cached request failed result for: #{relay_url}")
+
         conn
         |> put_status(:bad_request)
         |> text("Failed to fetch NIP-11 data: Request failed")
 
       {:error, reason} ->
         Logger.error("NIP-11: Cache error: #{inspect(reason)}")
+
         conn
         |> put_status(:internal_server_error)
         |> text("Cache error: #{inspect(reason)}")
@@ -72,12 +80,14 @@ defmodule NostrBackendWeb.Nip11Controller do
       {:error, :invalid_url} ->
         # Cache invalid URL error for 1 hour
         Cachex.put(@cache_name, relay_url, :invalid_url, ttl: :timer.hours(1))
+
         conn
         |> put_status(:bad_request)
         |> text("Invalid relay URL")
 
       {:error, reason} ->
         Logger.error("NIP-11: Failed to fetch data for #{relay_url}: #{inspect(reason)}")
+
         conn
         |> put_status(:bad_request)
         |> text("Failed to fetch NIP-11 data: #{inspect(reason)}")

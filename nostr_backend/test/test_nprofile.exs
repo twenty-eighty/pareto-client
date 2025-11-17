@@ -13,30 +13,32 @@ defmodule Bech32 do
     maxv = (1 <<< to) - 1
     max_acc = (1 <<< (from + to - 1)) - 1
 
-    ret = Enum.reduce(binary_to_list(data), {acc, bits, []}, fn b, {acc, bits, ret} ->
-      value = b
-      acc = ((acc <<< from) ||| value) &&& max_acc
-      bits = bits + from
+    ret =
+      Enum.reduce(binary_to_list(data), {acc, bits, []}, fn b, {acc, bits, ret} ->
+        value = b
+        acc = (acc <<< from ||| value) &&& max_acc
+        bits = bits + from
 
-      ret = convert_bits_loop(acc, bits, to, maxv, ret)
-      {acc, bits - (div(bits, to) * to), ret}
-    end)
+        ret = convert_bits_loop(acc, bits, to, maxv, ret)
+        {acc, bits - div(bits, to) * to, ret}
+      end)
 
     {final_acc, final_bits, final_ret} = ret
 
     # Handle padding
-    final_ret = if pad && final_bits > 0 do
-      final_ret ++ [final_acc <<< (to - final_bits)]
-    else
-      final_ret
-    end
+    final_ret =
+      if pad && final_bits > 0 do
+        final_ret ++ [final_acc <<< (to - final_bits)]
+      else
+        final_ret
+      end
 
     {:ok, :binary.list_to_bin(final_ret)}
   end
 
   defp convert_bits_loop(acc, bits, to, maxv, ret) do
     if bits >= to do
-      ret = ret ++ [(acc >>> (bits - to)) &&& maxv]
+      ret = ret ++ [acc >>> (bits - to) &&& maxv]
       convert_bits_loop(acc, bits - to, to, maxv, ret)
     else
       ret
@@ -62,7 +64,8 @@ defmodule Bech32 do
     data
     |> :binary.bin_to_list()
     |> Enum.map(fn val ->
-      index = val &&& 31  # Ensure only using 5 bits
+      # Ensure only using 5 bits
+      index = val &&& 31
       String.at(@charset, index)
     end)
     |> Enum.join()
