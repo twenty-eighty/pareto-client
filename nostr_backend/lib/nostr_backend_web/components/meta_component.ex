@@ -20,7 +20,7 @@ defmodule NostrBackendWeb.MetaComponent do
     <meta name="twitter:description" content={@page_description || "Default description."} />
     <meta
       name="twitter:image"
-      content={@page_image || NostrBackendWeb.Endpoint.static_url() <> "/images/default_image.jpg"}
+      content={twitter_image_url(@page_image || NostrBackendWeb.Endpoint.static_url() <> "/images/default_image.jpg")}
     />
     """
   end
