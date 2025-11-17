@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <link rel="canonical" href={@canonical_url || @meta_url} />
-    <link rel="sitemap" type="application/xml" title="Sitemap" href="https://pareto.space/sitemap/sitemap.xml.gz">
+    <link
+      rel="sitemap"
+      type="application/xml"
+      title="Sitemap"
+      href="https://pareto.space/sitemap/sitemap.xml.gz"
+    />
 
     <title><%= @meta_title %></title>
     <meta name="description" content={@meta_description || "Pareto Project"} />
@@ -45,18 +50,50 @@
     <meta name="msapplication-TileImage" content="/images/icon/ms-icon-144x144.png" />
     <meta name="theme-color" content="#ffffff" />
     <!-- Atom feed links -->
-    <link rel="alternate" type="application/atom+xml" title="Pareto Articles" href="/atom/feed.xml" />
-    <link rel="alternate" type="application/atom+xml" title="Pareto English Articles" href="/atom/en_feed.xml" />
-    <link rel="alternate" type="application/atom+xml" title="Pareto deutsche Artikel" href="/atom/de_feed.xml" />
+    <link
+      rel="alternate"
+      type="application/atom+xml"
+      title="Pareto Articles"
+      href="/atom/feed.xml"
+    />
+    <link
+      rel="alternate"
+      type="application/atom+xml"
+      title="Pareto English Articles"
+      href="/atom/en_feed.xml"
+    />
+    <link
+      rel="alternate"
+      type="application/atom+xml"
+      title="Pareto deutsche Artikel"
+      href="/atom/de_feed.xml"
+    />
     <!-- RSS feed links -->
     <link rel="alternate" type="application/rss+xml" title="Pareto RSS Feed" href="/rss/feed.xml" />
-    <link rel="alternate" type="application/rss+xml" title="Pareto English RSS Feed" href="/rss/en_feed.xml" />
-    <link rel="alternate" type="application/rss+xml" title="Pareto deutscher RSS Feed" href="/rss/de_feed.xml" />
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title="Pareto English RSS Feed"
+      href="/rss/en_feed.xml"
+    />
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title="Pareto deutscher RSS Feed"
+      href="/rss/de_feed.xml"
+    />
 
-    <script src="https://sdk.feedback.one/v0/core.min.js" data-project-id="0197b2f7-ff12-73a1-bc85-554049b435ef" defer ></script>
+    <script
+      src="https://sdk.feedback.one/v0/core.min.js"
+      data-project-id="0197b2f7-ff12-73a1-bc85-554049b435ef"
+      defer
+    >
+    </script>
     <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
-    <script async src="/js/textarea-autoresize.js"></script>
-    <script async src="/js/script-element.js"></script>
+    <script async src="/js/textarea-autoresize.js">
+    </script>
+    <script async src="/js/script-element.js">
+    </script>
     <link rel="stylesheet" crossorigin href={NostrBackendWeb.FrontendAssets.css_file()} />
     <script type="module" crossorigin src={NostrBackendWeb.FrontendAssets.js_file()}>
     </script>

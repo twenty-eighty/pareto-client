@@ -17,7 +17,9 @@ defmodule NostrBackendWeb.Plugs.RequestLogger do
     )
 
     # Log the enhanced request information
-    Logger.info("#{conn.method} #{conn.request_path}#{if conn.query_string != "", do: "?#{conn.query_string}", else: ""}")
+    Logger.info(
+      "#{conn.method} #{conn.request_path}#{if conn.query_string != "", do: "?#{conn.query_string}", else: ""}"
+    )
 
     # Register a callback to log the response
     register_before_send(conn, &log_response/1)
@@ -32,10 +34,13 @@ defmodule NostrBackendWeb.Plugs.RequestLogger do
 
   defp get_response_time(conn) do
     case conn.assigns[:request_start_time] do
-      nil -> "~1ms"
+      nil ->
+        "~1ms"
+
       start_time ->
         end_time = System.monotonic_time(:microsecond)
         duration = end_time - start_time
+
         if duration < 1000 do
           "#{duration}µs"
         else

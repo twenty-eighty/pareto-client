@@ -32,7 +32,8 @@ defmodule NostrBackend.NoteCache do
     end
   end
 
-  @spec load_note(%{id: binary(), kind: 20, relays: [binary()]}) :: {:ok, picture_post()} | {:error, binary()}
+  @spec load_note(%{id: binary(), kind: 20, relays: [binary()]}) ::
+          {:ok, picture_post()} | {:error, binary()}
   defp load_note(%{id: id, kind: 20, relays: relays}) do
     case NostrClient.fetch_picture_post(id, relays) do
       {:ok, [event | _]} -> {:ok, Content.parse_picture_post(event)}

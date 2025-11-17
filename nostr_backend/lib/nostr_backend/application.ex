@@ -72,7 +72,6 @@ defmodule NostrBackend.Application do
         {Cachex, name: :rumble_cache, ttl_interval: :timer.minutes(1440)},
         id: :rumble_cache
       ),
-
       NostrBackend.PostHogBuffer,
 
       # Start a worker by calling: NostrBackend.Worker.start_link(arg)

@@ -10,7 +10,12 @@ import Config
 config :nostr_backend,
   generators: [timestamp_type: :utc_datetime],
   feed_generator: %{
-    source_pubkey: System.get_env("FEED_SOURCE_PUBKEY", "0f47948ccf4d12064ede2e0aa744868a2443cb1c42b32c06191e0d902205abef"), # authors@pareto.space
+    # authors@pareto.space
+    source_pubkey:
+      System.get_env(
+        "FEED_SOURCE_PUBKEY",
+        "0f47948ccf4d12064ede2e0aa744868a2443cb1c42b32c06191e0d902205abef"
+      ),
     feed_size: String.to_integer(System.get_env("FEED_SIZE", "20")),
     relay_url: System.get_env("FEED_RELAY_URL", "wss://nostr.pareto.space")
   },
