@@ -27,6 +27,11 @@ connect relays =
         }
 
 
+login : String -> Cmd msg
+login nsec =
+    sendCommand { command = "login", value = Encode.object [ ( "nsec", Encode.string nsec ) ] }
+
+
 loginSignUp : Cmd msg
 loginSignUp =
     sendCommand { command = "loginSignUp", value = Encode.null }
