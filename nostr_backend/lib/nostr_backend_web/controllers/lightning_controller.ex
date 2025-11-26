@@ -29,18 +29,19 @@ defmodule NostrBackendWeb.LightningController do
     lowercase = String.downcase(username)
 
     nostr_data = NostrController.get_nostr_data()
+
     case {@lnurlp_data[lowercase], Map.get(nostr_data["names"], lowercase)} do
       {nil, _} ->
         conn
         |> put_status(:not_found)
         |> json(%{error: "User not found"})
 
-      { _lud16, nil} ->
+      {_lud16, nil} ->
         conn
         |> put_status(:not_found)
         |> json(%{error: "Nostr pubkey not found for user"})
 
-      { lud16, nostr_pubkey} ->
+      {lud16, nostr_pubkey} ->
         lnurlp_url = build_lnurlp_url(lud16)
 
         case fetch_lnurlp_json(lnurlp_url) do

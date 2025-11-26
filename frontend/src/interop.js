@@ -190,6 +190,10 @@ export const onReady = ({ app, env }) => {
   function processOnlineCommand(app, command, value) {
     debugLog('process command', command);
     switch (command) {
+      case 'login':
+        login(app, value);
+        break;
+
       case 'loginSignUp':
         loginSignUp(app)
         break;
@@ -238,6 +242,19 @@ export const onReady = ({ app, env }) => {
         toggleArticleInfo(app);
         break;
     }
+  }
+
+  async function login(app, value) {
+    const signer = new NDKPrivateKeySigner(value.nsec);
+    const user = await signer.user();        // resolves immediately once the key is decoded
+    document.dispatchEvent(new CustomEvent('nlSetAuth', {
+      detail: {
+        type: 'login',
+        method: 'local',
+        pubkey: user.pubkey,                 // 64-char hex string
+        localNsec: signer.privateKey
+      }
+    }));
   }
 
   function loginSignUp(app) {

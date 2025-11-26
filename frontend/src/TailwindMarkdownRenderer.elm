@@ -85,57 +85,21 @@ renderer environment styles fnGetProfile =
                 imagesrc =
                     image.src
                         |> ensureHttps
-                        |> Ui.Links.scaledImageLink environment 650
             in
-            case ( image.title, image.src ) of
-                ( _, "" ) ->
+            case ( image.src ) of
+                ( "" ) ->
                     -- ignore images without src attribute
                     emptyHtml
 
-                ( Just "1.00", _ ) ->
-                    -- dirty fix - route96 server delivers caption as "1.00" even if it wasn't set explicitly
-                    Html.node "center"
-                        []
-                        [ Html.img
-                            [ Attr.src imagesrc
-                            , Attr.alt image.alt
-                            , css
-                                [ Tw.max_h_96
-                                ]
-                            ]
-                            []
-                        ]
-
-                ( Just title, _ ) ->
-                    Html.node "center"
-                        []
-                        [ Html.figure
-                            [ css
-                                []
-                            ]
-                            [ Html.img
-                                [ Attr.src imagesrc
-                                , Attr.alt image.alt
-                                ]
-                                []
-                            , Html.figcaption
-                                []
-                                [ Html.text title ]
+                ( _ ) ->
+                    Html.img
+                        [ Attr.src imagesrc
+                        , Attr.alt image.alt
+                        , css
+                            [ Tw.inline
                             ]
                         ]
-
-                ( Nothing, _ ) ->
-                    Html.node "center"
                         []
-                        [ Html.img
-                            [ Attr.src imagesrc
-                            , Attr.alt image.alt
-                            , css
-                                [ Tw.max_h_96
-                                ]
-                            ]
-                            []
-                        ]
     , unorderedList =
         \items ->
             Html.ul (styles.textStyleBody ++ styles.colorStyleGrayscaleText)
@@ -593,11 +557,22 @@ defaultFormatCodeBlock body =
 
 formatLink : Styles msg -> { title : Maybe String, destination : String } -> List (Html msg) -> Html msg
 formatLink styles { destination } body =
+    let
+        -- open external links in new tab.
+        -- Most users don't know how to control opening external links in their browser.
+        relAttr =
+            if String.startsWith "http" destination then
+                [ Attr.rel "nofollow noopener noreferrer"
+                , Attr.target "_blank"
+                ]
+            else
+                []
+    in
     Html.a
         (styles.colorStyleLinks
             ++ styles.textStyleLinks
+            ++ relAttr
             ++ [ Attr.href destination
-               , Attr.rel "nofollow"
                ]
         )
         body

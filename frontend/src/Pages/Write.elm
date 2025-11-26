@@ -1352,6 +1352,9 @@ viewImage translations model =
                 [ css
                     [ Tw.max_w_72
                     , Tw.cursor_pointer
+                    , Tw.px_2
+                    , Tw.py_2
+                    , Tw.border_2
                     ]
                 ]
                 [ img

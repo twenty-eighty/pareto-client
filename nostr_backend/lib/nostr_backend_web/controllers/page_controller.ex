@@ -68,8 +68,7 @@ defmodule NostrBackendWeb.PageController do
   def index(conn, _params) do
     conn
     |> add_meta_tags
-
-    render(:index)
+    |> render(:index)
   end
 
   def search(conn, _params) do

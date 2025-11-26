@@ -8,54 +8,55 @@ defmodule NostrBackend.Content do
   @type article_query :: %{kind: integer(), identifier: binary(), author: binary()}
   @type address_query :: %{kind: integer(), identifier: binary()}
   @type article :: %{
-    article_id: binary(),
-    kind: integer(),
-    author: binary(),
-    identifier: binary() | nil,
-    title: binary() | nil,
-    description: binary() | nil,
-    content: binary(),
-    image_url: binary() | nil,
-    published_at: DateTime.t(),
-    created_at: DateTime.t(),
-    tags: list()
-  }
+          article_id: binary(),
+          kind: integer(),
+          author: binary(),
+          identifier: binary() | nil,
+          title: binary() | nil,
+          description: binary() | nil,
+          content: binary(),
+          image_url: binary() | nil,
+          published_at: DateTime.t(),
+          created_at: DateTime.t(),
+          tags: list()
+        }
   @type community :: %{
-    community_id: binary(),
-    name: binary() | nil,
-    description: binary() | nil,
-    image: binary() | nil
-  }
+          community_id: binary(),
+          name: binary() | nil,
+          description: binary() | nil,
+          image: binary() | nil
+        }
   @type note :: %{
-    note_id: binary(),
-    content: binary()
-  }
+          note_id: binary(),
+          content: binary()
+        }
   @type picture_post :: %{
-    note_id: binary(),
-    content: binary(),
-    image: binary() | nil
-  }
+          note_id: binary(),
+          content: binary(),
+          image: binary() | nil
+        }
   @type profile :: %{
-    profile_id: binary() | nil,
-    name: binary() | nil,
-    username: binary() | nil,
-    about: binary() | nil,
-    banner: binary() | nil,
-    image: binary() | nil,
-    display_name: binary() | nil,
-    website: binary() | nil,
-    lud16: binary() | nil,
-    nip05: binary() | nil,
-    picture: binary() | nil
-  }
+          profile_id: binary() | nil,
+          name: binary() | nil,
+          username: binary() | nil,
+          about: binary() | nil,
+          banner: binary() | nil,
+          image: binary() | nil,
+          display_name: binary() | nil,
+          website: binary() | nil,
+          lud16: binary() | nil,
+          nip05: binary() | nil,
+          picture: binary() | nil
+        }
 
   # Article functions
   @spec get_article_with_query(article_query()) :: {:ok, article()} | {:error, binary()}
   def get_article_with_query(%{kind: kind, identifier: identifier, author: author}) do
     case NostrClient.fetch_article_by_address(kind, author, identifier) do
-      {:ok, event} ->
-        article_data = parse_article_event(event)
-        {:ok, article_data}
+      {:ok, _relay, [event | _]} ->
+        {:ok, parse_article_event(event)}
+      {:ok, _relay, []} ->
+        {:error, "No events found for article"}
 
       {:error, reason} ->
         {:error, reason}
@@ -65,9 +66,10 @@ defmodule NostrBackend.Content do
   @spec get_article_by_address(address_query()) :: {:ok, article()} | {:error, binary()}
   def get_article_by_address(%{kind: kind, identifier: identifier}) do
     case NostrClient.fetch_article_by_address(kind, identifier) do
-      {:ok, event} ->
-        article_data = parse_article_event(event)
-        {:ok, article_data}
+      {:ok, _relay, [event | _]} ->
+        {:ok, parse_article_event(event)}
+      {:ok, _relay, []} ->
+        {:error, "No events found for article"}
 
       {:error, reason} ->
         {:error, reason}
@@ -116,6 +118,7 @@ defmodule NostrBackend.Content do
       note_id: event["id"],
       content: event["content"]
     }
+
     Logger.debug("Parsed note event: #{inspect(note)}")
     note
   end
@@ -127,48 +130,48 @@ defmodule NostrBackend.Content do
       content: event["content"],
       image: extract_first_image(event)
     }
+
     Logger.debug("Parsed picture post event: #{inspect(picture_post)}")
     picture_post
   end
 
   @spec parse_profile_event(nostr_event() | event_tuple()) :: profile()
+  def parse_profile_event({_, _, event_data}) when is_map(event_data) do
+    parse_profile_event(event_data)
+  end
+
   def parse_profile_event(event) when is_map(event) do
     Logger.debug("Parsing profile event: #{inspect(event)}")
 
-    # Handle both event formats: direct map and tuple with type/id/event
-    event_map = case event do
-      {_type, _id, event_data} when is_map(event_data) -> event_data
-      event_data when is_map(event_data) -> event_data
-      _ ->
-        Logger.warning("Invalid profile event format: #{inspect(event)}")
-        %{}
-    end
-
-    # Early return if event_map is empty
-    if map_size(event_map) == 0 do
+    # Early return if event is empty
+    if map_size(event) == 0 do
       Logger.warning("Empty event map for profile parsing")
       %{}
     else
-      content = case event_map do
-        %{"content" => content} when is_binary(content) -> content
-        %{content: content} when is_binary(content) -> content
-        _ -> "{}"
-      end
+      content =
+        case event do
+          %{"content" => content} when is_binary(content) -> content
+          %{content: content} when is_binary(content) -> content
+          _ -> "{}"
+        end
 
-      decoded = case Jason.decode(content) do
-        {:ok, decoded} when is_map(decoded) ->
-          Logger.debug("Decoded profile content: #{inspect(decoded)}")
-          decoded
-        {:ok, _} ->
-          Logger.warning("Profile content decoded but not a map: #{inspect(content)}")
-          %{}
-        error ->
-          Logger.error("Failed to decode profile content: #{inspect(error)}")
-          %{}
-      end
+      decoded =
+        case Jason.decode(content) do
+          {:ok, decoded} when is_map(decoded) ->
+            Logger.debug("Decoded profile content: #{inspect(decoded)}")
+            decoded
+
+          {:ok, _} ->
+            Logger.warning("Profile content decoded but not a map: #{inspect(content)}")
+            %{}
+
+          error ->
+            Logger.error("Failed to decode profile content: #{inspect(error)}")
+            %{}
+        end
 
       # Get pubkey from either string or atom key
-      pubkey = event_map["pubkey"] || event_map[:pubkey]
+      pubkey = event["pubkey"] || event[:pubkey]
       Logger.debug("Extracted pubkey: #{inspect(pubkey)}")
 
       profile = %{
@@ -240,16 +243,22 @@ defmodule NostrBackend.Content do
             rescue
               _ -> fallback_to_created_at(event)
             end
-          :error -> fallback_to_created_at(event)
+
+          :error ->
+            fallback_to_created_at(event)
         end
-      _ -> fallback_to_created_at(event)
+
+      _ ->
+        fallback_to_created_at(event)
     end
   end
 
   @spec fallback_to_created_at(nostr_event()) :: DateTime.t()
   defp fallback_to_created_at(event) do
     case event["created_at"] do
-      nil -> DateTime.utc_now()
+      nil ->
+        DateTime.utc_now()
+
       created_at ->
         try do
           DateTime.from_unix!(created_at)
@@ -269,7 +278,7 @@ defmodule NostrBackend.Content do
     end
   end
 
-    @spec extract_first_image(nostr_event()) :: binary() | nil
+  @spec extract_first_image(nostr_event()) :: binary() | nil
   defp extract_first_image(event) do
     tags = event["tags"] || []
 
@@ -277,15 +286,23 @@ defmodule NostrBackend.Content do
     Enum.find_value(tags, fn tag ->
       case tag do
         # Standard image tag: ["image", "url"]
-        ["image", url | _] when is_binary(url) -> url
+        ["image", url | _] when is_binary(url) ->
+          url
+
         # URL tag pointing to image: ["url", "image_url"]
         ["url", url | _] when is_binary(url) ->
           if is_image_url?(url), do: url, else: nil
+
         # Image metadata tag: ["imeta", "url", "image_url", ...]
-        ["imeta", "url", url | _] when is_binary(url) -> url
+        ["imeta", "url", url | _] when is_binary(url) ->
+          url
+
         # Fallback for any other pattern starting with known image indicators
-        [type, url | _] when type in ["img", "picture"] and is_binary(url) -> url
-        _ -> nil
+        [type, url | _] when type in ["img", "picture"] and is_binary(url) ->
+          url
+
+        _ ->
+          nil
       end
     end)
   end
@@ -293,9 +310,9 @@ defmodule NostrBackend.Content do
   @spec is_image_url?(binary()) :: boolean()
   defp is_image_url?(url) do
     String.contains?(url, ".jpg") or String.contains?(url, ".jpeg") or
-    String.contains?(url, ".png") or String.contains?(url, ".gif") or
-    String.contains?(url, ".webp") or String.contains?(url, ".bmp") or
-    String.contains?(url, ".svg")
+      String.contains?(url, ".png") or String.contains?(url, ".gif") or
+      String.contains?(url, ".webp") or String.contains?(url, ".bmp") or
+      String.contains?(url, ".svg")
   end
 
   @spec render_markdown(binary()) :: binary()

@@ -24,7 +24,8 @@ defmodule NostrBackend.Nip11ControllerTest do
 
     test "handles cache errors gracefully", %{conn: conn} do
       # Test with a valid URL format but invalid domain
-      result = Nip11Controller.fetch_nip11(conn, %{"url" => "https://nonexistent-domain-12345.com"})
+      result =
+        Nip11Controller.fetch_nip11(conn, %{"url" => "https://nonexistent-domain-12345.com"})
 
       # Should return an error (either HTTP error or timeout)
       assert result.status == 400
