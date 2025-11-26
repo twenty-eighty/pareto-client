@@ -9,7 +9,7 @@ import Components.Button
 import Components.Icon as Icon exposing (Icon(..))
 import Components.Switch as Switch
 import Css
-import Dict
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import FeatherIcons
 import Graphics
@@ -25,8 +25,9 @@ import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Profile exposing (Profile)
 import Nostr.Types exposing (Following(..), IncomingMessage, LoginStatus(..), loggedInPubKey)
 import Ports
+import Process
 import Route exposing (Route)
-import Route.Path
+import Route.Path exposing (Path(..))
 import Shared
 import Shared.Model exposing (ClientRole(..))
 import Shared.Msg
@@ -38,6 +39,7 @@ import Translations.Sidebar as Translations
 import Ui.Profile
 import Ui.Shared exposing (countBadge, emptyHtml)
 import Ui.Styles exposing (Theme(..), darkMode, print)
+import Url
 import View exposing (View)
 
 
@@ -326,6 +328,7 @@ layout props shared route =
         , view = view props shared route.path
         , subscriptions = subscriptions
         }
+        |> Layout.withOnUrlChanged UrlChanged
 
 
 
@@ -334,14 +337,16 @@ layout props shared route =
 
 type alias Model =
     { rightPartToggle : Bool
-    , scrollPosition : Int
+    , currentURL : String
+    , pageScrollPositions : Dict String Int
     }
 
 
 init : () -> ( Model, Effect Msg )
 init _ =
     ( { rightPartToggle = False
-      , scrollPosition = 0
+      , currentURL = ""
+      , pageScrollPositions = Dict.empty
       }
     , Effect.none
     )
@@ -358,6 +363,7 @@ type Msg
     | ReceivedMessage IncomingMessage
     | Scrolled Int
     | ScrollToPosition Int
+    | UrlChanged { from : Route (), to : Route () }
     | NoOp
 
 
@@ -383,25 +389,54 @@ update _ msg model =
         Scrolled pos ->
             let
                 oldPosition =
-                    model.scrollPosition
+                    Dict.get model.currentURL model.pageScrollPositions |> Maybe.withDefault 0
 
-                ( newPosition, effect ) =
+                newPosition =
                     if abs (oldPosition - pos) > 50 then
-                        ( pos, Effect.sendMsg (ScrollToPosition pos) )
+                        pos
 
                     else
-                        ( oldPosition, Effect.none )
+                        oldPosition
+
+                newPageScrollPositions =
+                    Dict.insert model.currentURL newPosition model.pageScrollPositions
             in
-            ( { model | scrollPosition = newPosition }, Effect.none )
+            ( { model | pageScrollPositions = newPageScrollPositions }, Effect.none )
 
         ScrollToPosition pos ->
             let
-                jumpToPosition : Cmd Msg
                 jumpToPosition =
                     Dom.setViewportOf Shared.contentId 0 (toFloat pos)
+
+                --- Delay needed to wait a bit till the page is built.
+                delayedJump =
+                    Process.sleep 2000
+                        |> Task.andThen (\_ -> jumpToPosition)
                         |> Task.attempt (\_ -> NoOp)
             in
-            ( model, Effect.sendCmd jumpToPosition )
+            ( model, Effect.sendCmd delayedJump )
+
+        UrlChanged { from, to } ->
+            let
+                --- On the first page visit we don't have the page URL, instead we have an empty string entry ("", position).
+                --- Correct the entry in this case.
+                pageScrollPositions =
+                    if Dict.size model.pageScrollPositions == 1 then
+                        Dict.insert (Url.toString from.url) (Dict.get "" model.pageScrollPositions |> Maybe.withDefault 0) model.pageScrollPositions
+
+                    else
+                        model.pageScrollPositions
+
+                currentURL =
+                    Url.toString to.url
+
+                currentPagePosition =
+                    Dict.get currentURL pageScrollPositions |> Maybe.withDefault 0
+
+                effect =
+                    Effect.sendMsg (ScrollToPosition currentPagePosition)
+            in
+            ( { model | currentURL = currentURL, pageScrollPositions = pageScrollPositions }, effect )
 
         NoOp ->
             ( model, Effect.none )
