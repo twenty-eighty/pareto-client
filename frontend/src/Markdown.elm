@@ -4,7 +4,7 @@ module Markdown exposing (collectImageUrls, collectText, markdownViewHtml, summa
 
 import BrowserEnv exposing (Environment)
 import Html.Styled as Html exposing (..)
-import Html.Styled.Attributes as Attr exposing (css, src)
+import Html.Styled.Attributes as Attr exposing (css)
 import LinkPreview exposing (LoadedContent)
 import Markdown.Block exposing (Block(..), ListItem(..), Task(..))
 import Markdown.Parser
@@ -357,7 +357,7 @@ rendererForBlockType : Environment -> Styles msg -> Maybe (LoadedContent msg) ->
 rendererForBlockType environment styles loadedContent fnGetProfile blockType =
     let
         defaultRenderer =
-            TailwindMarkdownRenderer.renderer environment styles fnGetProfile
+            TailwindMarkdownRenderer.renderer styles fnGetProfile
     in
     case blockType of
         DefaultBlock ->
