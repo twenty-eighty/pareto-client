@@ -2,13 +2,14 @@ module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layo
 
 --import Browser.Events as Events
 
+import Browser.Dom as Dom
 import BrowserEnv exposing (BrowserEnv, Environment)
 import Components.AlertTimerMessage as AlertTimerMessage
 import Components.Button
 import Components.Icon as Icon exposing (Icon(..))
 import Components.Switch as Switch
 import Css
-import Dict
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import FeatherIcons
 import Graphics
@@ -16,6 +17,7 @@ import Html.Styled as Html exposing (Html, a, aside, div, img, main_, span, text
 import Html.Styled.Attributes as Attr exposing (class, css)
 import Html.Styled.Events exposing (..)
 import I18Next
+import Json.Decode as Decode
 import Layout exposing (Layout)
 import Nostr
 import Nostr.BookmarkList exposing (bookmarksCount)
@@ -23,18 +25,21 @@ import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Profile exposing (Profile)
 import Nostr.Types exposing (Following(..), IncomingMessage, LoginStatus(..), loggedInPubKey)
 import Ports
+import Process
 import Route exposing (Route)
-import Route.Path
+import Route.Path exposing (Path(..))
 import Shared
 import Shared.Model exposing (ClientRole(..))
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
+import Task
 import Translations.Sidebar as Translations
 import Ui.Profile
 import Ui.Shared exposing (countBadge, emptyHtml)
 import Ui.Styles exposing (Theme(..), darkMode, print)
+import Url
 import View exposing (View)
 
 
@@ -323,6 +328,7 @@ layout props shared route =
         , view = view props shared route.path
         , subscriptions = subscriptions
         }
+        |> Layout.withOnUrlChanged UrlChanged
 
 
 
@@ -330,12 +336,18 @@ layout props shared route =
 
 
 type alias Model =
-    { rightPartToggle : Bool }
+    { rightPartToggle : Bool
+    , currentURL : String
+    , pageScrollPositions : Dict String Int
+    }
 
 
 init : () -> ( Model, Effect Msg )
 init _ =
-    ( { rightPartToggle = False }
+    ( { rightPartToggle = False
+      , currentURL = ""
+      , pageScrollPositions = Dict.empty
+      }
     , Effect.none
     )
 
@@ -349,6 +361,10 @@ type Msg
     | SetClientRole Bool ClientRole
     | SetTestMode BrowserEnv.TestMode
     | ReceivedMessage IncomingMessage
+    | Scrolled Int
+    | ScrollToPosition Int
+    | UrlChanged { from : Route (), to : Route () }
+    | NoOp
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -370,10 +386,69 @@ update _ msg model =
             else
                 ( model, Effect.none )
 
+        Scrolled pos ->
+            let
+                oldPosition =
+                    Dict.get model.currentURL model.pageScrollPositions |> Maybe.withDefault 0
+
+                newPosition =
+                    if abs (oldPosition - pos) > 50 then
+                        pos
+
+                    else
+                        oldPosition
+
+                newPageScrollPositions =
+                    Dict.insert model.currentURL newPosition model.pageScrollPositions
+            in
+            ( { model | pageScrollPositions = newPageScrollPositions }, Effect.none )
+
+        ScrollToPosition pos ->
+            let
+                jumpToPosition =
+                    Dom.setViewportOf Shared.contentId 0 (toFloat pos)
+
+                --- Delay needed to wait a bit till the page is built.
+                delayedJump =
+                    Process.sleep 2000
+                        |> Task.andThen (\_ -> jumpToPosition)
+                        |> Task.attempt (\_ -> NoOp)
+            in
+            ( model, Effect.sendCmd delayedJump )
+
+        UrlChanged { from, to } ->
+            let
+                --- On the first page visit we don't have the page URL, instead we have an empty string entry ("", position).
+                --- Correct the entry in this case.
+                pageScrollPositions =
+                    if Dict.size model.pageScrollPositions == 1 then
+                        Dict.insert (Url.toString from.url) (Dict.get "" model.pageScrollPositions |> Maybe.withDefault 0) model.pageScrollPositions
+
+                    else
+                        model.pageScrollPositions
+
+                currentURL =
+                    Url.toString to.url
+
+                currentPagePosition =
+                    Dict.get currentURL pageScrollPositions |> Maybe.withDefault 0
+
+                effect =
+                    Effect.sendMsg (ScrollToPosition currentPagePosition)
+            in
+            ( { model | currentURL = currentURL, pageScrollPositions = pageScrollPositions }, effect )
+
+        NoOp ->
+            ( model, Effect.none )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Ports.receiveMessage ReceivedMessage
+    Sub.batch
+        [ Ports.receiveMessage ReceivedMessage
+
+        -- TODO: add subscription to react on URL changes and triggering ScrollToPosition message
+        ]
 
 
 
@@ -594,7 +669,7 @@ viewSidebar props shared model currentPath toContentMsg content =
                                 Tw.contents
                             ]
                         ]
-                        [ viewMainContent content (props.fixedTopPart |> Maybe.map (\( _, height ) -> height)) ]
+                        [ viewMainContent content toContentMsg (props.fixedTopPart |> Maybe.map (\( _, height ) -> height)) ]
                     , props.fixedRightPart
                         |> Maybe.map
                             (\html ->
@@ -619,8 +694,15 @@ viewSidebar props shared model currentPath toContentMsg content =
         ]
 
 
-viewMainContent : List (Html contentMsg) -> Maybe String -> Html contentMsg
-viewMainContent content maybeFixedTopPartHeight =
+scrollHandler : (Msg -> contentMsg) -> Decode.Decoder contentMsg
+scrollHandler toContentMsg =
+    Decode.map Scrolled
+        (Decode.at [ "target", "scrollTop" ] Decode.int)
+        |> Decode.map toContentMsg
+
+
+viewMainContent : List (Html contentMsg) -> (Msg -> contentMsg) -> Maybe String -> Html contentMsg
+viewMainContent content toContentMsg maybeFixedTopPartHeight =
     let
         topPartHeight =
             maybeFixedTopPartHeight |> Maybe.withDefault "0px"
@@ -647,6 +729,7 @@ viewMainContent content maybeFixedTopPartHeight =
                     , Css.property "height" "auto"
                     ]
                 ]
+            , on "scroll" (scrollHandler toContentMsg)
             ]
             [ div
                 [ css [ Tw.mb_4 ] ]
