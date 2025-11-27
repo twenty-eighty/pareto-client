@@ -121,6 +121,7 @@ update props =
                         BookmarkButton.update
                             { msg = bookmarkMsg
                             , model = Just model.bookmarkButton
+                            , onRemoveMsg = Nothing
                             , toModel = \innerModel -> Model { model | bookmarkButton = innerModel }
                             , nostr = props.nostr
                             , toMsg = BookmarkButtonMsg
