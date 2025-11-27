@@ -1,9 +1,6 @@
 module Pages.Settings exposing (Model, Msg, page)
 
 import Auth
-import Nostr.ConfigCheck as ConfigCheck
-import Nostr.External
-import Ports
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Categories as Categories
@@ -25,10 +22,11 @@ import Nostr
 import Nostr.Blossom exposing (eventWithBlossomServerList)
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Event exposing (Kind(..), emptyEventFilter)
+import Nostr.External
 import Nostr.Lud16 as Lud16
 import Nostr.Nip05 as Nip05
 import Nostr.Nip96 as Nip96 exposing (eventWithNip96ServerList)
-import Nostr.Profile exposing (Profile, ProfileValidation(..), emptyProfile, eventFromProfile, profilesEqual, profileFromEvent)
+import Nostr.Profile exposing (Profile, ProfileValidation(..), emptyProfile, eventFromProfile, profileFromEvent, profilesEqual)
 import Nostr.Relay as Relay exposing (Relay, RelayState(..), hostWithoutProtocol)
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList, removeFromRelayList)
 import Nostr.Request exposing (RequestData(..))
@@ -36,6 +34,7 @@ import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Types exposing (IncomingMessage, PubKey, RelayRole(..), RelayUrl, ServerUrl, signingPubKeyAvailable)
 import Page exposing (Page)
 import Pareto
+import Ports
 import Route exposing (Route)
 import Route.Path
 import Shared
@@ -116,10 +115,10 @@ type alias RelaysModel =
     , state : RelayListState
     }
 
+
 type RelayListState
     = RelayListStateEditing
     | RelayListStateSaving SendRequestId
-
 
 
 type alias MediaServersModel =
@@ -127,6 +126,7 @@ type alias MediaServersModel =
     , blossomServer : Maybe String
     , state : MediaServerState
     }
+
 
 type MediaServerState
     = MediaServerStateEditing
@@ -151,6 +151,7 @@ type alias ProfileModel =
     , pictureIssue : Maybe ConfigCheck.Issue
     , bannerIssue : Maybe ConfigCheck.Issue
     }
+
 
 type EditState
     = EditStateEditing
@@ -296,7 +297,7 @@ availableCategories translations configCheckIssues =
 
         relaysIssuesSuffix =
             if relaysIssuesCount > 0 then
-                "\u{00A0}" ++ countBadge relaysIssuesCount 
+                "\u{00A0}" ++ countBadge relaysIssuesCount
 
             else
                 ""
@@ -311,7 +312,7 @@ availableCategories translations configCheckIssues =
 
             else
                 ""
-                
+
         profileIssuesCount =
             configCheckIssues.profileIssues
                 |> List.length
@@ -322,7 +323,6 @@ availableCategories translations configCheckIssues =
 
             else
                 ""
-                
     in
     [ { category = Relays
       , title = Translations.relaysCategory [ translations ] ++ relaysIssuesSuffix
@@ -643,6 +643,7 @@ update user shared msg model =
                         pictureIssue =
                             if isLoaded then
                                 Nothing
+
                             else
                                 Just ConfigCheck.ProfileAvatarError
                     in
@@ -658,6 +659,7 @@ update user shared msg model =
                         bannerIssue =
                             if isLoaded then
                                 Nothing
+
                             else
                                 Just ConfigCheck.ProfileBannerError
                     in
@@ -666,20 +668,22 @@ update user shared msg model =
                 _ ->
                     ( model, Effect.none )
 
+
 updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage model message =
     case message.messageType of
         "published" ->
-            case (model.data, Nostr.External.decodeSendId message.value, Nostr.External.decodeEvent message.value) of
+            case ( model.data, Nostr.External.decodeSendId message.value, Nostr.External.decodeEvent message.value ) of
                 ( RelaysData relaysModel, Ok incomingSendId, _ ) ->
                     case relaysModel.state of
                         RelayListStateSaving sendRequestId ->
                             if sendRequestId == incomingSendId then
                                 ( { model
-                                    | data = RelaysData
-                                        { relaysModel
-                                        | state = RelayListStateEditing
-                                        }
+                                    | data =
+                                        RelaysData
+                                            { relaysModel
+                                                | state = RelayListStateEditing
+                                            }
                                   }
                                   -- check configuration again after saving relays
                                 , Effect.sendSharedMsg Shared.Msg.DelayedCheckConfiguration
@@ -692,15 +696,16 @@ updateWithPortMessage model message =
                             ( model, Effect.none )
 
                 ( ProfileData profileModel, Ok incomingSendId, Ok event ) ->
-                    case (profileModel.state, profileFromEvent event) of
+                    case ( profileModel.state, profileFromEvent event ) of
                         ( EditStateSaving sendRequestId, Just profile ) ->
                             if sendRequestId == incomingSendId then
                                 ( { model
-                                    | data = ProfileData
-                                        { profileModel
-                                        | state = EditStateEditing
-                                        , savedProfile = Just profile
-                                        }
+                                    | data =
+                                        ProfileData
+                                            { profileModel
+                                                | state = EditStateEditing
+                                                , savedProfile = Just profile
+                                            }
                                   }
                                   -- check configuration again after saving profile
                                 , Effect.sendSharedMsg Shared.Msg.DelayedCheckConfiguration
@@ -717,10 +722,11 @@ updateWithPortMessage model message =
                         MediaServerStateSavingNip96 sendRequestId ->
                             if sendRequestId == incomingSendId then
                                 ( { model
-                                    | data = MediaServersData
-                                        { mediaServersModel
-                                        | state = MediaServerStateEditing
-                                        }
+                                    | data =
+                                        MediaServersData
+                                            { mediaServersModel
+                                                | state = MediaServerStateEditing
+                                            }
                                   }
                                   -- check configuration again after saving media server
                                 , Effect.sendSharedMsg Shared.Msg.DelayedCheckConfiguration
@@ -732,10 +738,11 @@ updateWithPortMessage model message =
                         MediaServerStateSavingBlossom sendRequestId ->
                             if sendRequestId == incomingSendId then
                                 ( { model
-                                    | data = MediaServersData
-                                        { mediaServersModel
-                                        | state = MediaServerStateEditing
-                                        }
+                                    | data =
+                                        MediaServersData
+                                            { mediaServersModel
+                                                | state = MediaServerStateEditing
+                                            }
                                   }
                                   -- check configuration again after saving media server
                                 , Effect.sendSharedMsg Shared.Msg.DelayedCheckConfiguration
@@ -746,6 +753,7 @@ updateWithPortMessage model message =
 
                         _ ->
                             ( model, Effect.none )
+
                 _ ->
                     ( model, Effect.none )
 
@@ -910,6 +918,7 @@ view user shared model =
         ]
     }
 
+
 profileIssues : Model -> ConfigCheck.Model -> List ConfigCheck.Issue
 profileIssues model configCheck =
     let
@@ -940,11 +949,13 @@ profileIssues model configCheck =
     in
     imageIssues ++ ConfigCheck.profileIssues configCheck
 
+
 type alias ConfigCheckIssues =
     { profileIssues : List ConfigCheck.Issue
     , relaysIssues : List ConfigCheck.Issue
     , mediaServersIssues : List ConfigCheck.Issue
     }
+
 
 viewCategory : Shared.Model -> ConfigCheckIssues -> Model -> Auth.User -> Html Msg
 viewCategory shared configCheckIssues model user =
@@ -1042,7 +1053,7 @@ outboxRelaySection shared user relaysModel =
             , p [] [ text <| Translations.outboxRelaysDescription [ shared.browserEnv.translations ] ]
             , viewRelayList shared.theme shared.browserEnv.translations readOnly (AddDefaultOutboxRelays suggestedOutboxRelays) (RemoveRelay user.pubKey WriteRelay) outboxRelays
             , if not readOnly then
-                addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay outboxRelaySuggestions (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey) saving
+                addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay outboxRelaySuggestions (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey) saving "outbox-relay-add-button"
 
               else
                 emptyHtml
@@ -1089,7 +1100,7 @@ inboxRelaySection shared user relaysModel =
         , p [] [ text <| Translations.inboxRelaysDescription [ shared.browserEnv.translations ] ]
         , viewRelayList shared.theme shared.browserEnv.translations readOnly (AddDefaultInboxRelays suggestedInboxRelays) (RemoveRelay user.pubKey ReadRelay) inboxRelays
         , if not readOnly then
-            addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay inboxRelaySuggestions (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey) saving
+            addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay inboxRelaySuggestions (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey) saving "inbox-relay-add-button"
 
           else
             emptyHtml
@@ -1147,8 +1158,8 @@ updateRelayModelInbox relaysModel value =
 --       { relaysModel | searchRelay = value }
 
 
-addRelayBox : Theme -> I18Next.Translations -> Maybe String -> Suggestions -> (Maybe String -> RelaysModel) -> (String -> Msg) -> Bool -> Html Msg
-addRelayBox theme translations maybeValue suggestions updateRelayFn addRelayMsg saving =
+addRelayBox : Theme -> I18Next.Translations -> Maybe String -> Suggestions -> (Maybe String -> RelaysModel) -> (String -> Msg) -> Bool -> String -> Html Msg
+addRelayBox theme translations maybeValue suggestions updateRelayFn addRelayMsg saving testAttribute =
     let
         styles =
             stylesForTheme theme
@@ -1242,6 +1253,7 @@ addRelayBox theme translations maybeValue suggestions updateRelayFn addRelayMsg 
             }
             |> Button.withDisabled (not <| relayUrlValid maybeValue)
             |> Button.withIntermediateState saving
+            |> Button.withTestAttribute testAttribute
             |> Button.view
         ]
 
@@ -1398,12 +1410,13 @@ removeRelayButton relay removeMsg =
     div
         [ css
             [ Tw.cursor_pointer
-            , Tw.text_color styles.color3
+            , Tw.text_color styles.colorB3
             , darkMode
-                [ Tw.text_color styles.color3DarkMode
+                [ Tw.text_color styles.colorB3DarkMode
                 ]
             ]
         , Events.onClick (removeMsg relay.urlWithoutProtocol)
+        , Attr.attribute "data-test" ("remove-relay-button-" ++ relay.urlWithoutProtocol)
         ]
         [ Icon.FeatherIcon FeatherIcons.delete
             |> Icon.view
@@ -1462,7 +1475,7 @@ nip96ServersSection shared user mediaServersModel =
         , p [] [ text <| Translations.nip96ServersDescription [ shared.browserEnv.translations ] ]
         , viewMediaServersList shared.theme shared.browserEnv.translations readOnly (Just <| AddDefaultNip96MediaServers user.pubKey suggestedServers) (RemoveNip96MediaServer user.pubKey) nip96Servers
         , if not readOnly then
-            addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.nip96Server nip96ServerSuggestions (updateNip96Server mediaServersModel) (AddNip96MediaServer user.pubKey) saving
+            addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.nip96Server nip96ServerSuggestions (updateNip96Server mediaServersModel) (AddNip96MediaServer user.pubKey) saving "nip96-server-add-button"
 
           else
             text <| Translations.mediaServerReadOnlyLoginInfo [ shared.browserEnv.translations ]
@@ -1533,7 +1546,7 @@ blossomServersSection shared user mediaServersModel =
         , p [] [ text <| Translations.blossomServersDescription [ shared.browserEnv.translations ] ]
         , viewMediaServersList shared.theme shared.browserEnv.translations readOnly Nothing (RemoveBlossomMediaServer user.pubKey) blossomServers
         , if not readOnly then
-            addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.blossomServer blossomServerSuggestions (updateBlossomServer mediaServersModel) (AddBlossomMediaServer user.pubKey) saving
+            addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.blossomServer blossomServerSuggestions (updateBlossomServer mediaServersModel) (AddBlossomMediaServer user.pubKey) saving "blossom-server-add-button"
 
           else
             text <| Translations.mediaServerReadOnlyLoginInfo [ shared.browserEnv.translations ]
@@ -1629,9 +1642,9 @@ removeMediaServerButton mediaServer removeMsg =
     div
         [ css
             [ Tw.cursor_pointer
-            , Tw.text_color styles.color3
+            , Tw.text_color styles.colorB3
             , darkMode
-                [ Tw.text_color styles.color3DarkMode
+                [ Tw.text_color styles.colorB3DarkMode
                 ]
             ]
         , Events.onClick (removeMsg mediaServer)
@@ -1641,8 +1654,8 @@ removeMediaServerButton mediaServer removeMsg =
         ]
 
 
-addMediaServerBox : Theme -> I18Next.Translations -> Maybe String -> Suggestions -> (Maybe String -> MediaServersModel) -> (String -> Msg) -> Bool -> Html Msg
-addMediaServerBox theme translations maybeValue suggestions updateMediaServerFn addMediaServerMsg saving =
+addMediaServerBox : Theme -> I18Next.Translations -> Maybe String -> Suggestions -> (Maybe String -> MediaServersModel) -> (String -> Msg) -> Bool -> String -> Html Msg
+addMediaServerBox theme translations maybeValue suggestions updateMediaServerFn addMediaServerMsg saving testAttribute =
     let
         styles =
             stylesForTheme theme
@@ -1744,6 +1757,7 @@ addMediaServerBox theme translations maybeValue suggestions updateMediaServerFn 
             }
             |> Button.withDisabled (not <| mediaServerUrlValid serverUrlWithProtocol)
             |> Button.withIntermediateState saving
+            |> Button.withTestAttribute testAttribute
             |> Button.view
         ]
 
@@ -1833,20 +1847,22 @@ viewProfileEditor shared configCheckIssues user profileModel =
         lud06Field =
             profileModel.savedProfile
                 |> Maybe.andThen .lud06
-                |> Maybe.map (\lud06String ->
-                    if lud06String /= "" then
-                        EntryField.new
-                            { value = profileModel.lud06
-                            , onInput = \lud06 -> UpdateProfileModel { profileModel | lud06 = lud06 }
-                            , theme = shared.theme
-                            }
-                            |> EntryField.withLabel (Translations.profileLud06FieldLabel [ shared.browserEnv.translations ])
-                            |> EntryField.withPlaceholder (Translations.profileLud06FieldPlaceholder [ shared.browserEnv.translations ])
-                            |> EntryField.withType EntryField.FieldTypeText
-                            |> EntryField.view
-                    else
-                        emptyHtml
-                )
+                |> Maybe.map
+                    (\lud06String ->
+                        if lud06String /= "" then
+                            EntryField.new
+                                { value = profileModel.lud06
+                                , onInput = \lud06 -> UpdateProfileModel { profileModel | lud06 = lud06 }
+                                , theme = shared.theme
+                                }
+                                |> EntryField.withLabel (Translations.profileLud06FieldLabel [ shared.browserEnv.translations ])
+                                |> EntryField.withPlaceholder (Translations.profileLud06FieldPlaceholder [ shared.browserEnv.translations ])
+                                |> EntryField.withType EntryField.FieldTypeText
+                                |> EntryField.view
+
+                        else
+                            emptyHtml
+                    )
                 |> Maybe.withDefault emptyHtml
 
         lud16Suggestion =
@@ -1861,7 +1877,6 @@ viewProfileEditor shared configCheckIssues user profileModel =
 
                 Nothing ->
                     Translations.profileLud16FieldDescription [ shared.browserEnv.translations ]
-
     in
     div
         [ css
@@ -1876,7 +1891,7 @@ viewProfileEditor shared configCheckIssues user profileModel =
             , onClick = Just <| SaveProfile (profileFromProfileModel user.pubKey profileModel)
             , theme = shared.theme
             }
-            |> Button.withDisabled (profileNotChanged)
+            |> Button.withDisabled profileNotChanged
             |> Button.withIntermediateState (profileModel.state /= EditStateEditing)
             |> Button.view
         , div
@@ -1986,13 +2001,13 @@ viewProfileEditor shared configCheckIssues user profileModel =
 viewImageSelection : Shared.Model -> (Bool -> Msg) -> ImageUploadType -> ProfileModel -> Html Msg
 viewImageSelection shared onImageLoadedMsg imageUploadType profileModel =
     let
-        imageUrl =
+        ( imageUrl, testAttribute ) =
             case imageUploadType of
                 ImagePicture ->
-                    profileModel.picture
+                    ( profileModel.picture, "profile-picture-button" )
 
                 ImageBanner ->
-                    profileModel.banner
+                    ( profileModel.banner, "profile-banner-button" )
     in
     div
         [ css
@@ -2010,6 +2025,7 @@ viewImageSelection shared onImageLoadedMsg imageUploadType profileModel =
             , theme = shared.theme
             }
             |> Button.withTypeSecondary
+            |> Button.withTestAttribute testAttribute
             |> Button.view
         ]
 

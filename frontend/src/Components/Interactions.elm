@@ -29,6 +29,7 @@ import Components.RepostButton as RepostButton
 import Components.SharingButtonDialog as SharingButtonDialog
 import Components.ZapButton as ZapButton
 import Effect exposing (Effect)
+import FeatherIcons exposing (settings)
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr
 import Nostr
@@ -216,6 +217,7 @@ type Interactions msg
         , interactionObject : InteractionObject
         , nostr : Nostr.Model
         , loginStatus : LoginStatus
+        , showLabel : Bool
         , toMsg : Msg msg -> msg
         , theme : Ui.Styles.Theme
         , ignoreDeviceSize : Bool
@@ -230,6 +232,7 @@ new :
     , interactionObject : InteractionObject
     , nostr : Nostr.Model
     , loginStatus : LoginStatus
+    , showLabel : Bool
     }
     -> Interactions msg
 new props =
@@ -240,6 +243,7 @@ new props =
         , toMsg = props.toMsg
         , interactionObject = props.interactionObject
         , loginStatus = props.loginStatus
+        , showLabel = props.showLabel
         , nostr = props.nostr
         , theme = props.theme
         , ignoreDeviceSize = True
@@ -275,6 +279,12 @@ getBookmarkButton (Settings settings) =
         , nostr = settings.nostr
         , loginStatus = settings.loginStatus
         }
+        |> (if settings.showLabel then
+                identity
+
+            else
+                BookmarkButton.withoutLabel
+           )
         |> BookmarkButton.view
 
 
@@ -293,6 +303,12 @@ getCommentButton (Settings settings) clickedMsg =
         , nostr = settings.nostr
         , loginStatus = settings.loginStatus
         }
+        |> (if settings.showLabel then
+                identity
+
+            else
+                CommentButton.withoutLabel
+           )
         |> CommentButton.withClickedMsg (clickedMsg |> Maybe.map CommentButtonClicked)
         |> CommentButton.view
 
@@ -312,6 +328,12 @@ getLikeButton (Settings settings) =
         , theme = settings.theme
         , toMsg = LikeButtonMsg
         }
+        |> (if settings.showLabel then
+                identity
+
+            else
+                LikeButton.withoutLabel
+           )
         |> LikeButton.view
 
 
@@ -330,6 +352,12 @@ getRepostButton (Settings settings) =
         , nostr = settings.nostr
         , loginStatus = settings.loginStatus
         }
+        |> (if settings.showLabel then
+                identity
+
+            else
+                RepostButton.withoutLabel
+           )
         |> RepostButton.view
 
 
@@ -366,6 +394,12 @@ getZapButton (Settings settings) instanceId relayUrls =
         , nostr = settings.nostr
         , loginStatus = settings.loginStatus
         }
+        |> (if settings.showLabel then
+                identity
+
+            else
+                ZapButton.withoutLabel
+           )
         |> ZapButton.withRelayUrls relayUrls
         |> ZapButton.withInstanceId instanceId
         |> ZapButton.view

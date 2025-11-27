@@ -8,9 +8,13 @@ defmodule NostrBackend.NostrId do
 
   @type nostr_id ::
           {:article, String.t()}
-          | {:profile, String.t()}
-          | {:community, String.t()}
+          | {:profile, String.t(), list()}
+          | {:community, any()}
           | {:address, %{kind: integer(), pubkey: String.t(), identifier: String.t()}}
+          | {:event, map()}
+          | {:note, String.t()}
+          | {:pubkey, String.t()}
+          | {:author_article, map()}
 
   @doc """
   Validates and decodes a NIP-19 identifier (npub, nprofile, nevent, naddr, etc.)

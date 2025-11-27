@@ -148,6 +148,28 @@ cleanAbbreviations language text =
                 Italian ->
                     [ "ad es.", "Dr.", "Sig.", "Sig.ra", "Prof.", "ecc.", "avv." ]
 
+                Polish ->
+                    [ "np."      -- na przykład (for example)
+                    , "itd."     -- i tak dalej (and so on)
+                    , "itp."     -- i tym podobne (and similar)
+                    , "dr."      -- doktor
+                    , "prof."    -- profesor
+                    , "mgr."     -- magister
+                    , "ul."      -- ulica (street)
+                    , "al."      -- aleja (avenue)
+                    , "pl."      -- plac (square)
+                    , "św."      -- święty / święta (saint)
+                    , "r."       -- rok (year)
+                    , "woj."     -- województwo (province)
+                    , "pow."     -- powiat (county/district)
+                    , "nr."      -- numer (number)
+                    , "str."     -- strona (page)
+                    , "s."       -- syn / strona (depends on context: “son of” or “page”)
+                    , "tzn."     -- to znaczy (that is)
+                    , "tj."      -- to jest (that is)
+                    , "ps."      -- pseudonim
+                    ]
+
                 Portuguese ->
                     [ "Sr.", "Sra.", "Dr.", "Prof.", "etc." ]
 

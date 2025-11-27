@@ -73,7 +73,7 @@ init shared route () =
       , articles = []
       , filter = filter
       }
-    , RequestArticlesFeed [ filter ]
+    , RequestArticlesFeed False [ filter ]
         |> Nostr.createRequest shared.nostr ("Articles for hashtag " ++ route.params.tag) [ KindUserMetadata ]
         |> Shared.Msg.RequestNostrEvents
         |> Effect.sendSharedMsg
@@ -193,8 +193,10 @@ view shared model =
                     , bookmarkButtons = Dict.empty
                     , browserEnv = shared.browserEnv
                     , commentsToMsg = \_ -> NoOp
+                    , deleteButtonMsg = Nothing
                     , nostr = shared.nostr
                     , loginStatus = shared.loginStatus
+                    , onLoadMore = Nothing
                     , sharing = Nothing
                     , theme = shared.theme
                     }

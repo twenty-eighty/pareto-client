@@ -13,16 +13,6 @@ if (!customElements.get('js-clipboard-component')) {
   customElements.define('js-clipboard-component', ClipboardComponent);
 }
 
-// Make NDK available globally for nostr-login external version
-window.NDK = NDK;
-window.NDKUser = NDKUser;
-window.NDKEvent = NDKEvent;
-window.NDKPrivateKeySigner = NDKPrivateKeySigner;
-window.NDKNip46Signer = NDKNip46Signer;
-window.NDKNostrRpc = NDKNostrRpc;
-window.NDKNostrRpc = NDKNostrRpc;
-window.NDKSubscription = NDKSubscription;
-
 // This is called BEFORE your Elm app starts up
 // 
 // The value returned here will be passed as flags 
@@ -34,6 +24,7 @@ export const flags = ({ env }) => {
   return {
     environment: env.ELM_ENV,
     darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
+    imageCachingServer: env.IMAGE_CACHING_SERVER || "https://image-caching-server.onrender.com",
     locale: selectedLocale,
     nativeSharingAvailable: (navigator.share != undefined),
     testMode: JSON.parse(localStorage.getItem('testMode')) || false,
@@ -126,6 +117,39 @@ export const onReady = ({ app, env }) => {
     newScript.setAttribute("data-nstart-avoid-nsec", "true");
     newScript.setAttribute("data-nstart-avoid-ncryptsec", "false");
 
+    newScript.addEventListener("load", () => {
+      const nlElement = document.getElementsByTagName("nl-banner").item(0);
+      const style = document.createElement('style');
+      style.textContent = `
+        .pareto-custom-nl {
+          top: 145px !important;
+        }
+
+        @media (min-width: 768px) {
+          .pareto-custom-nl {
+            top: 145px !important;
+          }
+        }
+
+        @media (min-width: 1024px) {
+          .pareto-custom-nl {
+            top: 160px !important;
+          }
+        }
+      `;
+      nlElement.shadowRoot.appendChild(style);
+
+      if (nlElement) {
+        const observer = new MutationObserver((_mutations) => {
+          const nlChild = nlElement.shadowRoot.querySelector('.nl-banner');
+          if (nlChild) {
+            nlChild.classList.add("pareto-custom-nl");
+          }
+        });
+        observer.observe(nlElement.shadowRoot, {childList: true, subtree: true});
+      }
+    });
+    
     document.body.appendChild(newScript);
   }
 
@@ -166,6 +190,10 @@ export const onReady = ({ app, env }) => {
   function processOnlineCommand(app, command, value) {
     debugLog('process command', command);
     switch (command) {
+      case 'login':
+        login(app, value);
+        break;
+
       case 'loginSignUp':
         loginSignUp(app)
         break;
@@ -209,7 +237,24 @@ export const onReady = ({ app, env }) => {
       case 'shareLink':
         shareLink(app, value);
         break;
+
+      case 'toggleArticleInfo':
+        toggleArticleInfo(app);
+        break;
     }
+  }
+
+  async function login(app, value) {
+    const signer = new NDKPrivateKeySigner(value.nsec);
+    const user = await signer.user();        // resolves immediately once the key is decoded
+    document.dispatchEvent(new CustomEvent('nlSetAuth', {
+      detail: {
+        type: 'login',
+        method: 'local',
+        pubkey: user.pubkey,                 // 64-char hex string
+        localNsec: signer.privateKey
+      }
+    }));
   }
 
   function loginSignUp(app) {
@@ -282,6 +327,10 @@ export const onReady = ({ app, env }) => {
     } else {
       console.log('navigator.share not supported');
     }
+  }
+
+  function toggleArticleInfo(app) {
+    app.ports.receiveMessage.send({ messageType: 'toggleArticleInfo', value: null });
   }
 
   // 1) A function that imports an AES-GCM key and encrypts `plaintextBytes` with it.
@@ -603,10 +652,12 @@ export const onReady = ({ app, env }) => {
             break;
           }
 
+        case 1111: // comment (NIP-22)
         case 10000: // mute list
         case 10002: // relay list metadata
         case 10003: // bookmark list
         case 10004: // community lists
+        case 10007: // search relays list
         case 10050: // relay list for DMs
         case 10063: // relay list for file uploads (Blossom)
         case 10096: // relay list for file uploads (NIP-96)

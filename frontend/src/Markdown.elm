@@ -4,15 +4,20 @@ module Markdown exposing (collectImageUrls, collectText, markdownViewHtml, summa
 
 import BrowserEnv exposing (Environment)
 import Html.Styled as Html exposing (..)
+import Html.Styled.Attributes as Attr exposing (css, src)
 import LinkPreview exposing (LoadedContent)
 import Markdown.Block exposing (Block(..), ListItem(..), Task(..))
 import Markdown.Parser
 import Markdown.Renderer as Renderer
 import Nostr.Nip27 exposing (GetProfileFunction)
+import Nostr.Shared exposing (ensureHttps)
 import Parser
 import Parser.Advanced as Advanced
 import Regex exposing (Regex)
+import Tailwind.Utilities as Tw
 import TailwindMarkdownRenderer
+import Ui.Links
+import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles)
 
 
@@ -341,6 +346,9 @@ generateEmbedForParagraph inlines =
                 |> String.trim
                 |> String.isEmpty
 
+        [ Markdown.Block.Image _ _ _ ] ->
+            True
+
         _ ->
             False
 
@@ -356,7 +364,10 @@ rendererForBlockType environment styles loadedContent fnGetProfile blockType =
             defaultRenderer
 
         EmbedBlock ->
-            { defaultRenderer | link = embedPreview styles loadedContent }
+            { defaultRenderer
+                | link = embedPreview styles loadedContent
+                , image = fullWidthImage environment
+            }
 
 
 embedPreview : Styles msg -> Maybe (LoadedContent msg) -> { title : Maybe String, destination : String } -> List (Html msg) -> Html msg
@@ -366,6 +377,65 @@ embedPreview styles loadedContent { destination } body =
         destination
         (styles.textStyleLinks ++ styles.colorStyleLinks)
         body
+
+
+fullWidthImage : Environment -> { alt : String, src : String, title : Maybe String } -> Html msg
+fullWidthImage environment image =
+    let
+        imagesrc =
+            image.src
+                |> ensureHttps
+                |> Ui.Links.scaledImageLink environment 650
+    in
+    case ( image.title, image.src ) of
+        ( _, "" ) ->
+            -- ignore images without src attribute
+            emptyHtml
+
+        ( Just "1.00", _ ) ->
+            -- dirty fix - route96 server delivers caption as "1.00" even if it wasn't set explicitly
+            Html.node "center"
+                []
+                [ Html.img
+                    [ Attr.src imagesrc
+                    , Attr.alt image.alt
+                    , css
+                        [ Tw.max_h_96
+                        ]
+                    ]
+                    []
+                ]
+
+        ( Just title, _ ) ->
+            Html.node "center"
+                []
+                [ Html.figure
+                    [ css
+                        []
+                    ]
+                    [ Html.img
+                        [ Attr.src imagesrc
+                        , Attr.alt image.alt
+                        ]
+                        []
+                    , Html.figcaption
+                        []
+                        [ Html.text title ]
+                    ]
+                ]
+
+        ( Nothing, _ ) ->
+            Html.node "center"
+                []
+                [ Html.img
+                    [ Attr.src imagesrc
+                    , Attr.alt image.alt
+                    , css
+                        [ Tw.max_h_96
+                        ]
+                    ]
+                    []
+                ]
 
 
 elementFromHtmlList : List (Html msg) -> Html msg

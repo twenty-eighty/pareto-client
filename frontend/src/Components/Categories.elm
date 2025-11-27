@@ -3,9 +3,9 @@ module Components.Categories exposing
     , CategoryData
     , Model
     , Msg
+    , heightString
     , init
     , new
-    , heightString
     , select
     , selected
     , subscribe
@@ -16,11 +16,11 @@ module Components.Categories exposing
 import BrowserEnv exposing (BrowserEnv)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, button, div, text)
-import Html.Styled.Attributes exposing (css, attribute)
+import Html.Styled.Attributes exposing (attribute, css)
 import Html.Styled.Events as Events exposing (..)
 import Tailwind.Breakpoints exposing (lg)
-import Tailwind.Utilities as Tw
 import Tailwind.Theme exposing (Color)
+import Tailwind.Utilities as Tw
 import Ui.Styles exposing (Theme, darkMode)
 
 
@@ -143,31 +143,34 @@ viewCategories (Settings settings) =
             settings.model
     in
     settings.categories
-        |> List.map (\categoryData ->
-            let
-                active =
-                    settings.equals model.selected categoryData.category
+        |> List.map
+            (\categoryData ->
+                let
+                    active =
+                        settings.equals model.selected categoryData.category
 
-                styles =
-                    Ui.Styles.stylesForTheme settings.theme
+                    styles =
+                        Ui.Styles.stylesForTheme settings.theme
 
-                (color, colorDarkMode) =
-                    if active then
-                        ( styles.color4, styles.color4DarkMode )
-                    else
-                        ( styles.color3, styles.color3DarkMode )
+                    ( color, colorDarkMode ) =
+                        if active then
+                            ( styles.colorB4, styles.colorB4DarkMode )
 
-                imageColor =
-                    if settings.browserEnv.darkMode then
-                        colorDarkMode
-                    else
-                        color
+                        else
+                            ( styles.colorB3, styles.colorB3DarkMode )
 
-                image =
-                    settings.image imageColor categoryData.category
-            in
-            viewCategory color colorDarkMode settings.toMsg settings.onSelect image active categoryData
-        )
+                    imageColor =
+                        if settings.browserEnv.darkMode then
+                            colorDarkMode
+
+                        else
+                            color
+
+                    image =
+                        settings.image imageColor categoryData.category
+                in
+                viewCategory color colorDarkMode settings.toMsg settings.onSelect image active categoryData
+            )
         |> div
             [ css
                 [ Tw.flex
@@ -212,6 +215,7 @@ viewCategory color colorDarkMode toMsg onSelect maybeImage active data =
                 ]
             ]
         , attribute "aria-label" data.title
+        , attribute "data-test" ("category-" ++ data.title)
         , Events.onClick onClickCategory
         ]
         [ imageElement

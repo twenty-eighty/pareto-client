@@ -126,7 +126,7 @@ init shared route () =
 buildRequestArticlesEffect : Nostr.Model -> PubKey -> Effect Msg
 buildRequestArticlesEffect nostr pubKey =
     [ { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ pubKey ], limit = Just 20 } ]
-        |> RequestArticlesFeed
+        |> RequestArticlesFeed False
         |> Nostr.createRequest nostr "Posts of user" [ KindUserMetadata ]
         |> Shared.Msg.RequestNostrEvents
         |> Effect.sendSharedMsg
@@ -288,8 +288,10 @@ viewArticles shared pubKey =
             , bookmarkButtonMsg = \_ _ -> NoOp
             , bookmarkButtons = Dict.empty
             , browserEnv = shared.browserEnv
+            , deleteButtonMsg = Nothing
             , loginStatus = shared.loginStatus
             , nostr = shared.nostr
+            , onLoadMore = Nothing
             , sharing = Nothing
             , theme = shared.theme
             }

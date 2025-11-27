@@ -13,24 +13,25 @@ import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Icon as Icon
 import Components.ModalDialog as ModalDialog
-import Json.Encode as Encode
-import Json.Decode as Decode
 import Effect exposing (Effect)
 import FeatherIcons
 import Graphics
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events as Events
+import Json.Decode as Decode
+import Json.Encode as Encode
 import Ports
 import QRCode
 import SHA256
 import Shared.Msg
 import Svg.Attributes as SvgAttr
+import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Translations.SharingButtonDialog as Translations
 import Ui.Styles exposing (Theme, darkMode, stylesForTheme)
 import Url.Builder
-import Tailwind.Theme as Theme
+
 
 type SharingButtonDialog msg
     = Settings
@@ -41,12 +42,14 @@ type SharingButtonDialog msg
         , theme : Theme
         }
 
+
 type alias SharingInfo =
     { url : String
     , title : String
     , text : String
     , hashtags : List String
     }
+
 
 new :
     { model : Model
@@ -71,10 +74,12 @@ type Model
         { state : State
         }
 
+
 type State
     = Hidden
     | ShowingQrcode
     | ShowingSocials
+
 
 type SocialMedia
     = Facebook
@@ -83,6 +88,7 @@ type SocialMedia
     | Reddit
     | Telegram
     | WhatsApp
+
 
 init : Model
 init =
@@ -96,6 +102,7 @@ type Msg
     | NoOp
     | UpdateState State
     | ShowCopiedMessage
+
 
 update :
     { msg : Msg
@@ -139,6 +146,7 @@ update props =
                 , Effect.sendSharedMsg <| Shared.Msg.ShowAlert (Translations.copiedToClipboardAlertMessage [ props.browserEnv.translations ])
                 )
 
+
 shareSocialLink : SharingInfo -> SocialMedia -> String
 shareSocialLink sharingInfo socialMedia =
     case socialMedia of
@@ -178,9 +186,10 @@ shareSocialLink sharingInfo socialMedia =
 
         WhatsApp ->
             Url.Builder.crossOrigin "https://wa.me"
-                [ ]
+                []
                 [ Url.Builder.string "text" (sharingInfoToText sharingInfo)
                 ]
+
 
 sharingInfoToText : SharingInfo -> String
 sharingInfoToText sharingInfo =
@@ -189,6 +198,7 @@ sharingInfoToText sharingInfo =
         ++ sharingInfo.text
         ++ "\n"
         ++ sharingInfo.url
+
 
 view : SharingButtonDialog msg -> Html msg
 view (Settings settings) =
@@ -210,12 +220,14 @@ view (Settings settings) =
         buttonMsg =
             if BrowserEnv.isNativeSharingAvailable settings.browserEnv then
                 ShareLink settings.sharingInfo
+
             else
                 UpdateState ShowingQrcode
-    
+
         button =
             Html.button
                 [ Attr.type_ "button"
+                , Attr.attribute "data-test" "sharing-button"
                 , Events.onClick (settings.toMsg buttonMsg)
                 ]
                 [ Icon.FeatherIcon FeatherIcons.share2
@@ -224,6 +236,7 @@ view (Settings settings) =
     in
     if BrowserEnv.isNativeSharingAvailable settings.browserEnv then
         button
+
     else
         Html.div
             [ Attr.css
@@ -236,23 +249,27 @@ view (Settings settings) =
             , dialog
             ]
 
+
 viewDialog : SharingButtonDialog msg -> Html msg
 viewDialog (Settings settings) =
     let
         qrCode =
             settings.sharingInfo.url
-                |> QRCode.fromString 
+                |> QRCode.fromString
                 |> Result.map
                     (\qrcode ->
                         qrcode
-                            |> QRCode.toSvg [ SvgAttr.width "220px", SvgAttr.height "220px" ]
+                            |> QRCode.toSvg
+                                [ SvgAttr.width "220px"
+                                , SvgAttr.height "220px"
+                                ]
                             |> Html.fromUnstyled
                     )
                 |> Result.withDefault (Html.text "")
     in
     ModalDialog.new
         { title = Translations.dialogTitle [ settings.browserEnv.translations ]
-        , buttons = [ ]
+        , buttons = []
         , content =
             [ Html.div
                 [ Attr.css
@@ -274,7 +291,9 @@ viewDialog (Settings settings) =
                         , Tw.border_r_2
                         ]
                     ]
-                    [ qrCode
+                    [ Html.div
+                        [ Attr.attribute "data-test" "sharing-qr-code" ]
+                        [ qrCode ]
                     , copyButton (Settings settings)
                         settings.sharingInfo.url
                         (settings.sharingInfo.url
@@ -331,6 +350,7 @@ socialMediaButtons (Settings settings) =
             |> Button.withNewTabLink (shareSocialLink settings.sharingInfo Twitter)
             |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.twitter)
             |> Button.withTypeSecondary
+            |> Button.withTestAttribute "twitter-button"
             |> Button.withWidthFull
             |> Button.view
         , Button.new
@@ -341,6 +361,7 @@ socialMediaButtons (Settings settings) =
             |> Button.withNewTabLink (shareSocialLink settings.sharingInfo Facebook)
             |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.facebook)
             |> Button.withTypeSecondary
+            |> Button.withTestAttribute "facebook-button"
             |> Button.view
         , Button.new
             { label = Translations.linkedinButtonTitle [ settings.browserEnv.translations ]
@@ -350,6 +371,7 @@ socialMediaButtons (Settings settings) =
             |> Button.withNewTabLink (shareSocialLink settings.sharingInfo LinkedIn)
             |> Button.withIconLeft (Icon.FeatherIcon FeatherIcons.linkedin)
             |> Button.withTypeSecondary
+            |> Button.withTestAttribute "linkedin-button"
             |> Button.withWidthFull
             |> Button.view
         , Button.new
@@ -360,6 +382,7 @@ socialMediaButtons (Settings settings) =
             |> Button.withNewTabLink (shareSocialLink settings.sharingInfo Reddit)
             |> Button.withContentLeft (Graphics.redditIcon 20)
             |> Button.withTypeSecondary
+            |> Button.withTestAttribute "reddit-button"
             |> Button.withWidthFull
             |> Button.view
         , Button.new
@@ -370,6 +393,7 @@ socialMediaButtons (Settings settings) =
             |> Button.withNewTabLink (shareSocialLink settings.sharingInfo Telegram)
             |> Button.withContentLeft (Graphics.telegramIcon 20)
             |> Button.withTypeSecondary
+            |> Button.withTestAttribute "telegram-button"
             |> Button.withWidthFull
             |> Button.view
         , Button.new
@@ -380,16 +404,18 @@ socialMediaButtons (Settings settings) =
             |> Button.withNewTabLink (shareSocialLink settings.sharingInfo WhatsApp)
             |> Button.withContentLeft (Graphics.whatsappIcon 20)
             |> Button.withTypeSecondary
+            |> Button.withTestAttribute "whatsapp-button"
             |> Button.withWidthFull
             |> Button.view
         ]
 
 
-copyButton : SharingButtonDialog msg -> String -> String -> Html Msg 
+copyButton : SharingButtonDialog msg -> String -> String -> Html Msg
 copyButton (Settings settings) copyText uniqueId =
     let
         styles =
             stylesForTheme settings.theme
+
         elementId =
             "copy-to-clipboard-" ++ uniqueId
     in
@@ -404,8 +430,8 @@ copyButton (Settings settings) copyText uniqueId =
                 [ Tw.flex
                 , Tw.flex_row
                 , Tw.cursor_pointer
-                , Tw.text_color styles.color4
-                , darkMode [ Tw.text_color styles.color4DarkMode ]
+                , Tw.text_color styles.colorB4
+                , darkMode [ Tw.text_color styles.colorB4DarkMode ]
                 ]
             , Attr.id elementId
             ]
@@ -416,6 +442,7 @@ copyButton (Settings settings) copyText uniqueId =
                 }
                 |> Button.withContentLeft (Icon.FeatherIcon FeatherIcons.copy |> Icon.viewWithSize 20)
                 |> Button.withTypeSecondary
+                |> Button.withTestAttribute "copy-to-clipboard-button"
                 |> Button.view
             ]
         , Html.node "js-clipboard-component"

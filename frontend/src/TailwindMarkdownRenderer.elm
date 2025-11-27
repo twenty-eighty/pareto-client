@@ -3,7 +3,7 @@ module TailwindMarkdownRenderer exposing (renderer)
 import BrowserEnv exposing (Environment)
 import Css
 import Html.Styled as Html exposing (Html)
-import Html.Styled.Attributes as Attr exposing (css)
+import Html.Styled.Attributes as Attr exposing (css, src)
 import LinkPreview
 import Markdown.Block as Block
 import Markdown.Html
@@ -16,7 +16,6 @@ import Tailwind.Utilities as Tw
 import Ui.Links
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyRobotoMono, print, stylesForTheme)
-import Html.Styled.Attributes exposing (src)
 
 
 textStyleArticleCode : List (Html.Attribute msg)
@@ -85,58 +84,22 @@ renderer environment styles fnGetProfile =
             let
                 imagesrc =
                     image.src
-                    |> ensureHttps
-                    |> Ui.Links.scaledImageLink environment 650
+                        |> ensureHttps
             in
-            case ( image.title, image.src ) of
-                ( _, "" ) ->
+            case ( image.src ) of
+                ( "" ) ->
                     -- ignore images without src attribute
                     emptyHtml
 
-                ( Just "1.00", _ ) ->
-                    -- dirty fix - route96 server delivers caption as "1.00" even if it wasn't set explicitly
-                    Html.node "center"
-                        []
-                        [ Html.img
-                            [ Attr.src imagesrc
-                            , Attr.alt image.alt
-                            , css
-                                [ Tw.max_h_96
-                                ]
-                            ]
-                            []
-                        ]
-
-                ( Just title, _ ) ->
-                    Html.node "center"
-                        []
-                        [ Html.figure
-                            [ css
-                                []
-                            ]
-                            [ Html.img
-                                [ Attr.src imagesrc
-                                , Attr.alt image.alt
-                                ]
-                                []
-                            , Html.figcaption
-                                []
-                                [ Html.text title ]
+                ( _ ) ->
+                    Html.img
+                        [ Attr.src imagesrc
+                        , Attr.alt image.alt
+                        , css
+                            [ Tw.inline
                             ]
                         ]
-
-                ( Nothing, _ ) ->
-                    Html.node "center"
                         []
-                        [ Html.img
-                            [ Attr.src imagesrc
-                            , Attr.alt image.alt
-                            , css
-                                [ Tw.max_h_96
-                                ]
-                            ]
-                            []
-                        ]
     , unorderedList =
         \items ->
             Html.ul (styles.textStyleBody ++ styles.colorStyleGrayscaleText)
@@ -580,11 +543,11 @@ defaultFormatCodeBlock body =
             , Tw.p_3
             , Tw.rounded_2xl
             , Tw.text_sm
-            , Tw.text_color styles.color1
-            , Tw.bg_color styles.color4
+            , Tw.text_color styles.colorB1
+            , Tw.bg_color styles.colorB4
             , darkMode
-                [ Tw.text_color styles.color4DarkMode
-                , Tw.bg_color styles.color2DarkMode
+                [ Tw.text_color styles.colorB4DarkMode
+                , Tw.bg_color styles.colorB2DarkMode
                 ]
             , Tw.mb_3
             ]
@@ -594,11 +557,22 @@ defaultFormatCodeBlock body =
 
 formatLink : Styles msg -> { title : Maybe String, destination : String } -> List (Html msg) -> Html msg
 formatLink styles { destination } body =
+    let
+        -- open external links in new tab.
+        -- Most users don't know how to control opening external links in their browser.
+        relAttr =
+            if String.startsWith "http" destination then
+                [ Attr.rel "nofollow noopener noreferrer"
+                , Attr.target "_blank"
+                ]
+            else
+                []
+    in
     Html.a
         (styles.colorStyleLinks
             ++ styles.textStyleLinks
+            ++ relAttr
             ++ [ Attr.href destination
-               , Attr.rel "nofollow"
                ]
         )
         body

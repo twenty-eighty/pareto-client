@@ -3,6 +3,7 @@ module Components.InteractionIcon exposing
     , map
     , view
     , withAttributes
+    , withTestAttribute
     )
 
 {-|
@@ -37,6 +38,7 @@ type InteractionIcon msg
         , actionInProgress : Bool
         , attributes : List (String, String)
         , onClick : Maybe msg
+        , testAttribute : String
         , theme : Ui.Styles.Theme
         }
 
@@ -48,6 +50,7 @@ new props =
         , actionInProgress = props.actionInProgress
         , attributes = []
         , onClick = props.onClick
+        , testAttribute = "unnamed"
         , theme = props.theme
         }
 
@@ -58,12 +61,19 @@ map toMsg (Settings settings) =
         , actionInProgress = settings.actionInProgress
         , attributes = settings.attributes
         , onClick = Maybe.map toMsg settings.onClick
+        , testAttribute = settings.testAttribute
         , theme = settings.theme
         }
 
 withAttributes : List (String, String) -> InteractionIcon msg -> InteractionIcon msg
 withAttributes attributes (Settings settings) =
     Settings { settings | attributes = attributes }
+
+
+
+withTestAttribute : String -> InteractionIcon msg -> InteractionIcon msg
+withTestAttribute testAttribute (Settings settings) =
+    Settings { settings | testAttribute = testAttribute }
 
 
 -- VIEW
@@ -105,7 +115,9 @@ view (Settings settings) =
             ]
             [ viewProcessingIndicator
             , element
-                (attributes ++ onClickAttr
+                ([ Attr.attribute "data-test" ("interaction-icon-" ++ settings.testAttribute) ]
+                    ++ attributes
+                    ++ onClickAttr
                     ++ [ Attr.css
                             [ Tw.py_2
                             , Tw.px_2

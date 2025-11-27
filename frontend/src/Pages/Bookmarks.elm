@@ -2,8 +2,9 @@ module Pages.Bookmarks exposing (Model, Msg, page)
 
 import Auth
 import Components.ArticleComments as ArticleComments
+import Components.BookmarkButton as BookmarkButton
 import Components.Categories as Categories
-import Dict
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html)
 import I18Next
@@ -70,7 +71,8 @@ toLayout user shared model =
 
 
 type alias Model =
-    { categories : Categories.Model BookmarkType
+    { bookmarkButtons : Dict EventId BookmarkButton.Model
+    , categories : Categories.Model BookmarkType
     , selectedBookmarkType : BookmarkType
     }
 
@@ -83,7 +85,8 @@ init shared user () =
                 |> Maybe.map (requestForBookmarkContent shared.nostr ArticleBookmark)
                 |> Maybe.withDefault Effect.none
     in
-    ( { categories = Categories.init { selected = ArticleBookmark }
+    ( { bookmarkButtons = Dict.empty
+      , categories = Categories.init { selected = ArticleBookmark }
       , selectedBookmarkType = ArticleBookmark
       }
     , Effect.batch
@@ -111,7 +114,7 @@ requestForBookmarkContent nostr bookmarkType bookmarkList =
                             , tagReferences = Just [ TagReferenceIdentifier identifier ]
                           }
                         ]
-                            |> RequestArticlesFeed
+                            |> RequestArticlesFeed False
                             |> Nostr.createRequest nostr "Bookmark articles" [ KindUserMetadata ]
                             |> Shared.Msg.RequestNostrEvents
                             |> Effect.sendSharedMsg
@@ -156,6 +159,7 @@ requestForBookmarkContent nostr bookmarkType bookmarkList =
 
 type Msg
     = ReceivedMessage IncomingMessage
+    | BookmarkButtonMsg EventId BookmarkButton.Msg
     | CategoriesSent (Categories.Msg BookmarkType Msg)
     | CategorySelected BookmarkType
     | AddArticleBookmark PubKey AddressComponents
@@ -168,6 +172,16 @@ update user shared msg model =
     case msg of
         ReceivedMessage message ->
             updateWithMessage user shared model message
+
+        BookmarkButtonMsg eventId innerMsg ->
+            BookmarkButton.update
+                { msg = innerMsg
+                , model = Dict.get eventId model.bookmarkButtons
+                , nostr = shared.nostr
+                , toModel = \bookmarkButton -> { model | bookmarkButtons = Dict.insert eventId bookmarkButton model.bookmarkButtons }
+                , toMsg = BookmarkButtonMsg eventId
+                , translations = shared.browserEnv.translations
+                }
 
         CategoriesSent innerMsg ->
             Categories.update
@@ -255,8 +269,14 @@ updateWithMessage user shared model message =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Ports.receiveMessage ReceivedMessage
+subscriptions model =
+    Sub.batch
+        [ Ports.receiveMessage ReceivedMessage
+        , model.bookmarkButtons
+            |> Dict.toList
+            |> List.map (\(eventId, bookmarkButton) -> BookmarkButton.subscriptions bookmarkButton |> Sub.map (BookmarkButtonMsg eventId))
+            |> Sub.batch
+        ]
 
 
 
@@ -294,7 +314,7 @@ viewBookmarks shared model bookmarkList =
 
 
 viewArticleBookmarks : Shared.Model -> Model -> List AddressComponents -> Html Msg
-viewArticleBookmarks shared _ addressComponents =
+viewArticleBookmarks shared model addressComponents =
     addressComponents
         |> List.filterMap (Nostr.getArticle shared.nostr)
         |> Nostr.sortArticlesByDate
@@ -302,12 +322,14 @@ viewArticleBookmarks shared _ addressComponents =
             ArticlePreviewList
             { articleComments = ArticleComments.init
             , articleToInteractionsMsg = \_ _ -> NoOp
-            , bookmarkButtonMsg = \_ _ -> NoOp
-            , bookmarkButtons = Dict.empty
+            , bookmarkButtonMsg = BookmarkButtonMsg
+            , bookmarkButtons = model.bookmarkButtons
             , browserEnv = shared.browserEnv
             , commentsToMsg = \_ -> NoOp
+            , deleteButtonMsg = Nothing
             , nostr = shared.nostr
             , loginStatus = shared.loginStatus
+            , onLoadMore = Nothing
             , sharing = Nothing
             , theme = shared.theme
             }

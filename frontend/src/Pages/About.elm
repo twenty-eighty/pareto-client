@@ -4,6 +4,7 @@ import BrowserEnv exposing (BrowserEnv)
 import BuildInfo
 import Components.Button as Button
 import Effect exposing (Effect)
+import Graphics
 import Html.Styled as Html exposing (Html, a, div, img, span, text)
 import Html.Styled.Attributes as Attr exposing (css, href, src, target, width)
 import I18Next
@@ -82,7 +83,11 @@ update shared msg model =
     case msg of
         RecommendClient pubKey handlerInformation ->
             ( model
-            , sendClientRecommendation shared.nostr pubKey handlerInformation
+            , Effect.batch
+                [ sendClientRecommendation shared.nostr pubKey handlerInformation
+                , Shared.Msg.ShowAlert (Translations.recommendationSentAlertText [ shared.browserEnv.translations ])
+                    |> Effect.sendSharedMsg
+                ]
             )
 
         PublishHandlerInformation pubKey handlerInformation ->
@@ -181,15 +186,16 @@ viewSupportInformation theme translations =
                     ]
                ]
         )
-        [ text <| Translations.feedbackEmailInfoText [ translations ]
+        [ text <| Translations.feedbackInfoText [ translations ]
         , a
             (styles.textStyleLinks
                 ++ styles.colorStyleLinks
-                ++ [ Attr.href <| "mailto:" ++ Pareto.supportEmail
+                ++ [ Attr.href <| Route.Path.toString Route.Path.Contact
                    ]
             )
-            [ text Pareto.supportEmail
+            [ text (Translations.supportPageLinkText [ translations ])
             ]
+        , text "."
         ]
 
 
@@ -257,6 +263,7 @@ viewContent shared handlerInformation =
             }
         , viewSupportInformation shared.theme shared.browserEnv.translations
         , viewDonationInformation shared.theme shared.browserEnv.translations
+        , viewTelegramLink shared.theme shared.browserEnv
         , viewActionButtons shared.theme shared.browserEnv handlerInformation shared.loginStatus
         , viewTechDetails shared.theme shared.browserEnv
         ]
@@ -322,6 +329,30 @@ viewPublishProfileButton theme browserEnv pubKey handlerInformation =
 
     else
         emptyHtml
+
+
+viewTelegramLink : Theme -> BrowserEnv -> Html Msg
+viewTelegramLink theme browserEnv =
+    let
+        styles =
+            stylesForTheme theme
+    in
+    a
+        (styles.textStyleLinks
+         ++ styles.colorStyleLinks
+         ++ [ Attr.href "https://t.me/pareto_artikel"
+            , target "_blank"
+            , css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.items_center
+                , Tw.my_2
+                , Tw.gap_2
+                ]
+            ]
+        )
+        [ Graphics.telegramIcon 30
+        , text (Translations.telegramLinkText [ browserEnv.translations ]) ]
 
 
 viewPublishHandlerInformationButton : Theme -> BrowserEnv -> PubKey -> HandlerInformation -> Html Msg

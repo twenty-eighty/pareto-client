@@ -143,6 +143,7 @@ view (Settings settings) =
         ]
         [ input
             [ Attr.type_ "checkbox"
+            , Attr.attribute "data-test" ("checkbox-" ++ settings.label)
             , Events.onClick (settings.onClick (not settings.checked))
             , Attr.css
                 [ Tw.absolute
@@ -162,8 +163,8 @@ view (Settings settings) =
                 , Tw.items_center
                 , Tw.justify_center
                 , Tw.text_color Theme.white
-                , Tw.bg_color styles.color3
-                , darkMode [ Tw.bg_color styles.color2DarkMode ]
+                , Tw.bg_color styles.colorB3
+                , darkMode [ Tw.bg_color styles.colorB2DarkMode ]
                 ]
                 :: styles.colorStyleBorders
             )

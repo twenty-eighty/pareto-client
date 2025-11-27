@@ -106,6 +106,7 @@ defmodule NostrBackendWeb.OembedController do
         Logger.error("OEmbed: Failed to fetch oEmbed URL: #{inspect(reason)}")
         # Cache fetch errors for 30 minutes
         Cachex.put(:oembed_cache, oembed_url, :fetch_error, ttl: :timer.minutes(30))
+
         conn
         |> put_status(:bad_request)
         |> text("Failed to fetch oEmbed URL: #{inspect(reason)}")
@@ -133,7 +134,7 @@ defmodule NostrBackendWeb.OembedController do
   end
 
   defp handle_body_by_content_type(actual_content_type, _body) do
-    {:error, "Unsupported Content-Type: #{actual_content_type}" }
+    {:error, "Unsupported Content-Type: #{actual_content_type}"}
   end
 
   defp parse_xml_to_json(xml_body) do
@@ -175,8 +176,8 @@ defmodule NostrBackendWeb.OembedController do
 
   defp put_acces_control_headers(conn) do
     conn
-          |> put_resp_header("access-control-allow-origin", "*")
-      # |> put_resp_header("access-control-allow-origin", "pareto.space")
-      |> put_resp_header("access-control-allow-methods", "GET, OPTIONS")
+    |> put_resp_header("access-control-allow-origin", "*")
+    # |> put_resp_header("access-control-allow-origin", "pareto.space")
+    |> put_resp_header("access-control-allow-methods", "GET, OPTIONS")
   end
 end

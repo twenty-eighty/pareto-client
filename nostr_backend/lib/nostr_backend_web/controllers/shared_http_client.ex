@@ -19,8 +19,10 @@ defmodule NostrBackendWeb.SharedHttpClient do
 
     # Browser-like headers to avoid bot detection
     headers = [
-      {"User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
-      {"Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"},
+      {"User-Agent",
+       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
+      {"Accept",
+       "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"},
       {"Accept-Language", "en-US,en;q=0.9"},
       {"Accept-Encoding", "gzip, deflate, br"},
       {"DNT", "1"},
@@ -36,13 +38,16 @@ defmodule NostrBackendWeb.SharedHttpClient do
     # Create a cookie jar and attach the HttpCookie plugin
     empty_jar = HttpCookie.Jar.new()
 
-    req = Req.new(
-      headers: headers,
-      max_redirects: 5,
-      connect_options: [timeout: 60_000],  # 60 seconds connection timeout
-      receive_timeout: 60_000              # 60 seconds receive timeout
-    )
-    |> HttpCookie.ReqPlugin.attach()
+    req =
+      Req.new(
+        headers: headers,
+        max_redirects: 5,
+        # 60 seconds connection timeout
+        connect_options: [timeout: 60_000],
+        # 60 seconds receive timeout
+        receive_timeout: 60_000
+      )
+      |> HttpCookie.ReqPlugin.attach()
 
     Req.get(req, url: url, cookie_jar: empty_jar)
   end
@@ -55,8 +60,10 @@ defmodule NostrBackendWeb.SharedHttpClient do
 
     # Merge default headers with custom headers
     default_headers = [
-      {"User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
-      {"Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"},
+      {"User-Agent",
+       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
+      {"Accept",
+       "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"},
       {"Accept-Language", "en-US,en;q=0.9"},
       {"Accept-Encoding", "gzip, deflate, br"},
       {"DNT", "1"},
@@ -74,13 +81,16 @@ defmodule NostrBackendWeb.SharedHttpClient do
     # Create a cookie jar and attach the HttpCookie plugin
     empty_jar = HttpCookie.Jar.new()
 
-    req = Req.new(
-      headers: headers,
-      max_redirects: 5,
-      connect_options: [timeout: 60_000],  # 60 seconds connection timeout
-      receive_timeout: 60_000              # 60 seconds receive timeout
-    )
-    |> HttpCookie.ReqPlugin.attach()
+    req =
+      Req.new(
+        headers: headers,
+        max_redirects: 5,
+        # 60 seconds connection timeout
+        connect_options: [timeout: 60_000],
+        # 60 seconds receive timeout
+        receive_timeout: 60_000
+      )
+      |> HttpCookie.ReqPlugin.attach()
 
     Req.get(req, url: url, cookie_jar: empty_jar)
   end

@@ -11,15 +11,16 @@
       "about frontend text 3": " Programmiersprache.",
       "about backend text": "Das Pareto Backend wurde entwickelt mit dem",
       "source code text": "Der Quellcode des Pareto Clients ist verfügbar unter",
-      "feedback text": "Du hast einen Fehler gefunden oder möchtest uns etwas mitteilen? Bitte schreibe eine E-Mail an ",
       "hint to tech details": "Für ausführliche technische Angaben zu der Pareto-App ",
       "see this": "siehe hier.",
       "imprint link text": "Impressum",
       "privacy policy link text": "Datenschutzerklärung",
-      "feedback email info text": "Du hast einen Fehler gefunden oder möchtest einfach Rückmeldung geben? Schreibe einfach eine E-Mail an ",
       "donation info text": "Unterstütze die Weiterentwicklung des Pareto Projekts unter ",
       "build time text": "Gebaut am/um: {{buildTime}}",
-      "git version text": "Git-Version: {{gitVersion}}"
+      "git version text": "Git-Version: {{gitVersion}}",
+      "recommendation sent alert text": "Empfehlung gesendet",
+      "feedback info text": "Du hast einen Fehler gefunden oder möchtest Feedback geben? Bitte kontaktiere uns ",
+      "support page link text": "hier"
    },
    "article info": {
       "title": "Artikel Info",
@@ -27,7 +28,7 @@
       "followers": "Followers:",
       "reading time": "Lesezeit:",
       "speaking time": "Hörlänge:",
-      "time unit": "{{minutes}} Min",
+      "time unit": "{{minutes}} min",
       "sentences": "Sätze:",
       "words": "Wörter:",
       "characters": "Zeichen:",
@@ -39,7 +40,8 @@
    "article view": {
       "link to article aria label": "Link zum Artikel {{title}}",
       "link to profile aria label": "Link zum Profil von {{author}}",
-      "link to hashtag aria label": "Link zur Suche nach Hashtag {{hashtag}}"
+      "link to hashtag aria label": "Link zur Suche nach Hashtag {{hashtag}}",
+      "follow author": "Autor merken"
    },
    "authors page": {
       "page title": "Autoren",
@@ -152,6 +154,12 @@
       "profile avatar error explanation": "Das Profilbild kann nicht geladen werden.",
       "profile banner error text": "Fehler beim Laden des Profilbanners",
       "profile banner error explanation": "Das Profilbanner kann nicht geladen werden."
+   },
+   "contact": {
+      "page title": "Kontakt",
+      "support information": "Du kannst das Pareto-Team per E-Mail kontaktieren unter",
+      "encrypted contact information": "Verschlüsselte E-Mails können gesendet werden an",
+      "pgp key info text": "Der öffentliche PGP-Schlüssel kann heruntergeladen werden von"
    },
    "countries timezones": {
       "country AD": "Andorra",
@@ -466,6 +474,7 @@
       "german text": "Deutsch",
       "italian text": "Italienisch",
       "portuguese text": "Portugiesich",
+      "russian text": "Russisch",
       "spanish text": "Spanisch",
       "swedish text": "Schwedisch"
    },
@@ -521,7 +530,7 @@
       "food category text": "Essen",
       "animals category text": "Tiere",
       "nature category text": "Natur",
-      "peace category text": "Peace",
+      "peace category text": "Frieden",
       "plants category text": "Pflanzen",
       "science category text": "Wissenschaft",
       "technology category text": "Technologie",
@@ -548,6 +557,7 @@
       "published category": "Veröffentlicht",
       "drafts category": "Entwürfe",
       "edit draft button label": "Bearbeiten",
+      "copy draft button label": "Kopieren",
       "delete draft button label": "Löschen"
    },
    "privacy": {
@@ -793,6 +803,9 @@
       "original file hash text": "Originaler Datei-Hash (ox):",
       "no NIP-94 provided text": "Keine NIP-94-Daten angegeben.",
       "error uploading to NIP-96 server text": "Fehler beim Hochladen auf NIP-96 Server"
+   },
+   "view": {
+      "load more": "Mehr laden"
    },
    "write": {
       "article image": "Bild",

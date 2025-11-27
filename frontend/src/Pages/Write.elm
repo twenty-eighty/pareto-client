@@ -20,11 +20,12 @@ import Layouts
 import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
 import Locale exposing (Language(..), languageToISOCode, languageToString)
+import Markdown
 import Milkdown.MilkdownEditor as Milkdown
 import Nostr
-import Nostr.Article exposing (articleFromEvent)
-import Nostr.DeletionRequest exposing (draftDeletionEvent)
-import Nostr.Event as Event exposing (Event, ImageMetadata, Kind(..), Tag(..), numberForKind)
+import Nostr.Article exposing (addressComponentsForArticle, articleFromEvent)
+import Nostr.DeletionRequest exposing (deletionEvent)
+import Nostr.Event as Event exposing (AddressComponents, Event, ImageMetadata, Kind(..), Tag(..), numberForKind)
 import Nostr.External
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip27 as Nip27
@@ -52,9 +53,6 @@ import Ui.Article
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
 import View exposing (View)
-import Markdown
-import Nostr.Article exposing (addressComponentsForArticle)
-import Nostr.Event exposing (AddressComponents)
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
@@ -160,6 +158,11 @@ init user shared route () =
                             |> Result.toMaybe
                     )
 
+        createCopy =
+            Dict.get "copy" route.query
+                |> Maybe.map (\copy -> copy == "true")
+                |> Maybe.withDefault False
+
         maybeArticle =
             maybeNip19
                 |> Maybe.andThen (\nip19 -> Nostr.getArticleForNip19 shared.nostr nip19)
@@ -193,33 +196,40 @@ init user shared route () =
                 Just article ->
                     let
                         publishedAt =
-                            if article.kind == KindDraftLongFormContent then
-                                -- output fresh published date when publishing article
+                            if createCopy then
+                                -- published date will equal creation date of article event
                                 Nothing
-
-                            else if article.publishedAt /= Nothing then
-                                -- keep published date if present
-                                article.publishedAt
-
-                            else
+                            else if (article.kind == KindLongFormContent && article.publishedAt == Nothing) then
                                 -- assume published date equals creation date of article event
                                 Just article.createdAt
+                            else
+                                -- keep published date if present.
+                                -- this allows to keep original published date when publishing older articles from RSS or other sources.
+                                article.publishedAt
 
-                        draftAddressComponents =
-                            if article.kind == KindDraftLongFormContent then
-                                addressComponentsForArticle article
+
+                        (draftEventId, draftAddressComponents) =
+                            if article.kind == KindDraftLongFormContent && not createCopy then
+                                (Just article.id, addressComponentsForArticle article)
 
                             else
+                                (Nothing, Nothing)
+
+                        identifier =
+                            if createCopy then
+                                -- create new identifier for copy
                                 Nothing
+                            else
+                                article.identifier
                     in
-                    { draftEventId = Just article.id
+                    { draftEventId = draftEventId
                     , draftAddressComponents = draftAddressComponents
                     , title = article.title
                     , summary = article.summary
                     , image = article.image
                     , content = Just article.content
                     , milkdown = Milkdown.init
-                    , identifier = article.identifier
+                    , identifier = identifier
                     , otherTags = article.otherTags
                     , zapWeights =
                         if List.length article.zapWeights > 0 then
@@ -292,6 +302,7 @@ defaultZapWeights pubKey =
         ]
 
 
+
 -- UPDATE
 
 
@@ -305,6 +316,7 @@ type Msg
     | UpdateTitle String
     | UpdateSubtitle String
     | HashtagEditorMsg HashtagEditor.Msg
+    | HashtagsModified Bool
     | SelectImage ImageSelection
     | ImageSelected ImageSelection MediaSelector.UploadedFile
     | Publish
@@ -395,9 +407,17 @@ update shared user msg model =
             HashtagEditor.update
                 { msg = innerMsg
                 , model = model.hashtagEditor
+                , modifiedMsg = Just HashtagsModified
                 , toModel = \hashtagEditor -> { model | hashtagEditor = hashtagEditor }
                 , toMsg = HashtagEditorMsg
                 }
+
+        HashtagsModified modified ->
+            if modified then
+                ( { model | articleState = ArticleModified }, Effect.none )
+
+            else
+                ( model, Effect.none )
 
         SelectImage imageSelection ->
             ( { model
@@ -823,7 +843,12 @@ updateWithPublishedResults shared model user value =
 
 sendPublishCmd : Shared.Model -> Model -> Auth.User -> List RelayUrl -> Effect Msg
 sendPublishCmd shared model user relayUrls =
-    eventWithContent shared model user KindLongFormContent
+    let
+        publishedAt =
+            model.publishedAt
+                |> Maybe.withDefault model.now
+    in
+    eventWithContent shared model user KindLongFormContent (Just publishedAt)
         |> SendLongFormArticle relayUrls
         |> Shared.Msg.SendNostrEvent
         |> Effect.sendSharedMsg
@@ -831,7 +856,7 @@ sendPublishCmd shared model user relayUrls =
 
 sendDraftCmd : Shared.Model -> Model -> Auth.User -> Effect Msg
 sendDraftCmd shared model user =
-    eventWithContent shared model user KindDraftLongFormContent
+    eventWithContent shared model user KindDraftLongFormContent model.publishedAt
         |> SendLongFormDraft (Nostr.getDefaultRelays shared.nostr)
         |> Shared.Msg.SendNostrEvent
         |> Effect.sendSharedMsg
@@ -841,7 +866,7 @@ sendDraftDeletionCmd : Shared.Model -> Model -> Auth.User -> Effect Msg
 sendDraftDeletionCmd shared model user =
     case model.draftEventId of
         Just draftEventId ->
-            draftDeletionEvent user.pubKey shared.browserEnv.now draftEventId "Deleting draft after publishing article" model.draftAddressComponents
+            deletionEvent user.pubKey shared.browserEnv.now draftEventId "Deleting draft after publishing article" model.draftAddressComponents [ KindDraftLongFormContent, KindDraft ]
                 |> SendDeletionRequest (Nostr.getDraftRelayUrls shared.nostr draftEventId)
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
@@ -850,13 +875,9 @@ sendDraftDeletionCmd shared model user =
             Effect.none
 
 
-eventWithContent : Shared.Model -> Model -> Auth.User -> Kind -> Event
-eventWithContent shared model user kind =
+eventWithContent : Shared.Model -> Model -> Auth.User -> Kind -> Maybe Time.Posix -> Event
+eventWithContent shared model user kind publishedAt =
     let
-        publishedAt =
-            model.publishedAt
-                |> Maybe.withDefault model.now
-
         -- NIP-92: media attachments
         imageMetadataList =
             model.content
@@ -877,7 +898,7 @@ eventWithContent shared model user kind =
             |> Event.addImageTag model.image
             |> Event.addIdentifierTag model.identifier
             |> Event.addHashtagsToTags (HashtagEditor.getHashtags model.hashtagEditor)
-            |> Event.addPublishedAtTag publishedAt
+            |> Maybe.withDefault identity (publishedAt |> Maybe.map Event.addPublishedAtTag)
             |> Maybe.withDefault identity (languageISOCode model |> Maybe.map (Event.addLabelTags "ISO-639-1"))
             |> Event.addZapTags model.zapWeights
             |> Event.addAltTag (altText model.identifier user.pubKey kind [ Pareto.paretoRelay ])
@@ -887,6 +908,7 @@ eventWithContent shared model user kind =
     , sig = Nothing
     , relays = Nothing
     }
+
 
 getImageMetadata : Model -> String -> Maybe ImageMetadata
 getImageMetadata model imageUrl =
@@ -900,19 +922,21 @@ getImageMetadata model imageUrl =
             MediaSelector.fileMetadataForUrl model.mediaSelector imageUrl
                 |> Maybe.andThen imageMetadataFromFileMetadata
 
+
 imageMetadataFromFileMetadata : FileMetadata -> Maybe ImageMetadata
 imageMetadataFromFileMetadata fileMetadata =
     fileMetadata.url
-        |> Maybe.map (\url ->
-            { url = url
-            , mimeType = fileMetadata.mimeType
-            , blurHash = fileMetadata.blurhash
-            , dim = fileMetadata.dim
-            , alt = fileMetadata.alt
-            , x = fileMetadata.xHash
-            , fallbacks = fileMetadata.fallbacks |> Maybe.withDefault []
-            }
-        )
+        |> Maybe.map
+            (\url ->
+                { url = url
+                , mimeType = fileMetadata.mimeType
+                , blurHash = fileMetadata.blurhash
+                , dim = fileMetadata.dim
+                , alt = fileMetadata.alt
+                , x = fileMetadata.xHash
+                , fallbacks = fileMetadata.fallbacks |> Maybe.withDefault []
+                }
+            )
 
 
 languageISOCode : Model -> Maybe String
@@ -1328,6 +1352,9 @@ viewImage translations model =
                 [ css
                     [ Tw.max_w_72
                     , Tw.cursor_pointer
+                    , Tw.px_2
+                    , Tw.py_2
+                    , Tw.border_2
                     ]
                 ]
                 [ img
@@ -1343,11 +1370,11 @@ viewImage translations model =
                     [ Tw.w_48
                     , Tw.h_32
                     , Tw.flex
-                    , Tw.bg_color styles.color2
+                    , Tw.bg_color styles.colorB2
                     , Tw.justify_center
                     , Tw.items_center
                     , Tw.cursor_pointer
-                    , darkMode [ Tw.bg_color styles.color2DarkMode ]
+                    , darkMode [ Tw.bg_color styles.colorB2DarkMode ]
                     ]
                 , Events.onClick (SelectImage ArticleImageSelection)
                 ]

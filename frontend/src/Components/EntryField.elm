@@ -12,6 +12,7 @@ module Components.EntryField exposing
     , withRows
     , withSubmitMsg
     , withSuggestions
+    , withTestAttribute
     , withType
     )
 
@@ -36,6 +37,7 @@ type EntryField msg
         , rows : Int
         , showForm : Bool
         , suggestions : Maybe ( String, List String )
+        , testAttribute : Maybe String
         , theme : Theme
         , type_ : FieldType
         , value : String
@@ -78,6 +80,7 @@ new props =
         , rows = 1
         , showForm = False
         , suggestions = Nothing
+        , testAttribute = Nothing
         , theme = props.theme
         , type_ = FieldTypeText
         , value = props.value
@@ -131,6 +134,11 @@ withSuggestions identifier suggestions (Settings settings) =
 
     else
         Settings settings
+
+
+withTestAttribute : String -> EntryField msg -> EntryField msg
+withTestAttribute testAttribute (Settings settings) =
+    Settings { settings | testAttribute = Just testAttribute }
 
 
 withType : FieldType -> EntryField msg -> EntryField msg
@@ -187,9 +195,9 @@ view (Settings settings) =
             else
                 []
 
-        ( elementType, attrs ) =
+        ( elementType, elementTypeName, attrs ) =
             if settings.rows > 1 then
-                ( textarea
+                ( textarea, "textarea"
                 , [ Attr.rows settings.rows
                     , css [  Tw.h_auto
 
@@ -197,7 +205,18 @@ view (Settings settings) =
                  ] )
 
             else
-                ( input, [ Attr.type_ <| fieldTypeToString settings.type_ ] )
+                ( input, "entry-field", [ Attr.type_ <| fieldTypeToString settings.type_ ] )
+
+        testAttributeAttr =
+            case (settings.testAttribute, settings.label) of
+                ( Just testAttribute, _ ) ->
+                    [ Attr.attribute "data-test" (elementTypeName ++ "-" ++ testAttribute) ]
+
+                ( _, Just label ) ->
+                    [ Attr.attribute "data-test" (elementTypeName ++ "-" ++ label) ]
+
+                ( Nothing, Nothing ) ->
+                    []
 
         ( labelElement, nameAttr ) =
             case settings.label of
@@ -257,6 +276,7 @@ view (Settings settings) =
                 ++ placeholderAttr
                 ++ requiredAttr
                 ++ suggestionsAttr
+                ++ testAttributeAttr
                 ++ [ Attr.value settings.value
                    , Events.onInput settings.onInput
                    , css

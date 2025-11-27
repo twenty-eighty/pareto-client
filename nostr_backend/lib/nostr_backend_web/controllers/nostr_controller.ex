@@ -5,9 +5,9 @@ defmodule NostrBackendWeb.NostrController do
   alias NostrBackend.Nip05Cache
 
   @default_relays [
-        "wss://nostr.pareto.space",
-        "wss://nostr.pareto.town",
-        "wss://pareto.nostr1.com"
+    "wss://nostr.pareto.space",
+    "wss://nostr.pareto.town",
+    "wss://pareto.nostr1.com"
   ]
 
   # Define the names and relays in a module attribute
@@ -18,7 +18,9 @@ defmodule NostrBackendWeb.NostrController do
       "roland" => "cff1720e77bb068f0ebbd389dcd50822dd1ac8d2ac0b0f5f0800ae9e15c7e2b2",
       "donjoe" => "0f4795bf31824a414148daf1b589bb8138fb0a03963f984c84462e40a8365abe",
       "kalle" => "08d79c2e514edd4634ea92bbfe1ec089730a049216be9d28c77c4c1c7733f518",
+      "ralph21" => "72e1390168a0a6b1caa36e96529064e87cb9b98b3c2d94afb9e1adae17d1f926",
       "rodant" => "71df211931d26ee41121d295bd43cbc7e382505e333b5c13d4016ced9542d9d7",
+      "juliakatharinawolf" => "077e553da45c7a34f3fd667e422394059846781f1015fa06009935afcab1c7a5",
       "aron" => "9f94e6cc5ce50dcaccfc42b18029aba0ac9215d673197a40172896d3f3472946",
       "matej" => "5aa5e38abbb37f89c863419bd1e4e60aa31d82fa3c39397e386586e3961b8021",
       "psychobabble" => "6734e11d8d67d9ca4dedb920f81182ded2bca918e3e0f3528bd5f4c4c7e34e8f",
@@ -49,7 +51,9 @@ defmodule NostrBackendWeb.NostrController do
       "cff1720e77bb068f0ebbd389dcd50822dd1ac8d2ac0b0f5f0800ae9e15c7e2b2" => @default_relays,
       "0f4795bf31824a414148daf1b589bb8138fb0a03963f984c84462e40a8365abe" => @default_relays,
       "08d79c2e514edd4634ea92bbfe1ec089730a049216be9d28c77c4c1c7733f518" => @default_relays,
+      "72e1390168a0a6b1caa36e96529064e87cb9b98b3c2d94afb9e1adae17d1f926" => @default_relays,
       "71df211931d26ee41121d295bd43cbc7e382505e333b5c13d4016ced9542d9d7" => @default_relays,
+      "077e553da45c7a34f3fd667e422394059846781f1015fa06009935afcab1c7a5" => @default_relays,
       "9f94e6cc5ce50dcaccfc42b18029aba0ac9215d673197a40172896d3f3472946" => @default_relays,
       "5aa5e38abbb37f89c863419bd1e4e60aa31d82fa3c39397e386586e3961b8021" => @default_relays,
       "6734e11d8d67d9ca4dedb920f81182ded2bca918e3e0f3528bd5f4c4c7e34e8f" => @default_relays,
@@ -98,6 +102,7 @@ defmodule NostrBackendWeb.NostrController do
 
       pubkey ->
         relays_for_pubkey = Map.get(@nostr_data["relays"], pubkey, [])
+
         data = %{
           "names" => %{downcased => pubkey},
           "relays" => %{pubkey => relays_for_pubkey}
@@ -138,6 +143,7 @@ defmodule NostrBackendWeb.NostrController do
 
       {:error, reason} ->
         Logger.debug("NIP-05: Validation failed for: #{handle}, error: #{inspect(reason)}")
+
         conn
         |> put_status(:not_found)
         |> text(reason)

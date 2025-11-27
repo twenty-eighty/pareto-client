@@ -68,8 +68,7 @@ defmodule NostrBackendWeb.PageController do
   def index(conn, _params) do
     conn
     |> add_meta_tags
-
-    render(:index)
+    |> render(:index)
   end
 
   def search(conn, _params) do
@@ -94,6 +93,12 @@ defmodule NostrBackendWeb.PageController do
     conn
     |> add_meta_tags
     |> render(:bookmarks)
+  end
+
+  def contact(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:contact)
   end
 
   def imprint(conn, _params) do

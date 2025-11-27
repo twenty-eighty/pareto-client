@@ -22,12 +22,18 @@ type Dropdown item msg
         , toMsg : Msg item msg -> msg
         , choices : List item
         , allowNoSelection : Bool
+        , testAttribute : String
+        , menuPosition : MenuPosition
         , toLabel : Maybe item -> String
         , size : Size
         , isDisabled : Bool
         , onChange : Maybe (Maybe item -> msg)
         }
 
+type MenuPosition
+    = MenuPositionAuto
+    | MenuPositionTop
+    | MenuPositionBottom
 
 new :
     { model : Model item
@@ -43,6 +49,8 @@ new props =
         , toMsg = props.toMsg
         , choices = props.choices
         , allowNoSelection = props.allowNoSelection
+        , testAttribute = "unnamed"
+        , menuPosition = MenuPositionAuto
         , toLabel = props.toLabel
         , size = Normal
         , isDisabled = False
@@ -68,6 +76,14 @@ withDisabled : Dropdown item msg -> Dropdown item msg
 withDisabled (Settings settings) =
     Settings { settings | isDisabled = True }
 
+
+withMenuPosition : MenuPosition -> Dropdown item msg -> Dropdown item msg
+withMenuPosition menuPosition (Settings settings) =
+    Settings { settings | menuPosition = menuPosition }
+
+withTestAttribute : String -> Dropdown item msg -> Dropdown item msg
+withTestAttribute testAttribute (Settings settings) =
+    Settings { settings | testAttribute = testAttribute }
 
 withOnChange :
     (Maybe item -> msg)
@@ -222,6 +238,7 @@ view (Settings settings) =
         viewDropdownInput =
             button
                 ([ class "dropdown__toggle"
+                 , Attr.attribute "data-test" ("dropdown-" ++ (settings.testAttribute))
                  , css
                     [ Tw.w_full
                     , Tw.text_left
@@ -231,6 +248,9 @@ view (Settings settings) =
                     , Tw.px_4
                     , Tw.py_2
                     , Tw.cursor_pointer
+                    , Tw.flex
+                    , Tw.items_center
+                    , Tw.justify_between
                     , Css.focus
                         [ Tw.outline_none
                         , Tw.ring_2
@@ -247,6 +267,10 @@ view (Settings settings) =
                     ++ styles.colorStyleBackground
                 )
                 [ viewSelectedValueOverlay
+                , if not model.isMenuOpen then
+                    viewTriangleIndicator
+                  else
+                    text ""
                 ]
 
         -- If a value is selected, this overlay should
@@ -257,6 +281,26 @@ view (Settings settings) =
                 [ class "dropdown__selected"
                 ]
                 [ text (settings.toLabel model.selected) ]
+
+        -- Triangle indicator showing that the dropdown can be opened
+        viewTriangleIndicator : Html msg
+        viewTriangleIndicator =
+            div
+                [ css
+                    [ Tw.w_0
+                    , Tw.h_0
+                    , Tw.border_l_4
+                    , Tw.border_r_4
+                    , Tw.border_t_4
+                    , Tw.border_l_color Theme.transparent
+                    , Tw.border_r_color Theme.transparent
+                    , Tw.border_t_color Theme.gray_500
+                    , darkMode
+                        [ Tw.border_t_color Theme.gray_400
+                        ]
+                    ]
+                ]
+                []
 
         viewDropdownMenu : Html msg
         viewDropdownMenu =
@@ -286,13 +330,24 @@ view (Settings settings) =
                                 )
                             |> List.head
                             |> Maybe.withDefault 0
+
+                    menuPositionAttr =
+                        case settings.menuPosition of
+                            MenuPositionAuto ->
+                                Attr.style "top" (String.fromInt (selectedIndex * -40 - 15) ++ "px")
+
+                            MenuPositionTop ->
+                                Attr.style "top" "-15px"
+
+                            MenuPositionBottom ->
+                                Attr.style "bottom" "0px"
                 in
                 div
                     ([ Attr.id "dropdownMenu"
                      , Attr.tabindex 1
 
                      -- position listbox on top of dropdown element, approx. so that selected element is on top of dropdown
-                     , Attr.style "top" (String.fromInt (selectedIndex * -40 - 15) ++ "px")
+                     , menuPositionAttr
                      , onBlur (settings.toMsg BlurredDropdown)
                      , css
                         [ Tw.absolute
@@ -320,17 +375,7 @@ view (Settings settings) =
         viewDropdownMenuItem item =
             li
                 [ onClick (onMenuItemClick item)
-                , css
-                    [ Tw.block
-                    , Tw.px_4
-                    , Tw.py_2
-                    , Css.hover
-                        [ Tw.bg_color Theme.blue_100
-                        , darkMode
-                            [ Tw.bg_color Theme.blue_900
-                            ]
-                        ]
-                    ]
+                , Attr.attribute "data-test" ("dropdown-item-" ++ (settings.toLabel item |> String.replace " " "-"))
                 ]
                 [ text (settings.toLabel item)
                 ]

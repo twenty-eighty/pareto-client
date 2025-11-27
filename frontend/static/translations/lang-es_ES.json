@@ -11,15 +11,16 @@
       "about frontend text 3": "lenguaje de programación",
       "about backend text": "El backend de Pareto fue desarrollado usando",
       "source code text": "El código fuente del cliente Pareto está disponible en",
-      "feedback text": "¿Encontraste un error o quieres dar tu opinión? Por favor escribe un email a ",
       "hint to tech details": "Para información técnica detallada del cliente Pareto ",
       "see this": "ver esto.",
       "imprint link text": "Información legal",
       "privacy policy link text": "Política de Privacidad",
-      "feedback email info text": "¿Encontraste un error o quieres dar tu opinión? Por favor escribe un email a ",
       "donation info text": "Apoya el desarrollo continuo del proyecto Pareto en ",
       "build time text": "Fecha de confección: {{buildTime}}",
-      "git version text": "Versión en Git: {{gitVersion}}"
+      "git version text": "Versión en Git: {{gitVersion}}",
+      "recommendation sent alert text": "¡Recomendación enviada!",
+      "feedback info text": "¿Encontraste un error o quieres dar tu opinión? Por favor escribe un email a ",
+      "support page link text": "aquí"
    },
    "article info": {
       "title": "Información sobre el Artículo",
@@ -39,7 +40,8 @@
    "article view": {
       "link to article aria label": "Enlace al artículo {{title}}",
       "link to profile aria label": "Enlace al perfil de {{author}}",
-      "link to hashtag aria label": "Enlace para buscar hashtag {{hashtag}}"
+      "link to hashtag aria label": "Enlace para buscar hashtag {{hashtag}}",
+      "follow author": "Seguir autor"
    },
    "authors page": {
       "page title": "Autores",
@@ -152,6 +154,12 @@
       "profile avatar error explanation": "La imagen de avatar del perfil no se puede cargar.",
       "profile banner error text": "Error de estandarte del perfil",
       "profile banner error explanation": "La imagen de estandarte del perfil no se puede cargar."
+   },
+   "contact": {
+      "page title": "Contactar",
+      "support information": "Puedes contactar con el equipo de Pareto por correo electrónico en",
+      "encrypted contact information": "Los correos cifrados pueden ser enviados a",
+      "pgp key info text": "La clave pública PGP se puede descargar desde"
    },
    "countries timezones": {
       "country AD": "Andorra",
@@ -466,6 +474,7 @@
       "german text": "Alemán",
       "italian text": "Italiano",
       "portuguese text": "Portugués",
+      "russian text": "Ruso",
       "spanish text": "Español",
       "swedish text": "Sueco"
    },
@@ -548,6 +557,7 @@
       "published category": "Publicadas",
       "drafts category": "Borradores",
       "edit draft button label": "Editar",
+      "copy draft button label": "Copiar",
       "delete draft button label": "Eliminar"
    },
    "privacy": {
@@ -793,6 +803,9 @@
       "original file hash text": "Hash de Archivo Original (ox):",
       "no NIP-94 provided text": "No se proporcionaron datos NIP-94.",
       "error uploading to NIP-96 server text": "Error subiendo al servidor NIP-96"
+   },
+   "view": {
+      "load more": "Cargar más"
    },
    "write": {
       "article image": "Imagen",

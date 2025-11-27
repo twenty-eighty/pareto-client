@@ -1,17 +1,8 @@
 module Components.InteractionButton exposing
     ( InteractionButton, new
-    , ClickAction(..), mapAction
     , view
     , init, update, Model, Msg
-    , subscriptions
-    , InteractionObject(..)
-    , InteractionParams
-    , pubKeyOfInteractionObject
-    , eventIdOfInteractionObject
-    , withLabel
-    , withAttributes
-    , withOnClickAction
-    , withReactIcon
+    , ClickAction(..), InteractionObject(..), InteractionParams, eventIdOfInteractionObject, mapAction, pubKeyOfInteractionObject, subscriptions, withAttributes, withLabel, withOnClickAction, withReactIcon, withTestAttribute
     )
 
 {-|
@@ -22,9 +13,11 @@ module Components.InteractionButton exposing
 @docs InteractionButton, new
 @docs view
 
+
 ## State management
 
 @docs init, update, Model, Msg
+
 
 ## Modifiers
 
@@ -34,8 +27,8 @@ module Components.InteractionButton exposing
 
 -}
 
-import Components.InteractionIcon as InteractionIcon
 import Components.Icon exposing (Icon)
+import Components.InteractionIcon as InteractionIcon
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes exposing (css)
@@ -43,8 +36,8 @@ import I18Next
 import Nostr
 import Nostr.Event exposing (AddressComponents)
 import Nostr.External
-import Nostr.Send exposing (SendRequestId, SendRequest)
-import Nostr.Types exposing (EventId, PubKey, IncomingMessage)
+import Nostr.Send exposing (SendRequest, SendRequestId)
+import Nostr.Types exposing (EventId, IncomingMessage, PubKey)
 import Ports
 import Shared.Msg
 import Tailwind.Utilities as Tw
@@ -52,10 +45,12 @@ import Translations.InteractionButton as Translations
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles
 
+
 type InteractionObject
     = Article EventId AddressComponents
     | Comment EventId PubKey
     | PicturePost EventId PubKey
+
 
 type alias InteractionParams =
     { nostr : Nostr.Model
@@ -63,18 +58,22 @@ type alias InteractionParams =
     , interactionObject : InteractionObject
     }
 
+
 type ClickAction msg
     = NoAction
     | Send SendRequest
     | SendMsg msg
 
+
 pubKeyOfInteractionObject : InteractionObject -> PubKey
 pubKeyOfInteractionObject interactionObject =
     case interactionObject of
-        Article _ (_, pubKey, _) ->
+        Article _ ( _, pubKey, _ ) ->
             pubKey
+
         Comment _ pubKey ->
-            pubKey 
+            pubKey
+
         PicturePost _ pubKey ->
             pubKey
 
@@ -84,8 +83,10 @@ eventIdOfInteractionObject interactionObject =
     case interactionObject of
         Article eventId _ ->
             eventId
+
         Comment eventId _ ->
-            eventId 
+            eventId
+
         PicturePost eventId _ ->
             eventId
 
@@ -103,10 +104,12 @@ mapAction toMsg clickAction =
             SendMsg (toMsg msg)
 
 
+
 -- MODEL
 
-type Model =
-    Model
+
+type Model
+    = Model
         { sendRequestId : Maybe SendRequestId
         }
 
@@ -118,11 +121,14 @@ init =
         }
 
 
+
 -- UPDATE
+
 
 type Msg msg
     = Clicked (ClickAction msg)
     | ReceivedMessage IncomingMessage
+
 
 update :
     { msg : Msg msg
@@ -130,7 +136,8 @@ update :
     , nostr : Nostr.Model
     , toModel : Model -> model
     , translations : I18Next.Translations
-    } -> ( model, Effect msg )
+    }
+    -> ( model, Effect msg )
 update props =
     let
         (Model model) =
@@ -160,7 +167,7 @@ update props =
 
                     SendMsg clickMsg ->
                         ( Model model, Effect.sendMsg clickMsg )
-            
+
             ReceivedMessage message ->
                 updateWithMessage (Model model) props.translations message
 
@@ -169,10 +176,11 @@ updateWithMessage : Model -> I18Next.Translations -> IncomingMessage -> ( Model,
 updateWithMessage (Model model) translations message =
     case message.messageType of
         "published" ->
-            case (model.sendRequestId, Nostr.External.decodeSendId message.value) of
+            case ( model.sendRequestId, Nostr.External.decodeSendId message.value ) of
                 ( Just sendRequestId, Ok incomingSendRequestId ) ->
                     if sendRequestId == incomingSendRequestId then
                         ( Model { model | sendRequestId = Nothing }, Effect.none )
+
                     else
                         ( Model model, Effect.none )
 
@@ -180,7 +188,7 @@ updateWithMessage (Model model) translations message =
                     ( Model model, Effect.none )
 
         "error" ->
-            case (model.sendRequestId, Nostr.External.decodeSendId message.value, Nostr.External.decodeReason message.value) of
+            case ( model.sendRequestId, Nostr.External.decodeSendId message.value, Nostr.External.decodeReason message.value ) of
                 ( Just sendRequestId, Ok incomingSendRequestId, Ok reason ) ->
                     if sendRequestId == incomingSendRequestId then
                         ( Model { model | sendRequestId = Nothing }
@@ -188,6 +196,7 @@ updateWithMessage (Model model) translations message =
                             |> Shared.Msg.ShowAlert
                             |> Effect.sendSharedMsg
                         )
+
                     else
                         ( Model model, Effect.none )
 
@@ -210,20 +219,23 @@ type InteractionButton msg
         , reactIcon : Maybe Icon
         , reactedIcon : Icon
         , reacted : Bool
+        , testAttribute : String
         , theme : Ui.Styles.Theme
         , toMsg : Msg msg -> msg
         , label : Maybe String
         , attributes : List ( String, String )
         }
 
-new : 
+
+new :
     { model : Model
     , unreactedIcon : Icon
     , reactedIcon : Icon
     , reacted : Bool
     , theme : Ui.Styles.Theme
     , toMsg : Msg msg -> msg
-    } -> InteractionButton msg
+    }
+    -> InteractionButton msg
 new props =
     Settings
         { model = props.model
@@ -232,37 +244,48 @@ new props =
         , reactIcon = Nothing
         , reactedIcon = props.reactedIcon
         , reacted = props.reacted
+        , testAttribute = "unnamed"
         , theme = props.theme
         , toMsg = props.toMsg
         , label = Nothing
         , attributes = []
         }
 
-withLabel : String -> InteractionButton msg -> InteractionButton msg
+
+withLabel : Maybe String -> InteractionButton msg -> InteractionButton msg
 withLabel label (Settings settings) =
-    Settings { settings | label = Just label }
+    Settings { settings | label = label }
 
 
 withOnClickAction : Maybe (ClickAction msg) -> InteractionButton msg -> InteractionButton msg
 withOnClickAction clickAction (Settings settings) =
     Settings { settings | onClickAction = clickAction }
 
+
 withReactIcon : Icon -> InteractionButton msg -> InteractionButton msg
 withReactIcon icon (Settings settings) =
     Settings { settings | reactIcon = Just icon }
 
-withAttributes : List (String, String) -> InteractionButton msg -> InteractionButton msg
+
+withAttributes : List ( String, String ) -> InteractionButton msg -> InteractionButton msg
 withAttributes attributes (Settings settings) =
     Settings { settings | attributes = attributes }
+
+
+withTestAttribute : String -> InteractionButton msg -> InteractionButton msg
+withTestAttribute testAttribute (Settings settings) =
+    Settings { settings | testAttribute = testAttribute }
+
 
 subscriptions : Model -> Sub (Msg msg)
 subscriptions (Model model) =
     case model.sendRequestId of
         Just _ ->
-            Ports.receiveMessage ReceivedMessage 
-        
+            Ports.receiveMessage ReceivedMessage
+
         Nothing ->
             Sub.none
+
 
 
 -- VIEW
@@ -277,19 +300,20 @@ view (Settings settings) =
         currentIcon =
             if settings.reacted then
                 settings.reactedIcon
+
             else
-                case (settings.reactIcon, settings.onClickAction) of
-                    (Just reactIcon, Just _) ->
+                case ( settings.reactIcon, settings.onClickAction ) of
+                    ( Just reactIcon, Just _ ) ->
                         reactIcon
 
                     _ ->
                         settings.unreactedIcon
 
-
         onClick =
             if settings.onClickAction /= Nothing then
                 settings.onClickAction
-                |> Maybe.map Clicked
+                    |> Maybe.map Clicked
+
             else
                 Nothing
     in
@@ -307,13 +331,13 @@ view (Settings settings) =
             , theme = settings.theme
             }
             |> InteractionIcon.withAttributes settings.attributes
+            |> InteractionIcon.withTestAttribute settings.testAttribute
             |> InteractionIcon.view
             |> Html.map settings.toMsg
         , settings.label
-            |> Maybe.map (\label ->
-                Html.span [ css [ Tw.text_left ] ] [ Html.text label ]
-            )
+            |> Maybe.map
+                (\label ->
+                    Html.span [ css [ Tw.text_left ] ] [ Html.text label ]
+                )
             |> Maybe.withDefault emptyHtml
         ]
-
-

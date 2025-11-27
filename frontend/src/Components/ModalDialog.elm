@@ -52,15 +52,11 @@ new props =
 
 
 -- MODIFIERS
-
-
-
 -- VIEW
 
 
 view : ModalDialog msg -> Html msg
 view (Settings settings) =
-
     let
         styles =
             stylesForTheme settings.theme
@@ -73,7 +69,7 @@ view (Settings settings) =
             , Tw.flex
             , Tw.justify_center
             , Tw.items_center
-            , Tw.z_50
+            , Tw.z_30
             ]
             :: styles.colorStyleBackground
         )
@@ -84,10 +80,10 @@ view (Settings settings) =
                         , Tw.shadow_lg
                         , Tw.drop_shadow_md
                         , Tw.backdrop_blur_md
-                        , Tw.shadow_color styles.color2
+                        , Tw.shadow_color styles.colorB2
                         , Tw.max_h_screen
                         , darkMode
-                            [ Tw.shadow_color styles.color2DarkMode
+                            [ Tw.shadow_color styles.colorB2DarkMode
                             ]
                         , Tw.w_auto
                         , Bp.xxl
@@ -126,18 +122,18 @@ view (Settings settings) =
                     [ css
                         [ Tw.text_lg
                         , Tw.font_semibold
-                        , Tw.text_color styles.color4
-                        , darkMode [ Tw.text_color styles.color4DarkMode ]
+                        , Tw.text_color styles.colorB4
+                        , darkMode [ Tw.text_color styles.colorB4DarkMode ]
                         ]
                     ]
                     [ text settings.title ]
                 , button
                     ([ css
                         [ Css.hover
-                            [ Tw.text_color styles.color2 ]
+                            [ Tw.text_color styles.colorB2 ]
                         , darkMode
                             [ Css.hover
-                                [ Tw.text_color styles.color2DarkMode ]
+                                [ Tw.text_color styles.colorB2DarkMode ]
                             ]
                         ]
                      , Attr.id "close-modal"

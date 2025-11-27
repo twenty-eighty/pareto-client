@@ -184,10 +184,7 @@ init shared route () =
       }
     , Effect.batch
         [ changeCategoryEffect
-        , RequestArticlesFeed [ filterForCategory shared correctedCategory ]
-            |> Nostr.createRequest shared.nostr "Long-form articles" [ KindUserMetadata, KindEventDeletionRequest ]
-            |> Shared.Msg.RequestNostrEvents
-            |> Effect.sendSharedMsg
+        , requestArticlesEffect shared correctedCategory False
         , signUpEffect
         ]
     )
@@ -201,6 +198,7 @@ type Msg
     = CategorySelected Category
     | CategoriesSent (Categories.Msg Category Msg)
     | BookmarkButtonMsg EventId BookmarkButton.Msg
+    | LoadMoreArticles
     | NoOp
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -227,6 +225,9 @@ update shared msg model =
                 , translations = shared.browserEnv.translations
                 }
 
+        LoadMoreArticles ->
+            ( model, requestArticlesEffect shared (Categories.selected model.categories) True )
+
         NoOp ->
             ( model, Effect.none )
 
@@ -236,12 +237,18 @@ updateModelWithCategory shared model category =
     ( model
     , Effect.batch
         [ Effect.replaceRoute { path = model.path, query = Dict.singleton categoryParamName (stringFromCategory category), hash = Nothing }
-        , RequestArticlesFeed [ filterForCategory shared category ]
+        , requestArticlesEffect shared category False
+        ]
+    )
+
+requestArticlesEffect : Shared.Model -> Category -> Bool -> Effect Msg
+requestArticlesEffect shared category loadMore =
+    RequestArticlesFeed loadMore [ filterForCategory shared category ]
             |> Nostr.createRequest shared.nostr "Long-form articles" [ KindUserMetadata, KindEventDeletionRequest ]
             |> Shared.Msg.RequestNostrEvents
             |> Effect.sendSharedMsg
-        ]
-    )
+
+
 
 
 filterForCategory : Shared.Model -> Category -> EventFilter
@@ -468,8 +475,10 @@ viewContent shared model userPubKey =
                     , bookmarkButtons = model.bookmarkButtons
                     , browserEnv = shared.browserEnv
                     , commentsToMsg = \_ -> NoOp
+                    , deleteButtonMsg = Nothing
                     , nostr = shared.nostr
                     , loginStatus = shared.loginStatus
+                    , onLoadMore = Just LoadMoreArticles
                     , sharing = Nothing
                     , theme = shared.theme
                     }

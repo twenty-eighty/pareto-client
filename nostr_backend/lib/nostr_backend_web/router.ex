@@ -41,8 +41,9 @@ defmodule NostrBackendWeb.Router do
 
     get("/about", PageController, :about)
     get("/authors", PageController, :authors)
-    get("/c", PageController, :communities)
     get("/bookmarks", PageController, :bookmarks)
+    get("/c", PageController, :communities)
+    get("/contact", PageController, :contact)
     get("/imprint", PageController, :imprint)
     get("/internals", PageController, :internals)
     get("/media", PageController, :media)

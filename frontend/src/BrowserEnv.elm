@@ -1,4 +1,4 @@
-module BrowserEnv exposing (BrowserEnv, Environment(..), Msg(..), formatDate, formatIsoDate, init, subscriptions, update, updateTimeZone, TestMode(..), setTestMode, isNativeSharingAvailable)
+module BrowserEnv exposing (BrowserEnv, Environment(..), Msg(..), formatDate, formatIsoDate, init, isDevEnvironment, subscriptions, update, updateTimeZone, TestMode(..), setTestMode, isNativeSharingAvailable)
 
 import DateFormat
 import DateFormat.Language
@@ -54,6 +54,7 @@ type alias InitParams =
     { backendUrl : String
     , darkMode : Bool
     , environment : Maybe String
+    , imageCachingServer : String
     , frontendUrl : String
     , locale : String
     , nativeSharingAvailable : Bool
@@ -62,8 +63,8 @@ type alias InitParams =
 
 
 type Environment
-    = Production
-    | Development
+    = Production { imageCachingServer : String }
+    | Development { imageCachingServer : String }
     | StandAlone
 
 type TestMode
@@ -73,6 +74,14 @@ type TestMode
 isNativeSharingAvailable : BrowserEnv -> Bool
 isNativeSharingAvailable browserEnv =
     browserEnv.nativeSharingAvailable
+
+isDevEnvironment : BrowserEnv -> Bool
+isDevEnvironment browserEnv =
+    case browserEnv.environment of
+        Development _ ->
+            True
+        _ ->
+            False
 
 init : InitParams -> ( BrowserEnv, Cmd Msg )
 init initParams =
@@ -94,7 +103,7 @@ init initParams =
             , dateFormatTokensWithoutYear = dateFormatTokensWithoutYear
             , dateFormatRelativeTimeOptions = relativeTimeOptions
             , darkMode = initParams.darkMode
-            , environment = environmentFromString initParams.environment
+            , environment = environmentFromString initParams.environment initParams.imageCachingServer
             , formatNumber = numberFormatFromLanguage language
             , errors = []
             , installPromptAvailable = False
@@ -121,17 +130,17 @@ init initParams =
     )
 
 
-environmentFromString : Maybe String -> Environment
-environmentFromString envString =
+environmentFromString : Maybe String -> String -> Environment
+environmentFromString envString imageCachingServer =
     case envString of
         Just "dev" ->
-            Development
+            Development { imageCachingServer = imageCachingServer }
 
         Just "standalone" ->
             StandAlone
 
         _ ->
-            Production
+            Production { imageCachingServer = imageCachingServer }
 
 
 requestTranslations : Language -> Cmd Msg

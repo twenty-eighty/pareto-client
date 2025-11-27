@@ -70,17 +70,19 @@ new props =
         , zapRelayUrls = Set.empty
         }
 
+
 withNewComment : Maybe CommentType -> ArticleComments msg -> ArticleComments msg
 withNewComment newComment (Settings settings) =
-    Settings { settings | newComment = newComment } 
+    Settings { settings | newComment = newComment }
+
 
 withZapRelayUrls : Set RelayUrl -> ArticleComments msg -> ArticleComments msg
 withZapRelayUrls zapRelayUrls (Settings settings) =
     Settings { settings | zapRelayUrls = zapRelayUrls }
 
 
-type Model =
-    Model
+type Model
+    = Model
         { comment : Comment.Model
         , interactions : Dict EventId Interactions.Model
         }
@@ -93,9 +95,11 @@ init =
         , interactions = Dict.empty
         }
 
+
 type Msg msg
     = CommentSent Comment.Msg
     | InteractionsMsg InteractionButton.InteractionObject (Interactions.Msg (Msg msg))
+
 
 update :
     { browserEnv : BrowserEnv
@@ -105,7 +109,8 @@ update :
     , toModel : Model -> model
     , toMsg : Msg msg -> msg
     , translations : I18Next.Translations
-    } -> ( model, Effect msg )
+    }
+    -> ( model, Effect msg )
 update props =
     let
         (Model model) =
@@ -128,12 +133,11 @@ update props =
                     , toMsg = CommentSent >> props.toMsg
                     }
 
-
             InteractionsMsg interactionObject innerMsg ->
                 let
                     eventId =
                         eventIdOfInteractionObject interactionObject
-                    
+
                     ( updatedInteractions, effect ) =
                         Interactions.update
                             { browserEnv = props.browserEnv
@@ -147,6 +151,8 @@ update props =
                             }
                 in
                 ( updatedInteractions, effect |> Effect.map props.toMsg )
+
+
 
 -- VIEW
 
@@ -194,6 +200,7 @@ view articleComments =
             ]
         ]
 
+
 viewCommenting : ArticleComments msg -> Html msg
 viewCommenting articleComments =
     let
@@ -224,6 +231,7 @@ viewCommenting articleComments =
             |> Comment.view
         ]
         |> Html.map settings.toMsg
+
 
 sortComments : List { a | createdAt : Time.Posix } -> List { a | createdAt : Time.Posix }
 sortComments comments =
@@ -281,6 +289,7 @@ viewArticleComment articleComments articleCommentComments articleComment =
             )
         ]
 
+
 viewInteractions : ArticleComments msg -> EventId -> PubKey -> Kind -> Maybe String -> Maybe String -> Html (Msg msg)
 viewInteractions articleComments eventId pubKey kind title description =
     let
@@ -295,17 +304,18 @@ viewInteractions articleComments eventId pubKey kind title description =
 
         shareButtonElement =
             Nip19.NEvent { id = eventId, author = Just pubKey, kind = Just (kind |> numberForKind), relays = settings.zapRelayUrls |> Set.toList }
-            |> Ui.Links.linkToNJump
-            |> Maybe.map (\url ->
-                [ Interactions.ShareButtonElement
-                    { url = url
-                    , title = title |> Maybe.withDefault ""
-                    , text = description |> Maybe.withDefault ""
-                    , hashtags = []
-                    }
-                ]
-            )
-            |> Maybe.withDefault []
+                |> Ui.Links.linkToNJump
+                |> Maybe.map
+                    (\url ->
+                        [ Interactions.ShareButtonElement
+                            { url = url
+                            , title = title |> Maybe.withDefault ""
+                            , text = description |> Maybe.withDefault ""
+                            , hashtags = []
+                            }
+                        ]
+                    )
+                |> Maybe.withDefault []
     in
     div [ css [ Tw.flex, Tw.justify_center, Tw.w_full ] ]
         [ Interactions.new
@@ -316,12 +326,15 @@ viewInteractions articleComments eventId pubKey kind title description =
             , interactionObject = interactionObject
             , nostr = settings.nostr
             , loginStatus = settings.loginStatus
+            , showLabel = True
             }
             |> Interactions.withInteractionElements
                 ([ Interactions.LikeButtonElement
-                , Interactions.RepostButtonElement
-                , Interactions.ZapButtonElement "0" settings.zapRelayUrls
-                ] ++ shareButtonElement)
+                 , Interactions.RepostButtonElement
+                 , Interactions.ZapButtonElement "0" settings.zapRelayUrls
+                 ]
+                    ++ shareButtonElement
+                )
             |> Interactions.view
         ]
 
@@ -331,7 +344,7 @@ viewInteractionsAndReplies :
     -> Int
     -> ArticleCommentComment
     -> Dict EventId (List ArticleCommentComment)
-    -> Html msg          -- NOTE: return Html (Msg msg)
+    -> Html msg -- NOTE: return Html (Msg msg)
 viewInteractionsAndReplies articleComments level parent dict =
     let
         (Settings settings) =
@@ -343,7 +356,7 @@ viewInteractionsAndReplies articleComments level parent dict =
         interactions : Html msg
         interactions =
             viewInteractions articleComments parent.eventId parent.pubKey parent.kind Nothing (Just parent.content)
-            |> Html.map settings.toMsg
+                |> Html.map settings.toMsg
 
         replies : List (Html msg)
         replies =
@@ -358,7 +371,6 @@ viewInteractionsAndReplies articleComments level parent dict =
         elbowHeight
         interactions
         replies
-
 
 
 viewCommentHeader : BrowserEnv -> Styles msg -> Nostr.Model -> PubKey -> Time.Posix -> Html msg
@@ -395,6 +407,7 @@ viewCommentHeader browserEnv styles nostr pubKey createdAt =
             ]
         ]
 
+
 viewCommentContent : Styles msg -> String -> Html msg
 viewCommentContent styles content =
     div
@@ -405,11 +418,12 @@ viewCommentContent styles content =
                     , Tw.p_4
                     , Tw.left_0
                     , Tw.top_0
-                    , Tw.text_color styles.color4
-                    , Tw.bg_color styles.color1
+                    , Tw.text_color styles.colorB4
+                    , Tw.bg_color styles.colorB1
                     , Tw.rounded_xl
+                    , Tw.break_words
                     ]
-                ]
+               ]
         )
         (content
             |> String.split "\n"
@@ -420,37 +434,40 @@ viewCommentContent styles content =
 
 replyGroupWrapper :
     Styles msg
-    -> Int               -- indentPx
-    -> Float             -- elbowHeight   ( = bendY – 10 )
-    -> Html msg    -- interaction-row
+    -> Int -- indentPx
+    -> Float -- elbowHeight   ( = bendY – 10 )
+    -> Html msg -- interaction-row
     -> List (Html msg)
     -> Html msg
 replyGroupWrapper styles indentPx elbowH interactionRow replyNodes =
     let
-        hasReplies = not (List.isEmpty replyNodes)
+        hasReplies =
+            not (List.isEmpty replyNodes)
     in
     div
         [ css
             ([ Tw.relative
-            , indentTailwind indentPx
-            , Tw.overflow_visible
-            , Css.marginTop  (Css.px (-elbowH))
-            , Css.paddingTop (Css.px   elbowH)
-            ] ++
-            (if hasReplies then
-                [ Css.before
-                    [ Tw.absolute
-                    , Css.left (Css.px (toFloat threadLineX))
-                    , Css.top (Css.px (toFloat (-threadLineGapOffset)))
-                    , Css.bottom (Css.px 0)
-                    , Tw.w_px
-                    , Tw.rounded_full
-                    , Tw.bg_color styles.color2
-                    ]
-                ]
-            else
-                []
-            ))
+             , indentTailwind indentPx
+             , Tw.overflow_visible
+             , Css.marginTop (Css.px -elbowH)
+             , Css.paddingTop (Css.px elbowH)
+             ]
+                ++ (if hasReplies then
+                        [ Css.before
+                            [ Tw.absolute
+                            , Css.left (Css.px (toFloat threadLineX))
+                            , Css.top (Css.px (toFloat -threadLineGapOffset))
+                            , Css.bottom (Css.px 0)
+                            , Tw.w_px
+                            , Tw.rounded_full
+                            , Tw.bg_color styles.colorB2
+                            ]
+                        ]
+
+                    else
+                        []
+                   )
+            )
         ]
         (interactionRow :: replyNodes)
 
@@ -494,10 +511,10 @@ viewArticleCommentComment articleComments level articleCommentComments articleCo
         ]
 
 
-
 indentPerLevel : Int
 indentPerLevel =
     32
+
 
 interactionH : Int
 interactionH =
@@ -506,42 +523,65 @@ interactionH =
 
 baseBend : Int
 baseBend =
-    54     -- header+bubble top before the icons row
+    54
+
+
+
+-- header+bubble top before the icons row
 
 
 bendY : Int
 bendY =
     baseBend + interactionH
 
+
 elbowHeight : Float
 elbowHeight =
     toFloat (bendY - 10)
 
+
+
 -- Threading line positioning constants
+
+
 threadLineX : Int
 threadLineX =
     14
+
 
 threadLineGapOffset : Int
 threadLineGapOffset =
     100
 
+
 threadLineCurveRadius : Int
 threadLineCurveRadius =
     10
 
+
 svgElbowConnector : Styles msg -> Int -> Int -> Html msg
 svgElbowConnector styles indentPx bndY =
     let
-        startX = threadLineX
-        horizontalStart = startX + threadLineCurveRadius
-        verticalStart = 0
-        svgHeight = bndY + threadLineGapOffset + 10
+        startX =
+            threadLineX
+
+        horizontalStart =
+            startX + threadLineCurveRadius
+
+        verticalStart =
+            0
+
+        svgHeight =
+            bndY + threadLineGapOffset + 10
+
         -- Instead of extending upward, connect the horizontal line higher up in the comment
-        horizontalConnectionY = 70  -- How far down from top of comment to connect horizontally
+        horizontalConnectionY =
+            70
+
+        -- How far down from top of comment to connect horizontally
     in
     div
-        [ css [ Tw.absolute, Tw.left_0, Css.top (Css.px (toFloat (-threadLineGapOffset))), Tw.text_color styles.color1, darkMode [ Tw.text_color styles.color1DarkMode ] ] ]
+        [ css [ Tw.absolute, Tw.left_0, Css.top (Css.px (toFloat -threadLineGapOffset)), Tw.text_color styles.colorB1, darkMode [ Tw.text_color styles.colorB1DarkMode ] ] ]
         [ Svg.svg
             [ SvgAttr.width (String.fromInt indentPx)
             , SvgAttr.height (String.fromInt svgHeight)
@@ -549,11 +589,23 @@ svgElbowConnector styles indentPx bndY =
             ]
             [ Svg.path
                 [ SvgAttr.d
-                    ("M" ++ String.fromInt startX ++ "," ++ String.fromInt verticalStart ++
-                    "V" ++ String.fromInt (threadLineGapOffset + horizontalConnectionY - 10) ++
-                    " Q" ++ String.fromInt startX ++ "," ++ String.fromInt (threadLineGapOffset + horizontalConnectionY) ++
-                    " " ++ String.fromInt horizontalStart ++ "," ++ String.fromInt (threadLineGapOffset + horizontalConnectionY) ++
-                    " H" ++ String.fromInt indentPx)
+                    ("M"
+                        ++ String.fromInt startX
+                        ++ ","
+                        ++ String.fromInt verticalStart
+                        ++ "V"
+                        ++ String.fromInt (threadLineGapOffset + horizontalConnectionY - 10)
+                        ++ " Q"
+                        ++ String.fromInt startX
+                        ++ ","
+                        ++ String.fromInt (threadLineGapOffset + horizontalConnectionY)
+                        ++ " "
+                        ++ String.fromInt horizontalStart
+                        ++ ","
+                        ++ String.fromInt (threadLineGapOffset + horizontalConnectionY)
+                        ++ " H"
+                        ++ String.fromInt indentPx
+                    )
                 , SvgAttr.stroke "currentColor"
                 , SvgAttr.fill "none"
                 , SvgAttr.strokeWidth "1"
@@ -599,17 +651,21 @@ subscriptions (Model model) articleComments =
         ]
 
 
+
 -- only some comments had an interaction/model, we only subscribe to the ones that have one
+
+
 interactionSubscriptions : Model -> List ArticleComment -> Sub (Msg msg)
 interactionSubscriptions (Model model) articleComments =
     articleComments
-    |> List.map (\articleComment ->
-        Dict.get articleComment.eventId model.interactions
-        |> Maybe.map (\interactions ->
-            Interactions.subscriptions interactions
-            |> Sub.map (InteractionsMsg (InteractionButton.Comment articleComment.eventId articleComment.pubKey))
-        )
-        |> Maybe.withDefault Sub.none
-    )
-    |> Sub.batch
-
+        |> List.map
+            (\articleComment ->
+                Dict.get articleComment.eventId model.interactions
+                    |> Maybe.map
+                        (\interactions ->
+                            Interactions.subscriptions interactions
+                                |> Sub.map (InteractionsMsg (InteractionButton.Comment articleComment.eventId articleComment.pubKey))
+                        )
+                    |> Maybe.withDefault Sub.none
+            )
+        |> Sub.batch

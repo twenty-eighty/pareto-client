@@ -191,6 +191,7 @@ viewSearch (Settings settings) =
              )
                 ++ [ Attr.placeholder <| Translations.placeholder [ settings.browserEnv.translations ]
                    , Attr.value (Maybe.withDefault "" model.searchText)
+                   , Attr.attribute "data-test" "search-bar"
                    , Attr.type_ "search"
                    , Events.onInput
                         (\searchText ->

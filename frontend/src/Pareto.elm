@@ -88,6 +88,11 @@ applicationUrl =
     "https://" ++ applicationDomain
 
 
+secureEmail : String
+secureEmail =
+    "secure@" ++ applicationDomain
+
+
 supportEmail : String
 supportEmail =
     "support@" ++ applicationDomain
@@ -250,6 +255,7 @@ bootstrapAuthorsList : Dict String PubKey
 bootstrapAuthorsList =
     [ ( "_@pareto.space", "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84" )
     , ( "1millionstimmen@pareto.town", "dfff06f24536cded1e33d5d5473d011553dc80d13f55f25c195c6dcc186c221b" )
+    , ( "andreaspanaceha@pareto.town", "ec3caec1f7fbd096d022e162c89d8e878d072644ab708d352a17430491d41c08" )
     , ( "arottmann@grooveix.com", "a95c624384c60902aaac9de52ab0fce39a9e8daa3d2b14236573a093d345522c" )
     , ( "ashoka@pareto.space", "e373ca4101e25a4d4fcb2a53473fa4113b91dba2c2e451d039d8528eb82abcc5" )
     , ( "barbouille@pareto.town", "68c969eafadfc88d5937770d81031fb314b1bb1c201671403de6d930ab67edb9" )
@@ -257,24 +263,31 @@ bootstrapAuthorsList =
     , ( "bitcoinlighthouse@nsec.app", "638384700918e6a472477045dbcc229362ac0e64a48d927c48af609a956b9348" )
     , ( "bitmax@pareto.town", "aa8de34ff8b18ac3cc56decdfe56f17ec3007385993c834c9b99c839a6ffe696" )
     , ( "blingbling@pareto.town", "b8af284d20a109766c55cc5d4aea27f9c3df20f68f8d0eb5b5de3349f82c91dd" )
+    , ( "bujac@pareto.town", "eb61c681c792331a253441d98f0346071011763836fa0de928b578c7cdb47a37" )
     , ( "christof_weber@pareto.space", "79271c81ef2fd4994c20d73b0555a3e58d7ee9caaa2328082e3a336de18d9066" )
     , ( "corbett-report@pareto.town", "c0f2b5f38dacea67dcfdd073848bf11eb1f29550ab8579d587e4c41c452446a1" )
     , ( "denkbar@grooveix.com", "c631e26716c6b1a404dac828be44fdd403e65a0e5d05af00e24c3524c2b78d3e" )
-    , ( "di.stu@pareto.town", "b9abb1bed8b2a1d7e9c24f589df5253f27c048b2914dcce4fb63241b025d4545" )
+    , ( "di.stu@pareto.town", "419cb12fdcf5ff16570c69db1b21d0a26a707e6059ed7136ef84dce51854ef30" )
+    , ( "diebasis.berlin@pareto.town", "7a171db00753b675ee18df0f738faf086bcaef8b9a444d9336a3e7a28f42a5af" )
     , ( "docwatson@pareto.town", "71ca1183d74b415e829c225d07e6dcf5fb7ef9bddcc7f644466015d4f12a2039" )
     , ( "donjoe@pareto.space", "0f4795bf31824a414148daf1b589bb8138fb0a03963f984c84462e40a8365abe" )
+    , ( "einfachkompliziert@pareto.space", "c74b2de05c98b44f99fe511078a88bf285e0f63a1df7a7b6fa0a18c703042dab" )
     , ( "eva.schmidt@pareto.town", "1731c73ccb388c5574b97d349c22c5f34271cef841129eb719e418cc1bca4ecc" )
     , ( "free-cities@pareto.town", "fc2470ed196801ddace5c2bcb14a53fa5ee9f81ee365bf4958f94c6117d9ee27" )
+    , ( "frengo@pareto.town", "029fc0c87a6c017bb3b331aae10be9ba535169f03c9b0b812be0d6ddde4a8250" )
     , ( "friedenstaube@pareto.town", "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5" )
     , ( "genexyz@pareto.town", "2063cd7955cffdca0cc4ae20f77b2b1eb053010e534c18e8ca70222157bd1320" )
     , ( "georgohrweh@pareto.town", "a296b972062908df04b056edad5d0c9a8847aa1ed9cfe062ed69c0c2e5a7a2e8" )
+    , ( "gerburgis@pareto.town", "60c37530d941c94f298d97e1c79234cc37ffb7be3fb4ac1298ac1b01fc26e500" )
     , ( "janosch@pareto.space", "89bae92f9d9b0f6d97a300496cfb0b73c92a74c9675a724c0689975f8074dc01" )
     , ( "jklnz@getalby.com", "a38a5cd0ec24d3f20c4870a032c1989109bf107c4ce8648fdc5a9c4492b1b8f0" )
     , ( "k-ai-katoura@pareto.town", "43c002e9425ff9146772391958f91cc4d6a5cd4a18270c2f3828b5b0cde0c29a" )
     , ( "kw@pareto.town", "362cb42dafd4aa582078817ae9eba58c5cdaf3a4023baacc58be75ab312c3984" )
     , ( "kaydee@pareto.town", "69eea7349187e4c96c42dbaec1ef76ba4eea0d0f3fa9bd08364e502a4ae31ae6" )
+    , ( "kudzaikutukwa@pareto.town", "54609048284d2a151c8df625f40c389d423ed057fcef927db88956d28e22ba03" )
     , ( "kulturkolorist@pareto.town", "41959693dbfe58d58430c0215ed0cb15545b6574a22e14163de3c3213888319c" )
     , ( "marcel@pareto.town", "7f29628df734cf02f3407580184af73d941e940f4a91c61d1e15aa08e160cccc" )
+    , ( "markusturm@pareto.town", "f240be2b684f85cc81566f2081386af81d7427ea86250c8bde6b7a8500c761ba" )
     , ( "martin@enlund.org", "4234223996ce6549720e66dd6bc4bb7efb9f25c60c4816d7bc47a65e1d80db24" )
     , ( "matej@pareto.space", "5aa5e38abbb37f89c863419bd1e4e60aa31d82fa3c39397e386586e3961b8021" )
     , ( "mathias-broeckers@pareto.town", "6e4b486f698ee18dde7e5bec088c786d31f82c93d7d47cd0cdbcd63ddcadf247" )
@@ -288,6 +301,8 @@ bootstrapAuthorsList =
     , ( "mx12art@pareto.town", "0b26f590631b0fa3048d103410e484e5e22e2d5a8eceaceda9d91b38f81dd1a8" )
     , ( "nexus@pareto.town", "d1d190fa3ecb81a45669bd343d3b9952eb73611cb3cb4c4349980e4de4ce6a6a" )
     , ( "norbs@pareto.town", "0d1702d6ab3cfdbd6a5687118b9f0008022e129003d8a9627c444d4a8f1ac66f" )
+    , ( "paetmaen@pareto.town", "85cf38ce240776de9bea50d54734015546871454a8b3b8e0ac34a704a029d6e4" )
+    , ( "panaceha@pareto.town", "fc4eaf80f7b4f6cbea71ba1563714c1c5ff3fdd5d95cd27fec689295f575d1d4" )
     , ( "patric@pareto.town", "0b65f96a7f23a5739c3b58375d36822e68deb5efdaf2afaccbb365fe7fda4c8f" )
     , ( "patrickreiser@pareto.town", "56dbb22fcd72819a43e37222c2a84463c53b6b5ce31f2c3ae97576dee6bb47f8" )
     , ( "paul@pareto.town", "2516d14559174be1a2e578c333ef584e2f32b45931bddb624d0178e4070c8fa1" )
@@ -307,6 +322,7 @@ bootstrapAuthorsList =
     , ( "snicklink@pareto.town", "d898c64d7901515fbe9d54c64d740713a92e5b4c1783a16e37ff1c531298b265" )
     , ( "someone@pareto.town", "9fec72d579baaa772af9e71e638b529215721ace6e0f8320725ecbf9f77f85b1" )
     , ( "te@pareto.town", "fe02e8ece33b9e01b4225a01bb373552dc6f78744ad8121698c30bfaf07fbe0b" )
+    , ( "timogenes@pareto.town", "f292da7ec191c940e0c94cbe3805f701a4ad61336911c910f3ef3d6fc72fca03" )
     , ( "unsere-verfassung@pareto.town", "56f279150240a326e2bd58f6b7a2486c84f4cfb4baacbdbdf1e8145d5fee3024" )
     , ( "unzicker@pareto.town", "0e5b795a07479e4e5fcbe197a09284b6a8fecb89e63481818453baf19176f766" )
     , ( "wagschale@pareto.town", "4f2dadc9135248d24832e1a50c43ac438e8ccfcd81c29abdcf060176ad1a034c" )

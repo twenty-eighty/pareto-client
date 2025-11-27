@@ -11,15 +11,16 @@
       "about frontend text 3": ".",
       "about backend text": "Le backend Pareto a été développé en utilisant",
       "source code text": "Le code source du client Pareto est disponible sur",
-      "feedback text": "Vous avez trouvé un bug ou souhaitez donner un retour ? Veuillez écrire un email à ",
       "hint to tech details": "Pour des informations techniques détaillées sur l'application Pareto ",
       "see this": "voir ceci.",
       "imprint link text": "Mentions légales",
       "privacy policy link text": "Politique de confidentialité",
-      "feedback email info text": "Vous avez trouvé un bug ou souhaitez donner un retour ? Veuillez écrire un email à ",
       "donation info text": "Soutenez le développement continu du projet Pareto sur ",
       "build time text": "Heure de construction : {{buildTime}}",
-      "git version text": "Version Git : {{gitVersion}}"
+      "git version text": "Version Git : {{gitVersion}}",
+      "recommendation sent alert text": "Recommandation envoyée",
+      "feedback info text": "Vous avez trouvé un bug ou souhaitez nous faire part de vos commentaires ? Veuillez nous contacter ",
+      "support page link text": "ici"
    },
    "article info": {
       "title": "Informations sur l'article",
@@ -39,7 +40,8 @@
    "article view": {
       "link to article aria label": "Lien vers l'article {{title}}",
       "link to profile aria label": "Lien vers le profil de {{author}}",
-      "link to hashtag aria label": "Lien pour rechercher le hashtag {{hashtag}}"
+      "link to hashtag aria label": "Lien pour rechercher le hashtag {{hashtag}}",
+      "follow author": "Suivre l'auteur"
    },
    "authors page": {
       "page title": "Auteurs",
@@ -51,7 +53,7 @@
       "no bookmarks": "Aucune liste de favoris trouvée",
       "my bookmarks title": "Mes favoris",
       "articles title": "Articles",
-      "notes title": "Notes",
+      "notes title": "Remarques",
       "hashtags title": "Hashtags",
       "urls title": "URLs"
    },
@@ -153,10 +155,16 @@
       "profile banner error text": "Erreur de bannière du profil",
       "profile banner error explanation": "L'image de bannière du profil ne peut pas être chargée."
    },
+   "contact": {
+      "page title": "Contact",
+      "support information": "Vous pouvez contacter l'équipe Pareto par e-mail à",
+      "encrypted contact information": "Les e-mails chiffrés peuvent être envoyés à",
+      "pgp key info text": "La clé publique PGP peut être téléchargée depuis"
+   },
    "countries timezones": {
       "country AD": "Andorre",
       "country AE": "Émirats arabes unis",
-      "country AF": "Afghanistan",
+      "country AF": "",
       "country AG": "Antigua-et-Barbuda",
       "country AI": "Anguilla",
       "country AL": "Albanie",
@@ -424,7 +432,7 @@
       "unmapped column dropdown value": "<non mappé>",
       "email not mapped error message": "Au moins le champ email doit être mappé",
       "skip rows field label": "Ignorer les lignes",
-      "tags field label": "Tags",
+      "tags field label": "Étiquettes",
       "column name": "Colonne",
       "configure CSV import dialog title": "Configurer l'import CSV",
       "map CSV fields dialog title": "Mapper les champs CSV"
@@ -466,6 +474,7 @@
       "german text": "Allemand",
       "italian text": "Italien",
       "portuguese text": "Portugais",
+      "russian text": "Russe",
       "spanish text": "Espagnol",
       "swedish text": "Suédois"
    },
@@ -488,7 +497,7 @@
       "warning": "Avertissement"
    },
    "newsletters": {
-      "newsletters title": "Newsletters",
+      "newsletters title": "Infolettre",
       "loading newsletters text": "Chargement des newsletters...",
       "error loading newsletters text": "Erreur lors du chargement des newsletters",
       "no newsletters text": "Aucune newsletter trouvée",
@@ -516,12 +525,12 @@
       "add picture button label": "Ajouter",
       "error message text": "Erreur lors de la publication de l'image : {{errorText}}",
       "category label": "Catégorie :",
-      "art category text": "Art",
+      "art category text": "L'Art",
       "meme category text": "Mème",
       "food category text": "Nourriture",
       "animals category text": "Animaux",
       "nature category text": "Nature",
-      "peace category text": "Peace",
+      "peace category text": "Paix",
       "plants category text": "Plantes",
       "science category text": "Science",
       "technology category text": "Technologie",
@@ -539,8 +548,8 @@
       "pareto feed category": "Pareto",
       "followed feed category": "Suivis",
       "memes feed category": "Mèmes",
-      "art feed category": "Art",
-      "peace feed category": "Peace",
+      "art feed category": "L'Art",
+      "peace feed category": "Paix",
       "new picture post button label": "Publier"
    },
    "posts": {
@@ -548,6 +557,7 @@
       "published category": "Publiées",
       "drafts category": "Brouillons",
       "edit draft button label": "Modifier",
+      "copy draft button label": "Copier",
       "delete draft button label": "Supprimer"
    },
    "privacy": {
@@ -557,7 +567,7 @@
       "follow button title": "Suivre",
       "unfollow button title": "Ne plus suivre",
       "mute button title": "Masquer",
-      "public menu item text": "Public",
+      "public menu item text": "Publique",
       "private menu item text": "Privé",
       "subscribe button title": "S'abonner",
       "pub key profile page title": "Profil de",
@@ -587,7 +597,7 @@
    },
    "read": {
       "followed feed category": "Suivis",
-      "global feed category": "Global",
+      "global feed category": "Mondial",
       "pareto feed category": "Pareto",
       "rss feed category": "Autres",
       "highlighter feed category": "Surligneur",
@@ -793,6 +803,9 @@
       "original file hash text": "Hash du fichier original (ox) :",
       "no NIP-94 provided text": "Aucune donnée NIP-94 fournie.",
       "error uploading to NIP-96 server text": "Erreur lors du téléchargement vers le serveur NIP-96"
+   },
+   "view": {
+      "load more": "Load more"
    },
    "write": {
       "article image": "Image",

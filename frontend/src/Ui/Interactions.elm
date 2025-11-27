@@ -14,7 +14,7 @@ import Json.Encode as Encode
 import Nostr
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Relay exposing (websocketUrl)
-import Nostr.Types exposing (LoginStatus, PubKey, loggedInPubKey)
+import Nostr.Types exposing (LoginStatus(..), PubKey, loggedInPubKey)
 import Set exposing (Set)
 import Tailwind.Utilities as Tw
 import Ui.Shared exposing (emptyHtml)
@@ -47,6 +47,7 @@ viewInteractions previewData instanceId =
         , interactionObject = previewData.interactionObject
         , nostr = previewData.nostr
         , loginStatus = previewData.loginStatus
+        , showLabel = True
         }
         |> Components.Interactions.withInteractionElements
             [ Components.Interactions.CommentButtonElement Nothing
@@ -57,8 +58,11 @@ viewInteractions previewData instanceId =
             , Components.Interactions.ShareButtonElement previewData.sharingInfo
             ]
         |> Components.Interactions.view
-{-
--}
+
+
+
+{- -}
+
 
 viewReactions : Icon -> Maybe msg -> Maybe String -> PreviewData msg -> String -> Html msg
 viewReactions icon maybeMsg maybeCount previewData instanceId =
@@ -81,7 +85,7 @@ viewReactions icon maybeMsg maybeCount previewData instanceId =
             ]
         ]
         [ if icon == Icon.FeatherIcon FeatherIcons.zap then
-            zapButton (previewData.loginStatus |> loggedInPubKey) previewData.maybeNip19Target previewData.zapRelays instanceId
+            zapButton (previewData.loginStatus |> loggedInPubKey) previewData.maybeNip19Target previewData.zapRelays instanceId previewData.loginStatus
 
           else
             div
@@ -109,8 +113,8 @@ formatZapNum browserEnv milliSats =
     browserEnv.formatNumber "0 a" <| toFloat (milliSats // 1000)
 
 
-zapButton : Maybe PubKey -> Maybe String -> Set String -> String -> Html msg
-zapButton maybePubKey maybeNip19Target zapRelays instanceId =
+zapButton : Maybe PubKey -> Maybe String -> Set String -> String -> LoginStatus -> Html msg
+zapButton maybePubKey maybeNip19Target zapRelays instanceId loginStatus =
     let
         maybeNip19TargetAttr =
             maybeNip19Target
@@ -125,7 +129,15 @@ zapButton maybePubKey maybeNip19Target zapRelays instanceId =
 
         maybeNpub =
             maybePubKey
-            |> Maybe.andThen (\pubKey -> Nip19.encode (Npub pubKey) |> Result.toMaybe)
+                |> Maybe.andThen (\pubKey -> Nip19.encode (Npub pubKey) |> Result.toMaybe)
+
+        anonAttr =
+            case loginStatus of
+                LoggedIn _ _ ->
+                    []
+
+                _ ->
+                    [ Attr.attribute "data-anon" "true" ]
 
         ( nostrZapAttributes, zapComponent ) =
             maybeNpub
@@ -137,6 +149,7 @@ zapButton maybePubKey maybeNip19Target zapRelays instanceId =
                           , Attr.attribute "data-button-color" "#334155"
                           ]
                             ++ Maybe.withDefault [] maybeNip19TargetAttr
+                            ++ anonAttr
                         , Html.node "js-zap-component"
                             [ Attr.property "buttonId" (Encode.string ("zap-button-" ++ instanceId)) ]
                             []
@@ -177,11 +190,11 @@ extendedZapRelays zapRelays nostrModel loginStatus =
 
         defaultRelays =
             Set.fromList nostrModel.defaultRelays
-            |> Set.map websocketUrl
+                |> Set.map websocketUrl
 
         candidateRelays =
             Set.union zapRelays pubKeyRelays
-            |> Set.map websocketUrl
+                |> Set.map websocketUrl
     in
     if Set.size candidateRelays == Set.size zapRelays || Set.size candidateRelays == Set.size pubKeyRelays then
         Set.union candidateRelays defaultRelays

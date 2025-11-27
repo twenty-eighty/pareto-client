@@ -15,15 +15,16 @@ import Layouts
 import Layouts.Sidebar
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle)
-import Nostr.DeletionRequest exposing (draftDeletionEvent)
+import Nostr.DeletionRequest exposing (deletionEvent)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Profile exposing (Author)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId, PubKey)
+import Nostr.Types exposing (EventId, PubKey, RelayUrl)
 import Page exposing (Page)
 import Route exposing (Route)
 import Route.Path
+import Set exposing (Set)
 import Shared
 import Shared.Model
 import Shared.Msg
@@ -47,7 +48,7 @@ page user shared route =
         { init = init user shared route
         , update = update user shared
         , subscriptions = subscriptions
-        , view = view shared user
+        , view = view shared
         }
         |> Page.withLayout (toLayout shared)
 
@@ -148,7 +149,7 @@ stringFromCategory category =
 type Msg
     = CategorySelected Category
     | CategoriesSent (Categories.Msg Category Msg)
-    | DeleteDraft EventId (Maybe AddressComponents) -- draft event id
+    | DeleteEvent (Set RelayUrl) (List Kind) EventId (Maybe AddressComponents) -- draft event id
     | EditDraft String
     | NoOp
 
@@ -166,10 +167,10 @@ update user shared msg model =
                 , toMsg = CategoriesSent
                 }
 
-        DeleteDraft draftArticleId maybeAddressComponents ->
+        DeleteEvent relayUrls kinds eventId maybeAddressComponents ->
             ( model
-            , draftDeletionEvent user.pubKey shared.browserEnv.now draftArticleId "Deleting draft" maybeAddressComponents
-                |> SendDeletionRequest (Nostr.getDraftRelayUrls shared.nostr draftArticleId)
+            , deletionEvent user.pubKey shared.browserEnv.now eventId "Deleting article or draft" maybeAddressComponents kinds
+                |> SendDeletionRequest (relayUrls |> Set.toList)
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
@@ -187,7 +188,7 @@ updateModelWithCategory user shared model category =
         ( request, filters, description ) =
             case category of
                 Published ->
-                    ( RequestArticlesFeed
+                    ( RequestArticlesFeed False
                     , [ { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ user.pubKey ], limit = Just 20 } ]
                     , "Posts of user"
                     )
@@ -225,108 +226,40 @@ subscriptions _ =
 -- VIEW
 
 
-view : Shared.Model.Model -> Auth.User -> Model -> View Msg
-view shared user model =
+view : Shared.Model.Model -> Model -> View Msg
+view shared model =
     { title = Translations.Sidebar.postsMenuItemText [ shared.browserEnv.translations ]
     , body =
-        [ viewArticles shared model user.pubKey
+        [ viewArticles shared model
         ]
     }
 
 
-viewArticles : Shared.Model -> Model -> PubKey -> Html Msg
-viewArticles shared model userPubKey =
-    case Categories.selected model.categories of
-        Published ->
-            Nostr.getArticlesByDate shared.nostr
-                |> Ui.View.viewArticlePreviews
-                    ArticlePreviewList
-                    { articleComments = ArticleComments.init
-                    , articleToInteractionsMsg = \_ _ -> NoOp
-                    , bookmarkButtonMsg = \_ _ -> NoOp
-                    , bookmarkButtons = Dict.empty
-                    , browserEnv = shared.browserEnv
-                    , commentsToMsg = \_ -> NoOp
-                    , nostr = shared.nostr
-                    , loginStatus = shared.loginStatus
-                    , sharing = Nothing
-                    , theme = shared.theme
-                    }
-
-        Drafts ->
-            let
-                author =
-                    Nostr.getAuthor shared.nostr userPubKey
-            in
-            Nostr.getArticleDraftsByDate shared.nostr
-                |> viewArticleDraftPreviews shared.theme shared.browserEnv author
-
-
-viewArticleDraftPreviews : Theme -> BrowserEnv -> Author -> List Article -> Html Msg
-viewArticleDraftPreviews theme browserEnv author articles =
-    articles
-        |> List.take 20
-        |> List.map (\article -> viewArticleDraftPreview theme browserEnv author article)
-        |> div []
-
-
-viewArticleDraftPreview : Ui.Styles.Theme -> BrowserEnv -> Author -> Article -> Html Msg
-viewArticleDraftPreview theme browserEnv author article =
+viewArticles : Shared.Model -> Model -> Html Msg
+viewArticles shared model =
     let
-        styles =
-            Ui.Styles.stylesForTheme theme
+        articles =
+            case Categories.selected model.categories of
+                Published ->
+                    Nostr.getArticlesByDate shared.nostr
+
+                Drafts ->
+                    Nostr.getArticleDraftsByDate shared.nostr
     in
-    div
-        [ css
-            [ Tw.flex
-            , Tw.items_center
-            , Tw.justify_center
-            , Tw.mb_4
-            ]
-        ]
-        [ div
-            [ css
-                [ Tw.p_6
-                , Tw.rounded_lg
-                , Tw.shadow_lg
-                , Tw.min_w_96
-                , Tw.max_w_3xl
-                ]
-            ]
-            [ div
-                [ css
-                    [ Tw.flex
-                    , Tw.flex_row
-                    , Tw.justify_between
-                    , Tw.mb_3
-                    ]
-                ]
-                [ Ui.Article.timeParagraph styles browserEnv article.publishedAt article.createdAt
-                , deleteDraftButton theme (Translations.deleteDraftButtonLabel [ browserEnv.translations ]) article
-                , editDraftButton theme (Translations.editDraftButtonLabel [ browserEnv.translations ]) article
-                ]
-            , Ui.Article.viewTitleSummaryImagePreview browserEnv.environment browserEnv.translations False styles author article
-            , Ui.Article.viewTags browserEnv.translations article
-            ]
-        ]
+    articles
+        |> Ui.View.viewArticlePreviews
+            ArticlePreviewList
+            { articleComments = ArticleComments.init
+            , articleToInteractionsMsg = \_ _ -> NoOp
+            , bookmarkButtonMsg = \_ _ -> NoOp
+            , bookmarkButtons = Dict.empty
+            , browserEnv = shared.browserEnv
+            , commentsToMsg = \_ -> NoOp
+            , deleteButtonMsg = Just DeleteEvent
+            , nostr = shared.nostr
+            , loginStatus = shared.loginStatus
+            , onLoadMore = Nothing
+            , sharing = Nothing
+            , theme = shared.theme
+            }
 
-
-deleteDraftButton : Theme -> String -> Article -> Html Msg
-deleteDraftButton theme label article =
-    Button.new
-        { label = label
-        , onClick = Just <| DeleteDraft article.id (addressComponentsForArticle article)
-        , theme = theme
-        }
-        |> Button.withStyleDanger
-        |> Button.view
-
-
-editDraftButton : Theme -> String -> Article -> Html Msg
-editDraftButton theme label article =
-    Button.new
-        { label = label
-        , onClick = Maybe.map EditDraft (nip19ForArticle article)
-        , theme = theme
-        }
-        |> Button.view

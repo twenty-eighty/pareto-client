@@ -2,7 +2,7 @@ module Components.LikeButton exposing
     ( LikeButton, new
     , view
     , init, update, Model, Msg
-    , subscriptions
+    , subscriptions, withoutLabel
     )
 
 {-|
@@ -12,6 +12,7 @@ module Components.LikeButton exposing
 
 @docs LikeButton, new
 @docs view
+
 
 ## State management
 
@@ -23,6 +24,7 @@ import Color
 import Components.Icon as Icon
 import Components.InteractionButton as InteractionButton exposing (InteractionObject(..))
 import Effect exposing (Effect)
+import FeatherIcons exposing (settings)
 import Html.Styled as Html exposing (Html)
 import I18Next
 import Nostr
@@ -30,10 +32,13 @@ import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (LoginStatus, PubKey, loggedInPubKey, loggedInSigningPubKey)
 import Ui.Styles
 
+
+
 -- MODEL
 
-type Model =
-    Model InteractionButton.Model
+
+type Model
+    = Model InteractionButton.Model
 
 
 init : Model
@@ -41,7 +46,9 @@ init =
     Model InteractionButton.init
 
 
+
 -- UPDATE
+
 
 type Msg
     = InteractionButtonMsg (InteractionButton.Msg Msg)
@@ -63,7 +70,7 @@ update props =
         case props.msg of
             InteractionButtonMsg interactionMsg ->
                 let
-                    (updatedModel, effect) =
+                    ( updatedModel, effect ) =
                         InteractionButton.update
                             { msg = interactionMsg
                             , model = model
@@ -75,6 +82,7 @@ update props =
                 ( updatedModel, effect |> Effect.map props.toMsg )
 
 
+
 -- SETTINGS
 
 
@@ -84,29 +92,36 @@ type LikeButton msg
         , interactionObject : InteractionObject
         , nostr : Nostr.Model
         , loginStatus : LoginStatus
+        , showLabel : Bool
         , toMsg : Msg -> msg
         , theme : Ui.Styles.Theme
         }
 
 
-new : 
+new :
     { model : Model
     , interactionObject : InteractionObject
     , nostr : Nostr.Model
     , loginStatus : LoginStatus
     , toMsg : Msg -> msg
     , theme : Ui.Styles.Theme
-    } -> LikeButton msg
+    }
+    -> LikeButton msg
 new props =
     Settings
         { model = props.model
         , interactionObject = props.interactionObject
         , nostr = props.nostr
         , loginStatus = props.loginStatus
+        , showLabel = True
         , toMsg = props.toMsg
         , theme = props.theme
         }
 
+
+withoutLabel : LikeButton msg -> LikeButton msg
+withoutLabel (Settings settings) =
+    Settings { settings | showLabel = False }
 
 
 
@@ -120,27 +135,34 @@ view (Settings settings) =
             settings.model
 
         label =
-            getReactionsCount settings.interactionObject settings.nostr
-            |> String.fromInt
+            if settings.showLabel then
+                getReactionsCount settings.interactionObject settings.nostr
+                    |> String.fromInt
+                    |> Just
+
+            else
+                Nothing
 
         reacted =
             settings.loginStatus
-            |> loggedInPubKey
-            |> Maybe.map (isLiked settings.interactionObject settings.nostr)
-            |> Maybe.withDefault False
+                |> loggedInPubKey
+                |> Maybe.map (isLiked settings.interactionObject settings.nostr)
+                |> Maybe.withDefault False
 
         clickAction =
             settings.loginStatus
-            |> loggedInSigningPubKey
-            |> Maybe.map (\pubKey ->
-                if not reacted then
-                    getSendRequest settings.interactionObject pubKey
-                    |> InteractionButton.Send
-                    |> Just
-                else
-                    Nothing
-            )
-            |> Maybe.withDefault Nothing
+                |> loggedInSigningPubKey
+                |> Maybe.map
+                    (\pubKey ->
+                        if not reacted then
+                            getSendRequest settings.interactionObject pubKey
+                                |> InteractionButton.Send
+                                |> Just
+
+                        else
+                            Nothing
+                    )
+                |> Maybe.withDefault Nothing
     in
     InteractionButton.new
         { model = model
@@ -152,7 +174,8 @@ view (Settings settings) =
         }
         |> InteractionButton.withOnClickAction clickAction
         |> InteractionButton.withLabel label
-        |> InteractionButton.view 
+        |> InteractionButton.withTestAttribute "like-button"
+        |> InteractionButton.view
         |> Html.map settings.toMsg
 
 
@@ -184,6 +207,7 @@ getReactionsCount interactionObject nostr =
             Nostr.getReactionsCountForEventId nostr eventId
                 |> Maybe.withDefault 0
 
+
 isLiked : InteractionObject -> Nostr.Model -> PubKey -> Bool
 isLiked interactionObject nostr pubKey =
     case interactionObject of
@@ -200,4 +224,4 @@ isLiked interactionObject nostr pubKey =
 subscriptions : Model -> Sub Msg
 subscriptions (Model model) =
     InteractionButton.subscriptions model
-    |> Sub.map InteractionButtonMsg
+        |> Sub.map InteractionButtonMsg

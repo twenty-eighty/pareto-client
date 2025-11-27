@@ -15,20 +15,27 @@ import Url.Builder
 
 scaledImageLink : Environment -> Int -> String -> String
 scaledImageLink environment width url =
-    let
-        imageCacheServerApi =
-            "https://image-caching-server.onrender.com"
-    in
-    if url /= "" && environment /= StandAlone then
-        Url.Builder.crossOrigin imageCacheServerApi
-            [ "api", "scale" ]
-            [ Url.Builder.string "url" url
-            , Url.Builder.int "width" width
-            ]
+    case (url, environment) of
+        ("", _) ->
+            ""
 
-    else
-        url
+        (_, StandAlone) ->
+            url
 
+        (_, Production { imageCachingServer }) ->
+            cachingUrl imageCachingServer url width
+
+        (_, Development { imageCachingServer }) ->
+            cachingUrl imageCachingServer url width
+
+
+cachingUrl : String -> String -> Int -> String
+cachingUrl imageCachingServer url width =
+    Url.Builder.crossOrigin imageCachingServer
+        [ "api", "scale" ]
+        [ Url.Builder.string "url" url
+        , Url.Builder.int "width" width
+        ]
 
 
 -- unused as our NIP-96 server doesn't support scaling

@@ -2,15 +2,17 @@ module Components.RepostButton exposing
     ( RepostButton, new
     , view
     , init, update, Model, Msg
-    , subscriptions
+    , subscriptions, withoutLabel
     )
 
 {-|
+
 
 ## Basic usage
 
 @docs RepostButton, new
 @docs view
+
 
 ## State management
 
@@ -20,21 +22,25 @@ module Components.RepostButton exposing
 
 import Components.Icon as Icon
 import Components.InteractionButton as InteractionButton exposing (InteractionObject(..))
+import Dict
 import Effect exposing (Effect)
+import FeatherIcons exposing (settings)
 import Html.Styled as Html exposing (Html)
 import I18Next
 import Nostr
+import Nostr.Event exposing (Kind(..))
 import Nostr.Nip18 as Nip18
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (LoginStatus, PubKey, loggedInPubKey, loggedInSigningPubKey)
 import Ui.Styles
-import Dict
-import Nostr.Event exposing (Kind(..))
+
+
 
 -- MODEL
 
-type Model =
-    Model InteractionButton.Model
+
+type Model
+    = Model InteractionButton.Model
 
 
 init : Model
@@ -42,7 +48,9 @@ init =
     Model InteractionButton.init
 
 
+
 -- UPDATE
+
 
 type Msg
     = InteractionButtonMsg (InteractionButton.Msg Msg)
@@ -64,7 +72,7 @@ update props =
         case props.msg of
             InteractionButtonMsg interactionMsg ->
                 let
-                    (updatedModel, effect) =
+                    ( updatedModel, effect ) =
                         InteractionButton.update
                             { msg = interactionMsg
                             , model = model
@@ -75,6 +83,8 @@ update props =
                 in
                 ( updatedModel, effect |> Effect.map props.toMsg )
 
+
+
 -- SETTINGS
 
 
@@ -84,29 +94,36 @@ type RepostButton msg
         , interactionObject : InteractionObject
         , nostr : Nostr.Model
         , loginStatus : LoginStatus
+        , showLabel : Bool
         , toMsg : Msg -> msg
         , theme : Ui.Styles.Theme
         }
 
 
-new : 
+new :
     { model : Model
     , interactionObject : InteractionObject
     , nostr : Nostr.Model
     , loginStatus : LoginStatus
     , toMsg : Msg -> msg
     , theme : Ui.Styles.Theme
-    } -> RepostButton msg
+    }
+    -> RepostButton msg
 new props =
     Settings
         { model = props.model
         , interactionObject = props.interactionObject
         , nostr = props.nostr
         , loginStatus = props.loginStatus
+        , showLabel = True
         , toMsg = props.toMsg
         , theme = props.theme
         }
 
+
+withoutLabel : RepostButton msg -> RepostButton msg
+withoutLabel (Settings settings) =
+    Settings { settings | showLabel = False }
 
 
 
@@ -120,27 +137,34 @@ view (Settings settings) =
             settings.model
 
         label =
-            getRepostsCount settings.interactionObject settings.nostr
-            |> String.fromInt
+            if settings.showLabel then
+                getRepostsCount settings.interactionObject settings.nostr
+                    |> String.fromInt
+                    |> Just
+
+            else
+                Nothing
 
         reposted =
             settings.loginStatus
-            |> loggedInPubKey
-            |> Maybe.map (hasRepost settings.interactionObject settings.nostr)
-            |> Maybe.withDefault False
+                |> loggedInPubKey
+                |> Maybe.map (hasRepost settings.interactionObject settings.nostr)
+                |> Maybe.withDefault False
 
         clickAction =
             settings.loginStatus
-            |> loggedInSigningPubKey
-            |> Maybe.map (\pubKey ->
-                if not reposted then
-                    getSendRequest settings.interactionObject pubKey
-                    |> InteractionButton.Send
-                    |> Just
-                else
-                    Nothing
-            )
-            |> Maybe.withDefault Nothing
+                |> loggedInSigningPubKey
+                |> Maybe.map
+                    (\pubKey ->
+                        if not reposted then
+                            getSendRequest settings.interactionObject pubKey
+                                |> InteractionButton.Send
+                                |> Just
+
+                        else
+                            Nothing
+                    )
+                |> Maybe.withDefault Nothing
     in
     InteractionButton.new
         { model = model
@@ -152,7 +176,8 @@ view (Settings settings) =
         }
         |> InteractionButton.withLabel label
         |> InteractionButton.withOnClickAction clickAction
-        |> InteractionButton.view 
+        |> InteractionButton.withTestAttribute "repost-button"
+        |> InteractionButton.view
         |> Html.map settings.toMsg
 
 
@@ -161,15 +186,15 @@ getSendRequest interactionObject pubKey =
     case interactionObject of
         Article eventId (( _, articlePubKey, _ ) as addressComponents) ->
             Nip18.repostEvent pubKey eventId articlePubKey KindLongFormContent (Just addressComponents) Nothing
-            |> SendRepost []
+                |> SendRepost []
 
         Comment eventId articlePubKey ->
             Nip18.repostEvent pubKey eventId articlePubKey KindLongFormContent Nothing Nothing
-            |> SendRepost []
+                |> SendRepost []
 
         PicturePost eventId articlePubKey ->
             Nip18.repostEvent pubKey eventId articlePubKey KindLongFormContent Nothing Nothing
-            |> SendRepost []
+                |> SendRepost []
 
 
 getRepostsCount : InteractionObject -> Nostr.Model -> Int
@@ -187,26 +212,27 @@ getRepostsCount interactionObject nostr =
             Nostr.getRepostsCountForEventId nostr eventId
                 |> Maybe.withDefault 0
 
+
 hasRepost : InteractionObject -> Nostr.Model -> PubKey -> Bool
 hasRepost interactionObject nostr pubKey =
     case interactionObject of
         Article _ addressComponents ->
             Nostr.getRepostsForArticle nostr addressComponents
-            |> Maybe.map (Dict.member pubKey)
-            |> Maybe.withDefault False
+                |> Maybe.map (Dict.member pubKey)
+                |> Maybe.withDefault False
 
         Comment eventId _ ->
             Nostr.getRepostsForEventId nostr eventId
-            |> Maybe.map (Dict.member pubKey)
-            |> Maybe.withDefault False
+                |> Maybe.map (Dict.member pubKey)
+                |> Maybe.withDefault False
 
         PicturePost eventId _ ->
             Nostr.getRepostsForEventId nostr eventId
-            |> Maybe.map (Dict.member pubKey)
-            |> Maybe.withDefault False
+                |> Maybe.map (Dict.member pubKey)
+                |> Maybe.withDefault False
 
 
 subscriptions : Model -> Sub Msg
 subscriptions (Model model) =
     InteractionButton.subscriptions model
-    |> Sub.map InteractionButtonMsg
+        |> Sub.map InteractionButtonMsg

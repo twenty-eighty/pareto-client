@@ -22,15 +22,15 @@ import I18Next
 import Layouts
 import Layouts.Sidebar
 import Material.Icons exposing (category)
-import Pareto
 import Page exposing (Page)
+import Pareto
 import Route exposing (Route)
 import Set
 import Shared
 import Shared.Msg
 import Tailwind.Breakpoints as Bp
-import Tailwind.Utilities as Tw
 import Tailwind.Color exposing (Color)
+import Tailwind.Utilities as Tw
 import Translations.Uitest as Translations
 import Ui.Styles exposing (Theme)
 import View exposing (View)
@@ -93,15 +93,15 @@ type TestSwitchState
 init : Shared.Model -> () -> ( Model, Effect Msg )
 init shared () =
     let
-        (calendar, calendarMsg)
-            = Components.Calendar.init { selectableRange = Components.Calendar.Past, selectionMode = Components.Calendar.DaySelection, selectedPublishDate = Nothing }
+        ( calendar, calendarMsg ) =
+            Components.Calendar.init { selectableRange = Components.Calendar.Past, selectionMode = Components.Calendar.DaySelection, selectedPublishDate = Nothing }
     in
     ( { calendar = calendar
       , categories = Components.Categories.init { selected = Category2 }
       , checkboxValue = True
       , dropdown = Components.Dropdown.init { selected = Just DropdownItem2 }
       , entryFieldValue = ""
-      , interactions = Components.Interactions.init 
+      , interactions = Components.Interactions.init
       , searchbar = Components.SearchBar.init { searchText = Nothing }
       , searchValue = Nothing
       , sharingButtonDialog = Components.SharingButtonDialog.init
@@ -174,8 +174,8 @@ update shared msg model =
 
         OpenComment ->
             ( model
-                , Shared.Msg.ShowAlert "Open comment"
-                    |> Effect.sendSharedMsg
+            , Shared.Msg.ShowAlert "Open comment"
+                |> Effect.sendSharedMsg
             )
 
         InteractionsSent innerMsg ->
@@ -312,7 +312,8 @@ elementList shared model =
 
 calendarElement : Shared.Model -> Model -> Html Msg
 calendarElement shared model =
-    div [ css
+    div
+        [ css
             [ Tw.w_full
             , Tw.flex
             , Tw.flex_col
@@ -328,11 +329,13 @@ calendarElement shared model =
             |> Components.Calendar.view
         , case Components.Calendar.selectedTime model.calendar of
             Just date ->
-                Html.text <| "Calendar date: " ++ (BrowserEnv.formatDate shared.browserEnv date)
+                Html.text <| "Calendar date: " ++ BrowserEnv.formatDate shared.browserEnv date
 
             Nothing ->
                 Html.text "No date selected"
         ]
+
+
 
 -- category selector
 
@@ -383,6 +386,7 @@ dropdownElement shared model =
         , toLabel = dropdownItemToText shared.browserEnv.translations
         }
         |> Components.Dropdown.withOnChange DropdownChanged
+        |> Components.Dropdown.withTestAttribute "test"
         |> Components.Dropdown.view
 
 
@@ -414,7 +418,9 @@ checkboxElement shared model =
         |> Components.Checkbox.view
 
 
+
 -- interactions
+
 
 interactionsElement : Shared.Model -> Model -> Html Msg
 interactionsElement shared model =
@@ -426,6 +432,7 @@ interactionsElement shared model =
         , interactionObject = Components.InteractionButton.PicturePost "abcd" "cdef"
         , nostr = shared.nostr
         , loginStatus = shared.loginStatus
+        , showLabel = True
         }
         |> Components.Interactions.withInteractionElements
             [ Components.Interactions.CommentButtonElement (Just OpenComment)
@@ -435,6 +442,7 @@ interactionsElement shared model =
             , Components.Interactions.BookmarkButtonElement
             ]
         |> Components.Interactions.view
+
 
 
 -- switch
@@ -467,6 +475,7 @@ primaryButtonElement shared model =
         , theme = model.theme
         }
         |> Components.Button.withTypePrimary
+        |> Components.Button.withTestAttribute "primary-button-enabled"
         |> Components.Button.view
 
 
@@ -479,6 +488,7 @@ primaryButtonDisabledElement shared model =
         }
         |> Components.Button.withTypePrimary
         |> Components.Button.withDisabled True
+        |> Components.Button.withTestAttribute "primary-button-disabled"
         |> Components.Button.view
 
 
@@ -490,6 +500,7 @@ secondaryButtonElement shared model =
         , theme = model.theme
         }
         |> Components.Button.withTypeSecondary
+        |> Components.Button.withTestAttribute "secondary-button-enabled"
         |> Components.Button.view
 
 
@@ -502,6 +513,7 @@ secondaryButtonDisabledElement shared model =
         }
         |> Components.Button.withTypeSecondary
         |> Components.Button.withDisabled True
+        |> Components.Button.withTestAttribute "secondary-button-disabled"
         |> Components.Button.view
 
 
@@ -514,6 +526,7 @@ regularButtonElement shared model =
         }
         |> Components.Button.withIconLeft (Components.Icon.FeatherIcon FeatherIcons.feather)
         |> Components.Button.withIconRight (Components.Icon.MaterialIcon Components.Icon.MaterialFavorite 20 Components.Icon.Inherit)
+        |> Components.Button.withTestAttribute "regular-button-enabled"
         |> Components.Button.view
 
 
@@ -525,6 +538,7 @@ regularButtonDisabledElement shared model =
         , theme = model.theme
         }
         |> Components.Button.withDisabled True
+        |> Components.Button.withTestAttribute "regular-button-disabled"
         |> Components.Button.view
 
 
@@ -541,6 +555,7 @@ entryFieldElement shared model =
         }
         |> Components.EntryField.withLabel (Translations.entryFieldLabel [ shared.browserEnv.translations ])
         |> Components.EntryField.withPlaceholder (Translations.entryFieldPlaceholder [ shared.browserEnv.translations ])
+        |> Components.EntryField.withTestAttribute "test"
         |> Components.EntryField.view
 
 
@@ -554,6 +569,7 @@ textAreaElement shared model =
         |> Components.EntryField.withLabel (Translations.textAreaLabel [ shared.browserEnv.translations ])
         |> Components.EntryField.withPlaceholder (Translations.textAreaPlaceholder [ shared.browserEnv.translations ])
         |> Components.EntryField.withRows 5
+        |> Components.EntryField.withTestAttribute "test"
         |> Components.EntryField.view
 
 
@@ -587,6 +603,7 @@ searchbarElement shared model =
             Nothing ->
                 Html.text "No search value"
         ]
+
 
 
 -- sharing button/dialog

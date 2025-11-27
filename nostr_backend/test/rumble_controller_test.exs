@@ -11,7 +11,10 @@ defmodule NostrBackend.RumbleControllerTest do
   describe "Rumble Controller" do
     test "handles cache errors gracefully", %{conn: conn} do
       # Test with a valid URL format but invalid domain
-      result = RumbleController.fetch_embed_url(conn, %{"url" => "https://nonexistent-domain-12345.com/video.html"})
+      result =
+        RumbleController.fetch_embed_url(conn, %{
+          "url" => "https://nonexistent-domain-12345.com/video.html"
+        })
 
       # Should return an error (either HTTP error or timeout)
       assert result.status == 400
@@ -25,13 +28,22 @@ defmodule NostrBackend.RumbleControllerTest do
       # Test that cache provides consistent results across multiple calls
 
       # First call
-      result1 = RumbleController.fetch_embed_url(conn, %{"url" => "https://nonexistent-domain-12345.com/video.html"})
+      result1 =
+        RumbleController.fetch_embed_url(conn, %{
+          "url" => "https://nonexistent-domain-12345.com/video.html"
+        })
 
       # Second call
-      result2 = RumbleController.fetch_embed_url(conn, %{"url" => "https://nonexistent-domain-12345.com/video.html"})
+      result2 =
+        RumbleController.fetch_embed_url(conn, %{
+          "url" => "https://nonexistent-domain-12345.com/video.html"
+        })
 
       # Third call
-      result3 = RumbleController.fetch_embed_url(conn, %{"url" => "https://nonexistent-domain-12345.com/video.html"})
+      result3 =
+        RumbleController.fetch_embed_url(conn, %{
+          "url" => "https://nonexistent-domain-12345.com/video.html"
+        })
 
       # All results should have the same status
       assert result1.status == result2.status
@@ -41,7 +53,10 @@ defmodule NostrBackend.RumbleControllerTest do
 
     test "handles invalid URL formats", %{conn: conn} do
       # Test with a valid URL format that will fail during HTTP request
-      result = RumbleController.fetch_embed_url(conn, %{"url" => "https://invalid-url-format.com/video.html"})
+      result =
+        RumbleController.fetch_embed_url(conn, %{
+          "url" => "https://invalid-url-format.com/video.html"
+        })
 
       # Should return an error
       assert result.status == 400
@@ -53,7 +68,8 @@ defmodule NostrBackend.RumbleControllerTest do
 
     test "handles non-rumble URLs", %{conn: conn} do
       # Test with non-Rumble URLs
-      result = RumbleController.fetch_embed_url(conn, %{"url" => "https://example.com/video.html"})
+      result =
+        RumbleController.fetch_embed_url(conn, %{"url" => "https://example.com/video.html"})
 
       # Should return an error (not a Rumble URL)
       assert result.status == 400

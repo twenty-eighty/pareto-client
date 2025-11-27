@@ -4,8 +4,8 @@ import BrowserEnv exposing (BrowserEnv, Environment(..))
 import Components.Button as Button
 import Components.Checkbox as Checkbox
 import Components.Dropdown as Dropdown
-import Components.ModalDialog as ModalDialog
 import Components.Icon as Icon
+import Components.ModalDialog as ModalDialog
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import FeatherIcons
@@ -324,7 +324,6 @@ view dialog =
                     else
                         Pareto.testRelayUrls
                             |> List.filterMap (Nostr.getRelayData settings.nostr)
-
             in
             ModalDialog.new
                 { title = Translations.dialogTitle [ settings.browserEnv.translations ]
@@ -347,6 +346,7 @@ view dialog =
                 |> ModalDialog.view
                 |> Html.map settings.toMsg
 
+
 viewPublishArticleDialog : PublishArticleDialog msg -> List Relay -> Html (Msg msg)
 viewPublishArticleDialog (Settings settings) relays =
     let
@@ -367,6 +367,7 @@ viewPublishArticleDialog (Settings settings) relays =
                     , allowNoSelection = False
                     , toLabel = toLabel settings.browserEnv.translations activeSubscribersCount
                     }
+                    |> Dropdown.withMenuPosition Dropdown.MenuPositionTop
                     |> Dropdown.view
 
             else
@@ -393,6 +394,7 @@ viewPublishArticleDialog (Settings settings) relays =
             , Tw.flex_col
             , Tw.justify_start
             , Tw.gap_2
+            , Tw.min_h_40
             ]
         ]
         [ optionalListBox
@@ -470,8 +472,8 @@ viewRelays (Settings settings) relays =
             [ h2
                 [ css
                     [ Tw.text_lg
-                    , Tw.text_color styles.color4
-                    , darkMode [ Tw.text_color styles.color4DarkMode ]
+                    , Tw.text_color styles.colorB4
+                    , darkMode [ Tw.text_color styles.colorB4DarkMode ]
                     , Tw.font_bold
                     ]
                 , fontFamilyInter
@@ -489,8 +491,8 @@ viewRelays (Settings settings) relays =
             [ h2
                 [ css
                     [ Tw.text_base
-                    , Tw.text_color styles.color3
-                    , darkMode [ Tw.text_color styles.color3DarkMode ]
+                    , Tw.text_color styles.colorB3
+                    , darkMode [ Tw.text_color styles.colorB3DarkMode ]
                     ]
                 , fontFamilyInter
                 ]
@@ -500,8 +502,8 @@ viewRelays (Settings settings) relays =
             [ Attr.style "list-style-type" "disc"
             , css
                 [ Tw.text_base
-                , Tw.text_color styles.color3
-                , darkMode [ Tw.text_color styles.color2DarkMode ]
+                , Tw.text_color styles.colorB3
+                , darkMode [ Tw.text_color styles.colorB2DarkMode ]
                 , Tw.mb_2
                 , Tw.flex
                 , Tw.flex_col
