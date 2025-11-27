@@ -188,7 +188,6 @@ update user shared msg model =
                     Nostr.getBookmarks shared.nostr user.pubKey
                         |> Maybe.map bookmarksCount
                         |> Maybe.withDefault 0
-                        |> Debug.log "numberOfBookmarks"
 
                 redirectForEmptyList =
                     if numberOfBookmarks <= 1 then
