@@ -16,6 +16,7 @@
     "@nostr-dev-kit/ndk": "^2.10.6",
     "@nostr-dev-kit/ndk-cache-dexie": "^2.5.9",
     "@scure/bip39": "^1.4.0",
+    "atomico": "^1.79.2",
     "blossom-client-sdk": "^1.1.1",
     "node": "^22.14.0",
     "nostr-zap": "github:rodant/nostr-zap#pareto-main",
