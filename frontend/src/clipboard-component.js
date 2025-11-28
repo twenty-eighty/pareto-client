@@ -5,6 +5,8 @@ class ClipboardComponent extends HTMLElement {
   constructor() {
     super();
     console.log('ClipboardComponent constructor called');
+    this.copyButtonId = null;
+    this.textContents = '';
   }
 
   connectedCallback() {
@@ -94,9 +96,17 @@ class ClipboardComponent extends HTMLElement {
     this.copyButtonId = content;
   }
 
+  get buttonId() {
+    return this.copyButtonId;
+  }
+
   set copyContent(content) {
     console.log('Setting copyContent to:', content);
     this.textContents = content;
+  }
+
+  get copyContent() {
+    return this.textContents;
   }
 }
 
