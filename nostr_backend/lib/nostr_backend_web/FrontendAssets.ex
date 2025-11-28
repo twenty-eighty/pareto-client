@@ -25,7 +25,7 @@ defmodule NostrBackendWeb.FrontendAssets do
         find_asset_in_html(content, regex)
 
       {:error, reason} ->
-        raise "Failed to read index.html file: #{inspect(reason)}"
+        raise "Failed to read index.html file: #{inspect(reason)}. Did you run the frontend build?"
     end
   end
 

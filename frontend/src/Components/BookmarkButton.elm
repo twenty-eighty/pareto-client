@@ -1,7 +1,7 @@
 module Components.BookmarkButton exposing
     ( BookmarkButton, new
     , view
-    , init, update, Model, Msg
+    , init, update, Model, Msg(..)
     , subscriptions, withoutLabel
     )
 
@@ -45,18 +45,19 @@ init =
     Model InteractionButton.init
 
 
-
 -- UPDATE
 
 
 type Msg
     = InteractionButtonMsg (InteractionButton.Msg Msg)
+    | RemoveClicked
 
 
 update :
     { msg : Msg
     , model : Maybe Model
     , nostr : Nostr.Model
+    , onRemoveMsg : Maybe msg
     , toModel : Model -> model
     , toMsg : Msg -> msg
     , translations : I18Next.Translations
@@ -76,6 +77,15 @@ update props =
     in
     toParentModel <|
         case props.msg of
+            RemoveClicked ->
+                let
+                    removeEffect =
+                        props.onRemoveMsg
+                            |> Maybe.map Effect.sendMsg
+                            |> Maybe.withDefault Effect.none
+                in
+                ( Model model, removeEffect )
+
             InteractionButtonMsg interactionMsg ->
                 let
                     ( updatedModel, effect ) =
@@ -158,18 +168,24 @@ view (Settings settings) =
                 |> Maybe.map (hasBookmark settings.interactionObject settings.nostr)
                 |> Maybe.withDefault False
 
+        clickAction : Maybe (InteractionButton.ClickAction Msg)
         clickAction =
             settings.loginStatus
                 |> loggedInSigningPubKey
                 |> Maybe.map
                     (\pubKey ->
                         if isBookmarked then
-                            getRemoveBookmarkRequest settings.interactionObject pubKey
+                            InteractionButton.BatchAction
+                                [ InteractionButton.SendMsg RemoveClicked
+                                , getRemoveBookmarkRequest settings.interactionObject pubKey
+                                    |> InteractionButton.Send
+                                ]
 
                         else
                             getAddBookmarkRequest settings.interactionObject pubKey
+                                |> InteractionButton.Send
                     )
-                |> Maybe.map InteractionButton.Send
+
     in
     InteractionButton.new
         { model = model

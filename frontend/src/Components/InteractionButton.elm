@@ -61,6 +61,7 @@ type alias InteractionParams =
 
 type ClickAction msg
     = NoAction
+    | BatchAction (List (ClickAction msg))
     | Send SendRequest
     | SendMsg msg
 
@@ -96,6 +97,9 @@ mapAction toMsg clickAction =
     case clickAction of
         NoAction ->
             NoAction
+
+        BatchAction actions ->
+            BatchAction (List.map (mapAction toMsg) actions)
 
         Send sendRequest ->
             Send sendRequest
@@ -152,24 +156,44 @@ update props =
     toParentModel <|
         case props.msg of
             Clicked clickAction ->
-                case clickAction of
-                    NoAction ->
-                        ( Model model, Effect.none )
-
-                    Send sendRequest ->
-                        ( Model
-                            { sendRequestId = Just (Nostr.getLastSendRequestId props.nostr)
-                            }
-                        , sendRequest
-                            |> Shared.Msg.SendNostrEvent
-                            |> Effect.sendSharedMsg
-                        )
-
-                    SendMsg clickMsg ->
-                        ( Model model, Effect.sendMsg clickMsg )
+                clickActionToEffect props.nostr (Model model) clickAction
 
             ReceivedMessage message ->
                 updateWithMessage (Model model) props.translations message
+
+clickActionToEffect : Nostr.Model -> Model -> ClickAction msg -> (Model, Effect msg)
+clickActionToEffect nostr (Model model) clickAction =
+    case clickAction of
+        NoAction ->
+            ( Model model, Effect.none )
+
+        BatchAction actions ->
+            let
+                (finalModel, finalEffects) =
+                    actions
+                    |> List.foldl
+                        (\action (innerModel, innerEffects) ->
+                            let
+                                (updatedModel, effect) = clickActionToEffect nostr innerModel action
+                            in
+                            (updatedModel, innerEffects ++ [effect])
+                        )
+                        (Model model, [])
+            in
+            ( finalModel, Effect.batch finalEffects )
+
+        Send sendRequest ->
+            ( Model
+                { sendRequestId = Just (Nostr.getLastSendRequestId nostr)
+                }
+            , sendRequest
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        SendMsg clickMsg ->
+            ( Model model, Effect.sendMsg clickMsg )
+
 
 
 updateWithMessage : Model -> I18Next.Translations -> IncomingMessage -> ( Model, Effect msg )
@@ -225,8 +249,6 @@ type InteractionButton msg
         , label : Maybe String
         , attributes : List ( String, String )
         }
-
-
 new :
     { model : Model
     , unreactedIcon : Icon

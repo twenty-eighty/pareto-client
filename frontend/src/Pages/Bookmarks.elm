@@ -16,7 +16,7 @@ import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), empt
 import Nostr.External
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId, IncomingMessage, PubKey)
+import Nostr.Types exposing (EventId, IncomingMessage)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
@@ -162,8 +162,7 @@ type Msg
     | BookmarkButtonMsg EventId BookmarkButton.Msg
     | CategoriesSent (Categories.Msg BookmarkType Msg)
     | CategorySelected BookmarkType
-    | AddArticleBookmark PubKey AddressComponents
-    | RemoveArticleBookmark PubKey AddressComponents
+    | BookmarkRemoved
     | NoOp
 
 
@@ -178,10 +177,27 @@ update user shared msg model =
                 { msg = innerMsg
                 , model = Dict.get eventId model.bookmarkButtons
                 , nostr = shared.nostr
+                , onRemoveMsg = Just BookmarkRemoved
                 , toModel = \bookmarkButton -> { model | bookmarkButtons = Dict.insert eventId bookmarkButton model.bookmarkButtons }
                 , toMsg = BookmarkButtonMsg eventId
                 , translations = shared.browserEnv.translations
                 }
+        BookmarkRemoved ->
+            let
+                numberOfBookmarks =
+                    Nostr.getBookmarks shared.nostr user.pubKey
+                        |> Maybe.map bookmarksCount
+                        |> Maybe.withDefault 0
+
+                redirectForEmptyList =
+                    if numberOfBookmarks <= 1 then
+                        Effect.replaceRoute { hash = Nothing, path = Route.Path.Read, query = Dict.empty }
+
+                    else
+                        Effect.none
+            in
+            ( model , redirectForEmptyList)
+
 
         CategoriesSent innerMsg ->
             Categories.update
@@ -193,37 +209,6 @@ update user shared msg model =
 
         CategorySelected bookmarkType ->
             ( { model | selectedBookmarkType = bookmarkType }, Effect.none )
-
-        AddArticleBookmark pubKey addressComponents ->
-            ( model
-            , SendBookmarkListWithArticle pubKey addressComponents
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        RemoveArticleBookmark pubKey addressComponents ->
-            let
-                numberOfBookmarks =
-                    Nostr.getBookmarks shared.nostr user.pubKey
-                        |> Maybe.map bookmarksCount
-                        |> Maybe.withDefault 0
-
-                redirectForEmptyList =
-                    if numberOfBookmarks <= 1 then
-                        -- assume that we're about to delete the last bookmark
-                        Effect.replaceRoute { hash = Nothing, path = Route.Path.Read, query = Dict.empty }
-
-                    else
-                        Effect.none
-            in
-            ( model
-            , Effect.batch
-                [ redirectForEmptyList
-                , SendBookmarkListWithoutArticle pubKey addressComponents
-                    |> Shared.Msg.SendNostrEvent
-                    |> Effect.sendSharedMsg
-                ]
-            )
 
         NoOp ->
             ( model, Effect.none )

@@ -220,6 +220,7 @@ update shared msg model =
                 { msg = innerMsg
                 , model = Dict.get eventId model.bookmarkButtons
                 , nostr = shared.nostr
+                , onRemoveMsg = Nothing
                 , toModel = \bookmarkButton -> { model | bookmarkButtons = Dict.insert eventId bookmarkButton model.bookmarkButtons }
                 , toMsg = BookmarkButtonMsg eventId
                 , translations = shared.browserEnv.translations

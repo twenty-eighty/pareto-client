@@ -1,6 +1,5 @@
 module TailwindMarkdownRenderer exposing (renderer)
 
-import BrowserEnv exposing (Environment)
 import Css
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as Attr exposing (css, src)
@@ -13,7 +12,6 @@ import Nostr.Shared exposing (ensureHttps)
 import Parser
 import SyntaxHighlight
 import Tailwind.Utilities as Tw
-import Ui.Links
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme(..), darkMode, fontFamilyRobotoMono, print, stylesForTheme)
 
@@ -30,8 +28,8 @@ textStyleArticleCode =
     ]
 
 
-renderer : Environment -> Styles msg -> GetProfileFunction -> Markdown.Renderer.Renderer (Html msg)
-renderer environment styles fnGetProfile =
+renderer : Styles msg -> GetProfileFunction -> Markdown.Renderer.Renderer (Html msg)
+renderer styles fnGetProfile =
     { heading = heading styles
     , paragraph =
         Html.p
