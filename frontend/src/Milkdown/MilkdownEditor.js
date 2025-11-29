@@ -6,6 +6,25 @@ import { imageBlockConfig } from './image-block/config'
 import { getImageBlockTranslations } from './translations/image-block';
 import { getBlockEditTranslations } from './translations/block-edit';
 import { getPlaceholderText } from './translations/placeholder';
+import { commandsCtx, editorCtx, editorViewCtx } from '@milkdown/kit/core';
+import {
+    blockquoteSchema,
+    bulletListSchema,
+    clearTextInCurrentBlockCommand,
+    codeBlockSchema,
+    headingSchema,
+    orderedListSchema,
+    paragraphSchema,
+    setBlockTypeCommand,
+    wrapInBlockTypeCommand,
+} from '@milkdown/kit/preset/commonmark';
+import {
+    isNodeSelectedCommand,
+    liftListItemCommand,
+    wrapInBulletListCommand,
+    wrapInOrderedListCommand,
+} from '@milkdown/preset-commonmark';
+import { liftTarget } from '@milkdown/prose/transform';
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
 
@@ -34,7 +53,19 @@ import '@milkdown/theme-nord/style.css'
 // We have some themes for you to choose
 
 import { BlossomClient } from "blossom-client-sdk/client";
+import debug from 'debug';
+import {
+    bulletListIcon,
+    codeIcon,
+    h1Icon,
+    h2Icon,
+    h3Icon,
+    orderedListIcon,
+    quoteIcon,
+    textIcon,
+} from './icons/toolbar';
 
+const quoteDebugLog = debug('milkdown:quote');
 
 class ElmMilkdownEditor extends HTMLElement {
     /*************  ✨ Codeium Command ⭐  *************/
@@ -139,6 +170,7 @@ class ElmMilkdownEditor extends HTMLElement {
             defaultValue: this._content,
             features: {
                 [Crepe.Feature.Latex]: false,
+                [Crepe.Feature.Toolbar]: true,
             },
             featureConfigs: {
                 // we don't need all these programming languages
@@ -149,6 +181,213 @@ class ElmMilkdownEditor extends HTMLElement {
                 [Crepe.Feature.BlockEdit]: getBlockEditTranslations(language),
                 [Crepe.Feature.Placeholder]: {
                     text: getPlaceholderText(language),
+                },
+                [Crepe.Feature.Toolbar]: {
+                    buildToolbar: (builder) => {
+                        const selectionAncestorDepth = (ctx, nodeType) => {
+                            const view = ctx.get(editorViewCtx);
+                            const selection = view?.state?.selection;
+                            if (!selection) {
+                                quoteDebugLog('no selection found');
+                                return -1;
+                            }
+                            if (!nodeType) {
+                                quoteDebugLog('missing nodeType');
+                                return -1;
+                            }
+                            const nodeName = nodeType.name;
+                            const ancestors = [];
+                            const { $from } = selection;
+                            for (let depth = $from.depth; depth >= 0; depth--) {
+                                const currentNode = $from.node(depth);
+                                const currentName = currentNode.type?.name;
+                                ancestors.push({
+                                    depth,
+                                    name: currentName,
+                                    attrs: currentNode.attrs,
+                                });
+                                if (currentName === nodeName) {
+                                    quoteDebugLog('ancestors', ancestors);
+                                    return depth;
+                                }
+                            }
+                            quoteDebugLog(
+                                'ancestors',
+                                ancestors,
+                                '| blockquote not found (looking for',
+                                nodeName,
+                                ')',
+                            );
+                            return -1;
+                        };
+                        const isSelectionInNode = (ctx, nodeType) =>
+                            selectionAncestorDepth(ctx, nodeType);
+
+                        const toggleList = ({ ctx, wrapCommand, listSchema, opposingSchema }) => {
+                            const commands = ctx.get(commandsCtx);
+                            const listType = listSchema.type(ctx);
+                            const isInList = isSelectionInNode(ctx, listType) >= 0;
+                            const isInOpposingList =
+                                opposingSchema &&
+                                isSelectionInNode(ctx, opposingSchema.type(ctx)) >= 0;
+
+                            if (isInList) {
+                                while (commands.call(liftListItemCommand.key)) {
+                                    // keep lifting until we're out of the list
+                                }
+                            } else {
+                                if (isInOpposingList) {
+                                    while (commands.call(liftListItemCommand.key)) {
+                                        // exit opposing list before applying new one
+                                    }
+                                }
+                                commands.call(clearTextInCurrentBlockCommand.key);
+                                commands.call(setBlockTypeCommand.key, {
+                                    nodeType: paragraphSchema.type(ctx),
+                                });
+                                commands.call(wrapCommand.key);
+                            }
+                        };
+
+                        const ensureNotList = (commands) => {
+                            while (commands.call(liftListItemCommand.key)) {
+                                // keep lifting until we exit the surrounding list
+                            }
+                        };
+
+                        const liftNodeOfType = (ctx, nodeType) => {
+                            const view = ctx.get(editorViewCtx);
+                            if (!view) return false;
+                            const { state, dispatch } = view;
+                            const { $from, $to } = state.selection;
+                            const nodeName = nodeType?.name;
+                            if (!nodeName) {
+                                quoteDebugLog('no nodeName for lift');
+                                return false;
+                            }
+                            const range = $from.blockRange(
+                                $to,
+                                (node) => node.type?.name === nodeName,
+                            );
+                            quoteDebugLog('block range result', range);
+                            if (!range) return false;
+                            const target = liftTarget(range);
+                            quoteDebugLog('lift target', target);
+                            if (target == null) return false;
+                            dispatch(state.tr.lift(range, target));
+                            return true;
+                        };
+
+                        builder.addGroup('block', 'Block').addItem('paragraph', {
+                            icon: textIcon,
+                            active: () => false,
+                            onRun: (ctx) => {
+                                const commands = ctx.get(commandsCtx);
+                                ensureNotList(commands);
+                                const paragraph = paragraphSchema.type(ctx);
+                                commands.call(clearTextInCurrentBlockCommand.key);
+                                commands.call(setBlockTypeCommand.key, {
+                                    nodeType: paragraph,
+                                });
+                            },
+                        }).addItem('heading-1', {
+                            icon: h1Icon,
+                            active: () => false,
+                            onRun: (ctx) => {
+                                const commands = ctx.get(commandsCtx);
+                                ensureNotList(commands);
+                                const heading = headingSchema.type(ctx);
+                                commands.call(clearTextInCurrentBlockCommand.key);
+                                commands.call(setBlockTypeCommand.key, {
+                                    nodeType: heading,
+                                    attrs: { level: 1 },
+                                });
+                            },
+                        }).addItem('heading-2', {
+                            icon: h2Icon,
+                            active: () => false,
+                            onRun: (ctx) => {
+                                const commands = ctx.get(commandsCtx);
+                                ensureNotList(commands);
+                                const heading = headingSchema.type(ctx);
+                                commands.call(clearTextInCurrentBlockCommand.key);
+                                commands.call(setBlockTypeCommand.key, {
+                                    nodeType: heading,
+                                    attrs: { level: 2 },
+                                });
+                            },
+                        }).addItem('heading-3', {
+                            icon: h3Icon,
+                            active: () => false,
+                            onRun: (ctx) => {
+                                const commands = ctx.get(commandsCtx);
+                                ensureNotList(commands);
+                                const heading = headingSchema.type(ctx);
+                                commands.call(clearTextInCurrentBlockCommand.key);
+                                commands.call(setBlockTypeCommand.key, {
+                                    nodeType: heading,
+                                    attrs: { level: 3 },
+                                });
+                            },
+                        }).addItem('quote', {
+                            icon: quoteIcon,
+                            active: () => false,
+                            onRun: (ctx) => {
+                                const commands = ctx.get(commandsCtx);
+                                const blockquote = blockquoteSchema.type(ctx);
+                                const depth = isSelectionInNode(ctx, blockquote);
+
+                                ensureNotList(commands);
+                                if (depth >= 0) {
+                                        quoteDebugLog('inside quote depth', depth);
+                                    liftNodeOfType(ctx, blockquote);
+                                } else {
+                                        quoteDebugLog('not inside quote, wrapping');
+                                    commands.call(clearTextInCurrentBlockCommand.key);
+                                    commands.call(wrapInBlockTypeCommand.key, {
+                                        nodeType: blockquote,
+                                    });
+                                }
+                            },
+                        });
+
+                        builder.addGroup('list', 'List').addItem('bullet-list', {
+                            icon: bulletListIcon,
+                            active: () => false,
+                            onRun: (ctx) => {
+                                toggleList({
+                                    ctx,
+                                    wrapCommand: wrapInBulletListCommand,
+                                    listSchema: bulletListSchema,
+                                    opposingSchema: orderedListSchema,
+                                });
+                            },
+                        }).addItem('ordered-list', {
+                            icon: orderedListIcon,
+                            active: () => false,
+                            onRun: (ctx) => {
+                                toggleList({
+                                    ctx,
+                                    wrapCommand: wrapInOrderedListCommand,
+                                    listSchema: orderedListSchema,
+                                    opposingSchema: bulletListSchema,
+                                });
+                            },
+                        });
+
+                        builder.addGroup('advanced', 'Advanced').addItem('code-block', {
+                            icon: codeIcon,
+                            active: () => false,
+                            onRun: (ctx) => {
+                                const commands = ctx.get(commandsCtx);
+                                const codeBlock = codeBlockSchema.type(ctx);
+                                commands.call(clearTextInCurrentBlockCommand.key);
+                                commands.call(setBlockTypeCommand.key, {
+                                    nodeType: codeBlock,
+                                });
+                            },
+                        });
+                    },
                 },
             }
         });

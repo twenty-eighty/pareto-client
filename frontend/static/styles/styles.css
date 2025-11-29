@@ -7,6 +7,16 @@
   unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 
+.milkdown-toolbar__label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6b7280;
+  font-family: 'Inter', sans-serif;
+}
 /* inter-cyrillic-400-normal*/
 @font-face {
   font-family: 'Inter';
