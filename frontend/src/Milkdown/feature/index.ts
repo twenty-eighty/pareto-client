@@ -5,7 +5,7 @@ import { captionIcon, confirmIcon, imageIcon } from '../icons'
 
 interface ImageBlockConfig {
   onUpload: (file: File) => Promise<string>
-  onClickUploader: () => Promise<string>
+  onClickUploader: () => Promise<{ url: string; caption?: string; alt?: string } | null>
 
   inlineImageIcon: Icon
   inlineConfirmButton: Icon
@@ -20,7 +20,7 @@ interface ImageBlockConfig {
   blockCaptionPlaceholderText: string
   blockUploadPlaceholderText: string
   blockOnUpload: (file: File) => Promise<string>
-  blockOnClickUploader: () => Promise<string>
+  blockOnClickUploader: () => Promise<{ url: string; caption?: string; alt?: string } | null>
 }
 
 export type ImageBlockFeatureConfig = Partial<ImageBlockConfig>

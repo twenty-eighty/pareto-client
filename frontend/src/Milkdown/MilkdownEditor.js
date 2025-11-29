@@ -3,6 +3,9 @@ import { Crepe } from '@milkdown/crepe';
 // import { ImageBlockFeatureConfig } from './feature/index';
 import { imageBlockComponent } from './image-block';
 import { imageBlockConfig } from './image-block/config'
+import { getImageBlockTranslations } from './translations/image-block';
+import { getBlockEditTranslations } from './translations/block-edit';
+import { getPlaceholderText } from './translations/placeholder';
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
 
@@ -129,28 +132,24 @@ class ElmMilkdownEditor extends HTMLElement {
         this._element.setAttribute('data-theme', themeAttr);
 
         // /*
-        const language = 'DE';
+        const language = navigator.language || navigator.userLanguage || 'en';
 
         const crepe = new Crepe({
             root: this._element,
             defaultValue: this._content,
             features: {
-                [Crepe.Feature.ImageBlock]: false,
+                [Crepe.Feature.Latex]: false,
             },
             featureConfigs: {
                 // we don't need all these programming languages
                 [Crepe.Feature.CodeMirror]: {
                     languages: []
                 },
-                [Crepe.Feature.ImageBlock]: {
-                    inlineUploadButton: () => language === 'JA' ? 'アップロード' : 'Upload',
-                    inlineUploadPlaceholderText: language === 'JA' ? 'またはリンクを貼り付ける' : 'or paste link',
-                    inlineConfirmButton: () => language === 'JA' ? '確認' : 'Confirm',
-                    blockUploadButton: () => language === 'JA' ? 'ファイルをアップロード' : 'Upload file',
-                    blockUploadPlaceholderText: language === 'JA' ? 'またはリンクを貼り付ける' : 'or paste link',
-                    blockCaptionPlaceholderText: language === 'JA' ? '画像の説明を書く...' : 'Write Image Caption',
-                    blockConfirmButton: () => language === 'JA' ? '確認' : 'Confirm',
-                }
+                [Crepe.Feature.ImageBlock]: getImageBlockTranslations(language),
+                [Crepe.Feature.BlockEdit]: getBlockEditTranslations(language),
+                [Crepe.Feature.Placeholder]: {
+                    text: getPlaceholderText(language),
+                },
             }
         });
 
@@ -210,6 +209,7 @@ class ElmMilkdownEditor extends HTMLElement {
 
                 ctx.update(imageBlockConfig.key, defaultConfig => ({
                     ...defaultConfig,
+                    ...getImageBlockTranslations(language),
                     onClickUploader: async () => {
                         console.log("image upload");
                         this.dispatchEvent(new CustomEvent('filerequest'));
