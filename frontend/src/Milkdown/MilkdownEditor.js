@@ -3,9 +3,11 @@ import { Crepe } from '@milkdown/crepe';
 // import { ImageBlockFeatureConfig } from './feature/index';
 import { imageBlockComponent } from './image-block';
 import { imageBlockConfig } from './image-block/config'
+import { loadMilkdownLocale } from './translations/locale';
 import { getImageBlockTranslations } from './translations/image-block';
 import { getBlockEditTranslations } from './translations/block-edit';
 import { getPlaceholderText } from './translations/placeholder';
+import { getToolbarTranslations } from './translations/toolbar';
 import { commandsCtx, editorCtx, editorViewCtx } from '@milkdown/kit/core';
 import {
     blockquoteSchema,
@@ -98,7 +100,9 @@ class ElmMilkdownEditor extends HTMLElement {
             this._editor = null;
         }
         if (!this._editor) {
-            this._initEditor();
+            this._initEditor().catch((error) => {
+                console.error('Failed to initialize Milkdown editor', error);
+            });
         }
     }
 
@@ -157,13 +161,34 @@ class ElmMilkdownEditor extends HTMLElement {
         };
     }
 
-    _initEditor() {
+    async _initEditor() {
         const options = this._getOptions();
         const themeAttr = this.getAttribute('theme') || 'light';
         this._element.setAttribute('data-theme', themeAttr);
 
         // /*
         const language = navigator.language || navigator.userLanguage || 'en';
+        const locale = await loadMilkdownLocale(language);
+        const toolbarLabels = getToolbarTranslations(locale);
+
+        const withIconTitle = (icon, title) => {
+            if (!icon || !title) {
+                return icon;
+            }
+            const safeTitle = title.replace(/"/g, '&quot;');
+            return `<span class="milkdown-toolbar__label" role="img" title="${safeTitle}" aria-label="${safeTitle}">${icon}</span>`;
+        };
+
+        const toolbarIcons = {
+            paragraph: withIconTitle(textIcon, toolbarLabels.paragraph),
+            heading1: withIconTitle(h1Icon, toolbarLabels.heading1),
+            heading2: withIconTitle(h2Icon, toolbarLabels.heading2),
+            heading3: withIconTitle(h3Icon, toolbarLabels.heading3),
+            quote: withIconTitle(quoteIcon, toolbarLabels.quote),
+            bulletList: withIconTitle(bulletListIcon, toolbarLabels.bulletList),
+            orderedList: withIconTitle(orderedListIcon, toolbarLabels.orderedList),
+            codeBlock: withIconTitle(codeIcon, toolbarLabels.codeBlock),
+        };
 
         const crepe = new Crepe({
             root: this._element,
@@ -177,10 +202,10 @@ class ElmMilkdownEditor extends HTMLElement {
                 [Crepe.Feature.CodeMirror]: {
                     languages: []
                 },
-                [Crepe.Feature.ImageBlock]: getImageBlockTranslations(language),
-                [Crepe.Feature.BlockEdit]: getBlockEditTranslations(language),
+                [Crepe.Feature.ImageBlock]: getImageBlockTranslations(locale),
+                [Crepe.Feature.BlockEdit]: getBlockEditTranslations(locale),
                 [Crepe.Feature.Placeholder]: {
-                    text: getPlaceholderText(language),
+                    text: getPlaceholderText(locale),
                 },
                 [Crepe.Feature.Toolbar]: {
                     buildToolbar: (builder) => {
@@ -279,7 +304,7 @@ class ElmMilkdownEditor extends HTMLElement {
                         };
 
                         builder.addGroup('block', 'Block').addItem('paragraph', {
-                            icon: textIcon,
+                            icon: toolbarIcons.paragraph,
                             active: () => false,
                             onRun: (ctx) => {
                                 const commands = ctx.get(commandsCtx);
@@ -291,7 +316,7 @@ class ElmMilkdownEditor extends HTMLElement {
                                 });
                             },
                         }).addItem('heading-1', {
-                            icon: h1Icon,
+                            icon: toolbarIcons.heading1,
                             active: () => false,
                             onRun: (ctx) => {
                                 const commands = ctx.get(commandsCtx);
@@ -304,7 +329,7 @@ class ElmMilkdownEditor extends HTMLElement {
                                 });
                             },
                         }).addItem('heading-2', {
-                            icon: h2Icon,
+                            icon: toolbarIcons.heading2,
                             active: () => false,
                             onRun: (ctx) => {
                                 const commands = ctx.get(commandsCtx);
@@ -317,7 +342,7 @@ class ElmMilkdownEditor extends HTMLElement {
                                 });
                             },
                         }).addItem('heading-3', {
-                            icon: h3Icon,
+                            icon: toolbarIcons.heading3,
                             active: () => false,
                             onRun: (ctx) => {
                                 const commands = ctx.get(commandsCtx);
@@ -330,7 +355,7 @@ class ElmMilkdownEditor extends HTMLElement {
                                 });
                             },
                         }).addItem('quote', {
-                            icon: quoteIcon,
+                            icon: toolbarIcons.quote,
                             active: () => false,
                             onRun: (ctx) => {
                                 const commands = ctx.get(commandsCtx);
@@ -352,7 +377,7 @@ class ElmMilkdownEditor extends HTMLElement {
                         });
 
                         builder.addGroup('list', 'List').addItem('bullet-list', {
-                            icon: bulletListIcon,
+                            icon: toolbarIcons.bulletList,
                             active: () => false,
                             onRun: (ctx) => {
                                 toggleList({
@@ -363,7 +388,7 @@ class ElmMilkdownEditor extends HTMLElement {
                                 });
                             },
                         }).addItem('ordered-list', {
-                            icon: orderedListIcon,
+                            icon: toolbarIcons.orderedList,
                             active: () => false,
                             onRun: (ctx) => {
                                 toggleList({
@@ -376,7 +401,7 @@ class ElmMilkdownEditor extends HTMLElement {
                         });
 
                         builder.addGroup('advanced', 'Advanced').addItem('code-block', {
-                            icon: codeIcon,
+                            icon: toolbarIcons.codeBlock,
                             active: () => false,
                             onRun: (ctx) => {
                                 const commands = ctx.get(commandsCtx);
@@ -448,7 +473,7 @@ class ElmMilkdownEditor extends HTMLElement {
 
                 ctx.update(imageBlockConfig.key, defaultConfig => ({
                     ...defaultConfig,
-                    ...getImageBlockTranslations(language),
+                    ...getImageBlockTranslations(locale),
                     onClickUploader: async () => {
                         console.log("image upload");
                         this.dispatchEvent(new CustomEvent('filerequest'));

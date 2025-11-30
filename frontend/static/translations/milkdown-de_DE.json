@@ -1,0 +1,50 @@
+{
+  "imageBlock": {
+    "inlineUploadButton": "Datei auswählen",
+    "inlineUploadPlaceholderText": "oder Bildlink einfügen ...",
+    "inlineConfirmButton": "Bestätigen",
+    "blockUploadButton": "Datei auswählen",
+    "blockUploadPlaceholderText": "oder Bildlink einfügen ...",
+    "blockCaptionPlaceholderText": "Bildbeschreibung",
+    "blockConfirmButton": "Bestätigen"
+  },
+  "blockEdit": {
+    "textGroup": {
+      "label": "Text",
+      "text": { "label": "Text" },
+      "h1": { "label": "Überschrift 1" },
+      "h2": { "label": "Überschrift 2" },
+      "h3": { "label": "Überschrift 3" },
+      "h4": { "label": "Überschrift 4" },
+      "h5": { "label": "Überschrift 5" },
+      "h6": { "label": "Überschrift 6" },
+      "quote": { "label": "Zitat" },
+      "divider": { "label": "Trenner" }
+    },
+    "listGroup": {
+      "label": "Listen",
+      "bulletList": { "label": "Aufzählung" },
+      "orderedList": { "label": "Nummerierte Liste" },
+      "taskList": { "label": "Aufgabenliste" }
+    },
+    "advancedGroup": {
+      "label": "Erweitert",
+      "image": { "label": "Bild" },
+      "codeBlock": { "label": "Code" },
+      "table": { "label": "Tabelle" },
+      "math": { "label": "Mathe" }
+    }
+  },
+  "placeholder": "Bitte eingeben...",
+  "toolbar": {
+    "paragraph": "Absatz",
+    "heading1": "Überschrift 1",
+    "heading2": "Überschrift 2",
+    "heading3": "Überschrift 3",
+    "quote": "Zitat",
+    "bulletList": "Aufzählung",
+    "orderedList": "Nummerierte Liste",
+    "codeBlock": "Code"
+  }
+}
+

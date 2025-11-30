@@ -1,0 +1,50 @@
+{
+  "imageBlock": {
+    "inlineUploadButton": "Upload",
+    "inlineUploadPlaceholderText": "or paste the image link ...",
+    "inlineConfirmButton": "Confirm",
+    "blockUploadButton": "Upload file",
+    "blockUploadPlaceholderText": "or paste the image link ...",
+    "blockCaptionPlaceholderText": "Image caption",
+    "blockConfirmButton": "Confirm"
+  },
+  "blockEdit": {
+    "textGroup": {
+      "label": "Text",
+      "text": { "label": "Text" },
+      "h1": { "label": "Heading 1" },
+      "h2": { "label": "Heading 2" },
+      "h3": { "label": "Heading 3" },
+      "h4": { "label": "Heading 4" },
+      "h5": { "label": "Heading 5" },
+      "h6": { "label": "Heading 6" },
+      "quote": { "label": "Quote" },
+      "divider": { "label": "Divider" }
+    },
+    "listGroup": {
+      "label": "List",
+      "bulletList": { "label": "Bullet List" },
+      "orderedList": { "label": "Ordered List" },
+      "taskList": { "label": "Task List" }
+    },
+    "advancedGroup": {
+      "label": "Advanced",
+      "image": { "label": "Image" },
+      "codeBlock": { "label": "Code" },
+      "table": { "label": "Table" },
+      "math": { "label": "Math" }
+    }
+  },
+  "placeholder": "Please enter...",
+  "toolbar": {
+    "paragraph": "Paragraph",
+    "heading1": "Heading 1",
+    "heading2": "Heading 2",
+    "heading3": "Heading 3",
+    "quote": "Quote",
+    "bulletList": "Bullet list",
+    "orderedList": "Numbered list",
+    "codeBlock": "Code block"
+  }
+}
+
