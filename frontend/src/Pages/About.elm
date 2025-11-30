@@ -412,7 +412,7 @@ viewFooter theme browserEnv =
                 )
                 [ text "Elm Land"
                 ]
-            , text <| Translations.aboutFrontendText2 [ browserEnv.translations ] ++ " "
+            , text <| " " ++ Translations.aboutFrontendText2 [ browserEnv.translations ] ++ " "
             , a
                 (styles.textStyleLinks
                     ++ styles.colorStyleLinks
@@ -422,7 +422,7 @@ viewFooter theme browserEnv =
                 )
                 [ text "Elm"
                 ]
-            , text <| Translations.aboutFrontendText3 [ browserEnv.translations ] ++ " "
+            , text <| " " ++ Translations.aboutFrontendText3 [ browserEnv.translations ] ++ " "
             ]
         , Html.span
             []
