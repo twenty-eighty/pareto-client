@@ -95,9 +95,11 @@ availableCategories : I18Next.Translations -> List (Categories.CategoryData Cate
 availableCategories translations =
     [ { category = Published
       , title = Translations.publishedCategory [ translations ]
+      , testId = "posts-published"
       }
     , { category = Drafts
       , title = Translations.draftsCategory [ translations ]
+      , testId = "posts-drafts"
       }
     ]
 

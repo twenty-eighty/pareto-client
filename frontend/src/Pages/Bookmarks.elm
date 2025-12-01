@@ -340,28 +340,44 @@ availableCategories bookmarkList translations =
     let
         articleBookmarkCategory =
             if List.length bookmarkList.articles > 0 then
-                [ { category = ArticleBookmark, title = Translations.articlesTitle [ translations ] } ]
+                [ { category = ArticleBookmark
+                  , title = Translations.articlesTitle [ translations ]
+                  , testId = "bookmarks-articles"
+                  }
+                ]
 
             else
                 []
 
         hashtagBookmarkCategory =
             if List.length bookmarkList.hashtags > 0 then
-                [ { category = HashtagBookmark, title = Translations.hashtagsTitle [ translations ] } ]
+                [ { category = HashtagBookmark
+                  , title = Translations.hashtagsTitle [ translations ]
+                  , testId = "bookmarks-hashtags"
+                  }
+                ]
 
             else
                 []
 
         urlBookmarkCategory =
             if List.length bookmarkList.urls > 0 then
-                [ { category = UrlBookmark, title = Translations.urlsTitle [ translations ] } ]
+                [ { category = UrlBookmark
+                  , title = Translations.urlsTitle [ translations ]
+                  , testId = "bookmarks-urls"
+                  }
+                ]
 
             else
                 []
 
         noteBookmarkCategory =
             if List.length bookmarkList.notes > 0 then
-                [ { category = NoteBookmark, title = Translations.notesTitle [ translations ] } ]
+                [ { category = NoteBookmark
+                  , title = Translations.notesTitle [ translations ]
+                  , testId = "bookmarks-notes"
+                  }
+                ]
 
             else
                 []

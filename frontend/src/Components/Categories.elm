@@ -85,6 +85,7 @@ type Model category
 type alias CategoryData category =
     { category : category
     , title : String
+    , testId : String
     }
 
 
@@ -215,7 +216,7 @@ viewCategory color colorDarkMode toMsg onSelect maybeImage active data =
                 ]
             ]
         , attribute "aria-label" data.title
-        , attribute "data-test" ("category-" ++ data.title)
+        , attribute "data-test" ("category-" ++ data.testId)
         , Events.onClick onClickCategory
         ]
         [ imageElement

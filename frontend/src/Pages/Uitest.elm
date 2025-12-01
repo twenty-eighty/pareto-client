@@ -367,8 +367,8 @@ categoryImage _ category =
 
 availableCategories : I18Next.Translations -> List (Components.Categories.CategoryData TestCategory)
 availableCategories translations =
-    [ { category = Category1, title = Translations.category1Text [ translations ] }
-    , { category = Category2, title = Translations.category2Text [ translations ] }
+    [ { category = Category1, title = Translations.category1Text [ translations ], testId = "uitest-category1" }
+    , { category = Category2, title = Translations.category2Text [ translations ], testId = "uitest-category2" }
     ]
 
 
