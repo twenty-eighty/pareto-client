@@ -9,6 +9,7 @@
 /frontend/dist
 /frontend/.elm-land
 /frontend/elm-stuff
+/frontend/elm-home/elm-stuff/*
 /frontend/gen
 /frontend/node_modules
 /frontend/pktriot

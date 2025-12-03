@@ -1,0 +1,50 @@
+{
+  "imageBlock": {
+    "inlineUploadButton": "Выбрать файл",
+    "inlineUploadPlaceholderText": "или вставьте ссылку на изображение ...",
+    "inlineConfirmButton": "Подтвердить",
+    "blockUploadButton": "Выбрать файл",
+    "blockUploadPlaceholderText": "или вставьте ссылку на изображение ...",
+    "blockCaptionPlaceholderText": "Подпись к изображению",
+    "blockConfirmButton": "Подтвердить"
+  },
+  "blockEdit": {
+    "textGroup": {
+      "label": "Текст",
+      "text": { "label": "Абзац" },
+      "h1": { "label": "Заголовок 1" },
+      "h2": { "label": "Заголовок 2" },
+      "h3": { "label": "Заголовок 3" },
+      "h4": { "label": "Заголовок 4" },
+      "h5": { "label": "Заголовок 5" },
+      "h6": { "label": "Заголовок 6" },
+      "quote": { "label": "Цитата" },
+      "divider": { "label": "Разделитель" }
+    },
+    "listGroup": {
+      "label": "Списки",
+      "bulletList": { "label": "Маркированный список" },
+      "orderedList": { "label": "Нумерованный список" },
+      "taskList": { "label": "Список задач" }
+    },
+    "advancedGroup": {
+      "label": "Дополнительно",
+      "image": { "label": "Изображение" },
+      "codeBlock": { "label": "Код" },
+      "table": { "label": "Таблица" },
+      "math": { "label": "Математика" }
+    }
+  },
+  "placeholder": "Пожалуйста, введите...",
+  "toolbar": {
+    "paragraph": "Абзац",
+    "heading1": "Заголовок 1",
+    "heading2": "Заголовок 2",
+    "heading3": "Заголовок 3",
+    "quote": "Цитата",
+    "bulletList": "Маркированный список",
+    "orderedList": "Нумерованный список",
+    "codeBlock": "Код"
+  }
+}
+

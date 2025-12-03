@@ -326,12 +326,15 @@ availableCategories translations configCheckIssues =
     in
     [ { category = Relays
       , title = Translations.relaysCategory [ translations ] ++ relaysIssuesSuffix
+      , testId = "settings-relays"
       }
     , { category = MediaServers
       , title = Translations.mediaServersCategory [ translations ] ++ mediaServersIssuesSuffix
+      , testId = "settings-media-servers"
       }
     , { category = Profile
       , title = Translations.profileCategory [ translations ] ++ profileIssuesSuffix
+      , testId = "settings-profile"
       }
     ]
 

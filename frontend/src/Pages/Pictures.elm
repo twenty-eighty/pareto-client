@@ -511,7 +511,8 @@ availableCategories nostr loginStatus translations =
         {- apparently the content warning field is not consistently filled, so we don't show the global category
         ++ [ { category = Global
              , title = Translations.Read.globalFeedCategory [ translations ]
-             }
+             , testId = "pictures-global"
+                 }
            ]
         -}
 
@@ -520,6 +521,7 @@ paretoCategory : I18Next.Translations -> Categories.CategoryData Category
 paretoCategory translations =
     { category = Pareto
     , title = Translations.paretoFeedCategory [ translations ]
+    , testId = "pictures-pareto"
     }
 
 
@@ -527,6 +529,7 @@ followedCategory : I18Next.Translations -> Categories.CategoryData Category
 followedCategory translations =
     { category = Followed
     , title = Translations.followedFeedCategory [ translations ]
+    , testId = "pictures-followed"
     }
 
 
@@ -534,6 +537,7 @@ memesCategory : I18Next.Translations -> Categories.CategoryData Category
 memesCategory translations =
     { category = Memes
     , title = Translations.memesFeedCategory [ translations ]
+    , testId = "pictures-memes"
     }
 
 
@@ -549,6 +553,7 @@ peaceCategory : I18Next.Translations -> Categories.CategoryData Category
 peaceCategory translations =
     { category = Peace
     , title = Translations.peaceFeedCategory [ translations ]
+    , testId = "pictures-peace"
     }
 
 

@@ -8,6 +8,8 @@ shopt -s expand_aliases
 
 rm -rf dist
 
+export ELM_HOME=elm-home/elm-stuff/
+
 npm install
 
 ./gentranslations.sh
@@ -24,6 +26,8 @@ if [ -n "${IMAGE_CACHING_SERVER+x}" ]; then
     echo "IMAGE_CACHING_SERVER: ${IMAGE_CACHING_SERVER}"
     sed -i "s|env.IMAGE_CACHING_SERVER|\"${IMAGE_CACHING_SERVER}\"|g" src/interop.js
 fi
+
+node ./elm-kernel-replacements/run_replace-kernel-packages.mjs
 
 elm-land build
 

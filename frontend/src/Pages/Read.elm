@@ -367,6 +367,7 @@ availableCategories nostr loginStatus translations =
         ++ followedCategories
         ++ [ { category = Global
              , title = Translations.Read.globalFeedCategory [ translations ]
+             , testId = "read-global"   
              }
 
            --   , { category = Highlighter
@@ -379,6 +380,7 @@ paretoCategory : I18Next.Translations -> Categories.CategoryData Category
 paretoCategory translations =
     { category = Pareto
     , title = Translations.Read.paretoFeedCategory [ translations ]
+    , testId = "read-pareto"
     }
 
 
@@ -386,6 +388,7 @@ friedenstaubeCategory : I18Next.Translations -> Categories.CategoryData Category
 friedenstaubeCategory _ =
     { category = Friedenstaube
     , title = "Friedenstaube"
+    , testId = "read-friedenstaube"
     }
 
 
@@ -403,6 +406,7 @@ followedCategory : I18Next.Translations -> Categories.CategoryData Category
 followedCategory translations =
     { category = Followed
     , title = Translations.Read.followedFeedCategory [ translations ]
+    , testId = "read-followed"
     }
 
 
