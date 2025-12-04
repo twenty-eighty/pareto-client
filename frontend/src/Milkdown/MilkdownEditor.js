@@ -8,7 +8,7 @@ import { getImageBlockTranslations } from './translations/image-block';
 import { getBlockEditTranslations } from './translations/block-edit';
 import { getPlaceholderText } from './translations/placeholder';
 import { getToolbarTranslations } from './translations/toolbar';
-import { commandsCtx, editorCtx, editorViewCtx } from '@milkdown/kit/core';
+import { commandsCtx, editorViewCtx } from '@milkdown/kit/core';
 import {
     blockquoteSchema,
     bulletListSchema,
@@ -21,7 +21,6 @@ import {
     wrapInBlockTypeCommand,
 } from '@milkdown/kit/preset/commonmark';
 import {
-    isNodeSelectedCommand,
     liftListItemCommand,
     wrapInBulletListCommand,
     wrapInOrderedListCommand,
@@ -48,9 +47,10 @@ import { getMarkdown } from '@milkdown/utils';
 import { imageInlineComponent } from '@milkdown/kit/component/image-inline'
 
 import { listener, listenerCtx } from '@milkdown/plugin-listener';
-import { commonmark } from '@milkdown/preset-commonmark';
+import { commonmark as presetCommonmark, remarkLineBreak, remarkPreserveEmptyLinePlugin } from '@milkdown/preset-commonmark';
 import { nord } from '@milkdown/theme-nord'
 import '@milkdown/theme-nord/style.css'
+import { htmlSanitizer } from './plugins/htmlSanitizer';
 
 // We have some themes for you to choose
 
@@ -189,6 +189,20 @@ class ElmMilkdownEditor extends HTMLElement {
             orderedList: withIconTitle(orderedListIcon, toolbarLabels.orderedList),
             codeBlock: withIconTitle(codeIcon, toolbarLabels.codeBlock),
         };
+
+        const filteredCommonmark =
+            Array.isArray(presetCommonmark)
+                ? presetCommonmark.filter(
+                    (plugin) =>
+                        plugin !== remarkLineBreak &&
+                        plugin !== remarkLineBreak.plugin &&
+                        plugin !== remarkLineBreak.options &&
+                        plugin !== remarkPreserveEmptyLinePlugin &&
+                        plugin !== remarkPreserveEmptyLinePlugin.plugin &&
+                        plugin !== remarkPreserveEmptyLinePlugin.options
+                )
+                : presetCommonmark;
+
 
         const crepe = new Crepe({
             root: this._element,
@@ -417,9 +431,19 @@ class ElmMilkdownEditor extends HTMLElement {
             }
         });
 
+        await crepe.editor.remove([
+            remarkLineBreak,
+            remarkLineBreak.plugin,
+            remarkLineBreak.options,
+            remarkPreserveEmptyLinePlugin,
+            remarkPreserveEmptyLinePlugin.plugin,
+            remarkPreserveEmptyLinePlugin.options,
+        ]);
+
         crepe.editor
             .config(nord)
-            .use(commonmark)
+            .use(filteredCommonmark)
+            .use(htmlSanitizer)
             .use(listener)
             .use(imageBlockComponent);
 
@@ -460,7 +484,6 @@ class ElmMilkdownEditor extends HTMLElement {
             editor.action((ctx) => {
 
                 const listener = ctx.get(listenerCtx);
-
                 listener.markdownUpdated((ctx, markdown) => {
                     this.dispatchEvent(new CustomEvent('change', { detail: { content: markdown } }));
                 });
