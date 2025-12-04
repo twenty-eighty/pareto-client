@@ -352,6 +352,7 @@ htmlBlock : Markdown.Html.Renderer (List (Html msg) -> Html msg)
 htmlBlock =
     Markdown.Html.oneOf
         [ htmlAElement
+        , htmlBrElement
         , htmlCiteElement
         , htmlIframeElement
         , htmlImgElement
@@ -401,6 +402,14 @@ htmlAElement =
         |> Markdown.Html.withOptionalAttribute "href"
 
 
+htmlBrElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlBrElement =
+    Markdown.Html.tag "br"
+        (\children ->
+            renderHtmlBrElement children
+        )
+
+
 htmlCiteElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)
 htmlCiteElement =
     Markdown.Html.tag "cite"
@@ -438,6 +447,13 @@ renderHtmlAElement maybeHref children =
             []
             :: srcAttr
         )
+        children
+
+
+renderHtmlBrElement : (List (Html msg) -> Html msg)
+renderHtmlBrElement children =
+    Html.br
+        []
         children
 
 
