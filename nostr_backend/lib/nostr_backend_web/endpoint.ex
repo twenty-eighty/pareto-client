@@ -1,9 +1,19 @@
 defmodule NostrBackendWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :nostr_backend
 
+  # The session will be stored in the cookie and signed,
+  # this means its contents can be read but not tampered with.
+  # Set :encryption_salt if you would also like to encrypt it.
+  @session_options [
+    store: :cookie,
+    key: "_nostr_backend_key",
+    signing_salt: "Zwbg9iH3",
+    same_site: "Lax"
+  ]
+
   socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: []],
-    longpoll: [connect_info: []]
+    websocket: [connect_info: [session: @session_options]],
+    longpoll: [connect_info: [session: @session_options]]
 
   plug NostrBackendWeb.Plugs.Hsts
   plug NostrBackendWeb.Plugs.RequestLogger
@@ -28,7 +38,8 @@ defmodule NostrBackendWeb.Endpoint do
   end
 
   plug Phoenix.LiveDashboard.RequestLogger,
-    param_key: "request_logger"
+    param_key: "request_logger",
+    cookie_key: "request_logger"
 
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
@@ -40,5 +51,6 @@ defmodule NostrBackendWeb.Endpoint do
 
   plug Plug.MethodOverride
   plug Plug.Head
+  plug Plug.Session, @session_options
   plug NostrBackendWeb.Router
 end
