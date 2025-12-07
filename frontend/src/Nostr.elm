@@ -4,6 +4,7 @@ import BrowserEnv exposing (Environment(..))
 import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode
+import Json.Decode.Pipeline as DecodePipeline
 import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, firstCreatedAt, publishedTime)
 import Nostr.Blossom exposing (userServerListFromEvent)
 import Nostr.BookmarkList exposing (BookmarkList, bookmarkListEvent, bookmarkListFromEvent, bookmarkListWithArticle, bookmarkListWithShortNote, bookmarkListWithoutArticle, bookmarkListWithoutShortNote, emptyBookmarkList)
@@ -1693,6 +1694,21 @@ update msg model =
                         Err error ->
                             ( { model | errors = Decode.errorToString error :: model.errors }, Cmd.none )
 
+                "author" ->
+                    -- resolve author's NIP-05 from <script> injected by backend
+                    case Decode.decodeValue authorDecoder message.value of
+                        Ok authorData ->
+                            let
+                                nip05Data =
+                                    { names = Dict.singleton authorData.nip05.user authorData.pubKey
+                                    , relays = Nothing
+                                    }
+                            in
+                            updateModelWithNip05Data model -1 authorData.nip05 nip05Data
+
+                        Err error ->
+                            ( { model | errors = Decode.errorToString error :: model.errors }, Cmd.none )
+
                 "events" ->
                     case
                         ( Nostr.External.decodeRequestId message.value
@@ -1843,6 +1859,17 @@ update msg model =
             , Cmd.none
             )
 
+
+type alias AuthorData =
+    { pubKey : PubKey
+    , nip05 : Nip05
+    }
+
+authorDecoder : Decode.Decoder AuthorData
+authorDecoder =
+    Decode.succeed AuthorData
+        |> DecodePipeline.required "pubkey" Decode.string
+        |> DecodePipeline.required "nip-05" Nip05.nip05StringDecoder
 
 updateModelWithEvents : Model -> Int -> Kind -> List Event -> ( Model, Cmd Msg )
 updateModelWithEvents model requestId kind events =

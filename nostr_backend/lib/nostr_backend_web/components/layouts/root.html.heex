@@ -94,17 +94,22 @@
     </script>
     <script async src="/js/script-element.js">
     </script>
-    <link rel="stylesheet" crossorigin href={NostrBackendWeb.FrontendAssets.css_file()} />
-    <script type="module" crossorigin src={NostrBackendWeb.FrontendAssets.js_file()}>
-    </script>
     <%= if @schema_metadata do %>
       <!-- Schema.org metadata -->
       <script type="application/ld+json">
         <%= raw @schema_metadata %>
       </script>
     <% end %>
+    <%= if assigns[:nostr_event_json] do %>
+      <script id="nostr-event-data" type="application/json">
+        <%= raw(assigns[:nostr_event_json]) %>
+      </script>
+    <% end %>
+    <link rel="stylesheet" crossorigin href={NostrBackendWeb.FrontendAssets.css_file()} />
+    <script type="module" crossorigin src={NostrBackendWeb.FrontendAssets.js_file()}>
+    </script>
   </head>
   <body class="bg-white">
-    <%#= @inner_content %>
+    <%= @inner_content %>
   </body>
 </html>

@@ -267,6 +267,7 @@ defmodule NostrBackendWeb.ContentController do
                 article = apply_substitution_if_bot(conn, article)
 
                 conn
+                |> assign(:nostr_author_info, build_author_context(user_nip05, pubkey))
                 |> conn_with_article_meta(article, relays)
                 |> put_view(NostrBackendWeb.ContentHTML)
                 |> render(:article, article: article)
@@ -336,11 +337,15 @@ defmodule NostrBackendWeb.ContentController do
         |> assign(:meta_description, "Nostr Profile")
         |> assign(:meta_image, @sharing_image)
         |> assign(:schema_metadata, Jason.encode!(schema_metadata))
+        |> assign(:nostr_event_json, nil)
         |> render(:not_found, layout: false)
     end
   end
 
   defp conn_with_article_meta(conn, article, _relays) do
+    author_context = Map.get(conn.assigns, :nostr_author_info)
+    raw_event = Map.get(article, :raw_event)
+
     relays_list =
       case Map.get(article, :relays) do
         rel when is_list(rel) and rel != [] ->
@@ -412,6 +417,16 @@ defmodule NostrBackendWeb.ContentController do
         })
       end
 
+    author_context =
+      conn.assigns
+      |> Map.get(:nostr_author_info)
+      |> merge_author_profile(author_profile)
+
+    events =
+      []
+      |> add_event(get_raw_event(author_profile))
+      |> add_event(raw_event || article)
+
     conn
     |> assign(:lang, NostrBackend.Locale.preferred_language(conn))
     |> assign(:page_title, article.title || @meta_title)
@@ -421,6 +436,8 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_description, article.description || @meta_description)
     |> assign(:meta_image, article.image_url |> force_https() || @sharing_image)
     |> assign(:schema_metadata, Jason.encode!(schema_metadata))
+    |> assign_event_payload(events, author_context)
+    |> assign(:nostr_author_info, nil)
   end
 
   defp conn_with_community_meta(conn, community) do
@@ -494,6 +511,12 @@ defmodule NostrBackendWeb.ContentController do
       |> maybe_add_field("image", image_url)
       |> maybe_add_field("identifier", get_profile_identifier(profile))
 
+    profile_raw_event = get_raw_event(profile)
+
+    events =
+      []
+      |> add_event(profile_raw_event || profile)
+
     conn
     |> assign(:lang, lang)
     |> assign(:page_title, (display_name || "Profile") <> " | Pareto")
@@ -503,6 +526,7 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_description, Map.get(profile, :about))
     |> assign(:meta_image, image_url || @sharing_image)
     |> assign(:schema_metadata, Jason.encode!(schema_metadata))
+    |> assign_event_payload(events)
   end
 
   defp conn_with_default_meta(conn) do
@@ -519,7 +543,107 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:article, nil)
     |> assign(:lang, NostrBackend.Locale.preferred_language(conn))
     |> assign(:schema_metadata, nil)
+    |> assign(:nostr_event_json, nil)
   end
+
+  defp assign_event_payload(conn, events, extras \\ %{})
+  defp assign_event_payload(conn, nil, _extras), do: assign(conn, :nostr_event_json, nil)
+  defp assign_event_payload(conn, [], _extras), do: assign(conn, :nostr_event_json, nil)
+
+  defp assign_event_payload(conn, events, extras) when is_list(events) do
+    sanitized_events =
+      events
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(&sanitize_for_json/1)
+
+    if sanitized_events == [] do
+      assign(conn, :nostr_event_json, nil)
+    else
+      payload =
+        %{
+          "events" => sanitized_events
+        }
+        |> Map.merge(build_event_extras(extras))
+        |> Jason.encode!()
+
+      assign(conn, :nostr_event_json, payload)
+    end
+  end
+
+  defp assign_event_payload(conn, event, extras) when is_map(event) do
+    assign_event_payload(conn, [event], extras)
+  end
+
+  defp build_event_extras(nil), do: %{}
+
+  defp build_event_extras(extras) when is_map(extras) do
+    extras
+    |> Enum.reduce(%{}, fn {key, value}, acc ->
+      case sanitize_for_json(value) do
+        nil -> acc
+        sanitized -> Map.put(acc, key, sanitized)
+      end
+    end)
+  end
+
+  defp add_event(events, nil), do: events
+  defp add_event(events, event), do: events ++ [event]
+
+  defp get_raw_event(nil), do: nil
+
+  defp get_raw_event(data) when is_map(data) do
+    Map.get(data, :raw_event) || Map.get(data, "raw_event")
+  end
+
+  defp build_author_context(nil, _pubkey), do: nil
+  defp build_author_context("", _pubkey), do: nil
+
+  defp build_author_context(user_nip05, pubkey) do
+    author =
+      %{
+        "nip-05" => user_nip05,
+        "pubkey" => pubkey
+      }
+      |> Enum.filter(fn {_key, value} -> is_binary(value) and value != "" end)
+      |> Map.new()
+
+    if map_size(author) == 0 do
+      nil
+    else
+      %{author: author}
+    end
+  end
+
+  defp merge_author_profile(context, nil), do: context
+
+  defp merge_author_profile(context, profile) do
+    profile_payload = build_profile_payload(profile)
+
+    author_map =
+      context
+      |> extract_author_map()
+      |> Map.put_new("pubkey", profile.profile_id)
+
+    %{author: author_map}
+  end
+
+  defp extract_author_map(%{author: author}) when is_map(author), do: author
+  defp extract_author_map(%{"author" => author}) when is_map(author), do: author
+  defp extract_author_map(_), do: %{}
+
+  defp build_profile_payload(profile), do: profile
+
+  defp sanitize_for_json(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
+  defp sanitize_for_json(%NaiveDateTime{} = datetime), do: NaiveDateTime.to_iso8601(datetime)
+  defp sanitize_for_json(%Time{} = time), do: Time.to_iso8601(time)
+
+  defp sanitize_for_json(map) when is_map(map) do
+    map
+    |> Enum.reduce(%{}, fn {key, value}, acc -> Map.put(acc, key, sanitize_for_json(value)) end)
+  end
+
+  defp sanitize_for_json(list) when is_list(list), do: Enum.map(list, &sanitize_for_json/1)
+  defp sanitize_for_json(other), do: other
 
   def force_https(nil), do: nil
 
