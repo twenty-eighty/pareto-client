@@ -1,6 +1,8 @@
 defmodule NostrBackendWeb.PageController do
   use NostrBackendWeb, :controller
-  alias NostrBackendWeb.Endpoint
+  require Logger
+  alias NostrBackend.ReadFeed
+  alias NostrBackendWeb.{Endpoint, EventPayload}
 
   @meta_title "The Pareto Project"
   @meta_description "An open source publishing platform for uncensorable, investigative journalism powered by Nostr, Lightning and eCash."
@@ -162,8 +164,21 @@ defmodule NostrBackendWeb.PageController do
   end
 
   def read(conn, _params) do
+    conn = add_meta_tags(conn)
+
+    {articles, payload} =
+      case ReadFeed.latest(4) do
+        {:ok, feed} ->
+          {feed.articles, EventPayload.encode(feed.events)}
+
+        {:error, reason} ->
+          Logger.warning("Read feed unavailable: #{inspect(reason)}")
+          {[], nil}
+      end
+
     conn
-    |> add_meta_tags
+    |> assign(:read_feed_articles, articles)
+    |> assign(:nostr_event_json, payload)
     |> render(:read)
   end
 

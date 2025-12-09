@@ -72,7 +72,11 @@ defmodule NostrBackend.ArticleCache do
       {:ok, events} ->
         articles =
           events
-          |> Enum.map(&Content.parse_article_event/1)
+          |> Enum.map(fn event ->
+            event
+            |> Content.parse_article_event()
+            |> maybe_put_raw_event(event)
+          end)
           |> Enum.filter(&(&1 != %{}))
           |> Enum.sort_by(fn article -> article.published_at end, :desc)
 
@@ -98,7 +102,11 @@ defmodule NostrBackend.ArticleCache do
       {:ok, events} ->
         articles =
           events
-          |> Enum.map(&Content.parse_article_event/1)
+          |> Enum.map(fn event ->
+            event
+            |> Content.parse_article_event()
+            |> maybe_put_raw_event(event)
+          end)
           |> Enum.filter(&(&1 != %{}))
           |> Enum.sort_by(fn article -> article.published_at end, :desc)
 
@@ -118,8 +126,11 @@ defmodule NostrBackend.ArticleCache do
   defp load_article(%{kind: kind, identifier: identifier, author: author, relays: relays}) do
     case NostrClient.fetch_article_by_address(kind, author, identifier, relays) do
       {:ok, relay, [event | _]} ->
-        article = Content.parse_article_event(event)
-        article = Map.put(article, :relays, [relay])
+        article =
+          event
+          |> Content.parse_article_event()
+          |> Map.put(:relays, [relay])
+          |> maybe_put_raw_event(event)
         {:ok, article}
 
       {:ok, _relay, []} ->
@@ -134,8 +145,11 @@ defmodule NostrBackend.ArticleCache do
   defp load_article(%{kind: kind, identifier: identifier, author: author}) do
     case NostrClient.fetch_article_by_address(kind, author, identifier) do
       {:ok, relay, [event | _]} ->
-        article = Content.parse_article_event(event)
-        article = Map.put(article, :relays, [relay])
+        article =
+          event
+          |> Content.parse_article_event()
+          |> Map.put(:relays, [relay])
+          |> maybe_put_raw_event(event)
         {:ok, article}
 
       {:ok, _relay, []} ->
@@ -150,8 +164,11 @@ defmodule NostrBackend.ArticleCache do
   defp load_article(%{kind: kind, identifier: identifier}) do
     case NostrClient.fetch_article_by_address(kind, identifier) do
       {:ok, relay, [event | _]} ->
-        article = Content.parse_article_event(event)
-        article = Map.put(article, :relays, [relay])
+        article =
+          event
+          |> Content.parse_article_event()
+          |> Map.put(:relays, [relay])
+          |> maybe_put_raw_event(event)
         {:ok, article}
 
       {:ok, _relay, []} ->
@@ -166,8 +183,11 @@ defmodule NostrBackend.ArticleCache do
   defp load_article(%{id: id, relays: relays}) do
     case NostrClient.fetch_article_by_id(id, relays) do
       {:ok, relay, [event | _]} ->
-        article = Content.parse_article_event(event)
-        article = Map.put(article, :relays, [relay])
+        article =
+          event
+          |> Content.parse_article_event()
+          |> Map.put(:relays, [relay])
+          |> maybe_put_raw_event(event)
         {:ok, article}
 
       {:ok, _relay, []} ->
@@ -182,10 +202,18 @@ defmodule NostrBackend.ArticleCache do
   defp load_article(article_id) do
     case NostrClient.fetch_article(article_id) do
       {:ok, event} when is_map(event) ->
-        article = Content.parse_article_event(event)
+        article =
+          event
+          |> Content.parse_article_event()
+          |> maybe_put_raw_event(event)
+
         {:ok, article}
       {:ok, [event | _]} ->
-        article = Content.parse_article_event(event)
+        article =
+          event
+          |> Content.parse_article_event()
+          |> maybe_put_raw_event(event)
+
         {:ok, article}
 
       {:ok, []} ->
@@ -195,4 +223,15 @@ defmodule NostrBackend.ArticleCache do
         {:error, reason}
     end
   end
+
+  defp maybe_put_raw_event(article, event) do
+    case normalize_event(event) do
+      nil -> article
+      normalized -> Map.put(article, :raw_event, normalized)
+    end
+  end
+
+  defp normalize_event({_, _, %{} = event_map}), do: event_map
+  defp normalize_event(%{} = event_map), do: event_map
+  defp normalize_event(_), do: nil
 end

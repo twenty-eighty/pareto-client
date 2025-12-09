@@ -2,7 +2,7 @@ defmodule NostrBackendWeb.ContentController do
   use NostrBackendWeb, :controller
   require Logger
 
-  alias NostrBackendWeb.Endpoint
+  alias NostrBackendWeb.{Endpoint, EventPayload}
 
   alias NostrBackend.Nip05
   alias NostrBackend.NostrId
@@ -267,6 +267,7 @@ defmodule NostrBackendWeb.ContentController do
                 article = apply_substitution_if_bot(conn, article)
 
                 conn
+                |> assign(:nostr_author_info, build_author_context(user_nip05, pubkey))
                 |> conn_with_article_meta(article, relays)
                 |> put_view(NostrBackendWeb.ContentHTML)
                 |> render(:article, article: article)
@@ -336,11 +337,15 @@ defmodule NostrBackendWeb.ContentController do
         |> assign(:meta_description, "Nostr Profile")
         |> assign(:meta_image, @sharing_image)
         |> assign(:schema_metadata, Jason.encode!(schema_metadata))
+        |> assign(:nostr_event_json, nil)
         |> render(:not_found, layout: false)
     end
   end
 
   defp conn_with_article_meta(conn, article, _relays) do
+    author_context = Map.get(conn.assigns, :nostr_author_info)
+    raw_event = Map.get(article, :raw_event)
+
     relays_list =
       case Map.get(article, :relays) do
         rel when is_list(rel) and rel != [] ->
@@ -412,6 +417,18 @@ defmodule NostrBackendWeb.ContentController do
         })
       end
 
+    author_context =
+      conn.assigns
+      |> Map.get(:nostr_author_info)
+      |> merge_author_profile(author_profile)
+
+    events =
+      []
+      |> EventPayload.add_event(EventPayload.raw_event(author_profile))
+      |> EventPayload.add_event(raw_event || article)
+
+    payload = EventPayload.encode(events, author_context)
+
     conn
     |> assign(:lang, NostrBackend.Locale.preferred_language(conn))
     |> assign(:page_title, article.title || @meta_title)
@@ -421,6 +438,8 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_description, article.description || @meta_description)
     |> assign(:meta_image, article.image_url |> force_https() || @sharing_image)
     |> assign(:schema_metadata, Jason.encode!(schema_metadata))
+    |> assign(:nostr_event_json, payload)
+    |> assign(:nostr_author_info, nil)
   end
 
   defp conn_with_community_meta(conn, community) do
@@ -494,6 +513,14 @@ defmodule NostrBackendWeb.ContentController do
       |> maybe_add_field("image", image_url)
       |> maybe_add_field("identifier", get_profile_identifier(profile))
 
+    profile_raw_event = EventPayload.raw_event(profile)
+
+    events =
+      []
+      |> EventPayload.add_event(profile_raw_event || profile)
+
+    payload = EventPayload.encode(events)
+
     conn
     |> assign(:lang, lang)
     |> assign(:page_title, (display_name || "Profile") <> " | Pareto")
@@ -503,6 +530,7 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_description, Map.get(profile, :about))
     |> assign(:meta_image, image_url || @sharing_image)
     |> assign(:schema_metadata, Jason.encode!(schema_metadata))
+    |> assign(:nostr_event_json, payload)
   end
 
   defp conn_with_default_meta(conn) do
@@ -519,7 +547,44 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:article, nil)
     |> assign(:lang, NostrBackend.Locale.preferred_language(conn))
     |> assign(:schema_metadata, nil)
+    |> assign(:nostr_event_json, nil)
   end
+
+  defp build_author_context(nil, _pubkey), do: nil
+  defp build_author_context("", _pubkey), do: nil
+
+  defp build_author_context(user_nip05, pubkey) do
+    author =
+      %{
+        "nip-05" => user_nip05,
+        "pubkey" => pubkey
+      }
+      |> Enum.filter(fn {_key, value} -> is_binary(value) and value != "" end)
+      |> Map.new()
+
+    if map_size(author) == 0 do
+      nil
+    else
+      %{author: author}
+    end
+  end
+
+  defp merge_author_profile(context, nil), do: context
+
+  defp merge_author_profile(context, profile) do
+    pubkey = Map.get(profile, :profile_id) || Map.get(profile, "profile_id")
+
+    author_map =
+      context
+      |> extract_author_map()
+      |> Map.put_new("pubkey", pubkey)
+
+    %{author: author_map}
+  end
+
+  defp extract_author_map(%{author: author}) when is_map(author), do: author
+  defp extract_author_map(%{"author" => author}) when is_map(author), do: author
+  defp extract_author_map(_), do: %{}
 
   def force_https(nil), do: nil
 

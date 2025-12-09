@@ -63,6 +63,10 @@ export const onReady = ({ app, env }) => {
 
   var storedCommands = [];
 
+  // the backend may inject a <script> element containing
+  // raw Nostr events required by the page to be loaded
+  processPreloadData(app);
+
   if (window.matchMedia) {
     window.matchMedia("(prefers-color-scheme: dark)").addListener(e =>
       e.matches &&
@@ -186,6 +190,34 @@ export const onReady = ({ app, env }) => {
         break;
     }
   });
+
+  function processPreloadData(app) {
+    var preloadData = undefined;
+  /*
+    const nostrTestScript = 
+
+    preloadData = nostrTestScript;
+  */
+
+    const nostrEventNode = document.getElementById('nostr-event-data');
+    if (nostrEventNode) {
+      const nostrEventPayload = nostrEventNode?.textContent;
+      preloadData = JSON.parse(nostrEventPayload);
+    }
+
+    if (preloadData) {
+      const nostrEvents = preloadData.events;
+      const eventAuthor = preloadData.author;
+
+      if (eventAuthor) {
+        app.ports.receiveMessage.send({ messageType: 'author', value: eventAuthor });
+      }
+
+      if (nostrEvents) {
+        processEvents(app, -1, "", nostrEvents);
+      }
+    }
+  }
 
   function processOnlineCommand(app, command, value) {
     debugLog('process command', command);

@@ -41,18 +41,17 @@ defmodule NostrBackend.ProfileCache do
       {:ok, relay, event_or_events} ->
         Logger.debug("Fetched profile event(s) from relay #{relay}: #{inspect(event_or_events)}")
         # Handle both single event and list of events
-        event_to_parse =
-          case event_or_events do
-            [single_event] -> single_event
-            _ -> event_or_events
-          end
+        {event_to_parse, raw_event} = extract_event_and_raw(event_or_events)
 
         profile = Content.parse_profile_event(event_to_parse)
 
+        profile =
+          profile
+          |> maybe_put_relays(relay)
+          |> maybe_put_raw_event(raw_event)
+
         # Only return the profile if it has meaningful data (more than just relays)
         if is_map(profile) and map_size(profile) > 1 do
-          # Attach the relay used to fetch the profile
-          profile = Map.put(profile, :relays, [relay])
           Logger.debug("Parsed profile: #{inspect(profile)}")
           {:ok, profile}
         else
@@ -65,4 +64,28 @@ defmodule NostrBackend.ProfileCache do
         {:error, reason}
     end
   end
+
+  defp extract_event_and_raw([single_event]) do
+    {single_event, normalize_event(single_event)}
+  end
+
+  defp extract_event_and_raw(event) do
+    {event, normalize_event(event)}
+  end
+
+  defp maybe_put_relays(profile, relay) when is_map(profile) do
+    Map.put(profile, :relays, [relay])
+  end
+
+  defp maybe_put_relays(profile, _relay), do: profile
+
+  defp maybe_put_raw_event(profile, nil), do: profile
+
+  defp maybe_put_raw_event(profile, raw_event) when is_map(profile) do
+    Map.put(profile, :raw_event, raw_event)
+  end
+
+  defp normalize_event({_, _, %{} = event_map}), do: event_map
+  defp normalize_event(%{} = event_map), do: event_map
+  defp normalize_event(_), do: nil
 end
