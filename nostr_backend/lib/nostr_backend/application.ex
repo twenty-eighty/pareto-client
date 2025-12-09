@@ -31,6 +31,12 @@ defmodule NostrBackend.Application do
         id: :follow_lists_cache
       ),
 
+      # Cache for /read feed payload
+      Supervisor.child_spec(
+        {Cachex, name: :read_feed_cache, ttl_interval: :timer.minutes(5)},
+        id: :read_feed_cache
+      ),
+
       # Cache for profiles
       Supervisor.child_spec(
         {Cachex, name: :profiles_cache, ttl_interval: :timer.minutes(1440)},

@@ -20,6 +20,10 @@ if System.get_env("PHX_SERVER") do
   config :nostr_backend, NostrBackendWeb.Endpoint, server: true
 end
 
+# pubkey that has follow list with all authors
+follow_list_pubkey = System.get_env("FOLLOW_LIST_PUBKEY") || ""
+config :nostr_backend, :follow_list_pubkey, follow_list_pubkey
+
 if config_env() == :prod do
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
