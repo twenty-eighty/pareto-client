@@ -43,8 +43,6 @@ import { listItemBlockComponent } from '@milkdown/kit/component/list-item-block'
 import { tableBlock, tableBlockConfig } from '@milkdown/kit/component/table-block'
 import { getMarkdown } from '@milkdown/utils';
 */
-// import { imageBlockComponent } from '@milkdown/kit/component/image-block'
-import { imageInlineComponent } from '@milkdown/kit/component/image-inline'
 
 import { listener, listenerCtx } from '@milkdown/plugin-listener';
 import { commonmark as presetCommonmark, remarkLineBreak, remarkPreserveEmptyLinePlugin } from '@milkdown/preset-commonmark';
@@ -451,7 +449,6 @@ class ElmMilkdownEditor extends HTMLElement {
 
         crepe.create().then((editor) => {
 
-            editor.remove(imageInlineComponent);
             // */
 
             /*
