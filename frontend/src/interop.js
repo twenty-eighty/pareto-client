@@ -8,11 +8,6 @@ import "./zap-component.js";
 import "./elm-oembed.js";
 import debug from 'debug';
 
-// Register custom elements
-if (!customElements.get('js-clipboard-component')) {
-  customElements.define('js-clipboard-component', ClipboardComponent);
-}
-
 // This is called BEFORE your Elm app starts up
 // 
 // The value returned here will be passed as flags 

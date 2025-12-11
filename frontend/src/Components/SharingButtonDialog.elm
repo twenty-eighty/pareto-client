@@ -416,8 +416,8 @@ copyButton (Settings settings) copyText uniqueId =
         styles =
             stylesForTheme settings.theme
 
-        elementId =
-            "copy-to-clipboard-" ++ uniqueId
+        buttonElementId =
+            "copy-to-clipboard-" ++ uniqueId ++ "-button"
     in
     Html.div
         [ Attr.css
@@ -433,20 +433,20 @@ copyButton (Settings settings) copyText uniqueId =
                 , Tw.text_color styles.colorB4
                 , darkMode [ Tw.text_color styles.colorB4DarkMode ]
                 ]
-            , Attr.id elementId
             ]
             [ Button.new
                 { label = Translations.copyToClipboardButtonTitle [ settings.browserEnv.translations ]
-                , onClick = Nothing
+                , onClick = Just NoOp
                 , theme = settings.theme
                 }
+                |> Button.withId buttonElementId
                 |> Button.withContentLeft (Icon.FeatherIcon FeatherIcons.copy |> Icon.viewWithSize 20)
                 |> Button.withTypeSecondary
                 |> Button.withTestAttribute "copy-to-clipboard-button"
                 |> Button.view
             ]
         , Html.node "js-clipboard-component"
-            [ Attr.property "buttonId" (Encode.string elementId)
+            [ Attr.property "buttonId" (Encode.string buttonElementId)
             , Attr.property "copyContent" (Encode.string copyText)
             , Events.on "copiedToClipboard" (Decode.succeed ShowCopiedMessage)
             ]
