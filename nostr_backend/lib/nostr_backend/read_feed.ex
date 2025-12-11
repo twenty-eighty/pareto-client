@@ -87,10 +87,9 @@ defmodule NostrBackend.ReadFeed do
       {:ok, articles} ->
         articles =
           articles
-          |> Enum.sort_by(
-            &article_sort_key/1,
-            fn a, b -> DateTime.compare(a, b) != :lt end
-          )
+          |> Enum.sort(fn article_a, article_b ->
+            DateTime.compare(article_sort_key(article_a), article_sort_key(article_b)) == :gt
+          end)
           |> Enum.take(limit)
 
         {:ok, articles}
