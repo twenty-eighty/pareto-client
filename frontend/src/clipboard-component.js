@@ -1,74 +1,80 @@
-'use strict';
+import debug from 'debug';
+
+const clipboardLog = debug('pareto:clipboard-component');
 
 class ClipboardComponent extends HTMLElement {
-
   constructor() {
     super();
-    console.log('ClipboardComponent constructor called');
+    clipboardLog('constructor called');
     this.copyButtonId = null;
     this.textContents = '';
+    this.handleDocumentClick = this.handleDocumentClick.bind(this);
   }
 
   connectedCallback() {
-    console.log('ClipboardComponent connectedCallback called');
-    var thisComponent = this;
+    clipboardLog('connectedCallback');
+    document.addEventListener('click', this.handleDocumentClick, true);
+  }
 
-    // Use MutationObserver to watch for changes in the DOM
-    const observer = new MutationObserver((mutations) => {
-      console.log('DOM mutation observed, looking for button with ID:', this.copyButtonId);
-      const buttonElement = document.getElementById(this.copyButtonId);
-      if (buttonElement) {
-        console.log('Button found, setting up click handler');
-        observer.disconnect();
-        this.setupClickHandler(buttonElement);
-      }
-    });
+  disconnectedCallback() {
+    clipboardLog('disconnectedCallback');
+    document.removeEventListener('click', this.handleDocumentClick, true);
+  }
 
-    // Start observing the document with the configured parameters
-    observer.observe(document.body, { 
-      childList: true, 
-      subtree: true 
-    });
+  adoptedCallback() {
+    clipboardLog('adoptedCallback');
+  }
 
-    // Also check immediately in case the button already exists
-    const buttonElement = document.getElementById(this.copyButtonId);
-    if (buttonElement) {
-      console.log('Button found immediately, setting up click handler');
-      observer.disconnect();
-      this.setupClickHandler(buttonElement);
+  set buttonId(content) {
+    clipboardLog('buttonId set', content);
+    this.copyButtonId = content;
+  }
+
+  get buttonId() {
+    return this.copyButtonId;
+  }
+
+  set copyContent(content) {
+    clipboardLog('copyContent set', content);
+    this.textContents = content;
+  }
+
+  get copyContent() {
+    return this.textContents;
+  }
+
+  handleDocumentClick(event) {
+    if (!this.copyButtonId) return;
+
+    const path = event.composedPath ? event.composedPath() : [];
+    const matches = path.some((node) => node && node.id === this.copyButtonId);
+    if (!matches) {
+      return;
+    }
+
+    clipboardLog('click received', this.copyButtonId);
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (navigator.clipboard) {
+      this.copyToClipboardApi(this.textContents);
+    } else {
+      this.copyToClipboardOldStyle(this.textContents);
     }
   }
 
-  setupClickHandler(buttonElement) {
-    console.log('Setting up click handler for button:', buttonElement.id);
-    const thisComponent = this;
-    buttonElement.addEventListener("click", function (event) {
-      console.log('Click event received on button:', this.id);
-      event.preventDefault();
-      event.stopPropagation();
-      
-      if (navigator.clipboard) {
-        console.log('Using modern clipboard API');
-        thisComponent.copyToClipboardApi(thisComponent.textContents);
-      } else {
-        console.log('Using fallback clipboard method');
-        thisComponent.copyToClipboardOldStyle(thisComponent.textContents);
-      }
-    });
-  }
-
   copyToClipboardApi(str) {
-    console.log('Copying to clipboard:', str);
+    clipboardLog('copying via Clipboard API', str);
     navigator.clipboard.writeText(str).then(() => {
-      console.log('Successfully copied to clipboard');
+      clipboardLog('copy success');
       this.dispatchEvent(new CustomEvent('copiedToClipboard', { detail: true }));
     }).catch(err => {
-      console.error('Failed to copy to clipboard:', err);
+      clipboardLog('copy failed', err);
     });
   }
 
   copyToClipboardOldStyle(str) {
-    console.log('Using old-style clipboard copy for:', str);
+    clipboardLog('copying via fallback', str);
     const el = document.createElement('textarea');
     el.value = str;
     el.setAttribute('readonly', '');
@@ -79,34 +85,8 @@ class ClipboardComponent extends HTMLElement {
     el.setSelectionRange(0, 99999);
     document.execCommand('copy');
     document.body.removeChild(el);
-    console.log('Successfully copied using old method');
+    clipboardLog('fallback copy success');
     this.dispatchEvent(new CustomEvent('copiedToClipboard', { detail: true }));
-  };
-
-  disconnectedCallback() {
-    console.log('ClipboardComponent disconnected');
-  }
-
-  adoptedCallback() {
-    console.log('ClipboardComponent adopted');
-  }
-
-  set buttonId(content) {
-    console.log('Setting buttonId to:', content);
-    this.copyButtonId = content;
-  }
-
-  get buttonId() {
-    return this.copyButtonId;
-  }
-
-  set copyContent(content) {
-    console.log('Setting copyContent to:', content);
-    this.textContents = content;
-  }
-
-  get copyContent() {
-    return this.textContents;
   }
 }
 

@@ -6,7 +6,7 @@ module Components.Button exposing
     , withContentLeft, withContentRight
     , withIconLeft, withIconRight
     , withDisabled
-    , heightString, withHidden, withIntermediateState, withLink, withNewTabLink, withTypePrimary, withTypeSecondary, withWidthFull, withTestAttribute
+    , heightString, withHidden, withIntermediateState, withLink, withNewTabLink, withTypePrimary, withTypeSecondary, withWidthFull, withTestAttribute, withId
     )
 
 {-|
@@ -63,6 +63,7 @@ type Button msg
         , isHidden : Bool
         , isInIntermediateState : Bool
         , testAttribute : Maybe String
+        , elementId : Maybe String
         , theme : Ui.Styles.Theme
         }
 
@@ -83,6 +84,7 @@ new props =
         , isHidden = False
         , isInIntermediateState = False
         , testAttribute = Nothing
+        , elementId = Nothing
         , theme = props.theme
         }
 
@@ -117,6 +119,11 @@ withNewTabLink url (Settings settings) =
 withTestAttribute : String -> Button msg -> Button msg
 withTestAttribute testAttribute (Settings settings) =
     Settings { settings | testAttribute = Just testAttribute }
+
+
+withId : String -> Button msg -> Button msg
+withId idValue (Settings settings) =
+    Settings { settings | elementId = Just idValue }
 
 
 type ButtonType
@@ -274,6 +281,11 @@ view (Settings settings) =
 
                 Nothing ->
                     [ Attr.attribute "data-test" settings.label ]
+
+        idAttributes =
+            settings.elementId
+                |> Maybe.map (\value -> [ Attr.id value ])
+                |> Maybe.withDefault []
     in
     if not settings.isHidden then
         div
@@ -284,7 +296,8 @@ view (Settings settings) =
                 ]
             ]
             [ element
-                (testAttribute
+                (idAttributes
+                    ++ testAttribute
                     ++ onClickAttr
                     ++ buttonStyles
                     ++ [ Attr.css
