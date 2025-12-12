@@ -209,7 +209,7 @@ export const onReady = ({ app, env }) => {
       }
 
       if (nostrEvents) {
-        processEvents(app, -1, "", nostrEvents);
+        processEvents(app, 0, "", nostrEvents);
       }
     }
   }
