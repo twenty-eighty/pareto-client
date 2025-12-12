@@ -1569,7 +1569,7 @@ empty =
     , zapReceiptsAddress = Dict.empty
     , zapReceiptsEvents = Dict.empty
     , errors = []
-    , requests = Dict.empty
+    , requests = Dict.singleton 0 { id = 0, relatedKinds = [], states = [], description = "preoloaded data" }
     , sendRequests = Dict.empty
     , lastRequestId = 0
     , lastSendId = 0
