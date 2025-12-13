@@ -36,6 +36,7 @@ defmodule NostrBackend.Application do
         {Cachex, name: :read_feed_cache, ttl_interval: :timer.minutes(5)},
         id: :read_feed_cache
       ),
+      NostrBackend.ReadFeedRefresher,
 
       # Cache for profiles
       Supervisor.child_spec(
