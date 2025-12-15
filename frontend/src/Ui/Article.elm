@@ -993,6 +993,7 @@ previewListImage environment translations articleUrl article =
                     ]
                     [ img
                         [ Attr.src (Ui.Links.scaledImageLink environment 384 image)
+                        , Attr.alt "Article image"
                         , Attr.style "top" "50%"
                         , Attr.style "left" "50%"
                         , Attr.style "object-fit" "cover"
@@ -1029,6 +1030,7 @@ previewBigPictureImage article articlePreviewData =
                 ]
                 [ img
                     [ Attr.src image
+                    , Attr.alt "Article image"
                     , Attr.style "top" "50%"
                     , Attr.style "left" "50%"
                     , Attr.style "object-fit" "cover"
