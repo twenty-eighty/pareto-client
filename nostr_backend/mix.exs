@@ -80,7 +80,8 @@ defmodule NostrBackend.MixProject do
       "assets.build": ["esbuild nostr_backend"],
       "assets.deploy": [
         "esbuild nostr_backend --minify",
-        "phx.digest"
+        "phx.digest",
+        "run priv/scripts/brotli_assets.exs"
       ]
     ]
   end

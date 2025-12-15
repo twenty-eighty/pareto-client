@@ -3,6 +3,8 @@
 .env
 .npmrc
 .DS_Store
+*.br
+*.gz
 *.pem
 *.swp
 
@@ -56,6 +58,22 @@ nostr_backend-*.tar
 /nostr_backend/priv/static/styles
 /nostr_backend/priv/static/translations
 
+/nostr_backend/priv/static/BingSiteAuth*
+/nostr_backend/priv/static/robots.txt
+/nostr_backend/priv/static/googlefcd0149897ec17b4-3830a7cb688b3844f84117dd15cbfacf.html
+/nostr_backend/priv/static/browserconfig-*
+/nostr_backend/priv/static/favicon-*
+/nostr_backend/priv/static/index-*
+/nostr_backend/priv/static/manifest-*
+/nostr_backend/priv/static/robots-*
+/nostr_backend/priv/static/lp/de/index-*
+/nostr_backend/priv/static/lp/de/index_mobile-*
+/nostr_backend/priv/static/lp/en/index-*
+/nostr_backend/priv/static/lp/en/index_mobile-*
+/nostr_backend/priv/static/md/imprint-*-*
+/nostr_backend/priv/static/md/privacy-*-*
+/nostr_backend/priv/static/md/tech-details-*
+
 # Ignore digested assets cache.
 /nostr_backend/priv/static/cache_manifest.json
 
@@ -63,7 +81,4 @@ nostr_backend-*.tar
 npm-debug.log
 /nostr_backend/assets/node_modules/
 
-
 frontend/.vscode/settings.json
-nostr_backend/priv/static/robots.txt
-nostr_backend/priv/static/BingSiteAuth.xml
