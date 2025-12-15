@@ -522,26 +522,30 @@ defmodule NostrBackendWeb.ContentController do
     if map_size(author) == 0 do
       nil
     else
-      %{author: author}
+      %{authors: [author]}
     end
   end
 
   defp merge_author_profile(context, nil), do: context
+  defp merge_author_profile(nil, _profile), do: nil
 
-  defp merge_author_profile(context, profile) do
+  defp merge_author_profile(%{authors: authors} = context, profile) when is_list(authors) do
     pubkey = Map.get(profile, :profile_id) || Map.get(profile, "profile_id")
 
-    author_map =
-      context
-      |> extract_author_map()
-      |> Map.put_new("pubkey", pubkey)
+    authors =
+      if is_binary(pubkey) and pubkey != "" do
+        Enum.map(authors, fn
+          author when is_map(author) -> Map.put_new(author, "pubkey", pubkey)
+          other -> other
+        end)
+      else
+        authors
+      end
 
-    %{author: author_map}
+    %{context | authors: authors}
   end
 
-  defp extract_author_map(%{author: author}) when is_map(author), do: author
-  defp extract_author_map(%{"author" => author}) when is_map(author), do: author
-  defp extract_author_map(_), do: %{}
+  defp merge_author_profile(context, _profile), do: context
 
   def force_https(nil), do: nil
 

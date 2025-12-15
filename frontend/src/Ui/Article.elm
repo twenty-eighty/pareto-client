@@ -389,6 +389,10 @@ viewArticleImage : Environment -> Maybe String -> Html msg
 viewArticleImage environment maybeImage =
     case maybeImage of
         Just image ->
+            let
+                sources =
+                    Ui.Links.scaledImageSources environment 384 image
+            in
             div
                 [ css
                     [ Tw.relative
@@ -396,7 +400,8 @@ viewArticleImage environment maybeImage =
                     ]
                 ]
                 [ img
-                    [ Attr.src (Ui.Links.scaledImageLink environment 384 image)
+                    [ Attr.src sources.src
+                    , Attr.attribute "srcset" sources.srcset
                     , Attr.alt "Post Image"
                     , css
                         [ Tw.rounded_lg
@@ -981,6 +986,9 @@ previewListImage environment translations articleUrl article =
             let
                 (element, linkAttributes) =
                     articleElementAttrs articleUrl translations article
+
+                sources =
+                    Ui.Links.scaledImageSources environment 384 image
             in
             element linkAttributes
                 [ div
@@ -992,7 +1000,9 @@ previewListImage environment translations articleUrl article =
                         ]
                     ]
                     [ img
-                        [ Attr.src (Ui.Links.scaledImageLink environment 384 image)
+                        [ Attr.src sources.src
+                        , Attr.attribute "srcset" sources.srcset
+                        , Attr.alt "Article image"
                         , Attr.style "top" "50%"
                         , Attr.style "left" "50%"
                         , Attr.style "object-fit" "cover"
@@ -1029,6 +1039,7 @@ previewBigPictureImage article articlePreviewData =
                 ]
                 [ img
                     [ Attr.src image
+                    , Attr.alt "Article image"
                     , Attr.style "top" "50%"
                     , Attr.style "left" "50%"
                     , Attr.style "object-fit" "cover"

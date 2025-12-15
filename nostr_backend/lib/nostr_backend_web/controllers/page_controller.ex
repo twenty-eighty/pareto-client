@@ -169,7 +169,8 @@ defmodule NostrBackendWeb.PageController do
     {articles, payload} =
       case ReadFeed.latest(4) do
         {:ok, feed} ->
-          {feed.articles, EventPayload.encode(feed.events)}
+          extras = %{authors: feed.authors}
+          {feed.articles, EventPayload.encode(feed.events, extras)}
 
         {:error, reason} ->
           Logger.warning("Read feed unavailable: #{inspect(reason)}")

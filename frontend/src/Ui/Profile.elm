@@ -38,20 +38,39 @@ defaultBannerPicture =
     "/images/pareto-banner.png"
 
 
-bannerPicture : Environment -> Int -> Maybe Profile -> String
-bannerPicture environment width maybeProfile =
+bannerPictureSources : Environment -> Int -> Maybe Profile -> { src : String, srcset : String }
+bannerPictureSources environment width maybeProfile =
     maybeProfile
         |> Maybe.andThen .banner
-        |> Maybe.map (Ui.Links.scaledImageLink environment width)
-        |> Maybe.withDefault defaultBannerPicture
+        |> Maybe.map (Ui.Links.scaledImageSources environment width)
+        |> Maybe.withDefault
+            { src = defaultBannerPicture
+            , srcset = defaultBannerPicture ++ " 1x, " ++ defaultBannerPicture ++ " 2x"
+            }
 
 
-profilePicture : Environment -> Int -> Maybe Profile -> String
-profilePicture environment width maybeProfile =
+profilePictureSources : Environment -> Int -> Maybe Profile -> { src : String, srcset : String }
+profilePictureSources environment width maybeProfile =
     maybeProfile
         |> Maybe.andThen .picture
-        |> Maybe.map (Ui.Links.scaledImageLink environment width)
-        |> Maybe.withDefault defaultProfilePicture
+        |> Maybe.map (Ui.Links.scaledImageSources environment width)
+        |> Maybe.withDefault
+            { src = defaultProfilePicture
+            , srcset = defaultProfilePicture ++ " 1x, " ++ defaultProfilePicture ++ " 2x"
+            }
+
+
+-- Backward-compatible helpers returning only the src
+profilePicture : Environment -> Int -> Maybe Profile -> String
+profilePicture environment width maybeProfile =
+    profilePictureSources environment width maybeProfile
+        |> .src
+
+
+bannerPicture : Environment -> Int -> Maybe Profile -> String
+bannerPicture environment width maybeProfile =
+    bannerPictureSources environment width maybeProfile
+        |> .src
 
 
 type alias ProfileViewData msg =
@@ -171,6 +190,10 @@ viewAuthorCard profile profileViewData =
 
 viewProfileImageAuthorCard : Environment -> (List (Html msg) -> Html msg) -> Maybe Profile -> Html msg
 viewProfileImageAuthorCard environment linkElement maybeProfile =
+    let
+        sources =
+            profilePictureSources environment 64 maybeProfile
+    in
     div
         [ css
             [ Tw.min_w_16
@@ -178,7 +201,8 @@ viewProfileImageAuthorCard environment linkElement maybeProfile =
         ]
         [ linkElement
             [ img
-                [ Attr.src <| profilePicture environment 64 maybeProfile
+                [ Attr.src sources.src
+                , Attr.attribute "srcset" sources.srcset
                 , Attr.alt "Avatar"
                 , css
                     [ Tw.w_16
@@ -444,6 +468,10 @@ copyButton theme copyText uniqueId =
 
 viewBanner : Environment -> Maybe Profile -> Html msg
 viewBanner environment maybeProfile =
+    let
+        sources =
+            bannerPictureSources environment 1280 maybeProfile
+    in
     div
         [ css
             [ Tw.w_full
@@ -454,7 +482,8 @@ viewBanner environment maybeProfile =
             ]
         ]
         [ img
-            [ Attr.src (bannerPicture environment 1280 maybeProfile)
+            [ Attr.src sources.src
+            , Attr.attribute "srcset" sources.srcset
             , Attr.alt "Banner Image"
             , css
                 [ Tw.w_full
@@ -493,6 +522,10 @@ viewProfilePubKey environment styles followLinks pubKey =
 
 viewProfileImage : Environment -> (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
 viewProfileImage environment linkElement maybeProfile validationStatus =
+    let
+        sources =
+            profilePictureSources environment 112 maybeProfile
+    in
     div
         [ css
             [ Tw.min_w_fit
@@ -504,7 +537,8 @@ viewProfileImage environment linkElement maybeProfile validationStatus =
         ]
         [ linkElement
             [ img
-                [ Attr.src <| profilePicture environment 112 maybeProfile
+                [ Attr.src sources.src
+                , Attr.attribute "srcset" sources.srcset
                 , Attr.alt "Avatar"
                 , css
                     [ Bp.xl [ Tw.w_28, Tw.h_28 ]
@@ -578,6 +612,10 @@ validationTooltipText status =
 
 viewProfileImageSmall : Environment -> (List (Html msg) -> Html msg) -> Maybe Profile -> ProfileValidation -> Html msg
 viewProfileImageSmall environment linkElement maybeProfile validationStatus =
+    let
+        sources =
+            profilePictureSources environment 40 maybeProfile
+    in
     div
         [ css
             [ Tw.relative
@@ -585,7 +623,8 @@ viewProfileImageSmall environment linkElement maybeProfile validationStatus =
         ]
         [ linkElement
             [ img
-                [ Attr.src <| profilePicture environment 40 maybeProfile
+                [ Attr.src sources.src
+                , Attr.attribute "srcset" sources.srcset
                 , Attr.alt "Avatar"
                 , css
                     [ Tw.w_10

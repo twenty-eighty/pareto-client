@@ -650,6 +650,7 @@ viewPicture imageMetadata =
         ]
         [ Html.img
             [ Attr.src imageMetadata.url
+            , Attr.alt "Selected picture"
             ]
             []
         ]

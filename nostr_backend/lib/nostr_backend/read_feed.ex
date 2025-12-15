@@ -3,7 +3,7 @@ defmodule NostrBackend.ReadFeed do
   Provides a cached slice of the latest articles for the /read page.
   """
 
-  alias NostrBackend.{ArticleCache, FollowListCache, ProfileCache}
+  alias NostrBackend.{ArticleCache, FollowListCache, Nip05Cache, ProfileCache}
   alias NostrBackendWeb.EventPayload
 
   require Logger
@@ -16,7 +16,7 @@ defmodule NostrBackend.ReadFeed do
   Returns the latest articles for the /read route along with their associated profiles.
   """
   @spec latest(integer()) ::
-          {:ok, %{articles: list(), profiles: list(), events: list()}}
+          {:ok, %{articles: list(), profiles: list(), events: list(), authors: list()}}
           | {:error, term()}
   def latest(limit \\ 4) do
     key = {:latest, limit}
@@ -66,7 +66,9 @@ defmodule NostrBackend.ReadFeed do
             EventPayload.raw_event(article) || article
           end)
 
-      {:ok, %{articles: articles, profiles: profiles, events: events}}
+      authors = build_valid_authors(articles, profiles)
+
+      {:ok, %{articles: articles, profiles: profiles, events: events, authors: authors}}
     end
   end
 
@@ -135,6 +137,39 @@ defmodule NostrBackend.ReadFeed do
         nil
     end
   end
+
+  defp build_valid_authors(articles, profiles) do
+    profiles_by_pubkey =
+      profiles
+      |> Enum.map(fn prof -> {Map.get(prof, :profile_id), prof} end)
+      |> Enum.reject(fn {pubkey, _} -> is_nil(pubkey) end)
+      |> Map.new()
+
+    articles
+    |> Enum.map(&Map.get(&1, :author))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> Enum.reduce([], fn pubkey, acc ->
+      profile = Map.get(profiles_by_pubkey, pubkey)
+      nip05 = if profile, do: Map.get(profile, :nip05), else: nil
+
+      if valid_nip05_for_pubkey?(nip05, pubkey) do
+        acc ++ [%{"nip-05" => nip05, "pubkey" => pubkey}]
+      else
+        acc
+      end
+    end)
+  end
+
+  defp valid_nip05_for_pubkey?(nip05, pubkey)
+       when is_binary(nip05) and nip05 != "" and is_binary(pubkey) and pubkey != "" do
+    case Nip05Cache.get_pubkey_and_relays(nip05) do
+      {:ok, resolved_pubkey, _relays} -> resolved_pubkey == pubkey
+      _ -> false
+    end
+  end
+
+  defp valid_nip05_for_pubkey?(_, _), do: false
 
   defp article_sort_key(article) do
     Map.get(article, :published_at) ||

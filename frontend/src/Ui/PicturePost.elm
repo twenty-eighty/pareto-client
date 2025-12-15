@@ -148,9 +148,15 @@ viewPictures environment imageMetadataList =
 
 viewImage : Environment -> String -> Html msg
 viewImage environment url =
+    let
+        sources =
+            Ui.Links.scaledImageSources environment 450 url
+    in
     Html.img
-        [ Attr.src <| Ui.Links.scaledImageLink environment 450 url
+        [ Attr.src sources.src
+        , Attr.attribute "srcset" sources.srcset
         , Attr.attribute "loading" "lazy"
+        , Attr.alt "Picture"
         , css
             [ Tw.rounded_sm
             ]
@@ -186,6 +192,7 @@ formattedContent content =
                 if isImageUrl line then
                     Html.img
                         [ Attr.src line
+                        , Attr.alt "Embedded image"
                         ]
                         []
 
