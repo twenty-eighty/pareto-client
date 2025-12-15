@@ -389,6 +389,10 @@ viewArticleImage : Environment -> Maybe String -> Html msg
 viewArticleImage environment maybeImage =
     case maybeImage of
         Just image ->
+            let
+                sources =
+                    Ui.Links.scaledImageSources environment 384 image
+            in
             div
                 [ css
                     [ Tw.relative
@@ -396,21 +400,16 @@ viewArticleImage environment maybeImage =
                     ]
                 ]
                 [ img
-                    (let
-                        sources =
-                            Ui.Links.scaledImageSources environment 384 image
-                     in
-                     [ Attr.src sources.src
-                     , Attr.attribute "srcset" sources.srcset
-                     , Attr.alt "Post Image"
+                    [ Attr.src sources.src
+                    , Attr.attribute "srcset" sources.srcset
+                    , Attr.alt "Post Image"
                     , css
                         [ Tw.rounded_lg
                         , Tw.w_full
                         , Tw.max_h_96
                         , Tw.object_cover
                         ]
-                     ]
-                    )
+                    ]
                     []
                 ]
 
@@ -987,6 +986,9 @@ previewListImage environment translations articleUrl article =
             let
                 (element, linkAttributes) =
                     articleElementAttrs articleUrl translations article
+
+                sources =
+                    Ui.Links.scaledImageSources environment 384 image
             in
             element linkAttributes
                 [ div
@@ -998,13 +1000,9 @@ previewListImage environment translations articleUrl article =
                         ]
                     ]
                     [ img
-                        (let
-                            sources =
-                                Ui.Links.scaledImageSources environment 384 image
-                         in
-                         [ Attr.src sources.src
-                         , Attr.attribute "srcset" sources.srcset
-                         , Attr.alt "Article image"
+                        [ Attr.src sources.src
+                        , Attr.attribute "srcset" sources.srcset
+                        , Attr.alt "Article image"
                         , Attr.style "top" "50%"
                         , Attr.style "left" "50%"
                         , Attr.style "object-fit" "cover"
@@ -1013,8 +1011,7 @@ previewListImage environment translations articleUrl article =
                         , Attr.style "position" "absolute"
                         , Attr.style "transform" "translate(-50%, -50%)"
                         , Attr.attribute "loading" "lazy"
-                         ]
-                        )
+                        ]
                         []
                     ]
                 ]

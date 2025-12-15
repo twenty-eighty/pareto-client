@@ -438,6 +438,7 @@ categoryImage color category =
                 ]
                 [ Html.img
                     [ Attr.src src
+                    , Attr.alt "Category icon"
                     ]
                     []
                 ]

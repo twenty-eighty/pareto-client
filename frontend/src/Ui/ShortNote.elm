@@ -98,6 +98,7 @@ formattedContent styles fnGetProfile content =
                 if isImageUrl (String.trim line) then
                     Html.img
                         [ Attr.src line
+                        , Attr.alt "Embedded image"
                         ]
                         []
 

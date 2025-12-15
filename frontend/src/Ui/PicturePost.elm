@@ -156,6 +156,7 @@ viewImage environment url =
         [ Attr.src sources.src
         , Attr.attribute "srcset" sources.srcset
         , Attr.attribute "loading" "lazy"
+        , Attr.alt "Picture"
         , css
             [ Tw.rounded_sm
             ]
@@ -191,6 +192,7 @@ formattedContent content =
                 if isImageUrl line then
                     Html.img
                         [ Attr.src line
+                        , Attr.alt "Embedded image"
                         ]
                         []
 

@@ -2039,6 +2039,7 @@ viewImage onImageLoadedMsg imageUrl =
         Just _ ->
             Html.img
                 [ Attr.src imageUrl
+                , Attr.alt "Selected image"
                 , css
                     [ Tw.w_20
                     , Tw.min_h_full
