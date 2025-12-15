@@ -29,6 +29,24 @@ scaledImageLink environment width url =
             cachingUrl imageCachingServer url width
 
 
+scaledImageSources : Environment -> Int -> String -> { src : String, srcset : String }
+scaledImageSources environment width url =
+    if url == "" then
+        { src = "", srcset = "" }
+
+    else
+        let
+            base =
+                scaledImageLink environment width url
+
+            retina =
+                scaledImageLink environment (width * 2) url
+        in
+        { src = base
+        , srcset = base ++ " 1x, " ++ retina ++ " 2x"
+        }
+
+
 cachingUrl : String -> String -> Int -> String
 cachingUrl imageCachingServer url width =
     Url.Builder.crossOrigin imageCachingServer

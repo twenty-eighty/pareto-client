@@ -382,10 +382,10 @@ embedPreview styles loadedContent { destination } body =
 fullWidthImage : Environment -> { alt : String, src : String, title : Maybe String } -> Html msg
 fullWidthImage environment image =
     let
-        imagesrc =
+        sources =
             image.src
                 |> ensureHttps
-                |> Ui.Links.scaledImageLink environment 650
+                |> Ui.Links.scaledImageSources environment 650
     in
     case ( image.title, image.src ) of
         ( _, "" ) ->
@@ -397,7 +397,8 @@ fullWidthImage environment image =
             Html.node "center"
                 []
                 [ Html.img
-                    [ Attr.src imagesrc
+                    [ Attr.src sources.src
+                    , Attr.attribute "srcset" sources.srcset
                     , Attr.alt image.alt
                     , css
                         [ Tw.max_h_96
@@ -414,7 +415,8 @@ fullWidthImage environment image =
                         []
                     ]
                     [ Html.img
-                        [ Attr.src imagesrc
+                        [ Attr.src sources.src
+                        , Attr.attribute "srcset" sources.srcset
                         , Attr.alt image.alt
                         ]
                         []
@@ -428,7 +430,8 @@ fullWidthImage environment image =
             Html.node "center"
                 []
                 [ Html.img
-                    [ Attr.src imagesrc
+                    [ Attr.src sources.src
+                    , Attr.attribute "srcset" sources.srcset
                     , Attr.alt image.alt
                     , css
                         [ Tw.max_h_96
