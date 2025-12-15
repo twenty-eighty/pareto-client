@@ -13,6 +13,36 @@ defmodule NostrBackendWeb.Endpoint do
   # You should set gzip to true if you are running phx.digest
   # when deploying your static files in production.
 
+  # Long-lived static assets
+  plug Plug.Static,
+    at: "/assets",
+    from: {:nostr_backend, "priv/static/assets"},
+    gzip: true,
+    cache_control_for_etags: "public, max-age=31536000, immutable",
+    cache_control_for_vsn_requests: "public, max-age=31536000, immutable"
+
+  plug Plug.Static,
+    at: "/images",
+    from: {:nostr_backend, "priv/static/images"},
+    gzip: true,
+    cache_control_for_etags: "public, max-age=31536000, immutable",
+    cache_control_for_vsn_requests: "public, max-age=31536000, immutable"
+
+  plug Plug.Static,
+    at: "/fonts",
+    from: {:nostr_backend, "priv/static/fonts"},
+    gzip: true,
+    cache_control_for_etags: "public, max-age=31536000, immutable",
+    cache_control_for_vsn_requests: "public, max-age=31536000, immutable"
+
+  # Shorter-lived JS (non-hashed helpers under /js)
+  plug Plug.Static,
+    at: "/js",
+    from: {:nostr_backend, "priv/static/js"},
+    gzip: true,
+    cache_control_for_etags: "public, max-age=86400",
+    cache_control_for_vsn_requests: "public, max-age=86400"
+
   plug Plug.Static,
     at: "/",
     from: :nostr_backend,
