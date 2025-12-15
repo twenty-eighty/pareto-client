@@ -36,6 +36,19 @@ defmodule NostrBackend.ReadFeed do
     end
   end
 
+  @doc """
+  Forces a refresh of the cached feed, replacing the cache entry immediately.
+  """
+  @spec refresh(integer()) :: {:ok, map()} | {:error, term()}
+  def refresh(limit \\ 4) do
+    key = {:latest, limit}
+
+    with {:ok, feed} <- build_feed(limit),
+         :ok <- Cachex.put(@cache_name, key, feed, ttl: @cache_ttl_seconds) do
+      {:ok, feed}
+    end
+  end
+
   defp build_feed(limit) do
     with {:ok, source_pubkey} <- follow_list_pubkey(),
          {:ok, follow_list} <- fetch_follow_list(source_pubkey),
