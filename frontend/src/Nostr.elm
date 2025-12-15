@@ -1694,17 +1694,18 @@ update msg model =
                         Err error ->
                             ( { model | errors = Decode.errorToString error :: model.errors }, Cmd.none )
 
-                "author" ->
+                "authors" ->
                     -- resolve author's NIP-05 from <script> injected by backend
-                    case Decode.decodeValue authorDecoder message.value of
-                        Ok authorData ->
+                    case Decode.decodeValue (Decode.list authorDecoder) message.value of
+                        Ok authorsData ->
                             let
-                                nip05Data =
-                                    { names = Dict.singleton authorData.nip05.user authorData.pubKey
-                                    , relays = Nothing
-                                    }
+                                pubKeyByNip05 =
+                                    authorsData
+                                        |> List.map (\authorData -> ( nip05ToString authorData.nip05, authorData.pubKey ))
+                                        |> Dict.fromList
+                                        |> Dict.union model.pubKeyByNip05
                             in
-                            updateModelWithNip05Data model -1 authorData.nip05 nip05Data
+                            ( { model | pubKeyByNip05 = pubKeyByNip05 }, Cmd.none )
 
                         Err error ->
                             ( { model | errors = Decode.errorToString error :: model.errors }, Cmd.none )
