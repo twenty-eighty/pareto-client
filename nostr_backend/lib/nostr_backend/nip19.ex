@@ -20,6 +20,26 @@ defmodule NostrBackend.NIP19 do
   @tlv_author 2
   @tlv_kind 3
 
+  defp convertbits!(data, frombits, tobits, pad) do
+    case Bech32.convertbits(data, frombits, tobits, pad) do
+      result when is_binary(result) -> result
+    end
+  rescue
+    error ->
+      Logger.error("Failed to convert bits: #{inspect(error)}")
+      reraise error, __STACKTRACE__
+  end
+
+  defp encode_5bit!(hrp, data) do
+    case Bech32.encode_from_5bit(hrp, data) do
+      result when is_binary(result) -> result
+    end
+  rescue
+    error ->
+      Logger.error("Failed to encode #{hrp}: #{inspect(error)}")
+      reraise error, __STACKTRACE__
+  end
+
   @doc """
   Encodes a NIP-19 naddr identifier from kind, pubkey, identifier, and optionally relays.
   All inputs are converted to strings before encoding to ensure consistent results.
@@ -64,40 +84,9 @@ defmodule NostrBackend.NIP19 do
     Logger.debug("TLV data built, size: #{byte_size(tlv_data)} bytes")
     Logger.debug("Full TLV hex dump: #{inspect(tlv_data |> Base.encode16(case: :lower))}")
 
-    # Convert TLV data into 5-bit values with dynamic padding based on bit length
     pad = rem(bit_size(tlv_data), 5) != 0
-    convert_result = Bech32.convertbits(tlv_data, 8, 5, pad)
-
-    # Handle possible return types from encode_from_5bit
-    data_5bit =
-      case convert_result do
-        {:ok, data} ->
-          data
-
-        data when is_binary(data) ->
-          data
-
-        _ ->
-          Logger.error("Unexpected return from Bech32.convertbits: #{inspect(convert_result)}")
-          raise "Failed to convert bits: unexpected return type"
-      end
-
-    # Generate final Bech32 encoding
-    encoded = Bech32.encode_from_5bit(@naddr_hrp, data_5bit)
-
-    # Handle possible return types from encode_from_5bit
-    encoded =
-      case encoded do
-        {:ok, data} ->
-          data
-
-        data when is_binary(data) ->
-          data
-
-        _ ->
-          Logger.error("Unexpected return from Bech32.encode_from_5bit: #{inspect(encoded)}")
-          raise "Failed to encode naddr: unexpected return type"
-      end
+    data_5bit = convertbits!(tlv_data, 8, 5, pad)
+    encoded = encode_5bit!(@naddr_hrp, data_5bit)
 
     Logger.debug("Generated naddr: #{encoded}")
     encoded
@@ -120,41 +109,9 @@ defmodule NostrBackend.NIP19 do
     {:ok, pubkey_bin} = Base.decode16(pubkey_hex, case: :mixed)
 
     # Use Bech32's convertbits with padding=true parameter
-    convert_result = Bech32.convertbits(pubkey_bin, 8, 5, true)
+    data_5bit = convertbits!(pubkey_bin, 8, 5, true)
 
-    # Handle possible return types from convertbits
-    data_5bit =
-      case convert_result do
-        {:ok, data} ->
-          data
-
-        data when is_binary(data) ->
-          data
-
-        _ ->
-          Logger.error("Unexpected return from Bech32.convertbits: #{inspect(convert_result)}")
-          raise "Failed to convert bits: unexpected return type"
-      end
-
-    # Use Bech32's encode function
-    encode_result = Bech32.encode_from_5bit(@note_hrp, data_5bit)
-
-    # Handle possible return types from encode_from_5bit
-    encoded =
-      case encode_result do
-        {:ok, data} ->
-          data
-
-        data when is_binary(data) ->
-          data
-
-        _ ->
-          Logger.error(
-            "Unexpected return from Bech32.encode_from_5bit: #{inspect(encode_result)}"
-          )
-
-          raise "Failed to encode note: unexpected return type"
-      end
+    encoded = encode_5bit!(@note_hrp, data_5bit)
 
     Logger.debug("Generated note: #{encoded}")
     encoded
@@ -217,22 +174,10 @@ defmodule NostrBackend.NIP19 do
 
   # Encodes TLV data as Bech32 nprofile strictly per NIP-19 (pad=false)
   defp bech32_encode_nprofile(tlv_data) do
-    # Convert TLV bytes (8-bit) to 5-bit groups, padding only if needed
     pad = rem(bit_size(tlv_data), 5) != 0
 
-    data_5bit =
-      case Bech32.convertbits(tlv_data, 8, 5, pad) do
-        {:ok, bits} -> bits
-        bits when is_binary(bits) -> bits
-        other -> raise "Failed to convert bits for nprofile: #{inspect(other)}"
-      end
-
-    # Encode into Bech32 string with no extra padding
-    case Bech32.encode_from_5bit(@nprofile_hrp, data_5bit) do
-      {:ok, encoded} -> encoded
-      encoded when is_binary(encoded) -> encoded
-      other -> raise "Failed to encode nprofile: #{inspect(other)}"
-    end
+    data_5bit = convertbits!(tlv_data, 8, 5, pad)
+    encode_5bit!(@nprofile_hrp, data_5bit)
   end
 
   @doc """
@@ -305,41 +250,8 @@ defmodule NostrBackend.NIP19 do
 
     # Use Bech32's convertbits with padding=true parameter
     # See https://github.com/nbd-wtf/go-nostr/blob/master/nip19/nip19.go#L116
-    convert_result = Bech32.convertbits(pubkey_bin, 8, 5, true)
-
-    # Handle possible return types from convertbits
-    data_5bit =
-      case convert_result do
-        {:ok, data} ->
-          data
-
-        data when is_binary(data) ->
-          data
-
-        _ ->
-          Logger.error("Unexpected return from Bech32.convertbits: #{inspect(convert_result)}")
-          raise "Failed to convert bits: unexpected return type"
-      end
-
-    # Use Bech32's encode function
-    encode_result = Bech32.encode_from_5bit(@npub_hrp, data_5bit)
-
-    # Handle possible return types from encode_from_5bit
-    encoded =
-      case encode_result do
-        {:ok, data} ->
-          data
-
-        data when is_binary(data) ->
-          data
-
-        _ ->
-          Logger.error(
-            "Unexpected return from Bech32.encode_from_5bit: #{inspect(encode_result)}"
-          )
-
-          raise "Failed to encode npub: unexpected return type"
-      end
+    data_5bit = convertbits!(pubkey_bin, 8, 5, true)
+    encoded = encode_5bit!(@npub_hrp, data_5bit)
 
     Logger.debug("Generated npub: #{encoded}")
     encoded
@@ -387,13 +299,7 @@ defmodule NostrBackend.NIP19 do
     # Different Bech32 implementations may return data in different formats
     # Some return lists of integers, others return binaries
     try do
-      # First ensure we have a binary, converting from list if needed
-      data_bin =
-        cond do
-          is_list(data) -> :binary.list_to_bin(data)
-          is_binary(data) -> data
-          true -> raise "Unsupported data format for npub: #{inspect(data)}"
-        end
+      data_bin = IO.iodata_to_binary(data)
 
       # Convert from 5-bit to 8-bit
       data_8bit = convert_5bit_to_8bit(data_bin)
@@ -424,20 +330,12 @@ defmodule NostrBackend.NIP19 do
     # don't directly support this conversion easily
 
     # First try using Bech32.convertbits
-    case Bech32.convertbits(data, 5, 8, false) do
-      {:ok, result} ->
-        result
-
-      data when is_binary(data) ->
-        data
-
-      _ ->
-        # Fallback to manual conversion if library fails
-        # This manually packs 5-bit values into 8-bit chunks
-        for <<chunk::5 <- data>>, into: <<>> do
-          <<chunk::8>>
-        end
-    end
+    convertbits!(data, 5, 8, false)
+  rescue
+    _ ->
+      for <<chunk::5 <- data>>, into: <<>> do
+        <<chunk::8>>
+      end
   end
 
   # Decode TLV data with appropriate handling based on type
@@ -445,40 +343,19 @@ defmodule NostrBackend.NIP19 do
     # First let's log the data for debugging
     Logger.debug("Decoding TLV data for #{hrp}, data length: #{sized(data)}")
 
-    case Bech32.convertbits(data, 5, 8, false) do
-      {:ok, tlv_data} ->
-        Logger.debug(
-          "Successfully converted #{hrp} data from 5-bit to 8-bit, size: #{byte_size(tlv_data)}"
-        )
+    tlv_data = convertbits!(data, 5, 8, false)
 
-        Logger.debug("Raw TLV data hex: #{Base.encode16(tlv_data, case: :lower)}")
+    Logger.debug(
+      "Successfully converted #{hrp} data from 5-bit to 8-bit, size: #{byte_size(tlv_data)}"
+    )
 
-        case hrp do
-          @nprofile_hrp -> extract_nprofile_data(tlv_data)
-          @nevent_hrp -> extract_nevent_data(tlv_data)
-          @naddr_hrp -> extract_naddr_data(tlv_data)
-          _ -> {:error, "Unsupported TLV type: #{hrp}"}
-        end
+    Logger.debug("Raw TLV data hex: #{Base.encode16(tlv_data, case: :lower)}")
 
-      data when is_binary(data) ->
-        # Some implementations return the raw binary directly
-        Logger.debug("Received raw binary from convertbits, size: #{byte_size(data)}")
-        Logger.debug("Raw TLV data hex: #{Base.encode16(data, case: :lower)}")
-
-        case hrp do
-          @nprofile_hrp -> extract_nprofile_data(data)
-          @nevent_hrp -> extract_nevent_data(data)
-          @naddr_hrp -> extract_naddr_data(data)
-          _ -> {:error, "Unsupported TLV type: #{hrp}"}
-        end
-
-      {:error, reason} ->
-        Logger.error("Failed to convert bits for TLV data: #{reason}")
-        {:error, "Failed to convert bits for TLV data: #{reason}"}
-
-      other ->
-        Logger.error("Unexpected return from Bech32.convertbits: #{inspect(other)}")
-        {:error, "Failed to process TLV data, unexpected return type"}
+    case hrp do
+      @nprofile_hrp -> extract_nprofile_data(tlv_data)
+      @nevent_hrp -> extract_nevent_data(tlv_data)
+      @naddr_hrp -> extract_naddr_data(tlv_data)
+      _ -> {:error, "Unsupported TLV type: #{hrp}"}
     end
   rescue
     e ->
@@ -700,12 +577,7 @@ defmodule NostrBackend.NIP19 do
   """
   def encode_to_bech32(hrp, data) do
     # Convert from 8 bits to 5 bits with padding
-    data_5bit =
-      case Bech32.convertbits(data, 8, 5, true) do
-        {:ok, bits} -> bits
-        bits when is_binary(bits) -> bits
-        _ -> raise "Failed to convert bits for Bech32"
-      end
+    data_5bit = convertbits!(data, 8, 5, true)
 
     # Log the converted data for debugging
     Logger.debug(
@@ -714,18 +586,10 @@ defmodule NostrBackend.NIP19 do
 
     Logger.debug("Original hex: #{Base.encode16(data, case: :lower)}")
 
-    if is_binary(data_5bit) do
-      Logger.debug("5-bit data hex: #{Base.encode16(data_5bit, case: :lower)}")
-    else
-      Logger.debug("5-bit data (not binary): #{inspect(data_5bit)}")
-    end
+    Logger.debug("5-bit data hex: #{Base.encode16(data_5bit, case: :lower)}")
 
     # Generate final Bech32 encoding
-    case Bech32.encode_from_5bit(hrp, data_5bit) do
-      {:ok, encoded} -> encoded
-      encoded when is_binary(encoded) -> encoded
-      _ -> raise "Failed to encode Bech32"
-    end
+    encode_5bit!(hrp, data_5bit)
   end
 
   # Validate pubkey format
@@ -739,7 +603,5 @@ defmodule NostrBackend.NIP19 do
     end
   end
 
-  defp sized(data) when is_binary(data), do: byte_size(data)
-  defp sized(data) when is_list(data), do: length(data)
-  defp sized(_), do: 0
+  defp sized(data), do: byte_size(data)
 end

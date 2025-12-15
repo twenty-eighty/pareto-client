@@ -120,9 +120,6 @@ defmodule NostrBackendWeb.Nip11Controller do
         # Cache request failures for 30 minutes
         Cachex.put(@cache_name, relay_url, :request_failed, ttl: @error_cache_ttl)
         {:error, :request_failed}
-
-      error ->
-        error
     end
   end
 

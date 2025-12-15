@@ -76,7 +76,7 @@ defmodule NostrBackendWeb.SharedHttpClient do
       {"Cache-Control", "max-age=0"}
     ]
 
-    headers = Keyword.merge(default_headers, custom_headers)
+    headers = default_headers ++ custom_headers
 
     # Create a cookie jar and attach the HttpCookie plugin
     empty_jar = HttpCookie.Jar.new()

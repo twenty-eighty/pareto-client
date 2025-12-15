@@ -10,6 +10,7 @@ defmodule NostrBackend.ReadFeed do
 
   @cache_name :read_feed_cache
   @cache_ttl_seconds 300
+  @fetch_limit 50
 
   @doc """
   Returns the latest articles for the /read route along with their associated profiles.
@@ -33,6 +34,21 @@ defmodule NostrBackend.ReadFeed do
       {:error, reason} ->
         Logger.error("ReadFeed cache error: #{inspect(reason)}")
         {:error, reason}
+    end
+  end
+
+  @doc """
+  Forces a refresh of the cached feed, replacing the cache entry immediately.
+  """
+  @spec refresh(integer()) :: {:ok, map()} | {:error, term()}
+  def refresh(limit \\ 4) do
+    key = {:latest, limit}
+
+    with {:ok, feed} <- build_feed(limit) do
+      case Cachex.put(@cache_name, key, feed, ttl: @cache_ttl_seconds) do
+        {:ok, _} -> {:ok, feed}
+        other -> other
+      end
     end
   end
 
@@ -83,7 +99,7 @@ defmodule NostrBackend.ReadFeed do
   defp fetch_articles([], _limit), do: {:ok, []}
 
   defp fetch_articles(follow_list, limit) do
-    case ArticleCache.get_multiple_authors_articles(follow_list, []) do
+    case ArticleCache.get_multiple_authors_articles(follow_list, [], limit: @fetch_limit) do
       {:ok, articles} ->
         articles =
           articles
@@ -111,7 +127,9 @@ defmodule NostrBackend.ReadFeed do
 
   defp get_profile(pubkey) do
     case ProfileCache.get_profile(pubkey, []) do
-      {:ok, profile} -> profile
+      {:ok, profile} ->
+        profile
+
       {:error, reason} ->
         Logger.debug("Skipping profile #{pubkey}: #{inspect(reason)}")
         nil

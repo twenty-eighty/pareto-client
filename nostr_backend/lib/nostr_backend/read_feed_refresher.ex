@@ -31,9 +31,9 @@ defmodule NostrBackend.ReadFeedRefresher do
   end
 
   defp refresh do
-    case ReadFeed.latest(@prefetch_count) do
-      {:ok, feed} ->
-        Logger.debug("[ReadFeedRefresher] refreshed #{length(feed.articles)} articles")
+    case ReadFeed.refresh(@prefetch_count) do
+      {:ok, %{articles: articles}} ->
+        Logger.info("[ReadFeedRefresher] refreshed #{length(articles)} articles")
 
       {:error, reason} ->
         Logger.warning("[ReadFeedRefresher] refresh failed: #{inspect(reason)}")

@@ -96,9 +96,9 @@ defmodule NostrBackend.ArticleCache do
   Fetches articles from multiple authors in a single request.
   Returns {:ok, articles} or {:error, reason}
   """
-  @spec get_multiple_authors_articles([pubkey()], relay_urls()) :: cache_result_list()
-  def get_multiple_authors_articles(pubkeys, relays \\ []) do
-    case NostrClient.fetch_multiple_authors_articles(pubkeys, relays) do
+  @spec get_multiple_authors_articles([pubkey()], relay_urls(), keyword()) :: cache_result_list()
+  def get_multiple_authors_articles(pubkeys, relays \\ [], opts \\ []) do
+    case NostrClient.fetch_multiple_authors_articles(pubkeys, relays, opts) do
       {:ok, events} ->
         articles =
           events
@@ -131,6 +131,7 @@ defmodule NostrBackend.ArticleCache do
           |> Content.parse_article_event()
           |> Map.put(:relays, [relay])
           |> maybe_put_raw_event(event)
+
         {:ok, article}
 
       {:ok, _relay, []} ->
@@ -150,6 +151,7 @@ defmodule NostrBackend.ArticleCache do
           |> Content.parse_article_event()
           |> Map.put(:relays, [relay])
           |> maybe_put_raw_event(event)
+
         {:ok, article}
 
       {:ok, _relay, []} ->
@@ -169,6 +171,7 @@ defmodule NostrBackend.ArticleCache do
           |> Content.parse_article_event()
           |> Map.put(:relays, [relay])
           |> maybe_put_raw_event(event)
+
         {:ok, article}
 
       {:ok, _relay, []} ->
@@ -188,6 +191,7 @@ defmodule NostrBackend.ArticleCache do
           |> Content.parse_article_event()
           |> Map.put(:relays, [relay])
           |> maybe_put_raw_event(event)
+
         {:ok, article}
 
       {:ok, _relay, []} ->
@@ -201,27 +205,22 @@ defmodule NostrBackend.ArticleCache do
   @spec load_article(article_query()) :: cache_result()
   defp load_article(article_id) do
     case NostrClient.fetch_article(article_id) do
-      {:ok, event} when is_map(event) ->
-        article =
-          event
-          |> Content.parse_article_event()
-          |> maybe_put_raw_event(event)
-
-        {:ok, article}
-      {:ok, [event | _]} ->
-        article =
-          event
-          |> Content.parse_article_event()
-          |> maybe_put_raw_event(event)
-
-        {:ok, article}
-
-      {:ok, []} ->
-        {:error, "No events found for article"}
+      {:ok, events} ->
+        with {:ok, event} <- extract_first_event(events) do
+          {:ok, build_article_from_event(event)}
+        else
+          :error -> {:error, "No events found for article"}
+        end
 
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp build_article_from_event(event) do
+    event
+    |> Content.parse_article_event()
+    |> maybe_put_raw_event(event)
   end
 
   defp maybe_put_raw_event(article, event) do
@@ -234,4 +233,11 @@ defmodule NostrBackend.ArticleCache do
   defp normalize_event({_, _, %{} = event_map}), do: event_map
   defp normalize_event(%{} = event_map), do: event_map
   defp normalize_event(_), do: nil
+
+  defp extract_first_event(events) do
+    case List.wrap(events) do
+      [%{} = event | _] -> {:ok, event}
+      _ -> :error
+    end
+  end
 end
