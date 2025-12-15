@@ -21,6 +21,7 @@ defmodule NostrBackendWeb.Plugs.PreloadFrontendAssets do
     js = FrontendAssets.js_file()
 
     conn
+    |> append_link(~s(<https://sdk.feedback.one>; rel=preconnect; crossorigin))
     |> append_link(~s(</styles/styles.css>; rel=preload; as=style))
     |> append_link(~s(<#{css}>; rel=preload; as=style))
     |> append_link(~s(<#{js}>; rel=modulepreload; as=script))
