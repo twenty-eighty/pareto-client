@@ -73,5 +73,3 @@ defmodule NostrBackendWeb.EventPayload do
   defp sanitize(list) when is_list(list), do: Enum.map(list, &sanitize/1)
   defp sanitize(other), do: other
 end
-
-

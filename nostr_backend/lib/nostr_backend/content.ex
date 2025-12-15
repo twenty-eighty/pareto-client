@@ -55,6 +55,7 @@ defmodule NostrBackend.Content do
     case NostrClient.fetch_article_by_address(kind, author, identifier) do
       {:ok, _relay, [event | _]} ->
         {:ok, parse_article_event(event)}
+
       {:ok, _relay, []} ->
         {:error, "No events found for article"}
 
@@ -68,6 +69,7 @@ defmodule NostrBackend.Content do
     case NostrClient.fetch_article_by_address(kind, identifier) do
       {:ok, _relay, [event | _]} ->
         {:ok, parse_article_event(event)}
+
       {:ok, _relay, []} ->
         {:error, "No events found for article"}
 

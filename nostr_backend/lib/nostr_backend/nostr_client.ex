@@ -148,19 +148,22 @@ defmodule NostrBackend.NostrClient do
     end
   end
 
-  @spec fetch_multiple_authors_articles(list(String.t()), list()) ::
+  @spec fetch_multiple_authors_articles(list(String.t()), list(), keyword()) ::
           {:ok, list(map())} | {:error, String.t()}
-  def fetch_multiple_authors_articles(pubkeys, []) do
-    fetch_multiple_authors_articles(pubkeys, @relay_urls)
-  end
+  def fetch_multiple_authors_articles(pubkeys, relays \\ @relay_urls, opts \\ [])
 
-  @spec fetch_multiple_authors_articles([pubkey()], relay_urls()) :: fetch_result()
-  def fetch_multiple_authors_articles(pubkeys, relay_urls) do
+  def fetch_multiple_authors_articles(pubkeys, [], opts),
+    do: fetch_multiple_authors_articles(pubkeys, @relay_urls, opts)
+
+  @spec fetch_multiple_authors_articles([pubkey()], relay_urls(), keyword()) :: fetch_result()
+  def fetch_multiple_authors_articles(pubkeys, relay_urls, opts) do
+    payload = %{pubkeys: pubkeys, limit: Keyword.get(opts, :limit)}
+
     Logger.info(
       "Fetching articles for #{length(pubkeys)} authors from #{length(relay_urls)} relays"
     )
 
-    case fetch_from_relays(relay_urls, pubkeys, :multiple_authors_articles) do
+    case fetch_from_relays(relay_urls, payload, :multiple_authors_articles) do
       {:ok, _relay, events} -> {:ok, events}
       {:error, reason} -> {:error, reason}
     end
@@ -259,13 +262,24 @@ defmodule NostrBackend.NostrClient do
     }
   end
 
-  defp build_filters(pubkeys, :multiple_authors_articles) do
+  defp build_filters(%{pubkeys: pubkeys, limit: limit}, :multiple_authors_articles)
+       when is_list(pubkeys) do
     Logger.info("Building filters for multiple authors articles: #{length(pubkeys)} authors")
+
+    limit_value =
+      cond do
+        is_integer(limit) and limit > 0 -> limit
+        true -> 1000
+      end
 
     %{
       authors: pubkeys,
       kinds: [30023],
-      limit: 1000
+      limit: limit_value
     }
+  end
+
+  defp build_filters(pubkeys, :multiple_authors_articles) when is_list(pubkeys) do
+    build_filters(%{pubkeys: pubkeys, limit: nil}, :multiple_authors_articles)
   end
 end

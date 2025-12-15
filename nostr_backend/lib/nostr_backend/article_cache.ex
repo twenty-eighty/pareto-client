@@ -96,9 +96,9 @@ defmodule NostrBackend.ArticleCache do
   Fetches articles from multiple authors in a single request.
   Returns {:ok, articles} or {:error, reason}
   """
-  @spec get_multiple_authors_articles([pubkey()], relay_urls()) :: cache_result_list()
-  def get_multiple_authors_articles(pubkeys, relays \\ []) do
-    case NostrClient.fetch_multiple_authors_articles(pubkeys, relays) do
+  @spec get_multiple_authors_articles([pubkey()], relay_urls(), keyword()) :: cache_result_list()
+  def get_multiple_authors_articles(pubkeys, relays \\ [], opts \\ []) do
+    case NostrClient.fetch_multiple_authors_articles(pubkeys, relays, opts) do
       {:ok, events} ->
         articles =
           events
@@ -131,6 +131,7 @@ defmodule NostrBackend.ArticleCache do
           |> Content.parse_article_event()
           |> Map.put(:relays, [relay])
           |> maybe_put_raw_event(event)
+
         {:ok, article}
 
       {:ok, _relay, []} ->
@@ -150,6 +151,7 @@ defmodule NostrBackend.ArticleCache do
           |> Content.parse_article_event()
           |> Map.put(:relays, [relay])
           |> maybe_put_raw_event(event)
+
         {:ok, article}
 
       {:ok, _relay, []} ->
@@ -169,6 +171,7 @@ defmodule NostrBackend.ArticleCache do
           |> Content.parse_article_event()
           |> Map.put(:relays, [relay])
           |> maybe_put_raw_event(event)
+
         {:ok, article}
 
       {:ok, _relay, []} ->
@@ -188,6 +191,7 @@ defmodule NostrBackend.ArticleCache do
           |> Content.parse_article_event()
           |> Map.put(:relays, [relay])
           |> maybe_put_raw_event(event)
+
         {:ok, article}
 
       {:ok, _relay, []} ->
