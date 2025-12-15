@@ -201,20 +201,11 @@ defmodule NostrBackend.ArticleCache do
   @spec load_article(article_query()) :: cache_result()
   defp load_article(article_id) do
     case NostrClient.fetch_article(article_id) do
-      {:ok, event} when is_map(event) ->
-        article =
-          event
-          |> Content.parse_article_event()
-          |> maybe_put_raw_event(event)
-
-        {:ok, article}
       {:ok, [event | _]} ->
-        article =
-          event
-          |> Content.parse_article_event()
-          |> maybe_put_raw_event(event)
+        {:ok, build_article_from_event(event)}
 
-        {:ok, article}
+      {:ok, %{} = event} ->
+        {:ok, build_article_from_event(event)}
 
       {:ok, []} ->
         {:error, "No events found for article"}
@@ -222,6 +213,12 @@ defmodule NostrBackend.ArticleCache do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp build_article_from_event(event) do
+    event
+    |> Content.parse_article_event()
+    |> maybe_put_raw_event(event)
   end
 
   defp maybe_put_raw_event(article, event) do
