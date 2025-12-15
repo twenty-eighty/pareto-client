@@ -2,6 +2,7 @@ defmodule NostrBackend.ProfileCache do
   alias NostrBackend.Content
   alias NostrBackend.NostrClient
   require Logger
+  @dialyzer {:nowarn_function, cache_profile: 2}
 
   # Type definitions
   @type pubkey :: binary()
@@ -17,14 +18,8 @@ defmodule NostrBackend.ProfileCache do
   def get_profile(pubkey, relays) do
     case Cachex.get(@cache_name, pubkey) do
       {:ok, nil} ->
-        # Profile not found in cache, load it
-        with {:ok, profile} <- load_profile(pubkey, relays) do
-          # Store the profile in the cache with a TTL
-          Cachex.put(@cache_name, pubkey, profile, ttl: @ttl_in_seconds)
-          {:ok, profile}
-        else
-          error -> error
-        end
+        load_profile(pubkey, relays)
+        |> cache_profile(pubkey)
 
       {:ok, profile} ->
         {:ok, profile}
@@ -40,24 +35,16 @@ defmodule NostrBackend.ProfileCache do
     case NostrClient.fetch_profile(pubkey, relays) do
       {:ok, relay, event_or_events} ->
         Logger.debug("Fetched profile event(s) from relay #{relay}: #{inspect(event_or_events)}")
-        # Handle both single event and list of events
         {event_to_parse, raw_event} = extract_event_and_raw(event_or_events)
 
-        profile = Content.parse_profile_event(event_to_parse)
-
         profile =
-          profile
+          event_to_parse
+          |> Content.parse_profile_event()
           |> maybe_put_relays(relay)
           |> maybe_put_raw_event(raw_event)
 
-        # Only return the profile if it has meaningful data (more than just relays)
-        if is_map(profile) and map_size(profile) > 1 do
-          Logger.debug("Parsed profile: #{inspect(profile)}")
-          {:ok, profile}
-        else
-          Logger.warning("Profile parsing returned incomplete data for pubkey #{pubkey}")
-          {:error, "Incomplete profile data"}
-        end
+        Logger.debug("Parsed profile: #{inspect(profile)}")
+        {:ok, profile}
 
       {:error, reason} ->
         Logger.error("Failed to fetch profile: #{inspect(reason)}")
@@ -65,27 +52,33 @@ defmodule NostrBackend.ProfileCache do
     end
   end
 
-  defp extract_event_and_raw([single_event]) do
-    {single_event, normalize_event(single_event)}
+  defp extract_event_and_raw(event_or_events) do
+    case List.wrap(event_or_events) do
+      [%{} = event | _] -> {event, normalize_event(event)}
+      _ -> {%{}, nil}
+    end
   end
 
-  defp extract_event_and_raw(event) do
-    {event, normalize_event(event)}
+  defp maybe_put_relays(profile, relay), do: Map.put(profile, :relays, [relay])
+
+  defp maybe_put_raw_event(profile, raw_event) do
+    if is_map(raw_event) do
+      Map.put(profile, :raw_event, raw_event)
+    else
+      profile
+    end
   end
 
-  defp maybe_put_relays(profile, relay) when is_map(profile) do
-    Map.put(profile, :relays, [relay])
+  defp normalize_event(event), do: event
+
+  defp cache_profile({:error, reason} = error, pubkey) do
+    Logger.warning("Failed to load profile #{pubkey}: #{inspect(reason)}")
+    error
   end
 
-  defp maybe_put_relays(profile, _relay), do: profile
-
-  defp maybe_put_raw_event(profile, nil), do: profile
-
-  defp maybe_put_raw_event(profile, raw_event) when is_map(profile) do
-    Map.put(profile, :raw_event, raw_event)
+  defp cache_profile(result, pubkey) do
+    profile = elem(result, 1)
+    Cachex.put(@cache_name, pubkey, profile, ttl: @ttl_in_seconds)
+    result
   end
-
-  defp normalize_event({_, _, %{} = event_map}), do: event_map
-  defp normalize_event(%{} = event_map), do: event_map
-  defp normalize_event(_), do: nil
 end

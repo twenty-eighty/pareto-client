@@ -67,21 +67,13 @@ defmodule NostrBackend.FollowListCache do
   end
 
   defp parse_follow_list(raw) do
-    case raw do
-      %{} = event ->
-        Logger.debug("Parsing event map: #{inspect(event)}")
-        parse_follow_list_map(event)
-
+    case List.wrap(raw) do
       [%{} = event | _] ->
         Logger.debug("Parsing first event in list")
         parse_follow_list_map(event)
 
       [] ->
         Logger.debug("No follow list events found - user may not have a follow list")
-        []
-
-      other ->
-        Logger.debug("Unexpected event format: #{inspect(other)}")
         []
     end
   end

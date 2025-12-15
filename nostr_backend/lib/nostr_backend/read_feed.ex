@@ -46,7 +46,6 @@ defmodule NostrBackend.ReadFeed do
     with {:ok, feed} <- build_feed(limit) do
       case Cachex.put(@cache_name, key, feed, ttl: @cache_ttl_seconds) do
         {:ok, _} -> {:ok, feed}
-        :ok -> {:ok, feed}
         other -> other
       end
     end

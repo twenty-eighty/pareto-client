@@ -510,9 +510,6 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:nostr_event_json, nil)
   end
 
-  defp build_author_context(nil, _pubkey), do: nil
-  defp build_author_context("", _pubkey), do: nil
-
   defp build_author_context(user_nip05, pubkey) do
     author =
       %{

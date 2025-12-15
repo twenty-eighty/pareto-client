@@ -30,17 +30,22 @@ defmodule NostrBackend.CommunityCache do
     # Implement the logic to load the community from the Nostr network
     # For example:
     case NostrClient.fetch_community(community_data) do
-      {:ok, [event | _]} ->
-        {:ok, Content.parse_community_event(event)}
-
-      {:ok, %{} = event} ->
-        {:ok, Content.parse_community_event(event)}
-
-      {:ok, []} ->
-        {:error, "No community events found"}
+      {:ok, events} ->
+        with {:ok, event} <- extract_first_event(events) do
+          {:ok, Content.parse_community_event(event)}
+        else
+          :error -> {:error, "No community events found"}
+        end
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  defp extract_first_event(events) do
+    case List.wrap(events) do
+      [%{} = event | _] -> {:ok, event}
+      _ -> :error
     end
   end
 end

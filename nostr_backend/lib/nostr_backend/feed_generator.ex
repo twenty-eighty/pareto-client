@@ -350,18 +350,14 @@ defmodule NostrBackend.FeedGenerator do
 
       # Get author name (display_name -> name -> pubkey)
       author_name =
-        cond do
-          is_map(author_profile) && Map.get(author_profile, :display_name) ->
-            Logger.debug("Using display_name: #{author_profile.display_name}")
-            author_profile.display_name
-
-          is_map(author_profile) && Map.get(author_profile, :name) ->
-            Logger.debug("Using name: #{author_profile.name}")
-            author_profile.name
-
-          true ->
+        case author_profile_name(author_profile) do
+          nil ->
             Logger.debug("Using pubkey as fallback: #{author}")
             author
+
+          name ->
+            Logger.debug("Using author name: #{name}")
+            name
         end
 
       # Create NIP-19 identifier
@@ -374,21 +370,11 @@ defmodule NostrBackend.FeedGenerator do
 
       # Compute canonical entry ID (no-relay) or fallback to NIP-05 route
       entry_id_url =
-        case NostrBackend.NIP19.encode_naddr(kind, author, identifier) do
-          naddr when is_binary(naddr) ->
-            "#{base_url()}/a/#{naddr}"
+        safe_naddr_url(kind, author, identifier) ||
+          nip05_fallback_url(author_profile, author, identifier)
 
-          _ ->
-            nip05_id = Map.get(author_profile, :nip05)
-            "#{base_url()}/u/#{nip05_id}/#{identifier}"
-        end
-
-      # Compute alternate link with relay if possible
       entry_link_url =
-        case NostrBackend.NIP19.encode_naddr(kind, author, identifier, [relay]) do
-          naddr when is_binary(naddr) -> "#{base_url()}/a/#{naddr}"
-          _ -> entry_id_url
-        end
+        safe_naddr_url(kind, author, identifier, [relay]) || entry_id_url
 
       # Get the timestamp for updated
       updated_at = article.published_at || article.created_at || DateTime.utc_now()
@@ -445,6 +431,32 @@ defmodule NostrBackend.FeedGenerator do
       Logger.debug("Created feed entry with author: #{author_name}")
       entry
     end
+  end
+
+  defp safe_naddr_url(kind, author, identifier) do
+    naddr = NostrBackend.NIP19.encode_naddr(kind, author, identifier)
+    "#{base_url()}/a/#{naddr}"
+  rescue
+    _ -> nil
+  end
+
+  defp safe_naddr_url(kind, author, identifier, relays) do
+    naddr = NostrBackend.NIP19.encode_naddr(kind, author, identifier, relays)
+    "#{base_url()}/a/#{naddr}"
+  rescue
+    _ -> nil
+  end
+
+  defp nip05_fallback_url(author_profile, author, identifier) do
+    nip05_id = Map.get(author_profile, :nip05) || Map.get(author_profile, "nip05")
+    identifier_str = to_string(identifier)
+    "#{base_url()}/u/#{nip05_id || author}/#{identifier_str}"
+  end
+
+  defp author_profile_name(profile) do
+    Map.get(profile, :display_name) || Map.get(profile, :name)
+  rescue
+    _ -> nil
   end
 
   defp generate_sitemaps(articles) do

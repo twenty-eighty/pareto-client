@@ -239,35 +239,31 @@ defmodule NostrBackend.PostHogPlug do
     end)
   end
 
-  defp browser_from_ua_info(%{browser_family: browser_family}) do
-    browser_family
+  defp browser_from_ua_info(ua_info), do: Map.get(ua_info, :browser_family)
+
+  defp browser_version_from_ua_info(ua_info) do
+    ua_info
+    |> Map.get(:client, %{})
+    |> Map.get(:engine_version)
   end
 
-  defp browser_from_ua_info(_), do: nil
-
-  defp browser_version_from_ua_info(%{client: %{engine_version: client_engine_version}}) do
-    client_engine_version
+  defp os_from_ua_info(ua_info) do
+    ua_info
+    |> Map.get(:os, %{})
+    |> Map.get(:name)
   end
 
-  defp browser_version_from_ua_info(_), do: nil
-
-  defp os_from_ua_info(%{os: %{name: os_name}}) do
-    os_name
+  defp os_version_from_ua_info(ua_info) do
+    ua_info
+    |> Map.get(:os, %{})
+    |> Map.get(:version)
   end
 
-  defp os_from_ua_info(_), do: nil
-
-  defp os_version_from_ua_info(%{os: %{version: os_version}}) do
-    os_version
+  defp device_type_from_ua_info(ua_info) do
+    ua_info
+    |> Map.get(:device, %{})
+    |> Map.get(:type)
   end
-
-  defp os_version_from_ua_info(_), do: nil
-
-  defp device_type_from_ua_info(%{device: %{type: device_type}}) do
-    device_type
-  end
-
-  defp device_type_from_ua_info(_), do: nil
 
   defp search_engine_from_ua_result(%UAInspector.Result.Bot{
          category: "Search bot",

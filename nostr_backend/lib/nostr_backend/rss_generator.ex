@@ -61,20 +61,8 @@ defmodule NostrBackend.RSSGenerator do
 
       # Compute guid: canonical naddr without relay or fallback
       guid =
-        case NIP19.encode_naddr(article.kind, article.author, article.identifier) do
-          naddr when is_binary(naddr) ->
-            base_url() <> "/a/" <> naddr
-
-          _ ->
-            nip05_id =
-              case ProfileCache.get_profile(article.author, []) do
-                {:ok, prof} when is_map(prof) and map_size(prof) > 1 -> prof.nip05
-                _ -> nil
-              end
-
-            base_url() <>
-              "/u/" <> (nip05_id || article.author) <> "/" <> to_string(article.identifier)
-        end
+        safe_naddr_url(article.kind, article.author, article.identifier) ||
+          nip05_fallback_url(article)
 
       # Prepare description and content with inline title image
       description = article.description || ""
@@ -166,12 +154,35 @@ defmodule NostrBackend.RSSGenerator do
 
   # Encode a Nostr article link (naddr) for the RSS item link/guid
   defp encode_link(article, relays) do
-    case NIP19.encode_naddr(article.kind, article.author, article.identifier, relays) do
-      naddr when is_binary(naddr) -> base_url() <> "/a/" <> naddr
-      _ -> base_url() <> "/a/" <> "#{article.kind}:#{article.author}:#{article.identifier}"
-    end
+    safe_naddr_url(article.kind, article.author, article.identifier, relays) ||
+      fallback_article_url(article)
+  end
+
+  defp safe_naddr_url(kind, author, identifier, relays \\ []) do
+    url =
+      case relays do
+        [] -> NIP19.encode_naddr(kind, author, identifier)
+        _ -> NIP19.encode_naddr(kind, author, identifier, relays)
+      end
+
+    base_url() <> "/a/" <> url
   rescue
-    _ -> base_url() <> "/a/" <> "#{article.kind}:#{article.author}:#{article.identifier}"
+    _ -> nil
+  end
+
+  defp nip05_fallback_url(article) do
+    nip05_id =
+      case ProfileCache.get_profile(article.author, []) do
+        {:ok, prof} when is_map(prof) and map_size(prof) > 1 -> prof.nip05
+        _ -> nil
+      end
+
+    base_url() <>
+      "/u/" <> (nip05_id || article.author) <> "/" <> to_string(article.identifier)
+  end
+
+  defp fallback_article_url(article) do
+    base_url() <> "/a/" <> "#{article.kind}:#{article.author}:#{article.identifier}"
   end
 
   # Derive the base URL for links
