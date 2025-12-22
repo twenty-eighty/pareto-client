@@ -205,8 +205,7 @@ paretoOutboxRelays =
 
 recommendedOutboxRelays : List RelayUrl
 recommendedOutboxRelays =
-    [ "relay.nostr.band"
-    , "relay.damus.io"
+    [ "relay.damus.io"
     , "nos.lol"
     , "offchain.pub"
     , "nostr.wine"
@@ -229,8 +228,7 @@ defaultRelays =
 
 defaultSearchRelays : List RelayUrl
 defaultSearchRelays =
-    [ "relay.nostr.band"
-    , "nostr.wine"
+    [ "nostr.wine"
     ]
 
 

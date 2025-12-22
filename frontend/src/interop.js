@@ -40,7 +40,6 @@ const defaultRelays =
   ["wss://nostr.pareto.space"
     , "wss://nostr.pareto.town"
     , "wss://pareto.nostr1.com"
-    , "wss://relay.nostr.band"
     , "wss://relay.damus.io"
     , "wss://nos.lol"
     , "wss://offchain.pub"
@@ -558,6 +557,16 @@ export const onReady = ({ app, env }) => {
     })
     window.ndk.pool.on("relay:ready", (relay) => {
       debugLog('relay ready', relay);
+      if (!connected) {
+        connected = true;
+        app.ports.receiveMessage.send({ messageType: 'connected', value: null });
+
+        for (let i = 0; i < storedCommands.length; i++) {
+          processOnlineCommand(app, storedCommands[i].command, storedCommands[i].value);
+        }
+
+        storedCommands = [];
+      }
       app.ports.receiveMessage.send({ messageType: 'relay:ready', value: { url: relay.url } });
     })
     window.ndk.pool.on("relay:disconnect", (relay) => {
