@@ -242,27 +242,31 @@ defmodule NostrBackend.PostHogPlug do
   defp browser_from_ua_info(ua_info), do: Map.get(ua_info, :browser_family)
 
   defp browser_version_from_ua_info(ua_info) do
-    ua_info
-    |> Map.get(:client, %{})
-    |> Map.get(:engine_version)
+    case Map.get(ua_info, :client) do
+      %{} = client -> Map.get(client, :engine_version)
+      _ -> nil
+    end
   end
 
   defp os_from_ua_info(ua_info) do
-    ua_info
-    |> Map.get(:os, %{})
-    |> Map.get(:name)
+    case Map.get(ua_info, :os) do
+      %{} = os -> Map.get(os, :name)
+      _ -> nil
+    end
   end
 
   defp os_version_from_ua_info(ua_info) do
-    ua_info
-    |> Map.get(:os, %{})
-    |> Map.get(:version)
+    case Map.get(ua_info, :os) do
+      %{} = os -> Map.get(os, :version)
+      _ -> nil
+    end
   end
 
   defp device_type_from_ua_info(ua_info) do
-    ua_info
-    |> Map.get(:device, %{})
-    |> Map.get(:type)
+    case Map.get(ua_info, :device) do
+      %{} = device -> Map.get(device, :type)
+      _ -> nil
+    end
   end
 
   defp search_engine_from_ua_result(%UAInspector.Result.Bot{
