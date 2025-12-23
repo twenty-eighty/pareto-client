@@ -6,6 +6,7 @@ import { BlossomClient } from "blossom-client-sdk/client";
 import "./clipboard-component.js";
 import "./zap-component.js";
 import "./elm-oembed.js";
+import { createRelayManager } from "./relay-manager.js";
 import debug from 'debug';
 
 // This is called BEFORE your Elm app starts up
@@ -30,6 +31,7 @@ const debugLog = debug('pareto-client');
 
 var connected = false;
 var nStartWizard = null
+var relayManager = null;
 
 const anonymousSigner = new NDKPrivateKeySigner('cff56394373edfaa281d2e1b5ad1b8cafd8b247f229f2af2c61734fb0c7b3f84');
 const anonymousPubKey = 'ecdf32491ef8b5f1902109f495e7ca189c6fcec76cd66b888fa9fc2ce87f40db';
@@ -40,6 +42,7 @@ const defaultRelays =
   ["wss://nostr.pareto.space"
     , "wss://nostr.pareto.town"
     , "wss://pareto.nostr1.com"
+    , "wss://relay.nostr.band"
     , "wss://relay.damus.io"
     , "wss://nos.lol"
     , "wss://offchain.pub"
@@ -514,6 +517,8 @@ export const onReady = ({ app, env }) => {
       debug: debugLog
     });
 
+    relayManager = createRelayManager(window.ndk, debugLog, processEvents);
+
     // sign in if a relay requests authorization
     window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.disconnect();
     // Disabled signing in to relays with Auth request as NDK loops infinitely
@@ -557,6 +562,7 @@ export const onReady = ({ app, env }) => {
     })
     window.ndk.pool.on("relay:ready", (relay) => {
       debugLog('relay ready', relay);
+      relayManager.markReady(relay.url);
       if (!connected) {
         connected = true;
         app.ports.receiveMessage.send({ messageType: 'connected', value: null });
@@ -571,6 +577,7 @@ export const onReady = ({ app, env }) => {
     })
     window.ndk.pool.on("relay:disconnect", (relay) => {
       debugLog('relay disconnected', relay);
+      relayManager.markDisconnect(relay.url);
       app.ports.receiveMessage.send({ messageType: 'relay:disconnected', value: { url: relay.url } });
     })
     window.ndk.pool.on("relay:auth", (relay) => {
@@ -591,23 +598,13 @@ export const onReady = ({ app, env }) => {
   ) {
     debugLog("FILTERS: ", filters, description, " requestId: " + requestId, "closeOnEose: " + closeOnEose, "relays: ", relays);
 
-    var ndkRelays = null;
-    if (relays) {
-      const relaysWithProtocol = relays.map(relay => {
-        if (!relay.startsWith("wss://") && !relay.startsWith("ws://")) {
-          return "wss://" + relay
-        } else {
-          return relay
-        }
-      });
-
-      ndkRelays = NDKRelaySet.fromRelayUrls(relaysWithProtocol, window.ndk);
-    }
-
-    window.ndk.fetchEvents(filters, { closeOnEose: closeOnEose }, ndkRelays).then((ndkEvents) => {
-
-      processEvents(app, requestId, description, ndkEvents);
-    })
+    relayManager.fetchEvents(app, {
+      requestId,
+      filters,
+      closeOnEose,
+      description,
+      relays
+    });
   }
 
   function searchEvents(app,
@@ -620,12 +617,13 @@ export const onReady = ({ app, env }) => {
   ) {
     debugLog("SEARCH FILTERS: ", filters, description, " requestId: " + requestId, "closeOnEose: " + closeOnEose, "relays: ", relays);
 
-    const ndkRelays = relays ? NDKRelaySet.fromRelayUrls(relays, window.ndk) : null;
-
-    window.ndk.fetchEvents(filters, { closeOnEose: closeOnEose }, ndkRelays).then((ndkEvents) => {
-
-      processEvents(app, requestId, description, ndkEvents);
-    })
+    relayManager.fetchEvents(app, {
+      requestId,
+      filters,
+      closeOnEose,
+      description,
+      relays
+    });
   }
 
   function processEvents(app, requestId, description, ndkEvents) {
