@@ -276,7 +276,7 @@ defmodule NostrBackendWeb.ContentController do
     case ProfileCache.get_profile(profile_hex_id, relays) do
       {:ok, profile} ->
         conn
-        |> conn_with_profile_meta(profile, relays)
+        |> conn_with_profile_meta(profile, profile_hex_id, relays)
         |> put_view(NostrBackendWeb.ContentHTML)
         |> render("profile.html", profile: profile)
 
@@ -422,7 +422,7 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_image, community.image |> force_https() || @sharing_image)
   end
 
-  defp conn_with_profile_meta(conn, profile, _relays) do
+  defp conn_with_profile_meta(conn, profile, profile_hex_id, _relays) do
     Logger.debug("Profile: #{inspect(profile)}")
 
     relays_list =
@@ -437,12 +437,14 @@ defmodule NostrBackendWeb.ContentController do
           ]
       end
 
-    og_url = get_profile_url_with_relays(profile.profile_id, relays_list)
-    canonical_url = get_canonical_profile_url(profile.profile_id)
+    profile_id = Map.get(profile, :profile_id) || profile_hex_id
+
+    og_url = get_profile_url_with_relays(profile_id, relays_list)
+    canonical_url = get_canonical_profile_url(profile_id)
     lang = NostrBackend.Locale.preferred_language(conn)
 
     # Prepare schema.org metadata
-    relay_nprofile = NostrBackend.NIP19.encode_nprofile(profile.profile_id, relays_list)
+    relay_nprofile = NostrBackend.NIP19.encode_nprofile(profile_id, relays_list)
 
     same_as = [
       "https://njump.me/#{relay_nprofile}",
@@ -466,26 +468,42 @@ defmodule NostrBackendWeb.ContentController do
     display_name = Map.get(profile, :display_name) || Map.get(profile, :name)
 
     # Start with required fields
-    schema_metadata = %{
-      "@context" => "https://schema.org",
-      "@type" => "Person",
-      "url" => canonical_url,
-      "sameAs" => same_as
-    }
+    schema_metadata =
+      if is_binary(Map.get(profile, :profile_id)) do
+        %{
+          "@context" => "https://schema.org",
+          "@type" => "Person",
+          "url" => canonical_url,
+          "sameAs" => same_as
+        }
+      else
+        %{
+          "@context" => "https://schema.org",
+          "@type" => "Thing",
+          "url" => canonical_url,
+          "sameAs" => same_as
+        }
+      end
 
     # Add optional fields only if they exist
+    identifier_source =
+      case profile do
+        %{nip05: nip05} when not is_nil(nip05) -> profile
+        _ -> profile_id
+      end
+
     schema_metadata =
       schema_metadata
       |> maybe_add_field("name", display_name)
       |> maybe_add_field("description", Map.get(profile, :about))
       |> maybe_add_field("image", image_url)
-      |> maybe_add_field("identifier", get_profile_identifier(profile))
+      |> maybe_add_field("identifier", get_profile_identifier(identifier_source))
 
     profile_raw_event = EventPayload.raw_event(profile)
 
     events =
       []
-      |> EventPayload.add_event(profile_raw_event || profile)
+      |> EventPayload.add_event(profile_raw_event)
 
     payload = EventPayload.encode(events)
 
