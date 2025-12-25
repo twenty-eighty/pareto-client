@@ -359,17 +359,25 @@ defmodule NostrBackendWeb.ContentController do
       }
     }
 
-    # Add author information only if we have a valid profile
+    author_profile_id =
+      case author_profile do
+        nil -> nil
+        profile -> Map.get(profile, :profile_id)
+      end
+
+    # Add author information only if we have a usable profile_id.
+    # Some cache/profile fetches can return a "minimal" map (e.g. only relays),
+    # which should not crash schema generation.
     schema_metadata =
-      if author_profile do
+      if is_binary(author_profile_id) and author_profile_id != "" do
         Map.put(schema_metadata, "author", %{
           "@type" => "Person",
           "name" => Map.get(author_profile, :display_name) || Map.get(author_profile, :name),
-          "url" => get_canonical_profile_url(author_profile.profile_id),
+          "url" => get_canonical_profile_url(author_profile_id),
           "identifier" => get_profile_identifier(author_profile)
         })
       else
-        # If no profile found, add minimal author information
+        # If no usable profile found, add minimal author information
         Map.put(schema_metadata, "author", %{
           "@type" => "Thing",
           "url" => get_canonical_profile_url(article.author),
