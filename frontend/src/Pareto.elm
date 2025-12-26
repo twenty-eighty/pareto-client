@@ -234,7 +234,7 @@ defaultSearchRelays =
 
 delayedPublishingRelays : List RelayUrl
 delayedPublishingRelays =
-    [ "wss://delayed-publisher.onrender.com/delayed/websocket"
+    [ "wss://delayed-publisher.onrender.com"
     ]
 
 
