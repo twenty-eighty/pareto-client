@@ -20,7 +20,8 @@
       "git version text": "Git-version: {{gitVersion}}",
       "recommendation sent alert text": "Recommendation sent",
       "feedback info text": "You found a bug or want to give feedback? Please contact us ",
-      "support page link text": "here"
+      "support page link text": "here",
+      "telegram link text": "Pareto Telegram Channel"
    },
    "article info": {
       "title": "Artikelinformation",
@@ -473,6 +474,7 @@
       "french text": "Franska",
       "german text": "Tyska",
       "italian text": "Italienska",
+      "polish text": "Polish",
       "portuguese text": "Portugisiska",
       "russian text": "Russian",
       "spanish text": "Spanska",
@@ -558,7 +560,8 @@
       "drafts category": "Utkast",
       "edit draft button label": "Redigera",
       "copy draft button label": "Copy",
-      "delete draft button label": "Ta bort"
+      "delete draft button label": "Ta bort",
+      "future category": "Future"
    },
    "privacy": {
       "page title": "Integritetspolicy"
