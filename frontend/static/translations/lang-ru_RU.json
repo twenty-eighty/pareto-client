@@ -560,7 +560,8 @@
       "drafts category": "Черновики",
       "edit draft button label": "Редактировать",
       "copy draft button label": "Копировать",
-      "delete draft button label": "Удалить"
+      "delete draft button label": "Удалить",
+      "future category": "Future"
    },
    "privacy": {
       "page title": "Конфиденциальность"
