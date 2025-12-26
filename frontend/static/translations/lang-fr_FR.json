@@ -560,7 +560,8 @@
       "drafts category": "Brouillons",
       "edit draft button label": "Modifier",
       "copy draft button label": "Copier",
-      "delete draft button label": "Supprimer"
+      "delete draft button label": "Supprimer",
+      "future category": "Future"
    },
    "privacy": {
       "page title": "Politique de confidentialité"
