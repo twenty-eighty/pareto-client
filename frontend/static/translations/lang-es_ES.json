@@ -560,7 +560,8 @@
       "drafts category": "Borradores",
       "edit draft button label": "Editar",
       "copy draft button label": "Copiar",
-      "delete draft button label": "Eliminar"
+      "delete draft button label": "Eliminar",
+      "future category": "Future"
    },
    "privacy": {
       "page title": "Política de Privacidad"
