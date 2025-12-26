@@ -560,7 +560,8 @@
       "drafts category": "Utkast",
       "edit draft button label": "Redigera",
       "copy draft button label": "Copy",
-      "delete draft button label": "Ta bort"
+      "delete draft button label": "Ta bort",
+      "future category": "Future"
    },
    "privacy": {
       "page title": "Integritetspolicy"
