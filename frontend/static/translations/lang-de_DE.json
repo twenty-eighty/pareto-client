@@ -560,7 +560,8 @@
       "drafts category": "Entwürfe",
       "edit draft button label": "Bearbeiten",
       "copy draft button label": "Kopieren",
-      "delete draft button label": "Löschen"
+      "delete draft button label": "Löschen",
+      "future category": "Future"
    },
    "privacy": {
       "page title": "Datenschutzerklärung"
