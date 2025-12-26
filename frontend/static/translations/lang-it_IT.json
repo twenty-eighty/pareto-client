@@ -560,7 +560,8 @@
       "drafts category": "Bozze",
       "edit draft button label": "Modifica",
       "copy draft button label": "Copia",
-      "delete draft button label": "Elimina"
+      "delete draft button label": "Elimina",
+      "future category": "Future"
    },
    "privacy": {
       "page title": "Informativa sulla Privacy"
