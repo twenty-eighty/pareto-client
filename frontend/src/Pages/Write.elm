@@ -32,7 +32,7 @@ import Nostr.Nip27 as Nip27
 import Nostr.Nip94 exposing (FileMetadata)
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
-import Nostr.Types exposing (EventId, IncomingMessage, PubKey, RelayUrl)
+import Nostr.Types exposing (EventId, IncomingMessage, PubKey, RelayUrl, loggedInPubKey)
 import Page exposing (Page)
 import Pareto
 import Ports
@@ -167,6 +167,11 @@ init user shared route () =
             maybeNip19
                 |> Maybe.andThen (\nip19 -> Nostr.getArticleForNip19 shared.nostr nip19)
 
+        isBetaTester =
+            loggedInPubKey shared.loginStatus
+                |> Maybe.map (Nostr.isBetaTester shared.nostr)
+                |> Maybe.withDefault False
+
         effect =
             case ( maybeArticle, maybeNip19 ) of
                 ( Nothing, Just (NAddr naddrData) ) ->
@@ -207,7 +212,6 @@ init user shared route () =
                                 -- this allows to keep original published date when publishing older articles from RSS or other sources.
                                 article.publishedAt
 
-
                         (draftEventId, draftAddressComponents) =
                             if article.kind == KindDraftLongFormContent && not createCopy then
                                 (Just article.id, addressComponentsForArticle article)
@@ -243,7 +247,7 @@ init user shared route () =
                     , imageMetadata = article.imageMetadata
                     , publishArticleDialog = publishArticleDialog
                     , publishedAt = publishedAt
-                    , publishDateDialog = PublishDateDialog.init
+                    , publishDateDialog = PublishDateDialog.init { allowFutureDates = isBetaTester }
                     , articleState = ArticleDraftSaved
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
@@ -271,7 +275,7 @@ init user shared route () =
                     , imageMetadata = Dict.empty
                     , publishArticleDialog = publishArticleDialog
                     , publishedAt = Nothing
-                    , publishDateDialog = PublishDateDialog.init
+                    , publishDateDialog = PublishDateDialog.init { allowFutureDates = isBetaTester }
                     , articleState = ArticleEmpty
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
@@ -847,9 +851,21 @@ sendPublishCmd shared model user relayUrls =
         publishedAt =
             model.publishedAt
                 |> Maybe.withDefault model.now
+
+        isBetaTester =
+            loggedInPubKey shared.loginStatus
+                |> Maybe.map (Nostr.isBetaTester shared.nostr)
+                |> Maybe.withDefault False
+
+        actualRelayUrls =
+            if isBetaTester && Time.posixToMillis publishedAt > Time.posixToMillis model.now then
+                Pareto.delayedPublishingRelays
+
+            else
+                relayUrls
     in
     eventWithContent shared model user KindLongFormContent (Just publishedAt)
-        |> SendLongFormArticle relayUrls
+        |> SendLongFormArticle actualRelayUrls
         |> Shared.Msg.SendNostrEvent
         |> Effect.sendSharedMsg
 

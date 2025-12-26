@@ -1,6 +1,6 @@
 import { NDKRelaySet } from "@nostr-dev-kit/ndk";
 
-const QUEUE_TIMEOUT_MS = 5000;
+const QUEUE_TIMEOUT_MS = 15000;
 
 const normalizeRelayUrl = (url) => {
   const withProtocol = url.startsWith("wss://") || url.startsWith("ws://") ? url : `wss://${url}`;
@@ -26,6 +26,15 @@ export function createRelayManager(ndk, debugLog, processEvents) {
     const targetRelays = relays && relays.length > 0
       ? relays.map(normalizeRelayUrl)
       : Array.from(ndk.pool.relays.keys()).map(normalizeRelayUrl);
+
+    // ensure target relays are in the pool and connecting
+    targetRelays.forEach((url) => {
+      try {
+        ndk.pool.getRelay(url, true);
+      } catch (e) {
+        debugLog && debugLog('relayManager getRelay failed', { url, e });
+      }
+    });
 
     const { readySubset, missing } = splitRelays(targetRelays);
 
