@@ -222,7 +222,7 @@ updateModelWithCategory user shared model category =
 
                 Future ->
                     ( RequestFutureArticles
-                    , [ { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ user.pubKey ], limit = Just 20 } ]
+                    , [ { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ user.pubKey ] } ]
                     , "Future posts of user"
                     )
     in
