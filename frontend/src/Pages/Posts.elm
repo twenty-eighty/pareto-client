@@ -5,13 +5,11 @@ import Components.ArticleComments as ArticleComments
 import Components.Categories as Categories
 import Dict
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, article, div)
-import Html.Styled.Attributes exposing (css)
+import Html.Styled as Html exposing (Html)
 import Html.Styled.Events exposing (..)
 import Layouts
 import Layouts.Sidebar
 import Nostr
-import Nostr.Article exposing (addressComponentsForArticle, nip19ForArticle)
 import Nostr.DeletionRequest exposing (deletionEvent)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Request exposing (RequestData(..))
@@ -24,11 +22,8 @@ import Set exposing (Set)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Tailwind.Utilities as Tw
 import Translations.Posts as Translations
 import Translations.Sidebar
-import Ui.Article
-import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 
