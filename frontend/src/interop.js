@@ -50,7 +50,6 @@ const defaultRelays =
   ["wss://nostr.pareto.space"
     , "wss://nostr.pareto.town"
     , "wss://pareto.nostr1.com"
-    , "wss://relay.nostr.band"
     , "wss://relay.damus.io"
     , "wss://nos.lol"
     , "wss://offchain.pub"
