@@ -10,6 +10,7 @@ import Html.Styled.Events exposing (..)
 import Layouts
 import Layouts.Sidebar
 import Nostr
+import Nostr.Article exposing (Article)
 import Nostr.DeletionRequest exposing (deletionEvent)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Request exposing (RequestData(..))
@@ -22,6 +23,7 @@ import Set exposing (Set)
 import Shared
 import Shared.Model
 import Shared.Msg
+import Time
 import Translations.Posts as Translations
 import Translations.Sidebar
 import Ui.View exposing (ArticlePreviewType(..))
@@ -262,12 +264,14 @@ viewArticles shared model =
             case Categories.selected model.categories of
                 Published ->
                     Nostr.getArticlesByDate shared.nostr
+                    |> filterPublishedArticles shared
 
                 Drafts ->
                     Nostr.getArticleDraftsByDate shared.nostr
 
                 Future ->
                     Nostr.getArticlesByDate shared.nostr
+                    |> filterFutureArticles shared
     in
     articles
         |> Ui.View.viewArticlePreviews
@@ -286,3 +290,27 @@ viewArticles shared model =
             , theme = shared.theme
             }
 
+
+filterFutureArticles : Shared.Model -> List Article -> List Article
+filterFutureArticles shared articles =
+    articles
+        |> List.filter (\article ->
+            case article.publishedAt of
+                Just publishedAt ->
+                    Time.posixToMillis publishedAt > Time.posixToMillis shared.browserEnv.now
+
+                Nothing ->
+                    False
+        )
+
+filterPublishedArticles : Shared.Model -> List Article -> List Article
+filterPublishedArticles shared articles =
+    articles
+        |> List.filter (\article ->
+            case article.publishedAt of
+                Just publishedAt ->
+                    Time.posixToMillis publishedAt <= Time.posixToMillis shared.browserEnv.now
+
+                Nothing ->
+                    False
+        )
