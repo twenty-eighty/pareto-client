@@ -8,16 +8,12 @@ import Nostr.Types exposing (EventId, PubKey)
 type alias BookmarkList =
     { notes : List EventId
     , articles : List AddressComponents
-    , hashtags : List String
-    , urls : List String
     }
 
 
 type BookmarkType
     = ArticleBookmark
-    | HashtagBookmark
     | NoteBookmark
-    | UrlBookmark
 
 
 
@@ -28,8 +24,6 @@ emptyBookmarkList : BookmarkList
 emptyBookmarkList =
     { notes = []
     , articles = []
-    , hashtags = []
-    , urls = []
     }
 
 
@@ -37,8 +31,6 @@ bookmarksCount : BookmarkList -> Int
 bookmarksCount bookmarks =
     List.length bookmarks.notes
         + List.length bookmarks.articles
-        + List.length bookmarks.hashtags
-        + List.length bookmarks.urls
 
 
 bookmarkListFromEvent : Event -> ( PubKey, BookmarkList )
@@ -52,14 +44,8 @@ bookmarkListFromEvent event =
                             AddressTag addressComponents _ _ ->
                                 { bml | articles = bml.articles ++ [ addressComponents ] }
 
-                            HashTag hashtag ->
-                                { bml | hashtags = hashtag :: bml.hashtags }
-
                             EventIdTag eventId _ _ _ ->
                                 { bml | notes = eventId :: bml.notes }
-
-                            UrlTag urls _ ->
-                                { bml | urls = urls :: bml.urls }
 
                             _ ->
                                 bml

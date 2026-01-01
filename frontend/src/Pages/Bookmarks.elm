@@ -121,20 +121,6 @@ requestForBookmarkContent nostr bookmarkType bookmarkList =
                     )
                 |> Effect.batch
 
-        HashtagBookmark ->
-            -- { authors = Nothing
-            -- , ids = Nothing
-            -- , kinds = Just [ KindLongFormContent ]
-            -- , tagReferences =
-            --     bookmarkList.hashtags
-            --     |> List.map TagReferenceTag
-            --     |> Just
-            -- , limit = Nothing
-            -- , since = Nothing
-            -- , until = Nothing
-            -- }
-            Effect.none
-
         NoteBookmark ->
             -- { authors = Nothing
             -- , ids = Nothing
@@ -148,10 +134,6 @@ requestForBookmarkContent nostr bookmarkType bookmarkList =
             -- , until = Nothing
             -- }
             Effect.none
-
-        UrlBookmark ->
-            Effect.none
-
 
 
 -- UPDATE
@@ -288,14 +270,8 @@ viewBookmarks shared model bookmarkList =
         ArticleBookmark ->
             viewArticleBookmarks shared model bookmarkList.articles
 
-        HashtagBookmark ->
-            viewHashtagBookmarks shared model bookmarkList.hashtags
-
         NoteBookmark ->
             viewNoteBookmarks shared model bookmarkList.notes
-
-        UrlBookmark ->
-            viewUrlBookmarks shared model bookmarkList.urls
 
 
 viewArticleBookmarks : Shared.Model -> Model -> List AddressComponents -> Html Msg
@@ -349,28 +325,6 @@ availableCategories bookmarkList translations =
             else
                 []
 
-        hashtagBookmarkCategory =
-            if List.length bookmarkList.hashtags > 0 then
-                [ { category = HashtagBookmark
-                  , title = Translations.hashtagsTitle [ translations ]
-                  , testId = "bookmarks-hashtags"
-                  }
-                ]
-
-            else
-                []
-
-        urlBookmarkCategory =
-            if List.length bookmarkList.urls > 0 then
-                [ { category = UrlBookmark
-                  , title = Translations.urlsTitle [ translations ]
-                  , testId = "bookmarks-urls"
-                  }
-                ]
-
-            else
-                []
-
         noteBookmarkCategory =
             if List.length bookmarkList.notes > 0 then
                 [ { category = NoteBookmark
@@ -382,4 +336,4 @@ availableCategories bookmarkList translations =
             else
                 []
     in
-    articleBookmarkCategory ++ hashtagBookmarkCategory ++ urlBookmarkCategory ++ noteBookmarkCategory
+    articleBookmarkCategory ++ noteBookmarkCategory
