@@ -359,6 +359,11 @@ performRequest model description requestId requestData =
         RequestFollowSets eventFilter ->
             ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
 
+        RequestFutureArticles eventFilters ->
+            ( { model | articlesByDate = [] }
+            , model.hooks.requestEvents description True requestId Pareto.delayedPublishingRelays eventFilters
+            )
+
         RequestMediaServerLists eventFilter ->
             ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
 

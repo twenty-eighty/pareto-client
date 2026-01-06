@@ -1,6 +1,6 @@
 import { NDKRelaySet } from "@nostr-dev-kit/ndk";
 
-const QUEUE_TIMEOUT_MS = 5000;
+const QUEUE_TIMEOUT_MS = 15000;
 
 const normalizeRelayUrl = (url) => {
   const withProtocol = url.startsWith("wss://") || url.startsWith("ws://") ? url : `wss://${url}`;
@@ -10,6 +10,7 @@ const normalizeRelayUrl = (url) => {
 export function createRelayManager(ndk, debugLog, processEvents) {
   const readyRelays = new Set();
   const queuedRequests = [];
+  const trackedRelays = new Set(); // keep listeners attached only once per relay
 
   const markReady = (relayUrl) => {
     const normalized = normalizeRelayUrl(relayUrl);
@@ -26,6 +27,44 @@ export function createRelayManager(ndk, debugLog, processEvents) {
     const targetRelays = relays && relays.length > 0
       ? relays.map(normalizeRelayUrl)
       : Array.from(ndk.pool.relays.keys()).map(normalizeRelayUrl);
+
+    // ensure target relays are in the pool and connecting
+    targetRelays.forEach((url) => {
+      try {
+        const relay = ndk.pool.getRelay(url, true);
+
+        // Ensure the relay attempts to connect if it's idle.
+        try {
+          if (relay.connect) {
+            relay.connect();
+          }
+        } catch (connectErr) {
+          debugLog && debugLog("relayManager relay connect failed", { url, connectErr });
+        }
+
+        const trackedKey = normalizeRelayUrl(relay.url);
+
+        if (!trackedRelays.has(trackedKey)) {
+          trackedRelays.add(trackedKey);
+
+          relay.on("connect", () => {
+            debugLog && debugLog("relayManager relay connect", relay.url);
+          });
+
+          relay.on("ready", () => {
+            debugLog && debugLog("relayManager relay ready", relay.url);
+            markReady(relay.url);
+          });
+
+          relay.on("disconnect", () => {
+            debugLog && debugLog("relayManager relay disconnect", relay.url);
+            markDisconnect(relay.url);
+          });
+        }
+      } catch (e) {
+        debugLog && debugLog('relayManager getRelay failed', { url, e });
+      }
+    });
 
     const { readySubset, missing } = splitRelays(targetRelays);
 

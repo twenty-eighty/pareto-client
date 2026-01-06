@@ -87,7 +87,6 @@ type Calendar msg
         , theme : Theme
         }
 
-
 new :
     { model : Model
     , toMsg : Msg -> msg

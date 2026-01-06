@@ -232,6 +232,12 @@ defaultSearchRelays =
     ]
 
 
+delayedPublishingRelays : List RelayUrl
+delayedPublishingRelays =
+    [ "wss://delayed-publisher.onrender.com"
+    ]
+
+
 defaultOutboxRelays : List { url : RelayUrl, role : RelayRole }
 defaultOutboxRelays =
     defaultRelays

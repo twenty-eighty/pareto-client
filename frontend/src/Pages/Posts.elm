@@ -1,26 +1,21 @@
 module Pages.Posts exposing (Model, Msg, page)
 
 import Auth
-import BrowserEnv exposing (BrowserEnv)
 import Components.ArticleComments as ArticleComments
-import Components.Button as Button
 import Components.Categories as Categories
 import Dict
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, article, div)
-import Html.Styled.Attributes exposing (css)
+import Html.Styled as Html exposing (Html)
 import Html.Styled.Events exposing (..)
-import I18Next
 import Layouts
 import Layouts.Sidebar
 import Nostr
-import Nostr.Article exposing (Article, addressComponentsForArticle, nip19ForArticle)
+import Nostr.Article exposing (Article)
 import Nostr.DeletionRequest exposing (deletionEvent)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
-import Nostr.Profile exposing (Author)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId, PubKey, RelayUrl)
+import Nostr.Types exposing (EventId, RelayUrl, loggedInPubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Route.Path
@@ -28,11 +23,9 @@ import Set exposing (Set)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Tailwind.Utilities as Tw
+import Time
 import Translations.Posts as Translations
 import Translations.Sidebar
-import Ui.Article
-import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 
@@ -63,7 +56,7 @@ toLayout shared model =
                 , onSelect = CategorySelected
                 , equals = \category1 category2 -> category1 == category2
                 , image = \_ _ -> Nothing
-                , categories = availableCategories shared.browserEnv.translations
+                , categories = availableCategories shared
                 , browserEnv = shared.browserEnv
                 , theme = shared.theme
                 }
@@ -89,19 +82,35 @@ type alias Model =
 type Category
     = Published
     | Drafts
+    | Future
 
 
-availableCategories : I18Next.Translations -> List (Categories.CategoryData Category)
-availableCategories translations =
+availableCategories : Shared.Model -> List (Categories.CategoryData Category)
+availableCategories shared =
+    let
+        isBetaTester =
+            loggedInPubKey shared.loginStatus
+                |> Maybe.map (Nostr.isBetaTester shared.nostr)
+                |> Maybe.withDefault False
+
+        delayedCategory =
+            if isBetaTester then
+                [ { category = Future
+                , title = Translations.futureCategory [ shared.browserEnv.translations ]
+                , testId = "posts-future"
+                } ]
+            else
+                []
+    in
     [ { category = Published
-      , title = Translations.publishedCategory [ translations ]
+      , title = Translations.publishedCategory [ shared.browserEnv.translations ]
       , testId = "posts-published"
       }
     , { category = Drafts
-      , title = Translations.draftsCategory [ translations ]
+      , title = Translations.draftsCategory [ shared.browserEnv.translations ]
       , testId = "posts-drafts"
       }
-    ]
+    ] ++ delayedCategory
 
 
 init : Auth.User -> Shared.Model -> Route () -> () -> ( Model, Effect Msg )
@@ -130,6 +139,9 @@ categoryFromString categoryString =
         "drafts" ->
             Just Drafts
 
+        "future" ->
+            Just Future
+
         _ ->
             Nothing
 
@@ -143,6 +155,8 @@ stringFromCategory category =
         Drafts ->
             "drafts"
 
+        Future ->
+            "future"
 
 
 -- UPDATE
@@ -202,6 +216,12 @@ updateModelWithCategory user shared model category =
                       ]
                     , "Drafts of user"
                     )
+
+                Future ->
+                    ( RequestFutureArticles
+                    , [ { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just [ user.pubKey ] } ]
+                    , "Future posts of user"
+                    )
     in
     ( model
     , [ Effect.replaceRoute { path = model.path, query = Dict.singleton categoryParamName (stringFromCategory category), hash = Nothing }
@@ -244,9 +264,14 @@ viewArticles shared model =
             case Categories.selected model.categories of
                 Published ->
                     Nostr.getArticlesByDate shared.nostr
+                    |> filterPublishedArticles shared
 
                 Drafts ->
                     Nostr.getArticleDraftsByDate shared.nostr
+
+                Future ->
+                    Nostr.getArticlesByDate shared.nostr
+                    |> filterFutureArticles shared
     in
     articles
         |> Ui.View.viewArticlePreviews
@@ -265,3 +290,27 @@ viewArticles shared model =
             , theme = shared.theme
             }
 
+
+filterFutureArticles : Shared.Model -> List Article -> List Article
+filterFutureArticles shared articles =
+    articles
+        |> List.filter (\article ->
+            case article.publishedAt of
+                Just publishedAt ->
+                    Time.posixToMillis publishedAt > Time.posixToMillis shared.browserEnv.now
+
+                Nothing ->
+                    False
+        )
+
+filterPublishedArticles : Shared.Model -> List Article -> List Article
+filterPublishedArticles shared articles =
+    articles
+        |> List.filter (\article ->
+            case article.publishedAt of
+                Just publishedAt ->
+                    Time.posixToMillis publishedAt <= Time.posixToMillis shared.browserEnv.now
+
+                Nothing ->
+                    False
+        )

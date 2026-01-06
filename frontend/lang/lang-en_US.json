@@ -560,7 +560,8 @@
       "drafts category": "Drafts",
       "edit draft button label": "Edit",
       "copy draft button label": "Copy",
-      "delete draft button label": "Delete"
+      "delete draft button label": "Delete",
+      "future category": "Future"
    },
    "privacy": {
       "page title": "Privacy Policy"
