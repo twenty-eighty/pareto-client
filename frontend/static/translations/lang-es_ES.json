@@ -20,7 +20,8 @@
       "git version text": "Versión en Git: {{gitVersion}}",
       "recommendation sent alert text": "¡Recomendación enviada!",
       "feedback info text": "¿Encontraste un error o quieres dar tu opinión? Por favor escribe un email a ",
-      "support page link text": "aquí"
+      "support page link text": "aquí",
+      "telegram link text": "Pareto Canal de Telegram"
    },
    "article info": {
       "title": "Información sobre el Artículo",
@@ -473,6 +474,7 @@
       "french text": "Francés",
       "german text": "Alemán",
       "italian text": "Italiano",
+      "polish text": "Polaco",
       "portuguese text": "Portugués",
       "russian text": "Ruso",
       "spanish text": "Español",
@@ -558,7 +560,8 @@
       "drafts category": "Borradores",
       "edit draft button label": "Editar",
       "copy draft button label": "Copiar",
-      "delete draft button label": "Eliminar"
+      "delete draft button label": "Eliminar",
+      "future category": "Futuros"
    },
    "privacy": {
       "page title": "Política de Privacidad"

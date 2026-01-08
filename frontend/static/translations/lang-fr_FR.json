@@ -20,7 +20,8 @@
       "git version text": "Version Git : {{gitVersion}}",
       "recommendation sent alert text": "Recommandation envoyée",
       "feedback info text": "Vous avez trouvé un bug ou souhaitez nous faire part de vos commentaires ? Veuillez nous contacter ",
-      "support page link text": "ici"
+      "support page link text": "ici",
+      "telegram link text": "Canal de Telegram Pareto"
    },
    "article info": {
       "title": "Informations sur l'article",
@@ -473,6 +474,7 @@
       "french text": "Français",
       "german text": "Allemand",
       "italian text": "Italien",
+      "polish text": "Polish",
       "portuguese text": "Portugais",
       "russian text": "Russe",
       "spanish text": "Espagnol",
@@ -558,7 +560,8 @@
       "drafts category": "Brouillons",
       "edit draft button label": "Modifier",
       "copy draft button label": "Copier",
-      "delete draft button label": "Supprimer"
+      "delete draft button label": "Supprimer",
+      "future category": "Future"
    },
    "privacy": {
       "page title": "Politique de confidentialité"
