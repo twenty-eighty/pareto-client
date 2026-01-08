@@ -18,10 +18,10 @@
       "donation info text": "Поддержите дальнейшее развитие проекта Pareto на",
       "build time text": "Время сборки: {{buildTime}}",
       "git version text": "Версия Git: {{gitVersion}}",
-      "recommendation sent alert text": "Recommendation sent",
-      "feedback info text": "You found a bug or want to give feedback? Please contact us ",
-      "support page link text": "here",
-      "telegram link text": "Pareto Telegram Channel"
+      "recommendation sent alert text": "Рекомендация отправлена",
+      "feedback info text": "Вы нашли ошибку или хотите оставить отзыв? Пожалуйста, свяжитесь с нами ",
+      "support page link text": "здесь",
+      "telegram link text": "Канал Pareto Telegram"
    },
    "article info": {
       "title": "Информация о статье",
@@ -42,7 +42,7 @@
       "link to article aria label": "Ссылка на статью {{title}}",
       "link to profile aria label": "Ссылка на профиль {{author}}",
       "link to hashtag aria label": "Ссылка на поиск хештега {{hashtag}}",
-      "follow author": "Follow author"
+      "follow author": "Подписаться на автора"
    },
    "authors page": {
       "page title": "Авторы",
@@ -157,10 +157,10 @@
       "profile banner error explanation": "Изображение баннера профиля не может быть загружено."
    },
    "contact": {
-      "page title": "Contact",
-      "support information": "You can contact the Pareto team via email at",
-      "encrypted contact information": "Encrypted emails can be sent to",
-      "pgp key info text": "The public PGP key can be downloaded from"
+      "page title": "Контакты",
+      "support information": "Вы можете связаться с командой Pareto по электронной почте по",
+      "encrypted contact information": "Зашифрованные письма могут быть отправлены",
+      "pgp key info text": "Публичный PGP ключ можно загрузить с"
    },
    "countries timezones": {
       "country AD": "Андорра",
@@ -443,11 +443,11 @@
       "subscribe button title": "Подписаться",
       "close button title": "Закрыть",
       "info text": "Получайте новые статьи {{profileName}} в свой почтовый ящик.",
-      "email label": "Email",
-      "email placeholder": "john@example.com",
+      "email label": "Электронная почта",
+      "email placeholder": "ivan@example.com",
       "privacy info": "Email хранится автором, а не проектом Pareto",
-      "sending message text": "Sending opt-in...",
-      "sent message text": "Sent opt-in, you will get a confirmation email shortly.",
+      "sending message text": "Отправка заявки...",
+      "sent message text": "Отправлено подтверждение. Вскоре вы получите подтверждение по электронной почте.",
       "error message text": "Ошибка подписки на список: {{error}}. Пожалуйста, свяжитесь с нами по адресу support@pareto.space"
    },
    "hashtag editor": {
@@ -465,18 +465,18 @@
       "login info title": "Вход",
       "configuration issues title": "Проблемы конфигурации",
       "error messages title": "Сообщения об ошибках",
-      "logged out status text": "Logged out",
+      "logged out status text": "Вы вышли из системы",
       "unknown login status text": "Неизвестный статус входа",
-      "logged in status text": "Logged in:"
+      "logged in status text": "Вход выполнен:"
    },
    "locale": {
       "english text": "Английский",
       "french text": "Французский",
       "german text": "Немецкий",
       "italian text": "Итальянский",
-      "polish text": "Polish",
-      "portuguese text": "Portuguese",
-      "russian text": "Russian",
+      "polish text": "Польский",
+      "portuguese text": "Португальский",
+      "russian text": "Русский",
       "spanish text": "Испанский",
       "swedish text": "Шведский"
    },
@@ -531,7 +531,7 @@
       "meme category text": "Мем",
       "food category text": "Еда",
       "animals category text": "Животные",
-      "nature category text": "Nature",
+      "nature category text": "Природа",
       "peace category text": "Мир",
       "plants category text": "Растения",
       "science category text": "Наука",
@@ -561,7 +561,7 @@
       "edit draft button label": "Редактировать",
       "copy draft button label": "Копировать",
       "delete draft button label": "Удалить",
-      "future category": "Future"
+      "future category": "Будущее"
    },
    "privacy": {
       "page title": "Конфиденциальность"
@@ -699,8 +699,8 @@
       "twitter button title": "X",
       "linkedin button title": "LinkedIn",
       "reddit button title": "Reddit",
-      "telegram button title": "Telegram",
-      "whatsapp button title": "WhatsApp"
+      "telegram button title": "Телеграм",
+      "whatsapp button title": "Whatsapp"
    },
    "sidebar": {
       "reader client role text": "Читать",
@@ -745,7 +745,7 @@
       "no subscribers text": "Подписчики не найдены.",
       "new modifications": "Новые изменения",
       "dnd field name": "Не беспокоить",
-      "email field name": "Email",
+      "email field name": "Электронная почта",
       "name field name": "Имя",
       "first name field name": "Первое имя",
       "last name field name": "Фамилия",
