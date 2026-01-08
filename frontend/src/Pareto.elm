@@ -304,6 +304,7 @@ bootstrapAuthorsList =
     , ( "moneysecrets@pareto.town", "8b46bd30c1f0a3fd8680639b9b88b78c1c1406988546dfe4445810b76539b5d0" )
     , ( "mx12art@pareto.town", "0b26f590631b0fa3048d103410e484e5e22e2d5a8eceaceda9d91b38f81dd1a8" )
     , ( "nexus@pareto.town", "d1d190fa3ecb81a45669bd343d3b9952eb73611cb3cb4c4349980e4de4ce6a6a" )
+    , ( "heartmoney@pareto.town", "6fef351a19d32af35a80bba82fc31f80bdcafbe8d602f7448c9f5c382a884204" )
     , ( "norbs@pareto.town", "0d1702d6ab3cfdbd6a5687118b9f0008022e129003d8a9627c444d4a8f1ac66f" )
     , ( "paetmaen@pareto.town", "85cf38ce240776de9bea50d54734015546871454a8b3b8e0ac34a704a029d6e4" )
     , ( "panaceha@pareto.town", "fc4eaf80f7b4f6cbea71ba1563714c1c5ff3fdd5d95cd27fec689295f575d1d4" )
