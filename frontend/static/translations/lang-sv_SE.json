@@ -18,10 +18,10 @@
       "donation info text": "Stöd den fortsatta utvecklingen av Pareto-projektet på ",
       "build time text": "Byggtid: {{buildTime}}",
       "git version text": "Git-version: {{gitVersion}}",
-      "recommendation sent alert text": "Recommendation sent",
-      "feedback info text": "You found a bug or want to give feedback? Please contact us ",
-      "support page link text": "here",
-      "telegram link text": "Pareto Telegram Channel"
+      "recommendation sent alert text": "Rekommendation skickad",
+      "feedback info text": "Du hittade en bugg eller vill ge feedback? Kontakta oss ",
+      "support page link text": "här",
+      "telegram link text": "Pareto Telegram kanal"
    },
    "article info": {
       "title": "Artikelinformation",
@@ -42,7 +42,7 @@
       "link to article aria label": "Länk till artikel {{title}}",
       "link to profile aria label": "Länk till profil för {{author}}",
       "link to hashtag aria label": "Länk för att söka efter hashtag {{hashtag}}",
-      "follow author": "Follow author"
+      "follow author": "Följ författare"
    },
    "authors page": {
       "page title": "Författare",
@@ -55,7 +55,7 @@
       "my bookmarks title": "Mina bokmärken",
       "articles title": "Artiklar",
       "notes title": "Anteckningar",
-      "hashtags title": "Hashtags",
+      "hashtags title": "Hashtaggar",
       "urls title": "URLs"
    },
    "calendar": {
@@ -157,9 +157,9 @@
       "profile banner error explanation": "Profilbannerbilden kan inte laddas."
    },
    "contact": {
-      "page title": "Contact",
-      "support information": "You can contact the Pareto team via email at",
-      "encrypted contact information": "Encrypted emails can be sent to",
+      "page title": "Kontakt",
+      "support information": "Du kan kontakta Pareto teamet via e-post på",
+      "encrypted contact information": "Krypterad e-post kan skickas till",
       "pgp key info text": "Den publika PGP-nyckeln kan laddas ner från"
    },
    "countries timezones": {
