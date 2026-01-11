@@ -3,6 +3,7 @@ defmodule NostrBackend.FollowListCache do
   require Logger
 
   @cache_name :follow_lists_cache
+  @event_cache_name :follow_list_events_cache
   # 1 hour
   @ttl_in_seconds 3_600
 
@@ -42,6 +43,44 @@ defmodule NostrBackend.FollowListCache do
   end
 
   @doc """
+  Gets the raw follow list event (kind 3 "contacts") for a given pubkey.
+
+  This is used to embed the follow list into HTML so the frontend can avoid
+  shipping a static author list.
+
+  Returns `{:ok, event_map}` or `{:error, reason}`.
+  """
+  @spec get_follow_list_event(binary(), [binary()]) :: {:ok, map()} | {:error, any()}
+  def get_follow_list_event(pubkey, relays \\ []) do
+    Logger.debug("FollowListCache: Getting follow list event for #{pubkey}")
+
+    case Cachex.get(@event_cache_name, pubkey) do
+      {:ok, nil} ->
+        with {:ok, event} <- load_follow_list_event(pubkey, relays) do
+          Cachex.put(@event_cache_name, pubkey, event, ttl: @ttl_in_seconds)
+          {:ok, event}
+        end
+
+      {:ok, %{} = event} ->
+        {:ok, event}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Forces a refresh of the raw follow list event for a given pubkey.
+  """
+  @spec refresh_follow_list_event(binary(), [binary()]) :: {:ok, map()} | {:error, any()}
+  def refresh_follow_list_event(pubkey, relays \\ []) do
+    with {:ok, event} <- load_follow_list_event(pubkey, relays) do
+      Cachex.put(@event_cache_name, pubkey, event, ttl: @ttl_in_seconds)
+      {:ok, event}
+    end
+  end
+
+  @doc """
   Forces a refresh of the follow list for a given pubkey.
   Returns {:ok, follow_list} or {:error, reason}
   """
@@ -63,6 +102,32 @@ defmodule NostrBackend.FollowListCache do
       {:error, reason} ->
         Logger.error("FollowListCache: Error fetching follow list: #{inspect(reason)}")
         {:error, reason}
+    end
+  end
+
+  defp load_follow_list_event(pubkey, relays) do
+    Logger.info("FollowListCache: Loading follow list event for #{pubkey}")
+
+    case NostrClient.fetch_follow_list(pubkey, relays) do
+      {:ok, raw} ->
+        case first_event_map(raw) do
+          %{} = event ->
+            {:ok, event}
+
+          nil ->
+            {:error, :empty_follow_list_event}
+        end
+
+      {:error, reason} ->
+        Logger.error("FollowListCache: Error fetching follow list event: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  defp first_event_map(raw) do
+    case List.wrap(raw) do
+      [%{} = event | _] -> event
+      _ -> nil
     end
   end
 

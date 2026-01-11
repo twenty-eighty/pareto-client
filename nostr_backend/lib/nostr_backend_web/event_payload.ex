@@ -31,6 +31,28 @@ defmodule NostrBackendWeb.EventPayload do
   def encode(event, extras) when is_map(event), do: encode([event], extras)
 
   @doc """
+  Merges `base_events` into an already-encoded payload JSON.
+
+  - If `payload_json` is `nil`, returns `encode(base_events)`.
+  - If `base_events` is empty, returns `payload_json`.
+  - Otherwise, decodes the payload, prepends missing events (by `id`) and re-encodes.
+  """
+  @spec merge_into_json(String.t() | nil, list()) :: String.t() | nil
+  def merge_into_json(payload_json, base_events)
+  def merge_into_json(payload_json, base_events) when base_events in [nil, []], do: payload_json
+  def merge_into_json(nil, base_events), do: encode(base_events)
+
+  def merge_into_json(payload_json, base_events) when is_binary(payload_json) and is_list(base_events) do
+    with {:ok, %{} = payload} <- Jason.decode(payload_json),
+         events when is_list(events) <- Map.get(payload, "events", []) do
+      merged = merge_unique_events(base_events, events)
+      Jason.encode!(Map.put(payload, "events", merged))
+    else
+      _ -> payload_json
+    end
+  end
+
+  @doc """
   Appends an event to the accumulator list if the event is present.
   """
   @spec add_event(list(), map() | nil) :: list()
@@ -72,4 +94,34 @@ defmodule NostrBackendWeb.EventPayload do
 
   defp sanitize(list) when is_list(list), do: Enum.map(list, &sanitize/1)
   defp sanitize(other), do: other
+
+  defp merge_unique_events(base_events, events) do
+    seen =
+      base_events
+      |> Enum.map(&event_id/1)
+      |> Enum.reject(&is_nil/1)
+      |> MapSet.new()
+
+    {merged, _seen} =
+      Enum.reduce(events, {base_events, seen}, fn event, {acc, seen_ids} ->
+        id = event_id(event)
+
+        cond do
+          is_nil(id) ->
+            {acc ++ [event], seen_ids}
+
+          MapSet.member?(seen_ids, id) ->
+            {acc, seen_ids}
+
+          true ->
+            {acc ++ [event], MapSet.put(seen_ids, id)}
+        end
+      end)
+
+    merged
+  end
+
+  defp event_id(%{} = event) do
+    Map.get(event, "id") || Map.get(event, :id)
+  end
 end

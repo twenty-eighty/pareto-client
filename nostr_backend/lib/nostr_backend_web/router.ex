@@ -4,6 +4,7 @@ defmodule NostrBackendWeb.Router do
   pipeline :browser do
     plug(:accepts, ["html"])
     plug(:put_root_layout, html: {NostrBackendWeb.Layouts, :root})
+    plug(NostrBackendWeb.Plugs.AssignFollowListEvent)
     plug(NostrBackendWeb.Plugs.PreloadFrontendAssets)
     plug(:put_secure_browser_headers)
   end
