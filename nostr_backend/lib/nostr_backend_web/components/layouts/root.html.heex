@@ -100,9 +100,16 @@
         <%= raw @schema_metadata %>
       </script>
     <% end %>
-    <%= if assigns[:nostr_event_json] do %>
+    <%
+      merged_nostr_event_json =
+        NostrBackendWeb.EventPayload.merge_into_json(
+          assigns[:nostr_event_json],
+          assigns[:nostr_base_events]
+        )
+    %>
+    <%= if merged_nostr_event_json do %>
       <script id="nostr-event-data" type="application/json">
-        <%= raw(assigns[:nostr_event_json]) %>
+        <%= raw(merged_nostr_event_json) %>
       </script>
     <% end %>
     <link rel="stylesheet" crossorigin href={NostrBackendWeb.FrontendAssets.css_file()} />
