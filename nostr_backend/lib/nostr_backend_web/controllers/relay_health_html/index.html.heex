@@ -1,0 +1,50 @@
+<div class="container" style="padding: 24px;">
+  <h1>Relay Health</h1>
+
+  <%= if @relays == [] do %>
+    <p>No relay health data available yet.</p>
+  <% else %>
+    <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+      <thead>
+        <tr>
+          <th style="text-align: left; border-bottom: 1px solid #ccc; padding: 8px;">Relay</th>
+          <th style="text-align: right; border-bottom: 1px solid #ccc; padding: 8px;">Score</th>
+          <th style="text-align: center; border-bottom: 1px solid #ccc; padding: 8px;">Usable</th>
+          <th style="text-align: left; border-bottom: 1px solid #ccc; padding: 8px;">
+            Cooldown Until
+          </th>
+          <th style="text-align: left; border-bottom: 1px solid #ccc; padding: 8px;">
+            Last Failure
+          </th>
+          <th style="text-align: left; border-bottom: 1px solid #ccc; padding: 8px;">
+            Last Success
+          </th>
+          <th style="text-align: right; border-bottom: 1px solid #ccc; padding: 8px;">
+            Failures (window)
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <%= for relay <- @relays do %>
+          <tr>
+            <td style="padding: 8px;">
+              <a href={"/admin/relay-health/info?" <> URI.encode_query(%{"url" => relay.relay_url})}>
+                <%= relay.relay_url %>
+              </a>
+            </td>
+            <td style="padding: 8px; text-align: right;"><%= relay.score %></td>
+            <td style="padding: 8px; text-align: center;">
+              <%= if relay.usable, do: "yes", else: "no" %>
+            </td>
+            <td style="padding: 8px;"><%= format_ts(relay.cooldown_until) %></td>
+            <td style="padding: 8px;"><%= format_ts(relay.last_failure_at) %></td>
+            <td style="padding: 8px;"><%= format_ts(relay.last_success_at) %></td>
+            <td style="padding: 8px; text-align: right;">
+              <%= length(relay.failure_timestamps || []) %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</div>

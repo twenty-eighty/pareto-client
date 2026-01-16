@@ -27,6 +27,9 @@ defmodule NostrBackend.NostrClient do
     "wss://nostr.pareto.space",
     "wss://pareto.nostr1.com",
     "wss://nos.lol",
+    "wss://purplepag.es",
+    "wss://nostr.einundzwanzig.space",
+    "wss://relay.primal.net",
     "wss://relay.nostr.band",
     "wss://relay.damus.io"
     #   "wss://nostr.wine",
@@ -34,15 +37,23 @@ defmodule NostrBackend.NostrClient do
     # Add more relay URLs as needed
   ]
 
+  defp default_relay_urls do
+    Application.get_env(:nostr_backend, :relay_urls, @relay_urls)
+  end
+
+  defp ensure_relays([]), do: default_relay_urls()
+  defp ensure_relays(nil), do: default_relay_urls()
+  defp ensure_relays(relay_urls), do: relay_urls
+
   @spec fetch_article_by_address(integer(), binary(), binary()) :: fetch_result_with_relay()
   def fetch_article_by_address(kind, author, identifier) do
-    fetch_article_by_address(kind, author, identifier, @relay_urls)
+    fetch_article_by_address(kind, author, identifier, default_relay_urls())
   end
 
   @spec fetch_article_by_address(integer(), binary(), binary(), relay_urls()) ::
           fetch_result_with_relay()
   def fetch_article_by_address(kind, author, identifier, []) do
-    fetch_article_by_address(kind, author, identifier, @relay_urls)
+    fetch_article_by_address(kind, author, identifier, default_relay_urls())
   end
 
   @spec fetch_article_by_address(integer(), binary(), binary(), relay_urls()) ::
@@ -55,12 +66,12 @@ defmodule NostrBackend.NostrClient do
   @spec fetch_article_by_address(integer(), binary()) :: fetch_result_with_relay()
   def fetch_article_by_address(kind, identifier) do
     address_info = %{kind: kind, identifier: identifier}
-    fetch_from_relays(@relay_urls, address_info, :address)
+    fetch_from_relays(default_relay_urls(), address_info, :address)
   end
 
   @spec fetch_article_by_id(event_id(), relay_urls()) :: fetch_result_with_relay()
   def fetch_article_by_id(id, []) do
-    fetch_article_by_id(id, @relay_urls)
+    fetch_article_by_id(id, default_relay_urls())
   end
 
   @spec fetch_article_by_id(event_id(), relay_urls()) :: fetch_result_with_relay()
@@ -71,7 +82,7 @@ defmodule NostrBackend.NostrClient do
 
   @spec fetch_article(String.t()) :: fetch_result()
   def fetch_article(article_hex_id) do
-    case fetch_from_relays(@relay_urls, article_hex_id, :article) do
+    case fetch_from_relays(default_relay_urls(), article_hex_id, :article) do
       {:ok, _relay, event_or_events} -> {:ok, event_or_events}
       {:error, reason} -> {:error, reason}
     end
@@ -79,7 +90,7 @@ defmodule NostrBackend.NostrClient do
 
   @spec fetch_community(any()) :: fetch_result()
   def fetch_community(community_data) do
-    case fetch_community(community_data, @relay_urls) do
+    case fetch_community(community_data, default_relay_urls()) do
       {:ok, _relay, event_or_events} -> {:ok, event_or_events}
       {:error, reason} -> {:error, reason}
     end
@@ -92,7 +103,7 @@ defmodule NostrBackend.NostrClient do
 
   @spec fetch_note(String.t()) :: fetch_result()
   def fetch_note(note_id) do
-    case fetch_from_relays(@relay_urls, note_id, :note) do
+    case fetch_from_relays(default_relay_urls(), note_id, :note) do
       {:ok, _relay, event_or_events} -> {:ok, event_or_events}
       {:error, reason} -> {:error, reason}
     end
@@ -108,7 +119,7 @@ defmodule NostrBackend.NostrClient do
 
   @spec fetch_profile(String.t(), list()) :: fetch_result_with_relay()
   def fetch_profile(profile_hex_id, []) do
-    fetch_profile(profile_hex_id, @relay_urls)
+    fetch_profile(profile_hex_id, default_relay_urls())
   end
 
   @spec fetch_profile(pubkey(), relay_urls()) :: fetch_result_with_relay()
@@ -118,7 +129,7 @@ defmodule NostrBackend.NostrClient do
 
   @spec fetch_follow_list(String.t(), list()) :: fetch_result()
   def fetch_follow_list(pubkey, []) do
-    fetch_follow_list(pubkey, @relay_urls)
+    fetch_follow_list(pubkey, default_relay_urls())
   end
 
   @spec fetch_follow_list(pubkey(), relay_urls()) :: fetch_result()
@@ -136,7 +147,7 @@ defmodule NostrBackend.NostrClient do
 
   @spec fetch_author_articles(String.t(), list()) :: {:ok, list(map())} | {:error, String.t()}
   def fetch_author_articles(pubkey, []) do
-    fetch_author_articles(pubkey, @relay_urls)
+    fetch_author_articles(pubkey, default_relay_urls())
   end
 
   @spec fetch_author_articles(pubkey(), relay_urls()) :: fetch_result()
@@ -150,10 +161,13 @@ defmodule NostrBackend.NostrClient do
 
   @spec fetch_multiple_authors_articles(list(String.t()), list(), keyword()) ::
           {:ok, list(map())} | {:error, String.t()}
-  def fetch_multiple_authors_articles(pubkeys, relays \\ @relay_urls, opts \\ [])
+  def fetch_multiple_authors_articles(pubkeys, relays \\ nil, opts \\ [])
+
+  def fetch_multiple_authors_articles(pubkeys, nil, opts),
+    do: fetch_multiple_authors_articles(pubkeys, default_relay_urls(), opts)
 
   def fetch_multiple_authors_articles(pubkeys, [], opts),
-    do: fetch_multiple_authors_articles(pubkeys, @relay_urls, opts)
+    do: fetch_multiple_authors_articles(pubkeys, default_relay_urls(), opts)
 
   @spec fetch_multiple_authors_articles([pubkey()], relay_urls(), keyword()) :: fetch_result()
   def fetch_multiple_authors_articles(pubkeys, relay_urls, opts) do
@@ -182,9 +196,11 @@ defmodule NostrBackend.NostrClient do
         _ -> base_opts
       end
 
-    case NostrAccess.fetch(relay_urls, filter, opts) do
+    relays = ensure_relays(relay_urls)
+
+    case NostrAccess.fetch(relays, filter, opts) do
       {:ok, events} ->
-        relay_url = List.first(relay_urls) || "unknown"
+        relay_url = List.first(relays) || "unknown"
         Logger.info("Successfully fetched data from relay #{relay_url}: #{length(events)} items")
         {:ok, relay_url, events}
 

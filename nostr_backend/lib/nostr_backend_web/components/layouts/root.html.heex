@@ -111,8 +111,10 @@
       </script>
     <% end %>
     <link rel="stylesheet" crossorigin href={NostrBackendWeb.FrontendAssets.css_file()} />
-    <script type="module" crossorigin src={NostrBackendWeb.FrontendAssets.js_file()}>
-    </script>
+    <%= unless assigns[:skip_app_script] do %>
+      <script type="module" crossorigin src={NostrBackendWeb.FrontendAssets.js_file()}>
+      </script>
+    <% end %>
   </head>
   <body class="bg-white">
     <%= @inner_content %>

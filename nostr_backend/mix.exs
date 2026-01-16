@@ -33,12 +33,11 @@ defmodule NostrBackend.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.7.14"},
-      {:phoenix_html, "~> 4.1"},
-      {:phoenix_live_reload, "~> 1.2", only: :dev},
-      # TODO bump on release to {:phoenix_live_view, "~> 1.0.0"},
-      {:phoenix_live_view, "~> 1.0.0-rc.1", override: true},
-      {:phoenix_live_dashboard, "~> 0.8.3"},
+      {:phoenix, "~> 1.8.3"},
+      {:phoenix_html, "~> 4.3"},
+      {:phoenix_live_reload, "~> 1.6", only: :dev},
+      {:phoenix_live_view, "~> 1.1", override: true},
+      {:phoenix_live_dashboard, "~> 0.8.7"},
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:telemetry_metrics, "~> 1.0"},
@@ -63,7 +62,7 @@ defmodule NostrBackend.MixProject do
       {:floki, "~> 0.37.0"},
       {:sweet_xml, "~> 0.7.5"},
       {:atomex, "~> 0.4"},
-      {:nostr_access, "~> 0.1.1"}
+      {:nostr_access, "~> 0.3"}
     ]
   end
 

@@ -1,0 +1,67 @@
+<div class="container" style="padding: 24px;">
+  <p>
+    <a href="/admin/relay-health">Back to relay list</a>
+  </p>
+
+  <h1 style="margin-top: 8px;">Relay Details</h1>
+
+  <%= if @state do %>
+    <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+      <tbody>
+        <tr>
+          <th style="text-align: left; border-bottom: 1px solid #ccc; padding: 8px;">Relay</th>
+          <td style="padding: 8px;"><%= @relay_url %></td>
+        </tr>
+        <tr>
+          <th style="text-align: left; border-bottom: 1px solid #ccc; padding: 8px;">Score</th>
+          <td style="padding: 8px;"><%= @state.score %></td>
+        </tr>
+        <tr>
+          <th style="text-align: left; border-bottom: 1px solid #ccc; padding: 8px;">Usable</th>
+          <td style="padding: 8px;"><%= if @state.usable, do: "yes", else: "no" %></td>
+        </tr>
+        <tr>
+          <th style="text-align: left; border-bottom: 1px solid #ccc; padding: 8px;">
+            Cooldown Until
+          </th>
+          <td style="padding: 8px;"><%= format_ts(@state.cooldown_until) %></td>
+        </tr>
+        <tr>
+          <th style="text-align: left; border-bottom: 1px solid #ccc; padding: 8px;">
+            Last Failure
+          </th>
+          <td style="padding: 8px;"><%= format_ts(@state.last_failure_at) %></td>
+        </tr>
+        <tr>
+          <th style="text-align: left; border-bottom: 1px solid #ccc; padding: 8px;">
+            Last Success
+          </th>
+          <td style="padding: 8px;"><%= format_ts(@state.last_success_at) %></td>
+        </tr>
+        <tr>
+          <th style="text-align: left; border-bottom: 1px solid #ccc; padding: 8px;">
+            Failures (last <%= @window_minutes %> min)
+          </th>
+          <td style="padding: 8px;"><%= length(@state.failure_timestamps || []) %></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 style="margin-top: 24px;">Failure details</h2>
+    <%= if (@state.failure_entries || []) == [] do %>
+      <p>No failures in the current window.</p>
+    <% else %>
+      <ul>
+        <%= for entry <- @state.failure_entries do %>
+          <li>
+            <%= format_ts(entry.ts) %>
+            <span>-</span>
+            <%= entry.reason %>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  <% else %>
+    <p>Relay not found.</p>
+  <% end %>
+</div>
