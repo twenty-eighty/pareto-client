@@ -668,7 +668,7 @@ generateRumblePreview : Maybe (LoadedContent msg) -> String -> Html msg
 generateRumblePreview maybeLoadedContent urlString =
     let
         thumbnailUrl =
-            openGraphImageUrl urlString
+            rumbleThumbnailUrl urlString
 
         ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
@@ -699,8 +699,13 @@ generateRumblePreview maybeLoadedContent urlString =
 
 rumbleProxyUrl : String -> String
 rumbleProxyUrl urlString =
-    "https://pareto.space/api/rumble/embed?url=" ++ Url.percentEncode urlString
-    -- "http://localhost:4000/api/rumble/embed?url=" ++ Url.percentEncode urlString
+    "https://pareto.space/api/rumble/oembed/embed?url=" ++ Url.percentEncode urlString
+    -- "http://localhost:4444/api/rumble/oembed/embed?url=" ++ Url.percentEncode urlString
+
+rumbleThumbnailUrl : String -> String
+rumbleThumbnailUrl urlString =
+    "https://pareto.space/api/rumble/oembed/thumbnail?url=" ++ Url.percentEncode urlString
+    -- "http://localhost:4444/api/rumble/oembed/thumbnail?url=" ++ Url.percentEncode urlString
 
 videoThumbnailPreview : (List (Html.Attribute msg) -> List (Html msg) -> Html msg) -> List (Html.Attribute msg) -> String -> Html msg
 videoThumbnailPreview linkElement clickAttr thumbnailUrl =
@@ -815,6 +820,9 @@ oemProviders =
       }
     , { url = "https://www.facebook.com/oembed_video"
       , schemes = [ regex "https://www\\.facebook\\.com/.*/videos/.*", regex "https://www\\.facebook\\.com/video\\.php" ]
+      }
+    , { url = "https://rumble.com/api/Media/oembed.json"
+      , schemes = [ regex "https://rumble\\.com/.*" ]
       }
     , { url = "https://rutube.ru/api/oembed"
       , schemes = [ regex "https://rutube\\.ru/video/.*" ]

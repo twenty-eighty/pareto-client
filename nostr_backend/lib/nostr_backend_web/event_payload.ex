@@ -42,7 +42,8 @@ defmodule NostrBackendWeb.EventPayload do
   def merge_into_json(payload_json, base_events) when base_events in [nil, []], do: payload_json
   def merge_into_json(nil, base_events), do: encode(base_events)
 
-  def merge_into_json(payload_json, base_events) when is_binary(payload_json) and is_list(base_events) do
+  def merge_into_json(payload_json, base_events)
+      when is_binary(payload_json) and is_list(base_events) do
     with {:ok, %{} = payload} <- Jason.decode(payload_json),
          events when is_list(events) <- Map.get(payload, "events", []) do
       merged = merge_unique_events(base_events, events)

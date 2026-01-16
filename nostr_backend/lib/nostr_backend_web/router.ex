@@ -122,6 +122,8 @@ defmodule NostrBackendWeb.Router do
     get "/oembed", OembedController, :fetch_oembed
     get "/opengraph/image", OpenGraphController, :fetch_metadata_image
     get "/rumble/embed", RumbleController, :fetch_embed_url
+    get "/rumble/oembed/embed", RumbleController, :fetch_embed_url_oembed
+    get "/rumble/oembed/thumbnail", RumbleController, :fetch_thumbnail_url_oembed
   end
 
   scope "/", NostrBackendWeb do

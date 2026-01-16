@@ -100,13 +100,11 @@
         <%= raw @schema_metadata %>
       </script>
     <% end %>
-    <%
-      merged_nostr_event_json =
-        NostrBackendWeb.EventPayload.merge_into_json(
-          assigns[:nostr_event_json],
-          assigns[:nostr_base_events]
-        )
-    %>
+    <% merged_nostr_event_json =
+      NostrBackendWeb.EventPayload.merge_into_json(
+        assigns[:nostr_event_json],
+        assigns[:nostr_base_events]
+      ) %>
     <%= if merged_nostr_event_json do %>
       <script id="nostr-event-data" type="application/json">
         <%= raw(merged_nostr_event_json) %>
