@@ -76,7 +76,9 @@ generatePreviewHtml loadedContent urlString linkAttr body =
                     generateOdyseePreview loadedContent urlString
 
                 RumbleVideo ->
-                    generateRumblePreview loadedContent urlString
+                    generateGenericPreview loadedContent urlString linkAttr body
+                    -- iframe src generation on backend doesn't work anymore, probably due to CDN
+                    -- generateRumblePreview loadedContent urlString
 
                 TelegramLink groupId maybePostId ->
                     generateTelegramPreview urlString groupId maybePostId body
@@ -815,6 +817,9 @@ oemProviders =
       }
     , { url = "https://www.facebook.com/oembed_video"
       , schemes = [ regex "https://www\\.facebook\\.com/.*/videos/.*", regex "https://www\\.facebook\\.com/video\\.php" ]
+      }
+    , { url = "https://rumble.com/api/Media/oembed.json"
+      , schemes = [ regex "https://rumble\\.com/.*" ]
       }
     , { url = "https://rutube.ru/api/oembed"
       , schemes = [ regex "https://rutube\\.ru/video/.*" ]
