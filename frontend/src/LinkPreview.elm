@@ -76,9 +76,7 @@ generatePreviewHtml loadedContent urlString linkAttr body =
                     generateOdyseePreview loadedContent urlString
 
                 RumbleVideo ->
-                    generateGenericPreview loadedContent urlString linkAttr body
-                    -- iframe src generation on backend doesn't work anymore, probably due to CDN
-                    -- generateRumblePreview loadedContent urlString
+                    generateRumblePreview loadedContent urlString
 
                 TelegramLink groupId maybePostId ->
                     generateTelegramPreview urlString groupId maybePostId body
@@ -670,7 +668,7 @@ generateRumblePreview : Maybe (LoadedContent msg) -> String -> Html msg
 generateRumblePreview maybeLoadedContent urlString =
     let
         thumbnailUrl =
-            openGraphImageUrl urlString
+            rumbleThumbnailUrl urlString
 
         ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
@@ -701,8 +699,13 @@ generateRumblePreview maybeLoadedContent urlString =
 
 rumbleProxyUrl : String -> String
 rumbleProxyUrl urlString =
-    "https://pareto.space/api/rumble/embed?url=" ++ Url.percentEncode urlString
-    -- "http://localhost:4000/api/rumble/embed?url=" ++ Url.percentEncode urlString
+    "https://pareto.space/api/rumble/oembed/embed?url=" ++ Url.percentEncode urlString
+    -- "http://localhost:4444/api/rumble/oembed/embed?url=" ++ Url.percentEncode urlString
+
+rumbleThumbnailUrl : String -> String
+rumbleThumbnailUrl urlString =
+    "https://pareto.space/api/rumble/oembed/thumbnail?url=" ++ Url.percentEncode urlString
+    -- "http://localhost:4444/api/rumble/oembed/thumbnail?url=" ++ Url.percentEncode urlString
 
 videoThumbnailPreview : (List (Html.Attribute msg) -> List (Html msg) -> Html msg) -> List (Html.Attribute msg) -> String -> Html msg
 videoThumbnailPreview linkElement clickAttr thumbnailUrl =

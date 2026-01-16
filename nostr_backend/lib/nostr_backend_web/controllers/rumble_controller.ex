@@ -5,6 +5,7 @@ defmodule NostrBackendWeb.RumbleController do
   alias Req
   alias Floki
   alias NostrBackendWeb.SharedHttpClient
+  alias NostrBackend.RumbleOembed
 
   def fetch_embed_url(conn, %{"url" => url}) do
     Logger.debug("Rumble: Fetching embed URL for: #{url}")
@@ -52,6 +53,168 @@ defmodule NostrBackendWeb.RumbleController do
         |> text("Cache error: #{inspect(reason)}")
     end
   end
+
+  # New (more reliable) variant using Rumble's oEmbed API:
+  # https://rumble.com/api/Media/oembed.json?url=<video_page_url>
+  def fetch_embed_url_oembed(conn, %{"url" => url}) do
+    Logger.debug("Rumble(oEmbed): Fetching embed URL for: #{url}")
+
+    cache_key = {:oembed_embed, url}
+
+    case Cachex.get(:rumble_cache, cache_key) do
+      {:ok, nil} ->
+        fetch_and_cache_oembed_embed(conn, url, cache_key)
+
+      {:ok, cached_embed_url} when is_binary(cached_embed_url) ->
+        Logger.debug("Rumble(oEmbed): Serving cached embed URL: #{cached_embed_url}")
+        redirect(conn, external: cached_embed_url)
+
+      {:ok, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> text("Embed URL not found via oEmbed")
+
+      {:ok, :http_error} ->
+        conn
+        |> put_status(:bad_request)
+        |> text("HTTP request failed")
+
+      {:ok, :fetch_error} ->
+        conn
+        |> put_status(:bad_request)
+        |> text("Failed to fetch URL")
+
+      {:error, reason} ->
+        Logger.error("Rumble(oEmbed): Cache error: #{inspect(reason)}")
+
+        conn
+        |> put_status(:internal_server_error)
+        |> text("Cache error: #{inspect(reason)}")
+    end
+  end
+
+  def fetch_thumbnail_url_oembed(conn, %{"url" => url}) do
+    Logger.debug("Rumble(oEmbed): Fetching thumbnail URL for: #{url}")
+
+    cache_key = {:oembed_thumbnail, url}
+
+    case Cachex.get(:rumble_cache, cache_key) do
+      {:ok, nil} ->
+        fetch_and_cache_oembed_thumbnail(conn, url, cache_key)
+
+      {:ok, cached_thumbnail_url} when is_binary(cached_thumbnail_url) ->
+        Logger.debug("Rumble(oEmbed): Serving cached thumbnail URL: #{cached_thumbnail_url}")
+        redirect(conn, external: cached_thumbnail_url)
+
+      {:ok, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> text("Thumbnail URL not found via oEmbed")
+
+      {:ok, :http_error} ->
+        conn
+        |> put_status(:bad_request)
+        |> text("HTTP request failed")
+
+      {:ok, :fetch_error} ->
+        conn
+        |> put_status(:bad_request)
+        |> text("Failed to fetch URL")
+
+      {:error, reason} ->
+        Logger.error("Rumble(oEmbed): Cache error: #{inspect(reason)}")
+
+        conn
+        |> put_status(:internal_server_error)
+        |> text("Cache error: #{inspect(reason)}")
+    end
+  end
+
+  defp fetch_and_cache_oembed_embed(conn, video_page_url, cache_key) do
+    oembed_url = RumbleOembed.oembed_api_url(video_page_url)
+
+    case SharedHttpClient.fetch_url_with_cookies(oembed_url, [{"Accept", "application/json"}]) do
+      {:ok, %Req.Response{status: 200, body: body}} ->
+        with {:ok, oembed_map} <- ensure_map_body(body),
+             {:ok, embed_url} <- map_ok(RumbleOembed.embed_src(oembed_map)) do
+          Cachex.put(:rumble_cache, cache_key, embed_url, ttl: :timer.hours(24))
+          redirect(conn, external: embed_url)
+        else
+          _ ->
+            Cachex.put(:rumble_cache, cache_key, :not_found, ttl: :timer.hours(1))
+
+            conn
+            |> put_status(:not_found)
+            |> text("Embed URL not found via oEmbed")
+        end
+
+      {:ok, %Req.Response{status: status}} ->
+        Logger.error("Rumble(oEmbed): HTTP request failed with status: #{status}")
+        Cachex.put(:rumble_cache, cache_key, :http_error, ttl: :timer.minutes(30))
+
+        conn
+        |> put_status(:bad_request)
+        |> text("HTTP request failed with status: #{status}")
+
+      {:error, reason} ->
+        Logger.error("Rumble(oEmbed): Failed to fetch oEmbed URL: #{inspect(reason)}")
+        Cachex.put(:rumble_cache, cache_key, :fetch_error, ttl: :timer.minutes(30))
+
+        conn
+        |> put_status(:bad_request)
+        |> text("Failed to fetch URL: #{inspect(reason)}")
+    end
+  end
+
+  defp fetch_and_cache_oembed_thumbnail(conn, video_page_url, cache_key) do
+    oembed_url = RumbleOembed.oembed_api_url(video_page_url)
+
+    case SharedHttpClient.fetch_url_with_cookies(oembed_url, [{"Accept", "application/json"}]) do
+      {:ok, %Req.Response{status: 200, body: body}} ->
+        with {:ok, oembed_map} <- ensure_map_body(body),
+             {:ok, thumbnail_url} <- map_ok(RumbleOembed.thumbnail_url(oembed_map)) do
+          Cachex.put(:rumble_cache, cache_key, thumbnail_url, ttl: :timer.hours(24))
+          redirect(conn, external: thumbnail_url)
+        else
+          _ ->
+            Cachex.put(:rumble_cache, cache_key, :not_found, ttl: :timer.hours(1))
+
+            conn
+            |> put_status(:not_found)
+            |> text("Thumbnail URL not found via oEmbed")
+        end
+
+      {:ok, %Req.Response{status: status}} ->
+        Logger.error("Rumble(oEmbed): HTTP request failed with status: #{status}")
+        Cachex.put(:rumble_cache, cache_key, :http_error, ttl: :timer.minutes(30))
+
+        conn
+        |> put_status(:bad_request)
+        |> text("HTTP request failed with status: #{status}")
+
+      {:error, reason} ->
+        Logger.error("Rumble(oEmbed): Failed to fetch oEmbed URL: #{inspect(reason)}")
+        Cachex.put(:rumble_cache, cache_key, :fetch_error, ttl: :timer.minutes(30))
+
+        conn
+        |> put_status(:bad_request)
+        |> text("Failed to fetch URL: #{inspect(reason)}")
+    end
+  end
+
+  defp ensure_map_body(body) when is_map(body), do: {:ok, body}
+
+  defp ensure_map_body(body) when is_binary(body) do
+    case Jason.decode(body) do
+      {:ok, decoded} when is_map(decoded) -> {:ok, decoded}
+      _ -> :error
+    end
+  end
+
+  defp ensure_map_body(_), do: :error
+
+  defp map_ok({:ok, val}) when is_binary(val), do: {:ok, val}
+  defp map_ok(_), do: :error
 
   defp fetch_and_cache_embed_url(conn, url) do
     # Use the shared HTTP client
