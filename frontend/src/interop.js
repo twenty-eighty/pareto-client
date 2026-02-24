@@ -104,6 +104,7 @@ export const onReady = ({ app, env }) => {
     newScript.src = "/js/nostr-login.js";
     newScript.setAttribute("data-title", titleAndDescription.title);
     newScript.setAttribute("data-description", titleAndDescription.description);
+    newScript.setAttribute("data-bunkers", 'highlighter.com');
     newScript.setAttribute("data-signup-relays", relays);
     newScript.setAttribute("data-outbox-relays", relays);
     newScript.setAttribute("data-signup-nstart", "true");
