@@ -207,7 +207,6 @@ recommendedOutboxRelays : List RelayUrl
 recommendedOutboxRelays =
     [ "relay.damus.io"
     , "nos.lol"
-    , "offchain.pub"
     , "nostr.wine"
     ]
 
