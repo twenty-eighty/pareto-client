@@ -124,10 +124,14 @@ defmodule NostrBackendWeb.Router do
     get "/rumble/embed", RumbleController, :fetch_embed_url
     get "/rumble/oembed/embed", RumbleController, :fetch_embed_url_oembed
     get "/rumble/oembed/thumbnail", RumbleController, :fetch_thumbnail_url_oembed
+    get "/admin/relay-health", RelayHealthController, :index
   end
 
   scope "/", NostrBackendWeb do
     pipe_through([:browser])
+
+    get("/admin/relay-health", RelayHealthController, :page)
+    get("/admin/relay-health/info", RelayHealthController, :show)
 
     # Google site verification
     get "/:filename", StaticFileController, :serve_generic_html
