@@ -42,10 +42,8 @@ const defaultRelays =
   ["wss://nostr.pareto.space"
     , "wss://nostr.pareto.town"
     , "wss://pareto.nostr1.com"
-//  , "wss://relay.nostr.band"
     , "wss://relay.damus.io"
     , "wss://nos.lol"
-    , "wss://offchain.pub"
     , "wss://nostr.wine"
   ];
 
@@ -106,6 +104,7 @@ export const onReady = ({ app, env }) => {
     newScript.src = "/js/nostr-login.js";
     newScript.setAttribute("data-title", titleAndDescription.title);
     newScript.setAttribute("data-description", titleAndDescription.description);
+    newScript.setAttribute("data-methods", 'extension,readOnly,local');
     newScript.setAttribute("data-signup-relays", relays);
     newScript.setAttribute("data-outbox-relays", relays);
     newScript.setAttribute("data-signup-nstart", "true");
