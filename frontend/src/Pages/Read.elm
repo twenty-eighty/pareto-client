@@ -27,8 +27,8 @@ import Route.Path
 import Shared
 import Shared.Model
 import Shared.Msg
-import Tailwind.Utilities as Tw
 import Tailwind.Theme exposing (Color)
+import Tailwind.Utilities as Tw
 import Translations.Read
 import Translations.Sidebar
 import Ui.ShortNote as ShortNote exposing (ShortNotesViewData)
@@ -51,17 +51,17 @@ toLayout : Shared.Model -> Model -> Layouts.Layout Msg
 toLayout shared model =
     let
         topPart =
-          Categories.new
-            { model = model.categories
-            , toMsg = CategoriesSent
-            , onSelect = CategorySelected
-            , equals = \category1 category2 -> category1 == category2
-            , image = categoryImage
-            , categories = availableCategories shared.nostr shared.loginStatus shared.browserEnv.translations
-            , browserEnv = shared.browserEnv
-            , theme = shared.theme
-            }
-            |> Categories.view
+            Categories.new
+                { model = model.categories
+                , toMsg = CategoriesSent
+                , onSelect = CategorySelected
+                , equals = \category1 category2 -> category1 == category2
+                , image = categoryImage
+                , categories = availableCategories shared.nostr shared.loginStatus shared.browserEnv.translations
+                , browserEnv = shared.browserEnv
+                , theme = shared.theme
+                }
+                |> Categories.view
     in
     Layouts.Sidebar.new
         { theme = shared.theme
@@ -177,6 +177,14 @@ init shared route () =
 
             else
                 Effect.none
+
+        restoreScrollEffect =
+            if shared.readPageScrollPosition > 0 then
+                Ports.restoreScrollPosition shared.readPageScrollPosition
+                    |> Effect.sendCmd
+
+            else
+                Effect.none
     in
     ( { categories = Categories.init { selected = correctedCategory }
       , path = route.path
@@ -186,6 +194,7 @@ init shared route () =
         [ changeCategoryEffect
         , requestArticlesEffect shared correctedCategory False
         , signUpEffect
+        , restoreScrollEffect
         ]
     )
 
@@ -199,7 +208,9 @@ type Msg
     | CategoriesSent (Categories.Msg Category Msg)
     | BookmarkButtonMsg EventId BookmarkButton.Msg
     | LoadMoreArticles
+    | ScrollCaptured Float
     | NoOp
+
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
@@ -229,6 +240,12 @@ update shared msg model =
         LoadMoreArticles ->
             ( model, requestArticlesEffect shared (Categories.selected model.categories) True )
 
+        ScrollCaptured scrollPosition ->
+            ( model
+            , Shared.Msg.SetReadPageScrollPosition scrollPosition
+                |> Effect.sendSharedMsg
+            )
+
         NoOp ->
             ( model, Effect.none )
 
@@ -242,14 +259,13 @@ updateModelWithCategory shared model category =
         ]
     )
 
+
 requestArticlesEffect : Shared.Model -> Category -> Bool -> Effect Msg
 requestArticlesEffect shared category loadMore =
     RequestArticlesFeed loadMore [ filterForCategory shared category ]
-            |> Nostr.createRequest shared.nostr "Long-form articles" [ KindUserMetadata, KindEventDeletionRequest ]
-            |> Shared.Msg.RequestNostrEvents
-            |> Effect.sendSharedMsg
-
-
+        |> Nostr.createRequest shared.nostr "Long-form articles" [ KindUserMetadata, KindEventDeletionRequest ]
+        |> Shared.Msg.RequestNostrEvents
+        |> Effect.sendSharedMsg
 
 
 filterForCategory : Shared.Model -> Category -> EventFilter
@@ -329,10 +345,18 @@ userFollowsList nostr loginStatus =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    model.bookmarkButtons
-    |> Dict.toList
-    |> List.map (\(eventId, bookmarkButton) -> BookmarkButton.subscriptions bookmarkButton |> Sub.map (BookmarkButtonMsg eventId))
-    |> Sub.batch
+    let
+        bookmarkButtonsSubs =
+            model.bookmarkButtons
+                |> Dict.toList
+                |> List.map (\( eventId, bookmarkButton ) -> BookmarkButton.subscriptions bookmarkButton |> Sub.map (BookmarkButtonMsg eventId))
+                |> Sub.batch
+
+        scrollSub =
+            Ports.receiveScrollPosition ScrollCaptured
+    in
+    Sub.batch [ bookmarkButtonsSubs, scrollSub ]
+
 
 
 -- VIEW
