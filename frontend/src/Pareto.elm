@@ -257,6 +257,7 @@ defaultRelayUrls =
 bootstrapAuthorsList : Dict String PubKey
 bootstrapAuthorsList =
     [ ( "_@pareto.space", "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84" )
+    , ( "1bis19@pareto.town", "df32e891bfcbe0aed4518b21466c1807ea68394fe4f1fcd8c826a3ca1ed0b7e7" )
     , ( "1millionstimmen@pareto.town", "dfff06f24536cded1e33d5d5473d011553dc80d13f55f25c195c6dcc186c221b" )
     , ( "andreaspanaceha@pareto.town", "ec3caec1f7fbd096d022e162c89d8e878d072644ab708d352a17430491d41c08" )
     , ( "arottmann@grooveix.com", "a95c624384c60902aaac9de52ab0fce39a9e8daa3d2b14236573a093d345522c" )
@@ -338,7 +339,6 @@ bootstrapAuthorsList =
     , ( "womanbynature@pareto.town", "fbb0eb9dec0e6f31f1a677d1eca902a5deb405af8fe0e50ac61c73dcbdb78256" )
     , ( "worteimfluss@pareto.town", "f29724712fed4a85e3b34d23a24e90f8586fba79f93ab0c6dbc2a5e8067b7e16" )
 
-    -- , ( "1bis19@pareto.town", "df32e891bfcbe0aed4518b21466c1807ea68394fe4f1fcd8c826a3ca1ed0b7e7" )
     -- , ( "alix@pareto.town", "c93ea055634fb683be4202dd04e336663fb7823c5f1c35ad26b522a3eed5ac4c" )
     -- , ( "nachhall@pareto.town", "712db8c83700aca0ffa1c3b759929e18d26fcc2b6eeb07305bdf33760b42cbce" )
     -- , ( "schwurbeloase@pareto.town", "6bba4af1d6fe611658705e949c3e921836592f1a11e03d4d13771dfe5ff587e1" )
