@@ -23,6 +23,7 @@ type alias Model =
     , role : ClientRole
     , theme : Theme
     , alertTimerMessage : AlertTimerMessage.Model
+    , readPageScrollPosition : Float
     }
 
 
