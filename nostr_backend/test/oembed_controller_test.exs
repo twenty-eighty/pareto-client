@@ -14,7 +14,10 @@ defmodule NostrBackend.OembedControllerTest do
       conn = put_req_header(conn, "origin", "https://pareto.space")
 
       # Test with a valid URL format but invalid domain
-      result = OembedController.fetch_oembed(conn, %{"url" => "https://nonexistent-domain-12345.com/oembed"})
+      result =
+        OembedController.fetch_oembed(conn, %{
+          "url" => "https://nonexistent-domain-12345.com/oembed"
+        })
 
       # Should return an error (either HTTP error or timeout)
       assert result.status == 400
@@ -31,13 +34,22 @@ defmodule NostrBackend.OembedControllerTest do
       # Test that cache provides consistent results across multiple calls
 
       # First call
-      result1 = OembedController.fetch_oembed(conn, %{"url" => "https://nonexistent-domain-12345.com/oembed"})
+      result1 =
+        OembedController.fetch_oembed(conn, %{
+          "url" => "https://nonexistent-domain-12345.com/oembed"
+        })
 
       # Second call
-      result2 = OembedController.fetch_oembed(conn, %{"url" => "https://nonexistent-domain-12345.com/oembed"})
+      result2 =
+        OembedController.fetch_oembed(conn, %{
+          "url" => "https://nonexistent-domain-12345.com/oembed"
+        })
 
       # Third call
-      result3 = OembedController.fetch_oembed(conn, %{"url" => "https://nonexistent-domain-12345.com/oembed"})
+      result3 =
+        OembedController.fetch_oembed(conn, %{
+          "url" => "https://nonexistent-domain-12345.com/oembed"
+        })
 
       # All results should have the same status
       assert result1.status == result2.status
@@ -50,7 +62,8 @@ defmodule NostrBackend.OembedControllerTest do
       conn = put_req_header(conn, "origin", "https://pareto.space")
 
       # Test with a valid URL format that will fail during HTTP request
-      result = OembedController.fetch_oembed(conn, %{"url" => "https://invalid-url-format.com/oembed"})
+      result =
+        OembedController.fetch_oembed(conn, %{"url" => "https://invalid-url-format.com/oembed"})
 
       # Should return an error
       assert result.status == 400

@@ -45,7 +45,10 @@ defmodule NostrBackend.NaddrFormatTest do
       {:ok, decoded_kind, decoded_pubkey, decoded_identifier, _decoded_relays} ->
         # Basic structural validation if decode works
         assert decoded_kind == kind, "Decoded kind should match original"
-        assert String.downcase(decoded_pubkey) == String.downcase(pubkey), "Decoded pubkey should match original"
+
+        assert String.downcase(decoded_pubkey) == String.downcase(pubkey),
+               "Decoded pubkey should match original"
+
         assert decoded_identifier == identifier, "Decoded identifier should match original"
 
       {:error, _reason} ->
@@ -59,12 +62,14 @@ defmodule NostrBackend.NaddrFormatTest do
   # Helper to validate with nak
   defp validate_with_nak(naddr, kind, pubkey, identifier) do
     nak_path = System.find_executable("nak")
+
     if nak_path != nil do
       try do
         # We'll use a task with a timeout to avoid hanging the test
-        task = Task.async(fn ->
-          System.cmd(nak_path, ["decode", naddr], stderr_to_stdout: true)
-        end)
+        task =
+          Task.async(fn ->
+            System.cmd(nak_path, ["decode", naddr], stderr_to_stdout: true)
+          end)
 
         case Task.yield(task, 2000) || Task.shutdown(task) do
           {:ok, {output, 0}} ->
@@ -80,6 +85,7 @@ defmodule NostrBackend.NaddrFormatTest do
             IO.puts("- Contains identifier: #{id_match}")
 
             kind_match and pubkey_match and id_match
+
           _ ->
             IO.puts("Nak validation failed, using native decode for validation")
             false

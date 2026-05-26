@@ -1,0 +1,50 @@
+{
+  "imageBlock": {
+    "inlineUploadButton": "Selecionar arquivo",
+    "inlineUploadPlaceholderText": "ou cole o link da imagem ...",
+    "inlineConfirmButton": "Confirmar",
+    "blockUploadButton": "Selecionar arquivo",
+    "blockUploadPlaceholderText": "ou cole o link da imagem ...",
+    "blockCaptionPlaceholderText": "Legenda da imagem",
+    "blockConfirmButton": "Confirmar"
+  },
+  "blockEdit": {
+    "textGroup": {
+      "label": "Texto",
+      "text": { "label": "Parágrafo" },
+      "h1": { "label": "Título 1" },
+      "h2": { "label": "Título 2" },
+      "h3": { "label": "Título 3" },
+      "h4": { "label": "Título 4" },
+      "h5": { "label": "Título 5" },
+      "h6": { "label": "Título 6" },
+      "quote": { "label": "Citação" },
+      "divider": { "label": "Divisor" }
+    },
+    "listGroup": {
+      "label": "Listas",
+      "bulletList": { "label": "Lista com marcadores" },
+      "orderedList": { "label": "Lista numerada" },
+      "taskList": { "label": "Lista de tarefas" }
+    },
+    "advancedGroup": {
+      "label": "Avançado",
+      "image": { "label": "Imagem" },
+      "codeBlock": { "label": "Código" },
+      "table": { "label": "Tabela" },
+      "math": { "label": "Matemática" }
+    }
+  },
+  "placeholder": "Digite...",
+  "toolbar": {
+    "paragraph": "Parágrafo",
+    "heading1": "Título 1",
+    "heading2": "Título 2",
+    "heading3": "Título 3",
+    "quote": "Citação",
+    "bulletList": "Lista com marcadores",
+    "orderedList": "Lista numerada",
+    "codeBlock": "Código"
+  }
+}
+

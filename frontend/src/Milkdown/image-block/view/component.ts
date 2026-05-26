@@ -36,9 +36,23 @@ export const imageComponent: Component<ImageComponentProps> = ({
   const linkInput = useRef<HTMLInputElement>()
   const [showCaption, setShowCaption] = useState(caption.length > 0)
   const [hidePlaceholder, setHidePlaceholder] = useState(src.length !== 0)
-  const [uuid] = useState(crypto.randomUUID())
   const [focusLinkInput, setFocusLinkInput] = useState(false)
   const [currentLink, setCurrentLink] = useState(src)
+  const [isDraggingOver, setIsDraggingOver] = useState(false)
+  const dragCounter = useRef(0)
+
+  const handleDrop = (file?: File) => {
+    setIsDraggingOver(false)
+    if (!file || readonly)
+      return
+
+    void config?.onUpload(file).then((url) => {
+      if (!url)
+        return
+      setAttr?.('src', url)
+      setHidePlaceholder(true)
+    })
+  }
 
   useBlockEffect({
     image,
@@ -84,19 +98,6 @@ export const imageComponent: Component<ImageComponentProps> = ({
     setCurrentLink(value)
   }
 
-  const onUpload = async (e: InputEvent) => {
-    const file = (e.target as HTMLInputElement).files?.[0]
-    if (!file)
-      return
-
-    const url = await config?.onUpload(file)
-    if (!url)
-      return
-
-    setAttr?.('src', url)
-    setHidePlaceholder(true)
-  }
-
   const onToggleCaption = (e: Event) => {
     e.preventDefault()
     e.stopPropagation()
@@ -128,15 +129,49 @@ export const imageComponent: Component<ImageComponentProps> = ({
       return
 
     setAttr?.('src', imageData.url)
-    setAttr?.('caption', imageData.caption)
-    setAttr?.('alt', imageData.alt)
+    if (imageData.caption)
+      setAttr?.('caption', imageData.caption)
+    if (imageData.alt)
+      setAttr?.('alt', imageData.alt)
     setHidePlaceholder(true)
   }
 
-  return html`<host class=${clsx(selected && 'selected')}>
+  const onDragEnter = (e: DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounter.current += 1
+    if (!readonly)
+      setIsDraggingOver(true)
+  }
+
+  const onDragLeave = (e: DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounter.current -= 1
+    if (dragCounter.current === 0)
+      setIsDraggingOver(false)
+  }
+
+  const onDragOver = (e: DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const onDrop = (e: DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounter.current = 0
+    setIsDraggingOver(false)
+    if (readonly)
+      return
+    const file = e.dataTransfer?.files?.[0]
+    handleDrop(file)
+  }
+
+  return html`<host class=${clsx('milkdown-image-block', selected && 'selected')}>
     <div class=${clsx('image-edit', src.length > 0 && 'hidden')}>
       <div class="image-icon">
-        ${config?.imageIcon()}
+        ${config?.imageIcon ? config.imageIcon() : '🌌'}
       </div>
       <div class=${clsx('link-importer', focusLinkInput && 'focus')}>
         <input
@@ -152,9 +187,8 @@ export const imageComponent: Component<ImageComponentProps> = ({
           onblur=${() => setFocusLinkInput(false)}
         />
         <div class=${clsx('placeholder', hidePlaceholder && 'hidden')}>
-          <!--<input disabled=${readonly} class="hidden" id=${uuid} type="file" accept="image/*" onchange=${onUpload} /> -->
-          <label onpointerdown=${onClickUploader} class="uploader" for=${uuid}>
-            ${config?.uploadButton()}
+          <label onpointerdown=${onClickUploader} class="uploader">
+            ${config?.uploadButton ? config.uploadButton() : 'Select file'}
           </label>
           <span class="text" onclick=${() => linkInput.current?.focus()}>
             ${config?.uploadPlaceholderText}
@@ -165,15 +199,23 @@ export const imageComponent: Component<ImageComponentProps> = ({
         class=${clsx('confirm', currentLink.length === 0 && 'hidden')}
         onclick=${() => onConfirmLinkInput()}
       >
-        ${config?.confirmButton()}
+        ${config?.confirmButton ? config.confirmButton() : 'Confirm ⏎'}
       </div>
     </div>
-    <div class=${clsx('image-wrapper', src.length === 0 && 'hidden')}>
+    <div class=${clsx('image-wrapper', src.length === 0 && 'hidden')} draggable="false">
       <div class="operation">
-        <div class="operation-item" onpointerdown=${onToggleCaption}>${config?.captionIcon()}</div>
+        <div class="operation-item" onpointerdown=${onToggleCaption}>${config?.captionIcon ? config.captionIcon() : '💬'}</div>
       </div>
-      <img ref=${image} data-type=${IMAGE_DATA_TYPE} src=${src} alt=${caption} ratio=${ratio} />
-      <div ref=${resizeHandle} class="image-resize-handle"></div>
+      <div
+        class=${clsx('image-area', isDraggingOver && 'dragover')}
+        ondragenter=${onDragEnter}
+        ondragleave=${onDragLeave}
+        ondragover=${onDragOver}
+        ondrop=${onDrop}
+      >
+        <img ref=${image} data-type=${IMAGE_DATA_TYPE} src=${src} alt=${caption} ratio=${ratio} />
+        <div ref=${resizeHandle} class="image-resize-handle"></div>
+      </div>
     </div>
     <input
       draggable="true"

@@ -56,7 +56,7 @@ toMonthNameGerman month =
             "November"
 
         Dec ->
-            "December"
+            "Dezember"
 
 
 toMonthAbbreviationGerman : Month -> String
@@ -96,7 +96,7 @@ toMonthAbbreviationGerman month =
             "Nov"
 
         Dec ->
-            "Dec"
+            "Dez"
 
 
 toWeekdayNameGerman : Weekday -> String

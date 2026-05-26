@@ -5,6 +5,7 @@ defmodule NostrBackendWeb.RumbleController do
   alias Req
   alias Floki
   alias NostrBackendWeb.SharedHttpClient
+  alias NostrBackend.RumbleOembed
 
   def fetch_embed_url(conn, %{"url" => url}) do
     Logger.debug("Rumble: Fetching embed URL for: #{url}")
@@ -23,6 +24,7 @@ defmodule NostrBackendWeb.RumbleController do
       {:ok, :not_found} ->
         # Serve cached not found result
         Logger.debug("Rumble: Serving cached not found result")
+
         conn
         |> put_status(:not_found)
         |> text("Embed URL not found in the provided page")
@@ -30,6 +32,7 @@ defmodule NostrBackendWeb.RumbleController do
       {:ok, :http_error} ->
         # Serve cached HTTP error result
         Logger.debug("Rumble: Serving cached HTTP error result")
+
         conn
         |> put_status(:bad_request)
         |> text("HTTP request failed")
@@ -37,23 +40,188 @@ defmodule NostrBackendWeb.RumbleController do
       {:ok, :fetch_error} ->
         # Serve cached fetch error result
         Logger.debug("Rumble: Serving cached fetch error result")
+
         conn
         |> put_status(:bad_request)
         |> text("Failed to fetch URL")
 
       {:error, reason} ->
         Logger.error("Rumble: Cache error: #{inspect(reason)}")
+
         conn
         |> put_status(:internal_server_error)
         |> text("Cache error: #{inspect(reason)}")
     end
   end
 
+  # New (more reliable) variant using Rumble's oEmbed API:
+  # https://rumble.com/api/Media/oembed.json?url=<video_page_url>
+  def fetch_embed_url_oembed(conn, %{"url" => url}) do
+    Logger.debug("Rumble(oEmbed): Fetching embed URL for: #{url}")
+
+    cache_key = {:oembed_embed, url}
+
+    case Cachex.get(:rumble_cache, cache_key) do
+      {:ok, nil} ->
+        fetch_and_cache_oembed_embed(conn, url, cache_key)
+
+      {:ok, cached_embed_url} when is_binary(cached_embed_url) ->
+        Logger.debug("Rumble(oEmbed): Serving cached embed URL: #{cached_embed_url}")
+        redirect(conn, external: cached_embed_url)
+
+      {:ok, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> text("Embed URL not found via oEmbed")
+
+      {:ok, :http_error} ->
+        conn
+        |> put_status(:bad_request)
+        |> text("HTTP request failed")
+
+      {:ok, :fetch_error} ->
+        conn
+        |> put_status(:bad_request)
+        |> text("Failed to fetch URL")
+
+      {:error, reason} ->
+        Logger.error("Rumble(oEmbed): Cache error: #{inspect(reason)}")
+
+        conn
+        |> put_status(:internal_server_error)
+        |> text("Cache error: #{inspect(reason)}")
+    end
+  end
+
+  def fetch_thumbnail_url_oembed(conn, %{"url" => url}) do
+    Logger.debug("Rumble(oEmbed): Fetching thumbnail URL for: #{url}")
+
+    cache_key = {:oembed_thumbnail, url}
+
+    case Cachex.get(:rumble_cache, cache_key) do
+      {:ok, nil} ->
+        fetch_and_cache_oembed_thumbnail(conn, url, cache_key)
+
+      {:ok, cached_thumbnail_url} when is_binary(cached_thumbnail_url) ->
+        Logger.debug("Rumble(oEmbed): Serving cached thumbnail URL: #{cached_thumbnail_url}")
+        redirect(conn, external: cached_thumbnail_url)
+
+      {:ok, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> text("Thumbnail URL not found via oEmbed")
+
+      {:ok, :http_error} ->
+        conn
+        |> put_status(:bad_request)
+        |> text("HTTP request failed")
+
+      {:ok, :fetch_error} ->
+        conn
+        |> put_status(:bad_request)
+        |> text("Failed to fetch URL")
+
+      {:error, reason} ->
+        Logger.error("Rumble(oEmbed): Cache error: #{inspect(reason)}")
+
+        conn
+        |> put_status(:internal_server_error)
+        |> text("Cache error: #{inspect(reason)}")
+    end
+  end
+
+  defp fetch_and_cache_oembed_embed(conn, video_page_url, cache_key) do
+    oembed_url = RumbleOembed.oembed_api_url(video_page_url)
+
+    case SharedHttpClient.fetch_url_with_cookies(oembed_url, [{"Accept", "application/json"}]) do
+      {:ok, %Req.Response{status: 200, body: body}} ->
+        with {:ok, oembed_map} <- ensure_map_body(body),
+             {:ok, embed_url} <- map_ok(RumbleOembed.embed_src(oembed_map)) do
+          Cachex.put(:rumble_cache, cache_key, embed_url, ttl: :timer.hours(24))
+          redirect(conn, external: embed_url)
+        else
+          _ ->
+            Cachex.put(:rumble_cache, cache_key, :not_found, ttl: :timer.hours(1))
+
+            conn
+            |> put_status(:not_found)
+            |> text("Embed URL not found via oEmbed")
+        end
+
+      {:ok, %Req.Response{status: status}} ->
+        Logger.error("Rumble(oEmbed): HTTP request failed with status: #{status}")
+        Cachex.put(:rumble_cache, cache_key, :http_error, ttl: :timer.minutes(30))
+
+        conn
+        |> put_status(:bad_request)
+        |> text("HTTP request failed with status: #{status}")
+
+      {:error, reason} ->
+        Logger.error("Rumble(oEmbed): Failed to fetch oEmbed URL: #{inspect(reason)}")
+        Cachex.put(:rumble_cache, cache_key, :fetch_error, ttl: :timer.minutes(30))
+
+        conn
+        |> put_status(:bad_request)
+        |> text("Failed to fetch URL: #{inspect(reason)}")
+    end
+  end
+
+  defp fetch_and_cache_oembed_thumbnail(conn, video_page_url, cache_key) do
+    oembed_url = RumbleOembed.oembed_api_url(video_page_url)
+
+    case SharedHttpClient.fetch_url_with_cookies(oembed_url, [{"Accept", "application/json"}]) do
+      {:ok, %Req.Response{status: 200, body: body}} ->
+        with {:ok, oembed_map} <- ensure_map_body(body),
+             {:ok, thumbnail_url} <- map_ok(RumbleOembed.thumbnail_url(oembed_map)) do
+          Cachex.put(:rumble_cache, cache_key, thumbnail_url, ttl: :timer.hours(24))
+          redirect(conn, external: thumbnail_url)
+        else
+          _ ->
+            Cachex.put(:rumble_cache, cache_key, :not_found, ttl: :timer.hours(1))
+
+            conn
+            |> put_status(:not_found)
+            |> text("Thumbnail URL not found via oEmbed")
+        end
+
+      {:ok, %Req.Response{status: status}} ->
+        Logger.error("Rumble(oEmbed): HTTP request failed with status: #{status}")
+        Cachex.put(:rumble_cache, cache_key, :http_error, ttl: :timer.minutes(30))
+
+        conn
+        |> put_status(:bad_request)
+        |> text("HTTP request failed with status: #{status}")
+
+      {:error, reason} ->
+        Logger.error("Rumble(oEmbed): Failed to fetch oEmbed URL: #{inspect(reason)}")
+        Cachex.put(:rumble_cache, cache_key, :fetch_error, ttl: :timer.minutes(30))
+
+        conn
+        |> put_status(:bad_request)
+        |> text("Failed to fetch URL: #{inspect(reason)}")
+    end
+  end
+
+  defp ensure_map_body(body) when is_map(body), do: {:ok, body}
+
+  defp ensure_map_body(body) when is_binary(body) do
+    case Jason.decode(body) do
+      {:ok, decoded} when is_map(decoded) -> {:ok, decoded}
+      _ -> :error
+    end
+  end
+
+  defp ensure_map_body(_), do: :error
+
+  defp map_ok({:ok, val}) when is_binary(val), do: {:ok, val}
+  defp map_ok(_), do: :error
+
   defp fetch_and_cache_embed_url(conn, url) do
     # Use the shared HTTP client
     case SharedHttpClient.fetch_url_with_cookies(url) do
       {:ok, %Req.Response{body: body, status: 200}} ->
         Logger.debug("Rumble: Received HTML for: #{url}")
+
         case extract_embed_url(body) do
           {:ok, embed_url} ->
             Logger.debug("Rumble: Extracted embed URL: #{embed_url}")
@@ -65,6 +233,7 @@ defmodule NostrBackendWeb.RumbleController do
             Logger.error("Rumble: Failed to extract embed URL from HTML")
             # Cache extraction failures for 1 hour
             Cachex.put(:rumble_cache, url, :not_found, ttl: :timer.hours(1))
+
             conn
             |> put_status(:not_found)
             |> text("Embed URL not found in the provided page")
@@ -74,6 +243,7 @@ defmodule NostrBackendWeb.RumbleController do
         Logger.error("Rumble: HTTP request failed with status: #{status}")
         # Cache HTTP errors for 30 minutes
         Cachex.put(:rumble_cache, url, :http_error, ttl: :timer.minutes(30))
+
         conn
         |> put_status(:bad_request)
         |> text("HTTP request failed with status: #{status}")
@@ -82,6 +252,7 @@ defmodule NostrBackendWeb.RumbleController do
         Logger.error("Rumble: Failed to fetch URL: #{inspect(reason)}")
         # Cache fetch errors for 30 minutes
         Cachex.put(:rumble_cache, url, :fetch_error, ttl: :timer.minutes(30))
+
         conn
         |> put_status(:bad_request)
         |> text("Failed to fetch URL: #{inspect(reason)}")
@@ -112,9 +283,10 @@ defmodule NostrBackendWeb.RumbleController do
   end
 
   defp extract_from_oembed_links(parsed_html) do
-    oembed_links = parsed_html
-    |> Floki.find("link[rel='alternate'][type='application/json+oembed']")
-    |> Floki.attribute("href")
+    oembed_links =
+      parsed_html
+      |> Floki.find("link[rel='alternate'][type='application/json+oembed']")
+      |> Floki.attribute("href")
 
     Logger.debug("Found oEmbed links: #{inspect(oembed_links)}")
 
@@ -122,11 +294,13 @@ defmodule NostrBackendWeb.RumbleController do
       nil ->
         Logger.debug("No oEmbed links found, trying next method")
         :error
+
       oembed_url ->
         case extract_url_from_oembed(oembed_url) do
           {:ok, embed_url} ->
             Logger.debug("Extracted embed URL from oEmbed: #{embed_url}")
             {:ok, embed_url}
+
           :error ->
             Logger.debug("Failed to extract from oEmbed, trying next method")
             :error
@@ -142,6 +316,7 @@ defmodule NostrBackendWeb.RumbleController do
       nil ->
         Logger.debug("No JSON-LD embed URLs found, trying next method")
         :error
+
       embed_url ->
         Logger.debug("Using embed URL from JSON-LD: #{embed_url}")
         {:ok, embed_url}
@@ -149,10 +324,11 @@ defmodule NostrBackendWeb.RumbleController do
   end
 
   defp extract_from_iframe_sources(parsed_html) do
-    iframe_srcs = parsed_html
-    |> Floki.find("iframe")
-    |> Floki.attribute("src")
-    |> Enum.filter(&String.contains?(&1, "rumble.com/embed"))
+    iframe_srcs =
+      parsed_html
+      |> Floki.find("iframe")
+      |> Floki.attribute("src")
+      |> Enum.filter(&String.contains?(&1, "rumble.com/embed"))
 
     Logger.debug("Found iframe embed URLs: #{inspect(iframe_srcs)}")
 
@@ -160,6 +336,7 @@ defmodule NostrBackendWeb.RumbleController do
       nil ->
         Logger.debug("No iframe embed URLs found, trying next method")
         :error
+
       embed_url ->
         Logger.debug("Using iframe embed URL: #{embed_url}")
         {:ok, embed_url}
@@ -167,9 +344,12 @@ defmodule NostrBackendWeb.RumbleController do
   end
 
   defp extract_from_meta_tags(parsed_html) do
-    video_meta_tags = parsed_html
-    |> Floki.find("meta[property='og:video'], meta[property='og:video:url'], meta[name='twitter:player']")
-    |> Floki.attribute("content")
+    video_meta_tags =
+      parsed_html
+      |> Floki.find(
+        "meta[property='og:video'], meta[property='og:video:url'], meta[name='twitter:player']"
+      )
+      |> Floki.attribute("content")
 
     Logger.debug("Found video meta tags: #{inspect(video_meta_tags)}")
 
@@ -177,6 +357,7 @@ defmodule NostrBackendWeb.RumbleController do
       nil ->
         Logger.debug("No video meta tags found, trying next method")
         :error
+
       embed_url ->
         Logger.debug("Using video meta tag URL: #{embed_url}")
         {:ok, embed_url}
@@ -185,9 +366,11 @@ defmodule NostrBackendWeb.RumbleController do
 
   defp extract_from_regex_search(parsed_html) do
     all_text = Floki.raw_html(parsed_html)
-    embed_urls = Regex.scan(~r/https?:\/\/[^"\s]*\/embed\/[^"\s]*/, all_text)
-    |> Enum.map(&List.first/1)
-    |> Enum.uniq()
+
+    embed_urls =
+      Regex.scan(~r/https?:\/\/[^"\s]*\/embed\/[^"\s]*/, all_text)
+      |> Enum.map(&List.first/1)
+      |> Enum.uniq()
 
     Logger.debug("Found embed URLs in HTML: #{inspect(embed_urls)}")
 
@@ -195,6 +378,7 @@ defmodule NostrBackendWeb.RumbleController do
       nil ->
         Logger.debug("No regex embed URLs found, trying next method")
         :error
+
       embed_url ->
         Logger.debug("Using regex-found embed URL: #{embed_url}")
         {:ok, embed_url}
@@ -203,8 +387,10 @@ defmodule NostrBackendWeb.RumbleController do
 
   defp extract_from_video_ids(parsed_html) do
     all_text = Floki.raw_html(parsed_html)
-    video_ids = Regex.scan(~r/"video[_-]?id":\s*"([^"]+)"/i, all_text)
-    |> Enum.map(&Enum.at(&1, 1))
+
+    video_ids =
+      Regex.scan(~r/"video[_-]?id":\s*"([^"]+)"/i, all_text)
+      |> Enum.map(&Enum.at(&1, 1))
 
     Logger.debug("Found video IDs: #{inspect(video_ids)}")
 
@@ -212,6 +398,7 @@ defmodule NostrBackendWeb.RumbleController do
       nil ->
         Logger.debug("No video IDs found, extraction failed")
         :error
+
       video_id ->
         embed_url = "https://rumble.com/embed/#{video_id}/"
         Logger.debug("Constructed embed URL from video ID: #{embed_url}")
@@ -223,81 +410,94 @@ defmodule NostrBackendWeb.RumbleController do
     case URI.parse(oembed_url) do
       %URI{query: query} when is_binary(query) ->
         query_params = URI.decode_query(query)
+
         case Map.get(query_params, "url") do
           nil -> :error
           embed_url -> {:ok, embed_url}
         end
-      _ -> :error
+
+      _ ->
+        :error
     end
   end
 
   defp extract_embed_urls_from_json_ld(parsed_html) do
-    json_ld_scripts = [
-      # Standard selector
-      parsed_html |> Floki.find("script[type='application/ld+json']"),
-      # Alternative with quotes
-      parsed_html |> Floki.find("script[type=\"application/ld+json\"]"),
-      # Case-insensitive approach - find all scripts and filter
-      parsed_html
-      |> Floki.find("script")
-      |> Enum.filter(fn script ->
-        type_attr = Floki.attribute(script, "type") |> List.first()
-        type_attr && String.downcase(type_attr) == "application/ld+json"
+    json_ld_scripts =
+      [
+        # Standard selector
+        parsed_html |> Floki.find("script[type='application/ld+json']"),
+        # Alternative with quotes
+        parsed_html |> Floki.find("script[type=\"application/ld+json\"]"),
+        # Case-insensitive approach - find all scripts and filter
+        parsed_html
+        |> Floki.find("script")
+        |> Enum.filter(fn script ->
+          type_attr = Floki.attribute(script, "type") |> List.first()
+          type_attr && String.downcase(type_attr) == "application/ld+json"
+        end)
+      ]
+      |> List.flatten()
+      |> Enum.uniq()
+      |> Enum.map(fn script ->
+        # Try multiple extraction methods
+        text_content = Floki.text(script)
+        raw_content = Floki.raw_html(script)
+
+        # Extract content between <script> tags using regex
+        regex_content =
+          case Regex.run(~r/<script[^>]*>(.*?)<\/script>/s, raw_content) do
+            [_, content] -> content
+            _ -> ""
+          end
+
+        # Use the first non-empty content
+        cond do
+          String.trim(text_content) != "" -> text_content
+          String.trim(regex_content) != "" -> regex_content
+          true -> ""
+        end
       end)
-    ]
-    |> List.flatten()
-    |> Enum.uniq()
-    |> Enum.map(fn script ->
-      # Try multiple extraction methods
-      text_content = Floki.text(script)
-      raw_content = Floki.raw_html(script)
-
-      # Extract content between <script> tags using regex
-      regex_content = case Regex.run(~r/<script[^>]*>(.*?)<\/script>/s, raw_content) do
-        [_, content] -> content
-        _ -> ""
-      end
-
-      # Use the first non-empty content
-      cond do
-        String.trim(text_content) != "" -> text_content
-        String.trim(regex_content) != "" -> regex_content
-        true -> ""
-      end
-    end)
-    |> Enum.filter(&(String.trim(&1) != ""))
+      |> Enum.filter(&(String.trim(&1) != ""))
 
     json_ld_scripts
     |> Enum.with_index()
     |> Enum.flat_map(fn {script_content, index} ->
-      Logger.debug("Processing JSON-LD script #{index}: #{String.slice(script_content, 0, 200)}...")
+      Logger.debug(
+        "Processing JSON-LD script #{index}: #{String.slice(script_content, 0, 200)}..."
+      )
 
       case Jason.decode(script_content) do
         {:ok, json_data} when is_list(json_data) ->
           Logger.debug("JSON-LD is a list with #{length(json_data)} items")
-          video_objects = json_data
-          |> Enum.filter(&(Map.get(&1, "@type") == "VideoObject"))
+
+          video_objects =
+            json_data
+            |> Enum.filter(&(Map.get(&1, "@type") == "VideoObject"))
 
           Logger.debug("Found #{length(video_objects)} VideoObject entries")
 
-          embed_urls = video_objects
-          |> Enum.map(fn obj ->
-            embed_url = Map.get(obj, "embedUrl")
-            Logger.debug("VideoObject embedUrl: #{inspect(embed_url)}")
-            embed_url
-          end)
-          |> Enum.filter(&is_binary/1)
+          embed_urls =
+            video_objects
+            |> Enum.map(fn obj ->
+              embed_url = Map.get(obj, "embedUrl")
+              Logger.debug("VideoObject embedUrl: #{inspect(embed_url)}")
+              embed_url
+            end)
+            |> Enum.filter(&is_binary/1)
 
           embed_urls
 
         {:ok, json_data} when is_map(json_data) ->
           Logger.debug("JSON-LD is a map with @type: #{inspect(Map.get(json_data, "@type"))}")
+
           case Map.get(json_data, "@type") do
             "VideoObject" ->
               embed_url = Map.get(json_data, "embedUrl")
               Logger.debug("Single VideoObject embedUrl: #{inspect(embed_url)}")
               [embed_url]
-            _ -> []
+
+            _ ->
+              []
           end
           |> Enum.filter(&is_binary/1)
 

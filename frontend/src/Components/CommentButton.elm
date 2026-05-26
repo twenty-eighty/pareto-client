@@ -188,6 +188,7 @@ view (Settings settings) =
         }
         |> InteractionButton.withLabel label
         |> InteractionButton.withOnClickAction clickAction
+        |> InteractionButton.withTestAttribute "comment-button"
         |> InteractionButton.view
         |> Html.map settings.toMsg
 

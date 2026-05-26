@@ -1,0 +1,1 @@
+https://github.com/lydell/virtual-dom/commit/e1fae6aabd65539db2c94a98220a45cfc624b633

@@ -138,21 +138,22 @@ defmodule NostrBackend.PostHogPlug do
   end
 
   defp ua_info(%UAInspector.Result{
-      user_agent: user_agent,
-      browser_family: browser_family,
-      client: %UAInspector.Result.Client{
+         user_agent: user_agent,
+         browser_family: browser_family,
+         client: %UAInspector.Result.Client{
            engine: client_engine,
            engine_version: client_engine_version,
            name: client_name,
            type: client_type,
            version: client_version
-        },
-      os: %UAInspector.Result.OS{
+         },
+         os: %UAInspector.Result.OS{
            name: os_name,
            platform: os_platform,
            version: os_version
-        },
-      os_family: os_family}) do
+         },
+         os_family: os_family
+       }) do
     %{
       client: %{
         engine: client_engine,
@@ -221,14 +222,13 @@ defmodule NostrBackend.PostHogPlug do
   # fallback case
   defp ua_info(_result) do
     %{
-    browser_family: "unknown",
-    engine_version: "unknown",
-    name: "unknown",
-    version: "unknown",
-    type: "unknown",
+      browser_family: "unknown",
+      engine_version: "unknown",
+      name: "unknown",
+      version: "unknown",
+      type: "unknown"
     }
   end
-
 
   defp extract_client_hints(conn) do
     Enum.reduce(@client_hint_headers, %{}, fn header, acc ->
@@ -239,35 +239,35 @@ defmodule NostrBackend.PostHogPlug do
     end)
   end
 
-  defp browser_from_ua_info(%{browser_family: browser_family}) do
-    browser_family
+  defp browser_from_ua_info(ua_info), do: Map.get(ua_info, :browser_family)
+
+  defp browser_version_from_ua_info(ua_info) do
+    case Map.get(ua_info, :client) do
+      %{} = client -> Map.get(client, :engine_version)
+      _ -> nil
+    end
   end
 
-  defp browser_from_ua_info(_), do: nil
-
-  defp browser_version_from_ua_info(%{client: %{engine_version: client_engine_version}}) do
-    client_engine_version
+  defp os_from_ua_info(ua_info) do
+    case Map.get(ua_info, :os) do
+      %{} = os -> Map.get(os, :name)
+      _ -> nil
+    end
   end
 
-  defp browser_version_from_ua_info(_), do: nil
-
-  defp os_from_ua_info(%{os: %{name: os_name}}) do
-    os_name
+  defp os_version_from_ua_info(ua_info) do
+    case Map.get(ua_info, :os) do
+      %{} = os -> Map.get(os, :version)
+      _ -> nil
+    end
   end
 
-  defp os_from_ua_info(_), do: nil
-
-  defp os_version_from_ua_info(%{os: %{version: os_version}}) do
-    os_version
+  defp device_type_from_ua_info(ua_info) do
+    case Map.get(ua_info, :device) do
+      %{} = device -> Map.get(device, :type)
+      _ -> nil
+    end
   end
-
-  defp os_version_from_ua_info(_), do: nil
-
-  defp device_type_from_ua_info(%{device: %{type: device_type}}) do
-    device_type
-  end
-
-  defp device_type_from_ua_info(_), do: nil
 
   defp search_engine_from_ua_result(%UAInspector.Result.Bot{
          category: "Search bot",

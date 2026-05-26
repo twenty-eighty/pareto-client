@@ -54,24 +54,47 @@ init shared route () =
         from =
             Dict.get fromParamName route.query
                 |> Maybe.andThen Route.Path.fromString
+
+        maybeNsec =
+            Dict.get nsecParamName route.query
+
+        queryWithoutNsec =
+            route.query
+                |> Dict.remove nsecParamName
+
+        effect =
+            case maybeNsec of
+                Just nsec ->
+                    Effect.sendCmd (Ports.login nsec)
+
+                Nothing ->
+                    Effect.sendCmd Ports.loginSignUp
     in
     ( { from =
             from
       , hash = route.hash
       , query =
-            route.query
+            queryWithoutNsec
                 |> Dict.remove fromParamName
       , clientRole =
             from
                 |> Maybe.map (Layouts.Sidebar.clientRoleForRoutePath shared.browserEnv.environment)
       }
-    , Effect.sendCmd Ports.loginSignUp
+    , [ effect
+      , Effect.pushRoute { path = route.path, query = queryWithoutNsec, hash = route.hash }
+      ]
+        |> Effect.batch
     )
 
 
 fromParamName : String
 fromParamName =
     "from"
+
+
+nsecParamName : String
+nsecParamName =
+    "nsec"
 
 
 type Msg

@@ -11,7 +11,8 @@ defmodule NostrBackend.NIP19 do
   @nprofile_hrp "nprofile"
   @nevent_hrp "nevent"
   @naddr_hrp "naddr"
-  @note_hrp "note" # Used for testing only
+  # Used for testing only
+  @note_hrp "note"
 
   # TLV types
   @tlv_special 0
@@ -19,13 +20,35 @@ defmodule NostrBackend.NIP19 do
   @tlv_author 2
   @tlv_kind 3
 
+  defp convertbits!(data, frombits, tobits, pad) do
+    case Bech32.convertbits(data, frombits, tobits, pad) do
+      result when is_binary(result) -> result
+    end
+  rescue
+    error ->
+      Logger.error("Failed to convert bits: #{inspect(error)}")
+      reraise error, __STACKTRACE__
+  end
+
+  defp encode_5bit!(hrp, data) do
+    case Bech32.encode_from_5bit(hrp, data) do
+      result when is_binary(result) -> result
+    end
+  rescue
+    error ->
+      Logger.error("Failed to encode #{hrp}: #{inspect(error)}")
+      reraise error, __STACKTRACE__
+  end
+
   @doc """
   Encodes a NIP-19 naddr identifier from kind, pubkey, identifier, and optionally relays.
   All inputs are converted to strings before encoding to ensure consistent results.
   Returns the encoded naddr string.
   """
   def encode_naddr(kind, pubkey, identifier, relays \\ []) do
-    Logger.debug("Encoding naddr: kind=#{inspect(kind)}, pubkey=#{inspect(pubkey)}, identifier=#{inspect(identifier)}, relays=#{inspect(relays)}")
+    Logger.debug(
+      "Encoding naddr: kind=#{inspect(kind)}, pubkey=#{inspect(pubkey)}, identifier=#{inspect(identifier)}, relays=#{inspect(relays)}"
+    )
 
     # Normalize inputs
     pubkey_hex = String.downcase(to_string(pubkey))
@@ -44,10 +67,11 @@ defmodule NostrBackend.NIP19 do
     tlv_data = <<@tlv_special, byte_size(id_str)>> <> id_str
 
     # 2. Add relay entries
-    tlv_data = Enum.reduce(relays, tlv_data, fn relay, acc ->
-      relay_str = to_string(relay)
-      acc <> <<@tlv_relay, byte_size(relay_str)>> <> relay_str
-    end)
+    tlv_data =
+      Enum.reduce(relays, tlv_data, fn relay, acc ->
+        relay_str = to_string(relay)
+        acc <> <<@tlv_relay, byte_size(relay_str)>> <> relay_str
+      end)
 
     # 3. Pubkey with TLVAuthor
     tlv_data = tlv_data <> <<@tlv_author, 32>> <> pubkey_bin
@@ -60,30 +84,9 @@ defmodule NostrBackend.NIP19 do
     Logger.debug("TLV data built, size: #{byte_size(tlv_data)} bytes")
     Logger.debug("Full TLV hex dump: #{inspect(tlv_data |> Base.encode16(case: :lower))}")
 
-    # Convert TLV data into 5-bit values with dynamic padding based on bit length
     pad = rem(bit_size(tlv_data), 5) != 0
-    convert_result = Bech32.convertbits(tlv_data, 8, 5, pad)
-
-    # Handle possible return types from encode_from_5bit
-    data_5bit = case convert_result do
-      {:ok, data} -> data
-      data when is_binary(data) -> data
-      _ ->
-        Logger.error("Unexpected return from Bech32.convertbits: #{inspect(convert_result)}")
-        raise "Failed to convert bits: unexpected return type"
-    end
-
-    # Generate final Bech32 encoding
-    encoded = Bech32.encode_from_5bit(@naddr_hrp, data_5bit)
-
-    # Handle possible return types from encode_from_5bit
-    encoded = case encoded do
-      {:ok, data} -> data
-      data when is_binary(data) -> data
-      _ ->
-        Logger.error("Unexpected return from Bech32.encode_from_5bit: #{inspect(encoded)}")
-        raise "Failed to encode naddr: unexpected return type"
-    end
+    data_5bit = convertbits!(tlv_data, 8, 5, pad)
+    encoded = encode_5bit!(@naddr_hrp, data_5bit)
 
     Logger.debug("Generated naddr: #{encoded}")
     encoded
@@ -106,28 +109,9 @@ defmodule NostrBackend.NIP19 do
     {:ok, pubkey_bin} = Base.decode16(pubkey_hex, case: :mixed)
 
     # Use Bech32's convertbits with padding=true parameter
-    convert_result = Bech32.convertbits(pubkey_bin, 8, 5, true)
+    data_5bit = convertbits!(pubkey_bin, 8, 5, true)
 
-    # Handle possible return types from convertbits
-    data_5bit = case convert_result do
-      {:ok, data} -> data
-      data when is_binary(data) -> data
-      _ ->
-        Logger.error("Unexpected return from Bech32.convertbits: #{inspect(convert_result)}")
-        raise "Failed to convert bits: unexpected return type"
-    end
-
-    # Use Bech32's encode function
-    encode_result = Bech32.encode_from_5bit(@note_hrp, data_5bit)
-
-    # Handle possible return types from encode_from_5bit
-    encoded = case encode_result do
-      {:ok, data} -> data
-      data when is_binary(data) -> data
-      _ ->
-        Logger.error("Unexpected return from Bech32.encode_from_5bit: #{inspect(encode_result)}")
-        raise "Failed to encode note: unexpected return type"
-    end
+    encoded = encode_5bit!(@note_hrp, data_5bit)
 
     Logger.debug("Generated note: #{encoded}")
     encoded
@@ -157,7 +141,10 @@ defmodule NostrBackend.NIP19 do
 
     # Decode pubkey from hex to binary
     {:ok, pubkey_bin} = Base.decode16(pubkey_hex, case: :mixed)
-    Logger.debug("Decoded pubkey binary (#{byte_size(pubkey_bin)} bytes): #{Base.encode16(pubkey_bin, case: :lower)}")
+
+    Logger.debug(
+      "Decoded pubkey binary (#{byte_size(pubkey_bin)} bytes): #{Base.encode16(pubkey_bin, case: :lower)}"
+    )
 
     # Format:
     # 1. TLV type 0 (special=pubkey) + 32 bytes of pubkey data
@@ -167,11 +154,12 @@ defmodule NostrBackend.NIP19 do
     tlv_data = <<0, 32>> <> pubkey_bin
 
     # Add relay entries
-    tlv_data = Enum.reduce(relays, tlv_data, fn relay, acc ->
-      relay_str = to_string(relay)
-      Logger.debug("Adding relay: '#{relay_str}', length=#{byte_size(relay_str)}")
-      acc <> <<1, byte_size(relay_str)>> <> relay_str
-    end)
+    tlv_data =
+      Enum.reduce(relays, tlv_data, fn relay, acc ->
+        relay_str = to_string(relay)
+        Logger.debug("Adding relay: '#{relay_str}', length=#{byte_size(relay_str)}")
+        acc <> <<1, byte_size(relay_str)>> <> relay_str
+      end)
 
     # Log TLV data for debugging
     Logger.debug("TLV data built for nprofile, size: #{byte_size(tlv_data)} bytes")
@@ -186,27 +174,19 @@ defmodule NostrBackend.NIP19 do
 
   # Encodes TLV data as Bech32 nprofile strictly per NIP-19 (pad=false)
   defp bech32_encode_nprofile(tlv_data) do
-    # Convert TLV bytes (8-bit) to 5-bit groups, padding only if needed
     pad = rem(bit_size(tlv_data), 5) != 0
-    data_5bit = case Bech32.convertbits(tlv_data, 8, 5, pad) do
-      {:ok, bits} -> bits
-      bits when is_binary(bits) -> bits
-      other -> raise "Failed to convert bits for nprofile: #{inspect(other)}"
-    end
 
-    # Encode into Bech32 string with no extra padding
-    case Bech32.encode_from_5bit(@nprofile_hrp, data_5bit) do
-      {:ok, encoded} -> encoded
-      encoded when is_binary(encoded) -> encoded
-      other -> raise "Failed to encode nprofile: #{inspect(other)}"
-    end
+    data_5bit = convertbits!(tlv_data, 8, 5, pad)
+    encode_5bit!(@nprofile_hrp, data_5bit)
   end
 
   @doc """
   Encode a event_id and optional relays as a NIP-19 nevent
   """
   def encode_nevent(event_id, relays \\ [], author \\ nil) do
-    Logger.debug("Encoding nevent: event_id=#{inspect(event_id)}, relays=#{inspect(relays)}, author=#{inspect(author)}")
+    Logger.debug(
+      "Encoding nevent: event_id=#{inspect(event_id)}, relays=#{inspect(relays)}, author=#{inspect(author)}"
+    )
 
     # Normalize event_id to lowercase
     event_id_hex = String.downcase(to_string(event_id))
@@ -218,24 +198,28 @@ defmodule NostrBackend.NIP19 do
         tlv_data = <<@tlv_special, 32>> <> event_id_bin
 
         # Add relay entries
-        tlv_data = Enum.reduce(relays, tlv_data, fn relay, acc ->
-          relay_str = to_string(relay)
-          acc <> <<@tlv_relay, byte_size(relay_str)>> <> relay_str
-        end)
+        tlv_data =
+          Enum.reduce(relays, tlv_data, fn relay, acc ->
+            relay_str = to_string(relay)
+            acc <> <<@tlv_relay, byte_size(relay_str)>> <> relay_str
+          end)
 
         # Add author if provided
-        tlv_data = if author do
-          author_hex = String.downcase(to_string(author))
-          case Base.decode16(author_hex, case: :mixed) do
-            {:ok, author_bin} when byte_size(author_bin) == 32 ->
-              tlv_data <> <<@tlv_author, 32>> <> author_bin
-            _ ->
-              Logger.warning("Invalid author pubkey format, ignoring: #{author}")
-              tlv_data
+        tlv_data =
+          if author do
+            author_hex = String.downcase(to_string(author))
+
+            case Base.decode16(author_hex, case: :mixed) do
+              {:ok, author_bin} when byte_size(author_bin) == 32 ->
+                tlv_data <> <<@tlv_author, 32>> <> author_bin
+
+              _ ->
+                Logger.warning("Invalid author pubkey format, ignoring: #{author}")
+                tlv_data
+            end
+          else
+            tlv_data
           end
-        else
-          tlv_data
-        end
 
         # Log TLV data for debugging
         Logger.debug("TLV data built for nevent, size: #{byte_size(tlv_data)} bytes")
@@ -266,28 +250,8 @@ defmodule NostrBackend.NIP19 do
 
     # Use Bech32's convertbits with padding=true parameter
     # See https://github.com/nbd-wtf/go-nostr/blob/master/nip19/nip19.go#L116
-    convert_result = Bech32.convertbits(pubkey_bin, 8, 5, true)
-
-    # Handle possible return types from convertbits
-    data_5bit = case convert_result do
-      {:ok, data} -> data
-      data when is_binary(data) -> data
-      _ ->
-        Logger.error("Unexpected return from Bech32.convertbits: #{inspect(convert_result)}")
-        raise "Failed to convert bits: unexpected return type"
-    end
-
-    # Use Bech32's encode function
-    encode_result = Bech32.encode_from_5bit(@npub_hrp, data_5bit)
-
-    # Handle possible return types from encode_from_5bit
-    encoded = case encode_result do
-      {:ok, data} -> data
-      data when is_binary(data) -> data
-      _ ->
-        Logger.error("Unexpected return from Bech32.encode_from_5bit: #{inspect(encode_result)}")
-        raise "Failed to encode npub: unexpected return type"
-    end
+    data_5bit = convertbits!(pubkey_bin, 8, 5, true)
+    encoded = encode_5bit!(@npub_hrp, data_5bit)
 
     Logger.debug("Generated npub: #{encoded}")
     encoded
@@ -330,27 +294,23 @@ defmodule NostrBackend.NIP19 do
 
   # Special decode function for npubs
   defp decode_npub(data) do
-    Logger.debug("Decoding npub data, length: #{inspect(length(data))}, type: #{inspect(data)}")
+    Logger.debug("Decoding npub data, length: #{inspect(sized(data))}, type: #{inspect(data)}")
 
     # Different Bech32 implementations may return data in different formats
     # Some return lists of integers, others return binaries
     try do
-      # First ensure we have a binary, converting from list if needed
-      data_bin = cond do
-        is_list(data) -> :binary.list_to_bin(data)
-        is_binary(data) -> data
-        true -> raise "Unsupported data format for npub: #{inspect(data)}"
-      end
+      data_bin = IO.iodata_to_binary(data)
 
       # Convert from 5-bit to 8-bit
       data_8bit = convert_5bit_to_8bit(data_bin)
 
       # Ensure we have 32 bytes (a valid public key)
-      pubkey_bin = if byte_size(data_8bit) >= 32 do
-        binary_part(data_8bit, 0, 32)
-      else
-        raise "Decoded data too short for pubkey: #{byte_size(data_8bit)} bytes, expected 32 bytes"
-      end
+      pubkey_bin =
+        if byte_size(data_8bit) >= 32 do
+          binary_part(data_8bit, 0, 32)
+        else
+          raise "Decoded data too short for pubkey: #{byte_size(data_8bit)} bytes, expected 32 bytes"
+        end
 
       # Convert to hex
       pubkey_hex = Base.encode16(pubkey_bin, case: :lower)
@@ -370,49 +330,32 @@ defmodule NostrBackend.NIP19 do
     # don't directly support this conversion easily
 
     # First try using Bech32.convertbits
-    case Bech32.convertbits(data, 5, 8, false) do
-      {:ok, result} -> result
-      data when is_binary(data) -> data
-      _ ->
-        # Fallback to manual conversion if library fails
-        # This manually packs 5-bit values into 8-bit chunks
-        for <<chunk::5 <- data>>, into: <<>> do
-          <<chunk::8>>
-        end
-    end
+    convertbits!(data, 5, 8, false)
+  rescue
+    _ ->
+      for <<chunk::5 <- data>>, into: <<>> do
+        <<chunk::8>>
+      end
   end
 
   # Decode TLV data with appropriate handling based on type
   defp decode_tlv_data(data, hrp) do
     # First let's log the data for debugging
-    Logger.debug("Decoding TLV data for #{hrp}, data length: #{length(data)}")
+    Logger.debug("Decoding TLV data for #{hrp}, data length: #{sized(data)}")
 
-    case Bech32.convertbits(data, 5, 8, false) do
-      {:ok, tlv_data} ->
-        Logger.debug("Successfully converted #{hrp} data from 5-bit to 8-bit, size: #{byte_size(tlv_data)}")
-        Logger.debug("Raw TLV data hex: #{Base.encode16(tlv_data, case: :lower)}")
-        case hrp do
-          @nprofile_hrp -> extract_nprofile_data(tlv_data)
-          @nevent_hrp -> extract_nevent_data(tlv_data)
-          @naddr_hrp -> extract_naddr_data(tlv_data)
-          _ -> {:error, "Unsupported TLV type: #{hrp}"}
-        end
-      data when is_binary(data) ->
-        # Some implementations return the raw binary directly
-        Logger.debug("Received raw binary from convertbits, size: #{byte_size(data)}")
-        Logger.debug("Raw TLV data hex: #{Base.encode16(data, case: :lower)}")
-        case hrp do
-          @nprofile_hrp -> extract_nprofile_data(data)
-          @nevent_hrp -> extract_nevent_data(data)
-          @naddr_hrp -> extract_naddr_data(data)
-          _ -> {:error, "Unsupported TLV type: #{hrp}"}
-        end
-      {:error, reason} ->
-        Logger.error("Failed to convert bits for TLV data: #{reason}")
-        {:error, "Failed to convert bits for TLV data: #{reason}"}
-      other ->
-        Logger.error("Unexpected return from Bech32.convertbits: #{inspect(other)}")
-        {:error, "Failed to process TLV data, unexpected return type"}
+    tlv_data = convertbits!(data, 5, 8, false)
+
+    Logger.debug(
+      "Successfully converted #{hrp} data from 5-bit to 8-bit, size: #{byte_size(tlv_data)}"
+    )
+
+    Logger.debug("Raw TLV data hex: #{Base.encode16(tlv_data, case: :lower)}")
+
+    case hrp do
+      @nprofile_hrp -> extract_nprofile_data(tlv_data)
+      @nevent_hrp -> extract_nevent_data(tlv_data)
+      @naddr_hrp -> extract_naddr_data(tlv_data)
+      _ -> {:error, "Unsupported TLV type: #{hrp}"}
     end
   rescue
     e ->
@@ -436,7 +379,9 @@ defmodule NostrBackend.NIP19 do
       {identifier, pubkey_hex, kind, relays} =
         extract_naddr_tlv_fields(data, identifier, pubkey_hex, kind, relays)
 
-      Logger.debug("Extracted naddr fields: kind=#{kind}, pubkey=#{pubkey_hex}, id=#{inspect(identifier)}, relays=#{inspect(relays)}")
+      Logger.debug(
+        "Extracted naddr fields: kind=#{kind}, pubkey=#{pubkey_hex}, id=#{inspect(identifier)}, relays=#{inspect(relays)}"
+      )
 
       # Return the result if we have the required fields
       if pubkey_hex != nil && kind != nil && identifier != nil do
@@ -458,7 +403,9 @@ defmodule NostrBackend.NIP19 do
   end
 
   # Process TLV entries for naddr format
-  defp extract_naddr_tlv_fields(<<>>, identifier, pubkey, kind, relays), do: {identifier, pubkey, kind, relays}
+  defp extract_naddr_tlv_fields(<<>>, identifier, pubkey, kind, relays),
+    do: {identifier, pubkey, kind, relays}
+
   defp extract_naddr_tlv_fields(<<type, len, rest::binary>>, identifier, pubkey, kind, relays) do
     Logger.debug("Processing TLV entry: type=#{type}, len=#{len}, remaining=#{byte_size(rest)}")
 
@@ -505,6 +452,7 @@ defmodule NostrBackend.NIP19 do
       Logger.error("Error processing TLV entry: #{Exception.message(e)}")
       {identifier, pubkey, kind, relays}
   end
+
   defp extract_naddr_tlv_fields(data, identifier, pubkey, kind, relays) do
     Logger.debug("Unexpected TLV data format: #{inspect(data)}")
     {identifier, pubkey, kind, relays}
@@ -558,6 +506,7 @@ defmodule NostrBackend.NIP19 do
 
   # Process TLV entries recursively
   defp process_tlv_entries(<<>>, author, relays), do: {author, relays}
+
   defp process_tlv_entries(<<type, len, rest::binary>>, author, relays) do
     if byte_size(rest) >= len do
       value = binary_part(rest, 0, len)
@@ -583,12 +532,14 @@ defmodule NostrBackend.NIP19 do
       {author, relays}
     end
   end
+
   defp process_tlv_entries(_, author, relays), do: {author, relays}
 
   # Extract relay entries from TLV data
   defp extract_relays(<<>>) do
     []
   end
+
   defp extract_relays(<<type, len, rest::binary>>) do
     if byte_size(rest) >= len && type == @tlv_relay do
       value = binary_part(rest, 0, len)
@@ -602,18 +553,22 @@ defmodule NostrBackend.NIP19 do
       end
     end
   end
+
   defp extract_relays(_) do
     []
   end
 
   # Helper function to convert a string to integer with fallback
   defp string_to_integer(value) when is_integer(value), do: value
+
   defp string_to_integer(value) when is_binary(value) do
     case Integer.parse(value) do
       {int, _} -> int
-      :error -> 0  # Default to 0 if parsing fails
+      # Default to 0 if parsing fails
+      :error -> 0
     end
   end
+
   defp string_to_integer(_), do: 0
 
   @doc """
@@ -622,27 +577,19 @@ defmodule NostrBackend.NIP19 do
   """
   def encode_to_bech32(hrp, data) do
     # Convert from 8 bits to 5 bits with padding
-    data_5bit = case Bech32.convertbits(data, 8, 5, true) do
-      {:ok, bits} -> bits
-      bits when is_binary(bits) -> bits
-      _ -> raise "Failed to convert bits for Bech32"
-    end
+    data_5bit = convertbits!(data, 8, 5, true)
 
     # Log the converted data for debugging
-    Logger.debug("8-bit to 5-bit conversion result (#{byte_size(data)} → #{byte_size(data_5bit)}):")
+    Logger.debug(
+      "8-bit to 5-bit conversion result (#{byte_size(data)} → #{byte_size(data_5bit)}):"
+    )
+
     Logger.debug("Original hex: #{Base.encode16(data, case: :lower)}")
-    if is_binary(data_5bit) do
-      Logger.debug("5-bit data hex: #{Base.encode16(data_5bit, case: :lower)}")
-    else
-      Logger.debug("5-bit data (not binary): #{inspect(data_5bit)}")
-    end
+
+    Logger.debug("5-bit data hex: #{Base.encode16(data_5bit, case: :lower)}")
 
     # Generate final Bech32 encoding
-    case Bech32.encode_from_5bit(hrp, data_5bit) do
-      {:ok, encoded} -> encoded
-      encoded when is_binary(encoded) -> encoded
-      _ -> raise "Failed to encode Bech32"
-    end
+    encode_5bit!(hrp, data_5bit)
   end
 
   # Validate pubkey format
@@ -650,8 +597,11 @@ defmodule NostrBackend.NIP19 do
     case Base.decode16(pubkey_hex, case: :mixed) do
       {:ok, bin} when byte_size(bin) == 32 ->
         :ok
+
       _ ->
         raise ArgumentError, "Invalid pubkey format, must be 64 hex chars: #{pubkey_hex}"
     end
   end
+
+  defp sized(data), do: byte_size(data)
 end

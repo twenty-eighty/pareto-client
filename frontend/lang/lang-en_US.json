@@ -20,7 +20,8 @@
       "git version text": "Git version: {{gitVersion}}",
       "recommendation sent alert text": "Recommendation sent",
       "feedback info text": "You found a bug or want to give feedback? Please contact us ",
-      "support page link text": "here"
+      "support page link text": "here",
+      "telegram link text": "Pareto Telegram Channel"
    },
    "article info": {
       "title": "Article Info",
@@ -481,6 +482,7 @@
       "french text": "French",
       "german text": "German",
       "italian text": "Italian",
+      "polish text": "Polish",
       "portuguese text": "Portuguese",
       "russian text": "Russian",
       "spanish text": "Spanish",
@@ -566,7 +568,8 @@
       "drafts category": "Drafts",
       "edit draft button label": "Edit",
       "copy draft button label": "Copy",
-      "delete draft button label": "Delete"
+      "delete draft button label": "Delete",
+      "future category": "Future"
    },
    "privacy": {
       "page title": "Privacy Policy"

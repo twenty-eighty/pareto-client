@@ -36,24 +36,13 @@ class AutoResizeTextarea extends HTMLElement {
     return ['value', 'color', 'backgroundcolor', 'placeholder', 'fontfamily', 'fontsize', 'fontweight'];
   }
 
+  connectedCallback() {
+    this._applyInitialAttributes();
+  }
+
   // React to attribute changes
   attributeChangedCallback(name, oldValue, newValue) {
-    if (name === 'value') {
-      this.textarea.value = newValue || '';
-      this._resize();
-    } else if (name === 'color') {
-      this.textarea.style.color = newValue || '';
-    } else if (name === 'backgroundcolor') {
-      this.textarea.style['background-color'] = newValue || '';
-    } else if (name === 'fontfamily') {
-      this.textarea.style.fontFamily = newValue || '';
-    } else if (name === 'fontsize') {
-      this.textarea.style.fontSize = newValue || '';
-    } else if (name === 'fontweight') {
-      this.textarea.style.fontWeight = newValue || '';
-    } else if (name === 'placeholder') {
-      this.textarea.placeholder = newValue || '';
-    }
+    this._applyAttribute(name, newValue);
   }
 
   // Auto-resize method
@@ -67,6 +56,42 @@ class AutoResizeTextarea extends HTMLElement {
     this.dispatchEvent(new CustomEvent('input-change', {
       detail: { value: this.textarea.value }
     }));
+  }
+
+  _applyInitialAttributes() {
+    Array.from(this.attributes).forEach((attr) => {
+      this._applyAttribute(attr.name.toLowerCase(), attr.value);
+    });
+  }
+
+  _applyAttribute(name, value) {
+    const newValue = value || '';
+    switch (name) {
+      case 'value':
+        this.textarea.value = newValue;
+        this._resize();
+        break;
+      case 'color':
+        this.textarea.style.color = newValue;
+        break;
+      case 'backgroundcolor':
+        this.textarea.style['background-color'] = newValue;
+        break;
+      case 'fontfamily':
+        this.textarea.style.fontFamily = newValue;
+        break;
+      case 'fontsize':
+        this.textarea.style.fontSize = newValue;
+        break;
+      case 'fontweight':
+        this.textarea.style.fontWeight = newValue;
+        break;
+      case 'placeholder':
+        this.textarea.placeholder = newValue;
+        break;
+      default:
+        break;
+    }
   }
 
   // Property getter and setter for the 'value' attribute

@@ -2,7 +2,7 @@ module Components.InteractionButton exposing
     ( InteractionButton, new
     , view
     , init, update, Model, Msg
-    , ClickAction(..), InteractionObject(..), InteractionParams, eventIdOfInteractionObject, mapAction, pubKeyOfInteractionObject, subscriptions, withAttributes, withLabel, withOnClickAction, withReactIcon
+    , ClickAction(..), InteractionObject(..), InteractionParams, eventIdOfInteractionObject, mapAction, pubKeyOfInteractionObject, subscriptions, withAttributes, withLabel, withOnClickAction, withReactIcon, withTestAttribute
     )
 
 {-|
@@ -61,6 +61,7 @@ type alias InteractionParams =
 
 type ClickAction msg
     = NoAction
+    | BatchAction (List (ClickAction msg))
     | Send SendRequest
     | SendMsg msg
 
@@ -96,6 +97,9 @@ mapAction toMsg clickAction =
     case clickAction of
         NoAction ->
             NoAction
+
+        BatchAction actions ->
+            BatchAction (List.map (mapAction toMsg) actions)
 
         Send sendRequest ->
             Send sendRequest
@@ -152,24 +156,44 @@ update props =
     toParentModel <|
         case props.msg of
             Clicked clickAction ->
-                case clickAction of
-                    NoAction ->
-                        ( Model model, Effect.none )
-
-                    Send sendRequest ->
-                        ( Model
-                            { sendRequestId = Just (Nostr.getLastSendRequestId props.nostr)
-                            }
-                        , sendRequest
-                            |> Shared.Msg.SendNostrEvent
-                            |> Effect.sendSharedMsg
-                        )
-
-                    SendMsg clickMsg ->
-                        ( Model model, Effect.sendMsg clickMsg )
+                clickActionToEffect props.nostr (Model model) clickAction
 
             ReceivedMessage message ->
                 updateWithMessage (Model model) props.translations message
+
+clickActionToEffect : Nostr.Model -> Model -> ClickAction msg -> (Model, Effect msg)
+clickActionToEffect nostr (Model model) clickAction =
+    case clickAction of
+        NoAction ->
+            ( Model model, Effect.none )
+
+        BatchAction actions ->
+            let
+                (finalModel, finalEffects) =
+                    actions
+                    |> List.foldl
+                        (\action (innerModel, innerEffects) ->
+                            let
+                                (updatedModel, effect) = clickActionToEffect nostr innerModel action
+                            in
+                            (updatedModel, innerEffects ++ [effect])
+                        )
+                        (Model model, [])
+            in
+            ( finalModel, Effect.batch finalEffects )
+
+        Send sendRequest ->
+            ( Model
+                { sendRequestId = Just (Nostr.getLastSendRequestId nostr)
+                }
+            , sendRequest
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        SendMsg clickMsg ->
+            ( Model model, Effect.sendMsg clickMsg )
+
 
 
 updateWithMessage : Model -> I18Next.Translations -> IncomingMessage -> ( Model, Effect msg )
@@ -219,13 +243,12 @@ type InteractionButton msg
         , reactIcon : Maybe Icon
         , reactedIcon : Icon
         , reacted : Bool
+        , testAttribute : String
         , theme : Ui.Styles.Theme
         , toMsg : Msg msg -> msg
         , label : Maybe String
         , attributes : List ( String, String )
         }
-
-
 new :
     { model : Model
     , unreactedIcon : Icon
@@ -243,6 +266,7 @@ new props =
         , reactIcon = Nothing
         , reactedIcon = props.reactedIcon
         , reacted = props.reacted
+        , testAttribute = "unnamed"
         , theme = props.theme
         , toMsg = props.toMsg
         , label = Nothing
@@ -268,6 +292,11 @@ withReactIcon icon (Settings settings) =
 withAttributes : List ( String, String ) -> InteractionButton msg -> InteractionButton msg
 withAttributes attributes (Settings settings) =
     Settings { settings | attributes = attributes }
+
+
+withTestAttribute : String -> InteractionButton msg -> InteractionButton msg
+withTestAttribute testAttribute (Settings settings) =
+    Settings { settings | testAttribute = testAttribute }
 
 
 subscriptions : Model -> Sub (Msg msg)
@@ -324,6 +353,7 @@ view (Settings settings) =
             , theme = settings.theme
             }
             |> InteractionIcon.withAttributes settings.attributes
+            |> InteractionIcon.withTestAttribute settings.testAttribute
             |> InteractionIcon.view
             |> Html.map settings.toMsg
         , settings.label

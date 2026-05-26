@@ -30,7 +30,11 @@ class ZapComponent extends HTMLElement {
 
     set buttonId(id) {
         this.zapButtonId = id;
-      }
+    }
+
+    get buttonId() {
+        return this.zapButtonId;
+    }
 }
 
 customElements.define('js-zap-component', ZapComponent);

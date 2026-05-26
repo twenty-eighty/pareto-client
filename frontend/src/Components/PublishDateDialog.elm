@@ -24,7 +24,8 @@ type Msg msg
 
 type Model
     = Model
-        { state : DialogState
+        { allowFutureDates : Bool
+        , state : DialogState
         }
 
 
@@ -36,13 +37,13 @@ type DialogState
 
 type PublishDateDialog msg
     = Settings
-        { model : Model
+        { allowFutureDates : Bool
+        , model : Model
         , toMsg : Msg msg -> msg
         , onCommitDate : Posix -> msg
         , browserEnv : BrowserEnv
         , theme : Theme
         }
-
 
 new :
     { model : Model
@@ -54,7 +55,8 @@ new :
     -> PublishDateDialog msg
 new props =
     Settings
-        { model = props.model
+        { allowFutureDates = False
+        , model = props.model
         , toMsg = props.toMsg
         , onCommitDate = props.onCommitDate
         , browserEnv = props.browserEnv
@@ -62,19 +64,26 @@ new props =
         }
 
 
-init : Model
-init =
+init : { allowFutureDates : Bool } -> Model
+init { allowFutureDates } =
     Model
-        { state = DialogHidden
+        { allowFutureDates = allowFutureDates
+        , state = DialogHidden
         }
 
 
 show : Model -> Maybe Posix -> (Model, Effect (Msg msg))
 show (Model model) maybeSelectedPublishDate =
     let
+        selectableRange =
+            if model.allowFutureDates then
+                Calendar.PastAndFuture
+            else
+                Calendar.Past
+
         ( calendarModel, cmd ) =
             Calendar.init
-                { selectableRange = Calendar.Past
+                { selectableRange = selectableRange
                 , selectionMode = Calendar.DaySelection
                 , selectedPublishDate = maybeSelectedPublishDate
                 }

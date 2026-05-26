@@ -1,0 +1,50 @@
+{
+  "imageBlock": {
+    "inlineUploadButton": "Wybierz plik",
+    "inlineUploadPlaceholderText": "lub wklej link do obrazu ...",
+    "inlineConfirmButton": "Zatwierdź",
+    "blockUploadButton": "Wybierz plik",
+    "blockUploadPlaceholderText": "lub wklej link do obrazu ...",
+    "blockCaptionPlaceholderText": "Podpis zdjęcia",
+    "blockConfirmButton": "Zatwierdź"
+  },
+  "blockEdit": {
+    "textGroup": {
+      "label": "Tekst",
+      "text": { "label": "Akapit" },
+      "h1": { "label": "Nagłówek 1" },
+      "h2": { "label": "Nagłówek 2" },
+      "h3": { "label": "Nagłówek 3" },
+      "h4": { "label": "Nagłówek 4" },
+      "h5": { "label": "Nagłówek 5" },
+      "h6": { "label": "Nagłówek 6" },
+      "quote": { "label": "Cytat" },
+      "divider": { "label": "Separator" }
+    },
+    "listGroup": {
+      "label": "Listy",
+      "bulletList": { "label": "Lista punktowana" },
+      "orderedList": { "label": "Lista numerowana" },
+      "taskList": { "label": "Lista zadań" }
+    },
+    "advancedGroup": {
+      "label": "Zaawansowane",
+      "image": { "label": "Obraz" },
+      "codeBlock": { "label": "Kod" },
+      "table": { "label": "Tabela" },
+      "math": { "label": "Matematyka" }
+    }
+  },
+  "placeholder": "Wpisz...",
+  "toolbar": {
+    "paragraph": "Akapit",
+    "heading1": "Nagłówek 1",
+    "heading2": "Nagłówek 2",
+    "heading3": "Nagłówek 3",
+    "quote": "Cytat",
+    "bulletList": "Lista punktowana",
+    "orderedList": "Lista numerowana",
+    "codeBlock": "Kod"
+  }
+}
+

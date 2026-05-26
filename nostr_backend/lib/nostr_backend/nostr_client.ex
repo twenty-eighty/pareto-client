@@ -1,5 +1,4 @@
 defmodule NostrBackend.NostrClient do
-
   require Logger
 
   # Type definitions
@@ -10,13 +9,15 @@ defmodule NostrBackend.NostrClient do
   @type event_list :: [nostr_event()]
   @type pubkey :: binary()
   @type event_id :: binary()
-  @type address_info :: %{kind: integer(), author: binary(), identifier: binary()}
-                     | %{kind: integer(), identifier: binary()}
-                     | %{kind: integer(), pubkey: binary(), identifier: binary()}
+  @type address_info ::
+          %{kind: integer(), author: binary(), identifier: binary()}
+          | %{kind: integer(), identifier: binary()}
+          | %{kind: integer(), pubkey: binary(), identifier: binary()}
   @type event_info :: %{id: event_id()}
   @type picture_post_info :: %{id: event_id()}
   @type fetch_result :: {:ok, nostr_event() | event_list()} | {:error, binary()}
-  @type fetch_result_with_relay :: {:ok, relay_url(), nostr_event() | event_list()} | {:error, binary()}
+  @type fetch_result_with_relay ::
+          {:ok, relay_url(), nostr_event() | event_list()} | {:error, binary()}
   @type filter_map :: map()
   @type filters :: [filter_map()]
 
@@ -26,6 +27,9 @@ defmodule NostrBackend.NostrClient do
     "wss://nostr.pareto.space",
     "wss://pareto.nostr1.com",
     "wss://nos.lol",
+    "wss://purplepag.es",
+    "wss://nostr.einundzwanzig.space",
+    "wss://relay.primal.net",
     "wss://relay.nostr.band",
     "wss://relay.damus.io"
     #   "wss://nostr.wine",
@@ -33,17 +37,27 @@ defmodule NostrBackend.NostrClient do
     # Add more relay URLs as needed
   ]
 
-  @spec fetch_article_by_address(integer(), binary(), binary()) :: fetch_result()
+  defp default_relay_urls do
+    Application.get_env(:nostr_backend, :relay_urls, @relay_urls)
+  end
+
+  defp ensure_relays([]), do: default_relay_urls()
+  defp ensure_relays(nil), do: default_relay_urls()
+  defp ensure_relays(relay_urls), do: relay_urls
+
+  @spec fetch_article_by_address(integer(), binary(), binary()) :: fetch_result_with_relay()
   def fetch_article_by_address(kind, author, identifier) do
-    fetch_article_by_address(kind, author, identifier, @relay_urls)
+    fetch_article_by_address(kind, author, identifier, default_relay_urls())
   end
 
-  @spec fetch_article_by_address(integer(), binary(), binary(), relay_urls()) :: fetch_result_with_relay()
+  @spec fetch_article_by_address(integer(), binary(), binary(), relay_urls()) ::
+          fetch_result_with_relay()
   def fetch_article_by_address(kind, author, identifier, []) do
-    fetch_article_by_address(kind, author, identifier, @relay_urls)
+    fetch_article_by_address(kind, author, identifier, default_relay_urls())
   end
 
-  @spec fetch_article_by_address(integer(), binary(), binary(), relay_urls()) :: fetch_result_with_relay()
+  @spec fetch_article_by_address(integer(), binary(), binary(), relay_urls()) ::
+          fetch_result_with_relay()
   def fetch_article_by_address(kind, author, identifier, relay_urls) do
     address_info = %{kind: kind, author: author, identifier: identifier}
     fetch_from_relays(relay_urls, address_info, :address)
@@ -52,12 +66,12 @@ defmodule NostrBackend.NostrClient do
   @spec fetch_article_by_address(integer(), binary()) :: fetch_result_with_relay()
   def fetch_article_by_address(kind, identifier) do
     address_info = %{kind: kind, identifier: identifier}
-    fetch_from_relays(@relay_urls, address_info, :address)
+    fetch_from_relays(default_relay_urls(), address_info, :address)
   end
 
   @spec fetch_article_by_id(event_id(), relay_urls()) :: fetch_result_with_relay()
   def fetch_article_by_id(id, []) do
-    fetch_article_by_id(id, @relay_urls)
+    fetch_article_by_id(id, default_relay_urls())
   end
 
   @spec fetch_article_by_id(event_id(), relay_urls()) :: fetch_result_with_relay()
@@ -66,30 +80,30 @@ defmodule NostrBackend.NostrClient do
     fetch_from_relays(relay_urls, event_info, :event)
   end
 
-  @spec fetch_article(String.t()) :: {:ok, map()} | {:error, String.t()}
+  @spec fetch_article(String.t()) :: fetch_result()
   def fetch_article(article_hex_id) do
-    case fetch_from_relays(@relay_urls, article_hex_id, :article) do
+    case fetch_from_relays(default_relay_urls(), article_hex_id, :article) do
       {:ok, _relay, event_or_events} -> {:ok, event_or_events}
       {:error, reason} -> {:error, reason}
     end
   end
 
-  @spec fetch_community(String.t()) :: {:ok, map()} | {:error, String.t()}
+  @spec fetch_community(any()) :: fetch_result()
   def fetch_community(community_data) do
-    case fetch_community(community_data, @relay_urls) do
+    case fetch_community(community_data, default_relay_urls()) do
       {:ok, _relay, event_or_events} -> {:ok, event_or_events}
       {:error, reason} -> {:error, reason}
     end
   end
 
-  @spec fetch_community(String.t(), relay_urls()) :: fetch_result_with_relay()
+  @spec fetch_community(any(), relay_urls()) :: fetch_result_with_relay()
   def fetch_community(community_data, relays) do
     fetch_from_relays(relays, community_data, :community)
   end
 
-  @spec fetch_note(String.t()) :: {:ok, map()} | {:error, String.t()}
+  @spec fetch_note(String.t()) :: fetch_result()
   def fetch_note(note_id) do
-    case fetch_from_relays(@relay_urls, note_id, :note) do
+    case fetch_from_relays(default_relay_urls(), note_id, :note) do
       {:ok, _relay, event_or_events} -> {:ok, event_or_events}
       {:error, reason} -> {:error, reason}
     end
@@ -103,9 +117,9 @@ defmodule NostrBackend.NostrClient do
     end
   end
 
-  @spec fetch_profile(String.t(), list()) :: {:ok, map()} | {:error, String.t()}
+  @spec fetch_profile(String.t(), list()) :: fetch_result_with_relay()
   def fetch_profile(profile_hex_id, []) do
-    fetch_profile(profile_hex_id, @relay_urls)
+    fetch_profile(profile_hex_id, default_relay_urls())
   end
 
   @spec fetch_profile(pubkey(), relay_urls()) :: fetch_result_with_relay()
@@ -113,9 +127,9 @@ defmodule NostrBackend.NostrClient do
     fetch_from_relays(relays, profile_hex_id, :profile)
   end
 
-  @spec fetch_follow_list(String.t(), list()) :: {:ok, any()} | {:error, String.t()}
+  @spec fetch_follow_list(String.t(), list()) :: fetch_result()
   def fetch_follow_list(pubkey, []) do
-    fetch_follow_list(pubkey, @relay_urls)
+    fetch_follow_list(pubkey, default_relay_urls())
   end
 
   @spec fetch_follow_list(pubkey(), relay_urls()) :: fetch_result()
@@ -124,6 +138,7 @@ defmodule NostrBackend.NostrClient do
     case fetch_from_relays(relay_urls, pubkey, :follow_list) do
       {:ok, _relay, event_or_events} ->
         {:ok, event_or_events}
+
       {:error, reason} ->
         Logger.error("NostrClient: Error fetching follow list: #{reason}")
         {:error, reason}
@@ -132,7 +147,7 @@ defmodule NostrBackend.NostrClient do
 
   @spec fetch_author_articles(String.t(), list()) :: {:ok, list(map())} | {:error, String.t()}
   def fetch_author_articles(pubkey, []) do
-    fetch_author_articles(pubkey, @relay_urls)
+    fetch_author_articles(pubkey, default_relay_urls())
   end
 
   @spec fetch_author_articles(pubkey(), relay_urls()) :: fetch_result()
@@ -144,15 +159,25 @@ defmodule NostrBackend.NostrClient do
     end
   end
 
-  @spec fetch_multiple_authors_articles(list(String.t()), list()) :: {:ok, list(map())} | {:error, String.t()}
-  def fetch_multiple_authors_articles(pubkeys, []) do
-    fetch_multiple_authors_articles(pubkeys, @relay_urls)
-  end
+  @spec fetch_multiple_authors_articles(list(String.t()), list(), keyword()) ::
+          {:ok, list(map())} | {:error, String.t()}
+  def fetch_multiple_authors_articles(pubkeys, relays \\ nil, opts \\ [])
 
-  @spec fetch_multiple_authors_articles([pubkey()], relay_urls()) :: fetch_result()
-  def fetch_multiple_authors_articles(pubkeys, relay_urls) do
-    Logger.info("Fetching articles for #{length(pubkeys)} authors from #{length(relay_urls)} relays")
-    case fetch_from_relays(relay_urls, pubkeys, :multiple_authors_articles) do
+  def fetch_multiple_authors_articles(pubkeys, nil, opts),
+    do: fetch_multiple_authors_articles(pubkeys, default_relay_urls(), opts)
+
+  def fetch_multiple_authors_articles(pubkeys, [], opts),
+    do: fetch_multiple_authors_articles(pubkeys, default_relay_urls(), opts)
+
+  @spec fetch_multiple_authors_articles([pubkey()], relay_urls(), keyword()) :: fetch_result()
+  def fetch_multiple_authors_articles(pubkeys, relay_urls, opts) do
+    payload = %{pubkeys: pubkeys, limit: Keyword.get(opts, :limit)}
+
+    Logger.info(
+      "Fetching articles for #{length(pubkeys)} authors from #{length(relay_urls)} relays"
+    )
+
+    case fetch_from_relays(relay_urls, payload, :multiple_authors_articles) do
       {:ok, _relay, events} -> {:ok, events}
       {:error, reason} -> {:error, reason}
     end
@@ -163,6 +188,7 @@ defmodule NostrBackend.NostrClient do
     filter = build_filters(id, type)
 
     base_opts = [overall_timeout: 60_000, cache?: false]
+
     opts =
       case type do
         :author_articles -> Keyword.put(base_opts, :paginate, true)
@@ -170,11 +196,14 @@ defmodule NostrBackend.NostrClient do
         _ -> base_opts
       end
 
-    case NostrAccess.fetch(relay_urls, filter, opts) do
+    relays = ensure_relays(relay_urls)
+
+    case NostrAccess.fetch(relays, filter, opts) do
       {:ok, events} ->
-        relay_url = List.first(relay_urls) || "unknown"
+        relay_url = List.first(relays) || "unknown"
         Logger.info("Successfully fetched data from relay #{relay_url}: #{length(events)} items")
         {:ok, relay_url, events}
+
       {:error, reason} ->
         Logger.error("Failed to fetch data from relays: #{inspect(reason)}")
         {:error, "No results from any relay"}
@@ -249,16 +278,24 @@ defmodule NostrBackend.NostrClient do
     }
   end
 
-  defp build_filters(pubkeys, :multiple_authors_articles) do
+  defp build_filters(%{pubkeys: pubkeys, limit: limit}, :multiple_authors_articles)
+       when is_list(pubkeys) do
     Logger.info("Building filters for multiple authors articles: #{length(pubkeys)} authors")
+
+    limit_value =
+      cond do
+        is_integer(limit) and limit > 0 -> limit
+        true -> 1000
+      end
+
     %{
       authors: pubkeys,
       kinds: [30023],
-      limit: 1000
+      limit: limit_value
     }
   end
 
-
-
-
+  defp build_filters(pubkeys, :multiple_authors_articles) when is_list(pubkeys) do
+    build_filters(%{pubkeys: pubkeys, limit: nil}, :multiple_authors_articles)
+  end
 end

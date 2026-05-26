@@ -10,7 +10,12 @@ import Config
 config :nostr_backend,
   generators: [timestamp_type: :utc_datetime],
   feed_generator: %{
-    source_pubkey: System.get_env("FEED_SOURCE_PUBKEY", "0f47948ccf4d12064ede2e0aa744868a2443cb1c42b32c06191e0d902205abef"), # authors@pareto.space
+    # authors@pareto.space
+    source_pubkey:
+      System.get_env(
+        "FEED_SOURCE_PUBKEY",
+        "0f47948ccf4d12064ede2e0aa744868a2443cb1c42b32c06191e0d902205abef"
+      ),
     feed_size: String.to_integer(System.get_env("FEED_SIZE", "20")),
     relay_url: System.get_env("FEED_RELAY_URL", "wss://nostr.pareto.space")
   },
@@ -18,10 +23,26 @@ config :nostr_backend,
     "wss://nostr.pareto.space",
     "wss://nostr.pareto.town",
     "wss://nos.lol",
+    "wss://pareto.nostr1.com",
+    "wss://purplepag.es",
+    "wss://nostr.einundzwanzig.space",
+    "wss://relay.primal.net",
     "wss://relay.nostr.band",
-    "wss://relay.damus.io",
-    "wss://pareto.nostr1.com"
+    "wss://relay.damus.io"
   ]
+
+config :nostr_access, :relay_health,
+  enabled: System.get_env("RELAY_HEALTH_ENABLED", "true") == "true",
+  fail_window_minutes: String.to_integer(System.get_env("RELAY_FAIL_WINDOW_MINUTES", "5")),
+  fail_threshold: String.to_integer(System.get_env("RELAY_FAIL_THRESHOLD", "3")),
+  cooldown_minutes: String.to_integer(System.get_env("RELAY_COOLDOWN_MINUTES", "10")),
+  score_floor: String.to_integer(System.get_env("RELAY_SCORE_FLOOR", "40")),
+  max_relays: String.to_integer(System.get_env("RELAY_MAX", "6")),
+  min_relays: String.to_integer(System.get_env("RELAY_MIN", "1")),
+  success_inc: String.to_integer(System.get_env("RELAY_SCORE_SUCCESS_INC", "5")),
+  failure_dec: String.to_integer(System.get_env("RELAY_SCORE_FAILURE_DEC", "15")),
+  max_score: String.to_integer(System.get_env("RELAY_SCORE_MAX", "100")),
+  ttl_hours: String.to_integer(System.get_env("RELAY_HEALTH_TTL_HOURS", "24"))
 
 # Configures the endpoint
 config :nostr_backend, NostrBackendWeb.Endpoint,

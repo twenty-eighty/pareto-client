@@ -6,7 +6,7 @@ module Components.Button exposing
     , withContentLeft, withContentRight
     , withIconLeft, withIconRight
     , withDisabled
-    , heightString, withHidden, withIntermediateState, withLink, withNewTabLink, withTypePrimary, withTypeSecondary, withWidthFull
+    , heightString, withHidden, withIntermediateState, withLink, withNewTabLink, withTypePrimary, withTypeSecondary, withWidthFull, withTestAttribute, withId
     )
 
 {-|
@@ -25,7 +25,6 @@ module Components.Button exposing
 @docs withContentLeft, withContentRight
 @docs withIconLeft, withIconRight
 @docs withDisabled
-
 -}
 
 import Components.Icon exposing (Icon)
@@ -63,6 +62,8 @@ type Button msg
         , isDisabled : Bool
         , isHidden : Bool
         , isInIntermediateState : Bool
+        , testAttribute : Maybe String
+        , elementId : Maybe String
         , theme : Ui.Styles.Theme
         }
 
@@ -82,6 +83,8 @@ new props =
         , isDisabled = False
         , isHidden = False
         , isInIntermediateState = False
+        , testAttribute = Nothing
+        , elementId = Nothing
         , theme = props.theme
         }
 
@@ -111,6 +114,16 @@ withLink url (Settings settings) =
 withNewTabLink : String -> Button msg -> Button msg
 withNewTabLink url (Settings settings) =
     Settings { settings | action = NewTabLink url }
+
+
+withTestAttribute : String -> Button msg -> Button msg
+withTestAttribute testAttribute (Settings settings) =
+    Settings { settings | testAttribute = Just testAttribute }
+
+
+withId : String -> Button msg -> Button msg
+withId idValue (Settings settings) =
+    Settings { settings | elementId = Just idValue }
 
 
 type ButtonType
@@ -260,6 +273,19 @@ view (Settings settings) =
 
                 Auto ->
                     [ Tw.w_auto ]
+
+        testAttribute =
+            case settings.testAttribute of
+                Just value ->
+                    [ Attr.attribute "data-test" value ]
+
+                Nothing ->
+                    [ Attr.attribute "data-test" settings.label ]
+
+        idAttributes =
+            settings.elementId
+                |> Maybe.map (\value -> [ Attr.id value ])
+                |> Maybe.withDefault []
     in
     if not settings.isHidden then
         div
@@ -270,8 +296,10 @@ view (Settings settings) =
                 ]
             ]
             [ element
-                (buttonStyles
+                (idAttributes
+                    ++ testAttribute
                     ++ onClickAttr
+                    ++ buttonStyles
                     ++ [ Attr.css
                             (widthStyles
                                 ++ [ Tw.py_2

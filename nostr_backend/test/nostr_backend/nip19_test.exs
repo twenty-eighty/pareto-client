@@ -22,11 +22,23 @@ defmodule NostrBackend.NIP19Test do
 
     test "handles different kind formats" do
       # Test with integer kind
-      naddr1 = NIP19.encode_naddr(30023, "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5", "1745951549051")
+      naddr1 =
+        NIP19.encode_naddr(
+          30023,
+          "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5",
+          "1745951549051"
+        )
+
       assert String.starts_with?(naddr1, "naddr1")
 
       # Test with string kind
-      naddr2 = NIP19.encode_naddr("30023", "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5", "1745951549051")
+      naddr2 =
+        NIP19.encode_naddr(
+          "30023",
+          "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5",
+          "1745951549051"
+        )
+
       assert String.starts_with?(naddr2, "naddr1")
 
       # Both should produce the same result
@@ -35,11 +47,23 @@ defmodule NostrBackend.NIP19Test do
 
     test "handles different identifier formats" do
       # Test with string identifier
-      naddr1 = NIP19.encode_naddr(30023, "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5", "1745951549051")
+      naddr1 =
+        NIP19.encode_naddr(
+          30023,
+          "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5",
+          "1745951549051"
+        )
+
       assert String.starts_with?(naddr1, "naddr1")
 
       # Test with integer identifier
-      naddr2 = NIP19.encode_naddr(30023, "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5", 1745951549051)
+      naddr2 =
+        NIP19.encode_naddr(
+          30023,
+          "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5",
+          1_745_951_549_051
+        )
+
       assert String.starts_with?(naddr2, "naddr1")
 
       # Both should produce the same result
@@ -48,11 +72,23 @@ defmodule NostrBackend.NIP19Test do
 
     test "handles different pubkey formats" do
       # Test with lowercase pubkey
-      naddr1 = NIP19.encode_naddr(30023, "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5", "1745951549051")
+      naddr1 =
+        NIP19.encode_naddr(
+          30023,
+          "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5",
+          "1745951549051"
+        )
+
       assert String.starts_with?(naddr1, "naddr1")
 
       # Test with uppercase pubkey
-      naddr2 = NIP19.encode_naddr(30023, "866E013908559F15C5EFF9D1295453082F01A1FB5F40A25BCF0776A36A9334E5", "1745951549051")
+      naddr2 =
+        NIP19.encode_naddr(
+          30023,
+          "866E013908559F15C5EFF9D1295453082F01A1FB5F40A25BCF0776A36A9334E5",
+          "1745951549051"
+        )
+
       assert String.starts_with?(naddr2, "naddr1")
 
       # Both should produce the same result
@@ -74,6 +110,7 @@ defmodule NostrBackend.NIP19Test do
       kind = 30023
       pubkey = "7460b7fd291c47bc397fe58d0349b467984e7333772d1b8c7f69cc814fc4e74b"
       identifier = "emgnFFRRhXIb474md4e5Z"
+
       relays = [
         "wss://nos.lol",
         "wss://nostr.wine",
@@ -119,11 +156,21 @@ defmodule NostrBackend.NIP19Test do
 
     test "handles different pubkey formats" do
       # Test with lowercase pubkey
-      nprofile1 = NIP19.encode_nprofile("90de72b7b1d0734061a51ca23c0a57fc8a94f28257c9d1bb851aa4ec8f68fdc0", ["wss://nos.lol"])
+      nprofile1 =
+        NIP19.encode_nprofile(
+          "90de72b7b1d0734061a51ca23c0a57fc8a94f28257c9d1bb851aa4ec8f68fdc0",
+          ["wss://nos.lol"]
+        )
+
       assert String.starts_with?(nprofile1, "nprofile1")
 
       # Test with uppercase pubkey
-      nprofile2 = NIP19.encode_nprofile("90DE72B7B1D0734061A51CA23C0A57FC8A94F28257C9D1BB851AA4EC8F68FDC0", ["wss://nos.lol"])
+      nprofile2 =
+        NIP19.encode_nprofile(
+          "90DE72B7B1D0734061A51CA23C0A57FC8A94F28257C9D1BB851AA4EC8F68FDC0",
+          ["wss://nos.lol"]
+        )
+
       assert String.starts_with?(nprofile2, "nprofile1")
 
       # Both should produce the same result
@@ -142,6 +189,7 @@ defmodule NostrBackend.NIP19Test do
 
     test "supports encoding with multiple relays" do
       pubkey = "90de72b7b1d0734061a51ca23c0a57fc8a94f28257c9d1bb851aa4ec8f68fdc0"
+
       relays = [
         "wss://nos.lol",
         "wss://nostr.wine",
@@ -212,16 +260,20 @@ defmodule NostrBackend.NIP19Test do
   describe "external tool compatibility" do
     test "nprofile can be decoded by nak tool" do
       # Skip the test if nak tool is not available or we're not in test mode
-      case {System.find_executable("nak"), Application.get_env(:nostr_backend, :environment) == :test} do
+      case {System.find_executable("nak"),
+            Application.get_env(:nostr_backend, :environment) == :test} do
         {nil, _} ->
           IO.puts("Skipping test: nak tool not found")
           :ok
+
         {_, false} ->
           IO.puts("Skipping test: not in test environment")
           :ok
+
         {_nak_path, true} ->
           # Generate an nprofile with distinctive test data
           pubkey = "7f3b435dda3451dde42d16df0309a31feb2ea04afff15d5e5a58fec8395a152c"
+
           relays = [
             "wss://relay.example.com",
             "wss://nostr.test.relay"
@@ -239,7 +291,7 @@ defmodule NostrBackend.NIP19Test do
             if exit_code == 0 do
               # Only verify contents if nak successfully decoded
               assert String.contains?(output, String.downcase(pubkey)),
-                "Decoded output doesn't contain the original pubkey"
+                     "Decoded output doesn't contain the original pubkey"
 
               # Only check for relays if the output contains the pubkey (basic success indicator)
               if String.contains?(output, String.downcase(pubkey)) do

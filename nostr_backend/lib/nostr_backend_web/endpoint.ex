@@ -1,19 +1,9 @@
 defmodule NostrBackendWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :nostr_backend
 
-  # The session will be stored in the cookie and signed,
-  # this means its contents can be read but not tampered with.
-  # Set :encryption_salt if you would also like to encrypt it.
-  @session_options [
-    store: :cookie,
-    key: "_nostr_backend_key",
-    signing_salt: "Zwbg9iH3",
-    same_site: "Lax"
-  ]
-
   socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [session: @session_options]],
-    longpoll: [connect_info: [session: @session_options]]
+    websocket: [connect_info: []],
+    longpoll: [connect_info: []]
 
   plug NostrBackendWeb.Plugs.Hsts
   plug NostrBackendWeb.Plugs.RequestLogger
@@ -23,9 +13,44 @@ defmodule NostrBackendWeb.Endpoint do
   # You should set gzip to true if you are running phx.digest
   # when deploying your static files in production.
 
+  # Long-lived static assets
+  plug Plug.Static,
+    at: "/assets",
+    from: {:nostr_backend, "priv/static/assets"},
+    brotli: true,
+    gzip: true,
+    cache_control_for_etags: "public, max-age=31536000, immutable",
+    cache_control_for_vsn_requests: "public, max-age=31536000, immutable"
+
+  plug Plug.Static,
+    at: "/images",
+    from: {:nostr_backend, "priv/static/images"},
+    brotli: true,
+    gzip: true,
+    cache_control_for_etags: "public, max-age=31536000, immutable",
+    cache_control_for_vsn_requests: "public, max-age=31536000, immutable"
+
+  plug Plug.Static,
+    at: "/fonts",
+    from: {:nostr_backend, "priv/static/fonts"},
+    brotli: true,
+    gzip: true,
+    cache_control_for_etags: "public, max-age=31536000, immutable",
+    cache_control_for_vsn_requests: "public, max-age=31536000, immutable"
+
+  # Shorter-lived JS (non-hashed helpers under /js)
+  plug Plug.Static,
+    at: "/js",
+    from: {:nostr_backend, "priv/static/js"},
+    brotli: true,
+    gzip: true,
+    cache_control_for_etags: "public, max-age=86400",
+    cache_control_for_vsn_requests: "public, max-age=86400"
+
   plug Plug.Static,
     at: "/",
     from: :nostr_backend,
+    brotli: true,
     gzip: true,
     only: NostrBackendWeb.static_paths()
 
@@ -38,8 +63,7 @@ defmodule NostrBackendWeb.Endpoint do
   end
 
   plug Phoenix.LiveDashboard.RequestLogger,
-    param_key: "request_logger",
-    cookie_key: "request_logger"
+    param_key: "request_logger"
 
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
@@ -51,6 +75,5 @@ defmodule NostrBackendWeb.Endpoint do
 
   plug Plug.MethodOverride
   plug Plug.Head
-  plug Plug.Session, @session_options
   plug NostrBackendWeb.Router
 end

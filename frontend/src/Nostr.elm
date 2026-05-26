@@ -4,6 +4,7 @@ import BrowserEnv exposing (Environment(..))
 import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode
+import Json.Decode.Pipeline as DecodePipeline
 import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, filterMatchesArticle, firstCreatedAt, publishedTime)
 import Nostr.Blossom exposing (userServerListFromEvent)
 import Nostr.BookmarkList exposing (BookmarkList, bookmarkListEvent, bookmarkListFromEvent, bookmarkListWithArticle, bookmarkListWithShortNote, bookmarkListWithoutArticle, bookmarkListWithoutShortNote, emptyBookmarkList)
@@ -357,6 +358,11 @@ performRequest model description requestId requestData =
 
         RequestFollowSets eventFilter ->
             ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
+
+        RequestFutureArticles eventFilters ->
+            ( { model | articlesByDate = [] }
+            , model.hooks.requestEvents description True requestId Pareto.delayedPublishingRelays eventFilters
+            )
 
         RequestMediaServerLists eventFilter ->
             ( model, model.hooks.requestEvents description True requestId configuredRelays [ eventFilter ] )
@@ -1568,7 +1574,7 @@ empty =
     , zapReceiptsAddress = Dict.empty
     , zapReceiptsEvents = Dict.empty
     , errors = []
-    , requests = Dict.empty
+    , requests = Dict.singleton 0 { id = 0, relatedKinds = [], states = [], description = "preoloaded data" }
     , sendRequests = Dict.empty
     , lastRequestId = 0
     , lastSendId = 0
@@ -1689,6 +1695,22 @@ update msg model =
                     case Decode.decodeValue (Decode.list Nostr.Zaps.nostrZapReceiptDecoder) message.value of
                         Ok zapReceipts ->
                             updateWithZapReceipts model zapReceipts
+
+                        Err error ->
+                            ( { model | errors = Decode.errorToString error :: model.errors }, Cmd.none )
+
+                "authors" ->
+                    -- resolve author's NIP-05 from <script> injected by backend
+                    case Decode.decodeValue (Decode.list authorDecoder) message.value of
+                        Ok authorsData ->
+                            let
+                                pubKeyByNip05 =
+                                    authorsData
+                                        |> List.map (\authorData -> ( nip05ToString authorData.nip05, authorData.pubKey ))
+                                        |> Dict.fromList
+                                        |> Dict.union model.pubKeyByNip05
+                            in
+                            ( { model | pubKeyByNip05 = pubKeyByNip05 }, Cmd.none )
 
                         Err error ->
                             ( { model | errors = Decode.errorToString error :: model.errors }, Cmd.none )
@@ -1843,6 +1865,17 @@ update msg model =
             , Cmd.none
             )
 
+
+type alias AuthorData =
+    { pubKey : PubKey
+    , nip05 : Nip05
+    }
+
+authorDecoder : Decode.Decoder AuthorData
+authorDecoder =
+    Decode.succeed AuthorData
+        |> DecodePipeline.required "pubkey" Decode.string
+        |> DecodePipeline.required "nip-05" Nip05.nip05StringDecoder
 
 updateModelWithEvents : Model -> Int -> Kind -> List Event -> ( Model, Cmd Msg )
 updateModelWithEvents model requestId kind events =

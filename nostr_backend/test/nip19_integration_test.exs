@@ -22,7 +22,7 @@ defmodule NostrBackend.NIP19IntegrationTest do
       type: :nprofile,
       pubkey: "9ec7a778167afb1d30c4833de9322da0c08ba4c57e27baa9e833c0210f5e3a81",
       relays: ["wss://nostr.wine", "wss://nos.lol", "wss://relay.damus.io"]
-    },
+    }
     # Test naddr encoding - commented out due to potential timeouts
     # %{
     #   type: :naddr,
@@ -43,7 +43,8 @@ defmodule NostrBackend.NIP19IntegrationTest do
   # Verify NAK CLI is available
   setup do
     assert {_, 0} = System.cmd("which", ["nak"], stderr_to_stdout: true),
-      "NAK CLI must be installed to run these tests"
+           "NAK CLI must be installed to run these tests"
+
     :ok
   end
 
@@ -57,18 +58,19 @@ defmodule NostrBackend.NIP19IntegrationTest do
 
     # Run NAK command
     case System.cmd("nak", args, stderr_to_stdout: true) do
-      {output, 0} -> String.trim(output)
+      {output, 0} ->
+        String.trim(output)
+
       {error, _} ->
         IO.puts("NAK ERROR: #{error}")
         nil
     end
   end
 
-
-
   # Helper to run with timeout guard
   defp with_timeout(fun, timeout \\ 5_000) do
     task = Task.async(fun)
+
     case Task.yield(task, timeout) || Task.shutdown(task) do
       {:ok, result} -> result
       _ -> :timeout
@@ -113,10 +115,11 @@ defmodule NostrBackend.NIP19IntegrationTest do
 
     for pubkey <- test_pubkeys do
       # Use the NAK tool to get a reference npub
-      reference_npub = with_timeout(fn ->
-        {output, 0} = System.cmd("nak", ["encode", "npub", pubkey], stderr_to_stdout: true)
-        String.trim(output)
-      end)
+      reference_npub =
+        with_timeout(fn ->
+          {output, 0} = System.cmd("nak", ["encode", "npub", pubkey], stderr_to_stdout: true)
+          String.trim(output)
+        end)
 
       # Use our implementation to encode
       our_npub = NIP19.encode_npub(pubkey)

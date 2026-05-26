@@ -143,6 +143,7 @@ view (Settings settings) =
         ]
         [ input
             [ Attr.type_ "checkbox"
+            , Attr.attribute "data-test" ("checkbox-" ++ settings.label)
             , Events.onClick (settings.onClick (not settings.checked))
             , Attr.css
                 [ Tw.absolute

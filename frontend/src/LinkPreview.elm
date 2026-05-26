@@ -113,16 +113,8 @@ generatePreviewHtml loadedContent urlString linkAttr body =
 
 detectLinkType : Erl.Url -> String -> LinkType
 detectLinkType url originalUrl =
-    if isYouTubeWatchUrl url then
-        case getYouTubeVideoIdFromQuery url.query of
-            Just videoId ->
-                YouTubeVideo videoId
-
-            Nothing ->
-                PlainLink
-
-    else if isYouTubeShortUrl url then
-        case getYouTubeVideoIdFromPath url.path of
+    if isYouTubeUrl url then
+        case getYouTubeVideoId url of
             Just videoId ->
                 YouTubeVideo videoId
 
@@ -231,17 +223,17 @@ filteredParams =
 -- Helper functions to identify and extract data from URLs
 
 
-isYouTubeWatchUrl : Erl.Url -> Bool
-isYouTubeWatchUrl url =
+isYouTubeUrl : Erl.Url -> Bool
+isYouTubeUrl url =
     let
         hosts =
             [ [ "www", "youtube", "com" ]
             , [ "youtube", "com" ]
             , [ "m", "youtube", "com" ]
+            , [ "youtu", "be" ]
             ]
     in
-    List.member url.host hosts && url.path == [ "watch" ]
-
+    List.member url.host hosts
 
 
 -- don't embed Facebook content - requires App registration to use oEmbed
@@ -336,24 +328,29 @@ getObjectMimeTypeFromUrl urlPath =
         |> getMimeTypeFromUrl urlPath
 
 
-getYouTubeVideoIdFromQuery : List ( String, String ) -> Maybe String
-getYouTubeVideoIdFromQuery query =
-    query
-        |> List.filterMap
-            (\( key, value ) ->
-                if key == "v" then
-                    Just value
+getYouTubeVideoId : Erl.Url -> Maybe String
+getYouTubeVideoId url =
+    case url.path of
+        [ "embed", videoId ] ->
+            Just videoId
 
-                else
-                    Nothing
-            )
-        |> List.head
+        [ "watch" ] ->
+            url.query
+                |> List.filterMap
+                    (\( key, value ) ->
+                        if key == "v" then
+                            Just value
 
+                        else
+                            Nothing
+                    )
+                |> List.head
 
-isYouTubeShortUrl : Erl.Url -> Bool
-isYouTubeShortUrl url =
-    url.host == [ "youtu", "be" ]
+        [ videoId ] ->
+            Just videoId
 
+        _ ->
+            Nothing
 
 isOdyseeUrl : Erl.Url -> Bool
 isOdyseeUrl url =
@@ -368,16 +365,6 @@ isPodBeanUrl url =
 isRumbleUrl : Erl.Url -> Bool
 isRumbleUrl url =
     url.host == [ "rumble", "com" ]
-
-
-getYouTubeVideoIdFromPath : List String -> Maybe String
-getYouTubeVideoIdFromPath path =
-    case path of
-        [ videoId ] ->
-            Just videoId
-
-        _ ->
-            Nothing
 
 
 isTelegramUrl : Erl.Url -> Bool
@@ -681,7 +668,7 @@ generateRumblePreview : Maybe (LoadedContent msg) -> String -> Html msg
 generateRumblePreview maybeLoadedContent urlString =
     let
         thumbnailUrl =
-            openGraphImageUrl urlString
+            rumbleThumbnailUrl urlString
 
         ( showEmbedded, linkElement, clickAttr ) =
             case maybeLoadedContent of
@@ -712,8 +699,13 @@ generateRumblePreview maybeLoadedContent urlString =
 
 rumbleProxyUrl : String -> String
 rumbleProxyUrl urlString =
-    "https://pareto.space/api/rumble/embed?url=" ++ Url.percentEncode urlString
-    -- "http://localhost:4000/api/rumble/embed?url=" ++ Url.percentEncode urlString
+    "https://pareto.space/api/rumble/oembed/embed?url=" ++ Url.percentEncode urlString
+    -- "http://localhost:4444/api/rumble/oembed/embed?url=" ++ Url.percentEncode urlString
+
+rumbleThumbnailUrl : String -> String
+rumbleThumbnailUrl urlString =
+    "https://pareto.space/api/rumble/oembed/thumbnail?url=" ++ Url.percentEncode urlString
+    -- "http://localhost:4444/api/rumble/oembed/thumbnail?url=" ++ Url.percentEncode urlString
 
 videoThumbnailPreview : (List (Html.Attribute msg) -> List (Html msg) -> Html msg) -> List (Html.Attribute msg) -> String -> Html msg
 videoThumbnailPreview linkElement clickAttr thumbnailUrl =
@@ -828,6 +820,9 @@ oemProviders =
       }
     , { url = "https://www.facebook.com/oembed_video"
       , schemes = [ regex "https://www\\.facebook\\.com/.*/videos/.*", regex "https://www\\.facebook\\.com/video\\.php" ]
+      }
+    , { url = "https://rumble.com/api/Media/oembed.json"
+      , schemes = [ regex "https://rumble\\.com/.*" ]
       }
     , { url = "https://rutube.ru/api/oembed"
       , schemes = [ regex "https://rutube\\.ru/video/.*" ]

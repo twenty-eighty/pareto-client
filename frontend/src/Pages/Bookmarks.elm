@@ -2,8 +2,9 @@ module Pages.Bookmarks exposing (Model, Msg, page)
 
 import Auth
 import Components.ArticleComments as ArticleComments
+import Components.BookmarkButton as BookmarkButton
 import Components.Categories as Categories
-import Dict
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html)
 import I18Next
@@ -15,7 +16,7 @@ import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), empt
 import Nostr.External
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId, IncomingMessage, PubKey)
+import Nostr.Types exposing (EventId, IncomingMessage)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
@@ -70,7 +71,8 @@ toLayout user shared model =
 
 
 type alias Model =
-    { categories : Categories.Model BookmarkType
+    { bookmarkButtons : Dict EventId BookmarkButton.Model
+    , categories : Categories.Model BookmarkType
     , selectedBookmarkType : BookmarkType
     }
 
@@ -83,7 +85,8 @@ init shared user () =
                 |> Maybe.map (requestForBookmarkContent shared.nostr ArticleBookmark)
                 |> Maybe.withDefault Effect.none
     in
-    ( { categories = Categories.init { selected = ArticleBookmark }
+    ( { bookmarkButtons = Dict.empty
+      , categories = Categories.init { selected = ArticleBookmark }
       , selectedBookmarkType = ArticleBookmark
       }
     , Effect.batch
@@ -118,20 +121,6 @@ requestForBookmarkContent nostr bookmarkType bookmarkList =
                     )
                 |> Effect.batch
 
-        HashtagBookmark ->
-            -- { authors = Nothing
-            -- , ids = Nothing
-            -- , kinds = Just [ KindLongFormContent ]
-            -- , tagReferences =
-            --     bookmarkList.hashtags
-            --     |> List.map TagReferenceTag
-            --     |> Just
-            -- , limit = Nothing
-            -- , since = Nothing
-            -- , until = Nothing
-            -- }
-            Effect.none
-
         NoteBookmark ->
             -- { authors = Nothing
             -- , ids = Nothing
@@ -146,20 +135,16 @@ requestForBookmarkContent nostr bookmarkType bookmarkList =
             -- }
             Effect.none
 
-        UrlBookmark ->
-            Effect.none
-
-
 
 -- UPDATE
 
 
 type Msg
     = ReceivedMessage IncomingMessage
+    | BookmarkButtonMsg EventId BookmarkButton.Msg
     | CategoriesSent (Categories.Msg BookmarkType Msg)
     | CategorySelected BookmarkType
-    | AddArticleBookmark PubKey AddressComponents
-    | RemoveArticleBookmark PubKey AddressComponents
+    | BookmarkRemoved
     | NoOp
 
 
@@ -168,6 +153,33 @@ update user shared msg model =
     case msg of
         ReceivedMessage message ->
             updateWithMessage user shared model message
+
+        BookmarkButtonMsg eventId innerMsg ->
+            BookmarkButton.update
+                { msg = innerMsg
+                , model = Dict.get eventId model.bookmarkButtons
+                , nostr = shared.nostr
+                , onRemoveMsg = Just BookmarkRemoved
+                , toModel = \bookmarkButton -> { model | bookmarkButtons = Dict.insert eventId bookmarkButton model.bookmarkButtons }
+                , toMsg = BookmarkButtonMsg eventId
+                , translations = shared.browserEnv.translations
+                }
+        BookmarkRemoved ->
+            let
+                numberOfBookmarks =
+                    Nostr.getBookmarks shared.nostr user.pubKey
+                        |> Maybe.map bookmarksCount
+                        |> Maybe.withDefault 0
+
+                redirectForEmptyList =
+                    if numberOfBookmarks <= 1 then
+                        Effect.replaceRoute { hash = Nothing, path = Route.Path.Read, query = Dict.empty }
+
+                    else
+                        Effect.none
+            in
+            ( model , redirectForEmptyList)
+
 
         CategoriesSent innerMsg ->
             Categories.update
@@ -179,37 +191,6 @@ update user shared msg model =
 
         CategorySelected bookmarkType ->
             ( { model | selectedBookmarkType = bookmarkType }, Effect.none )
-
-        AddArticleBookmark pubKey addressComponents ->
-            ( model
-            , SendBookmarkListWithArticle pubKey addressComponents
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
-
-        RemoveArticleBookmark pubKey addressComponents ->
-            let
-                numberOfBookmarks =
-                    Nostr.getBookmarks shared.nostr user.pubKey
-                        |> Maybe.map bookmarksCount
-                        |> Maybe.withDefault 0
-
-                redirectForEmptyList =
-                    if numberOfBookmarks <= 1 then
-                        -- assume that we're about to delete the last bookmark
-                        Effect.replaceRoute { hash = Nothing, path = Route.Path.Read, query = Dict.empty }
-
-                    else
-                        Effect.none
-            in
-            ( model
-            , Effect.batch
-                [ redirectForEmptyList
-                , SendBookmarkListWithoutArticle pubKey addressComponents
-                    |> Shared.Msg.SendNostrEvent
-                    |> Effect.sendSharedMsg
-                ]
-            )
 
         NoOp ->
             ( model, Effect.none )
@@ -255,8 +236,14 @@ updateWithMessage user shared model message =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Ports.receiveMessage ReceivedMessage
+subscriptions model =
+    Sub.batch
+        [ Ports.receiveMessage ReceivedMessage
+        , model.bookmarkButtons
+            |> Dict.toList
+            |> List.map (\(eventId, bookmarkButton) -> BookmarkButton.subscriptions bookmarkButton |> Sub.map (BookmarkButtonMsg eventId))
+            |> Sub.batch
+        ]
 
 
 
@@ -283,18 +270,12 @@ viewBookmarks shared model bookmarkList =
         ArticleBookmark ->
             viewArticleBookmarks shared model bookmarkList.articles
 
-        HashtagBookmark ->
-            viewHashtagBookmarks shared model bookmarkList.hashtags
-
         NoteBookmark ->
             viewNoteBookmarks shared model bookmarkList.notes
 
-        UrlBookmark ->
-            viewUrlBookmarks shared model bookmarkList.urls
-
 
 viewArticleBookmarks : Shared.Model -> Model -> List AddressComponents -> Html Msg
-viewArticleBookmarks shared _ addressComponents =
+viewArticleBookmarks shared model addressComponents =
     addressComponents
         |> List.filterMap (Nostr.getArticle shared.nostr)
         |> Nostr.sortArticlesByDate
@@ -302,8 +283,8 @@ viewArticleBookmarks shared _ addressComponents =
             ArticlePreviewList
             { articleComments = ArticleComments.init
             , articleToInteractionsMsg = \_ _ -> NoOp
-            , bookmarkButtonMsg = \_ _ -> NoOp
-            , bookmarkButtons = Dict.empty
+            , bookmarkButtonMsg = BookmarkButtonMsg
+            , bookmarkButtons = model.bookmarkButtons
             , browserEnv = shared.browserEnv
             , commentsToMsg = \_ -> NoOp
             , deleteButtonMsg = Nothing
@@ -335,30 +316,24 @@ availableCategories bookmarkList translations =
     let
         articleBookmarkCategory =
             if List.length bookmarkList.articles > 0 then
-                [ { category = ArticleBookmark, title = Translations.articlesTitle [ translations ] } ]
-
-            else
-                []
-
-        hashtagBookmarkCategory =
-            if List.length bookmarkList.hashtags > 0 then
-                [ { category = HashtagBookmark, title = Translations.hashtagsTitle [ translations ] } ]
-
-            else
-                []
-
-        urlBookmarkCategory =
-            if List.length bookmarkList.urls > 0 then
-                [ { category = UrlBookmark, title = Translations.urlsTitle [ translations ] } ]
+                [ { category = ArticleBookmark
+                  , title = Translations.articlesTitle [ translations ]
+                  , testId = "bookmarks-articles"
+                  }
+                ]
 
             else
                 []
 
         noteBookmarkCategory =
             if List.length bookmarkList.notes > 0 then
-                [ { category = NoteBookmark, title = Translations.notesTitle [ translations ] } ]
+                [ { category = NoteBookmark
+                  , title = Translations.notesTitle [ translations ]
+                  , testId = "bookmarks-notes"
+                  }
+                ]
 
             else
                 []
     in
-    articleBookmarkCategory ++ hashtagBookmarkCategory ++ urlBookmarkCategory ++ noteBookmarkCategory
+    articleBookmarkCategory ++ noteBookmarkCategory

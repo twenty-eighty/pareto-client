@@ -8,15 +8,11 @@ import { BlossomClient } from "blossom-client-sdk/client";
 import "./clipboard-component.js";
 import "./zap-component.js";
 import "./elm-oembed.js";
+import { createRelayManager } from "./relay-manager.js";
 import debug from 'debug';
 
 var contacts = null;
 var newsletterSendClient = null;
-
-// Register custom elements
-if (!customElements.get('js-clipboard-component')) {
-  customElements.define('js-clipboard-component', ClipboardComponent);
-}
 
 // This is called BEFORE your Elm app starts up
 // 
@@ -40,6 +36,7 @@ const debugLog = debug('pareto-client');
 
 var connected = false;
 var nStartWizard = null
+var relayManager = null;
 
 const anonymousSigner = new NDKPrivateKeySigner('cff56394373edfaa281d2e1b5ad1b8cafd8b247f229f2af2c61734fb0c7b3f84');
 const anonymousPubKey = 'ecdf32491ef8b5f1902109f495e7ca189c6fcec76cd66b888fa9fc2ce87f40db';
@@ -52,7 +49,6 @@ const defaultRelays =
     , "wss://pareto.nostr1.com"
     , "wss://relay.damus.io"
     , "wss://nos.lol"
-    , "wss://offchain.pub"
     , "wss://nostr.wine"
   ];
 
@@ -66,6 +62,10 @@ const suggestedPubKeys =
 export const onReady = ({ app, env }) => {
 
   var storedCommands = [];
+
+  // the backend may inject a <script> element containing
+  // raw Nostr events required by the page to be loaded
+  processPreloadData(app);
 
   if (window.matchMedia) {
     window.matchMedia("(prefers-color-scheme: dark)").addListener(e =>
@@ -109,6 +109,7 @@ export const onReady = ({ app, env }) => {
     newScript.src = "/js/nostr-login.js";
     newScript.setAttribute("data-title", titleAndDescription.title);
     newScript.setAttribute("data-description", titleAndDescription.description);
+    newScript.setAttribute("data-methods", 'extension,readOnly,local');
     newScript.setAttribute("data-signup-relays", relays);
     newScript.setAttribute("data-outbox-relays", relays);
     newScript.setAttribute("data-signup-nstart", "true");
@@ -191,9 +192,41 @@ export const onReady = ({ app, env }) => {
     }
   });
 
+  function processPreloadData(app) {
+    var preloadData = undefined;
+  /*
+    const nostrTestScript = 
+
+    preloadData = nostrTestScript;
+  */
+
+    const nostrEventNode = document.getElementById('nostr-event-data');
+    if (nostrEventNode) {
+      const nostrEventPayload = nostrEventNode?.textContent;
+      preloadData = JSON.parse(nostrEventPayload);
+    }
+
+    if (preloadData) {
+      const nostrEvents = preloadData.events;
+      const eventAuthors = preloadData.authors;
+
+      if (eventAuthors) {
+        app.ports.receiveMessage.send({ messageType: 'authors', value: eventAuthors });
+      }
+
+      if (nostrEvents) {
+        processEvents(app, 0, "", nostrEvents);
+      }
+    }
+  }
+
   function processOnlineCommand(app, command, value) {
     debugLog('process command', command);
     switch (command) {
+      case 'login':
+        login(app, value);
+        break;
+
       case 'loginSignUp':
         loginSignUp(app)
         break;
@@ -283,6 +316,19 @@ export const onReady = ({ app, env }) => {
         sendNewsletterTest(app, value);
         break;
     }
+  }
+
+  async function login(app, value) {
+    const signer = new NDKPrivateKeySigner(value.nsec);
+    const user = await signer.user();        // resolves immediately once the key is decoded
+    document.dispatchEvent(new CustomEvent('nlSetAuth', {
+      detail: {
+        type: 'login',
+        method: 'local',
+        pubkey: user.pubkey,                 // 64-char hex string
+        localNsec: signer.privateKey
+      }
+    }));
   }
 
   function loginSignUp(app) {
@@ -516,6 +562,8 @@ export const onReady = ({ app, env }) => {
       debug: debugLog
     });
 
+    relayManager = createRelayManager(window.ndk, debugLog, processEvents);
+
     // sign in if a relay requests authorization
     window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.disconnect();
     // Disabled signing in to relays with Auth request as NDK loops infinitely
@@ -559,10 +607,22 @@ export const onReady = ({ app, env }) => {
     })
     window.ndk.pool.on("relay:ready", (relay) => {
       debugLog('relay ready', relay);
+      relayManager.markReady(relay.url);
+      if (!connected) {
+        connected = true;
+        app.ports.receiveMessage.send({ messageType: 'connected', value: null });
+
+        for (let i = 0; i < storedCommands.length; i++) {
+          processOnlineCommand(app, storedCommands[i].command, storedCommands[i].value);
+        }
+
+        storedCommands = [];
+      }
       app.ports.receiveMessage.send({ messageType: 'relay:ready', value: { url: relay.url } });
     })
     window.ndk.pool.on("relay:disconnect", (relay) => {
       debugLog('relay disconnected', relay);
+      relayManager.markDisconnect(relay.url);
       app.ports.receiveMessage.send({ messageType: 'relay:disconnected', value: { url: relay.url } });
     })
     window.ndk.pool.on("relay:auth", (relay) => {
@@ -583,23 +643,13 @@ export const onReady = ({ app, env }) => {
   ) {
     debugLog("FILTERS: ", filters, description, " requestId: " + requestId, "closeOnEose: " + closeOnEose, "relays: ", relays);
 
-    var ndkRelays = null;
-    if (relays) {
-      const relaysWithProtocol = relays.map(relay => {
-        if (!relay.startsWith("wss://") && !relay.startsWith("ws://")) {
-          return "wss://" + relay
-        } else {
-          return relay
-        }
-      });
-
-      ndkRelays = NDKRelaySet.fromRelayUrls(relaysWithProtocol, window.ndk);
-    }
-
-    window.ndk.fetchEvents(filters, { closeOnEose: closeOnEose }, ndkRelays).then((ndkEvents) => {
-
-      processEvents(app, requestId, description, ndkEvents);
-    })
+    relayManager.fetchEvents(app, {
+      requestId,
+      filters,
+      closeOnEose,
+      description,
+      relays
+    });
   }
 
   function searchEvents(app,
@@ -612,12 +662,13 @@ export const onReady = ({ app, env }) => {
   ) {
     debugLog("SEARCH FILTERS: ", filters, description, " requestId: " + requestId, "closeOnEose: " + closeOnEose, "relays: ", relays);
 
-    const ndkRelays = relays ? NDKRelaySet.fromRelayUrls(relays, window.ndk) : null;
-
-    window.ndk.fetchEvents(filters, { closeOnEose: closeOnEose }, ndkRelays).then((ndkEvents) => {
-
-      processEvents(app, requestId, description, ndkEvents);
-    })
+    relayManager.fetchEvents(app, {
+      requestId,
+      filters,
+      closeOnEose,
+      description,
+      relays
+    });
   }
 
   function processEvents(app, requestId, description, ndkEvents) {

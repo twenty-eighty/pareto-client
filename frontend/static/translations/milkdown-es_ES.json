@@ -1,0 +1,50 @@
+{
+  "imageBlock": {
+    "inlineUploadButton": "Seleccionar archivo",
+    "inlineUploadPlaceholderText": "o pega el enlace de la imagen ...",
+    "inlineConfirmButton": "Confirmar",
+    "blockUploadButton": "Seleccionar archivo",
+    "blockUploadPlaceholderText": "o pega el enlace de la imagen ...",
+    "blockCaptionPlaceholderText": "Descripción de la imagen",
+    "blockConfirmButton": "Confirmar"
+  },
+  "blockEdit": {
+    "textGroup": {
+      "label": "Texto",
+      "text": { "label": "Párrafo" },
+      "h1": { "label": "Encabezado 1" },
+      "h2": { "label": "Encabezado 2" },
+      "h3": { "label": "Encabezado 3" },
+      "h4": { "label": "Encabezado 4" },
+      "h5": { "label": "Encabezado 5" },
+      "h6": { "label": "Encabezado 6" },
+      "quote": { "label": "Cita" },
+      "divider": { "label": "Separador" }
+    },
+    "listGroup": {
+      "label": "Listas",
+      "bulletList": { "label": "Lista con viñetas" },
+      "orderedList": { "label": "Lista numerada" },
+      "taskList": { "label": "Lista de tareas" }
+    },
+    "advancedGroup": {
+      "label": "Avanzado",
+      "image": { "label": "Imagen" },
+      "codeBlock": { "label": "Código" },
+      "table": { "label": "Tabla" },
+      "math": { "label": "Matemáticas" }
+    }
+  },
+  "placeholder": "Por favor, escribe...",
+  "toolbar": {
+    "paragraph": "Párrafo",
+    "heading1": "Encabezado 1",
+    "heading2": "Encabezado 2",
+    "heading3": "Encabezado 3",
+    "quote": "Cita",
+    "bulletList": "Lista con viñetas",
+    "orderedList": "Lista numerada",
+    "codeBlock": "Código"
+  }
+}
+

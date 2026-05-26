@@ -1,0 +1,50 @@
+{
+  "imageBlock": {
+    "inlineUploadButton": "Choisir un fichier",
+    "inlineUploadPlaceholderText": "ou collez le lien de l’image ...",
+    "inlineConfirmButton": "Confirmer",
+    "blockUploadButton": "Choisir un fichier",
+    "blockUploadPlaceholderText": "ou collez le lien de l’image ...",
+    "blockCaptionPlaceholderText": "Légende de l’image",
+    "blockConfirmButton": "Confirmer"
+  },
+  "blockEdit": {
+    "textGroup": {
+      "label": "Texte",
+      "text": { "label": "Paragraphe" },
+      "h1": { "label": "Titre 1" },
+      "h2": { "label": "Titre 2" },
+      "h3": { "label": "Titre 3" },
+      "h4": { "label": "Titre 4" },
+      "h5": { "label": "Titre 5" },
+      "h6": { "label": "Titre 6" },
+      "quote": { "label": "Citation" },
+      "divider": { "label": "Séparateur" }
+    },
+    "listGroup": {
+      "label": "Listes",
+      "bulletList": { "label": "Liste à puces" },
+      "orderedList": { "label": "Liste numérotée" },
+      "taskList": { "label": "Liste de tâches" }
+    },
+    "advancedGroup": {
+      "label": "Avancé",
+      "image": { "label": "Image" },
+      "codeBlock": { "label": "Code" },
+      "table": { "label": "Tableau" },
+      "math": { "label": "Maths" }
+    }
+  },
+  "placeholder": "Veuillez saisir...",
+  "toolbar": {
+    "paragraph": "Paragraphe",
+    "heading1": "Titre 1",
+    "heading2": "Titre 2",
+    "heading3": "Titre 3",
+    "quote": "Citation",
+    "bulletList": "Liste à puces",
+    "orderedList": "Liste numérotée",
+    "codeBlock": "Code"
+  }
+}
+

@@ -56,7 +56,9 @@ nak_encode_nprofile = fn pubkey, relays ->
 
   # Run NAK command
   case System.cmd("nak", args, stderr_to_stdout: true) do
-    {output, 0} -> String.trim(output)
+    {output, 0} ->
+      String.trim(output)
+
     {error, _} ->
       IO.puts("NAK ERROR: #{error}")
       nil
@@ -67,14 +69,16 @@ end
 nak_encode_naddr = fn kind, pubkey, identifier, relays ->
   # Build NAK command for naddr with correct format
   relay_args = Enum.flat_map(relays, fn relay -> ["--relay", relay] end)
-  args = ["encode", "naddr",
-          "--kind", to_string(kind),
-          "--pubkey", pubkey,
-          "--identifier", identifier] ++ relay_args
+
+  args =
+    ["encode", "naddr", "--kind", to_string(kind), "--pubkey", pubkey, "--identifier", identifier] ++
+      relay_args
 
   # Run NAK command
   case System.cmd("nak", args, stderr_to_stdout: true) do
-    {output, 0} -> String.trim(output)
+    {output, 0} ->
+      String.trim(output)
+
     {error, _} ->
       IO.puts("NAK ERROR: #{error}")
       nil
@@ -106,12 +110,29 @@ validate_encoding = fn test_item ->
       end
 
     :naddr ->
-      reference = nak_encode_naddr.(test_item.kind, test_item.pubkey, test_item.identifier, test_item.relays)
+      reference =
+        nak_encode_naddr.(
+          test_item.kind,
+          test_item.pubkey,
+          test_item.identifier,
+          test_item.relays
+        )
+
       # Call our NIP19 module implementation
-      our_result = NIP19.encode_naddr(test_item.kind, test_item.pubkey, test_item.identifier, test_item.relays)
+      our_result =
+        NIP19.encode_naddr(
+          test_item.kind,
+          test_item.pubkey,
+          test_item.identifier,
+          test_item.relays
+        )
 
       IO.puts("\n== NADDR VALIDATION ==")
-      IO.puts("Input: kind=#{test_item.kind}, pubkey=#{test_item.pubkey}, identifier=#{test_item.identifier}, relays=#{inspect(test_item.relays)}")
+
+      IO.puts(
+        "Input: kind=#{test_item.kind}, pubkey=#{test_item.pubkey}, identifier=#{test_item.identifier}, relays=#{inspect(test_item.relays)}"
+      )
+
       IO.puts("NAK reference output: #{reference}")
       IO.puts("Our implementation: #{our_result}")
 

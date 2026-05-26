@@ -50,6 +50,7 @@ RUN cp -r /app/frontend/dist/* ./priv/static/
 
 # Install Elixir dependencies and compile the backend application
 RUN mix phx.digest && \
+    SECRET_KEY_BASE=buildtime_placeholder mix run --no-start priv/scripts/brotli_assets.exs && \
     mix release
 
 # Expose the Phoenix port

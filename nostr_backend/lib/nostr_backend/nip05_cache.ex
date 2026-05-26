@@ -3,8 +3,10 @@ defmodule NostrBackend.Nip05Cache do
   alias NostrBackend.Nip05
 
   @cache_name :nip05_cache
-  @success_ttl_in_seconds 86_400  # 24 hours for successful resolutions
-  @error_ttl_in_seconds 3600      # 1 hour for resolution failures
+  # 24 hours for successful resolutions
+  @success_ttl_in_seconds 86_400
+  # 1 hour for resolution failures
+  @error_ttl_in_seconds 3600
 
   def get_pubkey_and_relays(nip05_identifier) do
     case Cachex.get(@cache_name, nip05_identifier) do
@@ -37,12 +39,6 @@ defmodule NostrBackend.Nip05Cache do
         # Cache successful resolutions for 24 hours
         Cachex.put(@cache_name, nip05_identifier, {pubkey, relays}, ttl: @success_ttl_in_seconds)
         {:ok, pubkey, relays}
-
-      {:error, :not_found} ->
-        Logger.debug("NIP-05: Not found: #{nip05_identifier}")
-        # Cache not found errors for 1 hour
-        Cachex.put(@cache_name, nip05_identifier, :not_found, ttl: @error_ttl_in_seconds)
-        {:error, "NIP-05 identifier not found"}
 
       {:error, reason} ->
         Logger.debug("NIP-05: Resolution failed for #{nip05_identifier}: #{inspect(reason)}")

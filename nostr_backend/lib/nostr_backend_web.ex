@@ -88,6 +88,7 @@ defmodule NostrBackendWeb do
       # Core UI components and translation
       import NostrBackendWeb.CoreComponents
       import NostrBackendWeb.Gettext
+      import NostrBackendWeb.MetaHelpers
 
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS

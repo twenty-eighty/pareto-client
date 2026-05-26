@@ -1,24 +1,34 @@
-# Impressum 
+# Impressum
 
-*Version vom 2.4.2025*
+*Version vom 3.11.2025*
 
 Zur [Datenschutzerklärung](/privacy)
 
-Technischer Support, Feedback: [support@pareto.space](mailto:support@pareto.space)
+Technischer Support, Feedback: <support@pareto.space>
 
-## Der Verein Amici della Verità / pareto\.space
-Amici della Verità,\
-casella postale Nr. 45\
-6675 Cevio\
+Für die Inhalte auf der Webseite pareto.space/read ist jeder Autor grundsätzlich selbst verantwortlich.
+
+Herausgegeben wird pareto.space/read von\
+Philalethes Sagl\
+via Prato 1\
+6694 Prato-Sornico\
 Schweiz
 
+Kontakt:
+Dr. Milosz Matuschek, <milosz@pareto.space>
 
-## Die Friedenstaube
-Die Friedenstaube\
-Verantwortlich: Milosz Matuschek
-(Coopérativa in creazione)\
-Casella postale Nr. 45\
-6675 Cevio\
+Das Pareto-Projekt ist eine Genossenschaft nach Schweizer Recht im Gründungsprozess:
+"Cooperativa Amici della libertà di parole".
+
+Die Publikation Friedenstaube wird herausgegeben von
+
+Philalethes Sagl\
+via Prato 1\
+6694 Prato-Sornico\
 Schweiz
 
-E-Mail: [friedenstaube@pareto.space](mailto:friedenstaube@pareto.space)
+Kontakt:
+Dr. Milosz Matuschek, <friedenstaube@pareto.space>
+
+Die Publikation Friedenstaube wird eine Schweizer Genossenschaft
+Cooperativa "Amici della pace" i. Gr.

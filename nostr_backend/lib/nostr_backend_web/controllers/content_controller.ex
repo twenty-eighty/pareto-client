@@ -2,7 +2,7 @@ defmodule NostrBackendWeb.ContentController do
   use NostrBackendWeb, :controller
   require Logger
 
-  alias NostrBackendWeb.Endpoint
+  alias NostrBackendWeb.{Endpoint, EventPayload}
 
   alias NostrBackend.Nip05
   alias NostrBackend.NostrId
@@ -23,7 +23,8 @@ defmodule NostrBackendWeb.ContentController do
           {:ok, article} ->
             article = apply_substitution_if_bot(conn, article)
             relay = Map.get(query_data, :relay)
-            relays_list = Map.get(query_data, :relays, (if relay, do: [relay], else: []))
+            relays_list = Map.get(query_data, :relays, if(relay, do: [relay], else: []))
+
             conn
             |> conn_with_article_meta(article, relays_list)
             |> put_view(NostrBackendWeb.ContentHTML)
@@ -43,6 +44,7 @@ defmodule NostrBackendWeb.ContentController do
         case ArticleCache.get_article(article_hex_id) do
           {:ok, article} ->
             article = apply_substitution_if_bot(conn, article)
+
             conn
             |> conn_with_article_meta(article, [])
             |> put_view(NostrBackendWeb.ContentHTML)
@@ -58,27 +60,11 @@ defmodule NostrBackendWeb.ContentController do
             #            |> render(NostrBackendWeb.ErrorHTML, :"404")
         end
 
-      {:ok, {:address, address_info}} ->
-        case ArticleCache.get_article(address_info) do
-          {:ok, article} ->
-            article = apply_substitution_if_bot(conn, article)
-            conn
-            |> conn_with_article_meta(article, [])
-            |> put_view(NostrBackendWeb.ContentHTML)
-            |> render(:article, article: article)
-
-          {:error, _reason} ->
-            conn
-            |> conn_with_default_meta()
-            |> render(:not_found, layout: false)
-
-            #            |> render(NostrBackendWeb.ErrorHTML, :"404")
-        end
-
       {:ok, {:event, event_info}} ->
         case ArticleCache.get_article(event_info) do
           {:ok, article} ->
             article = apply_substitution_if_bot(conn, article)
+
             conn
             |> conn_with_article_meta(article, event_info.relays || [])
             |> put_view(NostrBackendWeb.ContentHTML)
@@ -151,31 +137,12 @@ defmodule NostrBackendWeb.ContentController do
             #            |> render(NostrBackendWeb.ErrorHTML, :"404")
         end
 
-      {:ok, {:author_event, query_data}} ->
-        case ArticleCache.get_article(query_data) do
-          {:ok, article} ->
-            relay = Map.get(query_data, :relay)
-            relays_list = Map.get(query_data, :relays, (if relay, do: [relay], else: []))
-            conn
-            |> conn_with_article_meta(article, relays_list)
-            |> put_view(NostrBackendWeb.ContentHTML)
-            |> render(:article, article: article)
-
-          {:error, reason} ->
-            Logger.debug("ERROR REASON: #{inspect(reason)}")
-
-            conn
-            |> conn_with_default_meta()
-            |> render(:not_found, layout: false)
-
-            #            |> render(NostrBackendWeb.ErrorHTML, :"404")
-        end
-
       {:ok, {:author_article, query_data}} ->
         case ArticleCache.get_article(query_data) do
           {:ok, article} ->
             relay = Map.get(query_data, :relay)
-            relays_list = Map.get(query_data, :relays, (if relay, do: [relay], else: []))
+            relays_list = Map.get(query_data, :relays, if(relay, do: [relay], else: []))
+
             conn
             |> conn_with_article_meta(article, relays_list)
             |> put_view(NostrBackendWeb.ContentHTML)
@@ -202,9 +169,11 @@ defmodule NostrBackendWeb.ContentController do
       # Handle nprofile identifiers (with optional relays)
       {:ok, {:profile, profile_hex_id, relays}} ->
         get_and_render_profile(conn, profile_hex_id, relays)
+
       # Handle npub identifiers (pubkey only)
       {:ok, {:pubkey, pubkey_hex}} ->
         get_and_render_profile(conn, pubkey_hex, [])
+
       {:error, _reason} ->
         conn
         |> conn_with_default_meta()
@@ -257,7 +226,9 @@ defmodule NostrBackendWeb.ContentController do
                  }) do
               {:ok, article} ->
                 article = apply_substitution_if_bot(conn, article)
+
                 conn
+                |> assign(:nostr_author_info, build_author_context(user_nip05, pubkey))
                 |> conn_with_article_meta(article, relays)
                 |> put_view(NostrBackendWeb.ContentHTML)
                 |> render(:article, article: article)
@@ -305,7 +276,7 @@ defmodule NostrBackendWeb.ContentController do
     case ProfileCache.get_profile(profile_hex_id, relays) do
       {:ok, profile} ->
         conn
-        |> conn_with_profile_meta(profile, relays)
+        |> conn_with_profile_meta(profile, profile_hex_id, relays)
         |> put_view(NostrBackendWeb.ContentHTML)
         |> render("profile.html", profile: profile)
 
@@ -327,27 +298,46 @@ defmodule NostrBackendWeb.ContentController do
         |> assign(:meta_description, "Nostr Profile")
         |> assign(:meta_image, @sharing_image)
         |> assign(:schema_metadata, Jason.encode!(schema_metadata))
+        |> assign(:nostr_event_json, nil)
         |> render(:not_found, layout: false)
     end
   end
 
   defp conn_with_article_meta(conn, article, _relays) do
+    raw_event = Map.get(article, :raw_event)
+
     relays_list =
       case Map.get(article, :relays) do
-        rel when is_list(rel) and rel != [] -> rel
-        _ -> [Application.get_env(:nostr_backend, :feed_generator)[:relay_url] || "wss://nostr.pareto.space"]
+        rel when is_list(rel) and rel != [] ->
+          rel
+
+        _ ->
+          [
+            Application.get_env(:nostr_backend, :feed_generator)[:relay_url] ||
+              "wss://nostr.pareto.space"
+          ]
       end
 
-    relay_naddr = NostrBackend.NIP19.encode_naddr(article.kind, article.author, article.identifier, relays_list)
-    plain_naddr = NostrBackend.NIP19.encode_naddr(article.kind, article.author, article.identifier)
+    relay_naddr =
+      NostrBackend.NIP19.encode_naddr(
+        article.kind,
+        article.author,
+        article.identifier,
+        relays_list
+      )
+
+    plain_naddr =
+      NostrBackend.NIP19.encode_naddr(article.kind, article.author, article.identifier)
+
     og_url = Endpoint.url() <> "/a/#{relay_naddr}"
     canonical_url = Endpoint.url() <> "/a/#{plain_naddr}"
 
     # Get author profile for schema.org metadata
-    author_profile = case ProfileCache.get_profile(article.author, []) do
-      {:ok, prof} -> prof
-      _ -> nil
-    end
+    author_profile =
+      case ProfileCache.get_profile(article.author, []) do
+        {:ok, prof} -> prof
+        _ -> nil
+      end
 
     # Prepare schema.org metadata
     schema_metadata = %{
@@ -369,22 +359,43 @@ defmodule NostrBackendWeb.ContentController do
       }
     }
 
-    # Add author information only if we have a valid profile
-    schema_metadata = if author_profile do
-      Map.put(schema_metadata, "author", %{
-        "@type" => "Person",
-        "name" => Map.get(author_profile, :display_name) || Map.get(author_profile, :name),
-        "url" => get_canonical_profile_url(author_profile.profile_id),
-        "identifier" => get_profile_identifier(author_profile)
-      })
-    else
-      # If no profile found, add minimal author information
-      Map.put(schema_metadata, "author", %{
-        "@type" => "Thing",
-        "url" => get_canonical_profile_url(article.author),
-        "identifier" => get_profile_identifier(article.author)
-      })
-    end
+    author_profile_id =
+      case author_profile do
+        nil -> nil
+        profile -> Map.get(profile, :profile_id)
+      end
+
+    # Add author information only if we have a usable profile_id.
+    # Some cache/profile fetches can return a "minimal" map (e.g. only relays),
+    # which should not crash schema generation.
+    schema_metadata =
+      if is_binary(author_profile_id) and author_profile_id != "" do
+        Map.put(schema_metadata, "author", %{
+          "@type" => "Person",
+          "name" => Map.get(author_profile, :display_name) || Map.get(author_profile, :name),
+          "url" => get_canonical_profile_url(author_profile_id),
+          "identifier" => get_profile_identifier(author_profile)
+        })
+      else
+        # If no usable profile found, add minimal author information
+        Map.put(schema_metadata, "author", %{
+          "@type" => "Thing",
+          "url" => get_canonical_profile_url(article.author),
+          "identifier" => get_profile_identifier(article.author)
+        })
+      end
+
+    author_context =
+      conn.assigns
+      |> Map.get(:nostr_author_info)
+      |> merge_author_profile(author_profile)
+
+    events =
+      []
+      |> EventPayload.add_event(EventPayload.raw_event(author_profile))
+      |> EventPayload.add_event(raw_event || article)
+
+    payload = EventPayload.encode(events, author_context)
 
     conn
     |> assign(:lang, NostrBackend.Locale.preferred_language(conn))
@@ -395,6 +406,8 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_description, article.description || @meta_description)
     |> assign(:meta_image, article.image_url |> force_https() || @sharing_image)
     |> assign(:schema_metadata, Jason.encode!(schema_metadata))
+    |> assign(:nostr_event_json, payload)
+    |> assign(:nostr_author_info, nil)
   end
 
   defp conn_with_community_meta(conn, community) do
@@ -409,54 +422,90 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_image, community.image |> force_https() || @sharing_image)
   end
 
-  defp conn_with_profile_meta(conn, profile, _relays) do
+  defp conn_with_profile_meta(conn, profile, profile_hex_id, _relays) do
     Logger.debug("Profile: #{inspect(profile)}")
 
     relays_list =
       case Map.get(profile, :relays) do
-        rel when is_list(rel) and rel != [] -> rel
-        _ -> [Application.get_env(:nostr_backend, :feed_generator)[:relay_url] || "wss://nostr.pareto.space"]
+        rel when is_list(rel) and rel != [] ->
+          rel
+
+        _ ->
+          [
+            Application.get_env(:nostr_backend, :feed_generator)[:relay_url] ||
+              "wss://nostr.pareto.space"
+          ]
       end
 
-    og_url = get_profile_url_with_relays(profile.profile_id, relays_list)
-    canonical_url = get_canonical_profile_url(profile.profile_id)
+    profile_id = Map.get(profile, :profile_id) || profile_hex_id
+
+    og_url = get_profile_url_with_relays(profile_id, relays_list)
+    canonical_url = get_canonical_profile_url(profile_id)
     lang = NostrBackend.Locale.preferred_language(conn)
 
     # Prepare schema.org metadata
-    relay_nprofile = NostrBackend.NIP19.encode_nprofile(profile.profile_id, relays_list)
+    relay_nprofile = NostrBackend.NIP19.encode_nprofile(profile_id, relays_list)
+
     same_as = [
       "https://njump.me/#{relay_nprofile}",
       "https://snort.social/#{relay_nprofile}"
     ]
 
-    same_as = if profile.website do
-      same_as ++ [profile.website |> force_https()]
-    else
-      same_as
-    end
+    same_as =
+      if profile.website do
+        same_as ++ [profile.website |> force_https()]
+      else
+        same_as
+      end
 
     # Get the first available image
-    image_url = Map.get(profile, :image) |> force_https() ||
-                Map.get(profile, :picture) |> force_https() ||
-                Map.get(profile, :banner) |> force_https()
+    image_url =
+      Map.get(profile, :image) |> force_https() ||
+        Map.get(profile, :picture) |> force_https() ||
+        Map.get(profile, :banner) |> force_https()
 
     # Get display name or fall back to name
     display_name = Map.get(profile, :display_name) || Map.get(profile, :name)
 
     # Start with required fields
-    schema_metadata = %{
-      "@context" => "https://schema.org",
-      "@type" => "Person",
-      "url" => canonical_url,
-      "sameAs" => same_as
-    }
+    schema_metadata =
+      if is_binary(Map.get(profile, :profile_id)) do
+        %{
+          "@context" => "https://schema.org",
+          "@type" => "Person",
+          "url" => canonical_url,
+          "sameAs" => same_as
+        }
+      else
+        %{
+          "@context" => "https://schema.org",
+          "@type" => "Thing",
+          "url" => canonical_url,
+          "sameAs" => same_as
+        }
+      end
 
     # Add optional fields only if they exist
-    schema_metadata = schema_metadata
+    identifier_source =
+      case profile do
+        %{nip05: nip05} when not is_nil(nip05) -> profile
+        _ -> profile_id
+      end
+
+    schema_metadata =
+      schema_metadata
       |> maybe_add_field("name", display_name)
       |> maybe_add_field("description", Map.get(profile, :about))
       |> maybe_add_field("image", image_url)
-      |> maybe_add_field("identifier", get_profile_identifier(profile))
+      |> maybe_add_field("identifier", get_profile_identifier(identifier_source))
+
+    profile_raw_event = EventPayload.raw_event(profile)
+
+    events =
+      []
+      |> EventPayload.add_event(profile_raw_event)
+
+    payload = EventPayload.encode(events)
 
     conn
     |> assign(:lang, lang)
@@ -467,6 +516,7 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_description, Map.get(profile, :about))
     |> assign(:meta_image, image_url || @sharing_image)
     |> assign(:schema_metadata, Jason.encode!(schema_metadata))
+    |> assign(:nostr_event_json, payload)
   end
 
   defp conn_with_default_meta(conn) do
@@ -483,7 +533,45 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:article, nil)
     |> assign(:lang, NostrBackend.Locale.preferred_language(conn))
     |> assign(:schema_metadata, nil)
+    |> assign(:nostr_event_json, nil)
   end
+
+  defp build_author_context(user_nip05, pubkey) do
+    author =
+      %{
+        "nip-05" => user_nip05,
+        "pubkey" => pubkey
+      }
+      |> Enum.filter(fn {_key, value} -> is_binary(value) and value != "" end)
+      |> Map.new()
+
+    if map_size(author) == 0 do
+      nil
+    else
+      %{authors: [author]}
+    end
+  end
+
+  defp merge_author_profile(context, nil), do: context
+  defp merge_author_profile(nil, _profile), do: nil
+
+  defp merge_author_profile(%{authors: authors} = context, profile) when is_list(authors) do
+    pubkey = Map.get(profile, :profile_id) || Map.get(profile, "profile_id")
+
+    authors =
+      if is_binary(pubkey) and pubkey != "" do
+        Enum.map(authors, fn
+          author when is_map(author) -> Map.put_new(author, "pubkey", pubkey)
+          other -> other
+        end)
+      else
+        authors
+      end
+
+    %{context | authors: authors}
+  end
+
+  defp merge_author_profile(context, _profile), do: context
 
   def force_https(nil), do: nil
 
@@ -499,11 +587,13 @@ defmodule NostrBackendWeb.ContentController do
 
   defp apply_substitution_if_bot(conn, article) do
     user_agent = get_req_header(conn, "user-agent") |> List.first()
+
     if is_sharing_bot?(user_agent) do
-      %{article |
-        title: NostrBackend.Substitution.replace_randomly(article.title),
-        description: NostrBackend.Substitution.replace_randomly(article.description),
-        content: ""
+      %{
+        article
+        | title: NostrBackend.Substitution.replace_randomly(article.title),
+          description: NostrBackend.Substitution.replace_randomly(article.description),
+          content: ""
       }
     else
       article
@@ -513,6 +603,7 @@ defmodule NostrBackendWeb.ContentController do
   # Detect known social-sharing bots via User-Agent
   defp is_sharing_bot?(user_agent) do
     ua = (user_agent || "") |> String.downcase()
+
     cond do
       String.starts_with?(ua, "facebook") -> true
       String.starts_with?(ua, "meta-externalagent") -> true
@@ -565,12 +656,14 @@ defmodule NostrBackendWeb.ContentController do
           "propertyID" => "Nostr NIP-05",
           "value" => nip05
         }
+
       %{profile_id: pubkey} ->
         %{
           "@type" => "PropertyValue",
           "propertyID" => "Nostr npub",
           "value" => NostrBackend.NIP19.encode_npub(pubkey)
         }
+
       pubkey when is_binary(pubkey) ->
         %{
           "@type" => "PropertyValue",

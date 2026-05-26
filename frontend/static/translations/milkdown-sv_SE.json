@@ -1,0 +1,50 @@
+{
+  "imageBlock": {
+    "inlineUploadButton": "Välj fil",
+    "inlineUploadPlaceholderText": "eller klistra in bildlänken ...",
+    "inlineConfirmButton": "Bekräfta",
+    "blockUploadButton": "Välj fil",
+    "blockUploadPlaceholderText": "eller klistra in bildlänken ...",
+    "blockCaptionPlaceholderText": "Bildtext",
+    "blockConfirmButton": "Bekräfta"
+  },
+  "blockEdit": {
+    "textGroup": {
+      "label": "Text",
+      "text": { "label": "Stycke" },
+      "h1": { "label": "Rubrik 1" },
+      "h2": { "label": "Rubrik 2" },
+      "h3": { "label": "Rubrik 3" },
+      "h4": { "label": "Rubrik 4" },
+      "h5": { "label": "Rubrik 5" },
+      "h6": { "label": "Rubrik 6" },
+      "quote": { "label": "Citat" },
+      "divider": { "label": "Avskiljare" }
+    },
+    "listGroup": {
+      "label": "Listor",
+      "bulletList": { "label": "Punktlista" },
+      "orderedList": { "label": "Nummerlista" },
+      "taskList": { "label": "Att göra-lista" }
+    },
+    "advancedGroup": {
+      "label": "Avancerat",
+      "image": { "label": "Bild" },
+      "codeBlock": { "label": "Kod" },
+      "table": { "label": "Tabell" },
+      "math": { "label": "Matematik" }
+    }
+  },
+  "placeholder": "Ange text...",
+  "toolbar": {
+    "paragraph": "Stycke",
+    "heading1": "Rubrik 1",
+    "heading2": "Rubrik 2",
+    "heading3": "Rubrik 3",
+    "quote": "Citat",
+    "bulletList": "Punktlista",
+    "orderedList": "Nummerlista",
+    "codeBlock": "Kod"
+  }
+}
+

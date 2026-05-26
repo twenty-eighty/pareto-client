@@ -41,20 +41,35 @@ defmodule NostrBackend.NIP19_TLV do
   defp ensure_binary(value) when is_integer(value), do: Integer.to_string(value)
   defp ensure_binary(value) when is_float(value), do: Float.to_string(value)
   defp ensure_binary(value) when is_atom(value), do: Atom.to_string(value)
+
   defp ensure_binary(value) when is_list(value) do
     case Enum.all?(value, fn c -> is_integer(c) and c >= 0 and c <= 0x10FFFF end) do
-      true -> List.to_string(value)  # It's a char list (code points)
+      # It's a char list (code points)
+      true ->
+        List.to_string(value)
+
       false ->
-        Logger.warning("Received a list that is not a charlist for TLV encoding: #{inspect(value)}", [])
-        inspect(value)  # Fallback to string representation
+        Logger.warning(
+          "Received a list that is not a charlist for TLV encoding: #{inspect(value)}",
+          []
+        )
+
+        # Fallback to string representation
+        inspect(value)
     end
   end
+
   defp ensure_binary(value) do
-    Logger.warning("Converting non-binary value to string for TLV encoding: #{inspect(value)}", [])
+    Logger.warning(
+      "Converting non-binary value to string for TLV encoding: #{inspect(value)}",
+      []
+    )
+
     to_string(value)
   rescue
     e ->
       Logger.error("Failed to convert value to binary: #{inspect(e)}, value: #{inspect(value)}")
-      inspect(value)  # Use inspect as a last resort
+      # Use inspect as a last resort
+      inspect(value)
   end
 end

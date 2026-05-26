@@ -9,24 +9,30 @@ defmodule NostrBackend.ArticleCache do
   @type article :: Content.article()
   @type article_list :: [article()]
   @type article_id :: binary()
-  @type article_query :: %{
-    kind: integer(),
-    identifier: binary(),
-    author: binary(),
-    relays: relay_urls()
-  } | %{
-    kind: integer(),
-    identifier: binary(),
-    author: binary()
-  } | %{
-    kind: integer(),
-    identifier: binary()
-  } | %{
-    id: article_id(),
-    relays: relay_urls()
-  } | %{
-    id: article_id()
-  } | binary()
+  @type article_query ::
+          %{
+            kind: integer(),
+            identifier: binary(),
+            author: binary(),
+            relays: relay_urls()
+          }
+          | %{
+              kind: integer(),
+              identifier: binary(),
+              author: binary()
+            }
+          | %{
+              kind: integer(),
+              identifier: binary()
+            }
+          | %{
+              id: article_id(),
+              relays: relay_urls()
+            }
+          | %{
+              id: article_id()
+            }
+          | binary()
   @type cache_result :: {:ok, article()} | {:error, binary()}
   @type cache_result_list :: {:ok, article_list()} | {:error, binary()}
 
@@ -64,10 +70,15 @@ defmodule NostrBackend.ArticleCache do
   def get_author_articles(pubkey, relays \\ []) do
     case NostrClient.fetch_author_articles(pubkey, relays) do
       {:ok, events} ->
-        articles = events
-        |> Enum.map(&Content.parse_article_event/1)
-        |> Enum.filter(&(&1 != %{}))
-        |> Enum.sort_by(fn article -> article.published_at end, :desc)
+        articles =
+          events
+          |> Enum.map(fn event ->
+            event
+            |> Content.parse_article_event()
+            |> maybe_put_raw_event(event)
+          end)
+          |> Enum.filter(&(&1 != %{}))
+          |> Enum.sort_by(fn article -> article.published_at end, :desc)
 
         # Cache each article
         Enum.each(articles, fn article ->
@@ -85,14 +96,19 @@ defmodule NostrBackend.ArticleCache do
   Fetches articles from multiple authors in a single request.
   Returns {:ok, articles} or {:error, reason}
   """
-  @spec get_multiple_authors_articles([pubkey()], relay_urls()) :: cache_result_list()
-  def get_multiple_authors_articles(pubkeys, relays \\ []) do
-    case NostrClient.fetch_multiple_authors_articles(pubkeys, relays) do
+  @spec get_multiple_authors_articles([pubkey()], relay_urls(), keyword()) :: cache_result_list()
+  def get_multiple_authors_articles(pubkeys, relays \\ [], opts \\ []) do
+    case NostrClient.fetch_multiple_authors_articles(pubkeys, relays, opts) do
       {:ok, events} ->
-        articles = events
-        |> Enum.map(&Content.parse_article_event/1)
-        |> Enum.filter(&(&1 != %{}))
-        |> Enum.sort_by(fn article -> article.published_at end, :desc)
+        articles =
+          events
+          |> Enum.map(fn event ->
+            event
+            |> Content.parse_article_event()
+            |> maybe_put_raw_event(event)
+          end)
+          |> Enum.filter(&(&1 != %{}))
+          |> Enum.sort_by(fn article -> article.published_at end, :desc)
 
         # Cache each article
         Enum.each(articles, fn article ->
@@ -110,11 +126,17 @@ defmodule NostrBackend.ArticleCache do
   defp load_article(%{kind: kind, identifier: identifier, author: author, relays: relays}) do
     case NostrClient.fetch_article_by_address(kind, author, identifier, relays) do
       {:ok, relay, [event | _]} ->
-        article = Content.parse_article_event(event)
-        article = Map.put(article, :relays, [relay])
+        article =
+          event
+          |> Content.parse_article_event()
+          |> Map.put(:relays, [relay])
+          |> maybe_put_raw_event(event)
+
         {:ok, article}
+
       {:ok, _relay, []} ->
         {:error, "No events found for article"}
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -124,11 +146,17 @@ defmodule NostrBackend.ArticleCache do
   defp load_article(%{kind: kind, identifier: identifier, author: author}) do
     case NostrClient.fetch_article_by_address(kind, author, identifier) do
       {:ok, relay, [event | _]} ->
-        article = Content.parse_article_event(event)
-        article = Map.put(article, :relays, [relay])
+        article =
+          event
+          |> Content.parse_article_event()
+          |> Map.put(:relays, [relay])
+          |> maybe_put_raw_event(event)
+
         {:ok, article}
+
       {:ok, _relay, []} ->
         {:error, "No events found for article"}
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -138,11 +166,17 @@ defmodule NostrBackend.ArticleCache do
   defp load_article(%{kind: kind, identifier: identifier}) do
     case NostrClient.fetch_article_by_address(kind, identifier) do
       {:ok, relay, [event | _]} ->
-        article = Content.parse_article_event(event)
-        article = Map.put(article, :relays, [relay])
+        article =
+          event
+          |> Content.parse_article_event()
+          |> Map.put(:relays, [relay])
+          |> maybe_put_raw_event(event)
+
         {:ok, article}
+
       {:ok, _relay, []} ->
         {:error, "No events found for article"}
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -152,25 +186,17 @@ defmodule NostrBackend.ArticleCache do
   defp load_article(%{id: id, relays: relays}) do
     case NostrClient.fetch_article_by_id(id, relays) do
       {:ok, relay, [event | _]} ->
-        article = Content.parse_article_event(event)
-        article = Map.put(article, :relays, [relay])
-        {:ok, article}
-      {:ok, _relay, []} ->
-        {:error, "No events found for article"}
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
+        article =
+          event
+          |> Content.parse_article_event()
+          |> Map.put(:relays, [relay])
+          |> maybe_put_raw_event(event)
 
-  @spec load_article(article_query()) :: cache_result()
-  defp load_article(%{id: id}) do
-    case NostrClient.fetch_article_by_id(id, []) do
-      {:ok, relay, [event | _]} ->
-        article = Content.parse_article_event(event)
-        article = Map.put(article, :relays, [relay])
         {:ok, article}
+
       {:ok, _relay, []} ->
         {:error, "No events found for article"}
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -179,14 +205,39 @@ defmodule NostrBackend.ArticleCache do
   @spec load_article(article_query()) :: cache_result()
   defp load_article(article_id) do
     case NostrClient.fetch_article(article_id) do
-      {:ok, relay, [event | _]} ->
-        article = Content.parse_article_event(event)
-        article = Map.put(article, :relays, [relay])
-        {:ok, article}
-      {:ok, _relay, []} ->
-        {:error, "No events found for article"}
+      {:ok, events} ->
+        with {:ok, event} <- extract_first_event(events) do
+          {:ok, build_article_from_event(event)}
+        else
+          :error -> {:error, "No events found for article"}
+        end
+
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  defp build_article_from_event(event) do
+    event
+    |> Content.parse_article_event()
+    |> maybe_put_raw_event(event)
+  end
+
+  defp maybe_put_raw_event(article, event) do
+    case normalize_event(event) do
+      nil -> article
+      normalized -> Map.put(article, :raw_event, normalized)
+    end
+  end
+
+  defp normalize_event({_, _, %{} = event_map}), do: event_map
+  defp normalize_event(%{} = event_map), do: event_map
+  defp normalize_event(_), do: nil
+
+  defp extract_first_event(events) do
+    case List.wrap(events) do
+      [%{} = event | _] -> {:ok, event}
+      _ -> :error
     end
   end
 end

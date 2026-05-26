@@ -31,6 +31,19 @@ defmodule NostrBackend.Application do
         id: :follow_lists_cache
       ),
 
+      # Cache for raw follow list events (kind 3 "contacts") to embed in HTML
+      Supervisor.child_spec(
+        {Cachex, name: :follow_list_events_cache, ttl_interval: :timer.minutes(60)},
+        id: :follow_list_events_cache
+      ),
+
+      # Cache for /read feed payload
+      Supervisor.child_spec(
+        {Cachex, name: :read_feed_cache, ttl_interval: :timer.minutes(5)},
+        id: :read_feed_cache
+      ),
+      NostrBackend.ReadFeedRefresher,
+
       # Cache for profiles
       Supervisor.child_spec(
         {Cachex, name: :profiles_cache, ttl_interval: :timer.minutes(1440)},
@@ -72,7 +85,6 @@ defmodule NostrBackend.Application do
         {Cachex, name: :rumble_cache, ttl_interval: :timer.minutes(1440)},
         id: :rumble_cache
       ),
-
       NostrBackend.PostHogBuffer,
 
       # Start a worker by calling: NostrBackend.Worker.start_link(arg)

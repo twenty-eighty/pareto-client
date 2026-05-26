@@ -35,6 +35,7 @@ defmodule NostrBackend.Locale do
   def preferred_language(conn) do
     key = locale_param_key()
     locale_param = conn.params[key]
+
     if locale_param in @available_languages do
       locale_param
     else
@@ -48,6 +49,7 @@ defmodule NostrBackend.Locale do
   @doc false
   @spec parse_language(String.t() | nil) :: String.t()
   defp parse_language(nil), do: default_language()
+
   defp parse_language(lang_header) do
     lang_header
     |> String.split(",", trim: true)

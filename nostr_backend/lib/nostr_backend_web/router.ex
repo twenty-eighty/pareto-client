@@ -3,10 +3,9 @@ defmodule NostrBackendWeb.Router do
 
   pipeline :browser do
     plug(:accepts, ["html"])
-    plug(:fetch_session)
-    plug(:fetch_live_flash)
     plug(:put_root_layout, html: {NostrBackendWeb.Layouts, :root})
-    plug(:protect_from_forgery)
+    plug(NostrBackendWeb.Plugs.AssignFollowListEvent)
+    plug(NostrBackendWeb.Plugs.PreloadFrontendAssets)
     plug(:put_secure_browser_headers)
   end
 
@@ -123,10 +122,16 @@ defmodule NostrBackendWeb.Router do
     get "/oembed", OembedController, :fetch_oembed
     get "/opengraph/image", OpenGraphController, :fetch_metadata_image
     get "/rumble/embed", RumbleController, :fetch_embed_url
+    get "/rumble/oembed/embed", RumbleController, :fetch_embed_url_oembed
+    get "/rumble/oembed/thumbnail", RumbleController, :fetch_thumbnail_url_oembed
+    get "/admin/relay-health", RelayHealthController, :index
   end
 
   scope "/", NostrBackendWeb do
     pipe_through([:browser])
+
+    get("/admin/relay-health", RelayHealthController, :page)
+    get("/admin/relay-health/info", RelayHealthController, :show)
 
     # Google site verification
     get "/:filename", StaticFileController, :serve_generic_html
