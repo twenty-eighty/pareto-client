@@ -191,6 +191,9 @@ getSendRequest interactionObject pubKey =
         PicturePost eventId articlePubKey ->
             SendReaction pubKey eventId articlePubKey Nothing
 
+        ProfilePubKey _ ->
+            SendReaction pubKey "" pubKey Nothing
+
 
 getReactionsCount : InteractionObject -> Nostr.Model -> Int
 getReactionsCount interactionObject nostr =
@@ -207,6 +210,9 @@ getReactionsCount interactionObject nostr =
             Nostr.getReactionsCountForEventId nostr eventId
                 |> Maybe.withDefault 0
 
+        ProfilePubKey _ ->
+            0
+
 
 isLiked : InteractionObject -> Nostr.Model -> PubKey -> Bool
 isLiked interactionObject nostr pubKey =
@@ -219,6 +225,9 @@ isLiked interactionObject nostr pubKey =
 
         PicturePost eventId _ ->
             Nostr.getReactionForEventId nostr pubKey eventId /= Nothing
+
+        ProfilePubKey _ ->
+            False
 
 
 subscriptions : Model -> Sub Msg

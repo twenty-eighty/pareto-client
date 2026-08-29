@@ -3,6 +3,8 @@ module Ui.Profile exposing (..)
 import BrowserEnv exposing (BrowserEnv, Environment)
 import Components.Button as Button
 import Components.Icon as Icon exposing (Icon(..), MaterialIcon(..))
+import Components.InteractionButton as InteractionButton
+import Components.ZapButtonDialog as ZapButtonDialog
 import Css.Media
 import FeatherIcons
 import Graphics
@@ -81,6 +83,11 @@ type alias ProfileViewData msg =
     , subscribe : Maybe msg
     , theme : Theme
     , validation : ProfileValidation
+    , zap :
+        Maybe
+            { model : ZapButtonDialog.Model
+            , toMsg : ZapButtonDialog.Msg -> msg
+            }
     }
 
 
@@ -182,7 +189,7 @@ viewAuthorCard profile profileViewData =
                     [ text (profileDisplayName profile.pubKey profile) ]
                 ]
             , linkElementWrapper [ viewNip05 styles profile ]
-            , viewLNAddress styles profile zapRelays profileViewData.loginStatus
+            , viewLNAddress styles profile zapRelays profileViewData
             ]
         , followBookmarkElement profile.pubKey profileViewData.following
         ]
@@ -294,7 +301,7 @@ viewProfile profile profileViewData =
                     [ text (profile.about |> Maybe.withDefault "") ]
                 , viewWebsite styles profile
                 , viewNip05 styles profile
-                , viewLNAddress styles profile zapRelays profileViewData.loginStatus
+                , viewLNAddress styles profile zapRelays profileViewData
                 , viewNpub profileViewData.theme profile
                 ]
             , div
@@ -393,18 +400,40 @@ viewNip05 styles profile =
             emptyHtml
 
 
-viewLNAddress : Styles msg -> Profile -> Set String -> LoginStatus -> Html msg
-viewLNAddress styles profile _ _ =
+viewLNAddress : Styles msg -> Profile -> Set String -> ProfileViewData msg -> Html msg
+viewLNAddress styles profile zapRelays profileViewData =
     profile.lud16
         |> Maybe.map
             (\lud16 ->
                 p
                     (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ [ css [ Tw.flex, Tw.items_center, Tw.gap_1, Tw.overflow_hidden, Tw.text_ellipsis ] ])
-                    [ Icon.view (Icon.FeatherIcon FeatherIcons.zap)
+                    [ viewProfileZapButton profile zapRelays profileViewData
                     , text lud16
                     ]
             )
         |> Maybe.withDefault emptyHtml
+
+
+viewProfileZapButton : Profile -> Set String -> ProfileViewData msg -> Html msg
+viewProfileZapButton profile zapRelays profileViewData =
+    case profileViewData.zap of
+        Just zap ->
+            ZapButtonDialog.new
+                { browserEnv = profileViewData.browserEnv
+                , model = zap.model
+                , interactionObject = InteractionButton.ProfilePubKey profile.pubKey
+                , loginStatus = profileViewData.loginStatus
+                , nostr = profileViewData.nostr
+                , toMsg = zap.toMsg
+                , theme = profileViewData.theme
+                }
+                |> ZapButtonDialog.withoutLabel
+                |> ZapButtonDialog.withRelayUrls zapRelays
+                |> ZapButtonDialog.withInstanceId ("profile-" ++ String.left 8 profile.pubKey)
+                |> ZapButtonDialog.view
+
+        Nothing ->
+            Icon.view (Icon.FeatherIcon FeatherIcons.zap)
 
 
 viewNpub : Theme -> Profile -> Html msg

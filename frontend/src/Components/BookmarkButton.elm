@@ -215,6 +215,9 @@ getAddBookmarkRequest interactionObject pubKey =
         PicturePost eventId _ ->
             SendBookmarkListWithShortNote pubKey eventId
 
+        ProfilePubKey _ ->
+            SendBookmarkListWithShortNote pubKey ""
+
 
 getRemoveBookmarkRequest : InteractionObject -> PubKey -> SendRequest
 getRemoveBookmarkRequest interactionObject pubKey =
@@ -227,6 +230,9 @@ getRemoveBookmarkRequest interactionObject pubKey =
 
         PicturePost eventId _ ->
             SendBookmarkListWithoutShortNote pubKey eventId
+
+        ProfilePubKey _ ->
+            SendBookmarkListWithoutShortNote pubKey ""
 
 
 getBookmarksCount : InteractionObject -> Nostr.Model -> Int
@@ -241,6 +247,9 @@ getBookmarksCount interactionObject nostr =
         PicturePost eventId _ ->
             Nostr.getBookmarkListCountForEventId nostr eventId
 
+        ProfilePubKey _ ->
+            0
+
 
 hasBookmark : InteractionObject -> Nostr.Model -> PubKey -> Bool
 hasBookmark interactionObject nostr pubKey =
@@ -253,6 +262,9 @@ hasBookmark interactionObject nostr pubKey =
 
         PicturePost eventId _ ->
             isEventIdBookmarked nostr eventId pubKey
+
+        ProfilePubKey _ ->
+            False
 
 
 subscriptions : Model -> Sub Msg

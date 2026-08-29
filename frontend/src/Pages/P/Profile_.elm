@@ -2,7 +2,9 @@ module Pages.P.Profile_ exposing (Model, Msg, page)
 
 import Components.ArticleComments as ArticleComments
 import Components.EmailSubscriptionDialog as EmailSubscriptionDialog
+import Components.InteractionButton as InteractionButton
 import Components.RelayStatus exposing (Purpose(..))
+import Components.ZapButtonDialog as ZapButtonDialog
 import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
@@ -55,6 +57,7 @@ type alias Model =
     , relays : List String
     , requestId : Maybe RequestId
     , emailSubscriptionDialog : EmailSubscriptionDialog.Model
+    , zapButtonDialog : ZapButtonDialog.Model
     }
 
 
@@ -78,6 +81,7 @@ init shared route () =
                         , relays = relays
                         , requestId = Nothing
                         , emailSubscriptionDialog = emailSubscriptionDialog
+                        , zapButtonDialog = ZapButtonDialog.init
                         }
                     )
                 |> Maybe.withDefault
@@ -85,6 +89,7 @@ init shared route () =
                     , relays = []
                     , requestId = Nothing
                     , emailSubscriptionDialog = emailSubscriptionDialog
+                    , zapButtonDialog = ZapButtonDialog.init
                     }
 
         ( requestProfileEffect, requestId ) =
@@ -163,6 +168,7 @@ type Msg
     | Unfollow PubKey PubKey
     | OpenSubscribeDialog
     | EmailSubscriptionDialogSent (EmailSubscriptionDialog.Msg Msg)
+    | ZapButtonDialogMsg ZapButtonDialog.Msg
     | NoOp
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -196,6 +202,21 @@ update shared msg model =
                 , nostr = shared.nostr
                 }
 
+        ZapButtonDialogMsg innerMsg ->
+            ZapButtonDialog.update
+                { browserEnv = shared.browserEnv
+                , msg = innerMsg
+                , model = model.zapButtonDialog
+                , nostr = shared.nostr
+                , loginStatus = shared.loginStatus
+                , interactionObject =
+                    model.pubKey
+                        |> Maybe.map InteractionButton.ProfilePubKey
+                        |> Maybe.withDefault (InteractionButton.ProfilePubKey "")
+                , toModel = \zapButtonDialog -> { model | zapButtonDialog = zapButtonDialog }
+                , toMsg = ZapButtonDialogMsg
+                }
+
         NoOp ->
             ( model, Effect.none )
 
@@ -205,9 +226,12 @@ update shared msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    EmailSubscriptionDialog.subscriptions model.emailSubscriptionDialog
-        |> Sub.map EmailSubscriptionDialogSent
-
+    Sub.batch
+        [ EmailSubscriptionDialog.subscriptions model.emailSubscriptionDialog
+            |> Sub.map EmailSubscriptionDialogSent
+        , ZapButtonDialog.subscriptions model.zapButtonDialog
+            |> Sub.map ZapButtonDialogMsg
+        ]
 
 
 -- VIEW
@@ -271,6 +295,11 @@ viewProfile shared model profile =
             , validation =
                 Nostr.getProfileValidationStatus shared.nostr profile.pubKey
                     |> Maybe.withDefault ValidationUnknown
+            , zap =
+                Just
+                    { model = model.zapButtonDialog
+                    , toMsg = ZapButtonDialogMsg
+                    }
             }
         , viewArticles shared profile.pubKey
         , viewEmailSubscriptionDialog shared model profile

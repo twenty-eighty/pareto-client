@@ -50,6 +50,7 @@ type InteractionObject
     = Article EventId AddressComponents
     | Comment EventId PubKey
     | PicturePost EventId PubKey
+    | ProfilePubKey PubKey
 
 
 type alias InteractionParams =
@@ -78,18 +79,24 @@ pubKeyOfInteractionObject interactionObject =
         PicturePost _ pubKey ->
             pubKey
 
+        ProfilePubKey pubKey ->
+            pubKey
 
-eventIdOfInteractionObject : InteractionObject -> EventId
+
+eventIdOfInteractionObject : InteractionObject -> Maybe EventId
 eventIdOfInteractionObject interactionObject =
     case interactionObject of
         Article eventId _ ->
-            eventId
+            Just eventId
 
         Comment eventId _ ->
-            eventId
+            Just eventId
 
         PicturePost eventId _ ->
-            eventId
+            Just eventId
+
+        ProfilePubKey _ ->
+            Nothing
 
 
 mapAction : (msg1 -> msg2) -> ClickAction msg1 -> ClickAction msg2

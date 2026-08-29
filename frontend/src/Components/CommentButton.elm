@@ -206,6 +206,9 @@ getCommentsCount interactionObject maybeUserPubKey nostr =
         PicturePost _ _ ->
             0
 
+        ProfilePubKey _ ->
+            0
+
 
 hasComment : InteractionObject -> Maybe PubKey -> Nostr.Model -> PubKey -> Bool
 hasComment interactionObject maybeUserPubKey nostr pubKey =
@@ -220,6 +223,9 @@ hasComment interactionObject maybeUserPubKey nostr pubKey =
             False
 
         PicturePost _ _ ->
+            False
+
+        ProfilePubKey _ ->
             False
 
 

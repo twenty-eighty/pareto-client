@@ -196,6 +196,10 @@ getSendRequest interactionObject pubKey =
             Nip18.repostEvent pubKey eventId articlePubKey KindLongFormContent Nothing Nothing
                 |> SendRepost []
 
+        ProfilePubKey _ ->
+            Nip18.repostEvent pubKey "" pubKey KindLongFormContent Nothing Nothing
+                |> SendRepost []
+
 
 getRepostsCount : InteractionObject -> Nostr.Model -> Int
 getRepostsCount interactionObject nostr =
@@ -211,6 +215,9 @@ getRepostsCount interactionObject nostr =
         PicturePost eventId _ ->
             Nostr.getRepostsCountForEventId nostr eventId
                 |> Maybe.withDefault 0
+
+        ProfilePubKey _ ->
+            0
 
 
 hasRepost : InteractionObject -> Nostr.Model -> PubKey -> Bool
@@ -230,6 +237,9 @@ hasRepost interactionObject nostr pubKey =
             Nostr.getRepostsForEventId nostr eventId
                 |> Maybe.map (Dict.member pubKey)
                 |> Maybe.withDefault False
+
+        ProfilePubKey _ ->
+            False
 
 
 subscriptions : Model -> Sub Msg

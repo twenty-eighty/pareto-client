@@ -1796,6 +1796,7 @@ viewProfile shared configCheckIssues user profileModel =
                         , validation =
                             Nostr.getProfileValidationStatus shared.nostr user.pubKey
                                 |> Maybe.withDefault ValidationUnknown
+                        , zap = Nothing
                         }
 
                 ( Just _, False ) ->

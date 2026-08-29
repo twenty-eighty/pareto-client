@@ -295,21 +295,22 @@ update shared msg model =
                 }
 
         CommentInteractionsSent interactionObject innerMsg ->
-            let
-                eventId =
-                    eventIdOfInteractionObject interactionObject
-            in
-            Interactions.update
-                { browserEnv = shared.browserEnv
-                , msg = innerMsg
-                , model = Dict.get eventId model.commentInteractions
-                , nostr = shared.nostr
-                , interactionObject = interactionObject
-                , loginStatus = shared.loginStatus
-                , openCommentMsg = Nothing
-                , toModel = \interactionsModel -> { model | commentInteractions = Dict.insert eventId interactionsModel model.commentInteractions }
-                , toMsg = CommentInteractionsSent interactionObject
-                }
+            case eventIdOfInteractionObject interactionObject of
+                Just eventId ->
+                    Interactions.update
+                        { browserEnv = shared.browserEnv
+                        , msg = innerMsg
+                        , model = Dict.get eventId model.commentInteractions
+                        , nostr = shared.nostr
+                        , interactionObject = interactionObject
+                        , loginStatus = shared.loginStatus
+                        , openCommentMsg = Nothing
+                        , toModel = \interactionsModel -> { model | commentInteractions = Dict.insert eventId interactionsModel model.commentInteractions }
+                        , toMsg = CommentInteractionsSent interactionObject
+                        }
+
+                Nothing ->
+                    ( model, Effect.none )
 
         SharingButtonDialogMsg innerMsg ->
             SharingButtonDialog.update

@@ -385,6 +385,9 @@ interactionObjectTagReferences interactionObject =
         PicturePost eventId _ ->
             [ TagReferenceEventId eventId ]
 
+        ProfilePubKey _ ->
+            []
+
 
 watchZapReceipts : Int -> InvoiceView -> Effect Msg
 watchZapReceipts requestId invoiceView =
@@ -799,6 +802,9 @@ interactionObjectTags interactionObject =
             , KindTag KindPicture
             ]
 
+        ProfilePubKey _ ->
+            []
+
 
 
 -- SETTINGS
@@ -1207,6 +1213,9 @@ getZapAmount browserEnv nostr interactionObject =
                 |> Nostr.getZapReceiptsCountForTagReference nostr
                 |> Maybe.withDefault 0
                 |> formatZapNum browserEnv
+
+        ProfilePubKey _ ->
+            ""
 
 
 formatZapNum : BrowserEnv -> Int -> String
