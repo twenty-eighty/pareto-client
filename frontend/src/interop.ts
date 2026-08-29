@@ -3,7 +3,7 @@ import { Contacts } from "./Newsletters/Contacts";
 import { createNewsletterSender } from "./Newsletters/Send";
 
 import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
-import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
+import NDKCacheAdapterDexie from "@nostr-dev-kit/cache-dexie";
 import { BlossomClient } from "blossom-client-sdk/client";
 import "./clipboard-component";
 import "./zap-component";
@@ -603,10 +603,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     relayManager = createRelayManager(window.ndk, debugLog, processEvents);
 
     // sign in if a relay requests authorization
-    window.ndk.relayAuthDefaultPolicy = (NDKRelayAuthPolicies as any).disconnect();
+    window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.disconnect(window.ndk.pool);
     // Disabled signing in to relays with Auth request as NDK loops infinitely
     // Can be tried again after NDK version upgrade
-    // window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk });
+    // window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk: window.ndk });
 
     // don't validate each event, it's computational intense
     window.ndk.initialValidationRatio = 0.5;

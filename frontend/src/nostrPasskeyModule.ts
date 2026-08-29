@@ -4,8 +4,7 @@ import * as bip39 from "@scure/bip39";
 import { sha256 } from "@noble/hashes/sha256";
 import { wordlist } from "@scure/bip39/wordlists/english";
 
-import { NDKPrivateKeySigner } from "@nostr-dev-kit/ndk";
-import NDK from "@nostr-dev-kit/ndk";
+import { NDK, NDKEvent, NDKPrivateKeySigner, NDKUser } from "@nostr-dev-kit/ndk";
 
 const CHALLENGE = "nostrXpasskeys";
 
@@ -114,7 +113,7 @@ class NostrPasskeyModule {
         }
 
         // Use NDK to sign the event
-        const ndkEvent = this.ndk.createEvent(event);
+        const ndkEvent = new NDKEvent(this.ndk, event);
         await ndkEvent.sign();
 
         // Return the signed event object
@@ -133,7 +132,8 @@ class NostrPasskeyModule {
             throw new Error("Signer not available. Please log in first.");
         }
         // Use NDK's encryption function
-        const encryptedText = await this.signer.encrypt(pubkey, plaintext);
+        const recipient = new NDKUser({ pubkey });
+        const encryptedText = await this.signer.encrypt(recipient, plaintext);
         return encryptedText;
     }
 
@@ -143,7 +143,8 @@ class NostrPasskeyModule {
             throw new Error("Signer not available. Please log in first.");
         }
         // Use NDK's decryption function
-        const decryptedText = await this.signer.decrypt(pubkey, ciphertext);
+        const sender = new NDKUser({ pubkey });
+        const decryptedText = await this.signer.decrypt(sender, ciphertext);
         return decryptedText;
     }
 
