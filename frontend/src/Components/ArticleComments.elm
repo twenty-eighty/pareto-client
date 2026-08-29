@@ -106,6 +106,7 @@ update :
     , msg : Msg msg
     , model : Model
     , nostr : Nostr.Model
+    , loginStatus : LoginStatus
     , toModel : Model -> model
     , toMsg : Msg msg -> msg
     , translations : I18Next.Translations
@@ -145,6 +146,7 @@ update props =
                             , model = Dict.get eventId model.interactions
                             , nostr = props.nostr
                             , interactionObject = interactionObject
+                            , loginStatus = props.loginStatus
                             , openCommentMsg = Nothing
                             , toModel = \interactionsModel -> Model { model | interactions = Dict.insert eventId interactionsModel model.interactions }
                             , toMsg = InteractionsMsg interactionObject

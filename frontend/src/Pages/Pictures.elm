@@ -339,6 +339,7 @@ update shared msg model =
                 , model = Dict.get eventId model.interactions
                 , nostr = shared.nostr
                 , interactionObject = InteractionButton.PicturePost eventId pubKey
+                , loginStatus = shared.loginStatus
                 , openCommentMsg = Nothing
                 , toModel = \interactionsModel -> { model | interactions = Dict.insert eventId interactionsModel model.interactions }
                 , toMsg = InteractionsSent eventId pubKey

@@ -22,7 +22,7 @@ import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
 import Time
 import Translations.Profile as Translations
-import Ui.Interactions exposing (extendedZapRelays, pubkeyRelays, zapButton)
+import Ui.Interactions exposing (extendedZapRelays, pubkeyRelays)
 import Ui.Links exposing (linkElementForProfile, linkElementForProfilePubKey)
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Styles, Theme, darkMode, stylesForTheme)
@@ -394,14 +394,14 @@ viewNip05 styles profile =
 
 
 viewLNAddress : Styles msg -> Profile -> Set String -> LoginStatus -> Html msg
-viewLNAddress styles profile zapRelays loginStatus =
+viewLNAddress styles profile _ _ =
     profile.lud16
         |> Maybe.map
             (\lud16 ->
                 p
-                    (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ [ css [ Tw.flex, Tw.items_center, Tw.overflow_hidden, Tw.text_ellipsis ] ])
-                    [ zapButton (Just profile.pubKey) Nothing zapRelays "0" loginStatus
-                    , text <| lud16
+                    (styles.colorStyleGrayscaleText ++ styles.textStyleBody ++ [ css [ Tw.flex, Tw.items_center, Tw.gap_1, Tw.overflow_hidden, Tw.text_ellipsis ] ])
+                    [ Icon.view (Icon.FeatherIcon FeatherIcons.zap)
+                    , text lud16
                     ]
             )
         |> Maybe.withDefault emptyHtml

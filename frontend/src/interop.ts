@@ -6,7 +6,6 @@ import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigne
 import NDKCacheAdapterDexie from "@nostr-dev-kit/cache-dexie";
 import { BlossomClient } from "blossom-client-sdk/client";
 import "./clipboard-component";
-import "./zap-component";
 import "./elm-oembed";
 import { createRelayManager } from "./relay-manager";
 import debug from 'debug';
@@ -299,6 +298,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
       case 'sendEvent':
         sendEvent(app, value);
+        break;
+
+      case 'signEvent':
+        signEvent(app, value);
         break;
 
       case 'setTestMode':
@@ -1081,6 +1084,27 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         }
       );
     });
+  }
+
+  async function signEvent(app, { requestId: requestId, event: event }) {
+    debugLog('sign event ' + requestId, event);
+
+    try {
+      const ndkEvent = new NDKEvent(window.ndk, event);
+      const signer = (ndkEvent.pubkey == anonymousPubKey) ? anonymousSigner : window.ndk.signer;
+      await ndkEvent.sign(signer);
+      app.ports.receiveMessage.send({
+        messageType: 'signedEvent',
+        value: { requestId: requestId, event: ndkEvent.rawEvent() }
+      });
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error.message ? error.message : 'Error signing event';
+      app.ports.receiveMessage.send({
+        messageType: 'error',
+        value: { requestId: requestId, event: event, reason: errorMessage }
+      });
+    }
   }
 
   async function sendEvent(app, { sendId: sendId, event: event, relays: relays }) {

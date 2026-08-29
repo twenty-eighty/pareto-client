@@ -171,6 +171,20 @@ sendEvent sendRequestId relays event =
         }
 
 
+{-| Sign an event without publishing. Reply arrives as messageType "signedEvent".
+-}
+signEvent : Int -> Event -> Cmd msg
+signEvent requestId event =
+    sendCommand
+        { command = "signEvent"
+        , value =
+            Encode.object
+                [ ( "requestId", Encode.int requestId )
+                , ( "event", encodeEvent event )
+                ]
+        }
+
+
 encryptString : String -> Cmd msg
 encryptString data =
     sendCommand

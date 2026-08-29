@@ -209,6 +209,7 @@ update shared msg model =
                 , model = Just model.interactions
                 , nostr = shared.nostr
                 , interactionObject = Components.InteractionButton.PicturePost "ABCDEF" "BEEFCAFE"
+                , loginStatus = shared.loginStatus
                 , openCommentMsg = Nothing
                 , toModel = \interactionsModel -> { model | interactions = interactionsModel }
                 , toMsg = InteractionsSent

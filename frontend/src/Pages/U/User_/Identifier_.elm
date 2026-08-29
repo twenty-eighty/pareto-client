@@ -8,7 +8,6 @@ import Components.InteractionButton as InteractionButton exposing (eventIdOfInte
 import Components.Interactions as Interactions
 import Components.RelayStatus exposing (Purpose(..))
 import Components.SharingButtonDialog as SharingButtonDialog
-import Components.ZapDialog as ZapDialog
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, article)
@@ -157,7 +156,6 @@ type alias Model =
     , identifier : String
     , nip05 : Maybe Nip05.Nip05
     , requestId : Maybe RequestId
-    , zapDialog : ZapDialog.Model
     , sharingButtonDialog : SharingButtonDialog.Model
     }
 
@@ -174,7 +172,6 @@ init shared route () =
             , nip05 = Nip05.parseNip05 route.params.user
             , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
             , requestId = Nothing
-            , zapDialog = ZapDialog.init {}
             , sharingButtonDialog = SharingButtonDialog.init
             }
 
@@ -249,8 +246,6 @@ type Msg
     | ArticleInteractionsSent InteractionButton.InteractionObject (Interactions.Msg Msg)
     | CommentsSent (ArticleComments.Msg Msg)
     | CommentInteractionsSent InteractionButton.InteractionObject (Interactions.Msg Msg)
-    | ZapReaction PubKey (List ZapDialog.Recipient)
-    | ZapDialogSent (ZapDialog.Msg Msg)
     | SharingButtonDialogMsg SharingButtonDialog.Msg
     | FollowAuthor PubKey PubKey
     | UnfollowAuthor PubKey PubKey
@@ -281,6 +276,7 @@ update shared msg model =
                 , model = Just model.articleInteractions
                 , nostr = shared.nostr
                 , interactionObject = interactionObject
+                , loginStatus = shared.loginStatus
                 , openCommentMsg = Nothing
                 , toModel = \interactionsModel -> { model | articleInteractions = interactionsModel }
                 , toMsg = ArticleInteractionsSent interactionObject
@@ -292,6 +288,7 @@ update shared msg model =
                 , msg = innerMsg
                 , model = model.articleComments
                 , nostr = shared.nostr
+                , loginStatus = shared.loginStatus
                 , toModel = \articleComments -> { model | articleComments = articleComments }
                 , toMsg = CommentsSent
                 , translations = shared.browserEnv.translations
@@ -308,21 +305,10 @@ update shared msg model =
                 , model = Dict.get eventId model.commentInteractions
                 , nostr = shared.nostr
                 , interactionObject = interactionObject
+                , loginStatus = shared.loginStatus
                 , openCommentMsg = Nothing
                 , toModel = \interactionsModel -> { model | commentInteractions = Dict.insert eventId interactionsModel model.commentInteractions }
                 , toMsg = CommentInteractionsSent interactionObject
-                }
-
-        ZapReaction _ recipients ->
-            showZapDialog model recipients
-
-        ZapDialogSent innerMsg ->
-            ZapDialog.update
-                { nostr = shared.nostr
-                , msg = innerMsg
-                , model = model.zapDialog
-                , toModel = \zapDialog -> { model | zapDialog = zapDialog }
-                , toMsg = ZapDialogSent
                 }
 
         SharingButtonDialogMsg innerMsg ->
@@ -353,17 +339,6 @@ update shared msg model =
 
         ToggleArticleInfo ->
             ( model, Effect.sendCmd Ports.toggleArticleInfo )
-
-
-showZapDialog : Model -> List ZapDialog.Recipient -> ( Model, Effect Msg )
-showZapDialog model recipients =
-    let
-        ( zapDialogModel, effect ) =
-            ZapDialog.show model.zapDialog ZapDialogSent recipients
-    in
-    ( { model | zapDialog = zapDialogModel }
-    , effect
-    )
 
 
 

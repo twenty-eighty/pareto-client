@@ -1221,6 +1221,26 @@ getZapReceiptsForEventId model eventId =
     Dict.get eventId model.zapReceiptsEvents
 
 
+hasZapReceiptWithBolt11 : Model -> String -> Bool
+hasZapReceiptWithBolt11 model bolt11 =
+    let
+        matches nested =
+            nested
+                |> Dict.values
+                |> List.concatMap Dict.values
+                |> List.any (\receipt -> receipt.bolt11 == bolt11)
+    in
+    matches model.zapReceiptsAddress || matches model.zapReceiptsEvents
+
+
+zapReceiptIdsForTagReference : Model -> TagReference -> Set String
+zapReceiptIdsForTagReference model tagReference =
+    getZapReceiptsForTagReference model tagReference
+        |> Maybe.map Dict.keys
+        |> Maybe.withDefault []
+        |> Set.fromList
+
+
 getProfile : Model -> PubKey -> Maybe Profile
 getProfile model pubKey =
     Dict.get pubKey model.profiles

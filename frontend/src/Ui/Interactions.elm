@@ -1,23 +1,19 @@
-module Ui.Interactions exposing (..)
+module Ui.Interactions exposing (PreviewData, extendedZapRelays, formatZapNum, pubkeyRelays, viewInteractions, viewReactions)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Icon as Icon exposing (Icon)
 import Components.InteractionButton
 import Components.Interactions
 import Components.SharingButtonDialog as SharingButtonDialog
-import FeatherIcons
 import Html.Styled as Html exposing (Html, div, text)
-import Html.Styled.Attributes as Attr exposing (css)
+import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events as Events
 import I18Next
-import Json.Encode as Encode
 import Nostr
-import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Relay exposing (websocketUrl)
-import Nostr.Types exposing (LoginStatus(..), PubKey, loggedInPubKey)
+import Nostr.Types exposing (LoginStatus, PubKey, loggedInPubKey)
 import Set exposing (Set)
 import Tailwind.Utilities as Tw
-import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme)
 
 
@@ -60,12 +56,8 @@ viewInteractions previewData instanceId =
         |> Components.Interactions.view
 
 
-
-{- -}
-
-
 viewReactions : Icon -> Maybe msg -> Maybe String -> PreviewData msg -> String -> Html msg
-viewReactions icon maybeMsg maybeCount previewData instanceId =
+viewReactions icon maybeMsg maybeCount _ _ =
     let
         onClickAttr =
             case maybeMsg of
@@ -84,24 +76,20 @@ viewReactions icon maybeMsg maybeCount previewData instanceId =
             , Tw.flex
             ]
         ]
-        [ if icon == Icon.FeatherIcon FeatherIcons.zap then
-            zapButton (previewData.loginStatus |> loggedInPubKey) previewData.maybeNip19Target previewData.zapRelays instanceId previewData.loginStatus
-
-          else
-            div
-                (onClickAttr
-                    ++ [ css
-                            [ Tw.w_5
-                            , Tw.h_5
-                            , Tw.px_0_dot_5
-                            , Tw.py_0_dot_5
-                            , Tw.justify_center
-                            , Tw.items_center
-                            , Tw.flex
-                            ]
-                       ]
-                )
-                [ Icon.view icon ]
+        [ div
+            (onClickAttr
+                ++ [ css
+                        [ Tw.w_5
+                        , Tw.h_5
+                        , Tw.px_0_dot_5
+                        , Tw.py_0_dot_5
+                        , Tw.justify_center
+                        , Tw.items_center
+                        , Tw.flex
+                        ]
+                   ]
+            )
+            [ Icon.view icon ]
         , div
             []
             [ text (maybeCount |> Maybe.withDefault "0") ]
@@ -111,72 +99,6 @@ viewReactions icon maybeMsg maybeCount previewData instanceId =
 formatZapNum : BrowserEnv -> Int -> String
 formatZapNum browserEnv milliSats =
     browserEnv.formatNumber "0 a" <| toFloat (milliSats // 1000)
-
-
-zapButton : Maybe PubKey -> Maybe String -> Set String -> String -> LoginStatus -> Html msg
-zapButton maybePubKey maybeNip19Target zapRelays instanceId loginStatus =
-    let
-        maybeNip19TargetAttr =
-            maybeNip19Target
-                |> Maybe.map
-                    (\nip19Target ->
-                        if String.startsWith "note" nip19Target then
-                            [ Attr.attribute "data-note-id" nip19Target ]
-
-                        else
-                            [ Attr.attribute "data-naddr" nip19Target ]
-                    )
-
-        maybeNpub =
-            maybePubKey
-                |> Maybe.andThen (\pubKey -> Nip19.encode (Npub pubKey) |> Result.toMaybe)
-
-        anonAttr =
-            case loginStatus of
-                LoggedIn _ _ ->
-                    []
-
-                _ ->
-                    [ Attr.attribute "data-anon" "true" ]
-
-        ( nostrZapAttributes, zapComponent ) =
-            maybeNpub
-                |> Maybe.map
-                    (\npub ->
-                        ( [ Attr.id ("zap-button-" ++ instanceId)
-                          , Attr.attribute "data-npub" npub
-                          , Attr.attribute "data-relays" (zapRelays |> Set.toList |> String.join ",")
-                          , Attr.attribute "data-button-color" "#334155"
-                          ]
-                            ++ Maybe.withDefault [] maybeNip19TargetAttr
-                            ++ anonAttr
-                        , Html.node "js-zap-component"
-                            [ Attr.property "buttonId" (Encode.string ("zap-button-" ++ instanceId)) ]
-                            []
-                        )
-                    )
-                |> Maybe.withDefault ( [], emptyHtml )
-    in
-    Html.button
-        (nostrZapAttributes
-            ++ [ css
-                    [ Tw.w_5
-                    , Tw.h_5
-                    , Tw.px_0_dot_5
-                    , Tw.py_0_dot_5
-                    , Tw.justify_center
-                    , Tw.items_center
-                    , Tw.flex
-                    ]
-               ]
-        )
-        [ Icon.view (Icon.FeatherIcon FeatherIcons.zap), zapComponent ]
-
-
-
-{-
-   Extends the given relays with the inbox relays of the pub-key.
--}
 
 
 extendedZapRelays : Set String -> Nostr.Model -> LoginStatus -> Set String

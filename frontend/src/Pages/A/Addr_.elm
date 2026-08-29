@@ -7,7 +7,6 @@ import Components.InteractionButton as InteractionButton
 import Components.Interactions as Interactions
 import Components.RelayStatus exposing (Purpose(..))
 import Components.SharingButtonDialog as SharingButtonDialog
-import Components.ZapDialog as ZapDialog
 import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (div)
@@ -169,7 +168,6 @@ type alias Nip19ModelData =
     , requestId : RequestId
     , interactions : Interactions.Model
     , sharingButtonDialog : SharingButtonDialog.Model
-    , zapDialog : ZapDialog.Model
     }
 
 
@@ -190,7 +188,6 @@ init shared route () =
                             }
                         , nip19 = nip19
                         , requestId = Nostr.getLastRequestId shared.nostr
-                        , zapDialog = ZapDialog.init {}
                         , interactions = Interactions.init
                         , sharingButtonDialog = SharingButtonDialog.init
                         }
@@ -274,8 +271,6 @@ type Msg
     = AddLoadedContent String
     | CommentsSent (ArticleComments.Msg Msg)
     | ArticleInteractionsSent InteractionButton.InteractionObject (Interactions.Msg Msg)
-    | ZapReaction PubKey (List ZapDialog.Recipient)
-    | ZapDialogSent (ZapDialog.Msg Msg)
     | SharingButtonDialogMsg SharingButtonDialog.Msg
     | FollowAuthor PubKey PubKey
     | UnfollowAuthor PubKey PubKey
@@ -303,6 +298,7 @@ update shared msg model =
                         , msg = innerMsg
                         , model = nip19ModelData.articleComments
                         , nostr = shared.nostr
+                        , loginStatus = shared.loginStatus
                         , toModel = \articleComments -> Nip19Model { nip19ModelData | articleComments = articleComments }
                         , toMsg = CommentsSent
                         , translations = shared.browserEnv.translations
@@ -320,31 +316,10 @@ update shared msg model =
                         , model = Just nip19ModelData.interactions
                         , nostr = shared.nostr
                         , interactionObject = interactionObject
+                        , loginStatus = shared.loginStatus
                         , openCommentMsg = Nothing
                         , toModel = \interactionsModel -> Nip19Model { nip19ModelData | interactions = interactionsModel }
                         , toMsg = ArticleInteractionsSent interactionObject
-                        }
-
-                _ ->
-                    ( model, Effect.none )
-
-        ZapReaction _ recipients ->
-            case model of
-                Nip19Model nip19ModelData ->
-                    showZapDialog nip19ModelData recipients
-
-                _ ->
-                    ( model, Effect.none )
-
-        ZapDialogSent innerMsg ->
-            case model of
-                Nip19Model nip19ModelData ->
-                    ZapDialog.update
-                        { nostr = shared.nostr
-                        , msg = innerMsg
-                        , model = nip19ModelData.zapDialog
-                        , toModel = \zapDialog -> Nip19Model { nip19ModelData | zapDialog = zapDialog }
-                        , toMsg = ZapDialogSent
                         }
 
                 _ ->
@@ -398,18 +373,6 @@ update shared msg model =
                     Shared.createFollowersEffect shared.nostr maybeAuthorPubKey
             in
             ( model, followersEffect )
-
-
-showZapDialog : Nip19ModelData -> List ZapDialog.Recipient -> ( Model, Effect Msg )
-showZapDialog nip19ModelData recipients =
-    let
-        ( zapDialogModel, effect ) =
-            ZapDialog.show nip19ModelData.zapDialog ZapDialogSent recipients
-    in
-    ( Nip19Model { nip19ModelData | zapDialog = zapDialogModel }
-    , effect
-    )
-
 
 
 -- SUBSCRIPTIONS
