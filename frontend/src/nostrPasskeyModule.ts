@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 import * as bip39 from "@scure/bip39";
 import { sha256 } from "@noble/hashes/sha256";

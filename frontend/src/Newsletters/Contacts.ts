@@ -1,9 +1,10 @@
+// @ts-nocheck
 // Contact storage using NDK (Nostr Development Kit)
 // ES6 module version for clean imports
 
 import { NDKEvent, NDKKind } from "@nostr-dev-kit/ndk";
-import { HttpClient } from "./EncryptedContacts/http.js";
-import { ContactsApi } from "./EncryptedContacts/contacts.js";
+import { HttpClient } from "./EncryptedContacts/http";
+import { ContactsApi } from "./EncryptedContacts/contacts";
 
 const API_URL = 'http://localhost:4003';
 
@@ -12,6 +13,14 @@ const API_URL = 'http://localhost:4003';
 // =============================================================================
 
 export class Contacts {
+  ndk: any
+  apiUrl: string
+  pubkey: string
+  jwt?: string
+  salt?: string
+  http: HttpClient
+  contactsApi: ContactsApi
+
   constructor(ndk, pubkey, apiUrl = API_URL) {
     console.log('Contacts constructor called with:', { ndk, pubkey, apiUrl });
     this.ndk = ndk;

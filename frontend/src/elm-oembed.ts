@@ -1,3 +1,4 @@
+// @ts-nocheck
 customElements.define(
   "oembed-element",
   class extends HTMLElement {

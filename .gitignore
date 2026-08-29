@@ -1,6 +1,7 @@
 .dockerignore
 .formatter.exs
 .env
+.gh/
 .npmrc
 .DS_Store
 *.br

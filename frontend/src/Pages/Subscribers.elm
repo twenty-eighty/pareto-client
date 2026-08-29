@@ -122,9 +122,11 @@ availableCategories : I18Next.Translations -> List (Categories.CategoryData Cate
 availableCategories translations =
         [ { category = Subscribers
           , title = Translations.subscribersCategory [ translations ]
+          , testId = "subscribers-category"
           }
         , { category = Tags
           , title = Translations.tagsCategory [ translations ]
+          , testId = "tags-category"
           }
         ]
 

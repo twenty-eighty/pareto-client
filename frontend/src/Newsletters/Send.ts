@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NDKEvent } from "@nostr-dev-kit/ndk";
 // Newsletter sending client for the Queue Server
 // Exposes a small API to Elm via ports (to be wired later)
@@ -493,5 +494,3 @@ export function createNewsletterSender(options) {
 }
 
 export default NewsletterSendClient;
-
-

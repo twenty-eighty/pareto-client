@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { imageBlockComponent, imageBlockConfig } from '../image-block'
 import { imageInlineComponent, inlineImageConfig } from '@milkdown/kit/component/image-inline'
 import type { DefineFeature, Icon } from '../shared'

@@ -1,0 +1,7 @@
+allowBuilds:
+  '@lo-fi/webauthn-local-client': true
+  '@lydell/elm': true
+  elm: true
+  esbuild: true
+  node: true
+  nostr-zap@https://codeload.github.com/rodant/nostr-zap/tar.gz/19045afdafa6be6e7fa1af05b105c3fa1e9eef9b: true

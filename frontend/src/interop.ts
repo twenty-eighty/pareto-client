@@ -1,24 +1,62 @@
-import "./Milkdown/MilkdownEditor.js";
-import { Contacts } from "./Newsletters/Contacts.js";
-import { createNewsletterSender } from "./Newsletters/Send.js";
+import "./Milkdown/MilkdownEditor";
+import { Contacts } from "./Newsletters/Contacts";
+import { createNewsletterSender } from "./Newsletters/Send";
 
-import NDK, { NDKUser, NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKNip46Signer, NDKNostrRpc, NDKSubscription, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
+import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
 import { BlossomClient } from "blossom-client-sdk/client";
-import "./clipboard-component.js";
-import "./zap-component.js";
-import "./elm-oembed.js";
-import { createRelayManager } from "./relay-manager.js";
+import "./clipboard-component";
+import "./zap-component";
+import "./elm-oembed";
+import { createRelayManager } from "./relay-manager";
 import debug from 'debug';
 
-var contacts = null;
-var newsletterSendClient = null;
+declare global {
+  interface Window {
+    ndk: any;
+  }
+
+  // Loaded dynamically from /js/nstart-modal.js
+  var NstartModal: any;
+
+  interface NlAuthEventDetail {
+    type: string;
+    method?: string;
+  }
+
+  interface NlAuthEvent extends CustomEvent {
+    detail: NlAuthEventDetail;
+  }
+}
+
+interface ElmPorts {
+  sendCommand: {
+    subscribe: (callback: (msg: { command: string; value: any }) => void) => void;
+  };
+  receiveMessage: {
+    send: (msg: { messageType: string; value: any }) => void;
+  };
+}
+
+interface ElmApp {
+  ports: ElmPorts;
+}
+
+interface FlagsEnv {
+  ELM_ENV: string;
+  IMAGE_CACHING_SERVER?: string;
+}
+
+type PortCommand = { command: string; value: any };
+
+var contacts: Contacts | null = null;
+var newsletterSendClient: any = null;
 
 // This is called BEFORE your Elm app starts up
-// 
-// The value returned here will be passed as flags 
+//
+// The value returned here will be passed as flags
 // into your `Shared.init` function.
-export const flags = ({ env }) => {
+export const flags = ({ env }: { env: FlagsEnv }) => {
   // derive locale from URL parameter or default to browser setting
   const params = new URLSearchParams(window.location.search);
   const selectedLocale = params.get('locale') || navigator.language;
@@ -28,15 +66,15 @@ export const flags = ({ env }) => {
     imageCachingServer: env.IMAGE_CACHING_SERVER || "https://image-caching-server.onrender.com",
     locale: selectedLocale,
     nativeSharingAvailable: (navigator.share != undefined),
-    testMode: JSON.parse(localStorage.getItem('testMode')) || false,
+    testMode: JSON.parse(localStorage.getItem('testMode') || 'false') || false,
   }
 };
 
 const debugLog = debug('pareto-client');
 
 var connected = false;
-var nStartWizard = null
-var relayManager = null;
+var nStartWizard: any = null;
+var relayManager: ReturnType<typeof createRelayManager> | null = null;
 
 const anonymousSigner = new NDKPrivateKeySigner('cff56394373edfaa281d2e1b5ad1b8cafd8b247f229f2af2c61734fb0c7b3f84');
 const anonymousPubKey = 'ecdf32491ef8b5f1902109f495e7ca189c6fcec76cd66b888fa9fc2ce87f40db';
@@ -59,9 +97,9 @@ const suggestedPubKeys =
     , "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84" // _@pareto.space
   ];
 
-export const onReady = ({ app, env }) => {
+export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
-  var storedCommands = [];
+  var storedCommands: PortCommand[] = [];
 
   // the backend may inject a <script> element containing
   // raw Nostr events required by the page to be loaded
@@ -179,7 +217,7 @@ export const onReady = ({ app, env }) => {
   }
 
   // listen to events of nostr-login
-  document.addEventListener('nlAuth', (event) => {
+  document.addEventListener('nlAuth', ((event: NlAuthEvent) => {
     switch (event.detail.type) {
       case 'login':
       case 'signup':
@@ -190,7 +228,7 @@ export const onReady = ({ app, env }) => {
         app.ports.receiveMessage.send({ messageType: 'loggedOut', value: null });
         break;
     }
-  });
+  }) as EventListener);
 
   function processPreloadData(app) {
     var preloadData = undefined;
@@ -435,9 +473,9 @@ export const onReady = ({ app, env }) => {
   }
 
   // 2) Helper to convert bytes to hex string
-  function bytesToHex(uint8Arr) {
+  function bytesToHex(uint8Arr: Uint8Array) {
     return Array.from(uint8Arr)
-      .map(function (b) {
+      .map(function (b: number) {
         return b.toString(16).padStart(2, '0');
       })
       .join('');
@@ -565,7 +603,7 @@ export const onReady = ({ app, env }) => {
     relayManager = createRelayManager(window.ndk, debugLog, processEvents);
 
     // sign in if a relay requests authorization
-    window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.disconnect();
+    window.ndk.relayAuthDefaultPolicy = (NDKRelayAuthPolicies as any).disconnect();
     // Disabled signing in to relays with Auth request as NDK loops infinitely
     // Can be tried again after NDK version upgrade
     // window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk });
@@ -801,10 +839,8 @@ export const onReady = ({ app, env }) => {
     }
   }
 
-  function decryptRelayList(ndkEvent) {
-    const content = ndkEvent.content;
-    const decryptedContent = nip4(encryptedContent);
-    const decryptedEvent = new NDKEvent(window.ndk, ndkEvent);
+  // Unused incomplete helper (kept from JS; previously referenced undefined symbols).
+  function decryptRelayList(ndkEvent: any) {
     return {
       kind: ndkEvent.kind,
       pubkey: ndkEvent.pubkey,
@@ -1056,7 +1092,7 @@ export const onReady = ({ app, env }) => {
 
     try {
       if (event.kind == 30024) {  // draft event
-        ndkEvent = await encapsulateDraftEvent(ndkEvent, signer);
+        ndkEvent = await encapsulateDraftEvent(ndkEvent);
       } else if (event.kind == 30078) {  // application-specific event
         ndkEvent = await encapsulateApplicationSpecificEvent(ndkEvent, signer);
         // Don't try to decrypt events that weren't encrypted for us
@@ -1136,8 +1172,8 @@ export const onReady = ({ app, env }) => {
       created_at: ndkEvent.created_at
     }
 
-    var ndkEvent = new NDKEvent(window.ndk, draftEvent)
-    return ndkEvent;
+    const draftNdkEvent = new NDKEvent(window.ndk, draftEvent)
+    return draftNdkEvent;
   }
 
   // https://nips.nostr.com/78
@@ -1219,10 +1255,10 @@ export const onReady = ({ app, env }) => {
     return null;
   }
 
-  function fillZapReceipt(ndkEvent) {
-    const zapReceipt = { id: ndkEvent.id };
+  function fillZapReceipt(ndkEvent: any) {
+    const zapReceipt: Record<string, any> = { id: ndkEvent.id };
 
-    ndkEvent.tags.forEach(tag => {
+    ndkEvent.tags.forEach((tag: any[]) => {
       switch (tag[0]) {
         case 'P':
           zapReceipt.pubkeySender = tag[1];
@@ -1247,7 +1283,7 @@ export const onReady = ({ app, env }) => {
             tag[1] = tag[1]?.replace(/\t|\n|\r+/g, '') || '';// some events contain space character and break JSON parsing.
             const json = JSON.parse(tag[1]);
             const tags = json.tags;
-            const amountTag = tags.find(tag => tag[0] === 'amount');
+            const amountTag = tags.find((t: any[]) => t[0] === 'amount');
             if (amountTag) {
               zapReceipt.amount = amountTag[1];
             }

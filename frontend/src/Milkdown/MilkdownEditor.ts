@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 import { Crepe } from '@milkdown/crepe';
 // import { ImageBlockFeatureConfig } from './feature/index';
@@ -25,7 +26,7 @@ import {
     wrapInBulletListCommand,
     wrapInOrderedListCommand,
 } from '@milkdown/preset-commonmark';
-import { liftTarget } from '@milkdown/prose/transform';
+import { liftTarget } from '@milkdown/kit/prose/transform';
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
 
