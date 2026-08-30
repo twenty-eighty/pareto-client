@@ -6,14 +6,14 @@ Syntax supported:
 
   - References: `[^label]`
   - Definitions: `[^label]: content`
-  - Continuations: indented lines (2+ spaces or a tab), as in GFM
+  - Lazy continuations: unindented lines stay in the footnote until a blank line
+  - Indented continuations: 2+ spaces or a tab (GFM multi-paragraph)
 
-Unindented content after a blank line ends the footnote and stays in the
-article body (same as other GFM renderers), so lone URL lines there use the
-normal oembed path.
+After a blank line, unindented content ends the footnote and stays in the
+article body, so lone URL lines there use the normal oembed path.
 
-A footnote whose entire body is a single URL is rewritten to an `embedlink`
-so it can use the same LinkPreview/oembed rendering as article embeds.
+A footnote that starts with a bare URL uses `embedlink` for that URL (same
+LinkPreview/oembed path as article embeds); any following lines stay as text.
 -}
 
 import Dict exposing (Dict)
@@ -57,6 +57,7 @@ type alias ExtractState =
 type alias CurrentDef =
     { label : String
     , bodyLines : List String
+    , afterBlankLine : Bool
     }
 
 
@@ -101,23 +102,37 @@ consumeDefinitionLine line state =
                                 Just
                                     { current
                                         | bodyLines = unindentContinuation line :: current.bodyLines
+                                        , afterBlankLine = False
                                     }
                         }
 
                     else if String.trim line == "" then
-                        -- Blank lines may sit between indented footnote paragraphs.
-                        -- An unindented line after this will end the footnote (GFM).
+                        -- Blank line: later unindented text ends the footnote.
                         { state
                             | current =
-                                Just { current | bodyLines = "" :: current.bodyLines }
+                                Just
+                                    { current
+                                        | bodyLines = "" :: current.bodyLines
+                                        , afterBlankLine = True
+                                    }
                         }
 
-                    else
-                        -- Unindented non-blank line: footnote ends. Remaining content
-                        -- is normal markdown (so lone URL lines use the usual oembed path).
+                    else if current.afterBlankLine then
+                        -- Unindented content after a blank line → article body.
                         state
                             |> flushCurrentDef
                             |> appendBodyLine line
+
+                    else
+                        -- Lazy continuation: keep unindented lines in the footnote
+                        -- until a blank line appears.
+                        { state
+                            | current =
+                                Just
+                                    { current
+                                        | bodyLines = line :: current.bodyLines
+                                    }
+                        }
 
                 Nothing ->
                     appendBodyLine line state
@@ -175,6 +190,7 @@ startDef label firstContent state =
             Just
                 { label = label
                 , bodyLines = [ firstContent ]
+                , afterBlankLine = False
                 }
     }
 
@@ -463,21 +479,83 @@ footnotesSectionHtml orderedLabels defs =
     "<footnotes>\n" ++ items ++ "\n</footnotes>"
 
 
-{-| Lone URL footnote bodies become an embedlink tag so the renderer can show
-an oembed (or a normal link fallback). elm-markdown does not autolink bare URLs.
+{-| Footnote bodies that are (or start with) a bare URL become an embedlink so
+the renderer can show an oembed (or a normal link fallback). elm-markdown does
+not autolink bare URLs. Any lines after a leading URL stay as markdown text.
 -}
 formatFootnoteBody : String -> String
 formatFootnoteBody body =
     case loneFootnoteUrl body of
         Just url ->
-            "<embedlink href=\""
-                ++ escapeHtmlAttr url
-                ++ "\">"
-                ++ escapeHtmlText url
-                ++ "</embedlink>"
+            embedlinkHtml url
 
         Nothing ->
-            body
+            case leadingUrlAndRest body of
+                Just ( url, rest ) ->
+                    embedlinkHtml url ++ "\n" ++ rest
+
+                Nothing ->
+                    body
+
+
+embedlinkHtml : String -> String
+embedlinkHtml url =
+    "<embedlink href=\""
+        ++ escapeHtmlAttr url
+        ++ "\">"
+        ++ escapeHtmlText url
+        ++ "</embedlink>"
+
+
+{-| If the first non-blank line is a bare URL, return it and the remaining body.
+-}
+leadingUrlAndRest : String -> Maybe ( String, String )
+leadingUrlAndRest body =
+    let
+        lines =
+            String.split "\n" body
+
+        ( leadingBlanks, afterBlanks ) =
+            splitLeadingBlankLines lines
+    in
+    case afterBlanks of
+        first :: rest ->
+            if isBareHttpUrl (String.trim first) then
+                let
+                    trailing =
+                        (leadingBlanks ++ rest)
+                            |> dropTrailingBlankLines
+                            |> String.join "\n"
+                in
+                if String.trim trailing == "" then
+                    Nothing
+
+                else
+                    Just ( String.trim first, trailing )
+
+            else
+                Nothing
+
+        [] ->
+            Nothing
+
+
+splitLeadingBlankLines : List String -> ( List String, List String )
+splitLeadingBlankLines lines =
+    case lines of
+        line :: rest ->
+            if String.trim line == "" then
+                let
+                    ( blanks, remainder ) =
+                        splitLeadingBlankLines rest
+                in
+                ( line :: blanks, remainder )
+
+            else
+                ( [], lines )
+
+        [] ->
+            ( [], [] )
 
 
 loneFootnoteUrl : String -> Maybe String
