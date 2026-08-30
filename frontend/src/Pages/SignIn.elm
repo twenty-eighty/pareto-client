@@ -68,7 +68,7 @@ init shared route () =
                     Effect.sendCmd (Ports.login nsec)
 
                 Nothing ->
-                    Effect.sendCmd Ports.loginSignUp
+                    Effect.sendSharedMsg Shared.Msg.TriggerLogin
     in
     ( { from =
             from
@@ -109,7 +109,7 @@ update shared msg model =
             updateWithPortMessage shared model portMessage
 
         TriggerLoginSignup ->
-            ( model, Effect.sendCmd Ports.loginSignUp )
+            ( model, Effect.sendSharedMsg Shared.Msg.TriggerLogin )
 
 
 updateWithPortMessage : Shared.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )

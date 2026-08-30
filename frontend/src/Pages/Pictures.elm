@@ -24,7 +24,6 @@ import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (EventId, LoginStatus, PubKey, loggedInPubKey, loggedInSigningPubKey)
 import Page exposing (Page)
 import Pareto
-import Ports
 import Route exposing (Route)
 import Route.Path
 import Shared
@@ -190,10 +189,9 @@ init shared route () =
                 |> Maybe.andThen categoryFromString
                 |> Maybe.withDefault Pareto
 
-        signUpEffect =
+        authDialogEffect =
             if route.hash == Just "signup" then
-                Ports.signUp
-                    |> Effect.sendCmd
+                Effect.sendSharedMsg Shared.Msg.TriggerLogin
 
             else
                 Effect.none
@@ -232,7 +230,7 @@ init shared route () =
             |> Nostr.createRequest shared.nostr "Picture posts" [ KindUserMetadata, KindEventDeletionRequest ]
             |> Shared.Msg.RequestNostrEvents
             |> Effect.sendSharedMsg
-        , signUpEffect
+        , authDialogEffect
         ]
     )
 

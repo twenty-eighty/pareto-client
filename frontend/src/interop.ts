@@ -8,6 +8,7 @@ import { BlossomClient } from "blossom-client-sdk/client";
 import "./clipboard-component";
 import "./elm-oembed";
 import { createRelayManager } from "./relay-manager";
+import { handleAuthCommand, restoreActiveIdentity } from "./authIdentities";
 import debug from 'debug';
 
 declare global {
@@ -180,11 +181,6 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     }
   });
 
-  window.onload = function () {
-    // make sure to load Nostr-Login after browser extensions had a chance to create window.nostr
-    loadNostrLogin();
-  };
-
   // in certain cases we can't catch the error with try/catch
   window.addEventListener("unhandledrejection", function (event) {
     debugLog('unhandledrejection', event);
@@ -192,96 +188,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     app.ports.receiveMessage.send({ messageType: 'error', value: { reason: errorMessage } });
   });
 
-  function loadNostrLogin() {
-    const titleAndDescription = getLocalizedStrings(navigator.language);
-    const relays = defaultRelays.join(",");
 
-    const newScript = document.createElement('script');
-    newScript.src = "/js/nostr-login.js";
-    newScript.setAttribute("data-title", titleAndDescription.title);
-    newScript.setAttribute("data-description", titleAndDescription.description);
-    newScript.setAttribute("data-methods", 'extension,readOnly,local');
-    newScript.setAttribute("data-signup-relays", relays);
-    newScript.setAttribute("data-outbox-relays", relays);
-    newScript.setAttribute("data-signup-nstart", "true");
-    newScript.setAttribute("data-follow-npubs", suggestedPubKeys.join(','));
-    newScript.setAttribute("data-nstart-app-name", "Pareto");
-    newScript.setAttribute("data-nstart-modal-url", "/js/nstart-modal.js");
-    newScript.setAttribute("data-nstart-accent-color", "94a3b8");
-    newScript.setAttribute("data-nstart-force-bunker", "false");
-    newScript.setAttribute("data-nstart-skip-bunker", "true");
-    newScript.setAttribute("data-nstart-avoid-nsec", "true");
-    newScript.setAttribute("data-nstart-avoid-ncryptsec", "false");
-
-    newScript.addEventListener("load", () => {
-      const nlElement = document.getElementsByTagName("nl-banner").item(0);
-      const style = document.createElement('style');
-      style.textContent = `
-        .pareto-custom-nl {
-          top: 145px !important;
-        }
-
-        @media (min-width: 768px) {
-          .pareto-custom-nl {
-            top: 145px !important;
-          }
-        }
-
-        @media (min-width: 1024px) {
-          .pareto-custom-nl {
-            top: 160px !important;
-          }
-        }
-      `;
-      nlElement.shadowRoot.appendChild(style);
-
-      if (nlElement) {
-        const observer = new MutationObserver((_mutations) => {
-          const nlChild = nlElement.shadowRoot.querySelector('.nl-banner');
-          if (nlChild) {
-            nlChild.classList.add("pareto-custom-nl");
-          }
-        });
-        observer.observe(nlElement.shadowRoot, {childList: true, subtree: true});
-      }
-    });
-    
-    document.body.appendChild(newScript);
-  }
-
-  function getLocalizedStrings(locale) {
-    const strings = {
-      en: {
-        title: "Welcome to Pareto!",
-        description: "Pareto is part of the Nostr network. Log in with your Nostr profile or sign up to join."
-      },
-      de: {
-        title: "Willkommen bei Pareto!",
-        description: "Pareto ist Teil des Nostr-Netzes. Melde dich mit deinem Nostr-Profil an oder erstelle dir ein neues Profil."
-      }
-    };
-
-    if (locale.startsWith('de')) {
-      return strings.de;
-    }
-
-    // Default to English
-    return strings.en;
-  }
-
-  // listen to events of nostr-login
-  document.addEventListener('nlAuth', ((event: NlAuthEvent) => {
-    switch (event.detail.type) {
-      case 'login':
-      case 'signup':
-        requestUser(app, event.detail.method);
-        break;
-
-      default:
-        app.ports.receiveMessage.send({ messageType: 'loggedOut', value: null });
-        break;
-    }
-  }) as EventListener);
 
   function processPreloadData(app) {
     var preloadData = undefined;
@@ -313,17 +220,20 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
   function processOnlineCommand(app, command, value) {
     debugLog('process command', command);
+    // Auth commands are handled asynchronously in authIdentities.ts
+    handleAuthCommand(window.ndk, app, command, value).then((handled) => {
+      if (handled) {
+        return;
+      }
+      processOnlineCommandRest(app, command, value);
+    });
+  }
+
+  function processOnlineCommandRest(app, command, value) {
     switch (command) {
       case 'login':
+        // Legacy: prefer loginWithNcryptsec from Elm AuthDialog
         login(app, value);
-        break;
-
-      case 'loginSignUp':
-        loginSignUp(app)
-        break;
-
-      case 'signUp':
-        signUp(app)
         break;
 
       case 'encryptString':
@@ -414,68 +324,23 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   }
 
   async function login(app, value) {
-    const signer = new NDKPrivateKeySigner(value.nsec);
-    const user = await signer.user();        // resolves immediately once the key is decoded
-    document.dispatchEvent(new CustomEvent('nlSetAuth', {
-      detail: {
-        type: 'login',
-        method: 'local',
-        pubkey: user.pubkey,                 // 64-char hex string
-        localNsec: signer.privateKey
-      }
-    }));
-  }
-
-  function loginSignUp(app) {
-    document.dispatchEvent(new CustomEvent('nlLaunch', {}));
-  }
-
-  function signUp(app) {
-    if (!nStartWizard) {
-      loadNJump();
-    } else {
-      nStartWizard.open();
+    // Legacy nsec login — prefer loginWithNcryptsec from AuthDialog
+    try {
+      const signer = new NDKPrivateKeySigner(value.nsec);
+      const user = await signer.user();
+      window.ndk.signer = signer;
+      app.ports.receiveMessage.send({
+        messageType: 'user',
+        value: { pubKey: user.pubkey, method: 'local' },
+      });
+    } catch (error: any) {
+      app.ports.receiveMessage.send({
+        messageType: 'authError',
+        value: { reason: error?.message || 'Login failed' },
+      });
     }
   }
 
-  function loadNJump() {
-    if (!nStartWizard) {
-      const newScript = document.createElement('script');
-      newScript.src = "/js/nstart-modal.js";
-      newScript.onload = () => {
-        // Create the modal instance with required parameters
-        nStartWizard = new NstartModal({
-          // Required parameters
-          baseUrl: 'https://start.njump.me',
-          an: 'Pareto', // App name
-
-          // Optional parameters
-          aa: '94a3b8', // Hex accent color
-          afb: false, // Force bunker (default False)
-          asb: true, // Skip bunker (default False)
-          aan: true, // Don't return Nsec (default False)
-          aac: false, // Don't return  Ncryptsec (default False)
-          arr: defaultRelays, // Custom read relays
-          awr: defaultRelays, // Custom write relays
-          s: suggestedPubKeys, // suggested profiles
-
-          // Callbacks
-          onComplete: (result) => {
-            if (result.nostrLogin) {
-              document.dispatchEvent(new CustomEvent('nlLaunch', { detail: 'login-bunker-url' }));
-            } else {
-              document.dispatchEvent(new CustomEvent('nlLaunch', { detail: 'login' }));
-            }
-          },
-          onCancel: () => {
-            console.log('Wizard cancelled');
-          }
-        });
-        nStartWizard.open()
-      };
-      document.body.appendChild(newScript);
-    }
-  }
 
   function setTestMode(app, value) {
     localStorage.setItem('testMode', JSON.stringify(value));
@@ -686,6 +551,8 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
       app.ports.receiveMessage.send({ messageType: 'connected', value: null });
 
+      restoreActiveIdentity(window.ndk, app);
+
       for (let i = 0; i < storedCommands.length; i++) {
         processOnlineCommand(app, storedCommands[i].command, storedCommands[i].value);
       }
@@ -706,6 +573,8 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       if (!connected) {
         connected = true;
         app.ports.receiveMessage.send({ messageType: 'connected', value: null });
+
+        restoreActiveIdentity(window.ndk, app);
 
         for (let i = 0; i < storedCommands.length; i++) {
           processOnlineCommand(app, storedCommands[i].command, storedCommands[i].value);

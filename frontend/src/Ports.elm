@@ -33,14 +33,71 @@ login nsec =
     sendCommand { command = "login", value = Encode.object [ ( "nsec", Encode.string nsec ) ] }
 
 
-loginSignUp : Cmd msg
-loginSignUp =
-    sendCommand { command = "loginSignUp", value = Encode.null }
+listIdentities : Cmd msg
+listIdentities =
+    sendCommand { command = "listIdentities", value = Encode.null }
 
 
-signUp : Cmd msg
-signUp =
-    sendCommand { command = "signUp", value = Encode.null }
+loginWithExtension : Cmd msg
+loginWithExtension =
+    sendCommand { command = "loginWithExtension", value = Encode.null }
+
+
+loginWithNpub : String -> Cmd msg
+loginWithNpub npub =
+    sendCommand
+        { command = "loginWithNpub"
+        , value = Encode.object [ ( "npub", Encode.string npub ) ]
+        }
+
+
+loginWithBunker : String -> Cmd msg
+loginWithBunker bunkerUri =
+    sendCommand
+        { command = "loginWithBunker"
+        , value = Encode.object [ ( "bunkerUri", Encode.string bunkerUri ) ]
+        }
+
+
+loginWithNcryptsec : String -> String -> Cmd msg
+loginWithNcryptsec ncryptsec password =
+    sendCommand
+        { command = "loginWithNcryptsec"
+        , value =
+            Encode.object
+                [ ( "ncryptsec", Encode.string ncryptsec )
+                , ( "password", Encode.string password )
+                ]
+        }
+
+
+activateIdentity : String -> Maybe String -> Cmd msg
+activateIdentity id maybePassword =
+    sendCommand
+        { command = "activateIdentity"
+        , value =
+            Encode.object
+                [ ( "id", Encode.string id )
+                , ( "password"
+                  , maybePassword
+                        |> Maybe.map Encode.string
+                        |> Maybe.withDefault Encode.null
+                  )
+                ]
+        }
+
+
+removeIdentity : String -> Cmd msg
+removeIdentity id =
+    sendCommand
+        { command = "removeIdentity"
+        , value = Encode.object [ ( "id", Encode.string id ) ]
+        }
+
+
+logout : Cmd msg
+logout =
+    sendCommand { command = "logout", value = Encode.null }
 
 
 requestEvents : String -> Bool -> RequestId -> List String -> List EventFilter -> Cmd msg

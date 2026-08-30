@@ -5,6 +5,7 @@ module Shared.Msg exposing (Msg(..))
 import BrowserEnv exposing (TestMode)
 import Browser.Dom
 import Components.AlertTimerMessage as AlertTimerMessage
+import Components.AuthDialog as AuthDialog
 import Nostr
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Nip05 as Nip05
@@ -23,6 +24,7 @@ own file, so they can be imported by `Effect.elm`
 -}
 type Msg
     = TriggerLogin
+    | AuthDialogMsg AuthDialog.Msg
     | ReceivedPortMessage IncomingMessage
     | NostrMsg Nostr.Msg
     | BrowserEnvMsg BrowserEnv.Msg

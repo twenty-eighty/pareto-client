@@ -16,6 +16,7 @@ module Shared exposing
 import Browser.Dom
 import BrowserEnv
 import Components.AlertTimerMessage as AlertTimerMessage
+import Components.AuthDialog as AuthDialog
 import Effect exposing (Effect)
 import Json.Decode
 import Nostr
@@ -114,6 +115,7 @@ init flagsResult _ =
               , role = ClientReader
               , theme = ParetoTheme
               , alertTimerMessage = AlertTimerMessage.init
+              , authDialog = AuthDialog.init
               }
             , Effect.batch
                 [ Effect.sendCmd <| Cmd.map Shared.Msg.BrowserEnvMsg browserEnvCmd
@@ -143,6 +145,7 @@ init flagsResult _ =
               , role = ClientReader
               , theme = ParetoTheme
               , alertTimerMessage = AlertTimerMessage.init
+              , authDialog = AuthDialog.init
               }
             , Effect.none
             )
@@ -172,7 +175,16 @@ update : Route () -> Msg -> Model -> ( Model, Effect Msg )
 update route msg model =
     case msg of
         TriggerLogin ->
-            ( model, Effect.sendCmd <| Ports.loginSignUp )
+            ( { model | authDialog = AuthDialog.open model.authDialog }
+            , Effect.sendCmd Ports.listIdentities
+            )
+
+        AuthDialogMsg authDialogMsg ->
+            let
+                ( authDialog, cmd ) =
+                    AuthDialog.update authDialogMsg model.authDialog
+            in
+            ( { model | authDialog = authDialog }, Effect.sendCmd cmd )
 
         ReceivedPortMessage portMessage ->
             updateWithPortMessage model portMessage
@@ -324,15 +336,56 @@ update route msg model =
 
 updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage model portMessage =
+    let
+        ( authDialog, authCmd ) =
+            AuthDialog.update (AuthDialog.PortMsg portMessage) model.authDialog
+
+        modelWithAuth =
+            { model | authDialog = authDialog }
+
+        authEffect =
+            Effect.sendCmd authCmd
+    in
     case portMessage.messageType of
         "user" ->
-            updateWithUserValue model portMessage.value
+            let
+                ( updatedModel, userEffect ) =
+                    updateWithUserValue modelWithAuth portMessage.value
+            in
+            ( updatedModel, Effect.batch [ authEffect, userEffect ] )
 
         "loggedOut" ->
-            ( { model | loginStatus = LoggedOut }, Effect.none )
+            ( { modelWithAuth | loginStatus = LoggedOut }
+            , authEffect
+            )
+
+        "identities" ->
+            let
+                pubKeys =
+                    AuthDialog.identityPubKeys modelWithAuth.authDialog
+
+                ( nostr, profileCmd ) =
+                    if List.isEmpty pubKeys then
+                        ( modelWithAuth.nostr, Cmd.none )
+
+                    else
+                        { emptyEventFilter
+                            | authors = Just pubKeys
+                            , kinds = Just [ KindUserMetadata ]
+                        }
+                            |> RequestProfile Nothing
+                            |> Nostr.createRequest modelWithAuth.nostr "Auth dialog identity profiles" []
+                            |> Nostr.doRequest modelWithAuth.nostr
+            in
+            ( { modelWithAuth | nostr = nostr }
+            , Effect.batch
+                [ authEffect
+                , Effect.sendCmd (Cmd.map Shared.Msg.NostrMsg profileCmd)
+                ]
+            )
 
         _ ->
-            ( model, Effect.none )
+            ( modelWithAuth, authEffect )
 
 
 updateWithUserValue : Model -> Json.Decode.Value -> ( Model, Effect Msg )
