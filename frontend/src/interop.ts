@@ -96,9 +96,63 @@ const suggestedPubKeys =
     , "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84" // _@pareto.space
   ];
 
+/**
+ * Footnote / backlink hash clicks would otherwise go through Elm's
+ * Browser.application UrlRequested → pushUrl, which remounts page hooks
+ * and feels like a reload. Handle them in capture phase instead.
+ */
+function installFootnoteLinkHandler(): void {
+  document.addEventListener(
+    "click",
+    (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0) {
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const anchor = target.closest("a[href^='#']");
+      if (!(anchor instanceof HTMLAnchorElement)) {
+        return;
+      }
+
+      const role = anchor.getAttribute("role");
+      if (role !== "doc-noteref" && role !== "doc-backlink") {
+        return;
+      }
+
+      const id = decodeURIComponent(anchor.hash.replace(/^#/, ""));
+      if (!id) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      if (window.location.hash !== anchor.hash) {
+        history.replaceState(null, "", anchor.hash);
+      }
+    },
+    true,
+  );
+}
+
 export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
   var storedCommands: PortCommand[] = [];
+
+  installFootnoteLinkHandler();
 
   // the backend may inject a <script> element containing
   // raw Nostr events required by the page to be loaded
