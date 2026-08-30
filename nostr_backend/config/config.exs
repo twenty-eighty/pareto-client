@@ -27,7 +27,6 @@ config :nostr_backend,
     "wss://purplepag.es",
     "wss://nostr.einundzwanzig.space",
     "wss://relay.primal.net",
-    "wss://relay.nostr.band",
     "wss://relay.damus.io"
   ],
   # Related Origin Requests for WebAuthn passkeys (/.well-known/webauthn)
