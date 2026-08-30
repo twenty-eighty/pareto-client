@@ -29,6 +29,11 @@ config :nostr_backend,
     "wss://relay.primal.net",
     "wss://relay.nostr.band",
     "wss://relay.damus.io"
+  ],
+  # Related Origin Requests for WebAuthn passkeys (/.well-known/webauthn)
+  webauthn_origins: [
+    "https://pareto.space",
+    "https://pareto.town"
   ]
 
 config :nostr_access, :relay_health,
