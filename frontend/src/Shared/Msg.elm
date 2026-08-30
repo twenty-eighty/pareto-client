@@ -24,6 +24,7 @@ own file, so they can be imported by `Effect.elm`
 -}
 type Msg
     = TriggerLogin
+    | TriggerEmailLogin
     | AuthDialogMsg AuthDialog.Msg
     | ReceivedPortMessage IncomingMessage
     | NostrMsg Nostr.Msg

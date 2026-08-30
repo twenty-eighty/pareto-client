@@ -69,6 +69,27 @@ newsletterAuthorCheckEndpointNip05 =
     "https://pareto.town/api/nip05"
 
 
+{-| Base URL for email auth (signup / login / confirm) served by nostr_portal.
+-}
+authApiBaseUrl : String
+authApiBaseUrl =
+    "https://pareto.town"
+
+
+{-| Where to send users who need a NIP-07 browser extension.
+-}
+browserExtensionInstallUrl : String
+browserExtensionInstallUrl =
+    "https://getalby.com/products/browser-extension"
+
+
+{-| WebAuthn rpId for NIP-K1 passkeys (Pareto gateway).
+-}
+keytrRpId : String
+keytrRpId =
+    "pareto.space"
+
+
 
 -- name of client in "client" tag when publishing articles
 

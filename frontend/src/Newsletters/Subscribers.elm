@@ -8,7 +8,6 @@ import Iso8601
 import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
 import Json.Encode as Encode
-import Mailcheck
 import Newsletters.Types exposing (Subscriber, SubscriberField(..), encodeSubscribers, fieldName)
 import Nostr
 import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), emptyEvent, emptyEventFilter)
@@ -21,6 +20,7 @@ import Shared
 import Shared.Msg
 import Time
 import Translations.Subscribers as Translations
+import EmailValidation
 
 
 allSubscriberFields : List SubscriberField
@@ -1014,21 +1014,5 @@ appendOptionalObjectBool key maybeValue entries =
 
 
 emailValid : String -> Bool
-emailValid email =
-    Mailcheck.mailParts email
-        |> Maybe.map
-            (\mailParts ->
-                (mailParts.address /= "")
-                    && (String.length mailParts.topLevelDomain > 1)
-                    && (mailParts.secondLevelDomain /= "")
-                    && (numberOfAtChars email == 1)
-                    && (not <| String.contains " " email)
-            )
-        |> Maybe.withDefault False
-
-
-numberOfAtChars : String -> Int
-numberOfAtChars email =
-    email
-        |> String.indexes "@"
-        |> List.length
+emailValid =
+    EmailValidation.emailValid

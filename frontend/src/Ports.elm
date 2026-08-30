@@ -71,6 +71,81 @@ loginWithNcryptsec ncryptsec password =
         }
 
 
+generateEncryptedKey : String -> Cmd msg
+generateEncryptedKey password =
+    sendCommand
+        { command = "generateEncryptedKey"
+        , value = Encode.object [ ( "password", Encode.string password ) ]
+        }
+
+
+unlockEmailAccount :
+    { email : String
+    , password : String
+    , ncryptsec : String
+    , publicKeyHint : String
+    , displayName : Maybe String
+    }
+    -> Cmd msg
+unlockEmailAccount params =
+    sendCommand
+        { command = "unlockEmailAccount"
+        , value =
+            Encode.object
+                [ ( "email", Encode.string params.email )
+                , ( "password", Encode.string params.password )
+                , ( "ncryptsec", Encode.string params.ncryptsec )
+                , ( "publicKeyHint", Encode.string params.publicKeyHint )
+                , ( "displayName"
+                  , params.displayName
+                        |> Maybe.map Encode.string
+                        |> Maybe.withDefault Encode.null
+                  )
+                ]
+        }
+
+
+loginWithPasskey : Cmd msg
+loginWithPasskey =
+    sendCommand { command = "loginWithPasskey", value = Encode.null }
+
+
+createPasskey : Maybe String -> Cmd msg
+createPasskey maybeDisplayName =
+    sendCommand
+        { command = "createPasskey"
+        , value =
+            Encode.object
+                [ ( "displayName"
+                  , maybeDisplayName
+                        |> Maybe.map Encode.string
+                        |> Maybe.withDefault Encode.null
+                  )
+                ]
+        }
+
+
+dismissPasskeyPrompt : String -> Cmd msg
+dismissPasskeyPrompt pubKey =
+    sendCommand
+        { command = "dismissPasskeyPrompt"
+        , value = Encode.object [ ( "pubKey", Encode.string pubKey ) ]
+        }
+
+
+checkPasskeySupport : Cmd msg
+checkPasskeySupport =
+    sendCommand { command = "checkPasskeySupport", value = Encode.null }
+
+
+markBootstrapDone : String -> Cmd msg
+markBootstrapDone pubKey =
+    sendCommand
+        { command = "markBootstrapDone"
+        , value = Encode.object [ ( "pubKey", Encode.string pubKey ) ]
+        }
+
+
 activateIdentity : String -> Maybe String -> Cmd msg
 activateIdentity id maybePassword =
     sendCommand

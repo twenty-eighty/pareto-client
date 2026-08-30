@@ -9,6 +9,7 @@ import "./clipboard-component";
 import "./elm-oembed";
 import { createRelayManager } from "./relay-manager";
 import { handleAuthCommand, restoreActiveIdentity } from "./authIdentities";
+import { reportPasskeySupport as queryPasskeySupport } from "./keytrAuth";
 import debug from 'debug';
 
 declare global {
@@ -60,6 +61,11 @@ export const flags = ({ env }: { env: FlagsEnv }) => {
   // derive locale from URL parameter or default to browser setting
   const params = new URLSearchParams(window.location.search);
   const selectedLocale = params.get('locale') || navigator.language;
+  const host = window.location.hostname;
+  const authApiBaseUrl =
+/*    host === "localhost" || host === "127.0.0.1"
+      ? "http://localhost:4001"
+      : */ "https://pareto.town";
   return {
     environment: env.ELM_ENV,
     darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
@@ -67,6 +73,7 @@ export const flags = ({ env }: { env: FlagsEnv }) => {
     locale: selectedLocale,
     nativeSharingAvailable: (navigator.share != undefined),
     testMode: JSON.parse(localStorage.getItem('testMode') || 'false') || false,
+    authApiBaseUrl,
   }
 };
 
@@ -159,6 +166,11 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   // raw Nostr events required by the page to be loaded
   processPreloadData(app);
 
+  // NIP-07 extensions inject asynchronously; report availability (and late arrivals)
+  // via port rather than init flags.
+  reportNostrExtension(app);
+  reportPasskeySupport(app);
+
   if (window.matchMedia) {
     window.matchMedia("(prefers-color-scheme: dark)").addListener(e =>
       e.matches &&
@@ -216,6 +228,42 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         processEvents(app, 0, "", nostrEvents);
       }
     }
+  }
+
+  function reportNostrExtension(app: ElmApp) {
+    let lastReported: boolean | null = null;
+
+    const send = () => {
+      const available = typeof window.nostr !== "undefined";
+      if (available === lastReported) {
+        return;
+      }
+      lastReported = available;
+      app.ports.receiveMessage.send({
+        messageType: "nostrExtension",
+        value: { available },
+      });
+    };
+
+    send();
+    // Extensions often inject after page scripts; recheck without spamming Elm.
+    [100, 500, 1000, 2000, 5000].forEach((ms) => setTimeout(send, ms));
+  }
+
+  function reportPasskeySupport(app: ElmApp) {
+    queryPasskeySupport()
+      .then((support) => {
+        app.ports.receiveMessage.send({
+          messageType: "passkeySupport",
+          value: support,
+        });
+      })
+      .catch(() => {
+        app.ports.receiveMessage.send({
+          messageType: "passkeySupport",
+          value: { supported: false, hasCredential: false },
+        });
+      });
   }
 
   function processOnlineCommand(app, command, value) {

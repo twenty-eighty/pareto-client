@@ -1,6 +1,6 @@
 /**
  * Multi-identity store + NDK signer activation.
- * Multi-identity auth: extension / npub / bunker / ncryptsec.
+ * Multi-identity auth: extension / npub / bunker / ncryptsec / passkey.
  * Raw nsec is never persisted; ncryptsec may be stored in localStorage.
  */
 
@@ -11,16 +11,27 @@ import NDK, {
   NDKUser,
   nip19,
 } from "@nostr-dev-kit/ndk";
+import {
+  createPasskeyForNsec,
+  dismissPasskeyPrompt,
+  hexToNsecBytes,
+  loginWithPasskey,
+  mapKeytrError,
+  reportPasskeySupport,
+  shouldOfferPasskeyCreate,
+} from "./keytrAuth";
 
 const STORAGE_KEY = "pareto.auth.identities.v1";
+const BOOTSTRAP_KEY = "pareto.auth.bootstrap.v1";
 
-export type AuthMethod = "extension" | "npub" | "bunker" | "ncryptsec";
+export type AuthMethod = "extension" | "npub" | "bunker" | "ncryptsec" | "passkey";
 
 export type StoredIdentity = {
   id: string;
   method: AuthMethod;
   pubkey: string;
   label?: string;
+  email?: string;
   /** NIP-49 encrypted key — never store raw nsec */
   ncryptsec?: string;
   /** bunker:// or nostrconnect:// URI */
@@ -73,10 +84,72 @@ function publicIdentity(identity: StoredIdentity) {
     id: identity.id,
     method: identity.method,
     pubkey: identity.pubkey,
-    label: identity.label ?? null,
+    label: identity.label ?? identity.email ?? null,
     locked: identity.method === "ncryptsec",
     createdAt: identity.createdAt,
   };
+}
+
+function loadBootstrapSet(): Set<string> {
+  try {
+    const raw = localStorage.getItem(BOOTSTRAP_KEY);
+    if (!raw) {
+      return new Set();
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return new Set();
+    }
+    return new Set(parsed.filter((item) => typeof item === "string"));
+  } catch {
+    return new Set();
+  }
+}
+
+function needsBootstrap(pubkey: string): boolean {
+  return !loadBootstrapSet().has(normalizeHexPubkey(pubkey));
+}
+
+function markBootstrapDone(pubkey: string): void {
+  const set = loadBootstrapSet();
+  set.add(normalizeHexPubkey(pubkey));
+  localStorage.setItem(BOOTSTRAP_KEY, JSON.stringify([...set]));
+}
+
+function sendUser(
+  app: ElmApp,
+  pubkey: string,
+  method: AuthMethod,
+  extras?: { bootstrap?: boolean; displayName?: string | null; offerPasskey?: boolean },
+): void {
+  app.ports.receiveMessage.send({
+    messageType: "user",
+    value: {
+      pubKey: pubkey,
+      method: methodToLoginMethod(method),
+      bootstrap: extras?.bootstrap === true,
+      displayName: extras?.displayName ?? null,
+      offerPasskey: extras?.offerPasskey === true,
+    },
+  });
+}
+
+async function offerPasskeyIfNeeded(
+  method: AuthMethod,
+  pubkey: string,
+): Promise<boolean> {
+  if (method !== "ncryptsec") {
+    return false;
+  }
+  if (!shouldOfferPasskeyCreate(pubkey)) {
+    return false;
+  }
+  try {
+    const support = await reportPasskeySupport();
+    return support.supported;
+  } catch {
+    return false;
+  }
 }
 
 function sendIdentities(app: ElmApp, store: IdentityStore = loadStore()): void {
@@ -99,14 +172,9 @@ function methodToLoginMethod(method: AuthMethod): string {
       return "local";
     case "npub":
       return "readonly";
+    case "passkey":
+      return "passkey";
   }
-}
-
-function sendUser(app: ElmApp, pubkey: string, method: AuthMethod): void {
-  app.ports.receiveMessage.send({
-    messageType: "user",
-    value: { pubKey: pubkey, method: methodToLoginMethod(method) },
-  });
 }
 
 function sendAuthError(app: ElmApp, reason: string): void {
@@ -213,6 +281,18 @@ async function activateSigner(
       ndk.signer = signer;
       break;
     }
+    case "passkey": {
+      const { nsecBytes, pubkey } = await loginWithPasskey(identity.pubkey);
+      try {
+        if (pubkey !== identity.pubkey) {
+          throw new Error("Passkey account does not match this identity");
+        }
+        ndk.signer = new NDKPrivateKeySigner(nsecBytes, ndk);
+      } finally {
+        nsecBytes.fill(0);
+      }
+      break;
+    }
   }
 
   const store = loadStore();
@@ -241,6 +321,10 @@ export async function restoreActiveIdentity(ndk: NDK, app: ElmApp): Promise<void
       messageType: "authNeedsUnlock",
       value: { id: identity.id, pubkey: identity.pubkey },
     });
+    return;
+  }
+  if (identity.method === "passkey") {
+    // Don't prompt biometrics on every page load; user can Use the identity.
     return;
   }
   try {
@@ -382,7 +466,147 @@ export async function handleAuthCommand(
         saveStore(store);
         ndk.signer = signer;
         sendIdentities(app, store);
-        sendUser(app, identity.pubkey, "ncryptsec");
+        sendUser(app, identity.pubkey, "ncryptsec", {
+          offerPasskey: await offerPasskeyIfNeeded("ncryptsec", identity.pubkey),
+        });
+        return true;
+      }
+
+      case "generateEncryptedKey": {
+        const password = String(value.password || "");
+        if (password.length < 8) {
+          throw new Error("Password must be at least 8 characters");
+        }
+        const signer = NDKPrivateKeySigner.generate();
+        const user = await signer.user();
+        const ncryptsec = signer.encryptToNcryptsec(password);
+        app.ports.receiveMessage.send({
+          messageType: "encryptedKeyGenerated",
+          value: {
+            publicKey: normalizeHexPubkey(user.pubkey),
+            ncryptsec,
+          },
+        });
+        return true;
+      }
+
+      case "unlockEmailAccount": {
+        const email = String(value.email || "").trim().toLowerCase();
+        const password = String(value.password || "");
+        const ncryptsec = String(value.ncryptsec || "").trim();
+        const publicKeyHint = String(value.publicKeyHint || "").trim();
+        const displayNameHint =
+          typeof value.displayName === "string" && value.displayName.trim()
+            ? value.displayName.trim()
+            : null;
+        if (!email || !email.includes("@")) {
+          throw new Error("A valid email is required");
+        }
+        if (!password) {
+          throw new Error("Password is required");
+        }
+        if (!ncryptsec.startsWith("ncryptsec")) {
+          throw new Error("Expected an ncryptsec string");
+        }
+
+        let signer: NDKPrivateKeySigner;
+        try {
+          signer = NDKPrivateKeySigner.fromNcryptsec(ncryptsec, password, ndk);
+        } catch {
+          throw new Error("Wrong password");
+        }
+        const user = await signer.user();
+        const pubkey = normalizeHexPubkey(user.pubkey);
+        if (publicKeyHint && publicKeyHint !== pubkey) {
+          throw new Error("Decrypted key does not match account");
+        }
+        const displayName = displayNameHint || email.split("@")[0];
+        const identity: StoredIdentity = {
+          id: newId(),
+          method: "ncryptsec",
+          pubkey,
+          label: displayName,
+          email,
+          ncryptsec,
+          createdAt: Date.now(),
+        };
+        const store = upsertIdentity(loadStore(), identity);
+        saveStore(store);
+        ndk.signer = signer;
+        sendIdentities(app, store);
+        sendUser(app, pubkey, "ncryptsec", {
+          bootstrap: needsBootstrap(pubkey),
+          displayName,
+          offerPasskey: await offerPasskeyIfNeeded("ncryptsec", pubkey),
+        });
+        return true;
+      }
+
+      case "checkPasskeySupport": {
+        const support = await reportPasskeySupport();
+        app.ports.receiveMessage.send({
+          messageType: "passkeySupport",
+          value: support,
+        });
+        return true;
+      }
+
+      case "loginWithPasskey": {
+        const preferred = String(value?.pubkey || "").trim();
+        const { nsecBytes, pubkey } = await loginWithPasskey(preferred || undefined);
+        try {
+          const signer = new NDKPrivateKeySigner(nsecBytes, ndk);
+          const identity: StoredIdentity = {
+            id: newId(),
+            method: "passkey",
+            pubkey,
+            label: value?.label || "Passkey",
+            createdAt: Date.now(),
+          };
+          const store = upsertIdentity(loadStore(), identity);
+          saveStore(store);
+          ndk.signer = signer;
+          sendIdentities(app, store);
+          sendUser(app, pubkey, "passkey");
+        } finally {
+          nsecBytes.fill(0);
+        }
+        return true;
+      }
+
+      case "createPasskey": {
+        const signer = ndk.signer;
+        if (!(signer instanceof NDKPrivateKeySigner) || !signer.privateKey) {
+          throw new Error("Unlock this account first to create a passkey");
+        }
+        const user = await signer.user();
+        const pubkey = normalizeHexPubkey(user.pubkey);
+        const nsecBytes = hexToNsecBytes(signer.privateKey);
+        try {
+          await createPasskeyForNsec(nsecBytes, pubkey, value?.displayName || null);
+        } finally {
+          nsecBytes.fill(0);
+        }
+        app.ports.receiveMessage.send({
+          messageType: "passkeyCreated",
+          value: { pubkey },
+        });
+        return true;
+      }
+
+      case "dismissPasskeyPrompt": {
+        const pubkey = String(value?.pubKey || value?.pubkey || "").trim();
+        if (pubkey) {
+          dismissPasskeyPrompt(pubkey);
+        }
+        return true;
+      }
+
+      case "markBootstrapDone": {
+        const pubkey = String(value.pubKey || value.pubkey || "").trim();
+        if (pubkey) {
+          markBootstrapDone(pubkey);
+        }
         return true;
       }
 
@@ -390,7 +614,11 @@ export async function handleAuthCommand(
         return false;
     }
   } catch (error: any) {
-    sendAuthError(app, error?.message || String(error));
+    const reason =
+      command === "loginWithPasskey" || command === "createPasskey" || command === "checkPasskeySupport"
+        ? mapKeytrError(error)
+        : error?.message || String(error);
+    sendAuthError(app, reason);
     return true;
   }
 }

@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@lo-fi/webauthn-local-client':
-        specifier: ^0.1000.2
-        version: 0.1000.2
       '@milkdown/core':
         specifier: ^7.17.2
         version: 7.21.2(supports-color@7.2.0)
@@ -56,9 +53,9 @@ importers:
       '@nostr-dev-kit/ndk':
         specifier: ^3.0.3
         version: 3.0.3(nostr-tools@2.25.0(typescript@5.9.3))(supports-color@7.2.0)
-      '@scure/bip39':
-        specifier: ^1.4.0
-        version: 1.6.0
+      '@sovit.xyz/keytr':
+        specifier: ^0.8.0
+        version: 0.8.0(typescript@5.9.3)
       atomico:
         specifier: ^1.79.2
         version: 1.79.2
@@ -77,6 +74,9 @@ importers:
       node:
         specifier: ^22.14.0
         version: 22.19.0
+      nostr-tools:
+        specifier: ^2.25.0
+        version: 2.25.0(typescript@5.9.3)
       prismjs:
         specifier: ^1.27.0
         version: 1.30.0
@@ -464,14 +464,6 @@ packages:
   '@lezer/yaml@1.0.3':
     resolution: {integrity: sha512-GuBLekbw9jDBDhGur82nuwkxKQ+a3W5H0GfaAthDXcAu+XdpS43VlnxA9E9hllkpSP5ellRDKjLLj7Lu9Wr6xA==}
 
-  '@lo-fi/webauthn-local-client@0.1000.2':
-    resolution: {integrity: sha512-Kt0yC4UGy4WE00P7KBhakDUIbDNr+YqjnfQm86z6jJafbTvbUBiW/Tl0Lks2bA6u2f9N7IDlwlLnGiKADq/2Eg==}
-    peerDependencies:
-      html-webpack-plugin: ~5.6.0
-    peerDependenciesMeta:
-      html-webpack-plugin:
-        optional: true
-
   '@lydell/elm@0.19.1-14':
     resolution: {integrity: sha512-otpGlYiNRvL7F9k6MJOTcuyIgHr+XWy/1NtHpGUgQi8lHrnuyCjwKFPPiimKpr3bcZTwpD4nebHuYR0bmPIKuA==}
     hasBin: true
@@ -758,12 +750,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@root/asn1@1.0.2':
-    resolution: {integrity: sha512-v9TNX5n06882Z+TSkXrY2jCvoEHlrPB2Nnto5hhi3wRZrsR8XumdgpPDk/XCI33tA8XpxmCCS2kh0ZDwd3AIlg==}
-
-  '@root/encoding@1.0.1':
-    resolution: {integrity: sha512-OaEub02ufoU038gy6bsNHQOjIn8nUjGiLcaRmJ40IUykneJkIW5fxDqKxQx48cszuNflYldsJLPPXCrGfHs8yQ==}
-
   '@scure/base@1.1.1':
     resolution: {integrity: sha512-ZxOhsSyxYwLJj3pLZCefNitxsj093tb2vq90mp2txoYeBqbcjDjqFhyM8eUjq/uFm6zJ+mUuqxlS2FkuSY1MTA==}
 
@@ -775,9 +761,6 @@ packages:
 
   '@scure/bip32@2.0.1':
     resolution: {integrity: sha512-4Md1NI5BzoVP+bhyJaY3K6yMesEFzNS1sE/cP+9nuvE7p/b0kx9XbpDHHFl8dHtufcbdHRUUQdRqLIPHN/s7yA==}
-
-  '@scure/bip39@1.6.0':
-    resolution: {integrity: sha512-+lF0BbLiJNwVlev4eKelw1WWLaiKXw7sSl8T6FvBlWkdX+94aGJ4o8XjUdlyhTCjd8c+B3KT3JfS8P0bLRNU6A==}
 
   '@scure/bip39@2.0.1':
     resolution: {integrity: sha512-PsxdFj/d2AcJcZDX1FXN3dDgitDDTmwf78rKZq1a6c1P1Nan1X/Sxc7667zU3U+AN60g7SxxP0YCVw2H/hBycg==}
@@ -807,6 +790,9 @@ packages:
     resolution: {integrity: sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw==}
     engines: {node: '>=10'}
 
+  '@sovit.xyz/keytr@0.8.0':
+    resolution: {integrity: sha512-APy/2vc9KgfhqCRpX1WgNTUyGtaIhBM8h2hPfkFcjm/RSf6tim+4dmoyeI37199SB7su2QJ2BcgQQPNcikvxNA==}
+
   '@types/debug@4.1.12':
     resolution: {integrity: sha512-vIChWdVG3LG1SMxEvI/AK+FWJthlrqlTu7fbrlywTkkaONwk/UAGaULXRlf8vkzFBLVm0zkMdCquhL5aOjhXPQ==}
 
@@ -830,9 +816,6 @@ packages:
 
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
-
-  '@types/root__asn1@1.0.5':
-    resolution: {integrity: sha512-halz3HrALf1N4pUJrtQrH6mdWPczXwshoWjuxmx49riKMJv2MZGKXnauk0RjlnRzM0rlwiAJRlMT9FtSjnF2kw==}
 
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
@@ -966,9 +949,6 @@ packages:
   camelcase-css@2.0.1:
     resolution: {integrity: sha512-QOSvevhslijgYwRx6Rv7zKdMF8lbRmx+uQGx2+vDc+KI/eBnsy9kit5aj23AgGu3pa4t9AgwbnXWqS+iOY+2aA==}
     engines: {node: '>= 6'}
-
-  cbor-js@0.1.0:
-    resolution: {integrity: sha512-7sQ/TvDZPl7csT1Sif9G0+MA0I0JOVah8+wWlJVQdVEgIbCzlN/ab3x+uvMNsc34TUvO6osQTAmB2ls80JX6tw==}
 
   ccount@2.0.1:
     resolution: {integrity: sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg==}
@@ -1432,12 +1412,6 @@ packages:
   launch-editor@2.6.1:
     resolution: {integrity: sha512-eB/uXmFVpY4zezmGp5XtU21kwo7GBbKB+EQ+UZeWtGb9yAM5xt/Evk+lYH3eRNAtId+ej4u7TYPFZ07w4s7rRw==}
 
-  libsodium-wrappers@0.7.15:
-    resolution: {integrity: sha512-E4anqJQwcfiC6+Yrl01C1m8p99wEhLmJSs0VQqST66SbQXXBoaJY0pF4BNjRYa/sOQAxx6lXAaAFIlx+15tXJQ==}
-
-  libsodium@0.7.15:
-    resolution: {integrity: sha512-sZwRknt/tUpE2AwzHq3jEyUU5uvIZHtSssktXq7owd++3CSgn8RGrv6UZJJBpP7+iBghBqe7Z06/2M31rI2NKw==}
-
   light-bolt11-decoder@3.2.0:
     resolution: {integrity: sha512-3QEofgiBOP4Ehs9BI+RkZdXZNtSys0nsJ6fyGeSiAGCBsMwHGUDS/JQlY/sTnWs91A2Nh0S9XXfA8Sy9g6QpuQ==}
 
@@ -1672,6 +1646,14 @@ packages:
   normalize-path@3.0.0:
     resolution: {integrity: sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA==}
     engines: {node: '>=0.10.0'}
+
+  nostr-tools@2.23.3:
+    resolution: {integrity: sha512-AALyt9k8xPdF4UV2mlLJ2mgCn4kpTB0DZ8t2r6wjdUh6anfx2cTVBsHUlo9U0EY/cKC5wcNyiMAmRJV5OVEalA==}
+    peerDependencies:
+      typescript: '>=5.0.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   nostr-tools@2.25.0:
     resolution: {integrity: sha512-AFdf2jv7F5CtLTwZ0JlQS+Ms+Mo7a8w3pASikHEA2dr4M2Mk5eCDZGaOYfDXlauVzx5b7c5H0F6WQsEFiKlW3Q==}
@@ -2770,13 +2752,6 @@ snapshots:
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
-  '@lo-fi/webauthn-local-client@0.1000.2':
-    dependencies:
-      '@root/asn1': 1.0.2
-      cbor-js: 0.1.0
-      libsodium: 0.7.15
-      libsodium-wrappers: 0.7.15
-
   '@lydell/elm@0.19.1-14':
     optionalDependencies:
       '@lydell/elm_darwin_arm64': 0.19.1-3
@@ -3239,13 +3214,6 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.50.1':
     optional: true
 
-  '@root/asn1@1.0.2':
-    dependencies:
-      '@root/encoding': 1.0.1
-      '@types/root__asn1': 1.0.5
-
-  '@root/encoding@1.0.1': {}
-
   '@scure/base@1.1.1': {}
 
   '@scure/base@1.2.6': {}
@@ -3257,11 +3225,6 @@ snapshots:
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
-
-  '@scure/bip39@1.6.0':
-    dependencies:
-      '@noble/hashes': 1.8.0
-      '@scure/base': 1.2.6
 
   '@scure/bip39@2.0.1':
     dependencies:
@@ -3303,6 +3266,15 @@ snapshots:
 
   '@sindresorhus/is@4.6.0': {}
 
+  '@sovit.xyz/keytr@0.8.0(typescript@5.9.3)':
+    dependencies:
+      '@noble/ciphers': 2.1.1
+      '@noble/hashes': 2.0.1
+      '@scure/base': 2.0.0
+      nostr-tools: 2.23.3(typescript@5.9.3)
+    transitivePeerDependencies:
+      - typescript
+
   '@types/debug@4.1.12':
     dependencies:
       '@types/ms': 2.1.0
@@ -3326,8 +3298,6 @@ snapshots:
       '@types/unist': 3.0.3
 
   '@types/ms@2.1.0': {}
-
-  '@types/root__asn1@1.0.5': {}
 
   '@types/trusted-types@2.0.7':
     optional: true
@@ -3474,8 +3444,6 @@ snapshots:
       get-intrinsic: 1.3.0
 
   camelcase-css@2.0.1: {}
-
-  cbor-js@0.1.0: {}
 
   ccount@2.0.1: {}
 
@@ -4032,12 +4000,6 @@ snapshots:
       picocolors: 1.1.1
       shell-quote: 1.8.3
 
-  libsodium-wrappers@0.7.15:
-    dependencies:
-      libsodium: 0.7.15
-
-  libsodium@0.7.15: {}
-
   light-bolt11-decoder@3.2.0:
     dependencies:
       '@scure/base': 1.1.1
@@ -4457,6 +4419,18 @@ snapshots:
       node-bin-setup: 1.1.4
 
   normalize-path@3.0.0: {}
+
+  nostr-tools@2.23.3(typescript@5.9.3):
+    dependencies:
+      '@noble/ciphers': 2.1.1
+      '@noble/curves': 2.0.1
+      '@noble/hashes': 2.0.1
+      '@scure/base': 2.0.0
+      '@scure/bip32': 2.0.1
+      '@scure/bip39': 2.0.1
+      nostr-wasm: 0.1.0
+    optionalDependencies:
+      typescript: 5.9.3
 
   nostr-tools@2.25.0(typescript@5.9.3):
     dependencies:

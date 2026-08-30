@@ -68,7 +68,11 @@ init shared route () =
                     Effect.sendCmd (Ports.login nsec)
 
                 Nothing ->
-                    Effect.sendSharedMsg Shared.Msg.TriggerLogin
+                    if Dict.member "confirmed" route.query then
+                        Effect.sendSharedMsg Shared.Msg.TriggerEmailLogin
+
+                    else
+                        Effect.sendSharedMsg Shared.Msg.TriggerLogin
     in
     ( { from =
             from
@@ -76,12 +80,20 @@ init shared route () =
       , query =
             queryWithoutNsec
                 |> Dict.remove fromParamName
+                |> Dict.remove "confirmed"
       , clientRole =
             from
                 |> Maybe.map (Layouts.Sidebar.clientRoleForRoutePath shared.browserEnv.environment)
       }
     , [ effect
-      , Effect.pushRoute { path = route.path, query = queryWithoutNsec, hash = route.hash }
+      , Effect.pushRoute
+            { path = route.path
+            , query =
+                queryWithoutNsec
+                    |> Dict.remove fromParamName
+                    |> Dict.remove "confirmed"
+            , hash = route.hash
+            }
       ]
         |> Effect.batch
     )

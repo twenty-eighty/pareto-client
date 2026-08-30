@@ -1,4 +1,4 @@
-module BrowserEnv exposing (BrowserEnv, Environment(..), Msg(..), formatDate, formatIsoDate, init, isDevEnvironment, subscriptions, update, updateTimeZone, TestMode(..), setTestMode, isNativeSharingAvailable)
+module BrowserEnv exposing (BrowserEnv, Environment(..), Msg(..), formatDate, formatIsoDate, init, isDevEnvironment, subscriptions, update, updateTimeZone, TestMode(..), setTestMode, isNativeSharingAvailable, translationsLocale)
 
 import DateFormat
 import DateFormat.Language
@@ -19,7 +19,8 @@ import Url.Builder exposing (Root(..))
 
 
 type alias BrowserEnv =
-    { backendUrl : String
+    { authApiBaseUrl : String
+    , backendUrl : String
     , dateFormatLanguage : DateFormat.Language.Language
     , dateFormatTokensWithYear : List DateFormat.Token
     , dateFormatTokensWithoutYear : List DateFormat.Token
@@ -51,7 +52,8 @@ type Msg
 
 
 type alias InitParams =
-    { backendUrl : String
+    { authApiBaseUrl : String
+    , backendUrl : String
     , darkMode : Bool
     , environment : Maybe String
     , imageCachingServer : String
@@ -97,6 +99,7 @@ init initParams =
 
         browserEnv =
             { frontendUrl = initParams.frontendUrl
+            , authApiBaseUrl = initParams.authApiBaseUrl
             , backendUrl = initParams.backendUrl
             , dateFormatLanguage = dateFormatLanguage
             , dateFormatTokensWithYear = dateFormatTokensWithYear
