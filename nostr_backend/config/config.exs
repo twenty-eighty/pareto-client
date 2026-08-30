@@ -80,8 +80,8 @@ config :logger, :console,
   metadata: [:request_id]
 
 config :posthog,
-  api_url: System.get_env("POSTHOG_HOST") || "https://eu.i.posthog.com",
-  api_key: System.get_env("POSTHOG_API_KEY")
+  api_host: System.get_env("POSTHOG_HOST") || "https://eu.i.posthog.com",
+  api_key: System.get_env("POSTHOG_API_KEY") || ""
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason

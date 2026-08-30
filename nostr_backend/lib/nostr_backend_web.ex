@@ -45,7 +45,7 @@ defmodule NostrBackendWeb do
         layouts: [html: NostrBackendWeb.Layouts]
 
       import Plug.Conn
-      import NostrBackendWeb.Gettext
+      use Gettext, backend: NostrBackendWeb.Gettext
 
       unquote(verified_routes())
     end
@@ -87,7 +87,7 @@ defmodule NostrBackendWeb do
       import Phoenix.HTML
       # Core UI components and translation
       import NostrBackendWeb.CoreComponents
-      import NostrBackendWeb.Gettext
+      use Gettext, backend: NostrBackendWeb.Gettext
       import NostrBackendWeb.MetaHelpers
 
       # Shortcut for generating JS commands
