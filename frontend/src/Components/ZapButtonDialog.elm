@@ -392,9 +392,11 @@ interactionObjectTagReferences interactionObject =
 watchZapReceipts : Int -> InvoiceView -> Effect Msg
 watchZapReceipts requestId invoiceView =
     let
+        -- Public writeable relays only — Pareto relays reject non-author writes,
+        -- so wallets cannot publish receipts there.
         relays =
             invoiceView.ready.target.relays
-                |> Set.insert "wss://relay.nostr.band"
+                |> Set.union zapReceiptWatchRelays
                 |> Set.toList
 
         -- Match the old zap dialog: watch kind 9735 since payment started,
@@ -1162,6 +1164,15 @@ viewSuccessContent browserEnv theme successView =
 -- HELPERS (from ZapButton)
 
 
+{-| Relays where zap receipts can actually be published (not Pareto author-only).
+-}
+zapReceiptWatchRelays : Set String
+zapReceiptWatchRelays =
+    Pareto.recommendedOutboxRelays
+        |> List.map websocketUrl
+        |> Set.fromList
+
+
 extendedZapRelays : Set String -> Nostr.Model -> Maybe PubKey -> Set String
 extendedZapRelays zapRelays nostr maybePubKey =
     let
@@ -1170,16 +1181,12 @@ extendedZapRelays zapRelays nostr maybePubKey =
                 |> Maybe.map (pubkeyRelays nostr)
                 |> Maybe.withDefault Set.empty
 
-        defaultRelays =
-            Set.fromList nostr.defaultRelays
-                |> Set.map websocketUrl
-
         candidateRelays =
             Set.union zapRelays pubKeyRelays
                 |> Set.map websocketUrl
     in
     if Set.size candidateRelays == Set.size zapRelays || Set.size candidateRelays == Set.size pubKeyRelays then
-        Set.union candidateRelays defaultRelays
+        Set.union candidateRelays zapReceiptWatchRelays
 
     else
         candidateRelays
