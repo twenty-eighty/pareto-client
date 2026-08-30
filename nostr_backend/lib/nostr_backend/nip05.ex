@@ -1,6 +1,4 @@
 defmodule NostrBackend.Nip05 do
-  # Removing HTTPoison.Base, no longer needed
-
   @cache_name :nip05_cache
   # 24 hours in seconds
   @cache_ttl 86_400
