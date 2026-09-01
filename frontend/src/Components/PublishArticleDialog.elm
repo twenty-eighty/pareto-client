@@ -1,9 +1,8 @@
-module Components.PublishArticleDialog exposing (Model, Msg(..), PublishArticleDialog, PublishingInfo(..), hide, init, new, subscriptions, update, view)
+module Components.PublishArticleDialog exposing (Model, Msg(..), PublishArticleDialog, hide, init, new, subscriptions, update, view)
 
 import BrowserEnv exposing (BrowserEnv, Environment(..))
 import Components.Button as Button
 import Components.Checkbox as Checkbox
-import Components.Dropdown as Dropdown
 import Components.Icon as Icon
 import Components.ModalDialog as ModalDialog
 import Dict exposing (Dict)
@@ -12,19 +11,13 @@ import FeatherIcons
 import Html.Styled as Html exposing (Html, div, h2, li, p, text, ul)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events exposing (..)
-import I18Next
 import Nostr
-import Nostr.Event exposing (Kind(..))
-import Nostr.External
 import Nostr.Relay as Relay exposing (Relay)
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (IncomingMessage, PubKey, RelayRole(..), RelayUrl)
+import Nostr.Types exposing (PubKey, RelayRole(..), RelayUrl)
 import Pareto
-import Ports
-import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
-import Newsletters.Subscribers as Subscribers
 import Tailwind.Utilities as Tw
 import Translations.PublishArticleDialog as Translations
 import Ui.Shared exposing (emptyHtml)
@@ -35,10 +28,8 @@ type Msg msg
     = ShowDialog
     | CloseDialog
     | ConfigureRelaysClicked
-    | PublishClicked (PublishingInfo -> msg)
+    | PublishClicked (List RelayUrl -> msg)
     | ToggleRelay RelayUrl Bool
-    | ReceivedMessage IncomingMessage
-    | DropdownSent (Dropdown.Msg PublishingMode (Msg msg))
 
 
 type Model
@@ -46,8 +37,6 @@ type Model
         { errors : List String
         , relayStates : Dict RelayUrl Bool
         , state : DialogState
-        , publishingListbox : Dropdown.Model PublishingMode
-        , subscriberEventData : Maybe Subscribers.SubscriberEventData
         }
 
 
@@ -56,23 +45,11 @@ type DialogState
     | DialogVisible
 
 
-type PublishingMode
-    = PublishArticleOnly
-    | PublishNewsletterOnly
-    | PublishArticleAndNewsletter
-
-
-type PublishingInfo
-    = ArticleOnly (List RelayUrl)
-    | NewsletterOnly Subscribers.SubscriberEventData
-    | ArticleAndNewsletter (List RelayUrl) Subscribers.SubscriberEventData
-
-
 type PublishArticleDialog msg
     = Settings
         { model : Model
         , toMsg : Msg msg -> msg
-        , onPublish : PublishingInfo -> msg
+        , onPublish : List RelayUrl -> msg
         , nostr : Nostr.Model
         , pubKey : PubKey
         , browserEnv : BrowserEnv
@@ -83,7 +60,7 @@ type PublishArticleDialog msg
 new :
     { model : Model
     , toMsg : Msg msg -> msg
-    , onPublish : PublishingInfo -> msg
+    , onPublish : List RelayUrl -> msg
     , nostr : Nostr.Model
     , pubKey : PubKey
     , browserEnv : BrowserEnv
@@ -107,11 +84,9 @@ init _ =
     Model
         { errors = []
         , state = DialogHidden
-        , publishingListbox = Dropdown.init { selected = Just PublishArticleOnly }
 
         -- authors shouldn't publish on team relay as normal users can't read from it
         , relayStates = Dict.singleton Pareto.teamRelay False
-        , subscriberEventData = Nothing
         }
 
 
@@ -145,8 +120,7 @@ update props =
         case props.msg of
             ShowDialog ->
                 ( Model { model | state = DialogVisible }
-                , Subscribers.load props.nostr props.pubKey
-                    |> Effect.sendSharedMsg
+                , Effect.none
                 )
 
             CloseDialog ->
@@ -188,48 +162,11 @@ update props =
                                                 Just relay.urlWithoutProtocol
                                     )
 
-                    effect =
-                        case
-                            ( Dropdown.selectedItem model.publishingListbox
-                            , model.subscriberEventData
-                            )
-                        of
-                            ( Just PublishArticleOnly, _ ) ->
-                                ArticleOnly relayUrls
-                                    |> msg
-                                    |> Effect.sendMsg
-
-                            ( Just PublishNewsletterOnly, Just subscriberEventData ) ->
-                                NewsletterOnly subscriberEventData
-                                    |> msg
-                                    |> Effect.sendMsg
-
-                            ( Just PublishArticleAndNewsletter, Just subscriberEventData ) ->
-                                ArticleAndNewsletter relayUrls subscriberEventData
-                                    |> msg
-                                    |> Effect.sendMsg
-
-                            ( _, _ ) ->
-                                Effect.none
                 in
                 ( Model model
-                , effect
+                , msg relayUrls
+                    |> Effect.sendMsg
                 )
-
-            ReceivedMessage message ->
-                updateWithMessage (Model model) props.pubKey message
-
-            DropdownSent innerMsg ->
-                let
-                    ( newModel, effect ) =
-                        Dropdown.update
-                            { msg = innerMsg
-                            , model = model.publishingListbox
-                            , toModel = \dropdown -> Model { model | publishingListbox = dropdown }
-                            , toMsg = DropdownSent
-                            }
-                in
-                ( newModel, Effect.map props.toMsg effect )
 
 
 sendRelayListCmd : PubKey -> List RelayMetadata -> Effect msg
@@ -264,38 +201,12 @@ updateRelayChecked (Model model) relayUrl newChecked =
     ( Model { model | relayStates = Dict.insert relayUrl newChecked model.relayStates }, Effect.none )
 
 
-updateWithMessage : Model -> PubKey -> IncomingMessage -> ( Model, Effect msg )
-updateWithMessage (Model model) userPubKey message =
-    case message.messageType of
-        "events" ->
-            case Nostr.External.decodeEventsKind message.value of
-                Ok KindApplicationSpecificData ->
-                    case Nostr.External.decodeEvents message.value of
-                        Ok events ->
-                            let
-                                ( maybeSubscriberEventData, _, errors ) =
-                                    Subscribers.processEvents userPubKey [] events
-                            in
-                            ( Model { model | subscriberEventData = maybeSubscriberEventData, errors = model.errors ++ errors }, Effect.none )
-
-                        _ ->
-                            ( Model model, Effect.none )
-
-                _ ->
-                    ( Model model, Effect.none )
-
-        _ ->
-            ( Model model, Effect.none )
-
-
-
 -- SUBSCRIPTIONS
 
 
 subscriptions : Model -> (Msg msg -> msg) -> Sub msg
-subscriptions _ toMsg =
-    Ports.receiveMessage ReceivedMessage
-        |> Sub.map toMsg
+subscriptions _ _ =
+    Sub.none
 
 
 
@@ -349,44 +260,6 @@ view dialog =
 
 viewPublishArticleDialog : PublishArticleDialog msg -> List Relay -> Html (Msg msg)
 viewPublishArticleDialog (Settings settings) relays =
-    let
-        (Model model) =
-            settings.model
-
-        activeSubscribersCount =
-            model.subscriberEventData
-                |> Maybe.map .active
-                |> Maybe.withDefault 0
-
-        optionalListBox =
-            if activeSubscribersCount > 0 then
-                Dropdown.new
-                    { model = model.publishingListbox
-                    , toMsg = DropdownSent
-                    , choices = [ PublishArticleOnly, PublishNewsletterOnly, PublishArticleAndNewsletter ]
-                    , allowNoSelection = False
-                    , toLabel = toLabel settings.browserEnv.translations activeSubscribersCount
-                    }
-                    |> Dropdown.withMenuPosition Dropdown.MenuPositionTop
-                    |> Dropdown.view
-
-            else
-                emptyHtml
-
-        optionalRelaysSection =
-            case Dropdown.selectedItem model.publishingListbox of
-                Just PublishArticleOnly ->
-                    relaysSection (Settings settings) relays
-
-                Just PublishNewsletterOnly ->
-                    emptyHtml
-
-                Just PublishArticleAndNewsletter ->
-                    relaysSection (Settings settings) relays
-
-                Nothing ->
-                    emptyHtml
-    in
     div
         [ css
             [ Tw.my_4
@@ -397,31 +270,8 @@ viewPublishArticleDialog (Settings settings) relays =
             , Tw.min_h_40
             ]
         ]
-        [ optionalListBox
-        , optionalRelaysSection
+        [ relaysSection (Settings settings) relays
         ]
-
-
-toLabel : I18Next.Translations -> Int -> Maybe PublishingMode -> String
-toLabel translations activeSubscribersCount maybePublishingMode =
-    case ( maybePublishingMode, activeSubscribersCount ) of
-        ( Just PublishArticleOnly, _ ) ->
-            Translations.onlyPublishArticleText [ translations ]
-
-        ( Just PublishNewsletterOnly, 1 ) ->
-            Translations.sendOnlyViaEmailSingularCheckboxText [ translations ]
-
-        ( Just PublishNewsletterOnly, count ) ->
-            Translations.sendOnlyViaEmailPluralCheckboxText [ translations ] { recipientCount = String.fromInt count }
-
-        ( Just PublishArticleAndNewsletter, 1 ) ->
-            Translations.sendAlsoViaEmailSingularCheckboxText [ translations ]
-
-        ( Just PublishArticleAndNewsletter, count ) ->
-            Translations.sendAlsoViaEmailPluralCheckboxText [ translations ] { recipientCount = String.fromInt count }
-
-        ( _, _ ) ->
-            ""
 
 
 numberOfCheckedRelays : Model -> List Relay -> Int

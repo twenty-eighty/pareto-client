@@ -2,34 +2,21 @@ module Components.SendNewsletterDialog exposing (Model, Msg(..), NewsletterData,
 
 import BrowserEnv exposing (BrowserEnv, Environment(..))
 import Components.Button as Button
-import Components.Checkbox as Checkbox
-import Components.CriteriaBuilder as CriteriaBuilder
-import Components.Dropdown as Dropdown
 import Components.EntryField as EntryField
-import Components.Icon as Icon
 import Components.ModalDialog as ModalDialog
-import Dict exposing (Dict)
 import Effect exposing (Effect)
-import FeatherIcons
-import Html.Styled as Html exposing (Html, div, h2, li, p, text, ul)
-import Html.Styled.Attributes as Attr exposing (css)
-import Html.Styled.Events exposing (..)
+import EmailValidation
+import Html.Styled as Html exposing (Html, div, text)
 import I18Next
+import Html.Styled.Attributes as Attr exposing (css)
 import Json.Decode as Decode
-import Newsletters.ContactDatabase as ContactDatabase
+import Newsletters.Subscribers as Subscribers
 import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.External
-import Nostr.Relay as Relay exposing (Relay)
-import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList)
-import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (IncomingMessage, PubKey, RelayRole(..), RelayUrl)
-import Pareto
+import Nostr.Types exposing (IncomingMessage, PubKey)
 import Ports
-import Shared.Model exposing (Model)
-import Shared.Msg exposing (Msg)
-import Newsletters.Subscribers as Subscribers
-import String
+import Svg.Loaders
 import Tailwind.Utilities as Tw
 import Translations.SendNewsletterDialog as Translations
 import Ui.Shared exposing (emptyHtml)
@@ -39,9 +26,8 @@ import Ui.Styles exposing (Theme(..))
 type Msg msg
     = CloseDialog
     | SendClicked
+    | CancelSendClicked
     | ReceivedMessage IncomingMessage
-    | ContactDatabaseMsg ContactDatabase.Msg
-    | CriteriaBuilderSent CriteriaBuilder.Msg
     | UpdateTestEmail String
     | SubmitTestEmail String
 
@@ -79,21 +65,58 @@ type alias NewsletterStatusPayload =
 
 type alias StatusSummary =
     { state : Maybe String
+    , delivery : Maybe String
     , updatedAt : Maybe String
     , expectedJobs : Maybe Int
     , uploadedJobs : Maybe Int
+    , doneJobs : Maybe Int
+    }
+
+
+type alias JobError =
+    { idem : Maybe String
+    , code : Maybe String
+    , hint : Maybe String
+    }
+
+
+type alias SendProgress =
+    { phase : String
+    , totals : Maybe SendTotals
+    , delivery : Maybe String
+    , recentErrors : List JobError
+    , sent : Maybe Int
+    , total : Maybe Int
+    }
+
+
+type alias SendTotals =
+    { fetched : Int
+    , built : Int
+    , accepted : Int
+    , errors : Int
+    }
+
+
+initialSendProgress : SendProgress
+initialSendProgress =
+    { phase = "starting"
+    , totals = Nothing
+    , delivery = Nothing
+    , recentErrors = []
+    , sent = Nothing
+    , total = Nothing
     }
 
 
 type Model
     = Model
-        { contactDatabase : ContactDatabase.Model
-        , criteriaBuilder : CriteriaBuilder.Model
-        , errors : List String
+        { errors : List String
         , state : DialogState
         , testEmailState : TestEmailState
         , existingStatus : ExistingStatus
         , recipientCount : Maybe Int
+        , subscriberEventData : Maybe Subscribers.SubscriberEventData
         }
 
 type TestEmailState
@@ -106,8 +129,8 @@ type TestEmailState
 type DialogState
     = DialogHidden
     | DialogPreparation NewsletterData
-    | DialogSending
-    | DialogSent
+    | DialogSending NewsletterData SendProgress
+    | DialogSent SendProgress
     | DialogError String
 
 
@@ -141,42 +164,37 @@ new props =
 
 
 init : { pubKey : PubKey } -> ( Model, Effect (Msg msg) )
-init props =
-    let
-        ( contactDatabase, contactDatabaseEffects ) =
-            ContactDatabase.init props.pubKey [ ContactDatabase.LoadTags ]
-    in
+init _ =
     ( Model
-        { contactDatabase = contactDatabase
-        , criteriaBuilder = CriteriaBuilder.init {}
-        , errors = []
+        { errors = []
         , state = DialogHidden
         , testEmailState = TestEmailEmpty
         , existingStatus = StatusUnknown
         , recipientCount = Nothing
+        , subscriberEventData = Nothing
         }
-    , contactDatabaseEffects
-        |> Effect.map ContactDatabaseMsg
+    , Effect.none
     )
 
 hide : Model -> Model
 hide (Model model) =
-    Model { model | state = DialogHidden, existingStatus = StatusUnknown, recipientCount = Nothing }
+    Model { model | state = DialogHidden, existingStatus = StatusUnknown, recipientCount = Nothing, subscriberEventData = Nothing }
 
 
-show : Model -> NewsletterData -> (Model, Effect (Msg msg))
-show (Model model) newsletterData =
+show : Nostr.Model -> PubKey -> Model -> NewsletterData -> ( Model, Effect (Msg msg) )
+show nostr pubKey (Model model) newsletterData =
     ( Model
         { model
             | state = DialogPreparation newsletterData
             , existingStatus = StatusChecking
             , recipientCount = Nothing
+            , subscriberEventData = Nothing
         }
     , Effect.batch
         [ Ports.getNewsletterStatus newsletterData.author newsletterData.identifier
             |> Effect.sendCmd
-        , Ports.getNewsletterRecipientCount newsletterData.author
-            |> Effect.sendCmd
+        , Subscribers.load nostr pubKey
+            |> Effect.sendSharedMsg
         ]
     )
 
@@ -206,14 +224,26 @@ update props =
         case props.msg of
             CloseDialog ->
                 ( hide (Model model)
-                , Effect.none
+                , cancelIfSending model.state
                 )
+
+            CancelSendClicked ->
+                case model.state of
+                    DialogSending newsletterData _ ->
+                        ( Model { model | state = DialogPreparation newsletterData }
+                        , Ports.cancelNewsletter
+                            |> Effect.sendCmd
+                        )
+
+                    _ ->
+                        ( Model model, Effect.none )
 
             SendClicked ->
                 case model.state of
                     DialogPreparation newsletterData ->
-                        ( Model { model | state = DialogSending }
+                        ( Model { model | state = DialogSending newsletterData initialSendProgress }
                         , Ports.sendNewsletter newsletterData
+                            (model.subscriberEventData |> Maybe.map subscriberBlobFromEvent)
                             |> Effect.sendCmd
                         )
 
@@ -222,25 +252,6 @@ update props =
 
             ReceivedMessage message ->
                 updateWithMessage (Model model) props.pubKey message
-
-            ContactDatabaseMsg msg ->
-                let
-                    ( contactDatabase, contactDatabaseEffects ) =
-                        ContactDatabase.update msg model.contactDatabase
-                in
-                ( Model { model | contactDatabase = contactDatabase }
-                , contactDatabaseEffects
-                    |> Effect.map ContactDatabaseMsg
-                    |> Effect.map props.toMsg
-                )
-
-            CriteriaBuilderSent msg ->
-                CriteriaBuilder.update
-                    { msg = msg
-                    , model = model.criteriaBuilder
-                    , toModel = \criteriaBuilder -> Model { model | criteriaBuilder = criteriaBuilder }
-                    , toMsg = CriteriaBuilderSent >> props.toMsg
-                    }
 
             UpdateTestEmail email ->
                 if email /= "" then
@@ -252,10 +263,14 @@ update props =
             SubmitTestEmail email ->
                 case model.state of
                     DialogPreparation newsletterData ->
-                        ( Model { model | testEmailState = TestEmailSending email }
-                        , sendTestEmail email newsletterData
-                            |> Effect.sendCmd
-                        )
+                        if EmailValidation.emailValid (String.trim email) then
+                            ( Model { model | testEmailState = TestEmailSending email }
+                            , sendTestEmail (String.trim email) newsletterData
+                                |> Effect.sendCmd
+                            )
+
+                        else
+                            ( Model model, Effect.none )
 
                     _ ->
                         ( Model model, Effect.none )
@@ -275,11 +290,106 @@ newsletterStatusDecoder =
 
 statusSummaryDecoder : Decode.Decoder StatusSummary
 statusSummaryDecoder =
-    Decode.map4 StatusSummary
+    Decode.map6 StatusSummary
         (Decode.maybe (Decode.field "state" Decode.string))
+        (Decode.maybe (Decode.field "delivery" Decode.string))
         (Decode.maybe (Decode.field "updated_at" Decode.string))
         (Decode.maybe (Decode.field "expected_jobs" Decode.int))
         (Decode.maybe (Decode.field "uploaded_jobs" Decode.int))
+        (Decode.maybe (Decode.at [ "counts", "done" ] Decode.int))
+
+
+jobErrorDecoder : Decode.Decoder JobError
+jobErrorDecoder =
+    Decode.map3 JobError
+        (Decode.maybe (Decode.field "idem" Decode.string))
+        (Decode.maybe (Decode.at [ "error", "code" ] Decode.string))
+        (Decode.maybe (Decode.at [ "error", "hint" ] Decode.string))
+
+
+sendProgressDecoder : Decode.Decoder SendProgress
+sendProgressDecoder =
+    Decode.map6 SendProgress
+        (Decode.field "phase" Decode.string)
+        (Decode.maybe (Decode.field "totals" sendTotalsDecoder))
+        (Decode.maybe (Decode.field "delivery" Decode.string))
+        (Decode.oneOf
+            [ Decode.field "recent_errors" (Decode.list jobErrorDecoder)
+            , Decode.succeed []
+            ]
+        )
+        sentCountDecoder
+        totalCountDecoder
+
+
+sentCountDecoder : Decode.Decoder (Maybe Int)
+sentCountDecoder =
+    Decode.oneOf
+        [ Decode.field "sent" Decode.int |> Decode.map Just
+        , Decode.at [ "counts", "done" ] Decode.int |> Decode.map Just
+        , Decode.succeed Nothing
+        ]
+
+
+totalCountDecoder : Decode.Decoder (Maybe Int)
+totalCountDecoder =
+    Decode.oneOf
+        [ Decode.field "total" Decode.int |> Decode.map Just
+        , Decode.field "expected_jobs" Decode.int |> Decode.map Just
+        , Decode.succeed Nothing
+        ]
+
+
+progressWithCounts : { a | state : DialogState } -> SendProgress -> SendProgress
+progressWithCounts model progress =
+    let
+        previous =
+            case model.state of
+                DialogSending _ current ->
+                    Just current
+
+                DialogSent current ->
+                    Just current
+
+                _ ->
+                    Nothing
+    in
+    { progress
+        | sent =
+            case progress.sent of
+                Just _ ->
+                    progress.sent
+
+                Nothing ->
+                    previous |> Maybe.andThen .sent
+        , total =
+            case progress.total of
+                Just _ ->
+                    progress.total
+
+                Nothing ->
+                    previous
+                        |> Maybe.andThen .total
+                        |> (\maybeTotal ->
+                                case maybeTotal of
+                                    Just _ ->
+                                        maybeTotal
+
+                                    Nothing ->
+                                        previous
+                                            |> Maybe.andThen .totals
+                                            |> Maybe.map .accepted
+                           )
+    }
+
+
+sendTotalsDecoder : Decode.Decoder SendTotals
+sendTotalsDecoder =
+    Decode.map4 SendTotals
+        (Decode.oneOf [ Decode.field "fetched" Decode.int, Decode.succeed 0 ])
+        (Decode.oneOf [ Decode.field "built" Decode.int, Decode.succeed 0 ])
+        (Decode.oneOf [ Decode.field "accepted" Decode.int, Decode.succeed 0 ])
+        (Decode.oneOf [ Decode.field "errors" Decode.int, Decode.succeed 0 ])
 
 
 sendTestEmail : String -> NewsletterData -> Cmd msg
@@ -290,16 +400,68 @@ sendTestEmail email newsletterData =
 updateWithMessage : Model -> PubKey -> IncomingMessage -> ( Model, Effect msg )
 updateWithMessage (Model model) userPubKey message =
     case message.messageType of
-        "newsletterTestProgress" ->
-            case Decode.decodeValue Decode.float message.value of
+        "newsletterProgress" ->
+            case Decode.decodeValue sendProgressDecoder message.value of
                 Ok progress ->
-                    if progress >= 1.0 then
-                        ( Model { model | testEmailState = TestEmailSent }, Effect.none )
+                    case progress.phase of
+                        "done" ->
+                            ( Model { model | state = DialogSent (completedSendProgress (progressWithCounts model progress)) }, Effect.none )
 
-                    else
-                        ( Model model, Effect.none )
+                        "sent" ->
+                            ( Model { model | state = DialogSent (completedSendProgress (progressWithCounts model progress)) }, Effect.none )
+
+                        "failed" ->
+                            ( Model { model | state = DialogError (deliveryError progress "All newsletter deliveries failed") }, Effect.none )
+
+                        "partial" ->
+                            ( Model { model | state = DialogError (deliveryError progress "Delivered to some recipients. Some deliveries failed.") }, Effect.none )
+
+                        "cancelled" ->
+                            case model.state of
+                                DialogSending newsletterData _ ->
+                                    ( Model { model | state = DialogPreparation newsletterData }, Effect.none )
+
+                                _ ->
+                                    ( Model model, Effect.none )
+
+                        "commit_failed" ->
+                            ( Model { model | state = DialogError (progressError message.value "Commit failed") }, Effect.none )
+
+                        "error" ->
+                            ( Model { model | state = DialogError (progressError message.value "Failed to send newsletter") }, Effect.none )
+
+                        _ ->
+                            case model.state of
+                                DialogSending newsletterData _ ->
+                                    ( Model { model | state = DialogSending newsletterData (progressWithCounts model progress) }, Effect.none )
+
+                                _ ->
+                                    ( Model model, Effect.none )
 
                 Err _ ->
+                    ( Model model, Effect.none )
+
+        "newsletterTestProgress" ->
+            case Decode.decodeValue (Decode.field "phase" Decode.string) message.value of
+                Ok "done" ->
+                    ( Model { model | testEmailState = TestEmailSent }, Effect.none )
+
+                Ok "sent" ->
+                    ( Model { model | testEmailState = TestEmailSent }, Effect.none )
+
+                Ok "cancelled" ->
+                    ( Model { model | testEmailState = TestEmailEmpty }, Effect.none )
+
+                Ok "failed" ->
+                    ( Model { model | testEmailState = TestEmailError (progressError message.value "Test email failed") }, Effect.none )
+
+                Ok "partial" ->
+                    ( Model { model | testEmailState = TestEmailError (progressError message.value "Test email failed") }, Effect.none )
+
+                Ok "error" ->
+                    ( Model { model | testEmailState = TestEmailError (progressError message.value "Failed to send test email") }, Effect.none )
+
+                _ ->
                     ( Model model, Effect.none )
 
         "newsletterStatus" ->
@@ -324,16 +486,50 @@ updateWithMessage (Model model) userPubKey message =
 
         "newsletterRecipientCount" ->
             case Decode.decodeValue (Decode.field "count" (Decode.nullable Decode.int)) message.value of
-                Ok maybeCount ->
-                    ( Model { model | recipientCount = maybeCount }, Effect.none )
+                Ok (Just count) ->
+                    ( Model { model | recipientCount = Just count }, Effect.none )
 
-                Err _ ->
-                    case Decode.decodeValue (Decode.field "error" Decode.string) message.value of
-                        Ok errorMsg ->
-                            ( Model { model | recipientCount = Nothing, errors = errorMsg :: model.errors }, Effect.none )
+                _ ->
+                    ( Model model, Effect.none )
 
-                        Err _ ->
+        "events" ->
+            case Nostr.External.decodeEventsKind message.value of
+                Ok KindApplicationSpecificData ->
+                    case Nostr.External.decodeEvents message.value of
+                        Ok events ->
+                            let
+                                ( maybeSubscriberEventData, _, errors ) =
+                                    Subscribers.processEvents userPubKey [] events
+
+                                countCmd =
+                                    case maybeSubscriberEventData of
+                                        Just data ->
+                                            Ports.getNewsletterRecipientCount userPubKey (Just (subscriberBlobFromEvent data))
+                                                |> Effect.sendCmd
+
+                                        Nothing ->
+                                            Effect.none
+                            in
+                            ( Model
+                                { model
+                                    | subscriberEventData = maybeSubscriberEventData
+                                    , recipientCount =
+                                        case maybeSubscriberEventData of
+                                            Just data ->
+                                                Just data.active
+
+                                            Nothing ->
+                                                model.recipientCount
+                                    , errors = model.errors ++ errors
+                                }
+                            , countCmd
+                            )
+
+                        _ ->
                             ( Model model, Effect.none )
+
+                _ ->
+                    ( Model model, Effect.none )
 
         _ ->
             ( Model model, Effect.none )
@@ -343,15 +539,55 @@ updateWithMessage (Model model) userPubKey message =
 -- SUBSCRIPTIONS
 
 
+cancelIfSending : DialogState -> Effect msg
+cancelIfSending state =
+    case state of
+        DialogSending _ _ ->
+            Ports.cancelNewsletter
+                |> Effect.sendCmd
+
+        _ ->
+            Effect.none
+
+
+progressError : Decode.Value -> String -> String
+progressError value fallback =
+    Decode.decodeValue (Decode.field "error" Decode.string) value
+        |> Result.withDefault fallback
+
+
+deliveryError : SendProgress -> String -> String
+deliveryError progress fallback =
+    let
+        codes =
+            progress.recentErrors
+                |> List.filterMap
+                    (\err ->
+                        case ( err.code, err.hint ) of
+                            ( Just code, Just hint ) ->
+                                Just (code ++ " (" ++ hint ++ ")")
+
+                            ( Just code, Nothing ) ->
+                                Just code
+
+                            ( Nothing, Just hint ) ->
+                                Just hint
+
+                            ( Nothing, Nothing ) ->
+                                err.idem
+                    )
+    in
+    if List.isEmpty codes then
+        fallback
+
+    else
+        fallback ++ " " ++ String.join ", " codes
+
+
 subscriptions : Model -> (Msg msg -> msg) -> Sub msg
-subscriptions (Model model) toMsg =
-    Sub.batch
-        [ Ports.receiveMessage ReceivedMessage
-            |> Sub.map toMsg
-        , ContactDatabase.subscriptions model.contactDatabase
-            |> Sub.map ContactDatabaseMsg
-            |> Sub.map toMsg
-        ]
+subscriptions _ toMsg =
+    Ports.receiveMessage ReceivedMessage
+        |> Sub.map toMsg
 
 
 -- VIEW
@@ -373,12 +609,12 @@ view dialog =
         DialogPreparation newsletterData ->
             viewPreparationDialog dialog newsletterData
 
-        DialogSending ->
-            viewSendingDialog dialog
+        DialogSending _ progress ->
+            viewSendingDialog dialog progress
 
-        DialogSent ->
-            viewSentDialog dialog
-            
+        DialogSent progress ->
+            viewSentDialog dialog progress
+
         DialogError error ->
             viewErrorDialog dialog error
 
@@ -407,46 +643,141 @@ viewPreparationDialog dialog newsletterData =
                 |> Button.view
             ]
         }
+        |> ModalDialog.withFixedWidth
         |> ModalDialog.view
         |> Html.map settings.toMsg
+
+subscriberBlobFromEvent : Subscribers.SubscriberEventData -> { url : String, keyHex : String, ivHex : String }
+subscriberBlobFromEvent data =
+    { url = data.url
+    , keyHex = data.keyHex
+    , ivHex = data.ivHex
+    }
+
+
+completedSendProgress : SendProgress -> SendProgress
+completedSendProgress progress =
+    case ( progress.sent, progress.total ) of
+        ( Just sent, Just total ) ->
+            if sent < total && (progress.phase == "sent" || progress.phase == "done" || progress.delivery == Just "sent") then
+                { progress | sent = Just total }
+
+            else
+                progress
+
+        ( Nothing, Just total ) ->
+            if progress.phase == "sent" || progress.phase == "done" || progress.delivery == Just "sent" then
+                { progress | sent = Just total }
+
+            else
+                progress
+
+        _ ->
+            progress
+
+
+progressCountText : List I18Next.Translations -> SendProgress -> Maybe String
+progressCountText translations progress =
+    case ( progress.sent, progress.total ) of
+        ( Just sent, Just total ) ->
+            Just
+                (Translations.sendProgressSent translations
+                    { sent = String.fromInt sent
+                    , total = String.fromInt total
+                    }
+                )
+
+        _ ->
+            Nothing
+
+
+existingSentCountText : StatusSummary -> Maybe String
+existingSentCountText summary =
+    case ( summary.doneJobs, summary.expectedJobs ) of
+        ( Just sent, Just total ) ->
+            Just (String.fromInt sent ++ " of " ++ String.fromInt total ++ " emails sent")
+
+        ( Just sent, Nothing ) ->
+            Just (String.fromInt sent ++ " emails sent")
+
+        _ ->
+            Nothing
+
 
 numberOfRecipients : Model -> Int
 numberOfRecipients (Model model) =
     Maybe.withDefault 0 model.recipientCount
 
 
-viewSendingDialog : SendNewsletterDialog msg -> Html msg
-viewSendingDialog dialog =
+viewSendingDialog : SendNewsletterDialog msg -> SendProgress -> Html msg
+viewSendingDialog dialog progress =
     let
         (Settings settings) =
             dialog
     in
     ModalDialog.new
         { title = Translations.dialogTitle [ settings.browserEnv.translations ]
-        , content = [ viewSendNewsletterDialog dialog ]
+        , content =
+            [ viewSendProgress (Settings settings) progress
+            , viewRecipientCount (Settings settings)
+            ]
         , onClose = CloseDialog
         , theme = settings.theme
-        , buttons = [ ]
+        , buttons =
+            [ Button.new
+                { label = Translations.cancelButtonTitle [ settings.browserEnv.translations ]
+                , onClick =
+                    if sendCanBeCancelled progress then
+                        Just CancelSendClicked
+
+                    else
+                        Nothing
+                , theme = settings.theme
+                }
+                |> Button.withTypeSecondary
+                |> Button.withDisabled (not (sendCanBeCancelled progress))
+                |> Button.view
+            , Button.new
+                { label = Translations.sendButtonTitle [ settings.browserEnv.translations ]
+                , onClick = Nothing
+                , theme = settings.theme
+                }
+                |> Button.withTypePrimary
+                |> Button.withDisabled True
+                |> Button.withIntermediateState True
+                |> Button.view
+            ]
         }
+        |> ModalDialog.withFixedWidth
         |> ModalDialog.view
         |> Html.map settings.toMsg
 
 
-viewSentDialog : SendNewsletterDialog msg -> Html msg
-viewSentDialog dialog =
+viewSentDialog : SendNewsletterDialog msg -> SendProgress -> Html msg
+viewSentDialog dialog progress =
     let
         (Settings settings) =
             dialog
     in
     ModalDialog.new
         { title = Translations.dialogTitle [ settings.browserEnv.translations ]
-        , content = [ viewSendNewsletterDialog dialog ]
+        , content =
+            [ statusContainer
+                [ div [] [ text (Translations.sentMessageText [ settings.browserEnv.translations ]) ]
+                , progressCountText [ settings.browserEnv.translations ] (completedSendProgress progress)
+                    |> Maybe.map (\count -> div [] [ text count ])
+                    |> Maybe.withDefault emptyHtml
+                ]
+            , viewRecipientCount (Settings settings)
+            ]
         , onClose = CloseDialog
         , theme = settings.theme
-        , buttons = [ ]
+        , buttons = [ closeButton (Settings settings) ]
         }
+        |> ModalDialog.withFixedWidth
         |> ModalDialog.view
         |> Html.map settings.toMsg
+
 
 viewErrorDialog : SendNewsletterDialog msg -> String -> Html msg
 viewErrorDialog dialog error =
@@ -456,13 +787,150 @@ viewErrorDialog dialog error =
     in
     ModalDialog.new
         { title = Translations.dialogTitle [ settings.browserEnv.translations ]
-        , content = [ viewSendNewsletterDialog dialog ]
+        , content =
+            [ statusContainer
+                [ text (Translations.errorMessageText [ settings.browserEnv.translations ] { error = error })
+                ]
+            ]
         , onClose = CloseDialog
         , theme = settings.theme
-        , buttons = [  ]
+        , buttons = [ closeButton (Settings settings) ]
         }
+        |> ModalDialog.withFixedWidth
         |> ModalDialog.view
         |> Html.map settings.toMsg
+
+
+closeButton : SendNewsletterDialog msg -> Html (Msg msg)
+closeButton (Settings settings) =
+    Button.new
+        { label = Translations.closeButtonTitle [ settings.browserEnv.translations ]
+        , onClick = Just CloseDialog
+        , theme = settings.theme
+        }
+        |> Button.withTypePrimary
+        |> Button.view
+
+
+viewSendProgress : SendNewsletterDialog msg -> SendProgress -> Html (Msg msg)
+viewSendProgress (Settings settings) progress =
+    let
+        styles =
+            Ui.Styles.stylesForTheme settings.theme
+
+        translations =
+            [ settings.browserEnv.translations ]
+
+        phaseText =
+            progressPhaseText translations progress.phase
+
+        totalsText =
+            case progressCountText translations progress of
+                Just sentText ->
+                    Just sentText
+
+                Nothing ->
+                    progress.totals
+                        |> Maybe.map
+                            (\totals ->
+                                Translations.sendProgressRecipients translations
+                                    { accepted = String.fromInt totals.accepted
+                                    , fetched = String.fromInt totals.fetched
+                                    }
+                            )
+
+        errorsText =
+            if List.isEmpty progress.recentErrors then
+                Nothing
+
+            else
+                progress.recentErrors
+                    |> List.filterMap .code
+                    |> String.join ", "
+                    |> Just
+    in
+    statusContainer
+        [ div
+            [ css [ Tw.flex, Tw.flex_row, Tw.items_center, Tw.gap_3 ]
+            , Attr.attribute "aria-live" "polite"
+            ]
+            [ div [ css [ Tw.flex, Tw.items_center, Tw.justify_center ] ]
+                [ Svg.Loaders.puff [ Svg.Loaders.size 24, Svg.Loaders.color "currentColor" ]
+                    |> Html.fromUnstyled
+                ]
+            , div
+                (styles.textStyle14
+                    ++ [ css [ Tw.flex, Tw.flex_col, Tw.gap_1 ] ]
+                )
+                [ text phaseText
+                , totalsText
+                    |> Maybe.map text
+                    |> Maybe.withDefault emptyHtml
+                , errorsText
+                    |> Maybe.map (\codes -> text ("Errors: " ++ codes))
+                    |> Maybe.withDefault emptyHtml
+                ]
+            ]
+        ]
+
+
+sendCanBeCancelled : SendProgress -> Bool
+sendCanBeCancelled progress =
+    case progress.phase of
+        "sending" ->
+            False
+
+        "sent" ->
+            False
+
+        "failed" ->
+            False
+
+        "partial" ->
+            False
+
+        "committed" ->
+            False
+
+        _ ->
+            True
+
+
+progressPhaseText : List I18Next.Translations -> String -> String
+progressPhaseText translations phase =
+    case phase of
+        "preparing" ->
+            "Loading subscriber list…"
+
+        "authenticating" ->
+            "Signing in to the email queue…"
+
+        "creating_campaign" ->
+            "Creating campaign…"
+
+        "start" ->
+            "Preparing recipients…"
+
+        "queueing" ->
+            "Queueing…"
+
+        "page_built" ->
+            "Encrypting recipient jobs…"
+
+        "page_enqueued" ->
+            "Uploading jobs to the queue…"
+
+        "committed" ->
+            "Sending…"
+
+        "sending" ->
+            "Sending…"
+
+        "sent" ->
+            "Sent"
+
+        _ ->
+            Translations.sendingMessageText translations
 
 viewSendNewsletterDialog : SendNewsletterDialog msg -> Html (Msg msg)
 viewSendNewsletterDialog (Settings settings) =
@@ -477,22 +945,12 @@ viewSendNewsletterDialog (Settings settings) =
             , Tw.flex_col
             , Tw.justify_start
             , Tw.gap_2
+            , Tw.w_full
             ]
         ]
         [ viewNewsletterStatus (Settings settings)
         , viewTestEmailField (Settings settings)
         , viewRecipientCount (Settings settings)
-{-
-          text <| Translations.sendNewsletterToCriteriaBuilderText [ settings.browserEnv.translations ]
-        , CriteriaBuilder.new
-            { model = model.criteriaBuilder
-            , toMsg = CriteriaBuilderSent
-            , browserEnv = settings.browserEnv
-            , tags = ContactDatabase.tags model.contactDatabase
-            , theme = settings.theme
-            }
-                |> CriteriaBuilder.view
--}
         ]
 
 
@@ -516,7 +974,7 @@ viewNewsletterStatus (Settings settings) =
 
                 StatusFound value ->
                     Just
-                        { message = "This newsletter has already been sent."
+                        { message = existingStatusMessage value
                         , isChecking = False
                         , details = statusSummaryView value
                         }
@@ -554,9 +1012,38 @@ statusContainer children =
             , Tw.p_3
             , Tw.rounded_lg
             , Tw.border
+            , Tw.w_full
+            , Tw.break_words
             ]
         ]
         children
+
+
+existingStatusMessage : Decode.Value -> String
+existingStatusMessage value =
+    case Decode.decodeValue statusSummaryDecoder value of
+        Ok summary ->
+            case summary.delivery of
+                Just "queueing" ->
+                    "A draft of this newsletter is still queueing."
+
+                Just "sending" ->
+                    "This newsletter is already sending."
+
+                Just "failed" ->
+                    "The last send of this newsletter failed."
+
+                Just "partial" ->
+                    "The last send of this newsletter only delivered to some recipients."
+
+                Just "sent" ->
+                    "Newsletter has been sent"
+
+                _ ->
+                    "Newsletter has been sent"
+
+        Err _ ->
+            "This newsletter has already been sent."
 
 
 statusSummaryView : Decode.Value -> Maybe (Html (Msg msg))
@@ -565,7 +1052,9 @@ statusSummaryView value =
         Ok summary ->
             let
                 rows =
-                    [ summary.state |> Maybe.map (\state -> text ("State: " ++ state))
+                    [ existingSentCountText summary |> Maybe.map text
+                    , summary.delivery |> Maybe.map (\delivery -> text ("Delivery: " ++ delivery))
+                    , summary.state |> Maybe.map (\state -> text ("State: " ++ state))
                     , summary.updatedAt |> Maybe.map (\updated -> text ("Updated at: " ++ updated))
                     , summary.uploadedJobs |> Maybe.map (\count -> text ("Uploaded jobs: " ++ String.fromInt count))
                     , summary.expectedJobs |> Maybe.map (\count -> text ("Expected jobs: " ++ String.fromInt count))
@@ -607,6 +1096,11 @@ viewTestEmailField (Settings settings) =
                     (Nothing, False)
                 TestEmailError error ->
                     (Nothing, False)
+
+        testEmailValid =
+            testEmail
+                |> Maybe.map (String.trim >> EmailValidation.emailValid)
+                |> Maybe.withDefault False
     in
     div
         [ css
@@ -630,11 +1124,16 @@ viewTestEmailField (Settings settings) =
                 |> EntryField.view
             , Button.new
                 { label = Translations.submitTestEmailButtonTitle [ settings.browserEnv.translations ]
-                , onClick = Maybe.map SubmitTestEmail testEmail
+                , onClick =
+                    if testEmailValid then
+                        Maybe.map SubmitTestEmail testEmail
+
+                    else
+                        Nothing
                 , theme = settings.theme
                 }
                 |> Button.withTypeSecondary
-                |> Button.withDisabled (testEmail == Nothing)
+                |> Button.withDisabled (not testEmailValid)
                 |> Button.withIntermediateState sendingTestEmail
                 |> Button.view
             ]
@@ -684,10 +1183,10 @@ viewRecipientCount (Settings settings) =
         message =
             case model.recipientCount of
                 Just count ->
-                    "Recipients matching criteria: " ++ String.fromInt count
+                    "Active subscribers: " ++ String.fromInt count
 
                 Nothing ->
-                    "Recipients matching criteria: …"
+                    "Recipients: …"
     in
     div (styles.colorStyleGrayscaleMuted ++ styles.textStyle14)
         [ text message ]

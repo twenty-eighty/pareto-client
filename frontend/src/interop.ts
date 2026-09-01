@@ -1,6 +1,6 @@
 import "./Milkdown/MilkdownEditor";
 import { Contacts } from "./Newsletters/Contacts";
-import { createNewsletterSender } from "./Newsletters/Send";
+import { createNewsletterSender, isNewsletterSendCancelled } from "./Newsletters/Send";
 
 import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import NDKCacheAdapterDexie from "@nostr-dev-kit/cache-dexie";
@@ -52,6 +52,7 @@ type PortCommand = { command: string; value: any };
 
 var contacts: Contacts | null = null;
 var newsletterSendClient: any = null;
+var newsletterSendAbort: AbortController | null = null;
 
 // This is called BEFORE your Elm app starts up
 //
@@ -63,9 +64,9 @@ export const flags = ({ env }: { env: FlagsEnv }) => {
   const selectedLocale = params.get('locale') || navigator.language;
   const host = window.location.hostname;
   const authApiBaseUrl =
-/*    host === "localhost" || host === "127.0.0.1"
+    host === "localhost" || host === "127.0.0.1"
       ? "http://localhost:4001"
-      : */ "https://pareto.town";
+      : "https://pareto.town";
   return {
     environment: env.ELM_ENV,
     darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
@@ -367,6 +368,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
       case 'sendNewsletterTest':
         sendNewsletterTest(app, value);
+        break;
+
+      case 'cancelNewsletter':
+        cancelNewsletter();
         break;
     }
   }
@@ -952,35 +957,28 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     contacts.storeContactsBulk(subscribers, true);
   }
 
-  function getNewsletterRecipientCount(app, { author: author }) {
-    if (!author) {
+  function newsletterQueueClient() {
+    return createNewsletterSender({
+      ndk: window.ndk,
+      baseUrl: "http://localhost:4433/v1",
+      targetPubkey: "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345",
+    });
+  }
+
+  function getNewsletterRecipientCount(app, { author: author, subscriberBlob: subscriberBlob }) {
+    if (!author && !(subscriberBlob?.url && subscriberBlob?.key && subscriberBlob?.iv)) {
       app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count: null, error: 'Missing author pubkey' } });
       return;
     }
 
-    initContactDatabase(app, { pubkey: author });
-
-    const ensureCount = (attempt = 0) => {
-      if (contacts && contacts.jwt) {
-        contacts.countContacts({})
-          .then(count => {
-            app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count } });
-          })
-          .catch(error => {
-            app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count: null, error: error?.message || 'Failed to count contacts' } });
-          });
-        return;
-      }
-
-      if (attempt >= 40) {
-        app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count: null, error: 'Contacts not ready' } });
-        return;
-      }
-
-      setTimeout(() => ensureCount(attempt + 1), 50);
-    };
-
-    ensureCount();
+    newsletterSendClient = newsletterQueueClient();
+    newsletterSendClient.countActiveRecipients(author, subscriberBlob)
+      .then((count) => {
+        app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count } });
+      })
+      .catch((error) => {
+        app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count: null, error: error?.message || 'Failed to count subscribers' } });
+      });
   }
 
   function getNewsletterStatus(app, { author: author, identifier: identifier }) {
@@ -989,10 +987,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       return;
     }
 
-    const baseUrl = "http://localhost:4433/v1";
-    const targetPubkey = "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345";
-
-    newsletterSendClient = createNewsletterSender({ ndk: window.ndk, baseUrl: baseUrl, targetPubkey: targetPubkey, contacts: contacts });
+    newsletterSendClient = newsletterQueueClient();
     newsletterSendClient.getCampaignStatusByExternalId(identifier)
       .then(status => {
         app.ports.receiveMessage.send({ messageType: 'newsletterStatus', value: { identifier: identifier, status: status, exists: !!status } });
@@ -1002,24 +997,73 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       });
   }
 
-  function sendNewsletter(app, { author: author, newsletterData: newsletterData }) {
-    initContactDatabase(app, { pubkey: author });
-
-    const baseUrl = "http://localhost:4433/v1";
-    const targetPubkey = "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345";
-
-    newsletterSendClient = createNewsletterSender({ ndk: window.ndk, baseUrl: baseUrl, targetPubkey: targetPubkey, contacts: contacts });
-    newsletterSendClient.sendNewsletter({ author: author, newsletterData: newsletterData, identifier: newsletterData.identifier, onProgress: bindNewsletterProgress(app) });
+  function sendNewsletter(app, { author: author, newsletterData: newsletterData, subscribers: subscribers, subscriberBlob: subscriberBlob }) {
+    const abort = startNewsletterAbort();
+    newsletterSendClient = newsletterQueueClient();
+    newsletterSendClient.sendNewsletter({
+      author,
+      newsletterData,
+      identifier: newsletterData.identifier,
+      subscribers,
+      subscriberBlob,
+      signal: abort.signal,
+      onProgress: bindNewsletterProgress(app),
+    }).catch((error) => {
+      if (isNewsletterSendCancelled(error)) {
+        app.ports.receiveMessage.send({
+          messageType: 'newsletterProgress',
+          value: { phase: 'cancelled' },
+        });
+        return;
+      }
+      app.ports.receiveMessage.send({
+        messageType: 'newsletterProgress',
+        value: { phase: 'error', error: error?.message || 'Failed to send newsletter' },
+      });
+    }).finally(() => {
+      if (newsletterSendAbort === abort) {
+        newsletterSendAbort = null;
+      }
+    });
   }
 
   function sendNewsletterTest(app, { email: email, author: author, newsletterData: newsletterData }) {
-    initContactDatabase(app, { pubkey: author });
+    const abort = startNewsletterAbort();
+    newsletterSendClient = newsletterQueueClient();
+    newsletterSendClient.sendNewsletterTest({
+      email,
+      author,
+      newsletterData,
+      identifier: newsletterData.identifier,
+      signal: abort.signal,
+      onProgress: bindNewsletterTestProgress(app),
+    }).catch((error) => {
+      if (isNewsletterSendCancelled(error)) {
+        app.ports.receiveMessage.send({
+          messageType: 'newsletterTestProgress',
+          value: { phase: 'cancelled' },
+        });
+        return;
+      }
+      app.ports.receiveMessage.send({
+        messageType: 'newsletterTestProgress',
+        value: { phase: 'error', error: error?.message || 'Failed to send test newsletter' },
+      });
+    }).finally(() => {
+      if (newsletterSendAbort === abort) {
+        newsletterSendAbort = null;
+      }
+    });
+  }
 
-    const baseUrl = "http://localhost:4433/v1";
-    const targetPubkey = "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345";
+  function startNewsletterAbort(): AbortController {
+    newsletterSendAbort?.abort();
+    newsletterSendAbort = new AbortController();
+    return newsletterSendAbort;
+  }
 
-    newsletterSendClient = createNewsletterSender({ ndk: window.ndk, baseUrl: baseUrl, targetPubkey: targetPubkey, contacts: contacts });
-    newsletterSendClient.sendNewsletterTest({ email: email, author: author, newsletterData: newsletterData, identifier: newsletterData.identifier, onProgress: bindNewsletterTestProgress(app) });
+  function cancelNewsletter() {
+    newsletterSendAbort?.abort();
   }
 
   function bindNewsletterProgress(app) {

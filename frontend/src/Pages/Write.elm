@@ -7,7 +7,7 @@ import Components.Dropdown as Dropdown
 import Components.HashtagEditor as HashtagEditor
 import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
 import Components.MessageDialog as MessageDialog
-import Components.PublishArticleDialog as PublishArticleDialog exposing (PublishingInfo(..))
+import Components.PublishArticleDialog as PublishArticleDialog
 import Components.PublishDateDialog as PublishDateDialog
 import Components.SendNewsletterDialog as SendNewsletterDialog exposing (NewsletterData)
 import Dict exposing (Dict)
@@ -23,7 +23,6 @@ import LinkPreview exposing (LoadedContent)
 import Locale exposing (Language(..), languageToISOCode, languageToString)
 import Markdown
 import Milkdown.MilkdownEditor as Milkdown
-import Newsletters.Subscribers as Subscribers
 import Nostr
 import Nostr.Article exposing (addressComponentsForArticle, articleFromEvent)
 import Nostr.DeletionRequest exposing (deletionEvent)
@@ -55,14 +54,6 @@ import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
 import View exposing (View)
 
-
-type NewsletterVersion
-    = NewsletterVersion1
-    | NewsletterVersion2
-
-newsletterVersion : NewsletterVersion
-newsletterVersion =
-    NewsletterVersion2
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
 page user shared route =
@@ -129,7 +120,6 @@ type EditorMode
 
 type ModalDialog
     = NoModalDialog
-    | NewsletterSentDialog
     | PublishedDialog
     | ErrorDialog
 
@@ -142,12 +132,10 @@ type ArticleState
     | ArticleSavingDraft SendRequestId
     | ArticleDraftSavingError String
     | ArticleDraftSaved
-    | ArticlePublishing SendRequestId (Maybe Subscribers.SubscriberEventData)
+    | ArticlePublishing SendRequestId
     | ArticlePublishingError String
-    | ArticleSendingNewsletter Int Int
-    | ArticleSendingNewsletterError String
     | ArticlePublished
-    | ArticleDeletingDraft SendRequestId (Maybe Subscribers.SubscriberEventData)
+    | ArticleDeletingDraft SendRequestId
     | ArticleDeletingDraftError String
 
 
@@ -342,7 +330,7 @@ type Msg
     | SelectImage ImageSelection
     | ImageSelected ImageSelection MediaSelector.UploadedFile
     | Publish
-    | PublishArticle PublishArticleDialog.PublishingInfo
+    | PublishArticle (List RelayUrl)
     | ShowSendNewsletterDialog
     | SendNewsletterDialogSent (SendNewsletterDialog.Msg Msg)
     | SaveDraft
@@ -483,27 +471,17 @@ update shared user msg model =
         Publish ->
             update shared user (PublishArticleDialogSent PublishArticleDialog.ShowDialog) model
 
-        PublishArticle publishingInfo ->
-            case publishingInfo of
-                ArticleOnly relayUrls ->
-                    ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) Nothing }
-                    , sendPublishCmd shared model user relayUrls
-                    )
-
-                NewsletterOnly subscriberEventData ->
-                    ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
-                    , sendNewsletterEffect shared model user subscriberEventData
-                    )
-
-                ArticleAndNewsletter relayUrls subscriberEventData ->
-                    ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) (Just subscriberEventData) }
-                    , sendPublishCmd shared model user relayUrls
-                    )
+        PublishArticle relayUrls ->
+            ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) }
+            , sendPublishCmd shared model user relayUrls
+            )
 
         ShowSendNewsletterDialog ->
             let
                 ( sendNewsletterDialog, effect ) =
-                    SendNewsletterDialog.show model.sendNewsletterDialog
+                    SendNewsletterDialog.show shared.nostr
+                        user.pubKey
+                        model.sendNewsletterDialog
                         { author = user.pubKey
                         , title = Maybe.withDefault "" model.title
                         , summary = Maybe.withDefault "" model.summary
@@ -645,39 +623,6 @@ update shared user msg model =
                         )
 
 
-sendNewsletterEffect : Shared.Model -> Model -> Auth.User -> Subscribers.SubscriberEventData -> Effect Msg
-sendNewsletterEffect shared model user subscriberEventData =
-    case newsletterVersion of
-        NewsletterVersion1 ->
-            Subscribers.newsletterSubscribersEvent
-                shared
-                user.pubKey
-                ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier )
-                { title = Maybe.withDefault "" model.title
-                , summary = Maybe.withDefault "" model.summary
-                , content = Maybe.withDefault "" model.content
-                , imageUrl = Maybe.withDefault "" model.image
-                , language = languageISOCode model
-                }
-                subscriberEventData
-                |> SendApplicationData
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-
-        NewsletterVersion2 ->
-            Ports.sendNewsletter
-                { author = user.pubKey
-                , title = Maybe.withDefault "" model.title
-                , summary = Maybe.withDefault "" model.summary
-                , content = Maybe.withDefault "" model.content
-                , imageUrl = Maybe.withDefault "" model.image
-                , language = languageISOCode model
-                , identifier = Maybe.withDefault "" model.identifier
-                , test = shared.browserEnv.testMode == BrowserEnv.TestModeEnabled
-                }
-                |> Effect.sendCmd
-
-
 loadReferencedNip27Profiles : Nostr.Model -> String -> Effect Msg
 loadReferencedNip27Profiles nostr content =
     Nip27.collectNostrLinks content
@@ -731,7 +676,7 @@ updateWithPortMessage shared model user portMessage =
                     , Effect.none
                     )
 
-                ( ArticlePublishing _ _, Ok error ) ->
+                ( ArticlePublishing _, Ok error ) ->
                     ( { model
                         | articleState = ArticlePublishingError error
                         , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
@@ -740,16 +685,7 @@ updateWithPortMessage shared model user portMessage =
                     , Effect.none
                     )
 
-                ( ArticleSendingNewsletter _ _, Ok error ) ->
-                    ( { model
-                        | articleState = ArticleSendingNewsletterError error
-                        , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
-                        , modalDialog = ErrorDialog
-                      }
-                    , Effect.none
-                    )
-
-                ( ArticleDeletingDraft _ _, Ok error ) ->
+                ( ArticleDeletingDraft _, Ok error ) ->
                     ( { model
                         | articleState = ArticleDeletingDraftError error
                         , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
@@ -827,44 +763,18 @@ updateWithPublishedResults shared model user value =
             else
                 ( model, Effect.none )
 
-        ArticlePublishing sendRequestId maybeSubscriberEventData ->
+        ArticlePublishing sendRequestId ->
             if Just sendRequestId == receivedSendRequestId then
-                case ( model.draftEventId, maybeSubscriberEventData ) of
-                    ( Just _, _ ) ->
+                case model.draftEventId of
+                    Just _ ->
                         ( { model
-                            | articleState = ArticleDeletingDraft (Nostr.getLastSendRequestId shared.nostr) maybeSubscriberEventData
+                            | articleState = ArticleDeletingDraft (Nostr.getLastSendRequestId shared.nostr)
                           }
                           -- after publishing article, delete draft
                         , sendDraftDeletionCmd shared model user
                         )
 
-                    ( Nothing, Just subscriberEventData ) ->
-                        ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
-                        , sendNewsletterEffect shared model user subscriberEventData
-                        )
-
-                    ( Nothing, Nothing ) ->
-                        ( { model
-                            | articleState = ArticlePublished
-                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
-                            , modalDialog = PublishedDialog
-                          }
-                        , Effect.none
-                        )
-
-            else
-                ( model, Effect.none )
-
-        ArticleDeletingDraft sendRequestId maybeSubscriberEventData ->
-            if Just sendRequestId == receivedSendRequestId then
-                case maybeSubscriberEventData of
-                    Just subscriberEventData ->
-                        ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
-                        , sendNewsletterEffect shared model user subscriberEventData
-                        )
-
                     Nothing ->
-                        -- no newsletter to be sent
                         ( { model
                             | articleState = ArticlePublished
                             , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
@@ -876,14 +786,18 @@ updateWithPublishedResults shared model user value =
             else
                 ( model, Effect.none )
 
-        ArticleSendingNewsletter _ _ ->
-            ( { model
-                | articleState = ArticlePublished
-                , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
-                , modalDialog = NewsletterSentDialog
-              }
-            , Effect.none
-            )
+        ArticleDeletingDraft sendRequestId ->
+            if Just sendRequestId == receivedSendRequestId then
+                ( { model
+                    | articleState = ArticlePublished
+                    , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                    , modalDialog = PublishedDialog
+                  }
+                , Effect.none
+                )
+
+            else
+                ( model, Effect.none )
 
         _ ->
             ( model, Effect.none )
@@ -1149,22 +1063,6 @@ viewModalDialog theme browserEnv articleState modalDialog =
         NoModalDialog ->
             emptyHtml
 
-        NewsletterSentDialog ->
-            MessageDialog.new
-                { onClick = ModalDialogButtonClicked
-                , onClose = ModalDialogButtonClicked OkButton
-                , title = Translations.newsletterSentMessageBoxTitle [ browserEnv.translations ]
-                , content = div [] [ text <| Translations.newsletterSentMessageBoxText [ browserEnv.translations ] ]
-                , buttons =
-                    [ { style = MessageDialog.PrimaryButton
-                      , title = "Ok"
-                      , identifier = OkButton
-                      }
-                    ]
-                , theme = theme
-                }
-                |> MessageDialog.view
-
         PublishedDialog ->
             MessageDialog.new
                 { onClick = ModalDialogButtonClicked
@@ -1260,7 +1158,7 @@ articleStateToString browserEnv articleState =
         ArticleDraftSavingError error ->
             Just <| Translations.articleDraftSaveError [ browserEnv.translations ] ++ ": " ++ error
 
-        ArticlePublishing _ _ ->
+        ArticlePublishing _ ->
             Just <| Translations.articlePublishingState [ browserEnv.translations ]
 
         ArticlePublishingError error ->
@@ -1269,13 +1167,7 @@ articleStateToString browserEnv articleState =
         ArticlePublished ->
             Just <| Translations.articlePublishedState [ browserEnv.translations ]
 
-        ArticleSendingNewsletter _ _ ->
-            Just <| Translations.sendingNewsletterState [ browserEnv.translations ]
-
-        ArticleSendingNewsletterError error ->
-            Just <| Translations.sendingNewsletterError [ browserEnv.translations ] ++ ": " ++ error
-
-        ArticleDeletingDraft _ _ ->
+        ArticleDeletingDraft _ ->
             Just <| Translations.deletingDraftState [ browserEnv.translations ]
 
         ArticleDeletingDraftError error ->
@@ -1306,22 +1198,16 @@ articleStateProcessIndicator articleState =
         ArticleDraftSavingError _ ->
             Nothing
 
-        ArticlePublishing _ _ ->
+        ArticlePublishing _ ->
             Just <| (Loaders.rings [] |> Html.fromUnstyled)
 
         ArticlePublishingError _ ->
             Nothing
 
-        ArticleSendingNewsletter _ _ ->
-            Just <| (Loaders.rings [] |> Html.fromUnstyled)
-
-        ArticleSendingNewsletterError _ ->
-            Nothing
-
         ArticlePublished ->
             Nothing
 
-        ArticleDeletingDraft _ _ ->
+        ArticleDeletingDraft _ ->
             Just <| (Loaders.rings [] |> Html.fromUnstyled)
 
         ArticleDeletingDraftError _ ->
@@ -1657,9 +1543,6 @@ articleReadyForPublishing model =
             contentComplete
 
         ArticlePublishingError _ ->
-            contentComplete
-
-        ArticleSendingNewsletterError _ ->
             contentComplete
 
         ArticleModified ->

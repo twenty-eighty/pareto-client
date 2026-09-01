@@ -17,6 +17,7 @@
     "@nostr-dev-kit/ndk": "^3.0.3",
     "@sovit.xyz/keytr": "^0.8.0",
     "atomico": "^1.79.2",
+    "axios": "^1.20.0",
     "blossom-client-sdk": "^1.1.1",
     "clsx": "^2.1.1",
     "debug": "^4.4.3",

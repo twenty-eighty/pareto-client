@@ -348,6 +348,16 @@ modificationToString modification =
             "unsubscribed"
 
 
+isActiveSubscriber : Subscriber -> Bool
+isActiveSubscriber subscriber =
+    String.trim subscriber.email
+        /= ""
+        && subscriber.dnd
+        /= Just True
+        && subscriber.dateUnsubscription
+        == Nothing
+
+
 emptySubscriber : Email -> Subscriber
 emptySubscriber email =
     { dnd = Nothing

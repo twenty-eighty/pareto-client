@@ -646,7 +646,14 @@
     "submit test email button title": "Submit",
     "test email sending text": "Sending test email...",
     "test email sent text": "Test email sent",
-    "test email error text": "Error sending test email: {{error}}"
+    "test email error text": "Error sending test email: {{error}}",
+    "sending message text": "Sending newsletter…",
+    "sent message text": "Newsletter has been sent",
+    "error message text": "{{error}}",
+    "close button title": "Close",
+    "cancel button title": "Cancel",
+    "send progress recipients": "{{accepted}} of {{fetched}} recipients queued",
+    "send progress sent": "{{sent}} of {{total}} emails sent"
   },
   "settings": {
     "page title": "Settings",

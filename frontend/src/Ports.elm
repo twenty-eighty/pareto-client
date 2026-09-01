@@ -418,13 +418,26 @@ type alias NewsletterData =
     }
 
 
-sendNewsletter : NewsletterData -> Cmd msg
-sendNewsletter newsletterData =
+cancelNewsletter : Cmd msg
+cancelNewsletter =
+    sendCommand
+        { command = "cancelNewsletter"
+        , value = Encode.null
+        }
+
+
+sendNewsletter : NewsletterData -> Maybe { url : String, keyHex : String, ivHex : String } -> Cmd msg
+sendNewsletter newsletterData maybeBlob =
     sendCommand
         { command = "sendNewsletter"
         , value = Encode.object
             [ ( "author", Encode.string newsletterData.author )
             , ( "newsletterData", encodeNewsletterData newsletterData )
+            , ( "subscriberBlob"
+              , maybeBlob
+                    |> Maybe.map encodeSubscriberBlob
+                    |> Maybe.withDefault Encode.null
+              )
             ]
         }
 
@@ -451,14 +464,28 @@ getNewsletterStatus author identifier =
         }
 
 
-getNewsletterRecipientCount : String -> Cmd msg
-getNewsletterRecipientCount author =
+getNewsletterRecipientCount : String -> Maybe { url : String, keyHex : String, ivHex : String } -> Cmd msg
+getNewsletterRecipientCount author maybeBlob =
     sendCommand
         { command = "getNewsletterRecipientCount"
         , value = Encode.object
             [ ( "author", Encode.string author )
+            , ( "subscriberBlob"
+              , maybeBlob
+                    |> Maybe.map encodeSubscriberBlob
+                    |> Maybe.withDefault Encode.null
+              )
             ]
         }
+
+encodeSubscriberBlob : { url : String, keyHex : String, ivHex : String } -> Encode.Value
+encodeSubscriberBlob blob =
+    Encode.object
+        [ ( "url", Encode.string blob.url )
+        , ( "key", Encode.string blob.keyHex )
+        , ( "iv", Encode.string blob.ivHex )
+        ]
+
 
 encodeNewsletterData : NewsletterData -> Encode.Value
 encodeNewsletterData newsletterData =

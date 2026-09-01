@@ -12,6 +12,7 @@ import I18Next
 import Nostr
 import Nostr.Relay exposing (websocketUrl)
 import Nostr.Types exposing (LoginStatus, PubKey, loggedInPubKey)
+import Pareto
 import Set exposing (Set)
 import Tailwind.Utilities as Tw
 import Ui.Styles exposing (Theme)
@@ -110,16 +111,18 @@ extendedZapRelays zapRelays nostrModel loginStatus =
                 |> Maybe.map (pubkeyRelays nostrModel)
                 |> Maybe.withDefault Set.empty
 
-        defaultRelays =
-            Set.fromList nostrModel.defaultRelays
-                |> Set.map websocketUrl
+        -- Public writeable relays only — Pareto relays reject non-author writes.
+        publicRelays =
+            Pareto.recommendedOutboxRelays
+                |> List.map websocketUrl
+                |> Set.fromList
 
         candidateRelays =
             Set.union zapRelays pubKeyRelays
                 |> Set.map websocketUrl
     in
     if Set.size candidateRelays == Set.size zapRelays || Set.size candidateRelays == Set.size pubKeyRelays then
-        Set.union candidateRelays defaultRelays
+        Set.union candidateRelays publicRelays
 
     else
         candidateRelays
