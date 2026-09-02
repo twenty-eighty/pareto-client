@@ -2,6 +2,7 @@ module Ui.Links exposing (..)
 
 import BrowserEnv exposing (Environment(..))
 import Erl
+import HmacSha256
 import Html.Styled as Html exposing (Html, a, div)
 import Html.Styled.Attributes as Attr
 import Nostr.Nip05 as Nip05
@@ -22,11 +23,11 @@ scaledImageLink environment width url =
         (_, StandAlone) ->
             url
 
-        (_, Production { imageCachingServer }) ->
-            cachingUrl imageCachingServer url width
+        (_, Production { imageCachingServer, imageCacheKey }) ->
+            cachingUrl imageCachingServer imageCacheKey url width
 
-        (_, Development { imageCachingServer }) ->
-            cachingUrl imageCachingServer url width
+        (_, Development { imageCachingServer, imageCacheKey }) ->
+            cachingUrl imageCachingServer imageCacheKey url width
 
 
 scaledImageSources : Environment -> Int -> String -> { src : String, srcset : String }
@@ -47,13 +48,25 @@ scaledImageSources environment width url =
         }
 
 
-cachingUrl : String -> String -> Int -> String
-cachingUrl imageCachingServer url width =
+cachingUrl : String -> String -> String -> Int -> String
+cachingUrl imageCachingServer imageCacheKey url width =
     Url.Builder.crossOrigin imageCachingServer
         [ "api", "scale" ]
-        [ Url.Builder.string "url" url
-        , Url.Builder.int "width" width
-        ]
+        (List.filterMap identity
+            [ Just (Url.Builder.string "url" url)
+            , Just (Url.Builder.int "width" width)
+            , hmacQuery imageCacheKey url width
+            ]
+        )
+
+
+hmacQuery : String -> String -> Int -> Maybe Url.Builder.QueryParameter
+hmacQuery imageCacheKey url width =
+    if imageCacheKey == "" then
+        Nothing
+
+    else
+        Just (Url.Builder.string "s" (HmacSha256.hex imageCacheKey (url ++ "\n" ++ String.fromInt width)))
 
 
 -- unused as our NIP-96 server doesn't support scaling

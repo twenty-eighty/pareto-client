@@ -20,6 +20,9 @@ if System.get_env("PHX_SERVER") do
   config :nostr_backend, NostrBackendWeb.Endpoint, server: true
 end
 
+config :nostr_backend, :image_cache_key, System.get_env("IMAGE_CACHE_KEY", "")
+config :nostr_backend, :image_cache_key_previous, System.get_env("IMAGE_CACHE_KEY_PREVIOUS", "")
+
 # pubkey that has follow list with all authors
 follow_list_pubkey = System.get_env("FOLLOW_LIST_PUBKEY") || ""
 config :nostr_backend, :follow_list_pubkey, follow_list_pubkey

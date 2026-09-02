@@ -114,6 +114,12 @@ defmodule NostrBackendWeb.Router do
     get "/sitemap-:year", StaticFileController, :year_sitemap
   end
 
+  scope "/", NostrBackendWeb do
+    pipe_through :api
+
+    get "/image-cache-key.json", ImageCacheKeyController, :show
+  end
+
   scope "/api", NostrBackendWeb do
     pipe_through :api
 

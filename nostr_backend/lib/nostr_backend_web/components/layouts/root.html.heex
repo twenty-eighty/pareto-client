@@ -111,6 +111,9 @@
       </script>
     <% end %>
     <link rel="stylesheet" crossorigin href={NostrBackendWeb.FrontendAssets.css_file()} />
+    <script>
+      window.__PARETO_IMAGE_CACHE_KEY__ = <%= raw(Jason.encode!(NostrBackend.ImageCacheKey.current())) %>;
+    </script>
     <%= unless assigns[:skip_app_script] do %>
       <script type="module" crossorigin src={NostrBackendWeb.FrontendAssets.js_file()}>
       </script>

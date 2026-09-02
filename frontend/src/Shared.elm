@@ -55,6 +55,7 @@ type alias Flags =
     { darkMode : Bool
     , environment : Maybe String
     , imageCachingServer : String
+    , imageCacheKey : String
     , locale : String
     , nativeSharingAvailable : Bool
     , testMode : Bool
@@ -64,10 +65,15 @@ type alias Flags =
 
 decoder : Json.Decode.Decoder Flags
 decoder =
-    Json.Decode.map7 Flags
+    Json.Decode.map8 Flags
         (Json.Decode.field "darkMode" Json.Decode.bool)
         (Json.Decode.field "environment" (Json.Decode.maybe Json.Decode.string))
         (Json.Decode.field "imageCachingServer" Json.Decode.string)
+        (Json.Decode.oneOf
+            [ Json.Decode.field "imageCacheKey" Json.Decode.string
+            , Json.Decode.succeed ""
+            ]
+        )
         (Json.Decode.field "locale" Json.Decode.string)
         (Json.Decode.field "nativeSharingAvailable" Json.Decode.bool)
         (Json.Decode.field "testMode" Json.Decode.bool)
@@ -91,6 +97,7 @@ init flagsResult _ =
                         , environment = flags.environment
                         , frontendUrl = ""
                         , imageCachingServer = flags.imageCachingServer
+                        , imageCacheKey = flags.imageCacheKey
                         , locale = flags.locale
                         , nativeSharingAvailable = flags.nativeSharingAvailable
                         , testMode = flags.testMode
@@ -140,6 +147,7 @@ init flagsResult _ =
                         , environment = Nothing
                         , frontendUrl = ""
                         , imageCachingServer = ""
+                        , imageCacheKey = ""
                         , locale = ""
                         , nativeSharingAvailable = False
                         , testMode = False

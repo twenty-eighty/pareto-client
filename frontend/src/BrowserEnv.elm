@@ -57,6 +57,7 @@ type alias InitParams =
     , darkMode : Bool
     , environment : Maybe String
     , imageCachingServer : String
+    , imageCacheKey : String
     , frontendUrl : String
     , locale : String
     , nativeSharingAvailable : Bool
@@ -65,8 +66,8 @@ type alias InitParams =
 
 
 type Environment
-    = Production { imageCachingServer : String }
-    | Development { imageCachingServer : String }
+    = Production { imageCachingServer : String, imageCacheKey : String }
+    | Development { imageCachingServer : String, imageCacheKey : String }
     | StandAlone
 
 type TestMode
@@ -106,7 +107,7 @@ init initParams =
             , dateFormatTokensWithoutYear = dateFormatTokensWithoutYear
             , dateFormatRelativeTimeOptions = relativeTimeOptions
             , darkMode = initParams.darkMode
-            , environment = environmentFromString initParams.environment initParams.imageCachingServer
+            , environment = environmentFromString initParams.environment initParams.imageCachingServer initParams.imageCacheKey
             , formatNumber = numberFormatFromLanguage language
             , errors = []
             , installPromptAvailable = False
@@ -133,17 +134,17 @@ init initParams =
     )
 
 
-environmentFromString : Maybe String -> String -> Environment
-environmentFromString envString imageCachingServer =
+environmentFromString : Maybe String -> String -> String -> Environment
+environmentFromString envString imageCachingServer imageCacheKey =
     case envString of
         Just "dev" ->
-            Development { imageCachingServer = imageCachingServer }
+            Development { imageCachingServer = imageCachingServer, imageCacheKey = imageCacheKey }
 
         Just "standalone" ->
             StandAlone
 
         _ ->
-            Production { imageCachingServer = imageCachingServer }
+            Production { imageCachingServer = imageCachingServer, imageCacheKey = imageCacheKey }
 
 
 requestTranslations : Language -> Cmd Msg

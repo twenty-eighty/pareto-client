@@ -9,6 +9,8 @@ import Config
 
 config :nostr_backend,
   generators: [timestamp_type: :utc_datetime],
+  image_cache_key: "",
+  image_cache_key_previous: "",
   feed_generator: %{
     # authors@pareto.space
     source_pubkey:

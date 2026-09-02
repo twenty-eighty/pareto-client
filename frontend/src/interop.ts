@@ -15,6 +15,7 @@ import debug from 'debug';
 declare global {
   interface Window {
     ndk: any;
+    __PARETO_IMAGE_CACHE_KEY__?: string;
   }
 
   // Loaded dynamically from /js/nstart-modal.js
@@ -46,6 +47,7 @@ interface ElmApp {
 interface FlagsEnv {
   ELM_ENV: string;
   IMAGE_CACHING_SERVER?: string;
+  IMAGE_CACHE_KEY?: string;
 }
 
 type PortCommand = { command: string; value: any };
@@ -71,6 +73,7 @@ export const flags = ({ env }: { env: FlagsEnv }) => {
     environment: env.ELM_ENV,
     darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
     imageCachingServer: env.IMAGE_CACHING_SERVER || "https://image-caching-server.onrender.com",
+    imageCacheKey: window.__PARETO_IMAGE_CACHE_KEY__ || env.IMAGE_CACHE_KEY || "",
     locale: selectedLocale,
     nativeSharingAvailable: (navigator.share != undefined),
     testMode: JSON.parse(localStorage.getItem('testMode') || 'false') || false,
