@@ -347,7 +347,7 @@ update props =
         ConfigureDefaultMediaServer ->
             ( Model model
             , Effect.batch
-                [ Nip96.sendNip96ServerListCmd props.browserEnv props.pubKey (Nostr.getDefaultNip96Servers props.nostr props.pubKey) (Nostr.getDefaultRelays props.nostr)
+                [ Blossom.sendBlossomServerListCmd props.browserEnv props.pubKey (Nostr.getDefaultBlossomServers props.nostr props.pubKey) (Nostr.getWriteRelayUrlsForPubKey props.nostr props.pubKey)
                     |> Shared.Msg.SendNostrEvent
                     |> Effect.sendSharedMsg
                 ]

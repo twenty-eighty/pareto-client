@@ -766,6 +766,15 @@ getDefaultNip96Servers model pubKey =
         Pareto.defaultNip96ServersPublic
 
 
+getDefaultBlossomServers : Model -> PubKey -> List String
+getDefaultBlossomServers model pubKey =
+    if isEditor model pubKey then
+        Pareto.defaultBlossomServersAuthors
+
+    else
+        Pareto.defaultBlossomServersPublic
+
+
 getNip96Servers : Model -> PubKey -> List String
 getNip96Servers model pubKey =
     model.fileStorageServerLists

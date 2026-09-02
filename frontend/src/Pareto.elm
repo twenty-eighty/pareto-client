@@ -198,6 +198,18 @@ defaultNip96ServersPublic =
     ]
 
 
+defaultBlossomServersAuthors : List String
+defaultBlossomServersAuthors =
+    [ "https://" ++ paretoNip96Server
+    ]
+
+
+defaultBlossomServersPublic : List String
+defaultBlossomServersPublic =
+    [ "https://nostr.download"
+    ]
+
+
 applicationDataRelays : List RelayUrl
 applicationDataRelays =
     [ "wss://portal-relay.pareto.space"
