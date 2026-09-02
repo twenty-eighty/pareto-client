@@ -504,7 +504,7 @@ export class NewsletterSendClient {
     }
     return this.sendNewsletter({
       author,
-      newsletterData: { ...newsletterData, test: true, identifier: undefined },
+      newsletterData: { ...newsletterData, identifier: undefined },
       identifier: uniqueTestExternalId(identifier || newsletterData.identifier),
       subscribers: [contactRecord],
       onProgress,
