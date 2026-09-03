@@ -12,13 +12,8 @@ RUN mix local.hex --force && \
 RUN curl -sL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y nodejs
 
-# Install Elm and elm-land for asset compilation
-# Elm official package currently does not support ARM64, but lydell/elm does (used used by elm-land library)
-# For ARM architecture we setup elm and alm -land through node_module libraries, installed as dev dependenices in frontend
-RUN if [ "$TARGETPLATFORM" != "linux/arm64" ] ; \
-    then npm install -g elm elm-land ; \
-    else echo 'export PATH=$PATH:/app/frontend/node_modules/elm/bin ;  alias elm-land="node /app/frontend/node_modules/elm-land/src/index.js"' >> ~/.bashrc ; \
-    fi
+# Elm 0.19.2 provides official Linux x64 and ARM64 binaries.
+RUN npm install -g elm@0.19.2-0 elm-land
 
 # Set environment
 ENV MIX_ENV=prod
