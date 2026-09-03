@@ -9,6 +9,7 @@ import EmailValidation
 import Html.Styled as Html exposing (Html, div, text)
 import I18Next
 import Html.Styled.Attributes as Attr exposing (css)
+import Iso8601
 import Json.Decode as Decode
 import Newsletters.Subscribers as Subscribers
 import Nostr
@@ -691,17 +692,48 @@ progressCountText translations progress =
             Nothing
 
 
-existingSentCountText : StatusSummary -> Maybe String
-existingSentCountText summary =
+existingSentCountText : List I18Next.Translations -> StatusSummary -> Maybe String
+existingSentCountText translations summary =
     case ( summary.doneJobs, summary.expectedJobs ) of
         ( Just sent, Just total ) ->
-            Just (String.fromInt sent ++ " of " ++ String.fromInt total ++ " emails sent")
+            Just
+                (Translations.sendProgressSent translations
+                    { sent = String.fromInt sent
+                    , total = String.fromInt total
+                    }
+                )
 
         ( Just sent, Nothing ) ->
-            Just (String.fromInt sent ++ " emails sent")
+            Just (Translations.emailsSentCount translations { sent = String.fromInt sent })
 
         _ ->
             Nothing
+
+
+statusTimestampText : BrowserEnv -> StatusSummary -> Maybe String
+statusTimestampText browserEnv summary =
+    summary.updatedAt
+        |> Maybe.andThen (Iso8601.toTime >> Result.toMaybe)
+        |> Maybe.map (BrowserEnv.formatDate browserEnv)
+        |> Maybe.andThen
+            (\formattedDate ->
+                let
+                    translations =
+                        [ browserEnv.translations ]
+                in
+                case summary.delivery of
+                    Just "sent" ->
+                        Just (Translations.sentAtText translations { date = formattedDate })
+
+                    Just "failed" ->
+                        Just (Translations.failedAtText translations { date = formattedDate })
+
+                    Just "partial" ->
+                        Just (Translations.lastSentAtText translations { date = formattedDate })
+
+                    _ ->
+                        Nothing
+            )
 
 
 numberOfRecipients : Model -> Int
@@ -862,14 +894,13 @@ viewSendProgress (Settings settings) progress =
                 (styles.textStyle14
                     ++ [ css [ Tw.flex, Tw.flex_col, Tw.gap_1 ] ]
                 )
-                [ text phaseText
-                , totalsText
-                    |> Maybe.map text
-                    |> Maybe.withDefault emptyHtml
-                , errorsText
-                    |> Maybe.map (\codes -> text ("Errors: " ++ codes))
-                    |> Maybe.withDefault emptyHtml
-                ]
+                ([ Just phaseText
+                 , totalsText
+                 , errorsText |> Maybe.map (\codes -> "Errors: " ++ codes)
+                 ]
+                    |> List.filterMap identity
+                    |> List.map (\row -> div [] [ text row ])
+                )
             ]
         ]
 
@@ -974,9 +1005,9 @@ viewNewsletterStatus (Settings settings) =
 
                 StatusFound value ->
                     Just
-                        { message = existingStatusMessage value
+                        { message = existingStatusMessage [ settings.browserEnv.translations ] value
                         , isChecking = False
-                        , details = statusSummaryView value
+                        , details = statusSummaryView settings.browserEnv value
                         }
 
                 StatusNotFound ->
@@ -996,7 +1027,7 @@ viewNewsletterStatus (Settings settings) =
         Just info ->
             statusContainer <|
                 List.concat
-                    [ [ text info.message ]
+                    [ [ div [] [ text info.message ] ]
                     , info.details |> Maybe.map List.singleton |> Maybe.withDefault []
                     ]
 
@@ -1019,8 +1050,8 @@ statusContainer children =
         children
 
 
-existingStatusMessage : Decode.Value -> String
-existingStatusMessage value =
+existingStatusMessage : List I18Next.Translations -> Decode.Value -> String
+existingStatusMessage translations value =
     case Decode.decodeValue statusSummaryDecoder value of
         Ok summary ->
             case summary.delivery of
@@ -1037,27 +1068,26 @@ existingStatusMessage value =
                     "The last send of this newsletter only delivered to some recipients."
 
                 Just "sent" ->
-                    "Newsletter has been sent"
+                    Translations.sentMessageText translations
 
                 _ ->
-                    "Newsletter has been sent"
+                    Translations.sentMessageText translations
 
         Err _ ->
-            "This newsletter has already been sent."
+            Translations.sentMessageText translations
 
 
-statusSummaryView : Decode.Value -> Maybe (Html (Msg msg))
-statusSummaryView value =
+statusSummaryView : BrowserEnv -> Decode.Value -> Maybe (Html (Msg msg))
+statusSummaryView browserEnv value =
     case Decode.decodeValue statusSummaryDecoder value of
         Ok summary ->
             let
+                translations =
+                    [ browserEnv.translations ]
+
                 rows =
-                    [ existingSentCountText summary |> Maybe.map text
-                    , summary.delivery |> Maybe.map (\delivery -> text ("Delivery: " ++ delivery))
-                    , summary.state |> Maybe.map (\state -> text ("State: " ++ state))
-                    , summary.updatedAt |> Maybe.map (\updated -> text ("Updated at: " ++ updated))
-                    , summary.uploadedJobs |> Maybe.map (\count -> text ("Uploaded jobs: " ++ String.fromInt count))
-                    , summary.expectedJobs |> Maybe.map (\count -> text ("Expected jobs: " ++ String.fromInt count))
+                    [ existingSentCountText translations summary
+                    , statusTimestampText browserEnv summary
                     ]
                         |> List.filterMap identity
             in
@@ -1073,7 +1103,7 @@ statusSummaryView value =
                             , Tw.gap_1
                             ]
                         ]
-                        rows
+                        (List.map (\row -> div [] [ text row ]) rows)
 
         Err _ ->
             Nothing

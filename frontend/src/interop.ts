@@ -963,7 +963,6 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   function newsletterQueueClient() {
     return createNewsletterSender({
       ndk: window.ndk,
-      baseUrl: "http://localhost:4433/v1",
       targetPubkey: "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345",
     });
   }

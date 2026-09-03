@@ -9,7 +9,7 @@ import {
   type SubscriberBlobPointer,
 } from "./subscriberBlob";
 
-const DEFAULT_BASE_URL = "http://localhost:4433/v1";
+const DEFAULT_BASE_URL = "https://queue-server-vf49.onrender.com/v1";
 const EMAIL_GATEWAY_PUBKEY = "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345";
 
 export type NewsletterData = {

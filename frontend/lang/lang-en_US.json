@@ -653,7 +653,11 @@
     "close button title": "Close",
     "cancel button title": "Cancel",
     "send progress recipients": "{{accepted}} of {{fetched}} recipients queued",
-    "send progress sent": "{{sent}} of {{total}} emails sent"
+    "send progress sent": "{{sent}} of {{total}} emails sent",
+    "emails sent count": "{{sent}} emails sent",
+    "sent at text": "Sent {{date}}",
+    "failed at text": "Failed {{date}}",
+    "last sent at text": "Last sent {{date}}"
   },
   "settings": {
     "page title": "Settings",
