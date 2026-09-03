@@ -174,7 +174,7 @@ renderer styles fnGetProfile =
                                 itemBlocks
                         )
                 )
-    , html = htmlBlock
+    , html = htmlBlock styles
     , codeBlock = codeBlock
 
     --\{ body, language } ->
@@ -348,8 +348,8 @@ heading styles { level, rawText, children } =
                 children
 
 
-htmlBlock : Markdown.Html.Renderer (List (Html msg) -> Html msg)
-htmlBlock =
+htmlBlock : Styles msg -> Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlBlock styles =
     Markdown.Html.oneOf
         [ htmlAElement
         , htmlBrElement
@@ -358,6 +358,10 @@ htmlBlock =
         , htmlImgElement
         , htmlPElement
         , htmlStrongElement
+        , htmlFootnoteRefElement styles
+        , htmlFootnoteElement styles
+        , htmlFootnotesElement styles
+        , htmlEmbedLinkElement styles
         , htmlGenericElement "col"
         , htmlGenericElement "colgroup"
         , htmlGenericElement "table"
@@ -365,6 +369,119 @@ htmlBlock =
         , htmlGenericElement "td"
         , htmlGenericElement "tr"
         ]
+
+
+htmlEmbedLinkElement : Styles msg -> Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlEmbedLinkElement styles =
+    Markdown.Html.tag "embedlink"
+        (\href children ->
+            LinkPreview.generatePreviewHtml
+                Nothing
+                href
+                (styles.colorStyleLinks ++ styles.textStyleLinks)
+                (if List.isEmpty children then
+                    [ Html.text href ]
+
+                 else
+                    children
+                )
+        )
+        |> Markdown.Html.withAttribute "href"
+
+
+htmlFootnoteRefElement : Styles msg -> Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlFootnoteRefElement styles =
+    Markdown.Html.tag "footnoteref"
+        (\id href number _ ->
+            Html.sup
+                [ css
+                    [ Tw.text_xs
+                    , Css.verticalAlign Css.super
+                    , Tw.leading_none
+                    ]
+                ]
+                [ Html.a
+                    (styles.colorStyleLinks
+                        ++ [ Attr.id id
+                           , Attr.href href
+                           , Attr.attribute "role" "doc-noteref"
+                           , css
+                                [ Tw.no_underline
+                                , Tw.font_medium
+                                ]
+                           ]
+                    )
+                    [ Html.text number ]
+                ]
+        )
+        |> Markdown.Html.withAttribute "id"
+        |> Markdown.Html.withAttribute "href"
+        |> Markdown.Html.withAttribute "number"
+
+
+htmlFootnoteElement : Styles msg -> Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlFootnoteElement styles =
+    Markdown.Html.tag "footnote"
+        (\id _ backhref children ->
+            Html.li
+                (styles.textStyleBody
+                    ++ styles.colorStyleGrayscaleText
+                    ++ [ Attr.id id
+                       , Attr.attribute "role" "doc-endnote"
+                       , css
+                            [ Tw.mb_3
+                            , Css.property "overflow-wrap" "break-word"
+                            ]
+                       ]
+                )
+                (children
+                    ++ [ Html.text " "
+                       , Html.a
+                            (styles.colorStyleLinks
+                                ++ [ Attr.href backhref
+                                   , Attr.attribute "role" "doc-backlink"
+                                   , Attr.attribute "aria-label" "Back to content"
+                                   , css [ Tw.no_underline, Tw.ms_1 ]
+                                   ]
+                            )
+                            [ Html.text "↩" ]
+                       ]
+                )
+        )
+        |> Markdown.Html.withAttribute "id"
+        |> Markdown.Html.withAttribute "number"
+        |> Markdown.Html.withAttribute "backhref"
+
+
+htmlFootnotesElement : Styles msg -> Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlFootnotesElement styles =
+    Markdown.Html.tag "footnotes"
+        (\children ->
+            Html.section
+                [ Attr.attribute "role" "doc-endnotes"
+                , Attr.class "footnotes"
+                , css
+                    [ Tw.mt_12
+                    , Tw.pt_6
+                    , Tw.border_t
+                    , Tw.border_solid
+                    , print
+                        [ Tw.break_before_page
+                        ]
+                    ]
+                ]
+                [ Html.ol
+                    (styles.colorStyleGrayscaleText
+                        ++ [ css
+                                [ Tw.list_decimal
+                                , Tw.ps_6
+                                , Tw.text_sm
+                                ]
+                           ]
+                    )
+                    children
+                ]
+        )
 
 
 htmlIframeElement : Markdown.Html.Renderer (List (Html msg) -> Html msg)

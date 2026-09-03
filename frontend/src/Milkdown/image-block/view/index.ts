@@ -1,8 +1,8 @@
 import DOMPurify from 'dompurify'
 
 import { $view } from '@milkdown/utils'
-import type { NodeViewConstructor } from '@milkdown/prose/view'
-import type { Node } from '@milkdown/prose/model'
+import type { NodeViewConstructor } from '@milkdown/kit/prose/view'
+import type { Node } from '@milkdown/kit/prose/model'
 import { imageBlockSchema } from '../schema'
 import { imageBlockConfig } from '../config'
 import { withMeta } from '../../__internal__/meta'

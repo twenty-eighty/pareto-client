@@ -3,6 +3,7 @@ module Pages.Subscribers exposing (Model, Msg, page)
 import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
+import Components.Categories as Categories
 import Components.EmailImportDialog as EmailImportDialog
 import Components.Icon as Icon
 import Components.SubscriberEditDialog as SubscriberEditDialog
@@ -13,13 +14,16 @@ import FeatherIcons
 import File exposing (File)
 import File.Download
 import Html.Styled as Html exposing (Html, b, div, li, text, ul)
-import Html.Styled.Attributes exposing (css)
+import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events
 import Http
+import I18Next
 import Json.Decode as Decode
 import Layouts
 import Layouts.Sidebar
 import Material.Icons exposing (email)
+import Newsletters.Subscribers as Subscribers exposing (Email, Modification(..), modificationToString, translatedFieldName)
+import Newsletters.Types exposing (Subscriber, SubscriberField(..), fieldName)
 import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.External exposing (decodeAuthHeaderReceived)
@@ -35,9 +39,9 @@ import Route exposing (Route)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Subscribers exposing (Email, Modification(..), Subscriber, SubscriberField(..), modificationToString, translatedFieldName)
 import Svg.Loaders as Loaders
 import Table.Paginated as Table exposing (defaultCustomizations)
+import Tailwind.Theme exposing (Color)
 import Tailwind.Utilities as Tw
 import Translations.Sidebar
 import Translations.Subscribers as Translations
@@ -55,23 +59,71 @@ page user shared _ =
         , subscriptions = subscriptions
         , view = view user shared
         }
-        |> Page.withLayout (toLayout shared.theme)
+        |> Page.withLayout (toLayout shared)
 
 
-toLayout : Theme -> Model -> Layouts.Layout Msg
-toLayout theme _ =
+toLayout : Shared.Model -> Model -> Layouts.Layout Msg
+toLayout shared model =
+    let
+        topPart =
+          Categories.new
+            { model = model.categories
+            , toMsg = CategoriesSent
+            , onSelect = CategorySelected
+            , equals = \category1 category2 -> category1 == category2
+            , image = categoryImage
+            , categories = availableCategories shared.browserEnv.translations
+            , browserEnv = shared.browserEnv
+            , theme = shared.theme
+            }
+            |> Categories.view
+    in
     Layouts.Sidebar.new
-        { theme = theme
+        { theme = shared.theme
         }
+        |> Layouts.Sidebar.withTopPart topPart Categories.heightString
         |> Layouts.Sidebar
 
 
+categoryImage : Color -> Category -> Maybe (Html msg)
+categoryImage color category =
+    let
+        iconColor =
+            Icon.TailwindColor color
+
+        image src =
+            Html.div
+                [ css
+                    [ Tw.w_4
+                    , Tw.h_4
+                    ]
+                ]
+                [ Html.img
+                    [ Attr.src src
+                    ]
+                    []
+                ]
+    in
+    case category of
+        Subscribers ->
+            Icon.ParetoIcon Icon.ParetoCube 16 iconColor
+                |> Icon.view
+                |> Just
+
+availableCategories : I18Next.Translations -> List (Categories.CategoryData Category)
+availableCategories translations =
+        [ { category = Subscribers
+          , title = Translations.subscribersCategory [ translations ]
+          , testId = "subscribers-category"
+          }
+        ]
 
 -- INIT
 
 
 type alias Model =
-    { emailImportDialog : EmailImportDialog.Model
+    { categories : Categories.Model Category
+    , emailImportDialog : EmailImportDialog.Model
     , errors : List String
     , modifications : List Modification
     , requestId : RequestId
@@ -83,6 +135,8 @@ type alias Model =
     , fileId : Int
     }
 
+type Category
+    = Subscribers
 
 type ModelState
     = Loading
@@ -98,14 +152,15 @@ type ModelState
 
 init : Auth.User -> Shared.Model -> () -> ( Model, Effect Msg )
 init user shared () =
-    ( { emailImportDialog = EmailImportDialog.init {}
+    ( { categories = Categories.init { selected = Subscribers }
+      , emailImportDialog = EmailImportDialog.init {}
       , errors = []
       , modifications = []
       , requestId = Nostr.getLastRequestId shared.nostr
       , state = Loading
       , subscriberEditDialog = SubscriberEditDialog.init {}
       , subscribers = Dict.empty
-      , subscriberTable = Table.initialState (Subscribers.fieldName FieldEmail) 25
+      , subscriberTable = Table.initialState (fieldName FieldEmail) 25
       , serverDesc = Nothing
       , fileId = 1
       }
@@ -142,6 +197,8 @@ type Msg
     | OpenEditSubscriberDialog Subscriber
     | SubscriberEditDialogSent SubscriberEditDialog.Msg
     | UpdateSubscriber String Subscriber
+    | CategorySelected Category
+    | CategoriesSent (Categories.Msg Category Msg)
 
 
 update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -165,7 +222,7 @@ update user shared msg model =
                 activeSubscriberCount =
                     model.subscribers
                         |> Dict.values
-                        |> List.filter (\subscriber -> subscriber.dateUnsubscription == Nothing)
+                        |> List.filter Subscribers.isActiveSubscriber
                         |> List.length
             in
             ( { model | state = Encrypting serverUrl apipUrl activeSubscriberCount (Dict.size model.subscribers) }
@@ -272,6 +329,26 @@ update user shared msg model =
             , Effect.none
             )
 
+        CategorySelected category ->
+            updateModelWithCategory shared model category
+
+        CategoriesSent innerMsg ->
+            Categories.update
+                { msg = innerMsg
+                , model = model.categories
+                , toModel = \categories -> { model | categories = categories }
+                , toMsg = CategoriesSent
+                }
+
+updateModelWithCategory : Shared.Model -> Model -> Category -> ( Model, Effect Msg )
+updateModelWithCategory shared model category =
+    ( model
+    , Effect.batch
+        [ -- Effect.replaceRoute { path = model.path, query = Dict.singleton categoryParamName (stringFromCategory category), hash = Nothing }
+        -- , requestArticlesEffect shared category False
+        ]
+    )
+
 
 csvDownloadFileName : BrowserEnv -> String
 csvDownloadFileName browserEnv =
@@ -332,7 +409,7 @@ updateWithMessage user shared model message =
                         | state = RequestingNip96Auth apiUrl decoded.file decoded.keyHex decoded.ivHex decoded.sha256 decoded.size active total
                       }
                     , PostRequest 1 decoded.sha256
-                        |> RequestNip98Auth serverUrl apiUrl
+                        |> RequestNip98Auth serverUrl apiUrl ""
                         |> Nostr.createRequest shared.nostr "NIP-96 auth request for files to be uploaded" []
                         |> Shared.Msg.RequestNostrEvents
                         |> Effect.sendSharedMsg
@@ -432,7 +509,6 @@ subscriptions _ =
     Ports.receiveMessage ReceivedMessage
 
 
-
 -- VIEW
 
 
@@ -443,20 +519,20 @@ subscribersTableConfig browserEnv =
         , toMsg = NewTableState
         , columns =
             [ Table.veryCustomColumn
-                { id = Subscribers.fieldName FieldEmail
+                { id = fieldName FieldEmail
                 , name = translatedFieldName browserEnv.translations FieldEmail
                 , viewData = \subscriber -> editSubscriberButton subscriber
                 , sorter = Table.unsortable
                 }
-            , Table.stringColumn (Subscribers.fieldName FieldFirstName) (translatedFieldName browserEnv.translations FieldFirstName) (\subscriber -> subscriber.firstName |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldLastName) (translatedFieldName browserEnv.translations FieldLastName) (\subscriber -> subscriber.lastName |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldTags) (translatedFieldName browserEnv.translations FieldTags) (\subscriber -> subscriber.tags |> Maybe.map (String.join ", ") |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldDateSubscription) (translatedFieldName browserEnv.translations FieldDateSubscription) (\subscriber -> subscriber.dateSubscription |> BrowserEnv.formatDate browserEnv)
-            , Table.stringColumn (Subscribers.fieldName FieldDateUnsubscription) (translatedFieldName browserEnv.translations FieldDateUnsubscription) (\subscriber -> subscriber.dateUnsubscription |> Maybe.map (BrowserEnv.formatDate browserEnv) |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldSource) (translatedFieldName browserEnv.translations FieldSource) (\subscriber -> subscriber.source |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldUndeliverable) (translatedFieldName browserEnv.translations FieldUndeliverable) (\subscriber -> subscriber.undeliverable |> Maybe.withDefault "")
-            , Table.stringColumn (Subscribers.fieldName FieldDnd) (translatedFieldName browserEnv.translations FieldDnd) (\subscriber -> subscriber.dnd |> booleanValue)
-            , Table.stringColumn (Subscribers.fieldName FieldLocale) (translatedFieldName browserEnv.translations FieldLocale) (\subscriber -> subscriber.locale |> Maybe.withDefault "")
+            , Table.stringColumn (fieldName FieldFirstName) (translatedFieldName browserEnv.translations FieldFirstName) (\subscriber -> subscriber.firstName |> Maybe.withDefault "")
+            , Table.stringColumn (fieldName FieldLastName) (translatedFieldName browserEnv.translations FieldLastName) (\subscriber -> subscriber.lastName |> Maybe.withDefault "")
+            , Table.stringColumn (fieldName FieldTags) (translatedFieldName browserEnv.translations FieldTags) (\subscriber -> subscriber.tags |> Maybe.map (String.join ", ") |> Maybe.withDefault "")
+            , Table.stringColumn (fieldName FieldDateSubscription) (translatedFieldName browserEnv.translations FieldDateSubscription) (\subscriber -> subscriber.dateSubscription |> BrowserEnv.formatDate browserEnv)
+            , Table.stringColumn (fieldName FieldDateUnsubscription) (translatedFieldName browserEnv.translations FieldDateUnsubscription) (\subscriber -> subscriber.dateUnsubscription |> Maybe.map (BrowserEnv.formatDate browserEnv) |> Maybe.withDefault "")
+            , Table.stringColumn (fieldName FieldSource) (translatedFieldName browserEnv.translations FieldSource) (\subscriber -> subscriber.source |> Maybe.withDefault "")
+            , Table.stringColumn (fieldName FieldUndeliverable) (translatedFieldName browserEnv.translations FieldUndeliverable) (\subscriber -> subscriber.undeliverable |> Maybe.withDefault "")
+            , Table.stringColumn (fieldName FieldDnd) (translatedFieldName browserEnv.translations FieldDnd) (\subscriber -> subscriber.dnd |> booleanValue)
+            , Table.stringColumn (fieldName FieldLocale) (translatedFieldName browserEnv.translations FieldLocale) (\subscriber -> subscriber.locale |> Maybe.withDefault "")
             , Table.veryCustomColumn
                 { id = "delete_entry"
                 , name = ""
@@ -531,6 +607,17 @@ removeSubscriberButton removeMsg =
 view : Auth.User -> Shared.Model.Model -> Model -> View Msg
 view user shared model =
     let
+        contentArea =
+            viewSubscribers user shared model
+    in
+    { title = Translations.Sidebar.subscribersMenuItemText [ shared.browserEnv.translations ]
+    , body =
+        [ contentArea ]
+    }
+
+viewSubscribers : Auth.User -> Shared.Model.Model -> Model -> Html Msg
+viewSubscribers user shared model =
+    let
         styles =
             stylesForTheme shared.theme
 
@@ -543,83 +630,80 @@ view user shared model =
 
             else
                 ""
+
     in
-    { title = Translations.Sidebar.subscribersMenuItemText [ shared.browserEnv.translations ]
-    , body =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.gap_2
+            , Tw.m_2
+            ]
+        ]
         [ div
             [ css
                 [ Tw.flex
-                , Tw.flex_col
+                , Tw.flex_row
+                , Tw.items_center
                 , Tw.gap_2
                 , Tw.m_2
                 ]
             ]
-            [ div
-                [ css
-                    [ Tw.flex
-                    , Tw.flex_row
-                    , Tw.items_center
-                    , Tw.gap_2
-                    , Tw.m_2
-                    ]
-                ]
-                [ Button.new
-                    { label = Translations.importButtonTitle [ shared.browserEnv.translations ]
-                    , onClick = Just <| ImportClicked
-                    , theme = shared.theme
-                    }
-                    |> Button.withTypePrimary
-                    |> Button.view
-                , Button.new
-                    { label = Translations.exportButtonTitle [ shared.browserEnv.translations ]
-                    , onClick = Just <| ExportClicked
-                    , theme = shared.theme
-                    }
-                    |> Button.withTypePrimary
-                    |> Button.withDisabled (Dict.size model.subscribers < 1)
-                    |> Button.view
-                , Button.new
-                    { label = Translations.saveButtonTitle [ shared.browserEnv.translations ]
-                    , onClick = model.serverDesc |> Maybe.map (\serverDesc -> SaveClicked Pareto.paretoNip96Server serverDesc.apiUrl)
-                    , theme = shared.theme
-                    }
-                    |> Button.withTypePrimary
-                    |> Button.withDisabled (model.state /= Modified)
-                    |> Button.view
-                , div
-                    (styles.colorStyleGrayscaleMuted
-                        ++ [ css
-                                [ Tw.ml_4
-                                ]
-                           ]
-                    )
-                    [ text subscribersCountText ]
-                ]
-            , viewSubscribers shared.browserEnv model
-            , viewModifications shared.theme shared.browserEnv model
-            , EmailImportDialog.new
-                { model = model.emailImportDialog
-                , toMsg = EmailImportDialogSent
-                , nostr = shared.nostr
-                , pubKey = user.pubKey
-                , browserEnv = shared.browserEnv
+            [ Button.new
+                { label = Translations.importButtonTitle [ shared.browserEnv.translations ]
+                , onClick = Just <| ImportClicked
                 , theme = shared.theme
                 }
-                |> EmailImportDialog.view
-            , SubscriberEditDialog.new
-                { model = model.subscriberEditDialog
-                , toMsg = SubscriberEditDialogSent
-                , browserEnv = shared.browserEnv
+                |> Button.withTypePrimary
+                |> Button.view
+            , Button.new
+                { label = Translations.exportButtonTitle [ shared.browserEnv.translations ]
+                , onClick = Just <| ExportClicked
                 , theme = shared.theme
                 }
-                |> SubscriberEditDialog.view
+                |> Button.withTypePrimary
+                |> Button.withDisabled (Dict.size model.subscribers < 1)
+                |> Button.view
+            , Button.new
+                { label = Translations.saveButtonTitle [ shared.browserEnv.translations ]
+                , onClick = model.serverDesc |> Maybe.map (\serverDesc -> SaveClicked Pareto.paretoNip96Server serverDesc.apiUrl)
+                , theme = shared.theme
+                }
+                |> Button.withTypePrimary
+                |> Button.withDisabled (model.state /= Modified)
+                |> Button.view
+            , div
+                (styles.colorStyleGrayscaleMuted
+                    ++ [ css
+                            [ Tw.ml_4
+                            ]
+                        ]
+                )
+                [ text subscribersCountText ]
             ]
+        , viewSubscribersTable shared.browserEnv model
+        , viewModifications shared.theme shared.browserEnv model
+        , EmailImportDialog.new
+            { model = model.emailImportDialog
+            , toMsg = EmailImportDialogSent
+            , nostr = shared.nostr
+            , pubKey = user.pubKey
+            , browserEnv = shared.browserEnv
+            , theme = shared.theme
+            }
+            |> EmailImportDialog.view
+        , SubscriberEditDialog.new
+            { model = model.subscriberEditDialog
+            , toMsg = SubscriberEditDialogSent
+            , browserEnv = shared.browserEnv
+            , theme = shared.theme
+            }
+            |> SubscriberEditDialog.view
         ]
-    }
 
 
-viewSubscribers : BrowserEnv -> Model -> Html Msg
-viewSubscribers browserEnv model =
+viewSubscribersTable : BrowserEnv -> Model -> Html Msg
+viewSubscribersTable browserEnv model =
     case ( model.state, Dict.size model.subscribers ) of
         ( Loading, _ ) ->
             div

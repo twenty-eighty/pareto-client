@@ -408,9 +408,9 @@ type Msg
     | UpdateMediaServerModel MediaServersModel
     | AddNip96MediaServer PubKey ServerUrl
     | RemoveNip96MediaServer PubKey ServerUrl
-    | AddDefaultNip96MediaServers PubKey (List ServerUrl)
     | AddBlossomMediaServer PubKey ServerUrl
     | RemoveBlossomMediaServer PubKey ServerUrl
+    | AddDefaultBlossomMediaServers PubKey (List ServerUrl)
     | UpdateProfileModel ProfileModel
     | OpenImageSelection ImageUploadType
     | MediaSelectorSent (MediaSelector.Msg Msg)
@@ -484,34 +484,34 @@ update user shared msg model =
             ( { model | data = MediaServersData { emptyMediaServersModel | state = MediaServerStateSavingNip96 (Nostr.getLastSendRequestId shared.nostr) } }
             , Nostr.getNip96Servers shared.nostr pubKey
                 |> extendMediaServerList mediaServer
-                |> sendNip96MediaServerListCmd shared.browserEnv pubKey
+                |> sendNip96MediaServerListCmd shared.browserEnv shared.nostr pubKey
             )
 
         RemoveNip96MediaServer pubKey mediaServer ->
             ( { model | data = MediaServersData { emptyMediaServersModel | state = MediaServerStateSavingNip96 (Nostr.getLastSendRequestId shared.nostr) } }
             , Nostr.getNip96Servers shared.nostr pubKey
                 |> removeMediaServerFromList mediaServer
-                |> sendNip96MediaServerListCmd shared.browserEnv pubKey
-            )
-
-        AddDefaultNip96MediaServers pubKey mediaServers ->
-            ( { model | data = MediaServersData { emptyMediaServersModel | state = MediaServerStateSavingNip96 (Nostr.getLastSendRequestId shared.nostr) } }
-            , mediaServers
-                |> sendNip96MediaServerListCmd shared.browserEnv pubKey
+                |> sendNip96MediaServerListCmd shared.browserEnv shared.nostr pubKey
             )
 
         AddBlossomMediaServer pubKey mediaServer ->
             ( { model | data = MediaServersData { emptyMediaServersModel | state = MediaServerStateSavingBlossom (Nostr.getLastSendRequestId shared.nostr) } }
             , Nostr.getBlossomServers shared.nostr pubKey
                 |> extendMediaServerList mediaServer
-                |> sendBlossomMediaServerListCmd shared.browserEnv pubKey
+                |> sendBlossomMediaServerListCmd shared.browserEnv shared.nostr pubKey
             )
 
         RemoveBlossomMediaServer pubKey mediaServer ->
             ( { model | data = MediaServersData { emptyMediaServersModel | state = MediaServerStateSavingBlossom (Nostr.getLastSendRequestId shared.nostr) } }
             , Nostr.getBlossomServers shared.nostr pubKey
                 |> removeMediaServerFromList mediaServer
-                |> sendBlossomMediaServerListCmd shared.browserEnv pubKey
+                |> sendBlossomMediaServerListCmd shared.browserEnv shared.nostr pubKey
+            )
+
+        AddDefaultBlossomMediaServers pubKey mediaServers ->
+            ( { model | data = MediaServersData { emptyMediaServersModel | state = MediaServerStateSavingBlossom (Nostr.getLastSendRequestId shared.nostr) } }
+            , mediaServers
+                |> sendBlossomMediaServerListCmd shared.browserEnv shared.nostr pubKey
             )
 
         UpdateProfileModel profileModel ->
@@ -779,18 +779,18 @@ removeMediaServerFromList mediaServer mediaServers =
         |> List.filter (\serverInList -> serverInList /= mediaServer)
 
 
-sendNip96MediaServerListCmd : BrowserEnv -> PubKey -> List ServerUrl -> Effect msg
-sendNip96MediaServerListCmd browserEnv pubKey mediaServers =
+sendNip96MediaServerListCmd : BrowserEnv -> Nostr.Model -> PubKey -> List ServerUrl -> Effect msg
+sendNip96MediaServerListCmd browserEnv nostr pubKey mediaServers =
     eventWithNip96ServerList browserEnv pubKey mediaServers
-        |> SendFileStorageServerList []
+        |> SendFileStorageServerList (Nostr.getWriteRelayUrlsForPubKey nostr pubKey)
         |> Shared.Msg.SendNostrEvent
         |> Effect.sendSharedMsg
 
 
-sendBlossomMediaServerListCmd : BrowserEnv -> PubKey -> List ServerUrl -> Effect msg
-sendBlossomMediaServerListCmd browserEnv pubKey mediaServers =
+sendBlossomMediaServerListCmd : BrowserEnv -> Nostr.Model -> PubKey -> List ServerUrl -> Effect msg
+sendBlossomMediaServerListCmd browserEnv nostr pubKey mediaServers =
     eventWithBlossomServerList browserEnv pubKey mediaServers
-        |> SendFileStorageServerList []
+        |> SendFileStorageServerList (Nostr.getWriteRelayUrlsForPubKey nostr pubKey)
         |> Shared.Msg.SendNostrEvent
         |> Effect.sendSharedMsg
 
@@ -1436,8 +1436,8 @@ viewMediaServers shared configCheckIssues user mediaServersModel =
             ]
         ]
         [ viewConfigIssues shared.browserEnv (Translations.mediaServerIssuesTitle [ shared.browserEnv.translations ]) configCheckIssues
-        , nip96ServersSection shared user mediaServersModel
         , blossomServersSection shared user mediaServersModel
+        , nip96ServersSection shared user mediaServersModel
         ]
 
 
@@ -1476,7 +1476,7 @@ nip96ServersSection shared user mediaServersModel =
             (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
             [ text <| Translations.nip96ServersSectionTitle [ shared.browserEnv.translations ] ]
         , p [] [ text <| Translations.nip96ServersDescription [ shared.browserEnv.translations ] ]
-        , viewMediaServersList shared.theme shared.browserEnv.translations readOnly (Just <| AddDefaultNip96MediaServers user.pubKey suggestedServers) (RemoveNip96MediaServer user.pubKey) nip96Servers
+        , viewMediaServersList shared.theme shared.browserEnv.translations readOnly Nothing (RemoveNip96MediaServer user.pubKey) nip96Servers
         , if not readOnly then
             addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.nip96Server nip96ServerSuggestions (updateNip96Server mediaServersModel) (AddNip96MediaServer user.pubKey) saving "nip96-server-add-button"
 
@@ -1527,7 +1527,8 @@ blossomServersSection shared user mediaServersModel =
 
         blossomServerSuggestions =
             { identifier = "blossom-server-suggestions"
-            , suggestions = suggestedServers
+            , suggestions =
+                missingMediaServers blossomServers suggestedServers
             }
 
         readOnly =
@@ -1547,7 +1548,7 @@ blossomServersSection shared user mediaServersModel =
             (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
             [ text <| Translations.blossomServersSectionTitle [ shared.browserEnv.translations ] ]
         , p [] [ text <| Translations.blossomServersDescription [ shared.browserEnv.translations ] ]
-        , viewMediaServersList shared.theme shared.browserEnv.translations readOnly Nothing (RemoveBlossomMediaServer user.pubKey) blossomServers
+        , viewMediaServersList shared.theme shared.browserEnv.translations readOnly (Just <| AddDefaultBlossomMediaServers user.pubKey suggestedServers) (RemoveBlossomMediaServer user.pubKey) blossomServers
         , if not readOnly then
             addMediaServerBox shared.theme shared.browserEnv.translations mediaServersModel.blossomServer blossomServerSuggestions (updateBlossomServer mediaServersModel) (AddBlossomMediaServer user.pubKey) saving "blossom-server-add-button"
 
@@ -1557,9 +1558,8 @@ blossomServersSection shared user mediaServersModel =
 
 
 suggestedBlossomServers : Shared.Model -> PubKey -> List RelayUrl
-suggestedBlossomServers _ _ =
-    -- currently we prefer NIP-96
-    []
+suggestedBlossomServers shared pubKey =
+    Nostr.getDefaultBlossomServers shared.nostr pubKey
 
 
 updateBlossomServer : MediaServersModel -> Maybe String -> MediaServersModel
@@ -1796,6 +1796,7 @@ viewProfile shared configCheckIssues user profileModel =
                         , validation =
                             Nostr.getProfileValidationStatus shared.nostr user.pubKey
                                 |> Maybe.withDefault ValidationUnknown
+                        , zap = Nothing
                         }
 
                 ( Just _, False ) ->

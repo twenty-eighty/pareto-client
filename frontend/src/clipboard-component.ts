@@ -1,3 +1,4 @@
+// @ts-nocheck
 import debug from 'debug';
 
 const clipboardLog = debug('pareto:clipboard-component');

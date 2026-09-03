@@ -7,6 +7,7 @@ import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr exposing (css)
 import LinkPreview exposing (LoadedContent)
 import Markdown.Block exposing (Block(..), ListItem(..), Task(..))
+import Markdown.Footnotes
 import Markdown.Parser
 import Markdown.Renderer as Renderer
 import Nostr.Nip27 exposing (GetProfileFunction)
@@ -24,6 +25,7 @@ import Ui.Styles exposing (Styles)
 summaryFromContent : String -> Maybe String
 summaryFromContent markdown =
     markdown
+        |> preprocessMarkdown
         |> Markdown.Parser.parse
         |> Result.mapError deadEndsToString
         |> Result.andThen
@@ -148,11 +150,18 @@ markdownViewHtml environment styles loadedContent fnGetProfile markdown =
         |> Result.map elementFromHtmlList
 
 
-render : Environment -> Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Result String (List (Html msg))
-render environment styles loadedContent fnGetProfile markdown =
+preprocessMarkdown : String -> String
+preprocessMarkdown markdown =
     markdown
         |> replaceImgTags
         |> replaceBrokenColTag
+        |> Markdown.Footnotes.rewrite
+
+
+render : Environment -> Styles msg -> Maybe (LoadedContent msg) -> GetProfileFunction -> String -> Result String (List (Html msg))
+render environment styles loadedContent fnGetProfile markdown =
+    markdown
+        |> preprocessMarkdown
         |> Markdown.Parser.parse
         |> Result.map determineBlockTypes
         |> Result.mapError deadEndsToString
@@ -235,8 +244,7 @@ extractInlineImageUrls inlines =
 collectText : String -> Result String String
 collectText markdown =
     markdown
-        |> replaceImgTags
-        |> replaceBrokenColTag
+        |> preprocessMarkdown
         |> Markdown.Parser.parse
         |> Result.map filterText
         |> Result.mapError deadEndsToString
@@ -244,8 +252,7 @@ collectText markdown =
 collectImageUrls : String -> Result String (List String)
 collectImageUrls markdown =
     markdown
-        |> replaceImgTags
-        |> replaceBrokenColTag
+        |> preprocessMarkdown
         |> Markdown.Parser.parse
         |> Result.map filterImageUrls
         |> Result.mapError deadEndsToString

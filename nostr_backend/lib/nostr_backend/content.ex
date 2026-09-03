@@ -321,7 +321,7 @@ defmodule NostrBackend.Content do
   defp render_markdown(content) when is_binary(content) do
     content
     |> replace_http_with_https()
-    |> Earmark.as_html!()
+    |> MDEx.to_html!()
   end
 
   @spec render_markdown(any()) :: binary()

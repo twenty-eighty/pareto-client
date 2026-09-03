@@ -19,7 +19,7 @@ import Nostr.Types exposing (IncomingMessage, LoginStatus, PubKey, loggedInPubKe
 import Ports
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
-import Subscribers exposing (SubscribeInfo)
+import Newsletters.Subscribers as Subscribers exposing (SubscribeInfo)
 import Tailwind.Utilities as Tw
 import Translations.EmailSubscriptionDialog as Translations
 import Ui.Shared exposing (emptyHtml)

@@ -7,7 +7,7 @@
         "gen/Tailwind",
         "gen/Translations"
     ],
-    "elm-version": "0.19.1",
+    "elm-version": "0.19.2",
     "dependencies": {
         "direct": {
             "AdrianRibao/elm-derberos-date": "1.2.3",

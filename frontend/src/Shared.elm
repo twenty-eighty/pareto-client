@@ -16,14 +16,18 @@ module Shared exposing
 import Browser.Dom
 import BrowserEnv
 import Components.AlertTimerMessage as AlertTimerMessage
+import Components.AuthDialog as AuthDialog
 import Effect exposing (Effect)
 import Json.Decode
 import Nostr
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.External
+import Nostr.Profile exposing (emptyProfile, eventFromProfile)
+import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList)
 import Nostr.Request exposing (RequestData(..))
-import Nostr.Types exposing (IncomingMessage, LoginMethod(..), LoginStatus(..), PubKey, loggedInPubKey, loggedInSigningPubKey)
+import Nostr.Send exposing (SendRequest(..))
+import Nostr.Types exposing (IncomingMessage, LoginMethod(..), LoginStatus(..), PubKey, RelayRole(..), loggedInPubKey, loggedInSigningPubKey)
 import Pareto
 import Ports
 import Process
@@ -51,21 +55,29 @@ type alias Flags =
     { darkMode : Bool
     , environment : Maybe String
     , imageCachingServer : String
+    , imageCacheKey : String
     , locale : String
     , nativeSharingAvailable : Bool
     , testMode : Bool
+    , authApiBaseUrl : String
     }
 
 
 decoder : Json.Decode.Decoder Flags
 decoder =
-    Json.Decode.map6 Flags
+    Json.Decode.map8 Flags
         (Json.Decode.field "darkMode" Json.Decode.bool)
         (Json.Decode.field "environment" (Json.Decode.maybe Json.Decode.string))
         (Json.Decode.field "imageCachingServer" Json.Decode.string)
+        (Json.Decode.oneOf
+            [ Json.Decode.field "imageCacheKey" Json.Decode.string
+            , Json.Decode.succeed ""
+            ]
+        )
         (Json.Decode.field "locale" Json.Decode.string)
         (Json.Decode.field "nativeSharingAvailable" Json.Decode.bool)
         (Json.Decode.field "testMode" Json.Decode.bool)
+        (Json.Decode.field "authApiBaseUrl" Json.Decode.string)
 
 
 
@@ -79,11 +91,13 @@ init flagsResult _ =
             let
                 ( browserEnv, browserEnvCmd ) =
                     BrowserEnv.init
-                        { backendUrl = ""
+                        { authApiBaseUrl = flags.authApiBaseUrl
+                        , backendUrl = ""
                         , darkMode = flags.darkMode
                         , environment = flags.environment
                         , frontendUrl = ""
                         , imageCachingServer = flags.imageCachingServer
+                        , imageCacheKey = flags.imageCacheKey
                         , locale = flags.locale
                         , nativeSharingAvailable = flags.nativeSharingAvailable
                         , testMode = flags.testMode
@@ -114,6 +128,7 @@ init flagsResult _ =
               , role = ClientReader
               , theme = ParetoTheme
               , alertTimerMessage = AlertTimerMessage.init
+              , authDialog = AuthDialog.init
               }
             , Effect.batch
                 [ Effect.sendCmd <| Cmd.map Shared.Msg.BrowserEnvMsg browserEnvCmd
@@ -126,11 +141,13 @@ init flagsResult _ =
             let
                 ( browserEnv, _ ) =
                     BrowserEnv.init
-                        { backendUrl = ""
+                        { authApiBaseUrl = Pareto.authApiBaseUrl
+                        , backendUrl = ""
                         , darkMode = False
                         , environment = Nothing
                         , frontendUrl = ""
                         , imageCachingServer = ""
+                        , imageCacheKey = ""
                         , locale = ""
                         , nativeSharingAvailable = False
                         , testMode = False
@@ -143,6 +160,7 @@ init flagsResult _ =
               , role = ClientReader
               , theme = ParetoTheme
               , alertTimerMessage = AlertTimerMessage.init
+              , authDialog = AuthDialog.init
               }
             , Effect.none
             )
@@ -172,7 +190,23 @@ update : Route () -> Msg -> Model -> ( Model, Effect Msg )
 update route msg model =
     case msg of
         TriggerLogin ->
-            ( model, Effect.sendCmd <| Ports.loginSignUp )
+            ( { model | authDialog = AuthDialog.open model.authDialog }
+            , Effect.sendCmd Ports.listIdentities
+            )
+
+        TriggerEmailLogin ->
+            ( { model | authDialog = AuthDialog.openEmailLogin model.authDialog }
+            , Effect.sendCmd Ports.listIdentities
+            )
+
+        AuthDialogMsg authDialogMsg ->
+            let
+                ( authDialog, cmd ) =
+                    AuthDialog.update model.browserEnv authDialogMsg model.authDialog
+            in
+            ( { model | authDialog = authDialog }
+            , Effect.sendCmd (Cmd.map Shared.Msg.AuthDialogMsg cmd)
+            )
 
         ReceivedPortMessage portMessage ->
             updateWithPortMessage model portMessage
@@ -324,15 +358,56 @@ update route msg model =
 
 updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage model portMessage =
+    let
+        ( authDialog, authCmd ) =
+            AuthDialog.update model.browserEnv (AuthDialog.PortMsg portMessage) model.authDialog
+
+        modelWithAuth =
+            { model | authDialog = authDialog }
+
+        authEffect =
+            Effect.sendCmd (Cmd.map Shared.Msg.AuthDialogMsg authCmd)
+    in
     case portMessage.messageType of
         "user" ->
-            updateWithUserValue model portMessage.value
+            let
+                ( updatedModel, userEffect ) =
+                    updateWithUserValue modelWithAuth portMessage.value
+            in
+            ( updatedModel, Effect.batch [ authEffect, userEffect ] )
 
         "loggedOut" ->
-            ( { model | loginStatus = LoggedOut }, Effect.none )
+            ( { modelWithAuth | loginStatus = LoggedOut }
+            , authEffect
+            )
+
+        "identities" ->
+            let
+                pubKeys =
+                    AuthDialog.identityPubKeys modelWithAuth.authDialog
+
+                ( nostr, profileCmd ) =
+                    if List.isEmpty pubKeys then
+                        ( modelWithAuth.nostr, Cmd.none )
+
+                    else
+                        { emptyEventFilter
+                            | authors = Just pubKeys
+                            , kinds = Just [ KindUserMetadata ]
+                        }
+                            |> RequestProfile Nothing
+                            |> Nostr.createRequest modelWithAuth.nostr "Auth dialog identity profiles" []
+                            |> Nostr.doRequest modelWithAuth.nostr
+            in
+            ( { modelWithAuth | nostr = nostr }
+            , Effect.batch
+                [ authEffect
+                , Effect.sendCmd (Cmd.map Shared.Msg.NostrMsg profileCmd)
+                ]
+            )
 
         _ ->
-            ( model, Effect.none )
+            ( modelWithAuth, authEffect )
 
 
 updateWithUserValue : Model -> Json.Decode.Value -> ( Model, Effect Msg )
@@ -362,41 +437,138 @@ updateWithUserValue model value =
                     else
                         -- don't check for non-Pareto users
                         Cmd.none
+
+                bootstrapEffect =
+                    bootstrapEmailAccountEffect model.nostr pubKeyNew value
             in
             ( { model
                 | loginStatus = LoggedIn pubKeyNew loginMethod
                 , nostr = nostr
               }
-            , [ cmdNostr
-                    |> Cmd.map Shared.Msg.NostrMsg
+            , Effect.batch
+                [ [ cmdNostr
+                        |> Cmd.map Shared.Msg.NostrMsg
 
-              -- check if user sends newsletters
-              , Nostr.loadUserDataByPubKey model.nostr pubKeyNew
-                    |> Cmd.map Shared.Msg.NostrMsg
-              , startConfigCheckCmd
-              ]
-                |> Cmd.batch
-                |> Effect.sendCmd
+                  -- check if user sends newsletters
+                  , Nostr.loadUserDataByPubKey model.nostr pubKeyNew
+                        |> Cmd.map Shared.Msg.NostrMsg
+                  , startConfigCheckCmd
+                  ]
+                    |> Cmd.batch
+                    |> Effect.sendCmd
+                , bootstrapEffect
+                ]
             )
 
         ( Ok pubKeyNew, Ok loginMethod, _ ) ->
             let
                 ( nostr, cmd ) =
                     Nostr.requestUserData model.nostr pubKeyNew
+
+                bootstrapEffect =
+                    bootstrapEmailAccountEffect model.nostr pubKeyNew value
             in
             ( { model | loginStatus = LoggedIn pubKeyNew loginMethod, nostr = nostr }
-            , [ cmd
+            , Effect.batch
+                [ [ cmd
 
-              -- check if user sends newsletters
-              , Nostr.loadUserDataByPubKey model.nostr pubKeyNew
-              ]
-                |> Cmd.batch
-                |> Cmd.map Shared.Msg.NostrMsg
-                |> Effect.sendCmd
+                  -- check if user sends newsletters
+                  , Nostr.loadUserDataByPubKey model.nostr pubKeyNew
+                  ]
+                    |> Cmd.batch
+                    |> Cmd.map Shared.Msg.NostrMsg
+                    |> Effect.sendCmd
+                , bootstrapEffect
+                ]
             )
 
         ( _, _, _ ) ->
             ( model, Effect.none )
+
+
+bootstrapEmailAccountEffect : Nostr.Model -> PubKey -> Json.Decode.Value -> Effect Msg
+bootstrapEmailAccountEffect nostr pubKey value =
+    case Json.Decode.decodeValue bootstrapDecoder value of
+        Ok { bootstrap, displayName } ->
+            if not bootstrap then
+                Effect.none
+
+            else
+                let
+                    profile =
+                        let
+                            base =
+                                emptyProfile pubKey
+                        in
+                        { base
+                            | displayName = displayName
+                            , name = displayName
+                        }
+
+                    relays : List RelayMetadata
+                    relays =
+                        List.map (\url -> { url = url, role = WriteRelay }) Pareto.recommendedOutboxRelays
+                            ++ List.map (\url -> { url = url, role = ReadRelay }) Pareto.recommendedInboxRelays
+
+                    relaysWithProtocol =
+                        List.map (\relay -> { relay | url = "wss://" ++ relay.url }) relays
+
+                    writeRelayUrls =
+                        relays
+                            |> List.filterMap
+                                (\relay ->
+                                    if relay.role == WriteRelay || relay.role == ReadWriteRelay then
+                                        Just relay.url
+
+                                    else
+                                        Nothing
+                                )
+
+                    profileRelays =
+                        Nostr.getWriteRelayUrlsForPubKey nostr pubKey
+                in
+                Effect.batch
+                    [ eventFromProfile pubKey profile
+                        |> SendProfile profileRelays
+                        |> Shared.Msg.SendNostrEvent
+                        |> Effect.sendSharedMsg
+                    , eventWithRelayList pubKey relaysWithProtocol
+                        |> SendRelayList writeRelayUrls
+                        |> Shared.Msg.SendNostrEvent
+                        |> Effect.sendSharedMsg
+                    , SendFollowList pubKey Nostr.paretoAuthorsFollowList
+                        |> Shared.Msg.SendNostrEvent
+                        |> Effect.sendSharedMsg
+                    , Effect.sendCmd (Ports.markBootstrapDone pubKey)
+                    ]
+
+        Err _ ->
+            Effect.none
+
+
+type alias BootstrapPayload =
+    { bootstrap : Bool
+    , displayName : Maybe String
+    }
+
+
+bootstrapDecoder : Json.Decode.Decoder BootstrapPayload
+bootstrapDecoder =
+    Json.Decode.map2 BootstrapPayload
+        (Json.Decode.map (Maybe.withDefault False) (Json.Decode.maybe (Json.Decode.field "bootstrap" Json.Decode.bool)))
+        (Json.Decode.maybe (Json.Decode.field "displayName" Json.Decode.string)
+            |> Json.Decode.map (Maybe.andThen blankToNothing)
+        )
+
+
+blankToNothing : String -> Maybe String
+blankToNothing value =
+    case String.trim value of
+        "" ->
+            Nothing
+
+        trimmed ->
+            Just trimmed
 
 
 createFollowersEffect : Nostr.Model -> Maybe PubKey -> Effect msg

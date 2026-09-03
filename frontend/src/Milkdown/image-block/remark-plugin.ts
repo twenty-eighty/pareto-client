@@ -1,4 +1,4 @@
-import type { Node } from '@milkdown/transformer'
+import type { Node } from '@milkdown/kit/transformer'
 import { visit } from 'unist-util-visit'
 import { $remark } from '@milkdown/utils'
 import { withMeta } from '../__internal__/meta'

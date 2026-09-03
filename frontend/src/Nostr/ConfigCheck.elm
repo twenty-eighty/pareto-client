@@ -560,15 +560,15 @@ remoteCheckFunctions =
 checkMissingMediaServers : PerformLocalCheckFunction
 checkMissingMediaServers nostr pubKey =
     let
-        nip96Servers =
-            Nostr.getNip96Servers nostr pubKey
+        blossomServers =
+            Nostr.getBlossomServers nostr pubKey
 
-        missingNip96Servers =
-            Pareto.defaultNip96ServersAuthors
-                |> List.filter (\serverUrl -> not <| List.member serverUrl nip96Servers)
+        missingBlossomServers =
+            Nostr.getDefaultBlossomServers nostr pubKey
+                |> List.filter (\serverUrl -> not <| List.member serverUrl blossomServers)
     in
-    if List.length missingNip96Servers > 0 then
-        Just (MediaServersMissing missingNip96Servers)
+    if List.length missingBlossomServers > 0 then
+        Just (MediaServersMissing missingBlossomServers)
 
     else
         Nothing

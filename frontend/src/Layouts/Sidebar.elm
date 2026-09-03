@@ -5,6 +5,7 @@ module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layo
 import Browser.Dom as Dom
 import BrowserEnv exposing (BrowserEnv, Environment)
 import Components.AlertTimerMessage as AlertTimerMessage
+import Components.AuthDialog as AuthDialog
 import Components.Button
 import Components.Icon as Icon exposing (Icon(..))
 import Components.Switch as Switch
@@ -357,7 +358,8 @@ init _ =
 
 
 type Msg
-    = OpenGetStarted
+    = OpenAuthDialog
+    | AuthDialogMsg AuthDialog.Msg
     | SetClientRole Bool ClientRole
     | SetTestMode BrowserEnv.TestMode
     | ReceivedMessage IncomingMessage
@@ -370,8 +372,11 @@ type Msg
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update _ msg model =
     case msg of
-        OpenGetStarted ->
-            ( model, Effect.sendCmd Ports.loginSignUp )
+        OpenAuthDialog ->
+            ( model, Effect.sendSharedMsg Shared.Msg.TriggerLogin )
+
+        AuthDialogMsg authDialogMsg ->
+            ( model, Effect.sendSharedMsg (Shared.Msg.AuthDialogMsg authDialogMsg) )
 
         SetClientRole changePath clientRole ->
             ( model, Effect.sendSharedMsg <| Shared.Msg.SetClientRole changePath clientRole )
@@ -476,6 +481,8 @@ view props shared path { toContentMsg, content, model } =
             )
             [ viewSidebar props shared model path toContentMsg content.body
             , viewLinktoInternalPage shared.nostr
+            , AuthDialog.view shared.theme shared.browserEnv shared.loginStatus shared.nostr shared.authDialog
+                |> Html.map (AuthDialogMsg >> toContentMsg)
             , AlertTimerMessage.new
                 { model = shared.alertTimerMessage
                 , theme = shared.theme
@@ -1017,11 +1024,14 @@ loggedInButton environment theme maybeProfile =
             , Tw.px_2
             , Tw.rounded_full
             , Tw.border_hidden
+            , Tw.cursor_pointer
             ]
             :: styles.colorStyleIcons
         )
         [ img
             [ Attr.src <| Ui.Profile.profilePicture environment 56 maybeProfile
+            , Attr.alt "Account"
+            , onClick OpenAuthDialog
             , css
                 [ Tw.w_14
                 , Tw.h_14
@@ -1037,7 +1047,7 @@ getStartedButton : Ui.Styles.Theme -> BrowserEnv -> Html Msg
 getStartedButton theme browserEnv =
     Components.Button.new
         { label = Translations.getStartedButtonText [ browserEnv.translations ]
-        , onClick = Just OpenGetStarted
+        , onClick = Just OpenAuthDialog
         , theme = theme
         }
         |> Components.Button.view

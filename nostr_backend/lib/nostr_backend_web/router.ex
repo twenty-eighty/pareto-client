@@ -77,6 +77,7 @@ defmodule NostrBackendWeb.Router do
   scope "/.well-known", NostrBackendWeb do
     get("/nostr.json", NostrController, :nip05)
     get("/nostr/nip96.json", NostrController, :nip96)
+    get("/webauthn", WebAuthnController, :index)
     get "/lnurlp/:username", LightningController, :lnurlp
   end
 
@@ -111,6 +112,12 @@ defmodule NostrBackendWeb.Router do
     get "/sitemap-authors.xml.gz", StaticFileController, :authors_sitemap
     get "/sitemap-landing.xml.gz", StaticFileController, :landing_sitemap
     get "/sitemap-:year", StaticFileController, :year_sitemap
+  end
+
+  scope "/", NostrBackendWeb do
+    pipe_through :api
+
+    get "/image-cache-key.json", ImageCacheKeyController, :show
   end
 
   scope "/api", NostrBackendWeb do

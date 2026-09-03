@@ -9,7 +9,8 @@ import MimeType
 import Nostr.Event exposing (Event, Kind(..), Tag(..))
 import Nostr.Nip11 exposing (decodeUnixTime)
 import Nostr.Nip94 as Nip94 exposing (FileMetadata)
-import Nostr.Types exposing (PubKey, ServerUrl)
+import Nostr.Send exposing (SendRequest(..))
+import Nostr.Types exposing (PubKey, RelayUrl, ServerUrl)
 import Time
 
 
@@ -73,6 +74,12 @@ eventWithBlossomServerList browserEnv pubKey serverUrls =
     , sig = Nothing
     , relays = Nothing
     }
+
+
+sendBlossomServerListCmd : BrowserEnv -> PubKey -> List ServerUrl -> List RelayUrl -> SendRequest
+sendBlossomServerListCmd browserEnv pubKey serverUrls relays =
+    eventWithBlossomServerList browserEnv pubKey serverUrls
+        |> SendFileStorageServerList relays
 
 
 fetchFileList : (Result Http.Error (List BlobDescriptor) -> msg) -> String -> String -> PubKey -> Cmd msg

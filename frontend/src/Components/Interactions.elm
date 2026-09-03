@@ -27,7 +27,7 @@ import Components.InteractionButton exposing (InteractionObject(..))
 import Components.LikeButton as LikeButton
 import Components.RepostButton as RepostButton
 import Components.SharingButtonDialog as SharingButtonDialog
-import Components.ZapButton as ZapButton
+import Components.ZapButtonDialog as ZapButtonDialog
 import Effect exposing (Effect)
 import FeatherIcons exposing (settings)
 import Html.Styled as Html exposing (..)
@@ -60,7 +60,7 @@ type Model
         , likeButton : LikeButton.Model
         , repostButton : RepostButton.Model
         , sharingButtonDialog : SharingButtonDialog.Model
-        , zapButton : ZapButton.Model
+        , zapButtonDialog : ZapButtonDialog.Model
         }
 
 
@@ -72,7 +72,7 @@ init =
         , likeButton = LikeButton.init
         , repostButton = RepostButton.init
         , sharingButtonDialog = SharingButtonDialog.init
-        , zapButton = ZapButton.init
+        , zapButtonDialog = ZapButtonDialog.init
         }
 
 
@@ -87,7 +87,7 @@ type Msg msg
     | LikeButtonMsg LikeButton.Msg
     | RepostButtonMsg RepostButton.Msg
     | SharingButtonDialogMsg SharingButtonDialog.Msg
-    | ZapButtonMsg ZapButton.Msg
+    | ZapButtonDialogMsg ZapButtonDialog.Msg
 
 
 update :
@@ -96,6 +96,7 @@ update :
     , model : Maybe Model
     , nostr : Nostr.Model
     , interactionObject : InteractionObject
+    , loginStatus : LoginStatus
     , openCommentMsg : Maybe msg
     , toModel : Model -> model
     , toMsg : Msg msg -> msg
@@ -191,16 +192,18 @@ update props =
                 in
                 ( updatedModel, effect |> Effect.map props.toMsg )
 
-            ZapButtonMsg zapMsg ->
+            ZapButtonDialogMsg zapMsg ->
                 let
                     ( updatedModel, effect ) =
-                        ZapButton.update
+                        ZapButtonDialog.update
                             { msg = zapMsg
-                            , model = model.zapButton
-                            , toModel = \innerModel -> Model { model | zapButton = innerModel }
+                            , model = model.zapButtonDialog
+                            , toModel = \innerModel -> Model { model | zapButtonDialog = innerModel }
                             , nostr = props.nostr
-                            , toMsg = ZapButtonMsg
-                            , translations = props.browserEnv.translations
+                            , loginStatus = props.loginStatus
+                            , browserEnv = props.browserEnv
+                            , interactionObject = props.interactionObject
+                            , toMsg = ZapButtonDialogMsg
                             }
                 in
                 ( updatedModel, effect |> Effect.map props.toMsg )
@@ -386,10 +389,10 @@ getZapButton (Settings settings) instanceId relayUrls =
             settings.model
                 |> Maybe.withDefault init
     in
-    ZapButton.new
+    ZapButtonDialog.new
         { browserEnv = settings.browserEnv
-        , model = model.zapButton
-        , toMsg = ZapButtonMsg
+        , model = model.zapButtonDialog
+        , toMsg = ZapButtonDialogMsg
         , theme = settings.theme
         , interactionObject = settings.interactionObject
         , nostr = settings.nostr
@@ -399,11 +402,11 @@ getZapButton (Settings settings) instanceId relayUrls =
                 identity
 
             else
-                ZapButton.withoutLabel
+                ZapButtonDialog.withoutLabel
            )
-        |> ZapButton.withRelayUrls relayUrls
-        |> ZapButton.withInstanceId instanceId
-        |> ZapButton.view
+        |> ZapButtonDialog.withRelayUrls relayUrls
+        |> ZapButtonDialog.withInstanceId instanceId
+        |> ZapButtonDialog.view
 
 
 
@@ -470,6 +473,6 @@ subscriptions (Model model) =
             |> Sub.map LikeButtonMsg
         , RepostButton.subscriptions model.repostButton
             |> Sub.map RepostButtonMsg
-        , ZapButton.subscriptions model.zapButton
-            |> Sub.map ZapButtonMsg
+        , ZapButtonDialog.subscriptions model.zapButtonDialog
+            |> Sub.map ZapButtonDialogMsg
         ]

@@ -30,7 +30,6 @@ defmodule NostrBackend.NostrClient do
     "wss://purplepag.es",
     "wss://nostr.einundzwanzig.space",
     "wss://relay.primal.net",
-    "wss://relay.nostr.band",
     "wss://relay.damus.io"
     #   "wss://nostr.wine",
     #   "wss://relay.snort.social"

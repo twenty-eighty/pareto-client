@@ -347,7 +347,7 @@ update props =
         ConfigureDefaultMediaServer ->
             ( Model model
             , Effect.batch
-                [ Nip96.sendNip96ServerListCmd props.browserEnv props.pubKey (Nostr.getDefaultNip96Servers props.nostr props.pubKey) (Nostr.getDefaultRelays props.nostr)
+                [ Blossom.sendBlossomServerListCmd props.browserEnv props.pubKey (Nostr.getDefaultBlossomServers props.nostr props.pubKey) (Nostr.getWriteRelayUrlsForPubKey props.nostr props.pubKey)
                     |> Shared.Msg.SendNostrEvent
                     |> Effect.sendSharedMsg
                 ]
@@ -452,7 +452,7 @@ update props =
                             , nip96Servers = updateServerState model.nip96Servers serverUrl ServerFunctioning
                         }
                     , GetRequest
-                        |> RequestNip98Auth serverUrl serverDescWithExtendedUrls.apiUrl
+                        |> RequestNip98Auth serverUrl serverDescWithExtendedUrls.apiUrl ""
                         |> Nostr.createRequest props.nostr "NIP-96 auth request for file list of server" []
                         |> Shared.Msg.RequestNostrEvents
                         |> Effect.sendSharedMsg

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { $remark } from '@milkdown/utils';
 import { visit } from 'unist-util-visit';
 
@@ -67,4 +68,3 @@ export const htmlSanitizer = $remark(
         });
     }
 );
-

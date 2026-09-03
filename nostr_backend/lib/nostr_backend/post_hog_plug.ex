@@ -65,13 +65,10 @@ defmodule NostrBackend.PostHogPlug do
       utm_term = Map.get(conn.query_params, "utm_term")
       utm_content = Map.get(conn.query_params, "utm_content")
 
-      tracking_data = {
-        "$pageview",
-        %{
+      if Application.get_env(:posthog, :enable, true) do
+        PostHog.capture("$pageview", %{
           distinct_id: ip_address,
           "$current_url": pathname,
-          "$lib": "posthog (Elixir)",
-          "$lib_version": "0.1",
           "$ip": ip_address,
           "$referrer": referrer,
           "$referring_domain": referring_domain,
@@ -91,12 +88,8 @@ defmodule NostrBackend.PostHogPlug do
           method: method,
           "accept-language": accept_language,
           browser: useragent_info
-        },
-        nil
-      }
-
-      # Send tracking data to the buffer
-      NostrBackend.PostHogBuffer.add_event(tracking_data)
+        })
+      end
     end
 
     # Continue with the request
