@@ -411,6 +411,14 @@
     "country ZM": "Sambia",
     "country ZW": "Simbabwe"
   },
+  "criteria builder": {
+    "and condition": "And",
+    "or condition": "Or",
+    "not condition": "Not",
+    "any tags text": "Any tags",
+    "all selected tags text": "All selected tags",
+    "at least one selected tag text": "At least one selected tag"
+  },
   "email import dialog": {
     "dialog title": "E-Mail-Liste importieren",
     "import button title": "Importieren",
@@ -625,6 +633,32 @@
   "search bar": {
     "placeholder": "URL, Nostr-ID oder Nostr-Adresse"
   },
+  "send newsletter dialog": {
+    "dialog title": "Send Newsletter",
+    "send button title": "Send newsletter",
+    "send only via email singular checkbox text": "Send email to one recipient",
+    "send only via email plural checkbox text": "Send email to {{recipientCount}} recipients",
+    "send also via email singular checkbox text": "Publish newsletter and send via email to one recipient",
+    "send also via email plural checkbox text": "Publish newsletter and send via email to {{recipientCount}} recipients",
+    "send newsletter to criteria builder text": "Send newsletter to subscribers with...",
+    "test email field label": "Test email",
+    "test email field placeholder": "Enter a test email",
+    "submit test email button title": "Submit",
+    "test email sending text": "Sending test email...",
+    "test email sent text": "Test email sent",
+    "test email error text": "Error sending test email: {{error}}",
+    "sending message text": "Sending newsletter…",
+    "sent message text": "Newsletter has been sent",
+    "error message text": "{{error}}",
+    "close button title": "Close",
+    "cancel button title": "Cancel",
+    "send progress recipients": "{{accepted}} of {{fetched}} recipients queued",
+    "send progress sent": "{{sent}} of {{total}} emails sent",
+    "emails sent count": "{{sent}} emails sent",
+    "sent at text": "Sent {{date}}",
+    "failed at text": "Failed {{date}}",
+    "last sent at text": "Last sent {{date}}"
+  },
   "settings": {
     "page title": "Einstellungen",
     "relays category": "Relays",
@@ -738,6 +772,7 @@
     "page title": "Abonnenten",
     "export button title": "Exportieren",
     "import button title": "Importieren",
+    "load button title": "Load",
     "save button title": "Speichern",
     "process modifications button title": "Verarbeiten",
     "loading subscribers text": "Lade Abonnenten ...",
@@ -756,7 +791,11 @@
     "tags field name": "Tags",
     "undeliverable field name": "Unzustellbar",
     "locale field name": "Sprache",
-    "subscribers count": "{{subscribersCount}} Abonnenten"
+    "subscribers count": "{{subscribersCount}} Abonnenten",
+    "subscribers category": "Subscribers",
+    "tags category": "Tags",
+    "add tag field label": "Add tag",
+    "add tag button title": "Add"
   },
   "text stats": {
     "Bytes label": "Bytes:",
@@ -816,6 +855,7 @@
     "editor subtitle placeholder text": "Füge eine Zusammenfassung hinzu ...",
     "page title": "Artikel schreiben",
     "publish button title": "Veröffentlichen ...",
+    "send newsletter button title": "Send newsletter...",
     "preview button title": "Vorschau",
     "edit button title": "Weiter bearbeiten",
     "save draft button title": "Entwurf speichern",
@@ -853,7 +893,20 @@
     "dialog title": "Zap",
     "comment placeholder": "Kommentar (optional)",
     "close button title": "Schließen",
-    "zap button title": "Zap"
+    "zap button title": "Zap",
+    "loading text": "Loading…",
+    "invoice title": "Pay invoice",
+    "copy invoice button title": "Copy invoice",
+    "error text": "Could not prepare zap",
+    "amount label": "Amount (sats)",
+    "amount placeholder": "Amount in sats",
+    "invalid amount text": "Enter a valid amount within the allowed range",
+    "login required text": "Log in with a signing account to send this zap",
+    "signing error text": "Could not sign the zap request",
+    "recipient label": "Recipient",
+    "no lud16 text": "This user has no Lightning address",
+    "success title": "Zap sent",
+    "success text": "Your zap was received."
   },
   "tech details": {
     "page title": "Technische Details"
