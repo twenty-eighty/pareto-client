@@ -21,7 +21,6 @@ import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (EventId, LoginStatus, PubKey, loggedInPubKey)
 import Page exposing (Page)
 import Pareto
-import Ports
 import Route exposing (Route)
 import Route.Path
 import Shared
@@ -147,10 +146,9 @@ init shared route () =
                 |> Maybe.andThen categoryFromString
                 |> Maybe.withDefault Pareto
 
-        signUpEffect =
+        authDialogEffect =
             if route.hash == Just "signup" then
-                Ports.signUp
-                    |> Effect.sendCmd
+                Effect.sendSharedMsg Shared.Msg.TriggerLogin
 
             else
                 Effect.none
@@ -185,7 +183,7 @@ init shared route () =
     , Effect.batch
         [ changeCategoryEffect
         , requestArticlesEffect shared correctedCategory False
-        , signUpEffect
+        , authDialogEffect
         ]
     )
 

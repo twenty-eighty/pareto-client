@@ -1,0 +1,6 @@
+allowBuilds:
+  '@lo-fi/webauthn-local-client': true
+  '@lydell/elm': true
+  elm: true
+  esbuild: true
+  node: true

@@ -9,6 +9,8 @@ import Config
 
 config :nostr_backend,
   generators: [timestamp_type: :utc_datetime],
+  image_cache_key: "",
+  image_cache_key_previous: "",
   feed_generator: %{
     # authors@pareto.space
     source_pubkey:
@@ -27,8 +29,12 @@ config :nostr_backend,
     "wss://purplepag.es",
     "wss://nostr.einundzwanzig.space",
     "wss://relay.primal.net",
-    "wss://relay.nostr.band",
     "wss://relay.damus.io"
+  ],
+  # Related Origin Requests for WebAuthn passkeys (/.well-known/webauthn)
+  webauthn_origins: [
+    "https://pareto.space",
+    "https://pareto.town"
   ]
 
 config :nostr_access, :relay_health,
@@ -75,8 +81,8 @@ config :logger, :console,
   metadata: [:request_id]
 
 config :posthog,
-  api_url: System.get_env("POSTHOG_HOST") || "https://eu.i.posthog.com",
-  api_key: System.get_env("POSTHOG_API_KEY")
+  api_host: System.get_env("POSTHOG_HOST") || "https://eu.i.posthog.com",
+  api_key: System.get_env("POSTHOG_API_KEY") || ""
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason

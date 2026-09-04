@@ -284,6 +284,7 @@ viewAuthorCard shared profile maybeConfigCheck =
         , validation =
             Nostr.getProfileValidationStatus shared.nostr profile.pubKey
                 |> Maybe.withDefault ValidationUnknown
+        , zap = Nothing
         }
         , div [ css [ Tw.pl_4 ] ]
             [ maybeConfigCheck

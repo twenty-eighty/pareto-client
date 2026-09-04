@@ -7,8 +7,9 @@ import Components.Dropdown as Dropdown
 import Components.HashtagEditor as HashtagEditor
 import Components.MediaSelector as MediaSelector exposing (UploadedFile(..))
 import Components.MessageDialog as MessageDialog
-import Components.PublishArticleDialog as PublishArticleDialog exposing (PublishingInfo(..))
+import Components.PublishArticleDialog as PublishArticleDialog
 import Components.PublishDateDialog as PublishDateDialog
+import Components.SendNewsletterDialog as SendNewsletterDialog exposing (NewsletterData)
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div, img, label, node, text)
@@ -32,7 +33,7 @@ import Nostr.Nip27 as Nip27
 import Nostr.Nip94 exposing (FileMetadata)
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
-import Nostr.Types exposing (EventId, IncomingMessage, PubKey, RelayUrl, loggedInPubKey)
+import Nostr.Types exposing (EventId, IncomingMessage, PubKey, RelayUrl, loggedInPubKey, loggedInSigningPubKey)
 import Page exposing (Page)
 import Pareto
 import Ports
@@ -40,7 +41,6 @@ import Route exposing (Route)
 import Set
 import Shared
 import Shared.Msg
-import Subscribers
 import Svg.Loaders as Loaders
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
@@ -96,6 +96,7 @@ type alias Model =
     , publishArticleDialog : PublishArticleDialog.Model
     , publishedAt : Maybe Time.Posix
     , publishDateDialog : PublishDateDialog.Model
+    , sendNewsletterDialog : SendNewsletterDialog.Model
     , articleState : ArticleState
     , editorMode : EditorMode
     , loadedContent : LoadedContent Msg
@@ -119,7 +120,6 @@ type EditorMode
 
 type ModalDialog
     = NoModalDialog
-    | NewsletterSentDialog
     | PublishedDialog
     | ErrorDialog
 
@@ -132,12 +132,10 @@ type ArticleState
     | ArticleSavingDraft SendRequestId
     | ArticleDraftSavingError String
     | ArticleDraftSaved
-    | ArticlePublishing SendRequestId (Maybe Subscribers.SubscriberEventData)
+    | ArticlePublishing SendRequestId
     | ArticlePublishingError String
-    | ArticleSendingNewsletter Int Int
-    | ArticleSendingNewsletterError String
     | ArticlePublished
-    | ArticleDeletingDraft SendRequestId (Maybe Subscribers.SubscriberEventData)
+    | ArticleDeletingDraft SendRequestId
     | ArticleDeletingDraftError String
 
 
@@ -196,6 +194,11 @@ init user shared route () =
         publishArticleDialog =
             PublishArticleDialog.init {}
 
+        ( sendNewsletterDialog, sendNewsletterDialogEffect ) =
+            SendNewsletterDialog.init
+                { pubKey = user.pubKey
+                }
+
         model =
             case maybeArticle of
                 Just article ->
@@ -248,6 +251,7 @@ init user shared route () =
                     , publishArticleDialog = publishArticleDialog
                     , publishedAt = publishedAt
                     , publishDateDialog = PublishDateDialog.init { allowFutureDates = isBetaTester }
+                    , sendNewsletterDialog = sendNewsletterDialog
                     , articleState = ArticleDraftSaved
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
@@ -276,6 +280,7 @@ init user shared route () =
                     , publishArticleDialog = publishArticleDialog
                     , publishedAt = Nothing
                     , publishDateDialog = PublishDateDialog.init { allowFutureDates = isBetaTester }
+                    , sendNewsletterDialog = sendNewsletterDialog
                     , articleState = ArticleEmpty
                     , editorMode = Editor
                     , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
@@ -289,6 +294,7 @@ init user shared route () =
     ( model
     , Effect.batch
         [ mediaSelectorEffect
+        , sendNewsletterDialogEffect |> Effect.map SendNewsletterDialogSent
         , effect
         ]
     )
@@ -324,7 +330,9 @@ type Msg
     | SelectImage ImageSelection
     | ImageSelected ImageSelection MediaSelector.UploadedFile
     | Publish
-    | PublishArticle PublishArticleDialog.PublishingInfo
+    | PublishArticle (List RelayUrl)
+    | ShowSendNewsletterDialog
+    | SendNewsletterDialogSent (SendNewsletterDialog.Msg Msg)
     | SaveDraft
     | Now Time.Posix
     | OpenMediaSelector
@@ -463,35 +471,41 @@ update shared user msg model =
         Publish ->
             update shared user (PublishArticleDialogSent PublishArticleDialog.ShowDialog) model
 
-        PublishArticle publishingInfo ->
-            case publishingInfo of
-                ArticleOnly relayUrls ->
-                    ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) Nothing }
-                    , sendPublishCmd shared model user relayUrls
-                    )
+        PublishArticle relayUrls ->
+            ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) }
+            , sendPublishCmd shared model user relayUrls
+            )
 
-                NewsletterOnly subscriberEventData ->
-                    ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
-                    , Subscribers.newsletterSubscribersEvent
-                        shared
+        ShowSendNewsletterDialog ->
+            let
+                ( sendNewsletterDialog, effect ) =
+                    SendNewsletterDialog.show shared.nostr
                         user.pubKey
-                        ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier )
-                        { title = Maybe.withDefault "" model.title
+                        model.sendNewsletterDialog
+                        { author = user.pubKey
+                        , title = Maybe.withDefault "" model.title
                         , summary = Maybe.withDefault "" model.summary
                         , content = Maybe.withDefault "" model.content
                         , imageUrl = Maybe.withDefault "" model.image
                         , language = languageISOCode model
+                        , identifier = model.identifier |> Maybe.withDefault ""
+                        , test = shared.browserEnv.testMode == BrowserEnv.TestModeEnabled
                         }
-                        subscriberEventData
-                        |> SendApplicationData
-                        |> Shared.Msg.SendNostrEvent
-                        |> Effect.sendSharedMsg
-                    )
+            in
+            ( { model | sendNewsletterDialog = sendNewsletterDialog }
+            , Effect.map SendNewsletterDialogSent effect
+            )
 
-                ArticleAndNewsletter relayUrls subscriberEventData ->
-                    ( { model | articleState = ArticlePublishing (Nostr.getLastSendRequestId shared.nostr) (Just subscriberEventData) }
-                    , sendPublishCmd shared model user relayUrls
-                    )
+        SendNewsletterDialogSent innerMsg ->
+            SendNewsletterDialog.update
+                { msg = innerMsg
+                , model = model.sendNewsletterDialog
+                , toModel = \sendNewsletterDialog -> { model | sendNewsletterDialog = sendNewsletterDialog }
+                , toMsg = SendNewsletterDialogSent
+                , nostr = shared.nostr
+                , pubKey = user.pubKey
+                , testMode = shared.browserEnv.testMode
+                }
 
         SaveDraft ->
             ( { model | articleState = ArticleSavingDraft (Nostr.getLastSendRequestId shared.nostr) }, sendDraftCmd shared model user )
@@ -662,7 +676,7 @@ updateWithPortMessage shared model user portMessage =
                     , Effect.none
                     )
 
-                ( ArticlePublishing _ _, Ok error ) ->
+                ( ArticlePublishing _, Ok error ) ->
                     ( { model
                         | articleState = ArticlePublishingError error
                         , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
@@ -671,16 +685,7 @@ updateWithPortMessage shared model user portMessage =
                     , Effect.none
                     )
 
-                ( ArticleSendingNewsletter _ _, Ok error ) ->
-                    ( { model
-                        | articleState = ArticleSendingNewsletterError error
-                        , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
-                        , modalDialog = ErrorDialog
-                      }
-                    , Effect.none
-                    )
-
-                ( ArticleDeletingDraft _ _, Ok error ) ->
+                ( ArticleDeletingDraft _, Ok error ) ->
                     ( { model
                         | articleState = ArticleDeletingDraftError error
                         , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
@@ -758,69 +763,18 @@ updateWithPublishedResults shared model user value =
             else
                 ( model, Effect.none )
 
-        ArticlePublishing sendRequestId maybeSubscriberEventData ->
+        ArticlePublishing sendRequestId ->
             if Just sendRequestId == receivedSendRequestId then
-                case ( model.draftEventId, maybeSubscriberEventData ) of
-                    ( Just _, _ ) ->
+                case model.draftEventId of
+                    Just _ ->
                         ( { model
-                            | articleState = ArticleDeletingDraft (Nostr.getLastSendRequestId shared.nostr) maybeSubscriberEventData
+                            | articleState = ArticleDeletingDraft (Nostr.getLastSendRequestId shared.nostr)
                           }
                           -- after publishing article, delete draft
                         , sendDraftDeletionCmd shared model user
                         )
 
-                    ( Nothing, Just subscriberEventData ) ->
-                        ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
-                        , Subscribers.newsletterSubscribersEvent
-                            shared
-                            user.pubKey
-                            ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier )
-                            { title = Maybe.withDefault "" model.title
-                            , summary = Maybe.withDefault "" model.summary
-                            , content = Maybe.withDefault "" model.content
-                            , imageUrl = Maybe.withDefault "" model.image
-                            , language = languageISOCode model
-                            }
-                            subscriberEventData
-                            |> SendApplicationData
-                            |> Shared.Msg.SendNostrEvent
-                            |> Effect.sendSharedMsg
-                        )
-
-                    ( Nothing, Nothing ) ->
-                        ( { model
-                            | articleState = ArticlePublished
-                            , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
-                            , modalDialog = PublishedDialog
-                          }
-                        , Effect.none
-                        )
-
-            else
-                ( model, Effect.none )
-
-        ArticleDeletingDraft sendRequestId maybeSubscriberEventData ->
-            if Just sendRequestId == receivedSendRequestId then
-                case maybeSubscriberEventData of
-                    Just subscriberEventData ->
-                        ( { model | articleState = ArticleSendingNewsletter subscriberEventData.active subscriberEventData.total }
-                        , Subscribers.newsletterSubscribersEvent shared
-                            user.pubKey
-                            ( KindLongFormContent, user.pubKey, Maybe.withDefault "" model.identifier )
-                            { title = Maybe.withDefault "" model.title
-                            , summary = Maybe.withDefault "" model.summary
-                            , content = Maybe.withDefault "" model.content
-                            , imageUrl = Maybe.withDefault "" model.image
-                            , language = languageISOCode model
-                            }
-                            subscriberEventData
-                            |> SendApplicationData
-                            |> Shared.Msg.SendNostrEvent
-                            |> Effect.sendSharedMsg
-                        )
-
                     Nothing ->
-                        -- no newsletter to be sent
                         ( { model
                             | articleState = ArticlePublished
                             , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
@@ -832,14 +786,18 @@ updateWithPublishedResults shared model user value =
             else
                 ( model, Effect.none )
 
-        ArticleSendingNewsletter _ _ ->
-            ( { model
-                | articleState = ArticlePublished
-                , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
-                , modalDialog = NewsletterSentDialog
-              }
-            , Effect.none
-            )
+        ArticleDeletingDraft sendRequestId ->
+            if Just sendRequestId == receivedSendRequestId then
+                ( { model
+                    | articleState = ArticlePublished
+                    , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
+                    , modalDialog = PublishedDialog
+                  }
+                , Effect.none
+                )
+
+            else
+                ( model, Effect.none )
 
         _ ->
             ( model, Effect.none )
@@ -993,6 +951,7 @@ subscriptions model =
         , Sub.map MediaSelectorSent (MediaSelector.subscribe model.mediaSelector)
         , Ports.receiveMessage ReceivedPortMessage
         , PublishArticleDialog.subscriptions model.publishArticleDialog PublishArticleDialogSent
+        , SendNewsletterDialog.subscriptions model.sendNewsletterDialog SendNewsletterDialogSent
         , debounceSubscription model.debounceStatus
         ]
 
@@ -1063,7 +1022,7 @@ view user shared model =
             , viewTags shared.theme shared.browserEnv model
             , viewPublishDate shared.browserEnv shared.theme model
             , viewArticleState shared.browserEnv shared.theme model.articleState
-            , saveButtons shared.browserEnv shared.theme model
+            , saveButtons shared model
             , TextStats.view shared.browserEnv shared.theme model.textStats
             , viewMediaSelector user shared model
             ]
@@ -1085,6 +1044,14 @@ view user shared model =
             , theme = shared.theme
             }
             |> PublishArticleDialog.view
+        , SendNewsletterDialog.new
+            { model = model.sendNewsletterDialog
+            , toMsg = SendNewsletterDialogSent
+            , pubKey = user.pubKey
+            , browserEnv = shared.browserEnv
+            , theme = shared.theme
+            }
+            |> SendNewsletterDialog.view
         , viewModalDialog shared.theme shared.browserEnv model.articleState model.modalDialog
         ]
     }
@@ -1095,22 +1062,6 @@ viewModalDialog theme browserEnv articleState modalDialog =
     case modalDialog of
         NoModalDialog ->
             emptyHtml
-
-        NewsletterSentDialog ->
-            MessageDialog.new
-                { onClick = ModalDialogButtonClicked
-                , onClose = ModalDialogButtonClicked OkButton
-                , title = Translations.newsletterSentMessageBoxTitle [ browserEnv.translations ]
-                , content = div [] [ text <| Translations.newsletterSentMessageBoxText [ browserEnv.translations ] ]
-                , buttons =
-                    [ { style = MessageDialog.PrimaryButton
-                      , title = "Ok"
-                      , identifier = OkButton
-                      }
-                    ]
-                , theme = theme
-                }
-                |> MessageDialog.view
 
         PublishedDialog ->
             MessageDialog.new
@@ -1207,7 +1158,7 @@ articleStateToString browserEnv articleState =
         ArticleDraftSavingError error ->
             Just <| Translations.articleDraftSaveError [ browserEnv.translations ] ++ ": " ++ error
 
-        ArticlePublishing _ _ ->
+        ArticlePublishing _ ->
             Just <| Translations.articlePublishingState [ browserEnv.translations ]
 
         ArticlePublishingError error ->
@@ -1216,13 +1167,7 @@ articleStateToString browserEnv articleState =
         ArticlePublished ->
             Just <| Translations.articlePublishedState [ browserEnv.translations ]
 
-        ArticleSendingNewsletter _ _ ->
-            Just <| Translations.sendingNewsletterState [ browserEnv.translations ]
-
-        ArticleSendingNewsletterError error ->
-            Just <| Translations.sendingNewsletterError [ browserEnv.translations ] ++ ": " ++ error
-
-        ArticleDeletingDraft _ _ ->
+        ArticleDeletingDraft _ ->
             Just <| Translations.deletingDraftState [ browserEnv.translations ]
 
         ArticleDeletingDraftError error ->
@@ -1253,22 +1198,16 @@ articleStateProcessIndicator articleState =
         ArticleDraftSavingError _ ->
             Nothing
 
-        ArticlePublishing _ _ ->
+        ArticlePublishing _ ->
             Just <| (Loaders.rings [] |> Html.fromUnstyled)
 
         ArticlePublishingError _ ->
             Nothing
 
-        ArticleSendingNewsletter _ _ ->
-            Just <| (Loaders.rings [] |> Html.fromUnstyled)
-
-        ArticleSendingNewsletterError _ ->
-            Nothing
-
         ArticlePublished ->
             Nothing
 
-        ArticleDeletingDraft _ _ ->
+        ArticleDeletingDraft _ ->
             Just <| (Loaders.rings [] |> Html.fromUnstyled)
 
         ArticleDeletingDraftError _ ->
@@ -1536,8 +1475,16 @@ viewPublishDate browserEnv theme model =
         ]
 
 
-saveButtons : BrowserEnv -> Theme -> Model -> Html Msg
-saveButtons browserEnv theme model =
+saveButtons : Shared.Model -> Model -> Html Msg
+saveButtons shared model =
+    let
+        newsletterButton =
+            if authorSendsNewsletters shared then
+                sendNewsletterButton shared.browserEnv model shared.theme
+
+            else
+                emptyHtml
+    in
     div
         [ css
             [ Tw.flex
@@ -1545,11 +1492,29 @@ saveButtons browserEnv theme model =
             , Tw.mb_10
             ]
         ]
-        [ previewButton browserEnv model theme
-        , saveDraftButton browserEnv model theme
-        , publishButton browserEnv model theme
+        [ previewButton shared.browserEnv model shared.theme
+        , saveDraftButton shared.browserEnv model shared.theme
+        , newsletterButton 
+        , publishButton shared.browserEnv model shared.theme
         ]
 
+
+sendNewsletterButton : BrowserEnv -> Model -> Theme -> Html Msg
+sendNewsletterButton browserEnv model theme =
+    Button.new
+        { label = Translations.sendNewsletterButtonTitle [ browserEnv.translations ]
+        , onClick = Just ShowSendNewsletterDialog
+        , theme = theme
+        }
+        |> Button.withDisabled (not <| articleReadyForPublishing model)
+        |> Button.withTypePrimary
+        |> Button.view
+
+authorSendsNewsletters : Shared.Model -> Bool
+authorSendsNewsletters shared =
+            loggedInSigningPubKey shared.loginStatus
+                |> Maybe.andThen (Nostr.sendsNewsletterPubKey shared.nostr)
+                |> Maybe.withDefault False
 
 publishButton : BrowserEnv -> Model -> Theme -> Html Msg
 publishButton browserEnv model theme =
@@ -1578,9 +1543,6 @@ articleReadyForPublishing model =
             contentComplete
 
         ArticlePublishingError _ ->
-            contentComplete
-
-        ArticleSendingNewsletterError _ ->
             contentComplete
 
         ArticleModified ->

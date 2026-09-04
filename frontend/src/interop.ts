@@ -1,37 +1,91 @@
-import "./Milkdown/MilkdownEditor.js";
+import "./Milkdown/MilkdownEditor";
+import { Contacts } from "./Newsletters/Contacts";
+import { createNewsletterSender, isNewsletterSendCancelled } from "./Newsletters/Send";
 
-import NDK, { NDKUser, NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKNip46Signer, NDKNostrRpc, NDKSubscription, NDKSubscriptionCacheUsage, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
-import NDKCacheAdapterDexie from "@nostr-dev-kit/ndk-cache-dexie";
+import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
+import NDKCacheAdapterDexie from "@nostr-dev-kit/cache-dexie";
 import { BlossomClient } from "blossom-client-sdk/client";
-import "./clipboard-component.js";
-import "./zap-component.js";
-import "./elm-oembed.js";
-import { createRelayManager } from "./relay-manager.js";
+import "./clipboard-component";
+import "./elm-oembed";
+import { createRelayManager } from "./relay-manager";
+import { handleAuthCommand, restoreActiveIdentity } from "./authIdentities";
+import { reportPasskeySupport as queryPasskeySupport } from "./keytrAuth";
 import debug from 'debug';
 
+declare global {
+  interface Window {
+    ndk: any;
+    __PARETO_IMAGE_CACHE_KEY__?: string;
+  }
+
+  // Loaded dynamically from /js/nstart-modal.js
+  var NstartModal: any;
+
+  interface NlAuthEventDetail {
+    type: string;
+    method?: string;
+  }
+
+  interface NlAuthEvent extends CustomEvent {
+    detail: NlAuthEventDetail;
+  }
+}
+
+interface ElmPorts {
+  sendCommand: {
+    subscribe: (callback: (msg: { command: string; value: any }) => void) => void;
+  };
+  receiveMessage: {
+    send: (msg: { messageType: string; value: any }) => void;
+  };
+}
+
+interface ElmApp {
+  ports: ElmPorts;
+}
+
+interface FlagsEnv {
+  ELM_ENV: string;
+  IMAGE_CACHING_SERVER?: string;
+  IMAGE_CACHE_KEY?: string;
+}
+
+type PortCommand = { command: string; value: any };
+
+var contacts: Contacts | null = null;
+var newsletterSendClient: any = null;
+var newsletterSendAbort: AbortController | null = null;
+
 // This is called BEFORE your Elm app starts up
-// 
-// The value returned here will be passed as flags 
+//
+// The value returned here will be passed as flags
 // into your `Shared.init` function.
-export const flags = ({ env }) => {
+export const flags = ({ env }: { env: FlagsEnv }) => {
   // derive locale from URL parameter or default to browser setting
   const params = new URLSearchParams(window.location.search);
   const selectedLocale = params.get('locale') || navigator.language;
+  const host = window.location.hostname;
+  const authApiBaseUrl =
+    host === "localhost" || host === "127.0.0.1"
+      ? "http://localhost:4001"
+      : "https://pareto.town";
   return {
     environment: env.ELM_ENV,
     darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
     imageCachingServer: env.IMAGE_CACHING_SERVER || "https://image-caching-server.onrender.com",
+    imageCacheKey: window.__PARETO_IMAGE_CACHE_KEY__ || env.IMAGE_CACHE_KEY || "",
     locale: selectedLocale,
     nativeSharingAvailable: (navigator.share != undefined),
-    testMode: JSON.parse(localStorage.getItem('testMode')) || false,
+    testMode: JSON.parse(localStorage.getItem('testMode') || 'false') || false,
+    authApiBaseUrl,
   }
 };
 
 const debugLog = debug('pareto-client');
 
 var connected = false;
-var nStartWizard = null
-var relayManager = null;
+var nStartWizard: any = null;
+var relayManager: ReturnType<typeof createRelayManager> | null = null;
 
 const anonymousSigner = new NDKPrivateKeySigner('cff56394373edfaa281d2e1b5ad1b8cafd8b247f229f2af2c61734fb0c7b3f84');
 const anonymousPubKey = 'ecdf32491ef8b5f1902109f495e7ca189c6fcec76cd66b888fa9fc2ce87f40db';
@@ -54,13 +108,72 @@ const suggestedPubKeys =
     , "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84" // _@pareto.space
   ];
 
-export const onReady = ({ app, env }) => {
+/**
+ * Footnote / backlink hash clicks would otherwise go through Elm's
+ * Browser.application UrlRequested → pushUrl, which remounts page hooks
+ * and feels like a reload. Handle them in capture phase instead.
+ */
+function installFootnoteLinkHandler(): void {
+  document.addEventListener(
+    "click",
+    (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0) {
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
 
-  var storedCommands = [];
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const anchor = target.closest("a[href^='#']");
+      if (!(anchor instanceof HTMLAnchorElement)) {
+        return;
+      }
+
+      const role = anchor.getAttribute("role");
+      if (role !== "doc-noteref" && role !== "doc-backlink") {
+        return;
+      }
+
+      const id = decodeURIComponent(anchor.hash.replace(/^#/, ""));
+      if (!id) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      if (window.location.hash !== anchor.hash) {
+        history.replaceState(null, "", anchor.hash);
+      }
+    },
+    true,
+  );
+}
+
+export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
+
+  var storedCommands: PortCommand[] = [];
+
+  installFootnoteLinkHandler();
 
   // the backend may inject a <script> element containing
   // raw Nostr events required by the page to be loaded
   processPreloadData(app);
+
+  // NIP-07 extensions inject asynchronously; report availability (and late arrivals)
+  // via port rather than init flags.
+  reportNostrExtension(app);
+  reportPasskeySupport(app);
 
   if (window.matchMedia) {
     window.matchMedia("(prefers-color-scheme: dark)").addListener(e =>
@@ -84,11 +197,6 @@ export const onReady = ({ app, env }) => {
     }
   });
 
-  window.onload = function () {
-    // make sure to load Nostr-Login after browser extensions had a chance to create window.nostr
-    loadNostrLogin();
-  };
-
   // in certain cases we can't catch the error with try/catch
   window.addEventListener("unhandledrejection", function (event) {
     debugLog('unhandledrejection', event);
@@ -96,96 +204,7 @@ export const onReady = ({ app, env }) => {
     app.ports.receiveMessage.send({ messageType: 'error', value: { reason: errorMessage } });
   });
 
-  function loadNostrLogin() {
-    const titleAndDescription = getLocalizedStrings(navigator.language);
-    const relays = defaultRelays.join(",");
 
-    const newScript = document.createElement('script');
-    newScript.src = "/js/nostr-login.js";
-    newScript.setAttribute("data-title", titleAndDescription.title);
-    newScript.setAttribute("data-description", titleAndDescription.description);
-    newScript.setAttribute("data-methods", 'extension,readOnly,local');
-    newScript.setAttribute("data-signup-relays", relays);
-    newScript.setAttribute("data-outbox-relays", relays);
-    newScript.setAttribute("data-signup-nstart", "true");
-    newScript.setAttribute("data-follow-npubs", suggestedPubKeys.join(','));
-    newScript.setAttribute("data-nstart-app-name", "Pareto");
-    newScript.setAttribute("data-nstart-modal-url", "/js/nstart-modal.js");
-    newScript.setAttribute("data-nstart-accent-color", "94a3b8");
-    newScript.setAttribute("data-nstart-force-bunker", "false");
-    newScript.setAttribute("data-nstart-skip-bunker", "true");
-    newScript.setAttribute("data-nstart-avoid-nsec", "true");
-    newScript.setAttribute("data-nstart-avoid-ncryptsec", "false");
-
-    newScript.addEventListener("load", () => {
-      const nlElement = document.getElementsByTagName("nl-banner").item(0);
-      const style = document.createElement('style');
-      style.textContent = `
-        .pareto-custom-nl {
-          top: 145px !important;
-        }
-
-        @media (min-width: 768px) {
-          .pareto-custom-nl {
-            top: 145px !important;
-          }
-        }
-
-        @media (min-width: 1024px) {
-          .pareto-custom-nl {
-            top: 160px !important;
-          }
-        }
-      `;
-      nlElement.shadowRoot.appendChild(style);
-
-      if (nlElement) {
-        const observer = new MutationObserver((_mutations) => {
-          const nlChild = nlElement.shadowRoot.querySelector('.nl-banner');
-          if (nlChild) {
-            nlChild.classList.add("pareto-custom-nl");
-          }
-        });
-        observer.observe(nlElement.shadowRoot, {childList: true, subtree: true});
-      }
-    });
-    
-    document.body.appendChild(newScript);
-  }
-
-  function getLocalizedStrings(locale) {
-    const strings = {
-      en: {
-        title: "Welcome to Pareto!",
-        description: "Pareto is part of the Nostr network. Log in with your Nostr profile or sign up to join."
-      },
-      de: {
-        title: "Willkommen bei Pareto!",
-        description: "Pareto ist Teil des Nostr-Netzes. Melde dich mit deinem Nostr-Profil an oder erstelle dir ein neues Profil."
-      }
-    };
-
-    if (locale.startsWith('de')) {
-      return strings.de;
-    }
-
-    // Default to English
-    return strings.en;
-  }
-
-  // listen to events of nostr-login
-  document.addEventListener('nlAuth', (event) => {
-    switch (event.detail.type) {
-      case 'login':
-      case 'signup':
-        requestUser(app, event.detail.method);
-        break;
-
-      default:
-        app.ports.receiveMessage.send({ messageType: 'loggedOut', value: null });
-        break;
-    }
-  });
 
   function processPreloadData(app) {
     var preloadData = undefined;
@@ -215,19 +234,58 @@ export const onReady = ({ app, env }) => {
     }
   }
 
+  function reportNostrExtension(app: ElmApp) {
+    let lastReported: boolean | null = null;
+
+    const send = () => {
+      const available = typeof window.nostr !== "undefined";
+      if (available === lastReported) {
+        return;
+      }
+      lastReported = available;
+      app.ports.receiveMessage.send({
+        messageType: "nostrExtension",
+        value: { available },
+      });
+    };
+
+    send();
+    // Extensions often inject after page scripts; recheck without spamming Elm.
+    [100, 500, 1000, 2000, 5000].forEach((ms) => setTimeout(send, ms));
+  }
+
+  function reportPasskeySupport(app: ElmApp) {
+    queryPasskeySupport()
+      .then((support) => {
+        app.ports.receiveMessage.send({
+          messageType: "passkeySupport",
+          value: support,
+        });
+      })
+      .catch(() => {
+        app.ports.receiveMessage.send({
+          messageType: "passkeySupport",
+          value: { supported: false, hasCredential: false },
+        });
+      });
+  }
+
   function processOnlineCommand(app, command, value) {
     debugLog('process command', command);
+    // Auth commands are handled asynchronously in authIdentities.ts
+    handleAuthCommand(window.ndk, app, command, value).then((handled) => {
+      if (handled) {
+        return;
+      }
+      processOnlineCommandRest(app, command, value);
+    });
+  }
+
+  function processOnlineCommandRest(app, command, value) {
     switch (command) {
       case 'login':
+        // Legacy: prefer loginWithNcryptsec from Elm AuthDialog
         login(app, value);
-        break;
-
-      case 'loginSignUp':
-        loginSignUp(app)
-        break;
-
-      case 'signUp':
-        signUp(app)
         break;
 
       case 'encryptString':
@@ -258,6 +316,10 @@ export const onReady = ({ app, env }) => {
         sendEvent(app, value);
         break;
 
+      case 'signEvent':
+        signEvent(app, value);
+        break;
+
       case 'setTestMode':
         setTestMode(app, value);
         break;
@@ -269,72 +331,72 @@ export const onReady = ({ app, env }) => {
       case 'toggleArticleInfo':
         toggleArticleInfo(app);
         break;
+
+      // Contacts
+      case 'initContactDatabase':
+        initContactDatabase(app, value);
+        break;
+
+      case 'loadContacts':
+        loadContacts(app, value);
+        break;
+
+      case 'loadContactTags':
+        loadContactTags(app, value);
+        break;
+
+      case 'addContactTag':
+        addContactTag(app, value);
+        break;
+
+      case 'deleteContactTag':
+        deleteContactTag(app, value);
+        break;
+
+      case 'storeContacts':
+        storeContacts(app, value);
+        break;
+
+      case 'getNewsletterRecipientCount':
+        getNewsletterRecipientCount(app, value);
+        break;
+
+      case 'getNewsletterStatus':
+        getNewsletterStatus(app, value);
+        break;
+
+      case 'sendNewsletter':
+        sendNewsletter(app, value);
+        break;
+
+      case 'sendNewsletterTest':
+        sendNewsletterTest(app, value);
+        break;
+
+      case 'cancelNewsletter':
+        cancelNewsletter();
+        break;
     }
   }
 
   async function login(app, value) {
-    const signer = new NDKPrivateKeySigner(value.nsec);
-    const user = await signer.user();        // resolves immediately once the key is decoded
-    document.dispatchEvent(new CustomEvent('nlSetAuth', {
-      detail: {
-        type: 'login',
-        method: 'local',
-        pubkey: user.pubkey,                 // 64-char hex string
-        localNsec: signer.privateKey
-      }
-    }));
-  }
-
-  function loginSignUp(app) {
-    document.dispatchEvent(new CustomEvent('nlLaunch', {}));
-  }
-
-  function signUp(app) {
-    if (!nStartWizard) {
-      loadNJump();
-    } else {
-      nStartWizard.open();
+    // Legacy nsec login — prefer loginWithNcryptsec from AuthDialog
+    try {
+      const signer = new NDKPrivateKeySigner(value.nsec);
+      const user = await signer.user();
+      window.ndk.signer = signer;
+      app.ports.receiveMessage.send({
+        messageType: 'user',
+        value: { pubKey: user.pubkey, method: 'local' },
+      });
+    } catch (error: any) {
+      app.ports.receiveMessage.send({
+        messageType: 'authError',
+        value: { reason: error?.message || 'Login failed' },
+      });
     }
   }
 
-  function loadNJump() {
-    if (!nStartWizard) {
-      const newScript = document.createElement('script');
-      newScript.src = "/js/nstart-modal.js";
-      newScript.onload = () => {
-        // Create the modal instance with required parameters
-        nStartWizard = new NstartModal({
-          // Required parameters
-          baseUrl: 'https://start.njump.me',
-          an: 'Pareto', // App name
-
-          // Optional parameters
-          aa: '94a3b8', // Hex accent color
-          afb: false, // Force bunker (default False)
-          asb: true, // Skip bunker (default False)
-          aan: true, // Don't return Nsec (default False)
-          aac: false, // Don't return  Ncryptsec (default False)
-          arr: defaultRelays, // Custom read relays
-          awr: defaultRelays, // Custom write relays
-          s: suggestedPubKeys, // suggested profiles
-
-          // Callbacks
-          onComplete: (result) => {
-            if (result.nostrLogin) {
-              document.dispatchEvent(new CustomEvent('nlLaunch', { detail: 'login-bunker-url' }));
-            } else {
-              document.dispatchEvent(new CustomEvent('nlLaunch', { detail: 'login' }));
-            }
-          },
-          onCancel: () => {
-            console.log('Wizard cancelled');
-          }
-        });
-        nStartWizard.open()
-      };
-      document.body.appendChild(newScript);
-    }
-  }
 
   function setTestMode(app, value) {
     localStorage.setItem('testMode', JSON.stringify(value));
@@ -389,9 +451,9 @@ export const onReady = ({ app, env }) => {
   }
 
   // 2) Helper to convert bytes to hex string
-  function bytesToHex(uint8Arr) {
+  function bytesToHex(uint8Arr: Uint8Array) {
     return Array.from(uint8Arr)
-      .map(function (b) {
+      .map(function (b: number) {
         return b.toString(16).padStart(2, '0');
       })
       .join('');
@@ -519,10 +581,10 @@ export const onReady = ({ app, env }) => {
     relayManager = createRelayManager(window.ndk, debugLog, processEvents);
 
     // sign in if a relay requests authorization
-    window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.disconnect();
+    window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.disconnect(window.ndk.pool);
     // Disabled signing in to relays with Auth request as NDK loops infinitely
     // Can be tried again after NDK version upgrade
-    // window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk });
+    // window.ndk.relayAuthDefaultPolicy = NDKRelayAuthPolicies.signIn({ ndk: window.ndk });
 
     // don't validate each event, it's computational intense
     window.ndk.initialValidationRatio = 0.5;
@@ -545,6 +607,8 @@ export const onReady = ({ app, env }) => {
 
       app.ports.receiveMessage.send({ messageType: 'connected', value: null });
 
+      restoreActiveIdentity(window.ndk, app);
+
       for (let i = 0; i < storedCommands.length; i++) {
         processOnlineCommand(app, storedCommands[i].command, storedCommands[i].value);
       }
@@ -565,6 +629,8 @@ export const onReady = ({ app, env }) => {
       if (!connected) {
         connected = true;
         app.ports.receiveMessage.send({ messageType: 'connected', value: null });
+
+        restoreActiveIdentity(window.ndk, app);
 
         for (let i = 0; i < storedCommands.length; i++) {
           processOnlineCommand(app, storedCommands[i].command, storedCommands[i].value);
@@ -755,10 +821,8 @@ export const onReady = ({ app, env }) => {
     }
   }
 
-  function decryptRelayList(ndkEvent) {
-    const content = ndkEvent.content;
-    const decryptedContent = nip4(encryptedContent);
-    const decryptedEvent = new NDKEvent(window.ndk, ndkEvent);
+  // Unused incomplete helper (kept from JS; previously referenced undefined symbols).
+  function decryptRelayList(ndkEvent: any) {
     return {
       kind: ndkEvent.kind,
       pubkey: ndkEvent.pubkey,
@@ -809,8 +873,214 @@ export const onReady = ({ app, env }) => {
     })
   }
 
+  function initContactDatabase(app, { pubkey }) {
+    if (contacts) {
+      app.ports.receiveMessage.send({ messageType: 'contactDatabaseAuthenticated', value: { } });
+      return;
+    }
 
-  function requestNip96Auth(app, { requestId: requestId, fileId: fileId, serverUrl: serverUrl, apiUrl: apiUrl, method: method, hash: sha256Hash }) {
+    contacts = new Contacts(window.ndk, pubkey);
+
+    contacts.authenticate().then(authHeader => {
+      console.log('authHeader', authHeader);
+
+      app.ports.receiveMessage.send({ messageType: 'contactDatabaseAuthenticated', value: { } });
+
+      /*
+      // TODO: get contacts from the database
+      const sampleContacts = [
+        {
+          firstName: "Alice",
+          lastName: "Johnson",
+          email: "alice@example.com",
+          locale: "en-US",
+          pubkey: "79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f432",
+          datesub: 1717334400,
+          source: "seed",
+          dnd: false,
+          tags: ["work", "conference", "blockchain"]
+        },
+        {
+          firstName: "Bob",
+          lastName: "Smith",
+          email: "bob@example.com",
+          locale: "de-DE",
+          pubkey: "79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f433",
+          datesub: 1717334401,
+          source: "test",
+          dnd: false,
+          tags: ["work", "design", "mobile"]
+        }
+      ];
+      
+      // 4. Store contacts
+      console.log('📝 Storing contacts...');
+      storeContacts(app, {subscribers: sampleContacts});
+      console.log('✅ Contacts stored successfully');
+      */
+
+    });
+  }
+
+  function loadContacts(app, { page: page, perPage: perPage, pubkey: pubkey }) {
+    if (!contacts) {
+      initContactDatabase(app, { pubkey: pubkey });
+    }
+    contacts.getContacts(page, perPage).then(result => {
+       console.log('Contacts:', result.contacts);
+       app.ports.receiveMessage.send({ messageType: 'contacts', value: { page: page, contacts: result.contacts, errors: result.errors } });
+    });
+  }
+
+  function loadContactTags(app, { pubkey: pubkey }) {
+    if (!contacts) {
+      initContactDatabase(app, { pubkey: pubkey });
+    }
+    contacts.getContactTags().then(result => {
+      console.log('Contact Tags:', result.tags);
+      app.ports.receiveMessage.send({ messageType: 'contactTags', value: { tags: result.tags, errors: result.errors } });
+    });
+  }
+
+  function addContactTag(app, { tag: tag }) {
+    contacts.addTag(tag).then(result => {
+      console.log('Contact Tag added: ', result);
+      app.ports.receiveMessage.send({ messageType: 'contactTagAdded', value: { tag: tag, result: result } });
+    });
+  }
+
+  function deleteContactTag(app, { tag: tag }) {
+    contacts.deleteTag(tag).then(result => {
+      console.log('Contact Tag deleted: ', result);
+      app.ports.receiveMessage.send({ messageType: 'contactTagDeleted', value: { tag: tag, result: result } });
+    });
+  }
+
+  function storeContacts(app, { subscribers: subscribers }) {
+    contacts.storeContactsBulk(subscribers, true);
+  }
+
+  function newsletterQueueClient() {
+    return createNewsletterSender({
+      ndk: window.ndk,
+      targetPubkey: "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345",
+    });
+  }
+
+  function getNewsletterRecipientCount(app, { author: author, subscriberBlob: subscriberBlob }) {
+    if (!author && !(subscriberBlob?.url && subscriberBlob?.key && subscriberBlob?.iv)) {
+      app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count: null, error: 'Missing author pubkey' } });
+      return;
+    }
+
+    newsletterSendClient = newsletterQueueClient();
+    newsletterSendClient.countActiveRecipients(author, subscriberBlob)
+      .then((count) => {
+        app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count } });
+      })
+      .catch((error) => {
+        app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count: null, error: error?.message || 'Failed to count subscribers' } });
+      });
+  }
+
+  function getNewsletterStatus(app, { author: author, identifier: identifier }) {
+    if (!identifier) {
+      app.ports.receiveMessage.send({ messageType: 'newsletterStatus', value: { identifier: null, status: null, exists: false, error: 'Missing identifier' } });
+      return;
+    }
+
+    newsletterSendClient = newsletterQueueClient();
+    newsletterSendClient.getCampaignStatusByExternalId(identifier)
+      .then(status => {
+        app.ports.receiveMessage.send({ messageType: 'newsletterStatus', value: { identifier: identifier, status: status, exists: !!status } });
+      })
+      .catch(error => {
+        app.ports.receiveMessage.send({ messageType: 'newsletterStatus', value: { identifier: identifier, status: null, exists: false, error: error?.message || 'Unknown error' } });
+      });
+  }
+
+  function sendNewsletter(app, { author: author, newsletterData: newsletterData, subscribers: subscribers, subscriberBlob: subscriberBlob }) {
+    const abort = startNewsletterAbort();
+    newsletterSendClient = newsletterQueueClient();
+    newsletterSendClient.sendNewsletter({
+      author,
+      newsletterData,
+      identifier: newsletterData.identifier,
+      subscribers,
+      subscriberBlob,
+      signal: abort.signal,
+      onProgress: bindNewsletterProgress(app),
+    }).catch((error) => {
+      if (isNewsletterSendCancelled(error)) {
+        app.ports.receiveMessage.send({
+          messageType: 'newsletterProgress',
+          value: { phase: 'cancelled' },
+        });
+        return;
+      }
+      app.ports.receiveMessage.send({
+        messageType: 'newsletterProgress',
+        value: { phase: 'error', error: error?.message || 'Failed to send newsletter' },
+      });
+    }).finally(() => {
+      if (newsletterSendAbort === abort) {
+        newsletterSendAbort = null;
+      }
+    });
+  }
+
+  function sendNewsletterTest(app, { email: email, author: author, newsletterData: newsletterData }) {
+    const abort = startNewsletterAbort();
+    newsletterSendClient = newsletterQueueClient();
+    newsletterSendClient.sendNewsletterTest({
+      email,
+      author,
+      newsletterData,
+      identifier: newsletterData.identifier,
+      signal: abort.signal,
+      onProgress: bindNewsletterTestProgress(app),
+    }).catch((error) => {
+      if (isNewsletterSendCancelled(error)) {
+        app.ports.receiveMessage.send({
+          messageType: 'newsletterTestProgress',
+          value: { phase: 'cancelled' },
+        });
+        return;
+      }
+      app.ports.receiveMessage.send({
+        messageType: 'newsletterTestProgress',
+        value: { phase: 'error', error: error?.message || 'Failed to send test newsletter' },
+      });
+    }).finally(() => {
+      if (newsletterSendAbort === abort) {
+        newsletterSendAbort = null;
+      }
+    });
+  }
+
+  function startNewsletterAbort(): AbortController {
+    newsletterSendAbort?.abort();
+    newsletterSendAbort = new AbortController();
+    return newsletterSendAbort;
+  }
+
+  function cancelNewsletter() {
+    newsletterSendAbort?.abort();
+  }
+
+  function bindNewsletterProgress(app) {
+    return (progress) => {
+      app.ports.receiveMessage.send({ messageType: 'newsletterProgress', value: progress });
+    };
+  }
+
+  function bindNewsletterTestProgress(app) {
+    return (progress) => {
+      app.ports.receiveMessage.send({ messageType: 'newsletterTestProgress', value: progress });
+    };
+  }
+
+  function requestNip96Auth(app, { requestId: requestId, fileId: fileId, serverUrl: serverUrl, apiUrl: apiUrl, method: method, hash: sha256Hash, content: content }) {
     debugLog("Nip96 auth request with requestId: " + requestId);
 
     generateNip98Header(apiUrl, method, sha256Hash).then(nip98AuthHeader => {
@@ -833,6 +1103,27 @@ export const onReady = ({ app, env }) => {
     });
   }
 
+  async function signEvent(app, { requestId: requestId, event: event }) {
+    debugLog('sign event ' + requestId, event);
+
+    try {
+      const ndkEvent = new NDKEvent(window.ndk, event);
+      const signer = (ndkEvent.pubkey == anonymousPubKey) ? anonymousSigner : window.ndk.signer;
+      await ndkEvent.sign(signer);
+      app.ports.receiveMessage.send({
+        messageType: 'signedEvent',
+        value: { requestId: requestId, event: ndkEvent.rawEvent() }
+      });
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error.message ? error.message : 'Error signing event';
+      app.ports.receiveMessage.send({
+        messageType: 'error',
+        value: { requestId: requestId, event: event, reason: errorMessage }
+      });
+    }
+  }
+
   async function sendEvent(app, { sendId: sendId, event: event, relays: relays }) {
     debugLog('send event ' + sendId, event, 'relays: ', relays);
 
@@ -842,7 +1133,7 @@ export const onReady = ({ app, env }) => {
 
     try {
       if (event.kind == 30024) {  // draft event
-        ndkEvent = await encapsulateDraftEvent(ndkEvent, signer);
+        ndkEvent = await encapsulateDraftEvent(ndkEvent);
       } else if (event.kind == 30078) {  // application-specific event
         ndkEvent = await encapsulateApplicationSpecificEvent(ndkEvent, signer);
         // Don't try to decrypt events that weren't encrypted for us
@@ -922,8 +1213,8 @@ export const onReady = ({ app, env }) => {
       created_at: ndkEvent.created_at
     }
 
-    var ndkEvent = new NDKEvent(window.ndk, draftEvent)
-    return ndkEvent;
+    const draftNdkEvent = new NDKEvent(window.ndk, draftEvent)
+    return draftNdkEvent;
   }
 
   // https://nips.nostr.com/78
@@ -1005,10 +1296,10 @@ export const onReady = ({ app, env }) => {
     return null;
   }
 
-  function fillZapReceipt(ndkEvent) {
-    const zapReceipt = { id: ndkEvent.id };
+  function fillZapReceipt(ndkEvent: any) {
+    const zapReceipt: Record<string, any> = { id: ndkEvent.id };
 
-    ndkEvent.tags.forEach(tag => {
+    ndkEvent.tags.forEach((tag: any[]) => {
       switch (tag[0]) {
         case 'P':
           zapReceipt.pubkeySender = tag[1];
@@ -1033,7 +1324,7 @@ export const onReady = ({ app, env }) => {
             tag[1] = tag[1]?.replace(/\t|\n|\r+/g, '') || '';// some events contain space character and break JSON parsing.
             const json = JSON.parse(tag[1]);
             const tags = json.tags;
-            const amountTag = tags.find(tag => tag[0] === 'amount');
+            const amountTag = tags.find((t: any[]) => t[0] === 'amount');
             if (amountTag) {
               zapReceipt.amount = amountTag[1];
             }

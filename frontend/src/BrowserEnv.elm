@@ -1,4 +1,4 @@
-module BrowserEnv exposing (BrowserEnv, Environment(..), Msg(..), formatDate, formatIsoDate, init, isDevEnvironment, subscriptions, update, updateTimeZone, TestMode(..), setTestMode, isNativeSharingAvailable)
+module BrowserEnv exposing (BrowserEnv, Environment(..), Msg(..), formatDate, formatIsoDate, init, isDevEnvironment, subscriptions, update, updateTimeZone, TestMode(..), setTestMode, isNativeSharingAvailable, translationsLocale)
 
 import DateFormat
 import DateFormat.Language
@@ -19,7 +19,8 @@ import Url.Builder exposing (Root(..))
 
 
 type alias BrowserEnv =
-    { backendUrl : String
+    { authApiBaseUrl : String
+    , backendUrl : String
     , dateFormatLanguage : DateFormat.Language.Language
     , dateFormatTokensWithYear : List DateFormat.Token
     , dateFormatTokensWithoutYear : List DateFormat.Token
@@ -51,10 +52,12 @@ type Msg
 
 
 type alias InitParams =
-    { backendUrl : String
+    { authApiBaseUrl : String
+    , backendUrl : String
     , darkMode : Bool
     , environment : Maybe String
     , imageCachingServer : String
+    , imageCacheKey : String
     , frontendUrl : String
     , locale : String
     , nativeSharingAvailable : Bool
@@ -63,8 +66,8 @@ type alias InitParams =
 
 
 type Environment
-    = Production { imageCachingServer : String }
-    | Development { imageCachingServer : String }
+    = Production { imageCachingServer : String, imageCacheKey : String }
+    | Development { imageCachingServer : String, imageCacheKey : String }
     | StandAlone
 
 type TestMode
@@ -97,13 +100,14 @@ init initParams =
 
         browserEnv =
             { frontendUrl = initParams.frontendUrl
+            , authApiBaseUrl = initParams.authApiBaseUrl
             , backendUrl = initParams.backendUrl
             , dateFormatLanguage = dateFormatLanguage
             , dateFormatTokensWithYear = dateFormatTokensWithYear
             , dateFormatTokensWithoutYear = dateFormatTokensWithoutYear
             , dateFormatRelativeTimeOptions = relativeTimeOptions
             , darkMode = initParams.darkMode
-            , environment = environmentFromString initParams.environment initParams.imageCachingServer
+            , environment = environmentFromString initParams.environment initParams.imageCachingServer initParams.imageCacheKey
             , formatNumber = numberFormatFromLanguage language
             , errors = []
             , installPromptAvailable = False
@@ -130,17 +134,17 @@ init initParams =
     )
 
 
-environmentFromString : Maybe String -> String -> Environment
-environmentFromString envString imageCachingServer =
+environmentFromString : Maybe String -> String -> String -> Environment
+environmentFromString envString imageCachingServer imageCacheKey =
     case envString of
         Just "dev" ->
-            Development { imageCachingServer = imageCachingServer }
+            Development { imageCachingServer = imageCachingServer, imageCacheKey = imageCacheKey }
 
         Just "standalone" ->
             StandAlone
 
         _ ->
-            Production { imageCachingServer = imageCachingServer }
+            Production { imageCachingServer = imageCachingServer, imageCacheKey = imageCacheKey }
 
 
 requestTranslations : Language -> Cmd Msg

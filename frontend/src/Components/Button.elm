@@ -257,14 +257,25 @@ view (Settings settings) =
                 ( False, OnClick onClick ) ->
                     ( button, [ Events.onClick onClick ] )
 
+                ( True, OnClick _ ) ->
+                    -- Keep <button> (don't swap to <div>) so sibling controlled inputs
+                    -- aren't remounted and lose caret position when disabled toggles.
+                    ( button, [ Attr.disabled True ] )
+
                 ( False, Link link ) ->
                     ( a, [ Attr.href link ] )
+
+                ( True, Link _ ) ->
+                    ( a, [ Attr.attribute "aria-disabled" "true", Attr.tabindex -1 ] )
 
                 ( False, NewTabLink url ) ->
                     ( a, [ Attr.target "_blank", Attr.href url ] )
 
-                ( _, _ ) ->
-                    ( div, [ Attr.disabled True ] )
+                ( True, NewTabLink _ ) ->
+                    ( a, [ Attr.attribute "aria-disabled" "true", Attr.tabindex -1 ] )
+
+                ( _, NoOp ) ->
+                    ( button, [ Attr.disabled True ] )
 
         widthStyles =
             case settings.width of

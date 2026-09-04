@@ -1,6 +1,7 @@
 .dockerignore
 .formatter.exs
 .env
+.gh/
 .npmrc
 .DS_Store
 *.br
@@ -10,6 +11,7 @@
 
 /frontend/dist
 /frontend/.elm-land
+/frontend/elm-home
 /frontend/elm-stuff
 /frontend/elm-home/elm-stuff/*
 /frontend/gen

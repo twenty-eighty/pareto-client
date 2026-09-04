@@ -106,6 +106,7 @@ update :
     , msg : Msg msg
     , model : Model
     , nostr : Nostr.Model
+    , loginStatus : LoginStatus
     , toModel : Model -> model
     , toMsg : Msg msg -> msg
     , translations : I18Next.Translations
@@ -134,23 +135,26 @@ update props =
                     }
 
             InteractionsMsg interactionObject innerMsg ->
-                let
-                    eventId =
-                        eventIdOfInteractionObject interactionObject
+                case eventIdOfInteractionObject interactionObject of
+                    Just eventId ->
+                        let
+                            ( updatedInteractions, effect ) =
+                                Interactions.update
+                                    { browserEnv = props.browserEnv
+                                    , msg = innerMsg
+                                    , model = Dict.get eventId model.interactions
+                                    , nostr = props.nostr
+                                    , interactionObject = interactionObject
+                                    , loginStatus = props.loginStatus
+                                    , openCommentMsg = Nothing
+                                    , toModel = \interactionsModel -> Model { model | interactions = Dict.insert eventId interactionsModel model.interactions }
+                                    , toMsg = InteractionsMsg interactionObject
+                                    }
+                        in
+                        ( updatedInteractions, effect |> Effect.map props.toMsg )
 
-                    ( updatedInteractions, effect ) =
-                        Interactions.update
-                            { browserEnv = props.browserEnv
-                            , msg = innerMsg
-                            , model = Dict.get eventId model.interactions
-                            , nostr = props.nostr
-                            , interactionObject = interactionObject
-                            , openCommentMsg = Nothing
-                            , toModel = \interactionsModel -> Model { model | interactions = Dict.insert eventId interactionsModel model.interactions }
-                            , toMsg = InteractionsMsg interactionObject
-                            }
-                in
-                ( updatedInteractions, effect |> Effect.map props.toMsg )
+                    Nothing ->
+                        ( Model model, Effect.none )
 
 
 

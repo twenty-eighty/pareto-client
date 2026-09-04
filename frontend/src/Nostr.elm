@@ -397,8 +397,8 @@ performRequest model description requestId requestData =
         RequestBlossomAuth serverUrl content method ->
             ( model, model.hooks.requestBlossomAuth requestId serverUrl content method )
 
-        RequestNip98Auth serverUrl apiUrl method ->
-            ( model, model.hooks.requestNip96Auth requestId serverUrl apiUrl method )
+        RequestNip98Auth serverUrl apiUrl content method ->
+            ( model, model.hooks.requestNip96Auth requestId serverUrl apiUrl content method )
 
         RequestSearchResults eventFilters ->
             ( { model | articlesByDate = [] }, model.hooks.searchEvents description True requestId (getSearchRelayUrls model model.defaultUser) eventFilters )
@@ -764,6 +764,15 @@ getDefaultNip96Servers model pubKey =
 
     else
         Pareto.defaultNip96ServersPublic
+
+
+getDefaultBlossomServers : Model -> PubKey -> List String
+getDefaultBlossomServers model pubKey =
+    if isEditor model pubKey then
+        Pareto.defaultBlossomServersAuthors
+
+    else
+        Pareto.defaultBlossomServersPublic
 
 
 getNip96Servers : Model -> PubKey -> List String
@@ -1221,6 +1230,26 @@ getZapReceiptsForEventId model eventId =
     Dict.get eventId model.zapReceiptsEvents
 
 
+hasZapReceiptWithBolt11 : Model -> String -> Bool
+hasZapReceiptWithBolt11 model bolt11 =
+    let
+        matches nested =
+            nested
+                |> Dict.values
+                |> List.concatMap Dict.values
+                |> List.any (\receipt -> receipt.bolt11 == bolt11)
+    in
+    matches model.zapReceiptsAddress || matches model.zapReceiptsEvents
+
+
+zapReceiptIdsForTagReference : Model -> TagReference -> Set String
+zapReceiptIdsForTagReference model tagReference =
+    getZapReceiptsForTagReference model tagReference
+        |> Maybe.map Dict.keys
+        |> Maybe.withDefault []
+        |> Set.fromList
+
+
 getProfile : Model -> PubKey -> Maybe Profile
 getProfile model pubKey =
     Dict.get pubKey model.profiles
@@ -1546,7 +1575,7 @@ empty =
         , receiveMessage = \_ -> Sub.none
         , requestEvents = \_ _ _ _ _ -> Cmd.none
         , requestBlossomAuth = \_ _ _ _ -> Cmd.none
-        , requestNip96Auth = \_ _ _ _ -> Cmd.none
+        , requestNip96Auth = \_ _ _ _ _ -> Cmd.none
         , searchEvents = \_ _ _ _ _ -> Cmd.none
         , sendEvent = \_ _ _ -> Cmd.none
         }

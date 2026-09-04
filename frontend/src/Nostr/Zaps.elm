@@ -3,6 +3,7 @@ module Nostr.Zaps exposing (..)
 import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as DecodePipeline
+import Url
 
 
 type alias ZapReceipt =
@@ -92,3 +93,123 @@ fetchPayRequest toMsg lud16 =
         , timeout = Nothing
         , tracker = Nothing
         }
+
+
+type alias Invoice =
+    { pr : String
+    }
+
+
+invoiceDecoder : Decoder Invoice
+invoiceDecoder =
+    Decode.succeed Invoice
+        |> DecodePipeline.required "pr" Decode.string
+
+
+{-| Request a BOLT11 invoice from an LNURL-pay callback.
+Amount is in millisatoshis.
+On failure, the `Err` string is a human-readable provider/network message.
+-}
+fetchInvoice :
+    (Result String Invoice -> msg)
+    -> String
+    -> Int
+    -> Maybe String
+    -> Maybe String
+    -> Cmd msg
+fetchInvoice toMsg callbackUrl amountMsats maybeComment maybeNostrEventJson =
+    let
+        queryParts =
+            [ Just ("amount=" ++ String.fromInt amountMsats)
+            , maybeComment
+                |> Maybe.andThen
+                    (\comment ->
+                        if String.trim comment == "" then
+                            Nothing
+
+                        else
+                            Just ("comment=" ++ Url.percentEncode comment)
+                    )
+            , maybeNostrEventJson
+                |> Maybe.map (\json -> "nostr=" ++ Url.percentEncode json)
+            ]
+                |> List.filterMap identity
+
+        separator =
+            if String.contains "?" callbackUrl then
+                "&"
+
+            else
+                "?"
+
+        url =
+            callbackUrl ++ separator ++ String.join "&" queryParts
+    in
+    Http.request
+        { method = "GET"
+        , headers =
+            [ Http.header "Accept" "application/json"
+            ]
+        , url = url
+        , body = Http.emptyBody
+        , expect = expectInvoice toMsg
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+expectInvoice : (Result String Invoice -> msg) -> Http.Expect msg
+expectInvoice toMsg =
+    Http.expectStringResponse toMsg <|
+        \response ->
+            case response of
+                Http.BadUrl_ url ->
+                    Err ("Bad URL: " ++ url)
+
+                Http.Timeout_ ->
+                    Err "Network timeout"
+
+                Http.NetworkError_ ->
+                    Err "Network error"
+
+                Http.BadStatus_ metadata body ->
+                    Err (invoiceErrorMessage body metadata.statusCode)
+
+                Http.GoodStatus_ _ body ->
+                    case Decode.decodeString invoiceResponseDecoder body of
+                        Ok (Ok invoice) ->
+                            Ok invoice
+
+                        Ok (Err reason) ->
+                            Err reason
+
+                        Err _ ->
+                            Err "Could not read invoice response"
+
+
+invoiceResponseDecoder : Decoder (Result String Invoice)
+invoiceResponseDecoder =
+    Decode.oneOf
+        [ Decode.map Ok invoiceDecoder
+        , Decode.map Err providerErrorDecoder
+        ]
+
+
+providerErrorDecoder : Decoder String
+providerErrorDecoder =
+    Decode.oneOf
+        [ Decode.field "message" Decode.string
+        , Decode.field "reason" Decode.string
+        , Decode.succeed "Invoice request failed"
+        ]
+
+
+invoiceErrorMessage : String -> Int -> String
+invoiceErrorMessage body statusCode =
+    case Decode.decodeString providerErrorDecoder body of
+        Ok message ->
+            message
+
+        Err _ ->
+            "Invoice request failed (HTTP " ++ String.fromInt statusCode ++ ")"
+

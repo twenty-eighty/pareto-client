@@ -2539,6 +2539,7 @@ appendUnixIntTime key maybePosix encodeList =
 encodeEvent : Event -> Encode.Value
 encodeEvent event =
     [ ( "pubkey", Encode.string event.pubKey )
+    , ( "created_at", Encode.int <| Time.posixToMillis event.createdAt // 1000 )
     , ( "kind", Encode.int <| numberForKind event.kind )
     , ( "content", Encode.string event.content )
     ]

@@ -114,8 +114,7 @@ defmodule NostrBackend.NIP19Test do
       relays = [
         "wss://nos.lol",
         "wss://nostr.wine",
-        "wss://relay.damus.io",
-        "wss://relay.nostr.band"
+        "wss://relay.damus.io"
       ]
 
       naddr = NIP19.encode_naddr(kind, pubkey, identifier, relays)

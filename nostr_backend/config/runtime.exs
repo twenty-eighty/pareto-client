@@ -20,9 +20,28 @@ if System.get_env("PHX_SERVER") do
   config :nostr_backend, NostrBackendWeb.Endpoint, server: true
 end
 
+config :nostr_backend, :image_cache_key, System.get_env("IMAGE_CACHE_KEY", "")
+config :nostr_backend, :image_cache_key_previous, System.get_env("IMAGE_CACHE_KEY_PREVIOUS", "")
+
 # pubkey that has follow list with all authors
 follow_list_pubkey = System.get_env("FOLLOW_LIST_PUBKEY") || ""
 config :nostr_backend, :follow_list_pubkey, follow_list_pubkey
+
+# Comma-separated domains or origins for /.well-known/webauthn
+# e.g. WEBAUTHN_ORIGINS=pareto.space,pareto.town
+if webauthn_origins = System.get_env("WEBAUTHN_ORIGINS") do
+  origins =
+    webauthn_origins
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.map(fn
+      origin ->
+        if String.contains?(origin, "://"), do: origin, else: "https://" <> origin
+    end)
+
+  config :nostr_backend, :webauthn_origins, origins
+end
 
 if config_env() == :prod do
   # The secret key base is used to sign/encrypt cookies and other secrets.

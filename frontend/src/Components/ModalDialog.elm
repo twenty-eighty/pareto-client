@@ -1,6 +1,7 @@
 module Components.ModalDialog exposing
     ( ModalDialog, new
     , view
+    , withFixedWidth
     )
 
 {-|
@@ -13,6 +14,8 @@ module Components.ModalDialog exposing
 
 
 ## Modifiers
+
+@docs withFixedWidth
 
 -}
 
@@ -36,6 +39,7 @@ type ModalDialog msg
         , content : List (Html msg)
         , onClose : msg
         , theme : Ui.Styles.Theme
+        , panelStyles : List Css.Style
         }
 
 
@@ -47,11 +51,20 @@ new props =
         , content = props.content
         , onClose = props.onClose
         , theme = props.theme
+        , panelStyles = []
         }
 
 
 
 -- MODIFIERS
+
+
+withFixedWidth : ModalDialog msg -> ModalDialog msg
+withFixedWidth (Settings settings) =
+    Settings { settings | panelStyles = [ Tw.w_96 ] }
+
+
+
 -- VIEW
 
 
@@ -76,36 +89,38 @@ view (Settings settings) =
         [ div
             (styles.colorStyleBackground
                 ++ [ css
-                        [ Tw.rounded_lg
-                        , Tw.shadow_lg
-                        , Tw.drop_shadow_md
-                        , Tw.backdrop_blur_md
-                        , Tw.shadow_color styles.colorB2
-                        , Tw.max_h_screen
-                        , darkMode
+                        ([ Tw.rounded_lg
+                         , Tw.shadow_lg
+                         , Tw.drop_shadow_md
+                         , Tw.backdrop_blur_md
+                         , Tw.shadow_color styles.colorB2
+                         , Tw.max_h_screen
+                         , darkMode
                             [ Tw.shadow_color styles.colorB2DarkMode
                             ]
-                        , Tw.w_auto
-                        , Bp.xxl
+                         , Tw.w_auto
+                         , Bp.xxl
                             [ Tw.max_w_3xl
                             ]
-                        , Bp.xl
+                         , Bp.xl
                             [ Tw.max_w_2xl
                             ]
-                        , Bp.lg
+                         , Bp.lg
                             [ Tw.max_w_xl
                             ]
-                        , Bp.md
+                         , Bp.md
                             [ Tw.max_w_lg
                             , Tw.p_8
                             ]
-                        , Bp.sm
+                         , Bp.sm
                             [ Tw.max_w_md
                             , Tw.p_4
                             ]
-                        , Tw.max_w_sm
-                        , Tw.p_2
-                        ]
+                         , Tw.max_w_sm
+                         , Tw.p_2
+                         ]
+                            ++ settings.panelStyles
+                        )
                    ]
             )
             [ div

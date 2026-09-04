@@ -1,1 +1,0 @@
-../../node_modules/nostr-zap/dist/main.js

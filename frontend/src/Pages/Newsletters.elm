@@ -12,6 +12,7 @@ import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
 import Layouts
 import Layouts.Sidebar
+import Newsletters.Subscribers as Subscribers
 import Nostr
 import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.External
@@ -25,7 +26,6 @@ import Route exposing (Route)
 import Shared
 import Shared.Model
 import Shared.Msg
-import Subscribers
 import Svg.Loaders as Loaders
 import Table.Paginated as Table exposing (defaultCustomizations)
 import Tailwind.Utilities as Tw
@@ -37,7 +37,7 @@ import View exposing (View)
 
 
 type alias Newsletter =
-    { articleAddress : AddressComponents
+    { articleAddress : Maybe AddressComponents
     , status : String
     , processed : Int
     , skipped : Int
@@ -169,18 +169,19 @@ loadNewsletters nostr userPubKey =
         |> Shared.Msg.RequestNostrEvents
 
 
+gatewayPubKey : Nostr.Model -> PubKey
+gatewayPubKey nostr =
+    if nostr.testMode == Nostr.TestModeEnabled then
+        Pareto.emailGatewayTestKey
+
+    else
+        Pareto.emailGatewayKey
+
+
 newslettersEventFilter : Nostr.Model -> PubKey -> EventFilter
 newslettersEventFilter nostr pubKey =
-    let
-        emailGatewayKey =
-            if nostr.testMode == Nostr.TestModeEnabled then
-                Pareto.emailGatewayTestKey
-
-            else
-                Pareto.emailGatewayKey
-    in
     { emptyEventFilter
-        | authors = Just [ emailGatewayKey ]
+        | authors = Just [ gatewayPubKey nostr ]
         , kinds = Just [ KindApplicationSpecificData ]
         , tagReferences = Just [ TagReferencePubKey pubKey ]
     }
@@ -196,17 +197,17 @@ type Msg
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
-update _ msg model =
+update shared msg model =
     case msg of
         NewTableState tableState ->
             ( { model | newslettersTable = tableState }, Effect.none )
 
         ReceivedMessage message ->
-            updateWithMessage model message
+            updateWithMessage shared model message
 
 
-updateWithMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
-updateWithMessage model message =
+updateWithMessage : Shared.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
+updateWithMessage shared model message =
     case message.messageType of
         "events" ->
             case Nostr.External.decodeRequestId message.value of
@@ -221,7 +222,7 @@ updateWithMessage model message =
                                     Ok KindApplicationSpecificData ->
                                         let
                                             ( newsletters, errors ) =
-                                                processEvents model.newsletters events
+                                                processEvents (gatewayPubKey shared.nostr) model.newsletters events
                                         in
                                         ( { model
                                             | state = Loaded
@@ -248,10 +249,10 @@ updateWithMessage model message =
             ( model, Effect.none )
 
 
-processEvents : Dict Int Newsletter -> List Event -> ( Dict Int Newsletter, List String )
-processEvents existingNewsletters events =
+processEvents : PubKey -> Dict Int Newsletter -> List Event -> ( Dict Int Newsletter, List String )
+processEvents expectedGatewayKey existingNewsletters events =
     events
-        |> List.filter (\event -> event.pubKey == Pareto.emailGatewayKey)
+        |> List.filter (\event -> event.pubKey == expectedGatewayKey)
         |> List.map newsletterFromEvent
         |> List.foldl
             (\result ( newsletterDict, errorList ) ->
@@ -270,10 +271,28 @@ newsletterFromEvent event =
     Decode.decodeString (Decode.field "newsletter" newsletterDecoder) event.content
 
 
+decodeOptionalAddress : Decode.Decoder (Maybe AddressComponents)
+decodeOptionalAddress =
+    Decode.oneOf
+        [ Decode.null Nothing
+        , Decode.string
+            |> Decode.andThen
+                (\address ->
+                    case Event.parseAddress address of
+                        Just components ->
+                            Decode.succeed (Just components)
+
+                        Nothing ->
+                            Decode.succeed Nothing
+                )
+        , Decode.succeed Nothing
+        ]
+
+
 newsletterDecoder : Decode.Decoder Newsletter
 newsletterDecoder =
     Decode.succeed Newsletter
-        |> required "articleAddress" Event.decodeAddress
+        |> optional "articleAddress" decodeOptionalAddress Nothing
         |> required "status" Decode.string
         |> required "processed" Decode.int
         |> required "skipped" Decode.int

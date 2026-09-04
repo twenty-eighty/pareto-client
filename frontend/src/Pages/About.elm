@@ -260,6 +260,7 @@ viewContent shared handlerInformation =
             , validation =
                 Nostr.getProfileValidationStatus shared.nostr handlerInformation.pubKey
                     |> Maybe.withDefault ValidationUnknown
+            , zap = Nothing
             }
         , viewSupportInformation shared.theme shared.browserEnv.translations
         , viewDonationInformation shared.theme shared.browserEnv.translations
