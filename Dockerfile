@@ -50,8 +50,8 @@ RUN mix phx.digest && \
 
 # Expose the Phoenix port
 EXPOSE 4000
-ENV REPLACE_OS_VARS=true \
+ENV PHX_SERVER=true \
     PORT=4000
 
-CMD ["mix", "phx.server"]
+CMD ["_build/prod/rel/nostr_backend/bin/nostr_backend", "start"]
 
