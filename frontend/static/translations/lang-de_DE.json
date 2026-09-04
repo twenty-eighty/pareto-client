@@ -411,6 +411,14 @@
     "country ZM": "Sambia",
     "country ZW": "Simbabwe"
   },
+  "criteria builder": {
+    "and condition": "Und",
+    "or condition": "Oder",
+    "not condition": "Nicht",
+    "any tags text": "Beliebige Tags",
+    "all selected tags text": "Alle ausgewählten Tags",
+    "at least one selected tag text": "Mindestens ein ausgewähltes Tag"
+  },
   "email import dialog": {
     "dialog title": "E-Mail-Liste importieren",
     "import button title": "Importieren",
@@ -625,6 +633,32 @@
   "search bar": {
     "placeholder": "URL, Nostr-ID oder Nostr-Adresse"
   },
+  "send newsletter dialog": {
+    "dialog title": "Newsletter senden",
+    "send button title": "Newsletter senden",
+    "send only via email singular checkbox text": "E-Mail an einen Empfänger senden",
+    "send only via email plural checkbox text": "E-Mail an {{recipientCount}} Empfänger senden",
+    "send also via email singular checkbox text": "Newsletter veröffentlichen und per E-Mail an einen Empfänger senden",
+    "send also via email plural checkbox text": "Newsletter veröffentlichen und per E-Mail an {{recipientCount}} Empfänger senden",
+    "send newsletter to criteria builder text": "Sende Newsletter an Abonnenten mit...",
+    "test email field label": "Test-E-Mail",
+    "test email field placeholder": "Test-E-Mail eingeben",
+    "submit test email button title": "Absenden",
+    "test email sending text": "Sende Test-E-Mail...",
+    "test email sent text": "Test-E-Mail gesendet",
+    "test email error text": "Fehler beim Senden der Test-E-Mail: {{error}}",
+    "sending message text": "Sending newsletter…",
+    "sent message text": "Der Newsletter wurde gesendet",
+    "error message text": "{{error}}",
+    "close button title": "Schließen",
+    "cancel button title": "Abbrechen",
+    "send progress recipients": "{{accepted}} von {{fetched}} Empfänger in der Warteschlange",
+    "send progress sent": "{{sent}} von {{total}} E-Mails gesendet",
+    "emails sent count": "{{sent}} E-Mails gesendet",
+    "sent at text": "Gesendet am {{date}}",
+    "failed at text": "Fehler {{date}}",
+    "last sent at text": "Zuletzt gesendet {{date}}"
+  },
   "settings": {
     "page title": "Einstellungen",
     "relays category": "Relays",
@@ -738,6 +772,7 @@
     "page title": "Abonnenten",
     "export button title": "Exportieren",
     "import button title": "Importieren",
+    "load button title": "Laden",
     "save button title": "Speichern",
     "process modifications button title": "Verarbeiten",
     "loading subscribers text": "Lade Abonnenten ...",
@@ -756,7 +791,11 @@
     "tags field name": "Tags",
     "undeliverable field name": "Unzustellbar",
     "locale field name": "Sprache",
-    "subscribers count": "{{subscribersCount}} Abonnenten"
+    "subscribers count": "{{subscribersCount}} Abonnenten",
+    "subscribers category": "Abonnenten",
+    "tags category": "Tags",
+    "add tag field label": "Tag hinzufügen",
+    "add tag button title": "Hinzufügen"
   },
   "text stats": {
     "Bytes label": "Bytes:",
@@ -816,6 +855,7 @@
     "editor subtitle placeholder text": "Füge eine Zusammenfassung hinzu ...",
     "page title": "Artikel schreiben",
     "publish button title": "Veröffentlichen ...",
+    "send newsletter button title": "Newsletter senden...",
     "preview button title": "Vorschau",
     "edit button title": "Weiter bearbeiten",
     "save draft button title": "Entwurf speichern",
@@ -853,7 +893,20 @@
     "dialog title": "Zap",
     "comment placeholder": "Kommentar (optional)",
     "close button title": "Schließen",
-    "zap button title": "Zap"
+    "zap button title": "Zap",
+    "loading text": "Loading…",
+    "invoice title": "Rechnung bezahlen",
+    "copy invoice button title": "Rechnung kopieren",
+    "error text": "Konnte Zap nicht vorbereiten",
+    "amount label": "Betrag (Sats)",
+    "amount placeholder": "Betrag in Sats",
+    "invalid amount text": "Geben Sie einen gültigen Betrag innerhalb des zulässigen Bereichs ein",
+    "login required text": "Melden Sie sich mit einem Signaturkonto an, um diesen Zap zu senden",
+    "signing error text": "Konnte die Zap-Anfrage nicht signieren",
+    "recipient label": "Empfänger",
+    "no lud16 text": "Dieser Benutzer hat keine Lightning-Adresse",
+    "success title": "Zap gesendet",
+    "success text": "Dein Zap wurde empfangen."
   },
   "tech details": {
     "page title": "Technische Details"
