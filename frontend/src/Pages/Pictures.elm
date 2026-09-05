@@ -155,7 +155,7 @@ categoryFromString : String -> Maybe Category
 categoryFromString categoryString =
     case categoryString of
         "global" ->
-            Just Global
+            Just Pareto
 
         "pareto" ->
             Just Pareto
@@ -379,7 +379,7 @@ filterForCategory shared category =
     in
     case category of
         Global ->
-            { emptyEventFilter | kinds = Just [ KindPicture ], limit = Just 20 }
+            { emptyEventFilter | kinds = Just [ KindPicture ], authors = Just paretoAuthors, limit = Just 20 }
 
         Pareto ->
             { emptyEventFilter | kinds = Just [ KindPicture ], authors = Just (paretoAuthors), limit = Just 20 }

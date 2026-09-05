@@ -115,7 +115,7 @@ categoryFromString : String -> Maybe Category
 categoryFromString categoryString =
     case categoryString of
         "global" ->
-            Just Global
+            Just Pareto
 
         "pareto" ->
             Just Pareto
@@ -161,7 +161,7 @@ init shared route () =
 
                 Followed ->
                     if userFollowsList shared.nostr shared.loginStatus == [] then
-                        Global
+                        Pareto
 
                     else
                         category
@@ -254,7 +254,7 @@ filterForCategory : Shared.Model -> Category -> EventFilter
 filterForCategory shared category =
     case category of
         Global ->
-            { emptyEventFilter | kinds = Just [ KindLongFormContent ], limit = Just 20 }
+            { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (paretoFollowsList shared.nostr), limit = Just 20 }
 
         Pareto ->
             { emptyEventFilter | kinds = Just [ KindLongFormContent ], authors = Just (paretoFollowsList shared.nostr), limit = Just 20 }
@@ -363,15 +363,12 @@ availableCategories nostr loginStatus translations =
     paretoCategories
         ++ friedenstaubeCategories
         ++ followedCategories
-        ++ [ { category = Global
-             , title = Translations.Read.globalFeedCategory [ translations ]
-             , testId = "read-global"   
-             }
 
-           --   , { category = Highlighter
-           --     , title = Translations.Read.highlighterFeedCategory [ translations ]
-           --     }
-           ]
+{-   ++ [ { category = Highlighter
+          , title = Translations.Read.highlighterFeedCategory [ translations ]
+          }
+        ]
+-}
 
 
 paretoCategory : I18Next.Translations -> Categories.CategoryData Category
