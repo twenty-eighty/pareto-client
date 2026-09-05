@@ -43,6 +43,7 @@ type ExistingStatus
 
 type alias NewsletterData =
     { author : PubKey
+    , authorName : String
     , title : String
     , summary : String
     , content : String

@@ -31,6 +31,7 @@ import Nostr.External
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip27 as Nip27
 import Nostr.Nip94 exposing (FileMetadata)
+import Nostr.Profile exposing (profileDisplayName)
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Types exposing (EventId, IncomingMessage, PubKey, RelayUrl, loggedInPubKey, loggedInSigningPubKey)
@@ -483,6 +484,10 @@ update shared user msg model =
                         user.pubKey
                         model.sendNewsletterDialog
                         { author = user.pubKey
+                        , authorName =
+                            Nostr.getProfile shared.nostr user.pubKey
+                                |> Maybe.map (profileDisplayName user.pubKey)
+                                |> Maybe.withDefault ""
                         , title = Maybe.withDefault "" model.title
                         , summary = Maybe.withDefault "" model.summary
                         , content = Maybe.withDefault "" model.content

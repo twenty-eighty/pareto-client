@@ -37,7 +37,18 @@ import Nostr.Zaps exposing (ZapReceipt)
 import Pareto
 import Portal
 import Set exposing (Set)
+import Task
 import Time exposing (Posix)
+
+
+type Nip05RequestTarget
+    = Nip05ForPubKey PubKey
+    | Nip05ForRequest RequestId
+
+
+type Nip05CacheEntry
+    = Nip05Pending Posix (List Nip05RequestTarget)
+    | Nip05Cached Posix (Result Http.Error Nip05.Nip05Data)
 
 
 type alias Model =
@@ -63,6 +74,7 @@ type alias Model =
     , followSets : Dict PubKey (Dict String FollowSet) -- follow sets; keys pubKey / identifier
     , muteLists : Dict PubKey (List Following)
     , picturePosts : Dict EventId PicturePost
+    , nip05Cache : Dict Nip05String Nip05CacheEntry
     , pubKeyByNip05 : Dict Nip05String PubKey
     , poolState : RelayState
     , portalUserInfoPubKey : Dict PubKey Portal.PortalCheckResponse
@@ -95,8 +107,8 @@ type alias Model =
 
 type Msg
     = ReceivedMessage IncomingMessage
-    | Nip05FetchedForPubKey PubKey Nip05 (Result Http.Error Nip05.Nip05Data)
-    | Nip05FetchedForNip05 RequestId Nip05 (Result Http.Error Nip05.Nip05Data)
+    | CheckNip05Cache Nip05RequestTarget Nip05 Posix
+    | Nip05Fetched Nip05 Posix (Result Http.Error Nip05.Nip05Data)
     | Nip11Fetched String (Result Http.Error Nip11Info)
     | ReceivedPortalCheckResultPubKey PubKey (Result Http.Error Portal.PortalCheckResponse)
     | ReceivedPortalCheckResultNip05 Nip05 (Result Http.Error Portal.PortalCheckResponse)
@@ -369,7 +381,7 @@ performRequest model description requestId requestData =
 
         RequestNip05AndArticle nip05 _ ->
             -- identifier not needed here, only after getting nip05 data
-            ( model, fetchNip05Info (model.environment /= StandAlone) (Nip05FetchedForNip05 requestId nip05) nip05 )
+            ( model, requestNip05Info (Nip05ForRequest requestId) nip05 )
 
         RequestPicturesFeed eventFilters ->
             ( { model | picturePosts = Dict.empty }
@@ -380,7 +392,7 @@ performRequest model description requestId requestData =
             ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) [ eventFilter ] )
 
         RequestProfileByNip05 nip05 ->
-            ( model, fetchNip05Info (model.environment /= StandAlone) (Nip05FetchedForNip05 requestId nip05) nip05 )
+            ( model, requestNip05Info (Nip05ForRequest requestId) nip05 )
 
         RequestReactions eventFilter ->
             ( model, model.hooks.requestEvents description False requestId configuredRelays [ eventFilter ] )
@@ -1579,6 +1591,7 @@ empty =
         , searchEvents = \_ _ _ _ _ -> Cmd.none
         , sendEvent = \_ _ _ -> Cmd.none
         }
+    , nip05Cache = Dict.empty
     , picturePosts = Dict.empty
     , pubKeyByNip05 = Dict.empty
     , poolState = RelayStateUnknown
@@ -1788,60 +1801,11 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        Nip05FetchedForPubKey pubKey nip05 (Ok nip05Data) ->
-            let
-                maybePubKeyInNip05Data =
-                    Dict.get nip05.user nip05Data.names
+        CheckNip05Cache target nip05 now ->
+            checkNip05Cache model target nip05 now
 
-                nip05Relays =
-                    Maybe.map2
-                        (\pubKeyInNip05Data relaysDict ->
-                            Dict.get pubKeyInNip05Data relaysDict
-                                |> Maybe.withDefault []
-                        )
-                        maybePubKeyInNip05Data
-                        nip05Data.relays
-                        |> Maybe.withDefault []
-
-                ( validationStatus, relays ) =
-                    Dict.get nip05.user nip05Data.names
-                        |> Maybe.map
-                            (\pubKeyInNip05Data ->
-                                if pubKeyInNip05Data == pubKey then
-                                    ( ValidationSucceeded, nip05Relays )
-
-                                else
-                                    -- ignore relays if pubkey doesn't match in NIP-05
-                                    ( ValidationNotMatchingPubKey, [] )
-                            )
-                        |> Maybe.withDefault ( ValidationNameMissing, [] )
-
-                unknownRelays =
-                    relays
-                        |> List.map Nostr.Relay.hostWithoutProtocol
-                        |> List.filter
-                            (\relay ->
-                                not <| Dict.member relay model.relays
-                            )
-
-                -- don't store relays here, only response for NIP-11 request
-                requestNip11Cmd =
-                    requestRelayNip11 model unknownRelays
-            in
-            ( updateProfileWithValidationStatus model pubKey validationStatus
-            , requestNip11Cmd
-            )
-
-        Nip05FetchedForPubKey pubKey _ (Err error) ->
-            ( updateProfileWithValidationStatus model pubKey (ValidationNetworkError error), Cmd.none )
-
-        Nip05FetchedForNip05 requestId nip05 (Ok nip05Data) ->
-            updateModelWithNip05Data model requestId nip05 nip05Data
-
-        --       Nip05FetchedForNip05 requestId nip05 (Err (Http.BadStatus 404)) ->
-        --           ( model, fetchNip05InfoDirectly (Nip05FetchedForNip05 requestId nip05) nip05 )
-        Nip05FetchedForNip05 _ nip05 (Err error) ->
-            ( { model | errors = ("Error fetching NIP05 data for " ++ nip05ToString nip05 ++ ": " ++ httpErrorToString error) :: model.errors }, Cmd.none )
+        Nip05Fetched nip05 requestedAt result ->
+            updateWithNip05Result model nip05 requestedAt result
 
         Nip11Fetched urlWithoutProtocol (Ok info) ->
             let
@@ -2820,7 +2784,7 @@ updateModelWithUserMetadata model requestId events =
             profiles
                 |> List.filterMap
                     (\profile ->
-                        Maybe.map (\nip05 -> fetchNip05Info (model.environment /= StandAlone) (Nip05FetchedForPubKey profile.pubKey nip05) nip05) profile.nip05
+                        Maybe.map (requestNip05Info (Nip05ForPubKey profile.pubKey)) profile.nip05
                     )
 
         relatedKinds =
@@ -2977,6 +2941,225 @@ insertIntoEventsDict event dict =
             Dict.singleton kindNum [ event ]
 
 
+requestNip05Info : Nip05RequestTarget -> Nip05 -> Cmd Msg
+requestNip05Info target nip05 =
+    Task.perform (CheckNip05Cache target nip05) Time.now
+
+
+nip05PendingTimeoutMillis : Int
+nip05PendingTimeoutMillis =
+    30 * 1000
+
+
+nip05SuccessCacheTtlMillis : Int
+nip05SuccessCacheTtlMillis =
+    60 * 60 * 1000
+
+
+nip05ErrorCacheTtlMillis : Int
+nip05ErrorCacheTtlMillis =
+    60 * 1000
+
+
+cacheEntryIsFresh : Posix -> Nip05CacheEntry -> Bool
+cacheEntryIsFresh now cacheEntry =
+    let
+        ( cachedAt, ttl ) =
+            case cacheEntry of
+                Nip05Pending requestedAt _ ->
+                    ( requestedAt, nip05PendingTimeoutMillis )
+
+                Nip05Cached fetchedAt (Ok _) ->
+                    ( fetchedAt, nip05SuccessCacheTtlMillis )
+
+                Nip05Cached fetchedAt (Err _) ->
+                    ( fetchedAt, nip05ErrorCacheTtlMillis )
+
+        age =
+            Time.posixToMillis now - Time.posixToMillis cachedAt
+    in
+    age >= 0 && age < ttl
+
+
+addNip05Waiter : Nip05RequestTarget -> List Nip05RequestTarget -> List Nip05RequestTarget
+addNip05Waiter target waiters =
+    if List.member target waiters then
+        waiters
+
+    else
+        target :: waiters
+
+
+markNip05TargetPending : Model -> Nip05RequestTarget -> Model
+markNip05TargetPending model target =
+    case target of
+        Nip05ForPubKey pubKey ->
+            { model | profileValidations = Dict.insert pubKey ValidationPending model.profileValidations }
+
+        Nip05ForRequest _ ->
+            model
+
+
+checkNip05Cache : Model -> Nip05RequestTarget -> Nip05 -> Posix -> ( Model, Cmd Msg )
+checkNip05Cache model target nip05 now =
+    let
+        cacheKey =
+            nip05ToString nip05
+    in
+    case Dict.get cacheKey model.nip05Cache of
+        Just ((Nip05Pending requestedAt waiters) as cacheEntry) ->
+            if cacheEntryIsFresh now cacheEntry then
+                let
+                    updatedModel =
+                        markNip05TargetPending model target
+                in
+                ( { updatedModel
+                    | nip05Cache =
+                        Dict.insert cacheKey (Nip05Pending requestedAt (addNip05Waiter target waiters)) model.nip05Cache
+                  }
+                , Cmd.none
+                )
+
+            else
+                startNip05Request model (addNip05Waiter target waiters) nip05 now
+
+        Just ((Nip05Cached _ result) as cacheEntry) ->
+            if cacheEntryIsFresh now cacheEntry then
+                handleNip05Result model target nip05 result
+
+            else
+                startNip05Request model [ target ] nip05 now
+
+        Nothing ->
+            startNip05Request model [ target ] nip05 now
+
+
+startNip05Request : Model -> List Nip05RequestTarget -> Nip05 -> Posix -> ( Model, Cmd Msg )
+startNip05Request model targets nip05 requestedAt =
+    let
+        updatedModel =
+            List.foldl (\target modelAcc -> markNip05TargetPending modelAcc target) model targets
+
+        cacheKey =
+            nip05ToString nip05
+    in
+    ( { updatedModel
+        | nip05Cache =
+            Dict.insert cacheKey (Nip05Pending requestedAt targets) model.nip05Cache
+      }
+    , fetchNip05Info (model.environment /= StandAlone) (Nip05Fetched nip05 requestedAt) nip05
+    )
+
+
+updateWithNip05Result : Model -> Nip05 -> Posix -> Result Http.Error Nip05.Nip05Data -> ( Model, Cmd Msg )
+updateWithNip05Result model nip05 requestedAt result =
+    let
+        cacheKey =
+            nip05ToString nip05
+    in
+    case Dict.get cacheKey model.nip05Cache of
+        Just (Nip05Pending currentRequestedAt waiters) ->
+            if Time.posixToMillis currentRequestedAt == Time.posixToMillis requestedAt then
+                let
+                    cachedModel =
+                        { model | nip05Cache = Dict.insert cacheKey (Nip05Cached requestedAt result) model.nip05Cache }
+
+                    ( updatedModel, commands ) =
+                        waiters
+                            |> List.foldl
+                                (\target ( modelAcc, commandsAcc ) ->
+                                    let
+                                        ( nextModel, command ) =
+                                            handleNip05Result modelAcc target nip05 result
+                                    in
+                                    ( nextModel, command :: commandsAcc )
+                                )
+                                ( cachedModel, [] )
+                in
+                ( updatedModel, Cmd.batch commands )
+
+            else
+                -- Ignore a stale response from a request that timed out and was retried.
+                ( model, Cmd.none )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+handleNip05Result : Model -> Nip05RequestTarget -> Nip05 -> Result Http.Error Nip05.Nip05Data -> ( Model, Cmd Msg )
+handleNip05Result model target nip05 result =
+    case ( target, result ) of
+        ( Nip05ForPubKey pubKey, Ok nip05Data ) ->
+            updateProfileWithNip05Data model pubKey nip05 nip05Data
+
+        ( Nip05ForPubKey pubKey, Err error ) ->
+            if profileUsesNip05 model pubKey nip05 then
+                ( updateProfileWithValidationStatus model pubKey (ValidationNetworkError error), Cmd.none )
+
+            else
+                ( model, Cmd.none )
+
+        ( Nip05ForRequest requestId, Ok nip05Data ) ->
+            updateModelWithNip05Data model requestId nip05 nip05Data
+
+        ( Nip05ForRequest _, Err error ) ->
+            ( { model | errors = ("Error fetching NIP05 data for " ++ nip05ToString nip05 ++ ": " ++ httpErrorToString error) :: model.errors }
+            , Cmd.none
+            )
+
+
+profileUsesNip05 : Model -> PubKey -> Nip05 -> Bool
+profileUsesNip05 model pubKey nip05 =
+    model.profiles
+        |> Dict.get pubKey
+        |> Maybe.andThen .nip05
+        |> Maybe.map (nip05ToString >> (==) (nip05ToString nip05))
+        |> Maybe.withDefault False
+
+
+updateProfileWithNip05Data : Model -> PubKey -> Nip05 -> Nip05.Nip05Data -> ( Model, Cmd Msg )
+updateProfileWithNip05Data model pubKey nip05 nip05Data =
+    if not (profileUsesNip05 model pubKey nip05) then
+        ( model, Cmd.none )
+
+    else
+        let
+            maybePubKeyInNip05Data =
+                Dict.get nip05.user nip05Data.names
+
+            nip05Relays =
+                Maybe.map2
+                    (\pubKeyInNip05Data relaysDict ->
+                        Dict.get pubKeyInNip05Data relaysDict
+                            |> Maybe.withDefault []
+                    )
+                    maybePubKeyInNip05Data
+                    nip05Data.relays
+                    |> Maybe.withDefault []
+
+            ( validationStatus, relays ) =
+                maybePubKeyInNip05Data
+                    |> Maybe.map
+                        (\pubKeyInNip05Data ->
+                            if pubKeyInNip05Data == pubKey then
+                                ( ValidationSucceeded, nip05Relays )
+
+                            else
+                                -- Ignore relays if the pubkey does not match the NIP-05 document.
+                                ( ValidationNotMatchingPubKey, [] )
+                        )
+                    |> Maybe.withDefault ( ValidationNameMissing, [] )
+
+            unknownRelays =
+                relays
+                    |> List.map Nostr.Relay.hostWithoutProtocol
+                    |> List.filter (\relay -> not <| Dict.member relay model.relays)
+        in
+        ( updateProfileWithValidationStatus model pubKey validationStatus
+        , requestRelayNip11 model unknownRelays
+        )
+
+
 updateModelWithNip05Data : Model -> RequestId -> Nip05 -> Nip05.Nip05Data -> ( Model, Cmd Msg )
 updateModelWithNip05Data model requestId nip05 nip05Data =
     let
@@ -3075,7 +3258,7 @@ updateWithPubkeyProfiles model pubkeyProfiles =
             pubkeyProfiles
                 |> List.filterMap
                     (\{ pubKey, profile } ->
-                        Maybe.map (\nip05 -> fetchNip05Info (model.environment /= StandAlone) (Nip05FetchedForPubKey pubKey nip05) nip05) profile.nip05
+                        Maybe.map (requestNip05Info (Nip05ForPubKey pubKey)) profile.nip05
                     )
                 |> Cmd.batch
 
