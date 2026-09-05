@@ -260,6 +260,21 @@ requestNip96Auth requestId serverUrl apiUrl content method =
         }
 
 
+{-| Ask JS to build a NIP-98 Authorization header for Portal `GET /api/users/me`.
+Result arrives as `portalNip98AuthHeader` (not `nip98AuthHeader`) so media upload
+handlers do not treat it as a NIP-96 file-list auth.
+-}
+requestPortalAuth : String -> Cmd msg
+requestPortalAuth authApiBaseUrl =
+    sendCommand
+        { command = "requestPortalAuth"
+        , value =
+            Encode.object
+                [ ( "authApiBaseUrl", Encode.string authApiBaseUrl )
+                ]
+        }
+
+
 httpMethodParams : HttpRequestMethod -> List ( String, Encode.Value )
 httpMethodParams method =
     case method of
@@ -409,6 +424,7 @@ deleteContactTag tag =
 type alias NewsletterData =
     { author : PubKey
     , authorName : String
+    , postalAddress : Maybe String
     , title : String
     , summary : String
     , content : String
@@ -491,12 +507,20 @@ encodeSubscriberBlob blob =
 encodeNewsletterData : NewsletterData -> Encode.Value
 encodeNewsletterData newsletterData =
     Encode.object
-        [ ( "title", Encode.string newsletterData.title )
-        , ( "summary", Encode.string newsletterData.summary )
-        , ( "content", Encode.string newsletterData.content )
-        , ( "imageUrl", Encode.string newsletterData.imageUrl )
-        , ( "language", Encode.string <| Maybe.withDefault "" newsletterData.language )
-        , ( "identifier", Encode.string <| newsletterData.identifier )
-        , ( "authorName", Encode.string newsletterData.authorName )
-        , ( "test", Encode.bool newsletterData.test )
-        ]
+        ([ ( "title", Encode.string newsletterData.title )
+         , ( "summary", Encode.string newsletterData.summary )
+         , ( "content", Encode.string newsletterData.content )
+         , ( "imageUrl", Encode.string newsletterData.imageUrl )
+         , ( "language", Encode.string <| Maybe.withDefault "" newsletterData.language )
+         , ( "identifier", Encode.string <| newsletterData.identifier )
+         , ( "authorName", Encode.string newsletterData.authorName )
+         , ( "test", Encode.bool newsletterData.test )
+         ]
+            ++ (case newsletterData.postalAddress of
+                    Just address ->
+                        [ ( "postalAddress", Encode.string address ) ]
+
+                    Nothing ->
+                        []
+               )
+        )

@@ -312,6 +312,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         requestNip96Auth(app, value);
         break;
 
+      case 'requestPortalAuth':
+        requestPortalAuth(app, value);
+        break;
+
       case 'sendEvent':
         sendEvent(app, value);
         break;
@@ -1103,6 +1107,28 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     });
   }
 
+  function requestPortalAuth(app, { authApiBaseUrl: authApiBaseUrl }) {
+    const base =
+      typeof authApiBaseUrl === "string" && authApiBaseUrl.trim()
+        ? authApiBaseUrl.replace(/\/+$/, "")
+        : "https://pareto.town";
+    const apiUrl = `${base}/api/users/me`;
+
+    debugLog("Portal NIP-98 auth request", apiUrl);
+
+    generateNip98Header(apiUrl, "GET", "").then((authHeader) => {
+      app.ports.receiveMessage.send({
+        messageType: "portalNip98AuthHeader",
+        value: { authHeader, apiUrl },
+      });
+    }).catch((error) => {
+      app.ports.receiveMessage.send({
+        messageType: "portalNip98AuthHeader",
+        value: { error: error?.message || "Failed to create portal auth header" },
+      });
+    });
+  }
+
   async function signEvent(app, { requestId: requestId, event: event }) {
     debugLog('sign event ' + requestId, event);
 
@@ -1360,6 +1386,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   async function generateNip98Header(requestUrl, httpMethod, sha256Hash) {
     const event = new NDKEvent(window.ndk, {
       kind: NDKKind.HttpAuth,
+      content: "",
       tags: [
         ["u", requestUrl],
         ["method", httpMethod],
