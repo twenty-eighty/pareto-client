@@ -19,6 +19,7 @@ export type NewsletterData = {
   imageUrl?: string;
   language?: string;
   identifier?: string;
+  authorName?: string;
   test?: boolean;
 };
 

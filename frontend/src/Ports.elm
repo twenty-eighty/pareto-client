@@ -408,6 +408,7 @@ deleteContactTag tag =
 
 type alias NewsletterData =
     { author : PubKey
+    , authorName : String
     , title : String
     , summary : String
     , content : String
@@ -496,5 +497,6 @@ encodeNewsletterData newsletterData =
         , ( "imageUrl", Encode.string newsletterData.imageUrl )
         , ( "language", Encode.string <| Maybe.withDefault "" newsletterData.language )
         , ( "identifier", Encode.string <| newsletterData.identifier )
+        , ( "authorName", Encode.string newsletterData.authorName )
         , ( "test", Encode.bool newsletterData.test )
         ]
