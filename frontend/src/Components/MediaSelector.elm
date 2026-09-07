@@ -655,7 +655,8 @@ processIncomingMessage pubKey xModel messageType toMsg value =
         "nip98AuthHeader" ->
             case Decode.decodeValue decodeAuthHeaderReceived value of
                 Ok decoded ->
-                    if decoded.method == "GET" then
+                    -- Ignore portal profile auth; that uses messageType portalNip98AuthHeader.
+                    if decoded.method == "GET" && not (String.contains decoded.apiUrl "/api/users/me") then
                         ( Model { model | authHeader = Just decoded.authHeader }
                         , Nip96.fetchFileList (ReceivedNip96FileList decoded.serverUrl) decoded.authHeader decoded.apiUrl
                             |> Cmd.map toMsg

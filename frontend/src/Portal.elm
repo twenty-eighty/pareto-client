@@ -21,6 +21,14 @@ type alias PortalCheckResponse =
     }
 
 
+{-| Authenticated profile from `GET /api/users/me` (NIP-98).
+-}
+type alias MeProfile =
+    { name : Maybe String
+    , postalAddress : Maybe String
+    }
+
+
 loadUserDataByPubKey : (PubKey -> Result Http.Error PortalCheckResponse -> msg) -> PubKey -> Cmd msg
 loadUserDataByPubKey msg pubKey =
     Http.get
@@ -37,6 +45,38 @@ loadUserDataByNip05 msg nip05 =
         }
 
 
+{-| `GET /api/users/me` with a NIP-98 Authorization header produced in JS.
+-}
+loadMeProfile : (Result Http.Error MeProfile -> msg) -> String -> String -> Cmd msg
+loadMeProfile msg authApiBaseUrl authHeader =
+    Http.request
+        { method = "GET"
+        , headers =
+            [ Http.header "Authorization" authHeader
+            , Http.header "Accept" "application/json"
+            ]
+        , url = meEndpoint authApiBaseUrl
+        , body = Http.emptyBody
+        , expect = Http.expectJson msg decodeMeProfile
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+meEndpoint : String -> String
+meEndpoint authApiBaseUrl =
+    stripTrailingSlash authApiBaseUrl ++ "/api/users/me"
+
+
+stripTrailingSlash : String -> String
+stripTrailingSlash value =
+    if String.endsWith "/" value then
+        String.dropRight 1 value
+
+    else
+        value
+
+
 decodeNewsletterCheckResponse : Decode.Decoder PortalCheckResponse
 decodeNewsletterCheckResponse =
     Decode.succeed PortalCheckResponse
@@ -44,3 +84,29 @@ decodeNewsletterCheckResponse =
         |> optional "username" (Decode.map Just Decode.string) Nothing
         |> optional "nip05" (Decode.map Just nip05StringDecoder) Nothing
         |> optional "lud16" (Decode.map Just lud16StringDecoder) Nothing
+
+
+decodeMeProfile : Decode.Decoder MeProfile
+decodeMeProfile =
+    Decode.map2 MeProfile
+        (optionalTrimmedString "name")
+        (optionalTrimmedString "postal_address")
+
+
+optionalTrimmedString : String -> Decode.Decoder (Maybe String)
+optionalTrimmedString fieldName =
+    Decode.oneOf
+        [ Decode.field fieldName (Decode.nullable Decode.string)
+        , Decode.succeed Nothing
+        ]
+        |> Decode.map (Maybe.andThen trimToMaybe)
+
+
+trimToMaybe : String -> Maybe String
+trimToMaybe value =
+    case String.trim value of
+        "" ->
+            Nothing
+
+        trimmed ->
+            Just trimmed

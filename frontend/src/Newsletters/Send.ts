@@ -20,6 +20,8 @@ export type NewsletterData = {
   language?: string;
   identifier?: string;
   authorName?: string;
+  /** Sender postal address for the email footer (from Nostr Portal / Elm). */
+  postalAddress?: string;
   test?: boolean;
 };
 

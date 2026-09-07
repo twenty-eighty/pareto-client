@@ -482,12 +482,14 @@ update shared user msg model =
                 ( sendNewsletterDialog, effect ) =
                     SendNewsletterDialog.show shared.nostr
                         user.pubKey
+                        shared.browserEnv.authApiBaseUrl
                         model.sendNewsletterDialog
                         { author = user.pubKey
                         , authorName =
                             Nostr.getProfile shared.nostr user.pubKey
                                 |> Maybe.map (profileDisplayName user.pubKey)
                                 |> Maybe.withDefault ""
+                        , postalAddress = Nothing
                         , title = Maybe.withDefault "" model.title
                         , summary = Maybe.withDefault "" model.summary
                         , content = Maybe.withDefault "" model.content

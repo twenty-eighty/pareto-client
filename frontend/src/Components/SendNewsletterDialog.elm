@@ -7,6 +7,7 @@ import Components.ModalDialog as ModalDialog
 import Effect exposing (Effect)
 import EmailValidation
 import Html.Styled as Html exposing (Html, div, text)
+import Http
 import I18Next
 import Html.Styled.Attributes as Attr exposing (css)
 import Iso8601
@@ -16,6 +17,7 @@ import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.External
 import Nostr.Types exposing (IncomingMessage, PubKey)
+import Portal
 import Ports
 import Svg.Loaders
 import Tailwind.Utilities as Tw
@@ -31,6 +33,7 @@ type Msg msg
     | ReceivedMessage IncomingMessage
     | UpdateTestEmail String
     | SubmitTestEmail String
+    | GotPortalUserProfile (Result Http.Error Portal.MeProfile)
 
 
 type ExistingStatus
@@ -44,6 +47,7 @@ type ExistingStatus
 type alias NewsletterData =
     { author : PubKey
     , authorName : String
+    , postalAddress : Maybe String
     , title : String
     , summary : String
     , content : String
@@ -52,6 +56,13 @@ type alias NewsletterData =
     , identifier : String
     , test : Bool
     }
+
+
+type SenderProfileState
+    = SenderProfileIdle
+    | SenderProfileLoading
+    | SenderProfileReady
+    | SenderProfileError String
 
 
 type NewsletterStatusResponse
@@ -119,6 +130,8 @@ type Model
         , existingStatus : ExistingStatus
         , recipientCount : Maybe Int
         , subscriberEventData : Maybe Subscribers.SubscriberEventData
+        , senderProfile : SenderProfileState
+        , authApiBaseUrl : Maybe String
         }
 
 type TestEmailState
@@ -174,26 +187,40 @@ init _ =
         , existingStatus = StatusUnknown
         , recipientCount = Nothing
         , subscriberEventData = Nothing
+        , senderProfile = SenderProfileIdle
+        , authApiBaseUrl = Nothing
         }
     , Effect.none
     )
 
 hide : Model -> Model
 hide (Model model) =
-    Model { model | state = DialogHidden, existingStatus = StatusUnknown, recipientCount = Nothing, subscriberEventData = Nothing }
+    Model
+        { model
+            | state = DialogHidden
+            , existingStatus = StatusUnknown
+            , recipientCount = Nothing
+            , subscriberEventData = Nothing
+            , senderProfile = SenderProfileIdle
+            , authApiBaseUrl = Nothing
+        }
 
 
-show : Nostr.Model -> PubKey -> Model -> NewsletterData -> ( Model, Effect (Msg msg) )
-show nostr pubKey (Model model) newsletterData =
+show : Nostr.Model -> PubKey -> String -> Model -> NewsletterData -> ( Model, Effect (Msg msg) )
+show nostr pubKey authApiBaseUrl (Model model) newsletterData =
     ( Model
         { model
             | state = DialogPreparation newsletterData
             , existingStatus = StatusChecking
             , recipientCount = Nothing
             , subscriberEventData = Nothing
+            , senderProfile = SenderProfileLoading
+            , authApiBaseUrl = Just authApiBaseUrl
         }
     , Effect.batch
         [ Ports.getNewsletterStatus newsletterData.author newsletterData.identifier
+            |> Effect.sendCmd
+        , Ports.requestPortalAuth authApiBaseUrl
             |> Effect.sendCmd
         , Subscribers.load nostr pubKey
             |> Effect.sendSharedMsg
@@ -253,7 +280,10 @@ update props =
                         ( Model model, Effect.none )
 
             ReceivedMessage message ->
-                updateWithMessage (Model model) props.pubKey message
+                updateWithMessage props.toMsg (Model model) props.pubKey message
+
+            GotPortalUserProfile result ->
+                ( applyPortalUserProfile (Model model) result, Effect.none )
 
             UpdateTestEmail email ->
                 if email /= "" then
@@ -394,13 +424,93 @@ sendTotalsDecoder =
         (Decode.oneOf [ Decode.field "errors" Decode.int, Decode.succeed 0 ])
 
 
+applyPortalUserProfile : Model -> Result Http.Error Portal.MeProfile -> Model
+applyPortalUserProfile (Model model) result =
+    case result of
+        Ok profile ->
+            let
+                nextName =
+                    profile.name
+                        |> Maybe.withDefault ""
+                        |> String.trim
+                        |> (\portalName ->
+                                if portalName == "" then
+                                    Nothing
+
+                                else
+                                    Just portalName
+                           )
+            in
+            Model
+                { model
+                    | senderProfile = SenderProfileReady
+                    , state =
+                        updateNewsletterData model.state
+                            (\newsletterData ->
+                                { newsletterData
+                                    | authorName =
+                                        Maybe.withDefault newsletterData.authorName nextName
+                                    , postalAddress = profile.postalAddress
+                                }
+                            )
+                }
+
+        Err error ->
+            Model { model | senderProfile = SenderProfileError (httpErrorToString error) }
+
+
+httpErrorToString : Http.Error -> String
+httpErrorToString error =
+    case error of
+        Http.BadUrl url ->
+            "Bad URL: " ++ url
+
+        Http.Timeout ->
+            "Request timed out"
+
+        Http.NetworkError ->
+            "Network error"
+
+        Http.BadStatus status ->
+            "HTTP " ++ String.fromInt status
+
+        Http.BadBody body ->
+            body
+
+
+type PortalAuthHeaderResult
+    = PortalAuthHeader String
+    | PortalAuthHeaderError String
+
+
+portalAuthHeaderDecoder : Decode.Decoder PortalAuthHeaderResult
+portalAuthHeaderDecoder =
+    Decode.oneOf
+        [ Decode.map PortalAuthHeader (Decode.field "authHeader" Decode.string)
+        , Decode.map PortalAuthHeaderError (Decode.field "error" Decode.string)
+        ]
+
+
+updateNewsletterData : DialogState -> (NewsletterData -> NewsletterData) -> DialogState
+updateNewsletterData state updateFn =
+    case state of
+        DialogPreparation newsletterData ->
+            DialogPreparation (updateFn newsletterData)
+
+        DialogSending newsletterData progress ->
+            DialogSending (updateFn newsletterData) progress
+
+        other ->
+            other
+
+
 sendTestEmail : String -> NewsletterData -> Cmd msg
 sendTestEmail email newsletterData =
     Ports.sendNewsletterTest email newsletterData
 
 
-updateWithMessage : Model -> PubKey -> IncomingMessage -> ( Model, Effect msg )
-updateWithMessage (Model model) userPubKey message =
+updateWithMessage : (Msg msg -> msg) -> Model -> PubKey -> IncomingMessage -> ( Model, Effect msg )
+updateWithMessage toMsg (Model model) userPubKey message =
     case message.messageType of
         "newsletterProgress" ->
             case Decode.decodeValue sendProgressDecoder message.value of
@@ -490,6 +600,27 @@ updateWithMessage (Model model) userPubKey message =
             case Decode.decodeValue (Decode.field "count" (Decode.nullable Decode.int)) message.value of
                 Ok (Just count) ->
                     ( Model { model | recipientCount = Just count }, Effect.none )
+
+                _ ->
+                    ( Model model, Effect.none )
+
+        "portalNip98AuthHeader" ->
+            case ( model.senderProfile, model.authApiBaseUrl, Decode.decodeValue portalAuthHeaderDecoder message.value ) of
+                ( SenderProfileLoading, Just authApiBaseUrl, Ok (PortalAuthHeader authHeader) ) ->
+                    ( Model model
+                    , Portal.loadMeProfile GotPortalUserProfile authApiBaseUrl authHeader
+                        |> Effect.sendCmd
+                        |> Effect.map toMsg
+                    )
+
+                ( SenderProfileLoading, _, Ok (PortalAuthHeaderError errorMsg) ) ->
+                    ( Model { model | senderProfile = SenderProfileError errorMsg }, Effect.none )
+
+                ( SenderProfileLoading, Nothing, Ok (PortalAuthHeader _) ) ->
+                    ( Model { model | senderProfile = SenderProfileError "Missing portal base URL" }, Effect.none )
+
+                ( SenderProfileLoading, _, Err decodeError ) ->
+                    ( Model { model | senderProfile = SenderProfileError (Decode.errorToString decodeError) }, Effect.none )
 
                 _ ->
                     ( Model model, Effect.none )
@@ -980,9 +1111,86 @@ viewSendNewsletterDialog (Settings settings) =
             , Tw.w_full
             ]
         ]
-        [ viewNewsletterStatus (Settings settings)
+        [ viewSenderDetails (Settings settings)
+        , viewNewsletterStatus (Settings settings)
         , viewTestEmailField (Settings settings)
         , viewRecipientCount (Settings settings)
+        ]
+
+
+viewSenderDetails : SendNewsletterDialog msg -> Html (Msg msg)
+viewSenderDetails (Settings settings) =
+    let
+        (Model model) =
+            settings.model
+
+        translations =
+            [ settings.browserEnv.translations ]
+
+        styles =
+            Ui.Styles.stylesForTheme settings.theme
+
+        newsletterData =
+            case model.state of
+                DialogPreparation data ->
+                    Just data
+
+                DialogSending data _ ->
+                    Just data
+
+                _ ->
+                    Nothing
+
+        nameText =
+            newsletterData
+                |> Maybe.map .authorName
+                |> Maybe.withDefault ""
+                |> String.trim
+
+        addressBlock =
+            case model.senderProfile of
+                SenderProfileIdle ->
+                    emptyHtml
+
+                SenderProfileLoading ->
+                    div (styles.textStyle14 ++ [ css [ Tw.opacity_70 ] ])
+                        [ text (Translations.senderProfileLoadingText translations) ]
+
+                SenderProfileError errorMsg ->
+                    div (styles.textStyle14 ++ [ css [ Tw.opacity_70 ] ])
+                        [ text (Translations.senderProfileErrorText translations { error = errorMsg }) ]
+
+                SenderProfileReady ->
+                    case newsletterData |> Maybe.andThen .postalAddress of
+                        Just address ->
+                            div
+                                (styles.textStyle14
+                                    ++ [ css [ Tw.whitespace_pre_line ] ]
+                                )
+                                [ text address ]
+
+                        Nothing ->
+                            div (styles.textStyle14 ++ [ css [ Tw.opacity_70 ] ])
+                                [ text (Translations.senderPostalAddressMissingText translations) ]
+    in
+    statusContainer
+        [ div (styles.textStyleH3 ++ [ css [ Tw.mb_1 ] ])
+            [ text (Translations.senderSectionTitle translations) ]
+        , div (styles.textStyle14 ++ [ css [ Tw.flex, Tw.flex_col, Tw.gap_1 ] ])
+            [ div []
+                [ text (Translations.senderNameLabel translations ++ ": ")
+                , text
+                    (if nameText == "" then
+                        "—"
+
+                     else
+                        nameText
+                    )
+                ]
+            , div []
+                [ text (Translations.senderPostalAddressLabel translations ++ ":") ]
+            , addressBlock
+            ]
         ]
 
 
