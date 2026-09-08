@@ -23,6 +23,11 @@ end
 config :nostr_backend, :image_cache_key, System.get_env("IMAGE_CACHE_KEY", "")
 config :nostr_backend, :image_cache_key_previous, System.get_env("IMAGE_CACHE_KEY_PREVIOUS", "")
 
+config :nostr_backend,
+  spam_fighter_url:
+    System.get_env("SPAM_FIGHTER_URL", "https://nostr-spam-fighter.onrender.com"),
+  spam_fighter_api_key: System.get_env("SPAM_FIGHTER_API_KEY", "")
+
 # pubkey that has follow list with all authors
 follow_list_pubkey = System.get_env("FOLLOW_LIST_PUBKEY") || ""
 config :nostr_backend, :follow_list_pubkey, follow_list_pubkey

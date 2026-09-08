@@ -11,6 +11,8 @@ config :nostr_backend,
   generators: [timestamp_type: :utc_datetime],
   image_cache_key: "",
   image_cache_key_previous: "",
+  spam_fighter_url: "https://nostr-spam-fighter.onrender.com",
+  spam_fighter_api_key: "",
   feed_generator: %{
     # authors@pareto.space
     source_pubkey:
