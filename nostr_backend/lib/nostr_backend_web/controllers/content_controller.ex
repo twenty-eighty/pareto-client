@@ -11,6 +11,7 @@ defmodule NostrBackendWeb.ContentController do
   alias NostrBackend.Nip05Cache
   alias NostrBackend.NoteCache
   alias NostrBackend.ProfileCache
+  alias NostrBackend.SpamFighter
 
   @meta_title "The Pareto Project"
   @meta_description "An open source publishing platform for uncensorable, investigative journalism powered by Nostr, Lightning and eCash."
@@ -19,25 +20,29 @@ defmodule NostrBackendWeb.ContentController do
   def article(conn, %{"article_id" => nostr_id}) do
     case NostrId.parse(nostr_id) do
       {:ok, {:author_article, query_data}} ->
-        case ArticleCache.get_article(query_data) do
-          {:ok, article} ->
-            article = apply_substitution_if_bot(conn, article)
-            relay = Map.get(query_data, :relay)
-            relays_list = Map.get(query_data, :relays, if(relay, do: [relay], else: []))
+        if SpamFighter.suppress_article?(nostr_id) do
+          send_resp(conn, :not_found, "")
+        else
+          case ArticleCache.get_article(query_data) do
+            {:ok, article} ->
+              article = apply_substitution_if_bot(conn, article)
+              relay = Map.get(query_data, :relay)
+              relays_list = Map.get(query_data, :relays, if(relay, do: [relay], else: []))
 
-            conn
-            |> conn_with_article_meta(article, relays_list)
-            |> put_view(NostrBackendWeb.ContentHTML)
-            |> render(:article, article: article)
+              conn
+              |> conn_with_article_meta(article, relays_list)
+              |> put_view(NostrBackendWeb.ContentHTML)
+              |> render(:article, article: article)
 
-          {:error, reason} ->
-            Logger.debug("ERROR REASON: #{inspect(reason)}")
+            {:error, reason} ->
+              Logger.debug("ERROR REASON: #{inspect(reason)}")
 
-            conn
-            |> conn_with_default_meta()
-            |> render(:not_found, layout: false)
+              conn
+              |> conn_with_default_meta()
+              |> render(:not_found, layout: false)
 
-            #            |> render(NostrBackendWeb.ErrorHTML, :"404")
+              #            |> render(NostrBackendWeb.ErrorHTML, :"404")
+          end
         end
 
       {:ok, {:article, article_hex_id}} ->
