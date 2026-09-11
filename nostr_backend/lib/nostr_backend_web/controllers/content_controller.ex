@@ -84,9 +84,10 @@ defmodule NostrBackendWeb.ContentController do
         end
 
       {:error, reason} ->
+        Logger.debug("Invalid Nostr ID: #{inspect(reason)}")
+
         conn
         |> conn_with_default_meta()
-        |> text("Invalid Nostr ID: #{reason}")
         |> render(:not_found, layout: false)
     end
   end
@@ -162,9 +163,10 @@ defmodule NostrBackendWeb.ContentController do
         end
 
       {:error, reason} ->
+        Logger.debug("Invalid Nostr ID: #{inspect(reason)}")
+
         conn
         |> conn_with_default_meta()
-        |> text("Invalid Nostr ID: #{reason}")
         |> render(:not_found, layout: false)
     end
   end
@@ -211,9 +213,10 @@ defmodule NostrBackendWeb.ContentController do
         end
 
       {:error, reason} ->
+        Logger.debug("Invalid NIP-05 identifier: #{inspect(reason)}")
+
         conn
         |> conn_with_default_meta()
-        |> text("Invalid NIP-05 identifier: #{reason}")
         |> render(:not_found, layout: false)
     end
   end
@@ -255,9 +258,10 @@ defmodule NostrBackendWeb.ContentController do
         end
 
       {:error, reason} ->
+        Logger.debug("Invalid NIP-05 identifier: #{inspect(reason)}")
+
         conn
         |> conn_with_default_meta()
-        |> text("Invalid NIP-05 identifier: #{reason}")
         |> render(:not_found, layout: false)
     end
   end

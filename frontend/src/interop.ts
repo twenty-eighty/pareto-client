@@ -72,7 +72,7 @@ export const flags = ({ env }: { env: FlagsEnv }) => {
   return {
     environment: env.ELM_ENV,
     darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
-    imageCachingServer: env.IMAGE_CACHING_SERVER || "https://image-caching-server.onrender.com",
+    imageCachingServer: env.IMAGE_CACHING_SERVER || "https://ics.pareto.space",
     imageCacheKey: window.__PARETO_IMAGE_CACHE_KEY__ || env.IMAGE_CACHE_KEY || "",
     locale: selectedLocale,
     nativeSharingAvailable: (navigator.share != undefined),
