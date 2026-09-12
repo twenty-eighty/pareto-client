@@ -373,9 +373,41 @@ view (Settings settings) =
 
         viewDropdownMenuItem : Maybe item -> Html msg
         viewDropdownMenuItem item =
+            let
+                isSelected =
+                    model.selected == item
+            in
             li
                 [ onClick (onMenuItemClick item)
                 , Attr.attribute "data-test" ("dropdown-item-" ++ (settings.toLabel item |> String.replace " " "-"))
+                , css
+                    ([ Tw.px_4
+                     , Tw.py_2
+                     , Tw.cursor_pointer
+                     , Css.hover
+                        [ Tw.bg_color styles.colorB4
+                        , Tw.text_color styles.colorB1
+                        ]
+                     , darkMode
+                        [ Css.hover
+                            [ Tw.bg_color styles.colorB4DarkMode
+                            , Tw.text_color styles.colorB1DarkMode
+                            ]
+                        ]
+                     ]
+                        ++ (if isSelected then
+                                [ Tw.bg_color styles.colorB4
+                                , Tw.text_color styles.colorB1
+                                , darkMode
+                                    [ Tw.bg_color styles.colorB4DarkMode
+                                    , Tw.text_color styles.colorB1DarkMode
+                                    ]
+                                ]
+
+                            else
+                                []
+                           )
+                    )
                 ]
                 [ text (settings.toLabel item)
                 ]
