@@ -1395,7 +1395,7 @@ viewWelcomeChoices theme t m =
         , fullButton theme (Translations.continueWithEmailChoiceTitle t) (ShowScreen EmailLoginForm) m.busy
         , p [ css [ Tw.text_xs, Tw.opacity_60 ] ]
             [ text (Translations.emailChoiceHelpText t) ]
-        , secondaryButton theme (Translations.useNostrAccountButtonTitle t) (ShowScreen NostrMethods)
+        , fullButton theme (Translations.useNostrAccountButtonTitle t) (ShowScreen NostrMethods) m.busy
         , p [ css [ Tw.text_xs, Tw.opacity_60 ] ]
             [ text (Translations.useNostrAccountHelpText t) ]
         ]
