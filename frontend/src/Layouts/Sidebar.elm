@@ -427,24 +427,43 @@ update _ msg model =
                 --- Correct the entry in this case.
                 pageScrollPositions =
                     if Dict.size model.pageScrollPositions == 1 then
-                        Dict.insert (Url.toString from.url) (Dict.get "" model.pageScrollPositions |> Maybe.withDefault 0) model.pageScrollPositions
+                        Dict.insert (urlWithoutFragment from.url) (Dict.get "" model.pageScrollPositions |> Maybe.withDefault 0) model.pageScrollPositions
 
                     else
                         model.pageScrollPositions
 
                 currentURL =
-                    Url.toString to.url
+                    urlWithoutFragment to.url
+
+                sameDocument =
+                    urlWithoutFragment from.url == currentURL
 
                 currentPagePosition =
                     Dict.get currentURL pageScrollPositions |> Maybe.withDefault 0
 
+                -- Hash-only changes (footnotes, #signup) are not a new page.
+                -- Restoring scroll here would jump to top, then undo a footnote jump 2s later.
                 effect =
-                    Effect.sendMsg (ScrollToPosition currentPagePosition)
+                    case Shared.footnoteAnchorId to.hash of
+                        Just _ ->
+                            Effect.sendCmd (Shared.attemptScrollToFootnote (\_ -> NoOp) to.hash)
+
+                        Nothing ->
+                            if sameDocument then
+                                Effect.none
+
+                            else
+                                Effect.sendMsg (ScrollToPosition currentPagePosition)
             in
             ( { model | currentURL = currentURL, pageScrollPositions = pageScrollPositions }, effect )
 
         NoOp ->
             ( model, Effect.none )
+
+
+urlWithoutFragment : Url.Url -> String
+urlWithoutFragment url =
+    Url.toString { url | fragment = Nothing }
 
 
 subscriptions : Model -> Sub Msg
