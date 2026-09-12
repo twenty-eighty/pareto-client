@@ -238,6 +238,14 @@ function normalizeHexPubkey(pubkey: string): string {
   return pubkey.toLowerCase();
 }
 
+/**
+ * NDKPrivateKeySigner stores the Uint8Array by reference. Always copy before
+ * handing bytes to the signer if the source buffer will be wiped.
+ */
+function signerFromNsecBytes(nsecBytes: Uint8Array, ndk: NDK): NDKPrivateKeySigner {
+  return new NDKPrivateKeySigner(new Uint8Array(nsecBytes), ndk);
+}
+
 function pubkeyFromNpubOrHex(value: string): string {
   const trimmed = value.trim();
   if (/^[0-9a-fA-F]{64}$/.test(trimmed)) {
@@ -338,7 +346,7 @@ async function activateSigner(
         if (pubkey !== identity.pubkey) {
           throw new Error("Passkey account does not match this identity");
         }
-        ndk.signer = new NDKPrivateKeySigner(nsecBytes, ndk);
+        ndk.signer = signerFromNsecBytes(nsecBytes, ndk);
       } finally {
         nsecBytes.fill(0);
       }
@@ -431,7 +439,7 @@ export async function handleAuthCommand(
           if (normalizeHexPubkey(pubkey) !== normalizeHexPubkey(identity.pubkey)) {
             throw new Error("Passkey does not match this identity");
           }
-          const signer = new NDKPrivateKeySigner(nsecBytes, ndk);
+          const signer = signerFromNsecBytes(nsecBytes, ndk);
           ndk.signer = signer;
           store.activeId = identity.id;
           saveStore(store);
@@ -668,7 +676,7 @@ export async function handleAuthCommand(
         const preferred = String(value?.pubkey || "").trim();
         const { nsecBytes, pubkey } = await loginWithPasskey(preferred || undefined);
         try {
-          const signer = new NDKPrivateKeySigner(nsecBytes, ndk);
+          const signer = signerFromNsecBytes(nsecBytes, ndk);
           const identity: StoredIdentity = {
             id: newId(),
             method: "passkey",
