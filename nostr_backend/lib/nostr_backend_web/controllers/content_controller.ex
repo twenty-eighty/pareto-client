@@ -461,10 +461,12 @@ defmodule NostrBackendWeb.ContentController do
     ]
 
     same_as =
-      if profile.website do
-        same_as ++ [profile.website |> force_https()]
-      else
-        same_as
+      case Map.get(profile, :website) do
+        website when is_binary(website) and website != "" ->
+          same_as ++ [force_https(website)]
+
+        _ ->
+          same_as
       end
 
     # Get the first available image
