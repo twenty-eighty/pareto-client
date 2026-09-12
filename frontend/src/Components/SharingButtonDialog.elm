@@ -278,6 +278,8 @@ viewDialog (Settings settings) =
                     , Tw.items_end
                     , Tw.bg_color Theme.white
                     , Tw.gap_2
+                    , Tw.pr_3
+                    , Tw.pb_3
                     ]
                 ]
                 [ Html.div
@@ -324,7 +326,13 @@ viewSocialDialog (Settings settings) =
                 |> Button.view
             ]
         , content =
-            [ socialMediaButtons (Settings settings)
+            [ Html.div
+                [ Attr.css
+                    [ Tw.pr_3
+                    , Tw.pb_3
+                    ]
+                ]
+                [ socialMediaButtons (Settings settings) ]
             ]
         , onClose = settings.toMsg (UpdateState Hidden)
         , theme = settings.theme
