@@ -460,7 +460,9 @@
   },
   "hashtag editor": {
     "label": "Hashtags",
-    "placeholder": "Enter hashtags separated by commas"
+    "placeholder": "Add a hashtag and press Enter",
+    "help": "Tags can contain spaces. Separate them with commas.",
+    "limit reached": "Maximum number of hashtags reached."
   },
   "interaction button": {
     "error publishing interaction": "Error publishing interaction: {{reason}}"
