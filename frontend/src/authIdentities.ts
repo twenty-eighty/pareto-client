@@ -420,6 +420,31 @@ export async function handleAuthCommand(
         return true;
       }
 
+      case "unlockIdentityWithPasskey": {
+        const store = loadStore();
+        const identity = store.identities.find((item) => item.id === value.id);
+        if (!identity) {
+          throw new Error("Identity not found");
+        }
+        const { nsecBytes, pubkey } = await loginWithPasskey(identity.pubkey);
+        try {
+          if (normalizeHexPubkey(pubkey) !== normalizeHexPubkey(identity.pubkey)) {
+            throw new Error("Passkey does not match this identity");
+          }
+          const signer = new NDKPrivateKeySigner(nsecBytes, ndk);
+          ndk.signer = signer;
+          store.activeId = identity.id;
+          saveStore(store);
+          sendIdentities(app, store);
+          sendUser(app, identity.pubkey, identity.method, {
+            bootstrap: needsBootstrap(identity.pubkey),
+          });
+        } finally {
+          nsecBytes.fill(0);
+        }
+        return true;
+      }
+
       case "removeIdentity": {
         const store = loadStore();
         const wasActive = store.activeId === value.id;
@@ -704,7 +729,10 @@ export async function handleAuthCommand(
     }
   } catch (error: any) {
     const reason =
-      command === "loginWithPasskey" || command === "createPasskey" || command === "checkPasskeySupport"
+      command === "loginWithPasskey" ||
+      command === "unlockIdentityWithPasskey" ||
+      command === "createPasskey" ||
+      command === "checkPasskeySupport"
         ? mapKeytrError(error)
         : error?.message || String(error);
     sendAuthError(app, reason);

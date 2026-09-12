@@ -137,6 +137,16 @@ loginWithPasskey =
     sendCommand { command = "loginWithPasskey", value = Encode.null }
 
 
+{-| Unlock an existing saved identity via its Keytr passkey (no password).
+-}
+unlockIdentityWithPasskey : String -> Cmd msg
+unlockIdentityWithPasskey id =
+    sendCommand
+        { command = "unlockIdentityWithPasskey"
+        , value = Encode.object [ ( "id", Encode.string id ) ]
+        }
+
+
 createPasskey : Maybe String -> Cmd msg
 createPasskey maybeDisplayName =
     sendCommand

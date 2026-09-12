@@ -360,6 +360,7 @@ type Msg
     | SubmitNcryptsec
     | UseIdentity String Bool
     | ConfirmUnlock
+    | ClickUnlockWithPasskey
     | DeleteIdentity String
     | ClickLogout
     | ClickPasskeyLogin
@@ -669,6 +670,16 @@ update browserEnv msg (Model m) =
 
                 Nothing ->
                     ( Model m, Cmd.none )
+
+        ClickUnlockWithPasskey ->
+            case m.unlockId of
+                Just id ->
+                    ( Model { m | busy = True, error = Nothing }
+                    , Ports.unlockIdentityWithPasskey id
+                    )
+
+                Nothing ->
+                    ( Model { m | error = Just "No identity selected" }, Cmd.none )
 
         DeleteIdentity id ->
             ( Model { m | busy = True }
@@ -1728,12 +1739,55 @@ ncryptsecImportValid ncryptsec password =
 
 viewUnlock : Theme -> List I18Next.Translations -> Internal -> Html Msg
 viewUnlock theme t m =
+    let
+        unlockIdentity =
+            case m.unlockId of
+                Just id ->
+                    List.filter (\identity -> identity.id == id) m.identities
+                        |> List.head
+
+                Nothing ->
+                    Nothing
+
+        canUnlockWithPasskey =
+            m.passkeySupported
+                == Just True
+                && (case unlockIdentity of
+                        Just identity ->
+                            identity.hasPasskey
+
+                        Nothing ->
+                            False
+                   )
+    in
     formStack
-        [ p [ css [ Tw.text_sm ] ] [ text "Enter the password for this encrypted key." ]
-        , field "Password" "password" m.passwordInput InputPassword True
-        , fullButton theme (Translations.unlockButtonTitle t) ConfirmUnlock m.busy
-        , secondaryButton theme (Translations.backButtonTitle t) (ShowScreen Home)
-        ]
+        ([ p [ css [ Tw.text_sm ] ]
+            [ text
+                (if canUnlockWithPasskey then
+                    "Unlock with your passkey, or enter the password for this encrypted key."
+
+                 else
+                    "Enter the password for this encrypted key."
+                )
+            ]
+         ]
+            ++ (if canUnlockWithPasskey then
+                    [ fullButton theme
+                        (Translations.unlockWithPasskeyButtonTitle t)
+                        ClickUnlockWithPasskey
+                        m.busy
+                    , p [ css [ Tw.text_xs, Tw.opacity_60, Tw.text_center ] ]
+                        [ text "or use your password" ]
+                    ]
+
+                else
+                    []
+               )
+            ++ [ field "Password" "password" m.passwordInput InputPassword True
+               , fullButton theme (Translations.unlockButtonTitle t) ConfirmUnlock m.busy
+               , secondaryButton theme (Translations.backButtonTitle t) (ShowScreen Home)
+               ]
+        )
 
 
 formStack : List (Html Msg) -> Html Msg
