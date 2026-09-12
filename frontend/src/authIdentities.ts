@@ -14,15 +14,21 @@ import NDK, {
 import {
   createPasskeyForNsec,
   dismissPasskeyPrompt,
+  hasKeytrCredential,
   hexToNsecBytes,
+  indexedKeytrPubkeys,
   loginWithPasskey,
   mapKeytrError,
+  refreshKeytrPresence,
   reportPasskeySupport,
   shouldOfferPasskeyCreate,
 } from "./keytrAuth";
 
 const STORAGE_KEY = "pareto.auth.identities.v1";
 const BOOTSTRAP_KEY = "pareto.auth.bootstrap.v1";
+
+/** Latest NDK instance — used to report whether an ncryptsec identity is unlocked. */
+let lastNdk: NDK | null = null;
 
 export type AuthMethod = "extension" | "npub" | "bunker" | "ncryptsec" | "passkey";
 
@@ -79,13 +85,26 @@ function saveStore(store: IdentityStore): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
 }
 
-function publicIdentity(identity: StoredIdentity) {
+function isPrivateKeyUnlocked(identity: StoredIdentity, activeId: string | null): boolean {
+  if (identity.method !== "ncryptsec") {
+    return false;
+  }
+  if (activeId !== identity.id) {
+    return false;
+  }
+  const signer = lastNdk?.signer;
+  return signer instanceof NDKPrivateKeySigner && !!signer.privateKey;
+}
+
+function publicIdentity(identity: StoredIdentity, activeId: string | null) {
+  const unlocked = isPrivateKeyUnlocked(identity, activeId);
   return {
     id: identity.id,
     method: identity.method,
     pubkey: identity.pubkey,
     label: identity.label ?? identity.email ?? null,
-    locked: identity.method === "ncryptsec",
+    locked: identity.method === "ncryptsec" && !unlocked,
+    hasPasskey: hasKeytrCredential(identity.pubkey),
     createdAt: identity.createdAt,
   };
 }
@@ -141,6 +160,11 @@ async function offerPasskeyIfNeeded(
   if (method !== "ncryptsec") {
     return false;
   }
+  try {
+    await refreshKeytrPresence([pubkey]);
+  } catch {
+    // Fall through to local index via shouldOfferPasskeyCreate.
+  }
   if (!shouldOfferPasskeyCreate(pubkey)) {
     return false;
   }
@@ -152,11 +176,30 @@ async function offerPasskeyIfNeeded(
   }
 }
 
+async function refreshPasskeyState(app: ElmApp): Promise<void> {
+  const store = loadStore();
+  const pubkeys = [
+    ...store.identities.map((identity) => identity.pubkey),
+    ...indexedKeytrPubkeys(),
+  ];
+  await refreshKeytrPresence(pubkeys);
+  sendIdentities(app, loadStore());
+  try {
+    const support = await reportPasskeySupport();
+    app.ports.receiveMessage.send({
+      messageType: "passkeySupport",
+      value: support,
+    });
+  } catch {
+    // Ignore PRF probe failures; identities already refreshed.
+  }
+}
+
 function sendIdentities(app: ElmApp, store: IdentityStore = loadStore()): void {
   app.ports.receiveMessage.send({
     messageType: "identities",
     value: {
-      identities: store.identities.map(publicIdentity),
+      identities: store.identities.map((identity) => publicIdentity(identity, store.activeId)),
       activeId: store.activeId,
     },
   });
@@ -195,6 +238,14 @@ function normalizeHexPubkey(pubkey: string): string {
   return pubkey.toLowerCase();
 }
 
+/**
+ * NDKPrivateKeySigner stores the Uint8Array by reference. Always copy before
+ * handing bytes to the signer if the source buffer will be wiped.
+ */
+function signerFromNsecBytes(nsecBytes: Uint8Array, ndk: NDK): NDKPrivateKeySigner {
+  return new NDKPrivateKeySigner(new Uint8Array(nsecBytes), ndk);
+}
+
 function pubkeyFromNpubOrHex(value: string): string {
   const trimmed = value.trim();
   if (/^[0-9a-fA-F]{64}$/.test(trimmed)) {
@@ -207,7 +258,12 @@ function pubkeyFromNpubOrHex(value: string): string {
   return normalizeHexPubkey(decoded.data as string);
 }
 
-function upsertIdentity(store: IdentityStore, identity: StoredIdentity): IdentityStore {
+function upsertIdentity(
+  store: IdentityStore,
+  identity: StoredIdentity,
+  options?: { makeActive?: boolean },
+): IdentityStore {
+  const makeActive = options?.makeActive !== false;
   const existingIndex = store.identities.findIndex(
     (item) => item.pubkey === identity.pubkey && item.method === identity.method,
   );
@@ -221,11 +277,14 @@ function upsertIdentity(store: IdentityStore, identity: StoredIdentity): Identit
     const identities = store.identities.map((item, index) =>
       index === existingIndex ? merged : item,
     );
-    return { identities, activeId: existing.id };
+    return {
+      identities,
+      activeId: makeActive ? existing.id : store.activeId,
+    };
   }
   return {
     identities: [...store.identities, identity],
-    activeId: identity.id,
+    activeId: makeActive ? identity.id : store.activeId,
   };
 }
 
@@ -287,7 +346,7 @@ async function activateSigner(
         if (pubkey !== identity.pubkey) {
           throw new Error("Passkey account does not match this identity");
         }
-        ndk.signer = new NDKPrivateKeySigner(nsecBytes, ndk);
+        ndk.signer = signerFromNsecBytes(nsecBytes, ndk);
       } finally {
         nsecBytes.fill(0);
       }
@@ -307,6 +366,7 @@ export function publishIdentities(app: ElmApp): void {
 }
 
 export async function restoreActiveIdentity(ndk: NDK, app: ElmApp): Promise<void> {
+  lastNdk = ndk;
   const store = loadStore();
   sendIdentities(app, store);
   if (!store.activeId) {
@@ -340,10 +400,12 @@ export async function handleAuthCommand(
   command: string,
   value: any,
 ): Promise<boolean> {
+  lastNdk = ndk;
   try {
     switch (command) {
       case "listIdentities":
         sendIdentities(app);
+        void refreshPasskeyState(app);
         return true;
 
       case "logout": {
@@ -363,6 +425,31 @@ export async function handleAuthCommand(
           throw new Error("Identity not found");
         }
         await activateSigner(ndk, app, identity, value.password);
+        return true;
+      }
+
+      case "unlockIdentityWithPasskey": {
+        const store = loadStore();
+        const identity = store.identities.find((item) => item.id === value.id);
+        if (!identity) {
+          throw new Error("Identity not found");
+        }
+        const { nsecBytes, pubkey } = await loginWithPasskey(identity.pubkey);
+        try {
+          if (normalizeHexPubkey(pubkey) !== normalizeHexPubkey(identity.pubkey)) {
+            throw new Error("Passkey does not match this identity");
+          }
+          const signer = signerFromNsecBytes(nsecBytes, ndk);
+          ndk.signer = signer;
+          store.activeId = identity.id;
+          saveStore(store);
+          sendIdentities(app, store);
+          sendUser(app, identity.pubkey, identity.method, {
+            bootstrap: needsBootstrap(identity.pubkey),
+          });
+        } finally {
+          nsecBytes.fill(0);
+        }
         return true;
       }
 
@@ -542,6 +629,40 @@ export async function handleAuthCommand(
         return true;
       }
 
+      case "saveLockedEmailIdentity": {
+        const email = String(value.email || "").trim().toLowerCase();
+        const ncryptsec = String(value.ncryptsec || "").trim();
+        const publicKey = normalizeHexPubkey(String(value.publicKey || "").trim());
+        const displayNameHint =
+          typeof value.displayName === "string" && value.displayName.trim()
+            ? value.displayName.trim()
+            : null;
+        if (!email || !email.includes("@")) {
+          throw new Error("A valid email is required");
+        }
+        if (!ncryptsec.startsWith("ncryptsec")) {
+          throw new Error("Expected an ncryptsec string");
+        }
+        if (!/^[0-9a-f]{64}$/.test(publicKey)) {
+          throw new Error("A valid public key is required");
+        }
+        const displayName = displayNameHint || email.split("@")[0];
+        const identity: StoredIdentity = {
+          id: newId(),
+          method: "ncryptsec",
+          pubkey: publicKey,
+          label: displayName,
+          email,
+          ncryptsec,
+          createdAt: Date.now(),
+        };
+        // Keep locked — do not activate signer or steal an existing session.
+        const store = upsertIdentity(loadStore(), identity, { makeActive: false });
+        saveStore(store);
+        sendIdentities(app, store);
+        return true;
+      }
+
       case "checkPasskeySupport": {
         const support = await reportPasskeySupport();
         app.ports.receiveMessage.send({
@@ -555,7 +676,7 @@ export async function handleAuthCommand(
         const preferred = String(value?.pubkey || "").trim();
         const { nsecBytes, pubkey } = await loginWithPasskey(preferred || undefined);
         try {
-          const signer = new NDKPrivateKeySigner(nsecBytes, ndk);
+          const signer = signerFromNsecBytes(nsecBytes, ndk);
           const identity: StoredIdentity = {
             id: newId(),
             method: "passkey",
@@ -587,6 +708,7 @@ export async function handleAuthCommand(
         } finally {
           nsecBytes.fill(0);
         }
+        sendIdentities(app, loadStore());
         app.ports.receiveMessage.send({
           messageType: "passkeyCreated",
           value: { pubkey },
@@ -615,7 +737,10 @@ export async function handleAuthCommand(
     }
   } catch (error: any) {
     const reason =
-      command === "loginWithPasskey" || command === "createPasskey" || command === "checkPasskeySupport"
+      command === "loginWithPasskey" ||
+      command === "unlockIdentityWithPasskey" ||
+      command === "createPasskey" ||
+      command === "checkPasskeySupport"
         ? mapKeytrError(error)
         : error?.message || String(error);
     sendAuthError(app, reason);

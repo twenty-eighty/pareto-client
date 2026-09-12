@@ -2,7 +2,7 @@ defmodule NostrBackend.SpamFighter do
   @moduledoc """
   Optional integration with nostr-spam-fighter moderation API.
 
-  When `SPAM_FIGHTER_API_KEY` is set, article naddrs are checked before serving.
+  When `SPAM_FIGHTER_API_KEY` is set, uncached article naddrs are checked before serving.
   Suppression only happens when the API returns `blacklisted: true`. Any other
   result (clean, pending/unknown, HTTP errors, timeouts) fails open and serves.
   """

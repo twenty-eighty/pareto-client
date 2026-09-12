@@ -28,6 +28,7 @@ import Ui.Styles exposing (Theme, stylesForTheme)
 type Msg
     = CloseDialog
     | Show CommentType
+    | RequestLogin
     | UpdateComment CommentType
     | PostClicked PubKey
     | ReceivedMessage IncomingMessage
@@ -135,6 +136,9 @@ update props =
                     |> Effect.sendCmd
                 )
 
+            RequestLogin ->
+                ( Model model, Effect.sendSharedMsg Shared.Msg.TriggerLogin )
+
             UpdateComment comment ->
                 ( Model { model | state = CommentEditing comment }, Effect.none )
 
@@ -229,20 +233,28 @@ view comment =
 
         postButtonMsg =
             signingPubKey |> Maybe.map PostClicked
+
+        commentButtonMsg =
+            case ( signingPubKey, settings.newComment ) of
+                ( Nothing, _ ) ->
+                    Just RequestLogin
+
+                ( Just _, Just commentType ) ->
+                    Just (Show commentType)
+
+                ( Just _, Nothing ) ->
+                    Nothing
     in
     case model.state of
         CommentHidden ->
-            if signingPubKey /= Nothing then
-                Button.new
-                    { label = Translations.commentButtonText [ settings.browserEnv.translations ]
-                    , onClick = settings.newComment |> Maybe.map Show
-                    , theme = settings.theme
-                    }
-                    |> Button.withTypeSecondary
-                    |> Button.view
-                    |> Html.map settings.toMsg
-            else
-                emptyHtml
+            Button.new
+                { label = Translations.commentButtonText [ settings.browserEnv.translations ]
+                , onClick = commentButtonMsg
+                , theme = settings.theme
+                }
+                |> Button.withTypeSecondary
+                |> Button.view
+                |> Html.map settings.toMsg
 
         CommentEditing commentData ->
             viewComment comment commentData (Translations.postButtonText [ settings.browserEnv.translations ]) postButtonMsg Nothing

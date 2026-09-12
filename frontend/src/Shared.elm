@@ -2,7 +2,7 @@ module Shared exposing
     ( Flags, decoder
     , Model, Msg
     , init, update, subscriptions
-    , contentId, createFollowersEffect, loggedIn
+    , contentId, attemptScrollToFootnote, createFollowersEffect, footnoteAnchorId, loggedIn
     )
 
 {-|
@@ -35,7 +35,7 @@ import Route exposing (Route)
 import Route.Path
 import Shared.Model exposing (ClientRole(..))
 import Shared.Msg exposing (Msg(..))
-import Task
+import Task exposing (Task)
 import Ui.Styles exposing (Theme(..))
 
 
@@ -46,6 +46,56 @@ type alias Model =
 contentId : String
 contentId =
     "content-container"
+
+
+{-| Ids we emit for GFM footnotes (`fn-…`) and backlinks (`fnref-…`).
+-}
+footnoteAnchorId : Maybe String -> Maybe String
+footnoteAnchorId maybeHash =
+    maybeHash
+        |> Maybe.andThen
+            (\hash ->
+                if String.startsWith "fn-" hash || String.startsWith "fnref-" hash then
+                    Just hash
+
+                else
+                    Nothing
+            )
+
+
+scrollContentToElement : String -> Task Browser.Dom.Error ()
+scrollContentToElement targetId =
+    Task.map3
+        (\container viewport target ->
+            viewport.viewport.y + (target.element.y - container.element.y)
+        )
+        (Browser.Dom.getElement contentId)
+        (Browser.Dom.getViewportOf contentId)
+        (Browser.Dom.getElement targetId)
+        |> Task.andThen (\y -> Browser.Dom.setViewportOf contentId 0 (max 0 y))
+
+
+{-| Scroll the content pane to a footnote hash. Retries while the article mounts.
+-}
+attemptScrollToFootnote : (Result Browser.Dom.Error () -> msg) -> Maybe String -> Cmd msg
+attemptScrollToFootnote toMsg maybeHash =
+    case footnoteAnchorId maybeHash of
+        Nothing ->
+            Cmd.none
+
+        Just id ->
+            scrollContentToElement id
+                |> Task.onError
+                    (\_ ->
+                        Process.sleep 400
+                            |> Task.andThen (\_ -> scrollContentToElement id)
+                    )
+                |> Task.onError
+                    (\_ ->
+                        Process.sleep 1600
+                            |> Task.andThen (\_ -> scrollContentToElement id)
+                    )
+                |> Task.attempt toMsg
 
 
 -- FLAGS
@@ -85,7 +135,7 @@ decoder =
 
 
 init : Result Json.Decode.Error Flags -> Route () -> ( Model, Effect Msg )
-init flagsResult _ =
+init flagsResult route =
     case flagsResult of
         Ok flags ->
             let
@@ -134,6 +184,7 @@ init flagsResult _ =
                 [ Effect.sendCmd <| Cmd.map Shared.Msg.BrowserEnvMsg browserEnvCmd
                 , Effect.sendCmd <| Cmd.map Shared.Msg.NostrMsg nostrInitCmd
                 , Effect.sendCmd <| Cmd.map Shared.Msg.NostrMsg nostrRequestCmd
+                , Effect.sendCmd <| attemptScrollToFootnote Shared.Msg.DomError route.hash
                 ]
             )
 
@@ -190,13 +241,27 @@ update : Route () -> Msg -> Model -> ( Model, Effect Msg )
 update route msg model =
     case msg of
         TriggerLogin ->
-            ( { model | authDialog = AuthDialog.open model.authDialog }
-            , Effect.sendCmd Ports.listIdentities
+            let
+                ( authDialog, authCmd ) =
+                    AuthDialog.open model.authDialog
+            in
+            ( { model | authDialog = authDialog }
+            , Effect.batch
+                [ Effect.sendCmd Ports.listIdentities
+                , Effect.sendCmd (Cmd.map Shared.Msg.AuthDialogMsg authCmd)
+                ]
             )
 
         TriggerEmailLogin ->
-            ( { model | authDialog = AuthDialog.openEmailLogin model.authDialog }
-            , Effect.sendCmd Ports.listIdentities
+            let
+                ( authDialog, authCmd ) =
+                    AuthDialog.openEmailLogin model.authDialog
+            in
+            ( { model | authDialog = authDialog }
+            , Effect.batch
+                [ Effect.sendCmd Ports.listIdentities
+                , Effect.sendCmd (Cmd.map Shared.Msg.AuthDialogMsg authCmd)
+                ]
             )
 
         AuthDialogMsg authDialogMsg ->
