@@ -460,7 +460,9 @@
   },
   "hashtag editor": {
     "label": "Hashtags",
-    "placeholder": "Ange hashtags separerade med komman"
+    "placeholder": "Add a hashtag and press Enter",
+    "help": "Tags can contain spaces. Separate them with commas.",
+    "limit reached": "Maximum number of hashtags reached."
   },
   "interaction button": {
     "error publishing interaction": "Fel vid publicering av interaktion: {{reason}}"
