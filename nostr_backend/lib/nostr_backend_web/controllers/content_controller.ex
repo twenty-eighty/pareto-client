@@ -20,29 +20,28 @@ defmodule NostrBackendWeb.ContentController do
   def article(conn, %{"article_id" => nostr_id}) do
     case NostrId.parse(nostr_id) do
       {:ok, {:author_article, query_data}} ->
-        if SpamFighter.suppress_article?(nostr_id) do
-          send_resp(conn, :not_found, "")
-        else
-          case ArticleCache.get_article(query_data) do
-            {:ok, article} ->
-              article = apply_substitution_if_bot(conn, article)
-              relay = Map.get(query_data, :relay)
-              relays_list = Map.get(query_data, :relays, if(relay, do: [relay], else: []))
+        case article_from_cache_or_network(query_data, nostr_id) do
+          {:ok, article} ->
+            article = apply_substitution_if_bot(conn, article)
+            relay = Map.get(query_data, :relay)
+            relays_list = Map.get(query_data, :relays, if(relay, do: [relay], else: []))
 
-              conn
-              |> conn_with_article_meta(article, relays_list)
-              |> put_view(NostrBackendWeb.ContentHTML)
-              |> render(:article, article: article)
+            conn
+            |> conn_with_article_meta(article, relays_list)
+            |> put_view(NostrBackendWeb.ContentHTML)
+            |> render(:article, article: article)
 
-            {:error, reason} ->
-              Logger.debug("ERROR REASON: #{inspect(reason)}")
+          :suppressed ->
+            send_resp(conn, :not_found, "")
 
-              conn
-              |> conn_with_default_meta()
-              |> render(:not_found, layout: false)
+          {:error, reason} ->
+            Logger.debug("ERROR REASON: #{inspect(reason)}")
 
-              #            |> render(NostrBackendWeb.ErrorHTML, :"404")
-          end
+            conn
+            |> conn_with_default_meta()
+            |> render(:not_found, layout: false)
+
+            #            |> render(NostrBackendWeb.ErrorHTML, :"404")
         end
 
       {:ok, {:article, article_hex_id}} ->
@@ -528,6 +527,22 @@ defmodule NostrBackendWeb.ContentController do
     |> assign(:meta_image, image_url || @sharing_image)
     |> assign(:schema_metadata, Jason.encode!(schema_metadata))
     |> assign(:nostr_event_json, payload)
+  end
+
+  # Cached articles were already loaded (and checked) once; skip NSF to
+  # serve faster and avoid hammering the moderation API.
+  defp article_from_cache_or_network(query_data, naddr) do
+    case ArticleCache.get_cached_article(query_data) do
+      {:ok, article} ->
+        {:ok, article}
+
+      :miss ->
+        if SpamFighter.suppress_article?(naddr) do
+          :suppressed
+        else
+          ArticleCache.get_article(query_data)
+        end
+    end
   end
 
   defp conn_with_default_meta(conn) do

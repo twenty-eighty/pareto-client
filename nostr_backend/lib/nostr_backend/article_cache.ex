@@ -42,23 +42,30 @@ defmodule NostrBackend.ArticleCache do
 
   @spec get_article(article_query()) :: cache_result()
   def get_article(article_id) do
-    case Cachex.get(@cache_name, article_id) do
-      {:ok, nil} ->
-        # Article not found in cache, load it
+    case get_cached_article(article_id) do
+      {:ok, article} ->
+        {:ok, article}
+
+      :miss ->
         with {:ok, article} <- load_article(article_id) do
-          # Store the article in the cache with a TTL
           Cachex.put(@cache_name, article_id, article, ttl: @ttl_in_seconds)
           {:ok, article}
-        else
-          error -> error
         end
+    end
+  end
 
-      {:ok, article} ->
+  @doc """
+  Returns a cached article without fetching from relays.
+  """
+  @spec get_cached_article(article_query()) :: {:ok, article()} | :miss
+  def get_cached_article(article_id) do
+    case Cachex.get(@cache_name, article_id) do
+      {:ok, article} when not is_nil(article) ->
         Logger.debug("Article found in cache")
         {:ok, article}
 
-      {:error, reason} ->
-        {:error, reason}
+      _ ->
+        :miss
     end
   end
 
