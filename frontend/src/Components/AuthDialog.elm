@@ -30,7 +30,7 @@ import Json.Encode as Encode
 import Nostr
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (profileDisplayName, shortenedPubKey)
-import Nostr.Types exposing (IncomingMessage, LoginStatus(..), PubKey)
+import Nostr.Types exposing (IncomingMessage, LoginStatus(..), PubKey, loggedInPubKey)
 import Pareto
 import Ports
 import Process
@@ -1258,7 +1258,7 @@ identityDecoder =
 
 
 view : Theme -> BrowserEnv -> LoginStatus -> Nostr.Model -> Model -> Html Msg
-view theme browserEnv _ nostr (Model m) =
+view theme browserEnv loginStatus nostr (Model m) =
     if not m.open then
         emptyHtml
 
@@ -1309,7 +1309,7 @@ view theme browserEnv _ nostr (Model m) =
                 [ viewError m.error
                 , case m.screen of
                     Home ->
-                        viewHome theme t nostr m
+                        viewHome theme t nostr loginStatus m
 
                     AddIdentity ->
                         viewAddIdentity theme t m
@@ -1366,17 +1366,23 @@ methodsBackScreen m =
         AddIdentity
 
 
-viewHome : Theme -> List I18Next.Translations -> Nostr.Model -> Internal -> Html Msg
-viewHome theme t nostr m =
+viewHome : Theme -> List I18Next.Translations -> Nostr.Model -> LoginStatus -> Internal -> Html Msg
+viewHome theme t nostr loginStatus m =
     if List.isEmpty m.identities then
         viewWelcomeChoices theme t m
 
     else
         div [ css [ Tw.flex, Tw.flex_col, Tw.gap_3, Tw.min_w_72 ] ]
-            [ viewIdentityList theme t nostr m
-            , fullButton theme (Translations.addIdentityButtonTitle t) (ShowScreen AddIdentity) m.busy
-            , secondaryButton theme (Translations.logOutButtonTitle t) ClickLogout
-            ]
+            ([ viewIdentityList theme t nostr m
+             , fullButton theme (Translations.addIdentityButtonTitle t) (ShowScreen AddIdentity) m.busy
+             ]
+                ++ (if loggedInPubKey loginStatus /= Nothing then
+                        [ secondaryButton theme (Translations.logOutButtonTitle t) ClickLogout ]
+
+                    else
+                        []
+                   )
+            )
 
 
 viewAddIdentity : Theme -> List I18Next.Translations -> Internal -> Html Msg
