@@ -59,6 +59,16 @@ loginWithBunker bunkerUri =
         }
 
 
+startNostrConnect : Cmd msg
+startNostrConnect =
+    sendCommand { command = "startNostrConnect", value = Encode.null }
+
+
+cancelNostrConnect : Cmd msg
+cancelNostrConnect =
+    sendCommand { command = "cancelNostrConnect", value = Encode.null }
+
+
 loginWithNcryptsec : String -> String -> Cmd msg
 loginWithNcryptsec ncryptsec password =
     sendCommand

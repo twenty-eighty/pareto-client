@@ -28,6 +28,7 @@ import I18Next
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Nostr
+import QRCode
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (profileDisplayName, shortenedPubKey)
 import Nostr.Types exposing (IncomingMessage, LoginStatus(..), PubKey, loggedInPubKey)
@@ -36,6 +37,7 @@ import Ports
 import Process
 import SHA256
 import Task
+import Svg.Attributes as SvgAttr
 import Tailwind.Theme as TwTheme
 import Tailwind.Utilities as Tw
 import Translations.AuthDialog as Translations
@@ -63,6 +65,15 @@ maybeFocusFirstField screen =
 
     else
         Cmd.none
+
+
+bunkerSessionCmd : Screen -> Cmd Msg
+bunkerSessionCmd screen =
+    if screen == BunkerForm then
+        Ports.startNostrConnect
+
+    else
+        Ports.cancelNostrConnect
 
 
 screenHasEntryField : Screen -> Bool
@@ -130,6 +141,7 @@ type alias Internal =
     , hasPasskeyCredential : Bool
     , pendingPasskeyPubKey : Maybe String
     , addPasskeyAfterUnlock : Bool
+    , nostrConnectUri : Maybe String
     }
 
 
@@ -286,6 +298,7 @@ init =
         , hasPasskeyCredential = False
         , pendingPasskeyPubKey = Nothing
         , addPasskeyAfterUnlock = False
+        , nostrConnectUri = Nothing
         }
 
 
@@ -308,8 +321,9 @@ open (Model m) =
             , pendingSignupKey = Nothing
             , loginHash = Nothing
             , awaitingConfirmation = False
+            , nostrConnectUri = Nothing
         }
-    , Cmd.none
+    , Ports.cancelNostrConnect
     )
 
 
@@ -327,8 +341,9 @@ openEmailLogin (Model m) =
             , pendingSignupKey = Nothing
             , loginHash = Nothing
             , awaitingConfirmation = False
+            , nostrConnectUri = Nothing
         }
-    , focusFirstField
+    , Cmd.batch [ focusFirstField, Ports.cancelNostrConnect ]
     )
 
 
@@ -389,8 +404,9 @@ update browserEnv msg (Model m) =
                     , pendingSignupKey = Nothing
                     , loginHash = Nothing
                     , awaitingConfirmation = False
+                    , nostrConnectUri = Nothing
                 }
-            , Cmd.none
+            , Ports.cancelNostrConnect
             )
 
         ShowScreen screen ->
@@ -399,6 +415,7 @@ update browserEnv msg (Model m) =
                     | screen = screen
                     , error = Nothing
                     , pendingEmail = Nothing
+                    , nostrConnectUri = Nothing
                     , awaitingConfirmation =
                         if screen == CheckEmail then
                             m.awaitingConfirmation
@@ -406,7 +423,10 @@ update browserEnv msg (Model m) =
                         else
                             False
                 }
-            , maybeFocusFirstField screen
+            , Cmd.batch
+                [ maybeFocusFirstField screen
+                , bunkerSessionCmd screen
+                ]
             )
 
         FocusDone ->
@@ -897,6 +917,20 @@ handlePort browserEnv (Model m) incoming =
                         }
                     , focusFirstField
                     )
+
+                Err _ ->
+                    ( Model m, Cmd.none )
+
+        "nostrConnectUri" ->
+            case Decode.decodeValue (Decode.field "uri" Decode.string) incoming.value of
+                Ok uri ->
+                    if m.screen == BunkerForm then
+                        ( Model { m | nostrConnectUri = Just uri, error = Nothing }
+                        , Cmd.none
+                        )
+
+                    else
+                        ( Model m, Ports.cancelNostrConnect )
 
                 Err _ ->
                     ( Model m, Cmd.none )
@@ -1697,12 +1731,103 @@ isHexPubkey value =
 viewBunker : Theme -> List I18Next.Translations -> Internal -> Html Msg
 viewBunker theme t m =
     formStack
-        [ field "bunker:// or nostrconnect:// URI" "text" m.bunkerInput InputBunker True
-        , fullButton theme
-            (Translations.connectButtonTitle t)
-            SubmitBunker
-            (m.busy || not (bunkerUriValid m.bunkerInput))
-        , secondaryButton theme (Translations.backButtonTitle t) (ShowScreen NostrMethods)
+        ([ p [ css [ Tw.text_sm, Tw.opacity_70 ] ]
+            [ text (Translations.amberHelpText t) ]
+         ]
+            ++ viewAmberConnect theme t m
+            ++ [ p [ css [ Tw.text_xs, Tw.opacity_60, Tw.text_center ] ]
+                    [ text (Translations.orPasteBunkerUrlText t) ]
+               , field "bunker://" "text" m.bunkerInput InputBunker True
+               , fullButton theme
+                    (Translations.connectButtonTitle t)
+                    SubmitBunker
+                    (m.busy || not (bunkerUriValid m.bunkerInput))
+               , secondaryButton theme (Translations.backButtonTitle t) (ShowScreen NostrMethods)
+               ]
+        )
+
+
+viewAmberConnect : Theme -> List I18Next.Translations -> Internal -> List (Html Msg)
+viewAmberConnect theme t m =
+    case m.nostrConnectUri of
+        Nothing ->
+            [ p [ css [ Tw.text_sm, Tw.opacity_60 ] ]
+                [ text (Translations.waitingForAmberText t) ]
+            ]
+
+        Just uri ->
+            [ openAmberButton theme t uri
+            , p [ css [ Tw.text_xs, Tw.opacity_60, Tw.text_center ] ]
+                [ text (Translations.waitingForAmberText t) ]
+            , viewNostrConnectQr uri
+            , copyConnectUriButton theme t uri
+            ]
+
+
+openAmberButton : Theme -> List I18Next.Translations -> String -> Html Msg
+openAmberButton theme t uri =
+    Button.new
+        { label = Translations.openAmberButtonTitle t
+        , onClick = Nothing
+        , theme = theme
+        }
+        |> Button.withTypePrimary
+        |> Button.withWidthFull
+        |> Button.withLink (Just uri)
+        |> Button.view
+
+
+viewNostrConnectQr : String -> Html Msg
+viewNostrConnectQr uri =
+    let
+        qrCode =
+            uri
+                |> QRCode.fromString
+                |> Result.map
+                    (\qrcode ->
+                        qrcode
+                            |> QRCode.toSvg
+                                [ SvgAttr.width "180px"
+                                , SvgAttr.height "180px"
+                                ]
+                            |> Html.fromUnstyled
+                    )
+                |> Result.withDefault emptyHtml
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.justify_center
+            , Tw.bg_color TwTheme.white
+            , Tw.p_2
+            , Tw.rounded_md
+            , Tw.self_center
+            ]
+        ]
+        [ qrCode ]
+
+
+copyConnectUriButton : Theme -> List I18Next.Translations -> String -> Html Msg
+copyConnectUriButton theme t uri =
+    let
+        buttonId =
+            "auth-copy-nostrconnect"
+    in
+    div [ css [ Tw.flex, Tw.flex_col, Tw.gap_1 ] ]
+        [ Button.new
+            { label = Translations.copyConnectUriButtonTitle t
+            , onClick = Just FocusDone
+            , theme = theme
+            }
+            |> Button.withId buttonId
+            |> Button.withTypeSecondary
+            |> Button.withWidthFull
+            |> Button.view
+        , Html.node "js-clipboard-component"
+            [ Attr.property "buttonId" (Encode.string buttonId)
+            , Attr.property "copyContent" (Encode.string uri)
+            ]
+            []
         ]
 
 
@@ -1711,12 +1836,10 @@ bunkerUriValid input =
     let
         trimmed =
             String.trim input
-
-        hasScheme scheme =
-            String.startsWith scheme trimmed
-                && String.dropLeft (String.length scheme) trimmed /= ""
     in
-    hasScheme "bunker://" || hasScheme "nostrconnect://"
+    String.startsWith "bunker://" trimmed
+        && String.dropLeft (String.length "bunker://") trimmed
+        /= ""
 
 
 viewNcryptsec : Theme -> List I18Next.Translations -> Internal -> Html Msg
