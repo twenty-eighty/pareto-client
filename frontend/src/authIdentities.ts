@@ -1,7 +1,8 @@
 /**
  * Multi-identity store + NDK signer activation.
  * Multi-identity auth: extension / npub / bunker / ncryptsec / passkey.
- * Raw nsec is never persisted; ncryptsec may be stored in localStorage.
+ * The user's nsec is never persisted. ncryptsec and the NIP-46 client
+ * pairing key (not the user's key) may be stored in localStorage.
  */
 
 import NDK, {
@@ -26,9 +27,15 @@ import {
 
 const STORAGE_KEY = "pareto.auth.identities.v1";
 const BOOTSTRAP_KEY = "pareto.auth.bootstrap.v1";
+const NOSTRCONNECT_RELAYS = ["wss://relay.primal.net", "wss://relay.damus.io"];
+const DEAD_NIP46_RELAY_HOSTS = ["relay.nsec.app"];
+/** Blanket sign_event is the compact NIP-46 form; Amber can still restrict kinds. */
+const NOSTRCONNECT_PERMS = "sign_event";
 
 /** Latest NDK instance — used to report whether an ncryptsec identity is unlocked. */
 let lastNdk: NDK | null = null;
+let nostrConnectGeneration = 0;
+let pendingNostrConnectSigner: NDKNip46Signer | null = null;
 
 export type AuthMethod = "extension" | "npub" | "bunker" | "ncryptsec" | "passkey";
 
@@ -40,8 +47,10 @@ export type StoredIdentity = {
   email?: string;
   /** NIP-49 encrypted key — never store raw nsec */
   ncryptsec?: string;
-  /** bunker:// or nostrconnect:// URI */
+  /** bunker:// URI after pairing */
   bunkerUri?: string;
+  /** Ephemeral NIP-46 client key so Amber recognizes this app on reconnect */
+  bunkerLocalNsec?: string;
   createdAt: number;
 };
 
@@ -227,6 +236,174 @@ function sendAuthError(app: ElmApp, reason: string): void {
   });
 }
 
+function nip46RelayHost(url: string): string | undefined {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return undefined;
+  }
+}
+
+function isUsableNip46Relay(url: string): boolean {
+  const host = nip46RelayHost(url);
+  if (!host) {
+    return false;
+  }
+  return !DEAD_NIP46_RELAY_HOSTS.some((dead) => host === dead || host.endsWith(`.${dead}`));
+}
+
+function usableNip46Relays(urls?: string[] | null): string[] {
+  const cleaned = (urls ?? []).filter(isUsableNip46Relay);
+  return cleaned.length > 0 ? cleaned : [...NOSTRCONNECT_RELAYS];
+}
+
+function sanitizeBunkerUri(uri: string): string {
+  if (!uri.startsWith("bunker://")) {
+    return uri;
+  }
+  try {
+    const parsed = new URL(uri);
+    const relays = parsed.searchParams.getAll("relay");
+    parsed.searchParams.delete("relay");
+    for (const relay of usableNip46Relays(relays)) {
+      parsed.searchParams.append("relay", relay);
+    }
+    return parsed.toString();
+  } catch {
+    return uri;
+  }
+}
+
+function applyNip46Relays(signer: NDKNip46Signer): void {
+  const relays = usableNip46Relays(signer.relayUrls);
+  signer.relayUrls = relays;
+  signer.rpc.updateRelays(relays);
+}
+
+function isMobileSignerHost(): boolean {
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+}
+
+function compactNostrConnectUri(uri: string | undefined, relay: string): string | undefined {
+  if (!uri) {
+    return undefined;
+  }
+  try {
+    const parsed = new URL(uri);
+    const pubkey = parsed.hostname || parsed.pathname.replace(/^\/\//, "");
+    const secret = parsed.searchParams.get("secret") ?? "";
+    if (!pubkey) {
+      return undefined;
+    }
+    const params = new URLSearchParams();
+    params.set("relay", relay);
+    if (secret) {
+      params.set("secret", secret);
+    }
+    params.set("name", "Pareto");
+    params.set("perms", NOSTRCONNECT_PERMS);
+    const compact = `nostrconnect://${pubkey}?${params.toString()}`;
+    return compact;
+  } catch {
+    return uri;
+  }
+}
+
+function openNostrConnectUri(uri: string): void {
+  try {
+    window.location.assign(uri);
+  } catch {
+    // Amber missing or the scheme is blocked; the dialog still shows Open Amber.
+  }
+}
+
+function cancelNostrConnect(): void {
+  nostrConnectGeneration += 1;
+  pendingNostrConnectSigner?.stop();
+  pendingNostrConnectSigner = null;
+}
+
+function bunkerUriFromSigner(signer: NDKNip46Signer): string {
+  if (!signer.bunkerPubkey) {
+    throw new Error("Bunker pubkey missing");
+  }
+  const params = new URLSearchParams();
+  for (const relay of usableNip46Relays(signer.relayUrls)) {
+    params.append("relay", relay);
+  }
+  if (signer.userPubkey) {
+    params.set("pubkey", signer.userPubkey);
+  }
+  if (signer.secret) {
+    params.set("secret", signer.secret);
+  }
+  return `bunker://${signer.bunkerPubkey}?${params.toString()}`;
+}
+
+function localNsecFromSigner(signer: NDKNip46Signer): string | undefined {
+  try {
+    return signer.localSigner.nsec;
+  } catch {
+    return signer.localSigner.privateKey;
+  }
+}
+
+function persistBunkerIdentity(
+  ndk: NDK,
+  app: ElmApp,
+  signer: NDKNip46Signer,
+  user: NDKUser,
+  label: string,
+  bunkerUri?: string,
+): void {
+  const identity: StoredIdentity = {
+    id: newId(),
+    method: "bunker",
+    pubkey: normalizeHexPubkey(user.pubkey),
+    label,
+    bunkerUri: sanitizeBunkerUri(bunkerUri || bunkerUriFromSigner(signer)),
+    bunkerLocalNsec: localNsecFromSigner(signer),
+    createdAt: Date.now(),
+  };
+  const store = upsertIdentity(loadStore(), identity);
+  saveStore(store);
+  ndk.signer = signer;
+  sendIdentities(app, store);
+  sendUser(app, identity.pubkey, "bunker");
+}
+
+async function startNostrConnect(ndk: NDK, app: ElmApp): Promise<void> {
+  cancelNostrConnect();
+  const generation = nostrConnectGeneration;
+  const signer = new NDKNip46Signer(ndk, undefined, undefined, NOSTRCONNECT_RELAYS, {
+    name: "Pareto",
+    perms: NOSTRCONNECT_PERMS,
+  });
+  const uri = compactNostrConnectUri(signer.nostrConnectUri, NOSTRCONNECT_RELAYS[0]);
+  if (uri) {
+    signer.nostrConnectUri = uri;
+  }
+  if (!uri) {
+    throw new Error("Could not create Amber connection");
+  }
+  pendingNostrConnectSigner = signer;
+  app.ports.receiveMessage.send({
+    messageType: "nostrConnectUri",
+    value: { uri },
+  });
+  if (isMobileSignerHost()) {
+    openNostrConnectUri(uri);
+  }
+  const user = await signer.blockUntilReady();
+  if (generation !== nostrConnectGeneration || pendingNostrConnectSigner !== signer) {
+    signer.stop();
+    return;
+  }
+  pendingNostrConnectSigner = null;
+  applyNip46Relays(signer);
+  persistBunkerIdentity(ndk, app, signer, user, "Amber");
+}
+
 function newId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -316,8 +493,13 @@ async function activateSigner(
       if (!identity.bunkerUri) {
         throw new Error("Missing bunker connection");
       }
-      const signer = NDKNip46Signer.bunker(ndk, identity.bunkerUri);
+      const signer = NDKNip46Signer.bunker(
+        ndk,
+        sanitizeBunkerUri(identity.bunkerUri),
+        identity.bunkerLocalNsec,
+      );
       await signer.blockUntilReady();
+      applyNip46Relays(signer);
       const user = await signer.user();
       if (normalizeHexPubkey(user.pubkey) !== identity.pubkey) {
         throw new Error("Bunker pubkey does not match this identity");
@@ -409,12 +591,23 @@ export async function handleAuthCommand(
         return true;
 
       case "logout": {
+        cancelNostrConnect();
         ndk.signer = undefined;
         const store = loadStore();
         store.activeId = null;
         saveStore(store);
         sendIdentities(app, store);
         app.ports.receiveMessage.send({ messageType: "loggedOut", value: null });
+        return true;
+      }
+
+      case "startNostrConnect": {
+        await startNostrConnect(ndk, app);
+        return true;
+      }
+
+      case "cancelNostrConnect": {
+        cancelNostrConnect();
         return true;
       }
 
@@ -507,26 +700,16 @@ export async function handleAuthCommand(
       }
 
       case "loginWithBunker": {
+        cancelNostrConnect();
         const bunkerUri = String(value.bunkerUri || "").trim();
-        if (!bunkerUri) {
-          throw new Error("Bunker URI is required");
+        if (!bunkerUri.startsWith("bunker://")) {
+          throw new Error("Expected a bunker:// URI");
         }
-        const signer = NDKNip46Signer.bunker(ndk, bunkerUri);
+        const signer = NDKNip46Signer.bunker(ndk, sanitizeBunkerUri(bunkerUri));
         await signer.blockUntilReady();
+        applyNip46Relays(signer);
         const user = await signer.user();
-        const identity: StoredIdentity = {
-          id: newId(),
-          method: "bunker",
-          pubkey: normalizeHexPubkey(user.pubkey),
-          label: value?.label || "Bunker",
-          bunkerUri,
-          createdAt: Date.now(),
-        };
-        const store = upsertIdentity(loadStore(), identity);
-        saveStore(store);
-        ndk.signer = signer;
-        sendIdentities(app, store);
-        sendUser(app, identity.pubkey, "bunker");
+        persistBunkerIdentity(ndk, app, signer, user, value?.label || "Bunker");
         return true;
       }
 
