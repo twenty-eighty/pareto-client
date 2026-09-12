@@ -460,9 +460,9 @@
   },
   "hashtag editor": {
     "label": "Hashtags",
-    "placeholder": "Add a hashtag and press Enter",
-    "help": "Tags can contain spaces. Separate them with commas.",
-    "limit reached": "Maximum number of hashtags reached."
+    "placeholder": "Hashtag eingeben und Enter drücken",
+    "help": "Tags können Leerzeichen enthalten. Trenne sie mit Kommas.",
+    "limit reached": "Maximale Anzahl an Hashtags erreicht."
   },
   "interaction button": {
     "error publishing interaction": "Fehler beim Veröffentlichen der Interaktion: {{reason}}"
@@ -936,11 +936,16 @@
     "use nostr account button title": "Ich nutze bereits Nostr",
     "use nostr account help text": "Erweiterung, Amber/Bunker oder verschlüsselter Schlüssel.",
     "browse only link title": "Nur lesen (npub)",
-    "sign in help text": "Sign in to like, follow, and comment.",
+    "sign in help text": "Melde dich an, um zu liken, zu folgen und zu kommentieren.",
     "browser extension button title": "Browser-Erweiterung",
     "install browser extension button title": "Browser-Erweiterung installieren",
     "read-only npub button title": "Nur lesen (npub)",
     "bunker button title": "Bunker / Amber",
+    "open amber button title": "Amber öffnen",
+    "amber help text": "Unter Android öffnet Amber die Verbindungsanfrage. Auf einem anderen Gerät den QR-Code scannen. Du kannst auch eine bunker://-URL einfügen.",
+    "waiting for amber text": "Warte auf Freigabe in Amber…",
+    "or paste bunker url text": "Oder bunker://-URL einfügen",
+    "copy connect uri button title": "Verbindungs-URI kopieren",
     "import ncryptsec button title": "ncryptsec importieren",
     "log out button title": "Abmelden",
     "back button title": "Zurück",
@@ -949,7 +954,7 @@
     "connect button title": "Verbinden",
     "import and unlock button title": "Importieren & entsperren",
     "unlock button title": "Entsperren",
-    "unlock with passkey button title": "Unlock with passkey",
+    "unlock with passkey button title": "Mit Passkey entsperren",
     "use identity button title": "Verwenden",
     "unlock identity button title": "Entsperren",
     "delete identity button title": "Entfernen",
@@ -958,9 +963,9 @@
     "no identities text": "Noch keine gespeicherten Identitäten.",
     "add identity button title": "Identität hinzufügen",
     "add identity dialog title": "Identität hinzufügen",
-    "email lookup help text": "Enter your email and password to sign in. If you do not have an account yet, you can create one next. Your password never leaves this device — only a hash is sent to the server.",
+    "email lookup help text": "Gib deine E-Mail und dein Passwort ein, um dich anzumelden. Wenn du noch kein Konto hast, kannst du als Nächstes eines erstellen. Dein Passwort verlässt dieses Gerät nicht — nur ein Hash wird an den Server gesendet.",
     "email password help text": "Gib das Passwort für dieses E-Mail-Konto ein. Es bleibt in deinem Browser.",
-    "create account help text": "No account found for these credentials. Choose a password to create one. Your password encrypts your key in the browser and is never sent to the server.",
+    "create account help text": "Für diese Zugangsdaten wurde kein Konto gefunden. Wähle ein Passwort, um eines zu erstellen. Dein Passwort verschlüsselt den Schlüssel im Browser und wird nie an den Server gesendet.",
     "continue with email button title": "Weiter",
     "login with passkey button title": "Mit Passkey anmelden",
     "login with passkey help text": "Mit Fingerabdruck, Gesicht oder Geräte-Passkey.",
@@ -968,7 +973,7 @@
     "create passkey dialog title": "Konto schützen",
     "create passkey help text": "Erstelle einen Passkey, um dich beim nächsten Mal mit dem Fingerabdruck anzumelden. Dein Schlüssel bleibt verschlüsselt auf Nostr-Relays.",
     "create passkey button title": "Passkey erstellen",
-    "add passkey button title": "Add passkey",
+    "add passkey button title": "Passkey hinzufügen",
     "not now button title": "Jetzt nicht"
   }
 }
