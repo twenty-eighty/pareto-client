@@ -955,9 +955,9 @@
     "no identities text": "No saved identities yet.",
     "add identity button title": "Add identity",
     "add identity dialog title": "Add identity",
-    "email lookup help text": "Enter your email to sign in or create an account.",
+    "email lookup help text": "Enter your email and password to sign in. If you do not have an account yet, you can create one next. Your password never leaves this device — only a hash is sent to the server.",
     "email password help text": "Enter the password for this email account. It stays in your browser.",
-    "create account help text": "No account found for this email. Choose a password to create one. Your password encrypts your key in the browser and is never sent to the server.",
+    "create account help text": "No account found for these credentials. Choose a password to create one. Your password encrypts your key in the browser and is never sent to the server.",
     "continue with email button title": "Continue",
     "login with passkey button title": "Logga in med passkey",
     "login with passkey help text": "Använd ditt fingeravtryck, ansikte eller enhetens passkey.",
@@ -965,6 +965,7 @@
     "create passkey dialog title": "Skydda det här kontot",
     "create passkey help text": "Skapa en passkey så att du kan logga in med fingeravtryck nästa gång. Din nyckel förblir krypterad på Nostr-reläer.",
     "create passkey button title": "Skapa passkey",
+    "add passkey button title": "Add passkey",
     "not now button title": "Inte nu"
   }
 }
