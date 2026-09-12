@@ -947,6 +947,7 @@
     "connect button title": "Connect",
     "import and unlock button title": "Import & unlock",
     "unlock button title": "Unlock",
+    "unlock with passkey button title": "Unlock with passkey",
     "use identity button title": "Use",
     "unlock identity button title": "Unlock",
     "delete identity button title": "Remove",
