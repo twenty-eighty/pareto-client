@@ -934,7 +934,7 @@
     "use nostr account button title": "I already use Nostr",
     "use nostr account help text": "Extension, Amber/bunker, or encrypted key.",
     "browse only link title": "Browse only (npub)",
-    "sign in help text": "Sign in to write, follow, and support authors.",
+    "sign in help text": "Sign in to like, follow, and comment.",
     "browser extension button title": "Browser extension",
     "install browser extension button title": "Install browser extension",
     "read-only npub button title": "Read-only npub",
