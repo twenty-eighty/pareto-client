@@ -65,6 +65,7 @@ type ClickAction msg
     | BatchAction (List (ClickAction msg))
     | Send SendRequest
     | SendMsg msg
+    | RequestLogin
 
 
 pubKeyOfInteractionObject : InteractionObject -> PubKey
@@ -113,6 +114,9 @@ mapAction toMsg clickAction =
 
         SendMsg msg ->
             SendMsg (toMsg msg)
+
+        RequestLogin ->
+            RequestLogin
 
 
 
@@ -201,6 +205,8 @@ clickActionToEffect nostr (Model model) clickAction =
         SendMsg clickMsg ->
             ( Model model, Effect.sendMsg clickMsg )
 
+        RequestLogin ->
+            ( Model model, Effect.sendSharedMsg Shared.Msg.TriggerLogin )
 
 
 updateWithMessage : Model -> I18Next.Translations -> IncomingMessage -> ( Model, Effect msg )

@@ -170,10 +170,9 @@ view (Settings settings) =
 
         clickAction : Maybe (InteractionButton.ClickAction Msg)
         clickAction =
-            settings.loginStatus
-                |> loggedInSigningPubKey
-                |> Maybe.map
-                    (\pubKey ->
+            case loggedInSigningPubKey settings.loginStatus of
+                Just pubKey ->
+                    Just <|
                         if isBookmarked then
                             InteractionButton.BatchAction
                                 [ InteractionButton.SendMsg RemoveClicked
@@ -184,7 +183,9 @@ view (Settings settings) =
                         else
                             getAddBookmarkRequest settings.interactionObject pubKey
                                 |> InteractionButton.Send
-                    )
+
+                Nothing ->
+                    Just InteractionButton.RequestLogin
 
     in
     InteractionButton.new

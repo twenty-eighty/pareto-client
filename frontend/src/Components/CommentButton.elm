@@ -168,15 +168,16 @@ view (Settings settings) =
 
         clickAction : Maybe (InteractionButton.ClickAction (Msg msg))
         clickAction =
-            if loggedInSigningPubKey settings.loginStatus /= Nothing then
-                settings.clickedMsg
-                    |> Maybe.map
-                        (\clickedMsg ->
-                            InteractionButton.SendMsg (Clicked clickedMsg)
-                        )
+            case loggedInSigningPubKey settings.loginStatus of
+                Just _ ->
+                    settings.clickedMsg
+                        |> Maybe.map
+                            (\clickedMsg ->
+                                InteractionButton.SendMsg (Clicked clickedMsg)
+                            )
 
-            else
-                Nothing
+                Nothing ->
+                    Just InteractionButton.RequestLogin
     in
     InteractionButton.new
         { model = model
