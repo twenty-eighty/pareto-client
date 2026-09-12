@@ -105,6 +105,33 @@ unlockEmailAccount params =
         }
 
 
+{-| Persist an email ncryptsec identity without unlocking / logging in.
+Used after signup once the confirmation email has been sent.
+-}
+saveLockedEmailIdentity :
+    { email : String
+    , ncryptsec : String
+    , publicKey : String
+    , displayName : Maybe String
+    }
+    -> Cmd msg
+saveLockedEmailIdentity params =
+    sendCommand
+        { command = "saveLockedEmailIdentity"
+        , value =
+            Encode.object
+                [ ( "email", Encode.string params.email )
+                , ( "ncryptsec", Encode.string params.ncryptsec )
+                , ( "publicKey", Encode.string params.publicKey )
+                , ( "displayName"
+                  , params.displayName
+                        |> Maybe.map Encode.string
+                        |> Maybe.withDefault Encode.null
+                  )
+                ]
+        }
+
+
 loginWithPasskey : Cmd msg
 loginWithPasskey =
     sendCommand { command = "loginWithPasskey", value = Encode.null }

@@ -14,6 +14,7 @@ module Components.AuthDialog exposing
 {-| Login / identity dialog: email, extension, npub, bunker, ncryptsec, multi-identity.
 -}
 
+import Browser.Dom as Dom
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.ModalDialog as ModalDialog
@@ -32,11 +33,73 @@ import Nostr.Profile exposing (profileDisplayName, shortenedPubKey)
 import Nostr.Types exposing (IncomingMessage, LoginStatus(..), PubKey)
 import Pareto
 import Ports
+import Process
+import SHA256
+import Task
 import Tailwind.Theme as TwTheme
 import Tailwind.Utilities as Tw
 import Translations.AuthDialog as Translations
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme)
+
+
+firstFieldId : String
+firstFieldId =
+    "auth-dialog-first-field"
+
+
+focusFirstField : Cmd Msg
+focusFirstField =
+    -- Wait a tick so the target input is in the DOM after a screen change.
+    Process.sleep 50
+        |> Task.andThen (\_ -> Dom.focus firstFieldId)
+        |> Task.attempt (\_ -> FocusDone)
+
+
+maybeFocusFirstField : Screen -> Cmd Msg
+maybeFocusFirstField screen =
+    if screenHasEntryField screen then
+        focusFirstField
+
+    else
+        Cmd.none
+
+
+screenHasEntryField : Screen -> Bool
+screenHasEntryField screen =
+    case screen of
+        EmailLoginForm ->
+            True
+
+        CreateAccountForm ->
+            True
+
+        NpubForm ->
+            True
+
+        BunkerForm ->
+            True
+
+        NcryptsecForm ->
+            True
+
+        UnlockForm ->
+            True
+
+        Home ->
+            False
+
+        AddIdentity ->
+            False
+
+        NostrMethods ->
+            False
+
+        CheckEmail ->
+            False
+
+        CreatePasskey ->
+            False
 
 
 type Model
@@ -57,12 +120,16 @@ type alias Internal =
     , passwordConfirmInput : String
     , unlockId : Maybe String
     , pendingEmail : Maybe PendingEmail
+    , pendingSignupKey : Maybe PendingSignupKey
+    , loginHash : Maybe String
+    , awaitingConfirmation : Bool
     , error : Maybe String
     , busy : Bool
     , extensionAvailable : Bool
     , passkeySupported : Maybe Bool
     , hasPasskeyCredential : Bool
     , pendingPasskeyPubKey : Maybe String
+    , addPasskeyAfterUnlock : Bool
     }
 
 
@@ -74,12 +141,18 @@ type alias PendingEmail =
     }
 
 
+type alias PendingSignupKey =
+    { publicKey : String
+    , ncryptsec : String
+    , displayName : String
+    }
+
+
 type Screen
     = Home
     | AddIdentity
     | NostrMethods
     | EmailLoginForm
-    | EmailPasswordForm
     | CreateAccountForm
     | CheckEmail
     | NpubForm
@@ -95,7 +168,96 @@ type alias Identity =
     , pubkey : String
     , label : Maybe String
     , locked : Bool
+    , hasPasskey : Bool
     }
+
+
+{-| Server login key: SHA-256 hex of `lowercase(trim(email)) ++ ":" ++ password`.
+Password is never sent; only this hash.
+-}
+computeLoginHash : String -> String -> String
+computeLoginHash email password =
+    (String.toLower (String.trim email) ++ ":" ++ password)
+        |> SHA256.fromString
+        |> SHA256.toHex
+
+
+{-| NIP-05 / portal username: lowercase a-z, 0-9, -, \_, . from display name.
+-}
+usernameFromDisplayName : String -> String
+usernameFromDisplayName displayName =
+    displayName
+        |> String.trim
+        |> String.toLower
+        |> String.toList
+        |> List.map
+            (\c ->
+                if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' then
+                    c
+
+                else if c == ' ' then
+                    '-'
+
+                else
+                    '-'
+            )
+        |> String.fromList
+        |> collapseUsernameSeparators
+        |> String.left 30
+
+
+collapseUsernameSeparators : String -> String
+collapseUsernameSeparators value =
+    value
+        |> String.replace "--" "-"
+        |> (\s ->
+                if String.contains "--" s then
+                    collapseUsernameSeparators s
+
+                else
+                    s
+           )
+        |> trimUsernameEdges
+
+
+trimUsernameEdges : String -> String
+trimUsernameEdges value =
+    if String.startsWith "-" value then
+        trimUsernameEdges (String.dropLeft 1 value)
+
+    else if String.endsWith "-" value then
+        trimUsernameEdges (String.dropRight 1 value)
+
+    else
+        value
+
+
+createAccountFormReady : Internal -> Bool
+createAccountFormReady m =
+    let
+        displayName =
+            String.trim m.displayNameInput
+
+        password =
+            String.trim m.passwordInput
+
+        confirm =
+            String.trim m.passwordConfirmInput
+
+        username =
+            usernameFromDisplayName displayName
+    in
+    displayName
+        /= ""
+        && username
+        /= ""
+        && password
+        /= ""
+        && String.length password
+        >= 8
+        && password
+        == confirm
+        && not m.busy
 
 
 init : Model
@@ -114,12 +276,16 @@ init =
         , passwordConfirmInput = ""
         , unlockId = Nothing
         , pendingEmail = Nothing
+        , pendingSignupKey = Nothing
+        , loginHash = Nothing
+        , awaitingConfirmation = False
         , error = Nothing
         , busy = False
         , extensionAvailable = False
         , passkeySupported = Nothing
         , hasPasskeyCredential = False
         , pendingPasskeyPubKey = Nothing
+        , addPasskeyAfterUnlock = False
         }
 
 
@@ -128,9 +294,9 @@ isOpen (Model m) =
     m.open
 
 
-open : Model -> Model
+open : Model -> ( Model, Cmd Msg )
 open (Model m) =
-    Model
+    ( Model
         { m
             | open = True
             , screen = Home
@@ -139,12 +305,17 @@ open (Model m) =
             , passwordInput = ""
             , passwordConfirmInput = ""
             , pendingEmail = Nothing
+            , pendingSignupKey = Nothing
+            , loginHash = Nothing
+            , awaitingConfirmation = False
         }
+    , Cmd.none
+    )
 
 
-openEmailLogin : Model -> Model
+openEmailLogin : Model -> ( Model, Cmd Msg )
 openEmailLogin (Model m) =
-    Model
+    ( Model
         { m
             | open = True
             , screen = EmailLoginForm
@@ -153,7 +324,12 @@ openEmailLogin (Model m) =
             , passwordInput = ""
             , passwordConfirmInput = ""
             , pendingEmail = Nothing
+            , pendingSignupKey = Nothing
+            , loginHash = Nothing
+            , awaitingConfirmation = False
         }
+    , focusFirstField
+    )
 
 
 identityPubKeys : Model -> List PubKey
@@ -174,10 +350,11 @@ type Msg
     | InputPassword String
     | InputPasswordConfirm String
     | SubmitCreateAccount
-    | SubmitEmailLookup
     | SubmitEmailLogin
+    | ResendConfirmation
     | GotEmailLookup (Result String EmailLookupResult)
     | GotSignup (Result String ())
+    | GotResendConfirmation (Result String ())
     | SubmitNpub
     | SubmitBunker
     | SubmitNcryptsec
@@ -188,11 +365,14 @@ type Msg
     | ClickPasskeyLogin
     | ClickCreatePasskey
     | ClickDismissPasskey
+    | ClickAddPasskey String
+    | FocusDone
 
 
 type EmailLookupResult
     = AccountFound PendingEmail
     | AccountUnknown String
+    | AccountPendingConfirmation String
 
 
 update : BrowserEnv -> Msg -> Model -> ( Model, Cmd Msg )
@@ -205,6 +385,9 @@ update browserEnv msg (Model m) =
                     , error = Nothing
                     , busy = False
                     , pendingEmail = Nothing
+                    , pendingSignupKey = Nothing
+                    , loginHash = Nothing
+                    , awaitingConfirmation = False
                 }
             , Cmd.none
             )
@@ -214,15 +397,19 @@ update browserEnv msg (Model m) =
                 { m
                     | screen = screen
                     , error = Nothing
-                    , pendingEmail =
-                        if screen == EmailPasswordForm then
-                            m.pendingEmail
+                    , pendingEmail = Nothing
+                    , awaitingConfirmation =
+                        if screen == CheckEmail then
+                            m.awaitingConfirmation
 
                         else
-                            Nothing
+                            False
                 }
-            , Cmd.none
+            , maybeFocusFirstField screen
             )
+
+        FocusDone ->
+            ( Model m, Cmd.none )
 
         PortMsg incoming ->
             handlePort browserEnv (Model m) incoming
@@ -254,30 +441,88 @@ update browserEnv msg (Model m) =
             ( Model { m | passwordConfirmInput = v }, Cmd.none )
 
         SubmitCreateAccount ->
-            if String.trim m.passwordInput /= String.trim m.passwordConfirmInput then
-                ( Model { m | error = Just "Passwords do not match" }, Cmd.none )
-
-            else if String.length (String.trim m.passwordInput) < 8 then
-                ( Model { m | error = Just "Password must be at least 8 characters" }, Cmd.none )
+            if not (createAccountFormReady m) then
+                ( Model { m | error = Just "Enter a display name and matching passwords (8+ characters)" }, Cmd.none )
 
             else
-                ( Model { m | busy = True, error = Nothing }
+                ( Model
+                    { m
+                        | busy = True
+                        , error = Nothing
+                        , loginHash = Just (computeLoginHash m.emailInput m.passwordInput)
+                        , awaitingConfirmation = False
+                    }
                 , Ports.generateEncryptedKey m.passwordInput
                 )
 
-        SubmitEmailLookup ->
+        SubmitEmailLogin ->
             let
                 email =
                     String.trim m.emailInput |> String.toLower
-            in
-            ( Model { m | busy = True, error = Nothing, pendingEmail = Nothing, emailInput = email }
-            , fetchEmailAccount browserEnv.authApiBaseUrl email
-            )
 
-        SubmitEmailLogin ->
-            case m.pendingEmail of
-                Just pending ->
-                    ( Model { m | busy = True, error = Nothing }
+                password =
+                    m.passwordInput
+
+                hash =
+                    computeLoginHash email password
+            in
+            if not (EmailValidation.emailValid email) then
+                ( Model { m | error = Just "Enter a valid email" }, Cmd.none )
+
+            else if password == "" then
+                ( Model { m | error = Just "Enter your password" }, Cmd.none )
+
+            else
+                ( Model
+                    { m
+                        | busy = True
+                        , error = Nothing
+                        , pendingEmail = Nothing
+                        , emailInput = email
+                        , loginHash = Just hash
+                        , awaitingConfirmation = False
+                    }
+                , fetchEmailAccount browserEnv.authApiBaseUrl email hash
+                )
+
+        ResendConfirmation ->
+            let
+                email =
+                    String.trim m.emailInput |> String.toLower
+
+                hash =
+                    case m.loginHash of
+                        Just existing ->
+                            existing
+
+                        Nothing ->
+                            computeLoginHash email m.passwordInput
+            in
+            if not m.awaitingConfirmation && m.screen /= CheckEmail then
+                ( Model m, Cmd.none )
+
+            else if not (EmailValidation.emailValid email) then
+                ( Model { m | error = Just "Enter a valid email" }, Cmd.none )
+
+            else if hash == "" || (m.loginHash == Nothing && m.passwordInput == "") then
+                ( Model { m | error = Just "Enter your password to resend confirmation" }, Cmd.none )
+
+            else
+                ( Model { m | busy = True, error = Nothing, loginHash = Just hash }
+                , postResendConfirmation browserEnv.authApiBaseUrl email hash
+                )
+
+        GotEmailLookup result ->
+            case result of
+                Ok (AccountFound pending) ->
+                    ( Model
+                        { m
+                            | busy = True
+                            , error = Nothing
+                            , emailInput = pending.email
+                            , pendingEmail = Just pending
+                            , awaitingConfirmation = False
+                        }
                     , Ports.unlockEmailAccount
                         { email = pending.email
                         , password = m.passwordInput
@@ -287,47 +532,62 @@ update browserEnv msg (Model m) =
                         }
                     )
 
-                Nothing ->
-                    ( Model { m | error = Just "Start again with your email" }
-                    , Cmd.none
-                    )
-
-        GotEmailLookup result ->
-            case result of
-                Ok (AccountFound pending) ->
-                    ( Model
-                        { m
-                            | busy = False
-                            , error = Nothing
-                            , emailInput = pending.email
-                            , passwordInput = ""
-                            , pendingEmail = Just pending
-                            , screen = EmailPasswordForm
-                        }
-                    , Cmd.none
-                    )
-
                 Ok (AccountUnknown email) ->
                     ( Model
                         { m
                             | busy = False
                             , error = Nothing
                             , emailInput = email
-                            , passwordInput = ""
                             , passwordConfirmInput = ""
                             , displayNameInput = ""
                             , pendingEmail = Nothing
+                            , awaitingConfirmation = False
                             , screen = CreateAccountForm
+                        }
+                    , focusFirstField
+                    )
+
+                Ok (AccountPendingConfirmation email) ->
+                    ( Model
+                        { m
+                            | busy = False
+                            , error = Just "Please confirm your email before signing in"
+                            , emailInput = email
+                            , pendingEmail = Nothing
+                            , awaitingConfirmation = True
+                            , screen = EmailLoginForm
                         }
                     , Cmd.none
                     )
 
                 Err reason ->
-                    ( Model { m | busy = False, error = Just reason }, Cmd.none )
+                    ( Model { m | busy = False, error = Just reason, awaitingConfirmation = False }, Cmd.none )
 
         GotSignup result ->
             case result of
                 Ok () ->
+                    let
+                        email =
+                            String.trim m.emailInput |> String.toLower
+
+                        saveCmd =
+                            case m.pendingSignupKey of
+                                Just key ->
+                                    Ports.saveLockedEmailIdentity
+                                        { email = email
+                                        , ncryptsec = key.ncryptsec
+                                        , publicKey = key.publicKey
+                                        , displayName =
+                                            if key.displayName == "" then
+                                                Nothing
+
+                                            else
+                                                Just key.displayName
+                                        }
+
+                                Nothing ->
+                                    Cmd.none
+                    in
                     ( Model
                         { m
                             | busy = False
@@ -335,6 +595,31 @@ update browserEnv msg (Model m) =
                             , passwordInput = ""
                             , passwordConfirmInput = ""
                             , pendingEmail = Nothing
+                            , pendingSignupKey = Nothing
+                            , awaitingConfirmation = True
+                            , screen = CheckEmail
+                        }
+                    , saveCmd
+                    )
+
+                Err reason ->
+                    ( Model
+                        { m
+                            | busy = False
+                            , error = Just reason
+                            , pendingSignupKey = Nothing
+                        }
+                    , Cmd.none
+                    )
+
+        GotResendConfirmation result ->
+            case result of
+                Ok () ->
+                    ( Model
+                        { m
+                            | busy = False
+                            , error = Nothing
+                            , awaitingConfirmation = True
                             , screen = CheckEmail
                         }
                     , Cmd.none
@@ -367,7 +652,7 @@ update browserEnv msg (Model m) =
                         , passwordInput = ""
                         , error = Nothing
                     }
-                , Cmd.none
+                , focusFirstField
                 )
 
             else
@@ -405,14 +690,58 @@ update browserEnv msg (Model m) =
             , Ports.createPasskey Nothing
             )
 
+        ClickAddPasskey identityId ->
+            case List.filter (\identity -> identity.id == identityId) m.identities |> List.head of
+                Nothing ->
+                    ( Model { m | error = Just "Identity not found" }, Cmd.none )
+
+                Just identity ->
+                    if m.passkeySupported /= Just True then
+                        ( Model { m | error = Just "Passkeys are not available in this browser" }, Cmd.none )
+
+                    else if identity.hasPasskey then
+                        ( Model m, Cmd.none )
+
+                    else if identity.method /= "ncryptsec" then
+                        ( Model { m | error = Just "Unlock an encrypted key account to add a passkey" }, Cmd.none )
+
+                    else if identity.locked then
+                        ( Model
+                            { m
+                                | screen = UnlockForm
+                                , unlockId = Just identity.id
+                                , passwordInput = ""
+                                , error = Nothing
+                                , pendingPasskeyPubKey = Just identity.pubkey
+                                , addPasskeyAfterUnlock = True
+                            }
+                        , focusFirstField
+                        )
+
+                    else
+                        ( Model
+                            { m
+                                | screen = CreatePasskey
+                                , error = Nothing
+                                , pendingPasskeyPubKey = Just identity.pubkey
+                                , addPasskeyAfterUnlock = False
+                            }
+                        , Cmd.none
+                        )
+
         ClickDismissPasskey ->
+            let
+                keepOpen =
+                    m.addPasskeyAfterUnlock || not (List.isEmpty m.identities)
+            in
             ( Model
                 { m
-                    | open = False
+                    | open = keepOpen
                     , screen = Home
                     , error = Nothing
                     , busy = False
                     , pendingPasskeyPubKey = Nothing
+                    , addPasskeyAfterUnlock = False
                 }
             , m.pendingPasskeyPubKey
                 |> Maybe.map Ports.dismissPasskeyPrompt
@@ -441,7 +770,7 @@ handlePort browserEnv (Model m) incoming =
         "user" ->
             case Decode.decodeValue userOfferDecoder incoming.value of
                 Ok { pubKey, offerPasskey } ->
-                    if offerPasskey then
+                    if m.addPasskeyAfterUnlock || offerPasskey then
                         ( Model
                             { m
                                 | open = True
@@ -452,6 +781,7 @@ handlePort browserEnv (Model m) incoming =
                                 , pendingEmail = Nothing
                                 , pendingPasskeyPubKey = Just pubKey
                                 , passkeySupported = Just True
+                                , addPasskeyAfterUnlock = False
                                 , screen = CreatePasskey
                             }
                         , Cmd.none
@@ -467,6 +797,7 @@ handlePort browserEnv (Model m) incoming =
                                 , passwordConfirmInput = ""
                                 , pendingEmail = Nothing
                                 , pendingPasskeyPubKey = Nothing
+                                , addPasskeyAfterUnlock = False
                                 , screen = Home
                             }
                         , Cmd.none
@@ -482,6 +813,7 @@ handlePort browserEnv (Model m) incoming =
                             , passwordConfirmInput = ""
                             , pendingEmail = Nothing
                             , pendingPasskeyPubKey = Nothing
+                            , addPasskeyAfterUnlock = False
                             , screen = Home
                         }
                     , Cmd.none
@@ -490,18 +822,44 @@ handlePort browserEnv (Model m) incoming =
         "encryptedKeyGenerated" ->
             case Decode.decodeValue encryptedKeyDecoder incoming.value of
                 Ok key ->
-                    ( Model m
+                    let
+                        email =
+                            String.trim m.emailInput |> String.toLower
+
+                        displayName =
+                            String.trim m.displayNameInput
+
+                        hash =
+                            case m.loginHash of
+                                Just existing ->
+                                    existing
+
+                                Nothing ->
+                                    computeLoginHash email m.passwordInput
+                    in
+                    ( Model
+                        { m
+                            | loginHash = Just hash
+                            , pendingSignupKey =
+                                Just
+                                    { publicKey = key.publicKey
+                                    , ncryptsec = key.ncryptsec
+                                    , displayName = displayName
+                                    }
+                        }
                     , postSignup browserEnv.authApiBaseUrl
-                        { email = String.trim m.emailInput |> String.toLower
+                        { email = email
+                        , loginHash = hash
+                        , username = usernameFromDisplayName displayName
                         , publicKey = key.publicKey
                         , ncryptsec = key.ncryptsec
-                        , displayName = String.trim m.displayNameInput
+                        , displayName = displayName
                         , locale = BrowserEnv.translationsLocale browserEnv.language
                         }
                     )
 
                 Err _ ->
-                    ( Model { m | busy = False, error = Just "Could not create key" }, Cmd.none )
+                    ( Model { m | busy = False, error = Just "Could not create key", pendingSignupKey = Nothing }, Cmd.none )
 
         "loggedOut" ->
             ( Model { m | busy = False, activeId = Nothing, pendingEmail = Nothing, screen = Home }
@@ -526,7 +884,7 @@ handlePort browserEnv (Model m) incoming =
                             , unlockId = Just id
                             , passwordInput = ""
                         }
-                    , Cmd.none
+                    , focusFirstField
                     )
 
                 Err _ ->
@@ -557,11 +915,12 @@ handlePort browserEnv (Model m) incoming =
         "passkeyCreated" ->
             ( Model
                 { m
-                    | open = False
+                    | open = True
                     , busy = False
                     , error = Nothing
                     , screen = Home
                     , pendingPasskeyPubKey = Nothing
+                    , addPasskeyAfterUnlock = False
                     , hasPasskeyCredential = True
                 }
             , Cmd.none
@@ -614,13 +973,13 @@ passkeySupportDecoder =
         (Decode.map (Maybe.withDefault False) (Decode.maybe (Decode.field "hasCredential" Decode.bool)))
 
 
-fetchEmailAccount : String -> String -> Cmd Msg
-fetchEmailAccount baseUrl email =
+fetchEmailAccount : String -> String -> String -> Cmd Msg
+fetchEmailAccount baseUrl email loginHash =
     Http.request
         { method = "POST"
         , headers = [ Http.header "Accept" "application/json" ]
         , url = baseUrl ++ "/api/auth/login"
-        , body = Http.jsonBody (Encode.object [ ( "email", Encode.string email ) ])
+        , body = Http.jsonBody (Encode.object [ ( "login_hash", Encode.string loginHash ) ])
         , expect = expectEmailLookup email GotEmailLookup
         , timeout = Nothing
         , tracker = Nothing
@@ -631,6 +990,8 @@ postSignup :
     String
     ->
         { email : String
+        , loginHash : String
+        , username : String
         , publicKey : String
         , ncryptsec : String
         , displayName : String
@@ -641,16 +1002,13 @@ postSignup baseUrl params =
     let
         bodyFields =
             [ ( "email", Encode.string params.email )
+            , ( "login_hash", Encode.string params.loginHash )
+            , ( "username", Encode.string params.username )
             , ( "public_key", Encode.string params.publicKey )
             , ( "ncryptsec", Encode.string params.ncryptsec )
             , ( "locale", Encode.string params.locale )
+            , ( "display_name", Encode.string params.displayName )
             ]
-                ++ (if params.displayName == "" then
-                        []
-
-                    else
-                        [ ( "display_name", Encode.string params.displayName ) ]
-                   )
     in
     Http.request
         { method = "POST"
@@ -658,6 +1016,25 @@ postSignup baseUrl params =
         , url = baseUrl ++ "/api/auth/signup"
         , body = Http.jsonBody (Encode.object bodyFields)
         , expect = expectSignup GotSignup
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+postResendConfirmation : String -> String -> String -> Cmd Msg
+postResendConfirmation baseUrl email loginHash =
+    Http.request
+        { method = "POST"
+        , headers = [ Http.header "Accept" "application/json" ]
+        , url = baseUrl ++ "/api/auth/resend-confirmation"
+        , body =
+            Http.jsonBody
+                (Encode.object
+                    [ ( "email", Encode.string email )
+                    , ( "login_hash", Encode.string loginHash )
+                    ]
+                )
+        , expect = expectResendConfirmation GotResendConfirmation
         , timeout = Nothing
         , tracker = Nothing
         }
@@ -683,7 +1060,7 @@ expectEmailLookup email toMsg =
                             Ok (AccountUnknown email)
 
                         Ok "email_not_confirmed" ->
-                            Err "Please confirm your email before signing in"
+                            Ok (AccountPendingConfirmation email)
 
                         Ok other ->
                             Err other
@@ -706,7 +1083,7 @@ expectEmailLookup email toMsg =
                                     Ok (AccountUnknown email)
 
                                 Ok "email_not_confirmed" ->
-                                    Err "Please confirm your email before signing in"
+                                    Ok (AccountPendingConfirmation email)
 
                                 Ok other ->
                                     Err other
@@ -739,6 +1116,41 @@ expectSignup toMsg =
 
                         _ ->
                             Ok ()
+
+
+expectResendConfirmation : (Result String () -> msg) -> Http.Expect msg
+expectResendConfirmation toMsg =
+    Http.expectStringResponse toMsg <|
+        \response ->
+            case response of
+                Http.BadUrl_ url ->
+                    Err ("Bad URL: " ++ url)
+
+                Http.Timeout_ ->
+                    Err "Network timeout"
+
+                Http.NetworkError_ ->
+                    Err "Network error"
+
+                Http.BadStatus_ metadata body ->
+                    case Decode.decodeString loginErrorDecoder body of
+                        Ok "already_confirmed" ->
+                            Err "This email is already confirmed. Sign in instead."
+
+                        Ok "email_required" ->
+                            Err "Email is required to resend confirmation"
+
+                        Ok "login_hash_required" ->
+                            Err "Password is required to resend confirmation"
+
+                        Ok other ->
+                            Err other
+
+                        Err _ ->
+                            Err (signupErrorMessage body metadata.statusCode)
+
+                Http.GoodStatus_ _ _ ->
+                    Ok ()
 
 
 loginErrorDecoder : Decode.Decoder String
@@ -825,12 +1237,13 @@ identitiesPayloadDecoder =
 
 identityDecoder : Decode.Decoder Identity
 identityDecoder =
-    Decode.map5 Identity
+    Decode.map6 Identity
         (Decode.field "id" Decode.string)
         (Decode.field "method" Decode.string)
         (Decode.field "pubkey" Decode.string)
         (Decode.maybe (Decode.field "label" Decode.string))
         (Decode.map (Maybe.withDefault False) (Decode.maybe (Decode.field "locked" Decode.bool)))
+        (Decode.map (Maybe.withDefault False) (Decode.maybe (Decode.field "hasPasskey" Decode.bool)))
 
 
 view : Theme -> BrowserEnv -> LoginStatus -> Nostr.Model -> Model -> Html Msg
@@ -855,9 +1268,6 @@ view theme browserEnv _ nostr (Model m) =
                         Translations.nostrMethodsDialogTitle t
 
                     EmailLoginForm ->
-                        Translations.emailLoginDialogTitle t
-
-                    EmailPasswordForm ->
                         Translations.emailLoginDialogTitle t
 
                     CreateAccountForm ->
@@ -898,9 +1308,6 @@ view theme browserEnv _ nostr (Model m) =
 
                     EmailLoginForm ->
                         viewEmailLogin theme t m
-
-                    EmailPasswordForm ->
-                        viewEmailPassword theme t m
 
                     CreateAccountForm ->
                         viewCreateAccount theme t m
@@ -1000,10 +1407,14 @@ passkeyLoginBlock : Theme -> List I18Next.Translations -> Internal -> List (Html
 passkeyLoginBlock theme t m =
     case m.passkeySupported of
         Just True ->
-            [ fullButton theme (Translations.loginWithPasskeyButtonTitle t) ClickPasskeyLogin m.busy
-            , p [ css [ Tw.text_xs, Tw.opacity_60 ] ]
-                [ text (Translations.loginWithPasskeyHelpText t) ]
-            ]
+            if showPasskeyLogin m then
+                [ fullButton theme (Translations.loginWithPasskeyButtonTitle t) ClickPasskeyLogin m.busy
+                , p [ css [ Tw.text_xs, Tw.opacity_60 ] ]
+                    [ text (Translations.loginWithPasskeyHelpText t) ]
+                ]
+
+            else
+                []
 
         Just False ->
             [ p [ css [ Tw.text_xs, Tw.opacity_60 ] ]
@@ -1012,6 +1423,16 @@ passkeyLoginBlock theme t m =
 
         Nothing ->
             []
+
+
+{-| Show passkey login when relays/local index know of a credential, or when there
+are no saved identities yet (discoverable/synced passkeys via WebAuthn).
+-}
+showPasskeyLogin : Internal -> Bool
+showPasskeyLogin m =
+    m.hasPasskeyCredential
+        || List.any .hasPasskey m.identities
+        || List.isEmpty m.identities
 
 
 viewCreatePasskey : Theme -> List I18Next.Translations -> Internal -> Html Msg
@@ -1060,6 +1481,13 @@ viewIdentityRow theme t nostr m identity =
 
         name =
             identityDisplayName nostr identity
+
+        canAddPasskey =
+            m.passkeySupported
+                == Just True
+                && identity.method
+                == "ncryptsec"
+                && not identity.hasPasskey
     in
     div
         [ css
@@ -1077,9 +1505,20 @@ viewIdentityRow theme t nostr m identity =
         [ div [ css [ Tw.flex, Tw.flex_col, Tw.min_w_0 ] ]
             [ span [ css [ Tw.text_sm, Tw.font_medium, Tw.truncate ] ] [ text name ]
             , span [ css [ Tw.text_xs, Tw.opacity_60, Tw.truncate ] ]
-                [ text (identity.method ++ " · " ++ shortenedPubKey 11 npub) ]
+                [ text
+                    (identity.method
+                        ++ (if identity.hasPasskey then
+                                " · passkey"
+
+                            else
+                                ""
+                           )
+                        ++ " · "
+                        ++ shortenedPubKey 11 npub
+                    )
+                ]
             ]
-        , div [ css [ Tw.flex, Tw.gap_2 ] ]
+        , div [ css [ Tw.flex, Tw.flex_wrap, Tw.gap_2, Tw.justify_end ] ]
             [ if isActive then
                 span [ css [ Tw.text_xs, Tw.font_semibold ] ] [ text (Translations.activeIdentityLabel t) ]
 
@@ -1096,6 +1535,17 @@ viewIdentityRow theme t nostr m identity =
                     }
                     |> Button.withSizeSmall
                     |> Button.view
+            , if canAddPasskey then
+                Button.new
+                    { label = Translations.addPasskeyButtonTitle t
+                    , onClick = Just (ClickAddPasskey identity.id)
+                    , theme = theme
+                    }
+                    |> Button.withSizeSmall
+                    |> Button.view
+
+              else
+                emptyHtml
             , Button.new
                 { label = Translations.deleteIdentityButtonTitle t
                 , onClick = Just (DeleteIdentity identity.id)
@@ -1131,42 +1581,51 @@ npubForPubKey pubKey =
 viewEmailLogin : Theme -> List I18Next.Translations -> Internal -> Html Msg
 viewEmailLogin theme t m =
     formStack
-        [ p [ css [ Tw.text_sm, Tw.opacity_70 ] ]
+        ([ p [ css [ Tw.text_sm, Tw.opacity_70 ] ]
             [ text (Translations.emailLookupHelpText t) ]
-        , field "Email" "email" m.emailInput InputEmail
-        , fullButton theme
-            (Translations.continueWithEmailButtonTitle t)
-            SubmitEmailLookup
-            (m.busy || not (EmailValidation.emailValid (String.trim m.emailInput)))
-        , secondaryButton theme (Translations.backButtonTitle t) (ShowScreen (methodsBackScreen m))
-        ]
-
-
-viewEmailPassword : Theme -> List I18Next.Translations -> Internal -> Html Msg
-viewEmailPassword theme t m =
-    formStack
-        [ p [ css [ Tw.text_sm, Tw.opacity_70 ] ]
-            [ text (Translations.emailPasswordHelpText t) ]
-        , p [ css [ Tw.text_sm, Tw.font_semibold ] ] [ text m.emailInput ]
-        , field "Password" "password" m.passwordInput InputPassword
-        , fullButton theme
+         , field "Email" "email" m.emailInput InputEmail True
+         , field "Password" "password" m.passwordInput InputPassword False
+         , fullButton theme
             (Translations.signInButtonTitle t)
             SubmitEmailLogin
-            (m.busy || String.trim m.passwordInput == "")
-        , secondaryButton theme (Translations.backButtonTitle t) (ShowScreen EmailLoginForm)
-        ]
+            (m.busy
+                || not (EmailValidation.emailValid (String.trim m.emailInput))
+                || String.trim m.passwordInput == ""
+            )
+         ]
+            ++ (if m.awaitingConfirmation then
+                    [ secondaryButton theme "Resend confirmation email" ResendConfirmation ]
+
+                else
+                    []
+               )
+            ++ [ secondaryButton theme (Translations.backButtonTitle t) (ShowScreen (methodsBackScreen m)) ]
+        )
 
 
 viewCreateAccount : Theme -> List I18Next.Translations -> Internal -> Html Msg
 viewCreateAccount theme t m =
+    let
+        usernamePreview =
+            usernameFromDisplayName m.displayNameInput
+    in
     formStack
         [ p [ css [ Tw.text_sm, Tw.opacity_70 ] ]
             [ text (Translations.createAccountHelpText t) ]
         , p [ css [ Tw.text_sm, Tw.font_semibold ] ] [ text m.emailInput ]
-        , field "Display name" "text" m.displayNameInput InputDisplayName
-        , field "Password" "password" m.passwordInput InputPassword
-        , field "Confirm password" "password" m.passwordConfirmInput InputPasswordConfirm
-        , fullButton theme (Translations.createAccountButtonTitle t) SubmitCreateAccount m.busy
+        , field "Display name" "text" m.displayNameInput InputDisplayName True
+        , if usernamePreview == "" then
+            emptyHtml
+
+          else
+            p [ css [ Tw.text_sm, Tw.opacity_70 ] ]
+                [ text ("Username: " ++ usernamePreview) ]
+        , field "Password" "password" m.passwordInput InputPassword False
+        , field "Confirm password" "password" m.passwordConfirmInput InputPasswordConfirm False
+        , fullButton theme
+            (Translations.createAccountButtonTitle t)
+            SubmitCreateAccount
+            (not (createAccountFormReady m))
         , secondaryButton theme (Translations.backButtonTitle t) (ShowScreen EmailLoginForm)
         ]
 
@@ -1180,6 +1639,7 @@ viewCheckEmail theme t m =
             , text ". Confirm your email, then sign in here."
             ]
         , fullButton theme (Translations.emailLoginButtonTitle t) (ShowScreen EmailLoginForm) False
+        , secondaryButton theme "Resend confirmation email" ResendConfirmation
         , secondaryButton theme (Translations.backButtonTitle t) (ShowScreen (methodsBackScreen m))
         ]
 
@@ -1187,7 +1647,7 @@ viewCheckEmail theme t m =
 viewNpub : Theme -> List I18Next.Translations -> Internal -> Html Msg
 viewNpub theme t m =
     formStack
-        [ field "npub or hex pubkey" "text" m.npubInput InputNpub
+        [ field "npub or hex pubkey" "text" m.npubInput InputNpub True
         , fullButton theme
             (Translations.continueButtonTitle t)
             SubmitNpub
@@ -1220,7 +1680,7 @@ isHexPubkey value =
 viewBunker : Theme -> List I18Next.Translations -> Internal -> Html Msg
 viewBunker theme t m =
     formStack
-        [ field "bunker:// or nostrconnect:// URI" "text" m.bunkerInput InputBunker
+        [ field "bunker:// or nostrconnect:// URI" "text" m.bunkerInput InputBunker True
         , fullButton theme
             (Translations.connectButtonTitle t)
             SubmitBunker
@@ -1245,8 +1705,8 @@ bunkerUriValid input =
 viewNcryptsec : Theme -> List I18Next.Translations -> Internal -> Html Msg
 viewNcryptsec theme t m =
     formStack
-        [ field "ncryptsec1…" "text" m.ncryptsecInput InputNcryptsec
-        , field "Password" "password" m.passwordInput InputPassword
+        [ field "ncryptsec1…" "text" m.ncryptsecInput InputNcryptsec True
+        , field "Password" "password" m.passwordInput InputPassword False
         , fullButton theme
             (Translations.importAndUnlockButtonTitle t)
             SubmitNcryptsec
@@ -1270,7 +1730,7 @@ viewUnlock : Theme -> List I18Next.Translations -> Internal -> Html Msg
 viewUnlock theme t m =
     formStack
         [ p [ css [ Tw.text_sm ] ] [ text "Enter the password for this encrypted key." ]
-        , field "Password" "password" m.passwordInput InputPassword
+        , field "Password" "password" m.passwordInput InputPassword True
         , fullButton theme (Translations.unlockButtonTitle t) ConfirmUnlock m.busy
         , secondaryButton theme (Translations.backButtonTitle t) (ShowScreen Home)
         ]
@@ -1314,14 +1774,14 @@ quietLink label msg =
         [ text label ]
 
 
-field : String -> String -> String -> (String -> Msg) -> Html Msg
-field placeholder inputType value toMsg =
+field : String -> String -> String -> (String -> Msg) -> Bool -> Html Msg
+field placeholder inputType value toMsg isFirst =
     input
-        [ Attr.type_ inputType
-        , Attr.placeholder placeholder
-        , Attr.value value
-        , Events.onInput toMsg
-        , css
+        ([ Attr.type_ inputType
+         , Attr.placeholder placeholder
+         , Attr.value value
+         , Events.onInput toMsg
+         , css
             [ Tw.w_full
             , Tw.border
             , Tw.border_solid
@@ -1330,5 +1790,12 @@ field placeholder inputType value toMsg =
             , Tw.py_2
             , Tw.text_sm
             ]
-        ]
+         ]
+            ++ (if isFirst then
+                    [ Attr.id firstFieldId ]
+
+                else
+                    []
+               )
+        )
         []

@@ -955,9 +955,9 @@
     "no identities text": "No saved identities yet.",
     "add identity button title": "Add identity",
     "add identity dialog title": "Add identity",
-    "email lookup help text": "Enter your email to sign in or create an account.",
+    "email lookup help text": "Enter your email and password to sign in. If you do not have an account yet, you can create one next. Your password never leaves this device — only a hash is sent to the server.",
     "email password help text": "Enter the password for this email account. It stays in your browser.",
-    "create account help text": "No account found for this email. Choose a password to create one. Your password encrypts your key in the browser and is never sent to the server.",
+    "create account help text": "No account found for these credentials. Choose a password to create one. Your password encrypts your key in the browser and is never sent to the server.",
     "continue with email button title": "Continue",
     "login with passkey button title": "Login with passkey",
     "login with passkey help text": "Use your fingerprint, face, or device passkey.",
@@ -965,6 +965,7 @@
     "create passkey dialog title": "Protect this account",
     "create passkey help text": "Create a passkey so you can sign in with your fingerprint next time. Your key stays encrypted on Nostr relays.",
     "create passkey button title": "Create passkey",
+    "add passkey button title": "Add passkey",
     "not now button title": "Not now"
   }
 }

@@ -190,13 +190,27 @@ update : Route () -> Msg -> Model -> ( Model, Effect Msg )
 update route msg model =
     case msg of
         TriggerLogin ->
-            ( { model | authDialog = AuthDialog.open model.authDialog }
-            , Effect.sendCmd Ports.listIdentities
+            let
+                ( authDialog, authCmd ) =
+                    AuthDialog.open model.authDialog
+            in
+            ( { model | authDialog = authDialog }
+            , Effect.batch
+                [ Effect.sendCmd Ports.listIdentities
+                , Effect.sendCmd (Cmd.map Shared.Msg.AuthDialogMsg authCmd)
+                ]
             )
 
         TriggerEmailLogin ->
-            ( { model | authDialog = AuthDialog.openEmailLogin model.authDialog }
-            , Effect.sendCmd Ports.listIdentities
+            let
+                ( authDialog, authCmd ) =
+                    AuthDialog.openEmailLogin model.authDialog
+            in
+            ( { model | authDialog = authDialog }
+            , Effect.batch
+                [ Effect.sendCmd Ports.listIdentities
+                , Effect.sendCmd (Cmd.map Shared.Msg.AuthDialogMsg authCmd)
+                ]
             )
 
         AuthDialogMsg authDialogMsg ->

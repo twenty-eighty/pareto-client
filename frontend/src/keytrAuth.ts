@@ -19,9 +19,7 @@ export const KEYTR_RP_NAME = "Pareto";
 export const KEYTR_CLIENT = "Pareto";
 
 export const KEYTR_RELAYS = [
-  "wss://nostr.pareto.space",
-  "wss://nostr.pareto.town",
-  "wss://pareto.nostr1.com",
+  "wss://portal-relay.pareto.town",
 ];
 
 const INDEX_KEY = "pareto.auth.keytr.v1";
@@ -31,6 +29,9 @@ type CredentialEntry = {
   pubkey: string;
   createdAt: string;
 };
+
+/** Relay-backed presence: pubkey → kind:31777 found on Keytr relays. */
+const relayPresenceCache = new Map<string, boolean>();
 
 function normalizeHex(pubkey: string): string {
   return pubkey.toLowerCase();
@@ -58,15 +59,62 @@ export function addToKeytrIndex(pubkey: string): void {
   const index = loadIndex().filter((item) => item.pubkey !== hex);
   index.push({ pubkey: hex, createdAt: new Date().toISOString() });
   saveIndex(index);
+  relayPresenceCache.set(hex, true);
 }
 
+/**
+ * Whether this pubkey has a Keytr passkey backup.
+ * Prefers last relay check; falls back to this-browser index.
+ */
 export function hasKeytrCredential(pubkey: string): boolean {
   const hex = normalizeHex(pubkey);
+  if (relayPresenceCache.has(hex)) {
+    return relayPresenceCache.get(hex)!;
+  }
   return loadIndex().some((item) => item.pubkey === hex);
 }
 
 export function indexedKeytrPubkeys(): string[] {
   return loadIndex().map((item) => item.pubkey);
+}
+
+export function anyKeytrCredentialKnown(): boolean {
+  if ([...relayPresenceCache.values()].some(Boolean)) {
+    return true;
+  }
+  return loadIndex().length > 0;
+}
+
+/**
+ * Fetch kind:31777 for the given pubkeys and update the presence cache + local index.
+ * Failed fetches leave prior cache/index entries unchanged.
+ */
+export async function refreshKeytrPresence(pubkeys: string[]): Promise<void> {
+  const unique = [
+    ...new Set(
+      pubkeys
+        .map((pubkey) => normalizeHex(String(pubkey || "").trim()))
+        .filter((pubkey) => /^[0-9a-f]{64}$/.test(pubkey)),
+    ),
+  ];
+  if (unique.length === 0) {
+    return;
+  }
+
+  await Promise.all(
+    unique.map(async (pubkey) => {
+      try {
+        const events = await fetchKeytrEvents(pubkey, KEYTR_RELAYS);
+        const present = events.length > 0;
+        relayPresenceCache.set(pubkey, present);
+        if (present) {
+          addToKeytrIndex(pubkey);
+        }
+      } catch {
+        // Keep previous cache / local index on relay errors.
+      }
+    }),
+  );
 }
 
 function loadDismissed(): Set<string> {
@@ -105,7 +153,7 @@ export async function reportPasskeySupport(): Promise<{
   }
   return {
     supported,
-    hasCredential: loadIndex().length > 0,
+    hasCredential: anyKeytrCredentialKnown(),
   };
 }
 
