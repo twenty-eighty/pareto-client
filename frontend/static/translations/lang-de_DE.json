@@ -460,7 +460,9 @@
   },
   "hashtag editor": {
     "label": "Hashtags",
-    "placeholder": "Gib Hashtags mit Komma getrennt ein"
+    "placeholder": "Hashtag eingeben und Enter drücken",
+    "help": "Tags können Leerzeichen enthalten. Trenne sie mit Kommas.",
+    "limit reached": "Maximale Anzahl an Hashtags erreicht."
   },
   "interaction button": {
     "error publishing interaction": "Fehler beim Veröffentlichen der Interaktion: {{reason}}"
@@ -934,7 +936,7 @@
     "use nostr account button title": "Ich nutze bereits Nostr",
     "use nostr account help text": "Erweiterung, Amber/Bunker oder verschlüsselter Schlüssel.",
     "browse only link title": "Nur lesen (npub)",
-    "sign in help text": "Melde dich an, um zu schreiben, zu folgen und Autoren zu unterstützen.",
+    "sign in help text": "Melde dich an, um zu liken, zu folgen und zu kommentieren.",
     "browser extension button title": "Browser-Erweiterung",
     "install browser extension button title": "Browser-Erweiterung installieren",
     "read-only npub button title": "Nur lesen (npub)",
@@ -952,6 +954,7 @@
     "connect button title": "Verbinden",
     "import and unlock button title": "Importieren & entsperren",
     "unlock button title": "Entsperren",
+    "unlock with passkey button title": "Mit Passkey entsperren",
     "use identity button title": "Verwenden",
     "unlock identity button title": "Entsperren",
     "delete identity button title": "Entfernen",
@@ -960,9 +963,9 @@
     "no identities text": "Noch keine gespeicherten Identitäten.",
     "add identity button title": "Identität hinzufügen",
     "add identity dialog title": "Identität hinzufügen",
-    "email lookup help text": "Gib deine E-Mail ein, um dich anzumelden oder ein Konto zu erstellen.",
+    "email lookup help text": "Gib deine E-Mail und dein Passwort ein, um dich anzumelden. Wenn du noch kein Konto hast, kannst du als Nächstes eines erstellen. Dein Passwort verlässt dieses Gerät nicht — nur ein Hash wird an den Server gesendet.",
     "email password help text": "Gib das Passwort für dieses E-Mail-Konto ein. Es bleibt in deinem Browser.",
-    "create account help text": "Für diese E-Mail wurde kein Konto gefunden. Wähle ein Passwort, um eines zu erstellen. Dein Passwort verschlüsselt den Schlüssel im Browser und wird nie an den Server gesendet.",
+    "create account help text": "Für diese Zugangsdaten wurde kein Konto gefunden. Wähle ein Passwort, um eines zu erstellen. Dein Passwort verschlüsselt den Schlüssel im Browser und wird nie an den Server gesendet.",
     "continue with email button title": "Weiter",
     "login with passkey button title": "Mit Passkey anmelden",
     "login with passkey help text": "Mit Fingerabdruck, Gesicht oder Geräte-Passkey.",
@@ -970,6 +973,7 @@
     "create passkey dialog title": "Konto schützen",
     "create passkey help text": "Erstelle einen Passkey, um dich beim nächsten Mal mit dem Fingerabdruck anzumelden. Dein Schlüssel bleibt verschlüsselt auf Nostr-Relays.",
     "create passkey button title": "Passkey erstellen",
+    "add passkey button title": "Passkey hinzufügen",
     "not now button title": "Jetzt nicht"
   }
 }
