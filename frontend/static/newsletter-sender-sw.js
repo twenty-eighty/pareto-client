@@ -1,7 +1,7 @@
 // Newsletter Sender Service Worker
 // Handles long-running newsletter operations against the Queue Server API
 
-const DEFAULT_BASE_URL = 'https://queue-server-vf49.onrender.com/v1';
+const DEFAULT_BASE_URL = 'https://queue-server.pareto.space/v1';
 
 /**
  * State kept in SW memory. The page should send these on startup.
