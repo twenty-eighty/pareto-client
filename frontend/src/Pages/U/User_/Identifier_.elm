@@ -183,36 +183,34 @@ init shared route () =
                             maybeAuthorsPubKey =
                                 Nostr.getPubKeyByNip05 shared.nostr nip05
 
+                            maybeArticle =
+                                Nostr.getArticleByNip05AndIdentifier shared.nostr nip05 model.identifier
+
                             followersEffect =
                                 Shared.createFollowersEffect shared.nostr maybeAuthorsPubKey
                         in
-                        case maybeAuthorsPubKey of
-                            Just pubKey ->
-                                case Nostr.getArticleWithIdentifier shared.nostr pubKey model.identifier of
-                                    Just _ ->
-                                        -- article already loaded, accessible in view function
-                                        ( followersEffect, Nothing )
+                        case ( maybeArticle, maybeAuthorsPubKey ) of
+                            ( Just _, _ ) ->
+                                -- article already in the shared store (e.g. from the /read list)
+                                ( followersEffect, Nothing )
 
-                                    -- |> Debug.log "User Page -> init: article loaded"
-                                    Nothing ->
-                                        ( Effect.batch
-                                            [ followersEffect
-                                            , -- pubkey already loaded, request article
-                                              { emptyEventFilter
-                                                | authors = Just [ pubKey ]
-                                                , kinds = Just [ KindLongFormContent ]
-                                                , tagReferences = Just [ TagReferenceIdentifier model.identifier ]
-                                              }
-                                                |> RequestArticle (Just <| Nostr.getReadRelayUrlsForPubKey shared.nostr pubKey)
-                                                |> Nostr.createRequest shared.nostr ("Article of NIP-05 user " ++ Nip05.nip05ToString nip05) []
-                                                |> Shared.Msg.RequestNostrEvents
-                                                |> Effect.sendSharedMsg
-                                            ]
-                                        , Just <| Nostr.getLastRequestId shared.nostr
-                                        )
+                            ( Nothing, Just pubKey ) ->
+                                ( Effect.batch
+                                    [ followersEffect
+                                    , { emptyEventFilter
+                                        | authors = Just [ pubKey ]
+                                        , kinds = Just [ KindLongFormContent ]
+                                        , tagReferences = Just [ TagReferenceIdentifier model.identifier ]
+                                      }
+                                        |> RequestArticle (Just <| Nostr.getReadRelayUrlsForPubKey shared.nostr pubKey)
+                                        |> Nostr.createRequest shared.nostr ("Article of NIP-05 user " ++ Nip05.nip05ToString nip05) []
+                                        |> Shared.Msg.RequestNostrEvents
+                                        |> Effect.sendSharedMsg
+                                    ]
+                                , Just <| Nostr.getLastRequestId shared.nostr
+                                )
 
-                            --|> Debug.log "User Page -> init: no article"
-                            Nothing ->
+                            ( Nothing, Nothing ) ->
                                 ( Effect.batch
                                     [ followersEffect
                                     , RequestNip05AndArticle nip05 model.identifier
@@ -222,7 +220,6 @@ init shared route () =
                                     ]
                                 , Just <| Nostr.getLastRequestId shared.nostr
                                 )
-                     --|> Debug.log "User Page -> init: Fetching PubKey and article..."
                     )
                 |> Maybe.withDefault ( Effect.none, Nothing )
     in
@@ -428,8 +425,10 @@ view shared model =
 articleFromModel : Shared.Model -> Model -> Maybe Article
 articleFromModel shared model =
     model.nip05
-        |> Maybe.andThen (Nostr.getPubKeyByNip05 shared.nostr)
-        |> Maybe.andThen (\pubKey -> Nostr.getArticleWithIdentifier shared.nostr pubKey model.identifier)
+        |> Maybe.andThen
+            (\nip05 ->
+                Nostr.getArticleByNip05AndIdentifier shared.nostr nip05 model.identifier
+            )
 
 
 viewArticle : Shared.Model -> Model -> Maybe Article -> Html Msg

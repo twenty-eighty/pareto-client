@@ -756,6 +756,17 @@ getArticleWithIdentifier model pubKey identifier =
         |> Maybe.andThen (filterArticlesWithIdentifier identifier)
 
 
+{-| Resolve an already-loaded article from a NIP-05 URL without waiting for a
+fresh NIP-05 HTTP lookup. The article list can show `/u/{nip05}/{identifier}`
+links as soon as a profile is validated, but `pubKeyByNip05` is not always
+populated at that moment — so the article page must also search loaded profiles.
+-}
+getArticleByNip05AndIdentifier : Model -> Nip05 -> String -> Maybe Article
+getArticleByNip05AndIdentifier model nip05 identifier =
+    getPubKeyByNip05 model nip05
+        |> Maybe.andThen (\pubKey -> getArticleWithIdentifier model pubKey identifier)
+
+
 getArticleWithId : Model -> EventId -> Maybe Article
 getArticleWithId model eventId =
     model.articlesById
@@ -1273,9 +1284,83 @@ getProfileByNip05 model nip05 =
         |> Maybe.andThen (getProfile model)
 
 
+nip05LookupKey : Nip05 -> String
+nip05LookupKey nip05 =
+    String.toLower (nip05ToString nip05)
+
+
+nip05sEqual : Nip05 -> Nip05 -> Bool
+nip05sEqual left right =
+    nip05LookupKey left == nip05LookupKey right
+
+
 getPubKeyByNip05 : Model -> Nip05 -> Maybe PubKey
 getPubKeyByNip05 model nip05 =
-    Dict.get (nip05ToString nip05) model.pubKeyByNip05
+    case Dict.get (nip05LookupKey nip05) model.pubKeyByNip05 of
+        Just pubKey ->
+            Just pubKey
+
+        Nothing ->
+            findPubKeyByNip05InProfiles model nip05
+
+
+findPubKeyByNip05InProfiles : Model -> Nip05 -> Maybe PubKey
+findPubKeyByNip05InProfiles model nip05 =
+    model.profiles
+        |> Dict.values
+        |> List.filterMap
+            (\profile ->
+                profile.nip05
+                    |> Maybe.andThen
+                        (\profileNip05 ->
+                            if nip05sEqual profileNip05 nip05 then
+                                Just profile.pubKey
+
+                            else
+                                Nothing
+                        )
+            )
+        |> List.head
+
+
+addNip05MappingsFromProfiles : Dict Nip05String PubKey -> List Nostr.Profile.Profile -> Dict Nip05String PubKey
+addNip05MappingsFromProfiles dict profiles =
+    profiles
+        |> List.filterMap
+            (\profile ->
+                profile.nip05
+                    |> Maybe.map (\nip05 -> ( nip05LookupKey nip05, profile.pubKey ))
+            )
+        |> List.foldl
+            (\( key, pubKey ) acc ->
+                Dict.insert key pubKey acc
+            )
+            dict
+
+
+insertPubKeyByNip05 : Nip05 -> PubKey -> Model -> Model
+insertPubKeyByNip05 nip05 pubKey model =
+    { model | pubKeyByNip05 = Dict.insert (nip05LookupKey nip05) pubKey model.pubKeyByNip05 }
+
+
+pubKeyFromNip05Names : Nip05 -> Nip05.Nip05Data -> Maybe PubKey
+pubKeyFromNip05Names nip05 nip05Data =
+    case Dict.get nip05.user nip05Data.names of
+        Just pubKey ->
+            Just pubKey
+
+        Nothing ->
+            nip05Data.names
+                |> Dict.toList
+                |> List.filterMap
+                    (\( name, pubKey ) ->
+                        if String.toLower name == String.toLower nip05.user then
+                            Just pubKey
+
+                        else
+                            Nothing
+                    )
+                |> List.head
 
 
 requestCommunityPostApprovals : Model -> Community -> Cmd Msg
@@ -1748,7 +1833,7 @@ update msg model =
                             let
                                 pubKeyByNip05 =
                                     authorsData
-                                        |> List.map (\authorData -> ( nip05ToString authorData.nip05, authorData.pubKey ))
+                                        |> List.map (\authorData -> ( nip05LookupKey authorData.nip05, authorData.pubKey ))
                                         |> Dict.fromList
                                         |> Dict.union model.pubKeyByNip05
                             in
@@ -2799,7 +2884,12 @@ updateModelWithUserMetadata model requestId events =
                 :: nip05Requests
                 |> Cmd.batch
     in
-    ( { requestModel | profiles = profilesSum }, requests )
+    ( { requestModel
+        | profiles = profilesSum
+        , pubKeyByNip05 = addNip05MappingsFromProfiles requestModel.pubKeyByNip05 profiles
+      }
+    , requests
+    )
 
 
 requestRelatedKindsForProfiles : Model -> List Profile -> List Kind -> ( Model, Cmd Msg )
@@ -3113,7 +3203,7 @@ profileUsesNip05 model pubKey nip05 =
     model.profiles
         |> Dict.get pubKey
         |> Maybe.andThen .nip05
-        |> Maybe.map (nip05ToString >> (==) (nip05ToString nip05))
+        |> Maybe.map (nip05sEqual nip05)
         |> Maybe.withDefault False
 
 
@@ -3125,7 +3215,7 @@ updateProfileWithNip05Data model pubKey nip05 nip05Data =
     else
         let
             maybePubKeyInNip05Data =
-                Dict.get nip05.user nip05Data.names
+                pubKeyFromNip05Names nip05 nip05Data
 
             nip05Relays =
                 Maybe.map2
@@ -3167,13 +3257,26 @@ updateModelWithNip05Data model requestId nip05 nip05Data =
             validateNip05 model nip05 nip05Data
 
         maybePubKey =
-            Dict.get nip05.user nip05Data.names
+            pubKeyFromNip05Names nip05 nip05Data
+
+        modelWithMapping =
+            case maybePubKey of
+                Just pubKey ->
+                    insertPubKeyByNip05 nip05 pubKey modelWithValidatedNip05
+
+                Nothing ->
+                    modelWithValidatedNip05
 
         loadedProfile =
-            getProfileByNip05 modelWithValidatedNip05 nip05
+            maybePubKey
+                |> Maybe.andThen (getProfile modelWithMapping)
 
         maybeRequest =
-            getRequest model requestId
+            getRequest modelWithMapping requestId
+
+        maybeIdentifier =
+            maybeRequest
+                |> Maybe.andThen identifierFromNip05ArticleRequest
 
         maybeRelays =
             nip05Data.relays
@@ -3183,25 +3286,92 @@ updateModelWithNip05Data model requestId nip05 nip05Data =
                             |> Maybe.andThen (\pubKey -> Dict.get pubKey relayDict)
                     )
 
-        ( requestModel, requestProfileCmd ) =
-            case ( loadedProfile, maybeRequest, maybePubKey ) of
-                ( Nothing, Just request, Just pubKey ) ->
-                    { emptyEventFilter | authors = Just [ pubKey ], kinds = Just [ KindUserMetadata ] }
-                        |> RequestProfile maybeRelays
-                        |> addToRequest modelWithValidatedNip05 request
+        followUpRequests =
+            case ( maybeRequest, maybePubKey ) of
+                ( Just request, Just pubKey ) ->
+                    let
+                        needsProfile =
+                            loadedProfile == Nothing
+
+                        needsArticle =
+                            maybeIdentifier
+                                |> Maybe.map
+                                    (\identifier ->
+                                        getArticleWithIdentifier modelWithMapping pubKey identifier == Nothing
+                                    )
+                                |> Maybe.withDefault False
+
+                        profileRequest =
+                            if needsProfile then
+                                Just
+                                    ({ emptyEventFilter | authors = Just [ pubKey ], kinds = Just [ KindUserMetadata ] }
+                                        |> RequestProfile maybeRelays
+                                    )
+
+                            else
+                                Nothing
+
+                        articleRequest =
+                            case ( needsArticle, maybeIdentifier ) of
+                                ( True, Just identifier ) ->
+                                    Just
+                                        ({ emptyEventFilter
+                                            | authors = Just [ pubKey ]
+                                            , kinds = Just [ KindLongFormContent ]
+                                            , tagReferences = Just [ TagReferenceIdentifier identifier ]
+                                         }
+                                            |> RequestArticle maybeRelays
+                                        )
+
+                                _ ->
+                                    Nothing
+                    in
+                    [ profileRequest, articleRequest ]
+                        |> List.filterMap identity
+
+                _ ->
+                    []
+
+        ( requestModel, requestCmd ) =
+            case ( maybeRequest, followUpRequests ) of
+                ( Just request, _ :: _ ) ->
+                    followUpRequests
+                        |> List.foldl
+                            (\requestData ( modelAcc, requestAcc ) ->
+                                addToRequest modelAcc requestAcc requestData
+                            )
+                            ( modelWithMapping, request )
                         |> (\( modelWithRequest, extendedRequest ) -> doRequest modelWithRequest extendedRequest)
 
-                ( _, _, _ ) ->
-                    ( modelWithValidatedNip05, Cmd.none )
+                _ ->
+                    ( modelWithMapping, Cmd.none )
     in
-    ( requestModel, requestProfileCmd )
+    ( requestModel, requestCmd )
+
+
+identifierFromNip05ArticleRequest : Request -> Maybe String
+identifierFromNip05ArticleRequest request =
+    request.states
+        |> List.filterMap
+            (\state ->
+                case state of
+                    RequestCreated (RequestNip05AndArticle _ identifier) ->
+                        Just identifier
+
+                    RequestSent (RequestNip05AndArticle _ identifier) ->
+                        Just identifier
+
+                    _ ->
+                        Nothing
+            )
+        |> List.head
 
 
 validateNip05 : Model -> Nip05 -> Nip05.Nip05Data -> Model
 validateNip05 model nip05 nip05Data =
     let
         pubKeyInNip05Data =
-            Dict.get nip05.user nip05Data.names
+            pubKeyFromNip05Names nip05 nip05Data
 
         loadedProfile =
             pubKeyInNip05Data
@@ -3244,7 +3414,7 @@ updateProfileWithValidationStatus model pubKey valid =
                 |> Maybe.andThen .nip05
                 |> Maybe.map
                     (\nip05 ->
-                        Dict.insert (nip05ToString nip05) pubKey model.pubKeyByNip05
+                        Dict.insert (nip05LookupKey nip05) pubKey model.pubKeyByNip05
                     )
                 |> Maybe.withDefault model.pubKeyByNip05
     in
@@ -3269,8 +3439,16 @@ updateWithPubkeyProfiles model pubkeyProfiles =
                         Dict.insert pubKey profile
                     )
                     model.profiles
+
+        profiles =
+            List.map .profile pubkeyProfiles
     in
-    ( { model | profiles = profilesSum }, nip05Requests )
+    ( { model
+        | profiles = profilesSum
+        , pubKeyByNip05 = addNip05MappingsFromProfiles model.pubKeyByNip05 profiles
+      }
+    , nip05Requests
+    )
 
 
 updateWithZapReceipts : Model -> List Nostr.Zaps.ZapReceipt -> ( Model, Cmd Msg )
