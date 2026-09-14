@@ -266,7 +266,7 @@ defaultSearchRelays =
 
 delayedPublishingRelays : List RelayUrl
 delayedPublishingRelays =
-    [ "wss://delayed-publisher.onrender.com"
+    [ "wss://delayed-publisher.pareto.space"
     ]
 
 
