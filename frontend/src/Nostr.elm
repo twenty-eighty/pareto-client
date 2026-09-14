@@ -756,11 +756,6 @@ getArticleWithIdentifier model pubKey identifier =
         |> Maybe.andThen (filterArticlesWithIdentifier identifier)
 
 
-{-| Resolve an already-loaded article from a NIP-05 URL without waiting for a
-fresh NIP-05 HTTP lookup. The article list can show `/u/{nip05}/{identifier}`
-links as soon as a profile is validated, but `pubKeyByNip05` is not always
-populated at that moment — so the article page must also search loaded profiles.
--}
 getArticleByNip05AndIdentifier : Model -> Nip05 -> String -> Maybe Article
 getArticleByNip05AndIdentifier model nip05 identifier =
     getPubKeyByNip05 model nip05
@@ -1296,31 +1291,15 @@ nip05sEqual left right =
 
 getPubKeyByNip05 : Model -> Nip05 -> Maybe PubKey
 getPubKeyByNip05 model nip05 =
-    case Dict.get (nip05LookupKey nip05) model.pubKeyByNip05 of
-        Just pubKey ->
-            Just pubKey
-
-        Nothing ->
-            findPubKeyByNip05InProfiles model nip05
+    Dict.get (nip05LookupKey nip05) model.pubKeyByNip05
 
 
-findPubKeyByNip05InProfiles : Model -> Nip05 -> Maybe PubKey
-findPubKeyByNip05InProfiles model nip05 =
-    model.profiles
-        |> Dict.values
-        |> List.filterMap
-            (\profile ->
-                profile.nip05
-                    |> Maybe.andThen
-                        (\profileNip05 ->
-                            if nip05sEqual profileNip05 nip05 then
-                                Just profile.pubKey
-
-                            else
-                                Nothing
-                        )
-            )
-        |> List.head
+bootstrapPubKeyByNip05 : Dict Nip05String PubKey
+bootstrapPubKeyByNip05 =
+    Pareto.bootstrapAuthorsList
+        |> Dict.toList
+        |> List.map (\( key, pubKey ) -> ( String.toLower key, pubKey ))
+        |> Dict.fromList
 
 
 addNip05MappingsFromProfiles : Dict Nip05String PubKey -> List Nostr.Profile.Profile -> Dict Nip05String PubKey
@@ -1678,7 +1657,7 @@ empty =
         }
     , nip05Cache = Dict.empty
     , picturePosts = Dict.empty
-    , pubKeyByNip05 = Dict.empty
+    , pubKeyByNip05 = bootstrapPubKeyByNip05
     , poolState = RelayStateUnknown
     , followLists = Dict.singleton Pareto.authorsKey paretoAuthorsFollowList
     , followSets = Dict.empty
