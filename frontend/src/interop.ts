@@ -10,6 +10,7 @@ import "./elm-oembed";
 import { createRelayManager } from "./relay-manager";
 import { handleAuthCommand, restoreActiveIdentity } from "./authIdentities";
 import { reportPasskeySupport as queryPasskeySupport } from "./keytrAuth";
+import * as cashuWallet from "./cashuWallet";
 import debug from 'debug';
 
 declare global {
@@ -294,6 +295,26 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
       case 'toggleArticleInfo':
         toggleArticleInfo(app);
+        break;
+
+      case 'createCashuWallet':
+        createCashuWallet(app, value);
+        break;
+
+      case 'decryptCashuWallet':
+        decryptCashuWalletCommand(app, value);
+        break;
+
+      case 'decryptCashuTokens':
+        decryptCashuTokensCommand(app, value);
+        break;
+
+      case 'redeemNutzap':
+        redeemNutzapCommand(app, value);
+        break;
+
+      case 'computeCashuBalance':
+        computeCashuBalanceCommand(app, value);
         break;
 
       // Contacts
@@ -770,6 +791,50 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
             break;
           }
 
+        case 17375: // NIP-60 cashu wallet
+          {
+            unwrapCashuWalletEvent(ndkEvent).then(event => {
+              if (event) {
+                app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
+              }
+            }).catch(err => {
+              debugLog('failed to decrypt cashu wallet', err);
+            });
+            break;
+          }
+
+        case 7375: // NIP-60 cashu tokens
+          {
+            unwrapCashuTokenEvent(ndkEvent).then(event => {
+              if (event) {
+                app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
+              }
+            }).catch(err => {
+              debugLog('failed to decrypt cashu tokens', err);
+            });
+            break;
+          }
+
+        case 7376: // NIP-60 cashu history (optional content decrypt)
+          {
+            unwrapCashuHistoryEvent(ndkEvent).then(event => {
+              if (event) {
+                app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
+              }
+            }).catch(() => {
+              // Public tags alone are enough for redeem tracking.
+              app.ports.receiveMessage.send({ messageType: 'events', value: { kind: 7376, events: [ndkEvent], requestId: requestId } });
+            });
+            break;
+          }
+
+        case 9321: // NIP-61 nutzap
+        case 10019: // NIP-61 mint recommendation
+          {
+            eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
+            break;
+          }
+
         case 30078: // application-specific event
           {
             unwrapApplicationSpecificEvent(ndkEvent).then(event => {
@@ -1159,6 +1224,8 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         ndkEvent = await encapsulateDraftEvent(ndkEvent);
       } else if (event.kind == 10013) {  // private relay list (NIP-37)
         ndkEvent = await encapsulatePrivateRelayListEvent(ndkEvent, signer);
+      } else if (event.kind == 17375 || event.kind == 7375 || event.kind == 7376) {
+        ndkEvent = await encapsulateCashuEncryptedContent(ndkEvent, signer);
       } else if (event.kind == 30078) {  // application-specific event
         ndkEvent = await encapsulateApplicationSpecificEvent(ndkEvent, signer);
         // Don't try to decrypt events that weren't encrypted for us
@@ -1222,6 +1289,12 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         if (event.kind == 10013) {
           // Re-expose decrypted tags so Elm can update privateRelayLists.
           eventForApp = await unwrapPrivateRelayListEvent(ndkEvent);
+        } else if (event.kind == 17375) {
+          eventForApp = await unwrapCashuWalletEvent(ndkEvent);
+        } else if (event.kind == 7375) {
+          eventForApp = await unwrapCashuTokenEvent(ndkEvent);
+        } else if (event.kind == 7376) {
+          eventForApp = await unwrapCashuHistoryEvent(ndkEvent);
         }
         if (eventForApp) {
           processEvents(app, -1, "sent event", [eventForApp]);
@@ -1301,6 +1374,145 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     ndkEvent.content = encrypted;
     ndkEvent.tags = [];
     return ndkEvent;
+  }
+
+  async function encapsulateCashuEncryptedContent(ndkEvent, signer) {
+    // NIP-60: content is already plaintext JSON from Elm; encrypt in place.
+    if (!ndkEvent.content) {
+      return ndkEvent;
+    }
+    const encrypted = await signer.encrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
+    if (!encrypted) {
+      return null;
+    }
+    ndkEvent.content = encrypted;
+    return ndkEvent;
+  }
+
+  async function unwrapCashuWalletEvent(ndkEvent) {
+    if (!window.ndk?.signer || !ndkEvent.content) {
+      return null;
+    }
+    const tags = await cashuWallet.decryptWalletContent(window.ndk.signer, ndkEvent.pubkey, ndkEvent.content);
+    ndkEvent.content = JSON.stringify(tags);
+    return ndkEvent;
+  }
+
+  async function unwrapCashuTokenEvent(ndkEvent) {
+    if (!window.ndk?.signer || !ndkEvent.content) {
+      return null;
+    }
+    const payload = await cashuWallet.decryptTokenPayload(window.ndk.signer, ndkEvent.pubkey, ndkEvent.content);
+    ndkEvent.content = JSON.stringify(payload);
+    return ndkEvent;
+  }
+
+  async function unwrapCashuHistoryEvent(ndkEvent) {
+    if (!window.ndk?.signer || !ndkEvent.content) {
+      return ndkEvent;
+    }
+    try {
+      const plain = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
+      if (plain) {
+        ndkEvent.content = plain;
+      }
+    } catch (_err) {
+      // keep ciphertext; public tags still usable
+    }
+    return ndkEvent;
+  }
+
+  function createCashuWallet(app, _value) {
+    try {
+      const keypair = cashuWallet.createWalletKeypair();
+      app.ports.receiveMessage.send({
+        messageType: 'cashuWalletCreated',
+        value: {
+          privkey: keypair.privkey,
+          pubkey: keypair.pubkey,
+          mintUrl: cashuWallet.DEFAULT_MINT_URL,
+        },
+      });
+    } catch (error) {
+      app.ports.receiveMessage.send({
+        messageType: 'error',
+        value: { reason: error?.message || 'failed to create cashu wallet' },
+      });
+    }
+  }
+
+  async function decryptCashuWalletCommand(app, value) {
+    try {
+      const tags = await cashuWallet.decryptWalletContent(window.ndk.signer, value.pubkey, value.content);
+      app.ports.receiveMessage.send({
+        messageType: 'cashuWalletDecrypted',
+        value: { tags, eventId: value.eventId || null },
+      });
+    } catch (error) {
+      app.ports.receiveMessage.send({
+        messageType: 'error',
+        value: { reason: error?.message || 'failed to decrypt cashu wallet' },
+      });
+    }
+  }
+
+  async function decryptCashuTokensCommand(app, value) {
+    try {
+      const payload = await cashuWallet.decryptTokenPayload(window.ndk.signer, value.pubkey, value.content);
+      app.ports.receiveMessage.send({
+        messageType: 'cashuTokensDecrypted',
+        value: { payload, eventId: value.eventId || null },
+      });
+    } catch (error) {
+      app.ports.receiveMessage.send({
+        messageType: 'error',
+        value: { reason: error?.message || 'failed to decrypt cashu tokens' },
+      });
+    }
+  }
+
+  async function redeemNutzapCommand(app, value) {
+    try {
+      const proofs = await cashuWallet.redeemNutzap({
+        mintUrl: value.mintUrl,
+        proofs: value.proofs || [],
+        p2pkPrivkey: value.p2pkPrivkey,
+      });
+      app.ports.receiveMessage.send({
+        messageType: 'nutzapRedeemed',
+        value: {
+          nutzapId: value.nutzapId,
+          mintUrl: value.mintUrl,
+          proofs,
+          amount: cashuWallet.getBalance(proofs),
+          senderPubKey: value.senderPubKey || null,
+        },
+      });
+    } catch (error) {
+      console.error('redeemNutzap failed', error);
+      app.ports.receiveMessage.send({
+        messageType: 'nutzapRedeemFailed',
+        value: {
+          nutzapId: value.nutzapId,
+          reason: error?.message || 'failed to redeem nutzap',
+        },
+      });
+    }
+  }
+
+  function computeCashuBalanceCommand(app, value) {
+    try {
+      const balance = cashuWallet.getBalance(value.proofs || []);
+      app.ports.receiveMessage.send({
+        messageType: 'cashuBalance',
+        value: { balance },
+      });
+    } catch (error) {
+      app.ports.receiveMessage.send({
+        messageType: 'error',
+        value: { reason: error?.message || 'failed to compute cashu balance' },
+      });
+    }
   }
 
   async function unwrapPrivateRelayListEvent(ndkEvent) {

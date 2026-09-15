@@ -48,6 +48,7 @@ forReactions tagReferences =
                 | kinds =
                     Just
                         [ KindZapReceipt
+                        , KindNutzap
                         , KindComment
                         , KindHighlights
                         , KindRepost

@@ -187,6 +187,9 @@ viewItem shared styles item =
                 ZapNotification ->
                     Translations.zappedYourArticle [ translations ]
 
+                NutzapNotification ->
+                    Translations.nutzappedYourArticle [ translations ]
+
         detailBlock =
             case ( item.kind, item.detail ) of
                 ( ReactionNotification, Just emoji ) ->
@@ -201,6 +204,13 @@ viewItem shared styles item =
                         [ text snippet ]
 
                 ( ZapNotification, Just amount ) ->
+                    span
+                        (styles.colorStyleGrayscaleText
+                            ++ [ css [ Tw.ml_1, Tw.font_medium ] ]
+                        )
+                        [ text ("· " ++ amount) ]
+
+                ( NutzapNotification, Just amount ) ->
                     span
                         (styles.colorStyleGrayscaleText
                             ++ [ css [ Tw.ml_1, Tw.font_medium ] ]

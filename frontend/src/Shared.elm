@@ -725,7 +725,7 @@ createNotificationsActivityEffect nostr pubKey =
                 |> RequestArticlesFeed False
                 |> Nostr.createRequest nostr
                     "Notifications activity"
-                    [ KindUserMetadata, KindReaction, KindComment, KindRepost, KindGenericRepost, KindZapReceipt ]
+                    [ KindUserMetadata, KindReaction, KindComment, KindRepost, KindGenericRepost, KindZapReceipt, KindNutzap ]
                 |> Shared.Msg.RequestNostrEvents
                 |> Effect.sendSharedMsg
 

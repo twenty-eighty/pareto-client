@@ -235,6 +235,10 @@ userDataKinds =
     , KindSearchRelaysList
     , KindPrivateRelayList
     , KindUserServerList
+    , KindCashuWalletEvent
+    , KindCashuWalletTokens
+    , KindCashuWalletHistory
+    , KindNutzapMintRecommendation
     ]
 
 

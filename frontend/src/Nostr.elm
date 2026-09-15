@@ -126,6 +126,10 @@ module Nostr exposing
     , getZapReceiptsCountForTagReference
     , getZapReceiptsCountForArticle
     , getZapReceiptsCountForComment
+    , getNutzapsCountForTagReference
+    , getCashuWallet
+    , getCashuBalance
+    , getNutzapMintRecommendation
     , addZapAmount
     , getBookmarkListCountForAddressComponents
     , getBookmarkListCountForEventId
@@ -225,6 +229,7 @@ import Nostr.PerformRequest as PerformRequest
 import Nostr.RelatedRequests as RelatedRequests
 import Nostr.BookmarkList as BookmarkList exposing (BookmarkList, emptyBookmarkList)
 import Nostr.BookmarkSet as BookmarkSet exposing (BookmarkSet)
+import Nostr.CashuWallet as CashuWallet exposing (CashuWallet)
 import Nostr.Community as Community exposing (Community)
 import Nostr.CommunityList as CommunityList exposing (CommunityReference)
 import Nostr.Comments as Comments
@@ -243,9 +248,11 @@ import Nostr.Nip18 exposing (Repost)
 import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..))
 import Nostr.Nip68 exposing (PicturePost)
+import Nostr.Nutzaps as Nutzaps exposing (Nutzap)
 import Nostr.PicturePosts as PicturePosts
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Profiles as Profiles
+import Ports
 import Nostr.Query as Query exposing (ContentQueryStatus(..))
 import Nostr.Reactions exposing (Reaction)
 import Nostr.ReactionsStore as ReactionsStore
@@ -1510,6 +1517,20 @@ applyIncoming effect model =
                 _ ->
                     ( model, Cmd.none )
 
+        Incoming.GotNutzapRedeemed redeemed ->
+            handleNutzapRedeemed model redeemed
+
+        Incoming.GotNutzapRedeemFailed nutzapId reason ->
+            ( { model
+                | pendingNutzapRedeems = Set.remove nutzapId model.pendingNutzapRedeems
+                , errors = reason :: model.errors
+              }
+            , Cmd.none
+            )
+
+        Incoming.GotCashuBalance balance ->
+            ( { model | cashuBalance = balance }, Cmd.none )
+
 
 
 updateModelWithEvents : Model -> Int -> Kind -> List Event -> ( Model, Cmd Msg )
@@ -1596,6 +1617,21 @@ updateModelWithEvents model requestId kind events =
 
         KindRelayListMetadata ->
             updateModelWithRelayListMetadata modelAfterContentRequest events
+
+        KindCashuWalletEvent ->
+            updateModelWithCashuWallet modelAfterContentRequest events
+
+        KindCashuWalletTokens ->
+            updateModelWithCashuTokens modelAfterContentRequest events
+
+        KindCashuWalletHistory ->
+            updateModelWithCashuHistory modelAfterContentRequest events
+
+        KindNutzapMintRecommendation ->
+            updateModelWithNutzapMintRec modelAfterContentRequest events
+
+        KindNutzap ->
+            updateModelWithNutzaps modelAfterContentRequest events
 
         _ ->
             ( modelAfterContentRequest, Cmd.none )
@@ -2360,6 +2396,246 @@ updateWithZapReceipts model zapReceipts =
       }
     , Cmd.none
     )
+
+
+updateModelWithCashuWallet : Model -> List Event -> ( Model, Cmd Msg )
+updateModelWithCashuWallet model events =
+    let
+        maybeWallet =
+            events
+                |> List.filterMap CashuWallet.walletFromDecryptedEvent
+                |> List.head
+
+        modelWithWallet =
+            case maybeWallet of
+                Just wallet ->
+                    { model | cashuWallet = Just wallet }
+
+                Nothing ->
+                    model
+    in
+    case modelWithWallet.cashuWallet of
+        Just wallet ->
+            subscribeToNutzaps modelWithWallet wallet
+
+        Nothing ->
+            ( modelWithWallet, Cmd.none )
+
+
+subscribeToNutzaps : Model -> CashuWallet -> ( Model, Cmd Msg )
+subscribeToNutzaps model wallet =
+    case model.defaultUser of
+        Nothing ->
+            ( model, Cmd.none )
+
+        Just userPubKey ->
+            if List.isEmpty wallet.mints then
+                ( model, Cmd.none )
+
+            else
+                let
+                    filter =
+                        { emptyEventFilter
+                            | kinds = Just [ KindNutzap ]
+                            , tagReferences =
+                                Just
+                                    (TagReferencePubKey userPubKey
+                                        :: List.map TagReferenceU wallet.mints
+                                    )
+                        }
+                in
+                Request.RequestUserData filter
+                    |> createRequest model "Nutzaps for logged-in user" []
+                    |> doRequest model
+
+
+updateModelWithCashuTokens : Model -> List Event -> ( Model, Cmd Msg )
+updateModelWithCashuTokens model events =
+    let
+        tokens =
+            events
+                |> List.filterMap CashuWallet.tokenEventFromDecrypted
+
+        cashuTokens =
+            CashuWallet.ingestTokens model.cashuTokens tokens
+    in
+    ( { model
+        | cashuTokens = cashuTokens
+        , cashuBalance = CashuWallet.totalBalance cashuTokens
+      }
+    , Cmd.none
+    )
+
+
+updateModelWithCashuHistory : Model -> List Event -> ( Model, Cmd Msg )
+updateModelWithCashuHistory model events =
+    let
+        redeemed =
+            Set.union model.redeemedNutzapIds (CashuWallet.redeemedNutzapIdsFromEvents events)
+    in
+    ( { model | redeemedNutzapIds = redeemed }, Cmd.none )
+
+
+updateModelWithNutzapMintRec : Model -> List Event -> ( Model, Cmd Msg )
+updateModelWithNutzapMintRec model events =
+    let
+        maybeRec =
+            events
+                |> List.map CashuWallet.mintRecommendationFromEvent
+                |> List.head
+    in
+    ( { model | nutzapMintRec = maybeRec }, Cmd.none )
+
+
+updateModelWithNutzaps : Model -> List Event -> ( Model, Cmd Msg )
+updateModelWithNutzaps model events =
+    let
+        nutzaps =
+            events
+                |> List.filterMap Nutzaps.nutzapFromEvent
+
+        updated =
+            Nutzaps.ingest
+                { nutzapsAddress = model.nutzapsAddress
+                , nutzapsEvents = model.nutzapsEvents
+                }
+                nutzaps
+
+        modelWithNutzaps =
+            { model
+                | nutzapsAddress = updated.nutzapsAddress
+                , nutzapsEvents = updated.nutzapsEvents
+            }
+    in
+    maybeRedeemNutzaps modelWithNutzaps nutzaps
+
+
+maybeRedeemNutzaps : Model -> List Nutzap -> ( Model, Cmd Msg )
+maybeRedeemNutzaps model nutzaps =
+    case model.cashuWallet of
+        Nothing ->
+            ( model, Cmd.none )
+
+        Just wallet ->
+            let
+                toRedeem =
+                    nutzaps
+                        |> List.filter
+                            (\nutzap ->
+                                not (Set.member nutzap.id model.redeemedNutzapIds)
+                                    && not (Set.member nutzap.id model.pendingNutzapRedeems)
+                                    && (case nutzap.mintUrl of
+                                            Just mintUrl ->
+                                                List.member mintUrl wallet.mints
+
+                                            Nothing ->
+                                                False
+                                       )
+                            )
+
+                cmds =
+                    toRedeem
+                        |> List.filterMap
+                            (\nutzap ->
+                                nutzap.mintUrl
+                                    |> Maybe.map
+                                        (\mintUrl ->
+                                            Ports.redeemNutzap
+                                                { nutzapId = nutzap.id
+                                                , mintUrl = mintUrl
+                                                , proofs = nutzap.proofs
+                                                , p2pkPrivkey = wallet.privkey
+                                                , senderPubKey = Just nutzap.pubKey
+                                                }
+                                        )
+                            )
+
+                pendingIds =
+                    toRedeem
+                        |> List.map .id
+                        |> Set.fromList
+            in
+            ( { model | pendingNutzapRedeems = Set.union model.pendingNutzapRedeems pendingIds }
+            , Cmd.batch cmds
+            )
+
+
+handleNutzapRedeemed : Model -> Incoming.NutzapRedeemed -> ( Model, Cmd Msg )
+handleNutzapRedeemed model redeemed =
+    case model.defaultUser of
+        Nothing ->
+            ( { model | pendingNutzapRedeems = Set.remove redeemed.nutzapId model.pendingNutzapRedeems }
+            , Cmd.none
+            )
+
+        Just userPubKey ->
+            let
+                now =
+                    Time.millisToPosix 0
+
+                tokenEvt =
+                    CashuWallet.tokenEvent userPubKey redeemed.mintUrl redeemed.proofs []
+
+                historyEvt =
+                    CashuWallet.historyEvent userPubKey
+                        { direction = CashuWallet.HistoryIn
+                        , amount = redeemed.amount
+                        , nutzapEventId = redeemed.nutzapId
+                        , senderPubKey = Maybe.withDefault "" redeemed.senderPubKey
+                        , createdTokenEventId = Nothing
+                        }
+
+                ( model1, cmd1 ) =
+                    send model now (Send.SendCashuTokens tokenEvt)
+
+                ( model2, cmd2 ) =
+                    send model1 now (Send.SendCashuHistory historyEvt)
+            in
+            ( { model2
+                | pendingNutzapRedeems = Set.remove redeemed.nutzapId model2.pendingNutzapRedeems
+                , redeemedNutzapIds = Set.insert redeemed.nutzapId model2.redeemedNutzapIds
+                , cashuBalance = model2.cashuBalance + redeemed.amount
+              }
+            , Cmd.batch [ cmd1, cmd2 ]
+            )
+
+
+getCashuWallet : Model -> Maybe CashuWallet
+getCashuWallet model =
+    model.cashuWallet
+
+
+getCashuBalance : Model -> Int
+getCashuBalance model =
+    model.cashuBalance
+
+
+getNutzapMintRecommendation : Model -> Maybe CashuWallet.NutzapMintRecommendation
+getNutzapMintRecommendation model =
+    model.nutzapMintRec
+
+
+getNutzapsCountForTagReference : Model -> TagReference -> Maybe Int
+getNutzapsCountForTagReference model tagReference =
+    let
+        key =
+            tagReferenceToString tagReference
+
+        byAddress =
+            Dict.get key model.nutzapsAddress
+
+        byEvent =
+            Dict.get key model.nutzapsEvents
+    in
+    case ( byAddress, byEvent ) of
+        ( Just dict, _ ) ->
+            Just (Nutzaps.totalAmount dict)
+
+        ( Nothing, Just dict ) ->
+            Just (Nutzaps.totalAmount dict)
+
+        ( Nothing, Nothing ) ->
+            Nothing
 
 
 subscriptions : Model -> Sub Msg

@@ -49,6 +49,9 @@ forTagReference store tagRef =
         TagReferenceTag _ ->
             Nothing
 
+        TagReferenceU _ ->
+            Nothing
+
 
 forEventId : Store a -> EventId -> Maybe (Dict String ZapReceipt)
 forEventId store eventId =

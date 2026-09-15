@@ -430,6 +430,11 @@ supportedKinds =
     , KindFileMetadata
     , KindZapRequest
     , KindZapReceipt
+    , KindNutzap
+    , KindNutzapMintRecommendation
+    , KindCashuWalletEvent
+    , KindCashuWalletTokens
+    , KindCashuWalletHistory
     , KindHighlights
     , KindPrivateRelayList
     , KindRelayListMetadata

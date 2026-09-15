@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@cashu/cashu-ts": "^4.10.1",
     "@milkdown/core": "^7.17.2",
     "@milkdown/crepe": "^7.17.2",
     "@milkdown/exception": "^7.21.2",

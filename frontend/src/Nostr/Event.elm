@@ -68,6 +68,7 @@ type Tag
 type EventTagMarker
     = EventTagRootMarker
     | EventTagReplyMarker
+    | EventTagRedeemedMarker
 
 type alias ImageMetadata =
     { url : String
@@ -122,6 +123,7 @@ type TagReference
     | TagReferenceIdentifier String
     | TagReferencePubKey PubKey
     | TagReferenceTag String
+    | TagReferenceU String
 
 
 type alias AddressComponents =
@@ -1048,7 +1050,7 @@ kindFromNumber num =
             34550 ->
                 KindCommunityDefinition
 
-            37375 ->
+            17375 ->
                 KindCashuWalletEvent
 
             38383 ->
@@ -1467,7 +1469,7 @@ numberForKind kind =
             34550
 
         KindCashuWalletEvent ->
-            37375
+            17375
 
         KindPeerToPeerOrder ->
             38383
@@ -1526,6 +1528,9 @@ tagReferenceToString tagRef =
 
         TagReferenceTag tag ->
             tag
+
+        TagReferenceU value ->
+            value
 
 
 imageSizeDecoder : Decoder ImageSize
@@ -1794,6 +1799,9 @@ eventTagMarkerDecoder =
                     "reply" ->
                         Decode.succeed EventTagReplyMarker
 
+                    "redeemed" ->
+                        Decode.succeed EventTagRedeemedMarker
+
                     _ ->
                         Decode.fail <| "Invalid event tag marker: " ++ markerString
 
@@ -1808,6 +1816,9 @@ eventTagMarkerToString marker =
 
         EventTagReplyMarker ->
             "reply"
+
+        EventTagRedeemedMarker ->
+            "redeemed"
 
 
 imageMetadataFromTagList : List String -> Result String ImageMetadata
@@ -2358,26 +2369,10 @@ appendTagReferenceList maybeTagRefList encodeList =
     case maybeTagRefList of
         Just tagRefList ->
             let
-                maybeDcodeList =
+                collect : (TagReference -> Maybe String) -> Maybe (List String)
+                collect pick =
                     tagRefList
-                        |> List.filterMap
-                            (\tagRef ->
-                                case tagRef of
-                                    TagReferenceEventId _ ->
-                                        Nothing
-
-                                    TagReferenceCode _ ->
-                                        Just <| tagReferenceToString tagRef
-
-                                    TagReferenceIdentifier _ ->
-                                        Nothing
-
-                                    TagReferencePubKey _ ->
-                                        Nothing
-
-                                    TagReferenceTag _ ->
-                                        Nothing
-                            )
+                        |> List.filterMap pick
                         |> (\list ->
                                 if List.isEmpty list then
                                     Nothing
@@ -2385,118 +2380,72 @@ appendTagReferenceList maybeTagRefList encodeList =
                                 else
                                     Just list
                            )
+
+                maybeDcodeList =
+                    collect
+                        (\tagRef ->
+                            case tagRef of
+                                TagReferenceCode _ ->
+                                    Just <| tagReferenceToString tagRef
+
+                                _ ->
+                                    Nothing
+                        )
 
                 maybeEventIdList =
-                    tagRefList
-                        |> List.filterMap
-                            (\tagRef ->
-                                case tagRef of
-                                    TagReferenceEventId eventId ->
-                                        Just eventId
+                    collect
+                        (\tagRef ->
+                            case tagRef of
+                                TagReferenceEventId eventId ->
+                                    Just eventId
 
-                                    TagReferenceCode _ ->
-                                        Nothing
-
-                                    TagReferenceIdentifier _ ->
-                                        Nothing
-
-                                    TagReferencePubKey _ ->
-                                        Nothing
-
-                                    TagReferenceTag _ ->
-                                        Nothing
-                            )
-                        |> (\list ->
-                                if List.isEmpty list then
+                                _ ->
                                     Nothing
-
-                                else
-                                    Just list
-                           )
+                        )
 
                 maybeIdentifierList =
-                    tagRefList
-                        |> List.filterMap
-                            (\tagRef ->
-                                case tagRef of
-                                    TagReferenceEventId _ ->
-                                        Nothing
+                    collect
+                        (\tagRef ->
+                            case tagRef of
+                                TagReferenceIdentifier identifier ->
+                                    Just identifier
 
-                                    TagReferenceCode _ ->
-                                        Nothing
-
-                                    TagReferenceIdentifier identifier ->
-                                        Just identifier
-
-                                    TagReferencePubKey _ ->
-                                        Nothing
-
-                                    TagReferenceTag _ ->
-                                        Nothing
-                            )
-                        |> (\list ->
-                                if List.isEmpty list then
+                                _ ->
                                     Nothing
-
-                                else
-                                    Just list
-                           )
+                        )
 
                 maybePubKeyList =
-                    tagRefList
-                        |> List.filterMap
-                            (\tagRef ->
-                                case tagRef of
-                                    TagReferenceEventId _ ->
-                                        Nothing
+                    collect
+                        (\tagRef ->
+                            case tagRef of
+                                TagReferencePubKey pubKey ->
+                                    Just pubKey
 
-                                    TagReferenceCode _ ->
-                                        Nothing
-
-                                    TagReferenceIdentifier _ ->
-                                        Nothing
-
-                                    TagReferencePubKey pubKey ->
-                                        Just pubKey
-
-                                    TagReferenceTag _ ->
-                                        Nothing
-                            )
-                        |> (\list ->
-                                if List.isEmpty list then
+                                _ ->
                                     Nothing
-
-                                else
-                                    Just list
-                           )
+                        )
 
                 maybeTagList =
-                    tagRefList
-                        |> List.filterMap
-                            (\tagRef ->
-                                case tagRef of
-                                    TagReferenceEventId _ ->
-                                        Nothing
+                    collect
+                        (\tagRef ->
+                            case tagRef of
+                                TagReferenceTag tag ->
+                                    Just tag
 
-                                    TagReferenceCode _ ->
-                                        Nothing
-
-                                    TagReferenceIdentifier _ ->
-                                        Nothing
-
-                                    TagReferencePubKey _ ->
-                                        Nothing
-
-                                    TagReferenceTag tag ->
-                                        Just tag
-                            )
-                        |> (\list ->
-                                if List.isEmpty list then
+                                _ ->
                                     Nothing
+                        )
 
-                                else
-                                    Just list
-                           )
+                maybeUList =
+                    collect
+                        (\tagRef ->
+                            case tagRef of
+                                TagReferenceU value ->
+                                    Just value
+
+                                _ ->
+                                    Nothing
+                        )
             in
             encodeList
                 |> appendStringList "#a" maybeDcodeList
@@ -2504,6 +2453,7 @@ appendTagReferenceList maybeTagRefList encodeList =
                 |> appendStringList "#e" maybeEventIdList
                 |> appendStringList "#p" maybePubKeyList
                 |> appendStringList "#t" maybeTagList
+                |> appendStringList "#u" maybeUList
 
         Nothing ->
             encodeList

@@ -22,6 +22,18 @@ if ! command -v elm-i18next-gen >/dev/null 2>&1; then
   exit 1
 fi
 
+# elm-i18next-gen's codegen/elm.json hardcodes elm-version 0.19.1, which
+# fails when the project (and PATH) use 0.19.2. Align before generating.
+ELM_VERSION="$(elm --version)"
+CODEGEN_ELM_JSON="$ROOT/node_modules/@abradley2/elm-i18next-gen/codegen/elm.json"
+if [ -f "$CODEGEN_ELM_JSON" ]; then
+  if sed --version >/dev/null 2>&1; then
+    sed -i "s/\"elm-version\": \"[^\"]*\"/\"elm-version\": \"$ELM_VERSION\"/" "$CODEGEN_ELM_JSON"
+  else
+    sed -i '' "s/\"elm-version\": \"[^\"]*\"/\"elm-version\": \"$ELM_VERSION\"/" "$CODEGEN_ELM_JSON"
+  fi
+fi
+
 elm-i18next-gen --output=gen/Translations --translations=lang/lang-en_US.json
 
 CONFLICTING_FILE=gen/Translations/Language.elm

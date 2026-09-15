@@ -416,6 +416,45 @@ encryptString data =
         }
 
 
+createCashuWallet : Cmd msg
+createCashuWallet =
+    sendCommand { command = "createCashuWallet", value = Encode.null }
+
+
+redeemNutzap :
+    { nutzapId : String
+    , mintUrl : String
+    , proofs : List Encode.Value
+    , p2pkPrivkey : String
+    , senderPubKey : Maybe String
+    }
+    -> Cmd msg
+redeemNutzap params =
+    sendCommand
+        { command = "redeemNutzap"
+        , value =
+            Encode.object
+                [ ( "nutzapId", Encode.string params.nutzapId )
+                , ( "mintUrl", Encode.string params.mintUrl )
+                , ( "proofs", Encode.list identity params.proofs )
+                , ( "p2pkPrivkey", Encode.string params.p2pkPrivkey )
+                , ( "senderPubKey"
+                  , params.senderPubKey
+                        |> Maybe.map Encode.string
+                        |> Maybe.withDefault Encode.null
+                  )
+                ]
+        }
+
+
+computeCashuBalance : List Encode.Value -> Cmd msg
+computeCashuBalance proofs =
+    sendCommand
+        { command = "computeCashuBalance"
+        , value = Encode.object [ ( "proofs", Encode.list identity proofs ) ]
+        }
+
+
 downloadAndDecryptFile : String -> String -> String -> Cmd msg
 downloadAndDecryptFile url keyHex ivHex =
     sendCommand

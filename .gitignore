@@ -19,6 +19,9 @@
 /frontend/pktriot
 /frontend/pktriot.sh
 
+# Accidental ELM_HOME when scripts are run from the repo root
+/elm-home
+
 # The directory Mix will write compiled artifacts to.
 /nostr_backend/_build/
 

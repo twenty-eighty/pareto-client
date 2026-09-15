@@ -14,6 +14,7 @@ import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Event exposing (buildAddress)
 import Nostr.Nip18 exposing (Repost)
 import Nostr.Nip22 as Nip22 exposing (CommentType(..))
+import Nostr.Nutzaps exposing (Nutzap)
 import Nostr.Reactions exposing (Reaction)
 import Nostr.Types exposing (Address, EventId, PubKey)
 import Nostr.Zaps exposing (ZapReceipt)
@@ -25,6 +26,7 @@ type NotificationKind
     | CommentNotification
     | RepostNotification
     | ZapNotification
+    | NutzapNotification
 
 
 type alias NotificationItem =
@@ -43,6 +45,7 @@ forAuthorArticles :
         , commentsByAddress : Dict Address (Dict EventId CommentType)
         , repostsByAddress : Dict Address (Dict PubKey Repost)
         , zapReceiptsAddress : Dict String (Dict String ZapReceipt)
+        , nutzapsAddress : Dict String (Dict String Nutzap)
     }
     -> PubKey
     -> List Article
@@ -62,6 +65,7 @@ unreadCount :
         , commentsByAddress : Dict Address (Dict EventId CommentType)
         , repostsByAddress : Dict Address (Dict PubKey Repost)
         , zapReceiptsAddress : Dict String (Dict String ZapReceipt)
+        , nutzapsAddress : Dict String (Dict String Nutzap)
     }
     -> PubKey
     -> List Article
@@ -79,6 +83,7 @@ itemsForArticle :
         , commentsByAddress : Dict Address (Dict EventId CommentType)
         , repostsByAddress : Dict Address (Dict PubKey Repost)
         , zapReceiptsAddress : Dict String (Dict String ZapReceipt)
+        , nutzapsAddress : Dict String (Dict String Nutzap)
     }
     -> PubKey
     -> Article
@@ -98,6 +103,7 @@ itemsForArticle store authorPubKey article =
                 , commentItems store.commentsByAddress authorPubKey article address
                 , repostItems store.repostsByAddress authorPubKey article address
                 , zapItems store.zapReceiptsAddress authorPubKey article address
+                , nutzapItems store.nutzapsAddress authorPubKey article address
                 ]
 
 
@@ -202,6 +208,29 @@ zapItems zapReceiptsAddress authorPubKey article address =
 
                     Nothing ->
                         Nothing
+            )
+
+
+nutzapItems :
+    Dict String (Dict String Nutzap)
+    -> PubKey
+    -> Article
+    -> Address
+    -> List NotificationItem
+nutzapItems nutzapsAddress authorPubKey article address =
+    Dict.get address nutzapsAddress
+        |> Maybe.map Dict.values
+        |> Maybe.withDefault []
+        |> List.filter (\nutzap -> nutzap.pubKey /= authorPubKey)
+        |> List.map
+            (\nutzap ->
+                { id = "nutzap:" ++ nutzap.id
+                , kind = NutzapNotification
+                , actorPubKey = nutzap.pubKey
+                , createdAt = nutzap.createdAt
+                , article = article
+                , detail = Just (String.fromInt nutzap.amount ++ " sats")
+                }
             )
 
 

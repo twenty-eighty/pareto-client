@@ -45,6 +45,10 @@ type SendRequest
     | SendRelayList (List RelayUrl) Event
     | SendPrivateRelayList (List RelayUrl) Event
     | SendRepost (List RelayUrl) Event
+    | SendCashuWallet Event
+    | SendCashuTokens Event
+    | SendNutzapMintRecommendation Event
+    | SendCashuHistory Event
 
 
 type alias SendPayload =
@@ -183,6 +187,18 @@ prepare context sendRequest =
 
         SendProfile relays event ->
             { relays = relays, event = event }
+
+        SendCashuWallet event ->
+            { relays = context.writeRelaysFor event.pubKey, event = event }
+
+        SendCashuTokens event ->
+            { relays = context.writeRelaysFor event.pubKey, event = event }
+
+        SendNutzapMintRecommendation event ->
+            { relays = context.writeRelaysFor event.pubKey, event = event }
+
+        SendCashuHistory event ->
+            { relays = context.writeRelaysFor event.pubKey, event = event }
 
 
 reactionEvent : PubKey -> EventId -> PubKey -> Maybe AddressComponents -> Event

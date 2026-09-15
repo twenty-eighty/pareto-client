@@ -20,6 +20,7 @@ import Layouts
 import Layouts.Sidebar
 import Nostr
 import Nostr.Blossom exposing (eventWithBlossomServerList)
+import Nostr.CashuWallet as CashuWallet
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Event exposing (Kind(..), emptyEventFilter)
 import Nostr.External
@@ -107,6 +108,12 @@ type DataModel
     = RelaysData RelaysModel
     | MediaServersData MediaServersModel
     | ProfileData ProfileModel
+    | EcashData EcashModel
+
+
+type alias EcashModel =
+    { enabling : Bool
+    }
 
 
 type alias RelaysModel =
@@ -291,6 +298,7 @@ type Category
     = Relays
     | MediaServers
     | Profile
+    | Ecash
 
 
 availableCategories : I18Next.Translations -> ConfigCheckIssues -> List (Categories.CategoryData Category)
@@ -341,6 +349,10 @@ availableCategories translations configCheckIssues =
       , title = Translations.profileCategory [ translations ] ++ profileIssuesSuffix
       , testId = "settings-profile"
       }
+    , { category = Ecash
+      , title = Translations.ecashCategory [ translations ]
+      , testId = "settings-ecash"
+      }
     ]
 
 
@@ -379,6 +391,9 @@ stringFromCategory category =
         Profile ->
             "profile"
 
+        Ecash ->
+            "ecash"
+
 
 categoryFromString : String -> Maybe Category
 categoryFromString categoryString =
@@ -391,6 +406,9 @@ categoryFromString categoryString =
 
         "profile" ->
             Just Profile
+
+        "ecash" ->
+            Just Ecash
 
         _ ->
             Nothing
@@ -427,6 +445,8 @@ type Msg
     | ImageSelected MediaSelector.UploadedFile
     | SaveProfile Profile
     | CreateProfile
+    | EnableEcashWallet
+    | DisableEcashWallet
     | ReceivedPortMessage IncomingMessage
     | PictureLoaded Bool
     | BannerLoaded Bool
@@ -699,8 +719,33 @@ update user shared msg model =
                 _ ->
                     ( model, Effect.none )
 
+        EnableEcashWallet ->
+            case model.data of
+                EcashData _ ->
+                    ( { model | data = EcashData { enabling = True } }
+                    , Effect.sendCmd Ports.createCashuWallet
+                    )
+
+                _ ->
+                    ( model, Effect.none )
+
+        DisableEcashWallet ->
+            let
+                writeRelays =
+                    Nostr.getWriteRelayUrlsForPubKey shared.nostr user.pubKey
+
+                disableRec =
+                    CashuWallet.mintRecommendationEvent user.pubKey writeRelays [] Nothing
+            in
+            ( model
+            , disableRec
+                |> SendNutzapMintRecommendation
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
         ReceivedPortMessage message ->
-            updateWithPortMessage model message
+            updateWithPortMessage user shared model message
 
         PictureLoaded isLoaded ->
             case model.data of
@@ -735,9 +780,38 @@ update user shared msg model =
                     ( model, Effect.none )
 
 
-updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
-updateWithPortMessage model message =
+updateWithPortMessage : Auth.User -> Shared.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
+updateWithPortMessage user shared model message =
     case message.messageType of
+        "cashuWalletCreated" ->
+            case Decode.decodeValue cashuWalletCreatedDecoder message.value of
+                Ok created ->
+                    let
+                        writeRelays =
+                            Nostr.getWriteRelayUrlsForPubKey shared.nostr user.pubKey
+
+                        walletEvt =
+                            CashuWallet.walletEvent user.pubKey created.privkey [ created.mintUrl ]
+
+                        recEvt =
+                            CashuWallet.mintRecommendationEvent user.pubKey writeRelays [ created.mintUrl ] (Just created.pubkey)
+                    in
+                    ( { model | data = EcashData { enabling = False } }
+                    , Effect.batch
+                        [ walletEvt
+                            |> SendCashuWallet
+                            |> Shared.Msg.SendNostrEvent
+                            |> Effect.sendSharedMsg
+                        , recEvt
+                            |> SendNutzapMintRecommendation
+                            |> Shared.Msg.SendNostrEvent
+                            |> Effect.sendSharedMsg
+                        ]
+                    )
+
+                Err _ ->
+                    ( { model | data = EcashData { enabling = False } }, Effect.none )
+
         "published" ->
             case ( model.data, Nostr.External.decodeSendId message.value, Nostr.External.decodeEvent message.value ) of
                 ( RelaysData relaysModel, Ok incomingSendId, _ ) ->
@@ -825,6 +899,21 @@ updateWithPortMessage model message =
 
         _ ->
             ( model, Effect.none )
+
+
+type alias CashuWalletCreated =
+    { privkey : String
+    , pubkey : String
+    , mintUrl : String
+    }
+
+
+cashuWalletCreatedDecoder : Decode.Decoder CashuWalletCreated
+cashuWalletCreatedDecoder =
+    Decode.map3 CashuWalletCreated
+        (Decode.field "privkey" Decode.string)
+        (Decode.field "pubkey" Decode.string)
+        (Decode.field "mintUrl" Decode.string)
 
 
 extendMediaServerList : ServerUrl -> List ServerUrl -> List ServerUrl
@@ -934,6 +1023,11 @@ updateModelWithCategory user shared model category =
                             |> Effect.sendSharedMsg
                         ]
                     )
+
+                Ecash ->
+                    ( { model | data = EcashData { enabling = False } }
+                    , Effect.none
+                    )
     in
     ( newModel
     , Effect.batch
@@ -1037,8 +1131,115 @@ viewCategory shared configCheckIssues model user =
         ( Profile, ProfileData profileModel ) ->
             viewProfile shared configCheckIssues.profileIssues user profileModel
 
+        ( Ecash, EcashData ecashModel ) ->
+            viewEcash shared user ecashModel
+
         _ ->
             emptyHtml
+
+
+viewEcash : Shared.Model -> Auth.User -> EcashModel -> Html Msg
+viewEcash shared _ ecashModel =
+    let
+        styles =
+            stylesForTheme shared.theme
+
+        maybeWallet =
+            Nostr.getCashuWallet shared.nostr
+
+        maybeRec =
+            Nostr.getNutzapMintRecommendation shared.nostr
+
+        balance =
+            Nostr.getCashuBalance shared.nostr
+
+        enabled =
+            case ( maybeWallet, maybeRec ) of
+                ( Just _, Just rec ) ->
+                    rec.p2pkPubkey /= Nothing && not (List.isEmpty rec.mints)
+
+                ( Just _, Nothing ) ->
+                    True
+
+                _ ->
+                    False
+
+        mints =
+            maybeWallet
+                |> Maybe.map .mints
+                |> Maybe.withDefault (Maybe.map .mints maybeRec |> Maybe.withDefault [])
+
+        readOnly =
+            signingPubKeyAvailable shared.loginStatus
+                |> not
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.gap_6
+            ]
+        ]
+        [ h3
+            (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
+            [ text <| Translations.ecashSectionTitle [ shared.browserEnv.translations ] ]
+        , p [] [ text <| Translations.ecashSectionDescription [ shared.browserEnv.translations ] ]
+        , p
+            (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
+            [ text
+                (Translations.ecashStatusLabel [ shared.browserEnv.translations ]
+                    ++ ": "
+                    ++ (if enabled then
+                            Translations.ecashEnabledLabel [ shared.browserEnv.translations ]
+
+                        else
+                            Translations.ecashDisabledLabel [ shared.browserEnv.translations ]
+                       )
+                )
+            ]
+        , p
+            (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
+            [ text (Translations.ecashBalanceLabel [ shared.browserEnv.translations ] ++ ": " ++ String.fromInt balance ++ " sats") ]
+        , if List.isEmpty mints then
+            emptyHtml
+
+          else
+            div []
+                (p
+                    (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
+                    [ text (Translations.ecashMintsLabel [ shared.browserEnv.translations ] ++ ":") ]
+                    :: List.map (\mint -> p [ css [ Tw.ml_2 ] ] [ text mint ]) mints
+                )
+        , if readOnly then
+            emptyHtml
+
+          else if enabled then
+            Button.new
+                { label = Translations.ecashDisableButtonTitle [ shared.browserEnv.translations ]
+                , onClick = Just DisableEcashWallet
+                , theme = shared.theme
+                }
+                |> Button.view
+
+          else
+            Button.new
+                { label =
+                    if ecashModel.enabling then
+                        Translations.ecashEnablingButtonTitle [ shared.browserEnv.translations ]
+
+                    else
+                        Translations.ecashEnableButtonTitle [ shared.browserEnv.translations ]
+                , onClick =
+                    if ecashModel.enabling then
+                        Nothing
+
+                    else
+                        Just EnableEcashWallet
+                , theme = shared.theme
+                }
+                |> Button.withTypePrimary
+                |> Button.view
+        ]
 
 
 type alias Suggestions =

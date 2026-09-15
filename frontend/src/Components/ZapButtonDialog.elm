@@ -1201,27 +1201,55 @@ pubkeyRelays nostrModel pubKey =
 
 getZapAmount : BrowserEnv -> Nostr.Model -> InteractionObject -> String
 getZapAmount browserEnv nostr interactionObject =
-    case interactionObject of
-        Article _ addressComponents ->
-            TagReferenceCode addressComponents
-                |> Nostr.getZapReceiptsCountForTagReference nostr
-                |> Maybe.withDefault 0
-                |> formatZapNum browserEnv
+    let
+        zapPart =
+            case interactionObject of
+                Article _ addressComponents ->
+                    TagReferenceCode addressComponents
+                        |> Nostr.getZapReceiptsCountForTagReference nostr
+                        |> Maybe.withDefault 0
+                        |> formatZapNum browserEnv
 
-        Comment eventId _ ->
-            TagReferenceEventId eventId
-                |> Nostr.getZapReceiptsCountForTagReference nostr
-                |> Maybe.withDefault 0
-                |> formatZapNum browserEnv
+                Comment eventId _ ->
+                    TagReferenceEventId eventId
+                        |> Nostr.getZapReceiptsCountForTagReference nostr
+                        |> Maybe.withDefault 0
+                        |> formatZapNum browserEnv
 
-        PicturePost eventId _ ->
-            TagReferenceEventId eventId
-                |> Nostr.getZapReceiptsCountForTagReference nostr
-                |> Maybe.withDefault 0
-                |> formatZapNum browserEnv
+                PicturePost eventId _ ->
+                    TagReferenceEventId eventId
+                        |> Nostr.getZapReceiptsCountForTagReference nostr
+                        |> Maybe.withDefault 0
+                        |> formatZapNum browserEnv
 
-        ProfilePubKey _ ->
-            ""
+                ProfilePubKey _ ->
+                    ""
+
+        nutzapPart =
+            case interactionObject of
+                Article _ addressComponents ->
+                    TagReferenceCode addressComponents
+                        |> Nostr.getNutzapsCountForTagReference nostr
+                        |> Maybe.withDefault 0
+
+                Comment eventId _ ->
+                    TagReferenceEventId eventId
+                        |> Nostr.getNutzapsCountForTagReference nostr
+                        |> Maybe.withDefault 0
+
+                PicturePost eventId _ ->
+                    TagReferenceEventId eventId
+                        |> Nostr.getNutzapsCountForTagReference nostr
+                        |> Maybe.withDefault 0
+
+                ProfilePubKey _ ->
+                    0
+    in
+    if nutzapPart > 0 then
+        zapPart ++ " · " ++ formatZapNum browserEnv (nutzapPart * 1000)
+
+    else
+        zapPart
 
 
 formatZapNum : BrowserEnv -> Int -> String

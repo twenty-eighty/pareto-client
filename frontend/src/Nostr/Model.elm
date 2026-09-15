@@ -17,6 +17,7 @@ import Http
 import Nostr.Article exposing (Article)
 import Nostr.BookmarkList exposing (BookmarkList)
 import Nostr.BookmarkSet exposing (BookmarkSet)
+import Nostr.CashuWallet as CashuWallet exposing (CashuTokenEvent, CashuWallet, NutzapMintRecommendation)
 import Nostr.Community exposing (Community)
 import Nostr.CommunityList exposing (CommunityReference)
 import Nostr.ContentRequest exposing (ContentRequestState)
@@ -30,6 +31,7 @@ import Nostr.Nip11 exposing (Nip11Info, fetchNip11)
 import Nostr.Nip18 exposing (Repost)
 import Nostr.Nip22 exposing (CommentType)
 import Nostr.Nip68 exposing (PicturePost)
+import Nostr.Nutzaps exposing (Nutzap)
 import Nostr.Profile exposing (Profile, ProfileValidation)
 import Nostr.Reactions exposing (Reaction)
 import Nostr.Relay as Relay exposing (Relay, RelayState(..), RelayUrl)
@@ -93,6 +95,14 @@ type alias Model =
     , userServerLists : Dict PubKey (List String)
     , zapReceiptsAddress : Dict String (Dict String ZapReceipt)
     , zapReceiptsEvents : Dict String (Dict String ZapReceipt)
+    , cashuWallet : Maybe CashuWallet
+    , cashuTokens : Dict EventId CashuTokenEvent
+    , nutzapMintRec : Maybe NutzapMintRecommendation
+    , nutzapsAddress : Dict String (Dict String Nutzap)
+    , nutzapsEvents : Dict String (Dict String Nutzap)
+    , cashuBalance : Int
+    , redeemedNutzapIds : Set String
+    , pendingNutzapRedeems : Set String
     , hooks : Hooks Msg
     , errors : List String
     , requests : Dict RequestId Request
@@ -172,6 +182,14 @@ empty =
     , userServerLists = Dict.empty
     , zapReceiptsAddress = Dict.empty
     , zapReceiptsEvents = Dict.empty
+    , cashuWallet = Nothing
+    , cashuTokens = Dict.empty
+    , nutzapMintRec = Nothing
+    , nutzapsAddress = Dict.empty
+    , nutzapsEvents = Dict.empty
+    , cashuBalance = 0
+    , redeemedNutzapIds = Set.empty
+    , pendingNutzapRedeems = Set.empty
     , errors = []
     , requests = Dict.singleton 0 { id = 0, relatedKinds = [], states = [], description = "preoloaded data" }
     , sendRequests = Dict.empty
