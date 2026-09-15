@@ -624,7 +624,14 @@
     "relay ready": "bereit",
     "nip11 request failed": "NIP-11-Abfrage fehlgeschlagen",
     "loading article": "Lade Artikel ...",
+    "resolving author": "Autor wird aufgelöst ...",
+    "step resolve author": "Autor auflösen",
+    "step load article": "Artikel laden",
+    "article not found": "Artikel nicht gefunden.",
+    "article load failed": "Artikel konnte nicht geladen werden.",
     "loading note": "Lade Notiz ...",
+    "note not found": "Notiz nicht gefunden.",
+    "note load failed": "Notiz konnte nicht geladen werden.",
     "loading profile": "Lade Profil ..."
   },
   "search": {
