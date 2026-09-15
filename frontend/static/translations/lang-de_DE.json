@@ -21,7 +21,12 @@
         "recommendation sent alert text": "Empfehlung gesendet",
         "feedback info text": "Du hast einen Fehler gefunden oder möchtest Feedback geben? Bitte kontaktiere uns ",
         "support page link text": "hier",
-        "telegram link text": "Pareto Telegram-Kanal"
+        "telegram link text": "Pareto Telegram-Kanal",
+        "install app button title": "App installieren"
+    },
+    "app update": {
+        "new version available": "Neue Version verfügbar.",
+        "reload button": "Neu laden"
     },
     "article info": {
         "title": "Artikel Info",
