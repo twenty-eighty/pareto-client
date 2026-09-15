@@ -133,6 +133,9 @@ module Nostr exposing
     , getRepostsCountForEventId
     , getReactionForArticle
     , getReactionForEventId
+    , getHighlightsForAddress
+    , getHighlightsCountForAddress
+    , highlightsForPubKey
     , notificationsForPubKey
     , unreadNotificationsCount
     , eventFilterForDeletionRequests
@@ -165,6 +168,7 @@ module Nostr exposing
     , appendNip27ProfileRequests
     , nip27ProfilesRequest
     , updateModelWithSearchRelays
+    , updateModelWithHighlights
     , updateModelWithReactions
     , updateModelWithShortTextNotes
     , requestRelatedKindsForShortNotes
@@ -210,6 +214,7 @@ import Nostr.EventFilters as EventFilters
 import Nostr.Nip05Cache as Nip05Cache exposing (CheckDecision(..), ContentRequestDecision(..), FetchDecision(..), Nip05CacheEntry(..), Nip05RequestTarget(..))
 import Nostr.Nip05Apply as Nip05Apply
 import Nostr.Notifications as Notifications
+import Nostr.Highlights as Highlights
 import Nostr.RelayAccess as RelayAccess
 import Nostr.PerformRequest as PerformRequest
 import Nostr.RelatedRequests as RelatedRequests
@@ -1293,6 +1298,21 @@ getReactionForEventId model pubKey eventId =
     ReactionsStore.reactionForEventId model pubKey eventId
 
 
+getHighlightsForAddress : Model -> AddressComponents -> List Highlights.Highlight
+getHighlightsForAddress model addressComponents =
+    Highlights.forAddress model addressComponents
+
+
+getHighlightsCountForAddress : Model -> AddressComponents -> Maybe Int
+getHighlightsCountForAddress model addressComponents =
+    Highlights.countForAddress model addressComponents
+
+
+highlightsForPubKey : Model -> PubKey -> List Highlights.HighlightItem
+highlightsForPubKey model pubKey =
+    Highlights.forAuthorArticles model pubKey (getArticlesForAuthor model pubKey)
+
+
 notificationsForPubKey : Model -> PubKey -> List Notifications.NotificationItem
 notificationsForPubKey model pubKey =
     Notifications.forAuthorArticles model pubKey (getArticlesForAuthor model pubKey)
@@ -1490,6 +1510,9 @@ updateModelWithEvents model requestId kind events =
 
         KindReaction ->
             updateModelWithReactions modelAfterContentRequest requestId events
+
+        KindHighlights ->
+            updateModelWithHighlights modelAfterContentRequest events
 
         KindSearchRelaysList ->
             updateModelWithSearchRelays modelAfterContentRequest requestId events
@@ -1812,6 +1835,19 @@ updateModelWithReactions model _ events =
         | reactionsForEventId = updated.reactionsForEventId
         , reactionsForAddress = updated.reactionsForAddress
       }
+    , Cmd.none
+    )
+
+
+updateModelWithHighlights : Model -> List Event -> ( Model, Cmd Msg )
+updateModelWithHighlights model events =
+    let
+        updated =
+            Highlights.ingest
+                { highlightsByAddress = model.highlightsByAddress }
+                events
+    in
+    ( { model | highlightsByAddress = updated.highlightsByAddress }
     , Cmd.none
     )
 

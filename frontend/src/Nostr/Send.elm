@@ -12,6 +12,7 @@ module Nostr.Send exposing
 import Nostr.BookmarkList as BookmarkList exposing (BookmarkList, bookmarkListEvent, bookmarkListWithArticle, bookmarkListWithShortNote, bookmarkListWithoutArticle, bookmarkListWithoutShortNote, emptyBookmarkList)
 import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), addAddressTags, emptyEvent)
 import Nostr.FollowList as FollowList exposing (emptyFollowList, followListEvent, followListWithPubKey, followListWithoutPubKey)
+import Nostr.Highlights as Highlights
 import Nostr.Types exposing (EventId, Following, PubKey, RelayUrl)
 
 
@@ -33,6 +34,7 @@ type SendRequest
     | SendFollowListWithPubKey PubKey PubKey
     | SendFollowListWithoutPubKey PubKey PubKey
     | SendHandlerInformation (List RelayUrl) Event
+    | SendHighlight PubKey EventId PubKey AddressComponents Kind String (Maybe String)
     | SendLongFormDraft (List RelayUrl) Event
     | SendLongFormArticle (List RelayUrl) Event
     | SendProfile (List RelayUrl) Event
@@ -128,6 +130,19 @@ prepare context sendRequest =
 
         SendHandlerInformation relays event ->
             { relays = relays, event = event }
+
+        SendHighlight userPubKey articleEventId articleAuthor addressComponents articleKind content maybeContext ->
+            { relays = context.writeRelaysFor userPubKey
+            , event =
+                Highlights.highlightEvent userPubKey
+                    { content = content
+                    , context = maybeContext
+                    , articleEventId = articleEventId
+                    , articleAuthor = articleAuthor
+                    , addressComponents = addressComponents
+                    , articleKind = articleKind
+                    }
+            }
 
         SendLongFormArticle relays event ->
             { relays = relays, event = event }

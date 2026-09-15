@@ -7,7 +7,7 @@ import Components.Interactions as Interactions
 import Css
 import Dict exposing (Dict)
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, div)
+import Html.Styled as Html exposing (Html, div, h2, p, text)
 import Html.Styled.Attributes exposing (css)
 import I18Next
 import Locale exposing (Language(..))
@@ -21,9 +21,9 @@ import Nostr.Types exposing (EventId, LoginStatus, PubKey, RelayUrl)
 import Set exposing (Set)
 import Svg.Styled as Svg
 import Svg.Styled.Attributes as SvgAttr
-import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Time
+import Translations.ArticleComments as Translations
 import Ui.Links
 import Ui.Profile
 import Ui.Shared exposing (emptyHtml)
@@ -166,43 +166,92 @@ view articleComments =
     let
         (Settings settings) =
             articleComments
+
+        (Model model) =
+            settings.model
+
+        styles =
+            stylesForTheme settings.theme
+
+        commentHidden =
+            Comment.isHidden model.comment
+
+        commentBox =
+            viewCommenting (Settings settings)
     in
     div
         [ css
-            [ Tw.self_stretch
+            [ Tw.w_full
             , Tw.flex_col
             , Tw.justify_start
             , Tw.items_start
-            , Tw.gap_6
+            , Tw.gap_4
             , Tw.flex
             , Tw.mb_4
             ]
         ]
-        [ div
-            [ css
-                [ Tw.flex_col
-                , Tw.justify_end
-                , Tw.items_end
-                , Tw.gap_4
-                , Tw.flex
-                ]
+        [ viewHeader styles settings.browserEnv commentHidden commentBox
+        , if commentHidden then
+            emptyHtml
+
+          else
+            commentBox
+        , viewCommentsList (Settings settings) styles articleComments
+        ]
+
+
+viewHeader : Styles msg -> BrowserEnv -> Bool -> Html msg -> Html msg
+viewHeader styles browserEnv commentHidden commentButton =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_wrap
+            , Tw.items_center
+            , Tw.justify_between
+            , Tw.gap_3
+            , Tw.w_full
             ]
-            [ viewCommenting (Settings settings)
-            , div
+        ]
+        [ h2
+            (styles.colorStyleGrayscaleTitle
+                ++ styles.textStyleH3
+                ++ [ css [ Tw.m_0 ] ]
+            )
+            [ text (Translations.sectionTitle [ browserEnv.translations ]) ]
+        , if commentHidden then
+            commentButton
+
+          else
+            emptyHtml
+        ]
+
+
+viewCommentsList : ArticleComments msg -> Styles msg -> ArticleComments msg -> Html msg
+viewCommentsList (Settings settings) styles articleComments =
+    case settings.articleComments of
+        [] ->
+            p
+                (styles.colorStyleGrayscaleMuted
+                    ++ styles.textStyleBody
+                    ++ [ css [ Tw.m_0 ] ]
+                )
+                [ text (Translations.emptyText [ settings.browserEnv.translations ]) ]
+
+        _ ->
+            div
                 [ css
                     [ Tw.flex
                     , Tw.flex_col
                     , Tw.justify_start
                     , Tw.items_start
                     , Tw.gap_6
+                    , Tw.w_full
                     ]
                 ]
                 (settings.articleComments
                     |> sortComments
                     |> List.map (viewArticleComment articleComments settings.articleCommentComments)
                 )
-            ]
-        ]
 
 
 viewCommenting : ArticleComments msg -> Html msg
@@ -214,26 +263,16 @@ viewCommenting articleComments =
         (Model model) =
             settings.model
     in
-    div
-        [ css
-            [ Tw.w_80
-            , Tw.mb_4
-            , Bp.sm
-                [ Tw.w_96
-                ]
-            ]
-        ]
-        [ Comment.new
-            { browserEnv = settings.browserEnv
-            , loginStatus = settings.loginStatus
-            , model = model.comment
-            , newComment = settings.newComment
-            , nostr = settings.nostr
-            , theme = settings.theme
-            , toMsg = CommentSent
-            }
-            |> Comment.view
-        ]
+    Comment.new
+        { browserEnv = settings.browserEnv
+        , loginStatus = settings.loginStatus
+        , model = model.comment
+        , newComment = settings.newComment
+        , nostr = settings.nostr
+        , theme = settings.theme
+        , toMsg = CommentSent
+        }
+        |> Comment.view
         |> Html.map settings.toMsg
 
 
@@ -261,14 +300,7 @@ viewArticleComment articleComments articleCommentComments articleComment =
             [ Tw.relative
             , Tw.mt_6
             , Tw.pl_4
-            , Tw.w_auto
-            , Tw.max_w_sm
-            , Bp.sm
-                [ Tw.max_w_lg
-                ]
-            , Bp.md
-                [ Tw.max_w_2xl
-                ]
+            , Tw.w_full
             ]
         ]
         [ viewCommentHeader settings.browserEnv styles settings.nostr articleComment.pubKey articleComment.createdAt
@@ -285,6 +317,7 @@ viewArticleComment articleComments articleCommentComments articleComment =
                 , Tw.items_start
                 , Tw.overflow_visible
                 , Tw.relative
+                , Tw.w_full
                 ]
             ]
             (commentsOfComment
@@ -491,19 +524,12 @@ viewArticleCommentComment articleComments level articleCommentComments articleCo
     div
         [ css
             [ Tw.relative
-            , Tw.w_auto
-            , Tw.max_w_sm
-            , Bp.sm
-                [ Tw.max_w_lg
-                ]
-            , Bp.md
-                [ Tw.max_w_2xl
-                ]
+            , Tw.w_full
             ]
         ]
         [ svgElbowConnector styles indentPerLevel bendY
         , div
-            [ css [ indentTailwind indentPx, Tw.pl_4 ] ]
+            [ css [ indentTailwind indentPx, Tw.pl_4, Tw.w_full ] ]
             [ viewCommentHeader settings.browserEnv styles settings.nostr articleCommentComment.pubKey articleCommentComment.createdAt
             , viewCommentContent styles articleCommentComment.content
             , viewInteractionsAndReplies

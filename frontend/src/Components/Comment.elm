@@ -1,4 +1,4 @@
-module Components.Comment exposing (Comment, Model, Msg, hide, init, new, show, subscriptions, update, view)
+module Components.Comment exposing (Comment, Model, Msg, hide, init, isHidden, new, show, subscriptions, update, view)
 
 import Browser.Dom
 import BrowserEnv exposing (BrowserEnv)
@@ -88,6 +88,16 @@ init _ =
     Model
         { state = CommentHidden
         }
+
+
+isHidden : Model -> Bool
+isHidden (Model model) =
+    case model.state of
+        CommentHidden ->
+            True
+
+        _ ->
+            False
 
 
 show : Model -> CommentType -> Model

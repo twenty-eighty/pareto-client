@@ -772,7 +772,8 @@
     "subscribers menu item text": "Abonnés",
     "write menu item text": "Écrire",
     "about menu item text": "À propos",
-    "link to home aria label": "Accueil"
+    "link to home aria label": "Accueil",
+    "highlights menu item text": "Extraits"
   },
   "sign-in": {
     "page title": "Se connecter/S'inscrire",
@@ -992,5 +993,21 @@
     "reposted your article": "a republié votre article",
     "zapped your article": "a zappé votre article",
     "unknown article title": "Article sans titre"
+  },
+  "highlights": {
+    "page title": "Extraits",
+    "empty text": "Pas encore d'extraits sur vos articles. Quand des lecteurs surlignent un passage, il apparaîtra ici.",
+    "highlighted your article": "a surligné votre article",
+    "unknown article title": "Article sans titre"
+  },
+  "article comments": {
+    "section title": "Commentaires",
+    "empty text": "Pas encore de commentaires…"
+  },
+  "article highlights": {
+    "section title": "Extraits",
+    "highlight selection button": "Surligner la sélection",
+    "empty text": "Pas encore d'extraits. Sélectionnez du texte dans l'article, puis appuyez sur Surligner la sélection.",
+    "selection empty alert": "Sélectionnez d'abord du texte dans l'article, puis appuyez sur Surligner la sélection."
   }
 }

@@ -1,6 +1,7 @@
 module Pages.P.Profile_ exposing (Model, Msg, page)
 
 import Components.ArticleComments as ArticleComments
+import Components.ArticleHighlights as ArticleHighlights
 import Components.EmailSubscriptionDialog as EmailSubscriptionDialog
 import Components.InteractionButton as InteractionButton
 import Components.ContentStatus exposing (Status(..))
@@ -312,8 +313,10 @@ viewArticles shared pubKey =
         |> Ui.View.viewArticlePreviews
             ArticlePreviewList
             { articleComments = ArticleComments.init
+            , articleHighlights = ArticleHighlights.init
             , articleToInteractionsMsg = \_ _ -> NoOp
             , commentsToMsg = \_ -> NoOp
+            , highlightsToMsg = \_ -> NoOp
             , bookmarkButtonMsg = \_ _ -> NoOp
             , bookmarkButtons = Dict.empty
             , browserEnv = shared.browserEnv

@@ -9,6 +9,7 @@ module Components.ArticlePage exposing
     , updateAddLoadedContent
     , updateArticleInteractions
     , updateComments
+    , updateHighlights
     , updateSharingDialog
     , followAuthorEffect
     , unfollowAuthorEffect
@@ -25,6 +26,7 @@ Pages keep route-specific resolution and supply `MsgConfig` wrappers.
 -}
 
 import Components.ArticleComments as ArticleComments
+import Components.ArticleHighlights as ArticleHighlights
 import Components.ArticleInfo as ArticleInfo
 import Components.AuthorInteractionsBar as AuthorInteractionsBar
 import Components.InteractionButton as InteractionButton
@@ -55,6 +57,7 @@ import Ui.View
 type alias Model msg =
     { loadedContent : LoadedContent msg
     , articleComments : ArticleComments.Model
+    , articleHighlights : ArticleHighlights.Model
     , articleInteractions : Interactions.Model
     , sharingButtonDialog : SharingButtonDialog.Model
     }
@@ -64,6 +67,7 @@ type alias MsgConfig msg =
     { addLoadedContent : String -> msg
     , articleInteractionsSent : InteractionButton.InteractionObject -> Interactions.Msg msg -> msg
     , commentsSent : ArticleComments.Msg msg -> msg
+    , highlightsSent : ArticleHighlights.Msg -> msg
     , sharingButtonDialogMsg : SharingButtonDialog.Msg -> msg
     , navigateBack : msg
     , followAuthor : PubKey -> PubKey -> msg
@@ -80,6 +84,7 @@ initModel addLoadedContent =
         , addLoadedContentFunction = addLoadedContent
         }
     , articleComments = ArticleComments.init
+    , articleHighlights = ArticleHighlights.init
     , articleInteractions = Interactions.init
     , sharingButtonDialog = SharingButtonDialog.init
     }
@@ -123,11 +128,13 @@ layout shared model maybeArticle msgConfig =
 
         articlePreviewsData =
             { articleComments = model.articleComments
+            , articleHighlights = model.articleHighlights
             , articleToInteractionsMsg = msgConfig.articleInteractionsSent
             , bookmarkButtonMsg = \_ _ -> msgConfig.noOp
             , bookmarkButtons = Dict.empty
             , browserEnv = shared.browserEnv
             , commentsToMsg = msgConfig.commentsSent
+            , highlightsToMsg = msgConfig.highlightsSent
             , deleteButtonMsg = Nothing
             , onLoadMore = Nothing
             , nostr = shared.nostr
@@ -166,11 +173,13 @@ viewBody shared model queryStatus msgConfig =
         ContentQueryReady article ->
             Ui.View.viewArticle
                 { articleComments = model.articleComments
+                , articleHighlights = model.articleHighlights
                 , articleToInteractionsMsg = msgConfig.articleInteractionsSent
                 , bookmarkButtonMsg = \_ _ -> msgConfig.noOp
                 , bookmarkButtons = Dict.empty
                 , browserEnv = shared.browserEnv
                 , commentsToMsg = msgConfig.commentsSent
+                , highlightsToMsg = msgConfig.highlightsSent
                 , deleteButtonMsg = Nothing
                 , nostr = shared.nostr
                 , loginStatus = shared.loginStatus
@@ -201,6 +210,8 @@ subscriptions shared model maybeArticle msgConfig =
                 )
             |> Maybe.withDefault Sub.none
         , articleCommentsSubscriptions shared model maybeArticle msgConfig
+        , ArticleHighlights.subscriptions model.articleHighlights
+            |> Sub.map msgConfig.highlightsSent
         ]
 
 
@@ -278,6 +289,25 @@ updateComments shared innerMsg model msgConfig =
         , toModel = \articleComments -> { model | articleComments = articleComments }
         , toMsg = msgConfig.commentsSent
         , translations = shared.browserEnv.translations
+        }
+
+
+updateHighlights :
+    Shared.Model
+    -> ArticleHighlights.Msg
+    -> Article
+    -> Model msg
+    -> MsgConfig msg
+    -> ( Model msg, Effect msg )
+updateHighlights shared innerMsg article model msgConfig =
+    ArticleHighlights.update
+        { browserEnv = shared.browserEnv
+        , msg = innerMsg
+        , model = model.articleHighlights
+        , article = article
+        , loginStatus = shared.loginStatus
+        , toModel = \articleHighlights -> { model | articleHighlights = articleHighlights }
+        , toMsg = msgConfig.highlightsSent
         }
 
 

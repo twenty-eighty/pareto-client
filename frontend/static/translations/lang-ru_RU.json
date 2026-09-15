@@ -772,7 +772,8 @@
     "subscribers menu item text": "Подписчики не найдены.",
     "write menu item text": "Писать",
     "about menu item text": "О программе",
-    "link to home aria label": "Главная"
+    "link to home aria label": "Главная",
+    "highlights menu item text": "Выделения"
   },
   "sign-in": {
     "page title": "Вход",
@@ -992,5 +993,21 @@
     "reposted your article": "сделал репост вашей статьи",
     "zapped your article": "запнул вашу статью",
     "unknown article title": "Статья без названия"
+  },
+  "highlights": {
+    "page title": "Выделения",
+    "empty text": "Пока нет выделений в ваших статьях. Когда читатели выделят фрагменты, они появятся здесь.",
+    "highlighted your article": "выделил(а) ваш материал",
+    "unknown article title": "Статья без названия"
+  },
+  "article comments": {
+    "section title": "Комментарии",
+    "empty text": "Пока нет комментариев…"
+  },
+  "article highlights": {
+    "section title": "Выделения",
+    "highlight selection button": "Выделить фрагмент",
+    "empty text": "Пока нет выделений. Выделите текст в статье и нажмите «Выделить фрагмент».",
+    "selection empty alert": "Сначала выделите текст в статье, затем нажмите «Выделить фрагмент»."
   }
 }

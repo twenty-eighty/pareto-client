@@ -1,6 +1,7 @@
 module Pages.A.Addr_ exposing (..)
 
 import Components.ArticleComments as ArticleComments
+import Components.ArticleHighlights as ArticleHighlights
 import Components.InteractionButton as InteractionButton
 import Components.Interactions as Interactions
 import Components.SharingButtonDialog as SharingButtonDialog
@@ -57,6 +58,7 @@ msgConfig =
     { addLoadedContent = AddLoadedContent
     , articleInteractionsSent = ArticleInteractionsSent
     , commentsSent = CommentsSent
+    , highlightsSent = HighlightsSent
     , sharingButtonDialogMsg = SharingButtonDialogMsg
     , navigateBack = NavigateBack
     , followAuthor = FollowAuthor
@@ -185,6 +187,7 @@ init shared route () =
 type Msg
     = AddLoadedContent String
     | CommentsSent (ArticleComments.Msg Msg)
+    | HighlightsSent ArticleHighlights.Msg
     | ArticleInteractionsSent InteractionButton.InteractionObject (Interactions.Msg Msg)
     | SharingButtonDialogMsg SharingButtonDialog.Msg
     | FollowAuthor PubKey PubKey
@@ -213,6 +216,18 @@ update shared msg model =
                             ArticlePage.updateComments shared innerMsg data.shared msgConfig
                     in
                     ( Nip19Model { data | shared = sharedModel }, effect )
+
+                HighlightsSent innerMsg ->
+                    case Nostr.getArticleForNip19 shared.nostr data.nip19 of
+                        Just article ->
+                            let
+                                ( sharedModel, effect ) =
+                                    ArticlePage.updateHighlights shared innerMsg article data.shared msgConfig
+                            in
+                            ( Nip19Model { data | shared = sharedModel }, effect )
+
+                        Nothing ->
+                            ( model, Effect.none )
 
                 ArticleInteractionsSent interactionObject innerMsg ->
                     let

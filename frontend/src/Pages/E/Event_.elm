@@ -1,6 +1,7 @@
 module Pages.E.Event_ exposing (..)
 
 import Components.ArticleComments as ArticleComments
+import Components.ArticleHighlights as ArticleHighlights
 import Components.Interactions
 import Dict
 import Effect exposing (Effect)
@@ -321,11 +322,13 @@ viewContent shared model =
                 ContentQueryReady article ->
                     Ui.View.viewArticle
                         { articleComments = ArticleComments.init
+                        , articleHighlights = ArticleHighlights.init
                         , articleToInteractionsMsg = \_ _ -> NoOp
                         , bookmarkButtonMsg = \_ _ -> NoOp
                         , bookmarkButtons = Dict.empty
                         , browserEnv = shared.browserEnv
                         , commentsToMsg = \_ -> NoOp
+                        , highlightsToMsg = \_ -> NoOp
                         , deleteButtonMsg = Nothing
                         , nostr = shared.nostr
                         , loginStatus = shared.loginStatus

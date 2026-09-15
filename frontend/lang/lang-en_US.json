@@ -764,6 +764,7 @@
     "messages menu item text": "Messages",
     "newsletters menu item text": "Newsletters",
     "notifications menu item text": "Notifications",
+    "highlights menu item text": "Highlights",
     "pictures menu item text": "Pictures",
     "posts menu item text": "Posts",
     "read menu item text": "Read",
@@ -992,5 +993,21 @@
     "reposted your article": "reposted your article",
     "zapped your article": "zapped your article",
     "unknown article title": "Untitled article"
+  },
+  "highlights": {
+    "page title": "Highlights",
+    "empty text": "No highlights on your articles yet. When readers highlight passages, they will show up here.",
+    "highlighted your article": "highlighted your article",
+    "unknown article title": "Untitled article"
+  },
+  "article comments": {
+    "section title": "Comments",
+    "empty text": "No comments yet..."
+  },
+  "article highlights": {
+    "section title": "Highlights",
+    "highlight selection button": "Highlight selection",
+    "empty text": "No highlights yet. Select text in the article and tap Highlight selection.",
+    "selection empty alert": "Select text in the article first, then tap Highlight selection."
   }
 }

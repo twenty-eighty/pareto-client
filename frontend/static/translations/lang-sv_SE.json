@@ -772,7 +772,8 @@
     "subscribers menu item text": "Prenumeranter",
     "write menu item text": "Skriv",
     "about menu item text": "Om",
-    "link to home aria label": "Hem"
+    "link to home aria label": "Hem",
+    "highlights menu item text": "Markeringar"
   },
   "sign-in": {
     "page title": "Logga in/Registrera",
@@ -992,5 +993,21 @@
     "reposted your article": "repostade din artikel",
     "zapped your article": "zappade din artikel",
     "unknown article title": "Namnlös artikel"
+  },
+  "highlights": {
+    "page title": "Markeringar",
+    "empty text": "Inga markeringar på dina artiklar ännu. När läsare markerar stycken visas de här.",
+    "highlighted your article": "markerade din artikel",
+    "unknown article title": "Artikel utan titel"
+  },
+  "article comments": {
+    "section title": "Kommentarer",
+    "empty text": "Inga kommentarer ännu…"
+  },
+  "article highlights": {
+    "section title": "Markeringar",
+    "highlight selection button": "Markera urval",
+    "empty text": "Inga markeringar ännu. Markera text i artikeln och tryck på Markera urval.",
+    "selection empty alert": "Markera text i artikeln först, sedan tryck på Markera urval."
   }
 }

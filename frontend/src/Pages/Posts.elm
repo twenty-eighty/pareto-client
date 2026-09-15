@@ -2,6 +2,7 @@ module Pages.Posts exposing (Model, Msg, page)
 
 import Auth
 import Components.ArticleComments as ArticleComments
+import Components.ArticleHighlights as ArticleHighlights
 import Components.Categories as Categories
 import Dict
 import Effect exposing (Effect)
@@ -277,11 +278,13 @@ viewArticles shared model =
         |> Ui.View.viewArticlePreviews
             ArticlePreviewList
             { articleComments = ArticleComments.init
+            , articleHighlights = ArticleHighlights.init
             , articleToInteractionsMsg = \_ _ -> NoOp
             , bookmarkButtonMsg = \_ _ -> NoOp
             , bookmarkButtons = Dict.empty
             , browserEnv = shared.browserEnv
             , commentsToMsg = \_ -> NoOp
+            , highlightsToMsg = \_ -> NoOp
             , deleteButtonMsg = Just DeleteEvent
             , nostr = shared.nostr
             , loginStatus = shared.loginStatus

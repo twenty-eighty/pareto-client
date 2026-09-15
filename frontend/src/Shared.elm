@@ -2,7 +2,7 @@ module Shared exposing
     ( Flags, decoder
     , Model, Msg
     , init, update, subscriptions
-    , contentId, attemptScrollToFootnote, createArticleDetailsEffect, createFollowersEffect, createNotificationsActivityEffect, footnoteAnchorId, loggedIn
+    , contentId, attemptScrollToFootnote, createArticleDetailsEffect, createFollowersEffect, createNotificationsActivityEffect, createHighlightsActivityEffect, footnoteAnchorId, loggedIn
     )
 
 {-|
@@ -710,6 +710,30 @@ createNotificationsActivityEffect nostr pubKey =
                 |> Nostr.createRequest nostr
                     "Notifications activity"
                     [ KindUserMetadata, KindReaction, KindComment, KindRepost, KindGenericRepost, KindZapReceipt ]
+                |> Shared.Msg.RequestNostrEvents
+                |> Effect.sendSharedMsg
+
+        detailsEffects =
+            Nostr.getArticlesForAuthor nostr pubKey
+                |> List.map (\article -> createArticleDetailsEffect nostr (Just article))
+    in
+    Effect.batch (articlesRequest :: detailsEffects)
+
+
+createHighlightsActivityEffect : Nostr.Model -> PubKey -> Effect msg
+createHighlightsActivityEffect nostr pubKey =
+    let
+        articlesRequest =
+            [ { emptyEventFilter
+                | authors = Just [ pubKey ]
+                , kinds = Just [ KindLongFormContent ]
+                , limit = Just 50
+              }
+            ]
+                |> RequestArticlesFeed False
+                |> Nostr.createRequest nostr
+                    "Highlights activity"
+                    [ KindUserMetadata, KindHighlights ]
                 |> Shared.Msg.RequestNostrEvents
                 |> Effect.sendSharedMsg
 

@@ -279,6 +279,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         setNotificationsLastSeen(value);
         break;
 
+      case 'requestTextSelection':
+        requestTextSelection(app);
+        break;
+
       case 'shareLink':
         shareLink(app, value);
         break;
@@ -367,6 +371,27 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
   function setNotificationsLastSeen(value) {
     localStorage.setItem('notificationsLastSeen', JSON.stringify(value || {}));
+  }
+
+  function requestTextSelection(app) {
+    const selection = window.getSelection();
+    const text = selection ? selection.toString().trim() : '';
+    let context = null;
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const node = range.commonAncestorContainer;
+      const element = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+      if (element && element.textContent) {
+        const trimmed = element.textContent.trim();
+        if (trimmed.length > 0) {
+          context = trimmed.slice(0, 500);
+        }
+      }
+    }
+    app.ports.receiveMessage.send({
+      messageType: 'textSelection',
+      value: { text: text, context: context }
+    });
   }
 
   function shareLink(app, value) {
@@ -666,7 +691,6 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     }
 
     var eventsSortedByKind = {};
-    var highlights = [];
     var zapReceipts = [];
 
     ndkEvents.forEach(ndkEvent => {
@@ -679,6 +703,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         case 7: // reactions
         case 16: // generic repost
         case 20: // picture post
+        case 9802: // highlights (NIP-84)
           {
             eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
             break;
@@ -706,14 +731,6 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
           {
             const zapReceipt = fillZapReceipt(ndkEvent);
             zapReceipts.push(zapReceipt);
-            break;
-          }
-
-        case 9802: // highlight
-          {
-            const highlight = ndkEvent.content;
-            const pubkeyHighlight = { pubkey: ndkEvent.pubkey, highlight: highlight };
-            highlights.push(pubkeyHighlight);
             break;
           }
 
@@ -777,10 +794,6 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       app.ports.receiveMessage.send({ messageType: 'events', value: { kind: parseInt(kind), events: events, requestId: requestId } });
     }
 
-    if (highlights.length > 0) {
-      debugLog("Highlights: ", highlights.length);
-      app.ports.receiveMessage.send({ messageType: 'highlights', value: highlights });
-    }
     if (zapReceipts.length > 0) {
       debugLog("ZapReceipts: ", zapReceipts.length);
       app.ports.receiveMessage.send({ messageType: 'zap_receipts', value: zapReceipts });

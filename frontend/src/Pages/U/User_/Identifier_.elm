@@ -3,6 +3,7 @@ module Pages.U.User_.Identifier_ exposing (Model, Msg, page)
 import Components.InteractionButton as InteractionButton exposing (eventIdOfInteractionObject)
 import Components.Interactions as Interactions
 import Components.ArticleComments as ArticleComments
+import Components.ArticleHighlights as ArticleHighlights
 import Components.SharingButtonDialog as SharingButtonDialog
 import Dict exposing (Dict)
 import Effect exposing (Effect)
@@ -44,6 +45,7 @@ msgConfig =
     { addLoadedContent = AddLoadedContent
     , articleInteractionsSent = ArticleInteractionsSent
     , commentsSent = CommentsSent
+    , highlightsSent = HighlightsSent
     , sharingButtonDialogMsg = SharingButtonDialogMsg
     , navigateBack = NavigateBack
     , followAuthor = FollowAuthor
@@ -143,6 +145,7 @@ type Msg
     | AddLoadedContent String
     | ArticleInteractionsSent InteractionButton.InteractionObject (Interactions.Msg Msg)
     | CommentsSent (ArticleComments.Msg Msg)
+    | HighlightsSent ArticleHighlights.Msg
     | CommentInteractionsSent InteractionButton.InteractionObject (Interactions.Msg Msg)
     | SharingButtonDialogMsg SharingButtonDialog.Msg
     | FollowAuthor PubKey PubKey
@@ -176,6 +179,18 @@ update shared msg model =
                     ArticlePage.updateComments shared innerMsg model.shared msgConfig
             in
             ( { model | shared = sharedModel }, effect )
+
+        HighlightsSent innerMsg ->
+            case articleFromQuery shared model of
+                Just article ->
+                    let
+                        ( sharedModel, effect ) =
+                            ArticlePage.updateHighlights shared innerMsg article model.shared msgConfig
+                    in
+                    ( { model | shared = sharedModel }, effect )
+
+                Nothing ->
+                    ( model, Effect.none )
 
         CommentInteractionsSent interactionObject innerMsg ->
             case eventIdOfInteractionObject interactionObject of

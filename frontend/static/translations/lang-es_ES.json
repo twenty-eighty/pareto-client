@@ -772,7 +772,8 @@
     "subscribers menu item text": "Suscriptores",
     "write menu item text": "Escribir",
     "about menu item text": "Acerca de",
-    "link to home aria label": "Inicio"
+    "link to home aria label": "Inicio",
+    "highlights menu item text": "Destacados"
   },
   "sign-in": {
     "page title": "Iniciar sesión/registrarse",
@@ -992,5 +993,21 @@
     "reposted your article": "reposteó tu artículo",
     "zapped your article": "zappeó tu artículo",
     "unknown article title": "Artículo sin título"
+  },
+  "highlights": {
+    "page title": "Destacados",
+    "empty text": "Aún no hay destacados en tus artículos. Cuando los lectores marquen pasajes, aparecerán aquí.",
+    "highlighted your article": "destacó tu artículo",
+    "unknown article title": "Artículo sin título"
+  },
+  "article comments": {
+    "section title": "Comentarios",
+    "empty text": "Aún no hay comentarios…"
+  },
+  "article highlights": {
+    "section title": "Destacados",
+    "highlight selection button": "Destacar selección",
+    "empty text": "Aún no hay destacados. Selecciona texto en el artículo y pulsa Destacar selección.",
+    "selection empty alert": "Selecciona primero texto en el artículo y luego pulsa Destacar selección."
   }
 }

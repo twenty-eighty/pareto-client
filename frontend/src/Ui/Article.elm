@@ -2,6 +2,7 @@ module Ui.Article exposing (..)
 
 import BrowserEnv exposing (BrowserEnv, Environment)
 import Components.ArticleComments as ArticleComments
+import Components.ArticleHighlights as ArticleHighlights
 import Components.BookmarkButton as BookmarkButton
 import Components.Button as Button
 import Components.InteractionButton as InteractionButton exposing (InteractionObject(..))
@@ -45,11 +46,13 @@ import Url
 
 type alias ArticlePreviewsData msg =
     { articleComments : ArticleComments.Model
+    , articleHighlights : ArticleHighlights.Model
     , articleToInteractionsMsg : InteractionButton.InteractionObject -> Components.Interactions.Msg msg -> msg
     , bookmarkButtonMsg : EventId -> BookmarkButton.Msg -> msg
     , bookmarkButtons : Dict EventId BookmarkButton.Model
     , browserEnv : BrowserEnv
     , commentsToMsg : ArticleComments.Msg msg -> msg
+    , highlightsToMsg : ArticleHighlights.Msg -> msg
     , deleteButtonMsg : Maybe (Set RelayUrl -> List Kind -> EventId -> Maybe AddressComponents -> msg)
     , onLoadMore : Maybe msg
     , loginStatus : LoginStatus
@@ -323,9 +326,47 @@ viewArticle articlePreviewsData articlePreviewData article =
                         [ viewContent articlePreviewsData.browserEnv.environment styles articlePreviewData.loadedContent getProfile article.content
                         ]
                     , div
-                        [ css
-                            [ Tw.mt_2 ]
+                        (css
+                            [ Tw.flex_col
+                            , Tw.justify_start
+                            , Tw.items_start
+                            , Tw.gap_4
+                            , Tw.mb_2
+                            , Tw.flex
+                            , Tw.w_full
+                            , Tw.max_w_96
+                            , Bp.sm
+                                [ Tw.max_w_prose
+                                ]
+                            ]
+                            :: contentMargins
+                        )
+                        [ ArticleHighlights.view
+                            { browserEnv = articlePreviewsData.browserEnv
+                            , model = articlePreviewsData.articleHighlights
+                            , nostr = articlePreviewsData.nostr
+                            , article = article
+                            , loginStatus = articlePreviewsData.loginStatus
+                            , theme = articlePreviewsData.theme
+                            , toMsg = articlePreviewsData.highlightsToMsg
+                            }
                         ]
+                    , div
+                        (css
+                            [ Tw.flex_col
+                            , Tw.justify_start
+                            , Tw.items_start
+                            , Tw.gap_4
+                            , Tw.mb_2
+                            , Tw.flex
+                            , Tw.w_full
+                            , Tw.max_w_96
+                            , Bp.sm
+                                [ Tw.max_w_prose
+                                ]
+                            ]
+                            :: contentMargins
+                        )
                         [ ArticleComments.new
                             { browserEnv = articlePreviewsData.browserEnv
                             , model = articlePreviewsData.articleComments

@@ -1,6 +1,7 @@
 module Pages.Search exposing (Model, Msg, page)
 
 import Components.ArticleComments as ArticleComments
+import Components.ArticleHighlights as ArticleHighlights
 import Components.SearchBar as SearchBar
 import Dict
 import Effect exposing (Effect)
@@ -249,11 +250,13 @@ viewArticles shared =
         |> Ui.View.viewArticlePreviews
             ArticlePreviewList
             { articleComments = ArticleComments.init
+            , articleHighlights = ArticleHighlights.init
             , articleToInteractionsMsg = \_ _ -> NoOp
             , bookmarkButtonMsg = \_ _ -> NoOp
             , bookmarkButtons = Dict.empty
             , browserEnv = shared.browserEnv
             , commentsToMsg = \_ -> NoOp
+            , highlightsToMsg = \_ -> NoOp
             , deleteButtonMsg = Nothing
             , nostr = shared.nostr
             , loginStatus = shared.loginStatus

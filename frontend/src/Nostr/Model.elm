@@ -22,6 +22,7 @@ import Nostr.CommunityList exposing (CommunityReference)
 import Nostr.ContentRequest exposing (ContentRequestState)
 import Nostr.External as External exposing (Hooks)
 import Nostr.FollowSet exposing (FollowSet)
+import Nostr.Highlights exposing (Highlight)
 import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String)
 import Nostr.Nip05Cache exposing (Nip05CacheEntry, Nip05RequestTarget)
 import Nostr.Nip10 exposing (TextNote)
@@ -66,6 +67,7 @@ type alias Model =
     , fileStorageServerLists : Dict PubKey (List String)
     , followLists : Dict PubKey (List Following)
     , followSets : Dict PubKey (Dict String FollowSet) -- follow sets; keys pubKey / identifier
+    , highlightsByAddress : Dict Address (Dict EventId Highlight)
     , muteLists : Dict PubKey (List Following)
     , picturePosts : Dict EventId PicturePost
     , nip05Cache : Dict Nip05String Nip05CacheEntry
@@ -146,6 +148,7 @@ empty =
     , poolState = RelayStateUnknown
     , followLists = Dict.singleton Pareto.authorsKey Pareto.authorsFollowList
     , followSets = Dict.empty
+    , highlightsByAddress = Dict.empty
     , muteLists = Dict.empty
     , portalUserInfoPubKey = Dict.empty
     , portalUserInfoNip05 = Dict.empty

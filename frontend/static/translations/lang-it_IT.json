@@ -772,7 +772,8 @@
     "subscribers menu item text": "Iscritti",
     "write menu item text": "Scrivi",
     "about menu item text": "Informazioni",
-    "link to home aria label": "Inizio"
+    "link to home aria label": "Inizio",
+    "highlights menu item text": "Evidenziazioni"
   },
   "sign-in": {
     "page title": "Accedi/Registrati",
@@ -992,5 +993,21 @@
     "reposted your article": "ha ripubblicato il tuo articolo",
     "zapped your article": "ha zappato il tuo articolo",
     "unknown article title": "Articolo senza titolo"
+  },
+  "highlights": {
+    "page title": "Evidenziazioni",
+    "empty text": "Nessuna evidenziazione sui tuoi articoli. Quando i lettori evidenziano passaggi, appariranno qui.",
+    "highlighted your article": "ha evidenziato il tuo articolo",
+    "unknown article title": "Articolo senza titolo"
+  },
+  "article comments": {
+    "section title": "Commenti",
+    "empty text": "Nessun commento ancora…"
+  },
+  "article highlights": {
+    "section title": "Evidenziazioni",
+    "highlight selection button": "Evidenzia selezione",
+    "empty text": "Nessuna evidenziazione. Seleziona del testo nell'articolo e tocca Evidenzia selezione.",
+    "selection empty alert": "Seleziona prima del testo nell'articolo, poi tocca Evidenzia selezione."
   }
 }

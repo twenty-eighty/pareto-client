@@ -12,6 +12,7 @@ https://pareto.space/p/<bech32> (nprofile)
 1111: Comment [(NIP 22)](https://nips.nostr.com/22)\
 9734: Zap Request [(NIP 57)](https://nips.nostr.com/57)\
 9735: Zap [(NIP 57)](https://nips.nostr.com/57)\
+9802: Highlights [(NIP 84)](https://nips.nostr.com/84)\
 10002: Relay List Metadata [(NIP 65)](https://nips.nostr.com/65)\
 10003: Bookmark list [(NIP 51)](https://nips.nostr.com/51)\
 10063: User server list [(Blossom)](https://github.com/hzrd149/blossom)\
@@ -45,6 +46,7 @@ https://pareto.space/p/<bech32> (nprofile)
 [NIP-57 (Lightning Zaps)](https://nips.nostr.com/57)\
 [NIP-65 (Relay List Metadata)](https://nips.nostr.com/65)\
 [NIP-68 (Picture-first feeds)](https://nips.nostr.com/68)\
+[NIP-84 (Highlights)](https://nips.nostr.com/84)\
 [NIP-89 (Recommended Application Handlers)](https://nips.nostr.com/89)\
 [NIP-92 (Media Attachments)](https://nips.nostr.com/92)\
 [NIP-94 (File Metadata)](https://nips.nostr.com/94)\

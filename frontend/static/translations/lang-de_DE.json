@@ -772,7 +772,8 @@
     "subscribers menu item text": "Abonnenten",
     "write menu item text": "Schreiben",
     "about menu item text": "Über",
-    "link to home aria label": "Startseite"
+    "link to home aria label": "Startseite",
+    "highlights menu item text": "Highlights"
   },
   "sign-in": {
     "page title": "Anmelden/Konto anlegen",
@@ -992,5 +993,21 @@
     "reposted your article": "hat deinen Artikel repostet",
     "zapped your article": "hat deinen Artikel gezappt",
     "unknown article title": "Unbenannter Artikel"
+  },
+  "highlights": {
+    "page title": "Highlights",
+    "empty text": "Noch keine Highlights an deinen Artikeln. Wenn Leser Passagen markieren, erscheinen sie hier.",
+    "highlighted your article": "hat deinen Artikel hervorgehoben",
+    "unknown article title": "Unbenannter Artikel"
+  },
+  "article comments": {
+    "section title": "Kommentare",
+    "empty text": "Noch keine Kommentare …"
+  },
+  "article highlights": {
+    "section title": "Highlights",
+    "highlight selection button": "Auswahl hervorheben",
+    "empty text": "Noch keine Highlights. Text im Artikel markieren und auf Auswahl hervorheben tippen.",
+    "selection empty alert": "Zuerst Text im Artikel markieren, dann auf Auswahl hervorheben tippen."
   }
 }

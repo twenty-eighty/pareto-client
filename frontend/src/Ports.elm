@@ -269,6 +269,14 @@ setNotificationsLastSeen lastSeen =
         }
 
 
+requestTextSelection : Cmd msg
+requestTextSelection =
+    sendCommand
+        { command = "requestTextSelection"
+        , value = Encode.null
+        }
+
+
 toggleArticleInfo : Cmd msg
 toggleArticleInfo =
     sendCommand
