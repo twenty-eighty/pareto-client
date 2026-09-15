@@ -4,19 +4,22 @@ import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), addAddressTags, emptyEvent)
 import Nostr.Types exposing (EventId, PubKey, RelayUrl)
 import Set
+import Time exposing (Posix)
 
 
 type alias Repost =
     { pubKey : PubKey
+    , createdAt : Posix
     , repostedAddress : Maybe ( AddressComponents, Maybe RelayUrl )
     , repostedEvent : Maybe ( EventId, Maybe RelayUrl )
     , repostedPubKey : Maybe ( PubKey, Maybe RelayUrl )
     }
 
 
-emptyRepost : PubKey -> Repost
-emptyRepost pubKey =
+emptyRepost : PubKey -> Posix -> Repost
+emptyRepost pubKey createdAt =
     { pubKey = pubKey
+    , createdAt = createdAt
     , repostedAddress = Nothing
     , repostedEvent = Nothing
     , repostedPubKey = Nothing
@@ -41,7 +44,7 @@ repostFromEvent event =
                     _ ->
                         res
             )
-            (emptyRepost event.pubKey)
+            (emptyRepost event.pubKey event.createdAt)
 
 
 articleRepostEvent : PubKey -> Article -> Event

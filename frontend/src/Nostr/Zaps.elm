@@ -15,6 +15,8 @@ type alias ZapReceipt =
     , preimage : Maybe String
     , recipient : Maybe String
     , amount : Maybe Int
+    , pubkeySender : Maybe String
+    , createdAt : Maybe Int
     }
 
 
@@ -118,6 +120,8 @@ nostrZapReceiptDecoder =
         |> DecodePipeline.optional "preimage" (Decode.maybe Decode.string) Nothing
         |> DecodePipeline.optional "recipient" (Decode.maybe Decode.string) Nothing
         |> DecodePipeline.optional "amount" (Decode.maybe stringNumberDecoder) Nothing
+        |> DecodePipeline.optional "pubkeySender" (Decode.maybe Decode.string) Nothing
+        |> DecodePipeline.optional "createdAt" (Decode.maybe Decode.int) Nothing
 
 
 stringNumberDecoder : Decoder Int

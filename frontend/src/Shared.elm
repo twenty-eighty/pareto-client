@@ -2,7 +2,7 @@ module Shared exposing
     ( Flags, decoder
     , Model, Msg
     , init, update, subscriptions
-    , contentId, attemptScrollToFootnote, createArticleDetailsEffect, createFollowersEffect, footnoteAnchorId, loggedIn
+    , contentId, attemptScrollToFootnote, createArticleDetailsEffect, createFollowersEffect, createNotificationsActivityEffect, footnoteAnchorId, loggedIn
     )
 
 {-|
@@ -17,8 +17,10 @@ import Browser.Dom
 import BrowserEnv
 import Components.AlertTimerMessage as AlertTimerMessage
 import Components.AuthDialog as AuthDialog
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Json.Decode
+import Json.Decode.Pipeline as DecodePipeline
 import Nostr
 import Nostr.Model exposing (TestMode(..))
 import Nostr.Article exposing (Article)
@@ -38,6 +40,7 @@ import Route.Path
 import Shared.Model exposing (ClientRole(..))
 import Shared.Msg exposing (Msg(..))
 import Task exposing (Task)
+import Time
 import Ui.Styles exposing (Theme(..))
 
 
@@ -112,24 +115,22 @@ type alias Flags =
     , nativeSharingAvailable : Bool
     , testMode : Bool
     , authApiBaseUrl : String
+    , notificationsLastSeen : Dict String Int
     }
 
 
 decoder : Json.Decode.Decoder Flags
 decoder =
-    Json.Decode.map8 Flags
-        (Json.Decode.field "darkMode" Json.Decode.bool)
-        (Json.Decode.field "environment" (Json.Decode.maybe Json.Decode.string))
-        (Json.Decode.field "imageCachingServer" Json.Decode.string)
-        (Json.Decode.oneOf
-            [ Json.Decode.field "imageCacheKey" Json.Decode.string
-            , Json.Decode.succeed ""
-            ]
-        )
-        (Json.Decode.field "locale" Json.Decode.string)
-        (Json.Decode.field "nativeSharingAvailable" Json.Decode.bool)
-        (Json.Decode.field "testMode" Json.Decode.bool)
-        (Json.Decode.field "authApiBaseUrl" Json.Decode.string)
+    Json.Decode.succeed Flags
+        |> DecodePipeline.required "darkMode" Json.Decode.bool
+        |> DecodePipeline.required "environment" (Json.Decode.maybe Json.Decode.string)
+        |> DecodePipeline.required "imageCachingServer" Json.Decode.string
+        |> DecodePipeline.optional "imageCacheKey" Json.Decode.string ""
+        |> DecodePipeline.required "locale" Json.Decode.string
+        |> DecodePipeline.required "nativeSharingAvailable" Json.Decode.bool
+        |> DecodePipeline.required "testMode" Json.Decode.bool
+        |> DecodePipeline.required "authApiBaseUrl" Json.Decode.string
+        |> DecodePipeline.optional "notificationsLastSeen" (Json.Decode.dict Json.Decode.int) Dict.empty
 
 
 
@@ -181,6 +182,7 @@ init flagsResult route =
               , theme = ParetoTheme
               , alertTimerMessage = AlertTimerMessage.init
               , authDialog = AuthDialog.init
+              , notificationsLastSeen = flags.notificationsLastSeen
               }
             , Effect.batch
                 [ Effect.sendCmd <| Cmd.map Shared.Msg.BrowserEnvMsg browserEnvCmd
@@ -214,6 +216,7 @@ init flagsResult route =
               , theme = ParetoTheme
               , alertTimerMessage = AlertTimerMessage.init
               , authDialog = AuthDialog.init
+              , notificationsLastSeen = Dict.empty
               }
             , Effect.none
             )
@@ -422,6 +425,18 @@ update route msg model =
         ChangeLocale locale ->
             update route (BrowserEnvMsg (BrowserEnv.UpdateLocale locale)) model
 
+        MarkNotificationsSeen pubKey ->
+            let
+                lastSeenMillis =
+                    Time.posixToMillis model.browserEnv.now
+
+                updated =
+                    Dict.insert pubKey lastSeenMillis model.notificationsLastSeen
+            in
+            ( { model | notificationsLastSeen = updated }
+            , Effect.sendCmd (Ports.setNotificationsLastSeen updated)
+            )
+
 
 updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage model portMessage =
@@ -507,11 +522,16 @@ updateWithUserValue model value =
 
                 bootstrapEffect =
                     bootstrapEmailAccountEffect model.nostr pubKeyNew value
+
+                ( modelWithLastSeen, lastSeenEffect ) =
+                    seedNotificationsLastSeenIfNeeded
+                        { model
+                            | loginStatus = LoggedIn pubKeyNew loginMethod
+                            , nostr = nostr
+                        }
+                        pubKeyNew
             in
-            ( { model
-                | loginStatus = LoggedIn pubKeyNew loginMethod
-                , nostr = nostr
-              }
+            ( modelWithLastSeen
             , Effect.batch
                 [ [ cmdNostr
                         |> Cmd.map Shared.Msg.NostrMsg
@@ -524,6 +544,8 @@ updateWithUserValue model value =
                     |> Cmd.batch
                     |> Effect.sendCmd
                 , bootstrapEffect
+                , lastSeenEffect
+                , createNotificationsActivityEffect modelWithLastSeen.nostr pubKeyNew
                 ]
             )
 
@@ -534,8 +556,13 @@ updateWithUserValue model value =
 
                 bootstrapEffect =
                     bootstrapEmailAccountEffect model.nostr pubKeyNew value
+
+                ( modelWithLastSeen, lastSeenEffect ) =
+                    seedNotificationsLastSeenIfNeeded
+                        { model | loginStatus = LoggedIn pubKeyNew loginMethod, nostr = nostr }
+                        pubKeyNew
             in
-            ( { model | loginStatus = LoggedIn pubKeyNew loginMethod, nostr = nostr }
+            ( modelWithLastSeen
             , Effect.batch
                 [ [ cmd
 
@@ -546,11 +573,29 @@ updateWithUserValue model value =
                     |> Cmd.map Shared.Msg.NostrMsg
                     |> Effect.sendCmd
                 , bootstrapEffect
+                , lastSeenEffect
+                , createNotificationsActivityEffect modelWithLastSeen.nostr pubKeyNew
                 ]
             )
 
         ( _, _, _ ) ->
             ( model, Effect.none )
+
+
+seedNotificationsLastSeenIfNeeded : Model -> PubKey -> ( Model, Effect Msg )
+seedNotificationsLastSeenIfNeeded model pubKey =
+    case Dict.get pubKey model.notificationsLastSeen of
+        Just _ ->
+            ( model, Effect.none )
+
+        Nothing ->
+            let
+                updated =
+                    Dict.insert pubKey (Time.posixToMillis model.browserEnv.now) model.notificationsLastSeen
+            in
+            ( { model | notificationsLastSeen = updated }
+            , Effect.sendCmd (Ports.setNotificationsLastSeen updated)
+            )
 
 
 bootstrapEmailAccountEffect : Nostr.Model -> PubKey -> Json.Decode.Value -> Effect Msg
@@ -649,6 +694,30 @@ createArticleDetailsEffect nostr maybeArticle =
                     |> Effect.sendSharedMsg
             )
         |> Maybe.withDefault Effect.none
+
+
+createNotificationsActivityEffect : Nostr.Model -> PubKey -> Effect msg
+createNotificationsActivityEffect nostr pubKey =
+    let
+        articlesRequest =
+            [ { emptyEventFilter
+                | authors = Just [ pubKey ]
+                , kinds = Just [ KindLongFormContent ]
+                , limit = Just 50
+              }
+            ]
+                |> RequestArticlesFeed False
+                |> Nostr.createRequest nostr
+                    "Notifications activity"
+                    [ KindUserMetadata, KindReaction, KindComment, KindRepost, KindGenericRepost, KindZapReceipt ]
+                |> Shared.Msg.RequestNostrEvents
+                |> Effect.sendSharedMsg
+
+        detailsEffects =
+            Nostr.getArticlesForAuthor nostr pubKey
+                |> List.map (\article -> createArticleDetailsEffect nostr (Just article))
+    in
+    Effect.batch (articlesRequest :: detailsEffects)
 
 
 createFollowersEffect : Nostr.Model -> Maybe PubKey -> Effect msg

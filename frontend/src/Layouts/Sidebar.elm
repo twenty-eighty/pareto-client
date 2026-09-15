@@ -93,6 +93,7 @@ clientRoleForRoutePath environment path =
         , sendsNewsletters = False
         , translations = I18Next.initialTranslations
         , maybeBookmarksCount = Nothing
+        , maybeNotificationsUnread = Nothing
         , currentPath = path
         , testMode = BrowserEnv.TestModeOff
         , theme = Ui.Styles.dummyTheme
@@ -129,6 +130,7 @@ type alias SidebarItemParams =
     , sendsNewsletters : Bool
     , translations : I18Next.Translations
     , maybeBookmarksCount : Maybe Int
+    , maybeNotificationsUnread : Maybe Int
     , currentPath : Route.Path.Path
     , testMode : BrowserEnv.TestMode
     , theme : Theme
@@ -142,7 +144,7 @@ routePathIsInList sidebarItemParams =
 
 
 sidebarItems : SidebarItemParams -> List SidebarItemData
-sidebarItems { configIssues, isAuthor, isBetaTester, isLoggedIn, clientRole, sendsNewsletters, translations, maybeBookmarksCount } =
+sidebarItems { configIssues, isAuthor, isBetaTester, isLoggedIn, clientRole, sendsNewsletters, translations, maybeBookmarksCount, maybeNotificationsUnread } =
     rawSidebarItems clientRole translations
         |> List.filter (sidebarItemVisible isLoggedIn isAuthor isBetaTester)
         |> List.filterMap
@@ -156,6 +158,14 @@ sidebarItems { configIssues, isAuthor, isBetaTester, isLoggedIn, clientRole, sen
                                     -- add bookmarks count to title
                                     { sidebarItem | title = sidebarItem.title ++ "\u{00A0}" ++ countBadge bookmarksCount }
                                 )
+
+                    Route.Path.Notifications ->
+                        case maybeNotificationsUnread of
+                            Just unreadCount ->
+                                Just { sidebarItem | title = sidebarItem.title ++ "\u{00A0}" ++ countBadge unreadCount }
+
+                            Nothing ->
+                                Just sidebarItem
 
                     Route.Path.Newsletters ->
                         -- currently in development
@@ -228,9 +238,17 @@ rawSidebarItems clientRole translations =
               , requiresBetaTester = False
               , disabled = False
               }
+            , { path = Route.Path.Notifications
+              , title = Translations.notificationsMenuItemText [ translations ]
+              , ariaLabel = Translations.notificationsMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.bell
+              , requiresLogin = True
+              , requiresAuthor = False
+              , requiresBetaTester = False
+              , disabled = False
+              }
 
             --, { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, requiresAuthor = False, disabled = True }
-            --, { path = Route.Path.Notifications, title = Translations.notificationsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bell, requiresLogin = True, requiresAuthor = False, disabled = True }
             , { path = Route.Path.Settings
               , title = Translations.settingsMenuItemText [ translations ]
               , ariaLabel = Translations.settingsMenuItemText [ translations ]
@@ -240,7 +258,7 @@ rawSidebarItems clientRole translations =
               , requiresBetaTester = False
               , disabled = False
               }
-            , { path = Route.Path.About
+                         , { path = Route.Path.About
               , title = Translations.aboutMenuItemText [ translations ]
               , ariaLabel = Translations.aboutMenuItemText [ translations ]
               , icon = FeatherIcon FeatherIcons.helpCircle
@@ -306,9 +324,17 @@ rawSidebarItems clientRole translations =
               , requiresBetaTester = False
               , disabled = False
               }
+            , { path = Route.Path.Notifications
+              , title = Translations.notificationsMenuItemText [ translations ]
+              , ariaLabel = Translations.notificationsMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.bell
+              , requiresLogin = True
+              , requiresAuthor = False
+              , requiresBetaTester = False
+              , disabled = False
+              }
 
             --, { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], ariaLabel = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, requiresAuthor = False, disabled = True }
-            --, { path = Route.Path.Notifications, title = Translations.notificationsMenuItemText [ translations ], ariaLabel = Translations.notificationsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bell, requiresLogin = True, requiresAuthor = False, disabled = True }
             , { path = Route.Path.Settings
               , title = Translations.settingsMenuItemText [ translations ]
               , ariaLabel = Translations.settingsMenuItemText [ translations ]
@@ -531,6 +557,25 @@ viewSidebar props shared model currentPath toContentMsg content =
                             Nothing
                     )
 
+        maybeNotificationsUnread =
+            loggedInPubKey shared.loginStatus
+                |> Maybe.andThen
+                    (\pubKey ->
+                        let
+                            lastSeen =
+                                Dict.get pubKey shared.notificationsLastSeen
+                                    |> Maybe.withDefault 0
+
+                            unread =
+                                Nostr.unreadNotificationsCount shared.nostr pubKey lastSeen
+                        in
+                        if unread > 0 then
+                            Just unread
+
+                        else
+                            Nothing
+                    )
+
         maybeUserPubKey =
             loggedInPubKey shared.loginStatus
 
@@ -557,6 +602,7 @@ viewSidebar props shared model currentPath toContentMsg content =
                     |> Maybe.withDefault False
             , translations = shared.browserEnv.translations
             , maybeBookmarksCount = maybeBookmarksCount
+            , maybeNotificationsUnread = maybeNotificationsUnread
             , currentPath = currentPath
             , testMode = shared.browserEnv.testMode
             , theme = shared.theme

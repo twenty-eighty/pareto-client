@@ -982,5 +982,15 @@
     "create passkey button title": "Skapa passkey",
     "add passkey button title": "Lägg till passkey",
     "not now button title": "Inte nu"
+  },
+  "notifications": {
+    "page title": "Aviseringar",
+    "empty text": "Ingen aktivitet på dina artiklar ännu. Likes, kommentarer, reposts och zaps visas här.",
+    "sign in text": "Logga in för att se aktivitet på dina artiklar.",
+    "liked your article": "gillade din artikel",
+    "commented on your article": "kommenterade din artikel",
+    "reposted your article": "repostade din artikel",
+    "zapped your article": "zappade din artikel",
+    "unknown article title": "Namnlös artikel"
   }
 }

@@ -982,5 +982,15 @@
     "create passkey button title": "Crear passkey",
     "add passkey button title": "Añadir passkey",
     "not now button title": "Ahora no"
+  },
+  "notifications": {
+    "page title": "Notificaciones",
+    "empty text": "Aún no hay actividad en tus artículos. Los likes, comentarios, reposts y zaps aparecerán aquí.",
+    "sign in text": "Inicia sesión para ver la actividad en tus artículos.",
+    "liked your article": "le gustó tu artículo",
+    "commented on your article": "comentó tu artículo",
+    "reposted your article": "reposteó tu artículo",
+    "zapped your article": "zappeó tu artículo",
+    "unknown article title": "Artículo sin título"
   }
 }

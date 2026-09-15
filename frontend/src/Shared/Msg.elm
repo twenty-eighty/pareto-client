@@ -44,3 +44,4 @@ type Msg
     | ScrollContentToTop
     | DomError (Result Browser.Dom.Error ())
     | ChangeLocale String
+    | MarkNotificationsSeen PubKey

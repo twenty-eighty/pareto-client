@@ -133,6 +133,8 @@ module Nostr exposing
     , getRepostsCountForEventId
     , getReactionForArticle
     , getReactionForEventId
+    , notificationsForPubKey
+    , unreadNotificationsCount
     , eventFilterForDeletionRequests
     , eventFilterForReactions
     , articleFromList
@@ -207,6 +209,7 @@ import Nostr.Blossom as Blossom
 import Nostr.EventFilters as EventFilters
 import Nostr.Nip05Cache as Nip05Cache exposing (CheckDecision(..), ContentRequestDecision(..), FetchDecision(..), Nip05CacheEntry(..), Nip05RequestTarget(..))
 import Nostr.Nip05Apply as Nip05Apply
+import Nostr.Notifications as Notifications
 import Nostr.RelayAccess as RelayAccess
 import Nostr.PerformRequest as PerformRequest
 import Nostr.RelatedRequests as RelatedRequests
@@ -1290,6 +1293,18 @@ getReactionForEventId model pubKey eventId =
     ReactionsStore.reactionForEventId model pubKey eventId
 
 
+notificationsForPubKey : Model -> PubKey -> List Notifications.NotificationItem
+notificationsForPubKey model pubKey =
+    Notifications.forAuthorArticles model pubKey (getArticlesForAuthor model pubKey)
+
+
+unreadNotificationsCount : Model -> PubKey -> Int -> Int
+unreadNotificationsCount model pubKey lastSeenMillis =
+    Notifications.unreadCount model pubKey (getArticlesForAuthor model pubKey) lastSeenMillis
+
+
+
+
 eventFilterForDeletionRequests : List TagReference -> Maybe EventFilter
 eventFilterForDeletionRequests =
     EventFilters.forDeletionRequests
@@ -1698,8 +1713,13 @@ updateModelWithLongFormContentDraft model requestId events =
 requestRelatedKindsForArticles : Model -> List Article -> Request -> ( Model, Cmd Msg )
 requestRelatedKindsForArticles model articles request =
     let
+        wantsSocialDetails =
+            List.member KindReaction request.relatedKinds
+                || List.member KindComment request.relatedKinds
+                || List.member KindZapReceipt request.relatedKinds
+
         articlesForDetails =
-            if shouldRequestArticleDetails request then
+            if shouldRequestArticleDetails request || wantsSocialDetails then
                 List.filter (articleNeedsDetails model) articles
 
             else

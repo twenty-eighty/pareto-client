@@ -77,6 +77,7 @@ export const flags = ({ env }: { env: FlagsEnv }) => {
     locale: selectedLocale,
     nativeSharingAvailable: (navigator.share != undefined),
     testMode: JSON.parse(localStorage.getItem('testMode') || 'false') || false,
+    notificationsLastSeen: JSON.parse(localStorage.getItem('notificationsLastSeen') || '{}') || {},
     authApiBaseUrl,
   }
 };
@@ -274,6 +275,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         setTestMode(app, value);
         break;
 
+      case 'setNotificationsLastSeen':
+        setNotificationsLastSeen(value);
+        break;
+
       case 'shareLink':
         shareLink(app, value);
         break;
@@ -358,6 +363,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     sessionStorage.clear();
     // reload client in order to initialize relay and other lists correctly
     location.reload();
+  }
+
+  function setNotificationsLastSeen(value) {
+    localStorage.setItem('notificationsLastSeen', JSON.stringify(value || {}));
   }
 
   function shareLink(app, value) {
@@ -1278,7 +1287,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   }
 
   function fillZapReceipt(ndkEvent: any) {
-    const zapReceipt: Record<string, any> = { id: ndkEvent.id };
+    const zapReceipt: Record<string, any> = {
+      id: ndkEvent.id,
+      createdAt: ndkEvent.created_at,
+    };
 
     ndkEvent.tags.forEach((tag: any[]) => {
       switch (tag[0]) {

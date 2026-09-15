@@ -1,5 +1,6 @@
 port module Ports exposing (..)
 
+import Dict
 import Json.Encode as Encode
 import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), buildAddress, encodeEvent, encodeEventFilter)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestId)
@@ -257,6 +258,14 @@ setTestMode testMode =
     sendCommand
         { command = "setTestMode"
         , value = Encode.bool testMode
+        }
+
+
+setNotificationsLastSeen : Dict.Dict String Int -> Cmd msg
+setNotificationsLastSeen lastSeen =
+    sendCommand
+        { command = "setNotificationsLastSeen"
+        , value = Encode.dict identity Encode.int lastSeen
         }
 
 

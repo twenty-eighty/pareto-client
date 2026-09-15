@@ -982,5 +982,15 @@
     "create passkey button title": "Создать ключ доступа",
     "add passkey button title": "Добавить ключ доступа",
     "not now button title": "Не сейчас"
+  },
+  "notifications": {
+    "page title": "Уведомления",
+    "empty text": "Пока нет активности по вашим статьям. Лайки, комментарии, репосты и запы появятся здесь.",
+    "sign in text": "Войдите, чтобы видеть активность по вашим статьям.",
+    "liked your article": "отметил вашу статью",
+    "commented on your article": "прокомментировал вашу статью",
+    "reposted your article": "сделал репост вашей статьи",
+    "zapped your article": "запнул вашу статью",
+    "unknown article title": "Статья без названия"
   }
 }

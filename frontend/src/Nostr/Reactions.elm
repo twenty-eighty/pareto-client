@@ -5,6 +5,7 @@ import Nostr.Event exposing (AddressComponents, Event, Kind, Tag(..))
 import Nostr.Nip18 exposing (Repost)
 import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment)
 import Nostr.Types exposing (EventId, PubKey)
+import Time
 
 
 
@@ -30,6 +31,7 @@ type alias Reaction =
     { content : String
     , id : EventId
     , pubKey : PubKey
+    , createdAt : Time.Posix
     , noteIdReactedTo : Maybe EventId
     , pubKeyReactedTo : Maybe PubKey
     , kindReactedTo : Maybe Kind
@@ -58,14 +60,15 @@ reactionFromEvent event =
                     _ ->
                         acc
             )
-            (emptyReaction event.content event.id event.pubKey)
+            (emptyReaction event.content event.id event.pubKey event.createdAt)
 
 
-emptyReaction : String -> EventId -> PubKey -> Reaction
-emptyReaction content eventId pubKey =
+emptyReaction : String -> EventId -> PubKey -> Time.Posix -> Reaction
+emptyReaction content eventId pubKey createdAt =
     { content = content
     , id = eventId
     , pubKey = pubKey
+    , createdAt = createdAt
     , noteIdReactedTo = Nothing
     , pubKeyReactedTo = Nothing
     , kindReactedTo = Nothing
