@@ -4,17 +4,16 @@ import Json.Decode as Decode
 import Nostr.Event exposing (Event, EventFilter, Kind)
 import Nostr.Request exposing (HttpRequestMethod, RequestData(..), RequestId, RequestState(..))
 import Nostr.Send exposing (SendRequestId)
-import Nostr.Types exposing (Following(..), IncomingMessage, RelayRole(..), RelayUrl)
-
-
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (Following(..), IncomingMessage, RelayRole(..))
 type alias Hooks msg =
-    { connect : List String -> Cmd msg
+    { connect : List RelayUrl -> Cmd msg
     , receiveMessage : (IncomingMessage -> msg) -> Sub msg
     , requestEvents : String -> Bool -> RequestId -> List RelayUrl -> List EventFilter -> Cmd msg
     , requestBlossomAuth : RequestId -> String -> String -> HttpRequestMethod -> Cmd msg
     , requestNip96Auth : RequestId -> String -> String -> String -> HttpRequestMethod -> Cmd msg
     , searchEvents : String -> Bool -> RequestId -> List RelayUrl -> List EventFilter -> Cmd msg
-    , sendEvent : SendRequestId -> List String -> Event -> Cmd msg
+    , sendEvent : SendRequestId -> List RelayUrl -> Event -> Cmd msg
     }
 
 

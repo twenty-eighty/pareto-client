@@ -12,7 +12,8 @@ import Html.Styled.Events exposing (..)
 import I18Next
 import Nostr.Event exposing (Kind(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (IncomingMessage, RelayRole(..), RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (IncomingMessage, RelayRole(..))
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
 import Tailwind.Utilities as Tw

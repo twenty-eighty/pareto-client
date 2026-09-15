@@ -8,6 +8,7 @@ import Json.Decode as Decode exposing (Decoder, andThen, bool, dict, fail, float
 import Json.Decode.Pipeline exposing (optional, required)
 import Nostr.Event exposing (Event, Kind(..))
 import Nostr.Nip94 as Nip94
+import Nostr.Relay exposing (RelayUrl)
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey, ServerUrl)
 import Url
@@ -73,7 +74,7 @@ fetchServerSpec toMsg url =
         }
 
 
-sendNip96ServerListCmd : BrowserEnv -> PubKey -> List String -> List ServerUrl -> SendRequest
+sendNip96ServerListCmd : BrowserEnv -> PubKey -> List String -> List RelayUrl -> SendRequest
 sendNip96ServerListCmd browserEnv pubKey serverUrls relays =
     eventWithNip96ServerList browserEnv pubKey serverUrls
         |> SendFileStorageServerList relays

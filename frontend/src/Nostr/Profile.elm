@@ -7,7 +7,8 @@ import Json.Encode as Encode
 import Nostr.Event exposing (Event, Identity, Kind(..), Tag(..))
 import Nostr.Nip05 as Nip05 exposing (Nip05, nip05StringDecoder)
 import Nostr.Shared
-import Nostr.Types exposing (PubKey, RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (PubKey)
 import Time
 
 

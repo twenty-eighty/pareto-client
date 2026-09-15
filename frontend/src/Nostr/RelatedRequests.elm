@@ -24,7 +24,8 @@ import Nostr.Nip10 exposing (TextNote)
 import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 as Nip22 exposing (CommentType)
 import Nostr.Request exposing (RequestData(..))
-import Nostr.Types exposing (EventId, PubKey, RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (EventId, PubKey)
 import Set
 
 

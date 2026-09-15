@@ -34,7 +34,8 @@ import Nostr.Nip94 exposing (FileMetadata)
 import Nostr.Profile exposing (profileDisplayName)
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
-import Nostr.Types exposing (EventId, IncomingMessage, PubKey, RelayUrl, loggedInPubKey, loggedInSigningPubKey)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (EventId, IncomingMessage, PubKey, loggedInPubKey, loggedInSigningPubKey)
 import Page exposing (Page)
 import Pareto
 import Ports
@@ -175,7 +176,7 @@ init user shared route () =
             case ( maybeArticle, maybeNip19 ) of
                 ( Nothing, Just (NAddr naddrData) ) ->
                     Event.eventFilterForNaddr naddrData
-                        |> RequestArticle (Just naddrData.relays)
+                        |> RequestArticle (Just (List.map Relay.fromString naddrData.relays))
                         |> Nostr.createRequest shared.nostr "Article described as NIP-19 for editing" []
                         |> Shared.Msg.RequestNostrEvents
                         |> Effect.sendSharedMsg
@@ -922,7 +923,7 @@ eventWithContent shared model user kind publishedAt =
             |> Maybe.withDefault identity (publishedAt |> Maybe.map Event.addPublishedAtTag)
             |> Maybe.withDefault identity (languageISOCode model |> Maybe.map (Event.addLabelTags "ISO-639-1"))
             |> Event.addZapTags model.zapWeights
-            |> Event.addAltTag (altText model.identifier user.pubKey kind [ Pareto.paretoRelay ])
+            |> Event.addAltTag (altText model.identifier user.pubKey kind [ Relay.toWire Pareto.paretoRelay ])
             |> Event.addImetaTags imageMetadataList
     , content = model.content |> Maybe.withDefault ""
     , id = ""

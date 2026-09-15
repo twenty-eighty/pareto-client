@@ -28,6 +28,7 @@ import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.External
 import Nostr.Profile exposing (emptyProfile, eventFromProfile)
+import Nostr.Relay as Relay
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
@@ -116,6 +117,7 @@ type alias Flags =
     , testMode : Bool
     , authApiBaseUrl : String
     , notificationsLastSeen : Dict String Int
+    , localRelays : List String
     }
 
 
@@ -131,6 +133,7 @@ decoder =
         |> DecodePipeline.required "testMode" Json.Decode.bool
         |> DecodePipeline.required "authApiBaseUrl" Json.Decode.string
         |> DecodePipeline.optional "notificationsLastSeen" (Json.Decode.dict Json.Decode.int) Dict.empty
+        |> DecodePipeline.optional "localRelays" (Json.Decode.list Json.Decode.string) []
 
 
 
@@ -164,7 +167,11 @@ init flagsResult route =
                         TestModeOff
 
                 ( nostrInit, nostrInitCmd ) =
-                    Nostr.init portHooks browserEnv.environment nostrTestMode Pareto.defaultRelays
+                    Nostr.init portHooks
+                        browserEnv.environment
+                        nostrTestMode
+                        Pareto.defaultRelays
+                        (List.map Relay.fromString flags.localRelays)
 
                 -- request bookmark list of Pareto creators
                 -- as well as bookmark sets for different purposes
@@ -351,6 +358,18 @@ update route msg model =
             ( { model | browserEnv = browserEnv }
             , cmd
                 |> Effect.sendCmd
+            )
+
+        SetLocalRelays localRelays ->
+            let
+                ( nostr, nostrCmd ) =
+                    Nostr.setLocalRelays model.nostr localRelays
+            in
+            ( { model | nostr = nostr }
+            , Effect.batch
+                [ Effect.sendCmd <| Cmd.map Shared.Msg.NostrMsg nostrCmd
+                , Effect.sendCmd <| Ports.setLocalRelays (List.map Relay.toWire localRelays)
+                ]
             )
 
         DelayedCheckConfiguration ->
@@ -622,9 +641,6 @@ bootstrapEmailAccountEffect nostr pubKey value =
                         List.map (\url -> { url = url, role = WriteRelay }) Pareto.recommendedOutboxRelays
                             ++ List.map (\url -> { url = url, role = ReadRelay }) Pareto.recommendedInboxRelays
 
-                    relaysWithProtocol =
-                        List.map (\relay -> { relay | url = "wss://" ++ relay.url }) relays
-
                     writeRelayUrls =
                         relays
                             |> List.filterMap
@@ -644,7 +660,7 @@ bootstrapEmailAccountEffect nostr pubKey value =
                         |> SendProfile profileRelays
                         |> Shared.Msg.SendNostrEvent
                         |> Effect.sendSharedMsg
-                    , eventWithRelayList pubKey relaysWithProtocol
+                    , eventWithRelayList pubKey relays
                         |> SendRelayList writeRelayUrls
                         |> Shared.Msg.SendNostrEvent
                         |> Effect.sendSharedMsg

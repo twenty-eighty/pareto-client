@@ -2,14 +2,14 @@ module Nostr.RelayListMetadata exposing (..)
 
 import Dict exposing (Dict)
 import Nostr.Event exposing (Event, Kind(..), Tag(..))
-import Nostr.Relay exposing (Relay, RelayState(..), hostWithoutProtocol)
+import Nostr.Relay as Relay exposing (Relay, RelayState(..), RelayUrl)
 import Nostr.Types exposing (PubKey, RelayRole(..))
 import Set
 import Time
 
 
 type alias RelayMetadata =
-    { url : String
+    { url : RelayUrl
     , role : RelayRole
     }
 
@@ -17,7 +17,7 @@ type alias RelayMetadata =
 type alias IngestResult =
     { relayMetadataLists : Dict PubKey (List RelayMetadata)
     , relays : Dict String Relay
-    , unknownRelays : List String
+    , unknownRelays : List RelayUrl
     }
 
 
@@ -45,10 +45,11 @@ ingest relayMetadataLists relays events =
         unknownRelays =
             relayLists
                 |> List.concatMap (\( _, relayMetadataList ) -> relayMetadataList)
-                |> List.map (\{ url } -> hostWithoutProtocol url)
-                |> List.filter (\relay -> not (Dict.member relay relays))
-                |> Set.fromList
-                |> Set.toList
+                |> List.map .url
+                |> List.filter (\url -> not (Dict.member (Relay.toKey url) relays))
+                |> List.map (\url -> ( Relay.toKey url, url ))
+                |> Dict.fromList
+                |> Dict.values
 
         updatedRelays =
             stubUnknownRelays unknownRelays relays
@@ -62,18 +63,22 @@ ingest relayMetadataLists relays events =
 withUniqueEntries : List RelayMetadata -> List RelayMetadata
 withUniqueEntries relayList =
     relayList
-        |> List.map (\relayMetadata -> ( relayMetadata.url, relayMetadata.role ))
+        |> List.map (\relayMetadata -> ( Relay.toKey relayMetadata.url, relayMetadata ))
         |> Dict.fromList
-        |> Dict.toList
-        |> List.map (\( url, role ) -> { url = hostWithoutProtocol url, role = role })
+        |> Dict.values
 
 
-stubUnknownRelays : List String -> Dict String Relay -> Dict String Relay
+stubUnknownRelays : List RelayUrl -> Dict String Relay -> Dict String Relay
 stubUnknownRelays unknownRelays relays =
     unknownRelays
         |> List.foldl
             (\unknownRelay acc ->
-                Dict.insert unknownRelay { nip11 = Nothing, state = RelayStateUnknown, urlWithoutProtocol = unknownRelay } acc
+                Dict.insert (Relay.toKey unknownRelay)
+                    { nip11 = Nothing
+                    , state = RelayStateUnknown
+                    , url = unknownRelay
+                    }
+                    acc
             )
             relays
 
@@ -100,7 +105,7 @@ extendEntryInList relayList additionalRelay =
             relayList
                 |> List.foldl
                     (\listRelay ( listAcc, extendedAcc ) ->
-                        if listRelay.url == additionalRelay.url then
+                        if Relay.toKey listRelay.url == Relay.toKey additionalRelay.url then
                             ( { listRelay | role = combinedRole listRelay.role additionalRelay.role } :: listAcc, True )
 
                         else
@@ -120,7 +125,7 @@ removeFromRelayList relayToRemove relayList =
     relayList
         |> List.foldl
             (\listRelay listAcc ->
-                if listRelay.url == relayToRemove.url then
+                if Relay.toKey listRelay.url == Relay.toKey relayToRemove.url then
                     case ( listRelay.role, relayToRemove.role ) of
                         ( ReadRelay, ReadWriteRelay ) ->
                             listAcc
@@ -184,7 +189,7 @@ addUrlTags relays tags =
             relays
                 |> List.map
                     (\relay ->
-                        UrlTag relay.url relay.role
+                        UrlTag (Relay.toWire relay.url) relay.role
                     )
     in
     tags ++ relayTags
@@ -214,7 +219,7 @@ relayMetadataListFromEvent event =
                     (\tag ->
                         case tag of
                             UrlTag url role ->
-                                Just { url = url, role = role }
+                                Just { url = Relay.fromString url, role = role }
 
                             _ ->
                                 Nothing

@@ -11,7 +11,8 @@ import Html.Styled.Events as Events
 import Nostr
 import Nostr.Article exposing (Article, nip19ForArticle)
 import Nostr.Profile exposing (ProfileValidation(..))
-import Nostr.Relay exposing (websocketUrl)
+import Dict exposing (Dict)
+import Nostr.Relay as Relay
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (Following(..), IncomingMessage, PubKey, loggedInPubKey)
 import Ports
@@ -104,7 +105,9 @@ view (Settings { articlePreviewsData, interactionsModel, article, toMsg }) model
 
         articleRelays =
             article.relays
-                |> Set.map websocketUrl
+                |> Dict.values
+                |> List.map Relay.toWire
+                |> Set.fromList
 
         author =
             Nostr.getAuthor articlePreviewsData.nostr article.author

@@ -2,7 +2,8 @@ module Nostr.Request exposing (..)
 
 import Nostr.Event exposing (EventFilter, Kind(..), emptyEventFilter)
 import Nostr.Nip05 exposing (Nip05)
-import Nostr.Types exposing (PubKey, RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (PubKey)
 import Time exposing (Posix)
 
 

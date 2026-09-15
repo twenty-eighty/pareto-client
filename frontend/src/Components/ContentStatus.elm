@@ -14,7 +14,7 @@ import Css
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes exposing (..)
 import I18Next
-import Nostr.Relay exposing (Relay, RelayState(..))
+import Nostr.Relay as Relay exposing (Relay, RelayState(..))
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
@@ -171,7 +171,7 @@ viewRelay translations relay =
                 [ Tw.text_sm, Tw.break_all ]
                 :: styles.colorStyleGrayscaleText
             )
-            [ text relay.urlWithoutProtocol ]
+            [ text (Relay.host relay.url) ]
         ]
 
 

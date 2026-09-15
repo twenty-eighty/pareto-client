@@ -16,7 +16,8 @@ import Nostr.Article exposing (Article)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), eventFilterForNip19, informationForKind, kindFromNumber)
 import Nostr.Nip19 as Nip19
 import Nostr.Request exposing (RequestData(..), RequestId)
-import Nostr.Types exposing (IncomingMessage, RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (IncomingMessage)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
@@ -86,12 +87,12 @@ init shared route () =
                     ShortNote noteId Nothing
 
                 Ok (Nip19.NEvent { id, relays }) ->
-                    ShortNote id (Just relays)
+                    ShortNote id (Just (List.map Relay.fromString relays))
 
                 Ok (Nip19.NAddr { identifier, pubKey, kind, relays }) ->
                     case kindFromNumber kind of
                         KindLongFormContent ->
-                            Article ( kindFromNumber kind, pubKey, identifier ) relays
+                            Article ( kindFromNumber kind, pubKey, identifier ) (List.map Relay.fromString relays)
 
                         _ ->
                             NonSupportedKind (kindFromNumber kind)

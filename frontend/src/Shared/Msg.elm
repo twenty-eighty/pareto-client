@@ -9,6 +9,7 @@ import Components.AuthDialog as AuthDialog
 import Nostr
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Nip05 as Nip05
+import Nostr.Relay exposing (RelayUrl)
 import Nostr.Request exposing (Request)
 import Nostr.Send exposing (SendRequest)
 import Nostr.Types exposing (IncomingMessage, PubKey)
@@ -34,6 +35,7 @@ type Msg
     | SendNostrEvent SendRequest
     | SetClientRole Bool ClientRole
     | SetTestMode TestMode
+    | SetLocalRelays (List RelayUrl)
     | DelayedCheckConfiguration
     | CheckConfiguration ()
     | ConfigCheckMsg ConfigCheck.Msg

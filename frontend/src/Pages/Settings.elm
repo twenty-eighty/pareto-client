@@ -27,11 +27,12 @@ import Nostr.Lud16 as Lud16
 import Nostr.Nip05 as Nip05
 import Nostr.Nip96 as Nip96 exposing (eventWithNip96ServerList)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), emptyProfile, eventFromProfile, profileFromEvent, profilesEqual)
-import Nostr.Relay as Relay exposing (Relay, RelayState(..), hostWithoutProtocol)
+import Nostr.Relay as Relay exposing (Relay, RelayState(..), RelayUrl)
+import Nostr.RelayList as RelayList exposing (eventWithPrivateRelayList)
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList, removeFromRelayList)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
-import Nostr.Types exposing (IncomingMessage, PubKey, RelayRole(..), RelayUrl, ServerUrl, signingPubKeyAvailable)
+import Nostr.Types exposing (IncomingMessage, PubKey, RelayRole(..), ServerUrl, signingPubKeyAvailable)
 import Page exposing (Page)
 import Pareto
 import Ports
@@ -111,6 +112,8 @@ type DataModel
 type alias RelaysModel =
     { outboxRelay : Maybe String
     , inboxRelay : Maybe String
+    , privateRelay : Maybe String
+    , localRelay : Maybe String
     , searchRelay : Maybe String
     , state : RelayListState
     }
@@ -237,6 +240,8 @@ emptyRelaysModel : RelaysModel
 emptyRelaysModel =
     { outboxRelay = Nothing
     , inboxRelay = Nothing
+    , privateRelay = Nothing
+    , localRelay = Nothing
     , searchRelay = Nothing
     , state = RelayListStateEditing
     }
@@ -401,6 +406,11 @@ type Msg
     | UpdateRelayModel RelaysModel
     | AddOutboxRelay PubKey RelayUrl
     | AddInboxRelay PubKey RelayUrl
+    | AddPrivateRelay PubKey RelayUrl
+    | AddLocalRelay RelayUrl
+    | AddSuggestedLocalRelays (List RelayUrl)
+    | RemovePrivateRelay PubKey RelayUrl
+    | RemoveLocalRelay RelayUrl
     | AddSearchRelay PubKey RelayUrl
     | AddDefaultOutboxRelays (List RelayUrl)
     | AddDefaultInboxRelays (List RelayUrl)
@@ -451,6 +461,59 @@ update user shared msg model =
             , Nostr.getRelayListForPubKey shared.nostr pubKey
                 |> extendRelayList (relayListWithRole [ relayUrl ] ReadRelay)
                 |> sendRelayListCmd pubKey
+            )
+
+        AddPrivateRelay pubKey relayUrl ->
+            let
+                updated =
+                    Nostr.getPrivateRelayUrls shared.nostr pubKey
+                        ++ [ relayUrl ]
+                        |> RelayList.withUniqueEntries
+            in
+            ( { model | data = RelaysData { emptyRelaysModel | state = RelayListStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
+            , sendPrivateRelayListCmd pubKey (Nostr.getWriteRelayUrlsForPubKey shared.nostr pubKey) updated
+            )
+
+        AddLocalRelay relayUrl ->
+            let
+                updated =
+                    Nostr.getLocalRelayUrls shared.nostr
+                        ++ [ relayUrl ]
+                        |> RelayList.withUniqueEntries
+            in
+            ( { model | data = RelaysData emptyRelaysModel }
+            , Effect.sendSharedMsg (Shared.Msg.SetLocalRelays updated)
+            )
+
+        AddSuggestedLocalRelays relayUrls ->
+            let
+                updated =
+                    Nostr.getLocalRelayUrls shared.nostr
+                        ++ relayUrls
+                        |> RelayList.withUniqueEntries
+            in
+            ( { model | data = RelaysData emptyRelaysModel }
+            , Effect.sendSharedMsg (Shared.Msg.SetLocalRelays updated)
+            )
+
+        RemovePrivateRelay pubKey relayUrl ->
+            let
+                updated =
+                    Nostr.getPrivateRelayUrls shared.nostr pubKey
+                        |> List.filter (\url -> Relay.toKey url /= Relay.toKey relayUrl)
+            in
+            ( { model | data = RelaysData { emptyRelaysModel | state = RelayListStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
+            , sendPrivateRelayListCmd pubKey (Nostr.getWriteRelayUrlsForPubKey shared.nostr pubKey) updated
+            )
+
+        RemoveLocalRelay relayUrl ->
+            let
+                updated =
+                    Nostr.getLocalRelayUrls shared.nostr
+                        |> List.filter (\url -> Relay.toKey url /= Relay.toKey relayUrl)
+            in
+            ( { model | data = RelaysData emptyRelaysModel }
+            , Effect.sendSharedMsg (Shared.Msg.SetLocalRelays updated)
             )
 
         AddSearchRelay _ _ ->
@@ -800,20 +863,13 @@ relayListWithRole relayUrls role =
     relayUrls
         |> List.map
             (\relayUrl ->
-                { url = hostWithoutProtocol relayUrl, role = role }
+                { url = relayUrl, role = role }
             )
 
 
 sendRelayListCmd : PubKey -> List RelayMetadata -> Effect msg
 sendRelayListCmd pubKey relays =
     let
-        relaysWithProtocol =
-            relays
-                |> List.map
-                    (\relay ->
-                        { relay | url = "wss://" ++ relay.url }
-                    )
-
         relayUrls =
             relays
                 |> List.filterMap
@@ -825,8 +881,17 @@ sendRelayListCmd pubKey relays =
                             Nothing
                     )
     in
-    eventWithRelayList pubKey relaysWithProtocol
+    eventWithRelayList pubKey relays
         |> SendRelayList relayUrls
+        |> Shared.Msg.SendNostrEvent
+        |> Effect.sendSharedMsg
+
+
+sendPrivateRelayListCmd : PubKey -> List RelayUrl -> List RelayUrl -> Effect msg
+sendPrivateRelayListCmd pubKey writeRelays privateRelays =
+    -- Announce kind 10013 on write relays; draft traffic uses the private URLs themselves.
+    eventWithPrivateRelayList pubKey privateRelays
+        |> SendPrivateRelayList writeRelays
         |> Shared.Msg.SendNostrEvent
         |> Effect.sendSharedMsg
 
@@ -998,15 +1063,14 @@ viewRelays shared configCheckIssues user relaysModel =
         [ css
             [ Tw.flex
             , Tw.flex_col
-            , Tw.gap_2
+            , Tw.gap_8
             ]
         ]
         [ viewConfigIssues shared.browserEnv (Translations.relayIssuesTitle [ shared.browserEnv.translations ]) configCheckIssues
         , outboxRelaySection shared user relaysModel
         , inboxRelaySection shared user relaysModel
-
-        -- , viewRelayList searchRelays
-        -- , addRelayBox shared.theme shared.browserEnv.translations relaysModel.searchRelay (updateRelayModelSearch relaysModel) (AddSearchRelay user.pubKey)
+        , privateRelaySection shared user relaysModel
+        , localRelaySection shared user relaysModel
         ]
 
 
@@ -1054,9 +1118,9 @@ outboxRelaySection shared user relaysModel =
                 (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
                 [ text <| Translations.outboxSectionTitle [ shared.browserEnv.translations ] ]
             , p [] [ text <| Translations.outboxRelaysDescription [ shared.browserEnv.translations ] ]
-            , viewRelayList shared.theme shared.browserEnv.translations readOnly (AddDefaultOutboxRelays suggestedOutboxRelays) (RemoveRelay user.pubKey WriteRelay) outboxRelays
-            , if not readOnly then
-                addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay outboxRelaySuggestions (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey) saving "outbox-relay-add-button"
+            , viewRelayList shared.theme shared.browserEnv.translations readOnly (AddDefaultOutboxRelays suggestedOutboxRelays) (RemoveRelay user.pubKey WriteRelay << Relay.fromString) (Translations.addDefaultRelaysButtonTitle [ shared.browserEnv.translations ]) outboxRelays
+        , if not readOnly then
+                addRelayBox shared.theme shared.browserEnv.translations relaysModel.outboxRelay outboxRelaySuggestions (updateRelayModelOutbox relaysModel) (AddOutboxRelay user.pubKey << Relay.fromString) saving "outbox-relay-add-button"
 
               else
                 emptyHtml
@@ -1095,19 +1159,137 @@ inboxRelaySection shared user relaysModel =
     in
     div []
         [ h3
-            (styles.colorStyleGrayscaleTitle
-                ++ styles.textStyleH3
-                ++ [ css [ Tw.mt_3 ] ]
-            )
+            (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
             [ text <| Translations.inboxSectionTitle [ shared.browserEnv.translations ] ]
         , p [] [ text <| Translations.inboxRelaysDescription [ shared.browserEnv.translations ] ]
-        , viewRelayList shared.theme shared.browserEnv.translations readOnly (AddDefaultInboxRelays suggestedInboxRelays) (RemoveRelay user.pubKey ReadRelay) inboxRelays
+        , viewRelayList shared.theme shared.browserEnv.translations readOnly (AddDefaultInboxRelays suggestedInboxRelays) (RemoveRelay user.pubKey ReadRelay << Relay.fromString) (Translations.addDefaultRelaysButtonTitle [ shared.browserEnv.translations ]) inboxRelays
         , if not readOnly then
-            addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay inboxRelaySuggestions (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey) saving "inbox-relay-add-button"
+            addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay inboxRelaySuggestions (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey << Relay.fromString) saving "inbox-relay-add-button"
 
           else
             emptyHtml
         ]
+
+
+privateRelaySection : Shared.Model -> Auth.User -> RelaysModel -> Html Msg
+privateRelaySection shared user relaysModel =
+    let
+        styles =
+            stylesForTheme shared.theme
+
+        privateRelays =
+            Nostr.getPrivateRelayUrls shared.nostr user.pubKey
+                |> resolveRelayRecords shared.nostr
+
+        readOnly =
+            signingPubKeyAvailable shared.loginStatus
+                |> not
+
+        saving =
+            case relaysModel.state of
+                RelayListStateSaving _ ->
+                    True
+
+                _ ->
+                    False
+
+        emptySuggestions =
+            { identifier = "private-relay-suggestions"
+            , suggestions = []
+            }
+    in
+    div []
+        [ h3
+            (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
+            [ text <| Translations.privateSectionTitle [ shared.browserEnv.translations ] ]
+        , p
+            [ css [ Tw.mb_4 ] ]
+            [ text <| Translations.privateRelaysDescription [ shared.browserEnv.translations ] ]
+        , viewSimpleRelayList shared.theme shared.browserEnv.translations readOnly (RemovePrivateRelay user.pubKey) privateRelays
+        , if not readOnly then
+            addRelayBox shared.theme shared.browserEnv.translations relaysModel.privateRelay emptySuggestions (updateRelayModelPrivate relaysModel) (AddPrivateRelay user.pubKey << Relay.fromString) saving "private-relay-add-button"
+
+          else
+            emptyHtml
+        ]
+
+
+citrineRelayUrl : RelayUrl
+citrineRelayUrl =
+    Relay.fromString "ws://127.0.0.1:4869"
+
+
+localRelaySection : Shared.Model -> Auth.User -> RelaysModel -> Html Msg
+localRelaySection shared _ relaysModel =
+    let
+        styles =
+            stylesForTheme shared.theme
+
+        localRelays =
+            Nostr.getLocalRelayUrls shared.nostr
+                |> resolveRelayRecords shared.nostr
+
+        localSuggestions =
+            { identifier = "local-relay-suggestions"
+            , suggestions =
+                [ citrineRelayUrl ]
+                    |> List.filter
+                        (\url ->
+                            localRelays
+                                |> List.all (\relay -> Relay.toKey relay.url /= Relay.toKey url)
+                        )
+                    |> List.map Relay.toWire
+            }
+
+        readOnly =
+            False
+
+        saving =
+            False
+    in
+    div []
+        [ h3
+            (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
+            [ text <| Translations.localSectionTitle [ shared.browserEnv.translations ] ]
+        , p [] [ text <| Translations.localRelaysDescription [ shared.browserEnv.translations ] ]
+        , viewRelayList shared.theme shared.browserEnv.translations readOnly (AddSuggestedLocalRelays [ citrineRelayUrl ]) (RemoveLocalRelay << Relay.fromString) (Translations.addDefaultRelayButtonTitle [ shared.browserEnv.translations ]) localRelays
+        , addRelayBox shared.theme shared.browserEnv.translations relaysModel.localRelay localSuggestions (updateRelayModelLocal relaysModel) (AddLocalRelay << Relay.fromString) saving "local-relay-add-button"
+        ]
+
+
+resolveRelayRecords : Nostr.Model -> List RelayUrl -> List Relay
+resolveRelayRecords nostr urls =
+    urls
+        |> List.map
+            (\url ->
+                Nostr.getRelayData nostr url
+                    |> Maybe.withDefault
+                        { url = url
+                        , state = RelayStateUnknown
+                        , nip11 = Nothing
+                        }
+            )
+
+
+viewSimpleRelayList : Theme -> I18Next.Translations -> Bool -> (RelayUrl -> Msg) -> List Relay -> Html Msg
+viewSimpleRelayList theme translations readOnly removeMsg relays =
+    if List.isEmpty relays then
+        if readOnly then
+            text <| Translations.relayReadOnlyLoginInfo [ translations ]
+
+        else
+            emptyHtml
+
+    else
+        div
+            [ css
+                [ Tw.flex
+                , Tw.flex_col
+                , Tw.my_2
+                , Tw.gap_2
+                ]
+            ]
+            (List.map (viewRelay readOnly (\key -> removeMsg (Relay.fromString key))) relays)
 
 
 
@@ -1131,7 +1313,7 @@ suggestedRelays shared pubKey role =
             []
 
 
-missingRelays : List Relay -> List String -> List String
+missingRelays : List Relay -> List RelayUrl -> List String
 missingRelays addedRelays recommendedRelays =
     recommendedRelays
         |> List.filter
@@ -1139,10 +1321,11 @@ missingRelays addedRelays recommendedRelays =
                 addedRelays
                     |> List.filter
                         (\addedRelay ->
-                            addedRelay.urlWithoutProtocol == hostWithoutProtocol relayUrl
+                            Relay.toKey addedRelay.url == Relay.toKey relayUrl
                         )
                     |> List.isEmpty
             )
+        |> List.map Relay.host
 
 
 updateRelayModelOutbox : RelaysModel -> Maybe String -> RelaysModel
@@ -1153,6 +1336,16 @@ updateRelayModelOutbox relaysModel value =
 updateRelayModelInbox : RelaysModel -> Maybe String -> RelaysModel
 updateRelayModelInbox relaysModel value =
     { relaysModel | inboxRelay = value }
+
+
+updateRelayModelPrivate : RelaysModel -> Maybe String -> RelaysModel
+updateRelayModelPrivate relaysModel value =
+    { relaysModel | privateRelay = value }
+
+
+updateRelayModelLocal : RelaysModel -> Maybe String -> RelaysModel
+updateRelayModelLocal relaysModel value =
+    { relaysModel | localRelay = value }
 
 
 
@@ -1285,8 +1478,8 @@ relayUrlValid maybeRelayUrl =
             False
 
 
-viewRelayList : Theme -> I18Next.Translations -> Bool -> Msg -> (String -> Msg) -> List Relay -> Html Msg
-viewRelayList theme translations readOnly addDefaultRelaysMsg removeMsg relays =
+viewRelayList : Theme -> I18Next.Translations -> Bool -> Msg -> (String -> Msg) -> String -> List Relay -> Html Msg
+viewRelayList theme translations readOnly addDefaultRelaysMsg removeMsg addDefaultButtonLabel relays =
     let
         noRelaysConfigureButton =
             div
@@ -1299,7 +1492,7 @@ viewRelayList theme translations readOnly addDefaultRelaysMsg removeMsg relays =
                 ]
                 [ text <| Translations.noRelaysConfiguredText [ translations ]
                 , Button.new
-                    { label = Translations.addDefaultRelaysButtonTitle [ translations ]
+                    { label = addDefaultButtonLabel
                     , onClick = Just addDefaultRelaysMsg
                     , theme = theme
                     }
@@ -1351,7 +1544,7 @@ viewRelay readOnly removeMsg relay =
                     ]
                 ]
             ]
-            [ text relay.urlWithoutProtocol
+            [ text (Relay.hostPort relay.url)
             ]
         , if not readOnly then
             removeRelayButton relay removeMsg
@@ -1418,8 +1611,8 @@ removeRelayButton relay removeMsg =
                 [ Tw.text_color styles.colorB3DarkMode
                 ]
             ]
-        , Events.onClick (removeMsg relay.urlWithoutProtocol)
-        , Attr.attribute "data-test" ("remove-relay-button-" ++ relay.urlWithoutProtocol)
+        , Events.onClick (removeMsg (Relay.toKey relay.url))
+        , Attr.attribute "data-test" ("remove-relay-button-" ++ Relay.toKey relay.url)
         ]
         [ Icon.FeatherIcon FeatherIcons.delete
             |> Icon.view
@@ -1485,7 +1678,7 @@ nip96ServersSection shared user mediaServersModel =
         ]
 
 
-suggestedNip96Servers : Shared.Model -> PubKey -> List RelayUrl
+suggestedNip96Servers : Shared.Model -> PubKey -> List String
 suggestedNip96Servers shared pubKey =
     if Nostr.isEditor shared.nostr pubKey then
         Pareto.defaultNip96ServersAuthors
@@ -1557,7 +1750,7 @@ blossomServersSection shared user mediaServersModel =
         ]
 
 
-suggestedBlossomServers : Shared.Model -> PubKey -> List RelayUrl
+suggestedBlossomServers : Shared.Model -> PubKey -> List String
 suggestedBlossomServers shared pubKey =
     Nostr.getDefaultBlossomServers shared.nostr pubKey
 

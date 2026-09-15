@@ -238,24 +238,6 @@ rawSidebarItems clientRole translations =
               , requiresBetaTester = False
               , disabled = False
               }
-            , { path = Route.Path.Notifications
-              , title = Translations.notificationsMenuItemText [ translations ]
-              , ariaLabel = Translations.notificationsMenuItemText [ translations ]
-              , icon = FeatherIcon FeatherIcons.bell
-              , requiresLogin = True
-              , requiresAuthor = False
-              , requiresBetaTester = False
-              , disabled = False
-              }
-            , { path = Route.Path.Highlights
-              , title = Translations.highlightsMenuItemText [ translations ]
-              , ariaLabel = Translations.highlightsMenuItemText [ translations ]
-              , icon = FeatherIcon FeatherIcons.underline
-              , requiresLogin = True
-              , requiresAuthor = False
-              , requiresBetaTester = False
-              , disabled = False
-              }
 
             --, { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, requiresAuthor = False, disabled = True }
             , { path = Route.Path.Settings
@@ -311,15 +293,6 @@ rawSidebarItems clientRole translations =
               , ariaLabel = Translations.newslettersMenuItemText [ translations ]
               , icon = FeatherIcon FeatherIcons.mail
               , requiresLogin = True
-              , requiresAuthor = False
-              , requiresBetaTester = False
-              , disabled = False
-              }
-            , { path = Route.Path.Search
-              , title = Translations.searchMenuItemText [ translations ]
-              , ariaLabel = Translations.searchMenuItemText [ translations ]
-              , icon = FeatherIcon FeatherIcons.search
-              , requiresLogin = False
               , requiresAuthor = False
               , requiresBetaTester = False
               , disabled = False

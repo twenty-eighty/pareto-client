@@ -24,8 +24,8 @@ import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..), emptyArticleComment)
 import Nostr.Nip27 exposing (GetProfileFunction)
 import Nostr.Profile exposing (Author(..), Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
-import Nostr.Relay exposing (websocketUrl)
-import Nostr.Types exposing (EventId, LoginStatus, PubKey, RelayUrl, loggedInSigningPubKey)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (EventId, LoginStatus, PubKey, loggedInSigningPubKey)
 import Pareto
 import Route
 import Route.Path
@@ -53,7 +53,7 @@ type alias ArticlePreviewsData msg =
     , browserEnv : BrowserEnv
     , commentsToMsg : ArticleComments.Msg msg -> msg
     , highlightsToMsg : ArticleHighlights.Msg -> msg
-    , deleteButtonMsg : Maybe (Set RelayUrl -> List Kind -> EventId -> Maybe AddressComponents -> msg)
+    , deleteButtonMsg : Maybe (Set String -> List Kind -> EventId -> Maybe AddressComponents -> msg)
     , onLoadMore : Maybe msg
     , loginStatus : LoginStatus
     , nostr : Nostr.Model
@@ -196,7 +196,9 @@ viewArticle articlePreviewsData articlePreviewData article =
 
         articleRelays =
             article.relays
-                |> Set.map websocketUrl
+                |> Dict.values
+                |> List.map Relay.toWire
+                |> Set.fromList
 
         newComment =
             loggedInSigningPubKey articlePreviewsData.loginStatus
@@ -212,7 +214,7 @@ viewArticle articlePreviewsData articlePreviewData article =
                                 , rootEventId = Just article.id
                                 , rootKind = article.kind
                                 , rootPubKey = article.author
-                                , rootRelay = article.relays |> Set.toList |> List.head
+                                , rootRelay = article.relays |> Dict.values |> List.head
                             }
                     )
                     (addressComponentsForArticle article)
@@ -835,10 +837,10 @@ linkToArticle author article =
     let
         articleRelays =
             article.relays
-                |> Set.toList
+                |> Dict.values
                 -- append max 5 relays so the link doesn't get infinitely long
                 |> List.take 5
-                |> List.map websocketUrl
+                |> List.map Relay.toWire
     in
     case ( article.kind, author, article.identifier ) of
 
@@ -1194,7 +1196,7 @@ viewArticleDeleteButton articlePreviewsData article =
             { label = Translations.Posts.deleteDraftButtonLabel [ articlePreviewsData.browserEnv.translations ]
             , onClick =
                 articlePreviewsData.deleteButtonMsg
-                    |> Maybe.map (\deleteButtonMsg -> deleteButtonMsg article.relays deleteKinds article.id deleteAddress)
+                    |> Maybe.map (\deleteButtonMsg -> deleteButtonMsg (article.relays |> Dict.values |> List.map Relay.toWire |> Set.fromList) deleteKinds article.id deleteAddress)
             , theme = articlePreviewsData.theme
             }
             |> Button.view

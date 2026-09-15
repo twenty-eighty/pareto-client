@@ -1,10 +1,17 @@
-module Nostr.RelayList exposing (..)
+module Nostr.RelayList exposing
+    ( PrivateIngestResult
+    , SearchIngestResult
+    , eventWithPrivateRelayList
+    , ingestPrivateRelays
+    , ingestSearchRelays
+    , withUniqueEntries
+    )
 
 import Dict exposing (Dict)
-import Nostr.Event exposing (Event, Tag(..))
-import Nostr.Relay exposing (hostWithoutProtocol)
-import Nostr.Types exposing (PubKey, RelayUrl)
-import Set
+import Nostr.Event exposing (Event, Kind(..), Tag(..), emptyEvent)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (PubKey)
+import Time
 
 
 
@@ -14,13 +21,13 @@ import Set
 
 type alias SearchIngestResult =
     { searchRelayLists : Dict PubKey (List RelayUrl)
-    , unknownRelays : List String
+    , unknownRelays : List RelayUrl
     }
 
 
 type alias PrivateIngestResult =
     { privateRelayLists : Dict PubKey (List RelayUrl)
-    , unknownRelays : List String
+    , unknownRelays : List RelayUrl
     }
 
 
@@ -58,7 +65,7 @@ ingestRelayLists :
     Dict PubKey (List RelayUrl)
     -> Dict String a
     -> List Event
-    -> { relayLists : Dict PubKey (List RelayUrl), unknownRelays : List String }
+    -> { relayLists : Dict PubKey (List RelayUrl), unknownRelays : List RelayUrl }
 ingestRelayLists existingRelayLists relays events =
     let
         lists =
@@ -76,10 +83,8 @@ ingestRelayLists existingRelayLists relays events =
         unknownRelays =
             lists
                 |> List.concatMap (\( _, urls ) -> urls)
-                |> List.map hostWithoutProtocol
-                |> List.filter (\relay -> not (Dict.member relay relays))
-                |> Set.fromList
-                |> Set.toList
+                |> List.filter (\url -> not (Dict.member (Relay.toKey url) relays))
+                |> withUniqueEntries
     in
     { relayLists = relayListDict
     , unknownRelays = unknownRelays
@@ -89,8 +94,26 @@ ingestRelayLists existingRelayLists relays events =
 withUniqueEntries : List RelayUrl -> List RelayUrl
 withUniqueEntries relayList =
     relayList
-        |> Set.fromList
-        |> Set.toList
+        |> List.map (\url -> ( Relay.toKey url, url ))
+        |> Dict.fromList
+        |> Dict.values
+
+
+{-| Build an unsigned kind 10013 event. JS encrypts tags into content before publish.
+-}
+eventWithPrivateRelayList : PubKey -> List RelayUrl -> Event
+eventWithPrivateRelayList pubKey relays =
+    let
+        event =
+            emptyEvent pubKey KindPrivateRelayList
+    in
+    { event
+        | createdAt = Time.millisToPosix 0
+        , content = ""
+        , tags =
+            relays
+                |> List.map (\url -> RelayTag (Relay.toWire url))
+    }
 
 
 relayListFromEvent : Event -> ( PubKey, List RelayUrl )
@@ -102,7 +125,7 @@ relayListFromEvent event =
                     (\tag acc ->
                         case tag of
                             RelayTag url ->
-                                acc ++ [ url ]
+                                acc ++ [ Relay.fromString url ]
 
                             _ ->
                                 acc

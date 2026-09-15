@@ -33,7 +33,8 @@ import FeatherIcons exposing (settings)
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr
 import Nostr
-import Nostr.Types exposing (LoginStatus, RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (LoginStatus)
 import Set exposing (Set)
 import Tailwind.Breakpoints as Bp exposing (..)
 import Tailwind.Utilities as Tw
@@ -46,7 +47,7 @@ type InteractionElement msg
     | LikeButtonElement
     | RepostButtonElement
     | ShareButtonElement SharingButtonDialog.SharingInfo
-    | ZapButtonElement String (Set RelayUrl)
+    | ZapButtonElement String (Set String)
 
 
 
@@ -382,7 +383,7 @@ getShareButton (Settings settings) sharingInfo =
         |> SharingButtonDialog.view
 
 
-getZapButton : Interactions msg -> String -> Set RelayUrl -> Html (Msg msg)
+getZapButton : Interactions msg -> String -> Set String -> Html (Msg msg)
 getZapButton (Settings settings) instanceId relayUrls =
     let
         (Model model) =

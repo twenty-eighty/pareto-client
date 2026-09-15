@@ -13,7 +13,8 @@ import Nostr.BookmarkList as BookmarkList exposing (BookmarkList, bookmarkListEv
 import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), addAddressTags, addIdentifierTag, addKindTag, emptyEvent)
 import Nostr.FollowList as FollowList exposing (emptyFollowList, followListEvent, followListWithPubKey, followListWithoutPubKey)
 import Nostr.Highlights as Highlights
-import Nostr.Types exposing (EventId, Following, PubKey, RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (EventId, Following, PubKey)
 import Time
 
 
@@ -42,6 +43,7 @@ type SendRequest
     | SendProfile (List RelayUrl) Event
     | SendReaction PubKey EventId PubKey (Maybe AddressComponents)
     | SendRelayList (List RelayUrl) Event
+    | SendPrivateRelayList (List RelayUrl) Event
     | SendRepost (List RelayUrl) Event
 
 
@@ -174,6 +176,9 @@ prepare context sendRequest =
             { relays = relays, event = event }
 
         SendRelayList relays event ->
+            { relays = relays, event = event }
+
+        SendPrivateRelayList relays event ->
             { relays = relays, event = event }
 
         SendProfile relays event ->

@@ -1,9 +1,10 @@
 module Nostr.Nip18 exposing (..)
 
+import Dict exposing (Dict)
 import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), addAddressTags, emptyEvent)
-import Nostr.Types exposing (EventId, PubKey, RelayUrl)
-import Set
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (EventId, PubKey)
 import Time exposing (Posix)
 
 
@@ -52,7 +53,7 @@ articleRepostEvent pubKey article =
     let
         firstRelay =
             article.relays
-                |> Set.toList
+                |> Dict.values
                 |> List.head
     in
     repostEvent pubKey article.id article.author article.kind (addressComponentsForArticle article) firstRelay

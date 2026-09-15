@@ -32,7 +32,7 @@ import Components.AuthorInteractionsBar as AuthorInteractionsBar
 import Components.InteractionButton as InteractionButton
 import Components.Interactions as Interactions
 import Components.SharingButtonDialog as SharingButtonDialog
-import Dict
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled exposing (Html)
 import Layouts
@@ -41,10 +41,11 @@ import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Query exposing (ContentQueryStatus(..))
+import Nostr.Relay as Relay
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey, loggedInPubKey)
 import Ports
-import Set
+import Set exposing (Set)
 import Shared
 import Shared.Msg
 import Ui.Article exposing (sharingInfoForArticle)
@@ -119,7 +120,11 @@ layout shared model maybeArticle msgConfig =
                                         , nostr = shared.nostr
                                         , loginStatus = shared.loginStatus
                                         , shareInfo = sharingInfoForArticle article (Nostr.getAuthor shared.nostr article.author)
-                                        , zapRelays = article.relays
+                                        , zapRelays =
+                                            article.relays
+                                                |> Dict.values
+                                                |> List.map Relay.toWire
+                                                |> Set.fromList
                                         }
                                 )
                             |> Maybe.withDefault emptyHtml

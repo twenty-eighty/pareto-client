@@ -15,7 +15,7 @@ import Nostr.Event exposing (Event, Kind, decodeEvent, informationForKind, numbe
 import Nostr.External as External
 import Nostr.Nip05 as Nip05 exposing (Nip05)
 import Nostr.Profile exposing (PubkeyProfile, pubkeyProfileDecoder)
-import Nostr.Relay exposing (RelayState(..), relayUrlDecoder)
+import Nostr.Relay exposing (RelayState(..), RelayUrl, relayUrlDecoder)
 import Nostr.Request exposing (RequestId)
 import Nostr.Types exposing (IncomingMessage, PubKey)
 import Nostr.Zaps as Zaps exposing (ZapReceipt)
@@ -30,7 +30,7 @@ type alias AuthorData =
 type Effect
     = SetPoolState RelayState
     | NoOp
-    | SetRelayStatus String RelayState
+    | SetRelayStatus RelayUrl RelayState
     | AppendError String
     | GotProfiles (List PubkeyProfile)
     | GotZapReceipts (List ZapReceipt)
@@ -117,8 +117,8 @@ decode message =
 decodeRelayStatus : RelayState -> Decode.Value -> Effect
 decodeRelayStatus state value =
     case Decode.decodeValue relayUrlDecoder value of
-        Ok relayUrlWithoutProtocol ->
-            SetRelayStatus relayUrlWithoutProtocol state
+        Ok relayUrl ->
+            SetRelayStatus relayUrl state
 
         Err error ->
             AppendError (Decode.errorToString error)

@@ -3,6 +3,7 @@ port module Ports exposing (..)
 import Dict
 import Json.Encode as Encode
 import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), buildAddress, encodeEvent, encodeEventFilter)
+import Nostr.Relay as Relay exposing (RelayUrl)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestId)
 import Nostr.Send exposing (SendRequestId)
 import Nostr.Types exposing (IncomingMessage, OutgoingCommand, PubKey)
@@ -16,7 +17,7 @@ port sendCommand : OutgoingCommand -> Cmd msg
 port receiveMessage : (IncomingMessage -> msg) -> Sub msg
 
 
-connect : List String -> Cmd msg
+connect : List RelayUrl -> Cmd msg
 connect relays =
     sendCommand
         { command = "connect"
@@ -24,7 +25,7 @@ connect relays =
             Encode.object
                 [ ( "client", Encode.string Pareto.client )
                 , ( "nip89", Encode.string <| buildAddress ( KindHandlerInformation, Pareto.paretoClientPubKey, Pareto.handlerIdentifier ) )
-                , ( "relays", Encode.list Encode.string relays )
+                , ( "relays", Encode.list Encode.string (List.map Relay.toWire relays) )
                 ]
         }
 
@@ -223,7 +224,7 @@ logout =
     sendCommand { command = "logout", value = Encode.null }
 
 
-requestEvents : String -> Bool -> RequestId -> List String -> List EventFilter -> Cmd msg
+requestEvents : String -> Bool -> RequestId -> List RelayUrl -> List EventFilter -> Cmd msg
 requestEvents description closeOnEose requestId relays filters =
     sendCommand
         { command = "requestEvents"
@@ -233,12 +234,12 @@ requestEvents description closeOnEose requestId relays filters =
                 , ( "filters", Encode.list encodeEventFilter filters )
                 , ( "closeOnEose", Encode.bool closeOnEose )
                 , ( "description", Encode.string description )
-                , ( "relays", Encode.list Encode.string relays )
+                , ( "relays", Encode.list Encode.string (List.map Relay.toWire relays) )
                 ]
         }
 
 
-searchEvents : String -> Bool -> RequestId -> List String -> List EventFilter -> Cmd msg
+searchEvents : String -> Bool -> RequestId -> List RelayUrl -> List EventFilter -> Cmd msg
 searchEvents description closeOnEose requestId relays filters =
     sendCommand
         { command = "searchEvents"
@@ -248,7 +249,7 @@ searchEvents description closeOnEose requestId relays filters =
                 , ( "filters", Encode.list encodeEventFilter filters )
                 , ( "closeOnEose", Encode.bool closeOnEose )
                 , ( "description", Encode.string description )
-                , ( "relays", Encode.list Encode.string relays )
+                , ( "relays", Encode.list Encode.string (List.map Relay.toWire relays) )
                 ]
         }
 
@@ -258,6 +259,14 @@ setTestMode testMode =
     sendCommand
         { command = "setTestMode"
         , value = Encode.bool testMode
+        }
+
+
+setLocalRelays : List String -> Cmd msg
+setLocalRelays relays =
+    sendCommand
+        { command = "setLocalRelays"
+        , value = Encode.list Encode.string relays
         }
 
 
@@ -369,7 +378,7 @@ httpMethodParams method =
             ]
 
 
-sendEvent : SendRequestId -> List String -> Event -> Cmd msg
+sendEvent : SendRequestId -> List RelayUrl -> Event -> Cmd msg
 sendEvent sendRequestId relays event =
     sendCommand
         { command = "sendEvent"
@@ -377,7 +386,7 @@ sendEvent sendRequestId relays event =
             Encode.object
                 [ ( "sendId", Encode.int sendRequestId )
                 , ( "event", encodeEvent event )
-                , ( "relays", Encode.list Encode.string relays )
+                , ( "relays", Encode.list Encode.string (List.map Relay.toWire relays) )
                 ]
         }
 

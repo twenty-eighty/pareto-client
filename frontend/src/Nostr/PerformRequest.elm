@@ -10,12 +10,14 @@ module Nostr.PerformRequest exposing
 Model mutation stays in `Nostr` via `ModelEffect`.
 -}
 
+import Dict exposing (Dict)
 import Nostr.Article exposing (Article, firstCreatedAt)
 import Nostr.Event exposing (EventFilter, TagReference(..), buildAddress)
 import Nostr.External exposing (Hooks)
 import Nostr.Nip05 exposing (Nip05)
 import Nostr.Request as Request exposing (RequestData(..), RequestId)
-import Nostr.Types exposing (Address, RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (Address)
 import Set exposing (Set)
 
 
@@ -199,5 +201,6 @@ addressesFromReactionFilter eventFilter =
 uniqueRelays : List RelayUrl -> List RelayUrl
 uniqueRelays relays =
     relays
-        |> Set.fromList
-        |> Set.toList
+        |> List.map (\relayUrl -> ( Relay.toKey relayUrl, relayUrl ))
+        |> Dict.fromList
+        |> Dict.values

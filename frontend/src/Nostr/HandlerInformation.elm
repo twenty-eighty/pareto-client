@@ -2,7 +2,8 @@ module Nostr.HandlerInformation exposing (..)
 
 import Nostr.Event as Event exposing (Event, Kind(..))
 import Nostr.Profile exposing (Profile, profileToJson)
-import Nostr.Types exposing (PubKey, RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (PubKey)
 import Time
 
 

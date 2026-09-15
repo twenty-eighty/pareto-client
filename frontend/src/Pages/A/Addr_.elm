@@ -12,6 +12,7 @@ import Layouts
 import Layouts.Sidebar
 import Nostr
 import Nostr.Event as Event exposing (Kind(..))
+import Nostr.Relay as Relay
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Query exposing (ContentQueryStatus(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
@@ -125,7 +126,7 @@ init shared route () =
                                             ( Event.eventFilterForNaddr naddrData
                                                 |> RequestArticle
                                                     (if naddrData.relays /= [] then
-                                                        Just naddrData.relays
+                                                        Just (List.map Relay.fromString naddrData.relays)
 
                                                      else
                                                         Nothing
@@ -140,7 +141,7 @@ init shared route () =
                                             ( Event.eventFilterForNevent neventData
                                                 |> RequestArticle
                                                     (if neventData.relays /= [] then
-                                                        Just neventData.relays
+                                                        Just (List.map Relay.fromString neventData.relays)
 
                                                      else
                                                         Nothing

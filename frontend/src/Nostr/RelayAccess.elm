@@ -3,7 +3,7 @@ module Nostr.RelayAccess exposing
     , filterRead
     , filterWrite
     , withSearchCapability
-    , urlsWithoutProtocol
+    , urls
     , resolveUrls
     , nip65ForPubKey
     , combinedForPubKey
@@ -14,9 +14,9 @@ module Nostr.RelayAccess exposing
 -}
 
 import Dict exposing (Dict)
-import Nostr.Relay exposing (Relay, RelayState(..), hostWithoutProtocol)
+import Nostr.Relay as Relay exposing (Relay, RelayState(..), RelayUrl)
 import Nostr.RelayListMetadata exposing (RelayMetadata, withUniqueEntries)
-import Nostr.Types exposing (PubKey, RelayRole(..), RelayUrl)
+import Nostr.Types exposing (PubKey, RelayRole(..))
 
 
 pairMetadata : List RelayMetadata -> Dict String Relay -> List ( RelayRole, Relay )
@@ -27,7 +27,7 @@ pairMetadata relayList relays =
             (\{ role, url } ->
                 Maybe.map
                     (\relay -> ( role, relay ))
-                    (Dict.get url relays)
+                    (Dict.get (Relay.toKey url) relays)
             )
 
 
@@ -70,7 +70,7 @@ withSearchCapability relays =
                                 |> Maybe.andThen
                                     (\supportedNips ->
                                         if List.member 50 supportedNips then
-                                            Just relay.urlWithoutProtocol
+                                            Just relay.url
 
                                         else
                                             Nothing
@@ -79,24 +79,20 @@ withSearchCapability relays =
             )
 
 
-urlsWithoutProtocol : List Relay -> List String
-urlsWithoutProtocol relays =
-    List.map .urlWithoutProtocol relays
+urls : List Relay -> List RelayUrl
+urls relays =
+    List.map .url relays
 
 
-{-| Build Relay records for URL strings, filling unknown hosts with stubs.
+{-| Build Relay records for URL values, filling unknown hosts with stubs.
 -}
 resolveUrls : Dict String Relay -> List RelayUrl -> List Relay
 resolveUrls relays relayUrls =
     relayUrls
         |> List.map
             (\relayUrl ->
-                let
-                    host =
-                        hostWithoutProtocol relayUrl
-                in
-                Dict.get host relays
-                    |> Maybe.withDefault { urlWithoutProtocol = host, state = RelayStateUnknown, nip11 = Nothing }
+                Dict.get (Relay.toKey relayUrl) relays
+                    |> Maybe.withDefault { url = relayUrl, state = RelayStateUnknown, nip11 = Nothing }
             )
 
 
@@ -143,4 +139,3 @@ searchUrls relays fallback =
 
         capabilityUrls ->
             capabilityUrls
-                |> List.map (\urlWithoutProtocol -> "wss://" ++ urlWithoutProtocol)

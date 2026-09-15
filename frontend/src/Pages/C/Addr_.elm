@@ -7,6 +7,7 @@ import Layouts
 import Layouts.Sidebar
 import Nostr
 import Nostr.Community exposing (Community)
+import Nostr.Relay as Relay
 import Nostr.Event exposing (Kind(..), TagReference(..), eventFilterForNaddr)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Request exposing (RequestData(..))
@@ -77,7 +78,7 @@ init shared route () =
             case ( maybeCommunity, maybeNip19 ) of
                 ( Nothing, Just (NAddr naddrData) ) ->
                     eventFilterForNaddr naddrData
-                        |> RequestCommunity (Just naddrData.relays)
+                        |> RequestCommunity (Just (List.map Relay.fromString naddrData.relays))
                         |> Nostr.createRequest shared.nostr "Community for NIP-19 address" [ KindUserMetadata ]
                         |> Shared.Msg.RequestNostrEvents
                         |> Effect.sendSharedMsg

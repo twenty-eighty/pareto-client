@@ -27,6 +27,7 @@ import Http
 import Nostr.ContentRequest exposing (ContentRequestState(..))
 import Nostr.Nip05 as Nip05 exposing (Nip05, nip05ToString)
 import Nostr.Profile exposing (ProfileValidation(..))
+import Nostr.Relay exposing (RelayUrl)
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Types exposing (PubKey)
 import Time exposing (Posix)
@@ -72,7 +73,7 @@ equal left right =
 
 {-| Validation status and usable relays when checking a profile pubkey against NIP-05 data.
 -}
-validationForPubKey : PubKey -> Maybe PubKey -> List String -> ( ProfileValidation, List String )
+validationForPubKey : PubKey -> Maybe PubKey -> List RelayUrl -> ( ProfileValidation, List RelayUrl )
 validationForPubKey expectedPubKey maybePubKeyInNip05 relays =
     maybePubKeyInNip05
         |> Maybe.map

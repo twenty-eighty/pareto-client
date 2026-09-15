@@ -33,8 +33,8 @@ import Nostr
 import Nostr.Event exposing (Event, EventFilter, Kind(..), Tag(..), TagReference(..), emptyEvent, emptyEventFilter)
 import Nostr.Lud16 as Lud16
 import Nostr.Profile exposing (Profile)
-import Nostr.Relay exposing (websocketUrl)
-import Nostr.Types exposing (IncomingMessage, LoginStatus(..), PubKey, RelayUrl, loggedInPubKey, loggedInSigningPubKey)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (IncomingMessage, LoginStatus(..), PubKey, loggedInPubKey, loggedInSigningPubKey)
 import Nostr.Zaps as Zaps exposing (Invoice)
 import Pareto
 import Ports
@@ -82,7 +82,7 @@ type alias Target =
     , recipientName : String
     , recipientPicture : Maybe String
     , recipientPubKey : PubKey
-    , relays : Set RelayUrl
+    , relays : Set String
     }
 
 
@@ -124,7 +124,7 @@ init =
 
 type Msg
     = InteractionButtonMsg (InteractionButton.Msg Msg)
-    | OpenDialog (Set RelayUrl)
+    | OpenDialog (Set String)
     | CloseDialog
     | SetAmount Int
     | SetAmountInput String
@@ -398,6 +398,7 @@ watchZapReceipts requestId invoiceView =
             invoiceView.ready.target.relays
                 |> Set.union zapReceiptWatchRelays
                 |> Set.toList
+                |> List.map Relay.fromString
 
         -- Match the old zap dialog: watch kind 9735 since payment started,
         -- then match bolt11 client-side. Tag filters alone miss some wallets.
@@ -442,7 +443,7 @@ openDialog :
         , browserEnv : BrowserEnv
         , toMsg : Msg -> msg
     }
-    -> Set RelayUrl
+    -> Set String
     -> Model
     -> ( Model, Effect msg )
 openDialog props relayUrls (Model model) =
@@ -764,7 +765,6 @@ buildZapRequest signerPubKey ready amountMsats now anonymous =
         relayList =
             ready.target.relays
                 |> Set.toList
-                |> List.map websocketUrl
 
         tags =
             [ PublicKeyTag ready.target.recipientPubKey Nothing Nothing
@@ -821,7 +821,7 @@ type ZapButtonDialog msg
         , loginStatus : LoginStatus
         , nostr : Nostr.Model
         , showLabel : Bool
-        , relayUrls : Set RelayUrl
+        , relayUrls : Set String
         , toMsg : Msg -> msg
         , theme : Theme
         }
@@ -862,7 +862,7 @@ withInstanceId instanceId (Settings settings) =
     Settings { settings | instanceId = Just instanceId }
 
 
-withRelayUrls : Set RelayUrl -> ZapButtonDialog msg -> ZapButtonDialog msg
+withRelayUrls : Set String -> ZapButtonDialog msg -> ZapButtonDialog msg
 withRelayUrls relayUrls (Settings settings) =
     Settings { settings | relayUrls = relayUrls }
 
@@ -1169,7 +1169,7 @@ viewSuccessContent browserEnv theme successView =
 zapReceiptWatchRelays : Set String
 zapReceiptWatchRelays =
     Pareto.recommendedOutboxRelays
-        |> List.map websocketUrl
+        |> List.map Relay.toWire
         |> Set.fromList
 
 
@@ -1183,7 +1183,6 @@ extendedZapRelays zapRelays nostr maybePubKey =
 
         candidateRelays =
             Set.union zapRelays pubKeyRelays
-                |> Set.map websocketUrl
     in
     if Set.size candidateRelays == Set.size zapRelays || Set.size candidateRelays == Set.size pubKeyRelays then
         Set.union candidateRelays zapReceiptWatchRelays
@@ -1196,7 +1195,7 @@ pubkeyRelays : Nostr.Model -> PubKey -> Set String
 pubkeyRelays nostrModel pubKey =
     pubKey
         |> Nostr.getNip65RelaysForPubKey nostrModel
-        |> List.map (\( _, relay ) -> websocketUrl relay.urlWithoutProtocol)
+        |> List.map (\( _, relay ) -> Relay.toWire relay.url)
         |> Set.fromList
 
 

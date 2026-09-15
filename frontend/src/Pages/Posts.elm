@@ -16,7 +16,8 @@ import Nostr.DeletionRequest exposing (deletionEvent)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId, RelayUrl, loggedInPubKey)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (EventId, loggedInPubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Route.Path
@@ -166,7 +167,7 @@ stringFromCategory category =
 type Msg
     = CategorySelected Category
     | CategoriesSent (Categories.Msg Category Msg)
-    | DeleteEvent (Set RelayUrl) (List Kind) EventId (Maybe AddressComponents) -- draft event id
+    | DeleteEvent (Set String) (List Kind) EventId (Maybe AddressComponents) -- draft event id
     | EditDraft String
     | NoOp
 
@@ -190,6 +191,7 @@ update user shared msg model =
                     let
                         seen =
                             Set.toList relayUrls
+                                |> List.map Relay.fromString
 
                         storage =
                             Nostr.getDraftStorageRelayUrls shared.nostr user.pubKey

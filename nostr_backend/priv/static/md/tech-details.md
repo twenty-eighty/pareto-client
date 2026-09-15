@@ -13,7 +13,7 @@ https://pareto.space/p/<bech32> (nprofile)
 9734: Zap Request [(NIP 57)](https://nips.nostr.com/57)\
 9735: Zap [(NIP 57)](https://nips.nostr.com/57)\
 9802: Highlights [(NIP 84)](https://nips.nostr.com/84)\
-10013: Relay list for private content [(NIP 37)](https://nips.nostr.com/37)\
+10013: Relay list for private content [(NIP 37)](https://nips.nostr.com/37) — editable in Settings (synced). Device-local relays (e.g. Citrine `ws://127.0.0.1:4869`) are stored in localStorage separately and also used for draft storage.\
 10002: Relay List Metadata [(NIP 65)](https://nips.nostr.com/65)\
 10003: Bookmark list [(NIP 51)](https://nips.nostr.com/51)\
 10063: User server list [(Blossom)](https://github.com/hzrd149/blossom)\

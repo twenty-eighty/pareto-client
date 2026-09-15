@@ -5,7 +5,8 @@ import Json.Decode as Decode exposing (Decoder, maybe, string, succeed)
 import Json.Decode.Pipeline exposing (optional, required)
 import Nostr.Event exposing (Event, EventFilter, ImageSize, Kind(..), Tag(..), TagReference(..), emptyEventFilter, imageSizeDecoder)
 import Nostr.Profile exposing (ProfileValidation(..))
-import Nostr.Types exposing (PubKey, RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (PubKey)
 import Time exposing (Month(..))
 
 

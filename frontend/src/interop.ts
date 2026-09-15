@@ -78,6 +78,7 @@ export const flags = ({ env }: { env: FlagsEnv }) => {
     nativeSharingAvailable: (navigator.share != undefined),
     testMode: JSON.parse(localStorage.getItem('testMode') || 'false') || false,
     notificationsLastSeen: JSON.parse(localStorage.getItem('notificationsLastSeen') || '{}') || {},
+    localRelays: JSON.parse(localStorage.getItem('localRelays') || '[]') || [],
     authApiBaseUrl,
   }
 };
@@ -275,6 +276,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         setTestMode(app, value);
         break;
 
+      case 'setLocalRelays':
+        setLocalRelays(value);
+        break;
+
       case 'setNotificationsLastSeen':
         setNotificationsLastSeen(value);
         break;
@@ -367,6 +372,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     sessionStorage.clear();
     // reload client in order to initialize relay and other lists correctly
     location.reload();
+  }
+
+  function setLocalRelays(value) {
+    localStorage.setItem('localRelays', JSON.stringify(Array.isArray(value) ? value : []));
   }
 
   function setNotificationsLastSeen(value) {
@@ -1148,6 +1157,8 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     try {
       if (event.kind == 30024) {  // draft event
         ndkEvent = await encapsulateDraftEvent(ndkEvent);
+      } else if (event.kind == 10013) {  // private relay list (NIP-37)
+        ndkEvent = await encapsulatePrivateRelayListEvent(ndkEvent, signer);
       } else if (event.kind == 30078) {  // application-specific event
         ndkEvent = await encapsulateApplicationSpecificEvent(ndkEvent, signer);
         // Don't try to decrypt events that weren't encrypted for us
@@ -1207,7 +1218,14 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       if (feedSentEventToApplication) {
         // feed sent events into app as if received by relay.
         // thus we can let the event modify the state correctly
-        processEvents(app, -1, "sent event", [ndkEvent]);
+        let eventForApp = ndkEvent;
+        if (event.kind == 10013) {
+          // Re-expose decrypted tags so Elm can update privateRelayLists.
+          eventForApp = await unwrapPrivateRelayListEvent(ndkEvent);
+        }
+        if (eventForApp) {
+          processEvents(app, -1, "sent event", [eventForApp]);
+        }
       }
     } catch (error) {
       reportSendError(error);
@@ -1271,6 +1289,18 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     }
     // don't send unencrypted event
     return null;
+  }
+
+  async function encapsulatePrivateRelayListEvent(ndkEvent, signer) {
+    // NIP-37 / kind 10013: encrypt relay tags into content, clear public tags.
+    const tags = ndkEvent.tags || [];
+    const encrypted = await signer.encrypt({ pubkey: ndkEvent.pubkey }, JSON.stringify(tags), 'nip44');
+    if (!encrypted) {
+      return null;
+    }
+    ndkEvent.content = encrypted;
+    ndkEvent.tags = [];
+    return ndkEvent;
   }
 
   async function unwrapPrivateRelayListEvent(ndkEvent) {

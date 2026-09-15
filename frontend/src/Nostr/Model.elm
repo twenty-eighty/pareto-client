@@ -32,11 +32,12 @@ import Nostr.Nip22 exposing (CommentType)
 import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Profile exposing (Profile, ProfileValidation)
 import Nostr.Reactions exposing (Reaction)
-import Nostr.Relay exposing (Relay, RelayState(..))
+import Nostr.Relay as Relay exposing (Relay, RelayState(..), RelayUrl)
+import Nostr.RelayList as RelayList
 import Nostr.RelayListMetadata exposing (RelayMetadata)
 import Nostr.Request exposing (Request, RequestId)
 import Nostr.Send exposing (SendRequest, SendRequestId)
-import Nostr.Types exposing (Address, EventId, Following, IncomingMessage, PubKey, RelayUrl)
+import Nostr.Types exposing (Address, EventId, Following, IncomingMessage, PubKey)
 import Nostr.Zaps exposing (ZapReceipt)
 import Pareto
 import Portal
@@ -51,7 +52,7 @@ type alias Model =
     , articlesById : Dict EventId Article
     , articleDraftsByDate : List Article
     , articleDraftsById : Dict EventId Article
-    , articleDraftRelays : Dict EventId (Set RelayUrl)
+    , articleDraftRelays : Dict EventId (Dict String RelayUrl)
     , bookmarkLists : Dict PubKey BookmarkList
     , bookmarkSets : Dict PubKey BookmarkSet
     , commentsByAddress : Dict Address (Dict EventId CommentType)
@@ -59,7 +60,7 @@ type alias Model =
     , contentRequestStates : Dict RequestId ContentRequestState
     , communities : Dict PubKey (List Community)
     , communityLists : Dict PubKey (List CommunityReference)
-    , defaultRelays : List String
+    , defaultRelays : List RelayUrl
     , defaultUser : Maybe PubKey
     , deletedAddresses : Set Address
     , deletedEvents : Dict EventId (Set PubKey) -- all pubkeys that tried to delete an event
@@ -86,6 +87,7 @@ type alias Model =
     , repostsByEventId : Dict EventId (Dict PubKey Repost)
     , searchRelayLists : Dict PubKey (List RelayUrl)
     , privateRelayLists : Dict PubKey (List RelayUrl)
+    , localRelays : List RelayUrl
     , shortTextNotes : Dict EventId TextNote
     , shortTextNotesReplies : Dict EventId (Dict EventId TextNote)
     , userServerLists : Dict PubKey (List String)
@@ -106,7 +108,7 @@ type Msg
     = ReceivedMessage IncomingMessage
     | CheckNip05Cache Nip05RequestTarget Nip05 Posix
     | Nip05Fetched Nip05 Posix (Result Http.Error Nip05.Nip05Data)
-    | Nip11Fetched String (Result Http.Error Nip11Info)
+    | Nip11Fetched RelayUrl (Result Http.Error Nip11Info)
     | ReceivedPortalCheckResultPubKey PubKey (Result Http.Error Portal.PortalCheckResponse)
     | ReceivedPortalCheckResultNip05 Nip05 (Result Http.Error Portal.PortalCheckResponse)
 
@@ -164,6 +166,7 @@ empty =
     , repostsByEventId = Dict.empty
     , searchRelayLists = Dict.empty
     , privateRelayLists = Dict.empty
+    , localRelays = []
     , shortTextNotes = Dict.empty
     , shortTextNotesReplies = Dict.empty
     , userServerLists = Dict.empty
@@ -179,36 +182,40 @@ empty =
     }
 
 
-init : Hooks Msg -> Environment -> TestMode -> List String -> ( Model, Cmd Msg )
-init hooks environment testMode relayUrls =
+init : Hooks Msg -> Environment -> TestMode -> List RelayUrl -> List RelayUrl -> ( Model, Cmd Msg )
+init hooks environment testMode relayUrls localRelays =
     let
+        combinedRelays =
+            RelayList.withUniqueEntries (relayUrls ++ localRelays)
+
         actualRelayUrls =
             -- make sure we get NIP-11 information for test relays
             if testMode == TestModeEnabled then
-                Pareto.testRelayUrls ++ relayUrls
+                Pareto.testRelayUrls ++ combinedRelays
 
             else
-                relayUrls
+                combinedRelays
 
         model =
             { empty
                 | hooks = hooks
                 , environment = environment
-                , relays = Nostr.Relay.initFromUrls relayUrls
+                , relays = Relay.initFromUrls combinedRelays
                 , defaultRelays = relayUrls
+                , localRelays = RelayList.withUniqueEntries localRelays
                 , testMode = testMode
             }
     in
     ( model
     , Cmd.batch
-        [ hooks.connect (List.map Nostr.Relay.websocketUrl relayUrls)
+        [ hooks.connect combinedRelays
         , requestRelayNip11 model actualRelayUrls
         ]
     )
 
 
-requestRelayNip11 : Model -> List String -> Cmd Msg
+requestRelayNip11 : Model -> List RelayUrl -> Cmd Msg
 requestRelayNip11 model relayUrls =
     relayUrls
-        |> List.map (\urlWithoutProtocol -> fetchNip11 (model.environment /= StandAlone) (Nip11Fetched urlWithoutProtocol) urlWithoutProtocol)
+        |> List.map (\relayUrl -> fetchNip11 (model.environment /= StandAlone) (Nip11Fetched relayUrl) (Relay.toHttp relayUrl))
         |> Cmd.batch

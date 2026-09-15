@@ -23,7 +23,8 @@ import Dict exposing (Dict)
 import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, articleFromEvent, publishedTime)
 import Nostr.Event exposing (AddressComponents, Event, Kind(..), buildAddress, kindFromNumber)
 import Nostr.Nip19 exposing (NIP19Type(..))
-import Nostr.Types exposing (Address, EventId, PubKey, RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (Address, EventId, PubKey)
 import Set exposing (Set)
 import Time
 
@@ -39,7 +40,7 @@ type alias PublishedFields =
 type alias DraftFields =
     { articleDraftsByDate : List Article
     , articleDraftsById : Dict EventId Article
-    , articleDraftRelays : Dict EventId (Set RelayUrl)
+    , articleDraftRelays : Dict EventId (Dict String RelayUrl)
     }
 
 
@@ -56,7 +57,7 @@ type alias PublishedIngest =
 type alias DraftIngest =
     { articleDraftsByDate : List Article
     , articleDraftsById : Dict EventId Article
-    , articleDraftRelays : Dict EventId (Set RelayUrl)
+    , articleDraftRelays : Dict EventId (Dict String RelayUrl)
     , articles : List Article
     , errors : List String
     }
@@ -268,11 +269,11 @@ ingestDrafts store events =
                 |> List.foldl
                     (\article acc ->
                         case ( article.relays, Dict.get article.id acc ) of
-                            ( relayUrls, Just relaySet ) ->
-                                Dict.insert article.id (Set.union relayUrls relaySet) acc
+                            ( relayUrls, Just relayDict ) ->
+                                Dict.insert article.id (Dict.union relayUrls relayDict) acc
 
                             ( relayUrls, Nothing ) ->
-                                if not (Set.isEmpty relayUrls) then
+                                if not (Dict.isEmpty relayUrls) then
                                     Dict.insert article.id relayUrls acc
 
                                 else

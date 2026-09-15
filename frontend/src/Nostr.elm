@@ -88,6 +88,7 @@ module Nostr exposing
     , getWriteRelayUrlsForPubKey
     , getDraftRelayUrls
     , getDraftStorageRelayUrls
+    , getLocalRelayUrls
     , getPrivateRelayUrls
     , getSearchRelayUrls
     , getSearchRelaysForPubKey
@@ -98,6 +99,7 @@ module Nostr exposing
     , getRelayData
     , getRequest
     , getShortNoteById
+    , setLocalRelays
     , getShortNotes
     , getZapReceiptsForArticle
     , getZapReceiptsForTagReference
@@ -247,7 +249,7 @@ import Nostr.Profiles as Profiles
 import Nostr.Query as Query exposing (ContentQueryStatus(..))
 import Nostr.Reactions exposing (Reaction)
 import Nostr.ReactionsStore as ReactionsStore
-import Nostr.Relay exposing (Relay, RelayState(..))
+import Nostr.Relay as Relay exposing (Relay, RelayState(..), RelayUrl)
 import Nostr.RelayList as RelayList
 import Nostr.RelayListMetadata as RelayListMetadata exposing (RelayMetadata)
 import Nostr.Reposts as Reposts
@@ -255,7 +257,7 @@ import Nostr.Request as Request exposing (Request, RequestData(..), RequestId, R
 import Nostr.Send as Send exposing (SendRequest(..), SendRequestId)
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.ShortNotes as ShortNotes
-import Nostr.Types exposing (Address, EventId, Following(..), IncomingMessage, PubKey, RelayRole(..), RelayUrl)
+import Nostr.Types exposing (Address, EventId, Following(..), IncomingMessage, PubKey, RelayRole(..))
 import Nostr.Zaps as Zaps exposing (ZapReceipt)
 import Nostr.ZapsQuery as ZapsQuery
 import Pareto
@@ -285,12 +287,47 @@ empty =
     Store.empty
 
 
-init : Hooks Msg -> Environment -> TestMode -> List String -> ( Model, Cmd Msg )
+init : Hooks Msg -> Environment -> TestMode -> List RelayUrl -> List RelayUrl -> ( Model, Cmd Msg )
 init =
     Store.init
 
 
-requestRelayNip11 : Model -> List String -> Cmd Msg
+setLocalRelays : Model -> List RelayUrl -> ( Model, Cmd Msg )
+setLocalRelays model localRelays =
+    let
+        unique =
+            RelayList.withUniqueEntries localRelays
+
+        newRelays =
+            unique
+                |> List.foldl
+                    (\url relays ->
+                        case Dict.get (Relay.toKey url) relays of
+                            Just _ ->
+                                relays
+
+                            Nothing ->
+                                Dict.insert (Relay.toKey url)
+                                    { url = url
+                                    , state = Relay.RelayStateUnknown
+                                    , nip11 = Nothing
+                                    }
+                                    relays
+                    )
+                    model.relays
+
+        updated =
+            { model | localRelays = unique, relays = newRelays }
+    in
+    ( updated
+    , Cmd.batch
+        [ model.hooks.connect unique
+        , requestRelayNip11 updated unique
+        ]
+    )
+
+
+requestRelayNip11 : Model -> List RelayUrl -> Cmd Msg
 requestRelayNip11 =
     Store.requestRelayNip11
 
@@ -531,16 +568,14 @@ extendRequestWith requestDatas ( model, request ) =
         requestDatas
 
 
-configuredRelaysWss : Model -> List String
+configuredRelaysWss : Model -> List RelayUrl
 configuredRelaysWss model =
     case model.defaultUser of
         Just pubKey ->
             getReadRelayUrlsForPubKey model pubKey
-                |> List.map (\url -> "wss://" ++ url)
 
         Nothing ->
             getDefaultRelays model
-                |> List.map (\url -> "wss://" ++ url)
 
 
 doRequest : Model -> Request -> ( Model, Cmd Msg )
@@ -605,7 +640,6 @@ performRequest model description requestId requestData =
                 , searchRelayUrls = getSearchRelayUrls model model.defaultUser
                 , draftStorageRelays =
                     getDraftStorageRelayUrls model (Maybe.withDefault "" model.defaultUser)
-                        |> List.map Nostr.Relay.websocketUrl
                 , delayedPublishingRelays = Pareto.delayedPublishingRelays
                 , articlesByDate = model.articlesByDate
                 , requestNip05 = \reqId nip05 -> requestNip05Info (Nip05ForRequest reqId) nip05
@@ -988,10 +1022,10 @@ getReadRelaysForPubKey model pubKey =
         |> RelayAccess.filterRead
 
 
-getReadRelayUrlsForPubKey : Model -> PubKey -> List String
+getReadRelayUrlsForPubKey : Model -> PubKey -> List RelayUrl
 getReadRelayUrlsForPubKey model pubKey =
     getReadRelaysForPubKey model pubKey
-        |> RelayAccess.urlsWithoutProtocol
+        |> RelayAccess.urls
 
 
 getWriteRelaysForPubKey : Model -> PubKey -> List Relay
@@ -1005,25 +1039,26 @@ getWriteRelaysForPubKey model pubKey =
             |> RelayAccess.filterWrite
 
 
-getWriteRelayUrlsForPubKey : Model -> PubKey -> List String
+getWriteRelayUrlsForPubKey : Model -> PubKey -> List RelayUrl
 getWriteRelayUrlsForPubKey model pubKey =
     getWriteRelaysForPubKey model pubKey
-        |> RelayAccess.urlsWithoutProtocol
+        |> RelayAccess.urls
 
 
-getDraftRelayUrls : Model -> EventId -> List String
+getDraftRelayUrls : Model -> EventId -> List RelayUrl
 getDraftRelayUrls model articleId =
     model.articleDraftRelays
         |> Dict.get articleId
-        |> Maybe.withDefault Set.empty
-        |> Set.toList
+        |> Maybe.withDefault Dict.empty
+        |> Dict.values
 
 
-{-| Relays for NIP-37 draft wraps (kind 10013), falling back to write/default relays.
+{-| Relays for NIP-37 draft wraps: local (this device) then private (10013),
+then write/default fallback.
 -}
-getDraftStorageRelayUrls : Model -> PubKey -> List String
+getDraftStorageRelayUrls : Model -> PubKey -> List RelayUrl
 getDraftStorageRelayUrls model pubKey =
-    case getPrivateRelayUrls model pubKey of
+    case RelayList.withUniqueEntries (getLocalRelayUrls model ++ getPrivateRelayUrls model pubKey) of
         [] ->
             case getWriteRelayUrlsForPubKey model pubKey of
                 [] ->
@@ -1032,15 +1067,19 @@ getDraftStorageRelayUrls model pubKey =
                 writeRelays ->
                     writeRelays
 
-        privateRelays ->
-            privateRelays
+        storageRelays ->
+            storageRelays
 
 
-getPrivateRelayUrls : Model -> PubKey -> List String
+getLocalRelayUrls : Model -> List RelayUrl
+getLocalRelayUrls model =
+    model.localRelays
+
+
+getPrivateRelayUrls : Model -> PubKey -> List RelayUrl
 getPrivateRelayUrls model pubKey =
     Dict.get pubKey model.privateRelayLists
         |> Maybe.withDefault []
-        |> List.map Nostr.Relay.hostWithoutProtocol
 
 
 getSearchRelayUrls : Model -> Maybe PubKey -> List RelayUrl
@@ -1051,10 +1090,7 @@ getSearchRelayUrls model maybePubKey =
                 |> Maybe.withDefault (getSearchRelayUrls model Nothing)
 
         Nothing ->
-            RelayAccess.searchUrls model.relays
-                (Pareto.defaultSearchRelays
-                    |> List.map (\urlWithoutProtocol -> "wss://" ++ urlWithoutProtocol)
-                )
+            RelayAccess.searchUrls model.relays Pareto.defaultSearchRelays
 
 
 getSearchRelaysForPubKey : Model -> PubKey -> List Relay
@@ -1110,7 +1146,7 @@ getApplicationDataRelays model =
 
 getRelayData : Model -> RelayUrl -> Maybe Relay
 getRelayData model relayUrl =
-    Dict.get relayUrl model.relays
+    Dict.get (Relay.toKey relayUrl) model.relays
 
 
 getRequest : Model -> RequestId -> Maybe Request
@@ -1402,10 +1438,10 @@ update msg model =
         Nip05Fetched nip05 requestedAt result ->
             updateWithNip05Result model nip05 requestedAt result
 
-        Nip11Fetched urlWithoutProtocol result ->
+        Nip11Fetched relayUrl result ->
             let
                 modelWithRelay =
-                    { model | relays = Nostr.Relay.applyNip11Result urlWithoutProtocol result model.relays }
+                    { model | relays = Relay.applyNip11Result relayUrl result model.relays }
             in
             case result of
                 Ok _ ->
@@ -1413,7 +1449,7 @@ update msg model =
 
                 Err err ->
                     ( { modelWithRelay
-                        | errors = ("Error fetching NIP11 data for " ++ urlWithoutProtocol ++ ": " ++ httpErrorToString err) :: model.errors
+                        | errors = ("Error fetching NIP11 data for " ++ Relay.toKey relayUrl ++ ": " ++ httpErrorToString err) :: model.errors
                       }
                     , Cmd.none
                     )
@@ -1448,8 +1484,8 @@ applyIncoming effect model =
         Incoming.NoOp ->
             ( model, Cmd.none )
 
-        Incoming.SetRelayStatus urlWithoutProtocol state ->
-            ( { model | relays = Nostr.Relay.updateRelayStatus urlWithoutProtocol state model.relays }, Cmd.none )
+        Incoming.SetRelayStatus relayUrl state ->
+            ( { model | relays = Relay.updateRelayStatus relayUrl state model.relays }, Cmd.none )
 
         Incoming.AppendError error ->
             ( { model | errors = error :: model.errors }, Cmd.none )

@@ -17,8 +17,8 @@ import Dict exposing (Dict)
 import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String)
 import Nostr.Nip05Cache as Nip05Cache
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
-import Nostr.Relay exposing (Relay, hostWithoutProtocol)
-import Nostr.Types exposing (PubKey, RelayUrl)
+import Nostr.Relay as Relay exposing (Relay, RelayUrl)
+import Nostr.Types exposing (PubKey)
 
 
 profileUses : Dict PubKey Profile -> PubKey -> Nip05 -> Bool
@@ -47,11 +47,10 @@ maybeRelaysForResolvedPubKey nip05Data maybePubKey =
         |> Maybe.andThen identity
 
 
-unknownRelayHosts : Dict String Relay -> List RelayUrl -> List String
+unknownRelayHosts : Dict String Relay -> List RelayUrl -> List RelayUrl
 unknownRelayHosts relays relayUrls =
     relayUrls
-        |> List.map hostWithoutProtocol
-        |> List.filter (\relay -> not <| Dict.member relay relays)
+        |> List.filter (\relayUrl -> not <| Dict.member (Relay.toKey relayUrl) relays)
 
 
 {-| Decide which pubkey to update and with which validation status after a NIP-05 fetch.

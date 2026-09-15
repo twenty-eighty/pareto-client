@@ -12,10 +12,10 @@ import Html.Styled as Html exposing (Html, div, h2, li, p, text, ul)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events exposing (..)
 import Nostr
-import Nostr.Relay as Relay exposing (Relay)
+import Nostr.Relay as Relay exposing (Relay, RelayUrl)
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (PubKey, RelayRole(..), RelayUrl)
+import Nostr.Types exposing (PubKey, RelayRole(..))
 import Pareto
 import Shared.Msg exposing (Msg)
 import Tailwind.Utilities as Tw
@@ -29,13 +29,13 @@ type Msg msg
     | CloseDialog
     | ConfigureRelaysClicked
     | PublishClicked (List RelayUrl -> msg)
-    | ToggleRelay RelayUrl Bool
+    | ToggleRelay String Bool
 
 
 type Model
     = Model
         { errors : List String
-        , relayStates : Dict RelayUrl Bool
+        , relayStates : Dict String Bool
         , state : DialogState
         }
 
@@ -86,7 +86,7 @@ init _ =
         , state = DialogHidden
 
         -- authors shouldn't publish on team relay as normal users can't read from it
-        , relayStates = Dict.singleton Pareto.teamRelay False
+        , relayStates = Dict.singleton (Relay.toKey Pareto.teamRelay) False
         }
 
 
@@ -154,12 +154,12 @@ update props =
                             Nostr.getWriteRelaysForPubKey props.nostr props.pubKey
                                 |> List.filterMap
                                     (\relay ->
-                                        case Dict.get relay.urlWithoutProtocol model.relayStates of
+                                        case Dict.get (Relay.toKey relay.url) model.relayStates of
                                             Just False ->
                                                 Nothing
 
                                             _ ->
-                                                Just relay.urlWithoutProtocol
+                                                Just relay.url
                                     )
 
                 in
@@ -172,13 +172,6 @@ update props =
 sendRelayListCmd : PubKey -> List RelayMetadata -> Effect msg
 sendRelayListCmd pubKey relays =
     let
-        relaysWithProtocol =
-            relays
-                |> List.map
-                    (\relay ->
-                        { relay | url = "wss://" ++ relay.url }
-                    )
-
         relayUrls =
             relays
                 |> List.filterMap
@@ -190,15 +183,15 @@ sendRelayListCmd pubKey relays =
                             Nothing
                     )
     in
-    eventWithRelayList pubKey relaysWithProtocol
+    eventWithRelayList pubKey relays
         |> SendRelayList relayUrls
         |> Shared.Msg.SendNostrEvent
         |> Effect.sendSharedMsg
 
 
-updateRelayChecked : Model -> RelayUrl -> Bool -> ( Model, Effect msg )
-updateRelayChecked (Model model) relayUrl newChecked =
-    ( Model { model | relayStates = Dict.insert relayUrl newChecked model.relayStates }, Effect.none )
+updateRelayChecked : Model -> String -> Bool -> ( Model, Effect msg )
+updateRelayChecked (Model model) relayKey newChecked =
+    ( Model { model | relayStates = Dict.insert relayKey newChecked model.relayStates }, Effect.none )
 
 
 -- SUBSCRIPTIONS
@@ -277,7 +270,7 @@ viewPublishArticleDialog (Settings settings) relays =
 numberOfCheckedRelays : Model -> List Relay -> Int
 numberOfCheckedRelays (Model model) relays =
     relays
-        |> List.filter (\relay -> Dict.get relay.urlWithoutProtocol model.relayStates /= Just False)
+        |> List.filter (\relay -> Dict.get (Relay.toKey relay.url) model.relayStates /= Just False)
         |> List.length
 
 
@@ -291,7 +284,7 @@ relaysSection (Settings settings) relays =
             relays
                 |> List.map
                     (\relay ->
-                        ( relay, Dict.get relay.urlWithoutProtocol model.relayStates /= Just False )
+                        ( relay, Dict.get (Relay.toKey relay.url) model.relayStates /= Just False )
                     )
 
         styles =
@@ -405,9 +398,9 @@ viewRelayCheckbox theme ( relay, checked ) =
             ]
         ]
         [ Checkbox.new
-            { label = relay.urlWithoutProtocol
+            { label = Relay.hostPort relay.url
             , checked = checked
-            , onClick = ToggleRelay relay.urlWithoutProtocol
+            , onClick = ToggleRelay (Relay.toKey relay.url)
             , theme = theme
             }
             |> Checkbox.withImage (Relay.iconUrl relay)

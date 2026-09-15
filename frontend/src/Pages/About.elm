@@ -20,6 +20,7 @@ import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (Following(..), LoginStatus(..), PubKey)
 import Page exposing (Page)
+import Nostr.Relay as Relay
 import Pareto
 import Route exposing (Route)
 import Route.Path
@@ -115,7 +116,7 @@ sendClientRecommendation nostr pubKey handlerInformation =
     , kind = KindHandlerRecommendation
     , tags =
         [ EventDelegationTag (numberForKind KindLongFormContent |> String.fromInt)
-        , GenericTag [ "a", buildAddress ( KindHandlerInformation, handlerInformation.pubKey, handlerInformation.handlerIdentifier ), Pareto.paretoRelay, "web" ]
+        , GenericTag [ "a", buildAddress ( KindHandlerInformation, handlerInformation.pubKey, handlerInformation.handlerIdentifier ), Relay.toWire Pareto.paretoRelay, "web" ]
         ]
     , content = ""
     , id = ""

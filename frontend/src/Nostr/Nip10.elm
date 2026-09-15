@@ -1,7 +1,8 @@
 module Nostr.Nip10 exposing (..)
 
 import Nostr.Event exposing (AddressComponents, Event, EventTagMarker(..), Tag(..), TagReference(..))
-import Nostr.Types exposing (EventId, PubKey, RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (EventId, PubKey)
 import Time exposing (Posix)
 
 

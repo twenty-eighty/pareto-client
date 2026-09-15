@@ -12,10 +12,6 @@ type alias PubKey =
     String
 
 
-type alias RelayUrl =
-    String
-
-
 type alias ServerUrl =
     String
 

@@ -17,7 +17,8 @@ import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..))
 import Nostr.Profile exposing (ProfileValidation(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId, LoginStatus, PubKey, RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (EventId, LoginStatus, PubKey)
 import Set exposing (Set)
 import Svg.Styled as Svg
 import Svg.Styled.Attributes as SvgAttr
@@ -41,7 +42,7 @@ type ArticleComments msg
         , nostr : Nostr.Model
         , toMsg : Msg msg -> msg
         , theme : Theme
-        , zapRelayUrls : Set RelayUrl
+        , zapRelayUrls : Set String
         }
 
 
@@ -76,7 +77,7 @@ withNewComment newComment (Settings settings) =
     Settings { settings | newComment = newComment }
 
 
-withZapRelayUrls : Set RelayUrl -> ArticleComments msg -> ArticleComments msg
+withZapRelayUrls : Set String -> ArticleComments msg -> ArticleComments msg
 withZapRelayUrls zapRelayUrls (Settings settings) =
     Settings { settings | zapRelayUrls = zapRelayUrls }
 

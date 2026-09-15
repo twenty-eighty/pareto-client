@@ -8,9 +8,9 @@ import Nostr.Event exposing (AddressComponents, Event, EventFilter, ImageMetadat
 import Nostr.Nip19 as Nip19
 import Nostr.Nip27 as Nip27
 import Nostr.Profile exposing (ProfileValidation(..))
-import Nostr.Relay exposing (websocketUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
 import Nostr.Shared
-import Nostr.Types exposing (Address, EventId, PubKey, RelayUrl)
+import Nostr.Types exposing (Address, EventId, PubKey)
 import Set exposing (Set)
 import Time
 
@@ -34,7 +34,7 @@ type alias Article =
     , hashtags : List String
     , zapWeights : List ( PubKey, RelayUrl, Maybe Int )
     , otherTags : List Tag
-    , relays : Set String
+    , relays : Dict String RelayUrl
     , nip27References : List Nip19.NIP19Type
     , imageMetadata : Dict String ImageMetadata
     }
@@ -64,7 +64,10 @@ emptyArticle author eventId kind createdAt content relayUrls =
     , hashtags = []
     , zapWeights = []
     , otherTags = []
-    , relays = Set.fromList relayUrls
+    , relays =
+        relayUrls
+            |> List.map (\relayUrl -> ( Relay.toKey relayUrl, relayUrl ))
+            |> Dict.fromList
     , nip27References =
         Nip27.collectNostrLinks content
     , imageMetadata = Dict.empty
@@ -86,10 +89,10 @@ nip19ForArticle article =
         , kind = Nostr.Event.numberForKind article.kind
         , relays =
             article.relays
-                |> Set.toList
+                |> Dict.values
                 -- append max 5 relays so the link doesn't get infinitely long
                 |> List.take 5
-                |> List.map websocketUrl
+                |> List.map Relay.toWire
         }
         |> Nip19.encode
         |> Result.toMaybe
