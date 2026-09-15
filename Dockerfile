@@ -23,6 +23,12 @@ WORKDIR /app/frontend
 
 # Copy the frontend code to the container and run the build script
 COPY frontend /app/frontend
+# Commit SHA is not in the image (.git is not copied). Pass it from CI:
+# GitHub Actions: --build-arg GIT_VERSION=${{ github.sha }}
+# Render: ARG RENDER_GIT_COMMIT is filled from the service env automatically.
+ARG GIT_VERSION
+ARG GITHUB_SHA
+ARG RENDER_GIT_COMMIT
 ARG IMAGE_CACHING_SERVER
 RUN chmod +x build.sh && \
     if [ -n "$IMAGE_CACHING_SERVER" ]; then IMAGE_CACHING_SERVER="$IMAGE_CACHING_SERVER" ./build.sh; else ./build.sh; fi
