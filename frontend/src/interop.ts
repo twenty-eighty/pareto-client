@@ -540,11 +540,6 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     window.ndk.initialValidationRatio = 0.5;
     window.ndk.lowestValidationRatio = 0.01;
 
-    window.ndk.on("event:invalid-sig", (event) => {
-      const { relay } = event;
-      debugLog('relay delivered event with invalid signature', relay);
-      app.ports.receiveMessage.send({ messageType: 'event:invalid-sig', value: { relay: relay } });
-    })
     window.ndk.pool.on("connecting", (relay) => {
       debugLog('connecting relays', relay);
       app.ports.receiveMessage.send({ messageType: 'connecting', value: null });
