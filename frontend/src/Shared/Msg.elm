@@ -47,3 +47,4 @@ type Msg
     | DomError (Result Browser.Dom.Error ())
     | ChangeLocale String
     | MarkNotificationsSeen PubKey
+    | AddCashuBalance Int

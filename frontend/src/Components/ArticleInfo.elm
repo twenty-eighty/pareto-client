@@ -316,7 +316,7 @@ viewInteractions articleInfoData =
             [ Interactions.CommentButtonElement Nothing
             , Interactions.LikeButtonElement
             , Interactions.RepostButtonElement
-            , Interactions.ZapButtonElement "0" articleInfoData.zapRelays
+            , Interactions.zapButtonWithoutDialog "0" articleInfoData.zapRelays
             , Interactions.BookmarkButtonElement
             , Interactions.ShareButtonElement articleInfoData.shareInfo
             ]

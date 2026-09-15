@@ -129,7 +129,10 @@ module Nostr exposing
     , getNutzapsCountForTagReference
     , getCashuWallet
     , getCashuBalance
+    , addCashuBalance
+    , getCashuProofsForMint
     , getNutzapMintRecommendation
+    , getNutzapMintRecommendationFor
     , addZapAmount
     , getBookmarkListCountForAddressComponents
     , getBookmarkListCountForEventId
@@ -2429,7 +2432,20 @@ subscribeToNutzaps model wallet =
             ( model, Cmd.none )
 
         Just userPubKey ->
-            if List.isEmpty wallet.mints then
+            let
+                trustedMints =
+                    case Dict.get userPubKey model.nutzapMintRecommendations of
+                        Just rec ->
+                            if List.isEmpty rec.mints then
+                                []
+
+                            else
+                                rec.mints
+
+                        Nothing ->
+                            wallet.mints
+            in
+            if List.isEmpty trustedMints then
                 ( model, Cmd.none )
 
             else
@@ -2440,11 +2456,27 @@ subscribeToNutzaps model wallet =
                             , tagReferences =
                                 Just
                                     (TagReferencePubKey userPubKey
-                                        :: List.map TagReferenceU wallet.mints
+                                        :: List.map TagReferenceU trustedMints
                                     )
                         }
+
+                    relaysFrom10019 =
+                        Dict.get userPubKey model.nutzapMintRecommendations
+                            |> Maybe.map .relays
+                            |> Maybe.withDefault []
+                            |> List.map Relay.fromString
+
+                    fallbackRelays =
+                        getReadRelayUrlsForPubKey model userPubKey
+
+                    relays =
+                        if List.isEmpty relaysFrom10019 then
+                            fallbackRelays
+
+                        else
+                            relaysFrom10019
                 in
-                Request.RequestUserData filter
+                Request.RequestNutzaps relays filter
                     |> createRequest model "Nutzaps for logged-in user" []
                     |> doRequest model
 
@@ -2479,12 +2511,26 @@ updateModelWithCashuHistory model events =
 updateModelWithNutzapMintRec : Model -> List Event -> ( Model, Cmd Msg )
 updateModelWithNutzapMintRec model events =
     let
-        maybeRec =
+        recommendations =
             events
                 |> List.map CashuWallet.mintRecommendationFromEvent
-                |> List.head
+                |> List.foldl
+                    (\rec dict -> Dict.insert rec.pubKey rec dict)
+                    model.nutzapMintRecommendations
+
+        modelWithRec =
+            { model | nutzapMintRecommendations = recommendations }
     in
-    ( { model | nutzapMintRec = maybeRec }, Cmd.none )
+    case ( modelWithRec.cashuWallet, modelWithRec.defaultUser ) of
+        ( Just wallet, Just userPubKey ) ->
+            if List.any (\event -> event.pubKey == userPubKey) events then
+                subscribeToNutzaps modelWithRec wallet
+
+            else
+                ( modelWithRec, Cmd.none )
+
+        _ ->
+            ( modelWithRec, Cmd.none )
 
 
 updateModelWithNutzaps : Model -> List Event -> ( Model, Cmd Msg )
@@ -2512,52 +2558,65 @@ updateModelWithNutzaps model events =
 
 maybeRedeemNutzaps : Model -> List Nutzap -> ( Model, Cmd Msg )
 maybeRedeemNutzaps model nutzaps =
-    case model.cashuWallet of
-        Nothing ->
-            ( model, Cmd.none )
+    case ( model.cashuWallet, model.defaultUser ) of
+        ( Just wallet, Just userPubKey ) ->
+            case Dict.get userPubKey model.nutzapMintRecommendations of
+                Just rec ->
+                    -- Disabled when 10019 has no pubkey / mints (after Disable).
+                    if rec.p2pkPubkey == Nothing || List.isEmpty rec.mints then
+                        ( model, Cmd.none )
 
-        Just wallet ->
-            let
-                toRedeem =
-                    nutzaps
-                        |> List.filter
-                            (\nutzap ->
-                                not (Set.member nutzap.id model.redeemedNutzapIds)
-                                    && not (Set.member nutzap.id model.pendingNutzapRedeems)
-                                    && (case nutzap.mintUrl of
-                                            Just mintUrl ->
-                                                List.member mintUrl wallet.mints
+                    else
+                        let
+                            trustedMints =
+                                rec.mints
 
-                                            Nothing ->
-                                                False
-                                       )
-                            )
+                            toRedeem =
+                                nutzaps
+                                    |> List.filter
+                                        (\nutzap ->
+                                            not (Set.member nutzap.id model.redeemedNutzapIds)
+                                                && not (Set.member nutzap.id model.pendingNutzapRedeems)
+                                                && (case nutzap.mintUrl of
+                                                        Just mintUrl ->
+                                                            List.member mintUrl trustedMints
 
-                cmds =
-                    toRedeem
-                        |> List.filterMap
-                            (\nutzap ->
-                                nutzap.mintUrl
-                                    |> Maybe.map
-                                        (\mintUrl ->
-                                            Ports.redeemNutzap
-                                                { nutzapId = nutzap.id
-                                                , mintUrl = mintUrl
-                                                , proofs = nutzap.proofs
-                                                , p2pkPrivkey = wallet.privkey
-                                                , senderPubKey = Just nutzap.pubKey
-                                                }
+                                                        Nothing ->
+                                                            False
+                                                   )
                                         )
-                            )
 
-                pendingIds =
-                    toRedeem
-                        |> List.map .id
-                        |> Set.fromList
-            in
-            ( { model | pendingNutzapRedeems = Set.union model.pendingNutzapRedeems pendingIds }
-            , Cmd.batch cmds
-            )
+                            cmds =
+                                toRedeem
+                                    |> List.filterMap
+                                        (\nutzap ->
+                                            nutzap.mintUrl
+                                                |> Maybe.map
+                                                    (\mintUrl ->
+                                                        Ports.redeemNutzap
+                                                            { nutzapId = nutzap.id
+                                                            , mintUrl = mintUrl
+                                                            , proofs = nutzap.proofs
+                                                            , p2pkPrivkey = wallet.privkey
+                                                            , senderPubKey = Just nutzap.pubKey
+                                                            }
+                                                    )
+                                        )
+
+                            pendingIds =
+                                toRedeem
+                                    |> List.map .id
+                                    |> Set.fromList
+                        in
+                        ( { model | pendingNutzapRedeems = Set.union model.pendingNutzapRedeems pendingIds }
+                        , Cmd.batch cmds
+                        )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        _ ->
+            ( model, Cmd.none )
 
 
 handleNutzapRedeemed : Model -> Incoming.NutzapRedeemed -> ( Model, Cmd Msg )
@@ -2580,8 +2639,8 @@ handleNutzapRedeemed model redeemed =
                     CashuWallet.historyEvent userPubKey
                         { direction = CashuWallet.HistoryIn
                         , amount = redeemed.amount
-                        , nutzapEventId = redeemed.nutzapId
-                        , senderPubKey = Maybe.withDefault "" redeemed.senderPubKey
+                        , nutzapEventId = Just redeemed.nutzapId
+                        , counterpartPubKey = Maybe.withDefault "" redeemed.senderPubKey
                         , createdTokenEventId = Nothing
                         }
 
@@ -2610,9 +2669,25 @@ getCashuBalance model =
     model.cashuBalance
 
 
+addCashuBalance : Model -> Int -> Model
+addCashuBalance model amount =
+    { model | cashuBalance = model.cashuBalance + amount }
+
+
 getNutzapMintRecommendation : Model -> Maybe CashuWallet.NutzapMintRecommendation
 getNutzapMintRecommendation model =
-    model.nutzapMintRec
+    model.defaultUser
+        |> Maybe.andThen (\pubKey -> Dict.get pubKey model.nutzapMintRecommendations)
+
+
+getNutzapMintRecommendationFor : Model -> PubKey -> Maybe CashuWallet.NutzapMintRecommendation
+getNutzapMintRecommendationFor model pubKey =
+    Dict.get pubKey model.nutzapMintRecommendations
+
+
+getCashuProofsForMint : Model -> String -> ( List CashuWallet.CashuProof, List EventId )
+getCashuProofsForMint model mintUrl =
+    CashuWallet.proofsAndIdsForMint model.cashuTokens mintUrl
 
 
 getNutzapsCountForTagReference : Model -> TagReference -> Maybe Int

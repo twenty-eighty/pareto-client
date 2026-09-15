@@ -49,6 +49,7 @@ type SendRequest
     | SendCashuTokens Event
     | SendNutzapMintRecommendation Event
     | SendCashuHistory Event
+    | SendNutzap (List RelayUrl) Event
 
 
 type alias SendPayload =
@@ -199,6 +200,9 @@ prepare context sendRequest =
 
         SendCashuHistory event ->
             { relays = context.writeRelaysFor event.pubKey, event = event }
+
+        SendNutzap relays event ->
+            { relays = relays, event = event }
 
 
 reactionEvent : PubKey -> EventId -> PubKey -> Maybe AddressComponents -> Event

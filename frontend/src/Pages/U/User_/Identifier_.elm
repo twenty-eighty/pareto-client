@@ -102,6 +102,9 @@ init shared route () =
                             ( Nothing, Just pubKey ) ->
                                 ( Effect.batch
                                     [ followersEffect
+                                    , ArticlePage.authorProfileEffect shared
+                                        (Just pubKey)
+                                        (Just <| Nostr.getReadRelayUrlsForPubKey shared.nostr pubKey)
                                     , { emptyEventFilter
                                         | authors = Just [ pubKey ]
                                         , kinds = Just [ KindLongFormContent ]

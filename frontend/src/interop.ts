@@ -178,7 +178,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       }
 
       if (nostrEvents) {
-        processEvents(app, 0, "", nostrEvents);
+        processEvents(app, 0, "", nostrEvents, []);
       }
     }
   }
@@ -311,6 +311,26 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
       case 'redeemNutzap':
         redeemNutzapCommand(app, value);
+        break;
+
+      case 'sendNutzap':
+        sendNutzapCommand(app, value);
+        break;
+
+      case 'createCashuMintQuote':
+        createCashuMintQuoteCommand(app, value);
+        break;
+
+      case 'cancelCashuMintQuote':
+        cancelCashuMintQuoteCommand(value);
+        break;
+
+      case 'createCashuMeltQuote':
+        createCashuMeltQuoteCommand(app, value);
+        break;
+
+      case 'meltCashuToLightning':
+        meltCashuToLightningCommand(app, value);
         break;
 
       case 'computeCashuBalance':
@@ -1297,7 +1317,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
           eventForApp = await unwrapCashuHistoryEvent(ndkEvent);
         }
         if (eventForApp) {
-          processEvents(app, -1, "sent event", [eventForApp]);
+          processEvents(app, -1, "sent event", [eventForApp], []);
         }
       }
     } catch (error) {
@@ -1389,22 +1409,47 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     return ndkEvent;
   }
 
+  function cashuContentLooksPlaintext(content) {
+    if (typeof content !== 'string') {
+      return false;
+    }
+    const trimmed = content.trim();
+    return trimmed.startsWith('{') || trimmed.startsWith('[');
+  }
+
   async function unwrapCashuWalletEvent(ndkEvent) {
     if (!window.ndk?.signer || !ndkEvent.content) {
       return null;
     }
-    const tags = await cashuWallet.decryptWalletContent(window.ndk.signer, ndkEvent.pubkey, ndkEvent.content);
-    ndkEvent.content = JSON.stringify(tags);
-    return ndkEvent;
+    // Sent-event feed-back already decrypts before processEvents; skip a second decrypt.
+    if (cashuContentLooksPlaintext(ndkEvent.content)) {
+      return ndkEvent;
+    }
+    try {
+      const tags = await cashuWallet.decryptWalletContent(window.ndk.signer, ndkEvent.pubkey, ndkEvent.content);
+      ndkEvent.content = JSON.stringify(tags);
+      return ndkEvent;
+    } catch (error) {
+      debugLog('failed to decrypt cashu wallet', error);
+      return null;
+    }
   }
 
   async function unwrapCashuTokenEvent(ndkEvent) {
     if (!window.ndk?.signer || !ndkEvent.content) {
       return null;
     }
-    const payload = await cashuWallet.decryptTokenPayload(window.ndk.signer, ndkEvent.pubkey, ndkEvent.content);
-    ndkEvent.content = JSON.stringify(payload);
-    return ndkEvent;
+    if (cashuContentLooksPlaintext(ndkEvent.content)) {
+      return ndkEvent;
+    }
+    try {
+      const payload = await cashuWallet.decryptTokenPayload(window.ndk.signer, ndkEvent.pubkey, ndkEvent.content);
+      ndkEvent.content = JSON.stringify(payload);
+      return ndkEvent;
+    } catch (error) {
+      debugLog('failed to decrypt cashu tokens', error);
+      return null;
+    }
   }
 
   async function unwrapCashuHistoryEvent(ndkEvent) {
@@ -1422,9 +1467,15 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     return ndkEvent;
   }
 
-  function createCashuWallet(app, _value) {
+  function createCashuWallet(app, value) {
     try {
-      const keypair = cashuWallet.createWalletKeypair();
+      const existingPrivkey = value && typeof value.privkey === 'string' ? value.privkey : null;
+      const keypair = existingPrivkey
+        ? {
+            privkey: existingPrivkey,
+            pubkey: cashuWallet.p2pkPubkeyFromPrivkey(existingPrivkey),
+          }
+        : cashuWallet.createWalletKeypair();
       app.ports.receiveMessage.send({
         messageType: 'cashuWalletCreated',
         value: {
@@ -1495,6 +1546,172 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         value: {
           nutzapId: value.nutzapId,
           reason: error?.message || 'failed to redeem nutzap',
+        },
+      });
+    }
+  }
+
+  async function sendNutzapCommand(app, value) {
+    try {
+      const result = await cashuWallet.sendNutzap({
+        mintUrl: value.mintUrl,
+        proofs: value.proofs || [],
+        amount: value.amount,
+        recipientP2pk: value.recipientP2pk,
+      });
+      app.ports.receiveMessage.send({
+        messageType: 'nutzapSent',
+        value: {
+          requestId: value.requestId,
+          mintUrl: value.mintUrl,
+          amount: value.amount,
+          keepProofs: result.keep,
+          sendProofs: result.send,
+        },
+      });
+    } catch (error) {
+      console.error('sendNutzap failed', error);
+      app.ports.receiveMessage.send({
+        messageType: 'nutzapSendFailed',
+        value: {
+          requestId: value.requestId,
+          reason: error?.message || 'failed to send nutzap',
+        },
+      });
+    }
+  }
+
+  /** Active mint-from-LN waits keyed by Elm requestId. */
+  const cashuMintAbortControllers = new Map();
+
+  async function createCashuMintQuoteCommand(app, value) {
+    const requestId = value.requestId;
+    const existing = cashuMintAbortControllers.get(requestId);
+    if (existing) {
+      existing.abort();
+    }
+    const abortController = new AbortController();
+    cashuMintAbortControllers.set(requestId, abortController);
+
+    try {
+      const quote = await cashuWallet.createMintQuote({
+        mintUrl: value.mintUrl,
+        amount: value.amount,
+      });
+      if (abortController.signal.aborted) {
+        throw new DOMException('Aborted', 'AbortError');
+      }
+      app.ports.receiveMessage.send({
+        messageType: 'cashuMintInvoice',
+        value: {
+          requestId,
+          mintUrl: quote.mintUrl,
+          amount: quote.amount,
+          quote: quote.quote,
+          bolt11: quote.bolt11,
+        },
+      });
+
+      const proofs = await cashuWallet.waitAndMintProofs({
+        mintUrl: quote.mintUrl,
+        amount: quote.amount,
+        quote: quote.quote,
+        signal: abortController.signal,
+      });
+      app.ports.receiveMessage.send({
+        messageType: 'cashuMinted',
+        value: {
+          requestId,
+          mintUrl: quote.mintUrl,
+          amount: quote.amount,
+          proofs,
+        },
+      });
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        app.ports.receiveMessage.send({
+          messageType: 'cashuMintCancelled',
+          value: { requestId },
+        });
+      } else {
+        console.error('createCashuMintQuote failed', error);
+        app.ports.receiveMessage.send({
+          messageType: 'cashuMintFailed',
+          value: {
+            requestId,
+            reason: error?.message || 'failed to mint from Lightning',
+          },
+        });
+      }
+    } finally {
+      const current = cashuMintAbortControllers.get(requestId);
+      if (current === abortController) {
+        cashuMintAbortControllers.delete(requestId);
+      }
+    }
+  }
+
+  function cancelCashuMintQuoteCommand(value) {
+    const abortController = cashuMintAbortControllers.get(value.requestId);
+    if (abortController) {
+      abortController.abort();
+    }
+  }
+
+  async function createCashuMeltQuoteCommand(app, value) {
+    try {
+      const quote = await cashuWallet.createMeltQuote({
+        mintUrl: value.mintUrl,
+        invoice: value.invoice,
+      });
+      app.ports.receiveMessage.send({
+        messageType: 'cashuMeltQuote',
+        value: {
+          requestId: value.requestId,
+          mintUrl: quote.mintUrl,
+          invoice: quote.invoice,
+          amount: quote.amount,
+          feeReserve: quote.feeReserve,
+          total: quote.total,
+        },
+      });
+    } catch (error) {
+      console.error('createCashuMeltQuote failed', error);
+      app.ports.receiveMessage.send({
+        messageType: 'cashuMeltFailed',
+        value: {
+          requestId: value.requestId,
+          reason: error?.message || 'failed to create Lightning melt quote',
+        },
+      });
+    }
+  }
+
+  async function meltCashuToLightningCommand(app, value) {
+    try {
+      const result = await cashuWallet.meltToLightning({
+        mintUrl: value.mintUrl,
+        invoice: value.invoice,
+        proofs: value.proofs || [],
+      });
+      app.ports.receiveMessage.send({
+        messageType: 'cashuMelted',
+        value: {
+          requestId: value.requestId,
+          mintUrl: value.mintUrl,
+          amount: result.amount,
+          feeReserve: result.feeReserve,
+          total: result.total,
+          keepProofs: result.keep,
+        },
+      });
+    } catch (error) {
+      console.error('meltCashuToLightning failed', error);
+      app.ports.receiveMessage.send({
+        messageType: 'cashuMeltFailed',
+        value: {
+          requestId: value.requestId,
+          reason: error?.message || 'failed to pay Lightning invoice with eCash',
         },
       });
     }

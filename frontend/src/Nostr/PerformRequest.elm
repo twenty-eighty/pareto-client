@@ -161,6 +161,11 @@ perform env description requestId requestData =
             , cmd = requestEvents True configuredRelays [ eventFilter ]
             }
 
+        RequestNutzaps relays eventFilter ->
+            { modelEffect = NoModelChange
+            , cmd = requestEvents True (uniqueRelays (relays ++ configuredRelays)) [ eventFilter ]
+            }
+
         RequestBlossomAuth serverUrl content method ->
             { modelEffect = NoModelChange
             , cmd = env.hooks.requestBlossomAuth requestId serverUrl content method

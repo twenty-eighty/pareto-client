@@ -745,7 +745,7 @@
         "profile website field placeholder": "Ange din webbplats",
         "ecash category": "eCash",
         "ecash section title": "Nutzaps / eCash",
-        "ecash section description": "Aktivera en Cashu-plånbok för att ta emot nutzaps (NIP-61). Tokens löses in automatiskt.",
+        "ecash section description": "Enable a Cashu wallet to receive nutzaps (NIP-61). Fund it via Lightning, then tokens redeem automatically into your wallet.",
         "ecash status label": "Status",
         "ecash enabled label": "Aktiverad",
         "ecash disabled label": "Inaktiverad",
@@ -753,7 +753,12 @@
         "ecash mints label": "Mints",
         "ecash enable button title": "Aktivera nutzaps",
         "ecash enabling button title": "Aktiverar…",
-        "ecash disable button title": "Inaktivera nutzaps"
+        "ecash disable button title": "Inaktivera nutzaps",
+        "ecash mint placeholder": "mint-URL",
+        "ecash add mint button title": "Lägg till mint",
+        "ecash remove mint button title": "Ta bort",
+        "ecash receive button title": "Receive via Lightning",
+        "ecash withdraw button title": "Send to Lightning"
     },
     "sharing button dialog": {
         "dialog title": "Dela",
@@ -939,7 +944,18 @@
         "recipient label": "Recipient",
         "no lud16 text": "This user has no Lightning address",
         "success title": "Zap sent",
-        "success text": "Your zap was received."
+        "success text": "Your zap was received.",
+        "no payment method text": "Den här användaren kan inte ta emot Lightning- eller eCash-zaps",
+        "lightning method label": "Lightning",
+        "cashu method label": "eCash",
+        "cashu balance label": "Plånbokssaldo",
+        "insufficient balance text": "Otillräckligt eCash-saldo på en delad mint",
+        "sending nutzap text": "Skickar nutzap…",
+        "loading payment options text": "Förbereder betalningsalternativ…",
+        "loading lightning text": "Hämtar Lightning-betalningsinfo…",
+        "loading cashu text": "Kontrollerar eCash-tillgänglighet…",
+        "loading invoice text": "Skapar Lightning-faktura…",
+        "signing zap text": "Signerar zap-förfrågan…"
     },
     "tech details": {
         "page title": "Tekniska detaljer"
@@ -1027,5 +1043,42 @@
         "highlight selection button": "Markera urval",
         "empty text": "Inga markeringar ännu. Markera text i artikeln och tryck på Markera urval.",
         "selection empty alert": "Markera text i artikeln först, sedan tryck på Markera urval."
+    },
+    "cashu receive dialog": {
+        "dialog title": "Receive via Lightning",
+        "dialog description": "Create a mint invoice, pay it with any Lightning wallet, and eCash is added to your balance.",
+        "amount label": "Amount (sats)",
+        "amount placeholder": "e.g. 100",
+        "mint label": "Mint",
+        "create invoice button title": "Create invoice",
+        "creating invoice button title": "Creating invoice…",
+        "waiting for payment text": "Waiting for Lightning payment…",
+        "minting tokens text": "Minting eCash…",
+        "receive success text": "Received {{amount}} sats",
+        "cancel button title": "Cancel",
+        "copy invoice button title": "Copy invoice",
+        "receive again button title": "Receive again",
+        "close button title": "Close"
+    },
+    "cashu withdraw dialog": {
+        "dialog title": "Send to Lightning",
+        "dialog description": "Pay any Lightning invoice from your eCash balance. The mint converts your tokens and pays the invoice.",
+        "invoice label": "Lightning invoice",
+        "invoice placeholder": "lnbc…",
+        "mint label": "Mint",
+        "balance label": "Available",
+        "check quote button title": "Check amount",
+        "checking quote button title": "Checking…",
+        "pay invoice button title": "Pay invoice",
+        "paying invoice button title": "Paying…",
+        "quote amount label": "Invoice",
+        "quote fee label": "Network fee (max)",
+        "quote total label": "Total from wallet",
+        "success text": "Paid {{amount}} sats via Lightning",
+        "insufficient balance text": "Not enough balance on this mint (need {{needed}} sats, have {{available}}).",
+        "invalid invoice text": "Enter a Lightning invoice (bolt11).",
+        "cancel button title": "Cancel",
+        "try again button title": "Try again",
+        "close button title": "Close"
     }
 }

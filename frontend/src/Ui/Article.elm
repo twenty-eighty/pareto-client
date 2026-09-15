@@ -407,7 +407,7 @@ viewInteractions previewData instanceId =
             }
             |> Components.Interactions.withInteractionElements
                 [ Components.Interactions.LikeButtonElement
-                , Components.Interactions.ZapButtonElement instanceId previewData.zapRelays
+                , Components.Interactions.zapButton instanceId previewData.zapRelays
                 , Components.Interactions.RepostButtonElement
                 , Components.Interactions.ShareButtonElement previewData.sharingInfo
                 , Components.Interactions.BookmarkButtonElement

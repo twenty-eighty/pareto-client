@@ -456,6 +456,10 @@ update route msg model =
             , Effect.sendCmd (Ports.setNotificationsLastSeen updated)
             )
 
+        AddCashuBalance amount ->
+            ( { model | nostr = Nostr.addCashuBalance model.nostr amount }
+            , Effect.none
+            )
 
 updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage model portMessage =

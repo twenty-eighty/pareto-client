@@ -3,6 +3,7 @@ module Components.Interactions exposing
     , view
     , init, update, Model, Msg
     , InteractionElement(..), subscriptions, withInteractionElements, withoutIgnoringDeviceSize
+    , zapButton, zapButtonWithoutDialog
     )
 
 {-|
@@ -47,7 +48,32 @@ type InteractionElement msg
     | LikeButtonElement
     | RepostButtonElement
     | ShareButtonElement SharingButtonDialog.SharingInfo
-    | ZapButtonElement String (Set String)
+    | ZapButtonElement ZapButtonConfig
+
+
+type alias ZapButtonConfig =
+    { instanceId : String
+    , relayUrls : Set String
+    , showDialog : Bool
+    }
+
+
+zapButton : String -> Set String -> InteractionElement msg
+zapButton instanceId relayUrls =
+    ZapButtonElement
+        { instanceId = instanceId
+        , relayUrls = relayUrls
+        , showDialog = True
+        }
+
+
+zapButtonWithoutDialog : String -> Set String -> InteractionElement msg
+zapButtonWithoutDialog instanceId relayUrls =
+    ZapButtonElement
+        { instanceId = instanceId
+        , relayUrls = relayUrls
+        , showDialog = False
+        }
 
 
 
@@ -243,7 +269,7 @@ new :
 new props =
     Settings
         { browserEnv = props.browserEnv
-        , interactionElements = [ BookmarkButtonElement, LikeButtonElement, RepostButtonElement, ZapButtonElement "0" Set.empty ]
+        , interactionElements = [ BookmarkButtonElement, LikeButtonElement, RepostButtonElement, zapButton "0" Set.empty ]
         , model = props.model
         , toMsg = props.toMsg
         , interactionObject = props.interactionObject
@@ -383,8 +409,8 @@ getShareButton (Settings settings) sharingInfo =
         |> SharingButtonDialog.view
 
 
-getZapButton : Interactions msg -> String -> Set String -> Html (Msg msg)
-getZapButton (Settings settings) instanceId relayUrls =
+getZapButton : Interactions msg -> ZapButtonConfig -> Html (Msg msg)
+getZapButton (Settings settings) config =
     let
         (Model model) =
             settings.model
@@ -405,8 +431,14 @@ getZapButton (Settings settings) instanceId relayUrls =
             else
                 ZapButtonDialog.withoutLabel
            )
-        |> ZapButtonDialog.withRelayUrls relayUrls
-        |> ZapButtonDialog.withInstanceId instanceId
+        |> (if config.showDialog then
+                identity
+
+            else
+                ZapButtonDialog.withoutDialog
+           )
+        |> ZapButtonDialog.withRelayUrls config.relayUrls
+        |> ZapButtonDialog.withInstanceId config.instanceId
         |> ZapButtonDialog.view
 
 
@@ -456,8 +488,8 @@ view interactions =
                         ShareButtonElement sharingInfo ->
                             getShareButton interactions sharingInfo
 
-                        ZapButtonElement instanceId relayUrls ->
-                            getZapButton interactions instanceId relayUrls
+                        ZapButtonElement config ->
+                            getZapButton interactions config
                 )
         )
         |> Html.map settings.toMsg

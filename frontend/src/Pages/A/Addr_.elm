@@ -120,6 +120,28 @@ init shared route () =
                                 followersEffect =
                                     ArticlePage.followersEffectForAuthor shared maybeAuthorsPubKey
 
+                                authorRelays =
+                                    case nip19 of
+                                        NAddr { relays } ->
+                                            if List.isEmpty relays then
+                                                Nothing
+
+                                            else
+                                                Just (List.map Relay.fromString relays)
+
+                                        NEvent { relays } ->
+                                            if List.isEmpty relays then
+                                                Nothing
+
+                                            else
+                                                Just (List.map Relay.fromString relays)
+
+                                        _ ->
+                                            Nothing
+
+                                profileEffect =
+                                    ArticlePage.authorProfileEffect shared maybeAuthorsPubKey authorRelays
+
                                 ( fetchEffect, requestId ) =
                                     case nip19 of
                                         NAddr naddrData ->
@@ -162,7 +184,7 @@ init shared route () =
                                         , nip19 = nip19
                                         , requestId = requestId
                                         }
-                                    , Effect.batch [ followersEffect, fetchEffect ]
+                                    , Effect.batch [ followersEffect, profileEffect, fetchEffect ]
                                     )
 
                                 Nothing ->

@@ -97,7 +97,7 @@ type alias Model =
     , zapReceiptsEvents : Dict String (Dict String ZapReceipt)
     , cashuWallet : Maybe CashuWallet
     , cashuTokens : Dict EventId CashuTokenEvent
-    , nutzapMintRec : Maybe NutzapMintRecommendation
+    , nutzapMintRecommendations : Dict PubKey NutzapMintRecommendation
     , nutzapsAddress : Dict String (Dict String Nutzap)
     , nutzapsEvents : Dict String (Dict String Nutzap)
     , cashuBalance : Int
@@ -184,7 +184,7 @@ empty =
     , zapReceiptsEvents = Dict.empty
     , cashuWallet = Nothing
     , cashuTokens = Dict.empty
-    , nutzapMintRec = Nothing
+    , nutzapMintRecommendations = Dict.empty
     , nutzapsAddress = Dict.empty
     , nutzapsEvents = Dict.empty
     , cashuBalance = 0

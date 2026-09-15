@@ -16,6 +16,7 @@ module Components.ArticlePage exposing
     , navigateBackEffect
     , toggleArticleInfoEffect
     , followersEffectForAuthor
+    , authorProfileEffect
     , effectsForCachedArticle
     , scrollToTopEffect
     , pageTitle
@@ -40,8 +41,10 @@ import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
 import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle)
+import Nostr.Event exposing (Kind(..), emptyEventFilter)
 import Nostr.Query exposing (ContentQueryStatus(..))
-import Nostr.Relay as Relay
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey, loggedInPubKey)
 import Ports
@@ -361,10 +364,48 @@ followersEffectForAuthor shared maybePubKey =
     Shared.createFollowersEffect shared.nostr maybePubKey
 
 
+{-| Request the author kind 0 immediately (before/alongside the article).
+Uses NAddr/article relay hints when available so profiles aren't stuck on configured relays only.
+-}
+authorProfileEffect : Shared.Model -> Maybe PubKey -> Maybe (List RelayUrl) -> Effect msg
+authorProfileEffect shared maybePubKey maybeRelays =
+    case maybePubKey of
+        Nothing ->
+            Effect.none
+
+        Just pubKey ->
+            case Nostr.getProfile shared.nostr pubKey of
+                Just _ ->
+                    Effect.none
+
+                Nothing ->
+                    { emptyEventFilter
+                        | authors = Just [ pubKey ]
+                        , kinds = Just [ KindUserMetadata ]
+                    }
+                        |> RequestProfile maybeRelays
+                        |> Nostr.createRequest shared.nostr "Author profile for article page" []
+                        |> Shared.Msg.RequestNostrEvents
+                        |> Effect.sendSharedMsg
+
+
 effectsForCachedArticle : Shared.Model -> Article -> Effect msg
 effectsForCachedArticle shared article =
+    let
+        articleRelays =
+            article.relays
+                |> Dict.values
+                |> (\relays ->
+                        if List.isEmpty relays then
+                            Nothing
+
+                        else
+                            Just relays
+                   )
+    in
     Effect.batch
         [ Shared.createFollowersEffect shared.nostr (Just article.author)
+        , authorProfileEffect shared (Just article.author) articleRelays
         , Shared.createArticleDetailsEffect shared.nostr (Just article)
         ]
 

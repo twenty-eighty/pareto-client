@@ -2,6 +2,7 @@ module Nostr.RelatedRequests exposing
     ( uniquePubKeys
     , missingPubKeys
     , profileRequestData
+    , profileRequestDataWithRelays
     , reactionsRequestData
     , deletionRequestData
     , commentFollowUps
@@ -44,9 +45,14 @@ missingPubKeys profiles pubKeys =
 
 profileRequestData : Dict PubKey a -> List PubKey -> Maybe RequestData
 profileRequestData profiles pubKeys =
+    profileRequestDataWithRelays profiles Nothing pubKeys
+
+
+profileRequestDataWithRelays : Dict PubKey a -> Maybe (List RelayUrl) -> List PubKey -> Maybe RequestData
+profileRequestDataWithRelays profiles maybeRelays pubKeys =
     missingPubKeys profiles pubKeys
         |> EventFilters.forAuthors
-        |> Maybe.map (RequestProfile Nothing)
+        |> Maybe.map (RequestProfile maybeRelays)
 
 
 reactionsRequestData : List TagReference -> Maybe RequestData
@@ -89,9 +95,25 @@ shortNoteFollowUps profiles shortNotes =
 
 articlePrimaryFollowUps : Dict PubKey a -> List Article -> List RequestData
 articlePrimaryFollowUps profiles articles =
+    let
+        authorRelays =
+            articles
+                |> List.concatMap (\article -> Dict.values article.relays)
+                |> List.map Relay.toKey
+                |> Set.fromList
+                |> Set.toList
+                |> List.map Relay.fromString
+                |> (\relays ->
+                        if List.isEmpty relays then
+                            Nothing
+
+                        else
+                            Just relays
+                   )
+    in
     [ articles
         |> uniqueArticleAuthors
-        |> profileRequestData profiles
+        |> profileRequestDataWithRelays profiles authorRelays
     , articles
         |> List.filterMap addressComponentsForArticle
         |> List.map TagReferenceCode

@@ -416,9 +416,19 @@ encryptString data =
         }
 
 
-createCashuWallet : Cmd msg
-createCashuWallet =
-    sendCommand { command = "createCashuWallet", value = Encode.null }
+createCashuWallet : Maybe String -> Cmd msg
+createCashuWallet maybePrivkey =
+    sendCommand
+        { command = "createCashuWallet"
+        , value =
+            Encode.object
+                [ ( "privkey"
+                  , maybePrivkey
+                        |> Maybe.map Encode.string
+                        |> Maybe.withDefault Encode.null
+                  )
+                ]
+        }
 
 
 redeemNutzap :
@@ -443,6 +453,92 @@ redeemNutzap params =
                         |> Maybe.map Encode.string
                         |> Maybe.withDefault Encode.null
                   )
+                ]
+        }
+
+
+sendNutzap :
+    { requestId : Int
+    , mintUrl : String
+    , proofs : List Encode.Value
+    , amount : Int
+    , recipientP2pk : String
+    }
+    -> Cmd msg
+sendNutzap params =
+    sendCommand
+        { command = "sendNutzap"
+        , value =
+            Encode.object
+                [ ( "requestId", Encode.int params.requestId )
+                , ( "mintUrl", Encode.string params.mintUrl )
+                , ( "proofs", Encode.list identity params.proofs )
+                , ( "amount", Encode.int params.amount )
+                , ( "recipientP2pk", Encode.string params.recipientP2pk )
+                ]
+        }
+
+
+createCashuMintQuote :
+    { requestId : Int
+    , mintUrl : String
+    , amount : Int
+    }
+    -> Cmd msg
+createCashuMintQuote params =
+    sendCommand
+        { command = "createCashuMintQuote"
+        , value =
+            Encode.object
+                [ ( "requestId", Encode.int params.requestId )
+                , ( "mintUrl", Encode.string params.mintUrl )
+                , ( "amount", Encode.int params.amount )
+                ]
+        }
+
+
+cancelCashuMintQuote : Int -> Cmd msg
+cancelCashuMintQuote requestId =
+    sendCommand
+        { command = "cancelCashuMintQuote"
+        , value = Encode.object [ ( "requestId", Encode.int requestId ) ]
+        }
+
+
+createCashuMeltQuote :
+    { requestId : Int
+    , mintUrl : String
+    , invoice : String
+    }
+    -> Cmd msg
+createCashuMeltQuote params =
+    sendCommand
+        { command = "createCashuMeltQuote"
+        , value =
+            Encode.object
+                [ ( "requestId", Encode.int params.requestId )
+                , ( "mintUrl", Encode.string params.mintUrl )
+                , ( "invoice", Encode.string params.invoice )
+                ]
+        }
+
+
+meltCashuToLightning :
+    { requestId : Int
+    , mintUrl : String
+    , invoice : String
+    , proofs : List Encode.Value
+    }
+    -> Cmd msg
+meltCashuToLightning params =
+    sendCommand
+        { command = "meltCashuToLightning"
+        , value =
+            Encode.object
+                [ ( "requestId", Encode.int params.requestId )
+                , ( "mintUrl", Encode.string params.mintUrl )
+                , ( "invoice", Encode.string params.invoice )
+                , ( "proofs", Encode.list identity params.proofs )
                 ]
         }
 

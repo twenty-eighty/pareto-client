@@ -3,6 +3,8 @@ module Pages.Settings exposing (Model, Msg, page)
 import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
+import Components.CashuReceiveDialog as CashuReceiveDialog
+import Components.CashuWithdrawDialog as CashuWithdrawDialog
 import Components.Categories as Categories
 import Components.EntryField as EntryField
 import Components.Icon as Icon
@@ -113,8 +115,54 @@ type DataModel
 
 type alias EcashModel =
     { enabling : Bool
+    , mintDraft : Maybe String
+    , mints : List String
+    , receiveDialog : CashuReceiveDialog.Model
+    , withdrawDialog : CashuWithdrawDialog.Model
     }
 
+
+emptyEcashModel : Shared.Model -> EcashModel
+emptyEcashModel shared =
+    let
+        -- When disabled, do not seed from the stored wallet mint list — that list is
+        -- leftover from a previous enable and would undo local removals on reload.
+        existingMints =
+            if ecashIsEnabled shared then
+                case Nostr.getCashuWallet shared.nostr of
+                    Just wallet ->
+                        wallet.mints
+
+                    Nothing ->
+                        Nostr.getNutzapMintRecommendation shared.nostr
+                            |> Maybe.map .mints
+                            |> Maybe.withDefault []
+
+            else
+                []
+
+        mints =
+            existingMints
+    in
+    { enabling = False
+    , mintDraft = Nothing
+    , mints = mints
+    , receiveDialog = CashuReceiveDialog.init mints
+    , withdrawDialog = CashuWithdrawDialog.init mints
+    }
+
+
+ecashIsEnabled : Shared.Model -> Bool
+ecashIsEnabled shared =
+    case ( Nostr.getCashuWallet shared.nostr, Nostr.getNutzapMintRecommendation shared.nostr ) of
+        ( Just _, Just rec ) ->
+            rec.p2pkPubkey /= Nothing && not (List.isEmpty rec.mints)
+
+        ( Just _, Nothing ) ->
+            True
+
+        _ ->
+            False
 
 type alias RelaysModel =
     { outboxRelay : Maybe String
@@ -447,6 +495,11 @@ type Msg
     | CreateProfile
     | EnableEcashWallet
     | DisableEcashWallet
+    | UpdateEcashMintDraft String
+    | AddEcashMint
+    | RemoveEcashMint String
+    | CashuReceiveDialogSent CashuReceiveDialog.Msg
+    | CashuWithdrawDialogSent CashuWithdrawDialog.Msg
     | ReceivedPortMessage IncomingMessage
     | PictureLoaded Bool
     | BannerLoaded Bool
@@ -721,10 +774,19 @@ update user shared msg model =
 
         EnableEcashWallet ->
             case model.data of
-                EcashData _ ->
-                    ( { model | data = EcashData { enabling = True } }
-                    , Effect.sendCmd Ports.createCashuWallet
-                    )
+                EcashData ecashModel ->
+                    if List.isEmpty ecashModel.mints || ecashModel.enabling then
+                        ( model, Effect.none )
+
+                    else
+                        let
+                            maybeExistingPrivkey =
+                                Nostr.getCashuWallet shared.nostr
+                                    |> Maybe.map .privkey
+                        in
+                        ( { model | data = EcashData { ecashModel | enabling = True } }
+                        , Effect.sendCmd (Ports.createCashuWallet maybeExistingPrivkey)
+                        )
 
                 _ ->
                     ( model, Effect.none )
@@ -736,16 +798,175 @@ update user shared msg model =
 
                 disableRec =
                     CashuWallet.mintRecommendationEvent user.pubKey writeRelays [] Nothing
+
+                ( modelAfterCancel, cancelEffect ) =
+                    closeEcashReceiveDialog user shared model
             in
-            ( model
-            , disableRec
-                |> SendNutzapMintRecommendation
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
+            ( modelAfterCancel
+            , Effect.batch
+                [ cancelEffect
+                , disableRec
+                    |> SendNutzapMintRecommendation
+                    |> Shared.Msg.SendNostrEvent
+                    |> Effect.sendSharedMsg
+                ]
             )
 
+        UpdateEcashMintDraft draft ->
+            case model.data of
+                EcashData ecashModel ->
+                    ( { model
+                        | data =
+                            EcashData
+                                { ecashModel
+                                    | mintDraft =
+                                        if String.isEmpty draft then
+                                            Nothing
+
+                                        else
+                                            Just draft
+                                }
+                      }
+                    , Effect.none
+                    )
+
+                _ ->
+                    ( model, Effect.none )
+
+        AddEcashMint ->
+            case model.data of
+                EcashData ecashModel ->
+                    case normalizeMintUrl ecashModel.mintDraft of
+                        Just mintUrl ->
+                            if List.member mintUrl ecashModel.mints then
+                                ( { model | data = EcashData { ecashModel | mintDraft = Nothing } }
+                                , Effect.none
+                                )
+
+                            else
+                                let
+                                    updatedMints =
+                                        ecashModel.mints ++ [ mintUrl ]
+
+                                    updatedModel =
+                                        { ecashModel
+                                            | mints = updatedMints
+                                            , mintDraft = Nothing
+                                        }
+                                in
+                                ( { model | data = EcashData updatedModel }
+                                , persistEcashMintsIfWalletExists user shared updatedMints
+                                )
+
+                        Nothing ->
+                            ( model, Effect.none )
+
+                _ ->
+                    ( model, Effect.none )
+
+        RemoveEcashMint mintUrl ->
+            case model.data of
+                EcashData ecashModel ->
+                    let
+                        mints =
+                            List.filter ((/=) mintUrl) ecashModel.mints
+
+                        updatedModel =
+                            { ecashModel | mints = mints }
+                    in
+                    ( { model | data = EcashData updatedModel }
+                    , persistEcashMintsIfWalletExists user shared mints
+                    )
+
+                _ ->
+                    ( model, Effect.none )
+
+        CashuReceiveDialogSent innerMsg ->
+            case model.data of
+                EcashData ecashModel ->
+                    CashuReceiveDialog.update
+                        { msg = innerMsg
+                        , model = ecashModel.receiveDialog
+                        , toModel =
+                            \receiveDialog ->
+                                { model | data = EcashData { ecashModel | receiveDialog = receiveDialog } }
+                        , toMsg = CashuReceiveDialogSent
+                        , mints =
+                            if List.isEmpty ecashModel.mints then
+                                Nostr.getCashuWallet shared.nostr
+                                    |> Maybe.map .mints
+                                    |> Maybe.withDefault []
+
+                            else
+                                ecashModel.mints
+                        , userPubKey = user.pubKey
+                        , browserEnv = shared.browserEnv
+                        }
+
+                _ ->
+                    ( model, Effect.none )
+
+        CashuWithdrawDialogSent innerMsg ->
+            case model.data of
+                EcashData ecashModel ->
+                    CashuWithdrawDialog.update
+                        { msg = innerMsg
+                        , model = ecashModel.withdrawDialog
+                        , toModel =
+                            \withdrawDialog ->
+                                { model | data = EcashData { ecashModel | withdrawDialog = withdrawDialog } }
+                        , toMsg = CashuWithdrawDialogSent
+                        , mints =
+                            if List.isEmpty ecashModel.mints then
+                                Nostr.getCashuWallet shared.nostr
+                                    |> Maybe.map .mints
+                                    |> Maybe.withDefault []
+
+                            else
+                                ecashModel.mints
+                        , userPubKey = user.pubKey
+                        , browserEnv = shared.browserEnv
+                        , nostr = shared.nostr
+                        }
+
+                _ ->
+                    ( model, Effect.none )
+
         ReceivedPortMessage message ->
-            updateWithPortMessage user shared model message
+            case model.data of
+                EcashData ecashModel ->
+                    if isCashuReceivePortMessage message then
+                        CashuReceiveDialog.update
+                            { msg = CashuReceiveDialog.ReceivedPortMessage message
+                            , model = ecashModel.receiveDialog
+                            , toModel =
+                                \receiveDialog ->
+                                    { model | data = EcashData { ecashModel | receiveDialog = receiveDialog } }
+                            , toMsg = CashuReceiveDialogSent
+                            , mints = ecashModel.mints
+                            , userPubKey = user.pubKey
+                            , browserEnv = shared.browserEnv
+                            }
+
+                    else if isCashuWithdrawPortMessage message then
+                        CashuWithdrawDialog.update
+                            { msg = CashuWithdrawDialog.ReceivedPortMessage message
+                            , model = ecashModel.withdrawDialog
+                            , toModel =
+                                \withdrawDialog ->
+                                    { model | data = EcashData { ecashModel | withdrawDialog = withdrawDialog } }
+                            , toMsg = CashuWithdrawDialogSent
+                            , mints = ecashModel.mints
+                            , userPubKey = user.pubKey
+                            , browserEnv = shared.browserEnv
+                            , nostr = shared.nostr
+                            }
+
+                    else
+                        updateWithPortMessage user shared model message
+
+                _ ->
+                    updateWithPortMessage user shared model message
 
         PictureLoaded isLoaded ->
             case model.data of
@@ -780,23 +1001,128 @@ update user shared msg model =
                     ( model, Effect.none )
 
 
+closeEcashReceiveDialog : Auth.User -> Shared.Model -> Model -> ( Model, Effect Msg )
+closeEcashReceiveDialog user shared model =
+    case model.data of
+        EcashData ecashModel ->
+            let
+                ( modelAfterReceive, receiveEffect ) =
+                    if CashuReceiveDialog.isOpen ecashModel.receiveDialog then
+                        CashuReceiveDialog.update
+                            { msg = CashuReceiveDialog.CloseDialog
+                            , model = ecashModel.receiveDialog
+                            , toModel =
+                                \receiveDialog ->
+                                    { model | data = EcashData { ecashModel | receiveDialog = receiveDialog } }
+                            , toMsg = CashuReceiveDialogSent
+                            , mints = ecashModel.mints
+                            , userPubKey = user.pubKey
+                            , browserEnv = shared.browserEnv
+                            }
+
+                    else
+                        ( model, Effect.none )
+
+                ecashAfterReceive =
+                    case modelAfterReceive.data of
+                        EcashData e ->
+                            e
+
+                        _ ->
+                            ecashModel
+            in
+            if CashuWithdrawDialog.isOpen ecashAfterReceive.withdrawDialog then
+                let
+                    ( modelAfterWithdraw, withdrawEffect ) =
+                        CashuWithdrawDialog.update
+                            { msg = CashuWithdrawDialog.CloseDialog
+                            , model = ecashAfterReceive.withdrawDialog
+                            , toModel =
+                                \withdrawDialog ->
+                                    { modelAfterReceive
+                                        | data = EcashData { ecashAfterReceive | withdrawDialog = withdrawDialog }
+                                    }
+                            , toMsg = CashuWithdrawDialogSent
+                            , mints = ecashAfterReceive.mints
+                            , userPubKey = user.pubKey
+                            , browserEnv = shared.browserEnv
+                            , nostr = shared.nostr
+                            }
+                in
+                ( modelAfterWithdraw, Effect.batch [ receiveEffect, withdrawEffect ] )
+
+            else
+                ( modelAfterReceive, receiveEffect )
+
+        _ ->
+            ( model, Effect.none )
+
+
+isCashuReceivePortMessage : IncomingMessage -> Bool
+isCashuReceivePortMessage message =
+    List.member message.messageType
+        [ "cashuMintInvoice"
+        , "cashuMinted"
+        , "cashuMintFailed"
+        , "cashuMintCancelled"
+        ]
+
+
+isCashuWithdrawPortMessage : IncomingMessage -> Bool
+isCashuWithdrawPortMessage message =
+    List.member message.messageType
+        [ "cashuMeltQuote"
+        , "cashuMelted"
+        , "cashuMeltFailed"
+        ]
+
+
+{-| Keep kind 17375 mint list in sync while configuring (disabled) so reloads don't restore removed mints.
+-}
+persistEcashMintsIfWalletExists : Auth.User -> Shared.Model -> List String -> Effect Msg
+persistEcashMintsIfWalletExists user shared mints =
+    case Nostr.getCashuWallet shared.nostr of
+        Just wallet ->
+            CashuWallet.walletEvent user.pubKey wallet.privkey mints
+                |> SendCashuWallet
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+
+        Nothing ->
+            Effect.none
+
+
 updateWithPortMessage : Auth.User -> Shared.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage user shared model message =
     case message.messageType of
         "cashuWalletCreated" ->
-            case Decode.decodeValue cashuWalletCreatedDecoder message.value of
-                Ok created ->
+            case ( model.data, Decode.decodeValue cashuWalletCreatedDecoder message.value ) of
+                ( EcashData ecashModel, Ok created ) ->
                     let
                         writeRelays =
                             Nostr.getWriteRelayUrlsForPubKey shared.nostr user.pubKey
 
+                        mints =
+                            if List.isEmpty ecashModel.mints then
+                                [ created.mintUrl ]
+
+                            else
+                                ecashModel.mints
+
                         walletEvt =
-                            CashuWallet.walletEvent user.pubKey created.privkey [ created.mintUrl ]
+                            CashuWallet.walletEvent user.pubKey created.privkey mints
 
                         recEvt =
-                            CashuWallet.mintRecommendationEvent user.pubKey writeRelays [ created.mintUrl ] (Just created.pubkey)
+                            CashuWallet.mintRecommendationEvent user.pubKey writeRelays mints (Just created.pubkey)
                     in
-                    ( { model | data = EcashData { enabling = False } }
+                    ( { model
+                        | data =
+                            EcashData
+                                { ecashModel
+                                    | enabling = False
+                                    , mints = mints
+                                }
+                      }
                     , Effect.batch
                         [ walletEvt
                             |> SendCashuWallet
@@ -809,8 +1135,11 @@ updateWithPortMessage user shared model message =
                         ]
                     )
 
-                Err _ ->
-                    ( { model | data = EcashData { enabling = False } }, Effect.none )
+                ( EcashData ecashModel, Err _ ) ->
+                    ( { model | data = EcashData { ecashModel | enabling = False } }, Effect.none )
+
+                _ ->
+                    ( model, Effect.none )
 
         "published" ->
             case ( model.data, Nostr.External.decodeSendId message.value, Nostr.External.decodeEvent message.value ) of
@@ -916,6 +1245,7 @@ cashuWalletCreatedDecoder =
         (Decode.field "mintUrl" Decode.string)
 
 
+
 extendMediaServerList : ServerUrl -> List ServerUrl -> List ServerUrl
 extendMediaServerList mediaServer mediaServers =
     if List.member mediaServer mediaServers then
@@ -988,10 +1318,18 @@ sendPrivateRelayListCmd pubKey writeRelays privateRelays =
 updateModelWithCategory : Auth.User -> Shared.Model -> Model -> Category -> ( Model, Effect Msg )
 updateModelWithCategory user shared model category =
     let
+        ( modelReady, leaveEffect ) =
+            case model.data of
+                EcashData _ ->
+                    closeEcashReceiveDialog user shared model
+
+                _ ->
+                    ( model, Effect.none )
+
         ( newModel, effect ) =
             case category of
                 Relays ->
-                    ( { model | data = RelaysData emptyRelaysModel }
+                    ( { modelReady | data = RelaysData emptyRelaysModel }
                     , RequestRelayLists { emptyEventFilter | kinds = Just [ KindRelayListMetadata, KindBlockedRelaysList, KindSearchRelaysList, KindPrivateRelayList, KindRelayListForDMs ], authors = Just [ user.pubKey ] }
                         |> Nostr.createRequest shared.nostr "Relay lists of user" []
                         |> Shared.Msg.RequestNostrEvents
@@ -999,7 +1337,7 @@ updateModelWithCategory user shared model category =
                     )
 
                 MediaServers ->
-                    ( { model | data = MediaServersData emptyMediaServersModel }
+                    ( { modelReady | data = MediaServersData emptyMediaServersModel }
                     , RequestMediaServerLists { emptyEventFilter | kinds = Just [ KindUserServerList, KindFileStorageServerList ], authors = Just [ user.pubKey ] }
                         |> Nostr.createRequest shared.nostr "Media server lists of user" []
                         |> Shared.Msg.RequestNostrEvents
@@ -1016,7 +1354,7 @@ updateModelWithCategory user shared model category =
                                 Nothing ->
                                     emptyProfileModel user shared
                     in
-                    ( { model | data = ProfileData profileModel }
+                    ( { modelReady | data = ProfileData profileModel }
                     , Effect.batch
                         [ profileEffect
                         , Shared.Msg.LoadUserDataByPubKey user.pubKey
@@ -1025,13 +1363,14 @@ updateModelWithCategory user shared model category =
                     )
 
                 Ecash ->
-                    ( { model | data = EcashData { enabling = False } }
+                    ( { modelReady | data = EcashData (emptyEcashModel shared) }
                     , Effect.none
                     )
     in
     ( newModel
     , Effect.batch
         [ Effect.replaceRoute { path = model.path, query = Dict.singleton categoryParamName (stringFromCategory category), hash = Nothing }
+        , leaveEffect
         , effect
         ]
     )
@@ -1139,7 +1478,7 @@ viewCategory shared configCheckIssues model user =
 
 
 viewEcash : Shared.Model -> Auth.User -> EcashModel -> Html Msg
-viewEcash shared _ ecashModel =
+viewEcash shared user ecashModel =
     let
         styles =
             stylesForTheme shared.theme
@@ -1164,14 +1503,21 @@ viewEcash shared _ ecashModel =
                 _ ->
                     False
 
-        mints =
-            maybeWallet
-                |> Maybe.map .mints
-                |> Maybe.withDefault (Maybe.map .mints maybeRec |> Maybe.withDefault [])
+        displayMints =
+            if enabled then
+                maybeWallet
+                    |> Maybe.map .mints
+                    |> Maybe.withDefault (Maybe.map .mints maybeRec |> Maybe.withDefault [])
+
+            else
+                ecashModel.mints
 
         readOnly =
             signingPubKeyAvailable shared.loginStatus
                 |> not
+
+        mintDraftValid =
+            normalizeMintUrl ecashModel.mintDraft /= Nothing
     in
     div
         [ css
@@ -1200,16 +1546,105 @@ viewEcash shared _ ecashModel =
         , p
             (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
             [ text (Translations.ecashBalanceLabel [ shared.browserEnv.translations ] ++ ": " ++ String.fromInt balance ++ " sats") ]
-        , if List.isEmpty mints then
+        , if enabled && not readOnly then
+            div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_row
+                    , Tw.flex_wrap
+                    , Tw.gap_3
+                    ]
+                ]
+                [ CashuReceiveDialog.new
+                    { model = ecashModel.receiveDialog
+                    , toMsg = CashuReceiveDialogSent
+                    , browserEnv = shared.browserEnv
+                    , theme = shared.theme
+                    , mints = displayMints
+                    , userPubKey = user.pubKey
+                    }
+                    |> CashuReceiveDialog.view
+                , CashuWithdrawDialog.new
+                    { model = ecashModel.withdrawDialog
+                    , toMsg = CashuWithdrawDialogSent
+                    , browserEnv = shared.browserEnv
+                    , theme = shared.theme
+                    , mints = displayMints
+                    , userPubKey = user.pubKey
+                    , nostr = shared.nostr
+                    }
+                    |> CashuWithdrawDialog.view
+                ]
+
+          else
+            emptyHtml
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.flex_col
+                , Tw.gap_2
+                ]
+            ]
+            (p
+                (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
+                [ text (Translations.ecashMintsLabel [ shared.browserEnv.translations ] ++ ":") ]
+                :: (if List.isEmpty displayMints then
+                        [ p
+                            (styles.colorStyleGrayscaleMuted ++ styles.textStyleBody)
+                            [ text "—" ]
+                        ]
+
+                    else
+                        List.map
+                            (\mint ->
+                                div
+                                    [ css
+                                        [ Tw.flex
+                                        , Tw.flex_row
+                                        , Tw.items_center
+                                        , Tw.gap_2
+                                        , Tw.ml_2
+                                        ]
+                                    ]
+                                    [ p
+                                        (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
+                                        [ text mint ]
+                                    , if readOnly || enabled then
+                                        emptyHtml
+
+                                      else
+                                        div
+                                            [ css
+                                                [ Tw.cursor_pointer
+                                                , Tw.text_color styles.colorB3
+                                                , darkMode
+                                                    [ Tw.text_color styles.colorB3DarkMode
+                                                    ]
+                                                ]
+                                            , Events.onClick (RemoveEcashMint mint)
+                                            , Attr.attribute "data-test" ("remove-ecash-mint-" ++ mint)
+                                            , Attr.title (Translations.ecashRemoveMintButtonTitle [ shared.browserEnv.translations ])
+                                            ]
+                                            [ Icon.FeatherIcon FeatherIcons.delete
+                                                |> Icon.view
+                                            ]
+                                    ]
+                            )
+                            displayMints
+                   )
+            )
+        , if readOnly || enabled then
             emptyHtml
 
           else
-            div []
-                (p
-                    (styles.colorStyleGrayscaleText ++ styles.textStyleBody)
-                    [ text (Translations.ecashMintsLabel [ shared.browserEnv.translations ] ++ ":") ]
-                    :: List.map (\mint -> p [ css [ Tw.ml_2 ] ] [ text mint ]) mints
-                )
+            addEcashMintBox
+                shared.theme
+                shared.browserEnv.translations
+                ecashModel.mintDraft
+                mintDraftValid
+                { identifier = "ecash-mint-suggestions"
+                , suggestions = missingMints displayMints [ CashuWallet.defaultMintUrl ]
+                }
         , if readOnly then
             emptyHtml
 
@@ -1230,7 +1665,7 @@ viewEcash shared _ ecashModel =
                     else
                         Translations.ecashEnableButtonTitle [ shared.browserEnv.translations ]
                 , onClick =
-                    if ecashModel.enabling then
+                    if ecashModel.enabling || List.isEmpty ecashModel.mints then
                         Nothing
 
                     else
@@ -1238,8 +1673,195 @@ viewEcash shared _ ecashModel =
                 , theme = shared.theme
                 }
                 |> Button.withTypePrimary
+                |> Button.withDisabled (List.isEmpty ecashModel.mints)
                 |> Button.view
         ]
+
+
+
+addEcashMintBox : Theme -> I18Next.Translations -> Maybe String -> Bool -> Suggestions -> Html Msg
+addEcashMintBox theme translations maybeDraft draftValid suggestions =
+    let
+        styles =
+            stylesForTheme theme
+
+        showProtocolPrefix =
+            maybeDraft
+                |> Maybe.map (\value -> not <| String.startsWith "https://" value || String.startsWith "http://" value)
+                |> Maybe.withDefault True
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_row
+            , Tw.gap_2
+            ]
+        ]
+        [ div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.relative
+                , Tw.w_full
+                , Bp.sm
+                    [ Css.property "width" "400px"
+                    ]
+                ]
+            ]
+            [ div
+                (styles.colorStyleGrayscaleMuted
+                    ++ [ css
+                            [ Tw.flex
+                            , Tw.absolute
+                            , Tw.leading_6
+                            , Tw.h_10
+                            , Tw.items_center
+                            , Tw.justify_start
+                            , Tw.left_3
+                            , Tw.top_0
+                            , Tw.pointer_events_none
+                            , Tw.whitespace_nowrap
+                            ]
+                       ]
+                )
+                [ if showProtocolPrefix then
+                    text "https://"
+
+                  else
+                    text ""
+                ]
+            , input
+                (styles.colorStyleBackground
+                    ++ styles.colorStyleGrayscaleText
+                    ++ [ Attr.placeholder <| Translations.ecashMintPlaceholder [ translations ]
+                       , Attr.value (Maybe.withDefault "" maybeDraft)
+                       , Attr.type_ "url"
+                       , Attr.spellcheck False
+                       , Attr.list suggestions.identifier
+                       , Events.onInput UpdateEcashMintDraft
+                       , css
+                            ([ Tw.appearance_none
+                             , Tw.bg_scroll
+                             , Tw.bg_clip_border
+                             , Tw.rounded_md
+                             , Tw.border_2
+                             , Tw.box_border
+                             , Tw.cursor_text
+                             , Tw.block
+                             , Tw.pe_16
+                             , Tw.pr_16
+                             , Tw.h_10
+                             , Tw.w_full
+                             ]
+                                ++ (if showProtocolPrefix then
+                                        [ Tw.ps_20
+                                        , Tw.pl_20
+                                        ]
+
+                                    else
+                                        [ Tw.ps_3
+                                        , Tw.pl_3
+                                        ]
+                                   )
+                            )
+                       ]
+                )
+                []
+            , mintSuggestionDataList suggestions
+            ]
+        , Button.new
+            { label = Translations.ecashAddMintButtonTitle [ translations ]
+            , onClick =
+                if draftValid then
+                    Just AddEcashMint
+
+                else
+                    Nothing
+            , theme = theme
+            }
+            |> Button.withDisabled (not draftValid)
+            |> Button.view
+        ]
+
+
+mintSuggestionDataList : Suggestions -> Html Msg
+mintSuggestionDataList suggestions =
+    datalist
+        [ Attr.id suggestions.identifier ]
+        (suggestions.suggestions
+            |> List.map
+                (\mintUrl ->
+                    option [ Attr.value mintUrl ] []
+                )
+        )
+
+
+{-| Return suggested mint hosts (without https://) that are not already added.
+-}
+missingMints : List String -> List String -> List String
+missingMints addedMints recommendedMints =
+    let
+        normalizedAdded =
+            addedMints
+                |> List.filterMap (\added -> normalizeMintUrl (Just added))
+    in
+    recommendedMints
+        |> List.filterMap
+            (\mintUrl ->
+                case normalizeMintUrl (Just mintUrl) of
+                    Just normalized ->
+                        if List.member normalized normalizedAdded then
+                            Nothing
+
+                        else
+                            Just (stripMintProtocol mintUrl)
+
+                    Nothing ->
+                        Nothing
+            )
+
+
+stripMintProtocol : String -> String
+stripMintProtocol value =
+    if String.startsWith "https://" value then
+        String.dropLeft 8 value
+
+    else if String.startsWith "http://" value then
+        String.dropLeft 7 value
+
+    else
+        value
+
+
+normalizeMintUrl : Maybe String -> Maybe String
+normalizeMintUrl maybeDraft =
+    maybeDraft
+        |> Maybe.map String.trim
+        |> Maybe.andThen
+            (\draft ->
+                if draft == "" then
+                    Nothing
+
+                else
+                    let
+                        withProtocol =
+                            if String.startsWith "https://" draft || String.startsWith "http://" draft then
+                                draft
+
+                            else
+                                "https://" ++ draft
+                    in
+                    Just (stripTrailingSlash withProtocol)
+            )
+
+
+stripTrailingSlash : String -> String
+stripTrailingSlash value =
+    if String.endsWith "/" value && String.length value > 8 then
+        String.dropRight 1 value
+
+    else
+        value
 
 
 type alias Suggestions =

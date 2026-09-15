@@ -90,7 +90,7 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
                 |> Interactions.withInteractionElements
                     ([ Interactions.LikeButtonElement
                      , Interactions.RepostButtonElement
-                     , Interactions.ZapButtonElement "0" (picturePost.relays |> Maybe.map (List.map Relay.toWire >> Set.fromList) |> Maybe.withDefault Set.empty)
+                     , Interactions.zapButton "0" (picturePost.relays |> Maybe.map (List.map Relay.toWire >> Set.fromList) |> Maybe.withDefault Set.empty)
                      ]
                         ++ shareButtonElement
                     )

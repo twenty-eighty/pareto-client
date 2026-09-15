@@ -20,7 +20,7 @@ import Set
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Ui.Article exposing (ArticlePreviewsData, sharingInfoForArticle, viewInteractions, viewProfilePubKey)
+import Ui.Article exposing (ArticlePreviewsData, sharingInfoForArticle, viewProfilePubKey)
 import Ui.Interactions
 import Ui.Profile exposing (FollowType(..), followButton, viewProfileSmall)
 import Ui.Styles exposing (Theme(..), darkMode, print)
@@ -214,7 +214,7 @@ viewInteractions previewData instanceId =
         }
         |> Interactions.withInteractionElements
             [ Interactions.LikeButtonElement
-            , Interactions.ZapButtonElement instanceId previewData.zapRelays
+            , Interactions.zapButton instanceId previewData.zapRelays
             , Interactions.RepostButtonElement
             , Interactions.ShareButtonElement previewData.sharingInfo
             , Interactions.BookmarkButtonElement

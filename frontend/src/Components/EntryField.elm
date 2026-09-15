@@ -269,6 +269,7 @@ view (Settings settings) =
         [ labelElement
         , elementType
             (styles.colorStyleBackground
+                ++ styles.colorStyleGrayscaleText
                 ++ attrs
                 ++ idAttr
                 ++ readOnlyAttr

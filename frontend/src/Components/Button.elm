@@ -252,30 +252,30 @@ view (Settings settings) =
             else
                 emptyHtml
 
-        ( element, onClickAttr ) =
+        ( element, onClickAttr, htmlTypeAttr ) =
             case ( settings.isDisabled || settings.isInIntermediateState, settings.action ) of
                 ( False, OnClick onClick ) ->
-                    ( button, [ Events.onClick onClick ] )
+                    ( button, [ Events.onClick onClick ], [ Attr.type_ "button" ] )
 
                 ( True, OnClick _ ) ->
                     -- Keep <button> (don't swap to <div>) so sibling controlled inputs
                     -- aren't remounted and lose caret position when disabled toggles.
-                    ( button, [ Attr.disabled True ] )
+                    ( button, [ Attr.disabled True ], [ Attr.type_ "button" ] )
 
                 ( False, Link link ) ->
-                    ( a, [ Attr.href link ] )
+                    ( a, [ Attr.href link ], [] )
 
                 ( True, Link _ ) ->
-                    ( a, [ Attr.attribute "aria-disabled" "true", Attr.tabindex -1 ] )
+                    ( a, [ Attr.attribute "aria-disabled" "true", Attr.tabindex -1 ], [] )
 
                 ( False, NewTabLink url ) ->
-                    ( a, [ Attr.target "_blank", Attr.href url ] )
+                    ( a, [ Attr.target "_blank", Attr.href url ], [] )
 
                 ( True, NewTabLink _ ) ->
-                    ( a, [ Attr.attribute "aria-disabled" "true", Attr.tabindex -1 ] )
+                    ( a, [ Attr.attribute "aria-disabled" "true", Attr.tabindex -1 ], [] )
 
                 ( _, NoOp ) ->
-                    ( button, [ Attr.disabled True ] )
+                    ( button, [ Attr.disabled True ], [ Attr.type_ "button" ] )
 
         widthStyles =
             case settings.width of
@@ -311,6 +311,7 @@ view (Settings settings) =
                     ++ testAttribute
                     ++ onClickAttr
                     ++ buttonStyles
+                    ++ htmlTypeAttr
                     ++ [ Attr.css
                             (widthStyles
                                 ++ [ Tw.py_2

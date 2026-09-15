@@ -50,7 +50,7 @@ viewInteractions previewData instanceId =
             [ Components.Interactions.CommentButtonElement Nothing
             , Components.Interactions.LikeButtonElement
             , Components.Interactions.RepostButtonElement
-            , Components.Interactions.ZapButtonElement instanceId previewData.zapRelays
+            , Components.Interactions.zapButton instanceId previewData.zapRelays
             , Components.Interactions.BookmarkButtonElement
             , Components.Interactions.ShareButtonElement previewData.sharingInfo
             ]

@@ -9,6 +9,7 @@ module Components.ZapButtonDialog exposing
     , view
     , withInstanceId
     , withRelayUrls
+    , withoutDialog
     , withoutLabel
     )
 
@@ -26,14 +27,20 @@ import FeatherIcons
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events as Events
+import Html.Styled.Keyed as Keyed
 import Http
+import I18Next
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Nostr
+import Nostr.CashuWallet as CashuWallet
 import Nostr.Event exposing (Event, EventFilter, Kind(..), Tag(..), TagReference(..), emptyEvent, emptyEventFilter)
+import Nostr.External as External
+import Json.Decode.Pipeline as DecodePipeline
 import Nostr.Lud16 as Lud16
 import Nostr.Profile exposing (Profile)
 import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (IncomingMessage, LoginStatus(..), PubKey, loggedInPubKey, loggedInSigningPubKey)
 import Nostr.Zaps as Zaps exposing (Invoice)
 import Pareto
@@ -41,6 +48,7 @@ import Ports
 import Process
 import QRCode
 import Set exposing (Set)
+import Shared.Msg
 import Svg.Attributes as SvgAttr
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
@@ -49,7 +57,7 @@ import Time
 import Translations.ZapDialog as Translations
 import Ui.Links
 import Ui.Shared exposing (emptyHtml)
-import Ui.Styles exposing (Theme)
+import Ui.Styles exposing (Theme, stylesForTheme)
 import Url
 
 
@@ -67,18 +75,42 @@ type Model
 
 type DialogState
     = Hidden
-    | LoadingPayData Target
+    | LoadingPayData Target LoadingFlags
     | Ready ReadyData
     | SigningZapRequest ReadyData
     | LoadingInvoice ReadyData
+    | SendingNutzap ReadyData Int
     | ShowingInvoice InvoiceView
     | Success SuccessView
     | ErrorState String (Maybe ReadyData)
 
 
+type alias LoadingFlags =
+    { waitingLightning : Bool
+    , waitingCashu : Bool
+    , payData : Maybe Lud16.LightningPaymentData
+    , cashuOption : Maybe CashuOption
+    }
+
+
+type PaymentMethod
+    = Lightning
+    | Cashu
+
+
+type alias CashuOption =
+    { mintUrl : String
+    , p2pkPubkey : String
+    , relays : List RelayUrl
+    , availableBalance : Int
+    , proofEventIds : List String
+    , proofs : List Encode.Value
+    }
+
+
 type alias Target =
     { interactionObject : InteractionObject
-    , lud16 : Lud16.Lud16
+    , lud16 : Maybe Lud16.Lud16
     , recipientName : String
     , recipientPicture : Maybe String
     , recipientPubKey : PubKey
@@ -88,8 +120,11 @@ type alias Target =
 
 type alias ReadyData =
     { target : Target
-    , payData : Lud16.LightningPaymentData
+    , payData : Maybe Lud16.LightningPaymentData
+    , cashuOption : Maybe CashuOption
+    , method : PaymentMethod
     , amountDraft : String
+    , amountInputKey : Int
     , comment : String
     , signRequestId : Maybe Int
     }
@@ -129,6 +164,7 @@ type Msg
     | SetAmount Int
     | SetAmountInput String
     | SetComment String
+    | SetPaymentMethod PaymentMethod
     | ReceivedPayData (Result Http.Error Lud16.LightningPaymentData)
     | ConfirmZap
     | ReceivedMessage IncomingMessage
@@ -184,12 +220,19 @@ update props =
                 )
 
             SetAmount amountSats ->
-                ( Model { model | dialog = updateReadyAmount model.dialog (String.fromInt amountSats) }
+                ( Model
+                    { model
+                        | dialog =
+                            updateReadyAmountPreset model.dialog (String.fromInt amountSats)
+                    }
                 , Effect.none
                 )
 
             SetAmountInput amountDraft ->
-                ( Model { model | dialog = updateReadyAmount model.dialog amountDraft }
+                ( Model
+                    { model
+                        | dialog = updateReadyAmount model.dialog (digitsOnly amountDraft)
+                    }
                 , Effect.none
                 )
 
@@ -198,30 +241,37 @@ update props =
                 , Effect.none
                 )
 
+            SetPaymentMethod method ->
+                ( Model { model | dialog = updateReadyMethod model.dialog method }
+                , Effect.none
+                )
+
             ReceivedPayData (Ok payData) ->
                 case model.dialog of
-                    LoadingPayData target ->
-                        ( Model
-                            { model
-                                | dialog =
-                                    Ready
-                                        { target = target
-                                        , payData = payData
-                                        , amountDraft = String.fromInt (defaultAmountSats payData)
-                                        , comment = ""
-                                        , signRequestId = Nothing
-                                        }
-                            }
-                        , Effect.none
-                        )
+                    LoadingPayData target flags ->
+                        finishLoading props
+                            (Model model)
+                            target
+                            { flags | waitingLightning = False, payData = Just payData }
 
                     _ ->
                         ( Model model, Effect.none )
 
             ReceivedPayData (Err _) ->
-                ( Model { model | dialog = ErrorState (Translations.errorText [ props.browserEnv.translations ]) Nothing }
-                , Effect.none
-                )
+                case model.dialog of
+                    LoadingPayData target flags ->
+                        finishLoading props
+                            (Model model)
+                            target
+                            { flags | waitingLightning = False, payData = Nothing }
+
+                    _ ->
+                        ( Model
+                            { model
+                                | dialog = ErrorState (Translations.errorText [ props.browserEnv.translations ]) Nothing
+                            }
+                        , Effect.none
+                        )
 
             ConfirmZap ->
                 confirmZap props (Model model)
@@ -458,38 +508,155 @@ openDialog props relayUrls (Model model) =
             maybeProfile
                 |> Maybe.andThen .lud16
                 |> Maybe.andThen Lud16.parseLud16
-    in
-    case maybeLud16 of
-        Nothing ->
-            ( Model
-                { model
-                    | dialog = ErrorState (Translations.noLud16Text [ props.browserEnv.translations ]) Nothing
-                }
-            , Effect.none
-            )
 
-        Just lud16 ->
-            let
-                target =
-                    { interactionObject = props.interactionObject
-                    , lud16 = lud16
-                    , recipientName = recipientDisplayName maybeProfile recipientPubKey
-                    , recipientPicture = maybeProfile |> Maybe.andThen .picture
-                    , recipientPubKey = recipientPubKey
-                    , relays = extendedZapRelays relayUrls props.nostr (loggedInPubKey props.loginStatus)
+        senderHasWallet =
+            Nostr.getCashuWallet props.nostr /= Nothing
+                && (loggedInSigningPubKey props.loginStatus /= Nothing)
+
+        target =
+            { interactionObject = props.interactionObject
+            , lud16 = maybeLud16
+            , recipientName = recipientDisplayName maybeProfile recipientPubKey
+            , recipientPicture = maybeProfile |> Maybe.andThen .picture
+            , recipientPubKey = recipientPubKey
+            , relays = extendedZapRelays relayUrls props.nostr (loggedInPubKey props.loginStatus)
+            }
+
+        flags =
+            { waitingLightning = maybeLud16 /= Nothing
+            , waitingCashu = senderHasWallet
+            , payData = Nothing
+            , cashuOption = Nothing
+            }
+    in
+    if not flags.waitingLightning && not flags.waitingCashu then
+        ( Model
+            { model
+                | dialog = ErrorState (Translations.noPaymentMethodText [ props.browserEnv.translations ]) Nothing
+            }
+        , Effect.none
+        )
+
+    else
+        let
+            requestId =
+                model.nextRequestId
+
+            lnEffect =
+                case maybeLud16 of
+                    Just lud16 ->
+                        Lud16.requestLightningPaymentData ReceivedPayData lud16
+                            |> Effect.sendCmd
+                            |> Effect.map props.toMsg
+
+                    Nothing ->
+                        Effect.none
+
+            cashuEffect =
+                if senderHasWallet then
+                    let
+                        relays =
+                            target.relays
+                                |> Set.toList
+                                |> List.map Relay.fromString
+
+                        filter =
+                            { emptyEventFilter
+                                | kinds = Just [ KindNutzapMintRecommendation ]
+                                , authors = Just [ recipientPubKey ]
+                                , limit = Just 1
+                            }
+                    in
+                    Ports.requestEvents "Recipient nutzap mint recommendation" False requestId relays [ filter ]
+                        |> Effect.sendCmd
+                        |> Effect.map props.toMsg
+
+                else
+                    Effect.none
+        in
+        ( Model
+            { model
+                | dialog = LoadingPayData target flags
+                , nextRequestId =
+                    if senderHasWallet then
+                        requestId + 1
+
+                    else
+                        requestId
+            }
+        , Effect.batch [ lnEffect, cashuEffect ]
+        )
+
+
+finishLoading :
+    { props
+        | browserEnv : BrowserEnv
+        , toMsg : Msg -> msg
+    }
+    -> Model
+    -> Target
+    -> LoadingFlags
+    -> ( Model, Effect msg )
+finishLoading props (Model model) target flags =
+    if flags.waitingLightning || flags.waitingCashu then
+        ( Model { model | dialog = LoadingPayData target flags }
+        , Effect.none
+        )
+
+    else
+        case ( flags.payData, flags.cashuOption ) of
+            ( Nothing, Nothing ) ->
+                ( Model
+                    { model
+                        | dialog = ErrorState (Translations.noPaymentMethodText [ props.browserEnv.translations ]) Nothing
                     }
-            in
-            ( Model { model | dialog = LoadingPayData target }
-            , Lud16.requestLightningPaymentData ReceivedPayData lud16
-                |> Effect.sendCmd
-                |> Effect.map props.toMsg
-            )
+                , Effect.none
+                )
+
+            ( maybePayData, maybeCashu ) ->
+                let
+                    method =
+                        case ( maybePayData, maybeCashu ) of
+                            ( Just _, _ ) ->
+                                Lightning
+
+                            ( Nothing, Just _ ) ->
+                                Cashu
+
+                            _ ->
+                                Lightning
+
+                    amountDraft =
+                        case maybePayData of
+                            Just payData ->
+                                String.fromInt (defaultAmountSats payData)
+
+                            Nothing ->
+                                "21"
+                in
+                ( Model
+                    { model
+                        | dialog =
+                            Ready
+                                { target = target
+                                , payData = maybePayData
+                                , cashuOption = maybeCashu
+                                , method = method
+                                , amountDraft = amountDraft
+                                , amountInputKey = 0
+                                , comment = ""
+                                , signRequestId = Nothing
+                                }
+                    }
+                , Effect.none
+                )
 
 
 confirmZap :
     { props
         | loginStatus : LoginStatus
         , browserEnv : BrowserEnv
+        , nostr : Nostr.Model
         , toMsg : Msg -> msg
     }
     -> Model
@@ -508,56 +675,137 @@ confirmZap props (Model model) =
                     )
 
                 Just amountSats ->
-                    let
-                        amountMsats =
-                            amountSats * 1000
+                    case ready.method of
+                        Cashu ->
+                            confirmNutzap props (Model model) ready amountSats
 
-                        wantsNostr =
-                            ready.payData.allowsNostr == Just True
-
-                        maybeSignerPubKey =
-                            loggedInSigningPubKey props.loginStatus
-                    in
-                    if wantsNostr then
-                        let
-                            ( signerPubKey, anonymous ) =
-                                case maybeSignerPubKey of
-                                    Just pubKey ->
-                                        ( pubKey, False )
-
-                                    Nothing ->
-                                        ( Pareto.anonymousPublicKey, True )
-
-                            zapRequest =
-                                buildZapRequest signerPubKey ready amountMsats props.browserEnv.now anonymous
-
-                            requestId =
-                                model.nextRequestId
-                        in
-                        ( Model
-                            { model
-                                | dialog = SigningZapRequest { ready | signRequestId = Just requestId }
-                                , nextRequestId = requestId + 1
-                            }
-                        , Ports.signEvent requestId zapRequest
-                            |> Effect.sendCmd
-                            |> Effect.map props.toMsg
-                        )
-
-                    else
-                        ( Model { model | dialog = LoadingInvoice ready }
-                        , requestInvoice ready Nothing
-                            |> Effect.map props.toMsg
-                        )
+                        Lightning ->
+                            confirmLightningZap props (Model model) ready amountSats
 
         _ ->
             ( Model model, Effect.none )
+
+
+confirmLightningZap :
+    { props
+        | loginStatus : LoginStatus
+        , browserEnv : BrowserEnv
+        , toMsg : Msg -> msg
+    }
+    -> Model
+    -> ReadyData
+    -> Int
+    -> ( Model, Effect msg )
+confirmLightningZap props (Model model) ready amountSats =
+    case ready.payData of
+        Nothing ->
+            ( Model
+                { model
+                    | dialog = ErrorState (Translations.noLud16Text [ props.browserEnv.translations ]) (Just ready)
+                }
+            , Effect.none
+            )
+
+        Just payData ->
+            let
+                amountMsats =
+                    amountSats * 1000
+
+                wantsNostr =
+                    payData.allowsNostr == Just True
+
+                maybeSignerPubKey =
+                    loggedInSigningPubKey props.loginStatus
+            in
+            if wantsNostr then
+                let
+                    ( signerPubKey, anonymous ) =
+                        case maybeSignerPubKey of
+                            Just pubKey ->
+                                ( pubKey, False )
+
+                            Nothing ->
+                                ( Pareto.anonymousPublicKey, True )
+
+                    zapRequest =
+                        buildZapRequest signerPubKey ready amountMsats props.browserEnv.now anonymous
+
+                    requestId =
+                        model.nextRequestId
+                in
+                ( Model
+                    { model
+                        | dialog = SigningZapRequest { ready | signRequestId = Just requestId }
+                        , nextRequestId = requestId + 1
+                    }
+                , Ports.signEvent requestId zapRequest
+                    |> Effect.sendCmd
+                    |> Effect.map props.toMsg
+                )
+
+            else
+                ( Model { model | dialog = LoadingInvoice ready }
+                , requestInvoice ready Nothing
+                    |> Effect.map props.toMsg
+                )
+
+
+confirmNutzap :
+    { props
+        | loginStatus : LoginStatus
+        , browserEnv : BrowserEnv
+        , toMsg : Msg -> msg
+    }
+    -> Model
+    -> ReadyData
+    -> Int
+    -> ( Model, Effect msg )
+confirmNutzap props (Model model) ready amountSats =
+    case ( loggedInSigningPubKey props.loginStatus, ready.cashuOption ) of
+        ( Just _, Just cashu ) ->
+            if amountSats > cashu.availableBalance then
+                ( Model
+                    { model
+                        | dialog = ErrorState (Translations.insufficientBalanceText [ props.browserEnv.translations ]) (Just ready)
+                    }
+                , Effect.none
+                )
+
+            else
+                let
+                    requestId =
+                        model.nextRequestId
+                in
+                ( Model
+                    { model
+                        | dialog = SendingNutzap ready requestId
+                        , nextRequestId = requestId + 1
+                    }
+                , Ports.sendNutzap
+                    { requestId = requestId
+                    , mintUrl = cashu.mintUrl
+                    , proofs = cashu.proofs
+                    , amount = amountSats
+                    , recipientP2pk = cashu.p2pkPubkey
+                    }
+                    |> Effect.sendCmd
+                    |> Effect.map props.toMsg
+                )
+
+        _ ->
+            ( Model
+                { model
+                    | dialog = ErrorState (Translations.loginRequiredText [ props.browserEnv.translations ]) (Just ready)
+                }
+            , Effect.none
+            )
 
 
 handleIncomingMessage :
     { props
         | browserEnv : BrowserEnv
         , nostr : Nostr.Model
+        , loginStatus : LoginStatus
         , toMsg : Msg -> msg
     }
     -> Model
@@ -621,7 +869,6 @@ handleIncomingMessage props (Model model) message =
                                 ( Model model, Effect.none )
 
                         Err _ ->
-                            -- Shared may still decode/store these; re-check shortly.
                             ( Model model
                             , Process.sleep 100
                                 |> Task.andThen (\_ -> Time.now)
@@ -633,8 +880,275 @@ handleIncomingMessage props (Model model) message =
                 _ ->
                     ( Model model, Effect.none )
 
+        "events" ->
+            handleRecipientMintEvents props (Model model) message.value
+
+        "eventsComplete" ->
+            case model.dialog of
+                LoadingPayData target flags ->
+                    if flags.waitingCashu then
+                        finishLoading props
+                            (Model model)
+                            target
+                            { flags | waitingCashu = False }
+
+                    else
+                        ( Model model, Effect.none )
+
+                _ ->
+                    ( Model model, Effect.none )
+
+        "nutzapSent" ->
+            case model.dialog of
+                SendingNutzap ready requestId ->
+                    case Decode.decodeValue nutzapSentDecoder message.value of
+                        Ok sent ->
+                            if sent.requestId == requestId then
+                                publishNutzapSend props (Model model) ready sent
+
+                            else
+                                ( Model model, Effect.none )
+
+                        Err _ ->
+                            ( Model { model | dialog = ErrorState (Translations.errorText [ props.browserEnv.translations ]) (Just ready) }
+                            , Effect.none
+                            )
+
+                _ ->
+                    ( Model model, Effect.none )
+
+        "nutzapSendFailed" ->
+            case model.dialog of
+                SendingNutzap ready requestId ->
+                    let
+                        failedId =
+                            Decode.decodeValue (Decode.field "requestId" Decode.int) message.value
+                                |> Result.withDefault -1
+
+                        reason =
+                            Decode.decodeValue (Decode.field "reason" Decode.string) message.value
+                                |> Result.withDefault (Translations.errorText [ props.browserEnv.translations ])
+                    in
+                    if failedId == requestId then
+                        ( Model { model | dialog = ErrorState reason (Just ready) }
+                        , Effect.none
+                        )
+
+                    else
+                        ( Model model, Effect.none )
+
+                _ ->
+                    ( Model model, Effect.none )
+
         _ ->
             ( Model model, Effect.none )
+
+
+handleRecipientMintEvents :
+    { props
+        | browserEnv : BrowserEnv
+        , nostr : Nostr.Model
+        , toMsg : Msg -> msg
+    }
+    -> Model
+    -> Decode.Value
+    -> ( Model, Effect msg )
+handleRecipientMintEvents props (Model model) value =
+    case model.dialog of
+        LoadingPayData target flags ->
+            if not flags.waitingCashu then
+                ( Model model, Effect.none )
+
+            else
+                case ( External.decodeEventsKind value, External.decodeEvents value ) of
+                    ( Ok KindNutzapMintRecommendation, Ok events ) ->
+                        let
+                            cashuOption =
+                                events
+                                    |> List.map CashuWallet.mintRecommendationFromEvent
+                                    |> List.filter (\rec -> rec.pubKey == target.recipientPubKey)
+                                    |> List.head
+                                    |> Maybe.andThen (cashuOptionFromRecommendation props.nostr)
+                        in
+                        finishLoading props
+                            (Model model)
+                            target
+                            { flags
+                                | waitingCashu = False
+                                , cashuOption = cashuOption
+                            }
+
+                    _ ->
+                        ( Model model, Effect.none )
+
+        Ready ready ->
+            case ( External.decodeEventsKind value, External.decodeEvents value ) of
+                ( Ok KindNutzapMintRecommendation, Ok events ) ->
+                    let
+                        cashuOption =
+                            events
+                                |> List.map CashuWallet.mintRecommendationFromEvent
+                                |> List.filter (\rec -> rec.pubKey == ready.target.recipientPubKey)
+                                |> List.head
+                                |> Maybe.andThen (cashuOptionFromRecommendation props.nostr)
+                    in
+                    ( Model
+                        { model
+                            | dialog =
+                                Ready
+                                    { ready
+                                        | cashuOption = cashuOption
+                                        , method =
+                                            case ( ready.payData, cashuOption ) of
+                                                ( Nothing, Just _ ) ->
+                                                    Cashu
+
+                                                _ ->
+                                                    ready.method
+                                    }
+                        }
+                    , Effect.none
+                    )
+
+                _ ->
+                    ( Model model, Effect.none )
+
+        _ ->
+            ( Model model, Effect.none )
+
+
+cashuOptionFromRecommendation : Nostr.Model -> CashuWallet.NutzapMintRecommendation -> Maybe CashuOption
+cashuOptionFromRecommendation nostr rec =
+    case rec.p2pkPubkey of
+        Nothing ->
+            Nothing
+
+        Just p2pk ->
+            if List.isEmpty rec.mints then
+                Nothing
+
+            else
+                rec.mints
+                    |> List.filterMap
+                        (\mintUrl ->
+                            let
+                                ( proofs, eventIds ) =
+                                    Nostr.getCashuProofsForMint nostr mintUrl
+
+                                balance =
+                                    proofs |> List.map .amount |> List.sum
+                            in
+                            if balance > 0 then
+                                Just
+                                    { mintUrl = mintUrl
+                                    , p2pkPubkey = p2pk
+                                    , relays = List.map Relay.fromString rec.relays
+                                    , availableBalance = balance
+                                    , proofEventIds = eventIds
+                                    , proofs = List.map CashuWallet.encodeProof proofs
+                                    }
+
+                            else
+                                Nothing
+                        )
+                    |> List.sortBy (\opt -> negate opt.availableBalance)
+                    |> List.head
+
+
+type alias NutzapSent =
+    { requestId : Int
+    , mintUrl : String
+    , amount : Int
+    , keepProofs : List CashuWallet.CashuProof
+    , sendProofs : List Encode.Value
+    }
+
+
+nutzapSentDecoder : Decode.Decoder NutzapSent
+nutzapSentDecoder =
+    Decode.map5 NutzapSent
+        (Decode.field "requestId" Decode.int)
+        (Decode.field "mintUrl" Decode.string)
+        (Decode.field "amount" Decode.int)
+        (Decode.field "keepProofs" (Decode.list cashuProofDecoder))
+        (Decode.field "sendProofs" (Decode.list Decode.value))
+
+
+cashuProofDecoder : Decode.Decoder CashuWallet.CashuProof
+cashuProofDecoder =
+    Decode.succeed CashuWallet.CashuProof
+        |> DecodePipeline.required "id" Decode.string
+        |> DecodePipeline.required "amount" Decode.int
+        |> DecodePipeline.required "secret" Decode.string
+        |> DecodePipeline.required "C" Decode.string
+
+
+publishNutzapSend :
+    { props
+        | browserEnv : BrowserEnv
+        , loginStatus : LoginStatus
+        , toMsg : Msg -> msg
+    }
+    -> Model
+    -> ReadyData
+    -> NutzapSent
+    -> ( Model, Effect msg )
+publishNutzapSend props (Model model) ready sent =
+    case ( loggedInSigningPubKey props.loginStatus, ready.cashuOption ) of
+        ( Just senderPubKey, Just cashu ) ->
+            let
+                relays =
+                    if List.isEmpty cashu.relays then
+                        ready.target.relays
+                            |> Set.toList
+                            |> List.map Relay.fromString
+
+                    else
+                        cashu.relays
+
+                nutzapEvt =
+                    CashuWallet.nutzapEvent senderPubKey
+                        { recipientPubKey = ready.target.recipientPubKey
+                        , mintUrl = sent.mintUrl
+                        , comment = ready.comment
+                        , proofs = sent.sendProofs
+                        , interactionTags = interactionObjectTags ready.target.interactionObject
+                        }
+
+                tokenEvt =
+                    CashuWallet.tokenEvent senderPubKey sent.mintUrl sent.keepProofs cashu.proofEventIds
+
+                historyEvt =
+                    CashuWallet.historyEvent senderPubKey
+                        { direction = CashuWallet.HistoryOut
+                        , amount = sent.amount
+                        , nutzapEventId = Nothing
+                        , counterpartPubKey = ready.target.recipientPubKey
+                        , createdTokenEventId = Nothing
+                        }
+            in
+            ( Model { model | dialog = Success { ready = ready, amountSats = sent.amount } }
+            , Effect.batch
+                [ SendNutzap relays nutzapEvt
+                    |> Shared.Msg.SendNostrEvent
+                    |> Effect.sendSharedMsg
+                , SendCashuTokens tokenEvt
+                    |> Shared.Msg.SendNostrEvent
+                    |> Effect.sendSharedMsg
+                , SendCashuHistory historyEvt
+                    |> Shared.Msg.SendNostrEvent
+                    |> Effect.sendSharedMsg
+                , Process.sleep 5000
+                    |> Task.perform (\_ -> AutoCloseSuccess)
+                    |> Effect.sendCmd
+                    |> Effect.map props.toMsg
+                ]
+            )
+
+        _ ->
+            ( Model { model | dialog = ErrorState (Translations.loginRequiredText [ props.browserEnv.translations ]) (Just ready) }
+            , Effect.none
+            )
 
 
 matchesSignRequestId : ReadyData -> Decode.Value -> Bool
@@ -653,16 +1167,16 @@ matchesSignRequestId ready value =
 
 requestInvoice : ReadyData -> Maybe String -> Effect Msg
 requestInvoice ready maybeNostrJson =
-    case parsedAmountSats ready of
-        Just amountSats ->
+    case ( ready.payData, parsedAmountSats ready ) of
+        ( Just payData, Just amountSats ) ->
             Zaps.fetchInvoice ReceivedInvoice
-                (Url.toString ready.payData.callback)
+                (Url.toString payData.callback)
                 (amountSats * 1000)
                 (Just ready.comment)
                 maybeNostrJson
                 |> Effect.sendCmd
 
-        Nothing ->
+        _ ->
             Effect.none
 
 
@@ -670,15 +1184,38 @@ parsedAmountSats : ReadyData -> Maybe Int
 parsedAmountSats ready =
     case String.toInt (String.trim ready.amountDraft) of
         Just amountSats ->
-            let
-                amountMsats =
-                    amountSats * 1000
-            in
-            if amountSats > 0 && amountMsats >= ready.payData.minSendable && amountMsats <= ready.payData.maxSendable then
-                Just amountSats
+            if amountSats <= 0 then
+                Nothing
 
             else
-                Nothing
+                case ready.method of
+                    Lightning ->
+                        case ready.payData of
+                            Just payData ->
+                                let
+                                    amountMsats =
+                                        amountSats * 1000
+                                in
+                                if amountMsats >= payData.minSendable && amountMsats <= payData.maxSendable then
+                                    Just amountSats
+
+                                else
+                                    Nothing
+
+                            Nothing ->
+                                Nothing
+
+                    Cashu ->
+                        case ready.cashuOption of
+                            Just cashu ->
+                                if amountSats <= cashu.availableBalance then
+                                    Just amountSats
+
+                                else
+                                    Nothing
+
+                            Nothing ->
+                                Nothing
 
         Nothing ->
             Nothing
@@ -709,6 +1246,32 @@ updateReadyAmount dialog amountDraft =
             dialog
 
 
+updateReadyAmountPreset : DialogState -> String -> DialogState
+updateReadyAmountPreset dialog amountDraft =
+    case dialog of
+        Ready ready ->
+            Ready
+                { ready
+                    | amountDraft = amountDraft
+                    , amountInputKey = ready.amountInputKey + 1
+                }
+
+        ErrorState _ (Just ready) ->
+            Ready
+                { ready
+                    | amountDraft = amountDraft
+                    , amountInputKey = ready.amountInputKey + 1
+                }
+
+        _ ->
+            dialog
+
+
+digitsOnly : String -> String
+digitsOnly value =
+    String.filter Char.isDigit value
+
+
 updateReadyComment : DialogState -> String -> DialogState
 updateReadyComment dialog comment =
     case dialog of
@@ -717,6 +1280,19 @@ updateReadyComment dialog comment =
 
         ErrorState _ (Just ready) ->
             Ready { ready | comment = comment }
+
+        _ ->
+            dialog
+
+
+updateReadyMethod : DialogState -> PaymentMethod -> DialogState
+updateReadyMethod dialog method =
+    case dialog of
+        Ready ready ->
+            Ready { ready | method = method }
+
+        ErrorState message (Just ready) ->
+            ErrorState message (Just { ready | method = method })
 
         _ ->
             dialog
@@ -820,6 +1396,7 @@ type ZapButtonDialog msg
         , interactionObject : InteractionObject
         , loginStatus : LoginStatus
         , nostr : Nostr.Model
+        , showDialog : Bool
         , showLabel : Bool
         , relayUrls : Set String
         , toMsg : Msg -> msg
@@ -845,6 +1422,7 @@ new props =
         , interactionObject = props.interactionObject
         , loginStatus = props.loginStatus
         , nostr = props.nostr
+        , showDialog = True
         , showLabel = True
         , relayUrls = Set.empty
         , toMsg = props.toMsg
@@ -855,6 +1433,11 @@ new props =
 withoutLabel : ZapButtonDialog msg -> ZapButtonDialog msg
 withoutLabel (Settings settings) =
     Settings { settings | showLabel = False }
+
+
+withoutDialog : ZapButtonDialog msg -> ZapButtonDialog msg
+withoutDialog (Settings settings) =
+    Settings { settings | showDialog = False }
 
 
 withInstanceId : String -> ZapButtonDialog msg -> ZapButtonDialog msg
@@ -883,6 +1466,14 @@ view (Settings settings) =
 
             else
                 Nothing
+
+        dialog =
+            if settings.showDialog then
+                viewDialog (Settings settings)
+                    |> Html.map settings.toMsg
+
+            else
+                emptyHtml
     in
     Html.div []
         [ InteractionButton.new
@@ -898,8 +1489,7 @@ view (Settings settings) =
             |> InteractionButton.withTestAttribute "zap-button"
             |> InteractionButton.view
             |> Html.map settings.toMsg
-        , viewDialog (Settings settings)
-            |> Html.map settings.toMsg
+        , dialog
         ]
 
 
@@ -913,14 +1503,37 @@ viewDialog (Settings settings) =
         Hidden ->
             emptyHtml
 
-        LoadingPayData _ ->
-            dialogShell settings.theme (Translations.dialogTitle [ settings.browserEnv.translations ]) [ Html.text (Translations.loadingText [ settings.browserEnv.translations ]) ]
+        LoadingPayData target flags ->
+            dialogShell settings.theme
+                (Translations.dialogTitle [ settings.browserEnv.translations ])
+                [ viewBusyContent settings.browserEnv
+                    target
+                    (loadingPayDataStatus settings.browserEnv.translations flags)
+                ]
 
-        SigningZapRequest _ ->
-            dialogShell settings.theme (Translations.dialogTitle [ settings.browserEnv.translations ]) [ Html.text (Translations.loadingText [ settings.browserEnv.translations ]) ]
+        SigningZapRequest ready ->
+            dialogShell settings.theme
+                (Translations.dialogTitle [ settings.browserEnv.translations ])
+                [ viewBusyContent settings.browserEnv
+                    ready.target
+                    (Translations.signingZapText [ settings.browserEnv.translations ])
+                ]
 
-        LoadingInvoice _ ->
-            dialogShell settings.theme (Translations.dialogTitle [ settings.browserEnv.translations ]) [ Html.text (Translations.loadingText [ settings.browserEnv.translations ]) ]
+        LoadingInvoice ready ->
+            dialogShell settings.theme
+                (Translations.dialogTitle [ settings.browserEnv.translations ])
+                [ viewBusyContent settings.browserEnv
+                    ready.target
+                    (Translations.loadingInvoiceText [ settings.browserEnv.translations ])
+                ]
+
+        SendingNutzap ready _ ->
+            dialogShell settings.theme
+                (Translations.dialogTitle [ settings.browserEnv.translations ])
+                [ viewBusyContent settings.browserEnv
+                    ready.target
+                    (Translations.sendingNutzapText [ settings.browserEnv.translations ])
+                ]
 
         Ready ready ->
             dialogShell settings.theme
@@ -974,40 +1587,59 @@ viewReadyContent : BrowserEnv -> Theme -> ReadyData -> Html Msg
 viewReadyContent browserEnv theme ready =
     let
         amountPresets =
-            [ 21, 69, 420, 1337, 5000, 10000, 21000 ]
-                |> List.filter (\sats -> sats * 1000 >= ready.payData.minSendable && sats * 1000 <= ready.payData.maxSendable)
+            case ( ready.method, ready.payData, ready.cashuOption ) of
+                ( Lightning, Just payData, _ ) ->
+                    [ 21, 69, 420, 1337, 5000, 10000, 21000 ]
+                        |> List.filter (\sats -> sats * 1000 >= payData.minSendable && sats * 1000 <= payData.maxSendable)
+
+                ( Cashu, _, Just cashu ) ->
+                    [ 21, 69, 420, 1337, 5000, 10000, 21000 ]
+                        |> List.filter (\sats -> sats <= cashu.availableBalance)
+
+                _ ->
+                    [ 21 ]
 
         selectedSats =
             String.toInt (String.trim ready.amountDraft)
+
+        showMethodToggle =
+            ready.payData /= Nothing && ready.cashuOption /= Nothing
     in
     Html.div
         [ Attr.css [ Tw.flex, Tw.flex_col, Tw.gap_4, Tw.min_w_64 ] ]
         [ viewRecipientHeader browserEnv ready
+        , if showMethodToggle then
+            Html.div [ Attr.css [ Tw.flex, Tw.flex_row, Tw.gap_2 ] ]
+                [ methodButton theme ready.method Lightning (Translations.lightningMethodLabel [ browserEnv.translations ])
+                , methodButton theme ready.method Cashu (Translations.cashuMethodLabel [ browserEnv.translations ])
+                ]
+
+          else
+            emptyHtml
+        , case ready.cashuOption of
+            Just cashu ->
+                if ready.method == Cashu then
+                    Html.p [ Attr.css [ Tw.text_sm, Tw.text_color Theme.gray_500 ] ]
+                        [ Html.text
+                            (Translations.cashuBalanceLabel [ browserEnv.translations ]
+                                ++ ": "
+                                ++ String.fromInt cashu.availableBalance
+                                ++ " sats"
+                            )
+                        ]
+
+                else
+                    emptyHtml
+
+            Nothing ->
+                emptyHtml
         , Html.div []
             [ Html.p [ Attr.css [ Tw.text_sm, Tw.font_medium, Tw.mb_2 ] ] [ Html.text (Translations.amountLabel [ browserEnv.translations ]) ]
             , Html.div [ Attr.css [ Tw.flex, Tw.flex_wrap, Tw.gap_2, Tw.mb_3 ] ]
                 (List.map (amountButton theme selectedSats) amountPresets)
-            , EntryField.new
-                { value = ready.amountDraft
-                , onInput = SetAmountInput
-                , theme = theme
-                }
-                |> EntryField.withType EntryField.FieldTypeNumber
-                |> EntryField.withPlaceholder (Translations.amountPlaceholder [ browserEnv.translations ])
-                |> EntryField.view
+            , viewAmountInput browserEnv theme ready
             ]
-        , if Maybe.withDefault 0 ready.payData.commentAllowed > 0 then
-            EntryField.new
-                { value = ready.comment
-                , onInput = SetComment
-                , theme = theme
-                }
-                |> EntryField.withPlaceholder (Translations.commentPlaceholder [ browserEnv.translations ])
-                |> EntryField.withRows 2
-                |> EntryField.view
-
-          else
-            emptyHtml
+        , viewCommentField browserEnv theme ready
         , Html.div [ Attr.css [ Tw.flex, Tw.flex_row, Tw.gap_2, Tw.justify_end ] ]
             [ Button.new
                 { label = Translations.closeButtonTitle [ browserEnv.translations ]
@@ -1027,14 +1659,139 @@ viewReadyContent browserEnv theme ready =
         ]
 
 
-viewRecipientHeader : BrowserEnv -> ReadyData -> Html Msg
-viewRecipientHeader browserEnv ready =
+viewAmountInput : BrowserEnv -> Theme -> ReadyData -> Html Msg
+viewAmountInput browserEnv theme ready =
+    let
+        styles =
+            stylesForTheme theme
+    in
+    Keyed.node "div"
+        [ Attr.css [ Tw.w_full ] ]
+        [ ( "zap-amount-" ++ String.fromInt ready.amountInputKey
+          , Html.input
+                (styles.colorStyleBackground
+                    ++ styles.colorStyleGrayscaleText
+                    ++ [ Attr.type_ "text"
+                       , Attr.attribute "inputmode" "numeric"
+                       , Attr.attribute "pattern" "[0-9]*"
+                       , Attr.autocomplete False
+                       , Attr.spellcheck False
+                       , Attr.placeholder (Translations.amountPlaceholder [ browserEnv.translations ])
+                       , Attr.value ready.amountDraft
+                       , Events.onInput SetAmountInput
+                       , Attr.css
+                            [ Tw.appearance_none
+                            , Tw.bg_scroll
+                            , Tw.bg_clip_border
+                            , Tw.rounded_md
+                            , Tw.border_2
+                            , Tw.box_border
+                            , Tw.cursor_text
+                            , Tw.block
+                            , Tw.ps_2
+                            , Tw.pe_2
+                            , Tw.pl_2
+                            , Tw.pr_2
+                            , Tw.h_10
+                            , Tw.w_full
+                            ]
+                       ]
+                )
+                []
+          )
+        ]
+viewCommentField : BrowserEnv -> Theme -> ReadyData -> Html Msg
+viewCommentField browserEnv theme ready =
+    let
+        allowComment =
+            case ready.method of
+                Cashu ->
+                    True
+
+                Lightning ->
+                    Maybe.withDefault 0 (Maybe.andThen .commentAllowed ready.payData) > 0
+    in
+    if allowComment then
+        EntryField.new
+            { value = ready.comment
+            , onInput = SetComment
+            , theme = theme
+            }
+            |> EntryField.withPlaceholder (Translations.commentPlaceholder [ browserEnv.translations ])
+            |> EntryField.withRows 2
+            |> EntryField.view
+
+    else
+        emptyHtml
+
+
+methodButton : Theme -> PaymentMethod -> PaymentMethod -> String -> Html Msg
+methodButton theme selected method label =
+    Button.new
+        { label = label
+        , onClick = Just (SetPaymentMethod method)
+        , theme = theme
+        }
+        |> (if selected == method then
+                Button.withTypePrimary
+
+            else
+                Button.withTypeSecondary
+           )
+        |> Button.view
+
+
+viewBusyContent : BrowserEnv -> Target -> String -> Html Msg
+viewBusyContent browserEnv target statusText =
+    Html.div
+        [ Attr.css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.items_center
+            , Tw.gap_4
+            , Tw.py_4
+            , Tw.min_w_64
+            ]
+        ]
+        [ viewTargetHeader browserEnv target Nothing
+        , Icon.FeatherIcon FeatherIcons.loader
+            |> Icon.viewWithSize 28
+        , Html.p
+            [ Attr.css
+                [ Tw.text_sm
+                , Tw.font_medium
+                , Tw.text_center
+                , Tw.text_color Theme.gray_600
+                ]
+            ]
+            [ Html.text statusText ]
+        ]
+
+
+loadingPayDataStatus : I18Next.Translations -> LoadingFlags -> String
+loadingPayDataStatus translations flags =
+    case ( flags.waitingLightning, flags.waitingCashu ) of
+        ( True, True ) ->
+            Translations.loadingPaymentOptionsText [ translations ]
+
+        ( True, False ) ->
+            Translations.loadingLightningText [ translations ]
+
+        ( False, True ) ->
+            Translations.loadingCashuText [ translations ]
+
+        ( False, False ) ->
+            Translations.loadingText [ translations ]
+
+
+viewTargetHeader : BrowserEnv -> Target -> Maybe String -> Html Msg
+viewTargetHeader browserEnv target maybeSubtitle =
     let
         defaultPicture =
             "/images/avatars/placeholder_01.webp"
 
         pictureSources =
-            case ready.target.recipientPicture of
+            case target.recipientPicture of
                 Just url ->
                     Ui.Links.scaledImageSources browserEnv.environment 80 url
 
@@ -1042,14 +1799,24 @@ viewRecipientHeader browserEnv ready =
                     { src = defaultPicture
                     , srcset = defaultPicture ++ " 1x, " ++ defaultPicture ++ " 2x"
                     }
+
+        subtitle =
+            case maybeSubtitle of
+                Just value ->
+                    value
+
+                Nothing ->
+                    target.lud16
+                        |> Maybe.map Lud16.lud16ToString
+                        |> Maybe.withDefault ""
     in
     Html.div
         [ Attr.css [ Tw.flex, Tw.flex_col, Tw.items_center, Tw.gap_2, Tw.text_center ] ]
-        [ Html.p [ Attr.css [ Tw.text_lg, Tw.font_semibold ] ] [ Html.text ready.target.recipientName ]
+        [ Html.p [ Attr.css [ Tw.text_lg, Tw.font_semibold ] ] [ Html.text target.recipientName ]
         , Html.img
             [ Attr.src pictureSources.src
             , Attr.attribute "srcset" pictureSources.srcset
-            , Attr.alt ready.target.recipientName
+            , Attr.alt target.recipientName
             , Attr.css
                 [ Tw.w_20
                 , Tw.h_20
@@ -1058,8 +1825,35 @@ viewRecipientHeader browserEnv ready =
                 ]
             ]
             []
-        , Html.p [ Attr.css [ Tw.text_sm, Tw.text_color Theme.gray_500 ] ] [ Html.text (Lud16.lud16ToString ready.target.lud16) ]
+        , if String.isEmpty subtitle then
+            emptyHtml
+
+          else
+            Html.p [ Attr.css [ Tw.text_sm, Tw.text_color Theme.gray_500 ] ] [ Html.text subtitle ]
         ]
+
+
+viewRecipientHeader : BrowserEnv -> ReadyData -> Html Msg
+viewRecipientHeader browserEnv ready =
+    let
+        subtitle =
+            case ( ready.method, ready.target.lud16, ready.cashuOption ) of
+                ( Lightning, Just lud16, _ ) ->
+                    Just (Lud16.lud16ToString lud16)
+
+                ( Cashu, _, Just cashu ) ->
+                    Just cashu.mintUrl
+
+                ( _, Just lud16, _ ) ->
+                    Just (Lud16.lud16ToString lud16)
+
+                ( _, _, Just cashu ) ->
+                    Just cashu.mintUrl
+
+                _ ->
+                    Nothing
+    in
+    viewTargetHeader browserEnv ready.target subtitle
 
 
 amountButton : Theme -> Maybe Int -> Int -> Html Msg
@@ -1102,10 +1896,21 @@ viewInvoiceContent browserEnv theme instanceId invoiceView =
         buttonElementId =
             "zap-invoice-copy-"
                 ++ (instanceId |> Maybe.withDefault "0")
+
+        amountSats =
+            parsedAmountSats invoiceView.ready
+                |> Maybe.withDefault 0
     in
     Html.div
-        [ Attr.css [ Tw.flex, Tw.flex_col, Tw.items_center, Tw.gap_3 ] ]
-        [ Html.div
+        [ Attr.css [ Tw.flex, Tw.flex_col, Tw.items_center, Tw.gap_3, Tw.min_w_64 ] ]
+        [ viewRecipientHeader browserEnv invoiceView.ready
+        , if amountSats > 0 then
+            Html.p [ Attr.css [ Tw.text_lg, Tw.font_semibold ] ]
+                [ Html.text (String.fromInt amountSats ++ " sats") ]
+
+          else
+            emptyHtml
+        , Html.div
             [ Attr.css [ Tw.bg_color Theme.white, Tw.p_2, Tw.rounded_md ] ]
             [ qrCode ]
         , Html.p
@@ -1266,11 +2071,35 @@ subscriptions (Model model) =
     Sub.batch
         [ InteractionButton.subscriptions model.button
             |> Sub.map InteractionButtonMsg
-        , Ports.receiveMessage ReceivedMessage
         , case model.dialog of
-            ShowingInvoice _ ->
-                Time.every 3000 CheckZapPaid
-
-            _ ->
+            Hidden ->
                 Sub.none
+
+            Ready _ ->
+                -- Avoid port-driven re-renders while the user edits amount/comment.
+                Sub.none
+
+            ErrorState _ _ ->
+                Sub.none
+
+            Success _ ->
+                Sub.none
+
+            LoadingPayData _ _ ->
+                Ports.receiveMessage ReceivedMessage
+
+            SigningZapRequest _ ->
+                Ports.receiveMessage ReceivedMessage
+
+            LoadingInvoice _ ->
+                Sub.none
+
+            SendingNutzap _ _ ->
+                Ports.receiveMessage ReceivedMessage
+
+            ShowingInvoice _ ->
+                Sub.batch
+                    [ Ports.receiveMessage ReceivedMessage
+                    , Time.every 3000 CheckZapPaid
+                    ]
         ]

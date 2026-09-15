@@ -5,10 +5,13 @@ module Nostr.CashuWallet exposing
     , HistoryDirection(..)
     , NutzapMintRecommendation
     , defaultMintUrl
+    , encodeProof
     , historyEvent
     , ingestTokens
     , mintRecommendationEvent
     , mintRecommendationFromEvent
+    , nutzapEvent
+    , proofsAndIdsForMint
     , redeemedNutzapIdsFromEvents
     , tokenEvent
     , tokenEventFromDecrypted
@@ -33,7 +36,7 @@ import Time
 
 defaultMintUrl : String
 defaultMintUrl =
-    "https://stablenut.umint.cash"
+    "https://mint.minibits.cash/Bitcoin"
 
 
 type alias CashuWallet =
@@ -230,6 +233,51 @@ tokenEvent ownerPubKey mint proofs deleted =
     { event | content = Encode.encode 0 payload, tags = [] }
 
 
+{-| Build unsigned kind 9321 nutzap with P2PK-locked proofs (as JSON strings).
+-}
+nutzapEvent :
+    PubKey
+    ->
+        { recipientPubKey : PubKey
+        , mintUrl : String
+        , comment : String
+        , proofs : List Encode.Value
+        , interactionTags : List Tag
+        }
+    -> Event
+nutzapEvent senderPubKey data =
+    let
+        event =
+            emptyEvent senderPubKey KindNutzap
+
+        proofTags =
+            data.proofs
+                |> List.map (\proof -> GenericTag [ "proof", Encode.encode 0 proof ])
+    in
+    { event
+        | content = data.comment
+        , tags =
+            proofTags
+                ++ [ GenericTag [ "unit", "sat" ]
+                   , GenericTag [ "u", data.mintUrl ]
+                   , PublicKeyTag data.recipientPubKey Nothing Nothing
+                   ]
+                ++ data.interactionTags
+    }
+
+
+proofsAndIdsForMint : Dict EventId CashuTokenEvent -> String -> ( List CashuProof, List EventId )
+proofsAndIdsForMint tokens mintUrl =
+    tokens
+        |> Dict.values
+        |> List.filter (\token -> token.mint == mintUrl && not (List.isEmpty token.proofs))
+        |> List.foldl
+            (\token ( proofs, ids ) ->
+                ( proofs ++ token.proofs, token.id :: ids )
+            )
+            ( [], [] )
+
+
 mintRecommendationFromEvent : Event -> NutzapMintRecommendation
 mintRecommendationFromEvent event =
     let
@@ -311,8 +359,8 @@ historyEvent :
     ->
         { direction : HistoryDirection
         , amount : Int
-        , nutzapEventId : EventId
-        , senderPubKey : PubKey
+        , nutzapEventId : Maybe EventId
+        , counterpartPubKey : PubKey
         , createdTokenEventId : Maybe EventId
         }
     -> Event
@@ -343,9 +391,14 @@ historyEvent ownerPubKey data =
                    )
 
         publicTags =
-            [ EventIdTag data.nutzapEventId Nothing (Just EventTagRedeemedMarker) Nothing
-            , PublicKeyTag data.senderPubKey Nothing Nothing
-            ]
+            (case data.nutzapEventId of
+                Just nutzapId ->
+                    [ EventIdTag nutzapId Nothing (Just EventTagRedeemedMarker) Nothing ]
+
+                Nothing ->
+                    []
+            )
+                ++ [ PublicKeyTag data.counterpartPubKey Nothing Nothing ]
     in
     { event
         | content = Encode.encode 0 (Encode.list (Encode.list Encode.string) contentTags)

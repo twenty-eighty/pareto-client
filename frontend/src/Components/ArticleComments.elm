@@ -369,7 +369,7 @@ viewInteractions articleComments eventId pubKey kind title description =
             |> Interactions.withInteractionElements
                 ([ Interactions.LikeButtonElement
                  , Interactions.RepostButtonElement
-                 , Interactions.ZapButtonElement "0" settings.zapRelayUrls
+                 , Interactions.zapButton "0" settings.zapRelayUrls
                  ]
                     ++ shareButtonElement
                 )

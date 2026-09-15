@@ -50,8 +50,8 @@ https://pareto.space/p/<bech32> (nprofile)
 [NIP-44 (Encrypted Payloads (Versioned))](https://nips.nostr.com/44)\
 [NIP-51 (Lists)](https://nips.nostr.com/51)\
 [NIP-57 (Lightning Zaps)](https://nips.nostr.com/57)\
-[NIP-60 (Cashu Wallets)](https://nips.nostr.com/60)\
-[NIP-61 (Nutzaps)](https://nips.nostr.com/61)\
+[NIP-60 (Cashu Wallets)](https://nips.nostr.com/60) — Settings → eCash enables kind 17375 + 10019; tokens/history are kinds 7375/7376\
+[NIP-61 (Nutzaps)](https://nips.nostr.com/61) — receive (auto-redeem 9321) and send (zap dialog eCash method when recipient has 10019 and you hold proofs on a shared mint)\
 [NIP-65 (Relay List Metadata)](https://nips.nostr.com/65)\
 [NIP-68 (Picture-first feeds)](https://nips.nostr.com/68)\
 [NIP-84 (Highlights)](https://nips.nostr.com/84)\
