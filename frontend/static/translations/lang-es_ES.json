@@ -21,7 +21,12 @@
         "recommendation sent alert text": "¡Recomendación enviada!",
         "feedback info text": "¿Encontraste un error o quieres dar tu opinión? Por favor escribe un email a ",
         "support page link text": "aquí",
-        "telegram link text": "Pareto Canal de Telegram"
+        "telegram link text": "Pareto Canal de Telegram",
+        "install app button title": "Instalar aplicación"
+    },
+    "app update": {
+        "new version available": "Nueva versión disponible.",
+        "reload button": "Recargar"
     },
     "article info": {
         "title": "Información sobre el Artículo",
