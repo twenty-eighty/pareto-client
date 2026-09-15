@@ -11,6 +11,7 @@ import { createRelayManager } from "./relay-manager";
 import { handleAuthCommand, restoreActiveIdentity } from "./authIdentities";
 import { reportPasskeySupport as queryPasskeySupport } from "./keytrAuth";
 import * as cashuWallet from "./cashuWallet";
+import * as nwcWallet from "./nwcWallet";
 import { initPwa, promptPwaInstall, reloadForNewVersion } from "./pwa";
 import debug from 'debug';
 
@@ -156,6 +157,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   });
 
   initPwa(app);
+  getNwcStatusCommand(app);
 
   // in certain cases we can't catch the error with try/catch
   window.addEventListener("unhandledrejection", function (event) {
@@ -391,6 +393,38 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
       case 'cancelNewsletter':
         cancelNewsletter();
+        break;
+
+      case 'getNwcStatus':
+        getNwcStatusCommand(app);
+        break;
+
+      case 'connectNwc':
+        connectNwcCommand(app, value);
+        break;
+
+      case 'connectNwcAlby':
+        connectNwcAlbyCommand(app);
+        break;
+
+      case 'startNwaConnect':
+        startNwaConnectCommand(app);
+        break;
+
+      case 'cancelNwaConnect':
+        cancelNwaConnectCommand(app);
+        break;
+
+      case 'enableWebln':
+        enableWeblnCommand(app);
+        break;
+
+      case 'disconnectNwc':
+        disconnectNwcCommand(app);
+        break;
+
+      case 'payInvoiceNwc':
+        payInvoiceNwcCommand(app, value);
         break;
     }
   }
@@ -1740,6 +1774,165 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         messageType: 'error',
         value: { reason: error?.message || 'failed to compute cashu balance' },
       });
+    }
+  }
+
+  function sendNwcStatus(app, status) {
+    app.ports.receiveMessage.send({
+      messageType: 'nwcStatus',
+      value: {
+        connected: !!status.connected,
+        alias: status.alias || null,
+        network: status.network || null,
+        methods: status.methods || null,
+        lud16: status.lud16 || null,
+        balanceSats: typeof status.balanceSats === 'number' ? status.balanceSats : null,
+        walletPubkeyShort: status.walletPubkeyShort || null,
+        weblnAvailable: !!status.weblnAvailable,
+        canAutoPay: !!status.canAutoPay,
+      },
+    });
+  }
+
+  function getNwcStatusCommand(app) {
+    // Fast sync status first so UI can show "connected" immediately.
+    sendNwcStatus(app, nwcWallet.getStatusSync());
+    nwcWallet.refreshStatus().then((status) => {
+      sendNwcStatus(app, status);
+    }).catch(() => {
+      sendNwcStatus(app, nwcWallet.getStatusSync());
+    });
+  }
+
+  function sendNwcConnectResult(app, ok, reason = undefined) {
+    app.ports.receiveMessage.send({
+      messageType: 'nwcConnectResult',
+      value: ok ? { ok: true } : { ok: false, reason: reason || 'failed to connect wallet' },
+    });
+  }
+
+  async function connectNwcCommand(app, value) {
+    try {
+      const status = await nwcWallet.connect(value?.uri || "");
+      sendNwcStatus(app, status);
+      sendNwcConnectResult(app, true);
+    } catch (error) {
+      console.error('connectNwc failed', error);
+      sendNwcConnectResult(app, false, error?.message || 'failed to connect NWC wallet');
+      sendNwcStatus(app, nwcWallet.getStatusSync());
+    }
+  }
+
+  async function connectNwcAlbyCommand(app) {
+    try {
+      const status = await nwcWallet.connectWithAlby();
+      sendNwcStatus(app, status);
+      sendNwcConnectResult(app, true);
+    } catch (error) {
+      console.error('connectNwcAlby failed', error);
+      const reason =
+        error?.message === 'Popup closed'
+          ? 'Authorization window was closed'
+          : (error?.message || 'failed to connect with Alby');
+      sendNwcConnectResult(app, false, reason);
+      sendNwcStatus(app, nwcWallet.getStatusSync());
+    }
+  }
+
+  async function startNwaConnectCommand(app) {
+    try {
+      const result = await nwcWallet.startNwa(
+        (status) => {
+          sendNwcStatus(app, status);
+          sendNwcConnectResult(app, true);
+          app.ports.receiveMessage.send({
+            messageType: 'nwaWaiting',
+            value: { active: false, connectionUri: null },
+          });
+        },
+        (reason) => {
+          sendNwcConnectResult(app, false, reason);
+          app.ports.receiveMessage.send({
+            messageType: 'nwaWaiting',
+            value: { active: false, connectionUri: null },
+          });
+        }
+      );
+      app.ports.receiveMessage.send({
+        messageType: 'nwaWaiting',
+        value: { active: true, connectionUri: result.connectionUri },
+      });
+    } catch (error) {
+      console.error('startNwaConnect failed', error);
+      sendNwcConnectResult(app, false, error?.message || 'failed to start wallet QR connect');
+      app.ports.receiveMessage.send({
+        messageType: 'nwaWaiting',
+        value: { active: false, connectionUri: null },
+      });
+    }
+  }
+
+  function cancelNwaConnectCommand(app) {
+    nwcWallet.cancelNwa();
+    app.ports.receiveMessage.send({
+      messageType: 'nwaWaiting',
+      value: { active: false, connectionUri: null },
+    });
+  }
+
+  async function enableWeblnCommand(app) {
+    try {
+      const status = await nwcWallet.enableWebln();
+      sendNwcStatus(app, status);
+      sendNwcConnectResult(app, true);
+    } catch (error) {
+      console.error('enableWebln failed', error);
+      sendNwcConnectResult(app, false, error?.message || 'failed to enable WebLN');
+      sendNwcStatus(app, nwcWallet.getStatusSync());
+    }
+  }
+
+  function disconnectNwcCommand(app) {
+    const status = nwcWallet.disconnect();
+    sendNwcStatus(app, status);
+  }
+
+  async function payInvoiceNwcCommand(app, value) {
+    const invoice = value?.invoice;
+    if (!invoice || typeof invoice !== 'string') {
+      app.ports.receiveMessage.send({
+        messageType: 'nwcPayFailed',
+        value: { reason: 'missing invoice' },
+      });
+      return;
+    }
+    const canPay = !!nwcWallet.getStoredUri() || nwcWallet.isWeblnAvailable();
+    if (!canPay) {
+      app.ports.receiveMessage.send({
+        messageType: 'nwcPaySkipped',
+        value: null,
+      });
+      return;
+    }
+    try {
+      const result = await nwcWallet.payInvoice(invoice);
+      app.ports.receiveMessage.send({
+        messageType: 'nwcPaySucceeded',
+        value: { preimage: result.preimage || null },
+      });
+    } catch (error) {
+      console.error('payInvoiceNwc failed', error);
+      if (error?.message === 'NWC_NOT_CONNECTED' || error?.message === 'WEBLN_NOT_AVAILABLE') {
+        app.ports.receiveMessage.send({
+          messageType: 'nwcPaySkipped',
+          value: null,
+        });
+      } else {
+        app.ports.receiveMessage.send({
+          messageType: 'nwcPayFailed',
+          value: { reason: error?.message || 'Wallet payment failed' },
+        });
+      }
     }
   }
 

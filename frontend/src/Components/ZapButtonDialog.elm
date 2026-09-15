@@ -70,6 +70,8 @@ type Model
         { button : InteractionButton.Model
         , dialog : DialogState
         , nextRequestId : Int
+        , nwcConnected : Bool
+        , canAutoPay : Bool
         }
 
 
@@ -81,6 +83,7 @@ type DialogState
     | LoadingInvoice ReadyData
     | SendingNutzap ReadyData Int
     | ShowingInvoice InvoiceView
+    | PayingWithNwc InvoiceView
     | Success SuccessView
     | ErrorState String (Maybe ReadyData)
 
@@ -150,6 +153,8 @@ init =
         { button = InteractionButton.init
         , dialog = Hidden
         , nextRequestId = 1
+        , nwcConnected = False
+        , canAutoPay = False
         }
 
 
@@ -359,15 +364,31 @@ showInvoice props (Model model) ready bolt11 =
         let
             requestId =
                 model.nextRequestId
+
+            watchEffect =
+                watchZapReceipts requestId invoiceView
+                    |> Effect.map props.toMsg
         in
-        ( Model
-            { model
-                | dialog = ShowingInvoice invoiceView
-                , nextRequestId = requestId + 1
-            }
-        , watchZapReceipts requestId invoiceView
-            |> Effect.map props.toMsg
-        )
+        if model.canAutoPay then
+            ( Model
+                { model
+                    | dialog = PayingWithNwc invoiceView
+                    , nextRequestId = requestId + 1
+                }
+            , Effect.batch
+                [ watchEffect
+                , Effect.sendCmd (Ports.payInvoiceNwc bolt11)
+                ]
+            )
+
+        else
+            ( Model
+                { model
+                    | dialog = ShowingInvoice invoiceView
+                    , nextRequestId = requestId + 1
+                }
+            , watchEffect
+            )
 
 
 checkZapPaid :
@@ -387,6 +408,20 @@ checkZapPaid props (Model model) _ =
 
             else
                 -- ndk.fetchEvents resolves at EOSE; re-query like the old zap dialog
+                let
+                    requestId =
+                        model.nextRequestId
+                in
+                ( Model { model | nextRequestId = requestId + 1 }
+                , watchZapReceipts requestId invoiceView
+                    |> Effect.map props.toMsg
+                )
+
+        PayingWithNwc invoiceView ->
+            if invoiceIsPaid props.nostr invoiceView then
+                succeedZap props (Model model) invoiceView.ready
+
+            else
                 let
                     requestId =
                         model.nextRequestId
@@ -584,7 +619,11 @@ openDialog props relayUrls (Model model) =
                     else
                         requestId
             }
-        , Effect.batch [ lnEffect, cashuEffect ]
+        , Effect.batch
+            [ lnEffect
+            , cashuEffect
+            , Effect.sendCmd Ports.getNwcStatus
+            ]
         )
 
 
@@ -801,6 +840,38 @@ confirmNutzap props (Model model) ready amountSats =
             )
 
 
+handleZapReceiptMessage :
+    { props
+        | browserEnv : BrowserEnv
+        , nostr : Nostr.Model
+        , toMsg : Msg -> msg
+    }
+    -> Model
+    -> InvoiceView
+    -> Decode.Value
+    -> ( Model, Effect msg )
+handleZapReceiptMessage props (Model model) invoiceView value =
+    case Decode.decodeValue (Decode.list Zaps.nostrZapReceiptDecoder) value of
+        Ok receipts ->
+            if List.any (\receipt -> receipt.bolt11 == invoiceView.bolt11) receipts then
+                succeedZap props (Model model) invoiceView.ready
+
+            else if hasNewReceiptForTarget props.nostr invoiceView then
+                succeedZap props (Model model) invoiceView.ready
+
+            else
+                ( Model model, Effect.none )
+
+        Err _ ->
+            ( Model model
+            , Process.sleep 100
+                |> Task.andThen (\_ -> Time.now)
+                |> Task.perform CheckZapPaid
+                |> Effect.sendCmd
+                |> Effect.map props.toMsg
+            )
+
+
 handleIncomingMessage :
     { props
         | browserEnv : BrowserEnv
@@ -857,25 +928,69 @@ handleIncomingMessage props (Model model) message =
         "zap_receipts" ->
             case model.dialog of
                 ShowingInvoice invoiceView ->
-                    case Decode.decodeValue (Decode.list Zaps.nostrZapReceiptDecoder) message.value of
-                        Ok receipts ->
-                            if List.any (\receipt -> receipt.bolt11 == invoiceView.bolt11) receipts then
-                                succeedZap props (Model model) invoiceView.ready
+                    handleZapReceiptMessage props (Model model) invoiceView message.value
 
-                            else if hasNewReceiptForTarget props.nostr invoiceView then
-                                succeedZap props (Model model) invoiceView.ready
+                PayingWithNwc invoiceView ->
+                    handleZapReceiptMessage props (Model model) invoiceView message.value
 
-                            else
-                                ( Model model, Effect.none )
+                _ ->
+                    ( Model model, Effect.none )
 
-                        Err _ ->
-                            ( Model model
-                            , Process.sleep 100
-                                |> Task.andThen (\_ -> Time.now)
-                                |> Task.perform CheckZapPaid
-                                |> Effect.sendCmd
-                                |> Effect.map props.toMsg
-                            )
+        "nwcStatus" ->
+            case
+                Decode.decodeValue
+                    (Decode.map2 Tuple.pair
+                        (Decode.field "connected" Decode.bool)
+                        (Decode.oneOf
+                            [ Decode.field "canAutoPay" Decode.bool
+                            , Decode.succeed False
+                            ]
+                        )
+                    )
+                    message.value
+            of
+                Ok ( connected, canAutoPay ) ->
+                    ( Model
+                        { model
+                            | nwcConnected = connected
+                            , canAutoPay = canAutoPay || connected
+                        }
+                    , Effect.none
+                    )
+
+                Err _ ->
+                    ( Model model, Effect.none )
+
+        "nwcPaySkipped" ->
+            case model.dialog of
+                PayingWithNwc invoiceView ->
+                    ( Model
+                        { model
+                            | dialog = ShowingInvoice invoiceView
+                            , nwcConnected = False
+                            , canAutoPay = False
+                        }
+                    , Effect.none
+                    )
+
+                _ ->
+                    ( Model model, Effect.none )
+
+        "nwcPaySucceeded" ->
+            case model.dialog of
+                PayingWithNwc invoiceView ->
+                    succeedZap props (Model model) invoiceView.ready
+
+                _ ->
+                    ( Model model, Effect.none )
+
+        "nwcPayFailed" ->
+            case model.dialog of
+                PayingWithNwc invoiceView ->
+                    -- Fall back to manual invoice payment.
+                    ( Model { model | dialog = ShowingInvoice invoiceView }
+                    , Effect.none
+                    )
 
                 _ ->
                     ( Model model, Effect.none )
@@ -1545,6 +1660,14 @@ viewDialog (Settings settings) =
                 (Translations.invoiceTitle [ settings.browserEnv.translations ])
                 [ viewInvoiceContent settings.browserEnv settings.theme settings.instanceId invoiceView ]
 
+        PayingWithNwc invoiceView ->
+            dialogShell settings.theme
+                (Translations.invoiceTitle [ settings.browserEnv.translations ])
+                [ viewBusyContent settings.browserEnv
+                    invoiceView.ready.target
+                    (Translations.payingWithNwcText [ settings.browserEnv.translations ])
+                ]
+
         Success successView ->
             dialogShell settings.theme
                 (Translations.successTitle [ settings.browserEnv.translations ])
@@ -2098,6 +2221,12 @@ subscriptions (Model model) =
                 Ports.receiveMessage ReceivedMessage
 
             ShowingInvoice _ ->
+                Sub.batch
+                    [ Ports.receiveMessage ReceivedMessage
+                    , Time.every 3000 CheckZapPaid
+                    ]
+
+            PayingWithNwc _ ->
                 Sub.batch
                     [ Ports.receiveMessage ReceivedMessage
                     , Time.every 3000 CheckZapPaid

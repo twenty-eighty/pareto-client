@@ -717,6 +717,55 @@ reloadWindow =
     sendCommand { command = "reloadWindow", value = Encode.null }
 
 
+-- NWC (NIP-47)
+
+
+getNwcStatus : Cmd msg
+getNwcStatus =
+    sendCommand { command = "getNwcStatus", value = Encode.null }
+
+
+connectNwc : String -> Cmd msg
+connectNwc uri =
+    sendCommand
+        { command = "connectNwc"
+        , value = Encode.object [ ( "uri", Encode.string uri ) ]
+        }
+
+
+connectNwcAlby : Cmd msg
+connectNwcAlby =
+    sendCommand { command = "connectNwcAlby", value = Encode.null }
+
+
+startNwaConnect : Cmd msg
+startNwaConnect =
+    sendCommand { command = "startNwaConnect", value = Encode.null }
+
+
+cancelNwaConnect : Cmd msg
+cancelNwaConnect =
+    sendCommand { command = "cancelNwaConnect", value = Encode.null }
+
+
+enableWebln : Cmd msg
+enableWebln =
+    sendCommand { command = "enableWebln", value = Encode.null }
+
+
+disconnectNwc : Cmd msg
+disconnectNwc =
+    sendCommand { command = "disconnectNwc", value = Encode.null }
+
+
+payInvoiceNwc : String -> Cmd msg
+payInvoiceNwc invoice =
+    sendCommand
+        { command = "payInvoiceNwc"
+        , value = Encode.object [ ( "invoice", Encode.string invoice ) ]
+        }
+
+
 installPwa : Cmd msg
 installPwa =
     sendCommand { command = "installPwa", value = Encode.null }

@@ -18,6 +18,7 @@ import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import I18Next
 import Json.Decode as Decode
+import Json.Decode.Pipeline as DecodePipeline
 import Layouts
 import Layouts.Sidebar
 import Nostr
@@ -53,6 +54,8 @@ import Ui.Shared exposing (countBadge, emptyHtml, viewConfigIssues)
 import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
 import Url
 import View exposing (View)
+import QRCode
+import Svg.Attributes as SvgAttr
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
@@ -64,6 +67,10 @@ page user shared route =
         , view = view user shared
         }
         |> Page.withLayout (toLayout shared)
+        |> Page.withOnQueryParameterChanged
+            { key = categoryParamName
+            , onChange = CategoryQueryChanged
+            }
 
 
 toLayout : Shared.Model -> Model -> Layouts.Layout Msg
@@ -111,6 +118,40 @@ type DataModel
     | MediaServersData MediaServersModel
     | ProfileData ProfileModel
     | EcashData EcashModel
+    | WalletData WalletModel
+
+
+type alias WalletModel =
+    { uriDraft : String
+    , connecting : Bool
+    , connected : Bool
+    , alias : Maybe String
+    , network : Maybe String
+    , lud16 : Maybe String
+    , balanceSats : Maybe Int
+    , walletPubkeyShort : Maybe String
+    , error : Maybe String
+    , weblnAvailable : Bool
+    , canAutoPay : Bool
+    , nwaUri : Maybe String
+    }
+
+
+emptyWalletModel : WalletModel
+emptyWalletModel =
+    { uriDraft = ""
+    , connecting = False
+    , connected = False
+    , alias = Nothing
+    , network = Nothing
+    , lud16 = Nothing
+    , balanceSats = Nothing
+    , walletPubkeyShort = Nothing
+    , error = Nothing
+    , weblnAvailable = False
+    , canAutoPay = False
+    , nwaUri = Nothing
+    }
 
 
 type alias EcashModel =
@@ -346,6 +387,7 @@ type Category
     = Relays
     | MediaServers
     | Profile
+    | Wallet
     | Ecash
 
 
@@ -397,6 +439,10 @@ availableCategories translations configCheckIssues =
       , title = Translations.profileCategory [ translations ] ++ profileIssuesSuffix
       , testId = "settings-profile"
       }
+    , { category = Wallet
+      , title = Translations.walletCategory [ translations ]
+      , testId = "settings-wallet"
+      }
     , { category = Ecash
       , title = Translations.ecashCategory [ translations ]
       , testId = "settings-ecash"
@@ -439,6 +485,9 @@ stringFromCategory category =
         Profile ->
             "profile"
 
+        Wallet ->
+            "wallet"
+
         Ecash ->
             "ecash"
 
@@ -455,6 +504,9 @@ categoryFromString categoryString =
         "profile" ->
             Just Profile
 
+        "wallet" ->
+            Just Wallet
+
         "ecash" ->
             Just Ecash
 
@@ -468,6 +520,7 @@ categoryFromString categoryString =
 
 type Msg
     = CategorySelected Category
+    | CategoryQueryChanged { from : Maybe String, to : Maybe String }
     | CategoriesSent (Categories.Msg Category Msg)
     | UpdateRelayModel RelaysModel
     | AddOutboxRelay PubKey RelayUrl
@@ -500,6 +553,13 @@ type Msg
     | RemoveEcashMint String
     | CashuReceiveDialogSent CashuReceiveDialog.Msg
     | CashuWithdrawDialogSent CashuWithdrawDialog.Msg
+    | UpdateNwcUriDraft String
+    | ConnectNwc
+    | ConnectNwcAlby
+    | StartNwaConnect
+    | CancelNwaConnect
+    | EnableWebln
+    | DisconnectNwc
     | ReceivedPortMessage IncomingMessage
     | PictureLoaded Bool
     | BannerLoaded Bool
@@ -509,7 +569,10 @@ update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update user shared msg model =
     case msg of
         CategorySelected category ->
-            updateModelWithCategory user shared model category
+            switchToCategory user shared model category
+
+        CategoryQueryChanged { to } ->
+            switchToCategory user shared model (categoryFromQuery to)
 
         CategoriesSent innerMsg ->
             Categories.update
@@ -932,6 +995,157 @@ update user shared msg model =
                 _ ->
                     ( model, Effect.none )
 
+        UpdateNwcUriDraft uri ->
+            case model.data of
+                WalletData walletModel ->
+                    ( { model | data = WalletData { walletModel | uriDraft = uri, error = Nothing } }
+                    , Effect.none
+                    )
+
+                _ ->
+                    ( model, Effect.none )
+
+        ConnectNwc ->
+            case model.data of
+                WalletData walletModel ->
+                    let
+                        uri =
+                            String.trim walletModel.uriDraft
+                    in
+                    if String.isEmpty uri then
+                        ( { model
+                            | data =
+                                WalletData
+                                    { walletModel
+                                        | error = Just (Translations.nwcInvalidUriText [ shared.browserEnv.translations ])
+                                    }
+                          }
+                        , Effect.none
+                        )
+
+                    else
+                        ( { model
+                            | data =
+                                WalletData
+                                    { walletModel
+                                        | connecting = True
+                                        , error = Nothing
+                                        , nwaUri = Nothing
+                                    }
+                          }
+                        , Effect.batch
+                            [ Effect.sendCmd Ports.cancelNwaConnect
+                            , Effect.sendCmd (Ports.connectNwc uri)
+                            ]
+                        )
+
+                _ ->
+                    ( model, Effect.none )
+
+        ConnectNwcAlby ->
+            case model.data of
+                WalletData walletModel ->
+                    ( { model
+                        | data =
+                            WalletData
+                                { walletModel
+                                    | connecting = True
+                                    , error = Nothing
+                                    , nwaUri = Nothing
+                                }
+                      }
+                    , Effect.batch
+                        [ Effect.sendCmd Ports.cancelNwaConnect
+                        , Effect.sendCmd Ports.connectNwcAlby
+                        ]
+                    )
+
+                _ ->
+                    ( model, Effect.none )
+
+        StartNwaConnect ->
+            case model.data of
+                WalletData walletModel ->
+                    ( { model
+                        | data =
+                            WalletData
+                                { walletModel
+                                    | connecting = True
+                                    , error = Nothing
+                                    , nwaUri = Nothing
+                                }
+                      }
+                    , Effect.sendCmd Ports.startNwaConnect
+                    )
+
+                _ ->
+                    ( model, Effect.none )
+
+        CancelNwaConnect ->
+            case model.data of
+                WalletData walletModel ->
+                    ( { model
+                        | data =
+                            WalletData
+                                { walletModel
+                                    | connecting = False
+                                    , nwaUri = Nothing
+                                    , error = Nothing
+                                }
+                      }
+                    , Effect.sendCmd Ports.cancelNwaConnect
+                    )
+
+                _ ->
+                    ( model, Effect.none )
+
+        EnableWebln ->
+            case model.data of
+                WalletData walletModel ->
+                    ( { model
+                        | data =
+                            WalletData
+                                { walletModel
+                                    | connecting = True
+                                    , error = Nothing
+                                    , nwaUri = Nothing
+                                }
+                      }
+                    , Effect.batch
+                        [ Effect.sendCmd Ports.cancelNwaConnect
+                        , Effect.sendCmd Ports.enableWebln
+                        ]
+                    )
+
+                _ ->
+                    ( model, Effect.none )
+
+        DisconnectNwc ->
+            case model.data of
+                WalletData walletModel ->
+                    ( { model
+                        | data =
+                            WalletData
+                                { walletModel
+                                    | connected = False
+                                    , alias = Nothing
+                                    , network = Nothing
+                                    , lud16 = Nothing
+                                    , balanceSats = Nothing
+                                    , walletPubkeyShort = Nothing
+                                    , uriDraft = ""
+                                    , connecting = False
+                                    , error = Nothing
+                                    , nwaUri = Nothing
+                                    , canAutoPay = walletModel.weblnAvailable
+                                }
+                      }
+                    , Effect.sendCmd Ports.disconnectNwc
+                    )
+
+                _ ->
+                    ( model, Effect.none )
+
         ReceivedPortMessage message ->
             case model.data of
                 EcashData ecashModel ->
@@ -964,6 +1178,9 @@ update user shared msg model =
 
                     else
                         updateWithPortMessage user shared model message
+
+                WalletData _ ->
+                    updateWithPortMessage user shared model message
 
                 _ ->
                     updateWithPortMessage user shared model message
@@ -1095,6 +1312,114 @@ persistEcashMintsIfWalletExists user shared mints =
 updateWithPortMessage : Auth.User -> Shared.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage user shared model message =
     case message.messageType of
+        "nwcStatus" ->
+            case ( model.data, Decode.decodeValue nwcStatusDecoder message.value ) of
+                ( WalletData walletModel, Ok status ) ->
+                    ( { model
+                        | data =
+                            WalletData
+                                { walletModel
+                                    | connected = status.connected
+                                    , alias = status.alias
+                                    , network = status.network
+                                    , lud16 = status.lud16
+                                    , balanceSats = status.balanceSats
+                                    , walletPubkeyShort = status.walletPubkeyShort
+                                    , weblnAvailable = status.weblnAvailable
+                                    , canAutoPay = status.canAutoPay
+                                    , connecting =
+                                        if status.connected then
+                                            False
+
+                                        else
+                                            walletModel.connecting
+                                    , nwaUri =
+                                        if status.connected then
+                                            Nothing
+
+                                        else
+                                            walletModel.nwaUri
+                                }
+                      }
+                    , Effect.none
+                    )
+
+                _ ->
+                    ( model, Effect.none )
+
+        "nwaWaiting" ->
+            case ( model.data, Decode.decodeValue nwaWaitingDecoder message.value ) of
+                ( WalletData walletModel, Ok waiting ) ->
+                    ( { model
+                        | data =
+                            WalletData
+                                { walletModel
+                                    | nwaUri =
+                                        if waiting.active then
+                                            waiting.connectionUri
+
+                                        else
+                                            Nothing
+                                    , connecting =
+                                        if waiting.active then
+                                            True
+
+                                        else if walletModel.nwaUri /= Nothing then
+                                            False
+
+                                        else
+                                            walletModel.connecting
+                                    , error =
+                                        if waiting.active then
+                                            Nothing
+
+                                        else
+                                            walletModel.error
+                                }
+                      }
+                    , Effect.none
+                    )
+
+                _ ->
+                    ( model, Effect.none )
+
+        "nwcConnectResult" ->
+            case ( model.data, Decode.decodeValue nwcConnectResultDecoder message.value ) of
+                ( WalletData walletModel, Ok result ) ->
+                    if result.ok then
+                        ( { model
+                            | data =
+                                WalletData
+                                    { walletModel
+                                        | connecting = False
+                                        , uriDraft = ""
+                                        , error = Nothing
+                                        , nwaUri = Nothing
+                                    }
+                          }
+                        , Effect.none
+                        )
+
+                    else
+                        ( { model
+                            | data =
+                                WalletData
+                                    { walletModel
+                                        | connecting = False
+                                        , nwaUri = Nothing
+                                        , error =
+                                            Just
+                                                (result.reason
+                                                    |> Maybe.withDefault (Translations.nwcConnectErrorText [ shared.browserEnv.translations ])
+                                                )
+                                    }
+                          }
+                        , Effect.none
+                        )
+
+                _ ->
+                    ( model, Effect.none )
+
         "cashuWalletCreated" ->
             case ( model.data, Decode.decodeValue cashuWalletCreatedDecoder message.value ) of
                 ( EcashData ecashModel, Ok created ) ->
@@ -1245,6 +1570,109 @@ cashuWalletCreatedDecoder =
         (Decode.field "mintUrl" Decode.string)
 
 
+type alias NwcStatus =
+    { connected : Bool
+    , alias : Maybe String
+    , network : Maybe String
+    , lud16 : Maybe String
+    , balanceSats : Maybe Int
+    , walletPubkeyShort : Maybe String
+    , weblnAvailable : Bool
+    , canAutoPay : Bool
+    }
+
+
+nwcStatusDecoder : Decode.Decoder NwcStatus
+nwcStatusDecoder =
+    Decode.succeed NwcStatus
+        |> DecodePipeline.required "connected" Decode.bool
+        |> DecodePipeline.custom
+            (Decode.oneOf
+                [ Decode.field "alias" (Decode.nullable Decode.string)
+                , Decode.succeed Nothing
+                ]
+                |> Decode.map (Maybe.andThen emptyStringToNothing)
+            )
+        |> DecodePipeline.custom
+            (Decode.oneOf
+                [ Decode.field "network" (Decode.nullable Decode.string)
+                , Decode.succeed Nothing
+                ]
+                |> Decode.map (Maybe.andThen emptyStringToNothing)
+            )
+        |> DecodePipeline.custom
+            (Decode.oneOf
+                [ Decode.field "lud16" (Decode.nullable Decode.string)
+                , Decode.succeed Nothing
+                ]
+                |> Decode.map (Maybe.andThen emptyStringToNothing)
+            )
+        |> DecodePipeline.custom
+            (Decode.oneOf
+                [ Decode.field "balanceSats" (Decode.nullable Decode.int)
+                , Decode.succeed Nothing
+                ]
+            )
+        |> DecodePipeline.custom
+            (Decode.oneOf
+                [ Decode.field "walletPubkeyShort" (Decode.nullable Decode.string)
+                , Decode.succeed Nothing
+                ]
+                |> Decode.map (Maybe.andThen emptyStringToNothing)
+            )
+        |> DecodePipeline.custom
+            (Decode.oneOf
+                [ Decode.field "weblnAvailable" Decode.bool
+                , Decode.succeed False
+                ]
+            )
+        |> DecodePipeline.custom
+            (Decode.oneOf
+                [ Decode.field "canAutoPay" Decode.bool
+                , Decode.succeed False
+                ]
+            )
+
+
+type alias NwaWaiting =
+    { active : Bool
+    , connectionUri : Maybe String
+    }
+
+
+nwaWaitingDecoder : Decode.Decoder NwaWaiting
+nwaWaitingDecoder =
+    Decode.map2 NwaWaiting
+        (Decode.field "active" Decode.bool)
+        (Decode.oneOf
+            [ Decode.field "connectionUri" (Decode.nullable Decode.string)
+            , Decode.succeed Nothing
+            ]
+            |> Decode.map (Maybe.andThen emptyStringToNothing)
+        )
+
+
+type alias NwcConnectResult =
+    { ok : Bool
+    , reason : Maybe String
+    }
+
+
+nwcConnectResultDecoder : Decode.Decoder NwcConnectResult
+nwcConnectResultDecoder =
+    Decode.map2 NwcConnectResult
+        (Decode.field "ok" Decode.bool)
+        (Decode.maybe (Decode.field "reason" Decode.string))
+
+
+emptyStringToNothing : String -> Maybe String
+emptyStringToNothing value =
+    if String.isEmpty value then
+        Nothing
+
+    else
+        Just value
+
 
 extendMediaServerList : ServerUrl -> List ServerUrl -> List ServerUrl
 extendMediaServerList mediaServer mediaServers =
@@ -1315,16 +1743,69 @@ sendPrivateRelayListCmd pubKey writeRelays privateRelays =
         |> Effect.sendSharedMsg
 
 
+categoryFromQuery : Maybe String -> Category
+categoryFromQuery maybeCategory =
+    maybeCategory
+        |> Maybe.andThen categoryFromString
+        |> Maybe.withDefault Relays
+
+
+categoryDataMatches : Model -> Category -> Bool
+categoryDataMatches model category =
+    case ( category, model.data ) of
+        ( Relays, RelaysData _ ) ->
+            True
+
+        ( MediaServers, MediaServersData _ ) ->
+            True
+
+        ( Profile, ProfileData _ ) ->
+            True
+
+        ( Wallet, WalletData _ ) ->
+            True
+
+        ( Ecash, EcashData _ ) ->
+            True
+
+        _ ->
+            False
+
+
+{-| Shared entry for tab clicks and `?category=` URL changes.
+Skip when selection and loaded data already match (avoids a double load after replaceRoute).
+-}
+switchToCategory : Auth.User -> Shared.Model -> Model -> Category -> ( Model, Effect Msg )
+switchToCategory user shared model category =
+    if Categories.selected model.categories == category && categoryDataMatches model category then
+        ( model, Effect.none )
+
+    else
+        updateModelWithCategory user shared model category
+
+
 updateModelWithCategory : Auth.User -> Shared.Model -> Model -> Category -> ( Model, Effect Msg )
 updateModelWithCategory user shared model category =
     let
+        modelWithSelection =
+            { model | categories = Categories.select model.categories category }
+
         ( modelReady, leaveEffect ) =
-            case model.data of
+            case modelWithSelection.data of
                 EcashData _ ->
-                    closeEcashReceiveDialog user shared model
+                    closeEcashReceiveDialog user shared modelWithSelection
+
+                WalletData walletModel ->
+                    if walletModel.nwaUri /= Nothing || walletModel.connecting then
+                        ( { modelWithSelection | data = WalletData { walletModel | nwaUri = Nothing, connecting = False } }
+                        , Effect.sendCmd Ports.cancelNwaConnect
+                        )
+
+                    else
+                        ( modelWithSelection, Effect.none )
 
                 _ ->
-                    ( model, Effect.none )
+                    ( modelWithSelection, Effect.none )
 
         ( newModel, effect ) =
             case category of
@@ -1365,6 +1846,11 @@ updateModelWithCategory user shared model category =
                 Ecash ->
                     ( { modelReady | data = EcashData (emptyEcashModel shared) }
                     , Effect.none
+                    )
+
+                Wallet ->
+                    ( { modelReady | data = WalletData emptyWalletModel }
+                    , Effect.sendCmd Ports.getNwcStatus
                     )
     in
     ( newModel
@@ -1473,8 +1959,281 @@ viewCategory shared configCheckIssues model user =
         ( Ecash, EcashData ecashModel ) ->
             viewEcash shared user ecashModel
 
+        ( Wallet, WalletData walletModel ) ->
+            viewWallet shared walletModel
+
         _ ->
             emptyHtml
+
+
+viewWalletDetails : I18Next.Translations -> WalletModel -> Html Msg
+viewWalletDetails translations walletModel =
+    if not walletModel.connected then
+        emptyHtml
+
+    else
+        let
+            row : String -> String -> Html Msg
+            row label value =
+                p
+                    [ css [ Tw.text_sm ] ]
+                    [ text (label ++ ": " ++ value) ]
+
+            aliasRow =
+                case ( walletModel.alias, walletModel.lud16 ) of
+                    ( Just alias, Just lud16 ) ->
+                        if alias == lud16 then
+                            emptyHtml
+
+                        else
+                            row (Translations.nwcAliasLabel [ translations ]) alias
+
+                    ( Just alias, Nothing ) ->
+                        row (Translations.nwcAliasLabel [ translations ]) alias
+
+                    _ ->
+                        emptyHtml
+
+            lud16Row =
+                case walletModel.lud16 of
+                    Just lud16 ->
+                        row (Translations.nwcLud16Label [ translations ]) lud16
+
+                    Nothing ->
+                        emptyHtml
+
+            networkRow =
+                case walletModel.network of
+                    Just network ->
+                        row (Translations.nwcNetworkLabel [ translations ]) network
+
+                    Nothing ->
+                        emptyHtml
+
+            balanceRow =
+                case walletModel.balanceSats of
+                    Just balance ->
+                        row
+                            (Translations.nwcBalanceLabel [ translations ])
+                            (String.fromInt balance ++ " sats")
+
+                    Nothing ->
+                        emptyHtml
+
+            pubkeyRow =
+                case walletModel.walletPubkeyShort of
+                    Just pubkey ->
+                        row (Translations.nwcWalletIdLabel [ translations ]) pubkey
+
+                    Nothing ->
+                        emptyHtml
+        in
+        div
+            [ css [ Tw.flex, Tw.flex_col, Tw.gap_1 ] ]
+            [ aliasRow
+            , lud16Row
+            , networkRow
+            , balanceRow
+            , pubkeyRow
+            ]
+
+
+viewWallet : Shared.Model -> WalletModel -> Html Msg
+viewWallet shared walletModel =
+    let
+        translations =
+            shared.browserEnv.translations
+
+        statusText =
+            if walletModel.connected then
+                Translations.nwcConnectedLabel [ translations ]
+
+            else if walletModel.canAutoPay then
+                Translations.nwcWeblnReadyLabel [ translations ]
+
+            else
+                Translations.nwcDisconnectedLabel [ translations ]
+
+        busy =
+            walletModel.connecting
+
+        methodButtons =
+            [ Button.new
+                { label =
+                    if busy && walletModel.nwaUri == Nothing then
+                        Translations.nwcConnectingButtonTitle [ translations ]
+
+                    else
+                        Translations.nwcConnectAlbyButtonTitle [ translations ]
+                , onClick =
+                    if busy then
+                        Nothing
+
+                    else
+                        Just ConnectNwcAlby
+                , theme = shared.theme
+                }
+                |> Button.withTypePrimary
+                |> Button.withDisabled busy
+                |> Button.view
+            , Button.new
+                { label = Translations.nwcConnectQrButtonTitle [ translations ]
+                , onClick =
+                    if busy then
+                        Nothing
+
+                    else
+                        Just StartNwaConnect
+                , theme = shared.theme
+                }
+                |> Button.withTypeSecondary
+                |> Button.withDisabled busy
+                |> Button.view
+            ]
+                ++ (if walletModel.weblnAvailable then
+                        [ Button.new
+                            { label = Translations.nwcConnectWeblnButtonTitle [ translations ]
+                            , onClick =
+                                if busy then
+                                    Nothing
+
+                                else
+                                    Just EnableWebln
+                            , theme = shared.theme
+                            }
+                            |> Button.withTypeSecondary
+                            |> Button.withDisabled busy
+                            |> Button.view
+                        ]
+
+                    else
+                        []
+                   )
+
+        nwaSection =
+            case walletModel.nwaUri of
+                Just uri ->
+                    let
+                        qrCode =
+                            uri
+                                |> QRCode.fromString
+                                |> Result.map
+                                    (\qr ->
+                                        qr
+                                            |> QRCode.toSvg
+                                                [ SvgAttr.width "220px"
+                                                , SvgAttr.height "220px"
+                                                ]
+                                            |> Html.fromUnstyled
+                                    )
+                                |> Result.withDefault (text "")
+                    in
+                    div
+                        [ css [ Tw.flex, Tw.flex_col, Tw.items_center, Tw.gap_3 ] ]
+                        [ p [] [ text <| Translations.nwcQrWaitingText [ translations ] ]
+                        , div
+                            [ css [ Tw.bg_color Theme.white, Tw.p_2, Tw.rounded_md ] ]
+                            [ qrCode ]
+                        , p
+                            [ css [ Tw.text_xs, Tw.break_all, Tw.max_w_xs, Tw.text_center ] ]
+                            [ text (String.left 48 uri ++ "…") ]
+                        , Button.new
+                            { label = Translations.nwcCancelQrButtonTitle [ translations ]
+                            , onClick = Just CancelNwaConnect
+                            , theme = shared.theme
+                            }
+                            |> Button.withTypeSecondary
+                            |> Button.view
+                        ]
+
+                Nothing ->
+                    emptyHtml
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.gap_6
+            ]
+        ]
+        [ h3
+            [ css
+                [ Tw.text_xl
+                , Tw.font_semibold
+                ]
+            ]
+            [ text <| Translations.nwcSectionTitle [ translations ] ]
+        , p [] [ text <| Translations.nwcSectionDescription [ translations ] ]
+        , p []
+            [ text
+                (Translations.nwcStatusLabel [ translations ]
+                    ++ ": "
+                    ++ statusText
+                )
+            ]
+        , viewWalletDetails translations walletModel
+        , if walletModel.connected && walletModel.nwaUri == Nothing then
+            Button.new
+                { label = Translations.nwcDisconnectButtonTitle [ translations ]
+                , onClick = Just DisconnectNwc
+                , theme = shared.theme
+                }
+                |> Button.withTypeSecondary
+                |> Button.view
+
+          else
+            div
+                [ css [ Tw.flex, Tw.flex_col, Tw.gap_4, Tw.max_w_xl ] ]
+                [ if walletModel.canAutoPay && not walletModel.connected then
+                    p
+                        [ css [ Tw.text_sm ] ]
+                        [ text <| Translations.nwcWeblnReadyLabel [ translations ] ]
+
+                  else
+                    text ""
+                , div
+                    [ css [ Tw.flex, Tw.flex_col, Tw.gap_2 ] ]
+                    methodButtons
+                , nwaSection
+                , p
+                    [ css [ Tw.text_sm, Tw.font_medium, Tw.mt_2 ] ]
+                    [ text <| Translations.nwcManualFallbackTitle [ translations ] ]
+                , EntryField.new
+                    { value = walletModel.uriDraft
+                    , onInput = UpdateNwcUriDraft
+                    , theme = shared.theme
+                    }
+                    |> EntryField.withPlaceholder (Translations.nwcUriPlaceholder [ translations ])
+                    |> EntryField.withType EntryField.FieldTypeText
+                    |> EntryField.view
+                , case walletModel.error of
+                    Just err ->
+                        p
+                            [ css [ Tw.text_color Theme.red_600, Tw.text_sm ] ]
+                            [ text err ]
+
+                    Nothing ->
+                        text ""
+                , Button.new
+                    { label =
+                        if busy && walletModel.nwaUri == Nothing then
+                            Translations.nwcConnectingButtonTitle [ translations ]
+
+                        else
+                            Translations.nwcConnectButtonTitle [ translations ]
+                    , onClick =
+                        if busy then
+                            Nothing
+
+                        else
+                            Just ConnectNwc
+                    , theme = shared.theme
+                    }
+                    |> Button.withTypeSecondary
+                    |> Button.withDisabled busy
+                    |> Button.view
+                ]
+        ]
 
 
 viewEcash : Shared.Model -> Auth.User -> EcashModel -> Html Msg

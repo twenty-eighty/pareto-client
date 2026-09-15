@@ -7,13 +7,13 @@ import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events exposing (..)
 import Layouts
 import Layouts.Sidebar
-import Nostr.Types exposing (IncomingMessage)
+import Nostr.Types exposing (IncomingMessage, loggedInPubKey)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
 import Route.Path
 import Shared
-import Shared.Model exposing (ClientRole(..))
+import Shared.Model exposing (ClientRole)
 import Shared.Msg
 import Tailwind.Utilities as Tw
 import Translations.SignIn as Translations
@@ -58,45 +58,64 @@ init shared route () =
         maybeNsec =
             Dict.get nsecParamName route.query
 
-        queryWithoutNsec =
+        -- Return destination query without SignIn-only secrets / control params.
+        -- Keep `from` in the browser URL so remounts still know where to go.
+        returnQuery =
             route.query
                 |> Dict.remove nsecParamName
-
-        effect =
-            case maybeNsec of
-                Just nsec ->
-                    Effect.sendCmd (Ports.login nsec)
-
-                Nothing ->
-                    if Dict.member "confirmed" route.query then
-                        Effect.sendSharedMsg Shared.Msg.TriggerEmailLogin
-
-                    else
-                        Effect.sendSharedMsg Shared.Msg.TriggerLogin
-    in
-    ( { from =
-            from
-      , hash = route.hash
-      , query =
-            queryWithoutNsec
                 |> Dict.remove fromParamName
                 |> Dict.remove "confirmed"
-      , clientRole =
+
+        urlQuery =
+            route.query
+                |> Dict.remove nsecParamName
+                |> Dict.remove "confirmed"
+
+        clientRole =
             from
                 |> Maybe.map (Layouts.Sidebar.clientRoleForRoutePath shared.browserEnv.environment)
-      }
-    , [ effect
-      , Effect.pushRoute
-            { path = route.path
-            , query =
-                queryWithoutNsec
-                    |> Dict.remove fromParamName
-                    |> Dict.remove "confirmed"
+
+        model =
+            { from = from
             , hash = route.hash
+            , query = returnQuery
+            , clientRole = clientRole
             }
-      ]
-        |> Effect.batch
-    )
+
+        cleanUrlEffect =
+            Effect.pushRoute
+                { path = route.path
+                , query = urlQuery
+                , hash = route.hash
+                }
+
+        redirectAfterLoginEffect =
+            redirectToDestination shared model
+    in
+    case loggedInPubKey shared.loginStatus of
+        Just _ ->
+            -- Already signed in (e.g. session restored after a mistaken bounce here).
+            ( model
+            , Effect.batch [ cleanUrlEffect, redirectAfterLoginEffect ]
+            )
+
+        Nothing ->
+            let
+                loginEffect =
+                    case maybeNsec of
+                        Just nsec ->
+                            Effect.sendCmd (Ports.login nsec)
+
+                        Nothing ->
+                            if Dict.member "confirmed" route.query then
+                                Effect.sendSharedMsg Shared.Msg.TriggerEmailLogin
+
+                            else
+                                Effect.sendSharedMsg Shared.Msg.TriggerLogin
+            in
+            ( model
+            , Effect.batch [ loginEffect, cleanUrlEffect ]
+            )
 
 
 fromParamName : String
@@ -124,21 +143,30 @@ update shared msg model =
             ( model, Effect.sendSharedMsg Shared.Msg.TriggerLogin )
 
 
+redirectToDestination : Shared.Model -> Model -> Effect Msg
+redirectToDestination shared model =
+    case model.from of
+        Just from ->
+            let
+                clientRole =
+                    model.clientRole
+                        |> Maybe.withDefault
+                            (Layouts.Sidebar.clientRoleForRoutePath shared.browserEnv.environment from)
+            in
+            Effect.batch
+                [ Effect.sendSharedMsg (Shared.Msg.SetClientRole False clientRole)
+                , Effect.pushRoute { path = from, query = model.query, hash = model.hash }
+                ]
+
+        Nothing ->
+            Effect.pushRoutePath Route.Path.Read
+
+
 updateWithPortMessage : Shared.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
-updateWithPortMessage _ model portMessage =
+updateWithPortMessage shared model portMessage =
     case portMessage.messageType of
         "user" ->
-            case ( model.from, model.clientRole ) of
-                ( Just from, Just clientRole ) ->
-                    ( model
-                    , Effect.batch
-                        [ Effect.sendSharedMsg (Shared.Msg.SetClientRole False clientRole)
-                        , Effect.pushRoute { path = from, query = model.query, hash = model.hash }
-                        ]
-                    )
-
-                ( _, _ ) ->
-                    ( model, Effect.pushRoutePath Route.Path.Read )
+            ( model, redirectToDestination shared model )
 
         _ ->
             ( model, Effect.none )
