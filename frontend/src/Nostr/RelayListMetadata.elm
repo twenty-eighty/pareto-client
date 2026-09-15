@@ -1,7 +1,10 @@
 module Nostr.RelayListMetadata exposing (..)
 
+import Dict exposing (Dict)
 import Nostr.Event exposing (Event, Kind(..), Tag(..))
+import Nostr.Relay exposing (Relay, RelayState(..), hostWithoutProtocol)
 import Nostr.Types exposing (PubKey, RelayRole(..))
+import Set
 import Time
 
 
@@ -9,6 +12,70 @@ type alias RelayMetadata =
     { url : String
     , role : RelayRole
     }
+
+
+type alias IngestResult =
+    { relayMetadataLists : Dict PubKey (List RelayMetadata)
+    , relays : Dict String Relay
+    , unknownRelays : List String
+    }
+
+
+{-| Decode events and merge into relay metadata lists, stubbing unknown relays.
+-}
+ingest :
+    Dict PubKey (List RelayMetadata)
+    -> Dict String Relay
+    -> List Event
+    -> IngestResult
+ingest relayMetadataLists relays events =
+    let
+        relayLists =
+            events
+                |> List.map relayMetadataListFromEvent
+
+        relayListDict =
+            relayLists
+                |> List.foldl
+                    (\( pubKey, relayList ) dict ->
+                        Dict.insert pubKey (withUniqueEntries relayList) dict
+                    )
+                    relayMetadataLists
+
+        unknownRelays =
+            relayLists
+                |> List.concatMap (\( _, relayMetadataList ) -> relayMetadataList)
+                |> List.map (\{ url } -> hostWithoutProtocol url)
+                |> List.filter (\relay -> not (Dict.member relay relays))
+                |> Set.fromList
+                |> Set.toList
+
+        updatedRelays =
+            stubUnknownRelays unknownRelays relays
+    in
+    { relayMetadataLists = relayListDict
+    , relays = updatedRelays
+    , unknownRelays = unknownRelays
+    }
+
+
+withUniqueEntries : List RelayMetadata -> List RelayMetadata
+withUniqueEntries relayList =
+    relayList
+        |> List.map (\relayMetadata -> ( relayMetadata.url, relayMetadata.role ))
+        |> Dict.fromList
+        |> Dict.toList
+        |> List.map (\( url, role ) -> { url = hostWithoutProtocol url, role = role })
+
+
+stubUnknownRelays : List String -> Dict String Relay -> Dict String Relay
+stubUnknownRelays unknownRelays relays =
+    unknownRelays
+        |> List.foldl
+            (\unknownRelay acc ->
+                Dict.insert unknownRelay { nip11 = Nothing, state = RelayStateUnknown, urlWithoutProtocol = unknownRelay } acc
+            )
+            relays
 
 
 

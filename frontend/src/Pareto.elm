@@ -6,7 +6,7 @@ import Nostr.Event exposing (Kind(..))
 import Nostr.HandlerInformation exposing (HandlerInformation)
 import Nostr.Nip05 as Nip05
 import Nostr.Profile exposing (Profile)
-import Nostr.Types exposing (PubKey, RelayRole(..), RelayUrl)
+import Nostr.Types exposing (Following(..), PubKey, RelayRole(..), RelayUrl)
 import Time
 
 
@@ -381,6 +381,28 @@ bootstrapAuthorsList =
     -- , ( "volker.schubert@pareto.town", "80f49d824217e4730aadb729d38775bb2a31405b92a3d70ea37b73fcab3cb150" )
     ]
         |> Dict.fromList
+
+
+bootstrapPubKeyByNip05 : Dict String PubKey
+bootstrapPubKeyByNip05 =
+    bootstrapAuthorsList
+        |> Dict.toList
+        |> List.map (\( key, pubKey ) -> ( String.toLower key, pubKey ))
+        |> Dict.fromList
+
+
+authorsFollowList : List Following
+authorsFollowList =
+    bootstrapAuthorsList
+        |> Dict.toList
+        |> List.map
+            (\( nip05, authorPubKey ) ->
+                FollowingPubKey
+                    { pubKey = authorPubKey
+                    , relay = Just paretoRelay
+                    , petname = Just nip05
+                    }
+            )
 
 
 paretoClientNpub : String

@@ -9,7 +9,8 @@ import Html.Styled.Attributes exposing (css)
 import Layouts
 import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
-import Nostr exposing (ArticleQueryStatus(..))
+import Nostr
+import Nostr.Query exposing (ContentQueryStatus(..))
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), eventFilterForNip19, informationForKind, kindFromNumber)
 import Nostr.Nip19 as Nip19
@@ -25,7 +26,7 @@ import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
-import Ui.ArticleQuery
+import Ui.ContentQuery
 import Ui.PicturePost
 import Ui.ShortNote
 import Ui.Styles exposing (Theme)
@@ -304,7 +305,7 @@ viewContent shared model =
                         picturePost
 
                 _ ->
-                    Ui.ArticleQuery.viewNoteStatus shared.theme
+                    Ui.ContentQuery.viewNoteStatus shared.theme
                         shared.browserEnv.translations
                         shared.nostr
                         (Nostr.articleQueryStatusFrom shared.nostr Nothing model.requestId)
@@ -317,7 +318,7 @@ viewContent shared model =
                         model.requestId
             in
             case queryStatus of
-                ArticleQueryReady article ->
+                ContentQueryReady article ->
                     Ui.View.viewArticle
                         { articleComments = ArticleComments.init
                         , articleToInteractionsMsg = \_ _ -> NoOp
@@ -337,7 +338,7 @@ viewContent shared model =
                         article
 
                 _ ->
-                    Ui.ArticleQuery.viewStatus shared.theme shared.browserEnv.translations shared.nostr queryStatus
+                    Ui.ContentQuery.viewStatus shared.theme shared.browserEnv.translations shared.nostr queryStatus
 
         NonSupportedNip19 parameter ->
             div

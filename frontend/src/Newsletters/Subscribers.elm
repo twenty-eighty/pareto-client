@@ -10,6 +10,7 @@ import Json.Decode.Pipeline exposing (optional, required)
 import Json.Encode as Encode
 import Newsletters.Types exposing (Subscriber, SubscriberField(..), encodeSubscribers, fieldName)
 import Nostr
+import Nostr.Model exposing (TestMode(..))
 import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), emptyEvent, emptyEventFilter)
 import Nostr.Profile exposing (Profile, profileDisplayName)
 import Nostr.Request exposing (RequestData(..))
@@ -877,7 +878,7 @@ newsletterSubscribersEvent shared pubKey articleAddressComponents articleData su
                 |> Maybe.map (profileDisplayName pubKey)
 
         emailGatewayKey =
-            if shared.nostr.testMode == Nostr.TestModeEnabled then
+            if shared.nostr.testMode == TestModeEnabled then
                 Pareto.emailGatewayTestKey
 
             else
@@ -905,7 +906,7 @@ emailSendRequestToJson : Nostr.TestMode -> Maybe String -> ArticleData -> Subscr
 emailSendRequestToJson testMode maybeSenderName { title, summary, content, imageUrl, language } { keyHex, ivHex, url, size, active, total } =
     let
         testModeValue =
-            if testMode == Nostr.TestModeEnabled then
+            if testMode == TestModeEnabled then
                 Just True
 
             else
@@ -969,7 +970,7 @@ subscribeEvent nostr authorProfile maybeSigningPubKey { pubKey, email, firstName
                 |> SHA256.toHex
 
         testModeValue =
-            if nostr.testMode == Nostr.TestModeEnabled then
+            if nostr.testMode == TestModeEnabled then
                 Just True
 
             else

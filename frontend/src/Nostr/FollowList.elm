@@ -1,5 +1,6 @@
 module Nostr.FollowList exposing (..)
 
+import Dict exposing (Dict)
 import Nostr.Event exposing (Event, Kind(..), Tag(..), emptyEvent)
 import Nostr.Types exposing (Following(..), PubKey)
 
@@ -84,6 +85,17 @@ followListFromEvent event =
             }
 
 
+ingest : Dict PubKey (List Following) -> List Event -> Dict PubKey (List Following)
+ingest dict events =
+    events
+        |> List.map followListFromEvent
+        |> List.foldl
+            (\{ pubKey, following } acc ->
+                Dict.insert pubKey following acc
+            )
+            dict
+
+
 followListEvent : PubKey -> List Following -> Event
 followListEvent pubKey list =
     let
@@ -127,3 +139,22 @@ pubKeyIsFollower userPubKey followsList =
                         False
             )
         |> (not << List.isEmpty)
+
+
+{-| True if `authorPubKey` appears on the user mute list or the site authors mute list.
+-}
+isMuted : Dict PubKey (List Following) -> Maybe PubKey -> PubKey -> PubKey -> Bool
+isMuted muteLists maybeUserPubKey authorsKey authorPubKey =
+    let
+        mutedByUser =
+            maybeUserPubKey
+                |> Maybe.andThen (\pubKey -> Dict.get pubKey muteLists)
+                |> Maybe.map (pubKeyIsFollower authorPubKey)
+                |> Maybe.withDefault False
+
+        mutedByAuthors =
+            Dict.get authorsKey muteLists
+                |> Maybe.map (pubKeyIsFollower authorPubKey)
+                |> Maybe.withDefault False
+    in
+    mutedByUser || mutedByAuthors

@@ -20,6 +20,7 @@ import Components.AuthDialog as AuthDialog
 import Effect exposing (Effect)
 import Json.Decode
 import Nostr
+import Nostr.Model exposing (TestMode(..))
 import Nostr.Article exposing (Article)
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
@@ -156,10 +157,10 @@ init flagsResult route =
 
                 nostrTestMode =
                     if flags.testMode then
-                        Nostr.TestModeEnabled
+                        TestModeEnabled
 
                     else
-                        Nostr.TestModeOff
+                        TestModeOff
 
                 ( nostrInit, nostrInitCmd ) =
                     Nostr.init portHooks browserEnv.environment nostrTestMode Pareto.defaultRelays

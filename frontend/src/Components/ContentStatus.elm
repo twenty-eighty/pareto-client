@@ -1,16 +1,12 @@
-module Components.RelayStatus exposing
-    ( RelayStatus, new
+module Components.ContentStatus exposing
+    ( ContentStatus, new
     , view
     , Status(..)
     )
 
 {-| Status panel for single-content loads: loading, not found, or failed.
 
-Originally relay-connection focused; relay list is only shown for loading states.
-
-@docs RelayStatus, new
-@docs view
-@docs Status
+Relay list is only shown for loading states.
 
 -}
 
@@ -26,11 +22,7 @@ import Translations.RelayStatusComponent as Translations
 import Ui.Styles exposing (Theme(..))
 
 
-
--- SETTINGS
-
-
-type RelayStatus msg
+type ContentStatus msg
     = Settings
         { relays : List Relay
         , theme : Ui.Styles.Theme
@@ -51,7 +43,7 @@ type Status
     | NoteLoadFailed
 
 
-new : { relays : List Relay, theme : Ui.Styles.Theme, translations : I18Next.Translations, status : Status } -> RelayStatus msg
+new : { relays : List Relay, theme : Ui.Styles.Theme, translations : I18Next.Translations, status : Status } -> ContentStatus msg
 new props =
     Settings
         { relays = props.relays
@@ -61,11 +53,7 @@ new props =
         }
 
 
-
--- VIEW
-
-
-view : RelayStatus msg -> Html msg
+view : ContentStatus msg -> Html msg
 view (Settings settings) =
     let
         styles =

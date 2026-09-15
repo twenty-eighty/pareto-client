@@ -1,36 +1,25 @@
 module Pages.U.User_.Identifier_ exposing (Model, Msg, page)
 
-import Components.ArticleComments as ArticleComments
-import Components.ArticleInfo as ArticleInfo
-import Components.AuthorInteractionsBar as AuthorInteractionsBar exposing (Msg(..))
-import Components.Comment as Comment
 import Components.InteractionButton as InteractionButton exposing (eventIdOfInteractionObject)
 import Components.Interactions as Interactions
+import Components.ArticleComments as ArticleComments
 import Components.SharingButtonDialog as SharingButtonDialog
 import Dict exposing (Dict)
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html)
 import Layouts
-import Layouts.Sidebar
-import LinkPreview exposing (LoadedContent)
-import Nostr exposing (ArticleQueryStatus(..))
+import Nostr
 import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Nip05 as Nip05
+import Nostr.Query as Query
+import Nostr.Query exposing (ContentQueryStatus(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
-import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (EventId, PubKey, loggedInPubKey)
 import Page exposing (Page)
-import Ports
+import Components.ArticlePage as ArticlePage
 import Route exposing (Route)
-import Set
 import Shared
 import Shared.Msg
-import Ui.Article exposing (sharingInfoForArticle)
-import Ui.ArticleQuery
-import Ui.Shared exposing (emptyHtml)
-import Ui.Styles
-import Ui.View
 import View exposing (View)
 
 
@@ -47,98 +36,21 @@ page shared route =
 
 toLayout : Shared.Model -> Model -> Layouts.Layout Msg
 toLayout shared model =
-    let
-        styles =
-            Ui.Styles.stylesForTheme shared.theme
+    ArticlePage.layout shared model.shared (articleFromQuery shared model) msgConfig
 
-        maybeArticle =
-            articleFromQuery shared model
 
-        articleInfo =
-            maybeArticle
-                |> Maybe.map
-                    (\article ->
-                        addressComponentsForArticle article
-                            |> Maybe.map
-                                (\addressComponents ->
-                                    let
-                                        interactionObject =
-                                            InteractionButton.Article article.id addressComponents
-                                    in
-                                    ArticleInfo.view
-                                        styles
-                                        (Nostr.getAuthor shared.nostr article.author)
-                                        article
-                                        { browserEnv = shared.browserEnv
-                                        , model = Just model.articleInteractions
-                                        , toMsg = ArticleInteractionsSent interactionObject
-                                        , theme = shared.theme
-                                        , interactionObject = interactionObject
-                                        , nostr = shared.nostr
-                                        , loginStatus = shared.loginStatus
-                                        , shareInfo = sharingInfoForArticle article (Nostr.getAuthor shared.nostr article.author)
-                                        , zapRelays = article.relays
-                                        }
-                                )
-                            |> Maybe.withDefault emptyHtml
-                    )
-                |> Maybe.withDefault emptyHtml
-
-        articlePreviewsData =
-            { articleComments = model.articleComments
-            , articleToInteractionsMsg = ArticleInteractionsSent
-            , bookmarkButtonMsg = \_ _ -> NoOp
-            , bookmarkButtons = Dict.empty
-            , browserEnv = shared.browserEnv
-            , commentsToMsg = CommentsSent
-            , deleteButtonMsg = Nothing
-            , onLoadMore = Nothing
-            , nostr = shared.nostr
-            , loginStatus = shared.loginStatus
-            , sharing = Just ( model.sharingButtonDialog, SharingButtonDialogMsg )
-            , theme = shared.theme
-            }
-
-        fromAuthorBarMsg : AuthorInteractionsBar.Msg -> Msg
-        fromAuthorBarMsg msg =
-            case msg of
-                NavBack ->
-                    NavigateBack
-
-                Follow pubKeyUser pubKeyToFollow ->
-                    FollowAuthor pubKeyUser pubKeyToFollow
-
-                Unfollow pubKeyUser pubKeyToUnfollow ->
-                    UnfollowAuthor pubKeyUser pubKeyToUnfollow
-
-                AuthorInteractionsBar.ToggleArticleInfo ->
-                    ToggleArticleInfo
-
-                _ ->
-                    NoOp
-
-        authorInteractionsBar =
-            maybeArticle
-                |> Maybe.map
-                    (\article ->
-                        (AuthorInteractionsBar.new
-                            { articlePreviewsData = articlePreviewsData
-                            , model = AuthorInteractionsBar.init
-                            , interactionsModel = model.articleInteractions
-                            , article = article
-                            , toMsg = fromAuthorBarMsg
-                            }
-                            |> AuthorInteractionsBar.view
-                        )
-                            { articleInfoToggle = False }
-                    )
-                |> Maybe.withDefault emptyHtml
-    in
-    Layouts.Sidebar.new
-        { theme = shared.theme }
-        |> Layouts.Sidebar.withTopPart authorInteractionsBar "64px"
-        |> Layouts.Sidebar.withRightPart articleInfo
-        |> Layouts.Sidebar
+msgConfig : ArticlePage.MsgConfig Msg
+msgConfig =
+    { addLoadedContent = AddLoadedContent
+    , articleInteractionsSent = ArticleInteractionsSent
+    , commentsSent = CommentsSent
+    , sharingButtonDialogMsg = SharingButtonDialogMsg
+    , navigateBack = NavigateBack
+    , followAuthor = FollowAuthor
+    , unfollowAuthor = UnfollowAuthor
+    , toggleArticleInfo = ToggleArticleInfo
+    , noOp = NoOp
+    }
 
 
 
@@ -146,15 +58,11 @@ toLayout shared model =
 
 
 type alias Model =
-    { loadedContent : LoadedContent Msg
-    , comment : Comment.Model
+    { shared : ArticlePage.Model Msg
     , commentInteractions : Dict EventId Interactions.Model
-    , articleComments : ArticleComments.Model
-    , articleInteractions : Interactions.Model
     , identifier : String
     , nip05 : Maybe Nip05.Nip05
     , requestId : Maybe RequestId
-    , sharingButtonDialog : SharingButtonDialog.Model
     }
 
 
@@ -162,15 +70,11 @@ init : Shared.Model -> Route { user : String, identifier : String } -> () -> ( M
 init shared route () =
     let
         model =
-            { identifier = route.params.identifier
-            , comment = Comment.init {}
+            { shared = ArticlePage.initModel AddLoadedContent
             , commentInteractions = Dict.empty
-            , articleComments = ArticleComments.init
-            , articleInteractions = Interactions.init
+            , identifier = route.params.identifier
             , nip05 = Nip05.parseNip05 route.params.user
-            , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
             , requestId = Nothing
-            , sharingButtonDialog = SharingButtonDialog.init
             }
 
         ( requestEffect, requestId ) =
@@ -185,15 +89,11 @@ init shared route () =
                                 Nostr.getArticleByNip05AndIdentifier shared.nostr nip05 model.identifier
 
                             followersEffect =
-                                Shared.createFollowersEffect shared.nostr maybeAuthorsPubKey
+                                ArticlePage.followersEffectForAuthor shared maybeAuthorsPubKey
                         in
                         case ( maybeArticle, maybeAuthorsPubKey ) of
                             ( Just article, _ ) ->
-                                -- article already in the shared store (e.g. from the /read list)
-                                ( Effect.batch
-                                    [ followersEffect
-                                    , Shared.createArticleDetailsEffect shared.nostr (Just article)
-                                    ]
+                                ( ArticlePage.effectsForCachedArticle shared article
                                 , Nothing
                                 )
 
@@ -229,9 +129,7 @@ init shared route () =
     ( { model | requestId = requestId }
     , Effect.batch
         [ requestEffect
-
-        -- jump to top of article
-        , Effect.scrollContentToTop
+        , ArticlePage.scrollToTopEffect
         ]
     )
 
@@ -257,42 +155,27 @@ update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
         NoOp ->
-            let
-                maybeAuthorsPubKey =
-                    model.nip05 |> Maybe.andThen (Nostr.getPubKeyByNip05 shared.nostr)
-
-                followersEffect =
-                    Shared.createFollowersEffect shared.nostr maybeAuthorsPubKey
-            in
-            ( model, followersEffect )
+            ( model
+            , ArticlePage.followersEffectForAuthor shared
+                (model.nip05 |> Maybe.andThen (Nostr.getPubKeyByNip05 shared.nostr))
+            )
 
         AddLoadedContent url ->
-            ( { model | loadedContent = LinkPreview.addLoadedContent model.loadedContent url }, Effect.none )
+            ( { model | shared = ArticlePage.updateAddLoadedContent url model.shared }, Effect.none )
 
         ArticleInteractionsSent interactionObject innerMsg ->
-            Interactions.update
-                { browserEnv = shared.browserEnv
-                , msg = innerMsg
-                , model = Just model.articleInteractions
-                , nostr = shared.nostr
-                , interactionObject = interactionObject
-                , loginStatus = shared.loginStatus
-                , openCommentMsg = Nothing
-                , toModel = \interactionsModel -> { model | articleInteractions = interactionsModel }
-                , toMsg = ArticleInteractionsSent interactionObject
-                }
+            let
+                ( sharedModel, effect ) =
+                    ArticlePage.updateArticleInteractions shared interactionObject innerMsg model.shared msgConfig
+            in
+            ( { model | shared = sharedModel }, effect )
 
         CommentsSent innerMsg ->
-            ArticleComments.update
-                { browserEnv = shared.browserEnv
-                , msg = innerMsg
-                , model = model.articleComments
-                , nostr = shared.nostr
-                , loginStatus = shared.loginStatus
-                , toModel = \articleComments -> { model | articleComments = articleComments }
-                , toMsg = CommentsSent
-                , translations = shared.browserEnv.translations
-                }
+            let
+                ( sharedModel, effect ) =
+                    ArticlePage.updateComments shared innerMsg model.shared msgConfig
+            in
+            ( { model | shared = sharedModel }, effect )
 
         CommentInteractionsSent interactionObject innerMsg ->
             case eventIdOfInteractionObject interactionObject of
@@ -313,33 +196,23 @@ update shared msg model =
                     ( model, Effect.none )
 
         SharingButtonDialogMsg innerMsg ->
-            SharingButtonDialog.update
-                { browserEnv = shared.browserEnv
-                , model = model.sharingButtonDialog
-                , msg = innerMsg
-                , toModel = \sharingButtonDialog -> { model | sharingButtonDialog = sharingButtonDialog }
-                , toMsg = SharingButtonDialogMsg
-                }
+            let
+                ( sharedModel, effect ) =
+                    ArticlePage.updateSharingDialog shared innerMsg model.shared msgConfig
+            in
+            ( { model | shared = sharedModel }, effect )
 
         FollowAuthor pubKeyUser pubKeyToBeFollowed ->
-            ( model
-            , SendFollowListWithPubKey pubKeyUser pubKeyToBeFollowed
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
+            ( model, ArticlePage.followAuthorEffect pubKeyUser pubKeyToBeFollowed )
 
         UnfollowAuthor pubKeyUser pubKeyToBeUnfollowed ->
-            ( model
-            , SendFollowListWithoutPubKey pubKeyUser pubKeyToBeUnfollowed
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
+            ( model, ArticlePage.unfollowAuthorEffect pubKeyUser pubKeyToBeUnfollowed )
 
         NavigateBack ->
-            ( model, Effect.back )
+            ( model, ArticlePage.navigateBackEffect )
 
         ToggleArticleInfo ->
-            ( model, Effect.sendCmd Ports.toggleArticleInfo )
+            ( model, ArticlePage.toggleArticleInfoEffect )
 
 
 
@@ -349,32 +222,9 @@ update shared msg model =
 subscriptions : Shared.Model -> Model -> Sub Msg
 subscriptions shared model =
     Sub.batch
-        [ commentInteractionSubscriptions shared model
-        , articleFromQuery shared model
-            |> Maybe.andThen
-                (\article ->
-                    addressComponentsForArticle article
-                        |> Maybe.map
-                            (\addressComponents ->
-                                Sub.map (ArticleInteractionsSent (InteractionButton.Article article.id addressComponents)) (Interactions.subscriptions model.articleInteractions)
-                            )
-                )
-            |> Maybe.withDefault Sub.none
-        , articleCommentsSubscriptions shared model
+        [ ArticlePage.subscriptions shared model.shared (articleFromQuery shared model) msgConfig
+        , commentInteractionSubscriptions shared model
         ]
-
-
-articleCommentsSubscriptions : Shared.Model -> Model -> Sub Msg
-articleCommentsSubscriptions shared model =
-    let
-        articleComments =
-            articleFromQuery shared model
-                |> Maybe.andThen addressComponentsForArticle
-                |> Maybe.map (Nostr.getArticleComments shared.nostr (loggedInPubKey shared.loginStatus))
-                |> Maybe.withDefault []
-    in
-    ArticleComments.subscriptions model.articleComments articleComments
-        |> Sub.map CommentsSent
 
 
 commentInteractionSubscriptions : Shared.Model -> Model -> Sub Msg
@@ -419,61 +269,22 @@ view shared model =
     let
         queryStatus =
             articleQueryStatus shared model
-
-        title =
-            case queryStatus of
-                ArticleQueryReady article ->
-                    Maybe.withDefault "Article" article.title
-
-                _ ->
-                    "Article"
     in
-    { title = title
-    , body = [ viewArticleQuery shared model queryStatus ]
+    { title = ArticlePage.pageTitle queryStatus "Article"
+    , body = [ ArticlePage.viewBody shared model.shared queryStatus msgConfig ]
     }
 
 
-articleQueryStatus : Shared.Model -> Model -> ArticleQueryStatus
+articleQueryStatus : Shared.Model -> Model -> ContentQueryStatus Article
 articleQueryStatus shared model =
     case model.nip05 of
         Just nip05 ->
             Nostr.getArticleQueryStatus shared.nostr nip05 model.identifier model.requestId
 
         Nothing ->
-            ArticleQueryFailed "Invalid author address"
+            ContentQueryFailed "Invalid author address"
 
 
 articleFromQuery : Shared.Model -> Model -> Maybe Article
 articleFromQuery shared model =
-    case articleQueryStatus shared model of
-        ArticleQueryReady article ->
-            Just article
-
-        _ ->
-            Nothing
-
-
-viewArticleQuery : Shared.Model -> Model -> ArticleQueryStatus -> Html Msg
-viewArticleQuery shared model queryStatus =
-    case queryStatus of
-        ArticleQueryReady article ->
-            Ui.View.viewArticle
-                { articleComments = model.articleComments
-                , articleToInteractionsMsg = ArticleInteractionsSent
-                , bookmarkButtonMsg = \_ _ -> NoOp
-                , bookmarkButtons = Dict.empty
-                , browserEnv = shared.browserEnv
-                , commentsToMsg = CommentsSent
-                , deleteButtonMsg = Nothing
-                , nostr = shared.nostr
-                , loginStatus = shared.loginStatus
-                , onLoadMore = Nothing
-                , sharing = Just ( model.sharingButtonDialog, SharingButtonDialogMsg )
-                , theme = shared.theme
-                }
-                (Just model.loadedContent)
-                model.articleInteractions
-                article
-
-        _ ->
-            Ui.ArticleQuery.viewStatus shared.theme shared.browserEnv.translations shared.nostr queryStatus
+    Query.contentFromStatus (articleQueryStatus shared model)

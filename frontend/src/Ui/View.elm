@@ -5,7 +5,7 @@ module Ui.View exposing (..)
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Interactions
-import Components.RelayStatus as RelayStatus exposing (Status(..))
+import Components.ContentStatus as ContentStatus exposing (Status(..))
 import Dict
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes exposing (css)
@@ -155,17 +155,24 @@ viewCommunity browserEnv nostr community =
     Ui.Community.viewCommunity browserEnv nostr.profiles community
 
 
-viewRelayStatus : Theme -> I18Next.Translations -> Nostr.Model -> Status -> Maybe RequestId -> Html msg
-viewRelayStatus theme translations nostr status requestId =
+viewContentStatus : Theme -> I18Next.Translations -> Nostr.Model -> Status -> Maybe RequestId -> Html msg
+viewContentStatus theme translations nostr status requestId =
     let
         relays =
             Nostr.getRelaysForRequest nostr requestId
                 |> List.filterMap (Nostr.getRelayData nostr)
     in
-    RelayStatus.new
+    ContentStatus.new
         { relays = relays
         , theme = theme
         , translations = translations
         , status = status
         }
-        |> RelayStatus.view
+        |> ContentStatus.view
+
+
+{-| Deprecated name kept for call sites still importing viewRelayStatus.
+-}
+viewRelayStatus : Theme -> I18Next.Translations -> Nostr.Model -> Status -> Maybe RequestId -> Html msg
+viewRelayStatus =
+    viewContentStatus

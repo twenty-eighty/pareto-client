@@ -18,6 +18,18 @@ type alias Hooks msg =
     }
 
 
+noopHooks : Hooks msg
+noopHooks =
+    { connect = \_ -> Cmd.none
+    , receiveMessage = \_ -> Sub.none
+    , requestEvents = \_ _ _ _ _ -> Cmd.none
+    , requestBlossomAuth = \_ _ _ _ -> Cmd.none
+    , requestNip96Auth = \_ _ _ _ _ -> Cmd.none
+    , searchEvents = \_ _ _ _ _ -> Cmd.none
+    , sendEvent = \_ _ _ -> Cmd.none
+    }
+
+
 decodeEvent : Decode.Value -> Result Decode.Error Event
 decodeEvent value =
     Decode.decodeValue (Decode.field "event" Nostr.Event.decodeEvent) value

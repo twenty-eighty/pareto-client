@@ -1,5 +1,6 @@
 module Nostr.BookmarkSet exposing (..)
 
+import Dict exposing (Dict)
 import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), TagReference(..))
 import Nostr.Types exposing (EventId, PubKey)
 
@@ -46,3 +47,14 @@ bookmarkSetFromEvent event =
                     }
     in
     ( event.pubKey, bookmarkSet )
+
+
+ingest : Dict PubKey BookmarkSet -> List Event -> Dict PubKey BookmarkSet
+ingest dict events =
+    events
+        |> List.map bookmarkSetFromEvent
+        |> List.foldl
+            (\( pubKey, bookmarkSet ) acc ->
+                Dict.insert pubKey bookmarkSet acc
+            )
+            dict

@@ -1,5 +1,6 @@
 module Nostr.CommunityList exposing (..)
 
+import Dict exposing (Dict)
 import Nostr.Event exposing (Event, Kind(..), Tag(..))
 import Nostr.Types exposing (PubKey)
 
@@ -42,3 +43,14 @@ communityListFromEvent event =
                     )
     in
     ( event.pubKey, communityList )
+
+
+ingest : Dict PubKey (List CommunityReference) -> List Event -> Dict PubKey (List CommunityReference)
+ingest dict events =
+    events
+        |> List.map communityListFromEvent
+        |> List.foldl
+            (\( pubKey, communityList ) acc ->
+                Dict.insert pubKey communityList acc
+            )
+            dict

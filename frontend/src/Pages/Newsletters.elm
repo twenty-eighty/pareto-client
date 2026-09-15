@@ -14,6 +14,7 @@ import Layouts
 import Layouts.Sidebar
 import Newsletters.Subscribers as Subscribers
 import Nostr
+import Nostr.Model exposing (TestMode(..))
 import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.External
 import Nostr.Request exposing (RequestData(..), RequestId)
@@ -171,7 +172,7 @@ loadNewsletters nostr userPubKey =
 
 gatewayPubKey : Nostr.Model -> PubKey
 gatewayPubKey nostr =
-    if nostr.testMode == Nostr.TestModeEnabled then
+    if nostr.testMode == TestModeEnabled then
         Pareto.emailGatewayTestKey
 
     else

@@ -1,58 +1,58 @@
-module Ui.ArticleQuery exposing (viewStatus, viewNoteStatus)
+module Ui.ContentQuery exposing (viewStatus, viewNoteStatus)
 
 {-| Shared loading / not-found UI for single-content queries (articles, notes).
 -}
 
-import Components.RelayStatus exposing (Status(..))
+import Components.ContentStatus exposing (Status(..))
 import Css
 import Css.Animations as Animations
 import Html.Styled as Html exposing (Html, div, h3, span, text)
 import Html.Styled.Attributes exposing (css)
 import I18Next
 import Nostr
-import Nostr exposing (ArticleLoadPhase(..), ArticleQueryStatus(..))
+import Nostr.Query exposing (ContentLoadPhase(..), ContentQueryStatus(..))
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Translations.RelayStatusComponent as RelayStatusTranslations
+import Translations.RelayStatusComponent as StatusTranslations
 import Ui.Styles
-import Ui.View exposing (viewRelayStatus)
+import Ui.View exposing (viewContentStatus)
 
 
-viewStatus : Ui.Styles.Theme -> I18Next.Translations -> Nostr.Model -> ArticleQueryStatus -> Html msg
+viewStatus : Ui.Styles.Theme -> I18Next.Translations -> Nostr.Model -> ContentQueryStatus a -> Html msg
 viewStatus theme translations nostr status =
     case status of
-        ArticleQueryReady _ ->
+        ContentQueryReady _ ->
             text ""
 
-        ArticleQueryLoading phase ->
+        ContentQueryLoading phase ->
             viewLoading theme translations phase True
 
-        ArticleQueryNotFound ->
-            viewRelayStatus theme translations nostr ArticleNotFound Nothing
+        ContentQueryNotFound ->
+            viewContentStatus theme translations nostr ArticleNotFound Nothing
 
-        ArticleQueryFailed _ ->
-            viewRelayStatus theme translations nostr ArticleLoadFailed Nothing
+        ContentQueryFailed _ ->
+            viewContentStatus theme translations nostr ArticleLoadFailed Nothing
 
 
 {-| Note queries never need the NIP-05 author step.
 -}
-viewNoteStatus : Ui.Styles.Theme -> I18Next.Translations -> Nostr.Model -> ArticleQueryStatus -> Html msg
+viewNoteStatus : Ui.Styles.Theme -> I18Next.Translations -> Nostr.Model -> ContentQueryStatus a -> Html msg
 viewNoteStatus theme translations nostr status =
     case status of
-        ArticleQueryReady _ ->
+        ContentQueryReady _ ->
             text ""
 
-        ArticleQueryLoading _ ->
-            viewLoading theme translations FetchingArticle False
+        ContentQueryLoading _ ->
+            viewLoading theme translations FetchingContent False
 
-        ArticleQueryNotFound ->
-            viewRelayStatus theme translations nostr NoteNotFound Nothing
+        ContentQueryNotFound ->
+            viewContentStatus theme translations nostr NoteNotFound Nothing
 
-        ArticleQueryFailed _ ->
-            viewRelayStatus theme translations nostr NoteLoadFailed Nothing
+        ContentQueryFailed _ ->
+            viewContentStatus theme translations nostr NoteLoadFailed Nothing
 
 
-viewLoading : Ui.Styles.Theme -> I18Next.Translations -> ArticleLoadPhase -> Bool -> Html msg
+viewLoading : Ui.Styles.Theme -> I18Next.Translations -> ContentLoadPhase -> Bool -> Html msg
 viewLoading theme translations phase showAuthorStep =
     let
         styles =
@@ -61,14 +61,14 @@ viewLoading theme translations phase showAuthorStep =
         headline =
             case phase of
                 ResolvingAuthor ->
-                    RelayStatusTranslations.resolvingAuthor [ translations ]
+                    StatusTranslations.resolvingAuthor [ translations ]
 
-                FetchingArticle ->
+                FetchingContent ->
                     if showAuthorStep then
-                        RelayStatusTranslations.loadingArticle [ translations ]
+                        StatusTranslations.loadingArticle [ translations ]
 
                     else
-                        RelayStatusTranslations.loadingNote [ translations ]
+                        StatusTranslations.loadingNote [ translations ]
     in
     div
         [ css
@@ -87,24 +87,24 @@ viewLoading theme translations phase showAuthorStep =
 
           else
             viewLoadStep styles
-                { label = RelayStatusTranslations.loadingNote [ translations ]
+                { label = StatusTranslations.loadingNote [ translations ]
                 , done = False
                 , active = True
                 }
         ]
 
 
-viewLoadSteps : Ui.Styles.Styles msg -> I18Next.Translations -> ArticleLoadPhase -> Html msg
+viewLoadSteps : Ui.Styles.Styles msg -> I18Next.Translations -> ContentLoadPhase -> Html msg
 viewLoadSteps styles translations phase =
     let
         authorDone =
-            phase == FetchingArticle
+            phase == FetchingContent
 
         authorActive =
             phase == ResolvingAuthor
 
-        articleActive =
-            phase == FetchingArticle
+        contentActive =
+            phase == FetchingContent
     in
     div
         [ css
@@ -114,14 +114,14 @@ viewLoadSteps styles translations phase =
             ]
         ]
         [ viewLoadStep styles
-            { label = RelayStatusTranslations.stepResolveAuthor [ translations ]
+            { label = StatusTranslations.stepResolveAuthor [ translations ]
             , done = authorDone
             , active = authorActive
             }
         , viewLoadStep styles
-            { label = RelayStatusTranslations.stepLoadArticle [ translations ]
+            { label = StatusTranslations.stepLoadArticle [ translations ]
             , done = False
-            , active = articleActive
+            , active = contentActive
             }
         ]
 

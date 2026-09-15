@@ -3,7 +3,7 @@ module Pages.P.Profile_ exposing (Model, Msg, page)
 import Components.ArticleComments as ArticleComments
 import Components.EmailSubscriptionDialog as EmailSubscriptionDialog
 import Components.InteractionButton as InteractionButton
-import Components.RelayStatus exposing (Status(..))
+import Components.ContentStatus exposing (Status(..))
 import Components.ZapButtonDialog as ZapButtonDialog
 import Dict
 import Effect exposing (Effect)
@@ -25,7 +25,7 @@ import Shared.Msg
 import Translations.Profile as Translations
 import Ui.Profile exposing (FollowType(..), followingProfile)
 import Ui.Styles exposing (Theme)
-import Ui.View exposing (ArticlePreviewType(..), viewRelayStatus)
+import Ui.View exposing (ArticlePreviewType(..), viewContentStatus)
 import View exposing (View)
 
 
@@ -263,7 +263,7 @@ view shared model =
                 viewArticles shared pubKey
 
             ( Nothing, Nothing ) ->
-                viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingProfile model.requestId
+                viewContentStatus shared.theme shared.browserEnv.translations shared.nostr LoadingProfile model.requestId
         ]
     }
 

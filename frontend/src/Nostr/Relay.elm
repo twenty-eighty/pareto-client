@@ -72,6 +72,51 @@ updateRelayStatus relayUrlWithoutProtocol state relayDict =
                 relayDict
 
 
+initFromUrls : List String -> Dict String Relay
+initFromUrls relayUrls =
+    relayUrls
+        |> List.map
+            (\urlWithoutProtocol ->
+                ( urlWithoutProtocol
+                , { urlWithoutProtocol = urlWithoutProtocol
+                  , state = RelayStateUnknown
+                  , nip11 = Nothing
+                  }
+                )
+            )
+        |> Dict.fromList
+
+
+applyNip11Result : String -> Result Http.Error Nip11Info -> Dict String Relay -> Dict String Relay
+applyNip11Result urlWithoutProtocol result relays =
+    case result of
+        Ok info ->
+            let
+                updatedRelay =
+                    Dict.get urlWithoutProtocol relays
+                        |> Maybe.map (\relay -> { relay | nip11 = Just info })
+                        |> Maybe.withDefault
+                            { urlWithoutProtocol = urlWithoutProtocol
+                            , state = RelayStateUnknown
+                            , nip11 = Just info
+                            }
+            in
+            Dict.insert urlWithoutProtocol updatedRelay relays
+
+        Err err ->
+            let
+                updatedRelay =
+                    Dict.get urlWithoutProtocol relays
+                        |> Maybe.map (\relay -> { relay | state = RelayStateNip11RequestFailed err })
+                        |> Maybe.withDefault
+                            { urlWithoutProtocol = urlWithoutProtocol
+                            , state = RelayStateNip11RequestFailed err
+                            , nip11 = Nothing
+                            }
+            in
+            Dict.insert urlWithoutProtocol updatedRelay relays
+
+
 updateRelayNip11 : String -> Nip11Info -> List Relay -> List Relay
 updateRelayNip11 urlWithoutProtocol info relays =
     List.map
