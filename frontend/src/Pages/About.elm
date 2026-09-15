@@ -20,6 +20,7 @@ import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (Following(..), LoginStatus(..), PubKey)
 import Page exposing (Page)
+import Ports
 import Nostr.Relay as Relay
 import Pareto
 import Route exposing (Route)
@@ -77,6 +78,7 @@ type Msg
     | PublishHandlerInformation PubKey HandlerInformation
     | PublishClientProfile PubKey HandlerInformation
     | PublishAuthorsList PubKey
+    | InstallPwa
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -107,6 +109,9 @@ update shared msg model =
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
+
+        InstallPwa ->
+            ( model, Effect.sendCmd Ports.installPwa )
 
 
 sendClientRecommendation : Nostr.Model -> PubKey -> HandlerInformation -> Effect Msg
@@ -456,6 +461,7 @@ viewFooter theme browserEnv =
             ]
         , viewPrivacyPolicyLink styles browserEnv.translations browserEnv.language
         , viewImprintLink styles browserEnv.translations browserEnv.language
+        , viewInstallAppButton theme browserEnv
         , viewBuildInfo browserEnv.translations browserEnv
         ]
 
@@ -488,6 +494,21 @@ viewImprintLink styles translations language =
 
         _ ->
             emptyHtml
+
+
+viewInstallAppButton : Theme -> BrowserEnv -> Html Msg
+viewInstallAppButton theme browserEnv =
+    if browserEnv.installPromptAvailable then
+        Button.new
+            { label = Translations.installAppButtonTitle [ browserEnv.translations ]
+            , onClick = Just InstallPwa
+            , theme = theme
+            }
+            |> Button.withTypePrimary
+            |> Button.view
+
+    else
+        emptyHtml
 
 
 viewBuildInfo : I18Next.Translations -> BrowserEnv -> Html Msg

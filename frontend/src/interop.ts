@@ -11,6 +11,7 @@ import { createRelayManager } from "./relay-manager";
 import { handleAuthCommand, restoreActiveIdentity } from "./authIdentities";
 import { reportPasskeySupport as queryPasskeySupport } from "./keytrAuth";
 import * as cashuWallet from "./cashuWallet";
+import { initPwa, promptPwaInstall, reloadForNewVersion } from "./pwa";
 import debug from 'debug';
 
 declare global {
@@ -136,6 +137,14 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   }
 
   app.ports.sendCommand.subscribe(({ command: command, value: value }) => {
+    if (command === 'reloadWindow') {
+      reloadForNewVersion();
+      return;
+    }
+    if (command === 'installPwa') {
+      promptPwaInstall();
+      return;
+    }
     if (command === 'connect') {
       connect(app, value.client, value.nip89, value.relays);
     } else if (connected) {
@@ -145,6 +154,8 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       debugLog('store command', command);
     }
   });
+
+  initPwa(app);
 
   // in certain cases we can't catch the error with try/catch
   window.addEventListener("unhandledrejection", function (event) {

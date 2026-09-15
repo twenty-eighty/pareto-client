@@ -21,7 +21,12 @@
         "recommendation sent alert text": "Recommandation envoyée",
         "feedback info text": "Vous avez trouvé un bug ou souhaitez nous faire part de vos commentaires ? Veuillez nous contacter ",
         "support page link text": "ici",
-        "telegram link text": "Canal de Telegram Pareto"
+        "telegram link text": "Canal de Telegram Pareto",
+        "install app button title": "Installer l'application"
+    },
+    "app update": {
+        "new version available": "Nouvelle version disponible.",
+        "reload button": "Recharger"
     },
     "article info": {
         "title": "Informations sur l'article",

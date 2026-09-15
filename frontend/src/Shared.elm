@@ -190,6 +190,7 @@ init flagsResult route =
               , alertTimerMessage = AlertTimerMessage.init
               , authDialog = AuthDialog.init
               , notificationsLastSeen = flags.notificationsLastSeen
+              , newVersionAvailable = False
               }
             , Effect.batch
                 [ Effect.sendCmd <| Cmd.map Shared.Msg.BrowserEnvMsg browserEnvCmd
@@ -224,6 +225,7 @@ init flagsResult route =
               , alertTimerMessage = AlertTimerMessage.init
               , authDialog = AuthDialog.init
               , notificationsLastSeen = Dict.empty
+              , newVersionAvailable = False
               }
             , Effect.none
             )
@@ -461,6 +463,9 @@ update route msg model =
             , Effect.none
             )
 
+        ReloadForNewVersion ->
+            ( model, Effect.sendCmd Ports.reloadWindow )
+
 updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithPortMessage model portMessage =
     let
@@ -483,6 +488,11 @@ updateWithPortMessage model portMessage =
 
         "loggedOut" ->
             ( { modelWithAuth | loginStatus = LoggedOut }
+            , authEffect
+            )
+
+        "newVersionAvailable" ->
+            ( { modelWithAuth | newVersionAvailable = True }
             , authEffect
             )
 

@@ -10,6 +10,8 @@
 *.swp
 
 /frontend/dist
+/frontend/static/sw.js
+/frontend/static/version.json
 /frontend/.elm-land
 /frontend/elm-home
 /frontend/elm-stuff

@@ -27,6 +27,7 @@ type alias Model =
     , alertTimerMessage : AlertTimerMessage.Model
     , authDialog : AuthDialog.Model
     , notificationsLastSeen : Dict PubKey Int
+    , newVersionAvailable : Bool
     }
 
 

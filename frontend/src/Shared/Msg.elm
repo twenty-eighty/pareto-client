@@ -48,3 +48,4 @@ type Msg
     | ChangeLocale String
     | MarkNotificationsSeen PubKey
     | AddCashuBalance Int
+    | ReloadForNewVersion

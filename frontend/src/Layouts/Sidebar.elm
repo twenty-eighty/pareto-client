@@ -5,6 +5,7 @@ module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layo
 import Browser.Dom as Dom
 import BrowserEnv exposing (BrowserEnv, Environment)
 import Components.AlertTimerMessage as AlertTimerMessage
+import Components.AppUpdateBanner as AppUpdateBanner
 import Components.AuthDialog as AuthDialog
 import Components.Button
 import Components.Icon as Icon exposing (Icon(..))
@@ -383,6 +384,7 @@ type Msg
     | Scrolled Int
     | ScrollToPosition Int
     | UrlChanged { from : Route (), to : Route () }
+    | ReloadForNewVersion
     | NoOp
 
 
@@ -474,6 +476,9 @@ update _ msg model =
             in
             ( { model | currentURL = currentURL, pageScrollPositions = pageScrollPositions }, effect )
 
+        ReloadForNewVersion ->
+            ( model, Effect.sendSharedMsg Shared.Msg.ReloadForNewVersion )
+
         NoOp ->
             ( model, Effect.none )
 
@@ -519,6 +524,13 @@ view props shared path { toContentMsg, content, model } =
             , viewLinktoInternalPage shared.nostr
             , AuthDialog.view shared.theme shared.browserEnv shared.loginStatus shared.nostr shared.authDialog
                 |> Html.map (AuthDialogMsg >> toContentMsg)
+            , AppUpdateBanner.view
+                { theme = shared.theme
+                , translations = shared.browserEnv.translations
+                , visible = shared.newVersionAvailable
+                , onReload = ReloadForNewVersion
+                }
+                |> Html.map toContentMsg
             , AlertTimerMessage.new
                 { model = shared.alertTimerMessage
                 , theme = shared.theme

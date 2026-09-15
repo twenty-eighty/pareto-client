@@ -712,6 +712,16 @@ encodeSubscriberBlob blob =
         ]
 
 
+reloadWindow : Cmd msg
+reloadWindow =
+    sendCommand { command = "reloadWindow", value = Encode.null }
+
+
+installPwa : Cmd msg
+installPwa =
+    sendCommand { command = "installPwa", value = Encode.null }
+
+
 encodeNewsletterData : NewsletterData -> Encode.Value
 encodeNewsletterData newsletterData =
     Encode.object

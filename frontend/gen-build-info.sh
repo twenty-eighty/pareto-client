@@ -45,6 +45,16 @@ BUILD_TIME=$(date +"%Y-%m-%dT%H:%M:%S%z" | sed 's/\([+-][0-9][0-9]\)\([0-9][0-9]
 
 echo "BuildInfo gitVersion=${GIT_SHA} buildTime=${BUILD_TIME}"
 
+cat > static/version.json <<EOF
+{"gitVersion":"${GIT_SHA}","buildTime":"${BUILD_TIME}"}
+EOF
+
+if [ -f pwa/sw.js ]; then
+  sed "s/__PARETO_BUILD_VERSION__/${GIT_SHA}/g" pwa/sw.js > static/sw.js
+else
+  echo "warning: pwa/sw.js template missing; service worker not generated" >&2
+fi
+
 mkdir -p gen/BuildInfo
 
 cat > gen/BuildInfo/BuildInfo.elm <<EOF
