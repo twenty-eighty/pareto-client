@@ -185,12 +185,38 @@ update user shared msg model =
                 }
 
         DeleteEvent relayUrls kinds eventId maybeAddressComponents ->
-            ( model
-            , deletionEvent user.pubKey shared.browserEnv.now eventId "Deleting article or draft" maybeAddressComponents kinds
-                |> SendDeletionRequest (relayUrls |> Set.toList)
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
+            let
+                relays =
+                    let
+                        seen =
+                            Set.toList relayUrls
+
+                        storage =
+                            Nostr.getDraftStorageRelayUrls shared.nostr user.pubKey
+                    in
+                    if List.isEmpty seen then
+                        storage
+
+                    else
+                        seen ++ storage
+
+                nip09Effect =
+                    deletionEvent user.pubKey shared.browserEnv.now eventId "Deleting article or draft" maybeAddressComponents kinds
+                        |> SendDeletionRequest relays
+                        |> Shared.Msg.SendNostrEvent
+                        |> Effect.sendSharedMsg
+
+                tombstoneEffect =
+                    case maybeAddressComponents of
+                        Just ( KindDraft, _, identifier ) ->
+                            SendDraftTombstone user.pubKey identifier
+                                |> Shared.Msg.SendNostrEvent
+                                |> Effect.sendSharedMsg
+
+                        _ ->
+                            Effect.none
+            in
+            ( model, Effect.batch [ tombstoneEffect, nip09Effect ] )
 
         EditDraft nip19 ->
             ( model, Effect.pushRoute { path = Route.Path.Write, query = Dict.singleton "a" nip19, hash = Nothing } )

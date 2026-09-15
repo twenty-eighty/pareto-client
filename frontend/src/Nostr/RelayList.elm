@@ -18,6 +18,12 @@ type alias SearchIngestResult =
     }
 
 
+type alias PrivateIngestResult =
+    { privateRelayLists : Dict PubKey (List RelayUrl)
+    , unknownRelays : List String
+    }
+
+
 ingestSearchRelays :
     Dict PubKey (List RelayUrl)
     -> Dict String a
@@ -25,27 +31,57 @@ ingestSearchRelays :
     -> SearchIngestResult
 ingestSearchRelays searchRelayLists relays events =
     let
-        searchRelaysLists =
+        result =
+            ingestRelayLists searchRelayLists relays events
+    in
+    { searchRelayLists = result.relayLists
+    , unknownRelays = result.unknownRelays
+    }
+
+
+ingestPrivateRelays :
+    Dict PubKey (List RelayUrl)
+    -> Dict String a
+    -> List Event
+    -> PrivateIngestResult
+ingestPrivateRelays privateRelayLists relays events =
+    let
+        result =
+            ingestRelayLists privateRelayLists relays events
+    in
+    { privateRelayLists = result.relayLists
+    , unknownRelays = result.unknownRelays
+    }
+
+
+ingestRelayLists :
+    Dict PubKey (List RelayUrl)
+    -> Dict String a
+    -> List Event
+    -> { relayLists : Dict PubKey (List RelayUrl), unknownRelays : List String }
+ingestRelayLists existingRelayLists relays events =
+    let
+        lists =
             events
                 |> List.map relayListFromEvent
 
         relayListDict =
-            searchRelaysLists
+            lists
                 |> List.foldl
                     (\( pubKey, relayList ) dict ->
                         Dict.insert pubKey (withUniqueEntries relayList) dict
                     )
-                    searchRelayLists
+                    existingRelayLists
 
         unknownRelays =
-            searchRelaysLists
+            lists
                 |> List.concatMap (\( _, urls ) -> urls)
                 |> List.map hostWithoutProtocol
                 |> List.filter (\relay -> not (Dict.member relay relays))
                 |> Set.fromList
                 |> Set.toList
     in
-    { searchRelayLists = relayListDict
+    { relayLists = relayListDict
     , unknownRelays = unknownRelays
     }
 

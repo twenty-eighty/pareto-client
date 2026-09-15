@@ -10,10 +10,11 @@ module Nostr.Send exposing
 -}
 
 import Nostr.BookmarkList as BookmarkList exposing (BookmarkList, bookmarkListEvent, bookmarkListWithArticle, bookmarkListWithShortNote, bookmarkListWithoutArticle, bookmarkListWithoutShortNote, emptyBookmarkList)
-import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), addAddressTags, emptyEvent)
+import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), addAddressTags, addIdentifierTag, addKindTag, emptyEvent)
 import Nostr.FollowList as FollowList exposing (emptyFollowList, followListEvent, followListWithPubKey, followListWithoutPubKey)
 import Nostr.Highlights as Highlights
 import Nostr.Types exposing (EventId, Following, PubKey, RelayUrl)
+import Time
 
 
 type alias SendRequestId =
@@ -33,6 +34,7 @@ type SendRequest
     | SendFollowList PubKey (List Following)
     | SendFollowListWithPubKey PubKey PubKey
     | SendFollowListWithoutPubKey PubKey PubKey
+    | SendDraftTombstone PubKey String
     | SendHandlerInformation (List RelayUrl) Event
     | SendHighlight PubKey EventId PubKey AddressComponents Kind String (Maybe String)
     | SendLongFormDraft (List RelayUrl) Event
@@ -53,7 +55,9 @@ type alias PrepareContext =
     { getBookmarks : PubKey -> Maybe BookmarkList
     , getFollowList : PubKey -> Maybe (List Following)
     , writeRelaysFor : PubKey -> List RelayUrl
+    , draftStorageRelaysFor : PubKey -> List RelayUrl
     , applicationDataRelays : List RelayUrl
+    , now : Time.Posix
     }
 
 
@@ -128,6 +132,11 @@ prepare context sendRequest =
                     |> followListEvent userPubKey
             }
 
+        SendDraftTombstone userPubKey identifier ->
+            { relays = context.draftStorageRelaysFor userPubKey
+            , event = draftTombstoneEvent userPubKey context.now identifier
+            }
+
         SendHandlerInformation relays event ->
             { relays = relays, event = event }
 
@@ -184,4 +193,27 @@ reactionEvent userPubKey eventId articlePubKey addressComponents =
             , PublicKeyTag articlePubKey Nothing Nothing
             ]
                 |> addAddressTags (addressComponents |> Maybe.map List.singleton |> Maybe.withDefault []) Nothing
+    }
+
+
+{-| NIP-37 blank-content replaceable wrap that marks a draft deleted.
+-}
+draftTombstoneEvent : PubKey -> Time.Posix -> String -> Event
+draftTombstoneEvent userPubKey now identifier =
+    let
+        event =
+            emptyEvent userPubKey KindDraft
+
+        expiration =
+            Time.posixToMillis now
+                + (90 * 24 * 60 * 60 * 1000)
+                |> Time.millisToPosix
+    in
+    { event
+        | createdAt = now
+        , content = ""
+        , tags =
+            [ ExpirationTag expiration ]
+                |> addIdentifierTag (Just identifier)
+                |> addKindTag KindDraftLongFormContent
     }

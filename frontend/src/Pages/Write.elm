@@ -218,7 +218,10 @@ init user shared route () =
 
                         (draftEventId, draftAddressComponents) =
                             if article.kind == KindDraftLongFormContent && not createCopy then
-                                (Just article.id, addressComponentsForArticle article)
+                                ( Just article.id
+                                , article.identifier
+                                    |> Maybe.map (\draftIdentifier -> ( KindDraft, article.author, draftIdentifier ))
+                                )
 
                             else
                                 (Nothing, Nothing)
@@ -671,37 +674,40 @@ updateWithPortMessage shared model user portMessage =
                     ( model, Effect.none )
 
         "error" ->
-            case
-                ( model.articleState, Nostr.External.decodeReason portMessage.value )
-            of
-                ( ArticleSavingDraft _, Ok error ) ->
+            let
+                errorText =
+                    Nostr.External.decodeReason portMessage.value
+                        |> Result.withDefault "Failed to publish event"
+            in
+            case model.articleState of
+                ArticleSavingDraft _ ->
                     ( { model
-                        | articleState = ArticleDraftSavingError error
+                        | articleState = ArticleDraftSavingError errorText
                         , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
                         , modalDialog = ErrorDialog
                       }
                     , Effect.none
                     )
 
-                ( ArticlePublishing _, Ok error ) ->
+                ArticlePublishing _ ->
                     ( { model
-                        | articleState = ArticlePublishingError error
+                        | articleState = ArticlePublishingError errorText
                         , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
                         , modalDialog = ErrorDialog
                       }
                     , Effect.none
                     )
 
-                ( ArticleDeletingDraft _, Ok error ) ->
+                ArticleDeletingDraft _ ->
                     ( { model
-                        | articleState = ArticleDeletingDraftError error
+                        | articleState = ArticleDeletingDraftError errorText
                         , publishArticleDialog = PublishArticleDialog.hide model.publishArticleDialog
                         , modalDialog = ErrorDialog
                       }
                     , Effect.none
                     )
 
-                ( _, _ ) ->
+                _ ->
                     -- error message will be collected in Nostr module
                     ( model, Effect.none )
 
@@ -725,7 +731,9 @@ updateModelWithDraftRequest model value =
                     ( { model
                         | articleState = ArticleDraftSaved
                         , draftEventId = Just draft.id
-                        , draftAddressComponents = addressComponentsForArticle draft
+                        , draftAddressComponents =
+                            draft.identifier
+                                |> Maybe.map (\identifier -> ( KindDraft, draft.author, identifier ))
                         , title = draft.title
                         , summary = draft.summary
                         , image = draft.image
@@ -763,6 +771,9 @@ updateWithPublishedResults shared model user value =
                 ( { model
                     | articleState = ArticleDraftSaved
                     , draftEventId = receivedDraftEventId
+                    , draftAddressComponents =
+                        model.identifier
+                            |> Maybe.map (\identifier -> ( KindDraft, user.pubKey, identifier ))
                   }
                 , Effect.none
                 )
@@ -838,19 +849,48 @@ sendPublishCmd shared model user relayUrls =
 sendDraftCmd : Shared.Model -> Model -> Auth.User -> Effect Msg
 sendDraftCmd shared model user =
     eventWithContent shared model user KindDraftLongFormContent model.publishedAt
-        |> SendLongFormDraft (Nostr.getDefaultRelays shared.nostr)
+        |> SendLongFormDraft (Nostr.getDraftStorageRelayUrls shared.nostr user.pubKey)
         |> Shared.Msg.SendNostrEvent
         |> Effect.sendSharedMsg
 
 
 sendDraftDeletionCmd : Shared.Model -> Model -> Auth.User -> Effect Msg
 sendDraftDeletionCmd shared model user =
-    case model.draftEventId of
-        Just draftEventId ->
-            deletionEvent user.pubKey shared.browserEnv.now draftEventId "Deleting draft after publishing article" model.draftAddressComponents [ KindDraftLongFormContent, KindDraft ]
-                |> SendDeletionRequest (Nostr.getDraftRelayUrls shared.nostr draftEventId)
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
+    case model.draftAddressComponents of
+        Just ( _, _, identifier ) ->
+            let
+                wrapAddress =
+                    Just ( KindDraft, user.pubKey, identifier )
+
+                storageRelays =
+                    Nostr.getDraftStorageRelayUrls shared.nostr user.pubKey
+
+                seenRelays =
+                    model.draftEventId
+                        |> Maybe.map (Nostr.getDraftRelayUrls shared.nostr)
+                        |> Maybe.withDefault []
+
+                relays =
+                    if List.isEmpty seenRelays then
+                        storageRelays
+
+                    else
+                        seenRelays ++ storageRelays
+            in
+            Effect.batch
+                [ SendDraftTombstone user.pubKey identifier
+                    |> Shared.Msg.SendNostrEvent
+                    |> Effect.sendSharedMsg
+                , case model.draftEventId of
+                    Just draftEventId ->
+                        deletionEvent user.pubKey shared.browserEnv.now draftEventId "Deleting draft after publishing article" wrapAddress [ KindDraft, KindDraftLongFormContent ]
+                            |> SendDeletionRequest relays
+                            |> Shared.Msg.SendNostrEvent
+                            |> Effect.sendSharedMsg
+
+                    Nothing ->
+                        Effect.none
+                ]
 
         Nothing ->
             Effect.none

@@ -35,6 +35,7 @@ type alias Env msg =
     , configuredRelays : List RelayUrl
     , applicationDataRelays : List RelayUrl
     , searchRelayUrls : List RelayUrl
+    , draftStorageRelays : List RelayUrl
     , delayedPublishingRelays : List RelayUrl
     , articlesByDate : List Article
     , requestNip05 : RequestId -> Nip05 -> Cmd msg
@@ -82,7 +83,10 @@ perform env description requestId requestData =
 
         RequestArticleDrafts eventFilters ->
             { modelEffect = ClearArticleDrafts
-            , cmd = requestEvents False configuredRelays eventFilters
+            , cmd =
+                requestEvents False
+                    (uniqueRelays (env.draftStorageRelays ++ configuredRelays))
+                    eventFilters
             }
 
         RequestBookmarks eventFilter ->
@@ -190,3 +194,10 @@ addressesFromReactionFilter eventFilter =
                         Nothing
             )
         |> Set.fromList
+
+
+uniqueRelays : List RelayUrl -> List RelayUrl
+uniqueRelays relays =
+    relays
+        |> Set.fromList
+        |> Set.toList

@@ -430,6 +430,8 @@ supportedKinds =
     , KindFileMetadata
     , KindZapRequest
     , KindZapReceipt
+    , KindHighlights
+    , KindPrivateRelayList
     , KindRelayListMetadata
     , KindBookmarkList
     , KindUserServerList

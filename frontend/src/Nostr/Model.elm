@@ -85,6 +85,7 @@ type alias Model =
     , repostsByAddress : Dict Address (Dict PubKey Repost)
     , repostsByEventId : Dict EventId (Dict PubKey Repost)
     , searchRelayLists : Dict PubKey (List RelayUrl)
+    , privateRelayLists : Dict PubKey (List RelayUrl)
     , shortTextNotes : Dict EventId TextNote
     , shortTextNotesReplies : Dict EventId (Dict EventId TextNote)
     , userServerLists : Dict PubKey (List String)
@@ -162,6 +163,7 @@ empty =
     , repostsByAddress = Dict.empty
     , repostsByEventId = Dict.empty
     , searchRelayLists = Dict.empty
+    , privateRelayLists = Dict.empty
     , shortTextNotes = Dict.empty
     , shortTextNotesReplies = Dict.empty
     , userServerLists = Dict.empty

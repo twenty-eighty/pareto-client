@@ -232,6 +232,7 @@ userDataKinds =
     , KindRelayListForDMs
     , KindRelaySets
     , KindSearchRelaysList
+    , KindPrivateRelayList
     , KindUserServerList
     ]
 

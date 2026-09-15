@@ -87,6 +87,8 @@ module Nostr exposing
     , getWriteRelaysForPubKey
     , getWriteRelayUrlsForPubKey
     , getDraftRelayUrls
+    , getDraftStorageRelayUrls
+    , getPrivateRelayUrls
     , getSearchRelayUrls
     , getSearchRelaysForPubKey
     , relaysWithSearchCapability
@@ -168,6 +170,7 @@ module Nostr exposing
     , appendNip27ProfileRequests
     , nip27ProfilesRequest
     , updateModelWithSearchRelays
+    , updateModelWithPrivateRelays
     , updateModelWithHighlights
     , updateModelWithReactions
     , updateModelWithShortTextNotes
@@ -600,6 +603,9 @@ performRequest model description requestId requestData =
                 , configuredRelays = configuredRelaysWss model
                 , applicationDataRelays = getApplicationDataRelays model
                 , searchRelayUrls = getSearchRelayUrls model model.defaultUser
+                , draftStorageRelays =
+                    getDraftStorageRelayUrls model (Maybe.withDefault "" model.defaultUser)
+                        |> List.map Nostr.Relay.websocketUrl
                 , delayedPublishingRelays = Pareto.delayedPublishingRelays
                 , articlesByDate = model.articlesByDate
                 , requestNip05 = \reqId nip05 -> requestNip05Info (Nip05ForRequest reqId) nip05
@@ -646,15 +652,17 @@ eventFiltersWithUntil =
 
 
 
-send : Model -> SendRequest -> ( Model, Cmd Msg )
-send model sendRequest =
+send : Model -> Time.Posix -> SendRequest -> ( Model, Cmd Msg )
+send model now sendRequest =
     let
         payload =
             Send.prepare
                 { getBookmarks = getBookmarks model
                 , getFollowList = getFollowsList model
                 , writeRelaysFor = getWriteRelayUrlsForPubKey model
+                , draftStorageRelaysFor = getDraftStorageRelayUrls model
                 , applicationDataRelays = getApplicationDataRelays model
+                , now = now
                 }
                 sendRequest
     in
@@ -1009,6 +1017,30 @@ getDraftRelayUrls model articleId =
         |> Dict.get articleId
         |> Maybe.withDefault Set.empty
         |> Set.toList
+
+
+{-| Relays for NIP-37 draft wraps (kind 10013), falling back to write/default relays.
+-}
+getDraftStorageRelayUrls : Model -> PubKey -> List String
+getDraftStorageRelayUrls model pubKey =
+    case getPrivateRelayUrls model pubKey of
+        [] ->
+            case getWriteRelayUrlsForPubKey model pubKey of
+                [] ->
+                    getDefaultRelays model
+
+                writeRelays ->
+                    writeRelays
+
+        privateRelays ->
+            privateRelays
+
+
+getPrivateRelayUrls : Model -> PubKey -> List String
+getPrivateRelayUrls model pubKey =
+    Dict.get pubKey model.privateRelayLists
+        |> Maybe.withDefault []
+        |> List.map Nostr.Relay.hostWithoutProtocol
 
 
 getSearchRelayUrls : Model -> Maybe PubKey -> List RelayUrl
@@ -1517,6 +1549,9 @@ updateModelWithEvents model requestId kind events =
         KindSearchRelaysList ->
             updateModelWithSearchRelays modelAfterContentRequest requestId events
 
+        KindPrivateRelayList ->
+            updateModelWithPrivateRelays modelAfterContentRequest requestId events
+
         KindShortTextNote ->
             updateModelWithShortTextNotes modelAfterContentRequest requestId events
 
@@ -1819,6 +1854,18 @@ updateModelWithSearchRelays model _ events =
             requestRelayNip11 model ingested.unknownRelays
     in
     ( { model | searchRelayLists = ingested.searchRelayLists }, requestNip11Cmd )
+
+
+updateModelWithPrivateRelays : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
+updateModelWithPrivateRelays model _ events =
+    let
+        ingested =
+            RelayList.ingestPrivateRelays model.privateRelayLists model.relays events
+
+        requestNip11Cmd =
+            requestRelayNip11 model ingested.unknownRelays
+    in
+    ( { model | privateRelayLists = ingested.privateRelayLists }, requestNip11Cmd )
 
 
 updateModelWithReactions : Model -> RequestId -> List Event -> ( Model, Cmd Msg )

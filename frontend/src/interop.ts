@@ -1130,6 +1130,17 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   async function sendEvent(app, { sendId: sendId, event: event, relays: relays }) {
     debugLog('send event ' + sendId, event, 'relays: ', relays);
 
+    const reportSendError = (error) => {
+      const errorMessage =
+        (error && error.message) ? error.message
+          : (typeof error === 'string' ? error : 'Error publishing event');
+      console.error('sendEvent failed', sendId, error);
+      app.ports.receiveMessage.send({
+        messageType: 'error',
+        value: { sendId: sendId, reason: errorMessage }
+      });
+    };
+
     var feedSentEventToApplication = true;
     var ndkEvent = new NDKEvent(window.ndk, event);
     const signer = (ndkEvent.pubkey == anonymousPubKey) ? anonymousSigner : window.ndk.signer;
@@ -1142,23 +1153,16 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         // Don't try to decrypt events that weren't encrypted for us
         feedSentEventToApplication = false;
       }
-    } catch (error) {
-      console.error(error);
-      const errorMessage = error.message ? error.message : 'Error encrypting event';
-      app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: errorMessage } });
-      return;
-    }
 
-    if (!ndkEvent) {
-      debugLog('failed to send event ' + sendId, event, 'relays: ', relays);
-      app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: "failed to encapsulate event" } });
-      return;
-    }
+      if (!ndkEvent) {
+        reportSendError('failed to encapsulate event');
+        return;
+      }
 
-    ndkEvent.sign(signer).then(() => {
+      await ndkEvent.sign(signer);
       debugLog('signed event ' + sendId, ndkEvent);
 
-      var relaysWithProtocol = relays.map(relay => {
+      var relaysWithProtocol = (relays || []).map(relay => {
         if (!relay.startsWith("wss://") && !relay.startsWith("ws://")) {
           return "wss://" + relay
         } else {
@@ -1169,22 +1173,45 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       if (relaysWithProtocol.length === 0) {
         relaysWithProtocol = ["wss://pareto.nostr1.com"];
       }
-      const relaySet = NDKRelaySet.fromRelayUrls(relaysWithProtocol, window.ndk);
-      ndkEvent.publish(relaySet, 5000).then((results) => {
-        debugLog('published event ' + sendId, ndkEvent);
-        app.ports.receiveMessage.send({ messageType: 'published', value: { sendId: sendId, event: ndkEvent, results: results } });
 
-        if (feedSentEventToApplication) {
-          // feed sent events into app as if received by relay.
-          // thus we can let the event modify the state correctly
-          processEvents(app, -1, "sent event", [ndkEvent]);
+      // Ensure target relays are in the pool / connecting (same as fetch path).
+      relaysWithProtocol.forEach((url) => {
+        try {
+          const relay = window.ndk.pool.getRelay(url, true);
+          if (relay && relay.connect) {
+            relay.connect();
+          }
+        } catch (e) {
+          debugLog('sendEvent getRelay failed', url, e);
         }
-      }).catch((error) => {
-        console.log(error);
-        const errorMessage = error.message ? error.message : 'Error publishing event';
-        app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: errorMessage } });
       });
-    })
+
+      const relaySet = NDKRelaySet.fromRelayUrls(relaysWithProtocol, window.ndk);
+      const results = await ndkEvent.publish(relaySet, 5000);
+      const publishedRelays = Array.from(results || []).map((relay) =>
+        (relay && relay.url) ? relay.url : String(relay)
+      );
+      if (publishedRelays.length === 0) {
+        throw new Error('Not enough relays received the event (0 published, 1 required)');
+      }
+      debugLog('published event ' + sendId, ndkEvent, publishedRelays);
+      app.ports.receiveMessage.send({
+        messageType: 'published',
+        value: {
+          sendId: sendId,
+          event: ndkEvent.rawEvent ? ndkEvent.rawEvent() : ndkEvent,
+          results: publishedRelays
+        }
+      });
+
+      if (feedSentEventToApplication) {
+        // feed sent events into app as if received by relay.
+        // thus we can let the event modify the state correctly
+        processEvents(app, -1, "sent event", [ndkEvent]);
+      }
+    } catch (error) {
+      reportSendError(error);
+    }
   }
 
   // https://nips.nostr.com/37
@@ -1195,21 +1222,28 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       throw new Error(`Article can't be encrypted/saved if longer than ${maxContentLength} bytes`);
     }
 
-    await ndkEvent.sign();
-    const rawEventString = JSON.stringify(ndkEvent.rawEvent());
+    // NIP-37 stores an unsigned draft event in the wrap content.
+    const unsignedDraft = {
+      kind: ndkEvent.kind,
+      pubkey: ndkEvent.pubkey,
+      created_at: ndkEvent.created_at,
+      tags: ndkEvent.tags,
+      content: ndkEvent.content,
+    };
+    const rawEventString = JSON.stringify(unsignedDraft);
     const rawEventLength = rawEventString.length;
     if (rawEventLength > maxContentLength) {
       throw new Error(`Article can't be encrypted/saved if longer than ${maxContentLength} bytes`);
     }
     const content = await window.ndk.signer.encrypt({ pubkey: ndkEvent.pubkey }, rawEventString, 'nip44');
     const identifier = firstTag(ndkEvent, "d");
+    const expiration = Math.floor(Date.now() / 1000) + (90 * 24 * 60 * 60);
     const draftEvent = {
       kind: 31234,
       tags: [
         ["d", identifier],
-        ["k", ndkEvent.kind.toString()],
-        ["e", ndkEvent.id],
-        ["a", ndkEvent.kind + ":" + ndkEvent.pubkey + ":" + identifier],
+        ["k", String(ndkEvent.kind)],
+        ["expiration", String(expiration)],
       ],
       content: content,
       pubkey: ndkEvent.pubkey,
@@ -1257,9 +1291,22 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   }
 
   async function unwrapDraftEvent(ndkEvent) {
+    // NIP-37: blank content is a tombstone (deleted draft).
+    if (!ndkEvent.content || ndkEvent.content.length === 0) {
+      return null;
+    }
     const stringifiedEvent = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
     if (stringifiedEvent) {
       const event = JSON.parse(stringifiedEvent);
+      // Carry relay hints from the wrap so draft delete can target them.
+      if (ndkEvent.onRelays && Array.isArray(ndkEvent.onRelays)) {
+        event.onRelays = ndkEvent.onRelays;
+      } else if (ndkEvent.relay) {
+        const relayUrl = typeof ndkEvent.relay === 'string' ? ndkEvent.relay : (ndkEvent.relay.url || null);
+        if (relayUrl) {
+          event.onRelays = [relayUrl];
+        }
+      }
       return event;
     } else {
       console.log("Unable to decrypt draft event. Ignoring the event.")

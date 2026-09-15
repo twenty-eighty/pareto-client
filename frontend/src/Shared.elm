@@ -320,7 +320,7 @@ update route msg model =
         SendNostrEvent sendRequest ->
             let
                 ( newNostr, nostrCmd ) =
-                    Nostr.send model.nostr sendRequest
+                    Nostr.send model.nostr model.browserEnv.now sendRequest
             in
             ( { model | nostr = newNostr }
             , Effect.sendCmd <| Cmd.map Shared.Msg.NostrMsg nostrCmd

@@ -1177,11 +1177,24 @@ viewAuthorAndDatePreview articlePreviewsData articlePreviewData article =
 viewArticleDeleteButton : ArticlePreviewsData msg -> Article -> Html msg
 viewArticleDeleteButton articlePreviewsData article =
     if (articlePreviewsData.loginStatus |> loggedInSigningPubKey) == Just article.author then
+        let
+            ( deleteKinds, deleteAddress ) =
+                case ( article.kind, article.identifier ) of
+                    ( KindDraftLongFormContent, Just identifier ) ->
+                        ( [ KindDraft, KindDraftLongFormContent ]
+                        , Just ( KindDraft, article.author, identifier )
+                        )
+
+                    _ ->
+                        ( [ article.kind, KindDraft ]
+                        , addressComponentsForArticle article
+                        )
+        in
         Button.new
             { label = Translations.Posts.deleteDraftButtonLabel [ articlePreviewsData.browserEnv.translations ]
             , onClick =
                 articlePreviewsData.deleteButtonMsg
-                |> Maybe.map (\deleteButtonMsg -> deleteButtonMsg article.relays [ article.kind, KindDraft ] article.id (addressComponentsForArticle article))
+                    |> Maybe.map (\deleteButtonMsg -> deleteButtonMsg article.relays deleteKinds article.id deleteAddress)
             , theme = articlePreviewsData.theme
             }
             |> Button.view
