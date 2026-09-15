@@ -624,7 +624,14 @@
     "relay ready": "redo",
     "nip11 request failed": "NIP-11-förfrågan misslyckades",
     "loading article": "Laddar artikel...",
+    "resolving author": "Hämtar författare...",
+    "step resolve author": "Hämta författare",
+    "step load article": "Ladda artikel",
+    "article not found": "Artikeln hittades inte.",
+    "article load failed": "Kunde inte ladda den här artikeln.",
     "loading note": "Laddar anteckning...",
+    "note not found": "Anteckningen hittades inte.",
+    "note load failed": "Kunde inte ladda den här anteckningen.",
     "loading profile": "Laddar profil..."
   },
   "search": {

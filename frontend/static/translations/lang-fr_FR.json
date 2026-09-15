@@ -624,7 +624,14 @@
     "relay ready": "prêt",
     "nip11 request failed": "Échec de la requête NIP-11",
     "loading article": "Chargement de l'article...",
+    "resolving author": "Résolution de l'auteur...",
+    "step resolve author": "Résoudre l'auteur",
+    "step load article": "Charger l'article",
+    "article not found": "Article introuvable.",
+    "article load failed": "Impossible de charger cet article.",
     "loading note": "Chargement de la note...",
+    "note not found": "Note introuvable.",
+    "note load failed": "Impossible de charger cette note.",
     "loading profile": "Chargement du profil..."
   },
   "search": {

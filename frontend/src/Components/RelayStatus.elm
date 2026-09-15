@@ -1,16 +1,16 @@
 module Components.RelayStatus exposing
     ( RelayStatus, new
     , view
-    , Purpose(..)
+    , Status(..)
     )
 
-{-| NOT IM USE CURRENTLY!!!
+{-| Status panel for single-content loads: loading, not found, or failed.
 
-
-## Basic usage
+Originally relay-connection focused; relay list is only shown for loading states.
 
 @docs RelayStatus, new
 @docs view
+@docs Status
 
 -}
 
@@ -35,27 +35,29 @@ type RelayStatus msg
         { relays : List Relay
         , theme : Ui.Styles.Theme
         , translations : I18Next.Translations
-        , purpose : Purpose
+        , status : Status
         }
 
 
-
--- purpose for connecting to relays
-
-
-type Purpose
+{-| What the status panel is showing.
+-}
+type Status
     = LoadingArticle
     | LoadingNote
     | LoadingProfile
+    | ArticleNotFound
+    | ArticleLoadFailed
+    | NoteNotFound
+    | NoteLoadFailed
 
 
-new : { relays : List Relay, theme : Ui.Styles.Theme, translations : I18Next.Translations, purpose : Purpose } -> RelayStatus msg
+new : { relays : List Relay, theme : Ui.Styles.Theme, translations : I18Next.Translations, status : Status } -> RelayStatus msg
 new props =
     Settings
         { relays = props.relays
         , theme = props.theme
         , translations = props.translations
-        , purpose = props.purpose
+        , status = props.status
         }
 
 
@@ -70,7 +72,30 @@ view (Settings settings) =
             Ui.Styles.stylesForTheme settings.theme
 
         headline =
-            textForPurpose settings.translations settings.purpose
+            headlineForStatus settings.translations settings.status
+
+        showRelays =
+            case settings.status of
+                LoadingArticle ->
+                    True
+
+                LoadingNote ->
+                    True
+
+                LoadingProfile ->
+                    True
+
+                ArticleNotFound ->
+                    False
+
+                ArticleLoadFailed ->
+                    False
+
+                NoteNotFound ->
+                    False
+
+                NoteLoadFailed ->
+                    False
     in
     div
         [ css
@@ -87,19 +112,23 @@ view (Settings settings) =
             )
             [ text headline
             ]
-        , ul
-            [ css
-                [ Tw.grid
-                , Tw.grid_cols_1
-                , Tw.gap_6
-                , Tw.w_96
-                , Tw.m_2
-                , Bp.sm
-                    [ Tw.m_4
+        , if showRelays then
+            ul
+                [ css
+                    [ Tw.grid
+                    , Tw.grid_cols_1
+                    , Tw.gap_6
+                    , Tw.w_96
+                    , Tw.m_2
+                    , Bp.sm
+                        [ Tw.m_4
+                        ]
                     ]
                 ]
-            ]
-            (List.map (viewRelay settings.translations) settings.relays)
+                (List.map (viewRelay settings.translations) settings.relays)
+
+          else
+            text ""
         ]
 
 
@@ -180,9 +209,9 @@ relayStateInfo translations state =
             ( Translations.relayReady [ translations ], Theme.blue_500 )
 
 
-textForPurpose : I18Next.Translations -> Purpose -> String
-textForPurpose translations purpose =
-    case purpose of
+headlineForStatus : I18Next.Translations -> Status -> String
+headlineForStatus translations status =
+    case status of
         LoadingArticle ->
             Translations.loadingArticle [ translations ]
 
@@ -191,3 +220,15 @@ textForPurpose translations purpose =
 
         LoadingNote ->
             Translations.loadingNote [ translations ]
+
+        ArticleNotFound ->
+            Translations.articleNotFound [ translations ]
+
+        ArticleLoadFailed ->
+            Translations.articleLoadFailed [ translations ]
+
+        NoteNotFound ->
+            Translations.noteNotFound [ translations ]
+
+        NoteLoadFailed ->
+            Translations.noteLoadFailed [ translations ]

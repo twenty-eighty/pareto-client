@@ -3,7 +3,7 @@ module Pages.P.Profile_ exposing (Model, Msg, page)
 import Components.ArticleComments as ArticleComments
 import Components.EmailSubscriptionDialog as EmailSubscriptionDialog
 import Components.InteractionButton as InteractionButton
-import Components.RelayStatus exposing (Purpose(..))
+import Components.RelayStatus exposing (Status(..))
 import Components.ZapButtonDialog as ZapButtonDialog
 import Dict
 import Effect exposing (Effect)

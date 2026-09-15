@@ -6,20 +6,17 @@ import Components.AuthorInteractionsBar as AuthorInteractionsBar exposing (Msg(.
 import Components.Comment as Comment
 import Components.InteractionButton as InteractionButton exposing (eventIdOfInteractionObject)
 import Components.Interactions as Interactions
-import Components.RelayStatus exposing (Purpose(..))
 import Components.SharingButtonDialog as SharingButtonDialog
 import Dict exposing (Dict)
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, article)
+import Html.Styled as Html exposing (Html)
 import Layouts
 import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
-import Nostr
+import Nostr exposing (ArticleQueryStatus(..))
 import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Nip05 as Nip05
-import Nostr.Nip19 exposing (NIP19Type(..))
-import Nostr.Nip22 exposing (CommentType(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (EventId, PubKey, loggedInPubKey)
@@ -30,9 +27,10 @@ import Set
 import Shared
 import Shared.Msg
 import Ui.Article exposing (sharingInfoForArticle)
+import Ui.ArticleQuery
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles
-import Ui.View exposing (viewRelayStatus)
+import Ui.View
 import View exposing (View)
 
 
@@ -54,7 +52,7 @@ toLayout shared model =
             Ui.Styles.stylesForTheme shared.theme
 
         maybeArticle =
-            articleFromModel shared model
+            articleFromQuery shared model
 
         articleInfo =
             maybeArticle
@@ -190,9 +188,14 @@ init shared route () =
                                 Shared.createFollowersEffect shared.nostr maybeAuthorsPubKey
                         in
                         case ( maybeArticle, maybeAuthorsPubKey ) of
-                            ( Just _, _ ) ->
+                            ( Just article, _ ) ->
                                 -- article already in the shared store (e.g. from the /read list)
-                                ( followersEffect, Nothing )
+                                ( Effect.batch
+                                    [ followersEffect
+                                    , Shared.createArticleDetailsEffect shared.nostr (Just article)
+                                    ]
+                                , Nothing
+                                )
 
                             ( Nothing, Just pubKey ) ->
                                 ( Effect.batch
@@ -347,7 +350,7 @@ subscriptions : Shared.Model -> Model -> Sub Msg
 subscriptions shared model =
     Sub.batch
         [ commentInteractionSubscriptions shared model
-        , articleFromModel shared model
+        , articleFromQuery shared model
             |> Maybe.andThen
                 (\article ->
                     addressComponentsForArticle article
@@ -365,7 +368,7 @@ articleCommentsSubscriptions : Shared.Model -> Model -> Sub Msg
 articleCommentsSubscriptions shared model =
     let
         articleComments =
-            articleFromModel shared model
+            articleFromQuery shared model
                 |> Maybe.andThen addressComponentsForArticle
                 |> Maybe.map (Nostr.getArticleComments shared.nostr (loggedInPubKey shared.loginStatus))
                 |> Maybe.withDefault []
@@ -378,7 +381,7 @@ commentInteractionSubscriptions : Shared.Model -> Model -> Sub Msg
 commentInteractionSubscriptions shared model =
     let
         maybeAddressComponents =
-            articleFromModel shared model
+            articleFromQuery shared model
                 |> Maybe.andThen addressComponentsForArticle
     in
     case maybeAddressComponents of
@@ -414,27 +417,46 @@ commentInteractionSubscriptions shared model =
 view : Shared.Model -> Model -> View Msg
 view shared model =
     let
-        maybeArticle =
-            articleFromModel shared model
+        queryStatus =
+            articleQueryStatus shared model
+
+        title =
+            case queryStatus of
+                ArticleQueryReady article ->
+                    Maybe.withDefault "Article" article.title
+
+                _ ->
+                    "Article"
     in
-    { title = maybeArticle |> Maybe.andThen .title |> Maybe.withDefault "Article"
-    , body = [ viewArticle shared model maybeArticle ]
+    { title = title
+    , body = [ viewArticleQuery shared model queryStatus ]
     }
 
 
-articleFromModel : Shared.Model -> Model -> Maybe Article
-articleFromModel shared model =
-    model.nip05
-        |> Maybe.andThen
-            (\nip05 ->
-                Nostr.getArticleByNip05AndIdentifier shared.nostr nip05 model.identifier
-            )
+articleQueryStatus : Shared.Model -> Model -> ArticleQueryStatus
+articleQueryStatus shared model =
+    case model.nip05 of
+        Just nip05 ->
+            Nostr.getArticleQueryStatus shared.nostr nip05 model.identifier model.requestId
+
+        Nothing ->
+            ArticleQueryFailed "Invalid author address"
 
 
-viewArticle : Shared.Model -> Model -> Maybe Article -> Html Msg
-viewArticle shared model maybeArticle =
-    case maybeArticle of
-        Just article ->
+articleFromQuery : Shared.Model -> Model -> Maybe Article
+articleFromQuery shared model =
+    case articleQueryStatus shared model of
+        ArticleQueryReady article ->
+            Just article
+
+        _ ->
+            Nothing
+
+
+viewArticleQuery : Shared.Model -> Model -> ArticleQueryStatus -> Html Msg
+viewArticleQuery shared model queryStatus =
+    case queryStatus of
+        ArticleQueryReady article ->
             Ui.View.viewArticle
                 { articleComments = model.articleComments
                 , articleToInteractionsMsg = ArticleInteractionsSent
@@ -453,5 +475,5 @@ viewArticle shared model maybeArticle =
                 model.articleInteractions
                 article
 
-        Nothing ->
-            viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle model.requestId
+        _ ->
+            Ui.ArticleQuery.viewStatus shared.theme shared.browserEnv.translations shared.nostr queryStatus

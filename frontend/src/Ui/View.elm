@@ -5,7 +5,7 @@ module Ui.View exposing (..)
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Interactions
-import Components.RelayStatus as RelayStatus exposing (Purpose(..))
+import Components.RelayStatus as RelayStatus exposing (Status(..))
 import Dict
 import Html.Styled as Html exposing (Html, div)
 import Html.Styled.Attributes exposing (css)
@@ -155,8 +155,8 @@ viewCommunity browserEnv nostr community =
     Ui.Community.viewCommunity browserEnv nostr.profiles community
 
 
-viewRelayStatus : Theme -> I18Next.Translations -> Nostr.Model -> Purpose -> Maybe RequestId -> Html msg
-viewRelayStatus theme translations nostr purpose requestId =
+viewRelayStatus : Theme -> I18Next.Translations -> Nostr.Model -> Status -> Maybe RequestId -> Html msg
+viewRelayStatus theme translations nostr status requestId =
     let
         relays =
             Nostr.getRelaysForRequest nostr requestId
@@ -166,6 +166,6 @@ viewRelayStatus theme translations nostr purpose requestId =
         { relays = relays
         , theme = theme
         , translations = translations
-        , purpose = purpose
+        , status = status
         }
         |> RelayStatus.view

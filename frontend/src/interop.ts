@@ -636,11 +636,23 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     });
   }
 
-  function processEvents(app, requestId, description, ndkEvents) {
+  function processEvents(app, requestId, description, ndkEvents, filters) {
 
     if (ndkEvents.size == 0) {
-      // report back to the application that there are no events
-      app.ports.receiveMessage.send({ messageType: 'events', value: { kind: 0, events: [], requestId: requestId } });
+      // Prefer the filter kinds so Elm can settle kind-specific queries (e.g. articles).
+      const kinds =
+        Array.isArray(filters) && filters.length > 0
+          ? [...new Set(filters.flatMap((filter) => (Array.isArray(filter.kinds) ? filter.kinds : [])))]
+          : [];
+
+      if (kinds.length === 0) {
+        app.ports.receiveMessage.send({ messageType: 'events', value: { kind: 0, events: [], requestId: requestId } });
+      } else {
+        kinds.forEach((kind) => {
+          app.ports.receiveMessage.send({ messageType: 'events', value: { kind: kind, events: [], requestId: requestId } });
+        });
+      }
+      app.ports.receiveMessage.send({ messageType: 'eventsComplete', value: { requestId: requestId } });
       return;
     }
 
@@ -764,6 +776,8 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       debugLog("ZapReceipts: ", zapReceipts.length);
       app.ports.receiveMessage.send({ messageType: 'zap_receipts', value: zapReceipts });
     }
+
+    app.ports.receiveMessage.send({ messageType: 'eventsComplete', value: { requestId: requestId } });
   }
 
   // Unused incomplete helper (kept from JS; previously referenced undefined symbols).

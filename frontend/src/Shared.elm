@@ -2,7 +2,7 @@ module Shared exposing
     ( Flags, decoder
     , Model, Msg
     , init, update, subscriptions
-    , contentId, attemptScrollToFootnote, createFollowersEffect, footnoteAnchorId, loggedIn
+    , contentId, attemptScrollToFootnote, createArticleDetailsEffect, createFollowersEffect, footnoteAnchorId, loggedIn
     )
 
 {-|
@@ -20,6 +20,7 @@ import Components.AuthDialog as AuthDialog
 import Effect exposing (Effect)
 import Json.Decode
 import Nostr
+import Nostr.Article exposing (Article)
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.External
@@ -634,6 +635,19 @@ blankToNothing value =
 
         trimmed ->
             Just trimmed
+
+
+createArticleDetailsEffect : Nostr.Model -> Maybe Article -> Effect msg
+createArticleDetailsEffect nostr maybeArticle =
+    maybeArticle
+        |> Maybe.andThen (Nostr.requestArticleDetails nostr)
+        |> Maybe.map
+            (\request ->
+                request
+                    |> Shared.Msg.RequestNostrEvents
+                    |> Effect.sendSharedMsg
+            )
+        |> Maybe.withDefault Effect.none
 
 
 createFollowersEffect : Nostr.Model -> Maybe PubKey -> Effect msg

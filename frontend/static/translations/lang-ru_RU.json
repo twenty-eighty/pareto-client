@@ -624,7 +624,14 @@
     "relay ready": "готов",
     "nip11 request failed": "Запрос NIP-11 не удался",
     "loading article": "Загрузка статьи...",
+    "resolving author": "Определение автора...",
+    "step resolve author": "Определить автора",
+    "step load article": "Загрузить статью",
+    "article not found": "Статья не найдена.",
+    "article load failed": "Не удалось загрузить эту статью.",
     "loading note": "Загрузка заметки...",
+    "note not found": "Заметка не найдена.",
+    "note load failed": "Не удалось загрузить эту заметку.",
     "loading profile": "Загрузка профиля..."
   },
   "search": {

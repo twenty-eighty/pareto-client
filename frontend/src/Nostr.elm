@@ -62,6 +62,8 @@ type alias Model =
     , bookmarkLists : Dict PubKey BookmarkList
     , bookmarkSets : Dict PubKey BookmarkSet
     , commentsByAddress : Dict Address (Dict EventId CommentType)
+    , articleDetailsRequested : Set Address
+    , contentRequestStates : Dict RequestId ContentRequestState
     , communities : Dict PubKey (List Community)
     , communityLists : Dict PubKey (List CommunityReference)
     , defaultRelays : List String
@@ -121,6 +123,95 @@ type Msg
 type TestMode
     = TestModeOff
     | TestModeEnabled
+
+
+{-| Lifecycle of a single-content fetch (article, note, or picture post).
+-}
+type ContentRequestState
+    = WaitingForNip05
+    | WaitingForContent
+    | ContentRequestSettled
+    | ContentRequestFailed String
+
+
+{-| Page-facing status for an article keyed by NIP-05 + identifier.
+-}
+type ArticleLoadPhase
+    = ResolvingAuthor
+    | FetchingArticle
+
+
+type ArticleQueryStatus
+    = ArticleQueryLoading ArticleLoadPhase
+    | ArticleQueryReady Article
+    | ArticleQueryNotFound
+    | ArticleQueryFailed String
+
+
+getArticleQueryStatus : Model -> Nip05 -> String -> Maybe RequestId -> ArticleQueryStatus
+getArticleQueryStatus model nip05 identifier maybeRequestId =
+    articleQueryStatusFrom model
+        (getArticleByNip05AndIdentifier model nip05 identifier)
+        maybeRequestId
+
+
+{-| Resolve status from a cached article (if any) and an optional in-flight request.
+-}
+articleQueryStatusFrom : Model -> Maybe Article -> Maybe RequestId -> ArticleQueryStatus
+articleQueryStatusFrom model maybeArticle maybeRequestId =
+    case maybeArticle of
+        Just article ->
+            ArticleQueryReady article
+
+        Nothing ->
+            case maybeRequestId of
+                Nothing ->
+                    ArticleQueryLoading FetchingArticle
+
+                Just requestId ->
+                    case Dict.get requestId model.contentRequestStates of
+                        Just (ContentRequestFailed reason) ->
+                            ArticleQueryFailed reason
+
+                        Just ContentRequestSettled ->
+                            ArticleQueryNotFound
+
+                        Just WaitingForNip05 ->
+                            ArticleQueryLoading ResolvingAuthor
+
+                        Just WaitingForContent ->
+                            ArticleQueryLoading FetchingArticle
+
+                        Nothing ->
+                            ArticleQueryLoading FetchingArticle
+
+
+trackContentRequest : Model -> RequestId -> ContentRequestState -> Model
+trackContentRequest model requestId state =
+    { model | contentRequestStates = Dict.insert requestId state model.contentRequestStates }
+
+
+settleContentRequest : Model -> RequestId -> Model
+settleContentRequest model requestId =
+    case Dict.get requestId model.contentRequestStates of
+        Just (ContentRequestFailed _) ->
+            model
+
+        Just _ ->
+            trackContentRequest model requestId ContentRequestSettled
+
+        Nothing ->
+            model
+
+
+failContentRequest : Model -> RequestId -> String -> Model
+failContentRequest model requestId reason =
+    case Dict.get requestId model.contentRequestStates of
+        Just _ ->
+            trackContentRequest model requestId (ContentRequestFailed reason)
+
+        Nothing ->
+            model
 
 
 getAuthorsFollowList : Model -> List Following
@@ -259,6 +350,98 @@ createRequest model description relatedKinds data =
     }
 
 
+{-| Comments, reactions, zaps, and NIP-27 profiles for a single article.
+Used when opening an article that was already loaded as a list preview.
+-}
+requestArticleDetails : Model -> Article -> Maybe Request
+requestArticleDetails model article =
+    if not (articleNeedsDetails model article) then
+        Nothing
+
+    else
+        let
+            reactionRequest =
+                [ Nostr.Article.tagReference article ]
+                    |> eventFilterForReactions
+                    |> Maybe.map RequestReactions
+
+            baseRequest =
+                { id = model.lastRequestId + 1
+                , relatedKinds = []
+                , states = List.filterMap (Maybe.map RequestCreated) [ reactionRequest ]
+                , description = "Article details"
+                }
+
+            ( _, requestWithNip27 ) =
+                appendNip27ProfileRequests model baseRequest article.nip27References
+        in
+        if List.isEmpty requestWithNip27.states then
+            Nothing
+
+        else
+            Just requestWithNip27
+
+
+articleNeedsDetails : Model -> Article -> Bool
+articleNeedsDetails model article =
+    case addressForArticle article of
+        Just address ->
+            not (Set.member address model.articleDetailsRequested)
+
+        Nothing ->
+            True
+
+
+shouldRequestArticleDetails : Request -> Bool
+shouldRequestArticleDetails request =
+    List.any
+        (\state ->
+            case requestDataOfState state of
+                RequestArticle _ _ ->
+                    True
+
+                RequestNip05AndArticle _ _ ->
+                    True
+
+                _ ->
+                    False
+        )
+        request.states
+
+
+requestDataOfState : RequestState -> RequestData
+requestDataOfState state =
+    case state of
+        RequestCreated data ->
+            data
+
+        RequestSent data ->
+            data
+
+
+markArticleDetailsRequested : Model -> EventFilter -> Model
+markArticleDetailsRequested model eventFilter =
+    let
+        addresses =
+            eventFilter.tagReferences
+                |> Maybe.withDefault []
+                |> List.filterMap
+                    (\tagRef ->
+                        case tagRef of
+                            TagReferenceCode addressComponents ->
+                                Just (buildAddress addressComponents)
+
+                            _ ->
+                                Nothing
+                    )
+    in
+    if List.isEmpty addresses then
+        model
+
+    else
+        { model | articleDetailsRequested = Set.union model.articleDetailsRequested (Set.fromList addresses) }
+
+
 addToRequest : Model -> Request -> RequestData -> ( Model, Request )
 addToRequest model request data =
     let
@@ -334,7 +517,9 @@ performRequest model description requestId requestData =
     in
     case requestData of
         RequestArticle relays eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) [ eventFilter ] )
+            ( trackContentRequest model requestId WaitingForContent
+            , model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) [ eventFilter ]
+            )
 
         RequestArticles eventFilters ->
             ( { model | articlesByDate = [] }
@@ -381,7 +566,9 @@ performRequest model description requestId requestData =
 
         RequestNip05AndArticle nip05 _ ->
             -- identifier not needed here, only after getting nip05 data
-            ( model, requestNip05Info (Nip05ForRequest requestId) nip05 )
+            ( trackContentRequest model requestId WaitingForNip05
+            , requestNip05Info (Nip05ForRequest requestId) nip05
+            )
 
         RequestPicturesFeed eventFilters ->
             ( { model | picturePosts = Dict.empty }
@@ -395,7 +582,7 @@ performRequest model description requestId requestData =
             ( model, requestNip05Info (Nip05ForRequest requestId) nip05 )
 
         RequestReactions eventFilter ->
-            ( model, model.hooks.requestEvents description False requestId configuredRelays [ eventFilter ] )
+            ( markArticleDetailsRequested model eventFilter, model.hooks.requestEvents description False requestId configuredRelays [ eventFilter ] )
 
         RequestRelayLists eventFilter ->
             ( model, model.hooks.requestEvents description False requestId configuredRelays [ eventFilter ] )
@@ -416,7 +603,9 @@ performRequest model description requestId requestData =
             ( { model | articlesByDate = [] }, model.hooks.searchEvents description True requestId (getSearchRelayUrls model model.defaultUser) eventFilters )
 
         RequestShortNote relays eventFilter ->
-            ( model, model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) [ eventFilter ] )
+            ( trackContentRequest model requestId WaitingForContent
+            , model.hooks.requestEvents description True requestId (Maybe.withDefault [] relays ++ configuredRelays) [ eventFilter ]
+            )
 
 
 eventFiltersWithUntil : List EventFilter -> Maybe Posix -> List EventFilter
@@ -1638,6 +1827,8 @@ empty =
     , bookmarkLists = Dict.empty
     , bookmarkSets = Dict.empty
     , commentsByAddress = Dict.empty
+    , articleDetailsRequested = Set.empty
+    , contentRequestStates = Dict.empty
     , communities = Dict.empty
     , communityLists = Dict.empty
     , defaultRelays = []
@@ -1854,6 +2045,19 @@ update msg model =
                         ( _, _ ) ->
                             ( { model | errors = "Error decoding request ID or kind" :: model.errors }, Cmd.none )
 
+                "eventsComplete" ->
+                    case Nostr.External.decodeRequestId message.value of
+                        Ok requestId ->
+                            case Dict.get requestId model.contentRequestStates of
+                                Just WaitingForContent ->
+                                    ( settleContentRequest model requestId, Cmd.none )
+
+                                _ ->
+                                    ( model, Cmd.none )
+
+                        Err error ->
+                            ( { model | errors = Decode.errorToString error :: model.errors }, Cmd.none )
+
                 "error" ->
                     case Nostr.External.decodeReason message.value of
                         Ok error ->
@@ -1936,72 +2140,90 @@ authorDecoder =
 
 updateModelWithEvents : Model -> Int -> Kind -> List Event -> ( Model, Cmd Msg )
 updateModelWithEvents model requestId kind events =
+    let
+        modelAfterContentRequest =
+            case ( Dict.get requestId model.contentRequestStates, kind ) of
+                ( Just WaitingForContent, KindLongFormContent ) ->
+                    settleContentRequest model requestId
+
+                ( Just WaitingForContent, KindDraftLongFormContent ) ->
+                    settleContentRequest model requestId
+
+                ( Just WaitingForContent, KindShortTextNote ) ->
+                    settleContentRequest model requestId
+
+                ( Just WaitingForContent, KindPicture ) ->
+                    settleContentRequest model requestId
+
+                _ ->
+                    model
+    in
     case kind of
         KindBookmarkList ->
-            updateModelWithBookmarkLists model events
+            updateModelWithBookmarkLists modelAfterContentRequest events
 
         KindBookmarkSets ->
-            updateModelWithBookmarkSets model events
+            updateModelWithBookmarkSets modelAfterContentRequest events
 
         KindCommunityDefinition ->
-            updateModelWithCommunityDefinitions model events
+            updateModelWithCommunityDefinitions modelAfterContentRequest events
 
         KindCommunitiesList ->
-            updateModelWithCommunityLists model events
+            updateModelWithCommunityLists modelAfterContentRequest events
 
         KindEventDeletionRequest ->
-            updateModelWithDeletionRequests model events
+            updateModelWithDeletionRequests modelAfterContentRequest events
 
         KindComment ->
-            updateModelWithComments model requestId events
+            updateModelWithComments modelAfterContentRequest requestId events
 
         KindPicture ->
-            updateModelWithPictures model requestId events
+            updateModelWithPictures modelAfterContentRequest requestId events
 
         KindRepost ->
-            updateModelWithReposts model events
+            updateModelWithReposts modelAfterContentRequest events
 
         KindGenericRepost ->
-            updateModelWithReposts model events
+            updateModelWithReposts modelAfterContentRequest events
 
         KindUserServerList ->
-            updateModelWithUserServerLists model requestId events
+            updateModelWithUserServerLists modelAfterContentRequest requestId events
 
         KindFileStorageServerList ->
-            updateModelWithFileStorageServerLists model requestId events
+            updateModelWithFileStorageServerLists modelAfterContentRequest requestId events
 
         KindFollows ->
-            updateModelWithFollowLists model events
+            updateModelWithFollowLists modelAfterContentRequest events
 
         KindMuteList ->
-            updateModelWithMuteLists model events
+            updateModelWithMuteLists modelAfterContentRequest events
 
         KindFollowSets ->
-            updateModelWithFollowSets model events
+            updateModelWithFollowSets modelAfterContentRequest events
 
         KindLongFormContent ->
-            updateModelWithLongFormContent model requestId events
+            updateModelWithLongFormContent modelAfterContentRequest requestId events
 
         KindDraftLongFormContent ->
-            updateModelWithLongFormContentDraft model requestId events
+            updateModelWithLongFormContentDraft modelAfterContentRequest requestId events
 
         KindReaction ->
-            updateModelWithReactions model requestId events
+            updateModelWithReactions modelAfterContentRequest requestId events
 
         KindSearchRelaysList ->
-            updateModelWithSearchRelays model requestId events
+            updateModelWithSearchRelays modelAfterContentRequest requestId events
 
         KindShortTextNote ->
-            updateModelWithShortTextNotes model requestId events
+            updateModelWithShortTextNotes modelAfterContentRequest requestId events
 
         KindUserMetadata ->
-            updateModelWithUserMetadata model requestId events
+            updateModelWithUserMetadata modelAfterContentRequest requestId events
 
         KindRelayListMetadata ->
-            updateModelWithRelayListMetadata model events
+            updateModelWithRelayListMetadata modelAfterContentRequest events
 
         _ ->
-            ( model, Cmd.none )
+            ( modelAfterContentRequest, Cmd.none )
 
 
 updateModelWithBookmarkLists : Model -> List Event -> ( Model, Cmd Msg )
@@ -2524,8 +2746,15 @@ updateModelWithLongFormContentDraft model requestId events =
 requestRelatedKindsForArticles : Model -> List Article -> Request -> ( Model, Cmd Msg )
 requestRelatedKindsForArticles model articles request =
     let
+        articlesForDetails =
+            if shouldRequestArticleDetails request then
+                List.filter (articleNeedsDetails model) articles
+
+            else
+                []
+
         ( requestNip27Model, requestWithNip27Requests ) =
-            articles
+            articlesForDetails
                 |> List.map .nip27References
                 |> List.concat
                 |> appendNip27ProfileRequests model request
@@ -2542,13 +2771,13 @@ requestRelatedKindsForArticles model articles request =
                     -- TODO: add relays for request
                     eventFilterForAuthorProfiles
                         |> RequestProfile Nothing
-                        |> addToRequest model requestWithNip27Requests
+                        |> addToRequest requestNip27Model requestWithNip27Requests
 
                 Nothing ->
-                    ( model, request )
+                    ( requestNip27Model, requestWithNip27Requests )
 
         ( extendedModel, extendedRequestReactions ) =
-            articles
+            articlesForDetails
                 |> List.map Nostr.Article.tagReference
                 |> eventFilterForReactions
                 |> Maybe.map RequestReactions
@@ -3171,10 +3400,15 @@ handleNip05Result model target nip05 result =
         ( Nip05ForRequest requestId, Ok nip05Data ) ->
             updateModelWithNip05Data model requestId nip05 nip05Data
 
-        ( Nip05ForRequest _, Err error ) ->
-            ( { model | errors = ("Error fetching NIP05 data for " ++ nip05ToString nip05 ++ ": " ++ httpErrorToString error) :: model.errors }
-            , Cmd.none
-            )
+        ( Nip05ForRequest requestId, Err error ) ->
+            let
+                reason =
+                    "Error fetching NIP05 data for " ++ nip05ToString nip05 ++ ": " ++ httpErrorToString error
+
+                modelWithError =
+                    { model | errors = reason :: model.errors }
+            in
+            ( failContentRequest modelWithError requestId reason, Cmd.none )
 
 
 profileUsesNip05 : Model -> PubKey -> Nip05 -> Bool
@@ -3308,8 +3542,41 @@ updateModelWithNip05Data model requestId nip05 nip05Data =
                     [ profileRequest, articleRequest ]
                         |> List.filterMap identity
 
+                ( Just _, Nothing ) ->
+                    []
+
                 _ ->
                     []
+
+        modelAfterNip05 =
+            case ( Dict.get requestId modelWithMapping.contentRequestStates, maybePubKey, followUpRequests ) of
+                ( Just WaitingForNip05, Nothing, _ ) ->
+                    failContentRequest modelWithMapping requestId ("NIP-05 did not resolve a pubkey for " ++ nip05ToString nip05)
+
+                ( Just WaitingForNip05, Just _, followUps ) ->
+                    let
+                        waitingForArticleFetch =
+                            List.any
+                                (\requestData ->
+                                    case requestData of
+                                        RequestArticle _ _ ->
+                                            True
+
+                                        _ ->
+                                            False
+                                )
+                                followUps
+                    in
+                    if waitingForArticleFetch then
+                        -- RequestArticle follow-up will move this to WaitingForContent.
+                        modelWithMapping
+
+                    else
+                        -- Pubkey resolved and article already cached (or no identifier).
+                        settleContentRequest modelWithMapping requestId
+
+                _ ->
+                    modelWithMapping
 
         ( requestModel, requestCmd ) =
             case ( maybeRequest, followUpRequests ) of
@@ -3319,11 +3586,11 @@ updateModelWithNip05Data model requestId nip05 nip05Data =
                             (\requestData ( modelAcc, requestAcc ) ->
                                 addToRequest modelAcc requestAcc requestData
                             )
-                            ( modelWithMapping, request )
+                            ( modelAfterNip05, request )
                         |> (\( modelWithRequest, extendedRequest ) -> doRequest modelWithRequest extendedRequest)
 
                 _ ->
-                    ( modelWithMapping, Cmd.none )
+                    ( modelAfterNip05, Cmd.none )
     in
     ( requestModel, requestCmd )
 

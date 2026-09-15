@@ -624,7 +624,14 @@
     "relay ready": "ready",
     "nip11 request failed": "NIP-11 request failed",
     "loading article": "Loading article...",
+    "resolving author": "Resolving author...",
+    "step resolve author": "Resolve author",
+    "step load article": "Load article",
+    "article not found": "Article not found.",
+    "article load failed": "Could not load this article.",
     "loading note": "Loading note...",
+    "note not found": "Note not found.",
+    "note load failed": "Could not load this note.",
     "loading profile": "Loading profile..."
   },
   "search": {
