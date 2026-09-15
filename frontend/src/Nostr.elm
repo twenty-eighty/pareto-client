@@ -130,6 +130,8 @@ module Nostr exposing
     , getCashuWallet
     , getCashuBalance
     , addCashuBalance
+    , clearCashuState
+    , clearUserSessionState
     , getCashuProofsForMint
     , getNutzapMintRecommendation
     , getNutzapMintRecommendationFor
@@ -795,6 +797,15 @@ getArticleDraftsByDate : Model -> List Article
 getArticleDraftsByDate model =
     model.articleDraftsByDate
         |> List.filter (filterDeletedArticle model)
+        |> List.filter
+            (\article ->
+                case model.defaultUser of
+                    Just pubKey ->
+                        article.author == pubKey
+
+                    Nothing ->
+                        False
+            )
 
 
 getArticleDraftWithIdentifier : Model -> PubKey -> String -> Maybe Article
@@ -1254,13 +1265,22 @@ eventFilterForCommunityPostApprovals =
 requestUserData : Model -> PubKey -> ( Model, Cmd Msg )
 requestUserData model pubKey =
     let
+        -- User-bound session data (cashu, drafts, defaultUser) must not leak
+        -- across logout or account switch.
+        modelForUser =
+            if model.defaultUser == Just pubKey then
+                model
+
+            else
+                clearUserSessionState model
+
         request =
             -- assumption: our standard relays are good for the user's profile
             Request.userDataFilter pubKey
                 |> RequestProfile Nothing
-                |> createRequest model "Related data for logged-in user" []
+                |> createRequest modelForUser "Related data for logged-in user" []
     in
-    doRequest { model | defaultUser = Just pubKey } request
+    doRequest { modelForUser | defaultUser = Just pubKey } request
 
 
 getMissingProfilePubKeys : Model -> List PubKey -> List PubKey
@@ -2407,6 +2427,7 @@ updateModelWithCashuWallet model events =
         maybeWallet =
             events
                 |> List.filterMap CashuWallet.walletFromDecryptedEvent
+                |> List.filter (\wallet -> Just wallet.pubKey == model.defaultUser)
                 |> List.head
 
         modelWithWallet =
@@ -2487,6 +2508,7 @@ updateModelWithCashuTokens model events =
         tokens =
             events
                 |> List.filterMap CashuWallet.tokenEventFromDecrypted
+                |> List.filter (\token -> Just token.pubKey == model.defaultUser)
 
         cashuTokens =
             CashuWallet.ingestTokens model.cashuTokens tokens
@@ -2502,8 +2524,12 @@ updateModelWithCashuTokens model events =
 updateModelWithCashuHistory : Model -> List Event -> ( Model, Cmd Msg )
 updateModelWithCashuHistory model events =
     let
+        ownEvents =
+            events
+                |> List.filter (\event -> Just event.pubKey == model.defaultUser)
+
         redeemed =
-            Set.union model.redeemedNutzapIds (CashuWallet.redeemedNutzapIdsFromEvents events)
+            Set.union model.redeemedNutzapIds (CashuWallet.redeemedNutzapIdsFromEvents ownEvents)
     in
     ( { model | redeemedNutzapIds = redeemed }, Cmd.none )
 
@@ -2672,6 +2698,34 @@ getCashuBalance model =
 addCashuBalance : Model -> Int -> Model
 addCashuBalance model amount =
     { model | cashuBalance = model.cashuBalance + amount }
+
+
+clearCashuState : Model -> Model
+clearCashuState model =
+    { model
+        | cashuWallet = Nothing
+        , cashuTokens = Dict.empty
+        , cashuBalance = 0
+        , redeemedNutzapIds = Set.empty
+        , pendingNutzapRedeems = Set.empty
+    }
+
+
+{-| Clear all logged-in-user session state that must not leak across logout
+or account switches. Pubkey-keyed caches (profiles, follows, etc.) are kept.
+-}
+clearUserSessionState : Model -> Model
+clearUserSessionState model =
+    let
+        cleared =
+            clearCashuState model
+    in
+    { cleared
+        | defaultUser = Nothing
+        , articleDraftsByDate = []
+        , articleDraftsById = Dict.empty
+        , articleDraftRelays = Dict.empty
+    }
 
 
 getNutzapMintRecommendation : Model -> Maybe CashuWallet.NutzapMintRecommendation

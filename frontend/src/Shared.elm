@@ -43,6 +43,7 @@ import Shared.Msg exposing (Msg(..))
 import Task exposing (Task)
 import Time
 import Ui.Styles exposing (Theme(..))
+import Url
 
 
 type alias Model =
@@ -288,7 +289,7 @@ update route msg model =
             )
 
         ReceivedPortMessage portMessage ->
-            updateWithPortMessage model portMessage
+            updateWithPortMessage route model portMessage
 
         BrowserEnvMsg browserEnvMsg ->
             let
@@ -466,8 +467,8 @@ update route msg model =
         ReloadForNewVersion ->
             ( model, Effect.sendCmd Ports.reloadWindow )
 
-updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
-updateWithPortMessage model portMessage =
+updateWithPortMessage : Route () -> Model -> IncomingMessage -> ( Model, Effect Msg )
+updateWithPortMessage route model portMessage =
     let
         ( authDialog, authCmd ) =
             AuthDialog.update model.browserEnv (AuthDialog.PortMsg portMessage) model.authDialog
@@ -482,13 +483,20 @@ updateWithPortMessage model portMessage =
         "user" ->
             let
                 ( updatedModel, userEffect ) =
-                    updateWithUserValue modelWithAuth portMessage.value
+                    updateWithUserValue route modelWithAuth portMessage.value
             in
             ( updatedModel, Effect.batch [ authEffect, userEffect ] )
 
         "loggedOut" ->
-            ( { modelWithAuth | loginStatus = LoggedOut }
-            , authEffect
+            ( { modelWithAuth
+                | loginStatus = LoggedOut
+                , nostr = Nostr.clearUserSessionState modelWithAuth.nostr
+                , configCheck = ConfigCheck.init
+              }
+            , Effect.batch
+                [ authEffect
+                , Effect.sendCmd Ports.disconnectNwc
+                ]
             )
 
         "newVersionAvailable" ->
@@ -525,8 +533,8 @@ updateWithPortMessage model portMessage =
             ( modelWithAuth, authEffect )
 
 
-updateWithUserValue : Model -> Json.Decode.Value -> ( Model, Effect Msg )
-updateWithUserValue model value =
+updateWithUserValue : Route () -> Model -> Json.Decode.Value -> ( Model, Effect Msg )
+updateWithUserValue route model value =
     case
         ( Json.Decode.decodeValue pubkeyDecoder value
         , Json.Decode.decodeValue loginMethodDecoder value
@@ -534,53 +542,53 @@ updateWithUserValue model value =
         )
     of
         ( Ok pubKeyNew, Ok loginMethod, LoggedIn pubKeyLoggedIn _ ) ->
-            let
-                ( nostr, cmdNostr ) =
-                    if pubKeyNew /= pubKeyLoggedIn then
+            if pubKeyNew == pubKeyLoggedIn then
+                -- ignore messages that don't change user
+                ( model, Effect.none )
+
+            else
+                let
+                    ( nostr, cmdNostr ) =
                         Nostr.requestUserData model.nostr pubKeyNew
 
-                    else
-                        -- ignore messages that don't change user
-                        ( model.nostr, Cmd.none )
+                    startConfigCheckCmd =
+                        if Nostr.isEditor nostr pubKeyNew then
+                            Process.sleep (5 * 1000.0)
+                                |> Task.perform CheckConfiguration
 
-                startConfigCheckCmd =
-                    if Nostr.isEditor model.nostr pubKeyNew then
-                        -- trigger configuration check for Pareto users/authors
-                        Process.sleep (5 * 1000.0)
-                            |> Task.perform CheckConfiguration
+                        else
+                            Cmd.none
 
-                    else
-                        -- don't check for non-Pareto users
-                        Cmd.none
+                    bootstrapEffect =
+                        bootstrapEmailAccountEffect nostr pubKeyNew value
 
-                bootstrapEffect =
-                    bootstrapEmailAccountEffect model.nostr pubKeyNew value
-
-                ( modelWithLastSeen, lastSeenEffect ) =
-                    seedNotificationsLastSeenIfNeeded
-                        { model
-                            | loginStatus = LoggedIn pubKeyNew loginMethod
-                            , nostr = nostr
-                        }
-                        pubKeyNew
-            in
-            ( modelWithLastSeen
-            , Effect.batch
-                [ [ cmdNostr
-                        |> Cmd.map Shared.Msg.NostrMsg
-
-                  -- check if user sends newsletters
-                  , Nostr.loadUserDataByPubKey model.nostr pubKeyNew
-                        |> Cmd.map Shared.Msg.NostrMsg
-                  , startConfigCheckCmd
-                  ]
-                    |> Cmd.batch
-                    |> Effect.sendCmd
-                , bootstrapEffect
-                , lastSeenEffect
-                , createNotificationsActivityEffect modelWithLastSeen.nostr pubKeyNew
-                ]
-            )
+                    ( modelWithLastSeen, lastSeenEffect ) =
+                        seedNotificationsLastSeenIfNeeded
+                            { model
+                                | loginStatus = LoggedIn pubKeyNew loginMethod
+                                , nostr = nostr
+                                , configCheck = ConfigCheck.init
+                            }
+                            pubKeyNew
+                in
+                ( modelWithLastSeen
+                , Effect.batch
+                    [ [ cmdNostr
+                            |> Cmd.map Shared.Msg.NostrMsg
+                      , Nostr.loadUserDataByPubKey nostr pubKeyNew
+                            |> Cmd.map Shared.Msg.NostrMsg
+                      , startConfigCheckCmd
+                      ]
+                        |> Cmd.batch
+                        |> Effect.sendCmd
+                    , bootstrapEffect
+                    , lastSeenEffect
+                    , createNotificationsActivityEffect modelWithLastSeen.nostr pubKeyNew
+                    , Effect.sendCmd Ports.disconnectNwc
+                      -- Remount auth pages so Write/Settings/Subscribers don't keep the previous user's model.
+                    , Effect.loadExternalUrl (Url.toString route.url)
+                    ]
+                )
 
         ( Ok pubKeyNew, Ok loginMethod, _ ) ->
             let
@@ -588,19 +596,21 @@ updateWithUserValue model value =
                     Nostr.requestUserData model.nostr pubKeyNew
 
                 bootstrapEffect =
-                    bootstrapEmailAccountEffect model.nostr pubKeyNew value
+                    bootstrapEmailAccountEffect nostr pubKeyNew value
 
                 ( modelWithLastSeen, lastSeenEffect ) =
                     seedNotificationsLastSeenIfNeeded
-                        { model | loginStatus = LoggedIn pubKeyNew loginMethod, nostr = nostr }
+                        { model
+                            | loginStatus = LoggedIn pubKeyNew loginMethod
+                            , nostr = nostr
+                            , configCheck = ConfigCheck.init
+                        }
                         pubKeyNew
             in
             ( modelWithLastSeen
             , Effect.batch
                 [ [ cmd
-
-                  -- check if user sends newsletters
-                  , Nostr.loadUserDataByPubKey model.nostr pubKeyNew
+                  , Nostr.loadUserDataByPubKey nostr pubKeyNew
                   ]
                     |> Cmd.batch
                     |> Cmd.map Shared.Msg.NostrMsg
@@ -608,6 +618,7 @@ updateWithUserValue model value =
                 , bootstrapEffect
                 , lastSeenEffect
                 , createNotificationsActivityEffect modelWithLastSeen.nostr pubKeyNew
+                , Effect.sendCmd Ports.disconnectNwc
                 ]
             )
 

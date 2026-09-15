@@ -893,7 +893,24 @@ handlePort browserEnv (Model m) incoming =
                     ( Model { m | busy = False, error = Just "Could not create key", pendingSignupKey = Nothing }, Cmd.none )
 
         "loggedOut" ->
-            ( Model { m | busy = False, activeId = Nothing, pendingEmail = Nothing, screen = Home }
+            ( Model
+                { m
+                    | busy = False
+                    , activeId = Nothing
+                    , pendingEmail = Nothing
+                    , screen =
+                        if m.screen == UnlockForm then
+                            UnlockForm
+
+                        else
+                            Home
+                    , passwordInput = ""
+                    , passwordConfirmInput = ""
+                    , ncryptsecInput = ""
+                    , pendingSignupKey = Nothing
+                    , loginHash = Nothing
+                    , error = Nothing
+                }
             , Cmd.none
             )
 

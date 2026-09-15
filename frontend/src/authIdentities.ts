@@ -24,6 +24,7 @@ import {
   reportPasskeySupport,
   shouldOfferPasskeyCreate,
 } from "./keytrAuth";
+import * as nwcWallet from "./nwcWallet";
 
 const STORAGE_KEY = "pareto.auth.identities.v1";
 const BOOTSTRAP_KEY = "pareto.auth.bootstrap.v1";
@@ -34,6 +35,8 @@ const NOSTRCONNECT_PERMS = "sign_event";
 
 /** Latest NDK instance — used to report whether an ncryptsec identity is unlocked. */
 let lastNdk: NDK | null = null;
+/** Last pubkey announced via sendUser — used to drop NWC on account switch. */
+let lastActivePubkey: string | null = null;
 let nostrConnectGeneration = 0;
 let pendingNostrConnectSigner: NDKNip46Signer | null = null;
 
@@ -150,6 +153,12 @@ function sendUser(
   method: AuthMethod,
   extras?: { bootstrap?: boolean; displayName?: string | null; offerPasskey?: boolean },
 ): void {
+  const nextPubkey = normalizeHexPubkey(pubkey);
+  // Drop the previous account's NWC connection so auto-pay cannot cross users.
+  if (lastActivePubkey && lastActivePubkey !== nextPubkey) {
+    nwcWallet.disconnect();
+  }
+  lastActivePubkey = nextPubkey;
   app.ports.receiveMessage.send({
     messageType: "user",
     value: {
@@ -551,14 +560,24 @@ export async function restoreActiveIdentity(ndk: NDK, app: ElmApp): Promise<void
   lastNdk = ndk;
   const store = loadStore();
   sendIdentities(app, store);
+
+  const resolveLoggedOut = () => {
+    app.ports.receiveMessage.send({ messageType: "loggedOut", value: null });
+  };
+
   if (!store.activeId) {
+    // Always leave LoggedInUnknown — otherwise auth pages hang on "Loading...".
+    resolveLoggedOut();
     return;
   }
   const identity = store.identities.find((item) => item.id === store.activeId);
   if (!identity) {
+    resolveLoggedOut();
     return;
   }
   if (identity.method === "ncryptsec") {
+    // Password required — treat as logged out until unlock succeeds, then open unlock UI.
+    resolveLoggedOut();
     app.ports.receiveMessage.send({
       messageType: "authNeedsUnlock",
       value: { id: identity.id, pubkey: identity.pubkey },
@@ -567,12 +586,14 @@ export async function restoreActiveIdentity(ndk: NDK, app: ElmApp): Promise<void
   }
   if (identity.method === "passkey") {
     // Don't prompt biometrics on every page load; user can Use the identity.
+    resolveLoggedOut();
     return;
   }
   try {
     await activateSigner(ndk, app, identity);
   } catch (error: any) {
     sendAuthError(app, error?.message || "Failed to restore identity");
+    resolveLoggedOut();
   }
 }
 
@@ -597,6 +618,8 @@ export async function handleAuthCommand(
         store.activeId = null;
         saveStore(store);
         sendIdentities(app, store);
+        nwcWallet.disconnect();
+        lastActivePubkey = null;
         app.ports.receiveMessage.send({ messageType: "loggedOut", value: null });
         return true;
       }
@@ -653,6 +676,8 @@ export async function handleAuthCommand(
         if (wasActive) {
           store.activeId = null;
           ndk.signer = undefined;
+          nwcWallet.disconnect();
+          lastActivePubkey = null;
           app.ports.receiveMessage.send({ messageType: "loggedOut", value: null });
         }
         saveStore(store);

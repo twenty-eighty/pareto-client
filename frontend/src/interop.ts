@@ -669,6 +669,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     window.ndk.initialValidationRatio = 0.5;
     window.ndk.lowestValidationRatio = 0.01;
 
+    // Resolve LoggedInUnknown immediately (don't wait for relays) so auth pages
+    // like /settings don't hang on "Loading..." when there is no auto-login.
+    restoreActiveIdentity(window.ndk, app);
+
     window.ndk.pool.on("connecting", (relay) => {
       debugLog('connecting relays', relay);
       app.ports.receiveMessage.send({ messageType: 'connecting', value: null });
