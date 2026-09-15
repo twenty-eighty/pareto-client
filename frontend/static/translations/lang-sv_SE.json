@@ -21,7 +21,12 @@
         "recommendation sent alert text": "Rekommendation skickad",
         "feedback info text": "Du hittade en bugg eller vill ge feedback? Kontakta oss ",
         "support page link text": "här",
-        "telegram link text": "Pareto Telegram kanal"
+        "telegram link text": "Pareto Telegram kanal",
+        "install app button title": "Installera appen"
+    },
+    "app update": {
+        "new version available": "Ny version tillgänglig.",
+        "reload button": "Ladda om"
     },
     "article info": {
         "title": "Artikelinformation",
