@@ -29,7 +29,6 @@ type alias BrowserEnv =
     , environment : Environment
     , formatNumber : String -> Float -> String
     , frontendUrl : String
-    , installPromptAvailable : Bool
     , language : Language
     , locale : String
     , nativeSharingAvailable : Bool
@@ -110,7 +109,6 @@ init initParams =
             , environment = environmentFromString initParams.environment initParams.imageCachingServer initParams.imageCacheKey
             , formatNumber = numberFormatFromLanguage language
             , errors = []
-            , installPromptAvailable = False
             , language = language
             , locale = initParams.locale
             , nativeSharingAvailable = initParams.nativeSharingAvailable
@@ -309,14 +307,6 @@ updateWithPortMessage browserEnv portMessage =
             case Decode.decodeValue Decode.bool portMessage.value of
                 Ok darkMode ->
                     ( { browserEnv | darkMode = darkMode }, Cmd.none )
-
-                Err _ ->
-                    ( browserEnv, Cmd.none )
-
-        "installPromptAvailable" ->
-            case Decode.decodeValue Decode.bool portMessage.value of
-                Ok available ->
-                    ( { browserEnv | installPromptAvailable = available }, Cmd.none )
 
                 Err _ ->
                     ( browserEnv, Cmd.none )

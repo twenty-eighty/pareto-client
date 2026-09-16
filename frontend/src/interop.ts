@@ -8,11 +8,12 @@ import { BlossomClient } from "blossom-client-sdk/client";
 import "./clipboard-component";
 import "./elm-oembed";
 import { createRelayManager } from "./relay-manager";
+import { filterRelayUrls, isBlockedRelayUrl, setBlockedRelayUrls } from "./blocked-relays";
 import { handleAuthCommand, restoreActiveIdentity } from "./authIdentities";
 import { reportPasskeySupport as queryPasskeySupport } from "./keytrAuth";
 import * as cashuWallet from "./cashuWallet";
 import * as nwcWallet from "./nwcWallet";
-import { initPwa, promptPwaInstall, reloadForNewVersion } from "./pwa";
+import { initPwa, reloadForNewVersion } from "./pwa";
 import debug from 'debug';
 
 declare global {
@@ -142,12 +143,8 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       reloadForNewVersion();
       return;
     }
-    if (command === 'installPwa') {
-      promptPwaInstall();
-      return;
-    }
     if (command === 'connect') {
-      connect(app, value.client, value.nip89, value.relays);
+      connect(app, value.client, value.nip89, value.relays, value.blockedRelays);
     } else if (connected) {
       processOnlineCommand(app, command, value);
     } else {
@@ -292,6 +289,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
       case 'setLocalRelays':
         setLocalRelays(value);
+        break;
+
+      case 'setBlockedRelays':
+        applyBlockedRelays(value && value.relays);
         break;
 
       case 'setNotificationsLastSeen':
@@ -645,16 +646,19 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     return result;
   }
 
-  function connect(app, client, nip89, relays) {
+  function connect(app, client, nip89, relays, blockedRelays) {
     debugLog('connect to relays', relays);
+    setBlockedRelayUrls(blockedRelays);
+    const allowedRelays = filterRelayUrls(relays || []);
     const dexieAdapter = new NDKCacheAdapterDexie({ dbName: paretoNdkCacheDb });
     window.ndk = new NDK({
       enableOutboxModel: true,
       cacheAdapter: dexieAdapter,
-      explicitRelayUrls: relays,
+      explicitRelayUrls: allowedRelays,
       clientName: client,
       clientNip89: nip89,
-      debug: debugLog
+      debug: debugLog,
+      relayConnectionFilter: (url) => !isBlockedRelayUrl(url),
     });
 
     relayManager = createRelayManager(window.ndk, debugLog, processEvents);
@@ -728,6 +732,24 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     })
 
     window.ndk.connect(2000);
+  }
+
+  function applyBlockedRelays(relays) {
+    setBlockedRelayUrls(relays);
+    if (!window.ndk || !window.ndk.pool) {
+      return;
+    }
+    const pool = window.ndk.pool;
+    Array.from(pool.relays.keys()).forEach((url: string) => {
+      if (isBlockedRelayUrl(url)) {
+        try {
+          pool.removeRelay(url);
+          debugLog('removed blocked relay', url);
+        } catch (e) {
+          debugLog('failed to remove blocked relay', url, e);
+        }
+      }
+    });
   }
 
 
@@ -1309,13 +1331,13 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       await ndkEvent.sign(signer);
       debugLog('signed event ' + sendId, ndkEvent);
 
-      var relaysWithProtocol = (relays || []).map(relay => {
+      var relaysWithProtocol = filterRelayUrls((relays || []).map(relay => {
         if (!relay.startsWith("wss://") && !relay.startsWith("ws://")) {
           return "wss://" + relay
         } else {
           return relay
         }
-      });
+      }));
 
       if (relaysWithProtocol.length === 0) {
         relaysWithProtocol = ["wss://pareto.nostr1.com"];

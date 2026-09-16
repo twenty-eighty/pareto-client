@@ -241,6 +241,7 @@ portHooks =
     , requestNip96Auth = Ports.requestNip96Auth
     , searchEvents = Ports.searchEvents
     , sendEvent = Ports.sendEvent
+    , setBlockedRelays = Ports.setBlockedRelays
     }
 
 
@@ -496,6 +497,7 @@ updateWithPortMessage route model portMessage =
             , Effect.batch
                 [ authEffect
                 , Effect.sendCmd Ports.disconnectNwc
+                , Effect.sendCmd (Ports.setBlockedRelays Pareto.blockedRelays)
                 ]
             )
 

@@ -17,6 +17,7 @@ import Nostr.External exposing (Hooks)
 import Nostr.Nip05 exposing (Nip05)
 import Nostr.Request as Request exposing (RequestData(..), RequestId)
 import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.RelayAccess as RelayAccess
 import Nostr.Types exposing (Address)
 import Set exposing (Set)
 
@@ -39,6 +40,7 @@ type alias Env msg =
     , searchRelayUrls : List RelayUrl
     , draftStorageRelays : List RelayUrl
     , delayedPublishingRelays : List RelayUrl
+    , blockedRelays : List RelayUrl
     , articlesByDate : List Article
     , requestNip05 : RequestId -> Nip05 -> Cmd msg
     }
@@ -54,10 +56,10 @@ perform : Env msg -> String -> RequestId -> RequestData -> Result msg
 perform env description requestId requestData =
     let
         configuredRelays =
-            env.configuredRelays
+            allowedRelays env env.configuredRelays
 
         requestEvents closeOnEose relays filters =
-            env.hooks.requestEvents description closeOnEose requestId relays filters
+            env.hooks.requestEvents description closeOnEose requestId (allowedRelays env relays) filters
     in
     case requestData of
         RequestArticle relays eventFilter ->
@@ -178,7 +180,7 @@ perform env description requestId requestData =
 
         RequestSearchResults eventFilters ->
             { modelEffect = ClearArticlesByDate
-            , cmd = env.hooks.searchEvents description True requestId env.searchRelayUrls eventFilters
+            , cmd = env.hooks.searchEvents description True requestId (allowedRelays env env.searchRelayUrls) eventFilters
             }
 
         RequestShortNote relays eventFilter ->
@@ -209,3 +211,9 @@ uniqueRelays relays =
         |> List.map (\relayUrl -> ( Relay.toKey relayUrl, relayUrl ))
         |> Dict.fromList
         |> Dict.values
+
+
+allowedRelays : Env msg -> List RelayUrl -> List RelayUrl
+allowedRelays env relays =
+    uniqueRelays relays
+        |> RelayAccess.withoutBlocked env.blockedRelays

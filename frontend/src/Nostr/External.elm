@@ -14,6 +14,7 @@ type alias Hooks msg =
     , requestNip96Auth : RequestId -> String -> String -> String -> HttpRequestMethod -> Cmd msg
     , searchEvents : String -> Bool -> RequestId -> List RelayUrl -> List EventFilter -> Cmd msg
     , sendEvent : SendRequestId -> List RelayUrl -> Event -> Cmd msg
+    , setBlockedRelays : List RelayUrl -> Cmd msg
     }
 
 
@@ -26,6 +27,7 @@ noopHooks =
     , requestNip96Auth = \_ _ _ _ _ -> Cmd.none
     , searchEvents = \_ _ _ _ _ -> Cmd.none
     , sendEvent = \_ _ _ -> Cmd.none
+    , setBlockedRelays = \_ -> Cmd.none
     }
 
 
