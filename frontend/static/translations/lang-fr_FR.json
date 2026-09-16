@@ -1046,7 +1046,8 @@
         "create passkey help text": "Crée une passkey pour te connecter avec ton empreinte la prochaine fois. Ta clé reste chiffrée sur les relais Nostr.",
         "create passkey button title": "Créer une passkey",
         "add passkey button title": "Ajouter une passkey",
-        "not now button title": "Pas maintenant"
+        "not now button title": "Pas maintenant",
+        "extension identity mismatch help text": "Basculez l’extension du navigateur sur ce compte pour l’utiliser."
     },
     "notifications": {
         "page title": "Notifications",

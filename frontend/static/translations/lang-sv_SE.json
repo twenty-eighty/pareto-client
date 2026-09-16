@@ -1046,7 +1046,8 @@
         "create passkey help text": "Skapa en passkey så att du kan logga in med fingeravtryck nästa gång. Nyckeln förblir krypterad på Nostr-reläer.",
         "create passkey button title": "Skapa passkey",
         "add passkey button title": "Lägg till passkey",
-        "not now button title": "Inte nu"
+        "not now button title": "Inte nu",
+        "extension identity mismatch help text": "Byt till det här kontot i webbläsartillägget för att använda det."
     },
     "notifications": {
         "page title": "Aviseringar",

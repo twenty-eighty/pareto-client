@@ -541,10 +541,16 @@ updateWithUserValue route model value =
         , model.loginStatus
         )
     of
-        ( Ok pubKeyNew, Ok loginMethod, LoggedIn pubKeyLoggedIn _ ) ->
+        ( Ok pubKeyNew, Ok loginMethod, LoggedIn pubKeyLoggedIn previousMethod ) ->
             if pubKeyNew == pubKeyLoggedIn then
-                -- ignore messages that don't change user
-                ( model, Effect.none )
+                -- Same pubkey can switch method (extension ↔ bunker); keep loginMethod fresh.
+                ( { model | loginStatus = LoggedIn pubKeyNew loginMethod }
+                , if loginMethod == previousMethod then
+                    Effect.none
+
+                  else
+                    Effect.sendCmd Ports.listIdentities
+                )
 
             else
                 let

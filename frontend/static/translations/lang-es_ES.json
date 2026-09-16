@@ -1046,7 +1046,8 @@
         "create passkey help text": "Crea una passkey para iniciar sesión con tu huella la próxima vez. Tu clave permanece cifrada en relés Nostr.",
         "create passkey button title": "Crear passkey",
         "add passkey button title": "Añadir passkey",
-        "not now button title": "Ahora no"
+        "not now button title": "Ahora no",
+        "extension identity mismatch help text": "Cambia la extensión del navegador a esta cuenta para usarla."
     },
     "notifications": {
         "page title": "Notificaciones",

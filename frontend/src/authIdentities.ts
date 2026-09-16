@@ -214,12 +214,44 @@ async function refreshPasskeyState(app: ElmApp): Promise<void> {
 }
 
 function sendIdentities(app: ElmApp, store: IdentityStore = loadStore()): void {
+  // Prefer "last used" id in localStorage, but only advertise it as the live
+  // session when Elm/JS agree a pubkey is actually signed in.
+  const sessionActiveId =
+    store.activeId &&
+    lastActivePubkey &&
+    store.identities.some(
+      (identity) =>
+        identity.id === store.activeId &&
+        normalizeHexPubkey(identity.pubkey) === lastActivePubkey,
+    )
+      ? store.activeId
+      : null;
+
   app.ports.receiveMessage.send({
     messageType: "identities",
     value: {
       identities: store.identities.map((identity) => publicIdentity(identity, store.activeId)),
-      activeId: store.activeId,
+      activeId: sessionActiveId,
     },
+  });
+}
+
+async function reportExtensionPubkey(app: ElmApp): Promise<void> {
+  const available = typeof (window as any).nostr !== "undefined";
+  let pubkey: string | null = null;
+  if (available && typeof (window as any).nostr?.getPublicKey === "function") {
+    try {
+      const raw = await (window as any).nostr.getPublicKey();
+      if (typeof raw === "string" && /^[0-9a-fA-F]{64}$/.test(raw.trim())) {
+        pubkey = normalizeHexPubkey(raw.trim());
+      }
+    } catch {
+      pubkey = null;
+    }
+  }
+  app.ports.receiveMessage.send({
+    messageType: "nostrExtension",
+    value: { available, pubkey },
   });
 }
 
@@ -548,8 +580,8 @@ async function activateSigner(
   const store = loadStore();
   store.activeId = identity.id;
   saveStore(store);
-  sendIdentities(app, store);
   sendUser(app, identity.pubkey, identity.method);
+  sendIdentities(app, store);
 }
 
 export function publishIdentities(app: ElmApp): void {
@@ -609,6 +641,7 @@ export async function handleAuthCommand(
       case "listIdentities":
         sendIdentities(app);
         void refreshPasskeyState(app);
+        void reportExtensionPubkey(app);
         return true;
 
       case "logout": {

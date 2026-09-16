@@ -1046,7 +1046,8 @@
         "create passkey help text": "Crea una passkey per accedere con l’impronta la prossima volta. La chiave resta cifrata sui relay Nostr.",
         "create passkey button title": "Crea passkey",
         "add passkey button title": "Aggiungi passkey",
-        "not now button title": "Non ora"
+        "not now button title": "Non ora",
+        "extension identity mismatch help text": "Passa a questo account nell’estensione del browser per usarlo."
     },
     "notifications": {
         "page title": "Notifiche",

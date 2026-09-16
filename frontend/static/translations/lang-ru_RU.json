@@ -1046,7 +1046,8 @@
         "create passkey help text": "Создайте ключ доступа, чтобы в следующий раз входить по отпечатку. Ключ остаётся зашифрованным на релеях Nostr.",
         "create passkey button title": "Создать ключ доступа",
         "add passkey button title": "Добавить ключ доступа",
-        "not now button title": "Не сейчас"
+        "not now button title": "Не сейчас",
+        "extension identity mismatch help text": "Переключите расширение браузера на этот аккаунт, чтобы использовать его."
     },
     "notifications": {
         "page title": "Уведомления",

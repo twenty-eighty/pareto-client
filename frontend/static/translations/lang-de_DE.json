@@ -1046,7 +1046,8 @@
         "create passkey help text": "Erstelle einen Passkey, um dich beim nächsten Mal mit dem Fingerabdruck anzumelden. Dein Schlüssel bleibt verschlüsselt auf Nostr-Relays.",
         "create passkey button title": "Passkey erstellen",
         "add passkey button title": "Passkey hinzufügen",
-        "not now button title": "Jetzt nicht"
+        "not now button title": "Jetzt nicht",
+        "extension identity mismatch help text": "Wechsle in der Browser-Erweiterung zu diesem Konto, um es zu verwenden."
     },
     "notifications": {
         "page title": "Benachrichtigungen",
