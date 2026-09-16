@@ -79,6 +79,25 @@ nip05StringDecoder =
             )
 
 
+proxyNip05Decoder : Decoder Nip05Data
+proxyNip05Decoder =
+    Decode.oneOf
+        [ Decode.field "ok" Decode.bool
+            |> Decode.andThen decodeProxyOk
+        , nip05Decoder
+        ]
+
+
+decodeProxyOk : Bool -> Decoder Nip05Data
+decodeProxyOk ok =
+    if ok then
+        nip05Decoder
+
+    else
+        Decode.at [ "error", "message" ] Decode.string
+            |> Decode.andThen Decode.fail
+
+
 
 -- tests with checking NIP-05 data via proxy (on pareto.space) have not lead to more successful validations
 -- (didn't do exact statistics but still saw many failed validations)
@@ -118,7 +137,7 @@ fetchNip05InfoViaProxy toMsg nip05 =
         -- , url = "http://localhost:4000/api/nip05/validate?handle=" ++ nip05ToString nip05
         , url = "https://pareto.space/api/nip05/validate?handle=" ++ nip05ToString nip05
         , body = Http.emptyBody
-        , expect = Http.expectJson toMsg nip05Decoder
+        , expect = Http.expectJson toMsg proxyNip05Decoder
         , timeout = Nothing
         , tracker = Nothing
         }

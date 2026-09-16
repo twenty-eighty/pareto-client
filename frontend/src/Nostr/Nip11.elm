@@ -68,6 +68,25 @@ nip11Decoder =
         |> Pipeline.optional "payments_url" (Decode.map Just Decode.string) Nothing
 
 
+proxyNip11Decoder : Decode.Decoder Nip11Info
+proxyNip11Decoder =
+    Decode.oneOf
+        [ Decode.field "ok" Decode.bool
+            |> Decode.andThen decodeProxyOk
+        , nip11Decoder
+        ]
+
+
+decodeProxyOk : Bool -> Decode.Decoder Nip11Info
+decodeProxyOk ok =
+    if ok then
+        nip11Decoder
+
+    else
+        Decode.at [ "error", "message" ] Decode.string
+            |> Decode.andThen Decode.fail
+
+
 nip11LimitationsDecoder : Decode.Decoder Nip11Limitations
 nip11LimitationsDecoder =
     Decode.succeed Nip11Limitations
@@ -155,7 +174,7 @@ fetchNip11Proxy toMsg httpUrl =
             ]
         , url = apiUrl ++ "/api/nip11?url=" ++ Url.percentEncode httpUrl
         , body = Http.emptyBody
-        , expect = Http.expectJson toMsg nip11Decoder
+        , expect = Http.expectJson toMsg proxyNip11Decoder
         , timeout = Nothing
         , tracker = Nothing
         }
