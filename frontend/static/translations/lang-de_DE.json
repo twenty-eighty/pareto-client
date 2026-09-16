@@ -1068,6 +1068,7 @@
         "unlock identity button title": "Entsperren",
         "delete identity button title": "Entfernen",
         "active identity label": "Aktiv",
+        "extension identity mismatch help text": "Wechsle in der Browser-Erweiterung zu diesem Konto, um es zu verwenden.",
         "saved identities title": "Gespeicherte Identitäten",
         "no identities text": "Noch keine gespeicherten Identitäten.",
         "add identity button title": "Identität hinzufügen",
