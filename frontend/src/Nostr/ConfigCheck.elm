@@ -8,10 +8,10 @@ import Nostr.Event exposing (Kind(..), Tag(..))
 import Nostr.Lud06 as Lud06
 import Nostr.Lud16 as Lud16
 import Nostr.Nip05 as Nip05 exposing (Nip05)
-import Nostr.Types exposing (PubKey, RelayUrl, ServerUrl)
+import Nostr.Relay as Relay exposing (RelayState(..), RelayUrl)
+import Nostr.Types exposing (PubKey, ServerUrl)
 import Pareto
 import Translations.ConfigCheck as Translations
-import Nostr.Relay exposing (RelayState(..))
 import Nostr.Shared exposing (httpErrorToString)
 import Nostr.Profile exposing (ProfileValidation(..))
 import Url exposing (Url)
@@ -212,13 +212,13 @@ issueText browserEnv issue =
     case issue of
         OutboxRelaysMissingIssue relayUrls ->
             { message = Translations.outboxRelaysMissingText [ translations ]
-            , explanation = Translations.outboxRelaysMissingExplanation [ translations ] { relays = relayUrls |> String.join ", " }
+            , explanation = Translations.outboxRelaysMissingExplanation [ translations ] { relays = relayUrls |> List.map Relay.host |> String.join ", " }
             , solution = ""
             }
 
         OfflineRelays relayUrls ->
             { message = Translations.relaysOfflineText [ translations ]
-            , explanation = Translations.relaysOfflineExplanation [ translations ] { relays = relayUrls |> String.join ", " }
+            , explanation = Translations.relaysOfflineExplanation [ translations ] { relays = relayUrls |> List.map Relay.host |> String.join ", " }
             , solution = Translations.relaysOfflineSolution [ translations ]
             }
 
@@ -603,7 +603,12 @@ checkMissingOutboxRelays nostr pubKey =
 
         missingOutboxRelays =
             Pareto.paretoOutboxRelays
-                |> List.filter (\relayUrl -> not <| List.member relayUrl outboxRelays)
+                |> List.filter
+                    (\relayUrl ->
+                        outboxRelays
+                            |> List.any (\existing -> Relay.toKey existing == Relay.toKey relayUrl)
+                            |> not
+                    )
     in
     if List.length missingOutboxRelays > 0 then
         Just (OutboxRelaysMissingIssue missingOutboxRelays)
@@ -620,8 +625,8 @@ checkOfflineRelays nostr pubKey =
             Nostr.getRelaysForPubKey nostr pubKey
             |> List.filterMap (\(_, relay) ->
                 case relay.state of
-                    Nostr.Relay.RelayStateNip11RequestFailed _ ->
-                        Just relay.urlWithoutProtocol
+                    Relay.RelayStateNip11RequestFailed _ ->
+                        Just relay.url
 
                     _ ->
                         Nothing

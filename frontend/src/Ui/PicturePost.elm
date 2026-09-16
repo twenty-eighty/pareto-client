@@ -12,7 +12,7 @@ import Nostr.Event exposing (ImageMetadata, Kind(..), numberForKind)
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
 import Nostr.Nip68 exposing (PicturePost)
 import Nostr.Profile exposing (Author(..), ProfileValidation(..), profileDisplayName)
-import Nostr.Relay exposing (websocketUrl)
+import Nostr.Relay as Relay
 import Nostr.Types exposing (EventId, LoginStatus)
 import Set
 import Tailwind.Utilities as Tw
@@ -61,7 +61,7 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
                         , kind = Just (KindPicture |> numberForKind)
                         , relays =
                             picturePost.relays
-                                |> Maybe.map (Set.fromList >> Set.toList >> List.map websocketUrl >> List.take 5)
+                                |> Maybe.map (List.map Relay.toWire >> List.take 5)
                                 |> Maybe.withDefault []
                         }
                         |> Ui.Links.linkToPicturePost False
@@ -90,7 +90,7 @@ viewPicturePost picturePostsViewData picturePostViewData picturePost =
                 |> Interactions.withInteractionElements
                     ([ Interactions.LikeButtonElement
                      , Interactions.RepostButtonElement
-                     , Interactions.ZapButtonElement "0" (picturePost.relays |> Maybe.map Set.fromList |> Maybe.withDefault Set.empty)
+                     , Interactions.zapButton "0" (picturePost.relays |> Maybe.map (List.map Relay.toWire >> Set.fromList) |> Maybe.withDefault Set.empty)
                      ]
                         ++ shareButtonElement
                     )

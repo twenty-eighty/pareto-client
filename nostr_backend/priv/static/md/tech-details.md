@@ -10,12 +10,19 @@ https://pareto.space/p/<bech32> (nprofile)
 20: Picture [(NIP 68)](https://nips.nostr.com/68)\
 1063: File Metadata [(NIP 94)](https://nips.nostr.com/94)\
 1111: Comment [(NIP 22)](https://nips.nostr.com/22)\
+7375: Cashu Wallet Tokens [(NIP 60)](https://nips.nostr.com/60)\
+7376: Cashu Wallet History [(NIP 60)](https://nips.nostr.com/60)\
+9321: Nutzap [(NIP 61)](https://nips.nostr.com/61)\
 9734: Zap Request [(NIP 57)](https://nips.nostr.com/57)\
 9735: Zap [(NIP 57)](https://nips.nostr.com/57)\
+9802: Highlights [(NIP 84)](https://nips.nostr.com/84)\
+10013: Relay list for private content [(NIP 37)](https://nips.nostr.com/37) — editable in Settings (synced). Device-local relays (e.g. Citrine `ws://127.0.0.1:4869`) are stored in localStorage separately and also used for draft storage.\
 10002: Relay List Metadata [(NIP 65)](https://nips.nostr.com/65)\
 10003: Bookmark list [(NIP 51)](https://nips.nostr.com/51)\
+10019: Nutzap Mint Recommendation [(NIP 61)](https://nips.nostr.com/61)\
 10063: User server list [(Blossom)](https://github.com/hzrd149/blossom)\
 10096: File storage server list [(NIP 96)](https://nips.nostr.com/96)\
+17375: Cashu Wallet [(NIP 60)](https://nips.nostr.com/60)\
 22242: Client Authentication [(NIP 42)](https://nips.nostr.com/42)\
 24242: Blobs stored on media servers [(Blossom)](https://github.com/hzrd149/blossom)\
 27235: HTTP Auth [(NIP 98)](https://nips.nostr.com/98)\
@@ -45,6 +52,7 @@ https://pareto.space/p/<bech32> (nprofile)
 [NIP-57 (Lightning Zaps)](https://nips.nostr.com/57)\
 [NIP-65 (Relay List Metadata)](https://nips.nostr.com/65)\
 [NIP-68 (Picture-first feeds)](https://nips.nostr.com/68)\
+[NIP-84 (Highlights)](https://nips.nostr.com/84)\
 [NIP-89 (Recommended Application Handlers)](https://nips.nostr.com/89)\
 [NIP-92 (Media Attachments)](https://nips.nostr.com/92)\
 [NIP-94 (File Metadata)](https://nips.nostr.com/94)\

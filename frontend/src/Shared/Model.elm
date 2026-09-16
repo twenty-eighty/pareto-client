@@ -3,9 +3,10 @@ module Shared.Model exposing (ClientRole(..), Model)
 import BrowserEnv exposing (BrowserEnv)
 import Components.AlertTimerMessage as AlertTimerMessage
 import Components.AuthDialog as AuthDialog
+import Dict exposing (Dict)
 import Nostr
 import Nostr.ConfigCheck as ConfigCheck
-import Nostr.Types exposing (LoginStatus)
+import Nostr.Types exposing (LoginStatus, PubKey)
 import Ui.Styles exposing (Theme)
 
 
@@ -25,6 +26,8 @@ type alias Model =
     , theme : Theme
     , alertTimerMessage : AlertTimerMessage.Model
     , authDialog : AuthDialog.Model
+    , notificationsLastSeen : Dict PubKey Int
+    , newVersionAvailable : Bool
     }
 
 

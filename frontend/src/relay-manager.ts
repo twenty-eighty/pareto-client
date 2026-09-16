@@ -131,7 +131,7 @@ export function createRelayManager(ndk, debugLog, processEvents) {
     const relaySet = NDKRelaySet.fromRelayUrls(relayUrls, ndk, false, ndk.pool);
 
     ndk.fetchEvents(filters, { closeOnEose: closeOnEose }, relaySet).then((ndkEvents) => {
-      processEvents(app, requestId, description, ndkEvents);
+      processEvents(app, requestId, description, ndkEvents, filters);
     }).catch((err) => {
       debugLog('fetchEvents error', { relays: relayUrls, err });
     });

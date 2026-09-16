@@ -1,5 +1,6 @@
 module Nostr.FileStorageServerList exposing (..)
 
+import Dict exposing (Dict)
 import Nostr.Event exposing (Event, Tag(..))
 import Nostr.Types exposing (PubKey)
 
@@ -21,3 +22,14 @@ fileStorageServerListFromEvent event =
                     []
     in
     ( event.pubKey, fileStorageServerList )
+
+
+ingest : Dict PubKey (List String) -> List Event -> Dict PubKey (List String)
+ingest dict events =
+    events
+        |> List.map fileStorageServerListFromEvent
+        |> List.foldl
+            (\( pubKey, fileStorageServerList ) acc ->
+                Dict.insert pubKey fileStorageServerList acc
+            )
+            dict

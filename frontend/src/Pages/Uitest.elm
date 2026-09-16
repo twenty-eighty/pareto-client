@@ -478,7 +478,7 @@ interactionsElement shared model =
             [ Components.Interactions.CommentButtonElement (Just OpenComment)
             , Components.Interactions.LikeButtonElement
             , Components.Interactions.RepostButtonElement
-            , Components.Interactions.ZapButtonElement "0" Set.empty
+            , Components.Interactions.zapButton "0" Set.empty
             , Components.Interactions.BookmarkButtonElement
             ]
         |> Components.Interactions.view

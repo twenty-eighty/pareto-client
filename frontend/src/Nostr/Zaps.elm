@@ -1,5 +1,6 @@
 module Nostr.Zaps exposing (..)
 
+import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as DecodePipeline
@@ -14,7 +15,54 @@ type alias ZapReceipt =
     , preimage : Maybe String
     , recipient : Maybe String
     , amount : Maybe Int
+    , pubkeySender : Maybe String
+    , createdAt : Maybe Int
     }
+
+
+ingest :
+    { zapReceiptsAddress : Dict String (Dict String ZapReceipt)
+    , zapReceiptsEvents : Dict String (Dict String ZapReceipt)
+    }
+    -> List ZapReceipt
+    ->
+        { zapReceiptsAddress : Dict String (Dict String ZapReceipt)
+        , zapReceiptsEvents : Dict String (Dict String ZapReceipt)
+        }
+ingest store zapReceipts =
+    let
+        zapReceiptsForAddresses =
+            zapReceipts
+                |> List.filterMap
+                    (\receipt ->
+                        receipt.address
+                            |> Maybe.map (\address -> ( address, receipt ))
+                    )
+                |> List.foldl addToDict store.zapReceiptsAddress
+
+        zapReceiptsForEvents =
+            zapReceipts
+                |> List.filterMap
+                    (\receipt ->
+                        receipt.event
+                            |> Maybe.map (\event -> ( event, receipt ))
+                    )
+                |> List.foldl addToDict store.zapReceiptsEvents
+    in
+    { zapReceiptsAddress = zapReceiptsForAddresses
+    , zapReceiptsEvents = zapReceiptsForEvents
+    }
+
+
+addToDict : ( String, ZapReceipt ) -> Dict String (Dict String ZapReceipt) -> Dict String (Dict String ZapReceipt)
+addToDict ( key, receipt ) receiptDict =
+    let
+        updatedDictForKey =
+            Dict.get key receiptDict
+                |> Maybe.map (Dict.insert receipt.id receipt)
+                |> Maybe.withDefault (Dict.singleton receipt.id receipt)
+    in
+    Dict.insert key updatedDictForKey receiptDict
 
 
 
@@ -72,6 +120,8 @@ nostrZapReceiptDecoder =
         |> DecodePipeline.optional "preimage" (Decode.maybe Decode.string) Nothing
         |> DecodePipeline.optional "recipient" (Decode.maybe Decode.string) Nothing
         |> DecodePipeline.optional "amount" (Decode.maybe stringNumberDecoder) Nothing
+        |> DecodePipeline.optional "pubkeySender" (Decode.maybe Decode.string) Nothing
+        |> DecodePipeline.optional "createdAt" (Decode.maybe Decode.int) Nothing
 
 
 stringNumberDecoder : Decoder Int

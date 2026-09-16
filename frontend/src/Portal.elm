@@ -110,3 +110,21 @@ trimToMaybe value =
 
         trimmed ->
             Just trimmed
+
+
+{-| Prefer a definite True from either lookup path; False only when both paths answered.
+-}
+sendsNewsletter : Maybe Bool -> Maybe Bool -> Maybe Bool
+sendsNewsletter viaPubKey viaNip05 =
+    case ( viaPubKey, viaNip05 ) of
+        ( Just True, _ ) ->
+            Just True
+
+        ( _, Just True ) ->
+            Just True
+
+        ( Just _, Just _ ) ->
+            Just False
+
+        _ ->
+            Nothing

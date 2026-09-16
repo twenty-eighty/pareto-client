@@ -1,5 +1,6 @@
 defmodule NostrBackendWeb.FrontendAssets do
   @html_file_path Path.join(:code.priv_dir(:nostr_backend), "static/index.html")
+  @version_file_path Path.join(:code.priv_dir(:nostr_backend), "static/version.json")
 
   # Public functions to get JS and CSS file paths, caching results on first call
   def js_file do
@@ -8,6 +9,17 @@ defmodule NostrBackendWeb.FrontendAssets do
 
   def css_file do
     extract_file_path("link", @html_file_path)
+  end
+
+  def version_payload do
+    build = read_version_file()
+
+    %{
+      "gitVersion" => Map.get(build, "gitVersion", "unknown"),
+      "buildTime" => Map.get(build, "buildTime"),
+      "js" => js_file(),
+      "css" => css_file()
+    }
   end
 
   # Private function to extract either JS or CSS file path from HTML
@@ -34,6 +46,19 @@ defmodule NostrBackendWeb.FrontendAssets do
     case Regex.run(regex, html_content) do
       [_, file_path] -> "/assets/#{file_path}"
       _ -> raise "Asset file not found in index.html"
+    end
+  end
+
+  defp read_version_file do
+    case File.read(@version_file_path) do
+      {:ok, body} ->
+        case Jason.decode(body) do
+          {:ok, map} when is_map(map) -> map
+          _ -> %{}
+        end
+
+      {:error, _} ->
+        %{}
     end
   end
 end

@@ -1,16 +1,12 @@
-module Components.RelayStatus exposing
-    ( RelayStatus, new
+module Components.ContentStatus exposing
+    ( ContentStatus, new
     , view
-    , Purpose(..)
+    , Status(..)
     )
 
-{-| NOT IM USE CURRENTLY!!!
+{-| Status panel for single-content loads: loading, not found, or failed.
 
-
-## Basic usage
-
-@docs RelayStatus, new
-@docs view
+Relay list is only shown for loading states.
 
 -}
 
@@ -18,7 +14,7 @@ import Css
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes exposing (..)
 import I18Next
-import Nostr.Relay exposing (Relay, RelayState(..))
+import Nostr.Relay as Relay exposing (Relay, RelayState(..))
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
@@ -26,51 +22,68 @@ import Translations.RelayStatusComponent as Translations
 import Ui.Styles exposing (Theme(..))
 
 
-
--- SETTINGS
-
-
-type RelayStatus msg
+type ContentStatus msg
     = Settings
         { relays : List Relay
         , theme : Ui.Styles.Theme
         , translations : I18Next.Translations
-        , purpose : Purpose
+        , status : Status
         }
 
 
-
--- purpose for connecting to relays
-
-
-type Purpose
+{-| What the status panel is showing.
+-}
+type Status
     = LoadingArticle
     | LoadingNote
     | LoadingProfile
+    | ArticleNotFound
+    | ArticleLoadFailed
+    | NoteNotFound
+    | NoteLoadFailed
 
 
-new : { relays : List Relay, theme : Ui.Styles.Theme, translations : I18Next.Translations, purpose : Purpose } -> RelayStatus msg
+new : { relays : List Relay, theme : Ui.Styles.Theme, translations : I18Next.Translations, status : Status } -> ContentStatus msg
 new props =
     Settings
         { relays = props.relays
         , theme = props.theme
         , translations = props.translations
-        , purpose = props.purpose
+        , status = props.status
         }
 
 
-
--- VIEW
-
-
-view : RelayStatus msg -> Html msg
+view : ContentStatus msg -> Html msg
 view (Settings settings) =
     let
         styles =
             Ui.Styles.stylesForTheme settings.theme
 
         headline =
-            textForPurpose settings.translations settings.purpose
+            headlineForStatus settings.translations settings.status
+
+        showRelays =
+            case settings.status of
+                LoadingArticle ->
+                    True
+
+                LoadingNote ->
+                    True
+
+                LoadingProfile ->
+                    True
+
+                ArticleNotFound ->
+                    False
+
+                ArticleLoadFailed ->
+                    False
+
+                NoteNotFound ->
+                    False
+
+                NoteLoadFailed ->
+                    False
     in
     div
         [ css
@@ -87,19 +100,23 @@ view (Settings settings) =
             )
             [ text headline
             ]
-        , ul
-            [ css
-                [ Tw.grid
-                , Tw.grid_cols_1
-                , Tw.gap_6
-                , Tw.w_96
-                , Tw.m_2
-                , Bp.sm
-                    [ Tw.m_4
+        , if showRelays then
+            ul
+                [ css
+                    [ Tw.grid
+                    , Tw.grid_cols_1
+                    , Tw.gap_6
+                    , Tw.w_96
+                    , Tw.m_2
+                    , Bp.sm
+                        [ Tw.m_4
+                        ]
                     ]
                 ]
-            ]
-            (List.map (viewRelay settings.translations) settings.relays)
+                (List.map (viewRelay settings.translations) settings.relays)
+
+          else
+            text ""
         ]
 
 
@@ -154,7 +171,7 @@ viewRelay translations relay =
                 [ Tw.text_sm, Tw.break_all ]
                 :: styles.colorStyleGrayscaleText
             )
-            [ text relay.urlWithoutProtocol ]
+            [ text (Relay.host relay.url) ]
         ]
 
 
@@ -180,9 +197,9 @@ relayStateInfo translations state =
             ( Translations.relayReady [ translations ], Theme.blue_500 )
 
 
-textForPurpose : I18Next.Translations -> Purpose -> String
-textForPurpose translations purpose =
-    case purpose of
+headlineForStatus : I18Next.Translations -> Status -> String
+headlineForStatus translations status =
+    case status of
         LoadingArticle ->
             Translations.loadingArticle [ translations ]
 
@@ -191,3 +208,15 @@ textForPurpose translations purpose =
 
         LoadingNote ->
             Translations.loadingNote [ translations ]
+
+        ArticleNotFound ->
+            Translations.articleNotFound [ translations ]
+
+        ArticleLoadFailed ->
+            Translations.articleLoadFailed [ translations ]
+
+        NoteNotFound ->
+            Translations.noteNotFound [ translations ]
+
+        NoteLoadFailed ->
+            Translations.noteLoadFailed [ translations ]

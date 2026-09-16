@@ -11,7 +11,8 @@ import I18Next
 import Nostr
 import Nostr.Article exposing (Article, publishedTime)
 import Nostr.Profile exposing (Author, shortenedPubKey)
-import Nostr.Types exposing (Following(..), LoginStatus, RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (Following(..), LoginStatus)
 import Set exposing (Set)
 import Tailwind.Breakpoints as Bp exposing (..)
 import Tailwind.Theme exposing (..)
@@ -33,7 +34,7 @@ type alias ArticleInfoData msg =
     , nostr : Nostr.Model
     , loginStatus : LoginStatus
     , shareInfo : SharingInfo
-    , zapRelays : Set RelayUrl
+    , zapRelays : Set String
     }
 
 
@@ -315,7 +316,7 @@ viewInteractions articleInfoData =
             [ Interactions.CommentButtonElement Nothing
             , Interactions.LikeButtonElement
             , Interactions.RepostButtonElement
-            , Interactions.ZapButtonElement "0" articleInfoData.zapRelays
+            , Interactions.zapButtonWithoutDialog "0" articleInfoData.zapRelays
             , Interactions.BookmarkButtonElement
             , Interactions.ShareButtonElement articleInfoData.shareInfo
             ]

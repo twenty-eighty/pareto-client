@@ -11,7 +11,8 @@ import Html.Styled.Events as Events
 import Nostr
 import Nostr.Article exposing (Article, nip19ForArticle)
 import Nostr.Profile exposing (ProfileValidation(..))
-import Nostr.Relay exposing (websocketUrl)
+import Dict exposing (Dict)
+import Nostr.Relay as Relay
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (Following(..), IncomingMessage, PubKey, loggedInPubKey)
 import Ports
@@ -19,7 +20,7 @@ import Set
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Theme
 import Tailwind.Utilities as Tw
-import Ui.Article exposing (ArticlePreviewsData, sharingInfoForArticle, viewInteractions, viewProfilePubKey)
+import Ui.Article exposing (ArticlePreviewsData, sharingInfoForArticle, viewProfilePubKey)
 import Ui.Interactions
 import Ui.Profile exposing (FollowType(..), followButton, viewProfileSmall)
 import Ui.Styles exposing (Theme(..), darkMode, print)
@@ -104,7 +105,9 @@ view (Settings { articlePreviewsData, interactionsModel, article, toMsg }) model
 
         articleRelays =
             article.relays
-                |> Set.map websocketUrl
+                |> Dict.values
+                |> List.map Relay.toWire
+                |> Set.fromList
 
         author =
             Nostr.getAuthor articlePreviewsData.nostr article.author
@@ -211,7 +214,7 @@ viewInteractions previewData instanceId =
         }
         |> Interactions.withInteractionElements
             [ Interactions.LikeButtonElement
-            , Interactions.ZapButtonElement instanceId previewData.zapRelays
+            , Interactions.zapButton instanceId previewData.zapRelays
             , Interactions.RepostButtonElement
             , Interactions.ShareButtonElement previewData.sharingInfo
             , Interactions.BookmarkButtonElement

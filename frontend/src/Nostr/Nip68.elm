@@ -6,7 +6,8 @@ import Locale exposing (languageToISOCode)
 import MimeType exposing (MimeType)
 import Nostr.Event exposing (Event, ImageMetadata, Kind(..), Tag(..), TagReference(..), emptyEvent)
 import Nostr.Event as Event
-import Nostr.Types exposing (PubKey, RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (PubKey)
 import Set
 import Time
 

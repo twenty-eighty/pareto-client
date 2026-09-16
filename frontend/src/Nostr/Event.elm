@@ -5,9 +5,20 @@ import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
 import MimeType exposing (MimeType)
 import Nostr.Nip19 as Nip19 exposing (NAddrData, NEventData, NIP19Type(..))
-import Nostr.Relay
-import Nostr.Types exposing (Address, EventId, PubKey, RelayRole(..), RelayUrl, decodeRelayRole, relayRoleToString)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (Address, EventId, PubKey, RelayRole(..), decodeRelayRole, relayRoleToString)
 import Time exposing (Posix)
+
+
+
+maybeRelayUrlFromString : Maybe String -> Maybe RelayUrl
+maybeRelayUrlFromString =
+    Maybe.map Relay.fromString
+
+
+encodeMaybeRelayUrl : Maybe RelayUrl -> Maybe String
+encodeMaybeRelayUrl =
+    Maybe.map Relay.toWire
 
 
 type Tag
@@ -57,6 +68,7 @@ type Tag
 type EventTagMarker
     = EventTagRootMarker
     | EventTagReplyMarker
+    | EventTagRedeemedMarker
 
 type alias ImageMetadata =
     { url : String
@@ -111,6 +123,7 @@ type TagReference
     | TagReferenceIdentifier String
     | TagReferencePubKey PubKey
     | TagReferenceTag String
+    | TagReferenceU String
 
 
 type alias AddressComponents =
@@ -1037,7 +1050,7 @@ kindFromNumber num =
             34550 ->
                 KindCommunityDefinition
 
-            37375 ->
+            17375 ->
                 KindCashuWalletEvent
 
             38383 ->
@@ -1456,7 +1469,7 @@ numberForKind kind =
             34550
 
         KindCashuWalletEvent ->
-            37375
+            17375
 
         KindPeerToPeerOrder ->
             38383
@@ -1515,6 +1528,9 @@ tagReferenceToString tagRef =
 
         TagReferenceTag tag ->
             tag
+
+        TagReferenceU value ->
+            value
 
 
 imageSizeDecoder : Decoder ImageSize
@@ -1578,7 +1594,7 @@ decodeEvent =
         |> Pipeline.required "content" Decode.string
         |> Pipeline.required "id" Decode.string
         |> Pipeline.optional "sig" (Decode.maybe Decode.string) Nothing
-        |> Pipeline.optional "onRelays" (Decode.maybe (Decode.list Nostr.Relay.relayUrlDecoder)) Nothing
+        |> Pipeline.optional "onRelays" (Decode.maybe (Decode.list Relay.relayUrlDecoder)) Nothing
 
 
 eventFilterForNip19 : NIP19Type -> Maybe EventFilter
@@ -1638,10 +1654,10 @@ decodeTag =
                 (\typeStr ->
                     case typeStr of
                         "a" ->
-                            Decode.map3 AddressTag (Decode.index 1 decodeAddress) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 eventTagMarkerDecoder))
+                            Decode.map3 AddressTag (Decode.index 1 decodeAddress) (Decode.map maybeRelayUrlFromString (Decode.maybe (Decode.index 2 Decode.string))) (Decode.maybe (Decode.index 3 eventTagMarkerDecoder))
 
                         "A" ->
-                            Decode.map2 RootAddressTag (Decode.index 1 decodeAddress) (Decode.maybe (Decode.index 2 Decode.string))
+                            Decode.map2 RootAddressTag (Decode.index 1 decodeAddress) (Decode.map maybeRelayUrlFromString (Decode.maybe (Decode.index 2 Decode.string)))
 
                         "about" ->
                             Decode.map AboutTag (Decode.index 1 Decode.string)
@@ -1667,7 +1683,7 @@ decodeTag =
                             Decode.map DescriptionTag (Decode.index 1 Decode.string)
 
                         "e" ->
-                            Decode.map4 EventIdTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 eventTagMarkerDecoder)) (Decode.maybe (Decode.index 4 Decode.string))
+                            Decode.map4 EventIdTag (Decode.index 1 Decode.string) (Decode.map maybeRelayUrlFromString (Decode.maybe (Decode.index 2 Decode.string))) (Decode.maybe (Decode.index 3 eventTagMarkerDecoder)) (Decode.maybe (Decode.index 4 Decode.string))
 
                         "expiration" ->
                             Decode.map ExpirationTag (Decode.index 1 decodeUnixTimeString)
@@ -1719,16 +1735,16 @@ decodeTag =
                             Decode.map NameTag (Decode.index 1 Decode.string)
 
                         "p" ->
-                            Decode.map3 PublicKeyTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 Decode.string))
+                            Decode.map3 PublicKeyTag (Decode.index 1 Decode.string) (Decode.map maybeRelayUrlFromString (Decode.maybe (Decode.index 2 Decode.string))) (Decode.maybe (Decode.index 3 Decode.string))
 
                         "P" ->
-                            Decode.map2 RootPubKeyTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string))
+                            Decode.map2 RootPubKeyTag (Decode.index 1 Decode.string) (Decode.map maybeRelayUrlFromString (Decode.maybe (Decode.index 2 Decode.string)))
 
                         "published_at" ->
                             Decode.map PublishedAtTag (Decode.index 1 decodeUnixTimeString)
 
                         "q" ->
-                            Decode.map3 QuotedEventTag (Decode.index 1 Decode.string) (Decode.maybe (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 Decode.string))
+                            Decode.map3 QuotedEventTag (Decode.index 1 Decode.string) (Decode.map maybeRelayUrlFromString (Decode.maybe (Decode.index 2 Decode.string))) (Decode.maybe (Decode.index 3 Decode.string))
 
                         "r" ->
                             Decode.oneOf
@@ -1762,7 +1778,7 @@ decodeTag =
                             Decode.map ExternalIdTag (Decode.index 1 Decode.string)
 
                         "zap" ->
-                            Decode.map3 ZapTag (Decode.index 1 Decode.string) (Decode.index 2 Decode.string) (Decode.maybe (Decode.index 3 decodeStringInt))
+                            Decode.map3 ZapTag (Decode.index 1 Decode.string) (Decode.map Relay.fromString (Decode.index 2 Decode.string)) (Decode.maybe (Decode.index 3 decodeStringInt))
 
                         _ ->
                             decodeGenericTag
@@ -1783,6 +1799,9 @@ eventTagMarkerDecoder =
                     "reply" ->
                         Decode.succeed EventTagReplyMarker
 
+                    "redeemed" ->
+                        Decode.succeed EventTagRedeemedMarker
+
                     _ ->
                         Decode.fail <| "Invalid event tag marker: " ++ markerString
 
@@ -1797,6 +1816,9 @@ eventTagMarkerToString marker =
 
         EventTagReplyMarker ->
             "reply"
+
+        EventTagRedeemedMarker ->
+            "redeemed"
 
 
 imageMetadataFromTagList : List String -> Result String ImageMetadata
@@ -1942,10 +1964,10 @@ tagToList tag =
         AddressTag addressComponents maybeRelayUrl maybeMarker ->
             case ( maybeRelayUrl, maybeMarker ) of
                 ( Just relayUrl, Just marker ) ->
-                    [ "a", buildAddress addressComponents, relayUrl, eventTagMarkerToString marker ]
+                    [ "a", buildAddress addressComponents, Relay.toWire relayUrl, eventTagMarkerToString marker ]
 
                 ( Just relayUrl, Nothing ) ->
-                    [ "a", buildAddress addressComponents, relayUrl ]
+                    [ "a", buildAddress addressComponents, Relay.toWire relayUrl ]
 
                 ( Nothing, _ ) ->
                     [ "a", buildAddress addressComponents ]
@@ -1976,13 +1998,13 @@ tagToList tag =
         EventIdTag eventId maybeRelayUrl maybeMarker maybePubKey ->
             case ( maybeRelayUrl, maybeMarker, maybePubKey ) of
                 ( Just relayUrl, Just marker, Just pubKey ) ->
-                    [ "e", eventId, relayUrl, eventTagMarkerToString marker, pubKey ]
+                    [ "e", eventId, Relay.toWire relayUrl, eventTagMarkerToString marker, pubKey ]
 
                 ( Just relayUrl, Just marker, Nothing ) ->
-                    [ "e", eventId, relayUrl, eventTagMarkerToString marker ]
+                    [ "e", eventId, Relay.toWire relayUrl, eventTagMarkerToString marker ]
 
                 ( Just relayUrl, Nothing, _ ) ->
-                    [ "e", eventId, relayUrl ]
+                    [ "e", eventId, Relay.toWire relayUrl ]
 
                 _ ->
                     [ "e", eventId ]
@@ -2055,10 +2077,10 @@ tagToList tag =
         PublicKeyTag pubKey maybeRelay maybePetName ->
             case ( maybeRelay, maybePetName ) of
                 ( Just relay, Just petName ) ->
-                    [ "p", pubKey, relay, petName ]
+                    [ "p", pubKey, Relay.toWire relay, petName ]
 
                 ( Just relay, Nothing ) ->
-                    [ "p", pubKey, relay ]
+                    [ "p", pubKey, Relay.toWire relay ]
 
                 _ ->
                     [ "p", pubKey ]
@@ -2070,10 +2092,10 @@ tagToList tag =
         QuotedEventTag eventId maybeRelayUrl maybePubKey ->
             case ( maybeRelayUrl, maybePubKey ) of
                 ( Just relayUrl, Just pubKey ) ->
-                    [ "q", eventId, relayUrl, pubKey ]
+                    [ "q", eventId, Relay.toWire relayUrl, pubKey ]
 
                 ( Just relayUrl, Nothing ) ->
-                    [ "q", eventId, relayUrl ]
+                    [ "q", eventId, Relay.toWire relayUrl ]
 
                 _ ->
                     [ "q", eventId ]
@@ -2095,7 +2117,7 @@ tagToList tag =
         RootAddressTag addressComponents maybeRelay ->
             case maybeRelay of
                 Just relay ->
-                    [ "A", buildAddress addressComponents, relay ]
+                    [ "A", buildAddress addressComponents, Relay.toWire relay ]
 
                 _ ->
                     [ "A", buildAddress addressComponents ]
@@ -2106,7 +2128,7 @@ tagToList tag =
         RootPubKeyTag pubKey maybeRelay ->
             case maybeRelay of
                 Just relay ->
-                    [ "P", pubKey, relay ]
+                    [ "P", pubKey, Relay.toWire relay ]
 
                 _ ->
                     [ "P", pubKey ]
@@ -2142,10 +2164,10 @@ tagToList tag =
         ZapTag pubKey relayUrl maybeWeight ->
             case maybeWeight of
                 Just weight ->
-                    [ "zap", pubKey, relayUrl, String.fromInt weight ]
+                    [ "zap", pubKey, Relay.toWire relayUrl, String.fromInt weight ]
 
                 Nothing ->
-                    [ "zap", pubKey, relayUrl ]
+                    [ "zap", pubKey, Relay.toWire relayUrl ]
 
 
 buildImageMetadataTag : ImageMetadata -> List String
@@ -2347,26 +2369,10 @@ appendTagReferenceList maybeTagRefList encodeList =
     case maybeTagRefList of
         Just tagRefList ->
             let
-                maybeDcodeList =
+                collect : (TagReference -> Maybe String) -> Maybe (List String)
+                collect pick =
                     tagRefList
-                        |> List.filterMap
-                            (\tagRef ->
-                                case tagRef of
-                                    TagReferenceEventId _ ->
-                                        Nothing
-
-                                    TagReferenceCode _ ->
-                                        Just <| tagReferenceToString tagRef
-
-                                    TagReferenceIdentifier _ ->
-                                        Nothing
-
-                                    TagReferencePubKey _ ->
-                                        Nothing
-
-                                    TagReferenceTag _ ->
-                                        Nothing
-                            )
+                        |> List.filterMap pick
                         |> (\list ->
                                 if List.isEmpty list then
                                     Nothing
@@ -2374,118 +2380,72 @@ appendTagReferenceList maybeTagRefList encodeList =
                                 else
                                     Just list
                            )
+
+                maybeDcodeList =
+                    collect
+                        (\tagRef ->
+                            case tagRef of
+                                TagReferenceCode _ ->
+                                    Just <| tagReferenceToString tagRef
+
+                                _ ->
+                                    Nothing
+                        )
 
                 maybeEventIdList =
-                    tagRefList
-                        |> List.filterMap
-                            (\tagRef ->
-                                case tagRef of
-                                    TagReferenceEventId eventId ->
-                                        Just eventId
+                    collect
+                        (\tagRef ->
+                            case tagRef of
+                                TagReferenceEventId eventId ->
+                                    Just eventId
 
-                                    TagReferenceCode _ ->
-                                        Nothing
-
-                                    TagReferenceIdentifier _ ->
-                                        Nothing
-
-                                    TagReferencePubKey _ ->
-                                        Nothing
-
-                                    TagReferenceTag _ ->
-                                        Nothing
-                            )
-                        |> (\list ->
-                                if List.isEmpty list then
+                                _ ->
                                     Nothing
-
-                                else
-                                    Just list
-                           )
+                        )
 
                 maybeIdentifierList =
-                    tagRefList
-                        |> List.filterMap
-                            (\tagRef ->
-                                case tagRef of
-                                    TagReferenceEventId _ ->
-                                        Nothing
+                    collect
+                        (\tagRef ->
+                            case tagRef of
+                                TagReferenceIdentifier identifier ->
+                                    Just identifier
 
-                                    TagReferenceCode _ ->
-                                        Nothing
-
-                                    TagReferenceIdentifier identifier ->
-                                        Just identifier
-
-                                    TagReferencePubKey _ ->
-                                        Nothing
-
-                                    TagReferenceTag _ ->
-                                        Nothing
-                            )
-                        |> (\list ->
-                                if List.isEmpty list then
+                                _ ->
                                     Nothing
-
-                                else
-                                    Just list
-                           )
+                        )
 
                 maybePubKeyList =
-                    tagRefList
-                        |> List.filterMap
-                            (\tagRef ->
-                                case tagRef of
-                                    TagReferenceEventId _ ->
-                                        Nothing
+                    collect
+                        (\tagRef ->
+                            case tagRef of
+                                TagReferencePubKey pubKey ->
+                                    Just pubKey
 
-                                    TagReferenceCode _ ->
-                                        Nothing
-
-                                    TagReferenceIdentifier _ ->
-                                        Nothing
-
-                                    TagReferencePubKey pubKey ->
-                                        Just pubKey
-
-                                    TagReferenceTag _ ->
-                                        Nothing
-                            )
-                        |> (\list ->
-                                if List.isEmpty list then
+                                _ ->
                                     Nothing
-
-                                else
-                                    Just list
-                           )
+                        )
 
                 maybeTagList =
-                    tagRefList
-                        |> List.filterMap
-                            (\tagRef ->
-                                case tagRef of
-                                    TagReferenceEventId _ ->
-                                        Nothing
+                    collect
+                        (\tagRef ->
+                            case tagRef of
+                                TagReferenceTag tag ->
+                                    Just tag
 
-                                    TagReferenceCode _ ->
-                                        Nothing
-
-                                    TagReferenceIdentifier _ ->
-                                        Nothing
-
-                                    TagReferencePubKey _ ->
-                                        Nothing
-
-                                    TagReferenceTag tag ->
-                                        Just tag
-                            )
-                        |> (\list ->
-                                if List.isEmpty list then
+                                _ ->
                                     Nothing
+                        )
 
-                                else
-                                    Just list
-                           )
+                maybeUList =
+                    collect
+                        (\tagRef ->
+                            case tagRef of
+                                TagReferenceU value ->
+                                    Just value
+
+                                _ ->
+                                    Nothing
+                        )
             in
             encodeList
                 |> appendStringList "#a" maybeDcodeList
@@ -2493,6 +2453,7 @@ appendTagReferenceList maybeTagRefList encodeList =
                 |> appendStringList "#e" maybeEventIdList
                 |> appendStringList "#p" maybePubKeyList
                 |> appendStringList "#t" maybeTagList
+                |> appendStringList "#u" maybeUList
 
         Nothing ->
             encodeList
@@ -2588,7 +2549,7 @@ addAltTag alt tags =
 
 addClientTag : String -> PubKey -> String -> RelayUrl -> List Tag -> List Tag
 addClientTag client pubKey identifier relay tags =
-    ClientTag client (Just <| buildAddress ( KindHandlerInformation, pubKey, identifier )) (Just relay) :: tags
+    ClientTag client (Just <| buildAddress ( KindHandlerInformation, pubKey, identifier )) (Just (Relay.toWire relay)) :: tags
 
 
 addDTag : String -> List Tag -> List Tag

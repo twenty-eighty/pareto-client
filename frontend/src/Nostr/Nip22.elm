@@ -1,11 +1,12 @@
 module Nostr.Nip22 exposing (..)
 
+import Dict exposing (Dict)
 import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), TagReference(..), emptyEvent, numberForKind)
 import Nostr.Nip10 exposing (TextNote)
 import Nostr.Nip19 exposing (NIP19Type(..))
-import Nostr.Types exposing (EventId, LoginStatus, PubKey, RelayUrl, loggedInSigningPubKey)
-import Set
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (EventId, LoginStatus, PubKey, loggedInSigningPubKey)
 import Time exposing (Posix)
 
 
@@ -176,7 +177,7 @@ nip19ForComment comment =
                 { id = articleComment.eventId
                 , author = Just articleComment.pubKey
                 , kind = KindComment |> numberForKind |> Just
-                , relays = articleComment.rootRelay |> Maybe.map List.singleton |> Maybe.withDefault []
+                , relays = articleComment.rootRelay |> Maybe.map (Relay.toWire >> List.singleton) |> Maybe.withDefault []
                 }
 
         CommentToArticleComment articleCommentComment ->
@@ -184,7 +185,7 @@ nip19ForComment comment =
                 { id = articleCommentComment.eventId
                 , author = Just articleCommentComment.pubKey
                 , kind = KindComment |> numberForKind |> Just
-                , relays = articleCommentComment.rootRelay |> Maybe.map List.singleton |> Maybe.withDefault []
+                , relays = articleCommentComment.rootRelay |> Maybe.map (Relay.toWire >> List.singleton) |> Maybe.withDefault []
                 }
 
 commentToArticle : Article -> LoginStatus -> Maybe CommentType
@@ -200,7 +201,7 @@ commentToArticle article loginStatus =
                 , rootEventId = Just article.id
                 , rootKind = KindLongFormContent
                 , rootPubKey = article.author
-                , rootRelay = Just (Set.toList article.relays |> List.head |> Maybe.withDefault "")
+                , rootRelay = Dict.values article.relays |> List.head
                 , content = ""
                 }
                 |> Just
@@ -334,7 +335,7 @@ articleDraftComment pubKey article =
     let
         firstRelay =
             article.relays
-                |> Set.toList
+                |> Dict.values
                 |> List.head
     in
     Nostr.Article.addressComponentsForArticle article
@@ -358,28 +359,18 @@ articleDraftComment pubKey article =
 articleCommentEvent : CommentType -> Event
 articleCommentEvent comment =
     let
-        protocolSafeRelayUrl urlString =
-            if String.startsWith "wss://" urlString || String.startsWith "ws://" urlString then
-                urlString
-
-            else
-                "wss://" ++ urlString
-
         createCommonPartCommentEvent cmt specificTags =
             let
                 initialEvent =
                     emptyEvent cmt.rootPubKey KindComment
 
-                maybeRelayUrl =
-                    cmt.rootRelay |> Maybe.map protocolSafeRelayUrl
-
                 eventCommonPart =
                     { initialEvent
                         | content = cmt.content
                         , tags =
-                            [ RootAddressTag cmt.rootAddress maybeRelayUrl
+                            [ RootAddressTag cmt.rootAddress cmt.rootRelay
                             , RootKindTag cmt.rootKind
-                            , RootPubKeyTag cmt.rootPubKey maybeRelayUrl
+                            , RootPubKeyTag cmt.rootPubKey cmt.rootRelay
                             ]
                     }
             in
@@ -389,7 +380,7 @@ articleCommentEvent comment =
         CommentToArticle articleComment ->
             let
                 rootRelay =
-                    articleComment.rootRelay |> Maybe.map protocolSafeRelayUrl
+                    articleComment.rootRelay
 
                 maybeEventIdTag =
                     Maybe.map (\eid -> EventIdTag eid rootRelay Nothing Nothing) articleComment.rootEventId
@@ -405,7 +396,7 @@ articleCommentEvent comment =
         CommentToArticleComment articleCommentComment ->
             let
                 rootRelay =
-                    articleCommentComment.rootRelay |> Maybe.map protocolSafeRelayUrl
+                    articleCommentComment.rootRelay
             in
             createCommonPartCommentEvent articleCommentComment
                 [ KindTag articleCommentComment.parentKind

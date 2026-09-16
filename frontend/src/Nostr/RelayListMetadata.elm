@@ -1,14 +1,86 @@
 module Nostr.RelayListMetadata exposing (..)
 
+import Dict exposing (Dict)
 import Nostr.Event exposing (Event, Kind(..), Tag(..))
+import Nostr.Relay as Relay exposing (Relay, RelayState(..), RelayUrl)
 import Nostr.Types exposing (PubKey, RelayRole(..))
+import Set
 import Time
 
 
 type alias RelayMetadata =
-    { url : String
+    { url : RelayUrl
     , role : RelayRole
     }
+
+
+type alias IngestResult =
+    { relayMetadataLists : Dict PubKey (List RelayMetadata)
+    , relays : Dict String Relay
+    , unknownRelays : List RelayUrl
+    }
+
+
+{-| Decode events and merge into relay metadata lists, stubbing unknown relays.
+-}
+ingest :
+    Dict PubKey (List RelayMetadata)
+    -> Dict String Relay
+    -> List Event
+    -> IngestResult
+ingest relayMetadataLists relays events =
+    let
+        relayLists =
+            events
+                |> List.map relayMetadataListFromEvent
+
+        relayListDict =
+            relayLists
+                |> List.foldl
+                    (\( pubKey, relayList ) dict ->
+                        Dict.insert pubKey (withUniqueEntries relayList) dict
+                    )
+                    relayMetadataLists
+
+        unknownRelays =
+            relayLists
+                |> List.concatMap (\( _, relayMetadataList ) -> relayMetadataList)
+                |> List.map .url
+                |> List.filter (\url -> not (Dict.member (Relay.toKey url) relays))
+                |> List.map (\url -> ( Relay.toKey url, url ))
+                |> Dict.fromList
+                |> Dict.values
+
+        updatedRelays =
+            stubUnknownRelays unknownRelays relays
+    in
+    { relayMetadataLists = relayListDict
+    , relays = updatedRelays
+    , unknownRelays = unknownRelays
+    }
+
+
+withUniqueEntries : List RelayMetadata -> List RelayMetadata
+withUniqueEntries relayList =
+    relayList
+        |> List.map (\relayMetadata -> ( Relay.toKey relayMetadata.url, relayMetadata ))
+        |> Dict.fromList
+        |> Dict.values
+
+
+stubUnknownRelays : List RelayUrl -> Dict String Relay -> Dict String Relay
+stubUnknownRelays unknownRelays relays =
+    unknownRelays
+        |> List.foldl
+            (\unknownRelay acc ->
+                Dict.insert (Relay.toKey unknownRelay)
+                    { nip11 = Nothing
+                    , state = RelayStateUnknown
+                    , url = unknownRelay
+                    }
+                    acc
+            )
+            relays
 
 
 
@@ -33,7 +105,7 @@ extendEntryInList relayList additionalRelay =
             relayList
                 |> List.foldl
                     (\listRelay ( listAcc, extendedAcc ) ->
-                        if listRelay.url == additionalRelay.url then
+                        if Relay.toKey listRelay.url == Relay.toKey additionalRelay.url then
                             ( { listRelay | role = combinedRole listRelay.role additionalRelay.role } :: listAcc, True )
 
                         else
@@ -53,7 +125,7 @@ removeFromRelayList relayToRemove relayList =
     relayList
         |> List.foldl
             (\listRelay listAcc ->
-                if listRelay.url == relayToRemove.url then
+                if Relay.toKey listRelay.url == Relay.toKey relayToRemove.url then
                     case ( listRelay.role, relayToRemove.role ) of
                         ( ReadRelay, ReadWriteRelay ) ->
                             listAcc
@@ -117,7 +189,7 @@ addUrlTags relays tags =
             relays
                 |> List.map
                     (\relay ->
-                        UrlTag relay.url relay.role
+                        UrlTag (Relay.toWire relay.url) relay.role
                     )
     in
     tags ++ relayTags
@@ -147,7 +219,7 @@ relayMetadataListFromEvent event =
                     (\tag ->
                         case tag of
                             UrlTag url role ->
-                                Just { url = url, role = role }
+                                Just { url = Relay.fromString url, role = role }
 
                             _ ->
                                 Nothing

@@ -1,41 +1,31 @@
 module Pages.A.Addr_ exposing (..)
 
 import Components.ArticleComments as ArticleComments
-import Components.ArticleInfo as ArticleInfo
-import Components.AuthorInteractionsBar as AuthorInteractionsBar exposing (Msg(..))
+import Components.ArticleHighlights as ArticleHighlights
 import Components.InteractionButton as InteractionButton
 import Components.Interactions as Interactions
-import Components.RelayStatus exposing (Purpose(..))
 import Components.SharingButtonDialog as SharingButtonDialog
-import Dict
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (div)
 import Html.Styled.Attributes exposing (css)
 import Layouts
 import Layouts.Sidebar
-import LinkPreview exposing (LoadedContent)
 import Nostr
-import Nostr.Article exposing (addressComponentsForArticle)
-import Nostr.Event as Event exposing (Kind(..), TagReference(..))
+import Nostr.Event as Event exposing (Kind(..))
+import Nostr.Relay as Relay
 import Nostr.Nip19 as Nip19 exposing (NIP19Type(..))
-import Nostr.Nip22 exposing (CommentType(..))
+import Nostr.Query exposing (ContentQueryStatus(..))
 import Nostr.Request exposing (RequestData(..), RequestId)
-import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (PubKey, loggedInPubKey)
+import Nostr.Types exposing (PubKey)
 import Page exposing (Page)
-import Ports
+import Components.ArticlePage as ArticlePage
 import Route exposing (Route)
-import Set
 import Shared
 import Shared.Model
 import Shared.Msg
 import Tailwind.Utilities as Tw
 import Translations.ArticlePage as Translations
-import Ui.Article exposing (sharingInfoForArticle)
-import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (stylesForTheme)
-import Ui.View exposing (viewRelayStatus)
-import Url
 import View exposing (View)
 
 
@@ -52,104 +42,31 @@ page shared route =
 
 toLayout : Shared.Model -> Model -> Layouts.Layout Msg
 toLayout shared model =
-    let
-        styles =
-            Ui.Styles.stylesForTheme shared.theme
+    case model of
+        Nip19Model data ->
+            ArticlePage.layout shared
+                data.shared
+                (Nostr.getArticleForNip19 shared.nostr data.nip19)
+                msgConfig
 
-        ( maybeArticle, interactionsModel ) =
-            case model of
-                Nip19Model { nip19, interactions } ->
-                    ( Nostr.getArticleForNip19 shared.nostr nip19, Just interactions )
+        ErrorModel _ ->
+            Layouts.Sidebar.new { theme = shared.theme }
+                |> Layouts.Sidebar
 
-                ErrorModel _ ->
-                    ( Nothing, Nothing )
 
-        articleInfo =
-            maybeArticle
-                |> Maybe.map
-                    (\article ->
-                        addressComponentsForArticle article
-                            |> Maybe.map
-                                (\addressComponents ->
-                                    let
-                                        interactionObject =
-                                            InteractionButton.Article article.id addressComponents
-                                    in
-                                    ArticleInfo.view
-                                        styles
-                                        (Nostr.getAuthor shared.nostr article.author)
-                                        article
-                                        { browserEnv = shared.browserEnv
-                                        , model = interactionsModel
-                                        , toMsg = ArticleInteractionsSent interactionObject
-                                        , theme = shared.theme
-                                        , interactionObject = interactionObject
-                                        , nostr = shared.nostr
-                                        , loginStatus = shared.loginStatus
-                                        , shareInfo = sharingInfoForArticle article (Nostr.getAuthor shared.nostr article.author)
-                                        , zapRelays = article.relays
-                                        }
-                                )
-                            |> Maybe.withDefault emptyHtml
-                    )
-                |> Maybe.withDefault emptyHtml
-
-        articlePreviewsData =
-            { articleComments = ArticleComments.init
-            , articleToInteractionsMsg = ArticleInteractionsSent
-            , bookmarkButtonMsg = \_ _ -> NoOp
-            , bookmarkButtons = Dict.empty
-            , browserEnv = shared.browserEnv
-            , commentsToMsg = CommentsSent
-            , deleteButtonMsg = Nothing
-            , onLoadMore = Nothing
-            , nostr = shared.nostr
-            , loginStatus = shared.loginStatus
-            , sharing = Just ( SharingButtonDialog.init, SharingButtonDialogMsg )
-            , theme = shared.theme
-            }
-
-        fromAuthorBarMsg : AuthorInteractionsBar.Msg -> Msg
-        fromAuthorBarMsg msg =
-            case msg of
-                NavBack ->
-                    NavigateBack
-
-                Follow pubKeyUser pubKeyToFollow ->
-                    FollowAuthor pubKeyUser pubKeyToFollow
-
-                Unfollow pubKeyUser pubKeyToUnfollow ->
-                    UnfollowAuthor pubKeyUser pubKeyToUnfollow
-
-                AuthorInteractionsBar.ToggleArticleInfo ->
-                    ToggleArticleInfo
-
-                _ ->
-                    NoOp
-
-        authorInteractionsBar =
-            maybeArticle
-                |> Maybe.map
-                    (\article ->
-                        (AuthorInteractionsBar.new
-                            { articlePreviewsData = articlePreviewsData
-                            , model = AuthorInteractionsBar.init
-                            , interactionsModel = Maybe.withDefault Interactions.init interactionsModel
-                            , article = article
-                            , toMsg = fromAuthorBarMsg
-                            }
-                            |> AuthorInteractionsBar.view
-                        )
-                            { articleInfoToggle = False }
-                    )
-                |> Maybe.withDefault emptyHtml
-    in
-    Layouts.Sidebar.new
-        { theme = shared.theme
-        }
-        |> Layouts.Sidebar.withTopPart authorInteractionsBar "64px"
-        |> Layouts.Sidebar.withRightPart articleInfo
-        |> Layouts.Sidebar
+msgConfig : ArticlePage.MsgConfig Msg
+msgConfig =
+    { addLoadedContent = AddLoadedContent
+    , articleInteractionsSent = ArticleInteractionsSent
+    , commentsSent = CommentsSent
+    , highlightsSent = HighlightsSent
+    , sharingButtonDialogMsg = SharingButtonDialogMsg
+    , navigateBack = NavigateBack
+    , followAuthor = FollowAuthor
+    , unfollowAuthor = UnfollowAuthor
+    , toggleArticleInfo = ToggleArticleInfo
+    , noOp = NoOp
+    }
 
 
 
@@ -162,12 +79,9 @@ type Model
 
 
 type alias Nip19ModelData =
-    { loadedContent : LoadedContent Msg
-    , articleComments : ArticleComments.Model
+    { shared : ArticlePage.Model Msg
     , nip19 : NIP19Type
-    , requestId : RequestId
-    , interactions : Interactions.Model
-    , sharingButtonDialog : SharingButtonDialog.Model
+    , requestId : Maybe RequestId
     }
 
 
@@ -177,90 +91,116 @@ init shared route () =
         decoded =
             Nip19.decode route.params.addr
 
-        ( model, maybeArticle ) =
+        ( model, requestEffect ) =
             case decoded of
                 Ok nip19 ->
-                    ( Nip19Model
-                        { articleComments = ArticleComments.init
-                        , loadedContent =
-                            { loadedUrls = Set.empty
-                            , addLoadedContentFunction = AddLoadedContent
-                            }
-                        , nip19 = nip19
-                        , requestId = Nostr.getLastRequestId shared.nostr
-                        , interactions = Interactions.init
-                        , sharingButtonDialog = SharingButtonDialog.init
-                        }
-                    , Nostr.getArticleForNip19 shared.nostr nip19
-                    )
+                    case Nostr.getArticleForNip19 shared.nostr nip19 of
+                        Just article ->
+                            ( Nip19Model
+                                { shared = ArticlePage.initModel AddLoadedContent
+                                , nip19 = nip19
+                                , requestId = Nothing
+                                }
+                            , ArticlePage.effectsForCachedArticle shared article
+                            )
+
+                        Nothing ->
+                            let
+                                maybeAuthorsPubKey =
+                                    case nip19 of
+                                        NAddr { pubKey } ->
+                                            Just pubKey
+
+                                        NEvent { author } ->
+                                            author
+
+                                        _ ->
+                                            Nothing
+
+                                followersEffect =
+                                    ArticlePage.followersEffectForAuthor shared maybeAuthorsPubKey
+
+                                authorRelays =
+                                    case nip19 of
+                                        NAddr { relays } ->
+                                            if List.isEmpty relays then
+                                                Nothing
+
+                                            else
+                                                Just (List.map Relay.fromString relays)
+
+                                        NEvent { relays } ->
+                                            if List.isEmpty relays then
+                                                Nothing
+
+                                            else
+                                                Just (List.map Relay.fromString relays)
+
+                                        _ ->
+                                            Nothing
+
+                                profileEffect =
+                                    ArticlePage.authorProfileEffect shared maybeAuthorsPubKey authorRelays
+
+                                ( fetchEffect, requestId ) =
+                                    case nip19 of
+                                        NAddr naddrData ->
+                                            ( Event.eventFilterForNaddr naddrData
+                                                |> RequestArticle
+                                                    (if naddrData.relays /= [] then
+                                                        Just (List.map Relay.fromString naddrData.relays)
+
+                                                     else
+                                                        Nothing
+                                                    )
+                                                |> Nostr.createRequest shared.nostr "Article described as NIP-19 NAddr" [ KindUserMetadata ]
+                                                |> Shared.Msg.RequestNostrEvents
+                                                |> Effect.sendSharedMsg
+                                            , Just <| Nostr.getLastRequestId shared.nostr
+                                            )
+
+                                        NEvent neventData ->
+                                            ( Event.eventFilterForNevent neventData
+                                                |> RequestArticle
+                                                    (if neventData.relays /= [] then
+                                                        Just (List.map Relay.fromString neventData.relays)
+
+                                                     else
+                                                        Nothing
+                                                    )
+                                                |> Nostr.createRequest shared.nostr "Article described as NIP-19 NEvent" [ KindUserMetadata ]
+                                                |> Shared.Msg.RequestNostrEvents
+                                                |> Effect.sendSharedMsg
+                                            , Just <| Nostr.getLastRequestId shared.nostr
+                                            )
+
+                                        _ ->
+                                            ( Effect.none, Nothing )
+                            in
+                            case requestId of
+                                Just _ ->
+                                    ( Nip19Model
+                                        { shared = ArticlePage.initModel AddLoadedContent
+                                        , nip19 = nip19
+                                        , requestId = requestId
+                                        }
+                                    , Effect.batch [ followersEffect, profileEffect, fetchEffect ]
+                                    )
+
+                                Nothing ->
+                                    ( ErrorModel "Unsupported NIP-19 address for article view"
+                                    , Effect.none
+                                    )
 
                 Err error ->
-                    ( ErrorModel error, Nothing )
-
-        effect =
-            case ( maybeArticle, model ) of
-                ( Nothing, Nip19Model { nip19 } ) ->
-                    let
-                        maybeAuthorsPubKey =
-                            Nostr.getArticleForNip19 shared.nostr nip19 |> Maybe.map .author
-
-                        followersEffect =
-                            Shared.createFollowersEffect shared.nostr maybeAuthorsPubKey
-                    in
-                    -- article not loaded yet, request it now
-                    case nip19 of
-                        NAddr naddrData ->
-                            Effect.batch
-                                [ followersEffect
-                                , Event.eventFilterForNaddr naddrData
-                                    |> RequestArticle
-                                        (if naddrData.relays /= [] then
-                                            Just naddrData.relays
-
-                                         else
-                                            Nothing
-                                        )
-                                    |> Nostr.createRequest shared.nostr "Article described as NIP-19 NAddr" [ KindUserMetadata ]
-                                    |> Shared.Msg.RequestNostrEvents
-                                    |> Effect.sendSharedMsg
-                                ]
-
-                        NEvent neventData ->
-                            Effect.batch
-                                [ followersEffect
-                                , Event.eventFilterForNevent neventData
-                                    |> RequestArticle
-                                        (if neventData.relays /= [] then
-                                            Just neventData.relays
-
-                                         else
-                                            Nothing
-                                        )
-                                    |> Nostr.createRequest shared.nostr "Article described as NIP-19 NEvent" [ KindUserMetadata ]
-                                    |> Shared.Msg.RequestNostrEvents
-                                    |> Effect.sendSharedMsg
-                                ]
-
-                        _ ->
-                            Effect.none
-
-                ( _, _ ) ->
-                    Effect.none
+                    ( ErrorModel error, Effect.none )
     in
     ( model
     , Effect.batch
-        [ effect
-
-        -- jump to top of article
-        , Effect.scrollContentToTop
+        [ requestEffect
+        , ArticlePage.scrollToTopEffect
         ]
     )
-
-
-decodedTagParam : String -> Maybe (List String)
-decodedTagParam tag =
-    Url.percentDecode tag
-        |> Maybe.map List.singleton
 
 
 
@@ -270,6 +210,7 @@ decodedTagParam tag =
 type Msg
     = AddLoadedContent String
     | CommentsSent (ArticleComments.Msg Msg)
+    | HighlightsSent ArticleHighlights.Msg
     | ArticleInteractionsSent InteractionButton.InteractionObject (Interactions.Msg Msg)
     | SharingButtonDialogMsg SharingButtonDialog.Msg
     | FollowAuthor PubKey PubKey
@@ -281,98 +222,68 @@ type Msg
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
-    case msg of
-        AddLoadedContent url ->
-            case model of
-                Nip19Model nip19ModelData ->
-                    ( Nip19Model { nip19ModelData | loadedContent = LinkPreview.addLoadedContent nip19ModelData.loadedContent url }, Effect.none )
+    case model of
+        ErrorModel _ ->
+            ( model, Effect.none )
 
-                _ ->
-                    ( model, Effect.none )
+        Nip19Model data ->
+            case msg of
+                AddLoadedContent url ->
+                    ( Nip19Model { data | shared = ArticlePage.updateAddLoadedContent url data.shared }
+                    , Effect.none
+                    )
 
-        CommentsSent innerMsg ->
-            case model of
-                Nip19Model nip19ModelData ->
-                    ArticleComments.update
-                        { browserEnv = shared.browserEnv
-                        , msg = innerMsg
-                        , model = nip19ModelData.articleComments
-                        , nostr = shared.nostr
-                        , loginStatus = shared.loginStatus
-                        , toModel = \articleComments -> Nip19Model { nip19ModelData | articleComments = articleComments }
-                        , toMsg = CommentsSent
-                        , translations = shared.browserEnv.translations
-                        }
+                CommentsSent innerMsg ->
+                    let
+                        ( sharedModel, effect ) =
+                            ArticlePage.updateComments shared innerMsg data.shared msgConfig
+                    in
+                    ( Nip19Model { data | shared = sharedModel }, effect )
 
-                _ ->
-                    ( model, Effect.none )
+                HighlightsSent innerMsg ->
+                    case Nostr.getArticleForNip19 shared.nostr data.nip19 of
+                        Just article ->
+                            let
+                                ( sharedModel, effect ) =
+                                    ArticlePage.updateHighlights shared innerMsg article data.shared msgConfig
+                            in
+                            ( Nip19Model { data | shared = sharedModel }, effect )
 
-        ArticleInteractionsSent interactionObject innerMsg ->
-            case model of
-                Nip19Model nip19ModelData ->
-                    Interactions.update
-                        { browserEnv = shared.browserEnv
-                        , msg = innerMsg
-                        , model = Just nip19ModelData.interactions
-                        , nostr = shared.nostr
-                        , interactionObject = interactionObject
-                        , loginStatus = shared.loginStatus
-                        , openCommentMsg = Nothing
-                        , toModel = \interactionsModel -> Nip19Model { nip19ModelData | interactions = interactionsModel }
-                        , toMsg = ArticleInteractionsSent interactionObject
-                        }
+                        Nothing ->
+                            ( model, Effect.none )
 
-                _ ->
-                    ( model, Effect.none )
+                ArticleInteractionsSent interactionObject innerMsg ->
+                    let
+                        ( sharedModel, effect ) =
+                            ArticlePage.updateArticleInteractions shared interactionObject innerMsg data.shared msgConfig
+                    in
+                    ( Nip19Model { data | shared = sharedModel }, effect )
 
-        SharingButtonDialogMsg innerMsg ->
-            case model of
-                Nip19Model nip19ModelData ->
-                    SharingButtonDialog.update
-                        { browserEnv = shared.browserEnv
-                        , model = nip19ModelData.sharingButtonDialog
-                        , msg = innerMsg
-                        , toModel = \sharingButtonDialog -> Nip19Model { nip19ModelData | sharingButtonDialog = sharingButtonDialog }
-                        , toMsg = SharingButtonDialogMsg
-                        }
+                SharingButtonDialogMsg innerMsg ->
+                    let
+                        ( sharedModel, effect ) =
+                            ArticlePage.updateSharingDialog shared innerMsg data.shared msgConfig
+                    in
+                    ( Nip19Model { data | shared = sharedModel }, effect )
 
-                _ ->
-                    ( model, Effect.none )
+                FollowAuthor pubKeyUser pubKeyToBeFollowed ->
+                    ( model, ArticlePage.followAuthorEffect pubKeyUser pubKeyToBeFollowed )
 
-        FollowAuthor pubKeyUser pubKeyToBeFollowed ->
-            ( model
-            , SendFollowListWithPubKey pubKeyUser pubKeyToBeFollowed
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
+                UnfollowAuthor pubKeyUser pubKeyToBeUnfollowed ->
+                    ( model, ArticlePage.unfollowAuthorEffect pubKeyUser pubKeyToBeUnfollowed )
 
-        UnfollowAuthor pubKeyUser pubKeyToBeUnfollowed ->
-            ( model
-            , SendFollowListWithoutPubKey pubKeyUser pubKeyToBeUnfollowed
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
+                NavigateBack ->
+                    ( model, ArticlePage.navigateBackEffect )
 
-        NavigateBack ->
-            ( model, Effect.back )
+                ToggleArticleInfo ->
+                    ( model, ArticlePage.toggleArticleInfoEffect )
 
-        ToggleArticleInfo ->
-            ( model, Effect.sendCmd Ports.toggleArticleInfo )
+                NoOp ->
+                    ( model
+                    , ArticlePage.followersEffectForAuthor shared
+                        (Nostr.getArticleForNip19 shared.nostr data.nip19 |> Maybe.map .author)
+                    )
 
-        NoOp ->
-            let
-                maybeAuthorPubKey =
-                    case model of
-                        Nip19Model nip19ModelData ->
-                            Nostr.getArticleForNip19 shared.nostr nip19ModelData.nip19 |> Maybe.map .author
-
-                        _ ->
-                            Nothing
-
-                followersEffect =
-                    Shared.createFollowersEffect shared.nostr maybeAuthorPubKey
-            in
-            ( model, followersEffect )
 
 
 -- SUBSCRIPTIONS
@@ -381,29 +292,13 @@ update shared msg model =
 subscriptions : Shared.Model -> Model -> Sub Msg
 subscriptions shared model =
     case model of
-        Nip19Model nip19ModelData ->
-            let
-                articleComments =
-                    Nostr.getArticleForNip19 shared.nostr nip19ModelData.nip19
-                        |> Maybe.andThen addressComponentsForArticle
-                        |> Maybe.map (Nostr.getArticleComments shared.nostr (loggedInPubKey shared.loginStatus))
-                        |> Maybe.withDefault []
-            in
-            Sub.batch
-                [ ArticleComments.subscriptions nip19ModelData.articleComments articleComments |> Sub.map CommentsSent
-                , Nostr.getArticleForNip19 shared.nostr nip19ModelData.nip19
-                    |> Maybe.andThen
-                        (\article ->
-                            addressComponentsForArticle article
-                                |> Maybe.map
-                                    (\addressComponents ->
-                                        Sub.map (ArticleInteractionsSent (InteractionButton.Article article.id addressComponents)) (Interactions.subscriptions nip19ModelData.interactions)
-                                    )
-                        )
-                    |> Maybe.withDefault Sub.none
-                ]
+        Nip19Model data ->
+            ArticlePage.subscriptions shared
+                data.shared
+                (Nostr.getArticleForNip19 shared.nostr data.nip19)
+                msgConfig
 
-        _ ->
+        ErrorModel _ ->
             Sub.none
 
 
@@ -414,48 +309,21 @@ subscriptions shared model =
 view : Shared.Model.Model -> Model -> View Msg
 view shared model =
     case model of
-        Nip19Model { articleComments, loadedContent, nip19, requestId, interactions, sharingButtonDialog } ->
-            viewContent shared nip19 articleComments loadedContent requestId interactions sharingButtonDialog
+        Nip19Model data ->
+            let
+                queryStatus =
+                    Nostr.articleQueryStatusFrom shared.nostr
+                        (Nostr.getArticleForNip19 shared.nostr data.nip19)
+                        data.requestId
+            in
+            { title =
+                ArticlePage.pageTitle queryStatus
+                    (Translations.defaultPageTitle [ shared.browserEnv.translations ])
+            , body = [ ArticlePage.viewBody shared data.shared queryStatus msgConfig ]
+            }
 
         ErrorModel error ->
             viewError shared error
-
-
-viewContent : Shared.Model -> NIP19Type -> ArticleComments.Model -> LoadedContent Msg -> RequestId -> Interactions.Model -> SharingButtonDialog.Model -> View Msg
-viewContent shared nip19 articleComments loadedContent requestId interactions sharingButtonDialog =
-    let
-        maybeArticle =
-            Nostr.getArticleForNip19 shared.nostr nip19
-    in
-    { title =
-        maybeArticle
-            |> Maybe.andThen .title
-            |> Maybe.withDefault (Translations.defaultPageTitle [ shared.browserEnv.translations ])
-    , body =
-        [ maybeArticle
-            |> Maybe.map
-                (\article ->
-                    Ui.View.viewArticle
-                        { articleComments = articleComments
-                        , articleToInteractionsMsg = ArticleInteractionsSent
-                        , bookmarkButtonMsg = \_ _ -> NoOp
-                        , bookmarkButtons = Dict.empty
-                        , browserEnv = shared.browserEnv
-                        , commentsToMsg = CommentsSent
-                        , deleteButtonMsg = Nothing
-                        , loginStatus = shared.loginStatus
-                        , nostr = shared.nostr
-                        , onLoadMore = Nothing
-                        , sharing = Just ( sharingButtonDialog, SharingButtonDialogMsg )
-                        , theme = shared.theme
-                        }
-                        (Just loadedContent)
-                        interactions
-                        article
-                )
-            |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle (Just requestId))
-        ]
-    }
 
 
 viewError : Shared.Model -> String -> View Msg
@@ -469,10 +337,7 @@ viewError shared error =
         [ div
             (styles.colorStyleGrayscaleTitle
                 ++ styles.textStyleH3
-                ++ [ css
-                        [ Tw.m_4
-                        ]
-                   ]
+                ++ [ css [ Tw.m_4 ] ]
             )
             [ Html.text <| "Error loading content: " ++ error
             ]

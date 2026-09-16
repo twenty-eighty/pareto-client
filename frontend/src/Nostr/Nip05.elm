@@ -5,8 +5,8 @@ import Email
 import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as DecodePipeline
-import Nostr.Relay as Relay
-import Nostr.Types exposing (RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (PubKey)
 
 
 type alias Nip05 =

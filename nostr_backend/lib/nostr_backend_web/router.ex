@@ -6,6 +6,7 @@ defmodule NostrBackendWeb.Router do
     plug(:put_root_layout, html: {NostrBackendWeb.Layouts, :root})
     plug(NostrBackendWeb.Plugs.AssignFollowListEvent)
     plug(NostrBackendWeb.Plugs.PreloadFrontendAssets)
+    plug(NostrBackendWeb.Plugs.NoCacheHtml)
     plug(:put_secure_browser_headers)
   end
 
@@ -112,6 +113,11 @@ defmodule NostrBackendWeb.Router do
     get "/sitemap-authors.xml.gz", StaticFileController, :authors_sitemap
     get "/sitemap-landing.xml.gz", StaticFileController, :landing_sitemap
     get "/sitemap-:year", StaticFileController, :year_sitemap
+  end
+
+  scope "/", NostrBackendWeb do
+    get "/version.json", PwaController, :version
+    get "/sw.js", PwaController, :service_worker
   end
 
   scope "/", NostrBackendWeb do

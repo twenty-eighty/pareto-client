@@ -10,6 +10,9 @@ import "./elm-oembed";
 import { createRelayManager } from "./relay-manager";
 import { handleAuthCommand, restoreActiveIdentity } from "./authIdentities";
 import { reportPasskeySupport as queryPasskeySupport } from "./keytrAuth";
+import * as cashuWallet from "./cashuWallet";
+import * as nwcWallet from "./nwcWallet";
+import { initPwa, promptPwaInstall, reloadForNewVersion } from "./pwa";
 import debug from 'debug';
 
 declare global {
@@ -77,6 +80,8 @@ export const flags = ({ env }: { env: FlagsEnv }) => {
     locale: selectedLocale,
     nativeSharingAvailable: (navigator.share != undefined),
     testMode: JSON.parse(localStorage.getItem('testMode') || 'false') || false,
+    notificationsLastSeen: JSON.parse(localStorage.getItem('notificationsLastSeen') || '{}') || {},
+    localRelays: JSON.parse(localStorage.getItem('localRelays') || '[]') || [],
     authApiBaseUrl,
   }
 };
@@ -133,6 +138,14 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   }
 
   app.ports.sendCommand.subscribe(({ command: command, value: value }) => {
+    if (command === 'reloadWindow') {
+      reloadForNewVersion();
+      return;
+    }
+    if (command === 'installPwa') {
+      promptPwaInstall();
+      return;
+    }
     if (command === 'connect') {
       connect(app, value.client, value.nip89, value.relays);
     } else if (connected) {
@@ -142,6 +155,9 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       debugLog('store command', command);
     }
   });
+
+  initPwa(app);
+  getNwcStatusCommand(app);
 
   // in certain cases we can't catch the error with try/catch
   window.addEventListener("unhandledrejection", function (event) {
@@ -175,7 +191,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       }
 
       if (nostrEvents) {
-        processEvents(app, 0, "", nostrEvents);
+        processEvents(app, 0, "", nostrEvents, []);
       }
     }
   }
@@ -274,12 +290,64 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         setTestMode(app, value);
         break;
 
+      case 'setLocalRelays':
+        setLocalRelays(value);
+        break;
+
+      case 'setNotificationsLastSeen':
+        setNotificationsLastSeen(value);
+        break;
+
+      case 'requestTextSelection':
+        requestTextSelection(app);
+        break;
+
       case 'shareLink':
         shareLink(app, value);
         break;
 
       case 'toggleArticleInfo':
         toggleArticleInfo(app);
+        break;
+
+      case 'createCashuWallet':
+        createCashuWallet(app, value);
+        break;
+
+      case 'decryptCashuWallet':
+        decryptCashuWalletCommand(app, value);
+        break;
+
+      case 'decryptCashuTokens':
+        decryptCashuTokensCommand(app, value);
+        break;
+
+      case 'redeemNutzap':
+        redeemNutzapCommand(app, value);
+        break;
+
+      case 'sendNutzap':
+        sendNutzapCommand(app, value);
+        break;
+
+      case 'createCashuMintQuote':
+        createCashuMintQuoteCommand(app, value);
+        break;
+
+      case 'cancelCashuMintQuote':
+        cancelCashuMintQuoteCommand(value);
+        break;
+
+      case 'createCashuMeltQuote':
+        createCashuMeltQuoteCommand(app, value);
+        break;
+
+      case 'meltCashuToLightning':
+        meltCashuToLightningCommand(app, value);
+        break;
+
+      case 'computeCashuBalance':
+        computeCashuBalanceCommand(app, value);
         break;
 
       // Contacts
@@ -326,6 +394,38 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       case 'cancelNewsletter':
         cancelNewsletter();
         break;
+
+      case 'getNwcStatus':
+        getNwcStatusCommand(app);
+        break;
+
+      case 'connectNwc':
+        connectNwcCommand(app, value);
+        break;
+
+      case 'connectNwcAlby':
+        connectNwcAlbyCommand(app);
+        break;
+
+      case 'startNwaConnect':
+        startNwaConnectCommand(app);
+        break;
+
+      case 'cancelNwaConnect':
+        cancelNwaConnectCommand(app);
+        break;
+
+      case 'enableWebln':
+        enableWeblnCommand(app);
+        break;
+
+      case 'disconnectNwc':
+        disconnectNwcCommand(app);
+        break;
+
+      case 'payInvoiceNwc':
+        payInvoiceNwcCommand(app, value);
+        break;
     }
   }
 
@@ -358,6 +458,35 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     sessionStorage.clear();
     // reload client in order to initialize relay and other lists correctly
     location.reload();
+  }
+
+  function setLocalRelays(value) {
+    localStorage.setItem('localRelays', JSON.stringify(Array.isArray(value) ? value : []));
+  }
+
+  function setNotificationsLastSeen(value) {
+    localStorage.setItem('notificationsLastSeen', JSON.stringify(value || {}));
+  }
+
+  function requestTextSelection(app) {
+    const selection = window.getSelection();
+    const text = selection ? selection.toString().trim() : '';
+    let context = null;
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const node = range.commonAncestorContainer;
+      const element = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+      if (element && element.textContent) {
+        const trimmed = element.textContent.trim();
+        if (trimmed.length > 0) {
+          context = trimmed.slice(0, 500);
+        }
+      }
+    }
+    app.ports.receiveMessage.send({
+      messageType: 'textSelection',
+      value: { text: text, context: context }
+    });
   }
 
   function shareLink(app, value) {
@@ -540,11 +669,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     window.ndk.initialValidationRatio = 0.5;
     window.ndk.lowestValidationRatio = 0.01;
 
-    window.ndk.on("event:invalid-sig", (event) => {
-      const { relay } = event;
-      debugLog('relay delivered event with invalid signature', relay);
-      app.ports.receiveMessage.send({ messageType: 'event:invalid-sig', value: { relay: relay } });
-    })
+    // Resolve LoggedInUnknown immediately (don't wait for relays) so auth pages
+    // like /settings don't hang on "Loading..." when there is no auto-login.
+    restoreActiveIdentity(window.ndk, app);
+
     window.ndk.pool.on("connecting", (relay) => {
       debugLog('connecting relays', relay);
       app.ports.receiveMessage.send({ messageType: 'connecting', value: null });
@@ -641,16 +769,27 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     });
   }
 
-  function processEvents(app, requestId, description, ndkEvents) {
+  function processEvents(app, requestId, description, ndkEvents, filters) {
 
     if (ndkEvents.size == 0) {
-      // report back to the application that there are no events
-      app.ports.receiveMessage.send({ messageType: 'events', value: { kind: 0, events: [], requestId: requestId } });
+      // Prefer the filter kinds so Elm can settle kind-specific queries (e.g. articles).
+      const kinds =
+        Array.isArray(filters) && filters.length > 0
+          ? [...new Set(filters.flatMap((filter) => (Array.isArray(filter.kinds) ? filter.kinds : [])))]
+          : [];
+
+      if (kinds.length === 0) {
+        app.ports.receiveMessage.send({ messageType: 'events', value: { kind: 0, events: [], requestId: requestId } });
+      } else {
+        kinds.forEach((kind) => {
+          app.ports.receiveMessage.send({ messageType: 'events', value: { kind: kind, events: [], requestId: requestId } });
+        });
+      }
+      app.ports.receiveMessage.send({ messageType: 'eventsComplete', value: { requestId: requestId } });
       return;
     }
 
     var eventsSortedByKind = {};
-    var highlights = [];
     var zapReceipts = [];
 
     ndkEvents.forEach(ndkEvent => {
@@ -663,6 +802,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         case 7: // reactions
         case 16: // generic repost
         case 20: // picture post
+        case 9802: // highlights (NIP-84)
           {
             eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
             break;
@@ -693,14 +833,6 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
             break;
           }
 
-        case 9802: // highlight
-          {
-            const highlight = ndkEvent.content;
-            const pubkeyHighlight = { pubkey: ndkEvent.pubkey, highlight: highlight };
-            highlights.push(pubkeyHighlight);
-            break;
-          }
-
         case 1111: // comment (NIP-22)
         case 10000: // mute list
         case 10002: // relay list metadata
@@ -725,6 +857,50 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
             unwrapPrivateRelayListEvent(ndkEvent).then(event => {
               app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
             });
+            break;
+          }
+
+        case 17375: // NIP-60 cashu wallet
+          {
+            unwrapCashuWalletEvent(ndkEvent).then(event => {
+              if (event) {
+                app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
+              }
+            }).catch(err => {
+              debugLog('failed to decrypt cashu wallet', err);
+            });
+            break;
+          }
+
+        case 7375: // NIP-60 cashu tokens
+          {
+            unwrapCashuTokenEvent(ndkEvent).then(event => {
+              if (event) {
+                app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
+              }
+            }).catch(err => {
+              debugLog('failed to decrypt cashu tokens', err);
+            });
+            break;
+          }
+
+        case 7376: // NIP-60 cashu history (optional content decrypt)
+          {
+            unwrapCashuHistoryEvent(ndkEvent).then(event => {
+              if (event) {
+                app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
+              }
+            }).catch(() => {
+              // Public tags alone are enough for redeem tracking.
+              app.ports.receiveMessage.send({ messageType: 'events', value: { kind: 7376, events: [ndkEvent], requestId: requestId } });
+            });
+            break;
+          }
+
+        case 9321: // NIP-61 nutzap
+        case 10019: // NIP-61 mint recommendation
+          {
+            eventsSortedByKind = addEvent(eventsSortedByKind, ndkEvent);
             break;
           }
 
@@ -761,14 +937,12 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       app.ports.receiveMessage.send({ messageType: 'events', value: { kind: parseInt(kind), events: events, requestId: requestId } });
     }
 
-    if (highlights.length > 0) {
-      debugLog("Highlights: ", highlights.length);
-      app.ports.receiveMessage.send({ messageType: 'highlights', value: highlights });
-    }
     if (zapReceipts.length > 0) {
       debugLog("ZapReceipts: ", zapReceipts.length);
       app.ports.receiveMessage.send({ messageType: 'zap_receipts', value: zapReceipts });
     }
+
+    app.ports.receiveMessage.send({ messageType: 'eventsComplete', value: { requestId: requestId } });
   }
 
   // Unused incomplete helper (kept from JS; previously referenced undefined symbols).
@@ -1099,6 +1273,17 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   async function sendEvent(app, { sendId: sendId, event: event, relays: relays }) {
     debugLog('send event ' + sendId, event, 'relays: ', relays);
 
+    const reportSendError = (error) => {
+      const errorMessage =
+        (error && error.message) ? error.message
+          : (typeof error === 'string' ? error : 'Error publishing event');
+      console.error('sendEvent failed', sendId, error);
+      app.ports.receiveMessage.send({
+        messageType: 'error',
+        value: { sendId: sendId, reason: errorMessage }
+      });
+    };
+
     var feedSentEventToApplication = true;
     var ndkEvent = new NDKEvent(window.ndk, event);
     const signer = (ndkEvent.pubkey == anonymousPubKey) ? anonymousSigner : window.ndk.signer;
@@ -1106,28 +1291,25 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     try {
       if (event.kind == 30024) {  // draft event
         ndkEvent = await encapsulateDraftEvent(ndkEvent);
+      } else if (event.kind == 10013) {  // private relay list (NIP-37)
+        ndkEvent = await encapsulatePrivateRelayListEvent(ndkEvent, signer);
+      } else if (event.kind == 17375 || event.kind == 7375 || event.kind == 7376) {
+        ndkEvent = await encapsulateCashuEncryptedContent(ndkEvent, signer);
       } else if (event.kind == 30078) {  // application-specific event
         ndkEvent = await encapsulateApplicationSpecificEvent(ndkEvent, signer);
         // Don't try to decrypt events that weren't encrypted for us
         feedSentEventToApplication = false;
       }
-    } catch (error) {
-      console.error(error);
-      const errorMessage = error.message ? error.message : 'Error encrypting event';
-      app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: errorMessage } });
-      return;
-    }
 
-    if (!ndkEvent) {
-      debugLog('failed to send event ' + sendId, event, 'relays: ', relays);
-      app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: "failed to encapsulate event" } });
-      return;
-    }
+      if (!ndkEvent) {
+        reportSendError('failed to encapsulate event');
+        return;
+      }
 
-    ndkEvent.sign(signer).then(() => {
+      await ndkEvent.sign(signer);
       debugLog('signed event ' + sendId, ndkEvent);
 
-      var relaysWithProtocol = relays.map(relay => {
+      var relaysWithProtocol = (relays || []).map(relay => {
         if (!relay.startsWith("wss://") && !relay.startsWith("ws://")) {
           return "wss://" + relay
         } else {
@@ -1138,22 +1320,58 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       if (relaysWithProtocol.length === 0) {
         relaysWithProtocol = ["wss://pareto.nostr1.com"];
       }
-      const relaySet = NDKRelaySet.fromRelayUrls(relaysWithProtocol, window.ndk);
-      ndkEvent.publish(relaySet, 5000).then((results) => {
-        debugLog('published event ' + sendId, ndkEvent);
-        app.ports.receiveMessage.send({ messageType: 'published', value: { sendId: sendId, event: ndkEvent, results: results } });
 
-        if (feedSentEventToApplication) {
-          // feed sent events into app as if received by relay.
-          // thus we can let the event modify the state correctly
-          processEvents(app, -1, "sent event", [ndkEvent]);
+      // Ensure target relays are in the pool / connecting (same as fetch path).
+      relaysWithProtocol.forEach((url) => {
+        try {
+          const relay = window.ndk.pool.getRelay(url, true);
+          if (relay && relay.connect) {
+            relay.connect();
+          }
+        } catch (e) {
+          debugLog('sendEvent getRelay failed', url, e);
         }
-      }).catch((error) => {
-        console.log(error);
-        const errorMessage = error.message ? error.message : 'Error publishing event';
-        app.ports.receiveMessage.send({ messageType: 'error', value: { sendId: sendId, event: event, relays: relays, reason: errorMessage } });
       });
-    })
+
+      const relaySet = NDKRelaySet.fromRelayUrls(relaysWithProtocol, window.ndk);
+      const results = await ndkEvent.publish(relaySet, 5000);
+      const publishedRelays = Array.from(results || []).map((relay) =>
+        (relay && relay.url) ? relay.url : String(relay)
+      );
+      if (publishedRelays.length === 0) {
+        throw new Error('Not enough relays received the event (0 published, 1 required)');
+      }
+      debugLog('published event ' + sendId, ndkEvent, publishedRelays);
+      app.ports.receiveMessage.send({
+        messageType: 'published',
+        value: {
+          sendId: sendId,
+          event: ndkEvent.rawEvent ? ndkEvent.rawEvent() : ndkEvent,
+          results: publishedRelays
+        }
+      });
+
+      if (feedSentEventToApplication) {
+        // feed sent events into app as if received by relay.
+        // thus we can let the event modify the state correctly
+        let eventForApp = ndkEvent;
+        if (event.kind == 10013) {
+          // Re-expose decrypted tags so Elm can update privateRelayLists.
+          eventForApp = await unwrapPrivateRelayListEvent(ndkEvent);
+        } else if (event.kind == 17375) {
+          eventForApp = await unwrapCashuWalletEvent(ndkEvent);
+        } else if (event.kind == 7375) {
+          eventForApp = await unwrapCashuTokenEvent(ndkEvent);
+        } else if (event.kind == 7376) {
+          eventForApp = await unwrapCashuHistoryEvent(ndkEvent);
+        }
+        if (eventForApp) {
+          processEvents(app, -1, "sent event", [eventForApp], []);
+        }
+      }
+    } catch (error) {
+      reportSendError(error);
+    }
   }
 
   // https://nips.nostr.com/37
@@ -1164,21 +1382,28 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       throw new Error(`Article can't be encrypted/saved if longer than ${maxContentLength} bytes`);
     }
 
-    await ndkEvent.sign();
-    const rawEventString = JSON.stringify(ndkEvent.rawEvent());
+    // NIP-37 stores an unsigned draft event in the wrap content.
+    const unsignedDraft = {
+      kind: ndkEvent.kind,
+      pubkey: ndkEvent.pubkey,
+      created_at: ndkEvent.created_at,
+      tags: ndkEvent.tags,
+      content: ndkEvent.content,
+    };
+    const rawEventString = JSON.stringify(unsignedDraft);
     const rawEventLength = rawEventString.length;
     if (rawEventLength > maxContentLength) {
       throw new Error(`Article can't be encrypted/saved if longer than ${maxContentLength} bytes`);
     }
     const content = await window.ndk.signer.encrypt({ pubkey: ndkEvent.pubkey }, rawEventString, 'nip44');
     const identifier = firstTag(ndkEvent, "d");
+    const expiration = Math.floor(Date.now() / 1000) + (90 * 24 * 60 * 60);
     const draftEvent = {
       kind: 31234,
       tags: [
         ["d", identifier],
-        ["k", ndkEvent.kind.toString()],
-        ["e", ndkEvent.id],
-        ["a", ndkEvent.kind + ":" + ndkEvent.pubkey + ":" + identifier],
+        ["k", String(ndkEvent.kind)],
+        ["expiration", String(expiration)],
       ],
       content: content,
       pubkey: ndkEvent.pubkey,
@@ -1208,6 +1433,513 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     return null;
   }
 
+  async function encapsulatePrivateRelayListEvent(ndkEvent, signer) {
+    // NIP-37 / kind 10013: encrypt relay tags into content, clear public tags.
+    const tags = ndkEvent.tags || [];
+    const encrypted = await signer.encrypt({ pubkey: ndkEvent.pubkey }, JSON.stringify(tags), 'nip44');
+    if (!encrypted) {
+      return null;
+    }
+    ndkEvent.content = encrypted;
+    ndkEvent.tags = [];
+    return ndkEvent;
+  }
+
+  async function encapsulateCashuEncryptedContent(ndkEvent, signer) {
+    // NIP-60: content is already plaintext JSON from Elm; encrypt in place.
+    if (!ndkEvent.content) {
+      return ndkEvent;
+    }
+    const encrypted = await signer.encrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
+    if (!encrypted) {
+      return null;
+    }
+    ndkEvent.content = encrypted;
+    return ndkEvent;
+  }
+
+  function cashuContentLooksPlaintext(content) {
+    if (typeof content !== 'string') {
+      return false;
+    }
+    const trimmed = content.trim();
+    return trimmed.startsWith('{') || trimmed.startsWith('[');
+  }
+
+  async function unwrapCashuWalletEvent(ndkEvent) {
+    if (!window.ndk?.signer || !ndkEvent.content) {
+      return null;
+    }
+    // Sent-event feed-back already decrypts before processEvents; skip a second decrypt.
+    if (cashuContentLooksPlaintext(ndkEvent.content)) {
+      return ndkEvent;
+    }
+    try {
+      const tags = await cashuWallet.decryptWalletContent(window.ndk.signer, ndkEvent.pubkey, ndkEvent.content);
+      ndkEvent.content = JSON.stringify(tags);
+      return ndkEvent;
+    } catch (error) {
+      debugLog('failed to decrypt cashu wallet', error);
+      return null;
+    }
+  }
+
+  async function unwrapCashuTokenEvent(ndkEvent) {
+    if (!window.ndk?.signer || !ndkEvent.content) {
+      return null;
+    }
+    if (cashuContentLooksPlaintext(ndkEvent.content)) {
+      return ndkEvent;
+    }
+    try {
+      const payload = await cashuWallet.decryptTokenPayload(window.ndk.signer, ndkEvent.pubkey, ndkEvent.content);
+      ndkEvent.content = JSON.stringify(payload);
+      return ndkEvent;
+    } catch (error) {
+      debugLog('failed to decrypt cashu tokens', error);
+      return null;
+    }
+  }
+
+  async function unwrapCashuHistoryEvent(ndkEvent) {
+    if (!window.ndk?.signer || !ndkEvent.content) {
+      return ndkEvent;
+    }
+    try {
+      const plain = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
+      if (plain) {
+        ndkEvent.content = plain;
+      }
+    } catch (_err) {
+      // keep ciphertext; public tags still usable
+    }
+    return ndkEvent;
+  }
+
+  function createCashuWallet(app, value) {
+    try {
+      const existingPrivkey = value && typeof value.privkey === 'string' ? value.privkey : null;
+      const keypair = existingPrivkey
+        ? {
+            privkey: existingPrivkey,
+            pubkey: cashuWallet.p2pkPubkeyFromPrivkey(existingPrivkey),
+          }
+        : cashuWallet.createWalletKeypair();
+      app.ports.receiveMessage.send({
+        messageType: 'cashuWalletCreated',
+        value: {
+          privkey: keypair.privkey,
+          pubkey: keypair.pubkey,
+          mintUrl: cashuWallet.DEFAULT_MINT_URL,
+        },
+      });
+    } catch (error) {
+      app.ports.receiveMessage.send({
+        messageType: 'error',
+        value: { reason: error?.message || 'failed to create cashu wallet' },
+      });
+    }
+  }
+
+  async function decryptCashuWalletCommand(app, value) {
+    try {
+      const tags = await cashuWallet.decryptWalletContent(window.ndk.signer, value.pubkey, value.content);
+      app.ports.receiveMessage.send({
+        messageType: 'cashuWalletDecrypted',
+        value: { tags, eventId: value.eventId || null },
+      });
+    } catch (error) {
+      app.ports.receiveMessage.send({
+        messageType: 'error',
+        value: { reason: error?.message || 'failed to decrypt cashu wallet' },
+      });
+    }
+  }
+
+  async function decryptCashuTokensCommand(app, value) {
+    try {
+      const payload = await cashuWallet.decryptTokenPayload(window.ndk.signer, value.pubkey, value.content);
+      app.ports.receiveMessage.send({
+        messageType: 'cashuTokensDecrypted',
+        value: { payload, eventId: value.eventId || null },
+      });
+    } catch (error) {
+      app.ports.receiveMessage.send({
+        messageType: 'error',
+        value: { reason: error?.message || 'failed to decrypt cashu tokens' },
+      });
+    }
+  }
+
+  async function redeemNutzapCommand(app, value) {
+    try {
+      const proofs = await cashuWallet.redeemNutzap({
+        mintUrl: value.mintUrl,
+        proofs: value.proofs || [],
+        p2pkPrivkey: value.p2pkPrivkey,
+      });
+      app.ports.receiveMessage.send({
+        messageType: 'nutzapRedeemed',
+        value: {
+          nutzapId: value.nutzapId,
+          mintUrl: value.mintUrl,
+          proofs,
+          amount: cashuWallet.getBalance(proofs),
+          senderPubKey: value.senderPubKey || null,
+        },
+      });
+    } catch (error) {
+      console.error('redeemNutzap failed', error);
+      app.ports.receiveMessage.send({
+        messageType: 'nutzapRedeemFailed',
+        value: {
+          nutzapId: value.nutzapId,
+          reason: error?.message || 'failed to redeem nutzap',
+        },
+      });
+    }
+  }
+
+  async function sendNutzapCommand(app, value) {
+    try {
+      const result = await cashuWallet.sendNutzap({
+        mintUrl: value.mintUrl,
+        proofs: value.proofs || [],
+        amount: value.amount,
+        recipientP2pk: value.recipientP2pk,
+      });
+      app.ports.receiveMessage.send({
+        messageType: 'nutzapSent',
+        value: {
+          requestId: value.requestId,
+          mintUrl: value.mintUrl,
+          amount: value.amount,
+          keepProofs: result.keep,
+          sendProofs: result.send,
+        },
+      });
+    } catch (error) {
+      console.error('sendNutzap failed', error);
+      app.ports.receiveMessage.send({
+        messageType: 'nutzapSendFailed',
+        value: {
+          requestId: value.requestId,
+          reason: error?.message || 'failed to send nutzap',
+        },
+      });
+    }
+  }
+
+  /** Active mint-from-LN waits keyed by Elm requestId. */
+  const cashuMintAbortControllers = new Map();
+
+  async function createCashuMintQuoteCommand(app, value) {
+    const requestId = value.requestId;
+    const existing = cashuMintAbortControllers.get(requestId);
+    if (existing) {
+      existing.abort();
+    }
+    const abortController = new AbortController();
+    cashuMintAbortControllers.set(requestId, abortController);
+
+    try {
+      const quote = await cashuWallet.createMintQuote({
+        mintUrl: value.mintUrl,
+        amount: value.amount,
+      });
+      if (abortController.signal.aborted) {
+        throw new DOMException('Aborted', 'AbortError');
+      }
+      app.ports.receiveMessage.send({
+        messageType: 'cashuMintInvoice',
+        value: {
+          requestId,
+          mintUrl: quote.mintUrl,
+          amount: quote.amount,
+          quote: quote.quote,
+          bolt11: quote.bolt11,
+        },
+      });
+
+      const proofs = await cashuWallet.waitAndMintProofs({
+        mintUrl: quote.mintUrl,
+        amount: quote.amount,
+        quote: quote.quote,
+        signal: abortController.signal,
+      });
+      app.ports.receiveMessage.send({
+        messageType: 'cashuMinted',
+        value: {
+          requestId,
+          mintUrl: quote.mintUrl,
+          amount: quote.amount,
+          proofs,
+        },
+      });
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        app.ports.receiveMessage.send({
+          messageType: 'cashuMintCancelled',
+          value: { requestId },
+        });
+      } else {
+        console.error('createCashuMintQuote failed', error);
+        app.ports.receiveMessage.send({
+          messageType: 'cashuMintFailed',
+          value: {
+            requestId,
+            reason: error?.message || 'failed to mint from Lightning',
+          },
+        });
+      }
+    } finally {
+      const current = cashuMintAbortControllers.get(requestId);
+      if (current === abortController) {
+        cashuMintAbortControllers.delete(requestId);
+      }
+    }
+  }
+
+  function cancelCashuMintQuoteCommand(value) {
+    const abortController = cashuMintAbortControllers.get(value.requestId);
+    if (abortController) {
+      abortController.abort();
+    }
+  }
+
+  async function createCashuMeltQuoteCommand(app, value) {
+    try {
+      const quote = await cashuWallet.createMeltQuote({
+        mintUrl: value.mintUrl,
+        invoice: value.invoice,
+      });
+      app.ports.receiveMessage.send({
+        messageType: 'cashuMeltQuote',
+        value: {
+          requestId: value.requestId,
+          mintUrl: quote.mintUrl,
+          invoice: quote.invoice,
+          amount: quote.amount,
+          feeReserve: quote.feeReserve,
+          total: quote.total,
+        },
+      });
+    } catch (error) {
+      console.error('createCashuMeltQuote failed', error);
+      app.ports.receiveMessage.send({
+        messageType: 'cashuMeltFailed',
+        value: {
+          requestId: value.requestId,
+          reason: error?.message || 'failed to create Lightning melt quote',
+        },
+      });
+    }
+  }
+
+  async function meltCashuToLightningCommand(app, value) {
+    try {
+      const result = await cashuWallet.meltToLightning({
+        mintUrl: value.mintUrl,
+        invoice: value.invoice,
+        proofs: value.proofs || [],
+      });
+      app.ports.receiveMessage.send({
+        messageType: 'cashuMelted',
+        value: {
+          requestId: value.requestId,
+          mintUrl: value.mintUrl,
+          amount: result.amount,
+          feeReserve: result.feeReserve,
+          total: result.total,
+          keepProofs: result.keep,
+        },
+      });
+    } catch (error) {
+      console.error('meltCashuToLightning failed', error);
+      app.ports.receiveMessage.send({
+        messageType: 'cashuMeltFailed',
+        value: {
+          requestId: value.requestId,
+          reason: error?.message || 'failed to pay Lightning invoice with eCash',
+        },
+      });
+    }
+  }
+
+  function computeCashuBalanceCommand(app, value) {
+    try {
+      const balance = cashuWallet.getBalance(value.proofs || []);
+      app.ports.receiveMessage.send({
+        messageType: 'cashuBalance',
+        value: { balance },
+      });
+    } catch (error) {
+      app.ports.receiveMessage.send({
+        messageType: 'error',
+        value: { reason: error?.message || 'failed to compute cashu balance' },
+      });
+    }
+  }
+
+  function sendNwcStatus(app, status) {
+    app.ports.receiveMessage.send({
+      messageType: 'nwcStatus',
+      value: {
+        connected: !!status.connected,
+        alias: status.alias || null,
+        network: status.network || null,
+        methods: status.methods || null,
+        lud16: status.lud16 || null,
+        balanceSats: typeof status.balanceSats === 'number' ? status.balanceSats : null,
+        walletPubkeyShort: status.walletPubkeyShort || null,
+        weblnAvailable: !!status.weblnAvailable,
+        canAutoPay: !!status.canAutoPay,
+      },
+    });
+  }
+
+  function getNwcStatusCommand(app) {
+    // Fast sync status first so UI can show "connected" immediately.
+    sendNwcStatus(app, nwcWallet.getStatusSync());
+    nwcWallet.refreshStatus().then((status) => {
+      sendNwcStatus(app, status);
+    }).catch(() => {
+      sendNwcStatus(app, nwcWallet.getStatusSync());
+    });
+  }
+
+  function sendNwcConnectResult(app, ok, reason = undefined) {
+    app.ports.receiveMessage.send({
+      messageType: 'nwcConnectResult',
+      value: ok ? { ok: true } : { ok: false, reason: reason || 'failed to connect wallet' },
+    });
+  }
+
+  async function connectNwcCommand(app, value) {
+    try {
+      const status = await nwcWallet.connect(value?.uri || "");
+      sendNwcStatus(app, status);
+      sendNwcConnectResult(app, true);
+    } catch (error) {
+      console.error('connectNwc failed', error);
+      sendNwcConnectResult(app, false, error?.message || 'failed to connect NWC wallet');
+      sendNwcStatus(app, nwcWallet.getStatusSync());
+    }
+  }
+
+  async function connectNwcAlbyCommand(app) {
+    try {
+      const status = await nwcWallet.connectWithAlby();
+      sendNwcStatus(app, status);
+      sendNwcConnectResult(app, true);
+    } catch (error) {
+      console.error('connectNwcAlby failed', error);
+      const reason =
+        error?.message === 'Popup closed'
+          ? 'Authorization window was closed'
+          : (error?.message || 'failed to connect with Alby');
+      sendNwcConnectResult(app, false, reason);
+      sendNwcStatus(app, nwcWallet.getStatusSync());
+    }
+  }
+
+  async function startNwaConnectCommand(app) {
+    try {
+      const result = await nwcWallet.startNwa(
+        (status) => {
+          sendNwcStatus(app, status);
+          sendNwcConnectResult(app, true);
+          app.ports.receiveMessage.send({
+            messageType: 'nwaWaiting',
+            value: { active: false, connectionUri: null },
+          });
+        },
+        (reason) => {
+          sendNwcConnectResult(app, false, reason);
+          app.ports.receiveMessage.send({
+            messageType: 'nwaWaiting',
+            value: { active: false, connectionUri: null },
+          });
+        }
+      );
+      app.ports.receiveMessage.send({
+        messageType: 'nwaWaiting',
+        value: { active: true, connectionUri: result.connectionUri },
+      });
+    } catch (error) {
+      console.error('startNwaConnect failed', error);
+      sendNwcConnectResult(app, false, error?.message || 'failed to start wallet QR connect');
+      app.ports.receiveMessage.send({
+        messageType: 'nwaWaiting',
+        value: { active: false, connectionUri: null },
+      });
+    }
+  }
+
+  function cancelNwaConnectCommand(app) {
+    nwcWallet.cancelNwa();
+    app.ports.receiveMessage.send({
+      messageType: 'nwaWaiting',
+      value: { active: false, connectionUri: null },
+    });
+  }
+
+  async function enableWeblnCommand(app) {
+    try {
+      const status = await nwcWallet.enableWebln();
+      sendNwcStatus(app, status);
+      sendNwcConnectResult(app, true);
+    } catch (error) {
+      console.error('enableWebln failed', error);
+      sendNwcConnectResult(app, false, error?.message || 'failed to enable WebLN');
+      sendNwcStatus(app, nwcWallet.getStatusSync());
+    }
+  }
+
+  function disconnectNwcCommand(app) {
+    const status = nwcWallet.disconnect();
+    sendNwcStatus(app, status);
+  }
+
+  async function payInvoiceNwcCommand(app, value) {
+    const invoice = value?.invoice;
+    if (!invoice || typeof invoice !== 'string') {
+      app.ports.receiveMessage.send({
+        messageType: 'nwcPayFailed',
+        value: { reason: 'missing invoice' },
+      });
+      return;
+    }
+    const canPay = !!nwcWallet.getStoredUri() || nwcWallet.isWeblnAvailable();
+    if (!canPay) {
+      app.ports.receiveMessage.send({
+        messageType: 'nwcPaySkipped',
+        value: null,
+      });
+      return;
+    }
+    try {
+      const result = await nwcWallet.payInvoice(invoice);
+      app.ports.receiveMessage.send({
+        messageType: 'nwcPaySucceeded',
+        value: { preimage: result.preimage || null },
+      });
+    } catch (error) {
+      console.error('payInvoiceNwc failed', error);
+      if (error?.message === 'NWC_NOT_CONNECTED' || error?.message === 'WEBLN_NOT_AVAILABLE') {
+        app.ports.receiveMessage.send({
+          messageType: 'nwcPaySkipped',
+          value: null,
+        });
+      } else {
+        app.ports.receiveMessage.send({
+          messageType: 'nwcPayFailed',
+          value: { reason: error?.message || 'Wallet payment failed' },
+        });
+      }
+    }
+  }
+
   async function unwrapPrivateRelayListEvent(ndkEvent) {
     const stringifiedEvent = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
     ndkEvent.tags = JSON.parse(stringifiedEvent);
@@ -1226,9 +1958,22 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   }
 
   async function unwrapDraftEvent(ndkEvent) {
+    // NIP-37: blank content is a tombstone (deleted draft).
+    if (!ndkEvent.content || ndkEvent.content.length === 0) {
+      return null;
+    }
     const stringifiedEvent = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
     if (stringifiedEvent) {
       const event = JSON.parse(stringifiedEvent);
+      // Carry relay hints from the wrap so draft delete can target them.
+      if (ndkEvent.onRelays && Array.isArray(ndkEvent.onRelays)) {
+        event.onRelays = ndkEvent.onRelays;
+      } else if (ndkEvent.relay) {
+        const relayUrl = typeof ndkEvent.relay === 'string' ? ndkEvent.relay : (ndkEvent.relay.url || null);
+        if (relayUrl) {
+          event.onRelays = [relayUrl];
+        }
+      }
       return event;
     } else {
       console.log("Unable to decrypt draft event. Ignoring the event.")
@@ -1269,7 +2014,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   }
 
   function fillZapReceipt(ndkEvent: any) {
-    const zapReceipt: Record<string, any> = { id: ndkEvent.id };
+    const zapReceipt: Record<string, any> = {
+      id: ndkEvent.id,
+      createdAt: ndkEvent.created_at,
+    };
 
     ndkEvent.tags.forEach((tag: any[]) => {
       switch (tag[0]) {

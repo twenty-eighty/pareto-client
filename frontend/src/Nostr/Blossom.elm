@@ -10,8 +10,10 @@ import Nostr.Event exposing (Event, Kind(..), Tag(..))
 import Nostr.Nip11 exposing (decodeUnixTime)
 import Nostr.Nip94 as Nip94 exposing (FileMetadata)
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (PubKey, RelayUrl, ServerUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (PubKey, ServerUrl)
 import Time
+import Dict exposing (Dict)
 
 
 type alias BlobDescriptor =
@@ -59,6 +61,17 @@ userServerListFromEvent event =
                     []
     in
     ( event.pubKey, userServerList )
+
+
+ingest : Dict PubKey (List String) -> List Event -> Dict PubKey (List String)
+ingest dict events =
+    events
+        |> List.map userServerListFromEvent
+        |> List.foldl
+            (\( pubKey, userServerList ) acc ->
+                Dict.insert pubKey userServerList acc
+            )
+            dict
 
 
 eventWithBlossomServerList : BrowserEnv -> PubKey -> List ServerUrl -> Event

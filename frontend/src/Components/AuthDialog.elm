@@ -18,6 +18,7 @@ import Browser.Dom as Dom
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.ModalDialog as ModalDialog
+import Css
 import Dict
 import EmailValidation
 import Html.Styled as Html exposing (Html, div, input, p, span, text)
@@ -31,13 +32,14 @@ import Nostr
 import QRCode
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (profileDisplayName, shortenedPubKey)
-import Nostr.Types exposing (IncomingMessage, LoginStatus(..), PubKey, loggedInPubKey)
+import Nostr.Types exposing (IncomingMessage, LoginMethod(..), LoginStatus(..), PubKey, loggedInPubKey)
 import Pareto
 import Ports
 import Process
 import SHA256
 import Task
 import Svg.Attributes as SvgAttr
+import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as TwTheme
 import Tailwind.Utilities as Tw
 import Translations.AuthDialog as Translations
@@ -121,7 +123,8 @@ type alias Internal =
     { open : Bool
     , screen : Screen
     , identities : List Identity
-    , activeId : Maybe String
+      -- At most one live session identity — never derive Active from pubkey alone.
+    , sessionIdentityId : Maybe String
     , emailInput : String
     , displayNameInput : String
     , npubInput : String
@@ -137,6 +140,7 @@ type alias Internal =
     , error : Maybe String
     , busy : Bool
     , extensionAvailable : Bool
+    , extensionPubkey : Maybe PubKey
     , passkeySupported : Maybe Bool
     , hasPasskeyCredential : Bool
     , pendingPasskeyPubKey : Maybe String
@@ -182,6 +186,117 @@ type alias Identity =
     , locked : Bool
     , hasPasskey : Bool
     }
+
+
+{-| Extension identities can only be used when window.nostr currently exposes
+the same pubkey. Prefer disabled UI over a confusing activate error.
+-}
+extensionIdentityBlocked : Internal -> Identity -> Bool
+extensionIdentityBlocked m identity =
+    identity.method
+        == "extension"
+        && (case m.extensionPubkey of
+                Just extensionPk ->
+                    String.toLower identity.pubkey /= extensionPk
+
+                Nothing ->
+                    False
+           )
+
+
+{-| True only for the identity that matches the live session pubkey *and*
+login method — so extension + bunker for the same pubkey cannot both be Active.
+-}
+identityIsSessionActive : LoginStatus -> Identity -> Bool
+identityIsSessionActive loginStatus identity =
+    case loginStatus of
+        LoggedIn pubKey loginMethod ->
+            String.toLower identity.pubkey
+                == String.toLower pubKey
+                && identityMatchesLoginMethod identity loginMethod
+
+        _ ->
+            False
+
+
+identityMatchesLoginMethod : Identity -> LoginMethod -> Bool
+identityMatchesLoginMethod identity loginMethod =
+    case ( identity.method, loginMethod ) of
+        ( "extension", LoginMethodExtension ) ->
+            True
+
+        ( "bunker", LoginMethodConnect ) ->
+            True
+
+        ( "ncryptsec", LoginMethodLocal ) ->
+            True
+
+        ( "npub", LoginMethodReadOnly ) ->
+            True
+
+        ( "passkey", LoginMethodOther "passkey" ) ->
+            True
+
+        ( method, LoginMethodOther other ) ->
+            method == other
+
+        _ ->
+            False
+
+
+{-| Pick at most one identity id for the live session.
+-}
+sessionIdentityIdFor : LoginStatus -> List Identity -> Maybe String
+sessionIdentityIdFor loginStatus identities =
+    identities
+        |> List.filter (identityIsSessionActive loginStatus)
+        |> List.map .id
+        |> List.head
+
+
+identityIdForUserMessage : PubKey -> Maybe String -> List Identity -> Maybe String
+identityIdForUserMessage pubKey maybeMethod identities =
+    case maybeMethod of
+        Just methodStr ->
+            let
+                loginMethod =
+                    loginMethodFromString methodStr
+            in
+            identities
+                |> List.filter
+                    (\identity ->
+                        String.toLower identity.pubkey
+                            == String.toLower pubKey
+                            && identityMatchesLoginMethod identity loginMethod
+                    )
+                |> List.map .id
+                |> List.head
+
+        Nothing ->
+            -- Method missing: still pick at most one identity for this pubkey.
+            identities
+                |> List.filter (\identity -> String.toLower identity.pubkey == String.toLower pubKey)
+                |> List.map .id
+                |> List.head
+
+
+loginMethodFromString : String -> LoginMethod
+loginMethodFromString method =
+    case String.toLower method of
+        "connect" ->
+            LoginMethodConnect
+
+        "extension" ->
+            LoginMethodExtension
+
+        "local" ->
+            LoginMethodLocal
+
+        "readonly" ->
+            LoginMethodReadOnly
+
+        other ->
+            LoginMethodOther other
 
 
 {-| Server login key: SHA-256 hex of `lowercase(trim(email)) ++ ":" ++ password`.
@@ -278,7 +393,7 @@ init =
         { open = False
         , screen = Home
         , identities = []
-        , activeId = Nothing
+        , sessionIdentityId = Nothing
         , emailInput = ""
         , displayNameInput = ""
         , npubInput = ""
@@ -294,6 +409,7 @@ init =
         , error = Nothing
         , busy = False
         , extensionAvailable = False
+        , extensionPubkey = Nothing
         , passkeySupported = Nothing
         , hasPasskeyCredential = False
         , pendingPasskeyPubKey = Nothing
@@ -665,21 +781,37 @@ update browserEnv msg (Model m) =
             )
 
         UseIdentity id locked ->
-            if locked then
-                ( Model
-                    { m
-                        | screen = UnlockForm
-                        , unlockId = Just id
-                        , passwordInput = ""
-                        , error = Nothing
-                    }
-                , focusFirstField
-                )
+            case List.filter (\identity -> identity.id == id) m.identities |> List.head of
+                Just identity ->
+                    if extensionIdentityBlocked m identity then
+                        ( Model
+                            { m
+                                | busy = False
+                                , error = Just (Translations.extensionIdentityMismatchHelpText [ browserEnv.translations ])
+                            }
+                        , Cmd.none
+                        )
 
-            else
-                ( Model { m | busy = True, error = Nothing }
-                , Ports.activateIdentity id Nothing
-                )
+                    else if locked then
+                        ( Model
+                            { m
+                                | screen = UnlockForm
+                                , unlockId = Just id
+                                , passwordInput = ""
+                                , error = Nothing
+                            }
+                        , focusFirstField
+                        )
+
+                    else
+                        ( Model { m | busy = True, error = Nothing }
+                        , Ports.activateIdentity id Nothing
+                        )
+
+                Nothing ->
+                    ( Model { m | busy = True, error = Nothing }
+                    , Ports.activateIdentity id Nothing
+                    )
 
         ConfirmUnlock ->
             case m.unlockId of
@@ -789,7 +921,15 @@ handlePort browserEnv (Model m) incoming =
                     ( Model
                         { m
                             | identities = data.identities
-                            , activeId = data.activeId
+                            , sessionIdentityId =
+                                case data.activeId of
+                                    Just id ->
+                                        Just id
+
+                                    Nothing ->
+                                        -- Don't wipe a session id derived from the "user" message
+                                        -- when an availability-only identities push omits activeId.
+                                        m.sessionIdentityId
                             , busy = False
                         }
                     , Cmd.none
@@ -800,7 +940,11 @@ handlePort browserEnv (Model m) incoming =
 
         "user" ->
             case Decode.decodeValue userOfferDecoder incoming.value of
-                Ok { pubKey, offerPasskey } ->
+                Ok { pubKey, method, offerPasskey } ->
+                    let
+                        sessionId =
+                            identityIdForUserMessage pubKey method m.identities
+                    in
                     if m.addPasskeyAfterUnlock || offerPasskey then
                         ( Model
                             { m
@@ -813,6 +957,7 @@ handlePort browserEnv (Model m) incoming =
                                 , pendingPasskeyPubKey = Just pubKey
                                 , passkeySupported = Just True
                                 , addPasskeyAfterUnlock = False
+                                , sessionIdentityId = sessionId
                                 , screen = CreatePasskey
                             }
                         , Cmd.none
@@ -829,6 +974,7 @@ handlePort browserEnv (Model m) incoming =
                                 , pendingEmail = Nothing
                                 , pendingPasskeyPubKey = Nothing
                                 , addPasskeyAfterUnlock = False
+                                , sessionIdentityId = sessionId
                                 , screen = Home
                             }
                         , Cmd.none
@@ -845,6 +991,7 @@ handlePort browserEnv (Model m) incoming =
                             , pendingEmail = Nothing
                             , pendingPasskeyPubKey = Nothing
                             , addPasskeyAfterUnlock = False
+                            , sessionIdentityId = Nothing
                             , screen = Home
                         }
                     , Cmd.none
@@ -893,7 +1040,24 @@ handlePort browserEnv (Model m) incoming =
                     ( Model { m | busy = False, error = Just "Could not create key", pendingSignupKey = Nothing }, Cmd.none )
 
         "loggedOut" ->
-            ( Model { m | busy = False, activeId = Nothing, pendingEmail = Nothing, screen = Home }
+            ( Model
+                { m
+                    | busy = False
+                    , pendingEmail = Nothing
+                    , sessionIdentityId = Nothing
+                    , screen =
+                        if m.screen == UnlockForm then
+                            UnlockForm
+
+                        else
+                            Home
+                    , passwordInput = ""
+                    , passwordConfirmInput = ""
+                    , ncryptsecInput = ""
+                    , pendingSignupKey = Nothing
+                    , loginHash = Nothing
+                    , error = Nothing
+                }
             , Cmd.none
             )
 
@@ -936,9 +1100,22 @@ handlePort browserEnv (Model m) incoming =
                     ( Model m, Cmd.none )
 
         "nostrExtension" ->
-            case Decode.decodeValue (Decode.field "available" Decode.bool) incoming.value of
-                Ok available ->
-                    ( Model { m | extensionAvailable = available }, Cmd.none )
+            case Decode.decodeValue nostrExtensionDecoder incoming.value of
+                Ok { available, maybePubkey } ->
+                    ( Model
+                        { m
+                            | extensionAvailable = available
+                            , extensionPubkey =
+                                case maybePubkey of
+                                    Just pubkey ->
+                                        pubkey
+
+                                    Nothing ->
+                                        -- Availability-only probe — keep last known pubkey.
+                                        m.extensionPubkey
+                        }
+                    , Cmd.none
+                    )
 
                 Err _ ->
                     ( Model m, Cmd.none )
@@ -981,6 +1158,27 @@ type alias EncryptedKey =
     }
 
 
+type alias NostrExtensionInfo =
+    { available : Bool
+    , maybePubkey : Maybe (Maybe PubKey)
+    }
+
+
+nostrExtensionDecoder : Decode.Decoder NostrExtensionInfo
+nostrExtensionDecoder =
+    Decode.map2 NostrExtensionInfo
+        (Decode.field "available" Decode.bool)
+        (Decode.maybe
+            (Decode.field "pubkey"
+                (Decode.oneOf
+                    [ Decode.null Nothing
+                    , Decode.string |> Decode.map (String.toLower >> Just)
+                    ]
+                )
+            )
+        )
+
+
 encryptedKeyDecoder : Decode.Decoder EncryptedKey
 encryptedKeyDecoder =
     Decode.map2 EncryptedKey
@@ -990,18 +1188,20 @@ encryptedKeyDecoder =
 
 type alias UserOffer =
     { pubKey : String
+    , method : Maybe String
     , offerPasskey : Bool
     }
 
 
 userOfferDecoder : Decode.Decoder UserOffer
 userOfferDecoder =
-    Decode.map2 UserOffer
+    Decode.map3 UserOffer
         (Decode.oneOf
             [ Decode.field "pubKey" Decode.string
             , Decode.field "pubkey" Decode.string
             ]
         )
+        (Decode.maybe (Decode.field "method" Decode.string))
         (Decode.map (Maybe.withDefault False) (Decode.maybe (Decode.field "offerPasskey" Decode.bool)))
 
 
@@ -1407,7 +1607,7 @@ viewHome theme t nostr loginStatus m =
 
     else
         div [ css [ Tw.flex, Tw.flex_col, Tw.gap_3, Tw.min_w_72 ] ]
-            ([ viewIdentityList theme t nostr m
+            ([ viewIdentityList theme t nostr loginStatus m
              , fullButton theme (Translations.addIdentityButtonTitle t) (ShowScreen AddIdentity) m.busy
              ]
                 ++ (if loggedInPubKey loginStatus /= Nothing then
@@ -1513,19 +1713,36 @@ extensionMethodButton theme t m =
             |> Button.view
 
 
-viewIdentityList : Theme -> List I18Next.Translations -> Nostr.Model -> Internal -> Html Msg
-viewIdentityList theme t nostr m =
+viewIdentityList : Theme -> List I18Next.Translations -> Nostr.Model -> LoginStatus -> Internal -> Html Msg
+viewIdentityList theme t nostr loginStatus m =
+    let
+        -- Single Maybe id — structurally impossible for two rows to be Active.
+        activeId =
+            case m.sessionIdentityId of
+                Just id ->
+                    if List.any (\identity -> identity.id == id) m.identities then
+                        Just id
+
+                    else
+                        sessionIdentityIdFor loginStatus m.identities
+
+                Nothing ->
+                    sessionIdentityIdFor loginStatus m.identities
+    in
     div [ css [ Tw.flex, Tw.flex_col, Tw.gap_2 ] ]
         (p [ css [ Tw.text_sm, Tw.font_semibold ] ] [ text (Translations.savedIdentitiesTitle t) ]
-            :: List.map (viewIdentityRow theme t nostr m) m.identities
+            :: List.map (viewIdentityRow theme t nostr m activeId) m.identities
         )
 
 
-viewIdentityRow : Theme -> List I18Next.Translations -> Nostr.Model -> Internal -> Identity -> Html Msg
-viewIdentityRow theme t nostr m identity =
+viewIdentityRow : Theme -> List I18Next.Translations -> Nostr.Model -> Internal -> Maybe String -> Identity -> Html Msg
+viewIdentityRow theme t nostr m activeId identity =
     let
         isActive =
-            m.activeId == Just identity.id
+            activeId == Just identity.id
+
+        extensionMismatch =
+            extensionIdentityBlocked m identity
 
         npub =
             npubForPubKey identity.pubkey
@@ -1543,7 +1760,7 @@ viewIdentityRow theme t nostr m identity =
     div
         [ css
             [ Tw.flex
-            , Tw.items_center
+            , Tw.items_stretch
             , Tw.justify_between
             , Tw.gap_2
             , Tw.border
@@ -1553,7 +1770,15 @@ viewIdentityRow theme t nostr m identity =
             , Tw.py_2
             ]
         ]
-        [ div [ css [ Tw.flex, Tw.flex_col, Tw.min_w_0 ] ]
+        [ div
+            [ css
+                [ Tw.flex
+                , Tw.flex_col
+                , Tw.justify_center
+                , Tw.min_w_0
+                , Tw.flex_1
+                ]
+            ]
             [ span [ css [ Tw.text_sm, Tw.font_medium, Tw.truncate ] ] [ text name ]
             , span [ css [ Tw.text_xs, Tw.opacity_60, Tw.truncate ] ]
                 [ text
@@ -1568,10 +1793,72 @@ viewIdentityRow theme t nostr m identity =
                         ++ shortenedPubKey 11 npub
                     )
                 ]
+            , if extensionMismatch then
+                span [ css [ Tw.text_xs, Tw.text_color TwTheme.amber_700 ] ]
+                    [ text (Translations.extensionIdentityMismatchHelpText t) ]
+
+              else
+                emptyHtml
             ]
-        , div [ css [ Tw.flex, Tw.flex_wrap, Tw.gap_2, Tw.justify_end ] ]
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.items_center
+                , Tw.gap_2
+                , Tw.shrink_0
+                ]
+            ]
             [ if isActive then
-                span [ css [ Tw.text_xs, Tw.font_semibold ] ] [ text (Translations.activeIdentityLabel t) ]
+                -- Mirror Button.view's outer wrapper (aligns with Remove).
+                -- In-flow invisible "Use" sets the box; Active is absolutely
+                -- centered in that box (same footprint as the Use button).
+                div
+                    [ css
+                        [ Tw.flex
+                        , Tw.flex_row
+                        , Tw.gap_2
+                        , Tw.items_center
+                        ]
+                    ]
+                    [ div
+                        [ css
+                            [ Css.position Css.relative
+                            , Css.display Css.inlineBlock
+                            ]
+                        ]
+                        [ span
+                            [ css
+                                [ Css.visibility Css.hidden
+                                , Tw.py_2
+                                , Tw.px_2
+                                , Bp.lg [ Tw.px_4 ]
+                                , Tw.text_xs
+                                , Tw.font_semibold
+                                , Tw.whitespace_nowrap
+                                , Tw.inline_block
+                                ]
+                            , Attr.attribute "aria-hidden" "true"
+                            ]
+                            [ text (Translations.useIdentityButtonTitle t) ]
+                        , span
+                            [ css
+                                [ Css.position Css.absolute
+                                , Css.top Css.zero
+                                , Css.right Css.zero
+                                , Css.bottom Css.zero
+                                , Css.left Css.zero
+                                , Css.displayFlex
+                                , Css.alignItems Css.center
+                                , Css.justifyContent Css.center
+                                , Tw.text_xs
+                                , Tw.font_semibold
+                                , Tw.whitespace_nowrap
+                                ]
+                            ]
+                            [ text (Translations.activeIdentityLabel t) ]
+                        ]
+                    ]
 
               else
                 Button.new
@@ -1581,10 +1868,16 @@ viewIdentityRow theme t nostr m identity =
 
                         else
                             Translations.useIdentityButtonTitle t
-                    , onClick = Just (UseIdentity identity.id identity.locked)
+                    , onClick =
+                        if extensionMismatch then
+                            Nothing
+
+                        else
+                            Just (UseIdentity identity.id identity.locked)
                     , theme = theme
                     }
                     |> Button.withSizeSmall
+                    |> Button.withDisabled extensionMismatch
                     |> Button.view
             , if canAddPasskey then
                 Button.new

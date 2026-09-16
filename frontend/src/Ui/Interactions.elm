@@ -10,7 +10,7 @@ import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events as Events
 import I18Next
 import Nostr
-import Nostr.Relay exposing (websocketUrl)
+import Nostr.Relay as Relay
 import Nostr.Types exposing (LoginStatus, PubKey, loggedInPubKey)
 import Pareto
 import Set exposing (Set)
@@ -50,7 +50,7 @@ viewInteractions previewData instanceId =
             [ Components.Interactions.CommentButtonElement Nothing
             , Components.Interactions.LikeButtonElement
             , Components.Interactions.RepostButtonElement
-            , Components.Interactions.ZapButtonElement instanceId previewData.zapRelays
+            , Components.Interactions.zapButton instanceId previewData.zapRelays
             , Components.Interactions.BookmarkButtonElement
             , Components.Interactions.ShareButtonElement previewData.sharingInfo
             ]
@@ -114,12 +114,11 @@ extendedZapRelays zapRelays nostrModel loginStatus =
         -- Public writeable relays only — Pareto relays reject non-author writes.
         publicRelays =
             Pareto.recommendedOutboxRelays
-                |> List.map websocketUrl
+                |> List.map Relay.toWire
                 |> Set.fromList
 
         candidateRelays =
             Set.union zapRelays pubKeyRelays
-                |> Set.map websocketUrl
     in
     if Set.size candidateRelays == Set.size zapRelays || Set.size candidateRelays == Set.size pubKeyRelays then
         Set.union candidateRelays publicRelays
@@ -132,5 +131,5 @@ pubkeyRelays : Nostr.Model -> PubKey -> Set String
 pubkeyRelays nostrModel pubKey =
     pubKey
         |> Nostr.getNip65RelaysForPubKey nostrModel
-        |> List.map (\( _, relay ) -> websocketUrl relay.urlWithoutProtocol)
+        |> List.map (\( _, relay ) -> Relay.toWire relay.url)
         |> Set.fromList

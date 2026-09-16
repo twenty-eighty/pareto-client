@@ -20,6 +20,8 @@ import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (Following(..), LoginStatus(..), PubKey)
 import Page exposing (Page)
+import Ports
+import Nostr.Relay as Relay
 import Pareto
 import Route exposing (Route)
 import Route.Path
@@ -76,6 +78,7 @@ type Msg
     | PublishHandlerInformation PubKey HandlerInformation
     | PublishClientProfile PubKey HandlerInformation
     | PublishAuthorsList PubKey
+    | InstallPwa
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -107,6 +110,9 @@ update shared msg model =
                 |> Effect.sendSharedMsg
             )
 
+        InstallPwa ->
+            ( model, Effect.sendCmd Ports.installPwa )
+
 
 sendClientRecommendation : Nostr.Model -> PubKey -> HandlerInformation -> Effect Msg
 sendClientRecommendation nostr pubKey handlerInformation =
@@ -115,7 +121,7 @@ sendClientRecommendation nostr pubKey handlerInformation =
     , kind = KindHandlerRecommendation
     , tags =
         [ EventDelegationTag (numberForKind KindLongFormContent |> String.fromInt)
-        , GenericTag [ "a", buildAddress ( KindHandlerInformation, handlerInformation.pubKey, handlerInformation.handlerIdentifier ), Pareto.paretoRelay, "web" ]
+        , GenericTag [ "a", buildAddress ( KindHandlerInformation, handlerInformation.pubKey, handlerInformation.handlerIdentifier ), Relay.toWire Pareto.paretoRelay, "web" ]
         ]
     , content = ""
     , id = ""
@@ -455,6 +461,7 @@ viewFooter theme browserEnv =
             ]
         , viewPrivacyPolicyLink styles browserEnv.translations browserEnv.language
         , viewImprintLink styles browserEnv.translations browserEnv.language
+        , viewInstallAppButton theme browserEnv
         , viewBuildInfo browserEnv.translations browserEnv
         ]
 
@@ -487,6 +494,21 @@ viewImprintLink styles translations language =
 
         _ ->
             emptyHtml
+
+
+viewInstallAppButton : Theme -> BrowserEnv -> Html Msg
+viewInstallAppButton theme browserEnv =
+    if browserEnv.installPromptAvailable then
+        Button.new
+            { label = Translations.installAppButtonTitle [ browserEnv.translations ]
+            , onClick = Just InstallPwa
+            , theme = theme
+            }
+            |> Button.withTypePrimary
+            |> Button.view
+
+    else
+        emptyHtml
 
 
 viewBuildInfo : I18Next.Translations -> BrowserEnv -> Html Msg

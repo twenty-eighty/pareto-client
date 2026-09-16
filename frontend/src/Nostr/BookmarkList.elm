@@ -1,5 +1,6 @@
 module Nostr.BookmarkList exposing (..)
 
+import Dict exposing (Dict)
 import Json.Decode exposing (list)
 import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), TagReference(..), addAddressTags, addEventIdTags, emptyEvent)
 import Nostr.Types exposing (EventId, PubKey)
@@ -33,6 +34,50 @@ bookmarksCount bookmarks =
         + List.length bookmarks.articles
 
 
+containsAddress : BookmarkList -> AddressComponents -> Bool
+containsAddress bookmarkList ( kind, author, identifier ) =
+    bookmarkList.articles
+        |> List.filter
+            (\( articleKind, articleAuthor, articleIdentifier ) ->
+                (articleKind == kind)
+                    && (articleAuthor == author)
+                    && (articleIdentifier == identifier)
+            )
+        |> List.isEmpty
+        |> not
+
+
+containsEventId : BookmarkList -> EventId -> Bool
+containsEventId bookmarkList eventId =
+    List.member eventId bookmarkList.notes
+
+
+countAddressAcross : Dict PubKey BookmarkList -> AddressComponents -> Int
+countAddressAcross bookmarkLists addressComponents =
+    bookmarkLists
+        |> Dict.values
+        |> List.map
+            (\bookmarkList ->
+                bookmarkList.articles
+                    |> List.filter (\articleAddressComponents -> articleAddressComponents == addressComponents)
+                    |> List.length
+            )
+        |> List.sum
+
+
+countEventIdAcross : Dict PubKey BookmarkList -> EventId -> Int
+countEventIdAcross bookmarkLists eventId =
+    bookmarkLists
+        |> Dict.values
+        |> List.map
+            (\bookmarkList ->
+                bookmarkList.notes
+                    |> List.filter (\noteEventId -> noteEventId == eventId)
+                    |> List.length
+            )
+        |> List.sum
+
+
 bookmarkListFromEvent : Event -> ( PubKey, BookmarkList )
 bookmarkListFromEvent event =
     let
@@ -52,6 +97,17 @@ bookmarkListFromEvent event =
                     ) emptyBookmarkList
     in
     ( event.pubKey, bookmarkList )
+
+
+ingest : Dict PubKey BookmarkList -> List Event -> Dict PubKey BookmarkList
+ingest dict events =
+    events
+        |> List.map bookmarkListFromEvent
+        |> List.foldl
+            (\( pubKey, bookmarkList ) acc ->
+                Dict.insert pubKey bookmarkList acc
+            )
+            dict
 
 
 bookmarkListWithArticle : BookmarkList -> AddressComponents -> BookmarkList

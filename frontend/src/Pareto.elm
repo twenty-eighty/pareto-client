@@ -6,7 +6,8 @@ import Nostr.Event exposing (Kind(..))
 import Nostr.HandlerInformation exposing (HandlerInformation)
 import Nostr.Nip05 as Nip05
 import Nostr.Profile exposing (Profile)
-import Nostr.Types exposing (PubKey, RelayRole(..), RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (Following(..), PubKey, RelayRole(..))
 import Time
 
 
@@ -170,14 +171,14 @@ paretoNip05 =
 
 paretoRelay : RelayUrl
 paretoRelay =
-    "wss://nostr." ++ applicationDomain
+    Relay.fromString ("wss://nostr." ++ applicationDomain)
 
 
-paretoRelays : List String
+paretoRelays : List RelayUrl
 paretoRelays =
     [ paretoRelay
-    , "wss://nostr.pareto.town"
-    , "wss://pareto.nostr1.com"
+    , Relay.fromString "wss://nostr.pareto.town"
+    , Relay.fromString "wss://pareto.nostr1.com"
     ]
 
 
@@ -212,43 +213,43 @@ defaultBlossomServersPublic =
 
 applicationDataRelays : List RelayUrl
 applicationDataRelays =
-    [ "wss://portal-relay.pareto.space"
-    , "wss://portal-relay.pareto.town"
+    [ Relay.fromString "wss://portal-relay.pareto.space"
+    , Relay.fromString "wss://portal-relay.pareto.town"
     ]
 
 
 teamRelay : RelayUrl
 teamRelay =
-    "team-relay.pareto.space"
+    Relay.fromString "team-relay.pareto.space"
 
 
 testRelayUrls : List RelayUrl
 testRelayUrls =
-    [ "client-test.pareto.space"
+    [ Relay.fromString "client-test.pareto.space"
     ]
 
 
 paretoOutboxRelays : List RelayUrl
 paretoOutboxRelays =
-    [ "nostr.pareto.space"
-    , "nostr.pareto.town"
-    , "pareto.nostr1.com"
+    [ Relay.fromString "nostr.pareto.space"
+    , Relay.fromString "nostr.pareto.town"
+    , Relay.fromString "pareto.nostr1.com"
     ]
 
 
 recommendedOutboxRelays : List RelayUrl
 recommendedOutboxRelays =
-    [ "relay.damus.io"
-    , "nos.lol"
-    , "nostr.wine"
+    [ Relay.fromString "relay.damus.io"
+    , Relay.fromString "nos.lol"
+    , Relay.fromString "nostr.wine"
     ]
 
 
 recommendedInboxRelays : List RelayUrl
 recommendedInboxRelays =
-    [ "nostr.pareto.space"
-    , "nostr.pareto.town"
-    , "pareto.nostr1.com"
+    [ Relay.fromString "nostr.pareto.space"
+    , Relay.fromString "nostr.pareto.town"
+    , Relay.fromString "pareto.nostr1.com"
     ]
         ++ recommendedOutboxRelays
 
@@ -260,13 +261,13 @@ defaultRelays =
 
 defaultSearchRelays : List RelayUrl
 defaultSearchRelays =
-    [ "nostr.wine"
+    [ Relay.fromString "nostr.wine"
     ]
 
 
 delayedPublishingRelays : List RelayUrl
 delayedPublishingRelays =
-    [ "wss://delayed-publisher.pareto.space"
+    [ Relay.fromString "wss://delayed-publisher.pareto.space"
     ]
 
 
@@ -279,7 +280,6 @@ defaultOutboxRelays =
 defaultRelayUrls : List RelayUrl
 defaultRelayUrls =
     defaultRelays
-        |> List.map (String.append "wss://")
 
 
 
@@ -383,6 +383,28 @@ bootstrapAuthorsList =
         |> Dict.fromList
 
 
+bootstrapPubKeyByNip05 : Dict String PubKey
+bootstrapPubKeyByNip05 =
+    bootstrapAuthorsList
+        |> Dict.toList
+        |> List.map (\( key, pubKey ) -> ( String.toLower key, pubKey ))
+        |> Dict.fromList
+
+
+authorsFollowList : List Following
+authorsFollowList =
+    bootstrapAuthorsList
+        |> Dict.toList
+        |> List.map
+            (\( nip05, authorPubKey ) ->
+                FollowingPubKey
+                    { pubKey = authorPubKey
+                    , relay = Just (Relay.toWire paretoRelay)
+                    , petname = Just nip05
+                    }
+            )
+
+
 paretoClientNpub : String
 paretoClientNpub =
     "npub1parecl0l0w6nmtjn7wan9tg3p8kmkpa62c4a65tgq39n7smyu76sht8cm5"
@@ -408,6 +430,13 @@ supportedKinds =
     , KindFileMetadata
     , KindZapRequest
     , KindZapReceipt
+    , KindNutzap
+    , KindNutzapMintRecommendation
+    , KindCashuWalletEvent
+    , KindCashuWalletTokens
+    , KindCashuWalletHistory
+    , KindHighlights
+    , KindPrivateRelayList
     , KindRelayListMetadata
     , KindBookmarkList
     , KindUserServerList

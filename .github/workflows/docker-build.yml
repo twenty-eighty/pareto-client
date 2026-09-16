@@ -14,4 +14,4 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag ${{ env.IMAGE_TAG }}
+      run: docker build . --file Dockerfile --tag ${{ env.IMAGE_TAG }} --build-arg GIT_VERSION=${{ github.sha }}

@@ -1,21 +1,23 @@
 module Pages.E.Event_ exposing (..)
 
 import Components.ArticleComments as ArticleComments
+import Components.ArticleHighlights as ArticleHighlights
 import Components.Interactions
-import Components.RelayStatus exposing (Purpose(..))
 import Dict
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, article, div, text)
-import Html.Styled.Attributes exposing (css)    
+import Html.Styled as Html exposing (Html, div, text)
+import Html.Styled.Attributes exposing (css)
 import Layouts
 import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
 import Nostr
+import Nostr.Query exposing (ContentQueryStatus(..))
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), eventFilterForNip19, informationForKind, kindFromNumber)
 import Nostr.Nip19 as Nip19
 import Nostr.Request exposing (RequestData(..), RequestId)
-import Nostr.Types exposing (IncomingMessage, RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (IncomingMessage)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
@@ -26,10 +28,11 @@ import Shared.Msg
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Translations.Sidebar as Translations
+import Ui.ContentQuery
 import Ui.PicturePost
 import Ui.ShortNote
 import Ui.Styles exposing (Theme)
-import Ui.View exposing (viewRelayStatus)
+import Ui.View
 import Url
 import View exposing (View)
 
@@ -84,12 +87,12 @@ init shared route () =
                     ShortNote noteId Nothing
 
                 Ok (Nip19.NEvent { id, relays }) ->
-                    ShortNote id (Just relays)
+                    ShortNote id (Just (List.map Relay.fromString relays))
 
                 Ok (Nip19.NAddr { identifier, pubKey, kind, relays }) ->
                     case kindFromNumber kind of
                         KindLongFormContent ->
-                            Article ( kindFromNumber kind, pubKey, identifier ) relays
+                            Article ( kindFromNumber kind, pubKey, identifier ) (List.map Relay.fromString relays)
 
                         _ ->
                             NonSupportedKind (kindFromNumber kind)
@@ -102,31 +105,45 @@ init shared route () =
 
         ( effect, requestId ) =
             case ( contentToView, Result.toMaybe decoded |> Maybe.andThen eventFilterForNip19 ) of
-                ( ShortNote _ relays, Just eventFilter ) ->
-                    ( eventFilter
-                        |> RequestShortNote relays
-                        |> Nostr.createRequest shared.nostr ("NIP-19 note " ++ route.params.event) [ KindUserMetadata ]
-                        |> Shared.Msg.RequestNostrEvents
-                        |> Effect.sendSharedMsg
-                    , Just <| Nostr.getLastRequestId shared.nostr
-                    )
+                ( ShortNote noteId relays, Just eventFilter ) ->
+                    case ( Nostr.getShortNoteById shared.nostr noteId, Nostr.getPicturePostById shared.nostr noteId ) of
+                        ( Nothing, Nothing ) ->
+                            ( eventFilter
+                                |> RequestShortNote relays
+                                |> Nostr.createRequest shared.nostr ("NIP-19 note " ++ route.params.event) [ KindUserMetadata ]
+                                |> Shared.Msg.RequestNostrEvents
+                                |> Effect.sendSharedMsg
+                            , Just <| Nostr.getLastRequestId shared.nostr
+                            )
+
+                        _ ->
+                            ( Effect.none
+                            , Nothing
+                            )
 
                 ( ShortNote _ _, Nothing ) ->
                     ( Effect.none
                     , Nothing
                     )
 
-                ( Article _ relays, Just eventFilter ) ->
-                    ( eventFilter
-                        |> RequestArticle (Just relays)
-                        |> Nostr.createRequest shared.nostr ("NIP-19 article " ++ route.params.event) [ KindUserMetadata ]
-                        |> Shared.Msg.RequestNostrEvents
-                        |> Effect.sendSharedMsg
-                    , Just <| Nostr.getLastRequestId shared.nostr
-                    )
+                ( Article addressComponents relays, Just eventFilter ) ->
+                    case Nostr.getArticleForAddressComponents shared.nostr addressComponents of
+                        Just article ->
+                            ( Shared.createArticleDetailsEffect shared.nostr (Just article)
+                            , Nothing
+                            )
 
-                ( Article _ _, Nothing ) ->
-                    ( Effect.none
+                        Nothing ->
+                            ( eventFilter
+                                |> RequestArticle (Just relays)
+                                |> Nostr.createRequest shared.nostr ("NIP-19 article " ++ route.params.event) [ KindUserMetadata ]
+                                |> Shared.Msg.RequestNostrEvents
+                                |> Effect.sendSharedMsg
+                            , Just <| Nostr.getLastRequestId shared.nostr
+                            )
+
+                ( Article addressComponents _, Nothing ) ->
+                    ( Shared.createArticleDetailsEffect shared.nostr (Nostr.getArticleForAddressComponents shared.nostr addressComponents)
                     , Nothing
                     )
 
@@ -250,31 +267,31 @@ viewContent : Shared.Model -> Model -> Html Msg
 viewContent shared model =
     case model.contentToView of
         ShortNote noteId _ ->
-            -- The event ID could be a note or a picture post   
-            case (Nostr.getShortNoteById shared.nostr noteId, Nostr.getPicturePostById shared.nostr noteId) of
+            -- The event ID could be a note or a picture post
+            case ( Nostr.getShortNoteById shared.nostr noteId, Nostr.getPicturePostById shared.nostr noteId ) of
                 ( Just shortNote, _ ) ->
-                        Ui.ShortNote.viewShortNote
-                            { theme = shared.theme
-                            , browserEnv = shared.browserEnv
-                            , nostr = shared.nostr
-                            , userPubKey = Nothing
+                    Ui.ShortNote.viewShortNote
+                        { theme = shared.theme
+                        , browserEnv = shared.browserEnv
+                        , nostr = shared.nostr
+                        , userPubKey = Nothing
+                        }
+                        { author = Nostr.getAuthor shared.nostr shortNote.pubKey
+                        , interactions =
+                            { zaps = Nothing
+                            , articleComments = []
+                            , articleCommentComments = Dict.empty
+                            , highlights = Nothing
+                            , reactions = Nothing
+                            , reposts = Nothing
+                            , notes = Nothing
+                            , bookmarks = Nothing
+                            , isBookmarked = False
+                            , reaction = Nothing
+                            , repost = Nothing
                             }
-                            { author = Nostr.getAuthor shared.nostr shortNote.pubKey
-                            , interactions =
-                                { zaps = Nothing
-                                , articleComments = []
-                                , articleCommentComments = Dict.empty
-                                , highlights = Nothing
-                                , reactions = Nothing
-                                , reposts = Nothing
-                                , notes = Nothing
-                                , bookmarks = Nothing
-                                , isBookmarked = False
-                                , reaction = Nothing
-                                , repost = Nothing
-                                }
-                            }
-                            shortNote
+                        }
+                        shortNote
 
                 ( Nothing, Just picturePost ) ->
                     Ui.PicturePost.viewPicturePost
@@ -290,18 +307,29 @@ viewContent shared model =
                         picturePost
 
                 _ ->
-                    viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingNote model.requestId
+                    Ui.ContentQuery.viewNoteStatus shared.theme
+                        shared.browserEnv.translations
+                        shared.nostr
+                        (Nostr.articleQueryStatusFrom shared.nostr Nothing model.requestId)
 
         Article addressComponents _ ->
-            Nostr.getArticleForAddressComponents shared.nostr addressComponents
-                |> Maybe.map
-                    (Ui.View.viewArticle
+            let
+                queryStatus =
+                    Nostr.articleQueryStatusFrom shared.nostr
+                        (Nostr.getArticleForAddressComponents shared.nostr addressComponents)
+                        model.requestId
+            in
+            case queryStatus of
+                ContentQueryReady article ->
+                    Ui.View.viewArticle
                         { articleComments = ArticleComments.init
+                        , articleHighlights = ArticleHighlights.init
                         , articleToInteractionsMsg = \_ _ -> NoOp
                         , bookmarkButtonMsg = \_ _ -> NoOp
                         , bookmarkButtons = Dict.empty
                         , browserEnv = shared.browserEnv
                         , commentsToMsg = \_ -> NoOp
+                        , highlightsToMsg = \_ -> NoOp
                         , deleteButtonMsg = Nothing
                         , nostr = shared.nostr
                         , loginStatus = shared.loginStatus
@@ -311,8 +339,10 @@ viewContent shared model =
                         }
                         (Just model.loadedContent)
                         Components.Interactions.init
-                    )
-                |> Maybe.withDefault (viewRelayStatus shared.theme shared.browserEnv.translations shared.nostr LoadingArticle model.requestId)
+                        article
+
+                _ ->
+                    Ui.ContentQuery.viewStatus shared.theme shared.browserEnv.translations shared.nostr queryStatus
 
         NonSupportedNip19 parameter ->
             div

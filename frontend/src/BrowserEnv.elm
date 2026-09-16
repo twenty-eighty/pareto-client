@@ -313,6 +313,14 @@ updateWithPortMessage browserEnv portMessage =
                 Err _ ->
                     ( browserEnv, Cmd.none )
 
+        "installPromptAvailable" ->
+            case Decode.decodeValue Decode.bool portMessage.value of
+                Ok available ->
+                    ( { browserEnv | installPromptAvailable = available }, Cmd.none )
+
+                Err _ ->
+                    ( browserEnv, Cmd.none )
+
         _ ->
             ( browserEnv, Cmd.none )
 

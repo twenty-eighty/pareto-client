@@ -116,23 +116,23 @@ relayFeatureFromNip nip =
 
 
 fetchNip11 : Bool -> (Result Http.Error Nip11Info -> msg) -> String -> Cmd msg
-fetchNip11 useProxy toMsg urlWithoutProtocol =
+fetchNip11 useProxy toMsg httpUrl =
     -- experimental: the request via proxy should avoid CORS errors
     -- requesting NIP-11 data to relays
     if useProxy then
-        fetchNip11Proxy toMsg urlWithoutProtocol
+        fetchNip11Proxy toMsg httpUrl
     else
-        fetchNip11Directly toMsg urlWithoutProtocol
+        fetchNip11Directly toMsg httpUrl
 
 
 fetchNip11Directly : (Result Http.Error Nip11Info -> msg) -> String -> Cmd msg
-fetchNip11Directly toMsg urlWithoutProtocol =
+fetchNip11Directly toMsg httpUrl =
     Http.request
         { method = "GET"
         , headers =
             [ Http.header "Accept" "application/nostr+json"
             ]
-        , url = "https://" ++ urlWithoutProtocol
+        , url = httpUrl
         , body = Http.emptyBody
         , expect = Http.expectJson toMsg nip11Decoder
         , timeout = Nothing
@@ -141,7 +141,7 @@ fetchNip11Directly toMsg urlWithoutProtocol =
 
 
 fetchNip11Proxy : (Result Http.Error Nip11Info -> msg) -> String -> Cmd msg
-fetchNip11Proxy toMsg urlWithoutProtocol =
+fetchNip11Proxy toMsg httpUrl =
     let
         apiUrl =
             "https://pareto.space"
@@ -153,7 +153,7 @@ fetchNip11Proxy toMsg urlWithoutProtocol =
         , headers =
             [ Http.header "Accept" "application/nostr+json"
             ]
-        , url = apiUrl ++ "/api/nip11?url=" ++ (Url.percentEncode <| "https://" ++ urlWithoutProtocol)
+        , url = apiUrl ++ "/api/nip11?url=" ++ Url.percentEncode httpUrl
         , body = Http.emptyBody
         , expect = Http.expectJson toMsg nip11Decoder
         , timeout = Nothing

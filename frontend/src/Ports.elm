@@ -1,7 +1,9 @@
 port module Ports exposing (..)
 
+import Dict
 import Json.Encode as Encode
 import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), buildAddress, encodeEvent, encodeEventFilter)
+import Nostr.Relay as Relay exposing (RelayUrl)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestId)
 import Nostr.Send exposing (SendRequestId)
 import Nostr.Types exposing (IncomingMessage, OutgoingCommand, PubKey)
@@ -15,7 +17,7 @@ port sendCommand : OutgoingCommand -> Cmd msg
 port receiveMessage : (IncomingMessage -> msg) -> Sub msg
 
 
-connect : List String -> Cmd msg
+connect : List RelayUrl -> Cmd msg
 connect relays =
     sendCommand
         { command = "connect"
@@ -23,7 +25,7 @@ connect relays =
             Encode.object
                 [ ( "client", Encode.string Pareto.client )
                 , ( "nip89", Encode.string <| buildAddress ( KindHandlerInformation, Pareto.paretoClientPubKey, Pareto.handlerIdentifier ) )
-                , ( "relays", Encode.list Encode.string relays )
+                , ( "relays", Encode.list Encode.string (List.map Relay.toWire relays) )
                 ]
         }
 
@@ -222,7 +224,7 @@ logout =
     sendCommand { command = "logout", value = Encode.null }
 
 
-requestEvents : String -> Bool -> RequestId -> List String -> List EventFilter -> Cmd msg
+requestEvents : String -> Bool -> RequestId -> List RelayUrl -> List EventFilter -> Cmd msg
 requestEvents description closeOnEose requestId relays filters =
     sendCommand
         { command = "requestEvents"
@@ -232,12 +234,12 @@ requestEvents description closeOnEose requestId relays filters =
                 , ( "filters", Encode.list encodeEventFilter filters )
                 , ( "closeOnEose", Encode.bool closeOnEose )
                 , ( "description", Encode.string description )
-                , ( "relays", Encode.list Encode.string relays )
+                , ( "relays", Encode.list Encode.string (List.map Relay.toWire relays) )
                 ]
         }
 
 
-searchEvents : String -> Bool -> RequestId -> List String -> List EventFilter -> Cmd msg
+searchEvents : String -> Bool -> RequestId -> List RelayUrl -> List EventFilter -> Cmd msg
 searchEvents description closeOnEose requestId relays filters =
     sendCommand
         { command = "searchEvents"
@@ -247,7 +249,7 @@ searchEvents description closeOnEose requestId relays filters =
                 , ( "filters", Encode.list encodeEventFilter filters )
                 , ( "closeOnEose", Encode.bool closeOnEose )
                 , ( "description", Encode.string description )
-                , ( "relays", Encode.list Encode.string relays )
+                , ( "relays", Encode.list Encode.string (List.map Relay.toWire relays) )
                 ]
         }
 
@@ -257,6 +259,30 @@ setTestMode testMode =
     sendCommand
         { command = "setTestMode"
         , value = Encode.bool testMode
+        }
+
+
+setLocalRelays : List String -> Cmd msg
+setLocalRelays relays =
+    sendCommand
+        { command = "setLocalRelays"
+        , value = Encode.list Encode.string relays
+        }
+
+
+setNotificationsLastSeen : Dict.Dict String Int -> Cmd msg
+setNotificationsLastSeen lastSeen =
+    sendCommand
+        { command = "setNotificationsLastSeen"
+        , value = Encode.dict identity Encode.int lastSeen
+        }
+
+
+requestTextSelection : Cmd msg
+requestTextSelection =
+    sendCommand
+        { command = "requestTextSelection"
+        , value = Encode.null
         }
 
 
@@ -352,7 +378,7 @@ httpMethodParams method =
             ]
 
 
-sendEvent : SendRequestId -> List String -> Event -> Cmd msg
+sendEvent : SendRequestId -> List RelayUrl -> Event -> Cmd msg
 sendEvent sendRequestId relays event =
     sendCommand
         { command = "sendEvent"
@@ -360,7 +386,7 @@ sendEvent sendRequestId relays event =
             Encode.object
                 [ ( "sendId", Encode.int sendRequestId )
                 , ( "event", encodeEvent event )
-                , ( "relays", Encode.list Encode.string relays )
+                , ( "relays", Encode.list Encode.string (List.map Relay.toWire relays) )
                 ]
         }
 
@@ -387,6 +413,141 @@ encryptString data =
             Encode.object
                 [ ( "data", Encode.string data )
                 ]
+        }
+
+
+createCashuWallet : Maybe String -> Cmd msg
+createCashuWallet maybePrivkey =
+    sendCommand
+        { command = "createCashuWallet"
+        , value =
+            Encode.object
+                [ ( "privkey"
+                  , maybePrivkey
+                        |> Maybe.map Encode.string
+                        |> Maybe.withDefault Encode.null
+                  )
+                ]
+        }
+
+
+redeemNutzap :
+    { nutzapId : String
+    , mintUrl : String
+    , proofs : List Encode.Value
+    , p2pkPrivkey : String
+    , senderPubKey : Maybe String
+    }
+    -> Cmd msg
+redeemNutzap params =
+    sendCommand
+        { command = "redeemNutzap"
+        , value =
+            Encode.object
+                [ ( "nutzapId", Encode.string params.nutzapId )
+                , ( "mintUrl", Encode.string params.mintUrl )
+                , ( "proofs", Encode.list identity params.proofs )
+                , ( "p2pkPrivkey", Encode.string params.p2pkPrivkey )
+                , ( "senderPubKey"
+                  , params.senderPubKey
+                        |> Maybe.map Encode.string
+                        |> Maybe.withDefault Encode.null
+                  )
+                ]
+        }
+
+
+sendNutzap :
+    { requestId : Int
+    , mintUrl : String
+    , proofs : List Encode.Value
+    , amount : Int
+    , recipientP2pk : String
+    }
+    -> Cmd msg
+sendNutzap params =
+    sendCommand
+        { command = "sendNutzap"
+        , value =
+            Encode.object
+                [ ( "requestId", Encode.int params.requestId )
+                , ( "mintUrl", Encode.string params.mintUrl )
+                , ( "proofs", Encode.list identity params.proofs )
+                , ( "amount", Encode.int params.amount )
+                , ( "recipientP2pk", Encode.string params.recipientP2pk )
+                ]
+        }
+
+
+createCashuMintQuote :
+    { requestId : Int
+    , mintUrl : String
+    , amount : Int
+    }
+    -> Cmd msg
+createCashuMintQuote params =
+    sendCommand
+        { command = "createCashuMintQuote"
+        , value =
+            Encode.object
+                [ ( "requestId", Encode.int params.requestId )
+                , ( "mintUrl", Encode.string params.mintUrl )
+                , ( "amount", Encode.int params.amount )
+                ]
+        }
+
+
+cancelCashuMintQuote : Int -> Cmd msg
+cancelCashuMintQuote requestId =
+    sendCommand
+        { command = "cancelCashuMintQuote"
+        , value = Encode.object [ ( "requestId", Encode.int requestId ) ]
+        }
+
+
+createCashuMeltQuote :
+    { requestId : Int
+    , mintUrl : String
+    , invoice : String
+    }
+    -> Cmd msg
+createCashuMeltQuote params =
+    sendCommand
+        { command = "createCashuMeltQuote"
+        , value =
+            Encode.object
+                [ ( "requestId", Encode.int params.requestId )
+                , ( "mintUrl", Encode.string params.mintUrl )
+                , ( "invoice", Encode.string params.invoice )
+                ]
+        }
+
+
+meltCashuToLightning :
+    { requestId : Int
+    , mintUrl : String
+    , invoice : String
+    , proofs : List Encode.Value
+    }
+    -> Cmd msg
+meltCashuToLightning params =
+    sendCommand
+        { command = "meltCashuToLightning"
+        , value =
+            Encode.object
+                [ ( "requestId", Encode.int params.requestId )
+                , ( "mintUrl", Encode.string params.mintUrl )
+                , ( "invoice", Encode.string params.invoice )
+                , ( "proofs", Encode.list identity params.proofs )
+                ]
+        }
+
+
+computeCashuBalance : List Encode.Value -> Cmd msg
+computeCashuBalance proofs =
+    sendCommand
+        { command = "computeCashuBalance"
+        , value = Encode.object [ ( "proofs", Encode.list identity proofs ) ]
         }
 
 
@@ -549,6 +710,65 @@ encodeSubscriberBlob blob =
         , ( "key", Encode.string blob.keyHex )
         , ( "iv", Encode.string blob.ivHex )
         ]
+
+
+reloadWindow : Cmd msg
+reloadWindow =
+    sendCommand { command = "reloadWindow", value = Encode.null }
+
+
+-- NWC (NIP-47)
+
+
+getNwcStatus : Cmd msg
+getNwcStatus =
+    sendCommand { command = "getNwcStatus", value = Encode.null }
+
+
+connectNwc : String -> Cmd msg
+connectNwc uri =
+    sendCommand
+        { command = "connectNwc"
+        , value = Encode.object [ ( "uri", Encode.string uri ) ]
+        }
+
+
+connectNwcAlby : Cmd msg
+connectNwcAlby =
+    sendCommand { command = "connectNwcAlby", value = Encode.null }
+
+
+startNwaConnect : Cmd msg
+startNwaConnect =
+    sendCommand { command = "startNwaConnect", value = Encode.null }
+
+
+cancelNwaConnect : Cmd msg
+cancelNwaConnect =
+    sendCommand { command = "cancelNwaConnect", value = Encode.null }
+
+
+enableWebln : Cmd msg
+enableWebln =
+    sendCommand { command = "enableWebln", value = Encode.null }
+
+
+disconnectNwc : Cmd msg
+disconnectNwc =
+    sendCommand { command = "disconnectNwc", value = Encode.null }
+
+
+payInvoiceNwc : String -> Cmd msg
+payInvoiceNwc invoice =
+    sendCommand
+        { command = "payInvoiceNwc"
+        , value = Encode.object [ ( "invoice", Encode.string invoice ) ]
+        }
+
+
+installPwa : Cmd msg
+installPwa =
+    sendCommand { command = "installPwa", value = Encode.null }
 
 
 encodeNewsletterData : NewsletterData -> Encode.Value

@@ -1,7 +1,21 @@
-module Nostr.Send exposing (..)
+module Nostr.Send exposing
+    ( SendRequestId
+    , SendRequest(..)
+    , SendPayload
+    , prepare
+    , reactionEvent
+    )
 
-import Nostr.Event exposing (AddressComponents, Event)
-import Nostr.Types exposing (EventId, Following, PubKey, RelayUrl)
+{-| Outgoing publish requests and event preparation.
+-}
+
+import Nostr.BookmarkList as BookmarkList exposing (BookmarkList, bookmarkListEvent, bookmarkListWithArticle, bookmarkListWithShortNote, bookmarkListWithoutArticle, bookmarkListWithoutShortNote, emptyBookmarkList)
+import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), addAddressTags, addIdentifierTag, addKindTag, emptyEvent)
+import Nostr.FollowList as FollowList exposing (emptyFollowList, followListEvent, followListWithPubKey, followListWithoutPubKey)
+import Nostr.Highlights as Highlights
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (EventId, Following, PubKey)
+import Time
 
 
 type alias SendRequestId =
@@ -21,10 +35,210 @@ type SendRequest
     | SendFollowList PubKey (List Following)
     | SendFollowListWithPubKey PubKey PubKey
     | SendFollowListWithoutPubKey PubKey PubKey
+    | SendDraftTombstone PubKey String
     | SendHandlerInformation (List RelayUrl) Event
+    | SendHighlight PubKey EventId PubKey AddressComponents Kind String (Maybe String)
     | SendLongFormDraft (List RelayUrl) Event
     | SendLongFormArticle (List RelayUrl) Event
     | SendProfile (List RelayUrl) Event
     | SendReaction PubKey EventId PubKey (Maybe AddressComponents)
     | SendRelayList (List RelayUrl) Event
+    | SendPrivateRelayList (List RelayUrl) Event
     | SendRepost (List RelayUrl) Event
+    | SendCashuWallet Event
+    | SendCashuTokens Event
+    | SendNutzapMintRecommendation Event
+    | SendCashuHistory Event
+    | SendNutzap (List RelayUrl) Event
+
+
+type alias SendPayload =
+    { relays : List RelayUrl
+    , event : Event
+    }
+
+
+type alias PrepareContext =
+    { getBookmarks : PubKey -> Maybe BookmarkList
+    , getFollowList : PubKey -> Maybe (List Following)
+    , writeRelaysFor : PubKey -> List RelayUrl
+    , draftStorageRelaysFor : PubKey -> List RelayUrl
+    , applicationDataRelays : List RelayUrl
+    , now : Time.Posix
+    }
+
+
+prepare : PrepareContext -> SendRequest -> SendPayload
+prepare context sendRequest =
+    case sendRequest of
+        SendApplicationData event ->
+            { relays = context.applicationDataRelays, event = event }
+
+        SendBookmarkListWithArticle pubKey address ->
+            { relays = context.writeRelaysFor pubKey
+            , event =
+                context.getBookmarks pubKey
+                    |> Maybe.withDefault emptyBookmarkList
+                    |> (\bookmarkList -> bookmarkListWithArticle bookmarkList address)
+                    |> bookmarkListEvent pubKey
+            }
+
+        SendBookmarkListWithoutArticle pubKey address ->
+            { relays = context.writeRelaysFor pubKey
+            , event =
+                context.getBookmarks pubKey
+                    |> Maybe.withDefault emptyBookmarkList
+                    |> (\bookmarkList -> bookmarkListWithoutArticle bookmarkList address)
+                    |> bookmarkListEvent pubKey
+            }
+
+        SendBookmarkListWithShortNote pubKey eventId ->
+            { relays = context.writeRelaysFor pubKey
+            , event =
+                context.getBookmarks pubKey
+                    |> Maybe.withDefault emptyBookmarkList
+                    |> (\bookmarkList -> bookmarkListWithShortNote bookmarkList eventId)
+                    |> bookmarkListEvent pubKey
+            }
+
+        SendBookmarkListWithoutShortNote pubKey eventId ->
+            { relays = context.writeRelaysFor pubKey
+            , event =
+                context.getBookmarks pubKey
+                    |> Maybe.withDefault emptyBookmarkList
+                    |> (\bookmarkList -> bookmarkListWithoutShortNote bookmarkList eventId)
+                    |> bookmarkListEvent pubKey
+            }
+
+        SendClientRecommendation relays event ->
+            { relays = relays, event = event }
+
+        SendComment relays event ->
+            { relays = relays, event = event }
+
+        SendFollowList userPubKey followList ->
+            { relays = context.writeRelaysFor userPubKey
+            , event = followListEvent userPubKey followList
+            }
+
+        SendFollowListWithPubKey userPubKey toBeFollowedPubKey ->
+            { relays = context.writeRelaysFor userPubKey
+            , event =
+                context.getFollowList userPubKey
+                    |> Maybe.withDefault emptyFollowList
+                    |> (\followList -> followListWithPubKey followList toBeFollowedPubKey)
+                    |> followListEvent userPubKey
+            }
+
+        SendFollowListWithoutPubKey userPubKey toBeUnfollowedPubKey ->
+            { relays = context.writeRelaysFor userPubKey
+            , event =
+                context.getFollowList userPubKey
+                    |> Maybe.withDefault emptyFollowList
+                    |> (\followList -> followListWithoutPubKey followList toBeUnfollowedPubKey)
+                    |> followListEvent userPubKey
+            }
+
+        SendDraftTombstone userPubKey identifier ->
+            { relays = context.draftStorageRelaysFor userPubKey
+            , event = draftTombstoneEvent userPubKey context.now identifier
+            }
+
+        SendHandlerInformation relays event ->
+            { relays = relays, event = event }
+
+        SendHighlight userPubKey articleEventId articleAuthor addressComponents articleKind content maybeContext ->
+            { relays = context.writeRelaysFor userPubKey
+            , event =
+                Highlights.highlightEvent userPubKey
+                    { content = content
+                    , context = maybeContext
+                    , articleEventId = articleEventId
+                    , articleAuthor = articleAuthor
+                    , addressComponents = addressComponents
+                    , articleKind = articleKind
+                    }
+            }
+
+        SendLongFormArticle relays event ->
+            { relays = relays, event = event }
+
+        SendLongFormDraft relays event ->
+            { relays = relays, event = event }
+
+        SendFileStorageServerList relays event ->
+            { relays = relays, event = event }
+
+        SendDeletionRequest relays event ->
+            { relays = relays, event = event }
+
+        SendReaction userPubKey eventId articlePubKey addressComponents ->
+            { relays = context.writeRelaysFor userPubKey
+            , event = reactionEvent userPubKey eventId articlePubKey addressComponents
+            }
+
+        SendRepost relays event ->
+            { relays = relays, event = event }
+
+        SendRelayList relays event ->
+            { relays = relays, event = event }
+
+        SendPrivateRelayList relays event ->
+            { relays = relays, event = event }
+
+        SendProfile relays event ->
+            { relays = relays, event = event }
+
+        SendCashuWallet event ->
+            { relays = context.writeRelaysFor event.pubKey, event = event }
+
+        SendCashuTokens event ->
+            { relays = context.writeRelaysFor event.pubKey, event = event }
+
+        SendNutzapMintRecommendation event ->
+            { relays = context.writeRelaysFor event.pubKey, event = event }
+
+        SendCashuHistory event ->
+            { relays = context.writeRelaysFor event.pubKey, event = event }
+
+        SendNutzap relays event ->
+            { relays = relays, event = event }
+
+
+reactionEvent : PubKey -> EventId -> PubKey -> Maybe AddressComponents -> Event
+reactionEvent userPubKey eventId articlePubKey addressComponents =
+    let
+        event =
+            emptyEvent userPubKey KindReaction
+    in
+    { event
+        | content = "+"
+        , tags =
+            [ EventIdTag eventId Nothing Nothing Nothing
+            , PublicKeyTag articlePubKey Nothing Nothing
+            ]
+                |> addAddressTags (addressComponents |> Maybe.map List.singleton |> Maybe.withDefault []) Nothing
+    }
+
+
+{-| NIP-37 blank-content replaceable wrap that marks a draft deleted.
+-}
+draftTombstoneEvent : PubKey -> Time.Posix -> String -> Event
+draftTombstoneEvent userPubKey now identifier =
+    let
+        event =
+            emptyEvent userPubKey KindDraft
+
+        expiration =
+            Time.posixToMillis now
+                + (90 * 24 * 60 * 60 * 1000)
+                |> Time.millisToPosix
+    in
+    { event
+        | createdAt = now
+        , content = ""
+        , tags =
+            [ ExpirationTag expiration ]
+                |> addIdentifierTag (Just identifier)
+                |> addKindTag KindDraftLongFormContent
+    }

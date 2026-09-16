@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@cashu/cashu-ts':
+        specifier: ^4.10.1
+        version: 4.10.1
       '@milkdown/core':
         specifier: ^7.17.2
         version: 7.21.2(supports-color@7.2.0)
@@ -90,9 +93,9 @@ importers:
       '@abradley2/elm-i18next-gen':
         specifier: ^2.0.2
         version: 2.0.2
-      '@lydell/elm':
-        specifier: 0.19.1-14
-        version: 0.19.1-14
+      elm:
+        specifier: 0.19.2-0
+        version: 0.19.2-0
       elm-land:
         specifier: ^0.20.1
         version: 0.20.1
@@ -132,6 +135,10 @@ packages:
   '@babel/types@7.29.7':
     resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
     engines: {node: '>=6.9.0'}
+
+  '@cashu/cashu-ts@4.10.1':
+    resolution: {integrity: sha512-dBCWk0dwaYzeGbwcRW0aGwHI8qD8bkXKaCivgJTC9nO4o/PAfYeQYL8LNgi2DU+YUdJh54keJxKNa5aB+hhjxA==}
+    engines: {node: '>=22.4.0'}
 
   '@codemirror/autocomplete@6.18.7':
     resolution: {integrity: sha512-8EzdeIoWPJDsMBwz3zdzwXnUpCzMiCyz5/A3FIPpriaclFCGDkAzK13sMcnsu5rowqiyeQN2Vs2TsOcoDPZirQ==}
@@ -234,18 +241,43 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
+  '@elm_binaries/darwin_arm64@0.19.2-0':
+    resolution: {integrity: sha512-vhgvWAgc+jkB/oSCqI0BK1w908ivNbV6OBWIGtJgbzAXFh6RYLcGdE04+X6CTLgj+u5ufl81lsnMG6lWEMzbJg==}
+    cpu: [arm64]
+    os: [darwin]
+
   '@elm_binaries/darwin_x64@0.19.1-0':
     resolution: {integrity: sha512-QGUtrZTPBzaxgi9al6nr+9313wrnUVHuijzUK39UsPS+pa+n6CmWyV/69sHZeX9qy6UfeugE0PzF3qcUiy2GDQ==}
     cpu: [x64]
     os: [darwin]
+
+  '@elm_binaries/darwin_x64@0.19.2-0':
+    resolution: {integrity: sha512-CQub4GhTa9nOHkUpi4eVGy34mxhfQOpVteLWkgsFwSHxXathKzNaOR9W7nVHR1iKEMBNcYJpXS2MoQognOUMkA==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@elm_binaries/linux_arm64@0.19.2-0':
+    resolution: {integrity: sha512-50LdOV2ddvgBqcgfVKC3yCKg3/3RQdkfE7Be5k7Zj2xYLALQolk3X2ualXUmXIbP6Zo1xYKymDAfa/M1PTF+dw==}
+    cpu: [arm64]
+    os: [linux]
 
   '@elm_binaries/linux_x64@0.19.1-0':
     resolution: {integrity: sha512-T1ZrWVhg2kKAsi8caOd3vp/1A3e21VuCpSG63x8rDie50fHbCytTway9B8WHEdnBFv4mYWiA68dzGxYCiFmU2w==}
     cpu: [x64]
     os: [linux]
 
+  '@elm_binaries/linux_x64@0.19.2-0':
+    resolution: {integrity: sha512-03EXHZZBCEFcKKh2kKUGPsFysKXnHANYw2XubBwT3Vj/5uOI/doG0g8kij5ng8n50vma/pNwAWqvVQLSRDmPMA==}
+    cpu: [x64]
+    os: [linux]
+
   '@elm_binaries/win32_x64@0.19.1-0':
     resolution: {integrity: sha512-yDleiXqSE9EcqKtd9SkC/4RIW8I71YsXzMPL79ub2bBPHjWTcoyyeBbYjoOB9SxSlArJ74HaoBApzT6hY7Zobg==}
+    cpu: [x64]
+    os: [win32]
+
+  '@elm_binaries/win32_x64@0.19.2-0':
+    resolution: {integrity: sha512-FCzv6KAlo/L2/FZe3rsIH5dgFfljlgKWpMUDxVgNm1mFKep4TeFEnwRlSUh7hFnKCDVyjUL9oNL+x4OwYr3KWg==}
     cpu: [x64]
     os: [win32]
 
@@ -595,12 +627,20 @@ packages:
     resolution: {integrity: sha512-vs1Az2OOTBiP4q0pwjW5aF0xp9n4MxVrmkFBxc6EKZc6ddYx5gaZiAsZoq0uRRXWbi3AT/sBqn05eRPtn1JCPw==}
     engines: {node: '>= 20.19.0'}
 
+  '@noble/curves@2.4.0':
+    resolution: {integrity: sha512-P4/62zrgfH33CneE3Dn4WhJVA22YUU0eR51wKIan4NVRvwsA0YnPTwWGpNbpuacSujmSFLvyzpyuR30+fbq2Ew==}
+    engines: {node: '>= 20.19.0'}
+
   '@noble/hashes@1.8.0':
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
 
   '@noble/hashes@2.0.1':
     resolution: {integrity: sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==}
+    engines: {node: '>= 20.19.0'}
+
+  '@noble/hashes@2.4.0':
+    resolution: {integrity: sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA==}
     engines: {node: '>= 20.19.0'}
 
   '@noble/secp256k1@2.3.0':
@@ -762,8 +802,14 @@ packages:
   '@scure/base@2.0.0':
     resolution: {integrity: sha512-3E1kpuZginKkek01ovG8krQ0Z44E3DHPjc5S2rjJw9lZn3KSQOs8S7wqikF/AH7iRanHypj85uGyxk0XAyC37w==}
 
+  '@scure/base@2.4.0':
+    resolution: {integrity: sha512-thZ1TuJwFwBblOhgsjDKvvGirBxNp+wSvY/DR6tJBJOTDhdAAcHJ8Vbr2eFnqaxeca4+t0i9KBf+uHYGWwZORg==}
+
   '@scure/bip32@2.0.1':
     resolution: {integrity: sha512-4Md1NI5BzoVP+bhyJaY3K6yMesEFzNS1sE/cP+9nuvE7p/b0kx9XbpDHHFl8dHtufcbdHRUUQdRqLIPHN/s7yA==}
+
+  '@scure/bip32@2.4.0':
+    resolution: {integrity: sha512-i3DS0CptAocyvqE4n3SUkpzeQK4vJMFwWLofTwRiiKo2aWojBOfyMCgfKw9HVpO6fSY5AK86sHS/Uzn8kK9Few==}
 
   '@scure/bip39@2.0.1':
     resolution: {integrity: sha512-PsxdFj/d2AcJcZDX1FXN3dDgitDDTmwf78rKZq1a6c1P1Nan1X/Sxc7667zU3U+AN60g7SxxP0YCVw2H/hBycg==}
@@ -1132,6 +1178,11 @@ packages:
 
   elm@0.19.1-6:
     resolution: {integrity: sha512-mKYyierHICPdMx/vhiIacdPmTPnh889gjHOZ75ZAoCxo3lZmSWbGP8HMw78wyctJH0HwvTmeKhlYSWboQNYPeQ==}
+    engines: {node: '>=7.0.0'}
+    hasBin: true
+
+  elm@0.19.2-0:
+    resolution: {integrity: sha512-a2N4WJ6ge+cXOemAgo6tu8gN17cIzzitYoPcJRpvbiPbay1+BfQAv9wyWtgTyR3YkrduN5oQwzLgSIaUBZwjYQ==}
     engines: {node: '>=7.0.0'}
     hasBin: true
 
@@ -2337,6 +2388,13 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
+  '@cashu/cashu-ts@4.10.1':
+    dependencies:
+      '@noble/curves': 2.4.0
+      '@noble/hashes': 2.4.0
+      '@scure/base': 2.4.0
+      '@scure/bip32': 2.4.0
+
   '@codemirror/autocomplete@6.18.7':
     dependencies:
       '@codemirror/language': 6.11.3
@@ -2600,13 +2658,28 @@ snapshots:
   '@elm_binaries/darwin_arm64@0.19.1-0':
     optional: true
 
+  '@elm_binaries/darwin_arm64@0.19.2-0':
+    optional: true
+
   '@elm_binaries/darwin_x64@0.19.1-0':
+    optional: true
+
+  '@elm_binaries/darwin_x64@0.19.2-0':
+    optional: true
+
+  '@elm_binaries/linux_arm64@0.19.2-0':
     optional: true
 
   '@elm_binaries/linux_x64@0.19.1-0':
     optional: true
 
+  '@elm_binaries/linux_x64@0.19.2-0':
+    optional: true
+
   '@elm_binaries/win32_x64@0.19.1-0':
+    optional: true
+
+  '@elm_binaries/win32_x64@0.19.2-0':
     optional: true
 
   '@esbuild/aix-ppc64@0.20.2':
@@ -3157,9 +3230,15 @@ snapshots:
     dependencies:
       '@noble/hashes': 2.0.1
 
+  '@noble/curves@2.4.0':
+    dependencies:
+      '@noble/hashes': 2.4.0
+
   '@noble/hashes@1.8.0': {}
 
   '@noble/hashes@2.0.1': {}
+
+  '@noble/hashes@2.4.0': {}
 
   '@noble/secp256k1@2.3.0': {}
 
@@ -3278,11 +3357,19 @@ snapshots:
 
   '@scure/base@2.0.0': {}
 
+  '@scure/base@2.4.0': {}
+
   '@scure/bip32@2.0.1':
     dependencies:
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
+
+  '@scure/bip32@2.4.0':
+    dependencies:
+      '@noble/curves': 2.4.0
+      '@noble/hashes': 2.4.0
+      '@scure/base': 2.4.0
 
   '@scure/bip39@2.0.1':
     dependencies:
@@ -3736,6 +3823,14 @@ snapshots:
       '@elm_binaries/darwin_x64': 0.19.1-0
       '@elm_binaries/linux_x64': 0.19.1-0
       '@elm_binaries/win32_x64': 0.19.1-0
+
+  elm@0.19.2-0:
+    optionalDependencies:
+      '@elm_binaries/darwin_arm64': 0.19.2-0
+      '@elm_binaries/darwin_x64': 0.19.2-0
+      '@elm_binaries/linux_arm64': 0.19.2-0
+      '@elm_binaries/linux_x64': 0.19.2-0
+      '@elm_binaries/win32_x64': 0.19.2-0
 
   emoji-regex@10.5.0: {}
 

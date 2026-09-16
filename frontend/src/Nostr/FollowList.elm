@@ -1,6 +1,8 @@
 module Nostr.FollowList exposing (..)
 
+import Dict exposing (Dict)
 import Nostr.Event exposing (Event, Kind(..), Tag(..), emptyEvent)
+import Nostr.Relay as Relay
 import Nostr.Types exposing (Following(..), PubKey)
 
 
@@ -71,7 +73,7 @@ followListFromEvent event =
             (\tag res ->
                 case tag of
                     PublicKeyTag pubKey relay petname ->
-                        { res | following = res.following ++ [ FollowingPubKey { pubKey = pubKey, relay = relay, petname = petname } ] }
+                        { res | following = res.following ++ [ FollowingPubKey { pubKey = pubKey, relay = Maybe.map Relay.toWire relay, petname = petname } ] }
 
                     HashTag hashtag ->
                         { res | following = res.following ++ [ FollowingHashtag hashtag ] }
@@ -82,6 +84,17 @@ followListFromEvent event =
             { pubKey = event.pubKey
             , following = []
             }
+
+
+ingest : Dict PubKey (List Following) -> List Event -> Dict PubKey (List Following)
+ingest dict events =
+    events
+        |> List.map followListFromEvent
+        |> List.foldl
+            (\{ pubKey, following } acc ->
+                Dict.insert pubKey following acc
+            )
+            dict
 
 
 followListEvent : PubKey -> List Following -> Event
@@ -108,7 +121,7 @@ followsTag : Following -> Tag
 followsTag following =
     case following of
         FollowingPubKey { pubKey, relay, petname } ->
-            PublicKeyTag pubKey relay petname
+            PublicKeyTag pubKey (Maybe.map Relay.fromString relay) petname
 
         FollowingHashtag hashtag ->
             HashTag hashtag
@@ -127,3 +140,22 @@ pubKeyIsFollower userPubKey followsList =
                         False
             )
         |> (not << List.isEmpty)
+
+
+{-| True if `authorPubKey` appears on the user mute list or the site authors mute list.
+-}
+isMuted : Dict PubKey (List Following) -> Maybe PubKey -> PubKey -> PubKey -> Bool
+isMuted muteLists maybeUserPubKey authorsKey authorPubKey =
+    let
+        mutedByUser =
+            maybeUserPubKey
+                |> Maybe.andThen (\pubKey -> Dict.get pubKey muteLists)
+                |> Maybe.map (pubKeyIsFollower authorPubKey)
+                |> Maybe.withDefault False
+
+        mutedByAuthors =
+            Dict.get authorsKey muteLists
+                |> Maybe.map (pubKeyIsFollower authorPubKey)
+                |> Maybe.withDefault False
+    in
+    mutedByUser || mutedByAuthors

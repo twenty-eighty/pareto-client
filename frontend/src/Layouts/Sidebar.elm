@@ -5,6 +5,7 @@ module Layouts.Sidebar exposing (Model, Msg, Props, clientRoleForRoutePath, layo
 import Browser.Dom as Dom
 import BrowserEnv exposing (BrowserEnv, Environment)
 import Components.AlertTimerMessage as AlertTimerMessage
+import Components.AppUpdateBanner as AppUpdateBanner
 import Components.AuthDialog as AuthDialog
 import Components.Button
 import Components.Icon as Icon exposing (Icon(..))
@@ -93,6 +94,7 @@ clientRoleForRoutePath environment path =
         , sendsNewsletters = False
         , translations = I18Next.initialTranslations
         , maybeBookmarksCount = Nothing
+        , maybeNotificationsUnread = Nothing
         , currentPath = path
         , testMode = BrowserEnv.TestModeOff
         , theme = Ui.Styles.dummyTheme
@@ -129,6 +131,7 @@ type alias SidebarItemParams =
     , sendsNewsletters : Bool
     , translations : I18Next.Translations
     , maybeBookmarksCount : Maybe Int
+    , maybeNotificationsUnread : Maybe Int
     , currentPath : Route.Path.Path
     , testMode : BrowserEnv.TestMode
     , theme : Theme
@@ -142,7 +145,7 @@ routePathIsInList sidebarItemParams =
 
 
 sidebarItems : SidebarItemParams -> List SidebarItemData
-sidebarItems { configIssues, isAuthor, isBetaTester, isLoggedIn, clientRole, sendsNewsletters, translations, maybeBookmarksCount } =
+sidebarItems { configIssues, isAuthor, isBetaTester, isLoggedIn, clientRole, sendsNewsletters, translations, maybeBookmarksCount, maybeNotificationsUnread } =
     rawSidebarItems clientRole translations
         |> List.filter (sidebarItemVisible isLoggedIn isAuthor isBetaTester)
         |> List.filterMap
@@ -156,6 +159,14 @@ sidebarItems { configIssues, isAuthor, isBetaTester, isLoggedIn, clientRole, sen
                                     -- add bookmarks count to title
                                     { sidebarItem | title = sidebarItem.title ++ "\u{00A0}" ++ countBadge bookmarksCount }
                                 )
+
+                    Route.Path.Notifications ->
+                        case maybeNotificationsUnread of
+                            Just unreadCount ->
+                                Just { sidebarItem | title = sidebarItem.title ++ "\u{00A0}" ++ countBadge unreadCount }
+
+                            Nothing ->
+                                Just sidebarItem
 
                     Route.Path.Newsletters ->
                         -- currently in development
@@ -230,7 +241,6 @@ rawSidebarItems clientRole translations =
               }
 
             --, { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, requiresAuthor = False, disabled = True }
-            --, { path = Route.Path.Notifications, title = Translations.notificationsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bell, requiresLogin = True, requiresAuthor = False, disabled = True }
             , { path = Route.Path.Settings
               , title = Translations.settingsMenuItemText [ translations ]
               , ariaLabel = Translations.settingsMenuItemText [ translations ]
@@ -240,7 +250,7 @@ rawSidebarItems clientRole translations =
               , requiresBetaTester = False
               , disabled = False
               }
-            , { path = Route.Path.About
+                         , { path = Route.Path.About
               , title = Translations.aboutMenuItemText [ translations ]
               , ariaLabel = Translations.aboutMenuItemText [ translations ]
               , icon = FeatherIcon FeatherIcons.helpCircle
@@ -288,15 +298,6 @@ rawSidebarItems clientRole translations =
               , requiresBetaTester = False
               , disabled = False
               }
-            , { path = Route.Path.Search
-              , title = Translations.searchMenuItemText [ translations ]
-              , ariaLabel = Translations.searchMenuItemText [ translations ]
-              , icon = FeatherIcon FeatherIcons.search
-              , requiresLogin = False
-              , requiresAuthor = False
-              , requiresBetaTester = False
-              , disabled = False
-              }
             , { path = Route.Path.Media
               , title = Translations.mediaMenuItemText [ translations ]
               , ariaLabel = Translations.mediaMenuItemText [ translations ]
@@ -306,9 +307,26 @@ rawSidebarItems clientRole translations =
               , requiresBetaTester = False
               , disabled = False
               }
+            , { path = Route.Path.Notifications
+              , title = Translations.notificationsMenuItemText [ translations ]
+              , ariaLabel = Translations.notificationsMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.bell
+              , requiresLogin = True
+              , requiresAuthor = False
+              , requiresBetaTester = False
+              , disabled = False
+              }
+            , { path = Route.Path.Highlights
+              , title = Translations.highlightsMenuItemText [ translations ]
+              , ariaLabel = Translations.highlightsMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.underline
+              , requiresLogin = True
+              , requiresAuthor = False
+              , requiresBetaTester = False
+              , disabled = False
+              }
 
             --, { path = Route.Path.Messages, title = Translations.messagesMenuItemText [ translations ], ariaLabel = Translations.messagesMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.mail, requiresLogin = True, requiresAuthor = False, disabled = True }
-            --, { path = Route.Path.Notifications, title = Translations.notificationsMenuItemText [ translations ], ariaLabel = Translations.notificationsMenuItemText [ translations ], icon = FeatherIcon FeatherIcons.bell, requiresLogin = True, requiresAuthor = False, disabled = True }
             , { path = Route.Path.Settings
               , title = Translations.settingsMenuItemText [ translations ]
               , ariaLabel = Translations.settingsMenuItemText [ translations ]
@@ -366,6 +384,7 @@ type Msg
     | Scrolled Int
     | ScrollToPosition Int
     | UrlChanged { from : Route (), to : Route () }
+    | ReloadForNewVersion
     | NoOp
 
 
@@ -457,6 +476,9 @@ update _ msg model =
             in
             ( { model | currentURL = currentURL, pageScrollPositions = pageScrollPositions }, effect )
 
+        ReloadForNewVersion ->
+            ( model, Effect.sendSharedMsg Shared.Msg.ReloadForNewVersion )
+
         NoOp ->
             ( model, Effect.none )
 
@@ -502,6 +524,13 @@ view props shared path { toContentMsg, content, model } =
             , viewLinktoInternalPage shared.nostr
             , AuthDialog.view shared.theme shared.browserEnv shared.loginStatus shared.nostr shared.authDialog
                 |> Html.map (AuthDialogMsg >> toContentMsg)
+            , AppUpdateBanner.view
+                { theme = shared.theme
+                , translations = shared.browserEnv.translations
+                , visible = shared.newVersionAvailable
+                , onReload = ReloadForNewVersion
+                }
+                |> Html.map toContentMsg
             , AlertTimerMessage.new
                 { model = shared.alertTimerMessage
                 , theme = shared.theme
@@ -526,6 +555,25 @@ viewSidebar props shared model currentPath toContentMsg content =
                     (\count ->
                         if count > 0 then
                             Just count
+
+                        else
+                            Nothing
+                    )
+
+        maybeNotificationsUnread =
+            loggedInPubKey shared.loginStatus
+                |> Maybe.andThen
+                    (\pubKey ->
+                        let
+                            lastSeen =
+                                Dict.get pubKey shared.notificationsLastSeen
+                                    |> Maybe.withDefault 0
+
+                            unread =
+                                Nostr.unreadNotificationsCount shared.nostr pubKey lastSeen
+                        in
+                        if unread > 0 then
+                            Just unread
 
                         else
                             Nothing
@@ -557,6 +605,7 @@ viewSidebar props shared model currentPath toContentMsg content =
                     |> Maybe.withDefault False
             , translations = shared.browserEnv.translations
             , maybeBookmarksCount = maybeBookmarksCount
+            , maybeNotificationsUnread = maybeNotificationsUnread
             , currentPath = currentPath
             , testMode = shared.browserEnv.testMode
             , theme = shared.theme

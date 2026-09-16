@@ -2,7 +2,7 @@ module Shared exposing
     ( Flags, decoder
     , Model, Msg
     , init, update, subscriptions
-    , contentId, attemptScrollToFootnote, createFollowersEffect, footnoteAnchorId, loggedIn
+    , contentId, attemptScrollToFootnote, createArticleDetailsEffect, createFollowersEffect, createNotificationsActivityEffect, createHighlightsActivityEffect, footnoteAnchorId, loggedIn
     )
 
 {-|
@@ -17,13 +17,18 @@ import Browser.Dom
 import BrowserEnv
 import Components.AlertTimerMessage as AlertTimerMessage
 import Components.AuthDialog as AuthDialog
+import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Json.Decode
+import Json.Decode.Pipeline as DecodePipeline
 import Nostr
+import Nostr.Model exposing (TestMode(..))
+import Nostr.Article exposing (Article)
 import Nostr.ConfigCheck as ConfigCheck
 import Nostr.Event exposing (Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.External
 import Nostr.Profile exposing (emptyProfile, eventFromProfile)
+import Nostr.Relay as Relay
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
@@ -36,7 +41,9 @@ import Route.Path
 import Shared.Model exposing (ClientRole(..))
 import Shared.Msg exposing (Msg(..))
 import Task exposing (Task)
+import Time
 import Ui.Styles exposing (Theme(..))
+import Url
 
 
 type alias Model =
@@ -110,24 +117,24 @@ type alias Flags =
     , nativeSharingAvailable : Bool
     , testMode : Bool
     , authApiBaseUrl : String
+    , notificationsLastSeen : Dict String Int
+    , localRelays : List String
     }
 
 
 decoder : Json.Decode.Decoder Flags
 decoder =
-    Json.Decode.map8 Flags
-        (Json.Decode.field "darkMode" Json.Decode.bool)
-        (Json.Decode.field "environment" (Json.Decode.maybe Json.Decode.string))
-        (Json.Decode.field "imageCachingServer" Json.Decode.string)
-        (Json.Decode.oneOf
-            [ Json.Decode.field "imageCacheKey" Json.Decode.string
-            , Json.Decode.succeed ""
-            ]
-        )
-        (Json.Decode.field "locale" Json.Decode.string)
-        (Json.Decode.field "nativeSharingAvailable" Json.Decode.bool)
-        (Json.Decode.field "testMode" Json.Decode.bool)
-        (Json.Decode.field "authApiBaseUrl" Json.Decode.string)
+    Json.Decode.succeed Flags
+        |> DecodePipeline.required "darkMode" Json.Decode.bool
+        |> DecodePipeline.required "environment" (Json.Decode.maybe Json.Decode.string)
+        |> DecodePipeline.required "imageCachingServer" Json.Decode.string
+        |> DecodePipeline.optional "imageCacheKey" Json.Decode.string ""
+        |> DecodePipeline.required "locale" Json.Decode.string
+        |> DecodePipeline.required "nativeSharingAvailable" Json.Decode.bool
+        |> DecodePipeline.required "testMode" Json.Decode.bool
+        |> DecodePipeline.required "authApiBaseUrl" Json.Decode.string
+        |> DecodePipeline.optional "notificationsLastSeen" (Json.Decode.dict Json.Decode.int) Dict.empty
+        |> DecodePipeline.optional "localRelays" (Json.Decode.list Json.Decode.string) []
 
 
 
@@ -155,13 +162,17 @@ init flagsResult route =
 
                 nostrTestMode =
                     if flags.testMode then
-                        Nostr.TestModeEnabled
+                        TestModeEnabled
 
                     else
-                        Nostr.TestModeOff
+                        TestModeOff
 
                 ( nostrInit, nostrInitCmd ) =
-                    Nostr.init portHooks browserEnv.environment nostrTestMode Pareto.defaultRelays
+                    Nostr.init portHooks
+                        browserEnv.environment
+                        nostrTestMode
+                        Pareto.defaultRelays
+                        (List.map Relay.fromString flags.localRelays)
 
                 -- request bookmark list of Pareto creators
                 -- as well as bookmark sets for different purposes
@@ -179,6 +190,8 @@ init flagsResult route =
               , theme = ParetoTheme
               , alertTimerMessage = AlertTimerMessage.init
               , authDialog = AuthDialog.init
+              , notificationsLastSeen = flags.notificationsLastSeen
+              , newVersionAvailable = False
               }
             , Effect.batch
                 [ Effect.sendCmd <| Cmd.map Shared.Msg.BrowserEnvMsg browserEnvCmd
@@ -212,6 +225,8 @@ init flagsResult route =
               , theme = ParetoTheme
               , alertTimerMessage = AlertTimerMessage.init
               , authDialog = AuthDialog.init
+              , notificationsLastSeen = Dict.empty
+              , newVersionAvailable = False
               }
             , Effect.none
             )
@@ -274,7 +289,7 @@ update route msg model =
             )
 
         ReceivedPortMessage portMessage ->
-            updateWithPortMessage model portMessage
+            updateWithPortMessage route model portMessage
 
         BrowserEnvMsg browserEnvMsg ->
             let
@@ -315,7 +330,7 @@ update route msg model =
         SendNostrEvent sendRequest ->
             let
                 ( newNostr, nostrCmd ) =
-                    Nostr.send model.nostr sendRequest
+                    Nostr.send model.nostr model.browserEnv.now sendRequest
             in
             ( { model | nostr = newNostr }
             , Effect.sendCmd <| Cmd.map Shared.Msg.NostrMsg nostrCmd
@@ -346,6 +361,18 @@ update route msg model =
             ( { model | browserEnv = browserEnv }
             , cmd
                 |> Effect.sendCmd
+            )
+
+        SetLocalRelays localRelays ->
+            let
+                ( nostr, nostrCmd ) =
+                    Nostr.setLocalRelays model.nostr localRelays
+            in
+            ( { model | nostr = nostr }
+            , Effect.batch
+                [ Effect.sendCmd <| Cmd.map Shared.Msg.NostrMsg nostrCmd
+                , Effect.sendCmd <| Ports.setLocalRelays (List.map Relay.toWire localRelays)
+                ]
             )
 
         DelayedCheckConfiguration ->
@@ -420,9 +447,28 @@ update route msg model =
         ChangeLocale locale ->
             update route (BrowserEnvMsg (BrowserEnv.UpdateLocale locale)) model
 
+        MarkNotificationsSeen pubKey ->
+            let
+                lastSeenMillis =
+                    Time.posixToMillis model.browserEnv.now
 
-updateWithPortMessage : Model -> IncomingMessage -> ( Model, Effect Msg )
-updateWithPortMessage model portMessage =
+                updated =
+                    Dict.insert pubKey lastSeenMillis model.notificationsLastSeen
+            in
+            ( { model | notificationsLastSeen = updated }
+            , Effect.sendCmd (Ports.setNotificationsLastSeen updated)
+            )
+
+        AddCashuBalance amount ->
+            ( { model | nostr = Nostr.addCashuBalance model.nostr amount }
+            , Effect.none
+            )
+
+        ReloadForNewVersion ->
+            ( model, Effect.sendCmd Ports.reloadWindow )
+
+updateWithPortMessage : Route () -> Model -> IncomingMessage -> ( Model, Effect Msg )
+updateWithPortMessage route model portMessage =
     let
         ( authDialog, authCmd ) =
             AuthDialog.update model.browserEnv (AuthDialog.PortMsg portMessage) model.authDialog
@@ -437,12 +483,24 @@ updateWithPortMessage model portMessage =
         "user" ->
             let
                 ( updatedModel, userEffect ) =
-                    updateWithUserValue modelWithAuth portMessage.value
+                    updateWithUserValue route modelWithAuth portMessage.value
             in
             ( updatedModel, Effect.batch [ authEffect, userEffect ] )
 
         "loggedOut" ->
-            ( { modelWithAuth | loginStatus = LoggedOut }
+            ( { modelWithAuth
+                | loginStatus = LoggedOut
+                , nostr = Nostr.clearUserSessionState modelWithAuth.nostr
+                , configCheck = ConfigCheck.init
+              }
+            , Effect.batch
+                [ authEffect
+                , Effect.sendCmd Ports.disconnectNwc
+                ]
+            )
+
+        "newVersionAvailable" ->
+            ( { modelWithAuth | newVersionAvailable = True }
             , authEffect
             )
 
@@ -475,55 +533,68 @@ updateWithPortMessage model portMessage =
             ( modelWithAuth, authEffect )
 
 
-updateWithUserValue : Model -> Json.Decode.Value -> ( Model, Effect Msg )
-updateWithUserValue model value =
+updateWithUserValue : Route () -> Model -> Json.Decode.Value -> ( Model, Effect Msg )
+updateWithUserValue route model value =
     case
         ( Json.Decode.decodeValue pubkeyDecoder value
         , Json.Decode.decodeValue loginMethodDecoder value
         , model.loginStatus
         )
     of
-        ( Ok pubKeyNew, Ok loginMethod, LoggedIn pubKeyLoggedIn _ ) ->
-            let
-                ( nostr, cmdNostr ) =
-                    if pubKeyNew /= pubKeyLoggedIn then
+        ( Ok pubKeyNew, Ok loginMethod, LoggedIn pubKeyLoggedIn previousMethod ) ->
+            if pubKeyNew == pubKeyLoggedIn then
+                -- Same pubkey can switch method (extension ↔ bunker); keep loginMethod fresh.
+                ( { model | loginStatus = LoggedIn pubKeyNew loginMethod }
+                , if loginMethod == previousMethod then
+                    Effect.none
+
+                  else
+                    Effect.sendCmd Ports.listIdentities
+                )
+
+            else
+                let
+                    ( nostr, cmdNostr ) =
                         Nostr.requestUserData model.nostr pubKeyNew
 
-                    else
-                        -- ignore messages that don't change user
-                        ( model.nostr, Cmd.none )
+                    startConfigCheckCmd =
+                        if Nostr.isEditor nostr pubKeyNew then
+                            Process.sleep (5 * 1000.0)
+                                |> Task.perform CheckConfiguration
 
-                startConfigCheckCmd =
-                    if Nostr.isEditor model.nostr pubKeyNew then
-                        -- trigger configuration check for Pareto users/authors
-                        Process.sleep (5 * 1000.0)
-                            |> Task.perform CheckConfiguration
+                        else
+                            Cmd.none
 
-                    else
-                        -- don't check for non-Pareto users
-                        Cmd.none
+                    bootstrapEffect =
+                        bootstrapEmailAccountEffect nostr pubKeyNew value
 
-                bootstrapEffect =
-                    bootstrapEmailAccountEffect model.nostr pubKeyNew value
-            in
-            ( { model
-                | loginStatus = LoggedIn pubKeyNew loginMethod
-                , nostr = nostr
-              }
-            , Effect.batch
-                [ [ cmdNostr
-                        |> Cmd.map Shared.Msg.NostrMsg
-
-                  -- check if user sends newsletters
-                  , Nostr.loadUserDataByPubKey model.nostr pubKeyNew
-                        |> Cmd.map Shared.Msg.NostrMsg
-                  , startConfigCheckCmd
-                  ]
-                    |> Cmd.batch
-                    |> Effect.sendCmd
-                , bootstrapEffect
-                ]
-            )
+                    ( modelWithLastSeen, lastSeenEffect ) =
+                        seedNotificationsLastSeenIfNeeded
+                            { model
+                                | loginStatus = LoggedIn pubKeyNew loginMethod
+                                , nostr = nostr
+                                , configCheck = ConfigCheck.init
+                            }
+                            pubKeyNew
+                in
+                ( modelWithLastSeen
+                , Effect.batch
+                    [ [ cmdNostr
+                            |> Cmd.map Shared.Msg.NostrMsg
+                      , Nostr.loadUserDataByPubKey nostr pubKeyNew
+                            |> Cmd.map Shared.Msg.NostrMsg
+                      , startConfigCheckCmd
+                      ]
+                        |> Cmd.batch
+                        |> Effect.sendCmd
+                    , bootstrapEffect
+                    , lastSeenEffect
+                    , createNotificationsActivityEffect modelWithLastSeen.nostr pubKeyNew
+                    , Effect.sendCmd Ports.disconnectNwc
+                      -- Remount auth pages so Write/Settings/Subscribers don't keep the previous user's model.
+                    , Effect.loadExternalUrl (Url.toString route.url)
+                    ]
+                )
 
         ( Ok pubKeyNew, Ok loginMethod, _ ) ->
             let
@@ -531,24 +602,50 @@ updateWithUserValue model value =
                     Nostr.requestUserData model.nostr pubKeyNew
 
                 bootstrapEffect =
-                    bootstrapEmailAccountEffect model.nostr pubKeyNew value
+                    bootstrapEmailAccountEffect nostr pubKeyNew value
+
+                ( modelWithLastSeen, lastSeenEffect ) =
+                    seedNotificationsLastSeenIfNeeded
+                        { model
+                            | loginStatus = LoggedIn pubKeyNew loginMethod
+                            , nostr = nostr
+                            , configCheck = ConfigCheck.init
+                        }
+                        pubKeyNew
             in
-            ( { model | loginStatus = LoggedIn pubKeyNew loginMethod, nostr = nostr }
+            ( modelWithLastSeen
             , Effect.batch
                 [ [ cmd
-
-                  -- check if user sends newsletters
-                  , Nostr.loadUserDataByPubKey model.nostr pubKeyNew
+                  , Nostr.loadUserDataByPubKey nostr pubKeyNew
                   ]
                     |> Cmd.batch
                     |> Cmd.map Shared.Msg.NostrMsg
                     |> Effect.sendCmd
                 , bootstrapEffect
+                , lastSeenEffect
+                , createNotificationsActivityEffect modelWithLastSeen.nostr pubKeyNew
+                , Effect.sendCmd Ports.disconnectNwc
                 ]
             )
 
         ( _, _, _ ) ->
             ( model, Effect.none )
+
+
+seedNotificationsLastSeenIfNeeded : Model -> PubKey -> ( Model, Effect Msg )
+seedNotificationsLastSeenIfNeeded model pubKey =
+    case Dict.get pubKey model.notificationsLastSeen of
+        Just _ ->
+            ( model, Effect.none )
+
+        Nothing ->
+            let
+                updated =
+                    Dict.insert pubKey (Time.posixToMillis model.browserEnv.now) model.notificationsLastSeen
+            in
+            ( { model | notificationsLastSeen = updated }
+            , Effect.sendCmd (Ports.setNotificationsLastSeen updated)
+            )
 
 
 bootstrapEmailAccountEffect : Nostr.Model -> PubKey -> Json.Decode.Value -> Effect Msg
@@ -575,9 +672,6 @@ bootstrapEmailAccountEffect nostr pubKey value =
                         List.map (\url -> { url = url, role = WriteRelay }) Pareto.recommendedOutboxRelays
                             ++ List.map (\url -> { url = url, role = ReadRelay }) Pareto.recommendedInboxRelays
 
-                    relaysWithProtocol =
-                        List.map (\relay -> { relay | url = "wss://" ++ relay.url }) relays
-
                     writeRelayUrls =
                         relays
                             |> List.filterMap
@@ -597,7 +691,7 @@ bootstrapEmailAccountEffect nostr pubKey value =
                         |> SendProfile profileRelays
                         |> Shared.Msg.SendNostrEvent
                         |> Effect.sendSharedMsg
-                    , eventWithRelayList pubKey relaysWithProtocol
+                    , eventWithRelayList pubKey relays
                         |> SendRelayList writeRelayUrls
                         |> Shared.Msg.SendNostrEvent
                         |> Effect.sendSharedMsg
@@ -634,6 +728,67 @@ blankToNothing value =
 
         trimmed ->
             Just trimmed
+
+
+createArticleDetailsEffect : Nostr.Model -> Maybe Article -> Effect msg
+createArticleDetailsEffect nostr maybeArticle =
+    maybeArticle
+        |> Maybe.andThen (Nostr.requestArticleDetails nostr)
+        |> Maybe.map
+            (\request ->
+                request
+                    |> Shared.Msg.RequestNostrEvents
+                    |> Effect.sendSharedMsg
+            )
+        |> Maybe.withDefault Effect.none
+
+
+createNotificationsActivityEffect : Nostr.Model -> PubKey -> Effect msg
+createNotificationsActivityEffect nostr pubKey =
+    let
+        articlesRequest =
+            [ { emptyEventFilter
+                | authors = Just [ pubKey ]
+                , kinds = Just [ KindLongFormContent ]
+                , limit = Just 50
+              }
+            ]
+                |> RequestArticlesFeed False
+                |> Nostr.createRequest nostr
+                    "Notifications activity"
+                    [ KindUserMetadata, KindReaction, KindComment, KindRepost, KindGenericRepost, KindZapReceipt, KindNutzap ]
+                |> Shared.Msg.RequestNostrEvents
+                |> Effect.sendSharedMsg
+
+        detailsEffects =
+            Nostr.getArticlesForAuthor nostr pubKey
+                |> List.map (\article -> createArticleDetailsEffect nostr (Just article))
+    in
+    Effect.batch (articlesRequest :: detailsEffects)
+
+
+createHighlightsActivityEffect : Nostr.Model -> PubKey -> Effect msg
+createHighlightsActivityEffect nostr pubKey =
+    let
+        articlesRequest =
+            [ { emptyEventFilter
+                | authors = Just [ pubKey ]
+                , kinds = Just [ KindLongFormContent ]
+                , limit = Just 50
+              }
+            ]
+                |> RequestArticlesFeed False
+                |> Nostr.createRequest nostr
+                    "Highlights activity"
+                    [ KindUserMetadata, KindHighlights ]
+                |> Shared.Msg.RequestNostrEvents
+                |> Effect.sendSharedMsg
+
+        detailsEffects =
+            Nostr.getArticlesForAuthor nostr pubKey
+                |> List.map (\article -> createArticleDetailsEffect nostr (Just article))
+    in
+    Effect.batch (articlesRequest :: detailsEffects)
 
 
 createFollowersEffect : Nostr.Model -> Maybe PubKey -> Effect msg

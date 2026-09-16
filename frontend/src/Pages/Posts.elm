@@ -2,6 +2,7 @@ module Pages.Posts exposing (Model, Msg, page)
 
 import Auth
 import Components.ArticleComments as ArticleComments
+import Components.ArticleHighlights as ArticleHighlights
 import Components.Categories as Categories
 import Dict
 import Effect exposing (Effect)
@@ -15,7 +16,8 @@ import Nostr.DeletionRequest exposing (deletionEvent)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
-import Nostr.Types exposing (EventId, RelayUrl, loggedInPubKey)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (EventId, loggedInPubKey)
 import Page exposing (Page)
 import Route exposing (Route)
 import Route.Path
@@ -165,7 +167,7 @@ stringFromCategory category =
 type Msg
     = CategorySelected Category
     | CategoriesSent (Categories.Msg Category Msg)
-    | DeleteEvent (Set RelayUrl) (List Kind) EventId (Maybe AddressComponents) -- draft event id
+    | DeleteEvent (Set String) (List Kind) EventId (Maybe AddressComponents) -- draft event id
     | EditDraft String
     | NoOp
 
@@ -184,12 +186,39 @@ update user shared msg model =
                 }
 
         DeleteEvent relayUrls kinds eventId maybeAddressComponents ->
-            ( model
-            , deletionEvent user.pubKey shared.browserEnv.now eventId "Deleting article or draft" maybeAddressComponents kinds
-                |> SendDeletionRequest (relayUrls |> Set.toList)
-                |> Shared.Msg.SendNostrEvent
-                |> Effect.sendSharedMsg
-            )
+            let
+                relays =
+                    let
+                        seen =
+                            Set.toList relayUrls
+                                |> List.map Relay.fromString
+
+                        storage =
+                            Nostr.getDraftStorageRelayUrls shared.nostr user.pubKey
+                    in
+                    if List.isEmpty seen then
+                        storage
+
+                    else
+                        seen ++ storage
+
+                nip09Effect =
+                    deletionEvent user.pubKey shared.browserEnv.now eventId "Deleting article or draft" maybeAddressComponents kinds
+                        |> SendDeletionRequest relays
+                        |> Shared.Msg.SendNostrEvent
+                        |> Effect.sendSharedMsg
+
+                tombstoneEffect =
+                    case maybeAddressComponents of
+                        Just ( KindDraft, _, identifier ) ->
+                            SendDraftTombstone user.pubKey identifier
+                                |> Shared.Msg.SendNostrEvent
+                                |> Effect.sendSharedMsg
+
+                        _ ->
+                            Effect.none
+            in
+            ( model, Effect.batch [ tombstoneEffect, nip09Effect ] )
 
         EditDraft nip19 ->
             ( model, Effect.pushRoute { path = Route.Path.Write, query = Dict.singleton "a" nip19, hash = Nothing } )
@@ -277,11 +306,13 @@ viewArticles shared model =
         |> Ui.View.viewArticlePreviews
             ArticlePreviewList
             { articleComments = ArticleComments.init
+            , articleHighlights = ArticleHighlights.init
             , articleToInteractionsMsg = \_ _ -> NoOp
             , bookmarkButtonMsg = \_ _ -> NoOp
             , bookmarkButtons = Dict.empty
             , browserEnv = shared.browserEnv
             , commentsToMsg = \_ -> NoOp
+            , highlightsToMsg = \_ -> NoOp
             , deleteButtonMsg = Just DeleteEvent
             , nostr = shared.nostr
             , loginStatus = shared.loginStatus

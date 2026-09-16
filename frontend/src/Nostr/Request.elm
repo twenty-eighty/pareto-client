@@ -1,8 +1,10 @@
 module Nostr.Request exposing (..)
 
-import Nostr.Event exposing (EventFilter, Kind)
+import Nostr.Event exposing (EventFilter, Kind(..), emptyEventFilter)
 import Nostr.Nip05 exposing (Nip05)
-import Nostr.Types exposing (RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (PubKey)
+import Time exposing (Posix)
 
 
 
@@ -46,6 +48,7 @@ type RequestData
     | RequestRelayLists EventFilter
     | RequestSubscribers EventFilter
     | RequestUserData EventFilter
+    | RequestNutzaps (List RelayUrl) EventFilter
     | RequestBlossomAuth String String HttpRequestMethod
     | RequestNip98Auth String String String HttpRequestMethod
     | RequestSearchResults (List EventFilter)
@@ -149,6 +152,9 @@ relaysOfRequest request =
                     RequestUserData _ ->
                         Nothing
 
+                    RequestNutzaps relayList _ ->
+                        Just relayList
+
                     RequestBlossomAuth _ _ _ ->
                         Nothing
 
@@ -161,3 +167,88 @@ relaysOfRequest request =
                     RequestShortNote relayList _ ->
                         relayList
             )
+
+
+requestDataOfState : RequestState -> RequestData
+requestDataOfState state =
+    case state of
+        RequestCreated data ->
+            data
+
+        RequestSent data ->
+            data
+
+
+shouldRequestArticleDetails : Request -> Bool
+shouldRequestArticleDetails request =
+    List.any
+        (\state ->
+            case requestDataOfState state of
+                RequestArticle _ _ ->
+                    True
+
+                RequestNip05AndArticle _ _ ->
+                    True
+
+                _ ->
+                    False
+        )
+        request.states
+
+
+identifierFromNip05ArticleRequest : Request -> Maybe String
+identifierFromNip05ArticleRequest request =
+    request.states
+        |> List.filterMap
+            (\state ->
+                case state of
+                    RequestCreated (RequestNip05AndArticle _ identifier) ->
+                        Just identifier
+
+                    RequestSent (RequestNip05AndArticle _ identifier) ->
+                        Just identifier
+
+                    _ ->
+                        Nothing
+            )
+        |> List.head
+
+
+eventFiltersWithUntil : List EventFilter -> Maybe Posix -> List EventFilter
+eventFiltersWithUntil eventFilters maybeUntil =
+    eventFilters
+        |> List.map (\eventFilter -> { eventFilter | until = maybeUntil })
+
+
+{-| Kinds fetched when a user logs in (profile + lists + relays + servers).
+-}
+userDataKinds : List Kind
+userDataKinds =
+    [ KindUserMetadata
+    , KindBlockedRelaysList
+    , KindBookmarkList
+    , KindBookmarkSets
+    , KindCommunitiesList
+    , KindFileStorageServerList
+    , KindFollows
+    , KindFollowSets
+    , KindMuteList
+    , KindRelayListMetadata
+    , KindRelayListForDMs
+    , KindRelaySets
+    , KindSearchRelaysList
+    , KindPrivateRelayList
+    , KindUserServerList
+    , KindCashuWalletEvent
+    , KindCashuWalletTokens
+    , KindCashuWalletHistory
+    , KindNutzapMintRecommendation
+    ]
+
+
+userDataFilter : PubKey -> EventFilter
+userDataFilter pubKey =
+    { emptyEventFilter
+        | authors = Just [ pubKey ]
+        , kinds = Just userDataKinds
+    }

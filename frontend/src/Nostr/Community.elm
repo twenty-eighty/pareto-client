@@ -1,10 +1,12 @@
 module Nostr.Community exposing (..)
 
+import Dict exposing (Dict)
 import Json.Decode as Decode exposing (Decoder, maybe, string, succeed)
 import Json.Decode.Pipeline exposing (optional, required)
-import Nostr.Event exposing (Event, EventFilter, ImageSize, Tag(..), imageSizeDecoder)
+import Nostr.Event exposing (Event, EventFilter, ImageSize, Kind(..), Tag(..), TagReference(..), emptyEventFilter, imageSizeDecoder)
 import Nostr.Profile exposing (ProfileValidation(..))
-import Nostr.Types exposing (PubKey, RelayUrl)
+import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Types exposing (PubKey)
 import Time exposing (Month(..))
 
 
@@ -75,6 +77,17 @@ communityDefinitionFromEvent event =
             (emptyCommunity event.pubKey)
 
 
+ingest : Dict PubKey (List Community) -> List Event -> Dict PubKey (List Community)
+ingest dict events =
+    events
+        |> List.map communityDefinitionFromEvent
+        |> List.foldl
+            (\communityDefinition acc ->
+                Dict.insert communityDefinition.pubKey [ communityDefinition ] acc
+            )
+            dict
+
+
 emptyCommunity : PubKey -> Community
 emptyCommunity pubKey =
     { dtag = Nothing
@@ -100,6 +113,15 @@ communityName community =
 
         Nothing ->
             Maybe.withDefault "" community.dtag
+
+
+postApprovalFilter : Community -> EventFilter
+postApprovalFilter community =
+    { emptyEventFilter
+        | authors = Just [ community.pubKey ]
+        , kinds = Just [ KindCommunityPostApproval ]
+        , tagReferences = Just [ TagReferenceCode ( KindCommunityDefinition, community.pubKey, Maybe.withDefault "" community.dtag ) ]
+    }
 
 
 

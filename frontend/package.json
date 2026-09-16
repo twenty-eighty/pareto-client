@@ -1,5 +1,7 @@
 {
   "dependencies": {
+    "@cashu/cashu-ts": "^4.10.1",
+    "@getalby/sdk": "^8.0.3",
     "@milkdown/core": "^7.17.2",
     "@milkdown/crepe": "^7.17.2",
     "@milkdown/exception": "^7.21.2",
