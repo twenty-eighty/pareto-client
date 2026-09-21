@@ -6,6 +6,7 @@ import Html.Styled.Attributes as Attr exposing (css, src)
 import LinkPreview
 import Markdown.Block as Block
 import Markdown.Html
+import Markdown.Parser
 import Markdown.Renderer
 import Nostr.Nip27 exposing (GetProfileFunction, subsituteNostrLinks)
 import Nostr.Shared exposing (ensureHttps)
@@ -174,7 +175,7 @@ renderer styles fnGetProfile =
                                 itemBlocks
                         )
                 )
-    , html = htmlBlock styles
+    , html = htmlBlock styles fnGetProfile
     , codeBlock = codeBlock
 
     --\{ body, language } ->
@@ -348,8 +349,8 @@ heading styles { level, rawText, children } =
                 children
 
 
-htmlBlock : Styles msg -> Markdown.Html.Renderer (List (Html msg) -> Html msg)
-htmlBlock styles =
+htmlBlock : Styles msg -> GetProfileFunction -> Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlBlock styles fnGetProfile =
     Markdown.Html.oneOf
         [ htmlAElement
         , htmlBrElement
@@ -359,7 +360,7 @@ htmlBlock styles =
         , htmlPElement
         , htmlStrongElement
         , htmlFootnoteRefElement styles
-        , htmlFootnoteElement styles
+        , htmlFootnoteElement styles fnGetProfile
         , htmlFootnotesElement styles
         , htmlEmbedLinkElement styles
         , htmlGenericElement "col"
@@ -419,10 +420,10 @@ htmlFootnoteRefElement styles =
         |> Markdown.Html.withAttribute "number"
 
 
-htmlFootnoteElement : Styles msg -> Markdown.Html.Renderer (List (Html msg) -> Html msg)
-htmlFootnoteElement styles =
+htmlFootnoteElement : Styles msg -> GetProfileFunction -> Markdown.Html.Renderer (List (Html msg) -> Html msg)
+htmlFootnoteElement styles fnGetProfile =
     Markdown.Html.tag "footnote"
-        (\id _ backhref children ->
+        (\id _ backhref markdown children ->
             Html.li
                 (styles.textStyleBody
                     ++ styles.colorStyleGrayscaleText
@@ -435,6 +436,7 @@ htmlFootnoteElement styles =
                        ]
                 )
                 (children
+                    ++ renderFootnoteMarkdown styles fnGetProfile markdown
                     ++ [ Html.text " "
                        , Html.a
                             (styles.colorStyleLinks
@@ -451,6 +453,29 @@ htmlFootnoteElement styles =
         |> Markdown.Html.withAttribute "id"
         |> Markdown.Html.withAttribute "number"
         |> Markdown.Html.withAttribute "backhref"
+        |> Markdown.Html.withAttribute "markdown"
+
+
+{-| The `markdown` attribute is already entity-decoded, so this is the original
+footnote source. Parsing it here keeps `&` and code spans intact.
+-}
+renderFootnoteMarkdown : Styles msg -> GetProfileFunction -> String -> List (Html msg)
+renderFootnoteMarkdown styles fnGetProfile markdown =
+    if String.trim markdown == "" then
+        []
+
+    else
+        case Markdown.Parser.parse markdown of
+            Ok blocks ->
+                case Markdown.Renderer.render (renderer styles fnGetProfile) blocks of
+                    Ok html ->
+                        html
+
+                    Err _ ->
+                        [ Html.text markdown ]
+
+            Err _ ->
+                [ Html.text markdown ]
 
 
 htmlFootnotesElement : Styles msg -> Markdown.Html.Renderer (List (Html msg) -> Html msg)
