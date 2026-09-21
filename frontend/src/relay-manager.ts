@@ -1,4 +1,5 @@
 import { NDKRelaySet } from "@nostr-dev-kit/ndk";
+import { filterRelayUrls } from "./blocked-relays";
 
 const QUEUE_TIMEOUT_MS = 15000;
 
@@ -24,9 +25,11 @@ export function createRelayManager(ndk, debugLog, processEvents) {
   };
 
   const fetchEvents = (app, { requestId, filters, closeOnEose, description, relays }) => {
-    const targetRelays = relays && relays.length > 0
-      ? relays.map(normalizeRelayUrl)
-      : Array.from(ndk.pool.relays.keys()).map(normalizeRelayUrl);
+    const targetRelays = filterRelayUrls(
+      (relays && relays.length > 0
+        ? relays.map(normalizeRelayUrl)
+        : Array.from(ndk.pool.relays.keys()).map(normalizeRelayUrl))
+    );
 
     // ensure target relays are in the pool and connecting
     targetRelays.forEach((url) => {

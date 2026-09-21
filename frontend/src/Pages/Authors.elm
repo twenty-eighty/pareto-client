@@ -24,7 +24,7 @@ import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Task exposing (Task)
 import Translations.AuthorsPage as Translations
-import Ui.Profile exposing (followingProfile, viewAuthorCard)
+import Ui.Profile exposing (followingProfile, mutingProfile, viewAuthorCard)
 import Ui.Shared exposing (emptyHtml, viewConfigIssues)
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..))
@@ -90,6 +90,8 @@ init shared _ () =
 type Msg
     = Follow PubKey PubKey
     | Unfollow PubKey PubKey
+    | Mute PubKey PubKey
+    | Unmute PubKey PubKey
     | FetchConfigCheckData
     | PerformConfigChecks
     | ReceivedConfigChecks (Result Never (Dict PubKey ConfigCheck.Model, Cmd Msg))
@@ -109,6 +111,20 @@ update shared msg model =
         Unfollow pubKeyUser pubKeyToBeUnfollowed ->
             ( model
             , SendFollowListWithoutPubKey pubKeyUser pubKeyToBeUnfollowed
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        Mute pubKeyUser pubKeyToBeMuted ->
+            ( model
+            , SendMuteListWithPubKey pubKeyUser pubKeyToBeMuted
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        Unmute pubKeyUser pubKeyToBeUnmuted ->
+            ( model
+            , SendMuteListWithoutPubKey pubKeyUser pubKeyToBeUnmuted
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
@@ -279,6 +295,7 @@ viewAuthorCard shared profile maybeConfigCheck =
         , nostr = shared.nostr
         , loginStatus = shared.loginStatus
         , following = followingProfile shared.nostr profile.pubKey Follow Unfollow userPubKey
+        , mute = mutingProfile shared.nostr profile.pubKey Mute Unmute userPubKey
         , subscribe = Nothing
         , theme = shared.theme
         , validation =

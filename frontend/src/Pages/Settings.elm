@@ -30,13 +30,13 @@ import Nostr.External
 import Nostr.Lud16 as Lud16
 import Nostr.Nip05 as Nip05
 import Nostr.Nip96 as Nip96 exposing (eventWithNip96ServerList)
-import Nostr.Profile exposing (Profile, ProfileValidation(..), emptyProfile, eventFromProfile, profileFromEvent, profilesEqual)
+import Nostr.Profile exposing (Profile, ProfileValidation(..), emptyProfile, eventFromProfile, profileDisplayName, profileFromEvent, profilesEqual)
 import Nostr.Relay as Relay exposing (Relay, RelayState(..), RelayUrl)
-import Nostr.RelayList as RelayList exposing (eventWithPrivateRelayList)
+import Nostr.RelayList as RelayList exposing (eventWithBlockedRelayList, eventWithPrivateRelayList, eventWithSearchRelayList)
 import Nostr.RelayListMetadata exposing (RelayMetadata, eventWithRelayList, extendRelayList, removeFromRelayList)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..), SendRequestId)
-import Nostr.Types exposing (IncomingMessage, PubKey, RelayRole(..), ServerUrl, signingPubKeyAvailable)
+import Nostr.Types exposing (Following(..), IncomingMessage, PubKey, RelayRole(..), ServerUrl, signingPubKeyAvailable)
 import Page exposing (Page)
 import Pareto
 import Ports
@@ -117,6 +117,7 @@ type DataModel
     = RelaysData RelaysModel
     | MediaServersData MediaServersModel
     | ProfileData ProfileModel
+    | MutesData MutesModel
     | EcashData EcashModel
     | WalletData WalletModel
 
@@ -211,6 +212,7 @@ type alias RelaysModel =
     , privateRelay : Maybe String
     , localRelay : Maybe String
     , searchRelay : Maybe String
+    , blockedRelay : Maybe String
     , state : RelayListState
     }
 
@@ -218,6 +220,16 @@ type alias RelaysModel =
 type RelayListState
     = RelayListStateEditing
     | RelayListStateSaving SendRequestId
+
+
+type alias MutesModel =
+    { state : MuteListState
+    }
+
+
+type MuteListState
+    = MuteListStateEditing
+    | MuteListStateSaving SendRequestId
 
 
 type alias MediaServersModel =
@@ -339,7 +351,14 @@ emptyRelaysModel =
     , privateRelay = Nothing
     , localRelay = Nothing
     , searchRelay = Nothing
+    , blockedRelay = Nothing
     , state = RelayListStateEditing
+    }
+
+
+emptyMutesModel : MutesModel
+emptyMutesModel =
+    { state = MuteListStateEditing
     }
 
 
@@ -387,6 +406,7 @@ type Category
     = Relays
     | MediaServers
     | Profile
+    | Mutes
     | Wallet
     | Ecash
 
@@ -439,6 +459,10 @@ availableCategories translations configCheckIssues =
       , title = Translations.profileCategory [ translations ] ++ profileIssuesSuffix
       , testId = "settings-profile"
       }
+    , { category = Mutes
+      , title = Translations.mutesCategory [ translations ]
+      , testId = "settings-mutes"
+      }
     , { category = Wallet
       , title = Translations.walletCategory [ translations ]
       , testId = "settings-wallet"
@@ -485,6 +509,9 @@ stringFromCategory category =
         Profile ->
             "profile"
 
+        Mutes ->
+            "mutes"
+
         Wallet ->
             "wallet"
 
@@ -503,6 +530,9 @@ categoryFromString categoryString =
 
         "profile" ->
             Just Profile
+
+        "mutes" ->
+            Just Mutes
 
         "wallet" ->
             Just Wallet
@@ -531,6 +561,10 @@ type Msg
     | RemovePrivateRelay PubKey RelayUrl
     | RemoveLocalRelay RelayUrl
     | AddSearchRelay PubKey RelayUrl
+    | RemoveSearchRelay PubKey RelayUrl
+    | AddDefaultSearchRelays PubKey (List RelayUrl)
+    | AddBlockedRelay PubKey RelayUrl
+    | RemoveBlockedRelay PubKey RelayUrl
     | AddDefaultOutboxRelays (List RelayUrl)
     | AddDefaultInboxRelays (List RelayUrl)
     | RemoveRelay PubKey RelayRole RelayUrl
@@ -546,6 +580,7 @@ type Msg
     | ImageSelected MediaSelector.UploadedFile
     | SaveProfile Profile
     | CreateProfile
+    | UnmutePubKey PubKey PubKey
     | EnableEcashWallet
     | DisableEcashWallet
     | UpdateEcashMintDraft String
@@ -652,8 +687,66 @@ update user shared msg model =
             , Effect.sendSharedMsg (Shared.Msg.SetLocalRelays updated)
             )
 
-        AddSearchRelay _ _ ->
-            ( model, Effect.none )
+        AddSearchRelay pubKey relayUrl ->
+            if Nostr.isBlockedRelay shared.nostr relayUrl then
+                ( model, Effect.none )
+
+            else
+                let
+                    updated =
+                        (Nostr.getSearchRelaysForPubKey shared.nostr pubKey |> List.map .url)
+                            ++ [ relayUrl ]
+                            |> RelayList.withUniqueEntries
+                in
+                ( { model | data = RelaysData { emptyRelaysModel | state = RelayListStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
+                , sendSearchRelayListCmd pubKey (Nostr.getWriteRelayUrlsForPubKey shared.nostr pubKey) updated
+                )
+
+        RemoveSearchRelay pubKey relayUrl ->
+            let
+                updated =
+                    (Nostr.getSearchRelaysForPubKey shared.nostr pubKey |> List.map .url)
+                        |> List.filter (\url -> Relay.toKey url /= Relay.toKey relayUrl)
+            in
+            ( { model | data = RelaysData { emptyRelaysModel | state = RelayListStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
+            , sendSearchRelayListCmd pubKey (Nostr.getWriteRelayUrlsForPubKey shared.nostr pubKey) updated
+            )
+
+        AddDefaultSearchRelays pubKey relayUrls ->
+            let
+                updated =
+                    (Nostr.getSearchRelaysForPubKey shared.nostr pubKey |> List.map .url)
+                        ++ relayUrls
+                        |> RelayList.withUniqueEntries
+                        |> List.filter (\url -> not (Nostr.isBlockedRelay shared.nostr url))
+            in
+            ( { model | data = RelaysData { emptyRelaysModel | state = RelayListStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
+            , sendSearchRelayListCmd pubKey (Nostr.getWriteRelayUrlsForPubKey shared.nostr pubKey) updated
+            )
+
+        AddBlockedRelay pubKey relayUrl ->
+            let
+                updated =
+                    publishedBlockedRelays shared.nostr pubKey [ relayUrl ]
+            in
+            ( { model | data = RelaysData { emptyRelaysModel | state = RelayListStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
+            , sendBlockedRelayListCmd pubKey (Nostr.getWriteRelayUrlsForPubKey shared.nostr pubKey) updated
+            )
+
+        RemoveBlockedRelay pubKey relayUrl ->
+            if List.any (\blocked -> Relay.toKey blocked == Relay.toKey relayUrl) Pareto.blockedRelays then
+                ( model, Effect.none )
+
+            else
+                let
+                    updated =
+                        Nostr.getUserBlockedRelayUrls shared.nostr pubKey
+                            |> List.filter (\url -> Relay.toKey url /= Relay.toKey relayUrl)
+                            |> (\userList -> RelayList.withUniqueEntries (Pareto.blockedRelays ++ userList))
+                in
+                ( { model | data = RelaysData { emptyRelaysModel | state = RelayListStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
+                , sendBlockedRelayListCmd pubKey (Nostr.getWriteRelayUrlsForPubKey shared.nostr pubKey) updated
+                )
 
         AddDefaultOutboxRelays relayUrls ->
             ( { model | data = RelaysData { emptyRelaysModel | state = RelayListStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
@@ -834,6 +927,13 @@ update user shared msg model =
 
                 _ ->
                     ( model, Effect.none )
+
+        UnmutePubKey userPubKey mutedPubKey ->
+            ( { model | data = MutesData { state = MuteListStateSaving (Nostr.getLastSendRequestId shared.nostr) } }
+            , SendMuteListWithoutPubKey userPubKey mutedPubKey
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
 
         EnableEcashWallet ->
             case model.data of
@@ -1489,6 +1589,20 @@ updateWithPortMessage user shared model message =
                         _ ->
                             ( model, Effect.none )
 
+                ( MutesData mutesModel, Ok incomingSendId, _ ) ->
+                    case mutesModel.state of
+                        MuteListStateSaving sendRequestId ->
+                            if sendRequestId == incomingSendId then
+                                ( { model | data = MutesData { state = MuteListStateEditing } }
+                                , Effect.none
+                                )
+
+                            else
+                                ( model, Effect.none )
+
+                        _ ->
+                            ( model, Effect.none )
+
                 ( ProfileData profileModel, Ok incomingSendId, Ok event ) ->
                     case ( profileModel.state, profileFromEvent event ) of
                         ( EditStateSaving sendRequestId, Just profile ) ->
@@ -1743,6 +1857,27 @@ sendPrivateRelayListCmd pubKey writeRelays privateRelays =
         |> Effect.sendSharedMsg
 
 
+sendSearchRelayListCmd : PubKey -> List RelayUrl -> List RelayUrl -> Effect msg
+sendSearchRelayListCmd pubKey writeRelays searchRelays =
+    eventWithSearchRelayList pubKey searchRelays
+        |> SendSearchRelayList writeRelays
+        |> Shared.Msg.SendNostrEvent
+        |> Effect.sendSharedMsg
+
+
+sendBlockedRelayListCmd : PubKey -> List RelayUrl -> List RelayUrl -> Effect msg
+sendBlockedRelayListCmd pubKey writeRelays blockedRelays =
+    eventWithBlockedRelayList pubKey blockedRelays
+        |> SendBlockedRelayList writeRelays
+        |> Shared.Msg.SendNostrEvent
+        |> Effect.sendSharedMsg
+
+
+publishedBlockedRelays : Nostr.Model -> PubKey -> List RelayUrl -> List RelayUrl
+publishedBlockedRelays nostr pubKey extra =
+    RelayList.withUniqueEntries (Pareto.blockedRelays ++ Nostr.getUserBlockedRelayUrls nostr pubKey ++ extra)
+
+
 categoryFromQuery : Maybe String -> Category
 categoryFromQuery maybeCategory =
     maybeCategory
@@ -1760,6 +1895,9 @@ categoryDataMatches model category =
             True
 
         ( Profile, ProfileData _ ) ->
+            True
+
+        ( Mutes, MutesData _ ) ->
             True
 
         ( Wallet, WalletData _ ) ->
@@ -1841,6 +1979,11 @@ updateModelWithCategory user shared model category =
                         , Shared.Msg.LoadUserDataByPubKey user.pubKey
                             |> Effect.sendSharedMsg
                         ]
+                    )
+
+                Mutes ->
+                    ( { modelReady | data = MutesData emptyMutesModel }
+                    , Effect.none
                     )
 
                 Ecash ->
@@ -1955,6 +2098,9 @@ viewCategory shared configCheckIssues model user =
 
         ( Profile, ProfileData profileModel ) ->
             viewProfile shared configCheckIssues.profileIssues user profileModel
+
+        ( Mutes, MutesData mutesModel ) ->
+            viewMutes shared user mutesModel
 
         ( Ecash, EcashData ecashModel ) ->
             viewEcash shared user ecashModel
@@ -2629,6 +2775,98 @@ type alias Suggestions =
     }
 
 
+viewMutes : Shared.Model -> Auth.User -> MutesModel -> Html Msg
+viewMutes shared user mutesModel =
+    let
+        styles =
+            stylesForTheme shared.theme
+
+        muted =
+            Nostr.getMuteList shared.nostr user.pubKey
+                |> Maybe.withDefault []
+
+        readOnly =
+            signingPubKeyAvailable shared.loginStatus
+                |> not
+
+        saving =
+            case mutesModel.state of
+                MuteListStateSaving _ ->
+                    True
+
+                _ ->
+                    False
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.gap_4
+            ]
+        ]
+        [ h3
+            (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
+            [ text <| Translations.mutesSectionTitle [ shared.browserEnv.translations ] ]
+        , p [] [ text <| Translations.mutesDescription [ shared.browserEnv.translations ] ]
+        , if List.isEmpty muted then
+            p [] [ text <| Translations.noMutesText [ shared.browserEnv.translations ] ]
+
+          else
+            div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_col
+                    , Tw.gap_2
+                    ]
+                ]
+                (List.filterMap (viewMutedEntry shared user.pubKey readOnly saving) muted)
+        ]
+
+
+viewMutedEntry : Shared.Model -> PubKey -> Bool -> Bool -> Following -> Maybe (Html Msg)
+viewMutedEntry shared userPubKey readOnly saving following =
+    case following of
+        FollowingPubKey { pubKey } ->
+            let
+                label =
+                    Nostr.getProfile shared.nostr pubKey
+                        |> Maybe.map (profileDisplayName pubKey)
+                        |> Maybe.withDefault pubKey
+            in
+            Just
+                (div
+                    [ css
+                        [ Tw.flex
+                        , Tw.flex_row
+                        , Tw.items_center
+                        , Tw.gap_2
+                        , Tw.p_2
+                        , Tw.border_b_2
+                        ]
+                    ]
+                    [ div [ css [ Tw.grow ] ] [ text label ]
+                    , if not readOnly then
+                        Button.new
+                            { label = Translations.unmuteButtonTitle [ shared.browserEnv.translations ]
+                            , onClick = Just (UnmutePubKey userPubKey pubKey)
+                            , theme = shared.theme
+                            }
+                            |> Button.withIntermediateState saving
+                            |> Button.view
+
+                      else
+                        emptyHtml
+                    ]
+                )
+
+        FollowingHashtag hashtag ->
+            Just
+                (div
+                    [ css [ Tw.p_2, Tw.border_b_2 ] ]
+                    [ text ("#" ++ hashtag) ]
+                )
+
+
 viewRelays : Shared.Model -> List ConfigCheck.Issue -> Auth.User -> RelaysModel -> Html Msg
 viewRelays shared configCheckIssues user relaysModel =
     {-
@@ -2651,7 +2889,9 @@ viewRelays shared configCheckIssues user relaysModel =
         [ viewConfigIssues shared.browserEnv (Translations.relayIssuesTitle [ shared.browserEnv.translations ]) configCheckIssues
         , outboxRelaySection shared user relaysModel
         , inboxRelaySection shared user relaysModel
+        , searchRelaySection shared user relaysModel
         , privateRelaySection shared user relaysModel
+        , blockedRelaySection shared user relaysModel
         , localRelaySection shared user relaysModel
         ]
 
@@ -2747,6 +2987,91 @@ inboxRelaySection shared user relaysModel =
         , viewRelayList shared.theme shared.browserEnv.translations readOnly (AddDefaultInboxRelays suggestedInboxRelays) (RemoveRelay user.pubKey ReadRelay << Relay.fromString) (Translations.addDefaultRelaysButtonTitle [ shared.browserEnv.translations ]) inboxRelays
         , if not readOnly then
             addRelayBox shared.theme shared.browserEnv.translations relaysModel.inboxRelay inboxRelaySuggestions (updateRelayModelInbox relaysModel) (AddInboxRelay user.pubKey << Relay.fromString) saving "inbox-relay-add-button"
+
+          else
+            emptyHtml
+        ]
+
+
+searchRelaySection : Shared.Model -> Auth.User -> RelaysModel -> Html Msg
+searchRelaySection shared user relaysModel =
+    let
+        styles =
+            stylesForTheme shared.theme
+
+        searchRelays =
+            Nostr.getSearchRelaysForPubKey shared.nostr user.pubKey
+                |> List.filter (\relay -> not (Nostr.isBlockedRelay shared.nostr relay.url))
+
+        searchRelaySuggestions =
+            { identifier = "search-relay-suggestions"
+            , suggestions =
+                missingRelays searchRelays Pareto.defaultSearchRelays
+            }
+
+        readOnly =
+            signingPubKeyAvailable shared.loginStatus
+                |> not
+
+        saving =
+            case relaysModel.state of
+                RelayListStateSaving _ ->
+                    True
+
+                _ ->
+                    False
+    in
+    div []
+        [ h3
+            (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
+            [ text <| Translations.searchSectionTitle [ shared.browserEnv.translations ] ]
+        , p [] [ text <| Translations.searchRelaysDescription [ shared.browserEnv.translations ] ]
+        , viewRelayList shared.theme shared.browserEnv.translations readOnly (AddDefaultSearchRelays user.pubKey Pareto.defaultSearchRelays) (RemoveSearchRelay user.pubKey << Relay.fromString) (Translations.addDefaultRelaysButtonTitle [ shared.browserEnv.translations ]) searchRelays
+        , if not readOnly then
+            addRelayBox shared.theme shared.browserEnv.translations relaysModel.searchRelay searchRelaySuggestions (updateRelayModelSearch relaysModel) (AddSearchRelay user.pubKey << Relay.fromString) saving "search-relay-add-button"
+
+          else
+            emptyHtml
+        ]
+
+
+blockedRelaySection : Shared.Model -> Auth.User -> RelaysModel -> Html Msg
+blockedRelaySection shared user relaysModel =
+    let
+        styles =
+            stylesForTheme shared.theme
+
+        blockedRelays =
+            Nostr.getBlockedRelayUrls shared.nostr
+                |> resolveRelayRecords shared.nostr
+
+        readOnly =
+            signingPubKeyAvailable shared.loginStatus
+                |> not
+
+        saving =
+            case relaysModel.state of
+                RelayListStateSaving _ ->
+                    True
+
+                _ ->
+                    False
+
+        emptySuggestions =
+            { identifier = "blocked-relay-suggestions"
+            , suggestions = []
+            }
+    in
+    div []
+        [ h3
+            (styles.colorStyleGrayscaleTitle ++ styles.textStyleH3)
+            [ text <| Translations.blockedSectionTitle [ shared.browserEnv.translations ] ]
+        , p
+            [ css [ Tw.mb_4 ] ]
+            [ text <| Translations.blockedRelaysDescription [ shared.browserEnv.translations ] ]
+        , viewBlockedRelayList shared.theme shared.browserEnv.translations readOnly (RemoveBlockedRelay user.pubKey) blockedRelays
+        , if not readOnly then
+            addRelayBox shared.theme shared.browserEnv.translations relaysModel.blockedRelay emptySuggestions (updateRelayModelBlocked relaysModel) (AddBlockedRelay user.pubKey << Relay.fromString) saving "blocked-relay-add-button"
 
           else
             emptyHtml
@@ -2855,6 +3180,11 @@ resolveRelayRecords nostr urls =
 
 viewSimpleRelayList : Theme -> I18Next.Translations -> Bool -> (RelayUrl -> Msg) -> List Relay -> Html Msg
 viewSimpleRelayList theme translations readOnly removeMsg relays =
+    viewBlockedRelayList theme translations readOnly removeMsg relays
+
+
+viewBlockedRelayList : Theme -> I18Next.Translations -> Bool -> (RelayUrl -> Msg) -> List Relay -> Html Msg
+viewBlockedRelayList theme translations readOnly removeMsg relays =
     if List.isEmpty relays then
         if readOnly then
             text <| Translations.relayReadOnlyLoginInfo [ translations ]
@@ -2871,7 +3201,16 @@ viewSimpleRelayList theme translations readOnly removeMsg relays =
                 , Tw.gap_2
                 ]
             ]
-            (List.map (viewRelay readOnly (\key -> removeMsg (Relay.fromString key))) relays)
+            (List.map
+                (\relay ->
+                    let
+                        clientBlocked =
+                            List.any (\blocked -> Relay.toKey blocked == Relay.toKey relay.url) Pareto.blockedRelays
+                    in
+                    viewRelay (readOnly || clientBlocked) (\key -> removeMsg (Relay.fromString key)) relay
+                )
+                relays
+            )
 
 
 
@@ -2930,10 +3269,14 @@ updateRelayModelLocal relaysModel value =
     { relaysModel | localRelay = value }
 
 
+updateRelayModelSearch : RelaysModel -> Maybe String -> RelaysModel
+updateRelayModelSearch relaysModel value =
+    { relaysModel | searchRelay = value }
 
---   updateRelayModelSearch : RelaysModel -> Maybe String -> RelaysModel
---   updateRelayModelSearch relaysModel value =
---       { relaysModel | searchRelay = value }
+
+updateRelayModelBlocked : RelaysModel -> Maybe String -> RelaysModel
+updateRelayModelBlocked relaysModel value =
+    { relaysModel | blockedRelay = value }
 
 
 addRelayBox : Theme -> I18Next.Translations -> Maybe String -> Suggestions -> (Maybe String -> RelaysModel) -> (String -> Msg) -> Bool -> String -> Html Msg
@@ -3566,6 +3909,7 @@ viewProfile shared configCheckIssues user profileModel =
                         , nostr = shared.nostr
                         , loginStatus = shared.loginStatus
                         , following = UnknownFollowing
+                        , mute = Nothing
                         , subscribe = Nothing
                         , theme = shared.theme
                         , validation =

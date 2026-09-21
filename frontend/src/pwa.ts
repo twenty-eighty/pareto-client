@@ -19,14 +19,8 @@ type VersionPayload = {
 const VERSION_POLL_MS = 5 * 60 * 1000;
 
 let waitingWorker: ServiceWorker | null = null;
-let installPromptEvent: BeforeInstallPromptEvent | null = null;
 let notifiedNewVersion = false;
 let reloading = false;
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
 
 function runningBundlePath(): string | null {
   const el = document.querySelector<HTMLScriptElement>(
@@ -68,15 +62,6 @@ export function reloadForNewVersion(): void {
     return;
   }
   reloadOnce();
-}
-
-export function promptPwaInstall(): void {
-  if (!installPromptEvent) {
-    return;
-  }
-  const event = installPromptEvent;
-  installPromptEvent = null;
-  event.prompt();
 }
 
 async function checkVersion(app: ElmApp, runningJs: string): Promise<void> {
@@ -146,31 +131,10 @@ async function registerServiceWorker(app: ElmApp): Promise<void> {
   }
 }
 
-function listenForInstallPrompt(app: ElmApp): void {
-  window.addEventListener("beforeinstallprompt", (event) => {
-    event.preventDefault();
-    installPromptEvent = event as BeforeInstallPromptEvent;
-    app.ports.receiveMessage.send({
-      messageType: "installPromptAvailable",
-      value: true,
-    });
-  });
-
-  window.addEventListener("appinstalled", () => {
-    installPromptEvent = null;
-    app.ports.receiveMessage.send({
-      messageType: "installPromptAvailable",
-      value: false,
-    });
-  });
-}
-
 export function initPwa(app: ElmApp): void {
   const runningJs = runningBundlePath();
   const canUseProductionPwa =
     Boolean(runningJs) && "serviceWorker" in navigator;
-
-  listenForInstallPrompt(app);
 
   if (runningJs) {
     startVersionPolling(app, runningJs);

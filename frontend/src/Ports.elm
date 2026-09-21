@@ -26,6 +26,18 @@ connect relays =
                 [ ( "client", Encode.string Pareto.client )
                 , ( "nip89", Encode.string <| buildAddress ( KindHandlerInformation, Pareto.paretoClientPubKey, Pareto.handlerIdentifier ) )
                 , ( "relays", Encode.list Encode.string (List.map Relay.toWire relays) )
+                , ( "blockedRelays", Encode.list Encode.string (List.map Relay.toWire Pareto.blockedRelays) )
+                ]
+        }
+
+
+setBlockedRelays : List RelayUrl -> Cmd msg
+setBlockedRelays relays =
+    sendCommand
+        { command = "setBlockedRelays"
+        , value =
+            Encode.object
+                [ ( "relays", Encode.list Encode.string (List.map Relay.toWire relays) )
                 ]
         }
 
@@ -764,11 +776,6 @@ payInvoiceNwc invoice =
         { command = "payInvoiceNwc"
         , value = Encode.object [ ( "invoice", Encode.string invoice ) ]
         }
-
-
-installPwa : Cmd msg
-installPwa =
-    sendCommand { command = "installPwa", value = Encode.null }
 
 
 encodeNewsletterData : NewsletterData -> Encode.Value

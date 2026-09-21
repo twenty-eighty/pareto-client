@@ -99,9 +99,19 @@ ingest dict events =
 
 followListEvent : PubKey -> List Following -> Event
 followListEvent pubKey list =
+    listEvent KindFollows pubKey list
+
+
+muteListEvent : PubKey -> List Following -> Event
+muteListEvent pubKey list =
+    listEvent KindMuteList pubKey list
+
+
+listEvent : Kind -> PubKey -> List Following -> Event
+listEvent kind pubKey list =
     let
         event =
-            emptyEvent pubKey KindFollows
+            emptyEvent pubKey kind
     in
     { event
         | tags =

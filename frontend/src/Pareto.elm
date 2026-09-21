@@ -271,6 +271,15 @@ delayedPublishingRelays =
     ]
 
 
+{-| Relays the client never connects to, even if they appear in NIP-65 / hints.
+Users can add more via kind 10006; they cannot unblock these.
+-}
+blockedRelays : List RelayUrl
+blockedRelays =
+    [ Relay.fromString "relay.nostr.band"
+    ]
+
+
 defaultOutboxRelays : List { url : RelayUrl, role : RelayRole }
 defaultOutboxRelays =
     defaultRelays

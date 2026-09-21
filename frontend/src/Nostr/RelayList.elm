@@ -1,7 +1,11 @@
 module Nostr.RelayList exposing
-    ( PrivateIngestResult
+    ( BlockedIngestResult
+    , PrivateIngestResult
     , SearchIngestResult
+    , eventWithBlockedRelayList
     , eventWithPrivateRelayList
+    , eventWithSearchRelayList
+    , ingestBlockedRelays
     , ingestPrivateRelays
     , ingestSearchRelays
     , withUniqueEntries
@@ -16,7 +20,7 @@ import Time
 
 
 -- NIP-51
--- this is intended for kinds 10006 (blocked relays), 10007 (search relays), 10050 (DM relays)
+-- kinds 10006 (blocked relays), 10007 (search relays), 10013 (private), 10050 (DM relays)
 
 
 type alias SearchIngestResult =
@@ -28,6 +32,11 @@ type alias SearchIngestResult =
 type alias PrivateIngestResult =
     { privateRelayLists : Dict PubKey (List RelayUrl)
     , unknownRelays : List RelayUrl
+    }
+
+
+type alias BlockedIngestResult =
+    { blockedRelayLists : Dict PubKey (List RelayUrl)
     }
 
 
@@ -58,6 +67,21 @@ ingestPrivateRelays privateRelayLists relays events =
     in
     { privateRelayLists = result.relayLists
     , unknownRelays = result.unknownRelays
+    }
+
+
+{-| Kind 10006. Do not NIP-11 / connect to these hosts.
+-}
+ingestBlockedRelays :
+    Dict PubKey (List RelayUrl)
+    -> List Event
+    -> BlockedIngestResult
+ingestBlockedRelays blockedRelayLists events =
+    let
+        result =
+            ingestRelayLists blockedRelayLists Dict.empty events
+    in
+    { blockedRelayLists = result.relayLists
     }
 
 
@@ -103,9 +127,24 @@ withUniqueEntries relayList =
 -}
 eventWithPrivateRelayList : PubKey -> List RelayUrl -> Event
 eventWithPrivateRelayList pubKey relays =
+    eventWithRelayUrlList KindPrivateRelayList pubKey relays
+
+
+eventWithSearchRelayList : PubKey -> List RelayUrl -> Event
+eventWithSearchRelayList pubKey relays =
+    eventWithRelayUrlList KindSearchRelaysList pubKey relays
+
+
+eventWithBlockedRelayList : PubKey -> List RelayUrl -> Event
+eventWithBlockedRelayList pubKey relays =
+    eventWithRelayUrlList KindBlockedRelaysList pubKey relays
+
+
+eventWithRelayUrlList : Kind -> PubKey -> List RelayUrl -> Event
+eventWithRelayUrlList kind pubKey relays =
     let
         event =
-            emptyEvent pubKey KindPrivateRelayList
+            emptyEvent pubKey kind
     in
     { event
         | createdAt = Time.millisToPosix 0
@@ -125,6 +164,9 @@ relayListFromEvent event =
                     (\tag acc ->
                         case tag of
                             RelayTag url ->
+                                acc ++ [ Relay.fromString url ]
+
+                            UrlTag url _ ->
                                 acc ++ [ Relay.fromString url ]
 
                             _ ->

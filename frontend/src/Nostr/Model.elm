@@ -35,6 +35,7 @@ import Nostr.Nutzaps exposing (Nutzap)
 import Nostr.Profile exposing (Profile, ProfileValidation)
 import Nostr.Reactions exposing (Reaction)
 import Nostr.Relay as Relay exposing (Relay, RelayState(..), RelayUrl)
+import Nostr.RelayAccess as RelayAccess
 import Nostr.RelayList as RelayList
 import Nostr.RelayListMetadata exposing (RelayMetadata)
 import Nostr.Request exposing (Request, RequestId)
@@ -89,6 +90,7 @@ type alias Model =
     , repostsByEventId : Dict EventId (Dict PubKey Repost)
     , searchRelayLists : Dict PubKey (List RelayUrl)
     , privateRelayLists : Dict PubKey (List RelayUrl)
+    , blockedRelayLists : Dict PubKey (List RelayUrl)
     , localRelays : List RelayUrl
     , shortTextNotes : Dict EventId TextNote
     , shortTextNotesReplies : Dict EventId (Dict EventId TextNote)
@@ -176,6 +178,7 @@ empty =
     , repostsByEventId = Dict.empty
     , searchRelayLists = Dict.empty
     , privateRelayLists = Dict.empty
+    , blockedRelayLists = Dict.empty
     , localRelays = []
     , shortTextNotes = Dict.empty
     , shortTextNotesReplies = Dict.empty
@@ -234,6 +237,15 @@ init hooks environment testMode relayUrls localRelays =
 
 requestRelayNip11 : Model -> List RelayUrl -> Cmd Msg
 requestRelayNip11 model relayUrls =
+    let
+        blocked =
+            Pareto.blockedRelays
+                ++ (model.defaultUser
+                        |> Maybe.andThen (\pubKey -> Dict.get pubKey model.blockedRelayLists)
+                        |> Maybe.withDefault []
+                   )
+    in
     relayUrls
+        |> RelayAccess.withoutBlocked blocked
         |> List.map (\relayUrl -> fetchNip11 (model.environment /= StandAlone) (Nip11Fetched relayUrl) (Relay.toHttp relayUrl))
         |> Cmd.batch

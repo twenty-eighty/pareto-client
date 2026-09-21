@@ -563,12 +563,28 @@ checkMissingMediaServers nostr pubKey =
         blossomServers =
             Nostr.getBlossomServers nostr pubKey
 
-        missingBlossomServers =
-            Nostr.getDefaultBlossomServers nostr pubKey
-                |> List.filter (\serverUrl -> not <| List.member serverUrl blossomServers)
+        nip96Servers =
+            Nostr.getNip96Servers nostr pubKey
+
+        isConfigured serverUrl =
+            List.member serverUrl blossomServers || List.member serverUrl nip96Servers
+
+        missingServers =
+            (Nostr.getDefaultBlossomServers nostr pubKey
+                ++ Nostr.getDefaultNip96Servers nostr pubKey
+            )
+                |> List.foldl
+                    (\serverUrl acc ->
+                        if isConfigured serverUrl || List.member serverUrl acc then
+                            acc
+
+                        else
+                            acc ++ [ serverUrl ]
+                    )
+                    []
     in
-    if List.length missingBlossomServers > 0 then
-        Just (MediaServersMissing missingBlossomServers)
+    if List.length missingServers > 0 then
+        Just (MediaServersMissing missingServers)
 
     else
         Nothing

@@ -12,11 +12,16 @@ defmodule NostrBackend.Nip11ControllerTest do
     test "caches invalid URL errors for 1 hour", %{conn: conn} do
       # Test with invalid URL
       result = Nip11Controller.fetch_nip11(conn, %{"url" => "invalid-url"})
-      assert result.status == 400
+      assert result.status == 200
+
+      assert %{
+               "ok" => false,
+               "error" => %{"code" => 400, "message" => "Invalid relay URL"}
+             } = Jason.decode!(result.resp_body)
 
       # Second call should serve error from cache
       cached_result = Nip11Controller.fetch_nip11(conn, %{"url" => "invalid-url"})
-      assert cached_result.status == 400
+      assert cached_result.status == 200
 
       # Verify cache entry exists
       assert {:ok, :invalid_url} = Cachex.get(:nip11_cache, "invalid-url")
@@ -27,8 +32,7 @@ defmodule NostrBackend.Nip11ControllerTest do
       result =
         Nip11Controller.fetch_nip11(conn, %{"url" => "https://nonexistent-domain-12345.com"})
 
-      # Should return an error (either HTTP error or timeout)
-      assert result.status == 400
+      assert result.status == 200
 
       # Verify cache entry exists (should cache the failure)
       cache_result = Cachex.get(:nip11_cache, "https://nonexistent-domain-12345.com")
@@ -50,7 +54,7 @@ defmodule NostrBackend.Nip11ControllerTest do
       # All results should have the same status
       assert result1.status == result2.status
       assert result2.status == result3.status
-      assert result1.status == 400
+      assert result1.status == 200
     end
   end
 end

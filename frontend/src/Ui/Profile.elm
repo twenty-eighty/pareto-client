@@ -13,6 +13,7 @@ import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events
 import Json.Encode as Encode
 import Nostr
+import Nostr.FollowList exposing (pubKeyIsFollower)
 import Nostr.Nip05 as Nip05
 import Nostr.Nip19 as Nip19
 import Nostr.Profile exposing (Profile, ProfileValidation(..), profileDisplayName, shortenedPubKey)
@@ -80,6 +81,7 @@ type alias ProfileViewData msg =
     , nostr : Nostr.Model
     , loginStatus : LoginStatus
     , following : FollowType msg
+    , mute : Maybe (MuteType msg)
     , subscribe : Maybe msg
     , theme : Theme
     , validation : ProfileValidation
@@ -95,6 +97,11 @@ type FollowType msg
     = Following (PubKey -> msg) -- unfollow msg
     | NotFollowing (PubKey -> msg) -- follow msg
     | UnknownFollowing
+
+
+type MuteType msg
+    = Muted (PubKey -> msg)
+    | NotMuted (PubKey -> msg)
 
 
 viewProfileSmall : Environment -> Styles msg -> Bool -> Profile -> ProfileValidation -> Html msg
@@ -313,6 +320,7 @@ viewProfile profile profileViewData =
                 ]
                 [ viewSubscriptionButton profile profileViewData
                 , followButton profileViewData.theme profileViewData.browserEnv profile.pubKey profileViewData.following
+                , muteButton profileViewData.theme profileViewData.browserEnv profile.pubKey profileViewData.mute
                 ]
             ]
         ]
@@ -360,6 +368,31 @@ followButton theme browserEnv profilePubKey following =
                 |> Button.view
 
         UnknownFollowing ->
+            emptyHtml
+
+
+muteButton : Theme -> BrowserEnv -> PubKey -> Maybe (MuteType msg) -> Html msg
+muteButton theme browserEnv profilePubKey maybeMute =
+    case maybeMute of
+        Just (Muted msg) ->
+            Button.new
+                { label = Translations.unmuteButtonTitle [ browserEnv.translations ]
+                , onClick = Just (msg profilePubKey)
+                , theme = theme
+                }
+                |> Button.withIconLeft (Icon.FeatherIcon (FeatherIcons.volume2 |> FeatherIcons.withSize (toFloat 24)))
+                |> Button.view
+
+        Just (NotMuted msg) ->
+            Button.new
+                { label = Translations.muteButtonTitle [ browserEnv.translations ]
+                , onClick = Just (msg profilePubKey)
+                , theme = theme
+                }
+                |> Button.withIconLeft (Icon.FeatherIcon (FeatherIcons.volumeX |> FeatherIcons.withSize (toFloat 24)))
+                |> Button.view
+
+        Nothing ->
             emptyHtml
 
 
@@ -717,3 +750,24 @@ followingProfile nostr profilePubKey followMsg unfollowMsg maybePubKey =
 
         Nothing ->
             UnknownFollowing
+
+
+mutingProfile : Nostr.Model -> PubKey -> (PubKey -> PubKey -> msg) -> (PubKey -> PubKey -> msg) -> Maybe PubKey -> Maybe (MuteType msg)
+mutingProfile nostr profilePubKey muteMsg unmuteMsg maybePubKey =
+    case maybePubKey of
+        Just userPubKey ->
+            if userPubKey == profilePubKey then
+                Nothing
+
+            else if
+                Nostr.getMuteList nostr userPubKey
+                    |> Maybe.map (pubKeyIsFollower profilePubKey)
+                    |> Maybe.withDefault False
+            then
+                Just (Muted (unmuteMsg userPubKey))
+
+            else
+                Just (NotMuted (muteMsg userPubKey))
+
+        Nothing ->
+            Nothing

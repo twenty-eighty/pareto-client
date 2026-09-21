@@ -14,6 +14,13 @@ article body, so lone URL lines there use the normal oembed path.
 
 A footnote that starts with a bare URL uses `embedlink` for that URL (same
 LinkPreview/oembed path as article embeds); any following lines stay as text.
+
+The remaining body is a `markdown` attribute, not element text. elm-markdown
+treats `&` in HTML text as a character entity, and it keeps the raw source
+when it reparses that text as Markdown, so `&amp;` would show up inside code.
+Attribute values are decoded first, so the Markdown parser sees the original
+characters.
+
 -}
 
 import Dict exposing (Dict)
@@ -455,11 +462,10 @@ footnotesSectionHtml orderedLabels defs =
                             number =
                                 index + 1
 
-                            body =
+                            parts =
                                 Dict.get label defs
                                     |> Maybe.withDefault ""
-                                    |> escapeFootnoteCloseTags
-                                    |> formatFootnoteBody
+                                    |> footnoteParts
 
                             safe =
                                 sanitizeId label
@@ -470,32 +476,39 @@ footnotesSectionHtml orderedLabels defs =
                             ++ String.fromInt number
                             ++ "\" backhref=\"#fnref-"
                             ++ safe
-                            ++ "\">\n"
-                            ++ body
-                            ++ "\n</footnote>"
+                            ++ "\" markdown=\""
+                            ++ escapeHtmlAttr parts.markdown
+                            ++ "\">"
+                            ++ parts.embedHtml
+                            ++ "</footnote>"
                     )
                 |> String.join "\n"
     in
     "<footnotes>\n" ++ items ++ "\n</footnotes>"
 
 
-{-| Footnote bodies that are (or start with) a bare URL become an embedlink so
-the renderer can show an oembed (or a normal link fallback). elm-markdown does
-not autolink bare URLs. Any lines after a leading URL stay as markdown text.
+type alias FootnoteParts =
+    { embedHtml : String
+    , markdown : String
+    }
+
+
+{-| A leading bare URL becomes an embedlink (elm-markdown does not autolink).
+Everything else stays Markdown and is carried in an attribute.
 -}
-formatFootnoteBody : String -> String
-formatFootnoteBody body =
+footnoteParts : String -> FootnoteParts
+footnoteParts body =
     case loneFootnoteUrl body of
         Just url ->
-            embedlinkHtml url
+            { embedHtml = embedlinkHtml url, markdown = "" }
 
         Nothing ->
             case leadingUrlAndRest body of
                 Just ( url, rest ) ->
-                    embedlinkHtml url ++ "\n" ++ rest
+                    { embedHtml = embedlinkHtml url, markdown = rest }
 
                 Nothing ->
-                    body
+                    { embedHtml = "", markdown = body }
 
 
 embedlinkHtml : String -> String
@@ -648,14 +661,6 @@ escapeHtmlText value =
         |> String.replace "&" "&amp;"
         |> String.replace "<" "&lt;"
         |> String.replace ">" "&gt;"
-
-
-escapeFootnoteCloseTags : String -> String
-escapeFootnoteCloseTags body =
-    body
-        |> String.replace "</footnote>" "&lt;/footnote>"
-        |> String.replace "</footnotes>" "&lt;/footnotes>"
-        |> String.replace "</embedlink>" "&lt;/embedlink>"
 
 
 sanitizeId : String -> String

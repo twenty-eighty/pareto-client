@@ -24,7 +24,7 @@ import Shared
 import Shared.Model
 import Shared.Msg
 import Translations.Profile as Translations
-import Ui.Profile exposing (FollowType(..), followingProfile)
+import Ui.Profile exposing (FollowType(..), followingProfile, mutingProfile)
 import Ui.Styles exposing (Theme)
 import Ui.View exposing (ArticlePreviewType(..), viewContentStatus)
 import View exposing (View)
@@ -167,6 +167,8 @@ decodeParam profile =
 type Msg
     = Follow PubKey PubKey
     | Unfollow PubKey PubKey
+    | Mute PubKey PubKey
+    | Unmute PubKey PubKey
     | OpenSubscribeDialog
     | EmailSubscriptionDialogSent (EmailSubscriptionDialog.Msg Msg)
     | ZapButtonDialogMsg ZapButtonDialog.Msg
@@ -185,6 +187,20 @@ update shared msg model =
         Unfollow pubKeyUser pubKeyToBeUnfollowed ->
             ( model
             , SendFollowListWithoutPubKey pubKeyUser pubKeyToBeUnfollowed
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        Mute pubKeyUser pubKeyToBeMuted ->
+            ( model
+            , SendMuteListWithPubKey pubKeyUser pubKeyToBeMuted
+                |> Shared.Msg.SendNostrEvent
+                |> Effect.sendSharedMsg
+            )
+
+        Unmute pubKeyUser pubKeyToBeUnmuted ->
+            ( model
+            , SendMuteListWithoutPubKey pubKeyUser pubKeyToBeUnmuted
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
@@ -286,6 +302,7 @@ viewProfile shared model profile =
             , nostr = shared.nostr
             , loginStatus = shared.loginStatus
             , following = followingProfile shared.nostr profile.pubKey Follow Unfollow userPubKey
+            , mute = mutingProfile shared.nostr profile.pubKey Mute Unmute userPubKey
             , subscribe =
                 if sendsNewsletter then
                     Just OpenSubscribeDialog

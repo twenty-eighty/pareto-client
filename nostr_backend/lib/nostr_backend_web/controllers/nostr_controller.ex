@@ -21,21 +21,12 @@ defmodule NostrBackendWeb.NostrController do
       "ralph21" => "72e1390168a0a6b1caa36e96529064e87cb9b98b3c2d94afb9e1adae17d1f926",
       "rodant" => "71df211931d26ee41121d295bd43cbc7e382505e333b5c13d4016ced9542d9d7",
       "juliakatharinawolf" => "077e553da45c7a34f3fd667e422394059846781f1015fa06009935afcab1c7a5",
-      "aron" => "9f94e6cc5ce50dcaccfc42b18029aba0ac9215d673197a40172896d3f3472946",
       "matej" => "5aa5e38abbb37f89c863419bd1e4e60aa31d82fa3c39397e386586e3961b8021",
-      "psychobabble" => "6734e11d8d67d9ca4dedb920f81182ded2bca918e3e0f3528bd5f4c4c7e34e8f",
-      "indikativ" => "1a040599c19734813abcec04d9bda0ff5fc5054fc4d035b79484bf970a05f5c4",
       "walter_siegrist" => "78c90fc422bdadafb4df0de5d1ed87133265f896949705bebc61aee44bff983c",
       "_" => "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84",
       "client" => "0f479c7dff7bb53dae53f3bb32ad1109edbb07ba562bdd5168044b3f4364e7b5",
-      "christof_weber" => "79271c81ef2fd4994c20d73b0555a3e58d7ee9caaa2328082e3a336de18d9066",
-      "michael_meyen" => "044da3442a54bd55202b66ca0c4f5fd58cbb158b67f2fb067cc0467c073a8a0e",
       "janosch" => "89bae92f9d9b0f6d97a300496cfb0b73c92a74c9675a724c0689975f8074dc01",
-      "j1000" => "135f20a6f142a3f8a6c3fde48772bd6cffece0fc3aa31bef6f12c99b3937e969",
-      "hartmut" => "92af1031a8dc9fd1c2ef982219ff6cff9944ec62bd45d4c6e4e8d5ffd9939aeb",
-      "nachteule" => "9c8096eb84d574ca29eb0077d615a2b12c0113064faeac9f72e464a066e47555",
       "friedenstaube" => "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5",
-      "danjel" => "22ea455f4b837d60c2615721ccc2ef54a4d56e5f00993f4cffd2b98c9180f82f",
       "admin" => "0f475886295e78e74af76dfacb3ea537de1938ee79cf92c66d417b5ccd03f43c",
       "kuma" => "0f467b0603cd3229ad436399a2d4144965f16841767160296a0a7048a844c6f4",
       "email-gateway" => "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345",
@@ -54,21 +45,12 @@ defmodule NostrBackendWeb.NostrController do
       "72e1390168a0a6b1caa36e96529064e87cb9b98b3c2d94afb9e1adae17d1f926" => @default_relays,
       "71df211931d26ee41121d295bd43cbc7e382505e333b5c13d4016ced9542d9d7" => @default_relays,
       "077e553da45c7a34f3fd667e422394059846781f1015fa06009935afcab1c7a5" => @default_relays,
-      "9f94e6cc5ce50dcaccfc42b18029aba0ac9215d673197a40172896d3f3472946" => @default_relays,
       "5aa5e38abbb37f89c863419bd1e4e60aa31d82fa3c39397e386586e3961b8021" => @default_relays,
-      "6734e11d8d67d9ca4dedb920f81182ded2bca918e3e0f3528bd5f4c4c7e34e8f" => @default_relays,
-      "1a040599c19734813abcec04d9bda0ff5fc5054fc4d035b79484bf970a05f5c4" => @default_relays,
       "78c90fc422bdadafb4df0de5d1ed87133265f896949705bebc61aee44bff983c" => @default_relays,
       "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84" => @default_relays,
       "0f479c7dff7bb53dae53f3bb32ad1109edbb07ba562bdd5168044b3f4364e7b5" => @default_relays,
-      "79271c81ef2fd4994c20d73b0555a3e58d7ee9caaa2328082e3a336de18d9066" => @default_relays,
-      "044da3442a54bd55202b66ca0c4f5fd58cbb158b67f2fb067cc0467c073a8a0e" => @default_relays,
       "89bae92f9d9b0f6d97a300496cfb0b73c92a74c9675a724c0689975f8074dc01" => @default_relays,
-      "135f20a6f142a3f8a6c3fde48772bd6cffece0fc3aa31bef6f12c99b3937e969" => @default_relays,
-      "92af1031a8dc9fd1c2ef982219ff6cff9944ec62bd45d4c6e4e8d5ffd9939aeb" => @default_relays,
-      "9c8096eb84d574ca29eb0077d615a2b12c0113064faeac9f72e464a066e47555" => @default_relays,
       "866e013908559f15c5eff9d1295453082f01a1fb5f40a25bcf0776a36a9334e5" => @default_relays,
-      "22ea455f4b837d60c2615721ccc2ef54a4d56e5f00993f4cffd2b98c9180f82f" => @default_relays,
       "0f475886295e78e74af76dfacb3ea537de1938ee79cf92c66d417b5ccd03f43c" => @default_relays,
       "0f467b0603cd3229ad436399a2d4144965f16841767160296a0a7048a844c6f4" => @default_relays,
       "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345" => @default_relays,
@@ -139,14 +121,18 @@ defmodule NostrBackendWeb.NostrController do
           "relays" => %{pubkey => relays}
         }
 
-        json(conn, response)
+        json(conn, Map.put(response, "ok", true))
 
       {:error, reason} ->
         Logger.debug("NIP-05: Validation failed for: #{handle}, error: #{inspect(reason)}")
 
-        conn
-        |> put_status(:not_found)
-        |> text(reason)
+        json(conn, %{
+          "ok" => false,
+          "error" => %{
+            "code" => 404,
+            "message" => nip05_error_message(reason)
+          }
+        })
     end
   end
 
@@ -157,6 +143,9 @@ defmodule NostrBackendWeb.NostrController do
   end
 
   def get_nostr_data(), do: @nostr_data
+
+  defp nip05_error_message(reason) when is_binary(reason), do: reason
+  defp nip05_error_message(reason), do: inspect(reason)
 
   defp put_required_headers(conn) do
     conn

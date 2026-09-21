@@ -11,7 +11,7 @@ module Nostr.Send exposing
 
 import Nostr.BookmarkList as BookmarkList exposing (BookmarkList, bookmarkListEvent, bookmarkListWithArticle, bookmarkListWithShortNote, bookmarkListWithoutArticle, bookmarkListWithoutShortNote, emptyBookmarkList)
 import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), addAddressTags, addIdentifierTag, addKindTag, emptyEvent)
-import Nostr.FollowList as FollowList exposing (emptyFollowList, followListEvent, followListWithPubKey, followListWithoutPubKey)
+import Nostr.FollowList as FollowList exposing (emptyFollowList, followListEvent, followListWithPubKey, followListWithoutPubKey, muteListEvent)
 import Nostr.Highlights as Highlights
 import Nostr.Relay as Relay exposing (RelayUrl)
 import Nostr.Types exposing (EventId, Following, PubKey)
@@ -44,6 +44,10 @@ type SendRequest
     | SendReaction PubKey EventId PubKey (Maybe AddressComponents)
     | SendRelayList (List RelayUrl) Event
     | SendPrivateRelayList (List RelayUrl) Event
+    | SendSearchRelayList (List RelayUrl) Event
+    | SendBlockedRelayList (List RelayUrl) Event
+    | SendMuteListWithPubKey PubKey PubKey
+    | SendMuteListWithoutPubKey PubKey PubKey
     | SendRepost (List RelayUrl) Event
     | SendCashuWallet Event
     | SendCashuTokens Event
@@ -61,6 +65,7 @@ type alias SendPayload =
 type alias PrepareContext =
     { getBookmarks : PubKey -> Maybe BookmarkList
     , getFollowList : PubKey -> Maybe (List Following)
+    , getMuteList : PubKey -> Maybe (List Following)
     , writeRelaysFor : PubKey -> List RelayUrl
     , draftStorageRelaysFor : PubKey -> List RelayUrl
     , applicationDataRelays : List RelayUrl
@@ -185,6 +190,30 @@ prepare context sendRequest =
 
         SendPrivateRelayList relays event ->
             { relays = relays, event = event }
+
+        SendSearchRelayList relays event ->
+            { relays = relays, event = event }
+
+        SendBlockedRelayList relays event ->
+            { relays = relays, event = event }
+
+        SendMuteListWithPubKey userPubKey toBeMutedPubKey ->
+            { relays = context.writeRelaysFor userPubKey
+            , event =
+                context.getMuteList userPubKey
+                    |> Maybe.withDefault emptyFollowList
+                    |> (\muteList -> followListWithPubKey muteList toBeMutedPubKey)
+                    |> muteListEvent userPubKey
+            }
+
+        SendMuteListWithoutPubKey userPubKey toBeUnmutedPubKey ->
+            { relays = context.writeRelaysFor userPubKey
+            , event =
+                context.getMuteList userPubKey
+                    |> Maybe.withDefault emptyFollowList
+                    |> (\muteList -> followListWithoutPubKey muteList toBeUnmutedPubKey)
+                    |> muteListEvent userPubKey
+            }
 
         SendProfile relays event ->
             { relays = relays, event = event }

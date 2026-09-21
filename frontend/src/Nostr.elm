@@ -90,6 +90,9 @@ module Nostr exposing
     , getDraftStorageRelayUrls
     , getLocalRelayUrls
     , getPrivateRelayUrls
+    , getBlockedRelayUrls
+    , getUserBlockedRelayUrls
+    , isBlockedRelay
     , getSearchRelayUrls
     , getSearchRelaysForPubKey
     , relaysWithSearchCapability
@@ -181,6 +184,7 @@ module Nostr exposing
     , appendNip27ProfileRequests
     , nip27ProfilesRequest
     , updateModelWithSearchRelays
+    , updateModelWithBlockedRelays
     , updateModelWithPrivateRelays
     , updateModelWithHighlights
     , updateModelWithReactions
@@ -653,6 +657,7 @@ performRequest model description requestId requestData =
                 , draftStorageRelays =
                     getDraftStorageRelayUrls model (Maybe.withDefault "" model.defaultUser)
                 , delayedPublishingRelays = Pareto.delayedPublishingRelays
+                , blockedRelays = blockedRelayUrls model
                 , articlesByDate = model.articlesByDate
                 , requestNip05 = \reqId nip05 -> requestNip05Info (Nip05ForRequest reqId) nip05
                 }
@@ -705,6 +710,7 @@ send model now sendRequest =
             Send.prepare
                 { getBookmarks = getBookmarks model
                 , getFollowList = getFollowsList model
+                , getMuteList = getMuteList model
                 , writeRelaysFor = getWriteRelayUrlsForPubKey model
                 , draftStorageRelaysFor = getDraftStorageRelayUrls model
                 , applicationDataRelays = getApplicationDataRelays model
@@ -764,6 +770,7 @@ getPicturePosts : Model -> List PicturePost
 getPicturePosts model =
     model.picturePosts
         |> Dict.values
+        |> List.filter (\picturePost -> not (isMuted model model.defaultUser picturePost.pubKey))
         |> List.sortBy (\picturePost -> picturePost.createdAt |> Time.posixToMillis |> negate)
 
 
@@ -786,6 +793,7 @@ getArticle model addressComponents =
 getArticlesByDate : Model -> List Article
 getArticlesByDate model =
     Articles.publishedByDate model
+        |> List.filter (\article -> not (isMuted model model.defaultUser article.author))
 
 
 resetArticles : Model -> Model
@@ -1047,17 +1055,20 @@ getReadRelayUrlsForPubKey : Model -> PubKey -> List RelayUrl
 getReadRelayUrlsForPubKey model pubKey =
     getReadRelaysForPubKey model pubKey
         |> RelayAccess.urls
+        |> withoutBlockedRelays model
 
 
 getWriteRelaysForPubKey : Model -> PubKey -> List Relay
 getWriteRelaysForPubKey model pubKey =
     if model.testMode == TestModeEnabled then
         Pareto.testRelayUrls
+            |> withoutBlockedRelays model
             |> List.filterMap (getRelayData model)
 
     else
         getRelaysForPubKey model pubKey
             |> RelayAccess.filterWrite
+            |> List.filter (\relay -> not (isBlockedRelay model relay.url))
 
 
 getWriteRelayUrlsForPubKey : Model -> PubKey -> List RelayUrl
@@ -1089,7 +1100,7 @@ getDraftStorageRelayUrls model pubKey =
                     writeRelays
 
         storageRelays ->
-            storageRelays
+            withoutBlockedRelays model storageRelays
 
 
 getLocalRelayUrls : Model -> List RelayUrl
@@ -1103,15 +1114,58 @@ getPrivateRelayUrls model pubKey =
         |> Maybe.withDefault []
 
 
+getUserBlockedRelayUrls : Model -> PubKey -> List RelayUrl
+getUserBlockedRelayUrls model pubKey =
+    Dict.get pubKey model.blockedRelayLists
+        |> Maybe.withDefault []
+
+
+blockedRelayUrls : Model -> List RelayUrl
+blockedRelayUrls model =
+    let
+        fromUser =
+            model.defaultUser
+                |> Maybe.map (getUserBlockedRelayUrls model)
+                |> Maybe.withDefault []
+    in
+    RelayList.withUniqueEntries (Pareto.blockedRelays ++ fromUser)
+
+
+isBlockedRelay : Model -> RelayUrl -> Bool
+isBlockedRelay model url =
+    RelayAccess.isBlocked (blockedRelayUrls model) url
+
+
+withoutBlockedRelays : Model -> List RelayUrl -> List RelayUrl
+withoutBlockedRelays model urls =
+    RelayAccess.withoutBlocked (blockedRelayUrls model) urls
+
+
+getBlockedRelayUrls : Model -> List RelayUrl
+getBlockedRelayUrls =
+    blockedRelayUrls
+
+
 getSearchRelayUrls : Model -> Maybe PubKey -> List RelayUrl
 getSearchRelayUrls model maybePubKey =
-    case maybePubKey of
-        Just pubKey ->
-            Dict.get pubKey model.searchRelayLists
-                |> Maybe.withDefault (getSearchRelayUrls model Nothing)
+    let
+        raw =
+            case maybePubKey of
+                Just pubKey ->
+                    Dict.get pubKey model.searchRelayLists
+                        |> Maybe.withDefault (RelayAccess.searchUrls model.relays Pareto.defaultSearchRelays)
 
-        Nothing ->
-            RelayAccess.searchUrls model.relays Pareto.defaultSearchRelays
+                Nothing ->
+                    RelayAccess.searchUrls model.relays Pareto.defaultSearchRelays
+
+        allowed =
+            withoutBlockedRelays model raw
+    in
+    if List.isEmpty allowed then
+        withoutBlockedRelays model Pareto.defaultSearchRelays
+
+    else
+        allowed
 
 
 getSearchRelaysForPubKey : Model -> PubKey -> List Relay
@@ -1144,7 +1198,7 @@ getRelaysForRequest model maybeRequestId =
             getDefaultRelays model
 
         relayUrls ->
-            relayUrls
+            withoutBlockedRelays model relayUrls
 
 
 getDefaultRelays : Model -> List RelayUrl
@@ -1153,7 +1207,7 @@ getDefaultRelays model =
         Pareto.testRelayUrls
 
     else
-        model.defaultRelays
+        withoutBlockedRelays model model.defaultRelays
 
 
 getApplicationDataRelays : Model -> List RelayUrl
@@ -1280,7 +1334,19 @@ requestUserData model pubKey =
                 |> RequestProfile Nothing
                 |> createRequest modelForUser "Related data for logged-in user" []
     in
-    doRequest { modelForUser | defaultUser = Just pubKey } request
+    let
+        updated =
+            { modelForUser | defaultUser = Just pubKey }
+
+        ( requested, requestCmd ) =
+            doRequest updated request
+    in
+    ( requested
+    , Cmd.batch
+        [ model.hooks.setBlockedRelays (blockedRelayUrls updated)
+        , requestCmd
+        ]
+    )
 
 
 getMissingProfilePubKeys : Model -> List PubKey -> List PubKey
@@ -1629,6 +1695,9 @@ updateModelWithEvents model requestId kind events =
         KindSearchRelaysList ->
             updateModelWithSearchRelays modelAfterContentRequest requestId events
 
+        KindBlockedRelaysList ->
+            updateModelWithBlockedRelays modelAfterContentRequest events
+
         KindPrivateRelayList ->
             updateModelWithPrivateRelays modelAfterContentRequest requestId events
 
@@ -1949,6 +2018,18 @@ updateModelWithSearchRelays model _ events =
             requestRelayNip11 model ingested.unknownRelays
     in
     ( { model | searchRelayLists = ingested.searchRelayLists }, requestNip11Cmd )
+
+
+updateModelWithBlockedRelays : Model -> List Event -> ( Model, Cmd Msg )
+updateModelWithBlockedRelays model events =
+    let
+        ingested =
+            RelayList.ingestBlockedRelays model.blockedRelayLists events
+
+        updated =
+            { model | blockedRelayLists = ingested.blockedRelayLists }
+    in
+    ( updated, model.hooks.setBlockedRelays (blockedRelayUrls updated) )
 
 
 updateModelWithPrivateRelays : Model -> RequestId -> List Event -> ( Model, Cmd Msg )

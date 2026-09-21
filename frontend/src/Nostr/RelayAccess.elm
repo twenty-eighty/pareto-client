@@ -8,6 +8,8 @@ module Nostr.RelayAccess exposing
     , nip65ForPubKey
     , combinedForPubKey
     , searchUrls
+    , isBlocked
+    , withoutBlocked
     )
 
 {-| Resolve relay metadata / URL lists against the live relay dict.
@@ -139,3 +141,13 @@ searchUrls relays fallback =
 
         capabilityUrls ->
             capabilityUrls
+
+
+isBlocked : List RelayUrl -> RelayUrl -> Bool
+isBlocked blockedUrls url =
+    List.any (\blocked -> Relay.toKey blocked == Relay.toKey url) blockedUrls
+
+
+withoutBlocked : List RelayUrl -> List RelayUrl -> List RelayUrl
+withoutBlocked blockedUrls relayUrls =
+    List.filter (\url -> not (isBlocked blockedUrls url)) relayUrls
