@@ -125,7 +125,12 @@ detectLinkType url originalUrl =
         OdyseeVideo
 
     else if isRumbleUrl url then
-        RumbleVideo
+        -- Channel, user, and listing URLs stay ordinary links. oEmbed only works for a video.
+        if isRumbleVideoUrl url then
+            RumbleVideo
+
+        else
+            PlainLink
 
     else if isTelegramUrl url then
         case getTelegramGroup url.path of
@@ -365,6 +370,22 @@ isPodBeanUrl url =
 isRumbleUrl : Erl.Url -> Bool
 isRumbleUrl url =
     url.host == [ "rumble", "com" ]
+
+
+isRumbleVideoUrl : Erl.Url -> Bool
+isRumbleVideoUrl url =
+    case List.filter (not << String.isEmpty) url.path of
+        [ "embed", videoId ] ->
+            String.startsWith "v" videoId
+
+        [ segment ] ->
+            -- Watch pages are /v{id}-{slug}.html. /videos is a listing, not a video.
+            String.startsWith "v" segment
+                && not (String.startsWith "videos" segment)
+                && String.endsWith ".html" segment
+
+        _ ->
+            False
 
 
 isTelegramUrl : Erl.Url -> Bool
@@ -822,7 +843,10 @@ oemProviders =
       , schemes = [ regex "https://www\\.facebook\\.com/.*/videos/.*", regex "https://www\\.facebook\\.com/video\\.php" ]
       }
     , { url = "https://rumble.com/api/Media/oembed.json"
-      , schemes = [ regex "https://rumble\\.com/.*" ]
+      , schemes =
+            [ regex "https://rumble\\.com/v[^/?#]*\\.html"
+            , regex "https://rumble\\.com/embed/v[^/?#]+"
+            ]
       }
     , { url = "https://rutube.ru/api/oembed"
       , schemes = [ regex "https://rutube\\.ru/video/.*" ]
