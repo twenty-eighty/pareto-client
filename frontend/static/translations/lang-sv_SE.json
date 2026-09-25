@@ -1119,6 +1119,13 @@
     "article highlights": {
         "section title": "Markeringar",
         "highlight selection button": "Markera urval",
+        "highlighting selection button": "Markerar urval...",
+        "highlight error": "Det gick inte att publicera markeringen: {{reason}}",
+        "highlighted button": "Markerat",
+        "delete button": "Ta bort",
+        "deleting button": "Tar bort...",
+        "delete error": "Det gick inte att ta bort markeringen: {{reason}}",
+        "deleted button": "Borttaget",
         "empty text": "Inga markeringar ännu. Markera text i artikeln och tryck på Markera urval.",
         "selection empty alert": "Markera text i artikeln först, sedan tryck på Markera urval."
     }
