@@ -7,6 +7,7 @@ module Components.ZapButtonDialog exposing
     , subscriptions
     , update
     , view
+    , withCompact
     , withInstanceId
     , withRelayUrls
     , withoutDialog
@@ -1511,6 +1512,7 @@ type ZapButtonDialog msg
         , interactionObject : InteractionObject
         , loginStatus : LoginStatus
         , nostr : Nostr.Model
+        , compact : Bool
         , showDialog : Bool
         , showLabel : Bool
         , relayUrls : Set String
@@ -1537,6 +1539,7 @@ new props =
         , interactionObject = props.interactionObject
         , loginStatus = props.loginStatus
         , nostr = props.nostr
+        , compact = False
         , showDialog = True
         , showLabel = True
         , relayUrls = Set.empty
@@ -1548,6 +1551,11 @@ new props =
 withoutLabel : ZapButtonDialog msg -> ZapButtonDialog msg
 withoutLabel (Settings settings) =
     Settings { settings | showLabel = False }
+
+
+withCompact : ZapButtonDialog msg -> ZapButtonDialog msg
+withCompact (Settings settings) =
+    Settings { settings | compact = True }
 
 
 withoutDialog : ZapButtonDialog msg -> ZapButtonDialog msg
@@ -1600,6 +1608,13 @@ view (Settings settings) =
             , theme = settings.theme
             }
             |> InteractionButton.withLabel label
+            |> (\button ->
+                    if settings.compact then
+                        InteractionButton.withCompact button
+
+                    else
+                        button
+               )
             |> InteractionButton.withOnClickAction (Just (InteractionButton.SendMsg (OpenDialog settings.relayUrls)))
             |> InteractionButton.withTestAttribute "zap-button"
             |> InteractionButton.view

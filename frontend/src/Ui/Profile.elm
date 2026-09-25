@@ -461,6 +461,7 @@ viewProfileZapButton profile zapRelays profileViewData =
                 , theme = profileViewData.theme
                 }
                 |> ZapButtonDialog.withoutLabel
+                |> ZapButtonDialog.withCompact
                 |> ZapButtonDialog.withRelayUrls zapRelays
                 |> ZapButtonDialog.withInstanceId ("profile-" ++ String.left 8 profile.pubKey)
                 |> ZapButtonDialog.view

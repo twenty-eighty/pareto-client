@@ -3,6 +3,7 @@ module Components.InteractionIcon exposing
     , map
     , view
     , withAttributes
+    , withCompact
     , withTestAttribute
     )
 
@@ -37,6 +38,7 @@ type InteractionIcon msg
         { icon : Icon
         , actionInProgress : Bool
         , attributes : List (String, String)
+        , compact : Bool
         , onClick : Maybe msg
         , testAttribute : String
         , theme : Ui.Styles.Theme
@@ -49,6 +51,7 @@ new props =
         { icon = props.icon
         , actionInProgress = props.actionInProgress
         , attributes = []
+        , compact = False
         , onClick = props.onClick
         , testAttribute = "unnamed"
         , theme = props.theme
@@ -60,6 +63,7 @@ map toMsg (Settings settings) =
         { icon = settings.icon
         , actionInProgress = settings.actionInProgress
         , attributes = settings.attributes
+        , compact = settings.compact
         , onClick = Maybe.map toMsg settings.onClick
         , testAttribute = settings.testAttribute
         , theme = settings.theme
@@ -68,6 +72,11 @@ map toMsg (Settings settings) =
 withAttributes : List (String, String) -> InteractionIcon msg -> InteractionIcon msg
 withAttributes attributes (Settings settings) =
     Settings { settings | attributes = attributes }
+
+
+withCompact : InteractionIcon msg -> InteractionIcon msg
+withCompact (Settings settings) =
+    Settings { settings | compact = True }
 
 
 
@@ -106,6 +115,35 @@ view (Settings settings) =
         attributes =
             settings.attributes
                 |> List.map (\(key, value) -> (Attr.attribute key value))
+
+        buttonStyles =
+            if settings.compact then
+                [ Tw.py_1
+                , Tw.pl_1
+                , Tw.pr_0
+                , Tw.cursor_pointer
+                , Tw.flex
+                , Tw.flex_row
+                , Tw.rounded_full
+                ]
+
+            else
+                [ Tw.py_2
+                , Tw.px_2
+                , Tw.flex
+                , Tw.flex_row
+                , Tw.gap_2
+                , Tw.rounded_full
+                , Css.hover
+                    []
+                ]
+
+        iconSize =
+            if settings.compact then
+                16
+
+            else
+                20
         in
         div
             [ Attr.css
@@ -118,20 +156,10 @@ view (Settings settings) =
                 ([ Attr.attribute "data-test" ("interaction-icon-" ++ settings.testAttribute) ]
                     ++ attributes
                     ++ onClickAttr
-                    ++ [ Attr.css
-                            [ Tw.py_2
-                            , Tw.px_2
-                            , Tw.flex
-                            , Tw.flex_row
-                            , Tw.gap_2
-                            , Tw.rounded_full
-                            , Css.hover
-                                []
-                            ]
-                       ]
+                    ++ [ Attr.css buttonStyles ]
                 )
                 [ settings.icon
-                    |> Icon.viewWithSize 20
+                    |> Icon.viewWithSize iconSize
                 ]
             ]
 

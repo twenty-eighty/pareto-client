@@ -2,7 +2,7 @@ module Components.InteractionButton exposing
     ( InteractionButton, new
     , view
     , init, update, Model, Msg
-    , ClickAction(..), InteractionObject(..), InteractionParams, eventIdOfInteractionObject, mapAction, pubKeyOfInteractionObject, subscriptions, withAttributes, withLabel, withOnClickAction, withReactIcon, withTestAttribute
+    , ClickAction(..), InteractionObject(..), InteractionParams, eventIdOfInteractionObject, mapAction, pubKeyOfInteractionObject, subscriptions, withAttributes, withCompact, withLabel, withOnClickAction, withReactIcon, withTestAttribute
     )
 
 {-|
@@ -260,6 +260,7 @@ type InteractionButton msg
         , theme : Ui.Styles.Theme
         , toMsg : Msg msg -> msg
         , label : Maybe String
+        , compact : Bool
         , attributes : List ( String, String )
         }
 new :
@@ -283,6 +284,7 @@ new props =
         , theme = props.theme
         , toMsg = props.toMsg
         , label = Nothing
+        , compact = False
         , attributes = []
         }
 
@@ -290,6 +292,11 @@ new props =
 withLabel : Maybe String -> InteractionButton msg -> InteractionButton msg
 withLabel label (Settings settings) =
     Settings { settings | label = label }
+
+
+withCompact : InteractionButton msg -> InteractionButton msg
+withCompact (Settings settings) =
+    Settings { settings | compact = True }
 
 
 withOnClickAction : Maybe (ClickAction msg) -> InteractionButton msg -> InteractionButton msg
@@ -367,6 +374,13 @@ view (Settings settings) =
             }
             |> InteractionIcon.withAttributes settings.attributes
             |> InteractionIcon.withTestAttribute settings.testAttribute
+            |> (\icon ->
+                    if settings.compact then
+                        InteractionIcon.withCompact icon
+
+                    else
+                        icon
+               )
             |> InteractionIcon.view
             |> Html.map settings.toMsg
         , settings.label
