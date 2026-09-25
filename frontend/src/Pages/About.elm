@@ -3,6 +3,8 @@ module Pages.About exposing (Model, Msg, page)
 import BrowserEnv exposing (BrowserEnv)
 import BuildInfo
 import Components.Button as Button
+import Components.InteractionButton as InteractionButton
+import Components.ZapButtonDialog as ZapButtonDialog
 import Effect exposing (Effect)
 import Graphics
 import Html.Styled as Html exposing (Html, a, div, img, span, text)
@@ -13,7 +15,7 @@ import Layouts
 import Layouts.Sidebar
 import Locale exposing (Language(..))
 import Nostr
-import Nostr.Event exposing (Kind(..), KindInformationLink(..), Tag(..), TagReference(..), buildAddress, numberForKind)
+import Nostr.Event exposing (Kind(..), KindInformationLink(..), Tag(..), TagReference(..), buildAddress, emptyEventFilter, numberForKind)
 import Nostr.HandlerInformation exposing (HandlerInformation, buildHandlerInformation)
 import Nostr.Profile exposing (Profile, ProfileValidation(..), eventFromProfile)
 import Nostr.Request exposing (RequestData(..))
@@ -60,12 +62,26 @@ toLayout theme _ =
 
 
 type alias Model =
-    {}
+    { zapButtonDialog : ZapButtonDialog.Model
+    }
 
 
 init : Shared.Model -> () -> ( Model, Effect Msg )
-init _ () =
-    ( {}, Effect.none )
+init shared () =
+    let
+        fetchClientProfile =
+            { emptyEventFilter
+                | authors = Just [ Pareto.paretoClientPubKey ]
+                , kinds = Just [ KindUserMetadata ]
+            }
+                |> RequestProfile Nothing
+                |> Nostr.createRequest shared.nostr "Client profile" []
+                |> Shared.Msg.RequestNostrEvents
+                |> Effect.sendSharedMsg
+    in
+    ( { zapButtonDialog = ZapButtonDialog.init }
+    , fetchClientProfile
+    )
 
 
 
@@ -77,6 +93,7 @@ type Msg
     | PublishHandlerInformation PubKey HandlerInformation
     | PublishClientProfile PubKey HandlerInformation
     | PublishAuthorsList PubKey
+    | ZapButtonDialogMsg ZapButtonDialog.Msg
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -107,6 +124,18 @@ update shared msg model =
                 |> Shared.Msg.SendNostrEvent
                 |> Effect.sendSharedMsg
             )
+
+        ZapButtonDialogMsg innerMsg ->
+            ZapButtonDialog.update
+                { browserEnv = shared.browserEnv
+                , msg = innerMsg
+                , model = model.zapButtonDialog
+                , nostr = shared.nostr
+                , loginStatus = shared.loginStatus
+                , interactionObject = InteractionButton.ProfilePubKey Pareto.paretoClientPubKey
+                , toModel = \zapButtonDialog -> { model | zapButtonDialog = zapButtonDialog }
+                , toMsg = ZapButtonDialogMsg
+                }
 
 
 sendClientRecommendation : Nostr.Model -> PubKey -> HandlerInformation -> Effect Msg
@@ -149,8 +178,9 @@ sendClientProfile nostr pubKey profile =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
+subscriptions model =
+    ZapButtonDialog.subscriptions model.zapButtonDialog
+        |> Sub.map ZapButtonDialogMsg
 
 
 
@@ -158,7 +188,7 @@ subscriptions _ =
 
 
 view : Shared.Model -> Model -> View Msg
-view shared _ =
+view shared model =
     { title = Translations.aboutPageTitle [ shared.browserEnv.translations ]
     , body =
         [ div
@@ -166,7 +196,7 @@ view shared _ =
                 [ Tw.m_4
                 ]
             ]
-            [ viewContent shared (Pareto.applicationInformation shared.browserEnv.now)
+            [ viewContent shared model (Pareto.applicationInformation shared.browserEnv.now)
             , viewFooter shared.theme shared.browserEnv
             ]
         ]
@@ -241,8 +271,8 @@ viewDonationInformation theme translations =
         ]
 
 
-viewContent : Shared.Model -> HandlerInformation -> Html Msg
-viewContent shared handlerInformation =
+viewContent : Shared.Model -> Model -> HandlerInformation -> Html Msg
+viewContent shared model handlerInformation =
     div
         [ css
             [ Tw.flex
@@ -262,7 +292,11 @@ viewContent shared handlerInformation =
             , validation =
                 Nostr.getProfileValidationStatus shared.nostr handlerInformation.pubKey
                     |> Maybe.withDefault ValidationUnknown
-            , zap = Nothing
+            , zap =
+                Just
+                    { model = model.zapButtonDialog
+                    , toMsg = ZapButtonDialogMsg
+                    }
             }
         , viewSupportInformation shared.theme shared.browserEnv.translations
         , viewDonationInformation shared.theme shared.browserEnv.translations

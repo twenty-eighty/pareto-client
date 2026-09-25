@@ -1,6 +1,8 @@
 module Pages.Authors exposing (Model, Msg, page)
 
 import Components.Button as Button
+import Components.InteractionButton as InteractionButton
+import Components.ZapButtonDialog as ZapButtonDialog
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (Html, div)
@@ -56,6 +58,7 @@ toLayout theme _ =
 
 type alias Model =
     { configChecks : Dict PubKey ConfigCheck.Model
+    , zapDialogs : Dict PubKey ZapButtonDialog.Model
     }
 
 
@@ -75,7 +78,9 @@ init shared _ () =
                 |> Shared.Msg.RequestNostrEvents
                 |> Effect.sendSharedMsg
     in
-    ( { configChecks = Dict.empty }
+    ( { configChecks = Dict.empty
+      , zapDialogs = Dict.empty
+      }
     , Effect.batch
         [ fetchProfilesEffect
         , Effect.scrollContentToTop
@@ -96,6 +101,7 @@ type Msg
     | PerformConfigChecks
     | ReceivedConfigChecks (Result Never (Dict PubKey ConfigCheck.Model, Cmd Msg))
     | ConfigCheckMsg PubKey ConfigCheck.Msg
+    | ZapButtonDialogMsg PubKey ZapButtonDialog.Msg
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -188,6 +194,20 @@ update shared msg model =
                 Nothing ->
                     ( model, Effect.none )
 
+        ZapButtonDialogMsg pubKey innerMsg ->
+            ZapButtonDialog.update
+                { browserEnv = shared.browserEnv
+                , msg = innerMsg
+                , model =
+                    Dict.get pubKey model.zapDialogs
+                        |> Maybe.withDefault ZapButtonDialog.init
+                , nostr = shared.nostr
+                , loginStatus = shared.loginStatus
+                , interactionObject = InteractionButton.ProfilePubKey pubKey
+                , toModel = \zapDialog -> { model | zapDialogs = Dict.insert pubKey zapDialog model.zapDialogs }
+                , toMsg = ZapButtonDialogMsg pubKey
+                }
+
 
 performConfigChecks : Shared.Model -> Model -> Task Never ((Dict PubKey ConfigCheck.Model), Cmd Msg)
 performConfigChecks shared _ =
@@ -211,8 +231,15 @@ performConfigChecks shared _ =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
+subscriptions model =
+    model.zapDialogs
+        |> Dict.toList
+        |> List.map
+            (\( pubKey, zapDialog ) ->
+                ZapButtonDialog.subscriptions zapDialog
+                    |> Sub.map (ZapButtonDialogMsg pubKey)
+            )
+        |> Sub.batch
 
 
 
@@ -262,7 +289,7 @@ viewAuthors shared model =
                 Nostr.getProfile shared.nostr pubKey
                 |> Maybe.map (\profile -> ( profile, Dict.get pubKey model.configChecks ))
             )
-        |> List.map (\( profile, maybeConfigCheck ) -> viewAuthorCard shared profile maybeConfigCheck)
+        |> List.map (\( profile, maybeConfigCheck ) -> viewAuthorCard shared model profile maybeConfigCheck)
         |> div
             [ css
                 [ Tw.grid
@@ -282,8 +309,8 @@ viewAuthors shared model =
             ]
 
 
-viewAuthorCard : Shared.Model -> Profile -> Maybe ConfigCheck.Model -> Html Msg
-viewAuthorCard shared profile maybeConfigCheck =
+viewAuthorCard : Shared.Model -> Model -> Profile -> Maybe ConfigCheck.Model -> Html Msg
+viewAuthorCard shared model profile maybeConfigCheck =
     let
         userPubKey =
             loggedInPubKey shared.loginStatus
@@ -301,7 +328,13 @@ viewAuthorCard shared profile maybeConfigCheck =
         , validation =
             Nostr.getProfileValidationStatus shared.nostr profile.pubKey
                 |> Maybe.withDefault ValidationUnknown
-        , zap = Nothing
+        , zap =
+            Just
+                { model =
+                    Dict.get profile.pubKey model.zapDialogs
+                        |> Maybe.withDefault ZapButtonDialog.init
+                , toMsg = ZapButtonDialogMsg profile.pubKey
+                }
         }
         , div [ css [ Tw.pl_4 ] ]
             [ maybeConfigCheck

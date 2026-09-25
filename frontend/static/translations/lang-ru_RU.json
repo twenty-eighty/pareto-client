@@ -58,6 +58,7 @@
         "no bookmarks": "Списки закладок не найдены",
         "my bookmarks title": "Мои закладки",
         "articles title": "Статьи",
+        "highlights title": "Выделения",
         "notes title": "Заметки",
         "hashtags title": "Хештеги",
         "urls title": "Ссылки"
@@ -1082,6 +1083,13 @@
     "article highlights": {
         "section title": "Выделения",
         "highlight selection button": "Выделить фрагмент",
+        "highlighting selection button": "Выделение фрагмента...",
+        "highlight error": "Не удалось опубликовать выделение: {{reason}}",
+        "highlighted button": "Выделено",
+        "delete button": "Удалить",
+        "deleting button": "Удаление...",
+        "delete error": "Не удалось удалить выделение: {{reason}}",
+        "deleted button": "Удалено",
         "empty text": "Пока нет выделений. Выделите текст в статье и нажмите «Выделить фрагмент».",
         "selection empty alert": "Сначала выделите текст в статье, затем нажмите «Выделить фрагмент»."
     },

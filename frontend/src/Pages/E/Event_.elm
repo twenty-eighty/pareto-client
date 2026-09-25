@@ -11,12 +11,12 @@ import Layouts
 import Layouts.Sidebar
 import LinkPreview exposing (LoadedContent)
 import Nostr
-import Nostr.Query exposing (ContentQueryStatus(..))
 import Nostr.Article exposing (Article)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), eventFilterForNip19, informationForKind, kindFromNumber)
 import Nostr.Nip19 as Nip19
-import Nostr.Request exposing (RequestData(..), RequestId)
+import Nostr.Query exposing (ContentQueryStatus(..))
 import Nostr.Relay as Relay exposing (RelayUrl)
+import Nostr.Request exposing (RequestData(..), RequestId)
 import Nostr.Types exposing (IncomingMessage)
 import Page exposing (Page)
 import Ports
@@ -72,6 +72,7 @@ type alias Model =
     { contentToView : ContentToView
     , loadedContent : LoadedContent Msg
     , requestId : Maybe RequestId
+    , articleHighlights : ArticleHighlights.Model
     }
 
 
@@ -173,6 +174,7 @@ init shared route () =
     ( { contentToView = contentToView
       , loadedContent = { loadedUrls = Set.empty, addLoadedContentFunction = AddLoadedContent }
       , requestId = requestId
+      , articleHighlights = ArticleHighlights.init
       }
     , effect
     )
@@ -198,11 +200,12 @@ type Msg
     = AddLoadedContent String
     | ReceivedMessage IncomingMessage
     | NostrMsg Nostr.Msg
+    | HighlightsSent ArticleHighlights.Msg
     | NoOp
 
 
 update : Shared.Model.Model -> Msg -> Model -> ( Model, Effect Msg )
-update _ msg model =
+update shared msg model =
     case msg of
         AddLoadedContent url ->
             ( { model | loadedContent = LinkPreview.addLoadedContent model.loadedContent url }, Effect.none )
@@ -213,8 +216,40 @@ update _ msg model =
         NostrMsg _ ->
             ( model, Effect.none )
 
+        HighlightsSent innerMsg ->
+            updateHighlights shared model innerMsg
+
         NoOp ->
             ( model, Effect.none )
+
+
+updateHighlights : Shared.Model.Model -> Model -> ArticleHighlights.Msg -> ( Model, Effect Msg )
+updateHighlights shared model innerMsg =
+    case model.contentToView of
+        Article addressComponents _ ->
+            case Nostr.getArticleForAddressComponents shared.nostr addressComponents of
+                Just article ->
+                    let
+                        ( articleHighlights, effect ) =
+                            ArticleHighlights.update
+                                { browserEnv = shared.browserEnv
+                                , msg = innerMsg
+                                , model = model.articleHighlights
+                                , article = article
+                                , loginStatus = shared.loginStatus
+                                , nostr = shared.nostr
+                                , toModel = identity
+                                , toMsg = HighlightsSent
+                                }
+                    in
+                    ( { model | articleHighlights = articleHighlights }, effect )
+
+                Nothing ->
+                    ( model, Effect.none )
+
+        _ ->
+            ( model, Effect.none )
+
 
 addArticle : List Article -> Article -> List Article
 addArticle articleList newArticle =
@@ -235,8 +270,12 @@ isArticleWithIdAndAuthor author articleId article =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Ports.receiveMessage ReceivedMessage
+subscriptions model =
+    Sub.batch
+        [ Ports.receiveMessage ReceivedMessage
+        , ArticleHighlights.subscriptions model.articleHighlights
+            |> Sub.map HighlightsSent
+        ]
 
 
 
@@ -323,13 +362,13 @@ viewContent shared model =
                 ContentQueryReady article ->
                     Ui.View.viewArticle
                         { articleComments = ArticleComments.init
-                        , articleHighlights = ArticleHighlights.init
+                        , articleHighlights = model.articleHighlights
                         , articleToInteractionsMsg = \_ _ -> NoOp
                         , bookmarkButtonMsg = \_ _ -> NoOp
                         , bookmarkButtons = Dict.empty
                         , browserEnv = shared.browserEnv
                         , commentsToMsg = \_ -> NoOp
-                        , highlightsToMsg = \_ -> NoOp
+                        , highlightsToMsg = HighlightsSent
                         , deleteButtonMsg = Nothing
                         , nostr = shared.nostr
                         , loginStatus = shared.loginStatus

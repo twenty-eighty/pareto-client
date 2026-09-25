@@ -14,6 +14,7 @@ type alias BookmarkList =
 
 type BookmarkType
     = ArticleBookmark
+    | HighlightBookmark
     | NoteBookmark
 
 

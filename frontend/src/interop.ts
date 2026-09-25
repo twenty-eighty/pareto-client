@@ -114,6 +114,41 @@ const suggestedPubKeys =
     , "a81a69992a8b7fff092bb39a6a335181c16eb37948f55b90f3c5d09f3c502c84" // _@pareto.space
   ];
 
+function currentTextSelection() {
+  const selection = window.getSelection();
+  const text = selection ? selection.toString().trim() : '';
+  let context = null;
+  if (selection && selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+    const node = range.commonAncestorContainer;
+    const element = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+    if (element && element.textContent) {
+      const trimmed = element.textContent.trim();
+      if (trimmed.length > 0) {
+        context = trimmed.slice(0, 500);
+      }
+    }
+  }
+  return { text: text, context: context };
+}
+
+function watchTextSelection(app: ElmApp) {
+  let lastReported = '';
+  const report = () => {
+    const payload = currentTextSelection();
+    if (payload.text === lastReported) {
+      return;
+    }
+    lastReported = payload.text;
+    app.ports.receiveMessage.send({
+      messageType: 'textSelection',
+      value: payload
+    });
+  };
+  document.addEventListener('selectionchange', report);
+  report();
+}
+
 export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
   var storedCommands: PortCommand[] = [];
@@ -126,6 +161,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   // via port rather than init flags.
   reportNostrExtension(app);
   reportPasskeySupport(app);
+  watchTextSelection(app);
 
   if (window.matchMedia) {
     window.matchMedia("(prefers-color-scheme: dark)").addListener(e =>
@@ -470,23 +506,9 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   }
 
   function requestTextSelection(app) {
-    const selection = window.getSelection();
-    const text = selection ? selection.toString().trim() : '';
-    let context = null;
-    if (selection && selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      const node = range.commonAncestorContainer;
-      const element = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-      if (element && element.textContent) {
-        const trimmed = element.textContent.trim();
-        if (trimmed.length > 0) {
-          context = trimmed.slice(0, 500);
-        }
-      }
-    }
     app.ports.receiveMessage.send({
       messageType: 'textSelection',
-      value: { text: text, context: context }
+      value: currentTextSelection()
     });
   }
 

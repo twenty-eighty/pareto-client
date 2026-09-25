@@ -58,6 +58,7 @@
         "no bookmarks": "No bookmark lists found",
         "my bookmarks title": "My bookmarks",
         "articles title": "Articles",
+        "highlights title": "Highlights",
         "notes title": "Notes",
         "hashtags title": "Hashtags",
         "urls title": "Urls"
@@ -1119,6 +1120,13 @@
     "article highlights": {
         "section title": "Highlights",
         "highlight selection button": "Highlight selection",
+        "highlighting selection button": "Highlighting selection...",
+        "highlight error": "Could not publish this highlight: {{reason}}",
+        "highlighted button": "Highlighted",
+        "delete button": "Delete",
+        "deleting button": "Deleting...",
+        "delete error": "Could not delete this highlight: {{reason}}",
+        "deleted button": "Deleted",
         "empty text": "No highlights yet. Select text in the article and tap Highlight selection.",
         "selection empty alert": "Select text in the article first, then tap Highlight selection."
     }

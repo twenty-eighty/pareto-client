@@ -1,21 +1,26 @@
 module Nostr.Highlights exposing
     ( Highlight
     , HighlightItem
+    , byAuthor
+    , countForAddress
+    , forAddress
+    , forAuthorArticles
     , fromEvent
     , highlightEvent
     , ingest
-    , forAddress
-    , countForAddress
-    , forAuthorArticles
     )
 
 {-| NIP-84 kind 9802 highlights: parse, store, and build publish events.
+
+Queries omit a highlight when its author has published a NIP-09 deletion request for it.
+
 -}
 
 import Dict exposing (Dict)
 import Nostr.Article exposing (Article, addressComponentsForArticle)
 import Nostr.Event exposing (AddressComponents, Event, Kind(..), Tag(..), addAddressTags, addEventIdTag, addKindTag, buildAddress, emptyEvent)
 import Nostr.Types exposing (Address, EventId, PubKey)
+import Set exposing (Set)
 import Time exposing (Posix)
 
 
@@ -40,6 +45,13 @@ type alias HighlightItem =
 type alias Store a =
     { a
         | highlightsByAddress : Dict Address (Dict EventId Highlight)
+    }
+
+
+type alias Visible a =
+    { a
+        | highlightsByAddress : Dict Address (Dict EventId Highlight)
+        , deletedEvents : Dict EventId (Set PubKey)
     }
 
 
@@ -143,22 +155,40 @@ ingest store events =
     }
 
 
-forAddress : Store a -> AddressComponents -> List Highlight
+forAddress : Visible a -> AddressComponents -> List Highlight
 forAddress store addressComponents =
     Dict.get (buildAddress addressComponents) store.highlightsByAddress
         |> Maybe.map Dict.values
         |> Maybe.withDefault []
+        |> List.filter (isNotDeleted store)
         |> List.sortBy (\h -> Time.posixToMillis h.createdAt)
         |> List.reverse
 
 
-countForAddress : Store a -> AddressComponents -> Maybe Int
+countForAddress : Visible a -> AddressComponents -> Maybe Int
 countForAddress store addressComponents =
     Dict.get (buildAddress addressComponents) store.highlightsByAddress
-        |> Maybe.map Dict.size
+        |> Maybe.map
+            (\byId ->
+                byId
+                    |> Dict.values
+                    |> List.filter (isNotDeleted store)
+                    |> List.length
+            )
 
 
-forAuthorArticles : Store a -> PubKey -> List Article -> List HighlightItem
+byAuthor : Visible a -> PubKey -> List Highlight
+byAuthor store pubKey =
+    store.highlightsByAddress
+        |> Dict.values
+        |> List.concatMap Dict.values
+        |> List.filter (\highlight -> highlight.pubKey == pubKey)
+        |> List.filter (isNotDeleted store)
+        |> List.sortBy (\highlight -> Time.posixToMillis highlight.createdAt)
+        |> List.reverse
+
+
+forAuthorArticles : Visible a -> PubKey -> List Article -> List HighlightItem
 forAuthorArticles store authorPubKey articles =
     articles
         |> List.concatMap (itemsForArticle store authorPubKey)
@@ -166,7 +196,7 @@ forAuthorArticles store authorPubKey articles =
         |> List.reverse
 
 
-itemsForArticle : Store a -> PubKey -> Article -> List HighlightItem
+itemsForArticle : Visible a -> PubKey -> Article -> List HighlightItem
 itemsForArticle store authorPubKey article =
     case addressComponentsForArticle article of
         Nothing ->
@@ -176,6 +206,14 @@ itemsForArticle store authorPubKey article =
             forAddress store addressComponents
                 |> List.filter (\highlight -> highlight.pubKey /= authorPubKey)
                 |> List.map (\highlight -> { highlight = highlight, article = article })
+
+
+isNotDeleted : Visible a -> Highlight -> Bool
+isNotDeleted store highlight =
+    Dict.get highlight.id store.deletedEvents
+        |> Maybe.map (Set.member highlight.pubKey)
+        |> Maybe.withDefault False
+        |> not
 
 
 insertByAddress : Highlight -> Dict Address (Dict EventId Highlight) -> Dict Address (Dict EventId Highlight)
