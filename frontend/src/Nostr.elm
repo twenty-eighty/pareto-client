@@ -152,6 +152,7 @@ module Nostr exposing
     , getHighlightsForAddress
     , getHighlightsCountForAddress
     , highlightsForPubKey
+    , highlightsByAuthor
     , notificationsForPubKey
     , unreadNotificationsCount
     , eventFilterForDeletionRequests
@@ -1475,6 +1476,11 @@ getHighlightsCountForAddress model addressComponents =
 highlightsForPubKey : Model -> PubKey -> List Highlights.HighlightItem
 highlightsForPubKey model pubKey =
     Highlights.forAuthorArticles model pubKey (getArticlesForAuthor model pubKey)
+
+
+highlightsByAuthor : Model -> PubKey -> List Highlights.Highlight
+highlightsByAuthor model pubKey =
+    Highlights.byAuthor model pubKey
 
 
 notificationsForPubKey : Model -> PubKey -> List Notifications.NotificationItem

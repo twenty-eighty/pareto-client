@@ -1,6 +1,7 @@
 module Nostr.Highlights exposing
     ( Highlight
     , HighlightItem
+    , byAuthor
     , countForAddress
     , forAddress
     , forAuthorArticles
@@ -174,6 +175,17 @@ countForAddress store addressComponents =
                     |> List.filter (isNotDeleted store)
                     |> List.length
             )
+
+
+byAuthor : Visible a -> PubKey -> List Highlight
+byAuthor store pubKey =
+    store.highlightsByAddress
+        |> Dict.values
+        |> List.concatMap Dict.values
+        |> List.filter (\highlight -> highlight.pubKey == pubKey)
+        |> List.filter (isNotDeleted store)
+        |> List.sortBy (\highlight -> Time.posixToMillis highlight.createdAt)
+        |> List.reverse
 
 
 forAuthorArticles : Visible a -> PubKey -> List Article -> List HighlightItem

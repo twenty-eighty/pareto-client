@@ -1,13 +1,15 @@
 module Pages.Bookmarks exposing (Model, Msg, page)
 
 import Auth
+import BrowserEnv
 import Components.ArticleComments as ArticleComments
 import Components.ArticleHighlights as ArticleHighlights
 import Components.BookmarkButton as BookmarkButton
 import Components.Categories as Categories
 import Dict exposing (Dict)
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html)
+import Html.Styled as Html exposing (Html, a, blockquote, div, span, text)
+import Html.Styled.Attributes exposing (css, href)
 import I18Next
 import Layouts
 import Layouts.Sidebar
@@ -15,6 +17,7 @@ import Nostr
 import Nostr.BookmarkList exposing (BookmarkList, BookmarkType(..), bookmarkListFromEvent, bookmarksCount, emptyBookmarkList)
 import Nostr.Event exposing (AddressComponents, Kind(..), TagReference(..), emptyEventFilter)
 import Nostr.External
+import Nostr.Highlights as Highlights exposing (Highlight)
 import Nostr.Request exposing (RequestData(..))
 import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (EventId, IncomingMessage)
@@ -24,21 +27,28 @@ import Route exposing (Route)
 import Route.Path
 import Shared
 import Shared.Msg
+import Tailwind.Utilities as Tw
 import Translations.Bookmarks as Translations
+import Ui.Article exposing (linkToArticle)
 import Ui.Shared exposing (emptyHtml)
+import Ui.Styles exposing (stylesForTheme)
 import Ui.View exposing (ArticlePreviewType(..))
 import View exposing (View)
 
 
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
-page user shared _ =
+page user shared route =
     Page.new
-        { init = init shared user
+        { init = init shared user route
         , update = update user shared
         , subscriptions = subscriptions
         , view = view user shared
         }
         |> Page.withLayout (toLayout user shared)
+        |> Page.withOnQueryParameterChanged
+            { key = categoryParamName
+            , onChange = CategoryQueryChanged
+            }
 
 
 toLayout : Auth.User -> Shared.Model -> Model -> Layouts.Layout Msg
@@ -55,7 +65,7 @@ toLayout user shared model =
                 , onSelect = CategorySelected
                 , equals = \category1 category2 -> category1 == category2
                 , image = \_ _ -> Nothing
-                , categories = availableCategories bookmarkList shared.browserEnv.translations
+                , categories = availableCategories bookmarkList (Nostr.highlightsByAuthor shared.nostr user.pubKey) shared.browserEnv.translations
                 , browserEnv = shared.browserEnv
                 , theme = shared.theme
                 }
@@ -74,27 +84,99 @@ toLayout user shared model =
 type alias Model =
     { bookmarkButtons : Dict EventId BookmarkButton.Model
     , categories : Categories.Model BookmarkType
+    , path : Route.Path.Path
     , selectedBookmarkType : BookmarkType
     }
 
 
-init : Shared.Model -> Auth.User -> () -> ( Model, Effect Msg )
-init shared user () =
+categoryParamName : String
+categoryParamName =
+    "category"
+
+
+stringFromCategory : BookmarkType -> String
+stringFromCategory bookmarkType =
+    case bookmarkType of
+        ArticleBookmark ->
+            "articles"
+
+        HighlightBookmark ->
+            "highlights"
+
+        NoteBookmark ->
+            "notes"
+
+
+categoryFromString : String -> Maybe BookmarkType
+categoryFromString categoryString =
+    case categoryString of
+        "articles" ->
+            Just ArticleBookmark
+
+        "highlights" ->
+            Just HighlightBookmark
+
+        "notes" ->
+            Just NoteBookmark
+
+        _ ->
+            Nothing
+
+
+categoryFromQuery : Maybe String -> BookmarkType
+categoryFromQuery maybeCategory =
+    maybeCategory
+        |> Maybe.andThen categoryFromString
+        |> Maybe.withDefault ArticleBookmark
+
+
+init : Shared.Model -> Auth.User -> Route () -> () -> ( Model, Effect Msg )
+init shared user route () =
     let
+        bookmarkType =
+            Dict.get categoryParamName route.query
+                |> categoryFromQuery
+
         contentRequest =
             Nostr.getBookmarks shared.nostr user.pubKey
                 |> Maybe.map (requestForBookmarkContent shared.nostr ArticleBookmark)
                 |> Maybe.withDefault Effect.none
     in
     ( { bookmarkButtons = Dict.empty
-      , categories = Categories.init { selected = ArticleBookmark }
-      , selectedBookmarkType = ArticleBookmark
+      , categories = Categories.init { selected = bookmarkType }
+      , path = route.path
+      , selectedBookmarkType = bookmarkType
       }
     , Effect.batch
-        [ contentRequest
+        [ replaceCategoryRoute route.path bookmarkType
+        , contentRequest
+        , requestMyHighlights shared.nostr user.pubKey
+        , requestForSelectedBookmark shared.nostr user.pubKey bookmarkType
         , Effect.scrollContentToTop
         ]
     )
+
+
+replaceCategoryRoute : Route.Path.Path -> BookmarkType -> Effect msg
+replaceCategoryRoute path bookmarkType =
+    Effect.replaceRoute
+        { path = path
+        , query = Dict.singleton categoryParamName (stringFromCategory bookmarkType)
+        , hash = Nothing
+        }
+
+
+requestMyHighlights : Nostr.Model -> Nostr.Types.PubKey -> Effect msg
+requestMyHighlights nostr pubKey =
+    { emptyEventFilter
+        | authors = Just [ pubKey ]
+        , kinds = Just [ KindHighlights ]
+        , limit = Just 100
+    }
+        |> RequestBookmarks
+        |> Nostr.createRequest nostr "My highlights" [ KindUserMetadata ]
+        |> Shared.Msg.RequestNostrEvents
+        |> Effect.sendSharedMsg
 
 
 requestForBookmarkContent : Nostr.Model -> BookmarkType -> BookmarkList -> Effect Msg
@@ -122,18 +204,10 @@ requestForBookmarkContent nostr bookmarkType bookmarkList =
                     )
                 |> Effect.batch
 
+        HighlightBookmark ->
+            Effect.none
+
         NoteBookmark ->
-            -- { authors = Nothing
-            -- , ids = Nothing
-            -- , kinds = Just [ KindLongFormContent ]
-            -- , tagReferences =
-            --     bookmarkList.notes
-            --     |> List.map TagReferenceEventId
-            --     |> Just
-            -- , limit = Nothing
-            -- , since = Nothing
-            -- , until = Nothing
-            -- }
             Effect.none
 
 
@@ -145,6 +219,7 @@ type Msg
     | BookmarkButtonMsg EventId BookmarkButton.Msg
     | CategoriesSent (Categories.Msg BookmarkType Msg)
     | CategorySelected BookmarkType
+    | CategoryQueryChanged { from : Maybe String, to : Maybe String }
     | BookmarkRemoved
     | NoOp
 
@@ -191,16 +266,64 @@ update user shared msg model =
                 }
 
         CategorySelected bookmarkType ->
-            ( { model | selectedBookmarkType = bookmarkType }, Effect.none )
+            switchToCategory user shared model bookmarkType
+
+        CategoryQueryChanged { to } ->
+            switchToCategory user shared model (categoryFromQuery to)
 
         NoOp ->
             ( model, Effect.none )
+
+
+switchToCategory : Auth.User -> Shared.Model -> Model -> BookmarkType -> ( Model, Effect Msg )
+switchToCategory user shared model bookmarkType =
+    if model.selectedBookmarkType == bookmarkType then
+        ( model, Effect.none )
+
+    else
+        ( { model
+            | categories = Categories.select model.categories bookmarkType
+            , selectedBookmarkType = bookmarkType
+          }
+        , Effect.batch
+            [ replaceCategoryRoute model.path bookmarkType
+            , requestForSelectedBookmark shared.nostr user.pubKey bookmarkType
+            ]
+        )
+
+
+requestForSelectedBookmark : Nostr.Model -> Nostr.Types.PubKey -> BookmarkType -> Effect Msg
+requestForSelectedBookmark nostr pubKey bookmarkType =
+    case bookmarkType of
+        HighlightBookmark ->
+            Nostr.highlightsByAuthor nostr pubKey
+                |> List.filterMap .addressComponents
+                |> requestArticles nostr
+
+        ArticleBookmark ->
+            Effect.none
+
+        NoteBookmark ->
+            Effect.none
 
 updateWithMessage : Auth.User -> Shared.Model -> Model -> IncomingMessage -> ( Model, Effect Msg )
 updateWithMessage user shared model message =
     case message.messageType of
         "events" ->
             case Nostr.External.decodeEventsKind message.value of
+                Ok KindHighlights ->
+                    case Nostr.External.decodeEvents message.value of
+                        Ok events ->
+                            ( model
+                            , events
+                                |> List.map Highlights.fromEvent
+                                |> List.filterMap .addressComponents
+                                |> requestArticles shared.nostr
+                            )
+
+                        _ ->
+                            ( model, Effect.none )
+
                 Ok KindBookmarkList ->
                     case Nostr.External.decodeEvents message.value of
                         Ok events ->
@@ -217,7 +340,7 @@ updateWithMessage user shared model message =
                                                     Nothing
                                             )
                                         |> List.head
-                                        |> Maybe.map (requestForBookmarkContent shared.nostr model.selectedBookmarkType)
+                                        |> Maybe.map (requestForBookmarkContent shared.nostr ArticleBookmark)
                                         |> Maybe.withDefault Effect.none
                             in
                             ( model, requestEffect )
@@ -260,16 +383,19 @@ view user shared model =
     in
     { title = Translations.bookmarksTitle [ shared.browserEnv.translations ]
     , body =
-        [ viewBookmarks shared model bookmarkList
+        [ viewBookmarks user shared model bookmarkList
         ]
     }
 
 
-viewBookmarks : Shared.Model -> Model -> BookmarkList -> Html Msg
-viewBookmarks shared model bookmarkList =
+viewBookmarks : Auth.User -> Shared.Model -> Model -> BookmarkList -> Html Msg
+viewBookmarks user shared model bookmarkList =
     case model.selectedBookmarkType of
         ArticleBookmark ->
             viewArticleBookmarks shared model bookmarkList.articles
+
+        HighlightBookmark ->
+            viewHighlightBookmarks shared (Nostr.highlightsByAuthor shared.nostr user.pubKey)
 
         NoteBookmark ->
             viewNoteBookmarks shared model bookmarkList.notes
@@ -304,6 +430,83 @@ viewHashtagBookmarks _ _ _ =
     emptyHtml
 
 
+viewHighlightBookmarks : Shared.Model -> List Highlight -> Html Msg
+viewHighlightBookmarks shared highlights =
+    case highlights of
+        [] ->
+            emptyHtml
+
+        _ ->
+            let
+                styles =
+                    stylesForTheme shared.theme
+            in
+            div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_col
+                    , Tw.gap_3
+                    , Tw.p_4
+                    , Tw.w_full
+                    ]
+                ]
+                (List.map (viewHighlightBookmark shared styles) highlights)
+
+
+viewHighlightBookmark : Shared.Model -> Ui.Styles.Styles Msg -> Highlight -> Html Msg
+viewHighlightBookmark shared styles highlight =
+    let
+        article =
+            highlight.addressComponents
+                |> Maybe.andThen (Nostr.getArticle shared.nostr)
+
+        articleHref =
+            article
+                |> Maybe.andThen (\loadedArticle -> linkToArticle (Nostr.getAuthor shared.nostr loadedArticle.author) loadedArticle)
+                |> Maybe.withDefault "#"
+
+        articleTitle =
+            article
+                |> Maybe.andThen .title
+                |> Maybe.withDefault ""
+    in
+    a
+        [ href articleHref
+        , css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.gap_1
+            , Tw.p_3
+            , Tw.rounded_lg
+            , Tw.no_underline
+            ]
+        ]
+        [ blockquote
+            (styles.colorStyleGrayscaleText
+                ++ styles.textStyleBody
+                ++ [ css
+                        [ Tw.m_0
+                        , Tw.pl_3
+                        , Tw.border_l_2
+                        , Tw.border_solid
+                        , Tw.line_clamp_3
+                        ]
+                   ]
+            )
+            [ text highlight.content ]
+        , if String.isEmpty articleTitle then
+            emptyHtml
+
+          else
+            span
+                (styles.colorStyleGrayscaleTitle ++ styles.textStyleBody ++ [ css [ Tw.font_medium, Tw.truncate ] ])
+                [ text articleTitle ]
+        , span
+            (styles.colorStyleGrayscaleMuted ++ styles.textStyleBody)
+            [ text (BrowserEnv.formatDate shared.browserEnv highlight.createdAt) ]
+        ]
+
+
 viewNoteBookmarks : Shared.Model -> Model -> List EventId -> Html Msg
 viewNoteBookmarks _ _ _ =
     emptyHtml
@@ -314,14 +517,44 @@ viewUrlBookmarks _ _ _ =
     emptyHtml
 
 
-availableCategories : BookmarkList -> I18Next.Translations -> List (Categories.CategoryData BookmarkType)
-availableCategories bookmarkList translations =
+requestArticles : Nostr.Model -> List AddressComponents -> Effect msg
+requestArticles nostr addressComponents =
+    addressComponents
+        |> List.filter (\address -> Nostr.getArticle nostr address == Nothing)
+        |> List.map
+            (\( kind, pubKey, identifier ) ->
+                { emptyEventFilter
+                    | authors = Just [ pubKey ]
+                    , kinds = Just [ kind ]
+                    , tagReferences = Just [ TagReferenceIdentifier identifier ]
+                }
+                    |> RequestBookmarks
+                    |> Nostr.createRequest nostr "Bookmark articles" [ KindUserMetadata ]
+                    |> Shared.Msg.RequestNostrEvents
+                    |> Effect.sendSharedMsg
+            )
+        |> Effect.batch
+
+
+availableCategories : BookmarkList -> List Highlight -> I18Next.Translations -> List (Categories.CategoryData BookmarkType)
+availableCategories bookmarkList highlights translations =
     let
         articleBookmarkCategory =
             if List.length bookmarkList.articles > 0 then
                 [ { category = ArticleBookmark
                   , title = Translations.articlesTitle [ translations ]
                   , testId = "bookmarks-articles"
+                  }
+                ]
+
+            else
+                []
+
+        highlightBookmarkCategory =
+            if List.length highlights > 0 then
+                [ { category = HighlightBookmark
+                  , title = Translations.highlightsTitle [ translations ]
+                  , testId = "bookmarks-highlights"
                   }
                 ]
 
@@ -339,4 +572,4 @@ availableCategories bookmarkList translations =
             else
                 []
     in
-    articleBookmarkCategory ++ noteBookmarkCategory
+    articleBookmarkCategory ++ highlightBookmarkCategory ++ noteBookmarkCategory
