@@ -1119,6 +1119,13 @@
     "article highlights": {
         "section title": "Extraits",
         "highlight selection button": "Surligner la sélection",
+        "highlighting selection button": "Surlignage de la sélection…",
+        "highlight error": "Impossible de publier cet extrait : {{reason}}",
+        "highlighted button": "Surligné",
+        "delete button": "Supprimer",
+        "deleting button": "Suppression…",
+        "delete error": "Impossible de supprimer cet extrait : {{reason}}",
+        "deleted button": "Supprimé",
         "empty text": "Pas encore d'extraits. Sélectionnez du texte dans l'article, puis appuyez sur Surligner la sélection.",
         "selection empty alert": "Sélectionnez d'abord du texte dans l'article, puis appuyez sur Surligner la sélection."
     }
