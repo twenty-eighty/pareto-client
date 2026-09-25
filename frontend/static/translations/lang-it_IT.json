@@ -1082,6 +1082,13 @@
     "article highlights": {
         "section title": "Evidenziazioni",
         "highlight selection button": "Evidenzia selezione",
+        "highlighting selection button": "Evidenziazione in corso...",
+        "highlight error": "Impossibile pubblicare questa evidenziazione: {{reason}}",
+        "highlighted button": "Evidenziato",
+        "delete button": "Elimina",
+        "deleting button": "Eliminazione...",
+        "delete error": "Impossibile eliminare questa evidenziazione: {{reason}}",
+        "deleted button": "Eliminato",
         "empty text": "Nessuna evidenziazione. Seleziona del testo nell'articolo e tocca Evidenzia selezione.",
         "selection empty alert": "Seleziona prima del testo nell'articolo, poi tocca Evidenzia selezione."
     },

@@ -1690,7 +1690,7 @@ updateModelWithEvents model requestId kind events =
             updateModelWithReactions modelAfterContentRequest requestId events
 
         KindHighlights ->
-            updateModelWithHighlights modelAfterContentRequest events
+            updateModelWithHighlights modelAfterContentRequest requestId events
 
         KindSearchRelaysList ->
             updateModelWithSearchRelays modelAfterContentRequest requestId events
@@ -2062,17 +2062,44 @@ updateModelWithReactions model _ events =
     )
 
 
-updateModelWithHighlights : Model -> List Event -> ( Model, Cmd Msg )
-updateModelWithHighlights model events =
+updateModelWithHighlights : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
+updateModelWithHighlights model requestId events =
     let
         updated =
             Highlights.ingest
                 { highlightsByAddress = model.highlightsByAddress }
                 events
+
+        ( modelWithRequest, cmd ) =
+            requestHighlightDeletions model requestId events
     in
-    ( { model | highlightsByAddress = updated.highlightsByAddress }
-    , Cmd.none
+    ( { modelWithRequest | highlightsByAddress = updated.highlightsByAddress }
+    , cmd
     )
+
+
+requestHighlightDeletions : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
+requestHighlightDeletions model requestId events =
+    case Dict.get requestId model.requests of
+        Just request ->
+            events
+                |> List.map .id
+                |> List.filter (\eventId -> not (String.isEmpty eventId))
+                |> Set.fromList
+                |> Set.toList
+                |> List.map TagReferenceEventId
+                |> RelatedRequests.deletionRequestData
+                |> Maybe.map
+                    (\data ->
+                        addToRequest model request data
+                            |> (\( extendedModel, extendedRequest ) ->
+                                    doRequest extendedModel extendedRequest
+                               )
+                    )
+                |> Maybe.withDefault ( model, Cmd.none )
+
+        Nothing ->
+            ( model, Cmd.none )
 
 
 updateModelWithShortTextNotes : Model -> RequestId -> List Event -> ( Model, Cmd Msg )

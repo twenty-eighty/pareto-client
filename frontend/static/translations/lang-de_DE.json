@@ -1082,6 +1082,13 @@
     "article highlights": {
         "section title": "Highlights",
         "highlight selection button": "Auswahl hervorheben",
+        "highlighting selection button": "Auswahl wird hervorgehoben …",
+        "highlight error": "Highlight konnte nicht veröffentlicht werden: {{reason}}",
+        "highlighted button": "Hervorgehoben",
+        "delete button": "Löschen",
+        "deleting button": "Wird gelöscht …",
+        "delete error": "Highlight konnte nicht gelöscht werden: {{reason}}",
+        "deleted button": "Gelöscht",
         "empty text": "Noch keine Highlights. Text im Artikel markieren und auf Auswahl hervorheben tippen.",
         "selection empty alert": "Zuerst Text im Artikel markieren, dann auf Auswahl hervorheben tippen."
     },

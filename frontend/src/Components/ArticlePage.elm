@@ -314,6 +314,7 @@ updateHighlights shared innerMsg article model msgConfig =
         , model = model.articleHighlights
         , article = article
         , loginStatus = shared.loginStatus
+        , nostr = shared.nostr
         , toModel = \articleHighlights -> { model | articleHighlights = articleHighlights }
         , toMsg = msgConfig.highlightsSent
         }
