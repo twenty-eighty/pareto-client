@@ -1119,6 +1119,13 @@
     "article highlights": {
         "section title": "Destacados",
         "highlight selection button": "Destacar selección",
+        "highlighting selection button": "Destacando selección...",
+        "highlight error": "No se pudo publicar este destacado: {{reason}}",
+        "highlighted button": "Destacado",
+        "delete button": "Eliminar",
+        "deleting button": "Eliminando...",
+        "delete error": "No se pudo eliminar este destacado: {{reason}}",
+        "deleted button": "Eliminado",
         "empty text": "Aún no hay destacados. Selecciona texto en el artículo y pulsa Destacar selección.",
         "selection empty alert": "Selecciona primero texto en el artículo y luego pulsa Destacar selección."
     }
