@@ -139,6 +139,8 @@ type alias Internal =
     , awaitingConfirmation : Bool
     , error : Maybe String
     , busy : Bool
+    , awaitingExtension : Bool
+    , extensionPrompt : Int
     , extensionAvailable : Bool
     , extensionPubkey : Maybe PubKey
     , passkeySupported : Maybe Bool
@@ -408,6 +410,8 @@ init =
         , awaitingConfirmation = False
         , error = Nothing
         , busy = False
+        , awaitingExtension = False
+        , extensionPrompt = 0
         , extensionAvailable = False
         , extensionPubkey = Nothing
         , passkeySupported = Nothing
@@ -431,6 +435,7 @@ open (Model m) =
             , screen = Home
             , error = Nothing
             , busy = False
+            , awaitingExtension = False
             , passwordInput = ""
             , passwordConfirmInput = ""
             , pendingEmail = Nothing
@@ -451,6 +456,7 @@ openEmailLogin (Model m) =
             , screen = EmailLoginForm
             , error = Nothing
             , busy = False
+            , awaitingExtension = False
             , passwordInput = ""
             , passwordConfirmInput = ""
             , pendingEmail = Nothing
@@ -473,6 +479,7 @@ type Msg
     | ShowScreen Screen
     | PortMsg IncomingMessage
     | ClickExtension
+    | ExtensionPromptTimedOut Int
     | InputEmail String
     | InputDisplayName String
     | InputNpub String
@@ -516,6 +523,7 @@ update browserEnv msg (Model m) =
                     | open = False
                     , error = Nothing
                     , busy = False
+                    , awaitingExtension = False
                     , pendingEmail = Nothing
                     , pendingSignupKey = Nothing
                     , loginHash = Nothing
@@ -530,6 +538,13 @@ update browserEnv msg (Model m) =
                 { m
                     | screen = screen
                     , error = Nothing
+                    , awaitingExtension = False
+                    , busy =
+                        if m.awaitingExtension then
+                            False
+
+                        else
+                            m.busy
                     , pendingEmail = Nothing
                     , nostrConnectUri = Nothing
                     , awaitingConfirmation =
@@ -552,9 +567,37 @@ update browserEnv msg (Model m) =
             handlePort browserEnv (Model m) incoming
 
         ClickExtension ->
-            ( Model { m | busy = True, error = Nothing }
-            , Ports.loginWithExtension
+            let
+                prompt =
+                    m.extensionPrompt + 1
+            in
+            ( Model
+                { m
+                    | busy = True
+                    , awaitingExtension = True
+                    , extensionPrompt = prompt
+                    , error = Nothing
+                }
+            , Cmd.batch
+                [ Ports.loginWithExtension
+                , Process.sleep 20000
+                    |> Task.perform (\_ -> ExtensionPromptTimedOut prompt)
+                ]
             )
+
+        ExtensionPromptTimedOut prompt ->
+            if m.awaitingExtension && m.extensionPrompt == prompt then
+                ( Model
+                    { m
+                        | awaitingExtension = False
+                        , busy = False
+                        , error = Just "The browser extension did not respond. Check for its permission window, then try again."
+                    }
+                , Cmd.none
+                )
+
+            else
+                ( Model m, Cmd.none )
 
         InputEmail v ->
             ( Model { m | emailInput = v }, Cmd.none )
@@ -930,7 +973,12 @@ handlePort browserEnv (Model m) incoming =
                                         -- Don't wipe a session id derived from the "user" message
                                         -- when an availability-only identities push omits activeId.
                                         m.sessionIdentityId
-                            , busy = False
+                            , busy =
+                                if m.awaitingExtension then
+                                    m.busy
+
+                                else
+                                    False
                         }
                     , Cmd.none
                     )
@@ -950,6 +998,7 @@ handlePort browserEnv (Model m) incoming =
                             { m
                                 | open = True
                                 , busy = False
+                                , awaitingExtension = False
                                 , error = Nothing
                                 , passwordInput = ""
                                 , passwordConfirmInput = ""
@@ -968,6 +1017,7 @@ handlePort browserEnv (Model m) incoming =
                             { m
                                 | open = False
                                 , busy = False
+                                , awaitingExtension = False
                                 , error = Nothing
                                 , passwordInput = ""
                                 , passwordConfirmInput = ""
@@ -985,6 +1035,7 @@ handlePort browserEnv (Model m) incoming =
                         { m
                             | open = False
                             , busy = False
+                            , awaitingExtension = False
                             , error = Nothing
                             , passwordInput = ""
                             , passwordConfirmInput = ""
@@ -1043,6 +1094,7 @@ handlePort browserEnv (Model m) incoming =
             ( Model
                 { m
                     | busy = False
+                    , awaitingExtension = False
                     , pendingEmail = Nothing
                     , sessionIdentityId = Nothing
                     , screen =
@@ -1064,10 +1116,10 @@ handlePort browserEnv (Model m) incoming =
         "authError" ->
             case Decode.decodeValue (Decode.field "reason" Decode.string) incoming.value of
                 Ok reason ->
-                    ( Model { m | busy = False, error = Just reason }, Cmd.none )
+                    ( Model { m | busy = False, awaitingExtension = False, error = Just reason }, Cmd.none )
 
                 Err _ ->
-                    ( Model { m | busy = False, error = Just "Authentication failed" }, Cmd.none )
+                    ( Model { m | busy = False, awaitingExtension = False, error = Just "Authentication failed" }, Cmd.none )
 
         "authNeedsUnlock" ->
             case Decode.decodeValue (Decode.field "id" Decode.string) incoming.value of
@@ -1646,6 +1698,12 @@ viewNostrMethods theme t m =
     div [ css [ Tw.flex, Tw.flex_col, Tw.gap_3, Tw.min_w_72 ] ]
         (passkeyLoginBlock theme t m
             ++ [ extensionMethodButton theme t m
+               , if m.awaitingExtension then
+                    p [ css [ Tw.text_sm, Tw.opacity_70 ] ]
+                        [ text "Approve the request in the browser extension window." ]
+
+                 else
+                    emptyHtml
                , fullButton theme (Translations.bunkerButtonTitle t) (ShowScreen BunkerForm) m.busy
                , fullButton theme (Translations.importNcryptsecButtonTitle t) (ShowScreen NcryptsecForm) m.busy
                , quietLink (Translations.browseOnlyLinkTitle t) (ShowScreen NpubForm)

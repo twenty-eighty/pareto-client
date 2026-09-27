@@ -677,6 +677,60 @@ deleteContactTag tag =
         }
 
 
+pickContactCsv : Cmd msg
+pickContactCsv =
+    sendCommand
+        { command = "pickContactCsv"
+        , value = Encode.object []
+        }
+
+
+startContactCsvImport : Int -> List ( Int, String ) -> Bool -> List String -> Cmd msg
+startContactCsvImport skipRows mapping overwrite tags =
+    sendCommand
+        { command = "startContactCsvImport"
+        , value = Encode.object
+            [ ( "skipRows", Encode.int skipRows )
+            , ( "mapping"
+              , Encode.list
+                    (\( index, field ) ->
+                        Encode.object
+                            [ ( "index", Encode.int index )
+                            , ( "field", Encode.string field )
+                            ]
+                    )
+                    mapping
+              )
+            , ( "overwrite", Encode.bool overwrite )
+            , ( "tags", Encode.list Encode.string tags )
+            ]
+        }
+
+
+cancelContactCsvImport : Cmd msg
+cancelContactCsvImport =
+    sendCommand
+        { command = "cancelContactCsvImport"
+        , value = Encode.object []
+        }
+
+
+exportContactsCsv : Cmd msg
+exportContactsCsv =
+    sendCommand
+        { command = "exportContactsCsv"
+        , value = Encode.object []
+        }
+
+
+cancelContactCsvExport : Cmd msg
+cancelContactCsvExport =
+    sendCommand
+        { command = "cancelContactCsvExport"
+        , value = Encode.object []
+        }
+
+
 -- NEWSLETTERS
 
 type alias NewsletterData =

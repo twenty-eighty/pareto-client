@@ -8,9 +8,7 @@ import {
   type Subscriber,
   type SubscriberBlobPointer,
 } from "./subscriberBlob";
-import { EncryptedContacts, signerFromNdk } from "./EncryptedContacts";
-
-const CONTACTS_API_URL = "http://localhost:4003";
+import { EncryptedContacts, contactsApiBaseUrl, signerFromNdk } from "./EncryptedContacts";
 
 const DEFAULT_BASE_URL = "https://queue-server.pareto.space/v1";
 const EMAIL_GATEWAY_PUBKEY = "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345";
@@ -332,7 +330,7 @@ export class NewsletterSendClient {
 
   private contactDatabase(): EncryptedContacts {
     return new EncryptedContacts({
-      baseUrl: CONTACTS_API_URL,
+      baseUrl: contactsApiBaseUrl(),
       signer: signerFromNdk(this.ndk),
     });
   }

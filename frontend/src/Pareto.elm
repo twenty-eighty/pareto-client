@@ -77,11 +77,17 @@ authApiBaseUrl =
     "https://pareto.town"
 
 
+{-| Hosted contacts database. Local pages use http://localhost:4003 instead. -}
+contactDatabaseServerUrl : String
+contactDatabaseServerUrl =
+    "https://contacts.pareto.space"
+
+
 {-| Where to send users who need a NIP-07 browser extension.
 -}
 browserExtensionInstallUrl : String
 browserExtensionInstallUrl =
-    "https://getalby.com/products/browser-extension"
+    "https://www.akaprofiles.com/docs/reference/extension"
 
 
 {-| WebAuthn rpId for NIP-K1 passkeys (Pareto gateway).

@@ -679,7 +679,7 @@ viewSubscribers user shared model =
                 , theme = shared.theme
                 }
                 |> Button.withTypeSecondary
-                |> Button.withLink (Just <| Route.Path.toString Route.Path.ContactDatabase)
+                |> Button.withLink (Just <| Route.Path.toString Route.Path.Contacts)
                 |> Button.view
             , div
                 (styles.colorStyleGrayscaleMuted

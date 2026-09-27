@@ -4,6 +4,7 @@
   ],
   "exclude": [
     "src/Newsletters/queue_server/**",
+    "src/**/*.test.ts",
     "src/interop.ts.org"
   ],
   "compilerOptions": {

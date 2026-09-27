@@ -35,13 +35,8 @@ type Msg
     = ReceivedMessage IncomingMessage
 
 
-contactDatabaseServerUrl : String
-contactDatabaseServerUrl =
-    "http://localhost:4003"
-
-
-init : PubKey -> List LoadingFlag -> ( Model, Effect Msg )
-init pubkey loadingFlags =
+init : PubKey -> String -> List LoadingFlag -> ( Model, Effect Msg )
+init pubkey serverUrl loadingFlags =
     ( { subscribers = []
       , total = Nothing
       , databaseTotal = Nothing
@@ -55,7 +50,7 @@ init pubkey loadingFlags =
       , loading = False
       , requestId = 0
       }
-    , initContactDatabase contactDatabaseServerUrl pubkey
+    , initContactDatabase serverUrl pubkey
     )
 
 

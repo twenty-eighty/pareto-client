@@ -32,6 +32,98 @@ const NOSTRCONNECT_RELAYS = ["wss://relay.primal.net", "wss://relay.damus.io"];
 const DEAD_NIP46_RELAY_HOSTS = ["relay.nsec.app"];
 /** Blanket sign_event is the compact NIP-46 form; Amber can still restrict kinds. */
 const NOSTRCONNECT_PERMS = "sign_event";
+const EXTENSION_PROMPT_TIMEOUT_MS = 60_000;
+
+const AUTH_COMMANDS = new Set([
+  "listIdentities",
+  "logout",
+  "startNostrConnect",
+  "cancelNostrConnect",
+  "activateIdentity",
+  "unlockIdentityWithPasskey",
+  "removeIdentity",
+  "loginWithExtension",
+  "loginWithNpub",
+  "loginWithBunker",
+  "loginWithNcryptsec",
+  "generateEncryptedKey",
+  "unlockEmailAccount",
+  "saveLockedEmailIdentity",
+  "checkPasskeySupport",
+  "loginWithPasskey",
+  "createPasskey",
+  "dismissPasskeyPrompt",
+  "markBootstrapDone",
+]);
+
+export function isAuthCommand(command: string): boolean {
+  return AUTH_COMMANDS.has(command);
+}
+
+let armedExtensionPubkey: Promise<string> | null = null;
+
+function requestExtensionPubkey(): Promise<string> {
+  const nostr = (window as any).nostr;
+  if (!nostr || typeof nostr.getPublicKey !== "function") {
+    return Promise.reject(new Error("No browser extension found (window.nostr)"));
+  }
+  try {
+    return Promise.resolve(nostr.getPublicKey());
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
+/**
+ * NDK asks for the pubkey on a microtask, after the click's user-activation is gone,
+ * so the extension popup never opens and the promise never settles.
+ * Start getPublicKey() in the port callback, before any await.
+ */
+export function armExtensionPrompt(command: string, value: any): void {
+  const activateExtension =
+    command === "activateIdentity" &&
+    loadStore().identities.some(
+      (identity) => identity.id === value?.id && identity.method === "extension",
+    );
+  if (command !== "loginWithExtension" && !activateExtension) {
+    return;
+  }
+  armedExtensionPubkey = requestExtensionPubkey();
+}
+
+function takeArmedExtensionPubkey(): Promise<string> {
+  const pending = armedExtensionPubkey;
+  armedExtensionPubkey = null;
+  return pending ?? requestExtensionPubkey();
+}
+
+async function extensionPubkeyFromPrompt(): Promise<string> {
+  const raw = await withTimeout(
+    takeArmedExtensionPubkey(),
+    EXTENSION_PROMPT_TIMEOUT_MS,
+    "Browser extension did not respond",
+  );
+  if (typeof raw !== "string" || !/^[0-9a-fA-F]{64}$/.test(raw.trim())) {
+    throw new Error("Browser extension did not return a public key");
+  }
+  return normalizeHexPubkey(raw.trim());
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 /** Latest NDK instance — used to report whether an ncryptsec identity is unlocked. */
 let lastNdk: NDK | null = null;
@@ -236,22 +328,12 @@ function sendIdentities(app: ElmApp, store: IdentityStore = loadStore()): void {
   });
 }
 
-async function reportExtensionPubkey(app: ElmApp): Promise<void> {
-  const available = typeof (window as any).nostr !== "undefined";
-  let pubkey: string | null = null;
-  if (available && typeof (window as any).nostr?.getPublicKey === "function") {
-    try {
-      const raw = await (window as any).nostr.getPublicKey();
-      if (typeof raw === "string" && /^[0-9a-fA-F]{64}$/.test(raw.trim())) {
-        pubkey = normalizeHexPubkey(raw.trim());
-      }
-    } catch {
-      pubkey = null;
-    }
-  }
+function reportExtensionPubkey(app: ElmApp): void {
+  // Availability only. getPublicKey() opens the extension prompt and must run
+  // from the login click; a background call swallows that prompt and hangs.
   app.ports.receiveMessage.send({
     messageType: "nostrExtension",
-    value: { available, pubkey },
+    value: { available: typeof (window as any).nostr !== "undefined" },
   });
 }
 
@@ -538,15 +620,11 @@ async function activateSigner(
 ): Promise<void> {
   switch (identity.method) {
     case "extension": {
-      if (!(window as any).nostr) {
-        throw new Error("No browser extension found (window.nostr)");
-      }
-      const signer = new NDKNip07Signer();
-      const user = await signer.user();
-      if (normalizeHexPubkey(user.pubkey) !== identity.pubkey) {
+      const pubkey = await extensionPubkeyFromPrompt();
+      if (pubkey !== identity.pubkey) {
         throw new Error("Extension account does not match this identity");
       }
-      ndk.signer = signer;
+      ndk.signer = new NDKNip07Signer();
       break;
     }
     case "npub": {
@@ -645,6 +723,17 @@ export async function restoreActiveIdentity(ndk: NDK, app: ElmApp): Promise<void
     resolveLoggedOut();
     return;
   }
+  if (identity.method === "extension") {
+    // getPublicKey() holds the extension's prompt until the user answers.
+    // Calling it on page load uses that slot, so the later login click never opens a window.
+    if (typeof (window as any).nostr?.getPublicKey === "function") {
+      ndk.signer = new NDKNip07Signer();
+      sendUser(app, identity.pubkey, "extension");
+      return;
+    }
+    resolveLoggedOut();
+    return;
+  }
   try {
     await activateSigner(ndk, app, identity);
   } catch (error: any) {
@@ -665,7 +754,7 @@ export async function handleAuthCommand(
       case "listIdentities":
         sendIdentities(app);
         void refreshPasskeyState(app);
-        void reportExtensionPubkey(app);
+        reportExtensionPubkey(app);
         return true;
 
       case "logout": {
@@ -743,15 +832,12 @@ export async function handleAuthCommand(
       }
 
       case "loginWithExtension": {
-        if (!(window as any).nostr) {
-          throw new Error("No browser extension found (window.nostr)");
-        }
+        const pubkey = await extensionPubkeyFromPrompt();
         const signer = new NDKNip07Signer();
-        const user = await signer.user();
         const identity: StoredIdentity = {
           id: newId(),
           method: "extension",
-          pubkey: normalizeHexPubkey(user.pubkey),
+          pubkey,
           label: value?.label || "Browser extension",
           createdAt: Date.now(),
         };

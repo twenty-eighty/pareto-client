@@ -79,6 +79,16 @@ defaultCsvColumnNameMap =
     , ( "nachname", FieldLastName )
     , ( "zuname", FieldLastName )
     , ( "subscription date", FieldDateSubscription )
+    , ( "dnd", FieldDnd )
+    , ( "do not disturb", FieldDnd )
+    , ( "pubkey", FieldPubKey )
+    , ( "source", FieldSource )
+    , ( "datesub", FieldDateSubscription )
+    , ( "dateunsub", FieldDateUnsubscription )
+    , ( "unsubscribe date", FieldDateUnsubscription )
+    , ( "tags", FieldTags )
+    , ( "locale", FieldLocale )
+    , ( "undeliverable", FieldUndeliverable )
     ]
         |> Dict.fromList
 

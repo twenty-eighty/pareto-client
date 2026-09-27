@@ -183,7 +183,7 @@ sidebarItems { configIssues, isAuthor, isBetaTester, isLoggedIn, clientRole, sen
                         -- currently in development
                         Just { sidebarItem | disabled = not sendsNewsletters }
 
-                    Route.Path.ContactDatabase ->
+                    Route.Path.Contacts ->
                         Just { sidebarItem | disabled = not sendsNewsletters }
 
                     _ ->
@@ -292,7 +292,7 @@ rawSidebarItems clientRole translations =
               , requiresBetaTester = False
               , disabled = False
               }
-            , { path = Route.Path.ContactDatabase
+            , { path = Route.Path.Contacts
               , title = Translations.contactDatabaseMenuItemText [ translations ]
               , ariaLabel = Translations.contactDatabaseMenuItemText [ translations ]
               , icon = FeatherIcon FeatherIcons.database

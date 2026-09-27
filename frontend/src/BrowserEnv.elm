@@ -20,6 +20,7 @@ import Url.Builder exposing (Root(..))
 
 type alias BrowserEnv =
     { authApiBaseUrl : String
+    , contactDatabaseServerUrl : String
     , backendUrl : String
     , dateFormatLanguage : DateFormat.Language.Language
     , dateFormatTokensWithYear : List DateFormat.Token
@@ -52,6 +53,7 @@ type Msg
 
 type alias InitParams =
     { authApiBaseUrl : String
+    , contactDatabaseServerUrl : String
     , backendUrl : String
     , darkMode : Bool
     , environment : Maybe String
@@ -100,6 +102,7 @@ init initParams =
         browserEnv =
             { frontendUrl = initParams.frontendUrl
             , authApiBaseUrl = initParams.authApiBaseUrl
+            , contactDatabaseServerUrl = initParams.contactDatabaseServerUrl
             , backendUrl = initParams.backendUrl
             , dateFormatLanguage = dateFormatLanguage
             , dateFormatTokensWithYear = dateFormatTokensWithYear

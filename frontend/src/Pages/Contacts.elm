@@ -1,10 +1,11 @@
-module Pages.ContactDatabase exposing (Model, Msg, page)
+module Pages.Contacts exposing (Model, Msg, page)
 
 import Auth
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
 import Components.Categories as Categories
 import Components.ConfirmDialog as ConfirmDialog
+import Components.ContactCsvImportDialog as ContactCsvImportDialog
 import Components.TagCombination as TagCombination
 import Components.EntryField as EntryField
 import Components.Icon as Icon
@@ -150,7 +151,7 @@ categoryFromString category =
 replaceCategoryRoute : PageCategory -> Effect msg
 replaceCategoryRoute category =
     Effect.replaceRoute
-        { path = Route.Path.ContactDatabase
+        { path = Route.Path.Contacts
         , query = Dict.singleton categoryParamName (stringFromCategory category)
         , hash = Nothing
         }
@@ -164,6 +165,8 @@ type alias Model =
     { categories : Categories.Model PageCategory
     , confirmDialog : ConfirmDialog.Model String
     , contactDatabase : ContactDatabase.Model
+    , csvExport : CsvExportState
+    , csvImport : ContactCsvImportDialog.Model
     , errors : List String
     , fileState : FileState
     , migration : MigrationState
@@ -181,6 +184,12 @@ type alias Model =
     , subscribers : Dict Email Subscriber
     , tagDraft : String
     }
+
+
+type CsvExportState
+    = ExportIdle
+    | Exporting Int
+    | ExportFinished Int (Maybe String)
 
 
 type FileState
@@ -201,7 +210,7 @@ init : Auth.User -> Shared.Model -> Route () -> () -> ( Model, Effect Msg )
 init user shared route () =
     let
         ( contactDatabase, contactDatabaseEffect ) =
-            ContactDatabase.init user.pubKey [ ContactDatabase.LoadTags ]
+            ContactDatabase.init user.pubKey shared.browserEnv.contactDatabaseServerUrl [ ContactDatabase.LoadTags ]
 
         requestId =
             Nostr.getLastRequestId shared.nostr
@@ -214,6 +223,8 @@ init user shared route () =
     ( { categories = Categories.init { selected = pageCategory }
       , confirmDialog = ConfirmDialog.init
       , contactDatabase = contactDatabase
+      , csvExport = ExportIdle
+      , csvImport = ContactCsvImportDialog.init
       , errors = []
       , fileState = FileLoading
       , migration = MigrationIdle
@@ -250,6 +261,9 @@ init user shared route () =
 type Msg
     = ContactDatabaseMsg ContactDatabase.Msg
     | MigrateClicked
+    | ImportCsvClicked
+    | ExportCsvClicked
+    | CsvImportSent ContactCsvImportDialog.Msg
     | NewTableState Table.State
     | ReceivedMessage IncomingMessage
     | SearchBarSent (SearchBar.Msg Msg)
@@ -309,6 +323,25 @@ update user shared msg model =
                 ( modelWithDatabase
                 , Effect.map ContactDatabaseMsg contactDatabaseEffect
                 )
+
+        ImportCsvClicked ->
+            ( { model | csvImport = ContactCsvImportDialog.begin model.csvImport }
+            , Ports.pickContactCsv |> Effect.sendCmd
+            )
+
+        ExportCsvClicked ->
+            ( { model | csvExport = Exporting 0 }
+            , Ports.exportContactsCsv |> Effect.sendCmd
+            )
+
+        CsvImportSent innerMsg ->
+            ContactCsvImportDialog.update
+                { msg = innerMsg
+                , model = model.csvImport
+                , toModel = \csvImport -> { model | csvImport = csvImport }
+                , toMsg = CsvImportSent
+                , browserEnv = shared.browserEnv
+                }
 
         MigrateClicked ->
             ( { model | migration = MigrationRunning }
@@ -638,8 +671,70 @@ updateWithMessage user shared model message =
         "contactTagDeleted" ->
             goToPage (Table.getCurrentPage model.subscriberTable) model
 
+        "contactCsvPreview" ->
+            case ContactCsvImportDialog.decodePreview message.value of
+                Ok preview ->
+                    ( { model | csvImport = ContactCsvImportDialog.applyPreview preview model.csvImport }, Effect.none )
+
+                Err _ ->
+                    ( model, Effect.none )
+
+        "contactCsvImportProgress" ->
+            case ContactCsvImportDialog.decodeProgress message.value of
+                Ok progress ->
+                    let
+                        csvImport =
+                            ContactCsvImportDialog.applyProgress progress model.csvImport
+
+                        withImport =
+                            { model | csvImport = csvImport }
+                    in
+                    if progress.done then
+                        let
+                            ( paged, pageEffect ) =
+                                goToPage 1 withImport
+                        in
+                        ( paged
+                        , Effect.batch
+                            [ pageEffect
+                            , Ports.loadContactTags user.pubKey |> Effect.sendCmd
+                            ]
+                        )
+
+                    else
+                        ( withImport, Effect.none )
+
+                Err _ ->
+                    ( model, Effect.none )
+
+        "contactCsvExportProgress" ->
+            case Decode.decodeValue exportProgressDecoder message.value of
+                Ok progress ->
+                    ( { model
+                        | csvExport =
+                            if progress.done then
+                                ExportFinished progress.exported progress.error
+
+                            else
+                                Exporting progress.exported
+                      }
+                    , Effect.none
+                    )
+
+                Err _ ->
+                    ( model, Effect.none )
+
         _ ->
             ( model, Effect.none )
+
+
+exportProgressDecoder : Decode.Decoder { exported : Int, done : Bool, error : Maybe String }
+exportProgressDecoder =
+    Decode.map3
+        (\exported done error -> { exported = exported, done = done, error = error })
+        (Decode.field "exported" Decode.int)
+        (Decode.field "done" Decode.bool)
+        (Decode.maybe (Decode.field "error" Decode.string))
 
 
 
@@ -729,6 +824,13 @@ view shared model =
             , theme = shared.theme
             }
             |> ConfirmDialog.view
+        , ContactCsvImportDialog.new
+            { model = model.csvImport
+            , toMsg = CsvImportSent
+            , browserEnv = shared.browserEnv
+            , theme = shared.theme
+            }
+            |> ContactCsvImportDialog.view
         ]
     }
 
@@ -785,6 +887,44 @@ viewTagsPage shared model =
         ]
 
 
+isExporting : CsvExportState -> Bool
+isExporting state =
+    case state of
+        Exporting _ ->
+            True
+
+        _ ->
+            False
+
+
+viewCsvExportStatus : Shared.Model -> CsvExportState -> Html msg
+viewCsvExportStatus shared state =
+    let
+        translations =
+            shared.browserEnv.translations
+
+        message =
+            case state of
+                ExportIdle ->
+                    Nothing
+
+                Exporting exported ->
+                    Just <| Translations.csvExportProgressText [ translations ] { exported = String.fromInt exported }
+
+                ExportFinished exported (Just error) ->
+                    Just <| Translations.csvExportErrorText [ translations ] { error = error }
+
+                ExportFinished exported Nothing ->
+                    Just <| Translations.csvExportDoneText [ translations ] { exported = String.fromInt exported }
+    in
+    case message of
+        Nothing ->
+            text ""
+
+        Just status ->
+            p [] [ text status ]
+
+
 viewTagRow : Theme -> BrowserEnv -> String -> Html Msg
 viewTagRow theme browserEnv tag =
     div
@@ -836,6 +976,7 @@ viewPage shared model =
             [ css
                 [ Tw.flex
                 , Tw.flex_row
+                , Tw.flex_wrap
                 , Tw.items_center
                 , Tw.gap_4
                 ]
@@ -860,7 +1001,24 @@ viewPage shared model =
                 |> Button.withTypePrimary
                 |> Button.withDisabled (not canMigrate)
                 |> Button.view
+            , Button.new
+                { label = Translations.importButtonTitle [ shared.browserEnv.translations ]
+                , onClick = Just ImportCsvClicked
+                , theme = shared.theme
+                }
+                |> Button.withTypeSecondary
+                |> Button.withDisabled (not model.contactDatabase.authenticated)
+                |> Button.view
+            , Button.new
+                { label = Translations.exportButtonTitle [ shared.browserEnv.translations ]
+                , onClick = Just ExportCsvClicked
+                , theme = shared.theme
+                }
+                |> Button.withTypeSecondary
+                |> Button.withDisabled (databaseCount < 1 || isExporting model.csvExport)
+                |> Button.view
             ]
+        , viewCsvExportStatus shared model.csvExport
         , div
             [ css
                 [ Tw.flex
