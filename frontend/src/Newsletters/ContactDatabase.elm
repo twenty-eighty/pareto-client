@@ -70,9 +70,9 @@ initContactDatabase url pubkey =
         |> Effect.sendCmd
 
 
-loadContacts : Int -> Int -> Int -> Effect Msg
-loadContacts requestId page perPage =
-    Ports.loadContacts requestId page perPage
+loadContacts : Int -> Int -> Int -> String -> Bool -> Effect Msg
+loadContacts requestId page perPage sortColumn sortReversed =
+    Ports.loadContacts requestId page perPage sortColumn sortReversed
         |> Effect.sendCmd
 
 
@@ -112,6 +112,12 @@ deleteTag tag =
 storeSubscribers : List Subscriber -> Effect Msg
 storeSubscribers subscribers =
     Ports.storeContacts subscribers
+        |> Effect.sendCmd
+
+
+addContact : Subscriber -> Effect Msg
+addContact subscriber =
+    Ports.addContact subscriber
         |> Effect.sendCmd
 
 
@@ -173,7 +179,7 @@ updateWithMessage model message =
         "contactTags" ->
             case Decode.decodeValue (Decode.field "tags" (Decode.list Decode.string)) message.value of
                 Ok decodedTags ->
-                    ( { model | tags = decodedTags }, Effect.none )
+                    ( { model | tags = sortTags decodedTags }, Effect.none )
 
                 Err error ->
                     ( { model | errors = ("Error receiving tags: " ++ Decode.errorToString error) :: model.errors }, Effect.none )
@@ -261,8 +267,13 @@ applyContacts model message =
 addTagToList : List String -> String -> List String
 addTagToList tagList tag =
     tag :: tagList
-        |> List.sort
+        |> sortTags
         |> ListExtra.unique
+
+
+sortTags : List String -> List String
+sortTags tagList =
+    List.sortBy String.toLower tagList
 
 
 contactRecordDecoder : Decode.Decoder { id : String, subscriber : Subscriber }

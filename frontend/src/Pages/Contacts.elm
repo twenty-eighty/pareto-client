@@ -302,6 +302,7 @@ init user shared route () =
 type Msg
     = ContactDatabaseMsg ContactDatabase.Msg
     | MigrateClicked
+    | AddContactClicked
     | ImportCsvClicked
     | ExportCsvClicked
     | CsvImportSent ContactCsvImportDialog.Msg
@@ -373,6 +374,22 @@ update user shared msg model =
                 ( modelWithDatabase
                 , Effect.map ContactDatabaseMsg contactDatabaseEffect
                 )
+
+        AddContactClicked ->
+            let
+                blank =
+                    Subscribers.emptySubscriber ""
+
+                subscriber =
+                    { blank
+                        | source = Just "manual"
+                        , dateSubscription = shared.browserEnv.now
+                        , dnd = Just False
+                    }
+            in
+            ( { model | subscriberEditDialog = SubscriberEditDialog.show model.subscriberEditDialog subscriber }
+            , Effect.none
+            )
 
         ImportCsvClicked ->
             ( { model | csvImport = ContactCsvImportDialog.begin model.csvImport }
@@ -450,11 +467,19 @@ update user shared msg model =
             )
 
         SortColumn column ->
-            if column == model.sortColumn then
-                ( { model | sortReversed = not model.sortReversed }, Effect.none )
+            if not (sortableColumn column) then
+                ( model, Effect.none )
 
             else
-                ( { model | sortColumn = column, sortReversed = False }, Effect.none )
+                let
+                    next =
+                        if column == model.sortColumn then
+                            { model | sortReversed = not model.sortReversed }
+
+                        else
+                            { model | sortColumn = column, sortReversed = False }
+                in
+                goToPage 1 next
 
         OpenEditSubscriberDialog subscriber ->
             ( { model | subscriberEditDialog = SubscriberEditDialog.show model.subscriberEditDialog subscriber }, Effect.none )
@@ -469,19 +494,29 @@ update user shared msg model =
                 }
 
         UpdateSubscriber email subscriber ->
-            case Dict.get email model.contactDatabase.contactIds of
+            let
+                contactDatabase =
+                    model.contactDatabase
+
+                trimmed =
+                    { subscriber | email = String.trim subscriber.email }
+            in
+            case Dict.get email contactDatabase.contactIds of
                 Just contactId ->
-                    let
-                        contactDatabase =
-                            model.contactDatabase
-                    in
                     ( { model | contactDatabase = { contactDatabase | loading = True } }
-                    , ContactDatabase.updateContact contactId subscriber
+                    , ContactDatabase.updateContact contactId trimmed
                         |> Effect.map ContactDatabaseMsg
                     )
 
                 Nothing ->
-                    ( { model | errors = "Could not save this contact." :: model.errors }, Effect.none )
+                    if String.trim email == "" && Subscribers.emailValid trimmed.email then
+                        ( { model | contactDatabase = { contactDatabase | loading = True } }
+                        , ContactDatabase.addContact trimmed
+                            |> Effect.map ContactDatabaseMsg
+                        )
+
+                    else
+                        ( { model | errors = "Could not save this contact." :: model.errors }, Effect.none )
 
         TagCombinationSent innerMsg ->
             let
@@ -774,6 +809,41 @@ updateWithMessage user shared model message =
                 Err error ->
                     ( { model | fileState = FileError (Decode.errorToString error) }, Effect.none )
 
+        "contactAdded" ->
+            case Decode.decodeValue (Decode.maybe (Decode.field "error" Decode.string)) message.value of
+                Ok (Just error) ->
+                    let
+                        contactDatabase =
+                            model.contactDatabase
+                    in
+                    ( { model
+                        | errors = error :: model.errors
+                        , contactDatabase = { contactDatabase | loading = False }
+                      }
+                    , Effect.none
+                    )
+
+                Ok Nothing ->
+                    let
+                        tagErrors =
+                            Decode.decodeValue (Decode.field "tagErrors" (Decode.list Decode.string)) message.value
+                                |> Result.withDefault []
+                    in
+                    goToPage (Table.getCurrentPage model.subscriberTable)
+                        { model | errors = tagErrors ++ model.errors }
+
+                Err error ->
+                    let
+                        contactDatabase =
+                            model.contactDatabase
+                    in
+                    ( { model
+                        | errors = Decode.errorToString error :: model.errors
+                        , contactDatabase = { contactDatabase | loading = False }
+                      }
+                    , Effect.none
+                    )
+
         "contactsStored" ->
             case Decode.decodeValue (Decode.maybe (Decode.field "error" Decode.string)) message.value of
                 Ok (Just error) ->
@@ -968,7 +1038,7 @@ goToPage pageNumber model =
                     ContactDatabase.filterContacts requestId (TagCombination.encode filter) pageNumber ContactDatabase.pageSize
 
                 ( Nothing, Nothing ) ->
-                    ContactDatabase.loadContacts requestId pageNumber ContactDatabase.pageSize
+                    ContactDatabase.loadContacts requestId pageNumber ContactDatabase.pageSize model.sortColumn model.sortReversed
     in
     ( { model
         | contactDatabase = contactDatabase
@@ -1174,6 +1244,14 @@ viewPage shared model =
                 }
                 |> Button.withTypePrimary
                 |> Button.withDisabled (not canMigrate)
+                |> Button.view
+            , Button.new
+                { label = Translations.addContactButtonTitle [ shared.browserEnv.translations ]
+                , onClick = Just AddContactClicked
+                , theme = shared.theme
+                }
+                |> Button.withTypeSecondary
+                |> Button.withDisabled (not model.contactDatabase.authenticated)
                 |> Button.view
             , Button.new
                 { label = Translations.importButtonTitle [ shared.browserEnv.translations ]
@@ -1658,7 +1736,7 @@ viewDatabase shared model =
             , Table.view
                 (subscribersTableConfig browserEnv model.sortColumn model.sortReversed)
                 model.subscriberTable
-                (sortedSubscribers model)
+                model.contactDatabase.subscribers
                 |> Html.fromUnstyled
             , viewPager shared.theme browserEnv model
             ]
@@ -1732,26 +1810,32 @@ subscribersTableConfig browserEnv sortColumn sortReversed =
             [ { id = fieldName FieldEmail
               , name = translatedFieldName browserEnv.translations FieldEmail
               , viewData = editSubscriberButton
+              , sortable = True
               }
             , { id = fieldName FieldFirstName
               , name = translatedFieldName browserEnv.translations FieldFirstName
               , viewData = \subscriber -> Unstyled.text (subscriber.firstName |> Maybe.withDefault "")
+              , sortable = True
               }
             , { id = fieldName FieldLastName
               , name = translatedFieldName browserEnv.translations FieldLastName
               , viewData = \subscriber -> Unstyled.text (subscriber.lastName |> Maybe.withDefault "")
+              , sortable = True
               }
             , { id = fieldName FieldTags
               , name = translatedFieldName browserEnv.translations FieldTags
               , viewData = \subscriber -> Unstyled.text (subscriber.tags |> Maybe.map (String.join ", ") |> Maybe.withDefault "")
+              , sortable = False
               }
             , { id = fieldName FieldSource
               , name = translatedFieldName browserEnv.translations FieldSource
               , viewData = \subscriber -> Unstyled.text (subscriber.source |> Maybe.withDefault "")
+              , sortable = False
               }
             , { id = fieldName FieldDnd
               , name = translatedFieldName browserEnv.translations FieldDnd
               , viewData = dndMark
+              , sortable = True
               }
             , { id = fieldName FieldDateUnsubscription
               , name = translatedFieldName browserEnv.translations FieldDateUnsubscription
@@ -1762,6 +1846,7 @@ subscribersTableConfig browserEnv sortColumn sortReversed =
                                 |> Maybe.map (BrowserEnv.formatDate browserEnv)
                                 |> Maybe.withDefault ""
                             )
+              , sortable = True
               }
             ]
 
@@ -1777,8 +1862,11 @@ subscribersTableConfig browserEnv sortColumn sortReversed =
                 , sorter = Table.unsortable
                 }
 
-        sortMarker id =
-            if id == sortColumn then
+        sortMarker id sortable =
+            if not sortable then
+                ""
+
+            else if id == sortColumn then
                 if sortReversed then
                     "↑"
 
@@ -1791,7 +1879,7 @@ subscribersTableConfig browserEnv sortColumn sortReversed =
     Table.customConfig
         { toId = .email
         , toMsg = NewTableState
-        , columns = List.map column columns
+        , columns = List.map (\{ id, name, viewData } -> column { id = id, name = name, viewData = viewData }) columns
         , customizations =
             { defaultCustomizations
                 | thead =
@@ -1799,13 +1887,19 @@ subscribersTableConfig browserEnv sortColumn sortReversed =
                         { attributes = []
                         , children =
                             List.map
-                                (\{ id, name } ->
+                                (\{ id, name, sortable } ->
                                     Unstyled.th
-                                        [ cellPadding
-                                        , UnstyledEvents.onClick (SortColumn id)
-                                        , UnstyledAttr.style "cursor" "pointer"
-                                        ]
-                                        [ Unstyled.text (name ++ "\u{00A0}" ++ sortMarker id) ]
+                                        (cellPadding
+                                            :: (if sortable then
+                                                    [ UnstyledEvents.onClick (SortColumn id)
+                                                    , UnstyledAttr.style "cursor" "pointer"
+                                                    ]
+
+                                                else
+                                                    []
+                                               )
+                                        )
+                                        [ Unstyled.text (name ++ "\u{00A0}" ++ sortMarker id sortable) ]
                                 )
                                 columns
                         }
@@ -1813,31 +1907,15 @@ subscribersTableConfig browserEnv sortColumn sortReversed =
         }
 
 
-sortedSubscribers : Model -> List Subscriber
-sortedSubscribers model =
-    let
-        order a b =
-            let
-                result =
-                    compare
-                        (String.toLower (columnValue model.sortColumn a))
-                        (String.toLower (columnValue model.sortColumn b))
-            in
-            if model.sortReversed then
-                case result of
-                    LT ->
-                        GT
-
-                    EQ ->
-                        EQ
-
-                    GT ->
-                        LT
-
-            else
-                result
-    in
-    List.sortWith order model.contactDatabase.subscribers
+sortableColumn : String -> Bool
+sortableColumn column =
+    List.member column
+        [ fieldName FieldEmail
+        , fieldName FieldFirstName
+        , fieldName FieldLastName
+        , fieldName FieldDnd
+        , fieldName FieldDateUnsubscription
+        ]
 
 
 editSubscriberButton : Subscriber -> Unstyled.Html Msg
@@ -1858,42 +1936,6 @@ editSubscriberButton subscriber =
         ]
         [ text subscriber.email ]
         |> Html.toUnstyled
-
-
-columnValue : String -> Subscriber -> String
-columnValue column subscriber =
-    if column == fieldName FieldFirstName then
-        subscriber.firstName |> Maybe.withDefault ""
-
-    else if column == fieldName FieldLastName then
-        subscriber.lastName |> Maybe.withDefault ""
-
-    else if column == fieldName FieldTags then
-        subscriber.tags |> Maybe.map (String.join ", ") |> Maybe.withDefault ""
-
-    else if column == fieldName FieldSource then
-        subscriber.source |> Maybe.withDefault ""
-
-    else if column == fieldName FieldDnd then
-        dndValue subscriber.dnd
-
-    else if column == fieldName FieldDateUnsubscription then
-        subscriber.dateUnsubscription
-            |> Maybe.map (\date -> String.padLeft 15 '0' (String.fromInt (Time.posixToMillis date)))
-            |> Maybe.withDefault ""
-
-    else
-        subscriber.email
-
-
-dndValue : Maybe Bool -> String
-dndValue value =
-    case value of
-        Just True ->
-            "✓"
-
-        _ ->
-            "❎"
 
 
 dndMark : Subscriber -> Unstyled.Html msg

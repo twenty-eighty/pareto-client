@@ -900,12 +900,14 @@
     },
     "subscriber edit dialog": {
         "dialog title": "Edit Subscriber",
+        "add dialog title": "Add contact",
         "submit button title": "Submit"
     },
     "subscribers": {
         "page title": "Subscribers",
         "export button title": "Export",
         "import button title": "Import",
+        "add contact button title": "Add contact",
         "csv choose file text": "Choose CSV file",
         "csv reading file text": "Reading the start of the CSV file…",
         "csv preview empty text": "The CSV file has no rows to import.",

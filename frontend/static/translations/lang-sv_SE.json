@@ -863,12 +863,14 @@
     },
     "subscriber edit dialog": {
         "dialog title": "Redigera prenumerant",
+        "add dialog title": "Lägg till kontakt",
         "submit button title": "Skicka"
     },
     "subscribers": {
         "page title": "Prenumeranter",
         "export button title": "Exportera",
         "import button title": "Importera",
+        "add contact button title": "Lägg till kontakt",
         "csv choose file text": "Välj CSV-fil",
         "csv reading file text": "Läser början av CSV-filen…",
         "csv preview empty text": "CSV-filen har inga rader.",

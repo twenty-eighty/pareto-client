@@ -1176,40 +1176,71 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     }
   }
 
-  function loadContacts(app, { requestId, page, perPage }) {
+  function loadContacts(app, value) {
     withContacts().then(async (api) => {
-      const result = await api.getContacts(page, perPage);
-      const databaseTotal = await countStoredContacts(api);
-      sendContacts(app, requestId, page, result, databaseTotal, databaseTotal);
+      await sendContactPage(app, api, value, "all");
     }).catch((error) => {
       reportContactDatabaseError(app, error, 'Failed to load contacts');
     });
   }
 
-  function searchContacts(app, { requestId, term, page, perPage }) {
+  function searchContacts(app, value) {
     withContacts().then(async (api) => {
-      const result = await api.searchContacts(term, page, perPage);
-      const databaseTotal = await countStoredContacts(api);
-      sendContacts(app, requestId, page, result, result.total, databaseTotal);
+      await sendContactPage(app, api, value, "search");
     }).catch((error) => {
       reportContactDatabaseError(app, error, 'Failed to search contacts');
     });
   }
 
-  function filterContacts(app, { requestId, filter, page, perPage }) {
+  function filterContacts(app, value) {
     withContacts().then(async (api) => {
-      const result = await api.getContactsByCriteria(filter, page, perPage);
-      let total = result.contacts.length;
-      try {
-        total = await api.countContacts(filter);
-      } catch (_error) {
-        total = result.contacts.length;
-      }
-      const databaseTotal = await countStoredContacts(api);
-      sendContacts(app, requestId, page, result, total, databaseTotal);
+      await sendContactPage(app, api, value, "filter");
     }).catch((error) => {
       reportContactDatabaseError(app, error, 'Failed to filter contacts');
     });
+  }
+
+  async function sendContactPage(app, api, value, kind) {
+    const page = Number(value?.page) || 1;
+    const perPage = Number(value?.perPage) || 25;
+    const filter = kind === "filter" ? value?.filter : null;
+    const sortField = kind === "all" ? contactSortField(value?.sortColumn) : null;
+    const [result, databaseTotal, filteredTotal] = await Promise.all([
+      sortField
+        ? api.getContactsSorted(sortField, page, perPage, value?.sortReversed === true ? "desc" : "asc")
+        : listContactPage(api, value, kind, page, perPage),
+      countStoredContacts(api),
+      filter ? api.countContacts(filter) : Promise.resolve(null),
+    ]);
+    const total = kind === "search"
+      ? result.total
+      : kind === "filter"
+        ? filteredTotal
+        : databaseTotal;
+    sendContacts(app, value?.requestId, page, result, total, databaseTotal);
+  }
+
+  function contactSortField(column) {
+    switch (column) {
+      case "firstName":
+        return "first_name";
+      case "lastName":
+        return "last_name";
+      case "dnd":
+        return "dnd";
+      case "dateunsub":
+        return "unsubscribe_date";
+      case "email":
+        return "email";
+      default:
+        return null;
+    }
+  }
+
+  function listContactPage(api, value, kind, page, perPage) {
+    if (kind === "search") return api.searchContacts(value?.term || "", page, perPage);
+    if (kind === "filter" && value?.filter) return api.getContactsByCriteria(value.filter, page, perPage);
+    return api.getContacts(page, perPage);
   }
 
   function loadContactTags(app, _value) {
@@ -1382,15 +1413,16 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     }
   }
 
-  function storeContacts(app, { subscribers }) {
+  function storeContacts(app, { subscribers, single }) {
+    const messageType = single === true ? 'contactAdded' : 'contactsStored';
     withContacts().then((api) => api.storeContactsBulk(subscribers, false)).then((result) => {
       app.ports.receiveMessage.send({
-        messageType: 'contactsStored',
+        messageType,
         value: { status: result?.status || 'ok', stored: result?.stored || 0, tagErrors: result?.tagErrors || [] },
       });
     }).catch((error) => {
       app.ports.receiveMessage.send({
-        messageType: 'contactsStored',
+        messageType,
         value: { error: error?.message || 'Failed to store contacts' },
       });
     });

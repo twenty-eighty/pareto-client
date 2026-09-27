@@ -863,12 +863,14 @@
     },
     "subscriber edit dialog": {
         "dialog title": "Editar Suscriptor",
+        "add dialog title": "Añadir contacto",
         "submit button title": "Enviar"
     },
     "subscribers": {
         "page title": "Suscriptores",
         "export button title": "Exportar",
         "import button title": "Importar",
+        "add contact button title": "Añadir contacto",
         "csv choose file text": "Elegir archivo CSV",
         "csv reading file text": "Leyendo el inicio del archivo CSV…",
         "csv preview empty text": "El archivo CSV no tiene filas.",

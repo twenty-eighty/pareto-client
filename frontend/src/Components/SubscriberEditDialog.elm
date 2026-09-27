@@ -171,7 +171,12 @@ view dialog =
                     emailSubscriptionData.subscriber
             in
             ModalDialog.new
-                { title = Translations.dialogTitle [ settings.browserEnv.translations ]
+                { title =
+                    if emailSubscriptionData.email == "" then
+                        Translations.addDialogTitle [ settings.browserEnv.translations ]
+
+                    else
+                        Translations.dialogTitle [ settings.browserEnv.translations ]
                 , content =
                     [ div
                         [ css
@@ -187,9 +192,9 @@ view dialog =
                                 , Tw.gap_3
                                 ]
                             ]
-                            [ entryField settings.theme settings.browserEnv FieldEmail emailSubscriptionData.subscriber
-                            , entryField settings.theme settings.browserEnv FieldFirstName emailSubscriptionData.subscriber
-                            , entryField settings.theme settings.browserEnv FieldLastName emailSubscriptionData.subscriber
+                            [ entryField (emailSubscriptionData.email == "") settings.theme settings.browserEnv FieldEmail emailSubscriptionData.subscriber
+                            , entryField False settings.theme settings.browserEnv FieldFirstName emailSubscriptionData.subscriber
+                            , entryField False settings.theme settings.browserEnv FieldLastName emailSubscriptionData.subscriber
                             , Checkbox.new
                                 { label = (Subscribers.translatedFieldName settings.browserEnv.translations FieldDnd)
                                 , onClick = (\value -> { subscriber | dnd = Just value } |> UpdateSubscriber)
@@ -218,15 +223,24 @@ view dialog =
                 |> Html.map settings.toMsg
 
 
-entryField : Theme -> BrowserEnv -> SubscriberField -> Subscriber -> Html Msg
-entryField theme browserEnv field subscriber =
-    EntryField.new
-        { value = (Subscribers.subscriberValue browserEnv subscriber field)
-        , onInput = (\value -> Subscribers.setSubscriberField field value subscriber |> UpdateSubscriber)
-        , theme = theme
-        }
-        |> EntryField.withLabel (Subscribers.translatedFieldName browserEnv.translations field)
-        |> EntryField.withType (entryFieldType field)
+entryField : Bool -> Theme -> BrowserEnv -> SubscriberField -> Subscriber -> Html Msg
+entryField autofocus theme browserEnv field subscriber =
+    let
+        fieldView =
+            EntryField.new
+                { value = (Subscribers.subscriberValue browserEnv subscriber field)
+                , onInput = (\value -> Subscribers.setSubscriberField field value subscriber |> UpdateSubscriber)
+                , theme = theme
+                }
+                |> EntryField.withLabel (Subscribers.translatedFieldName browserEnv.translations field)
+                |> EntryField.withType (entryFieldType field)
+    in
+    (if autofocus then
+        EntryField.withAutofocus fieldView
+
+     else
+        fieldView
+    )
         |> EntryField.view
 
 

@@ -863,12 +863,14 @@
     },
     "subscriber edit dialog": {
         "dialog title": "Редактировать подписчика",
+        "add dialog title": "Добавить контакт",
         "submit button title": "Отправить"
     },
     "subscribers": {
         "page title": "Подписчики не найдены.",
         "export button title": "Экспорт",
         "import button title": "Импорт",
+        "add contact button title": "Добавить контакт",
         "csv choose file text": "Выбрать CSV-файл",
         "csv reading file text": "Чтение начала CSV-файла…",
         "csv preview empty text": "В CSV-файле нет строк.",

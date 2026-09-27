@@ -3,6 +3,7 @@ module Components.EntryField exposing
     , FieldType(..)
     , new
     , view
+    , withAutofocus
     , withDescription
     , withId
     , withLabel
@@ -26,7 +27,8 @@ import Ui.Styles exposing (Theme, stylesForTheme)
 
 type EntryField msg
     = Settings
-        { description : Maybe String
+        { autofocus : Bool
+        , description : Maybe String
         , id : Maybe String
         , label : Maybe String
         , onSubmit : Maybe msg
@@ -69,7 +71,8 @@ new :
     -> EntryField msg
 new props =
     Settings
-        { description = Nothing
+        { autofocus = False
+        , description = Nothing
         , id = Nothing
         , label = Nothing
         , onSubmit = Nothing
@@ -95,6 +98,11 @@ withDescription description (Settings settings) =
 withId : String -> EntryField msg -> EntryField msg
 withId id (Settings settings) =
     Settings { settings | id = Just id }
+
+
+withAutofocus : EntryField msg -> EntryField msg
+withAutofocus (Settings settings) =
+    Settings { settings | autofocus = True }
 
 
 withRows : Int -> EntryField msg -> EntryField msg
@@ -181,6 +189,13 @@ view (Settings settings) =
 
                 Nothing ->
                     []
+
+        autofocusAttr =
+            if settings.autofocus then
+                [ Attr.autofocus True ]
+
+            else
+                []
         readOnlyAttr =
             if settings.readOnly then
                 [ Attr.readonly True ]
@@ -272,6 +287,7 @@ view (Settings settings) =
                 ++ styles.colorStyleGrayscaleText
                 ++ attrs
                 ++ idAttr
+                ++ autofocusAttr
                 ++ readOnlyAttr
                 ++ nameAttr
                 ++ placeholderAttr

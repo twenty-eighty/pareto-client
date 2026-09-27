@@ -20,6 +20,7 @@ export interface ContactRecord {
 }
 
 export interface CreateOrUpdateContactRequest {
+  id?: string;
   encrypted_data: string;
   email_hash: string;
   search_tokens?: string[];

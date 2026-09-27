@@ -588,15 +588,18 @@ initContactDatabase url pubkey =
         }
 
 
-loadContacts : Int -> Int -> Int -> Cmd msg
-loadContacts requestId page perPage =
+loadContacts : Int -> Int -> Int -> String -> Bool -> Cmd msg
+loadContacts requestId page perPage sortColumn sortReversed =
     sendCommand
         { command = "loadContacts"
-        , value = Encode.object
-            [ ( "requestId", Encode.int requestId )
-            , ( "page", Encode.int page )
-            , ( "perPage", Encode.int perPage )
-            ]
+        , value =
+            Encode.object
+                [ ( "requestId", Encode.int requestId )
+                , ( "page", Encode.int page )
+                , ( "perPage", Encode.int perPage )
+                , ( "sortColumn", Encode.string sortColumn )
+                , ( "sortReversed", Encode.bool sortReversed )
+                ]
         }
 
 
@@ -604,12 +607,13 @@ searchContacts : Int -> String -> Int -> Int -> Cmd msg
 searchContacts requestId term page perPage =
     sendCommand
         { command = "searchContacts"
-        , value = Encode.object
-            [ ( "requestId", Encode.int requestId )
-            , ( "term", Encode.string term )
-            , ( "page", Encode.int page )
-            , ( "perPage", Encode.int perPage )
-            ]
+        , value =
+            Encode.object
+                [ ( "requestId", Encode.int requestId )
+                , ( "term", Encode.string term )
+                , ( "page", Encode.int page )
+                , ( "perPage", Encode.int perPage )
+                ]
         }
 
 
@@ -617,12 +621,13 @@ filterContacts : Int -> Encode.Value -> Int -> Int -> Cmd msg
 filterContacts requestId filter page perPage =
     sendCommand
         { command = "filterContacts"
-        , value = Encode.object
-            [ ( "requestId", Encode.int requestId )
-            , ( "filter", filter )
-            , ( "page", Encode.int page )
-            , ( "perPage", Encode.int perPage )
-            ]
+        , value =
+            Encode.object
+                [ ( "requestId", Encode.int requestId )
+                , ( "filter", filter )
+                , ( "page", Encode.int page )
+                , ( "perPage", Encode.int perPage )
+                ]
         }
 
 
@@ -632,6 +637,17 @@ storeContacts subscribers =
         { command = "storeContacts"
         , value = Encode.object
             [ ( "subscribers", encodeSubscribers subscribers )
+            ]
+        }
+
+
+addContact : Subscriber -> Cmd msg
+addContact subscriber =
+    sendCommand
+        { command = "storeContacts"
+        , value = Encode.object
+            [ ( "subscribers", encodeSubscribers [ subscriber ] )
+            , ( "single", Encode.bool True )
             ]
         }
 

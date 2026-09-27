@@ -1,6 +1,15 @@
 import { ContactsApi } from "./contacts";
 import { HttpClient } from "./http";
 import {
+  contactIndexKeys,
+  SortIndex,
+  type ContactIndexKeys,
+  type SortField,
+  type SortIndexStore,
+  type SortOrder,
+  type SortRoot,
+} from "./sort-index";
+import {
   contactWithoutTags,
   emailHashInput,
   encodeAuthHeader,
@@ -48,6 +57,8 @@ export class EncryptedContacts {
   private pubkey?: string;
   private salt?: string;
   private authPromise: Promise<void> | null = null;
+  private sortIndexEngine: SortIndex | null = null;
+  private sortIndexReady: boolean | null = null;
 
   constructor(options: EncryptedContactsOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
@@ -114,9 +125,12 @@ export class EncryptedContacts {
 
     const tagErrors = await this.ensureTags(withEmail.flatMap((contact) => contact.tags || []));
     const rows = [];
+    const imported: { id: string; keys: ContactIndexKeys }[] = [];
     for (const contact of withEmail) {
       const email = String(contact.email).trim();
-      rows.push(await this.prepareContact({ ...contact, email }));
+      const id = crypto.randomUUID();
+      rows.push({ ...(await this.prepareContact({ ...contact, email })), id });
+      imported.push({ id, keys: contactIndexKeys({ ...contact, email }) });
     }
 
     let status = "ok";
@@ -125,6 +139,7 @@ export class EncryptedContacts {
       status = result?.status || status;
     }
 
+    await this.syncBulkIndex(imported, overwrite, withEmail.length);
     return { status, stored: withEmail.length, tagErrors };
   }
 
@@ -136,7 +151,13 @@ export class EncryptedContacts {
     if (!id) throw new Error("Contact id is required");
     const email = requiredEmail(contact.email);
     const tagErrors = await this.ensureTags(contact.tags);
+    const ready = await this.indexIsReady();
+    const previousContact = ready ? await this.getContact(id) : null;
+    const previous = previousContact ? contactIndexKeys(previousContact) : null;
     const updated = await this.api.update(id, await this.prepareContact({ ...contact, email }));
+    if (previous) {
+      await this.touchIndex(updated.contact.id, contactIndexKeys({ ...contact, email }), previous);
+    }
     return {
       contact: {
         ...contactWithoutTags({ ...contact, email }),
@@ -148,10 +169,50 @@ export class EncryptedContacts {
     };
   }
 
+  async getContactsSorted(
+    field: SortField,
+    page = 1,
+    perPage = 100,
+    order: SortOrder = "asc",
+  ): Promise<ContactPage> {
+    await this.ensureAuthenticated();
+    if (perPage < 1 || perPage > 100) throw new Error("perPage must be from 1 to 100");
+    if (!(await this.indexIsReady())) {
+      const total = await this.countContacts();
+      if (total === 0) return { contacts: [], errors: [], sourceCount: 0, total: 0 };
+      await this.rebuildSortIndex();
+    }
+    const { ids, total } = await (await this.engine()).page(field, page, perPage, order);
+    if (ids.length === 0) return { contacts: [], errors: [], sourceCount: 0, total };
+    const result = await this.api.listByIds(ids);
+    const decrypted = await this.decryptRecords(result.contacts);
+    return { ...decrypted, total };
+  }
+
+  async rebuildSortIndex(): Promise<void> {
+    await this.ensureAuthenticated();
+    await (await this.engine()).rebuild(async (page) => {
+      const result = await this.api.list({ page, per_page: 100 });
+      const decrypted = await this.decryptRecords(result.contacts);
+      return {
+        entries: decrypted.contacts.map((contact) => ({ id: contact.id, keys: contactIndexKeys(contact) })),
+        more: result.contacts.length === 100,
+      };
+    });
+    this.sortIndexReady = true;
+  }
+
   async getContacts(page = 1, perPage = 100): Promise<ContactPage> {
     await this.ensureAuthenticated();
     const result = await this.api.list({ page, per_page: perPage });
     return this.decryptRecords(result.contacts);
+  }
+
+  async getContact(id: string): Promise<DecryptedContact | null> {
+    await this.ensureAuthenticated();
+    const result = await this.api.show(id);
+    const decrypted = await this.decryptRecords(result?.contact ? [result.contact] : []);
+    return decrypted.contacts[0] ?? null;
   }
 
   async countContacts(filter?: TagNameFilter): Promise<number> {
@@ -343,6 +404,49 @@ export class EncryptedContacts {
     if (!this.pubkey) throw new Error("Not authenticated");
     return this.pubkey;
   }
+
+  private async touchIndex(id: string, keys: ContactIndexKeys, previous: ContactIndexKeys | null): Promise<void> {
+    if (!(await this.indexIsReady())) return;
+    try {
+      await (await this.engine()).upsert(id, keys, previous);
+    } catch (error) {
+      throw indexWriteError("saved", error);
+    }
+  }
+
+  private async syncBulkIndex(
+    imported: { id: string; keys: ContactIndexKeys }[],
+    overwrite: boolean,
+    stored: number,
+  ): Promise<void> {
+    const index = await this.engine();
+    if (overwrite) {
+      await this.rebuildSortIndex();
+      return;
+    }
+    if (await this.indexIsReady()) {
+      await index.merge(imported);
+      return;
+    }
+    const total = await this.countContacts();
+    if (total === stored) {
+      await index.buildFresh(imported);
+      this.sortIndexReady = true;
+    }
+  }
+
+  private async indexIsReady(): Promise<boolean> {
+    if (this.sortIndexReady !== null) return this.sortIndexReady;
+    this.sortIndexReady = await (await this.engine()).ready();
+    return this.sortIndexReady;
+  }
+
+  private async engine(): Promise<SortIndex> {
+    if (!this.sortIndexEngine) {
+      this.sortIndexEngine = new SortIndex(new ApiSortStore(this.api), this.requireSalt());
+    }
+    return this.sortIndexEngine;
+  }
 }
 
 async function hashNames(
@@ -357,4 +461,75 @@ function requiredEmail(email: unknown): string {
   const value = String(email || "").trim();
   if (!value) throw new Error("Email is required");
   return value;
+}
+
+class ApiSortStore implements SortIndexStore {
+  constructor(private readonly api: ContactsApi) {}
+
+  acquireLease(): Promise<{ token: string; expires_at: string }> {
+    return this.api.acquireSortLease();
+  }
+
+  releaseLease(token: string): Promise<void> {
+    return this.api.releaseSortLease(token).then(() => undefined);
+  }
+
+  async getRoot(field: SortField): Promise<SortRoot | null> {
+    const result = await this.api.getSortRoot(field);
+    return result.root;
+  }
+
+  putRoot(field: SortField, nodeId: string, expectedGeneration: number, leaseToken?: string): Promise<SortRoot> {
+    return this.api.putSortRoot(field, nodeId, expectedGeneration, leaseToken).then((result) => result.root);
+  }
+
+  async getNode(field: SortField, nodeId: string): Promise<{ ciphertext: string; version: number } | null> {
+    try {
+      return await this.api.getSortNode(field, nodeId);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("not found")) return null;
+      throw error;
+    }
+  }
+
+  putNode(
+    field: SortField,
+    nodeId: string,
+    ciphertext: string,
+    expectedVersion: number,
+    leaseToken?: string,
+  ): Promise<{ version: number }> {
+    return this.api.putSortNode(field, nodeId, ciphertext, expectedVersion, leaseToken);
+  }
+
+  writeNodes(
+    field: SortField,
+    nodes: { node_id: string; ciphertext: string }[],
+    leaseToken: string,
+  ): Promise<void> {
+    return this.api.writeSortNodes(field, nodes, leaseToken).then(() => undefined);
+  }
+
+  writeRuns(field: SortField, runs: string[], leaseToken: string, append?: boolean): Promise<void> {
+    return this.api.writeSortRuns(field, runs, leaseToken, append ?? false).then(() => undefined);
+  }
+
+  async listRuns(field: SortField): Promise<{ seq: number; ciphertext: string }[]> {
+    const result = await this.api.listSortRuns(field);
+    return result.runs;
+  }
+
+  commit(
+    field: SortField,
+    leaseToken: string,
+    rootNodeId: string | null,
+    nodeIds: string[],
+  ): Promise<SortRoot | null> {
+    return this.api.commitSortIndex(field, leaseToken, rootNodeId, nodeIds).then((result) => result.root);
+  }
+}
+
+function indexWriteError(action: "saved" | "deleted", error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  return new Error(`Contact was ${action}, and the sort index update failed: ${message}`);
 }
