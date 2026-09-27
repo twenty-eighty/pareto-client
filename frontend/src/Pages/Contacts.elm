@@ -43,6 +43,7 @@ import Svg.Loaders as Loaders
 import Table.Paginated as Table exposing (defaultCustomizations)
 import Tailwind.Theme exposing (Color)
 import Tailwind.Utilities as Tw
+import Time exposing (Posix)
 import Translations.Sidebar
 import Translations.Subscribers as Translations
 import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
@@ -168,13 +169,20 @@ type alias Model =
     , contactDatabase : ContactDatabase.Model
     , csvExport : CsvExportState
     , csvImport : ContactCsvImportDialog.Model
+    , cursorRequestId : RequestId
     , errors : List String
     , fileState : FileState
     , migration : MigrationState
+    , modificationScan : ModificationScan
     , modifications : List Modification
     , modificationsRequestId : RequestId
     , pageCategory : PageCategory
+    , pageEventCount : Int
+    , pageOldest : Maybe Posix
     , pendingModifications : List Modification
+    , previousPageOldest : Maybe Posix
+    , scannedUntil : Maybe Posix
+    , subscriptionCursor : Maybe Posix
     , requestId : RequestId
     , recipientSource : RecipientSource
     , subscriptionSync : SubscriptionSync
@@ -220,6 +228,12 @@ type SubscriptionSync
     | SyncFailed String
 
 
+type ModificationScan
+    = ScanWaitingForCursor
+    | ScanPaging
+    | ScanFinished
+
+
 init : Auth.User -> Shared.Model -> Route () -> () -> ( Model, Effect Msg )
 init user shared route () =
     let
@@ -239,13 +253,20 @@ init user shared route () =
       , contactDatabase = contactDatabase
       , csvExport = ExportIdle
       , csvImport = ContactCsvImportDialog.init
+      , cursorRequestId = requestId + 2
       , errors = []
       , fileState = FileLoading
       , migration = MigrationIdle
+      , modificationScan = ScanWaitingForCursor
       , modifications = []
-      , modificationsRequestId = requestId + 2
+      , modificationsRequestId = -1
       , pageCategory = pageCategory
+      , pageEventCount = 0
+      , pageOldest = Nothing
       , pendingModifications = []
+      , previousPageOldest = Nothing
+      , scannedUntil = Nothing
+      , subscriptionCursor = Nothing
       , requestId = requestId
       , recipientSource = SubscriberFile
       , subscriptionSync = SyncLoading
@@ -267,7 +288,7 @@ init user shared route () =
             |> Effect.sendSharedMsg
         , Subscribers.loadRecipientSource (requestId + 1) user.pubKey
             |> Effect.sendSharedMsg
-        , Subscribers.loadModificationsFor (requestId + 2) user.pubKey
+        , Subscribers.loadSubscriptionCursor (requestId + 2) user.pubKey
             |> Effect.sendSharedMsg
         , replaceCategoryRoute pageCategory
         ]
@@ -581,16 +602,33 @@ updateWithMessage user shared model message =
         "events" ->
             case Nostr.External.decodeRequestId message.value of
                 Ok incomingRequestId ->
-                    if incomingRequestId == model.modificationsRequestId then
+                    if incomingRequestId == model.cursorRequestId then
+                        case Nostr.External.decodeEvents message.value of
+                            Ok events ->
+                                ( { model
+                                    | subscriptionCursor =
+                                        laterTime model.subscriptionCursor (Subscribers.subscriptionCursorFromEvents events)
+                                  }
+                                , Effect.none
+                                )
+
+                            Err _ ->
+                                ( model, Effect.none )
+
+                    else if incomingRequestId == model.modificationsRequestId then
                         case Nostr.External.decodeEvents message.value of
                             Ok events ->
                                 let
-                                    ( decoded, errors ) =
-                                        Subscribers.modificationsFromEvents events
+                                    modificationPage =
+                                        Subscribers.modificationPageFromEvents events
                                 in
                                 ( { model
-                                    | modifications = model.modifications ++ decoded
-                                    , errors = model.errors ++ errors
+                                    | modifications =
+                                        Subscribers.latestModifications (model.modifications ++ modificationPage.modifications)
+                                    , errors = model.errors ++ modificationPage.errors
+                                    , pageEventCount = model.pageEventCount + modificationPage.eventCount
+                                    , pageOldest = earlierTime model.pageOldest modificationPage.oldest
+                                    , scannedUntil = laterTime model.scannedUntil modificationPage.newest
                                   }
                                 , Effect.none
                                 )
@@ -645,8 +683,16 @@ updateWithMessage user shared model message =
         "eventsComplete" ->
             case Nostr.External.decodeRequestId message.value of
                 Ok incomingRequestId ->
-                    if incomingRequestId == model.modificationsRequestId then
-                        beginSubscriptionCheck model
+                    if incomingRequestId == model.cursorRequestId && model.modificationScan == ScanWaitingForCursor then
+                        requestModificationPage user shared model Nothing
+
+                    else if incomingRequestId == model.modificationsRequestId && model.modificationScan == ScanPaging then
+                        case Subscribers.nextModificationUntil model.pageEventCount model.pageOldest model.previousPageOldest model.subscriptionCursor of
+                            Just until ->
+                                requestModificationPage user shared model (Just until)
+
+                            Nothing ->
+                                beginSubscriptionCheck { model | modificationScan = ScanFinished }
 
                     else
                         ( model, Effect.none )
@@ -671,10 +717,13 @@ updateWithMessage user shared model message =
                                             , subscriptionSync = SyncReady
                                         }
 
-                                    ( nextModel, fetchEffect ) =
+                                    ( paged, fetchEffect ) =
                                         goToPage (Table.getCurrentPage model.subscriberTable) cleared
+
+                                    ( advanced, saveEffect ) =
+                                        advanceSubscriptionCursor user shared paged
                                 in
-                                ( nextModel, fetchEffect )
+                                ( advanced, Effect.batch [ fetchEffect, saveEffect ] )
 
                             else
                                 let
@@ -682,18 +731,23 @@ updateWithMessage user shared model message =
                                         result.pending
                                             |> List.map (String.trim >> String.toLower)
                                             |> Set.fromList
+
+                                    ready =
+                                        { model
+                                            | pendingModifications =
+                                                model.modifications
+                                                    |> List.filter
+                                                        (\modification ->
+                                                            Set.member (modificationEmailKey modification) pendingEmails
+                                                        )
+                                            , subscriptionSync = SyncReady
+                                        }
                                 in
-                                ( { model
-                                    | pendingModifications =
-                                        model.modifications
-                                            |> List.filter
-                                                (\modification ->
-                                                    Set.member (modificationEmailKey modification) pendingEmails
-                                                )
-                                    , subscriptionSync = SyncReady
-                                  }
-                                , Effect.none
-                                )
+                                if List.isEmpty ready.pendingModifications then
+                                    advanceSubscriptionCursor user shared ready
+
+                                else
+                                    ( ready, Effect.none )
 
                 Err error ->
                     ( { model | subscriptionSync = SyncFailed (Decode.errorToString error) }, Effect.none )
@@ -1206,6 +1260,81 @@ viewMigration browserEnv model =
                 [ text error ]
 
 
+requestModificationPage : Auth.User -> Shared.Model -> Model -> Maybe Posix -> ( Model, Effect Msg )
+requestModificationPage user shared model until =
+    let
+        requestId =
+            Nostr.getLastRequestId shared.nostr
+    in
+    ( { model
+        | modificationScan = ScanPaging
+        , modificationsRequestId = requestId
+        , previousPageOldest = model.pageOldest
+        , pageEventCount = 0
+        , pageOldest = Nothing
+      }
+    , Subscribers.loadModificationPage requestId user.pubKey model.subscriptionCursor until
+        |> Effect.sendSharedMsg
+    )
+
+
+advanceSubscriptionCursor : Auth.User -> Shared.Model -> Model -> ( Model, Effect Msg )
+advanceSubscriptionCursor user shared model =
+    case model.scannedUntil of
+        Nothing ->
+            ( model, Effect.none )
+
+        Just scanned ->
+            let
+                alreadyStored =
+                    model.subscriptionCursor
+                        |> Maybe.map (\cursor -> Time.posixToMillis scanned <= Time.posixToMillis cursor)
+                        |> Maybe.withDefault False
+            in
+            if alreadyStored then
+                ( model, Effect.none )
+
+            else
+                ( { model | subscriptionCursor = Just scanned }
+                , Subscribers.saveSubscriptionCursor shared.browserEnv user.pubKey scanned
+                    |> Effect.sendSharedMsg
+                )
+
+
+earlierTime : Maybe Posix -> Maybe Posix -> Maybe Posix
+earlierTime current candidate =
+    case ( current, candidate ) of
+        ( Nothing, time ) ->
+            time
+
+        ( time, Nothing ) ->
+            time
+
+        ( Just currentTime, Just candidateTime ) ->
+            if Time.posixToMillis candidateTime < Time.posixToMillis currentTime then
+                Just candidateTime
+
+            else
+                Just currentTime
+
+
+laterTime : Maybe Posix -> Maybe Posix -> Maybe Posix
+laterTime current candidate =
+    case ( current, candidate ) of
+        ( Nothing, time ) ->
+            time
+
+        ( time, Nothing ) ->
+            time
+
+        ( Just currentTime, Just candidateTime ) ->
+            if Time.posixToMillis candidateTime > Time.posixToMillis currentTime then
+                Just candidateTime
+
+            else
+                Just currentTime
+
+
 beginSubscriptionCheck : Model -> ( Model, Effect Msg )
 beginSubscriptionCheck model =
     let
@@ -1241,6 +1370,19 @@ modificationEmailKey modification =
         |> String.toLower
 
 
+subscriptionScanLoader : Html msg
+subscriptionScanLoader =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_row
+            , Tw.gap_2
+            , Tw.items_center
+            ]
+        ]
+        [ Loaders.rings [] |> Html.fromUnstyled ]
+
+
 viewSubscriptionEvents : Shared.Model -> Model -> Html Msg
 viewSubscriptionEvents shared model =
     let
@@ -1265,21 +1407,13 @@ viewSubscriptionEvents shared model =
     in
     case model.subscriptionSync of
         SyncLoading ->
-            text ""
+            subscriptionScanLoader
 
         SyncWaiting ->
-            text ""
+            subscriptionScanLoader
 
         SyncChecking ->
-            div
-                [ css
-                    [ Tw.flex
-                    , Tw.flex_row
-                    , Tw.gap_2
-                    , Tw.items_center
-                    ]
-                ]
-                [ Loaders.rings [] |> Html.fromUnstyled ]
+            subscriptionScanLoader
 
         SyncReady ->
             viewPendingSubscriptionEvents shared orderedModifications False Nothing
@@ -1619,6 +1753,16 @@ subscribersTableConfig browserEnv sortColumn sortReversed =
               , name = translatedFieldName browserEnv.translations FieldDnd
               , viewData = dndMark
               }
+            , { id = fieldName FieldDateUnsubscription
+              , name = translatedFieldName browserEnv.translations FieldDateUnsubscription
+              , viewData =
+                    \subscriber ->
+                        Unstyled.text
+                            (subscriber.dateUnsubscription
+                                |> Maybe.map (BrowserEnv.formatDate browserEnv)
+                                |> Maybe.withDefault ""
+                            )
+              }
             ]
 
         column { id, name, viewData } =
@@ -1732,6 +1876,11 @@ columnValue column subscriber =
 
     else if column == fieldName FieldDnd then
         dndValue subscriber.dnd
+
+    else if column == fieldName FieldDateUnsubscription then
+        subscriber.dateUnsubscription
+            |> Maybe.map (\date -> String.padLeft 15 '0' (String.fromInt (Time.posixToMillis date)))
+            |> Maybe.withDefault ""
 
     else
         subscriber.email

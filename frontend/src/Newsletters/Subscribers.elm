@@ -506,6 +506,168 @@ loadModificationsFor requestId userPubKey =
         |> Shared.Msg.RequestNostrEvents
 
 
+modificationPageSize : Int
+modificationPageSize =
+    500
+
+
+subscriptionCursorDTag : String
+subscriptionCursorDTag =
+    "pareto-subscription-cursor"
+
+
+loadSubscriptionCursor : RequestId -> PubKey -> Shared.Msg.Msg
+loadSubscriptionCursor requestId pubKey =
+    { emptyEventFilter
+        | authors = Just [ pubKey ]
+        , kinds = Just [ KindApplicationSpecificData ]
+        , tagReferences = Just [ TagReferenceIdentifier subscriptionCursorDTag ]
+        , limit = Just 1
+    }
+        |> RequestSubscribers
+        |> (\data ->
+                { id = requestId
+                , relatedKinds = []
+                , states = [ RequestCreated data ]
+                , description = "Load subscription cursor"
+                }
+           )
+        |> Shared.Msg.RequestNostrEvents
+
+
+saveSubscriptionCursor : BrowserEnv -> PubKey -> Time.Posix -> Shared.Msg.Msg
+saveSubscriptionCursor browserEnv pubKey time =
+    subscriptionCursorEvent browserEnv pubKey time
+        |> SendApplicationData
+        |> Shared.Msg.SendNostrEvent
+
+
+subscriptionCursorEvent : BrowserEnv -> PubKey -> Time.Posix -> Event
+subscriptionCursorEvent browserEnv pubKey time =
+    { pubKey = pubKey
+    , createdAt = browserEnv.now
+    , kind = KindApplicationSpecificData
+    , tags =
+        []
+            |> Event.addDTag subscriptionCursorDTag
+    , content =
+        [ ( "createdAt", Encode.int (Time.posixToMillis time // 1000) ) ]
+            |> Encode.object
+            |> Encode.encode 0
+    , id = ""
+    , sig = Nothing
+    , relays = Nothing
+    }
+
+
+subscriptionCursorFromEvents : List Event -> Maybe Time.Posix
+subscriptionCursorFromEvents events =
+    events
+        |> List.filterMap
+            (\event ->
+                Decode.decodeString decodeSubscriptionCursor event.content
+                    |> Result.toMaybe
+            )
+        |> List.map Time.posixToMillis
+        |> List.maximum
+        |> Maybe.map Time.millisToPosix
+
+
+decodeSubscriptionCursor : Decode.Decoder Time.Posix
+decodeSubscriptionCursor =
+    Decode.field "createdAt" Decode.int
+        |> Decode.map (\seconds -> Time.millisToPosix (seconds * 1000))
+
+
+loadModificationPage : RequestId -> PubKey -> Maybe Time.Posix -> Maybe Time.Posix -> Shared.Msg.Msg
+loadModificationPage requestId pubKey since until =
+    { emptyEventFilter
+        | authors = Just [ Pareto.subscriptionServerKey ]
+        , kinds = Just [ KindApplicationSpecificData ]
+        , tagReferences = Just [ TagReferencePubKey pubKey ]
+        , limit = Just modificationPageSize
+        , since = since
+        , until = until
+    }
+        |> RequestSubscribers
+        |> (\data ->
+                { id = requestId
+                , relatedKinds = []
+                , states = [ RequestCreated data ]
+                , description = "Load modification page"
+                }
+           )
+        |> Shared.Msg.RequestNostrEvents
+
+
+type alias ModificationPage =
+    { modifications : List Modification
+    , errors : List String
+    , eventCount : Int
+    , oldest : Maybe Time.Posix
+    , newest : Maybe Time.Posix
+    }
+
+
+modificationPageFromEvents : List Event -> ModificationPage
+modificationPageFromEvents events =
+    let
+        ( modifications, errors ) =
+            modificationsFromEvents events
+
+        times =
+            List.map (\event -> Time.posixToMillis event.createdAt) events
+    in
+    { modifications = modifications
+    , errors = errors
+    , eventCount = List.length events
+    , oldest = List.minimum times |> Maybe.map Time.millisToPosix
+    , newest = List.maximum times |> Maybe.map Time.millisToPosix
+    }
+
+
+{-| The next page upper bound. Nothing means this page already reached the end of the history.
+`until` is one second before the oldest event, because Nostr treats `until` as inclusive.
+-}
+nextModificationUntil : Int -> Maybe Time.Posix -> Maybe Time.Posix -> Maybe Time.Posix -> Maybe Time.Posix
+nextModificationUntil eventCount pageOldest previousOldest since =
+    if eventCount < modificationPageSize then
+        Nothing
+
+    else
+        case pageOldest of
+            Nothing ->
+                Nothing
+
+            Just oldest ->
+                let
+                    movedBackward =
+                        case previousOldest of
+                            Nothing ->
+                                True
+
+                            Just previous ->
+                                Time.posixToMillis oldest < Time.posixToMillis previous
+
+                    until =
+                        Time.millisToPosix (max 0 (Time.posixToMillis oldest - 1000))
+                in
+                if not movedBackward then
+                    Nothing
+
+                else
+                    case since of
+                        Just start ->
+                            if Time.posixToMillis until < Time.posixToMillis start then
+                                Nothing
+
+                            else
+                                Just until
+
+                        Nothing ->
+                            Just until
+
+
 toCsv : List Subscriber -> Csv.Encode.Csv
 toCsv subscribers =
     { headers =
