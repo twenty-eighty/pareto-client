@@ -315,10 +315,34 @@ function sanitizeBunkerUri(uri: string): string {
   }
 }
 
-function applyNip46Relays(signer: NDKNip46Signer): void {
+function sameRelaySet(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  const left = [...a].sort();
+  const right = [...b].sort();
+  return left.every((url, index) => url === right[index]);
+}
+
+/**
+ * Drop dead NIP-46 relays that `switch_relays` may have installed.
+ *
+ * `NDKNostrRpc.updateRelays()` disconnects the current pool and builds a new
+ * one. The kind-24133 subscription stays on the old pool, and `startListening()`
+ * returns immediately while `signer.subscription` is set, so later `sign()`
+ * calls never see the bunker reply. NDK's own `switchRelays()` avoids that by
+ * stopping the subscription and listening again; do the same, and skip the
+ * swap entirely when the relay set is already usable.
+ */
+async function applyNip46Relays(signer: NDKNip46Signer): Promise<void> {
   const relays = usableNip46Relays(signer.relayUrls);
+  if (sameRelaySet(relays, signer.relayUrls ?? [])) {
+    return;
+  }
   signer.relayUrls = relays;
   signer.rpc.updateRelays(relays);
+  signer.stop();
+  await (signer as unknown as { startListening(): Promise<void> }).startListening();
 }
 
 function isMobileSignerHost(): boolean {
@@ -441,7 +465,7 @@ async function startNostrConnect(ndk: NDK, app: ElmApp): Promise<void> {
     return;
   }
   pendingNostrConnectSigner = null;
-  applyNip46Relays(signer);
+  await applyNip46Relays(signer);
   persistBunkerIdentity(ndk, app, signer, user, "Amber");
 }
 
@@ -540,7 +564,7 @@ async function activateSigner(
         identity.bunkerLocalNsec,
       );
       await signer.blockUntilReady();
-      applyNip46Relays(signer);
+      await applyNip46Relays(signer);
       const user = await signer.user();
       if (normalizeHexPubkey(user.pubkey) !== identity.pubkey) {
         throw new Error("Bunker pubkey does not match this identity");
@@ -765,7 +789,7 @@ export async function handleAuthCommand(
         }
         const signer = NDKNip46Signer.bunker(ndk, sanitizeBunkerUri(bunkerUri));
         await signer.blockUntilReady();
-        applyNip46Relays(signer);
+        await applyNip46Relays(signer);
         const user = await signer.user();
         persistBunkerIdentity(ndk, app, signer, user, value?.label || "Bunker");
         return true;
