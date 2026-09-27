@@ -647,6 +647,18 @@ updateContact contactId subscriber =
         }
 
 
+syncSubscriptionEvents : Bool -> Encode.Value -> Cmd msg
+syncSubscriptionEvents apply modifications =
+    sendCommand
+        { command = "syncSubscriptionEvents"
+        , value =
+            Encode.object
+                [ ( "apply", Encode.bool apply )
+                , ( "modifications", modifications )
+                ]
+        }
+
+
 loadContactTags : PubKey -> Cmd msg
 loadContactTags pubkey =
     sendCommand

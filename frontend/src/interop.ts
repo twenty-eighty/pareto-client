@@ -1,6 +1,7 @@
 import "./Milkdown/MilkdownEditor";
 import { EncryptedContacts, contactsApiBaseUrl, signerFromNdk } from "./Newsletters/EncryptedContacts";
 import { exportContactCsvFile, importContactCsvFile, readCsvPreview, type CsvMapping } from "./Newsletters/contactCsv";
+import { parseSubscriptionChanges, syncSubscriptionEvents as applySubscriptionEvents } from "./Newsletters/subscriptionEvents";
 import { createNewsletterSender, isNewsletterSendCancelled } from "./Newsletters/Send";
 
 import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
@@ -444,6 +445,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         updateContact(app, value);
         break;
 
+      case 'syncSubscriptionEvents':
+        syncSubscriptionEvents(app, value);
+        break;
+
       case 'pickContactCsv':
         pickContactCsv(app);
         break;
@@ -883,7 +888,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     });
   }
 
-  function processEvents(app, requestId, description, ndkEvents, filters) {
+  async function processEvents(app, requestId, description, ndkEvents, filters) {
 
     if (ndkEvents.size == 0) {
       // Prefer the filter kinds so Elm can settle kind-specific queries (e.g. articles).
@@ -905,6 +910,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
     var eventsSortedByKind = {};
     var zapReceipts = [];
+    const pendingApplicationEvents = [];
 
     ndkEvents.forEach(ndkEvent => {
       switch (ndkEvent.kind) {
@@ -1020,11 +1026,9 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
         case 30078: // application-specific event
           {
-            unwrapApplicationSpecificEvent(ndkEvent).then(event => {
-              if (event) {
-                app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
-              }
-            });
+            pendingApplicationEvents.push(
+              unwrapApplicationSpecificEvent(ndkEvent).then(decryptedApplicationEvent).catch(() => null)
+            );
             break;
           }
 
@@ -1044,6 +1048,11 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
           break;
       }
     });
+
+    const applicationEvents = (await Promise.all(pendingApplicationEvents)).filter(Boolean);
+    if (pendingApplicationEvents.length > 0) {
+      eventsSortedByKind[30078] = applicationEvents;
+    }
 
     for (const kind in eventsSortedByKind) {
       const events = eventsSortedByKind[kind]
@@ -1397,6 +1406,21 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       app.ports.receiveMessage.send({
         messageType: 'contactUpdated',
         value: { error: error?.message || 'Failed to update contact' },
+      });
+    });
+  }
+
+  function syncSubscriptionEvents(app, { modifications, apply }) {
+    withContacts().then(async (api) => {
+      const result = await applySubscriptionEvents(api, parseSubscriptionChanges(modifications), apply === true);
+      app.ports.receiveMessage.send({
+        messageType: 'subscriptionEvents',
+        value: { pending: result.pending, applied: result.applied, error: null },
+      });
+    }).catch((error) => {
+      app.ports.receiveMessage.send({
+        messageType: 'subscriptionEvents',
+        value: { pending: [], applied: null, error: error?.message || 'Failed to apply subscription events' },
       });
     });
   }
@@ -2262,6 +2286,12 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     const stringifiedEvent = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
     ndkEvent.tags = JSON.parse(stringifiedEvent);
     return ndkEvent;
+  }
+
+  function decryptedApplicationEvent(event) {
+    const content = typeof event?.content === "string" ? event.content.trim() : "";
+    if (content.startsWith("{") || content.startsWith("[")) return event;
+    return null;
   }
 
   async function unwrapApplicationSpecificEvent(ndkEvent) {

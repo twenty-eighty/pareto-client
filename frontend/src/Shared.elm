@@ -597,8 +597,14 @@ updateWithUserValue route model value =
                     , lastSeenEffect
                     , createNotificationsActivityEffect modelWithLastSeen.nostr pubKeyNew
                     , Effect.sendCmd Ports.disconnectNwc
-                      -- Remount auth pages so Write/Settings/Subscribers don't keep the previous user's model.
-                    , Effect.loadExternalUrl (Url.toString route.url)
+                    , if route.path == Route.Path.SignIn then
+                        -- SignIn navigates to `from`. Reloading this URL cancels
+                        -- that redirect and leaves the new session on /sign-in.
+                        Effect.none
+
+                      else
+                        -- Remount auth pages so Write/Settings/Subscribers don't keep the previous user's model.
+                        Effect.loadExternalUrl (Url.toString route.url)
                     ]
                 )
 

@@ -8,7 +8,7 @@ import Iso8601
 import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
 import Json.Encode as Encode
-import Newsletters.Types exposing (Subscriber, SubscriberField(..), encodeSubscribers, fieldName)
+import Newsletters.Types exposing (Subscriber, SubscriberField(..), encodeSubscriber, encodeSubscribers, fieldName)
 import Nostr
 import Nostr.Model exposing (TestMode(..))
 import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), emptyEvent, emptyEventFilter)
@@ -492,6 +492,20 @@ loadModifications nostr userPubKey =
         |> Shared.Msg.RequestNostrEvents
 
 
+loadModificationsFor : RequestId -> PubKey -> Shared.Msg.Msg
+loadModificationsFor requestId userPubKey =
+    modificationsEventFilter userPubKey
+        |> RequestSubscribers
+        |> (\data ->
+                { id = requestId
+                , relatedKinds = []
+                , states = [ RequestCreated data ]
+                , description = "Load modifications"
+                }
+           )
+        |> Shared.Msg.RequestNostrEvents
+
+
 toCsv : List Subscriber -> Csv.Encode.Csv
 toCsv subscribers =
     { headers =
@@ -644,25 +658,126 @@ processEvents userPubKey existingModifications events =
                     )
                 |> List.head
 
-        modificationEvents =
-            events
-                |> List.filter (\event -> event.pubKey == Pareto.subscriptionServerKey)
-
-        ( modifications, decodingErrors ) =
-            modificationEvents
-                |> List.map modificationFromEvent
-                |> List.foldl
-                    (\result ( modificationsAcc, errorList ) ->
-                        case result of
-                            Ok decodedModification ->
-                                ( modificationsAcc ++ [ decodedModification ], errorList )
-
-                            Err error ->
-                                ( modificationsAcc, errorList ++ [ Decode.errorToString error ] )
-                    )
-                    ( existingModifications, [] )
+        ( decodedModifications, decodingErrors ) =
+            modificationsFromEvents events
     in
-    ( subscriberEventData, modifications, decodingErrors )
+    ( subscriberEventData, existingModifications ++ decodedModifications, decodingErrors )
+
+
+modificationsFromEvents : List Event -> ( List Modification, List String )
+modificationsFromEvents events =
+    events
+        |> List.filter (\event -> event.pubKey == Pareto.subscriptionServerKey)
+        |> List.map modificationFromEvent
+        |> List.foldl
+            (\result ( modificationsAcc, errorList ) ->
+                case result of
+                    Ok decodedModification ->
+                        ( modificationsAcc ++ [ decodedModification ], errorList )
+
+                    Err error ->
+                        ( modificationsAcc, errorList ++ [ Decode.errorToString error ] )
+            )
+            ( [], [] )
+
+
+{-| One modification per address: the newest event. An unsubscribe wins when both
+have the same time, so a later subscribe in the relay batch cannot undo it.
+-}
+latestModifications : List Modification -> List Modification
+latestModifications modifications =
+    modifications
+        |> List.foldl
+            (\modification acc ->
+                let
+                    email =
+                        modificationEmail modification
+                            |> String.trim
+                            |> String.toLower
+                in
+                if email == "" then
+                    acc
+
+                else
+                    case Dict.get email acc of
+                        Nothing ->
+                            Dict.insert email modification acc
+
+                        Just current ->
+                            if modificationWins modification current then
+                                Dict.insert email modification acc
+
+                            else
+                                acc
+            )
+            Dict.empty
+        |> Dict.values
+
+
+encodeModifications : List Modification -> Encode.Value
+encodeModifications modifications =
+    Encode.list encodeModification modifications
+
+
+modificationEmail : Modification -> Email
+modificationEmail modification =
+    case modification of
+        Subscription subscriber ->
+            subscriber.email
+
+        Unsubscription subscriber ->
+            subscriber.email
+
+
+modificationTime : Modification -> Int
+modificationTime modification =
+    case modification of
+        Subscription subscriber ->
+            Time.posixToMillis subscriber.dateSubscription
+
+        Unsubscription subscriber ->
+            subscriber.dateUnsubscription
+                |> Maybe.map Time.posixToMillis
+                |> Maybe.withDefault 0
+
+
+modificationWins : Modification -> Modification -> Bool
+modificationWins candidate current =
+    let
+        candidateTime =
+            modificationTime candidate
+
+        currentTime =
+            modificationTime current
+    in
+    if candidateTime == currentTime then
+        case candidate of
+            Unsubscription _ ->
+                True
+
+            Subscription _ ->
+                False
+
+    else
+        candidateTime > currentTime
+
+
+encodeModification : Modification -> Encode.Value
+encodeModification modification =
+    case modification of
+        Subscription subscriber ->
+            Encode.object
+                [ ( "kind", Encode.string "subscribe" )
+                , ( "at", Encode.int (modificationTime modification) )
+                , ( "subscriber", Encode.object (encodeSubscriber subscriber) )
+                ]
+
+        Unsubscription subscriber ->
+            Encode.object
+                [ ( "kind", Encode.string "unsubscribe" )
+                , ( "at", Encode.int (modificationTime modification) )
+                , ( "subscriber", Encode.object (encodeSubscriber subscriber) )
+                ]
 
 
 subscribersFromEvent : Event -> Result Decode.Error (List Subscriber)

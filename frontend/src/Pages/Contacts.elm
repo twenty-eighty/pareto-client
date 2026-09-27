@@ -26,7 +26,7 @@ import Json.Decode as Decode
 import Layouts
 import Layouts.Sidebar
 import Newsletters.ContactDatabase as ContactDatabase
-import Newsletters.Subscribers as Subscribers exposing (Email, RecipientSource(..), translatedFieldName)
+import Newsletters.Subscribers as Subscribers exposing (Email, Modification(..), RecipientSource(..), translatedFieldName)
 import Newsletters.Types exposing (Subscriber, SubscriberField(..), fieldName)
 import Nostr
 import Nostr.Event exposing (Kind(..))
@@ -37,6 +37,7 @@ import Page exposing (Page)
 import Ports
 import Route exposing (Route)
 import Route.Path
+import Set exposing (Set)
 import Shared
 import Svg.Loaders as Loaders
 import Table.Paginated as Table exposing (defaultCustomizations)
@@ -170,9 +171,13 @@ type alias Model =
     , errors : List String
     , fileState : FileState
     , migration : MigrationState
+    , modifications : List Modification
+    , modificationsRequestId : RequestId
     , pageCategory : PageCategory
+    , pendingModifications : List Modification
     , requestId : RequestId
     , recipientSource : RecipientSource
+    , subscriptionSync : SubscriptionSync
     , searchBar : SearchBar.Model
     , searchText : Maybe String
     , sortColumn : String
@@ -206,6 +211,15 @@ type MigrationState
     | MigrationFailed String
 
 
+type SubscriptionSync
+    = SyncLoading
+    | SyncWaiting
+    | SyncChecking
+    | SyncReady
+    | SyncApplying
+    | SyncFailed String
+
+
 init : Auth.User -> Shared.Model -> Route () -> () -> ( Model, Effect Msg )
 init user shared route () =
     let
@@ -228,9 +242,13 @@ init user shared route () =
       , errors = []
       , fileState = FileLoading
       , migration = MigrationIdle
+      , modifications = []
+      , modificationsRequestId = requestId + 2
       , pageCategory = pageCategory
+      , pendingModifications = []
       , requestId = requestId
       , recipientSource = SubscriberFile
+      , subscriptionSync = SyncLoading
       , searchBar = SearchBar.init { searchText = Nothing }
       , searchText = Nothing
       , sortColumn = fieldName FieldEmail
@@ -248,6 +266,8 @@ init user shared route () =
         , Subscribers.load shared.nostr user.pubKey
             |> Effect.sendSharedMsg
         , Subscribers.loadRecipientSource (requestId + 1) user.pubKey
+            |> Effect.sendSharedMsg
+        , Subscribers.loadModificationsFor (requestId + 2) user.pubKey
             |> Effect.sendSharedMsg
         , replaceCategoryRoute pageCategory
         ]
@@ -282,6 +302,7 @@ type Msg
     | DeleteTagClicked String
     | ConfirmDialogSent ConfirmDialog.Msg
     | DeleteTagConfirmed String
+    | ProcessSubscriptionEventsClicked
 
 
 update : Auth.User -> Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -311,11 +332,19 @@ update user shared msg model =
                 let
                     ( nextModel, fetchEffect ) =
                         goToPage 1 modelWithDatabase
+
+                    ( checkedModel, checkEffect ) =
+                        if model.subscriptionSync == SyncWaiting then
+                            beginSubscriptionCheck nextModel
+
+                        else
+                            ( nextModel, Effect.none )
                 in
-                ( nextModel
+                ( checkedModel
                 , Effect.batch
                     [ Effect.map ContactDatabaseMsg contactDatabaseEffect
                     , fetchEffect
+                    , checkEffect
                     ]
                 )
 
@@ -524,6 +553,24 @@ update user shared msg model =
                 |> Effect.map ContactDatabaseMsg
             )
 
+        ProcessSubscriptionEventsClicked ->
+            let
+                toApply =
+                    if List.isEmpty model.pendingModifications then
+                        model.modifications
+
+                    else
+                        model.pendingModifications
+            in
+            if List.isEmpty toApply || model.subscriptionSync == SyncApplying then
+                ( model, Effect.none )
+
+            else
+                ( { model | subscriptionSync = SyncApplying }
+                , Ports.syncSubscriptionEvents True (Subscribers.encodeModifications toApply)
+                    |> Effect.sendCmd
+                )
+
         ReceivedMessage message ->
             updateWithMessage user shared model message
 
@@ -534,7 +581,24 @@ updateWithMessage user shared model message =
         "events" ->
             case Nostr.External.decodeRequestId message.value of
                 Ok incomingRequestId ->
-                    if incomingRequestId == model.sourceRequestId then
+                    if incomingRequestId == model.modificationsRequestId then
+                        case Nostr.External.decodeEvents message.value of
+                            Ok events ->
+                                let
+                                    ( decoded, errors ) =
+                                        Subscribers.modificationsFromEvents events
+                                in
+                                ( { model
+                                    | modifications = model.modifications ++ decoded
+                                    , errors = model.errors ++ errors
+                                  }
+                                , Effect.none
+                                )
+
+                            Err _ ->
+                                ( model, Effect.none )
+
+                    else if incomingRequestId == model.sourceRequestId then
                         case Nostr.External.decodeEvents message.value of
                             Ok events ->
                                 ( { model | recipientSource = Subscribers.recipientSourceFromEvents events }, Effect.none )
@@ -577,6 +641,62 @@ updateWithMessage user shared model message =
 
                 _ ->
                     ( model, Effect.none )
+
+        "eventsComplete" ->
+            case Nostr.External.decodeRequestId message.value of
+                Ok incomingRequestId ->
+                    if incomingRequestId == model.modificationsRequestId then
+                        beginSubscriptionCheck model
+
+                    else
+                        ( model, Effect.none )
+
+                _ ->
+                    ( model, Effect.none )
+
+        "subscriptionEvents" ->
+            case Decode.decodeValue subscriptionEventsDecoder message.value of
+                Ok result ->
+                    case result.error of
+                        Just error ->
+                            ( { model | subscriptionSync = SyncFailed error }, Effect.none )
+
+                        Nothing ->
+                            if model.subscriptionSync == SyncApplying then
+                                let
+                                    cleared =
+                                        { model
+                                            | modifications = []
+                                            , pendingModifications = []
+                                            , subscriptionSync = SyncReady
+                                        }
+
+                                    ( nextModel, fetchEffect ) =
+                                        goToPage (Table.getCurrentPage model.subscriberTable) cleared
+                                in
+                                ( nextModel, fetchEffect )
+
+                            else
+                                let
+                                    pendingEmails =
+                                        result.pending
+                                            |> List.map (String.trim >> String.toLower)
+                                            |> Set.fromList
+                                in
+                                ( { model
+                                    | pendingModifications =
+                                        model.modifications
+                                            |> List.filter
+                                                (\modification ->
+                                                    Set.member (modificationEmailKey modification) pendingEmails
+                                                )
+                                    , subscriptionSync = SyncReady
+                                  }
+                                , Effect.none
+                                )
+
+                Err error ->
+                    ( { model | subscriptionSync = SyncFailed (Decode.errorToString error) }, Effect.none )
 
         "decryptedString" ->
             case Decode.decodeValue Subscribers.subscriberDataDecoder message.value of
@@ -1043,6 +1163,7 @@ viewPage shared model =
             ]
         , viewMigration shared.browserEnv model
         , viewFileState shared.browserEnv model
+        , viewSubscriptionEvents shared model
         , viewQuery shared model
         , viewDatabase shared model
         , viewErrors model
@@ -1083,6 +1204,168 @@ viewMigration browserEnv model =
         MigrationFailed error ->
             p []
                 [ text error ]
+
+
+beginSubscriptionCheck : Model -> ( Model, Effect Msg )
+beginSubscriptionCheck model =
+    let
+        latest =
+            Subscribers.latestModifications model.modifications
+    in
+    if List.isEmpty latest then
+        ( { model | modifications = [], pendingModifications = [], subscriptionSync = SyncReady }, Effect.none )
+
+    else if not model.contactDatabase.authenticated then
+        ( { model | modifications = latest, subscriptionSync = SyncWaiting }, Effect.none )
+
+    else
+        ( { model | modifications = latest, subscriptionSync = SyncChecking }
+        , Ports.syncSubscriptionEvents False (Subscribers.encodeModifications latest)
+            |> Effect.sendCmd
+        )
+
+
+subscriptionEventsDecoder : Decode.Decoder { pending : List String, applied : Maybe Int, error : Maybe String }
+subscriptionEventsDecoder =
+    Decode.map3
+        (\pending applied error -> { pending = pending, applied = applied, error = error })
+        (Decode.field "pending" (Decode.list Decode.string))
+        (Decode.maybe (Decode.field "applied" Decode.int))
+        (Decode.maybe (Decode.field "error" Decode.string))
+
+
+modificationEmailKey : Modification -> String
+modificationEmailKey modification =
+    Subscribers.modificationEmail modification
+        |> String.trim
+        |> String.toLower
+
+
+viewSubscriptionEvents : Shared.Model -> Model -> Html Msg
+viewSubscriptionEvents shared model =
+    let
+        visibleModifications =
+            if not (List.isEmpty model.pendingModifications) then
+                model.pendingModifications
+
+            else
+                case model.subscriptionSync of
+                    SyncFailed _ ->
+                        model.modifications
+
+                    SyncApplying ->
+                        model.modifications
+
+                    _ ->
+                        []
+
+        orderedModifications =
+            visibleModifications
+                |> List.sortBy (\modification -> negate (Subscribers.modificationTime modification))
+    in
+    case model.subscriptionSync of
+        SyncLoading ->
+            text ""
+
+        SyncWaiting ->
+            text ""
+
+        SyncChecking ->
+            div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_row
+                    , Tw.gap_2
+                    , Tw.items_center
+                    ]
+                ]
+                [ Loaders.rings [] |> Html.fromUnstyled ]
+
+        SyncReady ->
+            viewPendingSubscriptionEvents shared orderedModifications False Nothing
+
+        SyncApplying ->
+            viewPendingSubscriptionEvents shared orderedModifications True Nothing
+
+        SyncFailed error ->
+            viewPendingSubscriptionEvents shared orderedModifications False (Just error)
+
+
+viewPendingSubscriptionEvents : Shared.Model -> List Modification -> Bool -> Maybe String -> Html Msg
+viewPendingSubscriptionEvents shared modifications applying error =
+    if List.isEmpty modifications && error == Nothing then
+        text ""
+
+    else
+        div
+            [ css
+                [ Tw.flex
+                , Tw.flex_col
+                , Tw.gap_2
+                ]
+            ]
+            [ p []
+                [ text <| Translations.newModifications [ shared.browserEnv.translations ] ]
+            , case error of
+                Just message ->
+                    p [] [ text message ]
+
+                Nothing ->
+                    text ""
+            , Button.new
+                { label = Translations.processModificationsButtonTitle [ shared.browserEnv.translations ]
+                , onClick =
+                    if applying || List.isEmpty modifications then
+                        Nothing
+
+                    else
+                        Just ProcessSubscriptionEventsClicked
+                , theme = shared.theme
+                }
+                |> Button.withTypeSecondary
+                |> Button.withDisabled (applying || List.isEmpty modifications)
+                |> Button.view
+            , ul []
+                (List.map (viewSubscriptionEvent shared.browserEnv) modifications)
+            , if applying then
+                div
+                    [ css
+                        [ Tw.flex
+                        , Tw.flex_row
+                        , Tw.gap_2
+                        , Tw.items_center
+                        ]
+                    ]
+                    [ Loaders.rings [] |> Html.fromUnstyled ]
+
+              else
+                text ""
+            ]
+
+
+viewSubscriptionEvent : BrowserEnv -> Modification -> Html Msg
+viewSubscriptionEvent browserEnv modification =
+    case modification of
+        Subscription subscriber ->
+            li []
+                [ text <|
+                    Subscribers.modificationToString modification
+                        ++ ": "
+                        ++ subscriber.email
+                        ++ " ("
+                        ++ BrowserEnv.formatDate browserEnv subscriber.dateSubscription
+                        ++ ")"
+                ]
+
+        Unsubscription subscriber ->
+            let
+                dateSuffix =
+                    subscriber.dateUnsubscription
+                        |> Maybe.map (\date -> " (" ++ BrowserEnv.formatDate browserEnv date ++ ")")
+                        |> Maybe.withDefault ""
+            in
+            li []
+                [ text <| Subscribers.modificationToString modification ++ ": " ++ subscriber.email ++ dateSuffix ]
 
 
 viewFileState : BrowserEnv -> Model -> Html Msg
