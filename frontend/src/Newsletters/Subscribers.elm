@@ -484,6 +484,20 @@ load nostr userPubKey =
         |> Shared.Msg.RequestNostrEvents
 
 
+loadFor : RequestId -> PubKey -> Shared.Msg.Msg
+loadFor requestId userPubKey =
+    subscribersEventFilter userPubKey
+        |> RequestSubscribers
+        |> (\data ->
+                { id = requestId
+                , relatedKinds = []
+                , states = [ RequestCreated data ]
+                , description = "Load subscribers"
+                }
+           )
+        |> Shared.Msg.RequestNostrEvents
+
+
 loadModifications : Nostr.Model -> PubKey -> Shared.Msg.Msg
 loadModifications nostr userPubKey =
     modificationsEventFilter userPubKey

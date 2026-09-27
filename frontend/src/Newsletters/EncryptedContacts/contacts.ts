@@ -84,7 +84,7 @@ export class ContactsApi {
   async bulkImport(
     contacts: CreateOrUpdateContactRequest[],
     overwrite = false,
-  ): Promise<{ status: string }> {
+  ): Promise<{ status: string; ids?: string[] }> {
     return this.http.request("POST", "/api/contacts/bulk", { contacts, overwrite });
   }
 

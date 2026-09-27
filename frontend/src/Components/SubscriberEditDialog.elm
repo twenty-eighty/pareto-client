@@ -11,6 +11,7 @@ import Html.Styled.Attributes exposing (css)
 import Locale exposing (Language(..))
 import Newsletters.Subscribers as Subscribers
 import Newsletters.Types exposing (Subscriber, SubscriberField(..))
+import Nostr.Nip19 as Nip19
 import Shared.Model exposing (Model)
 import Shared.Msg exposing (Msg)
 import Tailwind.Utilities as Tw
@@ -83,7 +84,14 @@ init _ =
 
 show : Model -> Subscriber -> Model
 show (Model model) subscriber =
-    Model { model | state = DialogVisible { email = subscriber.email, subscriber = subscriber } }
+    Model
+        { model
+            | state =
+                DialogVisible
+                    { email = subscriber.email
+                    , subscriber = presentPubKey subscriber
+                    }
+        }
 
 
 hide : Model -> Model
@@ -128,9 +136,13 @@ update props =
             SubmitSubscriber ->
                 case model.state of
                     DialogVisible emailSubscriptionData ->
-                        ( Model { model | state = DialogHidden }
-                        , Effect.sendMsg <| props.submit emailSubscriptionData.email emailSubscriptionData.subscriber
-                        )
+                        if canSubmit emailSubscriptionData.subscriber then
+                            ( Model { model | state = DialogHidden }
+                            , Effect.sendMsg <| props.submit emailSubscriptionData.email (normalizePubKey emailSubscriptionData.subscriber)
+                            )
+
+                        else
+                            ( Model model, Effect.none )
 
                     _ ->
                         ( Model model, Effect.none )
@@ -164,9 +176,6 @@ view dialog =
 
         DialogVisible emailSubscriptionData ->
             let
-                emailIsValid =
-                    Subscribers.emailValid emailSubscriptionData.subscriber.email
-
                 subscriber =
                     emailSubscriptionData.subscriber
             in
@@ -181,7 +190,7 @@ view dialog =
                     [ div
                         [ css
                             [ Tw.w_full
-                            , Tw.max_w_sm
+                            , Tw.max_w_lg
                             , Tw.mt_2
                             ]
                         ]
@@ -195,6 +204,7 @@ view dialog =
                             [ entryField (emailSubscriptionData.email == "") settings.theme settings.browserEnv FieldEmail emailSubscriptionData.subscriber
                             , entryField False settings.theme settings.browserEnv FieldFirstName emailSubscriptionData.subscriber
                             , entryField False settings.theme settings.browserEnv FieldLastName emailSubscriptionData.subscriber
+                            , entryField False settings.theme settings.browserEnv FieldPubKey emailSubscriptionData.subscriber
                             , Checkbox.new
                                 { label = (Subscribers.translatedFieldName settings.browserEnv.translations FieldDnd)
                                 , onClick = (\value -> { subscriber | dnd = Just value } |> UpdateSubscriber)
@@ -215,12 +225,79 @@ view dialog =
                         , theme = settings.theme
                         }
                         |> Button.withTypePrimary
-                        |> Button.withDisabled (not emailIsValid)
+                        |> Button.withDisabled (not (canSubmit subscriber))
                         |> Button.view
                     ]
                 }
                 |> ModalDialog.view
                 |> Html.map settings.toMsg
+
+
+canSubmit : Subscriber -> Bool
+canSubmit subscriber =
+    Subscribers.emailValid subscriber.email && pubKeyInputValid subscriber.pubKey
+
+
+presentPubKey : Subscriber -> Subscriber
+presentPubKey subscriber =
+    { subscriber | pubKey = Maybe.map pubKeyForDisplay subscriber.pubKey }
+
+
+pubKeyForDisplay : String -> String
+pubKeyForDisplay value =
+    case canonicalPubKey value of
+        Just hex ->
+            case Nip19.encode (Nip19.Npub hex) of
+                Ok npub ->
+                    npub
+
+                Err _ ->
+                    value
+
+        Nothing ->
+            value
+
+
+normalizePubKey : Subscriber -> Subscriber
+normalizePubKey subscriber =
+    { subscriber | pubKey = subscriber.pubKey |> Maybe.andThen canonicalPubKey }
+
+
+pubKeyInputValid : Maybe String -> Bool
+pubKeyInputValid maybeValue =
+    case maybeValue |> Maybe.map String.trim |> Maybe.withDefault "" of
+        "" ->
+            True
+
+        text ->
+            canonicalPubKey text /= Nothing
+
+
+canonicalPubKey : String -> Maybe String
+canonicalPubKey input =
+    let
+        trimmed =
+            String.trim input
+    in
+    if isHexPubkey trimmed then
+        Just (String.toLower trimmed)
+
+    else
+        case Nip19.decode trimmed of
+            Ok (Nip19.Npub hex) ->
+                if isHexPubkey hex then
+                    Just (String.toLower hex)
+
+                else
+                    Nothing
+
+            _ ->
+                Nothing
+
+
+isHexPubkey : String -> Bool
+isHexPubkey value =
+    String.length value == 64 && String.all Char.isHexDigit value
 
 
 entryField : Bool -> Theme -> BrowserEnv -> SubscriberField -> Subscriber -> Html Msg

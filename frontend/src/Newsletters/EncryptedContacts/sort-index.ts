@@ -125,6 +125,30 @@ export class SortIndex {
     return root !== null;
   }
 
+  /**
+   * Drop ids the contact table no longer has, and keep one entry per remaining id.
+   * A page is otherwise short by every index slot that does not load.
+   */
+  async removeIds(ids: string[]): Promise<void> {
+    const drop = new Set(ids);
+    const token = await this.store.acquireLease().then((lease) => lease.token);
+    try {
+      for (const field of SORT_FIELDS) {
+        const existing = await this.readAll(field);
+        const seen = new Set<string>();
+        const kept: IndexEntry[] = [];
+        for (const entry of existing) {
+          if (drop.has(entry.id) || seen.has(entry.id)) continue;
+          seen.add(entry.id);
+          kept.push(entry);
+        }
+        if (kept.length !== existing.length) await this.commitSorted(field, kept, token);
+      }
+    } finally {
+      await this.store.releaseLease(token);
+    }
+  }
+
   async page(
     field: SortField,
     page: number,

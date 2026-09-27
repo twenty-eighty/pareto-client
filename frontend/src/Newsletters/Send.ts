@@ -9,6 +9,7 @@ import {
   type SubscriberBlobPointer,
 } from "./subscriberBlob";
 import { EncryptedContacts, contactsApiBaseUrl, signerFromNdk } from "./EncryptedContacts";
+import type { TagNameFilter } from "./EncryptedContacts/types";
 
 const DEFAULT_BASE_URL = "https://queue-server.pareto.space/v1";
 const EMAIL_GATEWAY_PUBKEY = "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345";
@@ -35,6 +36,7 @@ type SendOptions = {
   subscribers?: Subscriber[];
   subscriberBlob?: SubscriberBlobPointer;
   recipientSource?: string;
+  tagFilter?: TagNameFilter;
   onProgress?: ProgressFn;
   signal?: AbortSignal;
 };
@@ -341,7 +343,8 @@ export class NewsletterSendClient {
     isTest: boolean,
     totals: { fetched: number; built: number; accepted: number; duplicates: number; errors: number; pages: number },
     onProgress: ProgressFn | undefined,
-    signal?: AbortSignal,
+    signal: AbortSignal | undefined,
+    filter?: TagNameFilter,
   ): Promise<void> {
     const api = this.contactDatabase();
     await api.ensureAuthenticated();
@@ -350,7 +353,9 @@ export class NewsletterSendClient {
     let page = 1;
     while (true) {
       throwIfAborted(signal);
-      const result = await api.getContacts(page, perPage);
+      const result = filter
+        ? await api.getContactsByCriteria(filter, page, perPage)
+        : await api.getContacts(page, perPage);
       const records = result?.contacts || [];
       const active = records.filter((contact) => contact.active === true);
       totals.fetched += active.length;
@@ -386,7 +391,11 @@ export class NewsletterSendClient {
     }
 
     if (totals.accepted + totals.duplicates === 0) {
-      throw new Error("No active contacts found in the contact database.");
+      throw new Error(
+        filter
+          ? "No active contacts match this filter."
+          : "No active contacts found in the contact database.",
+      );
     }
   }
 
@@ -500,6 +509,7 @@ export class NewsletterSendClient {
     subscribers,
     subscriberBlob,
     recipientSource,
+    tagFilter,
     onProgress,
     signal,
   }: SendOptions) {
@@ -581,7 +591,7 @@ export class NewsletterSendClient {
       this.log("Send newsletter start", { externalId, campaignId, recipients: pageContacts ? "paged" : recipients.length, test: isTest });
 
       if (pageContacts) {
-        await this.enqueueContactPages(author, campaignId, isTest, totals, onProgress, signal);
+        await this.enqueueContactPages(author, campaignId, isTest, totals, onProgress, signal, tagFilter);
       } else {
         const jobs: JobSpec[] = [];
         for (const contact of recipients) {
@@ -851,9 +861,14 @@ export class NewsletterSendClient {
     }
   }
 
-  async countActiveRecipients(author: string, subscriberBlob?: SubscriberBlobPointer, recipientSource?: string): Promise<number> {
+  async countActiveRecipients(
+    author: string,
+    subscriberBlob?: SubscriberBlobPointer,
+    recipientSource?: string,
+    filter?: TagNameFilter,
+  ): Promise<number> {
     if (recipientSource === "contacts") {
-      return this.contactDatabase().countActiveRecipients();
+      return this.contactDatabase().countActiveRecipients(filter);
     }
     const subscribers = await this.resolveRecipients(author, undefined, subscriberBlob, recipientSource);
     return subscribers.length;

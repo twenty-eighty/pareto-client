@@ -18,8 +18,8 @@ import FeatherIcons
 import Html as Unstyled
 import Html.Attributes as UnstyledAttr
 import Html.Events as UnstyledEvents
-import Html.Styled as Html exposing (Html, div, li, p, text, ul)
-import Html.Styled.Attributes exposing (css)
+import Html.Styled as Html exposing (Html, div, li, option, p, select, text, ul)
+import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events
 import I18Next
 import Json.Decode as Decode
@@ -32,7 +32,7 @@ import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.External
 import Nostr.Request exposing (RequestId)
-import Nostr.Types exposing (IncomingMessage)
+import Nostr.Types exposing (IncomingMessage, PubKey)
 import Page exposing (Page)
 import Ports
 import Route exposing (Route)
@@ -206,7 +206,8 @@ type CsvExportState
 
 
 type FileState
-    = FileLoading
+    = FileIdle
+    | FileLoading
     | FileReady
     | FileMissing
     | FileError String
@@ -255,7 +256,7 @@ init user shared route () =
       , csvImport = ContactCsvImportDialog.init
       , cursorRequestId = requestId + 2
       , errors = []
-      , fileState = FileLoading
+      , fileState = FileIdle
       , migration = MigrationIdle
       , modificationScan = ScanWaitingForCursor
       , modifications = []
@@ -284,8 +285,6 @@ init user shared route () =
     , Effect.batch
         [ contactDatabaseEffect
             |> Effect.map ContactDatabaseMsg
-        , Subscribers.load shared.nostr user.pubKey
-            |> Effect.sendSharedMsg
         , Subscribers.loadRecipientSource (requestId + 1) user.pubKey
             |> Effect.sendSharedMsg
         , Subscribers.loadSubscriptionCursor (requestId + 2) user.pubKey
@@ -311,6 +310,7 @@ type Msg
     | SearchBarSent (SearchBar.Msg Msg)
     | SearchSubmitted (Maybe String)
     | SetRecipientSource RecipientSource
+    | SetPageSize Int
     | SortColumn String
     | OpenEditSubscriberDialog Subscriber
     | SubscriberEditDialogSent SubscriberEditDialog.Msg
@@ -461,10 +461,34 @@ update user shared msg model =
                 goToPage 1 { model | searchText = searchText }
 
         SetRecipientSource source ->
-            ( { model | recipientSource = source }
-            , Subscribers.saveRecipientSource shared.browserEnv user.pubKey source
-                |> Effect.sendSharedMsg
+            let
+                stopped =
+                    { model | recipientSource = source }
+
+                cleared =
+                    if source == ContactDatabase && model.fileState == FileLoading then
+                        { stopped | fileState = FileIdle }
+
+                    else
+                        stopped
+
+                ( next, loadEffect ) =
+                    requestSubscriberFile user.pubKey cleared
+            in
+            ( next
+            , Effect.batch
+                [ Subscribers.saveRecipientSource shared.browserEnv user.pubKey source
+                    |> Effect.sendSharedMsg
+                , loadEffect
+                ]
             )
+
+        SetPageSize size ->
+            if List.member size pageSizeChoices && size /= Table.getPageSize model.subscriberTable then
+                goToPage 1 { model | subscriberTable = Table.setPageSize size model.subscriberTable }
+
+            else
+                ( model, Effect.none )
 
         SortColumn column ->
             if not (sortableColumn column) then
@@ -674,12 +698,13 @@ updateWithMessage user shared model message =
                     else if incomingRequestId == model.sourceRequestId then
                         case Nostr.External.decodeEvents message.value of
                             Ok events ->
-                                ( { model | recipientSource = Subscribers.recipientSourceFromEvents events }, Effect.none )
+                                requestSubscriberFile user.pubKey
+                                    { model | recipientSource = Subscribers.recipientSourceFromEvents events }
 
                             Err _ ->
                                 ( model, Effect.none )
 
-                    else if model.requestId == incomingRequestId then
+                    else if model.requestId == incomingRequestId && model.recipientSource == SubscriberFile then
                         case Nostr.External.decodeEvents message.value of
                             Ok [] ->
                                 ( { model | fileState = FileMissing }, Effect.none )
@@ -720,6 +745,9 @@ updateWithMessage user shared model message =
                 Ok incomingRequestId ->
                     if incomingRequestId == model.cursorRequestId && model.modificationScan == ScanWaitingForCursor then
                         requestModificationPage user shared model Nothing
+
+                    else if incomingRequestId == model.sourceRequestId then
+                        requestSubscriberFile user.pubKey model
 
                     else if incomingRequestId == model.modificationsRequestId && model.modificationScan == ScanPaging then
                         case Subscribers.nextModificationUntil model.pageEventCount model.pageOldest model.previousPageOldest model.subscriptionCursor of
@@ -788,7 +816,11 @@ updateWithMessage user shared model message =
                     ( { model | subscriptionSync = SyncFailed (Decode.errorToString error) }, Effect.none )
 
         "decryptedString" ->
-            case Decode.decodeValue Subscribers.subscriberDataDecoder message.value of
+            if model.recipientSource == ContactDatabase then
+                ( model, Effect.none )
+
+            else
+                case Decode.decodeValue Subscribers.subscriberDataDecoder message.value of
                 Ok subscribers ->
                     let
                         subscribersDict =
@@ -1010,6 +1042,18 @@ switchCategory model category =
         )
 
 
+requestSubscriberFile : PubKey -> Model -> ( Model, Effect Msg )
+requestSubscriberFile pubKey model =
+    if model.recipientSource == SubscriberFile && model.fileState == FileIdle then
+        ( { model | fileState = FileLoading }
+        , Subscribers.loadFor model.requestId pubKey
+            |> Effect.sendSharedMsg
+        )
+
+    else
+        ( model, Effect.none )
+
+
 goToPage : Int -> Model -> ( Model, Effect Msg )
 goToPage pageNumber model =
     let
@@ -1032,13 +1076,13 @@ goToPage pageNumber model =
             in
             case ( trimmedSearch, TagCombination.toFilter model.tagCombination ) of
                 ( Just term, _ ) ->
-                    ContactDatabase.searchContacts requestId term pageNumber ContactDatabase.pageSize
+                    ContactDatabase.searchContacts requestId term pageNumber (Table.getPageSize model.subscriberTable)
 
                 ( Nothing, Just filter ) ->
-                    ContactDatabase.filterContacts requestId (TagCombination.encode filter) pageNumber ContactDatabase.pageSize
+                    ContactDatabase.filterContacts requestId (TagCombination.encode filter) pageNumber (Table.getPageSize model.subscriberTable)
 
                 ( Nothing, Nothing ) ->
-                    ContactDatabase.loadContacts requestId pageNumber ContactDatabase.pageSize model.sortColumn model.sortReversed
+                    ContactDatabase.loadContacts requestId pageNumber (Table.getPageSize model.subscriberTable) model.sortColumn model.sortReversed
     in
     ( { model
         | contactDatabase = contactDatabase
@@ -1214,8 +1258,34 @@ viewPage shared model =
             , Tw.py_4
             ]
         ]
-        [ p []
-            [ text <| Translations.migrateHintText [ shared.browserEnv.translations ] ]
+        [ div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.flex_wrap
+                , Tw.items_center
+                , Tw.gap_2
+                ]
+            ]
+            [ text <| Translations.newsletterSourceLabel [ shared.browserEnv.translations ]
+            , Switch.new
+                { id = "newsletter-recipient-source"
+                , onClick = SetRecipientSource
+                , labelOff = Translations.subscriberFileLabel [ shared.browserEnv.translations ]
+                , labelOn = Translations.contactDatabaseLabel [ shared.browserEnv.translations ]
+                , state = model.recipientSource
+                , stateOff = SubscriberFile
+                , stateOn = ContactDatabase
+                , theme = shared.theme
+                }
+                |> Switch.view
+            ]
+        , if model.recipientSource == SubscriberFile then
+            p []
+                [ text <| Translations.migrateHintText [ shared.browserEnv.translations ] ]
+
+          else
+            text ""
         , div
             [ css
                 [ Tw.flex
@@ -1225,26 +1295,18 @@ viewPage shared model =
                 , Tw.gap_4
                 ]
             ]
-            [ div
-                [ css
-                    [ Tw.flex
-                    , Tw.flex_col
-                    , Tw.gap_1
-                    ]
-                ]
-                [ p []
-                    [ text <| Translations.subscriberFileLabel [ shared.browserEnv.translations ] ++ ": " ++ String.fromInt fileCount ]
-                , p []
-                    [ text <| Translations.contactDatabaseLabel [ shared.browserEnv.translations ] ++ ": " ++ String.fromInt databaseCount ]
-                ]
-            , Button.new
-                { label = Translations.migrateButtonTitle [ shared.browserEnv.translations ]
-                , onClick = Just MigrateClicked
-                , theme = shared.theme
-                }
-                |> Button.withTypePrimary
-                |> Button.withDisabled (not canMigrate)
-                |> Button.view
+            [ if model.recipientSource == SubscriberFile then
+                Button.new
+                    { label = Translations.migrateButtonTitle [ shared.browserEnv.translations ]
+                    , onClick = Just MigrateClicked
+                    , theme = shared.theme
+                    }
+                    |> Button.withTypePrimary
+                    |> Button.withDisabled (not canMigrate)
+                    |> Button.view
+
+              else
+                text ""
             , Button.new
                 { label = Translations.addContactButtonTitle [ shared.browserEnv.translations ]
                 , onClick = Just AddContactClicked
@@ -1269,32 +1331,30 @@ viewPage shared model =
                 |> Button.withTypeSecondary
                 |> Button.withDisabled (databaseCount < 1 || isExporting model.csvExport)
                 |> Button.view
-            ]
-        , viewCsvExportStatus shared model.csvExport
-        , div
-            [ css
-                [ Tw.flex
-                , Tw.flex_row
-                , Tw.flex_wrap
-                , Tw.items_center
-                , Tw.gap_2
+            , div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_col
+                    , Tw.gap_1
+                    ]
+                ]
+                [ if model.recipientSource == SubscriberFile then
+                    p []
+                        [ text <| Translations.subscriberFileLabel [ shared.browserEnv.translations ] ++ ": " ++ String.fromInt fileCount ]
+
+                  else
+                    text ""
+                , p []
+                    [ text <| contactDatabaseCountText shared.browserEnv.translations model.recipientSource databaseCount ]
                 ]
             ]
-            [ text <| Translations.newsletterSourceLabel [ shared.browserEnv.translations ]
-            , Switch.new
-                { id = "newsletter-recipient-source"
-                , onClick = SetRecipientSource
-                , labelOff = Translations.subscriberFileLabel [ shared.browserEnv.translations ]
-                , labelOn = Translations.contactDatabaseLabel [ shared.browserEnv.translations ]
-                , state = model.recipientSource
-                , stateOff = SubscriberFile
-                , stateOn = ContactDatabase
-                , theme = shared.theme
-                }
-                |> Switch.view
-            ]
+        , viewCsvExportStatus shared model.csvExport
         , viewMigration shared.browserEnv model
-        , viewFileState shared.browserEnv model
+        , if model.recipientSource == SubscriberFile then
+            viewFileState shared.browserEnv model
+
+          else
+            text ""
         , viewSubscriptionEvents shared model
         , viewQuery shared model
         , viewDatabase shared model
@@ -1308,6 +1368,24 @@ viewPage shared model =
             |> SubscriberEditDialog.withTags model.contactDatabase.tags
             |> SubscriberEditDialog.view
         ]
+
+
+contactDatabaseCountText : I18Next.Translations -> RecipientSource -> Int -> String
+contactDatabaseCountText translations source count =
+    let
+        countText =
+            String.fromInt count
+    in
+    case source of
+        ContactDatabase ->
+            if count == 1 then
+                Translations.contactCount [ translations ] { count = countText }
+
+            else
+                Translations.contactsCount [ translations ] { count = countText }
+
+        SubscriberFile ->
+            Translations.contactDatabaseLabel [ translations ] ++ ": " ++ countText
 
 
 viewMigration : BrowserEnv -> Model -> Html Msg
@@ -1583,6 +1661,9 @@ viewSubscriptionEvent browserEnv modification =
 viewFileState : BrowserEnv -> Model -> Html Msg
 viewFileState browserEnv model =
     case model.fileState of
+        FileIdle ->
+            text ""
+
         FileLoading ->
             div
                 [ css
@@ -1629,6 +1710,7 @@ viewQuery shared model =
             , browserEnv = shared.browserEnv
             , styles = styles
             }
+            |> SearchBar.withPlaceholder (Translations.searchPlaceholder [ shared.browserEnv.translations ])
             |> SearchBar.withFlexibleWidth
             |> SearchBar.view
         , viewTagFilter shared model
@@ -1745,45 +1827,82 @@ viewDatabase shared model =
 viewPager : Theme -> BrowserEnv -> Model -> Html Msg
 viewPager theme browserEnv model =
     let
+        styles =
+            stylesForTheme theme
+
         currentPage =
             Table.getCurrentPage model.subscriberTable
 
         pageCount =
             Table.getPageCount model.subscriberTable
-    in
-    if pageCount <= 1 && currentPage <= 1 then
-        text ""
 
-    else
-        div
-            [ css
-                [ Tw.flex
-                , Tw.flex_row
-                , Tw.items_center
-                , Tw.gap_2
-                ]
+        pageSize =
+            Table.getPageSize model.subscriberTable
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_row
+            , Tw.flex_wrap
+            , Tw.items_center
+            , Tw.gap_2
             ]
-            [ Button.new
-                { label = Translations.previousPage [ browserEnv.translations ]
-                , onClick = Just <| NewTableState (Table.previousPage model.subscriberTable)
-                , theme = theme
-                }
-                |> Button.withTypeSecondary
-                |> Button.withDisabled (currentPage <= 1)
-                |> Button.view
-            , text <|
-                Translations.pageStatus
-                    [ browserEnv.translations ]
-                    { page = String.fromInt currentPage, pages = String.fromInt (max 1 pageCount) }
-            , Button.new
-                { label = Translations.nextPage [ browserEnv.translations ]
-                , onClick = Just <| NewTableState (Table.nextPage model.subscriberTable)
-                , theme = theme
-                }
-                |> Button.withTypeSecondary
-                |> Button.withDisabled (currentPage >= pageCount)
-                |> Button.view
-            ]
+        ]
+        [ Button.new
+            { label = Translations.previousPage [ browserEnv.translations ]
+            , onClick = Just <| NewTableState (Table.previousPage model.subscriberTable)
+            , theme = theme
+            }
+            |> Button.withTypeSecondary
+            |> Button.withDisabled (currentPage <= 1)
+            |> Button.view
+        , text <|
+            Translations.pageStatus
+                [ browserEnv.translations ]
+                { page = String.fromInt currentPage, pages = String.fromInt (max 1 pageCount) }
+        , Button.new
+            { label = Translations.nextPage [ browserEnv.translations ]
+            , onClick = Just <| NewTableState (Table.nextPage model.subscriberTable)
+            , theme = theme
+            }
+            |> Button.withTypeSecondary
+            |> Button.withDisabled (currentPage >= pageCount)
+            |> Button.view
+        , text <| Translations.pageSizeLabel [ browserEnv.translations ]
+        , select
+            (styles.colorStyleBackground
+                ++ styles.colorStyleGrayscaleText
+                ++ [ Events.onInput (SetPageSize << pageSizeFromString)
+                   , css
+                        [ Tw.border
+                        , Tw.rounded_md
+                        , Tw.px_2
+                        , Tw.h_10
+                        ]
+                   ]
+            )
+            (List.map (pageSizeOption pageSize) pageSizeChoices)
+        ]
+
+
+pageSizeChoices : List Int
+pageSizeChoices =
+    [ 25, 50, 100 ]
+
+
+pageSizeFromString : String -> Int
+pageSizeFromString value =
+    String.toInt value
+        |> Maybe.withDefault ContactDatabase.pageSize
+
+
+pageSizeOption : Int -> Int -> Html Msg
+pageSizeOption current size =
+    option
+        [ Attr.value (String.fromInt size)
+        , Attr.selected (size == current)
+        ]
+        [ text (String.fromInt size) ]
 
 
 viewErrors : Model -> Html msg

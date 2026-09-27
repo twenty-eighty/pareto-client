@@ -783,14 +783,15 @@ cancelNewsletter =
         }
 
 
-sendNewsletter : NewsletterData -> Maybe { url : String, keyHex : String, ivHex : String } -> String -> Cmd msg
-sendNewsletter newsletterData maybeBlob recipientSource =
+sendNewsletter : NewsletterData -> Maybe { url : String, keyHex : String, ivHex : String } -> String -> Maybe Encode.Value -> Cmd msg
+sendNewsletter newsletterData maybeBlob recipientSource maybeFilter =
     sendCommand
         { command = "sendNewsletter"
         , value = Encode.object
             [ ( "author", Encode.string newsletterData.author )
             , ( "newsletterData", encodeNewsletterData newsletterData )
             , ( "recipientSource", Encode.string recipientSource )
+            , ( "filter", maybeFilter |> Maybe.withDefault Encode.null )
             , ( "subscriberBlob"
               , maybeBlob
                     |> Maybe.map encodeSubscriberBlob
@@ -822,14 +823,15 @@ getNewsletterStatus author identifier =
         }
 
 
-getNewsletterRecipientCount : String -> Maybe { url : String, keyHex : String, ivHex : String } -> String -> Int -> Cmd msg
-getNewsletterRecipientCount author maybeBlob recipientSource requestId =
+getNewsletterRecipientCount : String -> Maybe { url : String, keyHex : String, ivHex : String } -> String -> Int -> Maybe Encode.Value -> Cmd msg
+getNewsletterRecipientCount author maybeBlob recipientSource requestId maybeFilter =
     sendCommand
         { command = "getNewsletterRecipientCount"
         , value = Encode.object
             [ ( "author", Encode.string author )
             , ( "recipientSource", Encode.string recipientSource )
             , ( "requestId", Encode.int requestId )
+            , ( "filter", maybeFilter |> Maybe.withDefault Encode.null )
             , ( "subscriberBlob"
               , maybeBlob
                     |> Maybe.map encodeSubscriberBlob

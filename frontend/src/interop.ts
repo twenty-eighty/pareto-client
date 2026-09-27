@@ -1457,6 +1457,11 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     });
   }
 
+  function tagFilterFromValue(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    return Object.keys(value).length > 0 ? value : undefined;
+  }
+
   function newsletterQueueClient() {
     return createNewsletterSender({
       ndk: window.ndk,
@@ -1464,14 +1469,14 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     });
   }
 
-  function getNewsletterRecipientCount(app, { author: author, subscriberBlob: subscriberBlob, recipientSource: recipientSource, requestId: requestId }) {
+  function getNewsletterRecipientCount(app, { author: author, subscriberBlob: subscriberBlob, recipientSource: recipientSource, requestId: requestId, filter: filter }) {
     if (!author && recipientSource !== 'contacts' && !(subscriberBlob?.url && subscriberBlob?.key && subscriberBlob?.iv)) {
       app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count: null, requestId, recipientSource, error: 'Missing author pubkey' } });
       return;
     }
 
     newsletterSendClient = newsletterQueueClient();
-    newsletterSendClient.countActiveRecipients(author, subscriberBlob, recipientSource)
+    newsletterSendClient.countActiveRecipients(author, subscriberBlob, recipientSource, tagFilterFromValue(filter))
       .then((count) => {
         app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count, requestId, recipientSource } });
       })
@@ -1496,7 +1501,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       });
   }
 
-  function sendNewsletter(app, { author: author, newsletterData: newsletterData, subscribers: subscribers, subscriberBlob: subscriberBlob, recipientSource: recipientSource }) {
+  function sendNewsletter(app, { author: author, newsletterData: newsletterData, subscribers: subscribers, subscriberBlob: subscriberBlob, recipientSource: recipientSource, filter: filter }) {
     const abort = startNewsletterAbort();
     newsletterSendClient = newsletterQueueClient();
     newsletterSendClient.sendNewsletter({
@@ -1506,6 +1511,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       subscribers,
       subscriberBlob,
       recipientSource,
+      tagFilter: tagFilterFromValue(filter),
       signal: abort.signal,
       onProgress: bindNewsletterProgress(app),
     }).catch((error) => {

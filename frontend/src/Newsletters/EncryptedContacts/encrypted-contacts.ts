@@ -134,13 +134,20 @@ export class EncryptedContacts {
     }
 
     let status = "ok";
+    const storedIds = new Set<string>();
+    let reportedIds = false;
     for (let offset = 0; offset < rows.length; offset += BULK_BATCH_SIZE) {
       const result = await this.api.bulkImport(rows.slice(offset, offset + BULK_BATCH_SIZE), overwrite);
       status = result?.status || status;
+      if (Array.isArray(result?.ids)) {
+        reportedIds = true;
+        for (const id of result.ids) storedIds.add(id);
+      }
     }
 
-    await this.syncBulkIndex(imported, overwrite, withEmail.length);
-    return { status, stored: withEmail.length, tagErrors };
+    const indexed = reportedIds ? imported.filter((entry) => storedIds.has(entry.id)) : imported;
+    await this.syncBulkIndex(indexed, overwrite, reportedIds ? storedIds.size : withEmail.length);
+    return { status, stored: reportedIds ? storedIds.size : withEmail.length, tagErrors };
   }
 
   async updateContact(
@@ -182,11 +189,53 @@ export class EncryptedContacts {
       if (total === 0) return { contacts: [], errors: [], sourceCount: 0, total: 0 };
       await this.rebuildSortIndex();
     }
-    const { ids, total } = await (await this.engine()).page(field, page, perPage, order);
-    if (ids.length === 0) return { contacts: [], errors: [], sourceCount: 0, total };
+    const engine = await this.engine();
+    let loaded = await this.readSortedPage(engine, field, page, perPage, order);
+    const duplicate = new Set(loaded.ids).size !== loaded.ids.length;
+    if (loaded.missingIds.length > 0 || duplicate) {
+      try {
+        await engine.removeIds(loaded.missingIds);
+        loaded = await this.readSortedPage(engine, field, page, perPage, order);
+      } catch (error) {
+        loaded.errors = loaded.errors.concat(error instanceof Error ? error.message : String(error));
+      }
+    }
+    return {
+      contacts: loaded.contacts,
+      errors: loaded.errors,
+      sourceCount: loaded.sourceCount,
+      total: loaded.total,
+    };
+  }
+
+  private async readSortedPage(
+    engine: SortIndex,
+    field: SortField,
+    page: number,
+    perPage: number,
+    order: SortOrder,
+  ): Promise<{
+    contacts: DecryptedContact[];
+    errors: string[];
+    sourceCount: number;
+    total: number;
+    ids: string[];
+    missingIds: string[];
+  }> {
+    const { ids, total } = await engine.page(field, page, perPage, order);
+    if (ids.length === 0) {
+      return { contacts: [], errors: [], sourceCount: 0, total, ids, missingIds: [] };
+    }
     const result = await this.api.listByIds(ids);
-    const decrypted = await this.decryptRecords(result.contacts);
-    return { ...decrypted, total };
+    const records = result.contacts || [];
+    const decrypted = await this.decryptRecords(records);
+    const returned = new Set(records.map((contact) => contact.id));
+    return {
+      ...decrypted,
+      total,
+      ids,
+      missingIds: ids.filter((id) => !returned.has(id)),
+    };
   }
 
   async rebuildSortIndex(): Promise<void> {
