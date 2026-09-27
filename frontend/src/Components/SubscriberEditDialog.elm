@@ -1,4 +1,4 @@
-module Components.SubscriberEditDialog exposing (Model, Msg, SubscriberEditDialog, hide, init, new, show, subscriptions, update, view)
+module Components.SubscriberEditDialog exposing (Model, Msg, SubscriberEditDialog, hide, init, new, show, subscriptions, update, view, withTags)
 
 import BrowserEnv exposing (BrowserEnv)
 import Components.Button as Button
@@ -6,7 +6,7 @@ import Components.Checkbox as Checkbox
 import Components.EntryField as EntryField
 import Components.ModalDialog as ModalDialog
 import Effect exposing (Effect)
-import Html.Styled as Html exposing (Html, div)
+import Html.Styled as Html exposing (Html, div, text)
 import Html.Styled.Attributes exposing (css)
 import Locale exposing (Language(..))
 import Newsletters.Subscribers as Subscribers
@@ -48,6 +48,7 @@ type SubscriberEditDialog msg
         , toMsg : Msg -> msg
         , browserEnv : BrowserEnv
         , theme : Theme
+        , tags : List String
         }
 
 
@@ -64,7 +65,13 @@ new props =
         , toMsg = props.toMsg
         , browserEnv = props.browserEnv
         , theme = props.theme
+        , tags = []
         }
+
+
+withTags : List String -> SubscriberEditDialog msg -> SubscriberEditDialog msg
+withTags tags (Settings settings) =
+    Settings { settings | tags = tags }
 
 
 init : {} -> Model
@@ -190,6 +197,7 @@ view dialog =
                                 , theme = settings.theme
                                 }
                                 |> Checkbox.view
+                            , viewTags settings.theme settings.browserEnv settings.tags subscriber
                             ]
                         ]
                     ]
@@ -221,7 +229,99 @@ entryField theme browserEnv field subscriber =
         |> EntryField.withType (entryFieldType field)
         |> EntryField.view
 
- 
+
+viewTags : Theme -> BrowserEnv -> List String -> Subscriber -> Html Msg
+viewTags theme browserEnv availableTags subscriber =
+    let
+        selected =
+            subscriber.tags |> Maybe.withDefault []
+
+        tags =
+            uniqueSorted (selected ++ availableTags)
+    in
+    case tags of
+        [] ->
+            emptyHtml
+
+        _ ->
+            div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_col
+                    , Tw.gap_2
+                    ]
+                ]
+                [ text <| Subscribers.translatedFieldName browserEnv.translations FieldTags
+                , div
+                    [ css
+                        [ Tw.flex
+                        , Tw.flex_row
+                        , Tw.flex_wrap
+                        , Tw.gap_x_4
+                        , Tw.gap_y_1
+                        ]
+                    ]
+                    (List.map (tagCheckbox theme selected subscriber) tags)
+                ]
+
+
+tagCheckbox : Theme -> List String -> Subscriber -> String -> Html Msg
+tagCheckbox theme selected subscriber tag =
+    Checkbox.new
+        { label = tag
+        , onClick = \checked -> UpdateSubscriber (setTag checked tag subscriber)
+        , checked = List.member tag selected
+        , theme = theme
+        }
+        |> Checkbox.view
+
+
+setTag : Bool -> String -> Subscriber -> Subscriber
+setTag checked tag subscriber =
+    let
+        selected =
+            subscriber.tags |> Maybe.withDefault []
+
+        next =
+            if checked then
+                tag :: List.filter (\existing -> existing /= tag) selected
+
+            else
+                List.filter (\existing -> existing /= tag) selected
+    in
+    { subscriber
+        | tags =
+            case uniqueSorted next of
+                [] ->
+                    Nothing
+
+                tags ->
+                    Just tags
+    }
+
+
+uniqueSorted : List String -> List String
+uniqueSorted values =
+    values
+        |> List.filter (\value -> String.trim value /= "")
+        |> List.sort
+        |> List.foldl
+            (\value acc ->
+                case acc of
+                    latest :: _ ->
+                        if latest == value then
+                            acc
+
+                        else
+                            value :: acc
+
+                    [] ->
+                        [ value ]
+            )
+            []
+        |> List.reverse
+
+
 entryFieldType : SubscriberField -> EntryField.FieldType
 entryFieldType field =
     case field of

@@ -1,32 +1,38 @@
 module Newsletters.ContactDatabase exposing (..)
 
 import Effect exposing (Effect)
-import Http
+import Dict exposing (Dict)
 import Json.Decode as Decode
 import List.Extra as ListExtra
+import Newsletters.Subscribers as Subscribers
 import Newsletters.Types exposing (Subscriber)
-import Nostr
-import Nostr.External exposing (decodeAuthHeaderReceived)
-import Nostr.Shared exposing (httpErrorToString)
-import Nostr.Request exposing (RequestData(..), HttpRequestMethod(..))
 import Nostr.Types exposing (IncomingMessage, PubKey)
 import Ports
-import Shared.Msg
-import Newsletters.Subscribers as Subscribers
 
-type alias Model =  
+
+type alias Model =
     { subscribers : List Subscriber
+    , total : Maybe Int
+    , databaseTotal : Maybe Int
     , tags : List String
     , errors : List String
     , loadingFlags : List LoadingFlag
     , pubkey : PubKey
+    , authenticated : Bool
+    , contactsLoaded : Bool
+    , contactIds : Dict String String
+    , loading : Bool
+    , requestId : Int
     }
 
-type alias JwtTokenString = String
+
+pageSize : Int
+pageSize =
+    25
+
 
 type Msg
     = ReceivedMessage IncomingMessage
-
 
 
 contactDatabaseServerUrl : String
@@ -34,20 +40,29 @@ contactDatabaseServerUrl =
     "http://localhost:4003"
 
 
-init : PubKey -> List LoadingFlag -> (Model, Effect Msg)
+init : PubKey -> List LoadingFlag -> ( Model, Effect Msg )
 init pubkey loadingFlags =
     ( { subscribers = []
+      , total = Nothing
+      , databaseTotal = Nothing
       , errors = []
       , loadingFlags = loadingFlags
       , pubkey = pubkey
       , tags = []
+      , authenticated = False
+      , contactsLoaded = False
+      , contactIds = Dict.empty
+      , loading = False
+      , requestId = 0
       }
     , initContactDatabase contactDatabaseServerUrl pubkey
     )
 
+
 type LoadingFlag
     = LoadTags
     | LoadContacts
+
 
 tags : Model -> List String
 tags model =
@@ -60,10 +75,31 @@ initContactDatabase url pubkey =
         |> Effect.sendCmd
 
 
-loadContacts : Int -> Int -> Effect Msg
-loadContacts page perPage =
-    Ports.loadContacts page perPage
+loadContacts : Int -> Int -> Int -> Effect Msg
+loadContacts requestId page perPage =
+    Ports.loadContacts requestId page perPage
         |> Effect.sendCmd
+
+
+searchContacts : Int -> String -> Int -> Int -> Effect Msg
+searchContacts requestId term page perPage =
+    Ports.searchContacts requestId term page perPage
+        |> Effect.sendCmd
+
+
+filterContacts : Int -> Decode.Value -> Int -> Int -> Effect Msg
+filterContacts requestId filter page perPage =
+    Ports.filterContacts requestId filter page perPage
+        |> Effect.sendCmd
+
+
+prepareRequest : Model -> ( Model, Int )
+prepareRequest model =
+    let
+        requestId =
+            model.requestId + 1
+    in
+    ( { model | requestId = requestId, loading = True }, requestId )
 
 
 addTag : String -> Effect Msg
@@ -84,12 +120,18 @@ storeSubscribers subscribers =
         |> Effect.sendCmd
 
 
+updateContact : String -> Subscriber -> Effect Msg
+updateContact contactId subscriber =
+    Ports.updateContact contactId subscriber
+        |> Effect.sendCmd
+
+
 loadContactTags : PubKey -> Cmd msg
 loadContactTags pubkey =
     Ports.loadContactTags pubkey
 
 
-update : Msg -> Model -> (Model, Effect Msg)
+update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
         ReceivedMessage message ->
@@ -105,31 +147,33 @@ updateWithMessage model message =
                     if List.member LoadTags model.loadingFlags then
                         loadContactTags model.pubkey
                             |> Effect.sendCmd
-                    else
-                        Effect.none
 
-                loadContactsEffect =
-                    if List.member LoadContacts model.loadingFlags then
-                        loadContacts 1 100
                     else
                         Effect.none
             in
-            ( model |> Debug.log "contactDatabaseAuthenticated"
-            , Effect.batch [ loadTagsEffect, loadContactsEffect ]
+            ( { model | authenticated = True }
+            , loadTagsEffect
             )
 
-        "contacts" ->
-            case ( Decode.decodeValue (Decode.field "contacts" Subscribers.subscribersDecoder) message.value
-                 , Decode.decodeValue (Decode.field "errors" (Decode.list Decode.string)) message.value ) of
-                ( Ok decoded, Ok errors ) ->
-                    ( { model | subscribers = decoded, errors = errors }
-                    , Effect.none
-                    )
+        "contactDatabaseError" ->
+            case Decode.decodeValue (Decode.field "error" Decode.string) message.value of
+                Ok error ->
+                    ( { model | errors = error :: model.errors, loading = False }, Effect.none )
 
-                ( Err error, _ ) ->
-                    ( { model | errors = ("Error receiving contacts: " ++ Decode.errorToString error) :: model.errors }, Effect.none )
-                ( _, Err error ) ->
-                    ( { model | errors = ("Error receiving errors: " ++ Decode.errorToString error) :: model.errors }, Effect.none )
+                Err error ->
+                    ( { model | errors = ("Error receiving contact database error: " ++ Decode.errorToString error) :: model.errors }, Effect.none )
+
+        "contacts" ->
+            case Decode.decodeValue (Decode.field "requestId" Decode.int) message.value of
+                Ok requestId ->
+                    if requestId /= model.requestId then
+                        ( model, Effect.none )
+
+                    else
+                        applyContacts model message
+
+                Err _ ->
+                    applyContacts model message
 
         "contactTags" ->
             case Decode.decodeValue (Decode.field "tags" (Decode.list Decode.string)) message.value of
@@ -159,7 +203,65 @@ updateWithMessage model message =
             ( model, Effect.none )
 
 
--- HELPERS
+applyContacts : Model -> IncomingMessage -> ( Model, Effect Msg )
+applyContacts model message =
+    case
+        ( Decode.decodeValue (Decode.field "contacts" (Decode.list contactRecordDecoder)) message.value
+        , Decode.decodeValue (Decode.oneOf [ Decode.field "errors" (Decode.list Decode.string), Decode.succeed [] ]) message.value
+        , Decode.decodeValue (Decode.maybe (Decode.field "total" Decode.int)) message.value
+        )
+    of
+        ( Ok decoded, Ok errors, Ok maybeTotal ) ->
+            let
+                maybeDatabaseTotal =
+                    Decode.decodeValue (Decode.maybe (Decode.field "databaseTotal" Decode.int)) message.value
+                        |> Result.withDefault Nothing
+            in
+            ( { model
+                | subscribers = List.map .subscriber decoded
+                , contactIds =
+                    decoded
+                        |> List.filterMap
+                            (\record ->
+                                if record.id == "" then
+                                    Nothing
+
+                                else
+                                    Just ( record.subscriber.email, record.id )
+                            )
+                        |> Dict.fromList
+                , contactsLoaded = True
+                , loading = False
+                , errors =
+                    errors
+                        ++ List.filter (\existing -> not (List.member existing errors)) model.errors
+                , total =
+                    case maybeTotal of
+                        Just totalCount ->
+                            Just totalCount
+
+                        Nothing ->
+                            model.total
+                , databaseTotal =
+                    case maybeDatabaseTotal of
+                        Just storedCount ->
+                            Just storedCount
+
+                        Nothing ->
+                            model.databaseTotal
+              }
+            , Effect.none
+            )
+
+        ( Err error, _, _ ) ->
+            ( { model | loading = False, errors = ("Error receiving contacts: " ++ Decode.errorToString error) :: model.errors }, Effect.none )
+
+        ( _, Err error, _ ) ->
+            ( { model | loading = False, errors = ("Error receiving errors: " ++ Decode.errorToString error) :: model.errors }, Effect.none )
+
+        ( _, _, Err error ) ->
+            ( { model | loading = False, errors = ("Error receiving contact count: " ++ Decode.errorToString error) :: model.errors }, Effect.none )
+
 
 addTagToList : List String -> String -> List String
 addTagToList tagList tag =
@@ -168,13 +270,17 @@ addTagToList tagList tag =
         |> ListExtra.unique
 
 
+contactRecordDecoder : Decode.Decoder { id : String, subscriber : Subscriber }
+contactRecordDecoder =
+    Decode.map2 (\id subscriber -> { id = id, subscriber = subscriber })
+        (Decode.oneOf [ Decode.field "id" Decode.string, Decode.succeed "" ])
+        Subscribers.subscriberDecoder
+
+
 filterTags : String -> List String -> List String
 filterTags tag tagList =
     tagList
         |> List.filter (\t -> t /= tag)
-
-
--- SUBSCRIPTIONS
 
 
 subscriptions : Model -> Sub Msg

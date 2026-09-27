@@ -8,6 +8,9 @@ import {
   type Subscriber,
   type SubscriberBlobPointer,
 } from "./subscriberBlob";
+import { EncryptedContacts, signerFromNdk } from "./EncryptedContacts";
+
+const CONTACTS_API_URL = "http://localhost:4003";
 
 const DEFAULT_BASE_URL = "https://queue-server.pareto.space/v1";
 const EMAIL_GATEWAY_PUBKEY = "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345";
@@ -33,6 +36,7 @@ type SendOptions = {
   identifier?: string;
   subscribers?: Subscriber[];
   subscriberBlob?: SubscriberBlobPointer;
+  recipientSource?: string;
   onProgress?: ProgressFn;
   signal?: AbortSignal;
 };
@@ -160,6 +164,7 @@ export class NewsletterSendClient {
   jwtExpMs = 0;
   jwtInFlight: Promise<string> | null = null;
   api: DefaultApi | null = null;
+  workerUploads = true;
 
   constructor({
     ndk,
@@ -236,6 +241,154 @@ export class NewsletterSendClient {
       return await this.jwtInFlight;
     } finally {
       this.jwtInFlight = null;
+    }
+  }
+
+  private async workerRequest(type: string, payload: Record<string, unknown>, signal?: AbortSignal): Promise<any> {
+    const jwt = await this.getJwt();
+    throwIfAborted(signal);
+    const registration = await navigator.serviceWorker?.getRegistration();
+    const worker = navigator.serviceWorker?.controller || registration?.active;
+    if (!worker) {
+      throw new Error("Newsletter service worker is not active");
+    }
+    return this.postWorker(worker, type, { ...payload, baseUrl: this.baseUrl, jwt }, signal);
+  }
+
+  private postWorker(
+    worker: ServiceWorker,
+    type: string,
+    payload: unknown,
+    signal?: AbortSignal,
+    timeoutMs = 120000,
+  ): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const channel = new MessageChannel();
+      const id = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}`;
+      let settled = false;
+
+      const finish = (callback: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        signal?.removeEventListener("abort", onAbort);
+        channel.port1.close();
+        callback();
+      };
+      const cancelWorkerRequest = () => {
+        worker.postMessage({ type: "cancel", payload: { requestId: id } });
+      };
+      const onAbort = () => {
+        cancelWorkerRequest();
+        finish(() => reject(new NewsletterSendCancelled()));
+      };
+      const timer = setTimeout(() => {
+        cancelWorkerRequest();
+        finish(() => reject(new Error("Service worker did not reply")));
+      }, timeoutMs);
+
+      signal?.addEventListener("abort", onAbort, { once: true });
+      channel.port1.onmessage = (event) => {
+        if (event.data?.ok) {
+          finish(() => resolve(event.data.data));
+        } else {
+          finish(() => reject(new Error(event.data?.data?.error || "Service worker request failed")));
+        }
+      };
+      worker.postMessage({ id, type, payload }, [channel.port2]);
+      if (signal?.aborted) {
+        onAbort();
+      }
+    });
+  }
+
+  private async enqueueJobs(campaignId: string, jobs: JobSpec[], signal?: AbortSignal): Promise<{ accepted: number; duplicates: number; errors: number }> {
+    throwIfAborted(signal);
+    if (!jobs.length) {
+      return { accepted: 0, duplicates: 0, errors: 0 };
+    }
+    const ndjson = jobs.map((job) => JSON.stringify(job)).join("\n") + "\n";
+    let result: { accepted?: number; duplicates?: number; errors?: number } | null = null;
+    if (this.workerUploads && typeof navigator !== "undefined" && navigator.serviceWorker) {
+      try {
+        result = await this.workerRequest("bulk-enqueue-jobs", { campaignId, ndjson }, signal);
+      } catch (error) {
+        rethrowIfCancelled(error);
+        this.workerUploads = false;
+        this.log("Service worker upload unavailable, uploading from the page", (error as { message?: string })?.message);
+      }
+    }
+    if (!result) {
+      const api = await this.client();
+      const enqueueResult = await api.bulkEnqueueJobs(campaignId, ndjson, { signal });
+      result = enqueueResult.data;
+    }
+    return {
+      accepted: result?.accepted || 0,
+      duplicates: result?.duplicates || 0,
+      errors: result?.errors || 0,
+    };
+  }
+
+  private contactDatabase(): EncryptedContacts {
+    return new EncryptedContacts({
+      baseUrl: CONTACTS_API_URL,
+      signer: signerFromNdk(this.ndk),
+    });
+  }
+
+  private async enqueueContactPages(
+    author: string,
+    campaignId: string,
+    isTest: boolean,
+    totals: { fetched: number; built: number; accepted: number; duplicates: number; errors: number; pages: number },
+    onProgress: ProgressFn | undefined,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const api = this.contactDatabase();
+    await api.ensureAuthenticated();
+
+    const perPage = 100;
+    let page = 1;
+    while (true) {
+      throwIfAborted(signal);
+      const result = await api.getContacts(page, perPage);
+      const records = result?.contacts || [];
+      const active = records.filter((contact) => contact.active === true);
+      totals.fetched += active.length;
+      totals.errors += (result?.errors || []).length;
+      totals.pages = page;
+
+      const jobs: JobSpec[] = [];
+      for (const contact of active) {
+        throwIfAborted(signal);
+        try {
+          jobs.push(await this.buildJobSpec(campaignId, contact, isTest, author));
+        } catch (error: unknown) {
+          rethrowIfCancelled(error);
+          totals.errors += 1;
+          this.log("Failed to build job", (error as { message?: string })?.message);
+        }
+      }
+      totals.built += jobs.length;
+      onProgress?.({ phase: "page_built", campaignId, built: totals.built, totals: { ...totals } });
+
+      if (jobs.length) {
+        const enqueued = await this.enqueueJobs(campaignId, jobs, signal);
+        totals.accepted += enqueued.accepted;
+        totals.duplicates += enqueued.duplicates;
+        totals.errors += enqueued.errors;
+        onProgress?.({ phase: "page_enqueued", campaignId, totals: { ...totals } });
+      }
+
+      if (result.sourceCount < perPage) {
+        break;
+      }
+      page += 1;
+    }
+
+    if (totals.accepted + totals.duplicates === 0) {
+      throw new Error("No active contacts found in the contact database.");
     }
   }
 
@@ -327,10 +480,14 @@ export class NewsletterSendClient {
     author: string,
     subscribers?: Subscriber[],
     subscriberBlob?: SubscriberBlobPointer,
+    recipientSource?: string,
     signal?: AbortSignal,
   ): Promise<Subscriber[]> {
     if (Array.isArray(subscribers)) {
       return activeSubscribers(subscribers);
+    }
+    if (recipientSource === "contacts") {
+      throw new Error("Contact database recipients are loaded one page at a time");
     }
     if (subscriberBlob?.url && subscriberBlob.key && subscriberBlob.iv) {
       return loadActiveSubscribersFromPointer(subscriberBlob, signal);
@@ -344,6 +501,7 @@ export class NewsletterSendClient {
     identifier,
     subscribers,
     subscriberBlob,
+    recipientSource,
     onProgress,
     signal,
   }: SendOptions) {
@@ -352,11 +510,14 @@ export class NewsletterSendClient {
     }
 
     const isTest = newsletterData.test === true;
+    const pageContacts = !isTest && recipientSource === "contacts" && !Array.isArray(subscribers);
     throwIfAborted(signal);
     onProgress?.({ phase: "preparing" });
-    const recipients = await this.resolveRecipients(author, subscribers, subscriberBlob, signal);
+    const recipients = pageContacts
+      ? []
+      : await this.resolveRecipients(author, subscribers, subscriberBlob, recipientSource, signal);
     throwIfAborted(signal);
-    if (!isTest && recipients.length === 0) {
+    if (!pageContacts && !isTest && recipients.length === 0) {
       throw new Error("No active subscribers found. The subscriber list could not be loaded.");
     }
     const totals = {
@@ -365,7 +526,7 @@ export class NewsletterSendClient {
       accepted: 0,
       duplicates: 0,
       errors: 0,
-      pages: 1,
+      pages: pageContacts ? 0 : 1,
     };
     onProgress?.({ phase: "authenticating", totals });
     const api = await this.client();
@@ -401,7 +562,8 @@ export class NewsletterSendClient {
     signal?.addEventListener("abort", stopWatch);
     const deliveryWatch = this.watchCampaignDelivery(String(campaignId), (status) => {
       const delivery = status.delivery || "queueing";
-      const { sent, total } = progressDeliveryCounts(status, totals.accepted || totals.fetched);
+      const queuedJobs = totals.accepted + totals.duplicates;
+      const { sent, total } = progressDeliveryCounts(status, queuedJobs || totals.fetched);
       onProgress?.({
         phase: delivery,
         campaignId,
@@ -418,56 +580,54 @@ export class NewsletterSendClient {
     }, watchAbort.signal);
 
     try {
-      this.log("Send newsletter start", { externalId, campaignId, recipients: recipients.length, test: isTest });
+      this.log("Send newsletter start", { externalId, campaignId, recipients: pageContacts ? "paged" : recipients.length, test: isTest });
 
-      const jobs: JobSpec[] = [];
-      for (const contact of recipients) {
-        throwIfAborted(signal);
-        try {
-          jobs.push(await this.buildJobSpec(campaignId, contact, isTest, author));
-        } catch (error: unknown) {
-          rethrowIfCancelled(error);
-          totals.errors += 1;
-          this.log("Failed to build job", (error as { message?: string })?.message);
+      if (pageContacts) {
+        await this.enqueueContactPages(author, campaignId, isTest, totals, onProgress, signal);
+      } else {
+        const jobs: JobSpec[] = [];
+        for (const contact of recipients) {
+          throwIfAborted(signal);
+          try {
+            jobs.push(await this.buildJobSpec(campaignId, contact, isTest, author));
+          } catch (error: unknown) {
+            rethrowIfCancelled(error);
+            totals.errors += 1;
+            this.log("Failed to build job", (error as { message?: string })?.message);
+          }
         }
-      }
-      totals.built = jobs.length;
-      throwIfAborted(signal);
-      onProgress?.({ phase: "page_built", campaignId, built: jobs.length, totals });
+        totals.built = jobs.length;
+        throwIfAborted(signal);
+        onProgress?.({ phase: "page_built", campaignId, built: jobs.length, totals });
 
-      if (!jobs.length) {
-        throw new Error("No newsletter jobs could be built from the subscriber list.");
-      }
+        if (!jobs.length) {
+          throw new Error("No newsletter jobs could be built from the subscriber list.");
+        }
 
-      try {
-        const ndjson = jobs.map((job) => JSON.stringify(job)).join("\n") + "\n";
-        const enqueueResult = await api.bulkEnqueueJobs(campaignId, ndjson, { signal });
-        totals.accepted += enqueueResult.data.accepted || 0;
-        totals.duplicates += enqueueResult.data.duplicates || 0;
-        totals.errors += enqueueResult.data.errors || 0;
+        const enqueued = await this.enqueueJobs(campaignId, jobs, signal);
+        totals.accepted += enqueued.accepted;
+        totals.duplicates += enqueued.duplicates;
+        totals.errors += enqueued.errors;
         onProgress?.({
           phase: "page_enqueued",
           campaignId,
-          ...enqueueResult.data,
           sent: 0,
-          total: totals.accepted || totals.fetched,
+          total: totals.accepted + totals.duplicates || totals.fetched,
           totals,
         });
-      } catch (error) {
-        rethrowIfCancelled(error);
-        throw new Error(describeQueueError(error));
       }
 
       throwIfAborted(signal);
       try {
-        await api.commitCampaign(campaignId, { expected_jobs: totals.accepted }, { signal });
+        const queuedJobs = totals.accepted + totals.duplicates;
+        await api.commitCampaign(campaignId, { expected_jobs: queuedJobs }, { signal });
         onProgress?.({
           phase: "sending",
           campaignId,
           delivery: "sending",
           sent: 0,
-          total: totals.accepted,
-          expected_jobs: totals.accepted,
+          total: queuedJobs,
+          expected_jobs: queuedJobs,
           totals,
         });
       } catch (error: unknown) {
@@ -488,7 +648,10 @@ export class NewsletterSendClient {
         );
       }
 
-      const { sent, total } = progressDeliveryCounts(finalStatus, totals.accepted);
+      const { sent, total } = progressDeliveryCounts(
+        finalStatus,
+        totals.accepted + totals.duplicates,
+      );
       onProgress?.({ phase: "sent", campaignId, delivery: "sent", sent, total, counts: finalStatus?.counts, totals });
       return { ok: true, totals, delivery: "sent" };
     } finally {
@@ -690,8 +853,11 @@ export class NewsletterSendClient {
     }
   }
 
-  async countActiveRecipients(author: string, subscriberBlob?: SubscriberBlobPointer): Promise<number> {
-    const subscribers = await this.resolveRecipients(author, undefined, subscriberBlob);
+  async countActiveRecipients(author: string, subscriberBlob?: SubscriberBlobPointer, recipientSource?: string): Promise<number> {
+    if (recipientSource === "contacts") {
+      return this.contactDatabase().countActiveRecipients();
+    }
+    const subscribers = await this.resolveRecipients(author, undefined, subscriberBlob, recipientSource);
     return subscribers.length;
   }
 }

@@ -7,7 +7,7 @@ import Nostr.Relay as Relay exposing (RelayUrl)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestId)
 import Nostr.Send exposing (SendRequestId)
 import Nostr.Types exposing (IncomingMessage, OutgoingCommand, PubKey)
-import Newsletters.Types exposing (Subscriber, encodeSubscribers)
+import Newsletters.Types exposing (Subscriber, encodeSubscribers, encodeSubscriber)
 import Pareto
 
 
@@ -588,12 +588,39 @@ initContactDatabase url pubkey =
         }
 
 
-loadContacts : Int -> Int -> Cmd msg
-loadContacts page perPage =
+loadContacts : Int -> Int -> Int -> Cmd msg
+loadContacts requestId page perPage =
     sendCommand
         { command = "loadContacts"
         , value = Encode.object
-            [ ( "page", Encode.int page )
+            [ ( "requestId", Encode.int requestId )
+            , ( "page", Encode.int page )
+            , ( "perPage", Encode.int perPage )
+            ]
+        }
+
+
+searchContacts : Int -> String -> Int -> Int -> Cmd msg
+searchContacts requestId term page perPage =
+    sendCommand
+        { command = "searchContacts"
+        , value = Encode.object
+            [ ( "requestId", Encode.int requestId )
+            , ( "term", Encode.string term )
+            , ( "page", Encode.int page )
+            , ( "perPage", Encode.int perPage )
+            ]
+        }
+
+
+filterContacts : Int -> Encode.Value -> Int -> Int -> Cmd msg
+filterContacts requestId filter page perPage =
+    sendCommand
+        { command = "filterContacts"
+        , value = Encode.object
+            [ ( "requestId", Encode.int requestId )
+            , ( "filter", filter )
+            , ( "page", Encode.int page )
             , ( "perPage", Encode.int perPage )
             ]
         }
@@ -605,6 +632,17 @@ storeContacts subscribers =
         { command = "storeContacts"
         , value = Encode.object
             [ ( "subscribers", encodeSubscribers subscribers )
+            ]
+        }
+
+
+updateContact : String -> Subscriber -> Cmd msg
+updateContact contactId subscriber =
+    sendCommand
+        { command = "updateContact"
+        , value = Encode.object
+            [ ( "id", Encode.string contactId )
+            , ( "subscriber", Encode.object (encodeSubscriber subscriber) )
             ]
         }
 
@@ -663,13 +701,14 @@ cancelNewsletter =
         }
 
 
-sendNewsletter : NewsletterData -> Maybe { url : String, keyHex : String, ivHex : String } -> Cmd msg
-sendNewsletter newsletterData maybeBlob =
+sendNewsletter : NewsletterData -> Maybe { url : String, keyHex : String, ivHex : String } -> String -> Cmd msg
+sendNewsletter newsletterData maybeBlob recipientSource =
     sendCommand
         { command = "sendNewsletter"
         , value = Encode.object
             [ ( "author", Encode.string newsletterData.author )
             , ( "newsletterData", encodeNewsletterData newsletterData )
+            , ( "recipientSource", Encode.string recipientSource )
             , ( "subscriberBlob"
               , maybeBlob
                     |> Maybe.map encodeSubscriberBlob
@@ -701,12 +740,14 @@ getNewsletterStatus author identifier =
         }
 
 
-getNewsletterRecipientCount : String -> Maybe { url : String, keyHex : String, ivHex : String } -> Cmd msg
-getNewsletterRecipientCount author maybeBlob =
+getNewsletterRecipientCount : String -> Maybe { url : String, keyHex : String, ivHex : String } -> String -> Int -> Cmd msg
+getNewsletterRecipientCount author maybeBlob recipientSource requestId =
     sendCommand
         { command = "getNewsletterRecipientCount"
         , value = Encode.object
             [ ( "author", Encode.string author )
+            , ( "recipientSource", Encode.string recipientSource )
+            , ( "requestId", Encode.int requestId )
             , ( "subscriberBlob"
               , maybeBlob
                     |> Maybe.map encodeSubscriberBlob

@@ -7,6 +7,7 @@ module Components.SearchBar exposing
     , subscribe
     , update
     , view
+    , withFlexibleWidth
     )
 
 import BrowserEnv exposing (BrowserEnv)
@@ -30,6 +31,7 @@ type SearchBar msg
         , toMsg : Msg msg -> msg
         , browserEnv : BrowserEnv
         , styles : Styles msg
+        , flexibleWidth : Bool
         }
 
 
@@ -46,7 +48,13 @@ new props =
         , toMsg = props.toMsg
         , browserEnv = props.browserEnv
         , styles = props.styles
+        , flexibleWidth = False
         }
+
+
+withFlexibleWidth : SearchBar msg -> SearchBar msg
+withFlexibleWidth (Settings settings) =
+    Settings { settings | flexibleWidth = True }
 
 
 type Model
@@ -151,20 +159,31 @@ viewSearch (Settings settings) =
     in
     div
         [ css
-            [ Tw.flex
-            , Tw.flex_row
-            , Tw.relative
-            , Tw.w_full
-            , Bp.lg
-                [ Css.property "width" "800px"
+            (if settings.flexibleWidth then
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.relative
+                , Tw.w_full
+                , Tw.max_w_sm
+                , Tw.shrink_0
                 ]
-            , Bp.md
-                [ Css.property "width" "640px"
+
+             else
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.relative
+                , Tw.w_full
+                , Bp.lg
+                    [ Css.property "width" "800px"
+                    ]
+                , Bp.md
+                    [ Css.property "width" "640px"
+                    ]
+                , Bp.sm
+                    [ Css.property "width" "460px"
+                    ]
                 ]
-            , Bp.sm
-                [ Css.property "width" "460px"
-                ]
-            ]
+            )
         ]
         [ div
             (settings.styles.colorStyleGrayscaleMuted

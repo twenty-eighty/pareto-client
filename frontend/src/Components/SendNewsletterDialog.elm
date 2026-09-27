@@ -16,6 +16,7 @@ import Newsletters.Subscribers as Subscribers
 import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.External
+import Nostr.Request exposing (RequestId)
 import Nostr.Types exposing (IncomingMessage, PubKey)
 import Portal
 import Ports
@@ -129,7 +130,14 @@ type Model
         , testEmailState : TestEmailState
         , existingStatus : ExistingStatus
         , recipientCount : Maybe Int
+        , recipientCountError : Maybe String
+        , recipientSourceReady : Bool
+        , subscribersLoaded : Bool
+        , countRequestId : Int
         , subscriberEventData : Maybe Subscribers.SubscriberEventData
+        , recipientSource : Subscribers.RecipientSource
+        , subscriberRequestId : RequestId
+        , sourceRequestId : RequestId
         , senderProfile : SenderProfileState
         , authApiBaseUrl : Maybe String
         }
@@ -186,7 +194,14 @@ init _ =
         , testEmailState = TestEmailEmpty
         , existingStatus = StatusUnknown
         , recipientCount = Nothing
+        , recipientCountError = Nothing
+        , recipientSourceReady = False
+        , subscribersLoaded = False
+        , countRequestId = 0
         , subscriberEventData = Nothing
+        , recipientSource = Subscribers.SubscriberFile
+        , subscriberRequestId = 0
+        , sourceRequestId = 0
         , senderProfile = SenderProfileIdle
         , authApiBaseUrl = Nothing
         }
@@ -200,7 +215,11 @@ hide (Model model) =
             | state = DialogHidden
             , existingStatus = StatusUnknown
             , recipientCount = Nothing
+            , recipientCountError = Nothing
+            , recipientSourceReady = False
+            , subscribersLoaded = False
             , subscriberEventData = Nothing
+            , recipientSource = Subscribers.SubscriberFile
             , senderProfile = SenderProfileIdle
             , authApiBaseUrl = Nothing
         }
@@ -208,12 +227,25 @@ hide (Model model) =
 
 show : Nostr.Model -> PubKey -> String -> Model -> NewsletterData -> ( Model, Effect (Msg msg) )
 show nostr pubKey authApiBaseUrl (Model model) newsletterData =
+    let
+        subscriberRequestId =
+            Nostr.getLastRequestId nostr
+
+        sourceRequestId =
+            subscriberRequestId + 1
+    in
     ( Model
         { model
             | state = DialogPreparation newsletterData
             , existingStatus = StatusChecking
             , recipientCount = Nothing
+            , recipientCountError = Nothing
+            , recipientSourceReady = False
+            , subscribersLoaded = False
             , subscriberEventData = Nothing
+            , recipientSource = Subscribers.SubscriberFile
+            , subscriberRequestId = subscriberRequestId
+            , sourceRequestId = sourceRequestId
             , senderProfile = SenderProfileLoading
             , authApiBaseUrl = Just authApiBaseUrl
         }
@@ -223,6 +255,8 @@ show nostr pubKey authApiBaseUrl (Model model) newsletterData =
         , Ports.requestPortalAuth authApiBaseUrl
             |> Effect.sendCmd
         , Subscribers.load nostr pubKey
+            |> Effect.sendSharedMsg
+        , Subscribers.loadRecipientSource sourceRequestId pubKey
             |> Effect.sendSharedMsg
         ]
     )
@@ -272,7 +306,13 @@ update props =
                     DialogPreparation newsletterData ->
                         ( Model { model | state = DialogSending newsletterData initialSendProgress }
                         , Ports.sendNewsletter newsletterData
-                            (model.subscriberEventData |> Maybe.map subscriberBlobFromEvent)
+                            (if model.recipientSource == Subscribers.ContactDatabase then
+                                Nothing
+
+                             else
+                                model.subscriberEventData |> Maybe.map subscriberBlobFromEvent
+                            )
+                            (Subscribers.recipientSourceToString model.recipientSource)
                             |> Effect.sendCmd
                         )
 
@@ -597,11 +637,15 @@ updateWithMessage toMsg (Model model) userPubKey message =
                     ( Model { model | existingStatus = StatusError (Decode.errorToString decodeError) }, Effect.none )
 
         "newsletterRecipientCount" ->
-            case Decode.decodeValue (Decode.field "count" (Decode.nullable Decode.int)) message.value of
-                Ok (Just count) ->
-                    ( Model { model | recipientCount = Just count }, Effect.none )
+            case Decode.decodeValue (Decode.field "requestId" Decode.int) message.value of
+                Ok requestId ->
+                    if requestId /= model.countRequestId then
+                        ( Model model, Effect.none )
 
-                _ ->
+                    else
+                        applyRecipientCount (Model model) message.value
+
+                Err _ ->
                     ( Model model, Effect.none )
 
         "portalNip98AuthHeader" ->
@@ -626,40 +670,48 @@ updateWithMessage toMsg (Model model) userPubKey message =
                     ( Model model, Effect.none )
 
         "events" ->
-            case Nostr.External.decodeEventsKind message.value of
-                Ok KindApplicationSpecificData ->
-                    case Nostr.External.decodeEvents message.value of
-                        Ok events ->
-                            let
-                                ( maybeSubscriberEventData, _, errors ) =
-                                    Subscribers.processEvents userPubKey [] events
+            case Nostr.External.decodeRequestId message.value of
+                Ok requestId ->
+                    if requestId == model.sourceRequestId then
+                        case Nostr.External.decodeEvents message.value of
+                            Ok events ->
+                                refreshRecipientCount userPubKey
+                                    (Model
+                                        { model
+                                            | recipientSource = Subscribers.recipientSourceFromEvents events
+                                            , recipientSourceReady = True
+                                        }
+                                    )
 
-                                countCmd =
-                                    case maybeSubscriberEventData of
-                                        Just data ->
-                                            Ports.getNewsletterRecipientCount userPubKey (Just (subscriberBlobFromEvent data))
-                                                |> Effect.sendCmd
+                            _ ->
+                                ( Model model, Effect.none )
 
-                                        Nothing ->
-                                            Effect.none
-                            in
-                            ( Model
-                                { model
-                                    | subscriberEventData = maybeSubscriberEventData
-                                    , recipientCount =
-                                        case maybeSubscriberEventData of
-                                            Just data ->
-                                                Just data.active
+                    else if requestId == model.subscriberRequestId then
+                        case Nostr.External.decodeEventsKind message.value of
+                            Ok KindApplicationSpecificData ->
+                                case Nostr.External.decodeEvents message.value of
+                                    Ok events ->
+                                        let
+                                            ( maybeSubscriberEventData, _, errors ) =
+                                                Subscribers.processEvents userPubKey [] events
+                                        in
+                                        refreshRecipientCount userPubKey
+                                            (Model
+                                                { model
+                                                    | subscriberEventData = maybeSubscriberEventData
+                                                    , subscribersLoaded = True
+                                                    , errors = model.errors ++ errors
+                                                }
+                                            )
 
-                                            Nothing ->
-                                                model.recipientCount
-                                    , errors = model.errors ++ errors
-                                }
-                            , countCmd
-                            )
+                                    _ ->
+                                        ( Model model, Effect.none )
 
-                        _ ->
-                            ( Model model, Effect.none )
+                            _ ->
+                                ( Model model, Effect.none )
+
+                    else
+                        ( Model model, Effect.none )
 
                 _ ->
                     ( Model model, Effect.none )
@@ -786,6 +838,76 @@ subscriberBlobFromEvent data =
     , keyHex = data.keyHex
     , ivHex = data.ivHex
     }
+
+
+applyRecipientCount : Model -> Decode.Value -> ( Model, Effect msg )
+applyRecipientCount (Model model) value =
+    let
+        count =
+            Decode.decodeValue (Decode.field "count" (Decode.nullable Decode.int)) value
+                |> Result.toMaybe
+                |> Maybe.andThen identity
+
+        error =
+            Decode.decodeValue (Decode.field "error" Decode.string) value
+                |> Result.toMaybe
+    in
+    case ( count, error ) of
+        ( Just total, _ ) ->
+            ( Model { model | recipientCount = Just total, recipientCountError = Nothing }, Effect.none )
+
+        ( Nothing, Just message ) ->
+            ( Model { model | recipientCount = Nothing, recipientCountError = Just message }, Effect.none )
+
+        _ ->
+            ( Model model, Effect.none )
+
+
+refreshRecipientCount : PubKey -> Model -> ( Model, Effect msg )
+refreshRecipientCount userPubKey (Model model) =
+    if not model.recipientSourceReady then
+        ( Model model, Effect.none )
+
+    else
+        case model.recipientSource of
+            Subscribers.ContactDatabase ->
+                if model.countRequestId > 0 then
+                    ( Model model, Effect.none )
+
+                else
+                    startRecipientCount userPubKey Nothing (Model model)
+
+            Subscribers.SubscriberFile ->
+                if not model.subscribersLoaded then
+                    ( Model { model | recipientCount = Nothing, recipientCountError = Nothing }, Effect.none )
+
+                else
+                    case model.subscriberEventData of
+                        Just data ->
+                            startRecipientCount userPubKey (Just data) (Model model)
+
+                        Nothing ->
+                            ( Model { model | recipientCount = Just 0, recipientCountError = Nothing }, Effect.none )
+
+
+startRecipientCount : PubKey -> Maybe Subscribers.SubscriberEventData -> Model -> ( Model, Effect msg )
+startRecipientCount userPubKey maybeData (Model model) =
+    let
+        requestId =
+            model.countRequestId + 1
+
+        blob =
+            maybeData |> Maybe.map subscriberBlobFromEvent
+    in
+    ( Model
+        { model
+            | countRequestId = requestId
+            , recipientCount = Nothing
+            , recipientCountError = Nothing
+        }
+    , Ports.getNewsletterRecipientCount userPubKey blob (Subscribers.recipientSourceToString model.recipientSource) requestId
+        |> Effect.sendCmd
+    )
 
 
 completedSendProgress : SendProgress -> SendProgress
@@ -979,6 +1101,9 @@ closeButton (Settings settings) =
 viewSendProgress : SendNewsletterDialog msg -> SendProgress -> Html (Msg msg)
 viewSendProgress (Settings settings) progress =
     let
+        (Model model) =
+            settings.model
+
         styles =
             Ui.Styles.stylesForTheme settings.theme
 
@@ -986,7 +1111,7 @@ viewSendProgress (Settings settings) progress =
             [ settings.browserEnv.translations ]
 
         phaseText =
-            progressPhaseText translations progress.phase
+            progressPhaseText model.recipientSource translations progress.phase
 
         totalsText =
             case progressCountText translations progress of
@@ -1059,11 +1184,16 @@ sendCanBeCancelled progress =
             True
 
 
-progressPhaseText : List I18Next.Translations -> String -> String
-progressPhaseText translations phase =
+progressPhaseText : Subscribers.RecipientSource -> List I18Next.Translations -> String -> String
+progressPhaseText recipientSource translations phase =
     case phase of
         "preparing" ->
-            "Loading subscriber list…"
+            case recipientSource of
+                Subscribers.ContactDatabase ->
+                    Translations.loadingContactsText translations
+
+                Subscribers.SubscriberFile ->
+                    Translations.loadingSubscriberListText translations
 
         "authenticating" ->
             "Signing in to the email queue…"
@@ -1420,12 +1550,29 @@ viewRecipientCount (Settings settings) =
             Ui.Styles.stylesForTheme settings.theme
 
         message =
-            case model.recipientCount of
-                Just count ->
-                    "Active subscribers: " ++ String.fromInt count
+            case model.recipientCountError of
+                Just error ->
+                    error
 
                 Nothing ->
-                    "Recipients: …"
+                    if not model.recipientSourceReady then
+                        Translations.recipientsLoadingText [ settings.browserEnv.translations ]
+
+                    else
+                        case ( model.recipientSource, model.recipientCount ) of
+                            ( Subscribers.ContactDatabase, Nothing ) ->
+                                Translations.countingContactDatabaseText [ settings.browserEnv.translations ]
+
+                            ( Subscribers.SubscriberFile, Nothing ) ->
+                                Translations.countingSubscriberFileText [ settings.browserEnv.translations ]
+
+                            ( Subscribers.ContactDatabase, Just count ) ->
+                                Translations.contactDatabaseRecipientsText [ settings.browserEnv.translations ]
+                                    { count = String.fromInt count }
+
+                            ( Subscribers.SubscriberFile, Just count ) ->
+                                Translations.subscriberFileRecipientsText [ settings.browserEnv.translations ]
+                                    { count = String.fromInt count }
     in
     div (styles.colorStyleGrayscaleMuted ++ styles.textStyle14)
         [ text message ]

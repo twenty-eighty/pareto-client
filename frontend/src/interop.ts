@@ -1,5 +1,5 @@
 import "./Milkdown/MilkdownEditor";
-import { Contacts } from "./Newsletters/Contacts";
+import { EncryptedContacts, signerFromNdk } from "./Newsletters/EncryptedContacts";
 import { createNewsletterSender, isNewsletterSendCancelled } from "./Newsletters/Send";
 
 import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
@@ -56,7 +56,9 @@ interface FlagsEnv {
 
 type PortCommand = { command: string; value: any };
 
-var contacts: Contacts | null = null;
+var contacts: EncryptedContacts | null = null;
+var contactsUrl: string | null = null;
+var contactsPubkey: string | null = null;
 var newsletterSendClient: any = null;
 var newsletterSendAbort: AbortController | null = null;
 
@@ -396,6 +398,14 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         loadContacts(app, value);
         break;
 
+      case 'searchContacts':
+        searchContacts(app, value);
+        break;
+
+      case 'filterContacts':
+        filterContacts(app, value);
+        break;
+
       case 'loadContactTags':
         loadContactTags(app, value);
         break;
@@ -410,6 +420,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
       case 'storeContacts':
         storeContacts(app, value);
+        break;
+
+      case 'updateContact':
+        updateContact(app, value);
         break;
 
       case 'getNewsletterRecipientCount':
@@ -1041,91 +1055,148 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     })
   }
 
-  function initContactDatabase(app, { pubkey }) {
-    if (contacts) {
-      app.ports.receiveMessage.send({ messageType: 'contactDatabaseAuthenticated', value: { } });
-      return;
-    }
-
-    contacts = new Contacts(window.ndk, pubkey);
-
-    contacts.authenticate().then(authHeader => {
-      console.log('authHeader', authHeader);
-
-      app.ports.receiveMessage.send({ messageType: 'contactDatabaseAuthenticated', value: { } });
-
-      /*
-      // TODO: get contacts from the database
-      const sampleContacts = [
-        {
-          firstName: "Alice",
-          lastName: "Johnson",
-          email: "alice@example.com",
-          locale: "en-US",
-          pubkey: "79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f432",
-          datesub: 1717334400,
-          source: "seed",
-          dnd: false,
-          tags: ["work", "conference", "blockchain"]
-        },
-        {
-          firstName: "Bob",
-          lastName: "Smith",
-          email: "bob@example.com",
-          locale: "de-DE",
-          pubkey: "79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f433",
-          datesub: 1717334401,
-          source: "test",
-          dnd: false,
-          tags: ["work", "design", "mobile"]
-        }
-      ];
-      
-      // 4. Store contacts
-      console.log('📝 Storing contacts...');
-      storeContacts(app, {subscribers: sampleContacts});
-      console.log('✅ Contacts stored successfully');
-      */
-
+  function reportContactDatabaseError(app, error, fallback) {
+    app.ports.receiveMessage.send({
+      messageType: 'contactDatabaseError',
+      value: { error: error?.message || fallback },
     });
   }
 
-  function loadContacts(app, { page: page, perPage: perPage, pubkey: pubkey }) {
+  async function withContacts() {
     if (!contacts) {
-      initContactDatabase(app, { pubkey: pubkey });
+      throw new Error('Contact database is not initialized');
     }
-    contacts.getContacts(page, perPage).then(result => {
-       console.log('Contacts:', result.contacts);
-       app.ports.receiveMessage.send({ messageType: 'contacts', value: { page: page, contacts: result.contacts, errors: result.errors } });
+
+    await contacts.ensureAuthenticated();
+    return contacts;
+  }
+
+  function initContactDatabase(app, { url, pubkey }) {
+    const apiUrl = url || 'http://localhost:4003';
+    if (!contacts || contactsUrl !== apiUrl || contactsPubkey !== pubkey) {
+      contacts = new EncryptedContacts({
+        baseUrl: apiUrl,
+        signer: signerFromNdk(window.ndk),
+      });
+      contactsUrl = apiUrl;
+      contactsPubkey = pubkey;
+    }
+
+    contacts.ensureAuthenticated().then(() => {
+      app.ports.receiveMessage.send({ messageType: 'contactDatabaseAuthenticated', value: {} });
+    }).catch((error) => {
+      reportContactDatabaseError(app, error, 'Authentication failed');
     });
   }
 
-  function loadContactTags(app, { pubkey: pubkey }) {
-    if (!contacts) {
-      initContactDatabase(app, { pubkey: pubkey });
-    }
-    contacts.getContactTags().then(result => {
-      console.log('Contact Tags:', result.tags);
-      app.ports.receiveMessage.send({ messageType: 'contactTags', value: { tags: result.tags, errors: result.errors } });
+  function sendContacts(app, requestId, page, result, total, databaseTotal) {
+    app.ports.receiveMessage.send({
+      messageType: 'contacts',
+      value: {
+        requestId: requestId,
+        page: page,
+        contacts: result.contacts,
+        errors: result.errors || [],
+        total: total,
+        databaseTotal: databaseTotal,
+      },
     });
   }
 
-  function addContactTag(app, { tag: tag }) {
-    contacts.addTag(tag).then(result => {
-      console.log('Contact Tag added: ', result);
+  async function countStoredContacts(api) {
+    try {
+      return await api.countContacts();
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function loadContacts(app, { requestId, page, perPage }) {
+    withContacts().then(async (api) => {
+      const result = await api.getContacts(page, perPage);
+      const databaseTotal = await countStoredContacts(api);
+      sendContacts(app, requestId, page, result, databaseTotal, databaseTotal);
+    }).catch((error) => {
+      reportContactDatabaseError(app, error, 'Failed to load contacts');
+    });
+  }
+
+  function searchContacts(app, { requestId, term, page, perPage }) {
+    withContacts().then(async (api) => {
+      const result = await api.searchContacts(term, page, perPage);
+      const databaseTotal = await countStoredContacts(api);
+      sendContacts(app, requestId, page, result, result.total, databaseTotal);
+    }).catch((error) => {
+      reportContactDatabaseError(app, error, 'Failed to search contacts');
+    });
+  }
+
+  function filterContacts(app, { requestId, filter, page, perPage }) {
+    withContacts().then(async (api) => {
+      const result = await api.getContactsByCriteria(filter, page, perPage);
+      let total = result.contacts.length;
+      try {
+        total = await api.countContacts(filter);
+      } catch (_error) {
+        total = result.contacts.length;
+      }
+      const databaseTotal = await countStoredContacts(api);
+      sendContacts(app, requestId, page, result, total, databaseTotal);
+    }).catch((error) => {
+      reportContactDatabaseError(app, error, 'Failed to filter contacts');
+    });
+  }
+
+  function loadContactTags(app, _value) {
+    withContacts().then((api) => api.getContactTags()).then((result) => {
+      app.ports.receiveMessage.send({ messageType: 'contactTags', value: { tags: result.tags, errors: result.errors || [] } });
+    }).catch((error) => {
+      reportContactDatabaseError(app, error, 'Failed to load tags');
+    });
+  }
+
+  function addContactTag(app, { tag }) {
+    withContacts().then((api) => api.addTag(tag)).then((result) => {
       app.ports.receiveMessage.send({ messageType: 'contactTagAdded', value: { tag: tag, result: result } });
+    }).catch((error) => {
+      reportContactDatabaseError(app, error, 'Failed to add tag');
     });
   }
 
-  function deleteContactTag(app, { tag: tag }) {
-    contacts.deleteTag(tag).then(result => {
-      console.log('Contact Tag deleted: ', result);
+  function deleteContactTag(app, { tag }) {
+    withContacts().then((api) => api.deleteTag(tag)).then((result) => {
       app.ports.receiveMessage.send({ messageType: 'contactTagDeleted', value: { tag: tag, result: result } });
+    }).catch((error) => {
+      reportContactDatabaseError(app, error, 'Failed to delete tag');
     });
   }
 
-  function storeContacts(app, { subscribers: subscribers }) {
-    contacts.storeContactsBulk(subscribers, true);
+  function storeContacts(app, { subscribers }) {
+    withContacts().then((api) => api.storeContactsBulk(subscribers, false)).then((result) => {
+      app.ports.receiveMessage.send({
+        messageType: 'contactsStored',
+        value: { status: result?.status || 'ok', stored: result?.stored || 0, tagErrors: result?.tagErrors || [] },
+      });
+    }).catch((error) => {
+      app.ports.receiveMessage.send({
+        messageType: 'contactsStored',
+        value: { error: error?.message || 'Failed to store contacts' },
+      });
+    });
+  }
+
+  function updateContact(app, { id, subscriber }) {
+    withContacts().then((api) => api.updateContact(id, subscriber)).then((result) => {
+      app.ports.receiveMessage.send({
+        messageType: 'contactUpdated',
+        value: { status: 'ok', tagErrors: result?.tagErrors || [] },
+      });
+    }).catch((error) => {
+      app.ports.receiveMessage.send({
+        messageType: 'contactUpdated',
+        value: { error: error?.message || 'Failed to update contact' },
+      });
+    });
   }
 
   function newsletterQueueClient() {
@@ -1135,19 +1206,19 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     });
   }
 
-  function getNewsletterRecipientCount(app, { author: author, subscriberBlob: subscriberBlob }) {
-    if (!author && !(subscriberBlob?.url && subscriberBlob?.key && subscriberBlob?.iv)) {
-      app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count: null, error: 'Missing author pubkey' } });
+  function getNewsletterRecipientCount(app, { author: author, subscriberBlob: subscriberBlob, recipientSource: recipientSource, requestId: requestId }) {
+    if (!author && recipientSource !== 'contacts' && !(subscriberBlob?.url && subscriberBlob?.key && subscriberBlob?.iv)) {
+      app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count: null, requestId, recipientSource, error: 'Missing author pubkey' } });
       return;
     }
 
     newsletterSendClient = newsletterQueueClient();
-    newsletterSendClient.countActiveRecipients(author, subscriberBlob)
+    newsletterSendClient.countActiveRecipients(author, subscriberBlob, recipientSource)
       .then((count) => {
-        app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count } });
+        app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count, requestId, recipientSource } });
       })
       .catch((error) => {
-        app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count: null, error: error?.message || 'Failed to count subscribers' } });
+        app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count: null, requestId, recipientSource, error: error?.message || 'Failed to count subscribers' } });
       });
   }
 
@@ -1167,7 +1238,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       });
   }
 
-  function sendNewsletter(app, { author: author, newsletterData: newsletterData, subscribers: subscribers, subscriberBlob: subscriberBlob }) {
+  function sendNewsletter(app, { author: author, newsletterData: newsletterData, subscribers: subscribers, subscriberBlob: subscriberBlob, recipientSource: recipientSource }) {
     const abort = startNewsletterAbort();
     newsletterSendClient = newsletterQueueClient();
     newsletterSendClient.sendNewsletter({
@@ -1176,6 +1247,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       identifier: newsletterData.identifier,
       subscribers,
       subscriberBlob,
+      recipientSource,
       signal: abort.signal,
       onProgress: bindNewsletterProgress(app),
     }).catch((error) => {

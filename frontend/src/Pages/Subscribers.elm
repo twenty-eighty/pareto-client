@@ -36,6 +36,7 @@ import Page exposing (Page)
 import Pareto
 import Ports
 import Route exposing (Route)
+import Route.Path
 import Shared
 import Shared.Model
 import Shared.Msg
@@ -672,6 +673,14 @@ viewSubscribers user shared model =
                 |> Button.withTypePrimary
                 |> Button.withDisabled (model.state /= Modified)
                 |> Button.view
+            , Button.new
+                { label = Translations.openContactDatabaseLink [ shared.browserEnv.translations ]
+                , onClick = Nothing
+                , theme = shared.theme
+                }
+                |> Button.withTypeSecondary
+                |> Button.withLink (Just <| Route.Path.toString Route.Path.ContactDatabase)
+                |> Button.view
             , div
                 (styles.colorStyleGrayscaleMuted
                     ++ [ css
@@ -698,8 +707,16 @@ viewSubscribers user shared model =
             , browserEnv = shared.browserEnv
             , theme = shared.theme
             }
+            |> SubscriberEditDialog.withTags (subscriberTags model.subscribers)
             |> SubscriberEditDialog.view
         ]
+
+
+subscriberTags : Dict Email Subscriber -> List String
+subscriberTags subscribers =
+    subscribers
+        |> Dict.values
+        |> List.concatMap (\subscriber -> subscriber.tags |> Maybe.withDefault [])
 
 
 viewSubscribersTable : BrowserEnv -> Model -> Html Msg

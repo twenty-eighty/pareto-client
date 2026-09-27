@@ -3,6 +3,8 @@
  * BUILD_VERSION is replaced at build time so each deploy produces a new
  * SW byte-for-byte and browsers pick up the update.
  */
+importScripts("/newsletter-sender-sw.js");
+
 const BUILD_VERSION = "__PARETO_BUILD_VERSION__";
 const CACHE_NAME = "pareto-" + BUILD_VERSION;
 

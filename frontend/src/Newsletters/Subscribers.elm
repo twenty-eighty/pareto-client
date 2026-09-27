@@ -13,7 +13,8 @@ import Nostr
 import Nostr.Model exposing (TestMode(..))
 import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), emptyEvent, emptyEventFilter)
 import Nostr.Profile exposing (Profile, profileDisplayName)
-import Nostr.Request exposing (RequestData(..))
+import Nostr.Request exposing (Request, RequestData(..), RequestId, RequestState(..))
+import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
 import Pareto
 import SHA256
@@ -332,6 +333,96 @@ type Modification
 subscribersDTag : String
 subscribersDTag =
     "pareto-subscribers"
+
+
+type RecipientSource
+    = SubscriberFile
+    | ContactDatabase
+
+
+recipientSourceDTag : String
+recipientSourceDTag =
+    "pareto-newsletter-source"
+
+
+recipientSourceToString : RecipientSource -> String
+recipientSourceToString source =
+    case source of
+        SubscriberFile ->
+            "subscribers"
+
+        ContactDatabase ->
+            "contacts"
+
+
+recipientSourceFromString : String -> RecipientSource
+recipientSourceFromString source =
+    if source == "contacts" then
+        ContactDatabase
+
+    else
+        SubscriberFile
+
+
+decodeRecipientSource : Decode.Decoder RecipientSource
+decodeRecipientSource =
+    Decode.field "source" Decode.string
+        |> Decode.map recipientSourceFromString
+
+
+recipientSourceFromEvents : List Event -> RecipientSource
+recipientSourceFromEvents events =
+    events
+        |> List.filterMap
+            (\event ->
+                Decode.decodeString decodeRecipientSource event.content
+                    |> Result.toMaybe
+            )
+        |> List.head
+        |> Maybe.withDefault SubscriberFile
+
+
+recipientSourceEvent : BrowserEnv -> PubKey -> RecipientSource -> Event
+recipientSourceEvent browserEnv pubKey source =
+    { pubKey = pubKey
+    , createdAt = browserEnv.now
+    , kind = KindApplicationSpecificData
+    , tags =
+        []
+            |> Event.addDTag recipientSourceDTag
+    , content =
+        [ ( "source", Encode.string (recipientSourceToString source) ) ]
+            |> Encode.object
+            |> Encode.encode 0
+    , id = ""
+    , sig = Nothing
+    , relays = Nothing
+    }
+
+
+saveRecipientSource : BrowserEnv -> PubKey -> RecipientSource -> Shared.Msg.Msg
+saveRecipientSource browserEnv pubKey source =
+    recipientSourceEvent browserEnv pubKey source
+        |> SendApplicationData
+        |> Shared.Msg.SendNostrEvent
+
+
+loadRecipientSource : RequestId -> PubKey -> Shared.Msg.Msg
+loadRecipientSource requestId pubKey =
+    { emptyEventFilter
+        | authors = Just [ pubKey ]
+        , kinds = Just [ KindApplicationSpecificData ]
+        , tagReferences = Just [ TagReferenceIdentifier recipientSourceDTag ]
+    }
+        |> RequestSubscribers
+        |> (\data ->
+                { id = requestId
+                , relatedKinds = []
+                , states = [ RequestCreated data ]
+                , description = "Load newsletter recipient source"
+                }
+           )
+        |> Shared.Msg.RequestNostrEvents
 
 
 newsletterDTag : String
@@ -674,7 +765,7 @@ subscriberDecoder =
         |> optional (fieldName FieldLastName) (Decode.maybe Decode.string) Nothing
         |> optional (fieldName FieldPubKey) (Decode.maybe Decode.string) Nothing
         |> optional (fieldName FieldSource) (Decode.maybe Decode.string) Nothing
-        |> required (fieldName FieldDateSubscription) decodePosixTime
+        |> optional (fieldName FieldDateSubscription) decodePosixTime (Time.millisToPosix 0)
         |> optional (fieldName FieldDateUnsubscription) (Decode.maybe decodePosixTime) Nothing
         |> optional (fieldName FieldTags) (Decode.maybe (Decode.list Decode.string)) Nothing
         |> optional (fieldName FieldUndeliverable) (Decode.maybe Decode.string) Nothing

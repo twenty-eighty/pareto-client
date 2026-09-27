@@ -88,7 +88,7 @@ toLayout shared model =
                 , toMsg = CategoriesSent
                 , onSelect = CategorySelected
                 , equals = (==)
-                , image = \_ _ -> Nothing
+                , image = categoryImage
                 , categories = availableCategories shared.browserEnv.translations configCheckIssues
                 , browserEnv = shared.browserEnv
                 , theme = shared.theme
@@ -472,6 +472,34 @@ availableCategories translations configCheckIssues =
       , testId = "settings-ecash"
       }
     ]
+
+
+categoryImage : Theme.Color -> Category -> Maybe (Html msg)
+categoryImage _ category =
+    let
+        icon =
+            case category of
+                Relays ->
+                    FeatherIcons.server
+
+                MediaServers ->
+                    FeatherIcons.hardDrive
+
+                Profile ->
+                    FeatherIcons.user
+
+                Mutes ->
+                    FeatherIcons.volumeX
+
+                Wallet ->
+                    FeatherIcons.zap
+
+                Ecash ->
+                    FeatherIcons.disc
+    in
+    Icon.FeatherIcon icon
+        |> Icon.viewWithSize 16
+        |> Just
 
 
 init : Auth.User -> Shared.Model -> Route () -> () -> ( Model, Effect Msg )

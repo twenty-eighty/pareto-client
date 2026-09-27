@@ -183,6 +183,9 @@ sidebarItems { configIssues, isAuthor, isBetaTester, isLoggedIn, clientRole, sen
                         -- currently in development
                         Just { sidebarItem | disabled = not sendsNewsletters }
 
+                    Route.Path.ContactDatabase ->
+                        Just { sidebarItem | disabled = not sendsNewsletters }
+
                     _ ->
                         Just sidebarItem
             )
@@ -284,6 +287,15 @@ rawSidebarItems clientRole translations =
               , title = Translations.subscribersMenuItemText [ translations ]
               , ariaLabel = Translations.subscribersMenuItemText [ translations ]
               , icon = FeatherIcon FeatherIcons.users
+              , requiresLogin = True
+              , requiresAuthor = False
+              , requiresBetaTester = False
+              , disabled = False
+              }
+            , { path = Route.Path.ContactDatabase
+              , title = Translations.contactDatabaseMenuItemText [ translations ]
+              , ariaLabel = Translations.contactDatabaseMenuItemText [ translations ]
+              , icon = FeatherIcon FeatherIcons.database
               , requiresLogin = True
               , requiresAuthor = False
               , requiresBetaTester = False

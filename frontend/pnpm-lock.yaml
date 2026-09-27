@@ -11,6 +11,9 @@ importers:
       '@cashu/cashu-ts':
         specifier: ^4.10.1
         version: 4.10.1
+      '@getalby/sdk':
+        specifier: ^8.0.3
+        version: 8.0.3(typescript@5.9.3)
       '@milkdown/core':
         specifier: ^7.17.2
         version: 7.21.2(supports-color@7.2.0)
@@ -427,6 +430,14 @@ packages:
 
   '@floating-ui/utils@0.2.10':
     resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
+
+  '@getalby/lightning-tools@8.2.0':
+    resolution: {integrity: sha512-eL+cnHyzeUARKVzNRuFBRBppAU5RBJOLjhFVzSWt8hDibRzL5+e4hq8I79+RGHfrWWMUDv382Jx8ewOazrBj7w==}
+    engines: {node: '>=14'}
+
+  '@getalby/sdk@8.0.3':
+    resolution: {integrity: sha512-vPEogAWwLHbL55COeXrRN7yRBXMDGDxX1M2A+o3Lqw60FFng6fa9FK9sw8ptdILMD1dQZq8FzPXuabQ7seoDBA==}
+    engines: {node: '>=22'}
 
   '@isaacs/cliui@8.0.2':
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
@@ -2761,6 +2772,15 @@ snapshots:
       '@floating-ui/utils': 0.2.10
 
   '@floating-ui/utils@0.2.10': {}
+
+  '@getalby/lightning-tools@8.2.0': {}
+
+  '@getalby/sdk@8.0.3(typescript@5.9.3)':
+    dependencies:
+      '@getalby/lightning-tools': 8.2.0
+      nostr-tools: 2.25.0(typescript@5.9.3)
+    transitivePeerDependencies:
+      - typescript
 
   '@isaacs/cliui@8.0.2':
     dependencies:

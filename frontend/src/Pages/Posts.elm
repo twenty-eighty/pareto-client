@@ -4,8 +4,10 @@ import Auth
 import Components.ArticleComments as ArticleComments
 import Components.ArticleHighlights as ArticleHighlights
 import Components.Categories as Categories
+import Components.Icon as Icon
 import Dict
 import Effect exposing (Effect)
+import FeatherIcons
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Events exposing (..)
 import Layouts
@@ -25,6 +27,7 @@ import Set exposing (Set)
 import Shared
 import Shared.Model
 import Shared.Msg
+import Tailwind.Theme exposing (Color)
 import Time
 import Translations.Posts as Translations
 import Translations.Sidebar
@@ -57,7 +60,7 @@ toLayout shared model =
                 , toMsg = CategoriesSent
                 , onSelect = CategorySelected
                 , equals = \category1 category2 -> category1 == category2
-                , image = \_ _ -> Nothing
+                , image = categoryImage
                 , categories = availableCategories shared
                 , browserEnv = shared.browserEnv
                 , theme = shared.theme
@@ -113,6 +116,25 @@ availableCategories shared =
       , testId = "posts-drafts"
       }
     ] ++ delayedCategory
+
+
+categoryImage : Color -> Category -> Maybe (Html msg)
+categoryImage _ category =
+    let
+        icon =
+            case category of
+                Published ->
+                    FeatherIcons.bookOpen
+
+                Drafts ->
+                    FeatherIcons.edit3
+
+                Future ->
+                    FeatherIcons.clock
+    in
+    Icon.FeatherIcon icon
+        |> Icon.viewWithSize 16
+        |> Just
 
 
 init : Auth.User -> Shared.Model -> Route () -> () -> ( Model, Effect Msg )
