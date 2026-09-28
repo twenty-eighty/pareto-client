@@ -1845,43 +1845,61 @@ viewPager theme browserEnv model =
             , Tw.flex_row
             , Tw.flex_wrap
             , Tw.items_center
-            , Tw.gap_2
+            , Tw.gap_8
             ]
         ]
-        [ Button.new
-            { label = Translations.previousPage [ browserEnv.translations ]
-            , onClick = Just <| NewTableState (Table.previousPage model.subscriberTable)
-            , theme = theme
-            }
-            |> Button.withTypeSecondary
-            |> Button.withDisabled (currentPage <= 1)
-            |> Button.view
-        , text <|
-            Translations.pageStatus
-                [ browserEnv.translations ]
-                { page = String.fromInt currentPage, pages = String.fromInt (max 1 pageCount) }
-        , Button.new
-            { label = Translations.nextPage [ browserEnv.translations ]
-            , onClick = Just <| NewTableState (Table.nextPage model.subscriberTable)
-            , theme = theme
-            }
-            |> Button.withTypeSecondary
-            |> Button.withDisabled (currentPage >= pageCount)
-            |> Button.view
-        , text <| Translations.pageSizeLabel [ browserEnv.translations ]
-        , select
-            (styles.colorStyleBackground
-                ++ styles.colorStyleGrayscaleText
-                ++ [ Events.onInput (SetPageSize << pageSizeFromString)
-                   , css
-                        [ Tw.border
-                        , Tw.rounded_md
-                        , Tw.px_2
-                        , Tw.h_10
-                        ]
-                   ]
-            )
-            (List.map (pageSizeOption pageSize) pageSizeChoices)
+        [ div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.items_center
+                , Tw.gap_2
+                ]
+            ]
+            [ Button.new
+                { label = Translations.previousPage [ browserEnv.translations ]
+                , onClick = Just <| NewTableState (Table.previousPage model.subscriberTable)
+                , theme = theme
+                }
+                |> Button.withTypeSecondary
+                |> Button.withDisabled (currentPage <= 1)
+                |> Button.view
+            , text <|
+                Translations.pageStatus
+                    [ browserEnv.translations ]
+                    { page = String.fromInt currentPage, pages = String.fromInt (max 1 pageCount) }
+            , Button.new
+                { label = Translations.nextPage [ browserEnv.translations ]
+                , onClick = Just <| NewTableState (Table.nextPage model.subscriberTable)
+                , theme = theme
+                }
+                |> Button.withTypeSecondary
+                |> Button.withDisabled (currentPage >= pageCount)
+                |> Button.view
+            ]
+        , div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.items_center
+                , Tw.gap_2
+                ]
+            ]
+            [ text <| Translations.pageSizeLabel [ browserEnv.translations ]
+            , select
+                (styles.colorStyleBackground
+                    ++ styles.colorStyleGrayscaleText
+                    ++ [ Events.onInput (SetPageSize << pageSizeFromString)
+                       , css
+                            [ Tw.border
+                            , Tw.rounded_md
+                            , Tw.px_2
+                            , Tw.h_10
+                            ]
+                       ]
+                )
+                (List.map (pageSizeOption pageSize) pageSizeChoices)
+            ]
         ]
 
 
