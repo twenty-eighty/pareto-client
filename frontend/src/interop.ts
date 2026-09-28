@@ -18,6 +18,12 @@ import * as nwcWallet from "./nwcWallet";
 import { initPwa, reloadForNewVersion } from "./pwa";
 import debug from 'debug';
 
+type CsvFileWritable = {
+  write(data: string): Promise<void>;
+  close(): Promise<void>;
+  abort(): Promise<void>;
+};
+
 declare global {
   interface Window {
     ndk: any;
@@ -1335,7 +1341,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   async function exportContactsCsv(app) {
     contactCsvExportCancelled = false;
     const filename = `contacts-${new Date().toISOString().slice(0, 10)}.csv`;
-    let writable: FileSystemWritableFileStream | null = null;
+    let writable: CsvFileWritable | null = null;
     const parts: string[] = [];
 
     try {
@@ -1343,7 +1349,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         showSaveFilePicker?: (options: {
           suggestedName: string;
           types: Array<{ description: string; accept: Record<string, string[]> }>;
-        }) => Promise<FileSystemFileHandle>;
+        }) => Promise<{ createWritable: () => Promise<CsvFileWritable> }>;
       }).showSaveFilePicker;
       if (typeof savePicker === 'function') {
         const handle = await savePicker({
