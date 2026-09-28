@@ -654,11 +654,13 @@
     },
     "search": {
         "page title": "Sök",
-        "explanation 1": "Lägg till ett Nostr-ID (npub, nprofile, nevent eller naddr), Nostr-adress (tony@pareto.space) eller en URL med ett Nostr-ID",
-        "explanation 2": "Hashtags stöds, sätt en # före ett ord för att filtrera efter hashtags."
+        "explanation 1": "Lägg till ett Nostr-ID (npub, nprofile, nevent eller naddr), Nostr-adress (tony@pareto.space), ett författarnamn eller en URL med ett Nostr-ID",
+        "explanation 2": "Hashtags stöds, sätt en # före ett ord för att filtrera efter hashtags.",
+        "authors heading": "Författare",
+        "articles heading": "Artiklar"
     },
     "search bar": {
-        "placeholder": "URL, Nostr-ID eller Nostr-adress"
+        "placeholder": "URL, Nostr-ID, Nostr-adress eller författarnamn"
     },
     "send newsletter dialog": {
         "dialog title": "Send Newsletter",
