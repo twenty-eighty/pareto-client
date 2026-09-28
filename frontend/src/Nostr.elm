@@ -2,271 +2,268 @@ module Nostr exposing
     ( Model
     , Msg
     , TestMode
-    , empty
-    , init
-    , requestRelayNip11
-    , getArticleQueryStatus
-    , articleQueryStatusFrom
-    , trackContentRequest
-    , settleContentRequest
-    , failContentRequest
-    , getAuthorsFollowList
-    , getAuthorsMuteList
-    , isMuted
-    , getAuthorsPubKeys
-    , isAuthor
-    , isEditor
-    , isBetaTester
-    , loadUserDataByPubKey
-    , loadUserDataByNip05
-    , getPortalUserInfo
-    , sendsNewsletterPubKey
-    , sendsNewsletterNip05
-    , createRequest
-    , requestArticleDetails
-    , articleNeedsDetails
-    , shouldRequestArticleDetails
-    , requestDataOfState
-    , markArticleDetailsRequested
-    , markAddressesRequested
-    , addToRequest
-    , extendRequestWith
-    , configuredRelaysWss
-    , doRequest
-    , doRequestWithId
-    , performRequest
-    , applyPerformEffect
-    , eventFiltersWithUntil
-    , send
-    , queueSend
-    , sendEvent
-    , sendEventWithId
-    , getAuthor
-    , getPicturePosts
-    , getPicturePostById
-    , getProfileValidationStatus
-    , getArticle
-    , getArticlesByDate
-    , resetArticles
-    , getArticleDraftsByDate
-    , getArticleDraftWithIdentifier
-    , getArticleDraftWithId
-    , getArticlesForAuthor
-    , filterDeletedArticle
-    , getArticleForAddressComponents
-    , getArticleForNip19
-    , getArticleWithIdentifier
-    , getArticleByNip05AndIdentifier
-    , getArticleWithId
-    , getBlossomServers
-    , getDefaultNip96Servers
-    , getDefaultBlossomServers
-    , getNip96Servers
-    , getLastRequestId
-    , getLastSendRequestId
-    , filterArticlesWithIdentifier
-    , getCommunityForNip19
-    , filterCommunitiesWithIdentifier
-    , getFollowsList
-    , getMuteList
-    , getArticleComments
-    , getTextNoteCommentsForArticle
-    , getArticleCommentComments
-    , getBookmarks
-    , getReactionsForArticle
-    , getReactionsForEventId
-    , getRepostsForArticle
-    , getRepostsForEventId
-    , getRelaysForPubKey
-    , getRelayListForPubKey
-    , getNip65RelaysForPubKey
-    , getNip65ReadRelaysForPubKey
-    , getNip65WriteRelaysForPubKey
-    , getReadRelaysForPubKey
-    , getReadRelayUrlsForPubKey
-    , getWriteRelaysForPubKey
-    , getWriteRelayUrlsForPubKey
-    , getDraftRelayUrls
-    , getDraftStorageRelayUrls
-    , getLocalRelayUrls
-    , getPrivateRelayUrls
-    , getBlockedRelayUrls
-    , getUserBlockedRelayUrls
-    , isBlockedRelay
-    , getSearchRelayUrls
-    , getSearchRelaysForPubKey
-    , relaysWithSearchCapability
-    , getRelaysForRequest
-    , getDefaultRelays
-    , getApplicationDataRelays
-    , getRelayData
-    , getRequest
-    , getShortNoteById
-    , setLocalRelays
-    , getShortNotes
-    , getZapReceiptsForArticle
-    , getZapReceiptsForTagReference
-    , getZapReceiptsForEventId
-    , hasZapReceiptWithBolt11
-    , zapReceiptIdsForTagReference
-    , getProfile
-    , getProfileByNip05
-    , nip05LookupKey
-    , nip05sEqual
-    , getPubKeyByNip05
-    , bootstrapPubKeyByNip05
-    , insertPubKeyByNip05
-    , pubKeyFromNip05Names
-    , requestCommunityPostApprovals
-    , eventFilterForCommunityPostApprovals
-    , requestUserData
-    , getMissingProfilePubKeys
-    , eventFilterForAuthors
-    , getCommunityList
-    , isArticleBookmarked
-    , areAddressComponentsBookmarked
-    , isEventIdBookmarked
-    , getZapReceiptsCountForTagReference
-    , getZapReceiptsCountForArticle
-    , getZapReceiptsCountForComment
-    , getNutzapsCountForTagReference
-    , getCashuWallet
-    , getCashuBalance
     , addCashuBalance
+    , addNip05Waiter
+    , addToRequest
+    , addZapAmount
+    , appendNip27ProfileRequests
+    , applyIncoming
+    , applyPerformEffect
+    , areAddressComponentsBookmarked
+    , articleFromList
+    , articleNeedsDetails
+    , articleQueryStatusFrom
+    , bootstrapPubKeyByNip05
+    , cacheEntryIsFresh
+    , checkNip05Cache
     , clearCashuState
     , clearUserSessionState
-    , getCashuProofsForMint
-    , getNutzapMintRecommendation
-    , getNutzapMintRecommendationFor
-    , addZapAmount
-    , getBookmarkListCountForAddressComponents
-    , getBookmarkListCountForEventId
-    , getReactionsCountForArticle
-    , getReactionsCountForAddressComponents
-    , getReactionsCountForEventId
-    , getRepostsCountForArticle
-    , getRepostsCountForAddressComponents
-    , getRepostsCountForEventId
-    , getReactionForArticle
-    , getReactionForEventId
-    , getHighlightsForAddress
-    , getHighlightsCountForAddress
-    , highlightsForPubKey
-    , highlightsByAuthor
-    , notificationsForPubKey
-    , unreadNotificationsCount
+    , cmdBatch2
+    , configuredRelaysWss
+    , createRequest
+    , doRequest
+    , doRequestWithId
+    , empty
+    , eventFilterForAuthors
+    , eventFilterForCommunityPostApprovals
     , eventFilterForDeletionRequests
     , eventFilterForReactions
-    , articleFromList
-    , cmdBatch2
+    , eventFiltersWithUntil
+    , extendRequestWith
+    , failContentRequest
+    , filterArticlesWithIdentifier
+    , filterCommunitiesWithIdentifier
+    , filterDeletedArticle
+    , getApplicationDataRelays
+    , getArticle
+    , getArticleByNip05AndIdentifier
+    , getArticleCommentComments
+    , getArticleComments
+    , getArticleDraftWithId
+    , getArticleDraftWithIdentifier
+    , getArticleDraftsByDate
+    , getArticleForAddressComponents
+    , getArticleForNip19
+    , getArticleQueryStatus
+    , getArticleWithId
+    , getArticleWithIdentifier
+    , getArticlesByDate
+    , getArticlesForAuthor
+    , getAuthor
+    , getAuthorsFollowList
+    , getAuthorsMuteList
+    , getAuthorsPubKeys
+    , getBlockedRelayUrls
+    , getBlossomServers
+    , getBookmarkListCountForAddressComponents
+    , getBookmarkListCountForEventId
+    , getBookmarks
+    , getCashuBalance
+    , getCashuProofsForMint
+    , getCashuWallet
+    , getCommunityForNip19
+    , getCommunityList
+    , getDefaultBlossomServers
+    , getDefaultNip96Servers
+    , getDefaultRelays
+    , getDraftRelayUrls
+    , getDraftStorageRelayUrls
+    , getErrorMessages
+    , getFollowsList
+    , getHighlightsCountForAddress
+    , getHighlightsForAddress
+    , getLastRequestId
+    , getLastSendRequestId
+    , getLocalRelayUrls
+    , getMissingProfilePubKeys
+    , getMuteList
+    , getNip65ReadRelaysForPubKey
+    , getNip65RelaysForPubKey
+    , getNip65WriteRelaysForPubKey
+    , getNip96Servers
+    , getNutzapMintRecommendation
+    , getNutzapMintRecommendationFor
+    , getNutzapsCountForTagReference
+    , getPicturePostById
+    , getPicturePosts
+    , getPortalUserInfo
+    , getPrivateRelayUrls
+    , getProfile
+    , getProfileByNip05
+    , getProfileValidationStatus
+    , getPubKeyByNip05
+    , getReactionForArticle
+    , getReactionForEventId
+    , getReactionsCountForAddressComponents
+    , getReactionsCountForArticle
+    , getReactionsCountForEventId
+    , getReactionsForArticle
+    , getReactionsForEventId
+    , getReadRelayUrlsForPubKey
+    , getReadRelaysForPubKey
+    , getRelayData
+    , getRelayListForPubKey
+    , getRelaysForPubKey
+    , getRelaysForRequest
+    , getRepostsCountForAddressComponents
+    , getRepostsCountForArticle
+    , getRepostsCountForEventId
+    , getRepostsForArticle
+    , getRepostsForEventId
+    , getRequest
+    , getSearchRelayUrls
+    , getSearchRelaysForPubKey
+    , getShortNoteById
+    , getShortNotes
+    , getTextNoteCommentsForArticle
+    , getUserBlockedRelayUrls
+    , getWriteRelayUrlsForPubKey
+    , getWriteRelaysForPubKey
+    , getZapReceiptsCountForArticle
+    , getZapReceiptsCountForComment
+    , getZapReceiptsCountForTagReference
+    , getZapReceiptsForArticle
+    , getZapReceiptsForEventId
+    , getZapReceiptsForTagReference
+    , handleNip05Result
+    , hasZapReceiptWithBolt11
+    , highlightsByAuthor
+    , highlightsForPubKey
+    , identifierFromNip05ArticleRequest
+    , init
+    , insertIntoEventsDict
+    , insertPubKeyByNip05
+    , isArticleBookmarked
+    , isAuthor
+    , isBetaTester
+    , isBlockedRelay
+    , isEditor
+    , isEventIdBookmarked
+    , isMuted
+    , loadUserDataByNip05
+    , loadUserDataByPubKey
+    , markAddressesRequested
+    , markArticleDetailsRequested
+    , markNip05TargetPending
+    , nip05LookupKey
+    , nip05sEqual
+    , nip27ProfilesRequest
+    , notificationsForPubKey
     , paretoAuthorsFollowList
     , paretoKnownPubKey
-    , update
-    , applyIncoming
-    , updateModelWithEvents
-    , updateModelWithBookmarkLists
-    , updateModelWithBookmarkSets
-    , updateModelWithCommunityDefinitions
-    , updateModelWithCommunityLists
-    , updateModelWithDeletionRequests
-    , updateModelWithReposts
-    , updateModelWithComments
-    , updateModelWithPictures
-    , uniquePubKeys
-    , requestRelatedKindsForArticleComments
-    , updateModelWithUserServerLists
-    , updateModelWithFileStorageServerLists
-    , updateModelWithLongFormContent
-    , getErrorMessages
-    , sortArticlesByDate
-    , updateModelWithLongFormContentDraft
-    , requestRelatedKindsForArticles
+    , performRequest
+    , profileUsesNip05
+    , pubKeyFromNip05Names
+    , queueSend
+    , relaysWithSearchCapability
+    , requestArticleDetails
     , requestArticleDetailsBatch
-    , appendNip27ProfileRequests
-    , nip27ProfilesRequest
-    , updateModelWithSearchRelays
-    , updateModelWithBlockedRelays
-    , updateModelWithPrivateRelays
-    , updateModelWithHighlights
-    , updateModelWithReactions
-    , updateModelWithShortTextNotes
+    , requestArticlesForAuthors
+    , requestCommunityPostApprovals
+    , requestDataOfState
+    , requestNip05Info
+    , requestRelatedKindsForArticleComments
+    , requestRelatedKindsForArticles
+    , requestRelatedKindsForProfiles
     , requestRelatedKindsForShortNotes
     , requestRelatedProfiles
     , requestRelatedReactions
-    , updateModelWithUserMetadata
-    , requestRelatedKindsForProfiles
-    , requestArticlesForAuthors
-    , updateModelWithRelayListMetadata
-    , updateModelWithFollowLists
-    , updateModelWithMuteLists
-    , updateModelWithFollowSets
-    , insertIntoEventsDict
-    , requestNip05Info
-    , cacheEntryIsFresh
-    , addNip05Waiter
-    , markNip05TargetPending
-    , checkNip05Cache
+    , requestRelayNip11
+    , requestUserData
+    , resetArticles
+    , send
+    , sendEvent
+    , sendEventWithId
+    , sendsNewsletterNip05
+    , sendsNewsletterPubKey
+    , setLocalRelays
+    , settleContentRequest
+    , shouldRequestArticleDetails
+    , sortArticlesByDate
     , startNip05Request
-    , updateWithNip05Result
-    , handleNip05Result
-    , profileUsesNip05
-    , updateProfileWithNip05Data
+    , subscriptions
+    , trackContentRequest
+    , uniquePubKeys
+    , unreadNotificationsCount
+    , update
+    , updateModelWithBlockedRelays
+    , updateModelWithBookmarkLists
+    , updateModelWithBookmarkSets
+    , updateModelWithComments
+    , updateModelWithCommunityDefinitions
+    , updateModelWithCommunityLists
+    , updateModelWithDeletionRequests
+    , updateModelWithEvents
+    , updateModelWithFileStorageServerLists
+    , updateModelWithFollowLists
+    , updateModelWithFollowSets
+    , updateModelWithHighlights
+    , updateModelWithLongFormContent
+    , updateModelWithLongFormContentDraft
+    , updateModelWithMuteLists
     , updateModelWithNip05Data
-    , identifierFromNip05ArticleRequest
-    , validateNip05
+    , updateModelWithPictures
+    , updateModelWithPrivateRelays
+    , updateModelWithReactions
+    , updateModelWithRelayListMetadata
+    , updateModelWithReposts
+    , updateModelWithSearchRelays
+    , updateModelWithShortTextNotes
+    , updateModelWithUserMetadata
+    , updateModelWithUserServerLists
+    , updateProfileWithNip05Data
     , updateProfileWithValidationStatus
+    , updateWithNip05Result
     , updateWithPubkeyProfiles
     , updateWithZapReceipts
-    , subscriptions
+    , validateNip05
+    , zapReceiptIdsForTagReference
     )
 
-
-
 import BrowserEnv exposing (Environment(..))
-import Nostr.Model as Store exposing (Msg(..), TestMode(..))
 import Dict exposing (Dict)
 import Http
 import Nostr.Article exposing (Article, addressComponentsForArticle, addressForArticle, filterMatchesArticle)
 import Nostr.Articles as Articles
 import Nostr.Blossom as Blossom
-import Nostr.EventFilters as EventFilters
-import Nostr.Nip05Cache as Nip05Cache exposing (CheckDecision(..), ContentRequestDecision(..), FetchDecision(..), Nip05CacheEntry(..), Nip05RequestTarget(..))
-import Nostr.Nip05Apply as Nip05Apply
-import Nostr.Notifications as Notifications
-import Nostr.Highlights as Highlights
-import Nostr.RelayAccess as RelayAccess
-import Nostr.PerformRequest as PerformRequest
-import Nostr.RelatedRequests as RelatedRequests
 import Nostr.BookmarkList as BookmarkList exposing (BookmarkList, emptyBookmarkList)
 import Nostr.BookmarkSet as BookmarkSet exposing (BookmarkSet)
 import Nostr.CashuWallet as CashuWallet exposing (CashuWallet)
-import Nostr.Community as Community exposing (Community)
-import Nostr.CommunityList as CommunityList exposing (CommunityReference)
 import Nostr.Comments as Comments
 import Nostr.CommentsQuery as CommentsQuery
+import Nostr.Community as Community exposing (Community)
+import Nostr.CommunityList as CommunityList exposing (CommunityReference)
 import Nostr.ContentRequest as ContentRequest exposing (ContentRequestState(..))
 import Nostr.DeletionRequests as DeletionRequests
 import Nostr.Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), buildAddress, emptyEventFilter, kindFromNumber, numberForKind, tagReferenceToString)
+import Nostr.EventFilters as EventFilters
 import Nostr.External exposing (Hooks)
-import Nostr.Incoming as Incoming
 import Nostr.FileStorageServerList as FileStorageServerList
 import Nostr.FollowList as FollowList exposing (pubKeyIsFollower)
 import Nostr.FollowSet as FollowSet exposing (FollowSet)
+import Nostr.Highlights as Highlights
+import Nostr.Incoming as Incoming
+import Nostr.Model as Store exposing (Msg(..), TestMode(..))
 import Nostr.Nip05 as Nip05 exposing (Nip05, Nip05String, fetchNip05Info, nip05ToString)
+import Nostr.Nip05Apply as Nip05Apply
+import Nostr.Nip05Cache as Nip05Cache exposing (CheckDecision(..), ContentRequestDecision(..), FetchDecision(..), Nip05CacheEntry(..), Nip05RequestTarget(..))
 import Nostr.Nip10 exposing (TextNote, tagReference)
 import Nostr.Nip18 exposing (Repost)
 import Nostr.Nip19 exposing (NIP19Type(..))
 import Nostr.Nip22 exposing (ArticleComment, ArticleCommentComment, CommentType(..))
 import Nostr.Nip68 exposing (PicturePost)
+import Nostr.Notifications as Notifications
 import Nostr.Nutzaps as Nutzaps exposing (Nutzap)
+import Nostr.PerformRequest as PerformRequest
 import Nostr.PicturePosts as PicturePosts
 import Nostr.Profile exposing (Profile, ProfileValidation(..))
 import Nostr.Profiles as Profiles
-import Ports
 import Nostr.Query as Query exposing (ContentQueryStatus(..))
 import Nostr.Reactions exposing (Reaction)
 import Nostr.ReactionsStore as ReactionsStore
+import Nostr.RelatedRequests as RelatedRequests
 import Nostr.Relay as Relay exposing (Relay, RelayState(..), RelayUrl)
+import Nostr.RelayAccess as RelayAccess
 import Nostr.RelayList as RelayList
 import Nostr.RelayListMetadata as RelayListMetadata exposing (RelayMetadata)
 import Nostr.Reposts as Reposts
@@ -279,14 +276,16 @@ import Nostr.Zaps as Zaps exposing (ZapReceipt)
 import Nostr.ZapsQuery as ZapsQuery
 import Pareto
 import Portal
+import Ports
 import Set exposing (Set)
 import Task
 import Time exposing (Posix)
 
 
 
-
 -- Re-exports from Nostr.Model (Elm cannot expose bare imports)
+
+
 type alias Model =
     Store.Model
 
@@ -389,6 +388,7 @@ getAuthorsMuteList model =
     getMuteList model Pareto.authorsKey
         |> Maybe.withDefault []
 
+
 isMuted : Model -> Maybe PubKey -> PubKey -> Bool
 isMuted model maybeUserPubKey authorPubKey =
     let
@@ -404,7 +404,6 @@ isMuted model maybeUserPubKey authorPubKey =
                 |> Maybe.withDefault False
     in
     mutedByUser || mutedByAuthor
-
 
 
 getAuthorsPubKeys : Model -> List PubKey
@@ -697,11 +696,9 @@ applyPerformEffect effect model requestId =
             { model | picturePosts = Dict.empty }
 
 
-
 eventFiltersWithUntil : List EventFilter -> Maybe Posix -> List EventFilter
 eventFiltersWithUntil =
     Request.eventFiltersWithUntil
-
 
 
 send : Model -> Time.Posix -> SendRequest -> ( Model, Cmd Msg )
@@ -1493,8 +1490,6 @@ unreadNotificationsCount model pubKey lastSeenMillis =
     Notifications.unreadCount model pubKey (getArticlesForAuthor model pubKey) lastSeenMillis
 
 
-
-
 eventFilterForDeletionRequests : List TagReference -> Maybe EventFilter
 eventFilterForDeletionRequests =
     EventFilters.forDeletionRequests
@@ -1526,6 +1521,7 @@ paretoKnownPubKey : Nip05 -> Maybe PubKey
 paretoKnownPubKey nip05 =
     Pareto.bootstrapAuthorsList
         |> Dict.get (nip05ToString nip05)
+        |> Maybe.map .pubKey
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -1625,7 +1621,6 @@ applyIncoming effect model =
 
         Incoming.GotCashuBalance balance ->
             ( { model | cashuBalance = balance }, Cmd.none )
-
 
 
 updateModelWithEvents : Model -> Int -> Kind -> List Event -> ( Model, Cmd Msg )
@@ -1849,7 +1844,7 @@ requestRelatedKindsForArticleComments : Model -> List CommentType -> Request -> 
 requestRelatedKindsForArticleComments model comments request =
     RelatedRequests.commentFollowUps model.profiles comments
         |> (\datas -> extendRequestWith datas ( model, request ))
-        |> (\( extendedModel, extendedRequest ) -> doRequest extendedModel extendedRequest )
+        |> (\( extendedModel, extendedRequest ) -> doRequest extendedModel extendedRequest)
 
 
 updateModelWithUserServerLists : Model -> RequestId -> List Event -> ( Model, Cmd Msg )
@@ -2132,7 +2127,7 @@ requestRelatedKindsForShortNotes : Model -> List TextNote -> Request -> ( Model,
 requestRelatedKindsForShortNotes model shortNotes request =
     RelatedRequests.shortNoteFollowUps model.profiles shortNotes
         |> (\datas -> extendRequestWith datas ( model, request ))
-        |> (\( extendedModel, extendedRequest ) -> doRequest extendedModel extendedRequest )
+        |> (\( extendedModel, extendedRequest ) -> doRequest extendedModel extendedRequest)
 
 
 requestRelatedProfiles : List PubKey -> ( Model, Request ) -> ( Model, Request )

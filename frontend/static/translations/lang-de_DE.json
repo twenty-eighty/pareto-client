@@ -654,11 +654,13 @@
     },
     "search": {
         "page title": "Suchen",
-        "explanation 1": "Füge eine Nostr-ID (npub, nprofile, nevent oder naddr), Nostr-Adresse (tony@pareto.space) oder eine URL mit einer Nostr-ID ein",
-        "explanation 2": "Hashtags werden unterstützt, setze ein # vor einen Begriff, um nach Hashtags zu filtern."
+        "explanation 1": "Füge eine Nostr-ID (npub, nprofile, nevent oder naddr), Nostr-Adresse (tony@pareto.space), einen Autorennamen oder eine URL mit einer Nostr-ID ein",
+        "explanation 2": "Hashtags werden unterstützt, setze ein # vor einen Begriff, um nach Hashtags zu filtern.",
+        "authors heading": "Autoren",
+        "articles heading": "Artikel"
     },
     "search bar": {
-        "placeholder": "URL, Nostr-ID oder Nostr-Adresse"
+        "placeholder": "URL, Nostr-ID, Nostr-Adresse oder Autorenname"
     },
     "send newsletter dialog": {
         "dialog title": "Newsletter senden",
