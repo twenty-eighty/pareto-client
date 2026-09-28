@@ -654,11 +654,13 @@
     },
     "search": {
         "page title": "Поиск",
-        "explanation 1": "Добавьте Nostr ID (npub, nprofile, nevent или naddr), Nostr адрес (tony@pareto.space) или URL с Nostr ID",
-        "explanation 2": "Хештеги поддерживаются, поставьте # перед словом для фильтрации по хештегам."
+        "explanation 1": "Добавьте Nostr ID (npub, nprofile, nevent или naddr), Nostr адрес (tony@pareto.space), имя автора или URL с Nostr ID",
+        "explanation 2": "Хештеги поддерживаются, поставьте # перед словом для фильтрации по хештегам.",
+        "authors heading": "Авторы",
+        "articles heading": "Статьи"
     },
     "search bar": {
-        "placeholder": "URL, Nostr ID или Nostr адрес"
+        "placeholder": "URL, Nostr ID, Nostr адрес или имя автора"
     },
     "send newsletter dialog": {
         "dialog title": "Send Newsletter",
