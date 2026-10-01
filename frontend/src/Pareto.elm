@@ -5,7 +5,7 @@ import Locale exposing (Language(..))
 import Nostr.Event exposing (Kind(..))
 import Nostr.HandlerInformation exposing (HandlerInformation)
 import Nostr.Nip05 as Nip05
-import Nostr.Profile exposing (Profile)
+import Nostr.Profile exposing (Profile, emptyProfile)
 import Nostr.Relay as Relay exposing (RelayUrl)
 import Nostr.Types exposing (Following(..), PubKey, RelayRole(..))
 import Time
@@ -418,6 +418,27 @@ bootstrapPubKeyByNip05 =
         |> Dict.toList
         |> List.map (\( key, entry ) -> ( String.toLower key, entry.pubKey ))
         |> Dict.fromList
+
+
+bootstrapAuthorByPubKey : Dict PubKey BootstrapAuthor
+bootstrapAuthorByPubKey =
+    bootstrapAuthorsList
+        |> Dict.values
+        |> List.map (\entry -> ( entry.pubKey, entry ))
+        |> Dict.fromList
+
+
+bootstrapProfile : PubKey -> Maybe Profile
+bootstrapProfile pubKey =
+    Dict.get pubKey bootstrapAuthorByPubKey
+        |> Maybe.map
+            (\entry ->
+                let
+                    profile =
+                        emptyProfile entry.pubKey
+                in
+                { profile | displayName = Just entry.name }
+            )
 
 
 authorsFollowList : List Following

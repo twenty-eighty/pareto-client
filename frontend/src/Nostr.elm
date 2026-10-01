@@ -758,10 +758,17 @@ getAuthor model pubKey =
             getProfileValidationStatus model pubKey
                 |> Maybe.withDefault ValidationUnknown
     in
-    model.profiles
-        |> Dict.get pubKey
-        |> Maybe.map (\profile -> Nostr.Profile.AuthorProfile profile validationStatus)
-        |> Maybe.withDefault (Nostr.Profile.AuthorPubkey pubKey)
+    case Dict.get pubKey model.profiles of
+        Just profile ->
+            Nostr.Profile.AuthorProfile profile validationStatus
+
+        Nothing ->
+            case Pareto.bootstrapProfile pubKey of
+                Just profile ->
+                    Nostr.Profile.AuthorProfile profile ValidationUnknown
+
+                Nothing ->
+                    Nostr.Profile.AuthorPubkey pubKey
 
 
 getPicturePosts : Model -> List PicturePost
