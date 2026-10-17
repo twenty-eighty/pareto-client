@@ -1624,7 +1624,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         locale: value?.locale,
         test: value?.test === true,
       });
-      if (!built.ok) {
+      if (built.ok === false) {
         report({ error: built.message });
         return;
       }
@@ -1637,7 +1637,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         kid,
         requestId,
       });
-      if (result.ok) {
+      if (result.ok === true) {
         report({ jobId: result.jobId, status: result.status });
       } else {
         report({ error: result.message });
