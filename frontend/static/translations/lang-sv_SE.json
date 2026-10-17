@@ -471,8 +471,10 @@
         "email label": "E-post",
         "email placeholder": "anna@exempel.se",
         "privacy info": "E-postadressen lagras av författaren, inte Pareto-projektet",
-        "sending message text": "Skickar opt-in...",
-        "sent message text": "Skickade opt-in, du kommer att få ett bekräftelsemail snart.",
+        "sending message text": "Skickar bekräftelse...",
+        "sent message text": "Bekräftelsen är skickad. Kolla din inkorg.",
+        "queued message text": "Din förfrågan ligger i kö. Du bör få ett bekräftelsemail inom kort.",
+        "rejected message text": "Ingen bekräftelse skickades. Adressen kan vara ogiltig, blockerad, eller så begärdes en bekräftelse nyligen.",
         "error message text": "Fel vid prenumeration på lista: {{error}}. Kontakta oss på support@pareto.space"
     },
     "hashtag editor": {

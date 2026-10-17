@@ -167,6 +167,7 @@ type alias Model =
     { categories : Categories.Model PageCategory
     , confirmDialog : ConfirmDialog.Model String
     , contactDatabase : ContactDatabase.Model
+    , clean : CleanState
     , csvExport : CsvExportState
     , csvImport : ContactCsvImportDialog.Model
     , cursorRequestId : RequestId
@@ -203,6 +204,25 @@ type CsvExportState
     = ExportIdle
     | Exporting Int
     | ExportFinished Int (Maybe String)
+
+
+type alias CleanStats =
+    { checked : Int
+    , updated : Int
+    , undeliverable : Int
+    }
+
+
+type CleanOutcome
+    = CleanSucceeded
+    | CleanCancelled
+    | CleanFailed String
+
+
+type CleanState
+    = CleanIdle
+    | Cleaning CleanStats
+    | CleanFinished CleanStats CleanOutcome
 
 
 type FileState
@@ -252,6 +272,7 @@ init user shared route () =
     ( { categories = Categories.init { selected = pageCategory }
       , confirmDialog = ConfirmDialog.init
       , contactDatabase = contactDatabase
+      , clean = CleanIdle
       , csvExport = ExportIdle
       , csvImport = ContactCsvImportDialog.init
       , cursorRequestId = requestId + 2
@@ -304,6 +325,8 @@ type Msg
     | AddContactClicked
     | ImportCsvClicked
     | ExportCsvClicked
+    | CleanContactsClicked
+    | CancelCleanClicked
     | CsvImportSent ContactCsvImportDialog.Msg
     | NewTableState Table.State
     | ReceivedMessage IncomingMessage
@@ -400,6 +423,18 @@ update user shared msg model =
             ( { model | csvExport = Exporting 0 }
             , Ports.exportContactsCsv |> Effect.sendCmd
             )
+
+        CleanContactsClicked ->
+            if isCleaning model.clean || not model.contactDatabase.authenticated then
+                ( model, Effect.none )
+
+            else
+                ( { model | clean = Cleaning { checked = 0, updated = 0, undeliverable = 0 } }
+                , Ports.cleanContacts user.pubKey |> Effect.sendCmd
+                )
+
+        CancelCleanClicked ->
+            ( model, Ports.cancelCleanContacts |> Effect.sendCmd )
 
         CsvImportSent innerMsg ->
             ContactCsvImportDialog.update
@@ -983,6 +1018,47 @@ updateWithMessage user shared model message =
                 Err _ ->
                     ( model, Effect.none )
 
+        "contactCleanProgress" ->
+            case Decode.decodeValue cleanProgressDecoder message.value of
+                Ok progress ->
+                    let
+                        stats =
+                            { checked = progress.checked
+                            , updated = progress.updated
+                            , undeliverable = progress.undeliverable
+                            }
+
+                        outcome =
+                            if progress.cancelled then
+                                CleanCancelled
+
+                            else
+                                case progress.error of
+                                    Just error ->
+                                        CleanFailed error
+
+                                    Nothing ->
+                                        CleanSucceeded
+
+                        next =
+                            { model
+                                | clean =
+                                    if progress.done then
+                                        CleanFinished stats outcome
+
+                                    else
+                                        Cleaning stats
+                            }
+                    in
+                    if progress.done then
+                        goToPage (Table.getCurrentPage model.subscriberTable) next
+
+                    else
+                        ( next, Effect.none )
+
+                Err _ ->
+                    ( model, Effect.none )
+
         "contactCsvExportProgress" ->
             case Decode.decodeValue exportProgressDecoder message.value of
                 Ok progress ->
@@ -1002,6 +1078,26 @@ updateWithMessage user shared model message =
 
         _ ->
             ( model, Effect.none )
+
+
+cleanProgressDecoder : Decode.Decoder { checked : Int, updated : Int, undeliverable : Int, done : Bool, error : Maybe String, cancelled : Bool }
+cleanProgressDecoder =
+    Decode.map6
+        (\checked updated undeliverable done error cancelled ->
+            { checked = checked
+            , updated = updated
+            , undeliverable = undeliverable
+            , done = done
+            , error = error
+            , cancelled = cancelled
+            }
+        )
+        (Decode.field "checked" Decode.int)
+        (Decode.field "updated" Decode.int)
+        (Decode.field "undeliverable" Decode.int)
+        (Decode.field "done" Decode.bool)
+        (Decode.maybe (Decode.field "error" Decode.string))
+        (Decode.oneOf [ Decode.field "cancelled" Decode.bool, Decode.succeed False ])
 
 
 exportProgressDecoder : Decode.Decoder { exported : Int, done : Bool, error : Maybe String }
@@ -1175,6 +1271,16 @@ viewTagsPage shared model =
         ]
 
 
+isCleaning : CleanState -> Bool
+isCleaning state =
+    case state of
+        Cleaning _ ->
+            True
+
+        _ ->
+            False
+
+
 isExporting : CsvExportState -> Bool
 isExporting state =
     case state of
@@ -1211,6 +1317,76 @@ viewCsvExportStatus shared state =
 
         Just status ->
             p [] [ text status ]
+
+
+viewCleanStatus : Shared.Model -> CleanState -> Html Msg
+viewCleanStatus shared state =
+    let
+        translations =
+            shared.browserEnv.translations
+
+        statsText stats =
+            Translations.cleaningContactsText
+                [ translations ]
+                { checked = String.fromInt stats.checked
+                , updated = String.fromInt stats.updated
+                , undeliverable = String.fromInt stats.undeliverable
+                }
+    in
+    case state of
+        CleanIdle ->
+            text ""
+
+        Cleaning stats ->
+            div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_row
+                    , Tw.flex_wrap
+                    , Tw.gap_2
+                    , Tw.items_center
+                    ]
+                ]
+                [ text (statsText stats)
+                , Loaders.rings [] |> Html.fromUnstyled
+                , Button.new
+                    { label = Translations.cancelCleanButtonTitle [ translations ]
+                    , onClick = Just CancelCleanClicked
+                    , theme = shared.theme
+                    }
+                    |> Button.withTypeSecondary
+                    |> Button.view
+                ]
+
+        CleanFinished stats CleanSucceeded ->
+            p []
+                [ text <|
+                    Translations.cleanContactsDoneText
+                        [ translations ]
+                        { checked = String.fromInt stats.checked
+                        , updated = String.fromInt stats.updated
+                        , undeliverable = String.fromInt stats.undeliverable
+                        }
+                ]
+
+        CleanFinished stats CleanCancelled ->
+            p []
+                [ text <|
+                    Translations.cleanContactsCancelledText
+                        [ translations ]
+                        { checked = String.fromInt stats.checked }
+                ]
+
+        CleanFinished stats (CleanFailed error) ->
+            div []
+                [ p []
+                    [ text <| Translations.cleanContactsErrorText [ translations ] { error = error } ]
+                , if stats.checked > 0 then
+                    p [] [ text (statsText stats) ]
+
+                  else
+                    text ""
+                ]
 
 
 viewTagRow : Theme -> BrowserEnv -> String -> Html Msg
@@ -1331,6 +1507,14 @@ viewPage shared model =
                 |> Button.withTypeSecondary
                 |> Button.withDisabled (databaseCount < 1 || isExporting model.csvExport)
                 |> Button.view
+            , Button.new
+                { label = Translations.cleanContactsButtonTitle [ shared.browserEnv.translations ]
+                , onClick = Just CleanContactsClicked
+                , theme = shared.theme
+                }
+                |> Button.withTypeSecondary
+                |> Button.withDisabled (databaseCount < 1 || not model.contactDatabase.authenticated || isCleaning model.clean)
+                |> Button.view
             , div
                 [ css
                     [ Tw.flex
@@ -1349,6 +1533,7 @@ viewPage shared model =
                 ]
             ]
         , viewCsvExportStatus shared model.csvExport
+        , viewCleanStatus shared model.clean
         , viewMigration shared.browserEnv model
         , if model.recipientSource == SubscriberFile then
             viewFileState shared.browserEnv model
@@ -1969,6 +2154,11 @@ subscribersTableConfig browserEnv sortColumn sortReversed =
               , viewData = \subscriber -> Unstyled.text (subscriber.source |> Maybe.withDefault "")
               , sortable = False
               }
+            , { id = "mail"
+              , name = Translations.mailColumn [ browserEnv.translations ]
+              , viewData = deliverabilityMark browserEnv
+              , sortable = False
+              }
             , { id = fieldName FieldDnd
               , name = translatedFieldName browserEnv.translations FieldDnd
               , viewData = dndMark
@@ -2079,19 +2269,119 @@ dndMark : Subscriber -> Unstyled.Html msg
 dndMark subscriber =
     case subscriber.dnd of
         Just True ->
-            statusIcon "#dc2626" FeatherIcons.checkCircle
+            statusIcon "#dc2626" Nothing FeatherIcons.checkCircle
 
         _ ->
-            statusIcon "#16a34a" FeatherIcons.xCircle
+            statusIcon "#16a34a" Nothing FeatherIcons.xCircle
 
 
-statusIcon : String -> FeatherIcons.Icon -> Unstyled.Html msg
-statusIcon color icon =
+deliverabilityMark : BrowserEnv -> Subscriber -> Unstyled.Html msg
+deliverabilityMark browserEnv subscriber =
+    let
+        translations =
+            browserEnv.translations
+
+        date =
+            subscriber.verifiedAt
+                |> Maybe.map (BrowserEnv.formatDate browserEnv)
+
+        tooltip =
+            deliverabilityTooltip translations date subscriber
+    in
+    case tooltip of
+        Nothing ->
+            Unstyled.text ""
+
+        Just title ->
+            if subscriber.undeliverable == Just "true" then
+                statusIcon "#dc2626" (Just title) FeatherIcons.alertCircle
+
+            else
+                case subscriber.reason of
+                    Just "blocked" ->
+                        statusIcon "#d97706" (Just title) FeatherIcons.slash
+
+                    Just "unsubscribed" ->
+                        statusIcon "#d97706" (Just title) FeatherIcons.slash
+
+                    Just _ ->
+                        statusIcon "#9ca3af" (Just title) FeatherIcons.check
+
+                    Nothing ->
+                        statusIcon "#9ca3af" (Just title) FeatherIcons.check
+
+
+deliverabilityTooltip : I18Next.Translations -> Maybe String -> Subscriber -> Maybe String
+deliverabilityTooltip translations date subscriber =
+    let
+        dated =
+            case date of
+                Just value ->
+                    [ value ]
+
+                Nothing ->
+                    []
+
+        withReason reason =
+            case reason of
+                Just value ->
+                    if String.trim value == "" then
+                        []
+
+                    else
+                        [ value ]
+
+                Nothing ->
+                    []
+    in
+    if subscriber.undeliverable == Just "true" then
+        Just <|
+            String.join " · "
+                ([ Translations.undeliverableStatus [ translations ] ]
+                    ++ withReason subscriber.reason
+                    ++ dated
+                )
+
+    else
+        case ( subscriber.reason, subscriber.verifiedAt ) of
+            ( Just "blocked", _ ) ->
+                Just <| String.join " · " (Translations.blockedStatus [ translations ] :: dated)
+
+            ( Just "unsubscribed", _ ) ->
+                Just <| String.join " · " (Translations.unsubscribedStatus [ translations ] :: dated)
+
+            ( Just reason, Just _ ) ->
+                Just <|
+                    String.join " · "
+                        (Translations.uncertainStatus [ translations ] :: reason :: dated)
+
+            ( Nothing, Just _ ) ->
+                case date of
+                    Just value ->
+                        Just <| Translations.checkedStatus [ translations ] { date = value }
+
+                    Nothing ->
+                        Nothing
+
+            _ ->
+                Nothing
+
+
+statusIcon : String -> Maybe String -> FeatherIcons.Icon -> Unstyled.Html msg
+statusIcon color title icon =
     Unstyled.span
-        [ UnstyledAttr.style "display" "inline-flex"
-        , UnstyledAttr.style "color" color
-        , UnstyledAttr.style "vertical-align" "middle"
-        ]
+        ([ UnstyledAttr.style "display" "inline-flex"
+         , UnstyledAttr.style "color" color
+         , UnstyledAttr.style "vertical-align" "middle"
+         ]
+            ++ (case title of
+                    Just text ->
+                        [ UnstyledAttr.title text ]
+
+                    Nothing ->
+                        []
+               )
+        )
         [ icon
             |> FeatherIcons.withSize 16
             |> FeatherIcons.withStrokeWidth 2

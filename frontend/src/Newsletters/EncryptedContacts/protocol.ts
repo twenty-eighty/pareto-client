@@ -33,6 +33,11 @@ export function tagHashInput(salt: string, tag: string): string {
   return `${salt}:tag:${tag.toLowerCase()}`;
 }
 
+export function isUndeliverableContact(contact: object): boolean {
+  const value = (contact as { undeliverable?: unknown }).undeliverable;
+  return value === true || value === "true" || value === 1 || value === "1";
+}
+
 export function isActiveContact(contact: {
   email?: unknown;
   Email?: unknown;
@@ -40,10 +45,12 @@ export function isActiveContact(contact: {
   dnd?: unknown;
   dateUnsubscription?: unknown;
   dateunsub?: unknown;
+  undeliverable?: unknown;
 }): boolean {
   const email = String(contact.email || contact.Email || contact.emailAddress || "").trim();
   if (!email) return false;
   if (contact.dnd === true || contact.dnd === "true" || contact.dnd === 1) return false;
+  if (isUndeliverableContact(contact)) return false;
 
   const unsubscribed = contact.dateUnsubscription ?? contact.dateunsub;
   if (

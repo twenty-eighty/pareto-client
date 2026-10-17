@@ -152,25 +152,26 @@ export class EncryptedContacts {
 
   async updateContact(
     id: string,
-    contact: ContactInput,
+    contact: StoredContact,
   ): Promise<{ contact: DecryptedContact; tagErrors: string[] }> {
     await this.ensureAuthenticated();
     if (!id) throw new Error("Contact id is required");
     const email = requiredEmail(contact.email);
-    const tagErrors = await this.ensureTags(contact.tags);
+    const input = contactInputForStore(contact, email);
+    const tagErrors = await this.ensureTags(input.tags);
     const ready = await this.indexIsReady();
     const previousContact = ready ? await this.getContact(id) : null;
     const previous = previousContact ? contactIndexKeys(previousContact) : null;
-    const updated = await this.api.update(id, await this.prepareContact({ ...contact, email }));
+    const updated = await this.api.update(id, await this.prepareContact(input));
     if (previous) {
-      await this.touchIndex(updated.contact.id, contactIndexKeys({ ...contact, email }), previous);
+      await this.touchIndex(updated.contact.id, contactIndexKeys(input), previous);
     }
     return {
       contact: {
-        ...contactWithoutTags({ ...contact, email }),
+        ...contactWithoutTags(input),
         id: updated.contact.id,
-        tags: [...(contact.tags || [])],
-        active: isActiveContact({ ...contact, email }),
+        tags: [...(input.tags || [])],
+        active: isActiveContact(input),
       },
       tagErrors,
     };
@@ -506,10 +507,35 @@ async function hashNames(
   return Promise.all(tags.map((tag) => hash(tag)));
 }
 
+/** A decrypted contact record. Cleaning writes one of these, including its id. */
+type StoredContact = {
+  email?: unknown;
+  [extra: string]: unknown;
+};
+
 function requiredEmail(email: unknown): string {
   const value = String(email || "").trim();
   if (!value) throw new Error("Email is required");
   return value;
+}
+
+/**
+ * Copy a stored contact into the encrypted-record shape.
+ * Keys stay in their original order so the encrypted JSON does not change
+ * just because the email string was normalized.
+ */
+function contactInputForStore(contact: StoredContact, email: string): ContactInput {
+  const input: ContactInput = { email };
+  const keys = Object.keys(contact);
+  for (const key of Object.keys(input)) delete input[key];
+  for (const key of keys) input[key] = key === "email" ? email : contact[key];
+  if (!Object.prototype.hasOwnProperty.call(input, "email")) input.email = email;
+  if (Array.isArray(input.tags)) {
+    input.tags = input.tags.filter((tag): tag is string => typeof tag === "string");
+  } else {
+    delete input.tags;
+  }
+  return input;
 }
 
 class ApiSortStore implements SortIndexStore {

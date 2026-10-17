@@ -2,6 +2,7 @@ module Components.ModalDialog exposing
     ( ModalDialog, new
     , view
     , withFixedWidth
+    , escapeAttributes, initialFocus
     )
 
 {-|
@@ -17,12 +18,18 @@ module Components.ModalDialog exposing
 
 @docs withFixedWidth
 
+
+## Other dialogs
+
+@docs escapeAttributes, initialFocus
+
 -}
 
 import Css
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes as Attr exposing (css)
 import Html.Styled.Events as Events
+import Json.Decode as Decode
 import Tailwind.Breakpoints as Bp
 import Tailwind.Utilities as Tw
 import Ui.Styles exposing (Theme(..), darkMode, stylesForTheme)
@@ -64,6 +71,49 @@ withFixedWidth (Settings settings) =
     Settings { settings | panelStyles = [ Tw.w_96 ] }
 
 
+{-| Overlay attributes that send `onClose` when the user presses Escape.
+
+Put these on the outermost dialog element. Key presses inside the dialog bubble to it.
+
+-}
+escapeAttributes : msg -> List (Attribute msg)
+escapeAttributes onClose =
+    [ Events.preventDefaultOn "keydown"
+        (Decode.field "key" Decode.string
+            |> Decode.andThen
+                (\key ->
+                    if key == "Escape" then
+                        Decode.succeed ( onClose, True )
+
+                    else
+                        Decode.fail "not Escape"
+                )
+        )
+    , Attr.tabindex -1
+    ]
+
+
+{-| Focus target for a dialog that does not already autofocus one of its fields.
+
+Place it after the dialog content. An earlier `autofocus` field keeps focus, and Escape still bubbles to the overlay.
+
+-}
+initialFocus : Html msg
+initialFocus =
+    div
+        [ Attr.tabindex -1
+        , Attr.autofocus True
+        , css
+            [ Css.position Css.absolute
+            , Css.width (Css.px 1)
+            , Css.height (Css.px 1)
+            , Css.overflow Css.hidden
+            , Tw.opacity_0
+            ]
+        ]
+        []
+
+
 
 -- VIEW
 
@@ -75,16 +125,18 @@ view (Settings settings) =
             stylesForTheme settings.theme
     in
     div
-        (css
-            [ Tw.fixed
-            , Tw.inset_0
-            , Tw.bg_opacity_50
-            , Tw.flex
-            , Tw.justify_center
-            , Tw.items_center
-            , Tw.z_30
-            ]
-            :: styles.colorStyleBackground
+        (escapeAttributes settings.onClose
+            ++ (css
+                    [ Tw.fixed
+                    , Tw.inset_0
+                    , Tw.bg_opacity_50
+                    , Tw.flex
+                    , Tw.justify_center
+                    , Tw.items_center
+                    , Tw.z_30
+                    ]
+                    :: styles.colorStyleBackground
+               )
         )
         [ div
             (styles.colorStyleBackground
@@ -178,4 +230,5 @@ view (Settings settings) =
                 ]
                 settings.buttons
             ]
+        , initialFocus
         ]

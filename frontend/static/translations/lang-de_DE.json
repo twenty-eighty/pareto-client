@@ -471,8 +471,10 @@
         "email label": "E-Mail",
         "email placeholder": "max@mustermann.de",
         "privacy info": "Die E-Mail wird vom Autor gespeichert, nicht durch das Pareto-Projekt",
-        "sending message text": "Sende Anmeldung ...",
-        "sent message text": "Du bist jetzt eingetragen und bekommst eine E-Mail zum Bestätigen.",
+        "sending message text": "Bestätigung wird gesendet …",
+        "sent message text": "Bestätigung gesendet. Bitte sieh in dein Postfach.",
+        "queued message text": "Die Anmeldung ist in der Warteschlange. Du solltest in Kürze eine Bestätigungs-E-Mail erhalten.",
+        "rejected message text": "Es wurde keine Bestätigung gesendet. Die Adresse ist vielleicht unzustellbar oder blockiert, oder eine Bestätigung wurde kürzlich schon angefordert.",
         "error message text": "Fehler beim Registrieren: {{error}}. Bitte kontaktiere uns unter support@pareto.space"
     },
     "hashtag editor": {

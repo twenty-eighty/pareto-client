@@ -1,8 +1,10 @@
 import "./Milkdown/MilkdownEditor";
 import { EncryptedContacts, contactsApiBaseUrl, signerFromNdk } from "./Newsletters/EncryptedContacts";
 import { exportContactCsvFile, importContactCsvFile, readCsvPreview, type CsvMapping } from "./Newsletters/contactCsv";
+import { classifyEmails, cleanContactList, deliverabilityApiBaseUrl } from "./Newsletters/cleanContacts";
 import { parseSubscriptionChanges, syncSubscriptionEvents as applySubscriptionEvents } from "./Newsletters/subscriptionEvents";
 import { createNewsletterSender, isNewsletterSendCancelled } from "./Newsletters/Send";
+import { COURIER_PUBKEY, buildOptInPayload, submitOptIn } from "./Newsletters/optIn";
 
 import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import NDKCacheAdapterDexie from "@nostr-dev-kit/cache-dexie";
@@ -166,6 +168,8 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   let pendingContactCsv: File | null = null;
   let contactCsvImportCancelled = false;
   let contactCsvExportCancelled = false;
+  let contactCleanCancelled = false;
+  let contactCleanRunning = false;
 
   // the backend may inject a <script> element containing
   // raw Nostr events required by the page to be loaded
@@ -191,6 +195,11 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   app.ports.sendCommand.subscribe(({ command: command, value: value }) => {
     if (command === 'reloadWindow') {
       reloadForNewVersion();
+      return;
+    }
+    if (command === 'sendOptIn') {
+      // Opt-in posts ciphertext to the queue. It does not wait for a relay.
+      sendOptIn(app, value);
       return;
     }
     try {
@@ -473,6 +482,14 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
       case 'cancelContactCsvExport':
         contactCsvExportCancelled = true;
+        break;
+
+      case 'cleanContacts':
+        cleanContacts(app, value);
+        break;
+
+      case 'cancelCleanContacts':
+        contactCleanCancelled = true;
         break;
 
       case 'getNewsletterRecipientCount':
@@ -1338,6 +1355,55 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     });
   }
 
+  function signDeliverabilityRequest(request: { url: string; method: "POST"; payloadSha256: string }): Promise<string> {
+    if (!window.ndk) {
+      return Promise.reject(new Error("Not signed in"));
+    }
+    const event = new NDKEvent(window.ndk, {
+      kind: NDKKind.HttpAuth,
+      content: "",
+      tags: [
+        ["u", request.url],
+        ["method", request.method],
+        ["payload", request.payloadSha256],
+      ],
+    });
+    return event.sign().then(() => `Nostr ${btoa(JSON.stringify(event.rawEvent()))}`);
+  }
+
+  function cleanContacts(app, { pubkey }) {
+    if (contactCleanRunning) return;
+    contactCleanCancelled = false;
+    contactCleanRunning = true;
+    const author = String(pubkey || contactsPubkey || "");
+    withContacts().then((api) => cleanContactList({
+      api,
+      classify: (emails) => classifyEmails({
+        baseUrl: deliverabilityApiBaseUrl(),
+        pubkey: author,
+        emails,
+        sign: signDeliverabilityRequest,
+      }),
+      isCancelled: () => contactCleanCancelled,
+      onProgress: (progress) => {
+        app.ports.receiveMessage.send({ messageType: "contactCleanProgress", value: progress });
+      },
+    })).catch((error) => {
+      app.ports.receiveMessage.send({
+        messageType: "contactCleanProgress",
+        value: {
+          checked: 0,
+          updated: 0,
+          undeliverable: 0,
+          done: true,
+          error: error?.message || "Failed to clean contacts",
+        },
+      });
+    }).finally(() => {
+      contactCleanRunning = false;
+    });
+  }
+
   async function exportContactsCsv(app) {
     contactCsvExportCancelled = false;
     const filename = `contacts-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -1537,6 +1603,63 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         newsletterSendAbort = null;
       }
     });
+  }
+
+  async function sendOptIn(app, value) {
+    const requestId = typeof value?.requestId === "string" ? value.requestId : "";
+    const report = (payload: Record<string, unknown>) => {
+      app.ports.receiveMessage.send({
+        messageType: "optInResult",
+        value: { requestId, ...payload },
+      });
+    };
+
+    try {
+      const built = buildOptInPayload({
+        email: value?.email,
+        author: value?.author,
+        firstName: value?.firstName,
+        lastName: value?.lastName,
+        pubkey: value?.pubkey,
+        locale: value?.locale,
+        test: value?.test === true,
+      });
+      if (!built.ok) {
+        report({ error: built.message });
+        return;
+      }
+
+      const { signer, kid } = await optInSigner(value?.signingPubKey);
+      const ciphertext = await signer.encrypt({ pubkey: COURIER_PUBKEY }, JSON.stringify(built.payload), "nip44");
+      const result = await submitOptIn({
+        payload: built.payload,
+        ciphertext: ciphertext || "",
+        kid,
+        requestId,
+      });
+      if (result.ok) {
+        report({ jobId: result.jobId, status: result.status });
+      } else {
+        report({ error: result.message });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to send the subscription";
+      report({ error: message });
+    }
+  }
+
+  async function optInSigner(signingPubKey: unknown): Promise<{ signer: any; kid: string }> {
+    if (typeof signingPubKey === "string" && signingPubKey && window.ndk?.signer) {
+      try {
+        const user = await window.ndk.signer.user();
+        if (user?.pubkey) {
+          return { signer: window.ndk.signer, kid: user.pubkey };
+        }
+      } catch {
+        // A missing signer still has to encrypt, so the anonymous key is used.
+      }
+    }
+    return { signer: anonymousSigner, kid: anonymousPubKey };
   }
 
   function sendNewsletterTest(app, { email: email, author: author, newsletterData: newsletterData }) {
@@ -2357,6 +2480,11 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     const stringifiedEvent = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
     if (stringifiedEvent) {
       const event = JSON.parse(stringifiedEvent);
+      // NIP-37 inner drafts are unsigned, so they have no id. The published
+      // identity is the wrap; keep a legacy inner id when one is already present.
+      if (!event.id && typeof ndkEvent.id === "string" && ndkEvent.id.length > 0) {
+        event.id = ndkEvent.id;
+      }
       // Carry relay hints from the wrap so draft delete can target them.
       if (ndkEvent.onRelays && Array.isArray(ndkEvent.onRelays)) {
         event.onRelays = ndkEvent.onRelays;

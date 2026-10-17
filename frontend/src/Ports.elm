@@ -2,12 +2,12 @@ port module Ports exposing (..)
 
 import Dict
 import Json.Encode as Encode
+import Newsletters.Types exposing (Subscriber, encodeSubscriber, encodeSubscribers)
 import Nostr.Event exposing (Event, EventFilter, Kind(..), TagReference(..), buildAddress, encodeEvent, encodeEventFilter)
 import Nostr.Relay as Relay exposing (RelayUrl)
 import Nostr.Request exposing (HttpRequestMethod(..), RequestId)
 import Nostr.Send exposing (SendRequestId)
 import Nostr.Types exposing (IncomingMessage, OutgoingCommand, PubKey)
-import Newsletters.Types exposing (Subscriber, encodeSubscribers, encodeSubscriber)
 import Pareto
 
 
@@ -575,16 +575,20 @@ downloadAndDecryptFile url keyHex ivHex =
                 ]
         }
 
+
+
 -- CONTACTS
+
 
 initContactDatabase : String -> PubKey -> Cmd msg
 initContactDatabase url pubkey =
     sendCommand
         { command = "initContactDatabase"
-        , value = Encode.object
-            [ ( "url", Encode.string url )
-            , ( "pubkey", Encode.string pubkey )
-            ]
+        , value =
+            Encode.object
+                [ ( "url", Encode.string url )
+                , ( "pubkey", Encode.string pubkey )
+                ]
         }
 
 
@@ -635,9 +639,10 @@ storeContacts : List Subscriber -> Cmd msg
 storeContacts subscribers =
     sendCommand
         { command = "storeContacts"
-        , value = Encode.object
-            [ ( "subscribers", encodeSubscribers subscribers )
-            ]
+        , value =
+            Encode.object
+                [ ( "subscribers", encodeSubscribers subscribers )
+                ]
         }
 
 
@@ -645,10 +650,11 @@ addContact : Subscriber -> Cmd msg
 addContact subscriber =
     sendCommand
         { command = "storeContacts"
-        , value = Encode.object
-            [ ( "subscribers", encodeSubscribers [ subscriber ] )
-            , ( "single", Encode.bool True )
-            ]
+        , value =
+            Encode.object
+                [ ( "subscribers", encodeSubscribers [ subscriber ] )
+                , ( "single", Encode.bool True )
+                ]
         }
 
 
@@ -656,10 +662,11 @@ updateContact : String -> Subscriber -> Cmd msg
 updateContact contactId subscriber =
     sendCommand
         { command = "updateContact"
-        , value = Encode.object
-            [ ( "id", Encode.string contactId )
-            , ( "subscriber", Encode.object (encodeSubscriber subscriber) )
-            ]
+        , value =
+            Encode.object
+                [ ( "id", Encode.string contactId )
+                , ( "subscriber", Encode.object (encodeSubscriber subscriber) )
+                ]
         }
 
 
@@ -679,9 +686,10 @@ loadContactTags : PubKey -> Cmd msg
 loadContactTags pubkey =
     sendCommand
         { command = "loadContactTags"
-        , value = Encode.object
-            [ ( "pubkey", Encode.string pubkey )
-            ]
+        , value =
+            Encode.object
+                [ ( "pubkey", Encode.string pubkey )
+                ]
         }
 
 
@@ -689,9 +697,10 @@ addContactTag : String -> Cmd msg
 addContactTag tag =
     sendCommand
         { command = "addContactTag"
-        , value = Encode.object
-            [ ( "tag", Encode.string tag )
-            ]
+        , value =
+            Encode.object
+                [ ( "tag", Encode.string tag )
+                ]
         }
 
 
@@ -699,9 +708,10 @@ deleteContactTag : String -> Cmd msg
 deleteContactTag tag =
     sendCommand
         { command = "deleteContactTag"
-        , value = Encode.object
-            [ ( "tag", Encode.string tag )
-            ]
+        , value =
+            Encode.object
+                [ ( "tag", Encode.string tag )
+                ]
         }
 
 
@@ -717,21 +727,22 @@ startContactCsvImport : Int -> List ( Int, String ) -> Bool -> List String -> Cm
 startContactCsvImport skipRows mapping overwrite tags =
     sendCommand
         { command = "startContactCsvImport"
-        , value = Encode.object
-            [ ( "skipRows", Encode.int skipRows )
-            , ( "mapping"
-              , Encode.list
-                    (\( index, field ) ->
-                        Encode.object
-                            [ ( "index", Encode.int index )
-                            , ( "field", Encode.string field )
-                            ]
-                    )
-                    mapping
-              )
-            , ( "overwrite", Encode.bool overwrite )
-            , ( "tags", Encode.list Encode.string tags )
-            ]
+        , value =
+            Encode.object
+                [ ( "skipRows", Encode.int skipRows )
+                , ( "mapping"
+                  , Encode.list
+                        (\( index, field ) ->
+                            Encode.object
+                                [ ( "index", Encode.int index )
+                                , ( "field", Encode.string field )
+                                ]
+                        )
+                        mapping
+                  )
+                , ( "overwrite", Encode.bool overwrite )
+                , ( "tags", Encode.list Encode.string tags )
+                ]
         }
 
 
@@ -759,7 +770,25 @@ cancelContactCsvExport =
         }
 
 
+cleanContacts : PubKey -> Cmd msg
+cleanContacts pubkey =
+    sendCommand
+        { command = "cleanContacts"
+        , value = Encode.object [ ( "pubkey", Encode.string pubkey ) ]
+        }
+
+
+cancelCleanContacts : Cmd msg
+cancelCleanContacts =
+    sendCommand
+        { command = "cancelCleanContacts"
+        , value = Encode.object []
+        }
+
+
+
 -- NEWSLETTERS
+
 
 type alias NewsletterData =
     { author : PubKey
@@ -787,28 +816,61 @@ sendNewsletter : NewsletterData -> Maybe { url : String, keyHex : String, ivHex 
 sendNewsletter newsletterData maybeBlob recipientSource maybeFilter =
     sendCommand
         { command = "sendNewsletter"
-        , value = Encode.object
-            [ ( "author", Encode.string newsletterData.author )
-            , ( "newsletterData", encodeNewsletterData newsletterData )
-            , ( "recipientSource", Encode.string recipientSource )
-            , ( "filter", maybeFilter |> Maybe.withDefault Encode.null )
-            , ( "subscriberBlob"
-              , maybeBlob
-                    |> Maybe.map encodeSubscriberBlob
-                    |> Maybe.withDefault Encode.null
-              )
-            ]
+        , value =
+            Encode.object
+                [ ( "author", Encode.string newsletterData.author )
+                , ( "newsletterData", encodeNewsletterData newsletterData )
+                , ( "recipientSource", Encode.string recipientSource )
+                , ( "filter", maybeFilter |> Maybe.withDefault Encode.null )
+                , ( "subscriberBlob"
+                  , maybeBlob
+                        |> Maybe.map encodeSubscriberBlob
+                        |> Maybe.withDefault Encode.null
+                  )
+                ]
         }
+
+
+sendOptIn :
+    { requestId : String
+    , author : String
+    , email : String
+    , firstName : Maybe String
+    , lastName : Maybe String
+    , pubKey : Maybe String
+    , locale : Maybe String
+    , signingPubKey : Maybe String
+    , test : Bool
+    }
+    -> Cmd msg
+sendOptIn info =
+    sendCommand
+        { command = "sendOptIn"
+        , value =
+            Encode.object
+                [ ( "requestId", Encode.string info.requestId )
+                , ( "author", Encode.string info.author )
+                , ( "email", Encode.string info.email )
+                , ( "firstName", info.firstName |> Maybe.map Encode.string |> Maybe.withDefault Encode.null )
+                , ( "lastName", info.lastName |> Maybe.map Encode.string |> Maybe.withDefault Encode.null )
+                , ( "pubkey", info.pubKey |> Maybe.map Encode.string |> Maybe.withDefault Encode.null )
+                , ( "locale", info.locale |> Maybe.map Encode.string |> Maybe.withDefault Encode.null )
+                , ( "signingPubKey", info.signingPubKey |> Maybe.map Encode.string |> Maybe.withDefault Encode.null )
+                , ( "test", Encode.bool info.test )
+                ]
+        }
+
 
 sendNewsletterTest : String -> NewsletterData -> Cmd msg
 sendNewsletterTest email newsletterData =
     sendCommand
         { command = "sendNewsletterTest"
-        , value = Encode.object
-            [ ( "email", Encode.string email )
-            , ( "author", Encode.string newsletterData.author )
-            , ( "newsletterData", encodeNewsletterData newsletterData )
-            ]
+        , value =
+            Encode.object
+                [ ( "email", Encode.string email )
+                , ( "author", Encode.string newsletterData.author )
+                , ( "newsletterData", encodeNewsletterData newsletterData )
+                ]
         }
 
 
@@ -816,10 +878,11 @@ getNewsletterStatus : String -> String -> Cmd msg
 getNewsletterStatus author identifier =
     sendCommand
         { command = "getNewsletterStatus"
-        , value = Encode.object
-            [ ( "author", Encode.string author )
-            , ( "identifier", Encode.string identifier )
-            ]
+        , value =
+            Encode.object
+                [ ( "author", Encode.string author )
+                , ( "identifier", Encode.string identifier )
+                ]
         }
 
 
@@ -827,18 +890,20 @@ getNewsletterRecipientCount : String -> Maybe { url : String, keyHex : String, i
 getNewsletterRecipientCount author maybeBlob recipientSource requestId maybeFilter =
     sendCommand
         { command = "getNewsletterRecipientCount"
-        , value = Encode.object
-            [ ( "author", Encode.string author )
-            , ( "recipientSource", Encode.string recipientSource )
-            , ( "requestId", Encode.int requestId )
-            , ( "filter", maybeFilter |> Maybe.withDefault Encode.null )
-            , ( "subscriberBlob"
-              , maybeBlob
-                    |> Maybe.map encodeSubscriberBlob
-                    |> Maybe.withDefault Encode.null
-              )
-            ]
+        , value =
+            Encode.object
+                [ ( "author", Encode.string author )
+                , ( "recipientSource", Encode.string recipientSource )
+                , ( "requestId", Encode.int requestId )
+                , ( "filter", maybeFilter |> Maybe.withDefault Encode.null )
+                , ( "subscriberBlob"
+                  , maybeBlob
+                        |> Maybe.map encodeSubscriberBlob
+                        |> Maybe.withDefault Encode.null
+                  )
+                ]
         }
+
 
 encodeSubscriberBlob : { url : String, keyHex : String, ivHex : String } -> Encode.Value
 encodeSubscriberBlob blob =
@@ -852,6 +917,7 @@ encodeSubscriberBlob blob =
 reloadWindow : Cmd msg
 reloadWindow =
     sendCommand { command = "reloadWindow", value = Encode.null }
+
 
 
 -- NWC (NIP-47)

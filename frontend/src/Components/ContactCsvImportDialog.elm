@@ -19,6 +19,7 @@ import Components.Button as Button
 import Components.Checkbox as Checkbox
 import Components.Dropdown as Dropdown
 import Components.EntryField as EntryField
+import Components.ModalDialog as ModalDialog
 import Css
 import Dict exposing (Dict)
 import Effect exposing (Effect)
@@ -440,20 +441,20 @@ viewMappingRow settings mapping index columnName =
             [ case Dict.get key mapping.dropdowns of
                 Just dropdownModel ->
                     Dropdown.new
-                    { model = dropdownModel
-                    , toMsg = MappingDropdownSent key
-                    , choices = availableFields mapping.dropdowns dropdownModel
-                    , allowNoSelection = True
-                    , toLabel =
-                        \maybeField ->
-                            case maybeField of
-                                Just field ->
-                                    Subscribers.translatedFieldName settings.browserEnv.translations field
+                        { model = dropdownModel
+                        , toMsg = MappingDropdownSent key
+                        , choices = availableFields mapping.dropdowns dropdownModel
+                        , allowNoSelection = True
+                        , toLabel =
+                            \maybeField ->
+                                case maybeField of
+                                    Just field ->
+                                        Subscribers.translatedFieldName settings.browserEnv.translations field
 
-                                Nothing ->
-                                    ImportTranslations.unmappedColumnDropdownValue [ settings.browserEnv.translations ]
-                    }
-                    |> Dropdown.view
+                                    Nothing ->
+                                        ImportTranslations.unmappedColumnDropdownValue [ settings.browserEnv.translations ]
+                        }
+                        |> Dropdown.view
 
                 Nothing ->
                     Html.text ""
@@ -561,14 +562,16 @@ wideDialog theme title content onClose =
             stylesForTheme theme
     in
     div
-        (css
-            [ Tw.fixed
-            , Tw.inset_0
-            , Tw.z_50
-            , Tw.overflow_y_auto
-            , Tw.bg_opacity_50
-            ]
-            :: styles.colorStyleBackground
+        (ModalDialog.escapeAttributes onClose
+            ++ (css
+                    [ Tw.fixed
+                    , Tw.inset_0
+                    , Tw.z_50
+                    , Tw.overflow_y_auto
+                    , Tw.bg_opacity_50
+                    ]
+                    :: styles.colorStyleBackground
+               )
         )
         [ div
             [ css
@@ -628,6 +631,7 @@ wideDialog theme title content onClose =
                 , div [ css [ Tw.w_full ] ] content
                 ]
             ]
+        , ModalDialog.initialFocus
         ]
 
 

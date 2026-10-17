@@ -472,7 +472,9 @@
         "email placeholder": "juan@ejemplo.com",
         "privacy info": "El email está almacenado por el autor, no por el proyecto Pareto",
         "sending message text": "Enviando confirmación...",
-        "sent message text": "Confirmación enviada, recibirás un email de confirmación pronto.",
+        "sent message text": "Confirmación enviada. Revisa tu bandeja de entrada.",
+        "queued message text": "Tu solicitud está en cola. Deberías recibir un email de confirmación en breve.",
+        "rejected message text": "No se envió ninguna confirmación. La dirección puede ser inválida, estar bloqueada, o ya se pidió una confirmación hace poco.",
         "error message text": "Error de suscripción a la lista: {{error}}. Por favor contáctanos en support@pareto.space"
     },
     "hashtag editor": {

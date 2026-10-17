@@ -471,8 +471,10 @@
         "email label": "Email",
         "email placeholder": "mario@esempio.com",
         "privacy info": "L'email è memorizzata dall'autore, non dal progetto Pareto",
-        "sending message text": "Invio opt-in...",
-        "sent message text": "Opt-in inviato, riceverai presto un'email di conferma.",
+        "sending message text": "Invio della conferma...",
+        "sent message text": "Conferma inviata. Controlla la posta in arrivo.",
+        "queued message text": "La richiesta è in coda. Dovresti ricevere a breve un'email di conferma.",
+        "rejected message text": "Nessuna conferma è stata inviata. L'indirizzo potrebbe essere irraggiungibile, bloccato, oppure una conferma è stata richiesta di recente.",
         "error message text": "Errore nell'iscrizione alla lista: {{error}}. Contattaci a support@pareto.space"
     },
     "hashtag editor": {

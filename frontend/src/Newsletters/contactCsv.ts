@@ -235,7 +235,9 @@ function assignField(contact: ContactInput, field: string, value: string): void 
       contact.locale = value;
       return;
     case "undeliverable":
-      contact.undeliverable = value;
+      if (value.trim()) {
+        contact.undeliverable = parseBool(value) ? true : value;
+      }
       return;
     default:
       contact[field] = value;

@@ -38,6 +38,8 @@ allSubscriberFields =
     , FieldDateUnsubscription
     , FieldTags
     , FieldUndeliverable
+    , FieldVerifiedAt
+    , FieldReason
     , FieldLocale
     ]
 
@@ -89,6 +91,9 @@ defaultCsvColumnNameMap =
     , ( "tags", FieldTags )
     , ( "locale", FieldLocale )
     , ( "undeliverable", FieldUndeliverable )
+    , ( "verifiedat", FieldVerifiedAt )
+    , ( "verified at", FieldVerifiedAt )
+    , ( "reason", FieldReason )
     ]
         |> Dict.fromList
 
@@ -217,6 +222,12 @@ setSubscriberField field value subscriber =
         FieldUndeliverable ->
             { subscriber | undeliverable = Just value }
 
+        FieldVerifiedAt ->
+            { subscriber | verifiedAt = verifiedAtFromString value }
+
+        FieldReason ->
+            { subscriber | reason = Just value }
+
         FieldLocale ->
             { subscriber | locale = Just value }
 
@@ -280,6 +291,12 @@ translatedFieldName translations field =
         FieldUndeliverable ->
             Translations.undeliverableFieldName [ translations ]
 
+        FieldVerifiedAt ->
+            Translations.verifiedAtFieldName [ translations ]
+
+        FieldReason ->
+            Translations.reasonFieldName [ translations ]
+
         FieldLocale ->
             Translations.localeFieldName [ translations ]
 
@@ -326,6 +343,14 @@ subscriberValue browserEnv subscriber field =
 
         FieldUndeliverable ->
             Maybe.withDefault "" subscriber.undeliverable
+
+        FieldVerifiedAt ->
+            subscriber.verifiedAt
+                |> Maybe.map (BrowserEnv.formatDate browserEnv)
+                |> Maybe.withDefault ""
+
+        FieldReason ->
+            Maybe.withDefault "" subscriber.reason
 
         FieldLocale ->
             Maybe.withDefault "" subscriber.locale
@@ -458,6 +483,8 @@ isActiveSubscriber subscriber =
         /= Just True
         && subscriber.dateUnsubscription
         == Nothing
+        && subscriber.undeliverable
+        /= Just "true"
 
 
 emptySubscriber : Email -> Subscriber
@@ -472,6 +499,8 @@ emptySubscriber email =
     , dateUnsubscription = Nothing
     , tags = Nothing
     , undeliverable = Nothing
+    , verifiedAt = Nothing
+    , reason = Nothing
     , locale = Nothing
     }
 
@@ -1069,7 +1098,9 @@ subscriberDecoder =
         |> optional (fieldName FieldDateSubscription) decodePosixTime (Time.millisToPosix 0)
         |> optional (fieldName FieldDateUnsubscription) (Decode.maybe decodePosixTime) Nothing
         |> optional (fieldName FieldTags) (Decode.maybe (Decode.list Decode.string)) Nothing
-        |> optional (fieldName FieldUndeliverable) (Decode.maybe Decode.string) Nothing
+        |> optional (fieldName FieldUndeliverable) decodeUndeliverable Nothing
+        |> optional (fieldName FieldVerifiedAt) (Decode.maybe decodePosixTime) Nothing
+        |> optional (fieldName FieldReason) (Decode.maybe Decode.string) Nothing
         |> optional (fieldName FieldLocale) (Decode.maybe Decode.string) Nothing
 
 
@@ -1082,6 +1113,41 @@ decodePosixTime =
                     |> Time.millisToPosix
                     |> Decode.succeed
             )
+
+
+decodeUndeliverable : Decode.Decoder (Maybe String)
+decodeUndeliverable =
+    Decode.oneOf
+        [ Decode.bool
+            |> Decode.map
+                (\flag ->
+                    if flag then
+                        Just "true"
+
+                    else
+                        Nothing
+                )
+        , Decode.string
+            |> Decode.map
+                (\value ->
+                    if String.trim value == "" then
+                        Nothing
+
+                    else
+                        Just value
+                )
+        , Decode.null Nothing
+        ]
+
+
+verifiedAtFromString : String -> Maybe Time.Posix
+verifiedAtFromString value =
+    case String.toInt (String.trim value) of
+        Just millis ->
+            Just (Time.millisToPosix millis)
+
+        Nothing ->
+            Iso8601.toTime value |> Result.toMaybe
 
 
 toCSV : List Subscriber -> String

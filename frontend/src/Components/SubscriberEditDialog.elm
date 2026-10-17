@@ -427,5 +427,7 @@ entryFieldType field =
         FieldDateUnsubscription -> EntryField.FieldTypeDate
         FieldTags -> EntryField.FieldTypeText
         FieldUndeliverable -> EntryField.FieldTypeText
+        FieldVerifiedAt -> EntryField.FieldTypeDate
+        FieldReason -> EntryField.FieldTypeText
         FieldLocale -> EntryField.FieldTypeText
 

@@ -3,6 +3,8 @@
  * The blob stays a client-side store; only decrypted contacts go to the queue server.
  */
 
+import { isUndeliverableContact } from "./EncryptedContacts/protocol";
+
 const SUBSCRIBERS_D_TAG = "pareto-subscribers";
 const APPLICATION_SPECIFIC_KIND = 30078;
 
@@ -51,7 +53,12 @@ function isDnd(subscriber: Subscriber): boolean {
 }
 
 export function isActiveSubscriber(subscriber: Subscriber): boolean {
-  return Boolean(subscriberEmail(subscriber)) && !isDnd(subscriber) && !isUnsubscribed(subscriber);
+  return (
+    Boolean(subscriberEmail(subscriber)) &&
+    !isDnd(subscriber) &&
+    !isUnsubscribed(subscriber) &&
+    !isUndeliverableContact(subscriber)
+  );
 }
 
 export function activeSubscribers(subscribers: Subscriber[]): Subscriber[] {

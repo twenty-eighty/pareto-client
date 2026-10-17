@@ -4,10 +4,10 @@
   ],
   "exclude": [
     "src/Newsletters/queue_server/**",
-    "src/**/*.test.ts",
     "src/interop.ts.org"
   ],
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
     "allowJs": true,
     "checkJs": false,
     "esModuleInterop": true,
@@ -16,8 +16,9 @@
     "skipLibCheck": true,
     "sourceMap": true,
     "target": "ES2021",
+    "types": ["node"],
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "lib": [
       "ES2021",
       "DOM"
