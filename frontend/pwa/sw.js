@@ -52,8 +52,14 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Always hit the network for version probes and this script.
-  if (url.pathname === "/version.json" || url.pathname === "/sw.js") {
+  // Always hit the network for version probes and worker scripts.
+  // The installed worker must not intercept importScripts of the sender script,
+  // or a failed fetch here aborts evaluation of the next sw.js.
+  if (
+    url.pathname === "/version.json" ||
+    url.pathname === "/sw.js" ||
+    url.pathname === "/newsletter-sender-sw.js"
+  ) {
     return;
   }
 
@@ -77,12 +83,16 @@ async function cacheFirst(request) {
   if (cached) {
     return cached;
   }
-  const response = await fetch(request);
-  if (response && response.ok) {
-    const cache = await caches.open(CACHE_NAME);
-    cache.put(request, response.clone());
+  try {
+    const response = await fetch(request);
+    if (response && response.ok && response.type === "basic") {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, response.clone()).catch(() => {});
+    }
+    return response;
+  } catch {
+    return offlineResponse();
   }
-  return response;
 }
 
 async function networkFirst(request) {
@@ -90,14 +100,21 @@ async function networkFirst(request) {
     const response = await fetch(request);
     if (response && response.ok && response.type === "basic") {
       const cache = await caches.open(CACHE_NAME);
-      cache.put(request, response.clone());
+      cache.put(request, response.clone()).catch(() => {});
     }
     return response;
-  } catch (error) {
+  } catch {
     const cached = await caches.match(request);
     if (cached) {
       return cached;
     }
-    throw error;
+    return offlineResponse();
   }
+}
+
+function offlineResponse() {
+  return new Response("", {
+    status: 504,
+    statusText: "Gateway Timeout",
+  });
 }

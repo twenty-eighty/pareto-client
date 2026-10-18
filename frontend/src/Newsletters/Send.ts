@@ -852,7 +852,11 @@ export class NewsletterSendClient {
     const api = await this.client();
     try {
       const result = await api.getCampaignStatusByExternalId(externalId);
-      return result.data;
+      const status = result.data as CampaignStatus & { exists?: boolean };
+      if (!status || status.exists === false || !status.campaign_id) {
+        return null;
+      }
+      return status;
     } catch (error: any) {
       if (error?.response?.status === 404 || /404/.test(error?.message || "")) {
         return null;
