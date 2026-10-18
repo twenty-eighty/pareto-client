@@ -892,6 +892,7 @@
         "error loading subscribers text": "Erreur lors du chargement des abonnés",
         "no subscribers text": "Aucun abonné trouvé.",
         "new modifications": "Nouvelles modifications",
+        "no subscriptions since": "Aucun abonnement depuis {{date}}",
         "dnd field name": "Ne pas déranger",
         "email field name": "Email",
         "name field name": "Nom",

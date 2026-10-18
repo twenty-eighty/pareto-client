@@ -1413,7 +1413,41 @@ viewTagRow theme browserEnv tag =
 
 viewPage : Shared.Model -> Model -> Html Msg
 viewPage shared model =
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.gap_4
+            , Tw.ps_8
+            , Tw.pe_4
+            , Tw.py_4
+            ]
+        ]
+        [ viewContactsHeader shared model
+        , viewSubscriptionEvents shared model
+        , viewContactsToolbar shared model
+        , viewDatabase shared model
+        , viewErrors model
+        , SubscriberEditDialog.new
+            { model = model.subscriberEditDialog
+            , toMsg = SubscriberEditDialogSent
+            , browserEnv = shared.browserEnv
+            , theme = shared.theme
+            }
+            |> SubscriberEditDialog.withTags model.contactDatabase.tags
+            |> SubscriberEditDialog.view
+        ]
+
+
+viewContactsHeader : Shared.Model -> Model -> Html Msg
+viewContactsHeader shared model =
     let
+        styles =
+            stylesForTheme shared.theme
+
+        translations =
+            shared.browserEnv.translations
+
         databaseCount =
             model.contactDatabase.databaseTotal
                 |> Maybe.withDefault 0
@@ -1428,10 +1462,7 @@ viewPage shared model =
         [ css
             [ Tw.flex
             , Tw.flex_col
-            , Tw.gap_4
-            , Tw.ps_8
-            , Tw.pe_4
-            , Tw.py_4
+            , Tw.gap_3
             ]
         ]
         [ div
@@ -1440,118 +1471,171 @@ viewPage shared model =
                 , Tw.flex_row
                 , Tw.flex_wrap
                 , Tw.items_center
-                , Tw.gap_2
-                ]
-            ]
-            [ text <| Translations.newsletterSourceLabel [ shared.browserEnv.translations ]
-            , Switch.new
-                { id = "newsletter-recipient-source"
-                , onClick = SetRecipientSource
-                , labelOff = Translations.subscriberFileLabel [ shared.browserEnv.translations ]
-                , labelOn = Translations.contactDatabaseLabel [ shared.browserEnv.translations ]
-                , state = model.recipientSource
-                , stateOff = SubscriberFile
-                , stateOn = ContactDatabase
-                , theme = shared.theme
-                }
-                |> Switch.view
-            ]
-        , if model.recipientSource == SubscriberFile then
-            p []
-                [ text <| Translations.migrateHintText [ shared.browserEnv.translations ] ]
-
-          else
-            text ""
-        , div
-            [ css
-                [ Tw.flex
-                , Tw.flex_row
-                , Tw.flex_wrap
-                , Tw.items_center
+                , Tw.justify_between
                 , Tw.gap_4
                 ]
             ]
-            [ if model.recipientSource == SubscriberFile then
-                Button.new
-                    { label = Translations.migrateButtonTitle [ shared.browserEnv.translations ]
+            [ p
+                (styles.textStyleH3 ++ styles.colorStyleGrayscaleTitle)
+                [ text <| contactDatabaseCountText translations ContactDatabase databaseCount ]
+            , div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_row
+                    , Tw.flex_wrap
+                    , Tw.items_center
+                    , Tw.gap_2
+                    ]
+                ]
+                [ p
+                    (styles.textStyle14 ++ styles.colorStyleGrayscaleMuted)
+                    [ text <| Translations.newsletterSourceLabel [ translations ] ]
+                , Switch.new
+                    { id = "newsletter-recipient-source"
+                    , onClick = SetRecipientSource
+                    , labelOff = Translations.subscriberFileLabel [ translations ]
+                    , labelOn = Translations.contactDatabaseLabel [ translations ]
+                    , state = model.recipientSource
+                    , stateOff = SubscriberFile
+                    , stateOn = ContactDatabase
+                    , theme = shared.theme
+                    }
+                    |> Switch.view
+                ]
+            ]
+        , if model.recipientSource == SubscriberFile then
+            div
+                [ css
+                    [ Tw.flex
+                    , Tw.flex_col
+                    , Tw.items_start
+                    , Tw.gap_2
+                    ]
+                ]
+                [ p
+                    (styles.textStyle14 ++ styles.colorStyleGrayscaleText)
+                    [ text <| Translations.migrateHintText [ translations ] ]
+                , p
+                    (styles.textStyle14 ++ styles.colorStyleGrayscaleMuted)
+                    [ text <| Translations.subscriberFileLabel [ translations ] ++ ": " ++ String.fromInt fileCount ]
+                , Button.new
+                    { label = Translations.migrateButtonTitle [ translations ]
                     , onClick = Just MigrateClicked
                     , theme = shared.theme
                     }
                     |> Button.withTypePrimary
                     |> Button.withDisabled (not canMigrate)
                     |> Button.view
+                , viewFileState shared.browserEnv model
+                , viewMigration shared.browserEnv model
+                ]
+
+          else
+            text ""
+        ]
+
+
+viewContactsToolbar : Shared.Model -> Model -> Html Msg
+viewContactsToolbar shared model =
+    let
+        databaseCount =
+            model.contactDatabase.databaseTotal
+                |> Maybe.withDefault 0
+
+        translations =
+            shared.browserEnv.translations
+
+        busy =
+            isExporting model.csvExport || isCleaning model.clean
+    in
+    div
+        [ css
+            [ Tw.flex
+            , Tw.flex_col
+            , Tw.gap_2
+            ]
+        ]
+        [ div
+            [ css
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.flex_wrap
+                , Tw.items_center
+                , Tw.justify_between
+                , Tw.gap_4
+                ]
+            ]
+            [ viewQuery shared model
+            , if busy then
+                div
+                    [ css
+                        [ Tw.flex
+                        , Tw.flex_col
+                        , Tw.gap_2
+                        ]
+                    ]
+                    [ viewCsvExportStatus shared model.csvExport
+                    , viewCleanStatus shared model.clean
+                    ]
 
               else
-                text ""
-            , Button.new
-                { label = Translations.addContactButtonTitle [ shared.browserEnv.translations ]
-                , onClick = Just AddContactClicked
-                , theme = shared.theme
-                }
-                |> Button.withTypeSecondary
-                |> Button.withDisabled (not model.contactDatabase.authenticated)
-                |> Button.view
-            , Button.new
-                { label = Translations.importButtonTitle [ shared.browserEnv.translations ]
-                , onClick = Just ImportCsvClicked
-                , theme = shared.theme
-                }
-                |> Button.withTypeSecondary
-                |> Button.withDisabled (not model.contactDatabase.authenticated)
-                |> Button.view
-            , Button.new
-                { label = Translations.exportButtonTitle [ shared.browserEnv.translations ]
-                , onClick = Just ExportCsvClicked
-                , theme = shared.theme
-                }
-                |> Button.withTypeSecondary
-                |> Button.withDisabled (databaseCount < 1 || isExporting model.csvExport)
-                |> Button.view
-            , Button.new
-                { label = Translations.cleanContactsButtonTitle [ shared.browserEnv.translations ]
-                , onClick = Just CleanContactsClicked
-                , theme = shared.theme
-                }
-                |> Button.withTypeSecondary
-                |> Button.withDisabled (databaseCount < 1 || not model.contactDatabase.authenticated || isCleaning model.clean)
-                |> Button.view
-            , div
+                div
+                    [ css
+                        [ Tw.flex
+                        , Tw.flex_row
+                        , Tw.flex_wrap
+                        , Tw.items_center
+                        , Tw.gap_2
+                        ]
+                    ]
+                    [ Button.new
+                        { label = Translations.addContactButtonTitle [ translations ]
+                        , onClick = Just AddContactClicked
+                        , theme = shared.theme
+                        }
+                        |> Button.withTypePrimary
+                        |> Button.withDisabled (not model.contactDatabase.authenticated)
+                        |> Button.view
+                    , Button.new
+                        { label = Translations.importButtonTitle [ translations ]
+                        , onClick = Just ImportCsvClicked
+                        , theme = shared.theme
+                        }
+                        |> Button.withTypeSecondary
+                        |> Button.withDisabled (not model.contactDatabase.authenticated)
+                        |> Button.view
+                    , Button.new
+                        { label = Translations.exportButtonTitle [ translations ]
+                        , onClick = Just ExportCsvClicked
+                        , theme = shared.theme
+                        }
+                        |> Button.withTypeSecondary
+                        |> Button.withDisabled (databaseCount < 1 || isExporting model.csvExport)
+                        |> Button.view
+                    , Button.new
+                        { label = Translations.cleanContactsButtonTitle [ translations ]
+                        , onClick = Just CleanContactsClicked
+                        , theme = shared.theme
+                        }
+                        |> Button.withTypeSecondary
+                        |> Button.withDisabled (databaseCount < 1 || not model.contactDatabase.authenticated || isCleaning model.clean)
+                        |> Button.view
+                    ]
+            ]
+        , if busy then
+            text ""
+
+          else
+            div
                 [ css
                     [ Tw.flex
                     , Tw.flex_col
                     , Tw.gap_1
                     ]
                 ]
-                [ if model.recipientSource == SubscriberFile then
-                    p []
-                        [ text <| Translations.subscriberFileLabel [ shared.browserEnv.translations ] ++ ": " ++ String.fromInt fileCount ]
-
-                  else
-                    text ""
-                , p []
-                    [ text <| contactDatabaseCountText shared.browserEnv.translations model.recipientSource databaseCount ]
+                [ viewCsvExportStatus shared model.csvExport
+                , viewCleanStatus shared model.clean
                 ]
-            ]
-        , viewCsvExportStatus shared model.csvExport
-        , viewCleanStatus shared model.clean
-        , viewMigration shared.browserEnv model
-        , if model.recipientSource == SubscriberFile then
-            viewFileState shared.browserEnv model
-
-          else
-            text ""
-        , viewSubscriptionEvents shared model
-        , viewQuery shared model
-        , viewDatabase shared model
-        , viewErrors model
-        , SubscriberEditDialog.new
-            { model = model.subscriberEditDialog
-            , toMsg = SubscriberEditDialogSent
-            , browserEnv = shared.browserEnv
-            , theme = shared.theme
-            }
-            |> SubscriberEditDialog.withTags model.contactDatabase.tags
-            |> SubscriberEditDialog.view
         ]
 
 
@@ -1757,19 +1841,39 @@ viewSubscriptionEvents shared model =
             subscriptionScanLoader
 
         SyncReady ->
-            viewPendingSubscriptionEvents shared orderedModifications False Nothing
+            viewPendingSubscriptionEvents shared model orderedModifications False Nothing
 
         SyncApplying ->
-            viewPendingSubscriptionEvents shared orderedModifications True Nothing
+            viewPendingSubscriptionEvents shared model orderedModifications True Nothing
 
         SyncFailed error ->
-            viewPendingSubscriptionEvents shared orderedModifications False (Just error)
+            viewPendingSubscriptionEvents shared model orderedModifications False (Just error)
 
 
-viewPendingSubscriptionEvents : Shared.Model -> List Modification -> Bool -> Maybe String -> Html Msg
-viewPendingSubscriptionEvents shared modifications applying error =
+viewNoNewSubscriptions : Shared.Model -> Model -> Html msg
+viewNoNewSubscriptions shared model =
+    case laterTime model.subscriptionCursor model.scannedUntil of
+        Nothing ->
+            text ""
+
+        Just updated ->
+            let
+                styles =
+                    stylesForTheme shared.theme
+            in
+            p
+                (styles.textStyle14 ++ styles.colorStyleGrayscaleMuted)
+                [ text <|
+                    Translations.noSubscriptionsSince
+                        [ shared.browserEnv.translations ]
+                        { date = BrowserEnv.formatDate shared.browserEnv updated }
+                ]
+
+
+viewPendingSubscriptionEvents : Shared.Model -> Model -> List Modification -> Bool -> Maybe String -> Html Msg
+viewPendingSubscriptionEvents shared model modifications applying error =
     if List.isEmpty modifications && error == Nothing then
-        text ""
+        viewNoNewSubscriptions shared model
 
     else
         div
@@ -1883,10 +1987,12 @@ viewQuery shared model =
     div
         [ css
             [ Tw.flex
+            , Tw.flex_1
             , Tw.flex_row
             , Tw.flex_wrap
-            , Tw.items_start
-            , Tw.gap_6
+            , Tw.items_center
+            , Tw.min_w_0
+            , Tw.gap_4
             ]
         ]
         [ SearchBar.new
@@ -1938,10 +2044,6 @@ viewDatabase shared model =
         shown =
             List.length model.contactDatabase.subscribers
 
-        total =
-            model.contactDatabase.total
-                |> Maybe.withDefault shown
-
         hasQuery =
             model.searchText /= Nothing || TagCombination.toFilter model.tagCombination /= Nothing
     in
@@ -1979,13 +2081,7 @@ viewDatabase shared model =
                 , Tw.gap_2
                 ]
             ]
-            [ p []
-                [ text <|
-                    Translations.showingContactsText
-                        [ browserEnv.translations ]
-                        { shown = String.fromInt shown, total = String.fromInt total }
-                ]
-            , if model.contactDatabase.loading then
+            [ if model.contactDatabase.loading then
                 div
                     [ css
                         [ Tw.flex
@@ -2023,6 +2119,13 @@ viewPager theme browserEnv model =
 
         pageSize =
             Table.getPageSize model.subscriberTable
+
+        shown =
+            List.length model.contactDatabase.subscribers
+
+        total =
+            model.contactDatabase.total
+                |> Maybe.withDefault shown
     in
     div
         [ css
@@ -2030,10 +2133,18 @@ viewPager theme browserEnv model =
             , Tw.flex_row
             , Tw.flex_wrap
             , Tw.items_center
-            , Tw.gap_8
+            , Tw.justify_between
+            , Tw.gap_4
             ]
         ]
-        [ div
+        [ p
+            (styles.textStyle14 ++ styles.colorStyleGrayscaleMuted)
+            [ text <|
+                Translations.showingContactsText
+                    [ browserEnv.translations ]
+                    { shown = String.fromInt shown, total = String.fromInt total }
+            ]
+        , div
             [ css
                 [ Tw.flex
                 , Tw.flex_row
