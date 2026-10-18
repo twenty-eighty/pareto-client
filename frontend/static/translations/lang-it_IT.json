@@ -929,6 +929,7 @@
         "error loading subscribers text": "Errore nel caricamento degli iscritti",
         "no subscribers text": "Nessun iscritto trovato.",
         "new modifications": "Nuove modifiche",
+        "no subscriptions since": "Nessun abbonamento dal {{date}}",
         "dnd field name": "Non disturbare",
         "email field name": "Email",
         "name field name": "Nome",
