@@ -119,6 +119,7 @@ defmodule NostrBackendWeb.Router do
   scope "/", NostrBackendWeb do
     get "/version.json", PwaController, :version
     get "/sw.js", PwaController, :service_worker
+    get "/newsletter-sender-sw.js", PwaController, :newsletter_sender
   end
 
   scope "/", NostrBackendWeb do
