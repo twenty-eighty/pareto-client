@@ -929,6 +929,7 @@
         "error loading subscribers text": "Fel vid laddning av prenumeranter",
         "no subscribers text": "Inga prenumeranter hittades.",
         "new modifications": "Nya ändringar",
+        "no subscriptions since": "Inga prenumerationer sedan {{date}}",
         "dnd field name": "Stör ej",
         "email field name": "E-post",
         "name field name": "Namn",
