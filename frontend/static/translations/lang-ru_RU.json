@@ -929,6 +929,7 @@
         "error loading subscribers text": "Подписчики не найдены.",
         "no subscribers text": "Подписчики не найдены.",
         "new modifications": "Новые изменения",
+        "no subscriptions since": "Нет подписок с {{date}}",
         "dnd field name": "Не беспокоить",
         "email field name": "Электронная почта",
         "name field name": "Имя",
