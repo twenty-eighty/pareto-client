@@ -11,17 +11,20 @@ let state = {
   jwt: null,
 };
 
+const activeRequests = new Map();
+
 /**
  * Helper to POST JSON to the queue server
  */
-async function postJson(path, body, jwt) {
-  const res = await fetch(`${state.baseUrl}${path}`, {
+async function postJson(baseUrl, path, body, jwt, signal) {
+  const res = await fetch(`${baseUrl}${path}`, {
     method: 'POST',
     headers: Object.assign(
       { 'Content-Type': 'application/json' },
       jwt ? { Authorization: `Bearer ${jwt}` } : {}
     ),
     body: JSON.stringify(body || {}),
+    signal,
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -35,14 +38,15 @@ async function postJson(path, body, jwt) {
 /**
  * Helper to POST NDJSON (text) to the queue server
  */
-async function postNdjson(path, ndjsonText, jwt) {
-  const res = await fetch(`${state.baseUrl}${path}`, {
+async function postNdjson(baseUrl, path, ndjsonText, jwt, signal) {
+  const res = await fetch(`${baseUrl}${path}`, {
     method: 'POST',
     headers: Object.assign(
       { 'Content-Type': 'application/x-ndjson' },
       jwt ? { Authorization: `Bearer ${jwt}` } : {}
     ),
     body: ndjsonText,
+    signal,
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -58,6 +62,13 @@ async function postNdjson(path, ndjsonText, jwt) {
  */
 self.addEventListener('message', event => {
   const { id, type, payload } = event.data || {};
+  if (type === 'cancel') {
+    activeRequests.get(payload?.requestId)?.abort();
+    return;
+  }
+  if (type === 'SKIP_WAITING' || !type || !['configure', 'set-jwt', 'create-campaign', 'bulk-enqueue-jobs', 'lease-jobs', 'commit-campaign', 'get-campaign-status', 'get-campaign-status-by-external-id'].includes(type)) {
+    return;
+  }
   const source = event.source || self.clients;
   const port = (event.ports && event.ports[0]) || null;
 
@@ -70,7 +81,13 @@ self.addEventListener('message', event => {
     }
   };
 
-  (async () => {
+  const controller = new AbortController();
+  if (id) {
+    activeRequests.set(id, controller);
+  }
+  const request = (async () => {
+    const baseUrl = payload?.baseUrl || state.baseUrl;
+    const jwt = payload?.jwt || state.jwt;
     switch (type) {
       case 'configure': {
         state.baseUrl = payload?.baseUrl || state.baseUrl;
@@ -92,33 +109,34 @@ self.addEventListener('message', event => {
         break;
       }
       case 'create-campaign': {
-        if (!state.jwt) throw new Error('Missing JWT');
-        console.log('[NewsletterSW] create-campaign', { url: `${state.baseUrl}/campaigns` });
-        const result = await postJson('/campaigns', payload, state.jwt);
+        if (!jwt) throw new Error('Missing JWT');
+        console.log('[NewsletterSW] create-campaign', { url: `${baseUrl}/campaigns` });
+        const result = await postJson(baseUrl, '/campaigns', payload, jwt, controller.signal);
         reply(true, result);
         break;
       }
       case 'bulk-enqueue-jobs': {
-        if (!state.jwt) throw new Error('Missing JWT');
+        if (!jwt) throw new Error('Missing JWT');
         const { campaignId, ndjson } = payload || {};
         if (!campaignId || !ndjson) throw new Error('Missing campaignId or ndjson');
-        console.log('[NewsletterSW] bulk-enqueue', { url: `${state.baseUrl}/campaigns/${campaignId}/jobs/bulk`, bytes: ndjson.length });
-        const result = await postNdjson(`/campaigns/${campaignId}/jobs/bulk`, ndjson, state.jwt);
+        console.log('[NewsletterSW] bulk-enqueue', { url: `${baseUrl}/campaigns/${campaignId}/jobs/bulk`, bytes: ndjson.length });
+        const result = await postNdjson(baseUrl, `/campaigns/${campaignId}/jobs/bulk`, ndjson, jwt, controller.signal);
         reply(true, result);
         break;
       }
       case 'lease-jobs': {
-        const result = await postJson('/jobs/lease', payload, payload?.consumerToken || null);
+        const result = await postJson(baseUrl, '/jobs/lease', payload, payload?.consumerToken || null, controller.signal);
         reply(true, result);
         break;
       }
       case 'commit-campaign': {
-        if (!state.jwt) throw new Error('Missing JWT');
+        if (!jwt) throw new Error('Missing JWT');
         const { campaignId, expected_jobs } = payload || {};
-        const result = await fetch(`${state.baseUrl}/campaigns/${campaignId}/commit`, {
+        const result = await fetch(`${baseUrl}/campaigns/${campaignId}/commit`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${state.jwt}` },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
           body: JSON.stringify(expected_jobs ? { expected_jobs } : {}),
+          signal: controller.signal,
         });
         if (!result.ok) {
           const text = await result.text().catch(() => '');
@@ -129,10 +147,11 @@ self.addEventListener('message', event => {
         break;
       }
       case 'get-campaign-status': {
-        if (!state.jwt) throw new Error('Missing JWT');
+        if (!jwt) throw new Error('Missing JWT');
         const { campaignId } = payload || {};
-        const res = await fetch(`${state.baseUrl}/campaigns/${campaignId}/status`, {
-          headers: { Authorization: `Bearer ${state.jwt}` },
+        const res = await fetch(`${baseUrl}/campaigns/${campaignId}/status`, {
+          headers: { Authorization: `Bearer ${jwt}` },
+          signal: controller.signal,
         });
         if (!res.ok) {
           const text = await res.text().catch(() => '');
@@ -143,12 +162,13 @@ self.addEventListener('message', event => {
         break;
       }
       case 'get-campaign-status-by-external-id': {
-        if (!state.jwt) throw new Error('Missing JWT');
+        if (!jwt) throw new Error('Missing JWT');
         const { externalId } = payload || {};
         if (!externalId) throw new Error('Missing externalId');
         const encodedId = encodeURIComponent(externalId);
-        const res = await fetch(`${state.baseUrl}/campaigns/external/${encodedId}/status`, {
-          headers: { Authorization: `Bearer ${state.jwt}` },
+        const res = await fetch(`${baseUrl}/campaigns/external/${encodedId}/status`, {
+          headers: { Authorization: `Bearer ${jwt}` },
+          signal: controller.signal,
         });
         if (res.status === 404) {
           reply(true, null);
@@ -163,18 +183,19 @@ self.addEventListener('message', event => {
         break;
       }
       default:
-        throw new Error(`Unknown message type: ${type}`);
+        return;
     }
-  })().catch(err => {
-    console.error('[NewsletterSW] error', type, err?.message);
-    reply(false, { error: err.message });
-  });
-});
-
-// Ensure SW stays alive while tasks are running
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', event => {
-  event.waitUntil(self.clients.claim());
+  })()
+    .catch(err => {
+      console.error('[NewsletterSW] error', type, err?.message);
+      reply(false, { error: err.message });
+    })
+    .finally(() => {
+      if (id && activeRequests.get(id) === controller) {
+        activeRequests.delete(id);
+      }
+    });
+  event.waitUntil(request);
 });
 
 

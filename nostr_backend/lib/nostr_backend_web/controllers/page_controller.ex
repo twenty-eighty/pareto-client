@@ -103,6 +103,12 @@ defmodule NostrBackendWeb.PageController do
     |> render(:contact)
   end
 
+  def contacts(conn, _params) do
+    conn
+    |> add_meta_tags
+    |> render(:contacts)
+  end
+
   def imprint(conn, _params) do
     conn
     |> add_meta_tags

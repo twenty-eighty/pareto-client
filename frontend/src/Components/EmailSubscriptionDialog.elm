@@ -10,16 +10,12 @@ import I18Next
 import Json.Decode as Decode
 import Locale exposing (Language(..))
 import Mailcheck
+import Newsletters.Subscribers as Subscribers
 import Nostr
-import Nostr.Event exposing (Kind(..))
-import Nostr.External
+import Nostr.Model exposing (TestMode(..))
 import Nostr.Profile exposing (Profile, profileDisplayName)
-import Nostr.Send exposing (SendRequest(..), SendRequestId)
-import Nostr.Types exposing (IncomingMessage, LoginStatus, PubKey, loggedInPubKey, loggedInSigningPubKey)
+import Nostr.Types exposing (IncomingMessage, LoginStatus, loggedInPubKey, loggedInSigningPubKey)
 import Ports
-import Shared.Model exposing (Model)
-import Shared.Msg exposing (Msg)
-import Newsletters.Subscribers as Subscribers exposing (SubscribeInfo)
 import Tailwind.Utilities as Tw
 import Translations.EmailSubscriptionDialog as Translations
 import Ui.Shared exposing (emptyHtml)
@@ -36,15 +32,22 @@ type Msg msg
 type Model
     = Model
         { state : DialogState
+        , nextRequestId : Int
         }
 
 
 type DialogState
     = DialogHidden
     | DialogVisible EmailSubscriptionData
-    | DialogSending SendRequestId EmailSubscriptionData
-    | DialogSent
+    | DialogSending String EmailSubscriptionData
+    | DialogResult OptInStatus
     | DialogSendError String
+
+
+type OptInStatus
+    = OptInSent
+    | OptInQueued
+    | OptInRejected
 
 
 type alias Recipient =
@@ -96,6 +99,7 @@ init : {} -> Model
 init _ =
     Model
         { state = DialogHidden
+        , nextRequestId = 1
         }
 
 
@@ -163,9 +167,27 @@ update props =
                                     |> Maybe.andThen .displayName
                                     |> Maybe.map Subscribers.splitName
                                     |> Maybe.withDefault ( Nothing, Nothing )
+
+                            requestId =
+                                String.fromInt model.nextRequestId
                         in
-                        ( Model { model | state = DialogSending (Nostr.getLastSendRequestId props.nostr) emailSubscriptionData }
-                        , sendOptInEmail props.nostr authorProfile signingPubKey { pubKey = userPubKey, email = email, firstName = firstName, lastName = lastName, locale = Just locale }
+                        ( Model
+                            { model
+                                | state = DialogSending requestId emailSubscriptionData
+                                , nextRequestId = model.nextRequestId + 1
+                            }
+                        , Ports.sendOptIn
+                            { requestId = requestId
+                            , author = authorProfile.pubKey
+                            , email = email
+                            , firstName = firstName
+                            , lastName = lastName
+                            , pubKey = userPubKey
+                            , locale = Just locale
+                            , signingPubKey = signingPubKey
+                            , test = props.nostr.testMode == TestModeEnabled
+                            }
+                            |> Effect.sendCmd
                         )
 
                     _ ->
@@ -177,37 +199,69 @@ update props =
 
 updateWithMessage : Model -> IncomingMessage -> Model
 updateWithMessage (Model model) message =
-    case ( model.state, Nostr.External.decodeSendId message.value ) of
-        ( DialogSending sendRequestId _, Ok sendId ) ->
-            if sendRequestId == sendId then
-                case message.messageType of
-                    "published" ->
-                        Model { model | state = DialogSent }
+    case ( model.state, message.messageType ) of
+        ( DialogSending requestId _, "optInResult" ) ->
+            case Decode.decodeValue (Decode.field "requestId" Decode.string) message.value of
+                Ok incomingId ->
+                    if incomingId == requestId then
+                        applyOptInResult (Model model) message.value
 
-                    "error" ->
-                        case Nostr.External.decodeReason message.value of
-                            Ok errorReason ->
-                                Model { model | state = DialogSendError errorReason }
-
-                            Err decodingError ->
-                                Model { model | state = DialogSendError <| Decode.errorToString decodingError }
-
-                    _ ->
+                    else
                         Model model
 
-            else
-                Model model
+                Err _ ->
+                    Model model
 
-        ( _, _ ) ->
+        _ ->
             Model model
 
 
-sendOptInEmail : Nostr.Model -> Profile -> Maybe PubKey -> SubscribeInfo -> Effect msg
-sendOptInEmail nostr authorProfile maybeSigningPubKey subscribeInfo =
-    Subscribers.subscribeEvent nostr authorProfile maybeSigningPubKey subscribeInfo
-        |> SendApplicationData
-        |> Shared.Msg.SendNostrEvent
-        |> Effect.sendSharedMsg
+applyOptInResult : Model -> Decode.Value -> Model
+applyOptInResult (Model model) value =
+    case Decode.decodeValue optInResultDecoder value of
+        Ok (OptInAccepted status) ->
+            Model { model | state = DialogResult status }
+
+        Ok (OptInFailed error) ->
+            Model { model | state = DialogSendError error }
+
+        Err decodingError ->
+            Model { model | state = DialogSendError <| Decode.errorToString decodingError }
+
+
+type OptInReply
+    = OptInAccepted OptInStatus
+    | OptInFailed String
+
+
+optInResultDecoder : Decode.Decoder OptInReply
+optInResultDecoder =
+    Decode.oneOf
+        [ Decode.field "error" Decode.string
+            |> Decode.map OptInFailed
+        , Decode.field "status" optInStatusDecoder
+            |> Decode.map OptInAccepted
+        ]
+
+
+optInStatusDecoder : Decode.Decoder OptInStatus
+optInStatusDecoder =
+    Decode.string
+        |> Decode.andThen
+            (\status ->
+                case status of
+                    "SENT" ->
+                        Decode.succeed OptInSent
+
+                    "QUEUED" ->
+                        Decode.succeed OptInQueued
+
+                    "REJECTED" ->
+                        Decode.succeed OptInRejected
+
+                    _ ->
+                        Decode.fail ("Unknown opt-in status: " ++ status)
+            )
 
 
 
@@ -252,11 +306,11 @@ view dialog =
                 CloseDialog
                 |> Html.map settings.toMsg
 
-        DialogSent ->
+        DialogResult status ->
             Ui.Shared.modalDialog
                 settings.theme
                 (Translations.dialogTitle [ settings.browserEnv.translations ])
-                [ viewSentDialog dialog ]
+                [ viewResultDialog dialog status ]
                 CloseDialog
                 |> Html.map settings.toMsg
 
@@ -528,8 +582,20 @@ viewSendingDialog (Settings settings) =
         ]
 
 
-viewSentDialog : EmailSubscriptionDialog msg -> Html (Msg msg)
-viewSentDialog (Settings settings) =
+viewResultDialog : EmailSubscriptionDialog msg -> OptInStatus -> Html (Msg msg)
+viewResultDialog (Settings settings) status =
+    let
+        message =
+            case status of
+                OptInSent ->
+                    Translations.sentMessageText [ settings.browserEnv.translations ]
+
+                OptInQueued ->
+                    Translations.queuedMessageText [ settings.browserEnv.translations ]
+
+                OptInRejected ->
+                    Translations.rejectedMessageText [ settings.browserEnv.translations ]
+    in
     div
         [ css
             [ Tw.w_full
@@ -542,7 +608,7 @@ viewSentDialog (Settings settings) =
                 [ Tw.mb_4
                 ]
             ]
-            [ text <| Translations.sentMessageText [ settings.browserEnv.translations ]
+            [ text message
             ]
         , Button.new
             { label = Translations.closeButtonTitle [ settings.browserEnv.translations ]

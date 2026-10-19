@@ -4,24 +4,28 @@ import BrowserEnv exposing (BrowserEnv, Environment(..))
 import Components.Button as Button
 import Components.EntryField as EntryField
 import Components.ModalDialog as ModalDialog
+import Components.TagCombination as TagCombination
 import Effect exposing (Effect)
 import EmailValidation
-import Html.Styled as Html exposing (Html, div, text)
+import Html.Styled as Html exposing (Html, div, p, text)
 import Http
 import I18Next
 import Html.Styled.Attributes as Attr exposing (css)
+import Json.Encode as Encode
 import Iso8601
 import Json.Decode as Decode
 import Newsletters.Subscribers as Subscribers
 import Nostr
 import Nostr.Event exposing (Kind(..))
 import Nostr.External
+import Nostr.Request exposing (RequestId)
 import Nostr.Types exposing (IncomingMessage, PubKey)
 import Portal
 import Ports
 import Svg.Loaders
 import Tailwind.Utilities as Tw
 import Translations.SendNewsletterDialog as Translations
+import Translations.Subscribers as SubscriberTranslations
 import Ui.Shared exposing (emptyHtml)
 import Ui.Styles exposing (Theme(..))
 
@@ -34,6 +38,7 @@ type Msg msg
     | UpdateTestEmail String
     | SubmitTestEmail String
     | GotPortalUserProfile (Result Http.Error Portal.MeProfile)
+    | TagCombinationSent TagCombination.Msg
 
 
 type ExistingStatus
@@ -129,9 +134,18 @@ type Model
         , testEmailState : TestEmailState
         , existingStatus : ExistingStatus
         , recipientCount : Maybe Int
+        , recipientCountError : Maybe String
+        , recipientSourceReady : Bool
+        , subscribersLoaded : Bool
+        , countRequestId : Int
         , subscriberEventData : Maybe Subscribers.SubscriberEventData
+        , recipientSource : Subscribers.RecipientSource
+        , subscriberRequestId : RequestId
+        , sourceRequestId : RequestId
         , senderProfile : SenderProfileState
         , authApiBaseUrl : Maybe String
+        , tagCombination : TagCombination.Model
+        , contactTags : List String
         }
 
 type TestEmailState
@@ -186,9 +200,18 @@ init _ =
         , testEmailState = TestEmailEmpty
         , existingStatus = StatusUnknown
         , recipientCount = Nothing
+        , recipientCountError = Nothing
+        , recipientSourceReady = False
+        , subscribersLoaded = False
+        , countRequestId = 0
         , subscriberEventData = Nothing
+        , recipientSource = Subscribers.SubscriberFile
+        , subscriberRequestId = 0
+        , sourceRequestId = 0
         , senderProfile = SenderProfileIdle
         , authApiBaseUrl = Nothing
+        , tagCombination = TagCombination.init
+        , contactTags = []
         }
     , Effect.none
     )
@@ -200,7 +223,11 @@ hide (Model model) =
             | state = DialogHidden
             , existingStatus = StatusUnknown
             , recipientCount = Nothing
+            , recipientCountError = Nothing
+            , recipientSourceReady = False
+            , subscribersLoaded = False
             , subscriberEventData = Nothing
+            , recipientSource = Subscribers.SubscriberFile
             , senderProfile = SenderProfileIdle
             , authApiBaseUrl = Nothing
         }
@@ -208,12 +235,25 @@ hide (Model model) =
 
 show : Nostr.Model -> PubKey -> String -> Model -> NewsletterData -> ( Model, Effect (Msg msg) )
 show nostr pubKey authApiBaseUrl (Model model) newsletterData =
+    let
+        subscriberRequestId =
+            Nostr.getLastRequestId nostr
+
+        sourceRequestId =
+            subscriberRequestId + 1
+    in
     ( Model
         { model
             | state = DialogPreparation newsletterData
             , existingStatus = StatusChecking
             , recipientCount = Nothing
+            , recipientCountError = Nothing
+            , recipientSourceReady = False
+            , subscribersLoaded = False
             , subscriberEventData = Nothing
+            , recipientSource = Subscribers.SubscriberFile
+            , subscriberRequestId = subscriberRequestId
+            , sourceRequestId = sourceRequestId
             , senderProfile = SenderProfileLoading
             , authApiBaseUrl = Just authApiBaseUrl
         }
@@ -224,6 +264,10 @@ show nostr pubKey authApiBaseUrl (Model model) newsletterData =
             |> Effect.sendCmd
         , Subscribers.load nostr pubKey
             |> Effect.sendSharedMsg
+        , Subscribers.loadRecipientSource sourceRequestId pubKey
+            |> Effect.sendSharedMsg
+        , Ports.loadContactTags pubKey
+            |> Effect.sendCmd
         ]
     )
 
@@ -272,7 +316,14 @@ update props =
                     DialogPreparation newsletterData ->
                         ( Model { model | state = DialogSending newsletterData initialSendProgress }
                         , Ports.sendNewsletter newsletterData
-                            (model.subscriberEventData |> Maybe.map subscriberBlobFromEvent)
+                            (if model.recipientSource == Subscribers.ContactDatabase then
+                                Nothing
+
+                             else
+                                model.subscriberEventData |> Maybe.map subscriberBlobFromEvent
+                            )
+                            (Subscribers.recipientSourceToString model.recipientSource)
+                            (recipientFilter (Model model))
                             |> Effect.sendCmd
                         )
 
@@ -291,6 +342,32 @@ update props =
 
                 else
                     ( Model { model | testEmailState = TestEmailEmpty } , Effect.none)
+
+            TagCombinationSent innerMsg ->
+                let
+                    previousFilter =
+                        TagCombination.toFilter model.tagCombination
+
+                    ( tagCombination, effect ) =
+                        TagCombination.update
+                            { msg = innerMsg
+                            , model = model.tagCombination
+                            , toModel = identity
+                            , toMsg = TagCombinationSent
+                            }
+
+                    next =
+                        { model | tagCombination = tagCombination }
+                in
+                if TagCombination.toFilter tagCombination /= previousFilter && next.recipientSource == Subscribers.ContactDatabase && next.recipientSourceReady then
+                    let
+                        ( counted, countEffect ) =
+                            startRecipientCount props.pubKey Nothing (Model next)
+                    in
+                    ( counted, Effect.batch [ effect |> Effect.map props.toMsg, countEffect ] )
+
+                else
+                    ( Model next, effect |> Effect.map props.toMsg )
 
             SubmitTestEmail email ->
                 case model.state of
@@ -597,11 +674,15 @@ updateWithMessage toMsg (Model model) userPubKey message =
                     ( Model { model | existingStatus = StatusError (Decode.errorToString decodeError) }, Effect.none )
 
         "newsletterRecipientCount" ->
-            case Decode.decodeValue (Decode.field "count" (Decode.nullable Decode.int)) message.value of
-                Ok (Just count) ->
-                    ( Model { model | recipientCount = Just count }, Effect.none )
+            case Decode.decodeValue (Decode.field "requestId" Decode.int) message.value of
+                Ok requestId ->
+                    if requestId /= model.countRequestId then
+                        ( Model model, Effect.none )
 
-                _ ->
+                    else
+                        applyRecipientCount (Model model) message.value
+
+                Err _ ->
                     ( Model model, Effect.none )
 
         "portalNip98AuthHeader" ->
@@ -626,42 +707,79 @@ updateWithMessage toMsg (Model model) userPubKey message =
                     ( Model model, Effect.none )
 
         "events" ->
-            case Nostr.External.decodeEventsKind message.value of
-                Ok KindApplicationSpecificData ->
-                    case Nostr.External.decodeEvents message.value of
-                        Ok events ->
-                            let
-                                ( maybeSubscriberEventData, _, errors ) =
-                                    Subscribers.processEvents userPubKey [] events
+            case Nostr.External.decodeRequestId message.value of
+                Ok requestId ->
+                    if requestId == model.sourceRequestId then
+                        case Nostr.External.decodeEvents message.value of
+                            Ok events ->
+                                refreshRecipientCount userPubKey
+                                    (Model
+                                        { model
+                                            | recipientSource = Subscribers.recipientSourceFromEvents events
+                                            , recipientSourceReady = True
+                                        }
+                                    )
 
-                                countCmd =
-                                    case maybeSubscriberEventData of
-                                        Just data ->
-                                            Ports.getNewsletterRecipientCount userPubKey (Just (subscriberBlobFromEvent data))
-                                                |> Effect.sendCmd
+                            _ ->
+                                ( Model model, Effect.none )
 
-                                        Nothing ->
-                                            Effect.none
-                            in
-                            ( Model
-                                { model
-                                    | subscriberEventData = maybeSubscriberEventData
-                                    , recipientCount =
-                                        case maybeSubscriberEventData of
-                                            Just data ->
-                                                Just data.active
+                    else if requestId == model.subscriberRequestId then
+                        case Nostr.External.decodeEventsKind message.value of
+                            Ok KindApplicationSpecificData ->
+                                case Nostr.External.decodeEvents message.value of
+                                    Ok events ->
+                                        let
+                                            ( maybeSubscriberEventData, _, errors ) =
+                                                Subscribers.processEvents userPubKey [] events
+                                        in
+                                        refreshRecipientCount userPubKey
+                                            (Model
+                                                { model
+                                                    | subscriberEventData = maybeSubscriberEventData
+                                                    , subscribersLoaded = True
+                                                    , errors = model.errors ++ errors
+                                                }
+                                            )
 
-                                            Nothing ->
-                                                model.recipientCount
-                                    , errors = model.errors ++ errors
-                                }
-                            , countCmd
-                            )
+                                    _ ->
+                                        ( Model model, Effect.none )
 
-                        _ ->
-                            ( Model model, Effect.none )
+                            _ ->
+                                ( Model model, Effect.none )
+
+                    else
+                        ( Model model, Effect.none )
 
                 _ ->
+                    ( Model model, Effect.none )
+
+        "contactTags" ->
+            case Decode.decodeValue (Decode.field "tags" (Decode.list Decode.string)) message.value of
+                Ok decodedTags ->
+                    let
+                        tags =
+                            decodedTags
+                                |> List.sortBy String.toLower
+
+                        removed =
+                            List.filter (\tag -> not (List.member tag tags)) model.contactTags
+
+                        tagCombination =
+                            List.foldl TagCombination.removeTag model.tagCombination removed
+
+                        previousFilter =
+                            TagCombination.toFilter model.tagCombination
+
+                        next =
+                            { model | contactTags = tags, tagCombination = tagCombination }
+                    in
+                    if TagCombination.toFilter tagCombination /= previousFilter && next.recipientSource == Subscribers.ContactDatabase && next.recipientSourceReady then
+                        startRecipientCount userPubKey Nothing (Model next)
+
+                    else
+                        ( Model next, Effect.none )
+
+                Err _ ->
                     ( Model model, Effect.none )
 
         _ ->
@@ -786,6 +904,83 @@ subscriberBlobFromEvent data =
     , keyHex = data.keyHex
     , ivHex = data.ivHex
     }
+
+
+applyRecipientCount : Model -> Decode.Value -> ( Model, Effect msg )
+applyRecipientCount (Model model) value =
+    let
+        count =
+            Decode.decodeValue (Decode.field "count" (Decode.nullable Decode.int)) value
+                |> Result.toMaybe
+                |> Maybe.andThen identity
+
+        error =
+            Decode.decodeValue (Decode.field "error" Decode.string) value
+                |> Result.toMaybe
+    in
+    case ( count, error ) of
+        ( Just total, _ ) ->
+            ( Model { model | recipientCount = Just total, recipientCountError = Nothing }, Effect.none )
+
+        ( Nothing, Just message ) ->
+            ( Model { model | recipientCount = Nothing, recipientCountError = Just message }, Effect.none )
+
+        _ ->
+            ( Model model, Effect.none )
+
+
+refreshRecipientCount : PubKey -> Model -> ( Model, Effect msg )
+refreshRecipientCount userPubKey (Model model) =
+    if not model.recipientSourceReady then
+        ( Model model, Effect.none )
+
+    else
+        case model.recipientSource of
+            Subscribers.ContactDatabase ->
+                startRecipientCount userPubKey Nothing (Model model)
+
+            Subscribers.SubscriberFile ->
+                if not model.subscribersLoaded then
+                    ( Model { model | recipientCount = Nothing, recipientCountError = Nothing }, Effect.none )
+
+                else
+                    case model.subscriberEventData of
+                        Just data ->
+                            startRecipientCount userPubKey (Just data) (Model model)
+
+                        Nothing ->
+                            ( Model { model | recipientCount = Just 0, recipientCountError = Nothing }, Effect.none )
+
+
+startRecipientCount : PubKey -> Maybe Subscribers.SubscriberEventData -> Model -> ( Model, Effect msg )
+startRecipientCount userPubKey maybeData (Model model) =
+    let
+        requestId =
+            model.countRequestId + 1
+
+        blob =
+            maybeData |> Maybe.map subscriberBlobFromEvent
+    in
+    ( Model
+        { model
+            | countRequestId = requestId
+            , recipientCount = Nothing
+            , recipientCountError = Nothing
+        }
+    , Ports.getNewsletterRecipientCount userPubKey blob (Subscribers.recipientSourceToString model.recipientSource) requestId (recipientFilter (Model model))
+        |> Effect.sendCmd
+    )
+
+
+recipientFilter : Model -> Maybe Encode.Value
+recipientFilter (Model model) =
+    if model.recipientSource == Subscribers.ContactDatabase then
+        model.tagCombination
+            |> TagCombination.toFilter
+            |> Maybe.map TagCombination.encode
+
+    else
+        Nothing
 
 
 completedSendProgress : SendProgress -> SendProgress
@@ -979,6 +1174,9 @@ closeButton (Settings settings) =
 viewSendProgress : SendNewsletterDialog msg -> SendProgress -> Html (Msg msg)
 viewSendProgress (Settings settings) progress =
     let
+        (Model model) =
+            settings.model
+
         styles =
             Ui.Styles.stylesForTheme settings.theme
 
@@ -986,7 +1184,7 @@ viewSendProgress (Settings settings) progress =
             [ settings.browserEnv.translations ]
 
         phaseText =
-            progressPhaseText translations progress.phase
+            progressPhaseText model.recipientSource translations progress.phase
 
         totalsText =
             case progressCountText translations progress of
@@ -1059,11 +1257,16 @@ sendCanBeCancelled progress =
             True
 
 
-progressPhaseText : List I18Next.Translations -> String -> String
-progressPhaseText translations phase =
+progressPhaseText : Subscribers.RecipientSource -> List I18Next.Translations -> String -> String
+progressPhaseText recipientSource translations phase =
     case phase of
         "preparing" ->
-            "Loading subscriber list…"
+            case recipientSource of
+                Subscribers.ContactDatabase ->
+                    Translations.loadingContactsText translations
+
+                Subscribers.SubscriberFile ->
+                    Translations.loadingSubscriberListText translations
 
         "authenticating" ->
             "Signing in to the email queue…"
@@ -1114,6 +1317,7 @@ viewSendNewsletterDialog (Settings settings) =
         [ viewSenderDetails (Settings settings)
         , viewNewsletterStatus (Settings settings)
         , viewTestEmailField (Settings settings)
+        , viewRecipientFilter (Settings settings)
         , viewRecipientCount (Settings settings)
         ]
 
@@ -1410,6 +1614,43 @@ viewTestEmailStatus (Settings settings) =
                 |> formatDiv
 
 
+viewRecipientFilter : SendNewsletterDialog msg -> Html (Msg msg)
+viewRecipientFilter (Settings settings) =
+    let
+        (Model model) =
+            settings.model
+    in
+    if model.recipientSource /= Subscribers.ContactDatabase || not model.recipientSourceReady then
+        emptyHtml
+
+    else
+        case model.contactTags of
+            [] ->
+                emptyHtml
+
+            tags ->
+                div
+                    [ css
+                        [ Tw.flex
+                        , Tw.flex_col
+                        , Tw.gap_2
+                        , Tw.max_h_64
+                        , Tw.overflow_y_auto
+                        ]
+                    ]
+                    [ p []
+                        [ text <| SubscriberTranslations.filterByTags [ settings.browserEnv.translations ] ]
+                    , TagCombination.new
+                        { model = model.tagCombination
+                        , toMsg = TagCombinationSent
+                        , tags = tags
+                        , theme = settings.theme
+                        , translations = settings.browserEnv.translations
+                        }
+                        |> TagCombination.view
+                    ]
+
+
 viewRecipientCount : SendNewsletterDialog msg -> Html (Msg msg)
 viewRecipientCount (Settings settings) =
     let
@@ -1420,12 +1661,29 @@ viewRecipientCount (Settings settings) =
             Ui.Styles.stylesForTheme settings.theme
 
         message =
-            case model.recipientCount of
-                Just count ->
-                    "Active subscribers: " ++ String.fromInt count
+            case model.recipientCountError of
+                Just error ->
+                    error
 
                 Nothing ->
-                    "Recipients: …"
+                    if not model.recipientSourceReady then
+                        Translations.recipientsLoadingText [ settings.browserEnv.translations ]
+
+                    else
+                        case ( model.recipientSource, model.recipientCount ) of
+                            ( Subscribers.ContactDatabase, Nothing ) ->
+                                Translations.countingContactDatabaseText [ settings.browserEnv.translations ]
+
+                            ( Subscribers.SubscriberFile, Nothing ) ->
+                                Translations.countingSubscriberFileText [ settings.browserEnv.translations ]
+
+                            ( Subscribers.ContactDatabase, Just count ) ->
+                                Translations.contactDatabaseRecipientsText [ settings.browserEnv.translations ]
+                                    { count = String.fromInt count }
+
+                            ( Subscribers.SubscriberFile, Just count ) ->
+                                Translations.subscriberFileRecipientsText [ settings.browserEnv.translations ]
+                                    { count = String.fromInt count }
     in
     div (styles.colorStyleGrayscaleMuted ++ styles.textStyle14)
         [ text message ]

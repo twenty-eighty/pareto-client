@@ -1,5 +1,6 @@
 module Pages.SignIn exposing (Model, Msg, init, page, subscriptions, update, view)
 
+import Browser.Events
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Html.Styled as Html exposing (a, div, text)
@@ -16,6 +17,7 @@ import Shared
 import Shared.Model exposing (ClientRole)
 import Shared.Msg
 import Tailwind.Utilities as Tw
+import Time
 import Translations.SignIn as Translations
 import Ui.Styles exposing (Theme)
 import View exposing (View)
@@ -26,7 +28,7 @@ page shared route =
     Page.new
         { init = init shared route
         , update = update shared
-        , subscriptions = subscriptions
+        , subscriptions = subscriptions shared
         , view = view shared
         }
         |> Page.withLayout (toLayout shared.theme)
@@ -45,6 +47,7 @@ type alias Model =
     , hash : Maybe String
     , query : Dict String String
     , clientRole : Maybe ClientRole
+    , exitAttempts : Int
     }
 
 
@@ -80,23 +83,25 @@ init shared route () =
             , hash = route.hash
             , query = returnQuery
             , clientRole = clientRole
+            , exitAttempts = 0
             }
 
+        -- Strip secrets from the address bar, but keep `from` so a remount
+        -- still knows where to return. Do not push this in the same batch as
+        -- the post-login redirect: a later push back to /sign-in wins and
+        -- leaves a logged-in session on this page.
         cleanUrlEffect =
             Effect.pushRoute
                 { path = route.path
                 , query = urlQuery
                 , hash = route.hash
                 }
-
-        redirectAfterLoginEffect =
-            redirectToDestination shared model
     in
     case loggedInPubKey shared.loginStatus of
         Just _ ->
             -- Already signed in (e.g. session restored after a mistaken bounce here).
-            ( model
-            , Effect.batch [ cleanUrlEffect, redirectAfterLoginEffect ]
+            ( { model | exitAttempts = 1 }
+            , redirectToDestination shared model
             )
 
         Nothing ->
@@ -131,6 +136,7 @@ nsecParamName =
 type Msg
     = ReceivedPortMessage IncomingMessage
     | TriggerLoginSignup
+    | SessionReady Time.Posix
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -141,6 +147,12 @@ update shared msg model =
 
         TriggerLoginSignup ->
             ( model, Effect.sendSharedMsg Shared.Msg.TriggerLogin )
+
+        -- Login can land in Shared without this page seeing the "user" port
+        -- (or a full reload of /sign-in can cancel the redirect). Leave once
+        -- the session is actually logged in.
+        SessionReady _ ->
+            leaveIfLoggedIn shared model
 
 
 redirectToDestination : Shared.Model -> Model -> Effect Msg
@@ -166,15 +178,44 @@ updateWithPortMessage : Shared.Model -> Model -> IncomingMessage -> ( Model, Eff
 updateWithPortMessage shared model portMessage =
     case portMessage.messageType of
         "user" ->
-            ( model, redirectToDestination shared model )
+            leaveIfLoggedIn shared model
+
+        "loggedOut" ->
+            ( { model | exitAttempts = 0 }, Effect.none )
 
         _ ->
             ( model, Effect.none )
 
 
-subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Ports.receiveMessage ReceivedPortMessage
+{-| How many times to retry leaving /sign-in while the session is logged in.
+A single push can lose to a later navigation back to this URL.
+-}
+maxExitAttempts : Int
+maxExitAttempts =
+    4
+
+
+leaveIfLoggedIn : Shared.Model -> Model -> ( Model, Effect Msg )
+leaveIfLoggedIn shared model =
+    if model.exitAttempts >= maxExitAttempts || loggedInPubKey shared.loginStatus == Nothing then
+        ( model, Effect.none )
+
+    else
+        ( { model | exitAttempts = model.exitAttempts + 1 }
+        , redirectToDestination shared model
+        )
+
+
+subscriptions : Shared.Model -> Model -> Sub Msg
+subscriptions shared model =
+    Sub.batch
+        [ Ports.receiveMessage ReceivedPortMessage
+        , if loggedInPubKey shared.loginStatus /= Nothing && model.exitAttempts < maxExitAttempts then
+            Browser.Events.onAnimationFrame SessionReady
+
+          else
+            Sub.none
+        ]
 
 
 view : Shared.Model -> Model -> View Msg

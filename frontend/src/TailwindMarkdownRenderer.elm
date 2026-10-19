@@ -85,12 +85,12 @@ renderer styles fnGetProfile =
                     image.src
                         |> ensureHttps
             in
-            case ( image.src ) of
-                ( "" ) ->
+            case image.src of
+                "" ->
                     -- ignore images without src attribute
                     emptyHtml
 
-                ( _ ) ->
+                _ ->
                     Html.img
                         [ Attr.src imagesrc
                         , Attr.alt image.alt
@@ -293,6 +293,7 @@ heading styles { level, rawText, children } =
                        , Attr.attribute "name" (rawTextToId rawText)
                        , css
                             [ Tw.mt_10
+                            , Tw.mb_6
                             , Tw.pb_1
                             , Tw.border_b
                             ]
@@ -313,7 +314,7 @@ heading styles { level, rawText, children } =
                     ++ styles.colorStyleGrayscaleText
                     ++ [ css
                             [ Tw.mt_10
-                            , Tw.mb_4
+                            , Tw.mb_6
                             ]
                        ]
                 )
@@ -592,7 +593,7 @@ renderHtmlAElement maybeHref children =
         children
 
 
-renderHtmlBrElement : (List (Html msg) -> Html msg)
+renderHtmlBrElement : List (Html msg) -> Html msg
 renderHtmlBrElement children =
     Html.br
         []
@@ -721,6 +722,7 @@ formatLink styles { destination } body =
                 [ Attr.rel "nofollow noopener noreferrer"
                 , Attr.target "_blank"
                 ]
+
             else
                 []
     in

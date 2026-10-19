@@ -424,6 +424,18 @@
         "all selected tags text": "All selected tags",
         "at least one selected tag text": "At least one selected tag"
     },
+    "tag combination": {
+        "no filter text": "No tag filter. All contacts are included.",
+        "match all groups text": "Match all of these groups",
+        "match any groups text": "Match any of these groups",
+        "include text": "Include",
+        "exclude text": "Exclude",
+        "contacts with text": "contacts with",
+        "any of text": "any of",
+        "all of text": "all of",
+        "add group text": "Add group",
+        "remove group text": "Remove"
+    },
     "email import dialog": {
         "dialog title": "Importera e-postlista",
         "import button title": "Importera",
@@ -459,8 +471,10 @@
         "email label": "E-post",
         "email placeholder": "anna@exempel.se",
         "privacy info": "E-postadressen lagras av författaren, inte Pareto-projektet",
-        "sending message text": "Skickar opt-in...",
-        "sent message text": "Skickade opt-in, du kommer att få ett bekräftelsemail snart.",
+        "sending message text": "Skickar bekräftelse...",
+        "sent message text": "Bekräftelsen är skickad. Kolla din inkorg.",
+        "queued message text": "Din förfrågan ligger i kö. Du bör få ett bekräftelsemail inom kort.",
+        "rejected message text": "Ingen bekräftelse skickades. Adressen kan vara ogiltig, blockerad, eller så begärdes en bekräftelse nyligen.",
         "error message text": "Fel vid prenumeration på lista: {{error}}. Kontakta oss på support@pareto.space"
     },
     "hashtag editor": {
@@ -642,11 +656,13 @@
     },
     "search": {
         "page title": "Sök",
-        "explanation 1": "Lägg till ett Nostr-ID (npub, nprofile, nevent eller naddr), Nostr-adress (tony@pareto.space) eller en URL med ett Nostr-ID",
-        "explanation 2": "Hashtags stöds, sätt en # före ett ord för att filtrera efter hashtags."
+        "explanation 1": "Lägg till ett Nostr-ID (npub, nprofile, nevent eller naddr), Nostr-adress (tony@pareto.space), ett författarnamn eller en URL med ett Nostr-ID",
+        "explanation 2": "Hashtags stöds, sätt en # före ett ord för att filtrera efter hashtags.",
+        "authors heading": "Författare",
+        "articles heading": "Artiklar"
     },
     "search bar": {
-        "placeholder": "URL, Nostr-ID eller Nostr-adress"
+        "placeholder": "URL, Nostr-ID, Nostr-adress eller författarnamn"
     },
     "send newsletter dialog": {
         "dialog title": "Send Newsletter",
@@ -678,7 +694,14 @@
         "emails sent count": "{{sent}} emails sent",
         "sent at text": "Sent {{date}}",
         "failed at text": "Failed {{date}}",
-        "last sent at text": "Last sent {{date}}"
+        "last sent at text": "Last sent {{date}}",
+        "recipients loading text": "Loading recipients…",
+        "counting subscriber file text": "Counting subscriber file recipients…",
+        "counting contact database text": "Counting contact database recipients…",
+        "subscriber file recipients text": "Subscriber file: {{count}} active",
+        "contact database recipients text": "Contact database: {{count}} recipients",
+        "loading subscriber list text": "Loading subscriber list…",
+        "loading contacts text": "Loading contact database…"
     },
     "settings": {
         "page title": "Inställningar",
@@ -831,6 +854,7 @@
         "search menu item text": "Sök",
         "settings menu item text": "Inställningar",
         "subscribers menu item text": "Prenumeranter",
+        "contact database menu item text": "Contacts",
         "write menu item text": "Skriv",
         "about menu item text": "Om",
         "link to home aria label": "Hem",
@@ -843,12 +867,24 @@
     },
     "subscriber edit dialog": {
         "dialog title": "Redigera prenumerant",
+        "add dialog title": "Lägg till kontakt",
         "submit button title": "Skicka"
     },
     "subscribers": {
         "page title": "Prenumeranter",
         "export button title": "Exportera",
         "import button title": "Importera",
+        "add contact button title": "Lägg till kontakt",
+        "csv choose file text": "Välj CSV-fil",
+        "csv reading file text": "Läser början av CSV-filen…",
+        "csv preview empty text": "CSV-filen har inga rader.",
+        "csv import progress text": "{{stored}} kontakter sparade…",
+        "csv import done text": "{{stored}} kontakter sparade. {{skipped}} rader hoppades över.",
+        "csv import error text": "Importen misslyckades: {{error}}",
+        "csv export progress text": "Exporterar… {{exported}} kontakter",
+        "csv export done text": "{{exported}} kontakter exporterade.",
+        "csv export error text": "Exporten misslyckades: {{error}}",
+        "start import button title": "Starta import",
         "load button title": "Load",
         "save button title": "Spara",
         "process modifications button title": "Bearbeta",
@@ -856,6 +892,7 @@
         "error loading subscribers text": "Fel vid laddning av prenumeranter",
         "no subscribers text": "Inga prenumeranter hittades.",
         "new modifications": "Nya ändringar",
+        "no subscriptions since": "Inga prenumerationer sedan {{date}}",
         "dnd field name": "Stör ej",
         "email field name": "E-post",
         "name field name": "Namn",
@@ -870,7 +907,37 @@
         "locale field name": "Språk",
         "subscribers count": "{{subscribersCount}} prenumeranter",
         "subscribers category": "Subscribers",
+        "migrate button title": "Copy into contact database",
+        "migrating text": "Copying subscribers...",
+        "migration done text": "Subscribers copied into the contact database.",
+        "database loading text": "Loading contact database...",
+        "database empty text": "No contacts in the database yet.",
+        "subscriber file label": "Subscriber file",
+        "contact count": "{{count}} kontakt",
+        "contact database label": "Contact database",
+        "contacts count": "{{count}} kontakter",
+        "migrate hint text": "Copy the saved subscriber file into the encrypted contact database. Copying switches newsletters to the contact database.",
+        "newsletter source label": "Send newsletters from",
+        "showing contacts text": "Showing {{shown}} of {{total}}.",
+        "no subscriber file text": "No subscriber file found. Save subscribers on the Subscribers page first.",
+        "open contact database link": "Open contact database",
+        "page size label": "Per sida",
+        "previous page": "Previous",
+        "next page": "Next",
+        "page status": "Page {{page}} of {{pages}}",
+        "filter by tags": "Filter by tags",
+        "match all tags": "Match all selected tags",
+        "no matching contacts text": "No contacts match.",
+        "search label": "Search",
+        "search placeholder": "Namn eller e-post",
+        "search or filter hint": "Search matches a full name or email. Tag filters apply when the search box is empty.",
         "tags category": "Tags",
+        "contacts category": "Contacts",
+        "remove tag button title": "Remove",
+        "delete tag dialog title": "Delete tag",
+        "delete tag dialog message": "Delete the tag \"{{tag}}\"? It will be removed from every contact.",
+        "delete tag confirm button title": "Delete",
+        "delete tag cancel button title": "Cancel",
         "add tag field label": "Add tag",
         "add tag button title": "Add"
     },

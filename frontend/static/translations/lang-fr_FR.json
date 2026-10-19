@@ -424,6 +424,18 @@
         "all selected tags text": "All selected tags",
         "at least one selected tag text": "At least one selected tag"
     },
+    "tag combination": {
+        "no filter text": "No tag filter. All contacts are included.",
+        "match all groups text": "Match all of these groups",
+        "match any groups text": "Match any of these groups",
+        "include text": "Include",
+        "exclude text": "Exclude",
+        "contacts with text": "contacts with",
+        "any of text": "any of",
+        "all of text": "all of",
+        "add group text": "Add group",
+        "remove group text": "Remove"
+    },
     "email import dialog": {
         "dialog title": "Importer la liste d'emails",
         "import button title": "Importer",
@@ -459,8 +471,10 @@
         "email label": "Email",
         "email placeholder": "marie@exemple.fr",
         "privacy info": "L'adresse email est stockée par l'auteur, pas par le projet Pareto",
-        "sending message text": "Envoi de l'opt-in...",
-        "sent message text": "Opt-in envoyé, vous recevrez bientôt un email de confirmation.",
+        "sending message text": "Envoi de la confirmation...",
+        "sent message text": "Confirmation envoyée. Vérifiez votre boîte de réception.",
+        "queued message text": "Votre demande est en file d'attente. Vous devriez recevoir un email de confirmation sous peu.",
+        "rejected message text": "Aucune confirmation n'a été envoyée. L'adresse est peut-être invalide, bloquée, ou une confirmation a déjà été demandée récemment.",
         "error message text": "Erreur lors de l'abonnement à la liste : {{error}}. Contactez-nous à support@pareto.space"
     },
     "hashtag editor": {
@@ -642,11 +656,13 @@
     },
     "search": {
         "page title": "Rechercher",
-        "explanation 1": "Ajoutez un ID Nostr (npub, nprofile, nevent ou naddr), une adresse Nostr (tony@pareto.space) ou une URL avec un ID Nostr",
-        "explanation 2": "Les hashtags sont pris en charge, ajoutez un # avant un mot pour filtrer par hashtags."
+        "explanation 1": "Ajoutez un ID Nostr (npub, nprofile, nevent ou naddr), une adresse Nostr (tony@pareto.space), un nom d'auteur ou une URL avec un ID Nostr",
+        "explanation 2": "Les hashtags sont pris en charge, ajoutez un # avant un mot pour filtrer par hashtags.",
+        "authors heading": "Auteurs",
+        "articles heading": "Articles"
     },
     "search bar": {
-        "placeholder": "URL, ID Nostr ou adresse Nostr"
+        "placeholder": "URL, ID Nostr, adresse Nostr ou nom d'auteur"
     },
     "send newsletter dialog": {
         "dialog title": "Send Newsletter",
@@ -678,7 +694,14 @@
         "emails sent count": "{{sent}} emails sent",
         "sent at text": "Sent {{date}}",
         "failed at text": "Failed {{date}}",
-        "last sent at text": "Last sent {{date}}"
+        "last sent at text": "Last sent {{date}}",
+        "recipients loading text": "Loading recipients…",
+        "counting subscriber file text": "Counting subscriber file recipients…",
+        "counting contact database text": "Counting contact database recipients…",
+        "subscriber file recipients text": "Subscriber file: {{count}} active",
+        "contact database recipients text": "Contact database: {{count}} recipients",
+        "loading subscriber list text": "Loading subscriber list…",
+        "loading contacts text": "Loading contact database…"
     },
     "settings": {
         "page title": "Paramètres",
@@ -831,6 +854,7 @@
         "search menu item text": "Rechercher",
         "settings menu item text": "Paramètres",
         "subscribers menu item text": "Abonnés",
+        "contact database menu item text": "Contacts",
         "write menu item text": "Écrire",
         "about menu item text": "À propos",
         "link to home aria label": "Accueil",
@@ -843,12 +867,24 @@
     },
     "subscriber edit dialog": {
         "dialog title": "Modifier l'abonné",
+        "add dialog title": "Ajouter un contact",
         "submit button title": "Envoyer"
     },
     "subscribers": {
         "page title": "Abonnés",
         "export button title": "Exporter",
         "import button title": "Importer",
+        "add contact button title": "Ajouter un contact",
+        "csv choose file text": "Choisir un fichier CSV",
+        "csv reading file text": "Lecture du début du fichier CSV…",
+        "csv preview empty text": "Le fichier CSV ne contient aucune ligne.",
+        "csv import progress text": "{{stored}} contacts enregistrés…",
+        "csv import done text": "{{stored}} contacts enregistrés. {{skipped}} lignes ignorées.",
+        "csv import error text": "Échec de l'import : {{error}}",
+        "csv export progress text": "Export… {{exported}} contacts",
+        "csv export done text": "{{exported}} contacts exportés.",
+        "csv export error text": "Échec de l'export : {{error}}",
+        "start import button title": "Démarrer l'import",
         "load button title": "Load",
         "save button title": "Sauvegarder",
         "process modifications button title": "Traiter",
@@ -856,6 +892,7 @@
         "error loading subscribers text": "Erreur lors du chargement des abonnés",
         "no subscribers text": "Aucun abonné trouvé.",
         "new modifications": "Nouvelles modifications",
+        "no subscriptions since": "Aucun abonnement depuis {{date}}",
         "dnd field name": "Ne pas déranger",
         "email field name": "Email",
         "name field name": "Nom",
@@ -870,7 +907,37 @@
         "locale field name": "Langue",
         "subscribers count": "{{subscribersCount}} abonnés",
         "subscribers category": "Subscribers",
+        "migrate button title": "Copy into contact database",
+        "migrating text": "Copying subscribers...",
+        "migration done text": "Subscribers copied into the contact database.",
+        "database loading text": "Loading contact database...",
+        "database empty text": "No contacts in the database yet.",
+        "subscriber file label": "Subscriber file",
+        "contact count": "{{count}} contact",
+        "contact database label": "Contact database",
+        "contacts count": "{{count}} contacts",
+        "migrate hint text": "Copy the saved subscriber file into the encrypted contact database. Copying switches newsletters to the contact database.",
+        "newsletter source label": "Send newsletters from",
+        "showing contacts text": "Showing {{shown}} of {{total}}.",
+        "no subscriber file text": "No subscriber file found. Save subscribers on the Subscribers page first.",
+        "open contact database link": "Open contact database",
+        "page size label": "Par page",
+        "previous page": "Previous",
+        "next page": "Next",
+        "page status": "Page {{page}} of {{pages}}",
+        "filter by tags": "Filter by tags",
+        "match all tags": "Match all selected tags",
+        "no matching contacts text": "No contacts match.",
+        "search label": "Search",
+        "search placeholder": "Nom ou e-mail",
+        "search or filter hint": "Search matches a full name or email. Tag filters apply when the search box is empty.",
         "tags category": "Tags",
+        "contacts category": "Contacts",
+        "remove tag button title": "Remove",
+        "delete tag dialog title": "Delete tag",
+        "delete tag dialog message": "Delete the tag \"{{tag}}\"? It will be removed from every contact.",
+        "delete tag confirm button title": "Delete",
+        "delete tag cancel button title": "Cancel",
         "add tag field label": "Add tag",
         "add tag button title": "Add"
     },

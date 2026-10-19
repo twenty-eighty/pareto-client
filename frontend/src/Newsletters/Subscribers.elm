@@ -8,12 +8,13 @@ import Iso8601
 import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
 import Json.Encode as Encode
-import Newsletters.Types exposing (Subscriber, SubscriberField(..), encodeSubscribers, fieldName)
+import Newsletters.Types exposing (Subscriber, SubscriberField(..), encodeSubscriber, encodeSubscribers, fieldName)
 import Nostr
 import Nostr.Model exposing (TestMode(..))
 import Nostr.Event as Event exposing (AddressComponents, Event, EventFilter, Kind(..), TagReference(..), emptyEvent, emptyEventFilter)
 import Nostr.Profile exposing (Profile, profileDisplayName)
-import Nostr.Request exposing (RequestData(..))
+import Nostr.Request exposing (Request, RequestData(..), RequestId, RequestState(..))
+import Nostr.Send exposing (SendRequest(..))
 import Nostr.Types exposing (PubKey)
 import Pareto
 import SHA256
@@ -37,6 +38,8 @@ allSubscriberFields =
     , FieldDateUnsubscription
     , FieldTags
     , FieldUndeliverable
+    , FieldVerifiedAt
+    , FieldReason
     , FieldLocale
     ]
 
@@ -78,6 +81,19 @@ defaultCsvColumnNameMap =
     , ( "nachname", FieldLastName )
     , ( "zuname", FieldLastName )
     , ( "subscription date", FieldDateSubscription )
+    , ( "dnd", FieldDnd )
+    , ( "do not disturb", FieldDnd )
+    , ( "pubkey", FieldPubKey )
+    , ( "source", FieldSource )
+    , ( "datesub", FieldDateSubscription )
+    , ( "dateunsub", FieldDateUnsubscription )
+    , ( "unsubscribe date", FieldDateUnsubscription )
+    , ( "tags", FieldTags )
+    , ( "locale", FieldLocale )
+    , ( "undeliverable", FieldUndeliverable )
+    , ( "verifiedat", FieldVerifiedAt )
+    , ( "verified at", FieldVerifiedAt )
+    , ( "reason", FieldReason )
     ]
         |> Dict.fromList
 
@@ -206,6 +222,12 @@ setSubscriberField field value subscriber =
         FieldUndeliverable ->
             { subscriber | undeliverable = Just value }
 
+        FieldVerifiedAt ->
+            { subscriber | verifiedAt = verifiedAtFromString value }
+
+        FieldReason ->
+            { subscriber | reason = Just value }
+
         FieldLocale ->
             { subscriber | locale = Just value }
 
@@ -269,6 +291,12 @@ translatedFieldName translations field =
         FieldUndeliverable ->
             Translations.undeliverableFieldName [ translations ]
 
+        FieldVerifiedAt ->
+            Translations.verifiedAtFieldName [ translations ]
+
+        FieldReason ->
+            Translations.reasonFieldName [ translations ]
+
         FieldLocale ->
             Translations.localeFieldName [ translations ]
 
@@ -316,6 +344,14 @@ subscriberValue browserEnv subscriber field =
         FieldUndeliverable ->
             Maybe.withDefault "" subscriber.undeliverable
 
+        FieldVerifiedAt ->
+            subscriber.verifiedAt
+                |> Maybe.map (BrowserEnv.formatDate browserEnv)
+                |> Maybe.withDefault ""
+
+        FieldReason ->
+            Maybe.withDefault "" subscriber.reason
+
         FieldLocale ->
             Maybe.withDefault "" subscriber.locale
 
@@ -332,6 +368,96 @@ type Modification
 subscribersDTag : String
 subscribersDTag =
     "pareto-subscribers"
+
+
+type RecipientSource
+    = SubscriberFile
+    | ContactDatabase
+
+
+recipientSourceDTag : String
+recipientSourceDTag =
+    "pareto-newsletter-source"
+
+
+recipientSourceToString : RecipientSource -> String
+recipientSourceToString source =
+    case source of
+        SubscriberFile ->
+            "subscribers"
+
+        ContactDatabase ->
+            "contacts"
+
+
+recipientSourceFromString : String -> RecipientSource
+recipientSourceFromString source =
+    if source == "contacts" then
+        ContactDatabase
+
+    else
+        SubscriberFile
+
+
+decodeRecipientSource : Decode.Decoder RecipientSource
+decodeRecipientSource =
+    Decode.field "source" Decode.string
+        |> Decode.map recipientSourceFromString
+
+
+recipientSourceFromEvents : List Event -> RecipientSource
+recipientSourceFromEvents events =
+    events
+        |> List.filterMap
+            (\event ->
+                Decode.decodeString decodeRecipientSource event.content
+                    |> Result.toMaybe
+            )
+        |> List.head
+        |> Maybe.withDefault SubscriberFile
+
+
+recipientSourceEvent : BrowserEnv -> PubKey -> RecipientSource -> Event
+recipientSourceEvent browserEnv pubKey source =
+    { pubKey = pubKey
+    , createdAt = browserEnv.now
+    , kind = KindApplicationSpecificData
+    , tags =
+        []
+            |> Event.addDTag recipientSourceDTag
+    , content =
+        [ ( "source", Encode.string (recipientSourceToString source) ) ]
+            |> Encode.object
+            |> Encode.encode 0
+    , id = ""
+    , sig = Nothing
+    , relays = Nothing
+    }
+
+
+saveRecipientSource : BrowserEnv -> PubKey -> RecipientSource -> Shared.Msg.Msg
+saveRecipientSource browserEnv pubKey source =
+    recipientSourceEvent browserEnv pubKey source
+        |> SendApplicationData
+        |> Shared.Msg.SendNostrEvent
+
+
+loadRecipientSource : RequestId -> PubKey -> Shared.Msg.Msg
+loadRecipientSource requestId pubKey =
+    { emptyEventFilter
+        | authors = Just [ pubKey ]
+        , kinds = Just [ KindApplicationSpecificData ]
+        , tagReferences = Just [ TagReferenceIdentifier recipientSourceDTag ]
+    }
+        |> RequestSubscribers
+        |> (\data ->
+                { id = requestId
+                , relatedKinds = []
+                , states = [ RequestCreated data ]
+                , description = "Load newsletter recipient source"
+                }
+           )
+        |> Shared.Msg.RequestNostrEvents
 
 
 newsletterDTag : String
@@ -357,6 +483,12 @@ isActiveSubscriber subscriber =
         /= Just True
         && subscriber.dateUnsubscription
         == Nothing
+        && subscriber.undeliverable
+        /= Just "true"
+        && subscriber.reason
+        /= Just "blocked"
+        && subscriber.reason
+        /= Just "unsubscribed"
 
 
 emptySubscriber : Email -> Subscriber
@@ -371,6 +503,8 @@ emptySubscriber email =
     , dateUnsubscription = Nothing
     , tags = Nothing
     , undeliverable = Nothing
+    , verifiedAt = Nothing
+    , reason = Nothing
     , locale = Nothing
     }
 
@@ -383,12 +517,202 @@ load nostr userPubKey =
         |> Shared.Msg.RequestNostrEvents
 
 
+loadFor : RequestId -> PubKey -> Shared.Msg.Msg
+loadFor requestId userPubKey =
+    subscribersEventFilter userPubKey
+        |> RequestSubscribers
+        |> (\data ->
+                { id = requestId
+                , relatedKinds = []
+                , states = [ RequestCreated data ]
+                , description = "Load subscribers"
+                }
+           )
+        |> Shared.Msg.RequestNostrEvents
+
+
 loadModifications : Nostr.Model -> PubKey -> Shared.Msg.Msg
 loadModifications nostr userPubKey =
     modificationsEventFilter userPubKey
         |> RequestSubscribers
         |> Nostr.createRequest nostr "Load modifications" []
         |> Shared.Msg.RequestNostrEvents
+
+
+loadModificationsFor : RequestId -> PubKey -> Shared.Msg.Msg
+loadModificationsFor requestId userPubKey =
+    modificationsEventFilter userPubKey
+        |> RequestSubscribers
+        |> (\data ->
+                { id = requestId
+                , relatedKinds = []
+                , states = [ RequestCreated data ]
+                , description = "Load modifications"
+                }
+           )
+        |> Shared.Msg.RequestNostrEvents
+
+
+modificationPageSize : Int
+modificationPageSize =
+    500
+
+
+subscriptionCursorDTag : String
+subscriptionCursorDTag =
+    "pareto-subscription-cursor"
+
+
+loadSubscriptionCursor : RequestId -> PubKey -> Shared.Msg.Msg
+loadSubscriptionCursor requestId pubKey =
+    { emptyEventFilter
+        | authors = Just [ pubKey ]
+        , kinds = Just [ KindApplicationSpecificData ]
+        , tagReferences = Just [ TagReferenceIdentifier subscriptionCursorDTag ]
+        , limit = Just 1
+    }
+        |> RequestSubscribers
+        |> (\data ->
+                { id = requestId
+                , relatedKinds = []
+                , states = [ RequestCreated data ]
+                , description = "Load subscription cursor"
+                }
+           )
+        |> Shared.Msg.RequestNostrEvents
+
+
+saveSubscriptionCursor : BrowserEnv -> PubKey -> Time.Posix -> Shared.Msg.Msg
+saveSubscriptionCursor browserEnv pubKey time =
+    subscriptionCursorEvent browserEnv pubKey time
+        |> SendApplicationData
+        |> Shared.Msg.SendNostrEvent
+
+
+subscriptionCursorEvent : BrowserEnv -> PubKey -> Time.Posix -> Event
+subscriptionCursorEvent browserEnv pubKey time =
+    { pubKey = pubKey
+    , createdAt = browserEnv.now
+    , kind = KindApplicationSpecificData
+    , tags =
+        []
+            |> Event.addDTag subscriptionCursorDTag
+    , content =
+        [ ( "createdAt", Encode.int (Time.posixToMillis time // 1000) ) ]
+            |> Encode.object
+            |> Encode.encode 0
+    , id = ""
+    , sig = Nothing
+    , relays = Nothing
+    }
+
+
+subscriptionCursorFromEvents : List Event -> Maybe Time.Posix
+subscriptionCursorFromEvents events =
+    events
+        |> List.filterMap
+            (\event ->
+                Decode.decodeString decodeSubscriptionCursor event.content
+                    |> Result.toMaybe
+            )
+        |> List.map Time.posixToMillis
+        |> List.maximum
+        |> Maybe.map Time.millisToPosix
+
+
+decodeSubscriptionCursor : Decode.Decoder Time.Posix
+decodeSubscriptionCursor =
+    Decode.field "createdAt" Decode.int
+        |> Decode.map (\seconds -> Time.millisToPosix (seconds * 1000))
+
+
+loadModificationPage : RequestId -> PubKey -> Maybe Time.Posix -> Maybe Time.Posix -> Shared.Msg.Msg
+loadModificationPage requestId pubKey since until =
+    { emptyEventFilter
+        | authors = Just [ Pareto.subscriptionServerKey ]
+        , kinds = Just [ KindApplicationSpecificData ]
+        , tagReferences = Just [ TagReferencePubKey pubKey ]
+        , limit = Just modificationPageSize
+        , since = since
+        , until = until
+    }
+        |> RequestSubscribers
+        |> (\data ->
+                { id = requestId
+                , relatedKinds = []
+                , states = [ RequestCreated data ]
+                , description = "Load modification page"
+                }
+           )
+        |> Shared.Msg.RequestNostrEvents
+
+
+type alias ModificationPage =
+    { modifications : List Modification
+    , errors : List String
+    , eventCount : Int
+    , oldest : Maybe Time.Posix
+    , newest : Maybe Time.Posix
+    }
+
+
+modificationPageFromEvents : List Event -> ModificationPage
+modificationPageFromEvents events =
+    let
+        ( modifications, errors ) =
+            modificationsFromEvents events
+
+        times =
+            List.map (\event -> Time.posixToMillis event.createdAt) events
+    in
+    { modifications = modifications
+    , errors = errors
+    , eventCount = List.length events
+    , oldest = List.minimum times |> Maybe.map Time.millisToPosix
+    , newest = List.maximum times |> Maybe.map Time.millisToPosix
+    }
+
+
+{-| The next page upper bound. Nothing means this page already reached the end of the history.
+`until` is one second before the oldest event, because Nostr treats `until` as inclusive.
+-}
+nextModificationUntil : Int -> Maybe Time.Posix -> Maybe Time.Posix -> Maybe Time.Posix -> Maybe Time.Posix
+nextModificationUntil eventCount pageOldest previousOldest since =
+    if eventCount < modificationPageSize then
+        Nothing
+
+    else
+        case pageOldest of
+            Nothing ->
+                Nothing
+
+            Just oldest ->
+                let
+                    movedBackward =
+                        case previousOldest of
+                            Nothing ->
+                                True
+
+                            Just previous ->
+                                Time.posixToMillis oldest < Time.posixToMillis previous
+
+                    until =
+                        Time.millisToPosix (max 0 (Time.posixToMillis oldest - 1000))
+                in
+                if not movedBackward then
+                    Nothing
+
+                else
+                    case since of
+                        Just start ->
+                            if Time.posixToMillis until < Time.posixToMillis start then
+                                Nothing
+
+                            else
+                                Just until
+
+                        Nothing ->
+                            Just until
 
 
 toCsv : List Subscriber -> Csv.Encode.Csv
@@ -543,25 +867,126 @@ processEvents userPubKey existingModifications events =
                     )
                 |> List.head
 
-        modificationEvents =
-            events
-                |> List.filter (\event -> event.pubKey == Pareto.subscriptionServerKey)
-
-        ( modifications, decodingErrors ) =
-            modificationEvents
-                |> List.map modificationFromEvent
-                |> List.foldl
-                    (\result ( modificationsAcc, errorList ) ->
-                        case result of
-                            Ok decodedModification ->
-                                ( modificationsAcc ++ [ decodedModification ], errorList )
-
-                            Err error ->
-                                ( modificationsAcc, errorList ++ [ Decode.errorToString error ] )
-                    )
-                    ( existingModifications, [] )
+        ( decodedModifications, decodingErrors ) =
+            modificationsFromEvents events
     in
-    ( subscriberEventData, modifications, decodingErrors )
+    ( subscriberEventData, existingModifications ++ decodedModifications, decodingErrors )
+
+
+modificationsFromEvents : List Event -> ( List Modification, List String )
+modificationsFromEvents events =
+    events
+        |> List.filter (\event -> event.pubKey == Pareto.subscriptionServerKey)
+        |> List.map modificationFromEvent
+        |> List.foldl
+            (\result ( modificationsAcc, errorList ) ->
+                case result of
+                    Ok decodedModification ->
+                        ( modificationsAcc ++ [ decodedModification ], errorList )
+
+                    Err error ->
+                        ( modificationsAcc, errorList ++ [ Decode.errorToString error ] )
+            )
+            ( [], [] )
+
+
+{-| One modification per address: the newest event. An unsubscribe wins when both
+have the same time, so a later subscribe in the relay batch cannot undo it.
+-}
+latestModifications : List Modification -> List Modification
+latestModifications modifications =
+    modifications
+        |> List.foldl
+            (\modification acc ->
+                let
+                    email =
+                        modificationEmail modification
+                            |> String.trim
+                            |> String.toLower
+                in
+                if email == "" then
+                    acc
+
+                else
+                    case Dict.get email acc of
+                        Nothing ->
+                            Dict.insert email modification acc
+
+                        Just current ->
+                            if modificationWins modification current then
+                                Dict.insert email modification acc
+
+                            else
+                                acc
+            )
+            Dict.empty
+        |> Dict.values
+
+
+encodeModifications : List Modification -> Encode.Value
+encodeModifications modifications =
+    Encode.list encodeModification modifications
+
+
+modificationEmail : Modification -> Email
+modificationEmail modification =
+    case modification of
+        Subscription subscriber ->
+            subscriber.email
+
+        Unsubscription subscriber ->
+            subscriber.email
+
+
+modificationTime : Modification -> Int
+modificationTime modification =
+    case modification of
+        Subscription subscriber ->
+            Time.posixToMillis subscriber.dateSubscription
+
+        Unsubscription subscriber ->
+            subscriber.dateUnsubscription
+                |> Maybe.map Time.posixToMillis
+                |> Maybe.withDefault 0
+
+
+modificationWins : Modification -> Modification -> Bool
+modificationWins candidate current =
+    let
+        candidateTime =
+            modificationTime candidate
+
+        currentTime =
+            modificationTime current
+    in
+    if candidateTime == currentTime then
+        case candidate of
+            Unsubscription _ ->
+                True
+
+            Subscription _ ->
+                False
+
+    else
+        candidateTime > currentTime
+
+
+encodeModification : Modification -> Encode.Value
+encodeModification modification =
+    case modification of
+        Subscription subscriber ->
+            Encode.object
+                [ ( "kind", Encode.string "subscribe" )
+                , ( "at", Encode.int (modificationTime modification) )
+                , ( "subscriber", Encode.object (encodeSubscriber subscriber) )
+                ]
+
+        Unsubscription subscriber ->
+            Encode.object
+                [ ( "kind", Encode.string "unsubscribe" )
+                , ( "at", Encode.int (modificationTime modification) )
+                , ( "subscriber", Encode.object (encodeSubscriber subscriber) )
+                ]
 
 
 subscribersFromEvent : Event -> Result Decode.Error (List Subscriber)
@@ -674,10 +1099,12 @@ subscriberDecoder =
         |> optional (fieldName FieldLastName) (Decode.maybe Decode.string) Nothing
         |> optional (fieldName FieldPubKey) (Decode.maybe Decode.string) Nothing
         |> optional (fieldName FieldSource) (Decode.maybe Decode.string) Nothing
-        |> required (fieldName FieldDateSubscription) decodePosixTime
+        |> optional (fieldName FieldDateSubscription) decodePosixTime (Time.millisToPosix 0)
         |> optional (fieldName FieldDateUnsubscription) (Decode.maybe decodePosixTime) Nothing
         |> optional (fieldName FieldTags) (Decode.maybe (Decode.list Decode.string)) Nothing
-        |> optional (fieldName FieldUndeliverable) (Decode.maybe Decode.string) Nothing
+        |> optional (fieldName FieldUndeliverable) decodeUndeliverable Nothing
+        |> optional (fieldName FieldVerifiedAt) (Decode.maybe decodePosixTime) Nothing
+        |> optional (fieldName FieldReason) (Decode.maybe Decode.string) Nothing
         |> optional (fieldName FieldLocale) (Decode.maybe Decode.string) Nothing
 
 
@@ -690,6 +1117,41 @@ decodePosixTime =
                     |> Time.millisToPosix
                     |> Decode.succeed
             )
+
+
+decodeUndeliverable : Decode.Decoder (Maybe String)
+decodeUndeliverable =
+    Decode.oneOf
+        [ Decode.bool
+            |> Decode.map
+                (\flag ->
+                    if flag then
+                        Just "true"
+
+                    else
+                        Nothing
+                )
+        , Decode.string
+            |> Decode.map
+                (\value ->
+                    if String.trim value == "" then
+                        Nothing
+
+                    else
+                        Just value
+                )
+        , Decode.null Nothing
+        ]
+
+
+verifiedAtFromString : String -> Maybe Time.Posix
+verifiedAtFromString value =
+    case String.toInt (String.trim value) of
+        Just millis ->
+            Just (Time.millisToPosix millis)
+
+        Nothing ->
+            Iso8601.toTime value |> Result.toMaybe
 
 
 toCSV : List Subscriber -> String

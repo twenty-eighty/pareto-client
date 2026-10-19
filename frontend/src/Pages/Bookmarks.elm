@@ -6,8 +6,10 @@ import Components.ArticleComments as ArticleComments
 import Components.ArticleHighlights as ArticleHighlights
 import Components.BookmarkButton as BookmarkButton
 import Components.Categories as Categories
+import Components.Icon as Icon
 import Dict exposing (Dict)
 import Effect exposing (Effect)
+import FeatherIcons
 import Html.Styled as Html exposing (Html, a, blockquote, div, span, text)
 import Html.Styled.Attributes exposing (css, href)
 import I18Next
@@ -27,6 +29,7 @@ import Route exposing (Route)
 import Route.Path
 import Shared
 import Shared.Msg
+import Tailwind.Theme exposing (Color)
 import Tailwind.Utilities as Tw
 import Translations.Bookmarks as Translations
 import Ui.Article exposing (linkToArticle)
@@ -64,7 +67,7 @@ toLayout user shared model =
                 , toMsg = CategoriesSent
                 , onSelect = CategorySelected
                 , equals = \category1 category2 -> category1 == category2
-                , image = \_ _ -> Nothing
+                , image = categoryImage
                 , categories = availableCategories bookmarkList (Nostr.highlightsByAuthor shared.nostr user.pubKey) shared.browserEnv.translations
                 , browserEnv = shared.browserEnv
                 , theme = shared.theme
@@ -573,3 +576,22 @@ availableCategories bookmarkList highlights translations =
                 []
     in
     articleBookmarkCategory ++ highlightBookmarkCategory ++ noteBookmarkCategory
+
+
+categoryImage : Color -> BookmarkType -> Maybe (Html msg)
+categoryImage _ category =
+    let
+        icon =
+            case category of
+                ArticleBookmark ->
+                    FeatherIcons.bookOpen
+
+                HighlightBookmark ->
+                    FeatherIcons.underline
+
+                NoteBookmark ->
+                    FeatherIcons.fileText
+    in
+    Icon.FeatherIcon icon
+        |> Icon.viewWithSize 16
+        |> Just

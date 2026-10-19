@@ -117,6 +117,7 @@ type alias Flags =
     , nativeSharingAvailable : Bool
     , testMode : Bool
     , authApiBaseUrl : String
+    , contactDatabaseServerUrl : String
     , notificationsLastSeen : Dict String Int
     , localRelays : List String
     }
@@ -133,6 +134,7 @@ decoder =
         |> DecodePipeline.required "nativeSharingAvailable" Json.Decode.bool
         |> DecodePipeline.required "testMode" Json.Decode.bool
         |> DecodePipeline.required "authApiBaseUrl" Json.Decode.string
+        |> DecodePipeline.required "contactDatabaseServerUrl" Json.Decode.string
         |> DecodePipeline.optional "notificationsLastSeen" (Json.Decode.dict Json.Decode.int) Dict.empty
         |> DecodePipeline.optional "localRelays" (Json.Decode.list Json.Decode.string) []
 
@@ -149,6 +151,7 @@ init flagsResult route =
                 ( browserEnv, browserEnvCmd ) =
                     BrowserEnv.init
                         { authApiBaseUrl = flags.authApiBaseUrl
+                        , contactDatabaseServerUrl = flags.contactDatabaseServerUrl
                         , backendUrl = ""
                         , darkMode = flags.darkMode
                         , environment = flags.environment
@@ -206,6 +209,7 @@ init flagsResult route =
                 ( browserEnv, _ ) =
                     BrowserEnv.init
                         { authApiBaseUrl = Pareto.authApiBaseUrl
+                        , contactDatabaseServerUrl = Pareto.contactDatabaseServerUrl
                         , backendUrl = ""
                         , darkMode = False
                         , environment = Nothing
@@ -593,8 +597,14 @@ updateWithUserValue route model value =
                     , lastSeenEffect
                     , createNotificationsActivityEffect modelWithLastSeen.nostr pubKeyNew
                     , Effect.sendCmd Ports.disconnectNwc
-                      -- Remount auth pages so Write/Settings/Subscribers don't keep the previous user's model.
-                    , Effect.loadExternalUrl (Url.toString route.url)
+                    , if route.path == Route.Path.SignIn then
+                        -- SignIn navigates to `from`. Reloading this URL cancels
+                        -- that redirect and leaves the new session on /sign-in.
+                        Effect.none
+
+                      else
+                        -- Remount auth pages so Write/Settings/Subscribers don't keep the previous user's model.
+                        Effect.loadExternalUrl (Url.toString route.url)
                     ]
                 )
 

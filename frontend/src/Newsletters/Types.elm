@@ -15,6 +15,8 @@ type alias Subscriber =
     , dateUnsubscription : Maybe Time.Posix
     , tags : Maybe (List String)
     , undeliverable : Maybe String
+    , verifiedAt : Maybe Time.Posix
+    , reason : Maybe String
     , locale : Maybe String
     }
 
@@ -31,6 +33,8 @@ type SubscriberField
     | FieldDateUnsubscription
     | FieldTags
     | FieldUndeliverable
+    | FieldVerifiedAt
+    | FieldReason
     | FieldLocale
 
 
@@ -71,6 +75,12 @@ fieldName field =
         FieldUndeliverable ->
             "undeliverable"
 
+        FieldVerifiedAt ->
+            "verifiedAt"
+
+        FieldReason ->
+            "reason"
+
         FieldLocale ->
             "locale"
 
@@ -88,7 +98,9 @@ encodeSubscriber subscriber =
     , ( fieldName FieldDateSubscription, Encode.int <| Time.posixToMillis subscriber.dateSubscription )
     ]
         |> addBoolToObject FieldDnd subscriber.dnd
-        |> addStringToObject FieldUndeliverable subscriber.undeliverable
+        |> addUndeliverable subscriber.undeliverable
+        |> addDateToObject FieldVerifiedAt subscriber.verifiedAt
+        |> addStringToObject FieldReason subscriber.reason
         |> addStringToObject FieldFirstName subscriber.firstName
         |> addStringToObject FieldLastName subscriber.lastName
         |> addStringToObject FieldPubKey subscriber.pubKey
@@ -103,6 +115,19 @@ addBoolToObject field maybeValue acc =
     case maybeValue of
         Just value ->
             acc ++ [ ( fieldName field, Encode.bool value ) ]
+
+        Nothing ->
+            acc
+
+
+addUndeliverable : Maybe String -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
+addUndeliverable maybeValue acc =
+    case maybeValue of
+        Just "true" ->
+            acc ++ [ ( fieldName FieldUndeliverable, Encode.bool True ) ]
+
+        Just value ->
+            acc ++ [ ( fieldName FieldUndeliverable, Encode.string value ) ]
 
         Nothing ->
             acc

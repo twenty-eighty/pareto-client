@@ -1,6 +1,10 @@
 import "./Milkdown/MilkdownEditor";
-import { Contacts } from "./Newsletters/Contacts";
+import { EncryptedContacts, contactsApiBaseUrl, signerFromNdk } from "./Newsletters/EncryptedContacts";
+import { exportContactCsvFile, importContactCsvFile, readCsvPreview, type CsvMapping } from "./Newsletters/contactCsv";
+import { classifyEmails, cleanContactList, deliverabilityApiBaseUrl } from "./Newsletters/cleanContacts";
+import { parseSubscriptionChanges, syncSubscriptionEvents as applySubscriptionEvents } from "./Newsletters/subscriptionEvents";
 import { createNewsletterSender, isNewsletterSendCancelled } from "./Newsletters/Send";
+import { COURIER_PUBKEY, buildOptInPayload, submitOptIn } from "./Newsletters/optIn";
 
 import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import NDKCacheAdapterDexie from "@nostr-dev-kit/cache-dexie";
@@ -9,12 +13,18 @@ import "./clipboard-component";
 import "./elm-oembed";
 import { createRelayManager } from "./relay-manager";
 import { filterRelayUrls, isBlockedRelayUrl, setBlockedRelayUrls } from "./blocked-relays";
-import { handleAuthCommand, restoreActiveIdentity } from "./authIdentities";
+import { armExtensionPrompt, handleAuthCommand, isAuthCommand, restoreActiveIdentity } from "./authIdentities";
 import { reportPasskeySupport as queryPasskeySupport } from "./keytrAuth";
 import * as cashuWallet from "./cashuWallet";
 import * as nwcWallet from "./nwcWallet";
 import { initPwa, reloadForNewVersion } from "./pwa";
 import debug from 'debug';
+
+type CsvFileWritable = {
+  write(data: string): Promise<void>;
+  close(): Promise<void>;
+  abort(): Promise<void>;
+};
 
 declare global {
   interface Window {
@@ -56,7 +66,9 @@ interface FlagsEnv {
 
 type PortCommand = { command: string; value: any };
 
-var contacts: Contacts | null = null;
+var contacts: EncryptedContacts | null = null;
+var contactsUrl: string | null = null;
+var contactsPubkey: string | null = null;
 var newsletterSendClient: any = null;
 var newsletterSendAbort: AbortController | null = null;
 
@@ -84,6 +96,7 @@ export const flags = ({ env }: { env: FlagsEnv }) => {
     notificationsLastSeen: JSON.parse(localStorage.getItem('notificationsLastSeen') || '{}') || {},
     localRelays: JSON.parse(localStorage.getItem('localRelays') || '[]') || [],
     authApiBaseUrl,
+    contactDatabaseServerUrl: contactsApiBaseUrl(),
   }
 };
 
@@ -152,6 +165,11 @@ function watchTextSelection(app: ElmApp) {
 export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
   var storedCommands: PortCommand[] = [];
+  let pendingContactCsv: File | null = null;
+  let contactCsvImportCancelled = false;
+  let contactCsvExportCancelled = false;
+  let contactCleanCancelled = false;
+  let contactCleanRunning = false;
 
   // the backend may inject a <script> element containing
   // raw Nostr events required by the page to be loaded
@@ -179,9 +197,21 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       reloadForNewVersion();
       return;
     }
+    if (command === 'sendOptIn') {
+      // Opt-in posts ciphertext to the queue. It does not wait for a relay.
+      sendOptIn(app, value);
+      return;
+    }
+    try {
+      armExtensionPrompt(command, value);
+    } catch (error) {
+      debugLog('extension prompt failed', error);
+    }
     if (command === 'connect') {
       connect(app, value.client, value.nip89, value.relays, value.blockedRelays);
-    } else if (connected) {
+    } else if (window.ndk && (connected || isAuthCommand(command))) {
+      // Auth (including the extension prompt) must run in this click.
+      // Waiting for a relay drops the user gesture, so the extension never opens.
       processOnlineCommand(app, command, value);
     } else {
       storedCommands.push({ command: command, value: value });
@@ -273,6 +303,12 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         return;
       }
       processOnlineCommandRest(app, command, value);
+    }).catch((error) => {
+      debugLog('command failed', command, error);
+      app.ports.receiveMessage.send({
+        messageType: 'authError',
+        value: { reason: error?.message || 'Authentication failed' },
+      });
     });
   }
 
@@ -396,6 +432,14 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         loadContacts(app, value);
         break;
 
+      case 'searchContacts':
+        searchContacts(app, value);
+        break;
+
+      case 'filterContacts':
+        filterContacts(app, value);
+        break;
+
       case 'loadContactTags':
         loadContactTags(app, value);
         break;
@@ -410,6 +454,42 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
       case 'storeContacts':
         storeContacts(app, value);
+        break;
+
+      case 'updateContact':
+        updateContact(app, value);
+        break;
+
+      case 'syncSubscriptionEvents':
+        syncSubscriptionEvents(app, value);
+        break;
+
+      case 'pickContactCsv':
+        pickContactCsv(app);
+        break;
+
+      case 'startContactCsvImport':
+        startContactCsvImport(app, value);
+        break;
+
+      case 'cancelContactCsvImport':
+        contactCsvImportCancelled = true;
+        break;
+
+      case 'exportContactsCsv':
+        exportContactsCsv(app);
+        break;
+
+      case 'cancelContactCsvExport':
+        contactCsvExportCancelled = true;
+        break;
+
+      case 'cleanContacts':
+        cleanContacts(app, value);
+        break;
+
+      case 'cancelCleanContacts':
+        contactCleanCancelled = true;
         break;
 
       case 'getNewsletterRecipientCount':
@@ -668,6 +748,23 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     return result;
   }
 
+  function flushQueuedAuthCommands(app) {
+    const queued = storedCommands.splice(0);
+    const deferred = [];
+    const immediate = [];
+    for (const item of queued) {
+      if (isAuthCommand(item.command)) {
+        immediate.push(item);
+      } else {
+        deferred.push(item);
+      }
+    }
+    storedCommands = deferred;
+    for (const item of immediate) {
+      processOnlineCommand(app, item.command, item.value);
+    }
+  }
+
   function connect(app, client, nip89, relays, blockedRelays) {
     debugLog('connect to relays', relays);
     setBlockedRelayUrls(blockedRelays);
@@ -698,6 +795,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     // Resolve LoggedInUnknown immediately (don't wait for relays) so auth pages
     // like /settings don't hang on "Loading..." when there is no auto-login.
     restoreActiveIdentity(window.ndk, app);
+    flushQueuedAuthCommands(app);
 
     window.ndk.pool.on("connecting", (relay) => {
       debugLog('connecting relays', relay);
@@ -813,7 +911,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     });
   }
 
-  function processEvents(app, requestId, description, ndkEvents, filters) {
+  async function processEvents(app, requestId, description, ndkEvents, filters) {
 
     if (ndkEvents.size == 0) {
       // Prefer the filter kinds so Elm can settle kind-specific queries (e.g. articles).
@@ -835,6 +933,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
     var eventsSortedByKind = {};
     var zapReceipts = [];
+    const pendingApplicationEvents = [];
 
     ndkEvents.forEach(ndkEvent => {
       switch (ndkEvent.kind) {
@@ -950,11 +1049,9 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
 
         case 30078: // application-specific event
           {
-            unwrapApplicationSpecificEvent(ndkEvent).then(event => {
-              if (event) {
-                app.ports.receiveMessage.send({ messageType: 'events', value: { kind: event.kind, events: [event], requestId: requestId } });
-              }
-            });
+            pendingApplicationEvents.push(
+              unwrapApplicationSpecificEvent(ndkEvent).then(decryptedApplicationEvent).catch(() => null)
+            );
             break;
           }
 
@@ -974,6 +1071,11 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
           break;
       }
     });
+
+    const applicationEvents = (await Promise.all(pendingApplicationEvents)).filter(Boolean);
+    if (pendingApplicationEvents.length > 0) {
+      eventsSortedByKind[30078] = applicationEvents;
+    }
 
     for (const kind in eventsSortedByKind) {
       const events = eventsSortedByKind[kind]
@@ -1041,91 +1143,395 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     })
   }
 
-  function initContactDatabase(app, { pubkey }) {
-    if (contacts) {
-      app.ports.receiveMessage.send({ messageType: 'contactDatabaseAuthenticated', value: { } });
+  function reportContactDatabaseError(app, error, fallback) {
+    app.ports.receiveMessage.send({
+      messageType: 'contactDatabaseError',
+      value: { error: error?.message || fallback },
+    });
+  }
+
+  async function withContacts() {
+    if (!contacts) {
+      throw new Error('Contact database is not initialized');
+    }
+
+    await contacts.ensureAuthenticated();
+    return contacts;
+  }
+
+  function initContactDatabase(app, { url, pubkey }) {
+    const apiUrl = url || contactsApiBaseUrl();
+    if (!contacts || contactsUrl !== apiUrl || contactsPubkey !== pubkey) {
+      contacts = new EncryptedContacts({
+        baseUrl: apiUrl,
+        signer: signerFromNdk(window.ndk),
+      });
+      contactsUrl = apiUrl;
+      contactsPubkey = pubkey;
+    }
+
+    contacts.ensureAuthenticated().then(() => {
+      app.ports.receiveMessage.send({ messageType: 'contactDatabaseAuthenticated', value: {} });
+    }).catch((error) => {
+      reportContactDatabaseError(app, error, 'Authentication failed');
+    });
+  }
+
+  function sendContacts(app, requestId, page, result, total, databaseTotal) {
+    app.ports.receiveMessage.send({
+      messageType: 'contacts',
+      value: {
+        requestId: requestId,
+        page: page,
+        contacts: result.contacts,
+        errors: result.errors || [],
+        total: total,
+        databaseTotal: databaseTotal,
+      },
+    });
+  }
+
+  async function countStoredContacts(api) {
+    try {
+      return await api.countContacts();
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function loadContacts(app, value) {
+    withContacts().then(async (api) => {
+      await sendContactPage(app, api, value, "all");
+    }).catch((error) => {
+      reportContactDatabaseError(app, error, 'Failed to load contacts');
+    });
+  }
+
+  function searchContacts(app, value) {
+    withContacts().then(async (api) => {
+      await sendContactPage(app, api, value, "search");
+    }).catch((error) => {
+      reportContactDatabaseError(app, error, 'Failed to search contacts');
+    });
+  }
+
+  function filterContacts(app, value) {
+    withContacts().then(async (api) => {
+      await sendContactPage(app, api, value, "filter");
+    }).catch((error) => {
+      reportContactDatabaseError(app, error, 'Failed to filter contacts');
+    });
+  }
+
+  async function sendContactPage(app, api, value, kind) {
+    const page = Number(value?.page) || 1;
+    const perPage = Number(value?.perPage) || 25;
+    const filter = kind === "filter" ? value?.filter : null;
+    const sortField = kind === "all" ? contactSortField(value?.sortColumn) : null;
+    const [result, databaseTotal, filteredTotal] = await Promise.all([
+      sortField
+        ? api.getContactsSorted(sortField, page, perPage, value?.sortReversed === true ? "desc" : "asc")
+        : listContactPage(api, value, kind, page, perPage),
+      countStoredContacts(api),
+      filter ? api.countContacts(filter) : Promise.resolve(null),
+    ]);
+    const total = kind === "search"
+      ? result.total
+      : kind === "filter"
+        ? filteredTotal
+        : databaseTotal;
+    sendContacts(app, value?.requestId, page, result, total, databaseTotal);
+  }
+
+  function contactSortField(column) {
+    switch (column) {
+      case "firstName":
+        return "first_name";
+      case "lastName":
+        return "last_name";
+      case "dnd":
+        return "dnd";
+      case "dateunsub":
+        return "unsubscribe_date";
+      case "email":
+        return "email";
+      default:
+        return null;
+    }
+  }
+
+  function listContactPage(api, value, kind, page, perPage) {
+    if (kind === "search") return api.searchContacts(value?.term || "", page, perPage);
+    if (kind === "filter" && value?.filter) return api.getContactsByCriteria(value.filter, page, perPage);
+    return api.getContacts(page, perPage);
+  }
+
+  function loadContactTags(app, _value) {
+    withContacts().then((api) => api.getContactTags()).then((result) => {
+      app.ports.receiveMessage.send({ messageType: 'contactTags', value: { tags: result.tags, errors: result.errors || [] } });
+    }).catch((error) => {
+      reportContactDatabaseError(app, error, 'Failed to load tags');
+    });
+  }
+
+  function addContactTag(app, { tag }) {
+    withContacts().then((api) => api.addTag(tag)).then((result) => {
+      app.ports.receiveMessage.send({ messageType: 'contactTagAdded', value: { tag: tag, result: result } });
+    }).catch((error) => {
+      reportContactDatabaseError(app, error, 'Failed to add tag');
+    });
+  }
+
+  function deleteContactTag(app, { tag }) {
+    withContacts().then((api) => api.deleteTag(tag)).then((result) => {
+      app.ports.receiveMessage.send({ messageType: 'contactTagDeleted', value: { tag: tag, result: result } });
+    }).catch((error) => {
+      reportContactDatabaseError(app, error, 'Failed to delete tag');
+    });
+  }
+
+  function pickContactCsv(app) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv,text/csv';
+    input.addEventListener('cancel', () => {
+      pendingContactCsv = null;
+      app.ports.receiveMessage.send({ messageType: 'contactCsvPreview', value: { cancelled: true } });
+    });
+    input.onchange = async () => {
+      const file = input.files && input.files[0];
+      if (!file) {
+        pendingContactCsv = null;
+        app.ports.receiveMessage.send({ messageType: 'contactCsvPreview', value: { cancelled: true } });
+        return;
+      }
+      pendingContactCsv = file;
+      try {
+        const rows = await readCsvPreview(file);
+        app.ports.receiveMessage.send({ messageType: 'contactCsvPreview', value: { rows } });
+      } catch (error) {
+        pendingContactCsv = null;
+        app.ports.receiveMessage.send({
+          messageType: 'contactCsvPreview',
+          value: { error: error?.message || 'Failed to read the CSV file' },
+        });
+      }
+    };
+    input.click();
+  }
+
+  function startContactCsvImport(app, { skipRows, mapping, overwrite, tags }) {
+    const file = pendingContactCsv;
+    if (!file) {
+      app.ports.receiveMessage.send({
+        messageType: 'contactCsvImportProgress',
+        value: { stored: 0, skipped: 0, errors: 0, done: true, error: 'Choose a CSV file first' },
+      });
       return;
     }
 
-    contacts = new Contacts(window.ndk, pubkey);
+    contactCsvImportCancelled = false;
+    const columns: CsvMapping[] = Array.isArray(mapping) ? mapping : [];
+    withContacts().then((api) => importContactCsvFile(
+      file,
+      {
+        skipRows: Number(skipRows) || 0,
+        mapping: columns,
+        overwrite: overwrite === true,
+        tags: Array.isArray(tags) ? tags : [],
+      },
+      api,
+      (progress) => {
+        app.ports.receiveMessage.send({ messageType: 'contactCsvImportProgress', value: progress });
+      },
+      () => contactCsvImportCancelled,
+    )).catch((error) => {
+      app.ports.receiveMessage.send({
+        messageType: 'contactCsvImportProgress',
+        value: { stored: 0, skipped: 0, errors: 0, done: true, error: error?.message || 'Failed to import contacts' },
+      });
+    }).finally(() => {
+      pendingContactCsv = null;
+    });
+  }
 
-    contacts.authenticate().then(authHeader => {
-      console.log('authHeader', authHeader);
+  function signDeliverabilityRequest(request: { url: string; method: "POST"; payloadSha256: string }): Promise<string> {
+    if (!window.ndk) {
+      return Promise.reject(new Error("Not signed in"));
+    }
+    const event = new NDKEvent(window.ndk, {
+      kind: NDKKind.HttpAuth,
+      content: "",
+      tags: [
+        ["u", request.url],
+        ["method", request.method],
+        ["payload", request.payloadSha256],
+      ],
+    });
+    return event.sign().then(() => `Nostr ${btoa(JSON.stringify(event.rawEvent()))}`);
+  }
 
-      app.ports.receiveMessage.send({ messageType: 'contactDatabaseAuthenticated', value: { } });
-
-      /*
-      // TODO: get contacts from the database
-      const sampleContacts = [
-        {
-          firstName: "Alice",
-          lastName: "Johnson",
-          email: "alice@example.com",
-          locale: "en-US",
-          pubkey: "79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f432",
-          datesub: 1717334400,
-          source: "seed",
-          dnd: false,
-          tags: ["work", "conference", "blockchain"]
+  function cleanContacts(app, { pubkey }) {
+    if (contactCleanRunning) return;
+    contactCleanCancelled = false;
+    contactCleanRunning = true;
+    const author = String(pubkey || contactsPubkey || "");
+    withContacts().then((api) => cleanContactList({
+      api,
+      classify: (emails) => classifyEmails({
+        baseUrl: deliverabilityApiBaseUrl(),
+        pubkey: author,
+        emails,
+        sign: signDeliverabilityRequest,
+      }),
+      isCancelled: () => contactCleanCancelled,
+      onProgress: (progress) => {
+        app.ports.receiveMessage.send({ messageType: "contactCleanProgress", value: progress });
+      },
+    })).catch((error) => {
+      app.ports.receiveMessage.send({
+        messageType: "contactCleanProgress",
+        value: {
+          checked: 0,
+          updated: 0,
+          undeliverable: 0,
+          done: true,
+          error: error?.message || "Failed to clean contacts",
         },
-        {
-          firstName: "Bob",
-          lastName: "Smith",
-          email: "bob@example.com",
-          locale: "de-DE",
-          pubkey: "79f00d3f5a19ec806189fcab03c1be4ff81d18ee4f653c88fac41fe03570f433",
-          datesub: 1717334401,
-          source: "test",
-          dnd: false,
-          tags: ["work", "design", "mobile"]
+      });
+    }).finally(() => {
+      contactCleanRunning = false;
+    });
+  }
+
+  async function exportContactsCsv(app) {
+    contactCsvExportCancelled = false;
+    const filename = `contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+    let writable: CsvFileWritable | null = null;
+    const parts: string[] = [];
+
+    try {
+      const savePicker = (window as Window & {
+        showSaveFilePicker?: (options: {
+          suggestedName: string;
+          types: Array<{ description: string; accept: Record<string, string[]> }>;
+        }) => Promise<{ createWritable: () => Promise<CsvFileWritable> }>;
+      }).showSaveFilePicker;
+      if (typeof savePicker === 'function') {
+        const handle = await savePicker({
+          suggestedName: filename,
+          types: [{ description: 'CSV', accept: { 'text/csv': ['.csv'] } }],
+        });
+        writable = await handle.createWritable();
+      }
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        app.ports.receiveMessage.send({
+          messageType: 'contactCsvExportProgress',
+          value: { exported: 0, done: true, error: 'Export cancelled' },
+        });
+        return;
+      }
+      writable = null;
+    }
+
+    let exportReported = false;
+    try {
+      await withContacts().then((api) => exportContactCsvFile(
+        api,
+        async (chunk) => {
+          if (writable) {
+            await writable.write(chunk);
+          } else {
+            parts.push(chunk);
+          }
+        },
+        (progress) => {
+          if (progress.done) {
+            exportReported = true;
+          }
+          app.ports.receiveMessage.send({ messageType: 'contactCsvExportProgress', value: progress });
+        },
+        () => contactCsvExportCancelled,
+      ));
+
+      if (writable) {
+        if (contactCsvExportCancelled) {
+          await writable.abort();
+        } else {
+          await writable.close();
         }
-      ];
-      
-      // 4. Store contacts
-      console.log('📝 Storing contacts...');
-      storeContacts(app, {subscribers: sampleContacts});
-      console.log('✅ Contacts stored successfully');
-      */
-
-    });
-  }
-
-  function loadContacts(app, { page: page, perPage: perPage, pubkey: pubkey }) {
-    if (!contacts) {
-      initContactDatabase(app, { pubkey: pubkey });
+      } else if (!contactCsvExportCancelled) {
+        const blob = new Blob(parts, { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      if (writable) {
+        await writable.abort().catch(() => undefined);
+      }
+      if (!exportReported) {
+        app.ports.receiveMessage.send({
+          messageType: 'contactCsvExportProgress',
+          value: { exported: 0, done: true, error: error?.message || 'Failed to export contacts' },
+        });
+      }
     }
-    contacts.getContacts(page, perPage).then(result => {
-       console.log('Contacts:', result.contacts);
-       app.ports.receiveMessage.send({ messageType: 'contacts', value: { page: page, contacts: result.contacts, errors: result.errors } });
+  }
+
+  function storeContacts(app, { subscribers, single }) {
+    const messageType = single === true ? 'contactAdded' : 'contactsStored';
+    withContacts().then((api) => api.storeContactsBulk(subscribers, false)).then((result) => {
+      app.ports.receiveMessage.send({
+        messageType,
+        value: { status: result?.status || 'ok', stored: result?.stored || 0, tagErrors: result?.tagErrors || [] },
+      });
+    }).catch((error) => {
+      app.ports.receiveMessage.send({
+        messageType,
+        value: { error: error?.message || 'Failed to store contacts' },
+      });
     });
   }
 
-  function loadContactTags(app, { pubkey: pubkey }) {
-    if (!contacts) {
-      initContactDatabase(app, { pubkey: pubkey });
-    }
-    contacts.getContactTags().then(result => {
-      console.log('Contact Tags:', result.tags);
-      app.ports.receiveMessage.send({ messageType: 'contactTags', value: { tags: result.tags, errors: result.errors } });
+  function updateContact(app, { id, subscriber }) {
+    withContacts().then((api) => api.updateContact(id, subscriber)).then((result) => {
+      app.ports.receiveMessage.send({
+        messageType: 'contactUpdated',
+        value: { status: 'ok', tagErrors: result?.tagErrors || [] },
+      });
+    }).catch((error) => {
+      app.ports.receiveMessage.send({
+        messageType: 'contactUpdated',
+        value: { error: error?.message || 'Failed to update contact' },
+      });
     });
   }
 
-  function addContactTag(app, { tag: tag }) {
-    contacts.addTag(tag).then(result => {
-      console.log('Contact Tag added: ', result);
-      app.ports.receiveMessage.send({ messageType: 'contactTagAdded', value: { tag: tag, result: result } });
+  function syncSubscriptionEvents(app, { modifications, apply }) {
+    withContacts().then(async (api) => {
+      const result = await applySubscriptionEvents(api, parseSubscriptionChanges(modifications), apply === true);
+      app.ports.receiveMessage.send({
+        messageType: 'subscriptionEvents',
+        value: { pending: result.pending, applied: result.applied, error: null },
+      });
+    }).catch((error) => {
+      app.ports.receiveMessage.send({
+        messageType: 'subscriptionEvents',
+        value: { pending: [], applied: null, error: error?.message || 'Failed to apply subscription events' },
+      });
     });
   }
 
-  function deleteContactTag(app, { tag: tag }) {
-    contacts.deleteTag(tag).then(result => {
-      console.log('Contact Tag deleted: ', result);
-      app.ports.receiveMessage.send({ messageType: 'contactTagDeleted', value: { tag: tag, result: result } });
-    });
-  }
-
-  function storeContacts(app, { subscribers: subscribers }) {
-    contacts.storeContactsBulk(subscribers, true);
+  function tagFilterFromValue(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    return Object.keys(value).length > 0 ? value : undefined;
   }
 
   function newsletterQueueClient() {
@@ -1135,19 +1541,19 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     });
   }
 
-  function getNewsletterRecipientCount(app, { author: author, subscriberBlob: subscriberBlob }) {
-    if (!author && !(subscriberBlob?.url && subscriberBlob?.key && subscriberBlob?.iv)) {
-      app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count: null, error: 'Missing author pubkey' } });
+  function getNewsletterRecipientCount(app, { author: author, subscriberBlob: subscriberBlob, recipientSource: recipientSource, requestId: requestId, filter: filter }) {
+    if (!author && recipientSource !== 'contacts' && !(subscriberBlob?.url && subscriberBlob?.key && subscriberBlob?.iv)) {
+      app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count: null, requestId, recipientSource, error: 'Missing author pubkey' } });
       return;
     }
 
     newsletterSendClient = newsletterQueueClient();
-    newsletterSendClient.countActiveRecipients(author, subscriberBlob)
+    newsletterSendClient.countActiveRecipients(author, subscriberBlob, recipientSource, tagFilterFromValue(filter))
       .then((count) => {
-        app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count } });
+        app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count, requestId, recipientSource } });
       })
       .catch((error) => {
-        app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count: null, error: error?.message || 'Failed to count subscribers' } });
+        app.ports.receiveMessage.send({ messageType: 'newsletterRecipientCount', value: { count: null, requestId, recipientSource, error: error?.message || 'Failed to count subscribers' } });
       });
   }
 
@@ -1167,7 +1573,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       });
   }
 
-  function sendNewsletter(app, { author: author, newsletterData: newsletterData, subscribers: subscribers, subscriberBlob: subscriberBlob }) {
+  function sendNewsletter(app, { author: author, newsletterData: newsletterData, subscribers: subscribers, subscriberBlob: subscriberBlob, recipientSource: recipientSource, filter: filter }) {
     const abort = startNewsletterAbort();
     newsletterSendClient = newsletterQueueClient();
     newsletterSendClient.sendNewsletter({
@@ -1176,6 +1582,8 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       identifier: newsletterData.identifier,
       subscribers,
       subscriberBlob,
+      recipientSource,
+      tagFilter: tagFilterFromValue(filter),
       signal: abort.signal,
       onProgress: bindNewsletterProgress(app),
     }).catch((error) => {
@@ -1195,6 +1603,63 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
         newsletterSendAbort = null;
       }
     });
+  }
+
+  async function sendOptIn(app, value) {
+    const requestId = typeof value?.requestId === "string" ? value.requestId : "";
+    const report = (payload: Record<string, unknown>) => {
+      app.ports.receiveMessage.send({
+        messageType: "optInResult",
+        value: { requestId, ...payload },
+      });
+    };
+
+    try {
+      const built = buildOptInPayload({
+        email: value?.email,
+        author: value?.author,
+        firstName: value?.firstName,
+        lastName: value?.lastName,
+        pubkey: value?.pubkey,
+        locale: value?.locale,
+        test: value?.test === true,
+      });
+      if (built.ok === false) {
+        report({ error: built.message });
+        return;
+      }
+
+      const { signer, kid } = await optInSigner(value?.signingPubKey);
+      const ciphertext = await signer.encrypt({ pubkey: COURIER_PUBKEY }, JSON.stringify(built.payload), "nip44");
+      const result = await submitOptIn({
+        payload: built.payload,
+        ciphertext: ciphertext || "",
+        kid,
+        requestId,
+      });
+      if (result.ok === true) {
+        report({ jobId: result.jobId, status: result.status });
+      } else {
+        report({ error: result.message });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to send the subscription";
+      report({ error: message });
+    }
+  }
+
+  async function optInSigner(signingPubKey: unknown): Promise<{ signer: any; kid: string }> {
+    if (typeof signingPubKey === "string" && signingPubKey && window.ndk?.signer) {
+      try {
+        const user = await window.ndk.signer.user();
+        if (user?.pubkey) {
+          return { signer: window.ndk.signer, kid: user.pubkey };
+        }
+      } catch {
+        // A missing signer still has to encrypt, so the anonymous key is used.
+      }
+    }
+    return { signer: anonymousSigner, kid: anonymousPubKey };
   }
 
   function sendNewsletterTest(app, { email: email, author: author, newsletterData: newsletterData }) {
@@ -1990,6 +2455,12 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     return ndkEvent;
   }
 
+  function decryptedApplicationEvent(event) {
+    const content = typeof event?.content === "string" ? event.content.trim() : "";
+    if (content.startsWith("{") || content.startsWith("[")) return event;
+    return null;
+  }
+
   async function unwrapApplicationSpecificEvent(ndkEvent) {
     const decryptionMethod = ndkEvent.content.includes("?iv=") ? 'nip04' : 'nip44';
     const content = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, decryptionMethod);
@@ -2009,6 +2480,11 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     const stringifiedEvent = await window.ndk.signer.decrypt({ pubkey: ndkEvent.pubkey }, ndkEvent.content, 'nip44');
     if (stringifiedEvent) {
       const event = JSON.parse(stringifiedEvent);
+      // NIP-37 inner drafts are unsigned, so they have no id. The published
+      // identity is the wrap; keep a legacy inner id when one is already present.
+      if (!event.id && typeof ndkEvent.id === "string" && ndkEvent.id.length > 0) {
+        event.id = ndkEvent.id;
+      }
       // Carry relay hints from the wrap so draft delete can target them.
       if (ndkEvent.onRelays && Array.isArray(ndkEvent.onRelays)) {
         event.onRelays = ndkEvent.onRelays;

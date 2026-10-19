@@ -424,6 +424,18 @@
         "all selected tags text": "All selected tags",
         "at least one selected tag text": "At least one selected tag"
     },
+    "tag combination": {
+        "no filter text": "No tag filter. All contacts are included.",
+        "match all groups text": "Match all of these groups",
+        "match any groups text": "Match any of these groups",
+        "include text": "Include",
+        "exclude text": "Exclude",
+        "contacts with text": "contacts with",
+        "any of text": "any of",
+        "all of text": "all of",
+        "add group text": "Add group",
+        "remove group text": "Remove"
+    },
     "email import dialog": {
         "dialog title": "Импорт email",
         "import button title": "Импортировать",
@@ -459,8 +471,10 @@
         "email label": "Электронная почта",
         "email placeholder": "ivan@example.com",
         "privacy info": "Email хранится автором, а не проектом Pareto",
-        "sending message text": "Отправка заявки...",
-        "sent message text": "Отправлено подтверждение. Вскоре вы получите подтверждение по электронной почте.",
+        "sending message text": "Отправка подтверждения...",
+        "sent message text": "Подтверждение отправлено. Проверьте почту.",
+        "queued message text": "Запрос в очереди. Письмо с подтверждением должно прийти в ближайшее время.",
+        "rejected message text": "Подтверждение не отправлено. Адрес может быть недоступен, заблокирован, или подтверждение уже запрашивали недавно.",
         "error message text": "Ошибка подписки на список: {{error}}. Пожалуйста, свяжитесь с нами по адресу support@pareto.space"
     },
     "hashtag editor": {
@@ -642,11 +656,13 @@
     },
     "search": {
         "page title": "Поиск",
-        "explanation 1": "Добавьте Nostr ID (npub, nprofile, nevent или naddr), Nostr адрес (tony@pareto.space) или URL с Nostr ID",
-        "explanation 2": "Хештеги поддерживаются, поставьте # перед словом для фильтрации по хештегам."
+        "explanation 1": "Добавьте Nostr ID (npub, nprofile, nevent или naddr), Nostr адрес (tony@pareto.space), имя автора или URL с Nostr ID",
+        "explanation 2": "Хештеги поддерживаются, поставьте # перед словом для фильтрации по хештегам.",
+        "authors heading": "Авторы",
+        "articles heading": "Статьи"
     },
     "search bar": {
-        "placeholder": "URL, Nostr ID или Nostr адрес"
+        "placeholder": "URL, Nostr ID, Nostr адрес или имя автора"
     },
     "send newsletter dialog": {
         "dialog title": "Send Newsletter",
@@ -678,7 +694,14 @@
         "emails sent count": "{{sent}} emails sent",
         "sent at text": "Sent {{date}}",
         "failed at text": "Failed {{date}}",
-        "last sent at text": "Last sent {{date}}"
+        "last sent at text": "Last sent {{date}}",
+        "recipients loading text": "Loading recipients…",
+        "counting subscriber file text": "Counting subscriber file recipients…",
+        "counting contact database text": "Counting contact database recipients…",
+        "subscriber file recipients text": "Subscriber file: {{count}} active",
+        "contact database recipients text": "Contact database: {{count}} recipients",
+        "loading subscriber list text": "Loading subscriber list…",
+        "loading contacts text": "Loading contact database…"
     },
     "settings": {
         "page title": "Настройки",
@@ -831,6 +854,7 @@
         "search menu item text": "Поиск",
         "settings menu item text": "Настройки",
         "subscribers menu item text": "Подписчики не найдены.",
+        "contact database menu item text": "Contacts",
         "write menu item text": "Писать",
         "about menu item text": "О программе",
         "link to home aria label": "Главная",
@@ -843,12 +867,24 @@
     },
     "subscriber edit dialog": {
         "dialog title": "Редактировать подписчика",
+        "add dialog title": "Добавить контакт",
         "submit button title": "Отправить"
     },
     "subscribers": {
         "page title": "Подписчики не найдены.",
         "export button title": "Экспорт",
         "import button title": "Импорт",
+        "add contact button title": "Добавить контакт",
+        "csv choose file text": "Выбрать CSV-файл",
+        "csv reading file text": "Чтение начала CSV-файла…",
+        "csv preview empty text": "В CSV-файле нет строк.",
+        "csv import progress text": "Сохранено контактов: {{stored}}…",
+        "csv import done text": "Сохранено контактов: {{stored}}. Пропущено строк: {{skipped}}.",
+        "csv import error text": "Не удалось импортировать: {{error}}",
+        "csv export progress text": "Экспорт… {{exported}} контактов",
+        "csv export done text": "Экспортировано контактов: {{exported}}.",
+        "csv export error text": "Не удалось экспортировать: {{error}}",
+        "start import button title": "Начать импорт",
         "load button title": "Load",
         "save button title": "Сохранить",
         "process modifications button title": "Обработать",
@@ -856,6 +892,7 @@
         "error loading subscribers text": "Подписчики не найдены.",
         "no subscribers text": "Подписчики не найдены.",
         "new modifications": "Новые изменения",
+        "no subscriptions since": "Нет подписок с {{date}}",
         "dnd field name": "Не беспокоить",
         "email field name": "Электронная почта",
         "name field name": "Имя",
@@ -870,7 +907,37 @@
         "locale field name": "Локаль",
         "subscribers count": "{{subscribersCount}} подписчиков",
         "subscribers category": "Subscribers",
+        "migrate button title": "Copy into contact database",
+        "migrating text": "Copying subscribers...",
+        "migration done text": "Subscribers copied into the contact database.",
+        "database loading text": "Loading contact database...",
+        "database empty text": "No contacts in the database yet.",
+        "subscriber file label": "Subscriber file",
+        "contact count": "{{count}} контакт",
+        "contact database label": "Contact database",
+        "contacts count": "{{count}} контактов",
+        "migrate hint text": "Copy the saved subscriber file into the encrypted contact database. Copying switches newsletters to the contact database.",
+        "newsletter source label": "Send newsletters from",
+        "showing contacts text": "Showing {{shown}} of {{total}}.",
+        "no subscriber file text": "No subscriber file found. Save subscribers on the Subscribers page first.",
+        "open contact database link": "Open contact database",
+        "page size label": "На странице",
+        "previous page": "Previous",
+        "next page": "Next",
+        "page status": "Page {{page}} of {{pages}}",
+        "filter by tags": "Filter by tags",
+        "match all tags": "Match all selected tags",
+        "no matching contacts text": "No contacts match.",
+        "search label": "Search",
+        "search placeholder": "Имя или эл. почта",
+        "search or filter hint": "Search matches a full name or email. Tag filters apply when the search box is empty.",
         "tags category": "Tags",
+        "contacts category": "Contacts",
+        "remove tag button title": "Remove",
+        "delete tag dialog title": "Delete tag",
+        "delete tag dialog message": "Delete the tag \"{{tag}}\"? It will be removed from every contact.",
+        "delete tag confirm button title": "Delete",
+        "delete tag cancel button title": "Cancel",
         "add tag field label": "Add tag",
         "add tag button title": "Add"
     },

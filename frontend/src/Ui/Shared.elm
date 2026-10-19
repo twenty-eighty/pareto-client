@@ -1,6 +1,7 @@
 module Ui.Shared exposing (..)
 
 import BrowserEnv exposing (BrowserEnv)
+import Components.ModalDialog as ModalDialog
 import Css
 import Html.Styled as Html exposing (Html, a, button, div, h2, text)
 import Html.Styled.Attributes as Attr exposing (css)
@@ -174,16 +175,18 @@ modalDialog theme title content onClose =
             stylesForTheme theme
     in
     div
-        (css
-            [ Tw.fixed
-            , Tw.inset_0
-            , Tw.bg_opacity_50
-            , Tw.flex
-            , Tw.justify_center
-            , Tw.items_center
-            , Tw.z_50
-            ]
-            :: styles.colorStyleBackground
+        (ModalDialog.escapeAttributes onClose
+            ++ (css
+                    [ Tw.fixed
+                    , Tw.inset_0
+                    , Tw.bg_opacity_50
+                    , Tw.flex
+                    , Tw.justify_center
+                    , Tw.items_center
+                    , Tw.z_50
+                    ]
+                    :: styles.colorStyleBackground
+               )
         )
         [ div
             (styles.colorStyleBackground
@@ -250,4 +253,5 @@ modalDialog theme title content onClose =
                 ]
                 content
             ]
+        , ModalDialog.initialFocus
         ]

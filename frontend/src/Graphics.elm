@@ -944,7 +944,7 @@ checkboxCheckMark : Int -> Html msg
 checkboxCheckMark width =
     svg
         [ SvgAttr.viewBox "0 0 12 10"
-        , SvgAttr.style "fill: none; stroke-width: 2; stroke: currentcolor; stroke-dasharray: 16;"
+        , SvgAttr.style "fill: none; stroke-width: 2; stroke: #ffffff; stroke-dasharray: 16;"
         , Attr.width width
         , Attr.height width
         ]

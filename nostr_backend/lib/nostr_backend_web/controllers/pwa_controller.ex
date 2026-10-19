@@ -2,6 +2,10 @@ defmodule NostrBackendWeb.PwaController do
   use NostrBackendWeb, :controller
 
   @sw_path Path.join(:code.priv_dir(:nostr_backend), "static/sw.js")
+  @newsletter_sender_sw_path Path.join(
+                               :code.priv_dir(:nostr_backend),
+                               "static/newsletter-sender-sw.js"
+                             )
   @no_cache "no-cache, no-store, must-revalidate"
 
   def version(conn, _params) do
@@ -22,6 +26,19 @@ defmodule NostrBackendWeb.PwaController do
       conn
       |> put_status(:not_found)
       |> text("Service worker not found")
+    end
+  end
+
+  def newsletter_sender(conn, _params) do
+    if File.exists?(@newsletter_sender_sw_path) do
+      conn
+      |> put_resp_content_type("text/javascript")
+      |> put_resp_header("cache-control", @no_cache)
+      |> send_file(200, @newsletter_sender_sw_path)
+    else
+      conn
+      |> put_status(:not_found)
+      |> text("Newsletter sender script not found")
     end
   end
 end

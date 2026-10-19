@@ -7,6 +7,8 @@ module Components.SearchBar exposing
     , subscribe
     , update
     , view
+    , withFlexibleWidth
+    , withPlaceholder
     )
 
 import BrowserEnv exposing (BrowserEnv)
@@ -30,6 +32,8 @@ type SearchBar msg
         , toMsg : Msg msg -> msg
         , browserEnv : BrowserEnv
         , styles : Styles msg
+        , flexibleWidth : Bool
+        , placeholder : Maybe String
         }
 
 
@@ -46,7 +50,19 @@ new props =
         , toMsg = props.toMsg
         , browserEnv = props.browserEnv
         , styles = props.styles
+        , flexibleWidth = False
+        , placeholder = Nothing
         }
+
+
+withFlexibleWidth : SearchBar msg -> SearchBar msg
+withFlexibleWidth (Settings settings) =
+    Settings { settings | flexibleWidth = True }
+
+
+withPlaceholder : String -> SearchBar msg -> SearchBar msg
+withPlaceholder placeholder (Settings settings) =
+    Settings { settings | placeholder = Just placeholder }
 
 
 type Model
@@ -148,23 +164,42 @@ viewSearch (Settings settings) =
     let
         (Model model) =
             settings.model
+
+        placeholder =
+            case settings.placeholder of
+                Just text ->
+                    text
+
+                Nothing ->
+                    Translations.placeholder [ settings.browserEnv.translations ]
     in
     div
         [ css
-            [ Tw.flex
-            , Tw.flex_row
-            , Tw.relative
-            , Tw.w_full
-            , Bp.lg
-                [ Css.property "width" "800px"
+            (if settings.flexibleWidth then
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.relative
+                , Tw.w_full
+                , Tw.max_w_sm
+                , Tw.shrink_0
                 ]
-            , Bp.md
-                [ Css.property "width" "640px"
+
+             else
+                [ Tw.flex
+                , Tw.flex_row
+                , Tw.relative
+                , Tw.w_full
+                , Bp.lg
+                    [ Css.property "width" "800px"
+                    ]
+                , Bp.md
+                    [ Css.property "width" "640px"
+                    ]
+                , Bp.sm
+                    [ Css.property "width" "460px"
+                    ]
                 ]
-            , Bp.sm
-                [ Css.property "width" "460px"
-                ]
-            ]
+            )
         ]
         [ div
             (settings.styles.colorStyleGrayscaleMuted
@@ -189,7 +224,7 @@ viewSearch (Settings settings) =
             ((settings.styles.colorStyleBackground
                 |> List.map (Attr.map NoOp)
              )
-                ++ [ Attr.placeholder <| Translations.placeholder [ settings.browserEnv.translations ]
+                ++ [ Attr.placeholder placeholder
                    , Attr.value (Maybe.withDefault "" model.searchText)
                    , Attr.attribute "data-test" "search-bar"
                    , Attr.type_ "search"
