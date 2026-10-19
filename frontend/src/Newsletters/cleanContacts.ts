@@ -88,6 +88,7 @@ function reasonFor(result: ClassifyResult): string | undefined {
 /**
  * Cache fields written onto the encrypted contact after classify.
  * A repeat pass skips a contact whose flag, reason, and verifiedAt already match.
+ * A blocked or unsubscribed reason is written again while the contact is still active.
  */
 export function applyDeliverability(
   contact: CleanableContact,
@@ -120,7 +121,12 @@ export function applyDeliverability(
 
   delete next.undeliverable;
   if (!verified) next.verifiedAt = now;
-  return { contact: next, changed: flagged || !verified || reasonChanged };
+  const suppressed = nextReason === "blocked" || nextReason === "unsubscribed";
+  const stillActive = contact.active !== false;
+  return {
+    contact: next,
+    changed: flagged || !verified || reasonChanged || (suppressed && stillActive),
+  };
 }
 
 function sleep(ms: number): Promise<void> {

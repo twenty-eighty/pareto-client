@@ -485,6 +485,10 @@ isActiveSubscriber subscriber =
         == Nothing
         && subscriber.undeliverable
         /= Just "true"
+        && subscriber.reason
+        /= Just "blocked"
+        && subscriber.reason
+        /= Just "unsubscribed"
 
 
 emptySubscriber : Email -> Subscriber

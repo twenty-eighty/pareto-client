@@ -25,6 +25,9 @@ function contact(id: string, email: string, extra: Record<string, unknown> = {})
 test("an undeliverable contact is inactive", () => {
   assert.equal(isActiveContact({ email: "ada@example.com", undeliverable: true }), false);
   assert.equal(isActiveContact({ email: "ada@example.com", undeliverable: "true" }), false);
+  assert.equal(isActiveContact({ email: "ada@example.com", reason: "unsubscribed" }), false);
+  assert.equal(isActiveContact({ email: "ada@example.com", reason: "blocked" }), false);
+  assert.equal(isActiveContact({ email: "ada@example.com", reason: "catch-all" }), true);
   assert.equal(isActiveContact({ email: "ada@example.com" }), true);
 });
 
@@ -57,6 +60,21 @@ test("classify writes a verdict once and leaves an unknown address untouched", (
   assert.equal(blocked.contact.undeliverable, undefined);
   assert.equal(blocked.contact.reason, "unsubscribed");
   assert.equal(blocked.contact.verifiedAt, now);
+  assert.equal(isActiveContact(blocked.contact), false);
+
+  const blockedAgain = applyDeliverability(
+    { ...blocked.contact, active: true },
+    { status: "blocked", reason: "unsubscribed" },
+    now + 10,
+  );
+  assert.equal(blockedAgain.changed, true);
+
+  const blockedStored = applyDeliverability(
+    { ...blocked.contact, active: false },
+    { status: "blocked", reason: "unsubscribed" },
+    now + 10,
+  );
+  assert.equal(blockedStored.changed, false);
 
   const uncertain = applyDeliverability(contact("1", "ada@example.com"), { status: "uncertain", reason: "catch-all" }, now);
   assert.equal(uncertain.changed, true);

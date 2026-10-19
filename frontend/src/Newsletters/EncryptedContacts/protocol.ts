@@ -46,11 +46,13 @@ export function isActiveContact(contact: {
   dateUnsubscription?: unknown;
   dateunsub?: unknown;
   undeliverable?: unknown;
+  reason?: unknown;
 }): boolean {
   const email = String(contact.email || contact.Email || contact.emailAddress || "").trim();
   if (!email) return false;
   if (contact.dnd === true || contact.dnd === "true" || contact.dnd === 1) return false;
   if (isUndeliverableContact(contact)) return false;
+  if (contact.reason === "blocked" || contact.reason === "unsubscribed") return false;
 
   const unsubscribed = contact.dateUnsubscription ?? contact.dateunsub;
   if (

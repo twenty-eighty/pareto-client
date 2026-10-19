@@ -57,7 +57,9 @@ export function isActiveSubscriber(subscriber: Subscriber): boolean {
     Boolean(subscriberEmail(subscriber)) &&
     !isDnd(subscriber) &&
     !isUnsubscribed(subscriber) &&
-    !isUndeliverableContact(subscriber)
+    !isUndeliverableContact(subscriber) &&
+    subscriber.reason !== "blocked" &&
+    subscriber.reason !== "unsubscribed"
   );
 }
 
