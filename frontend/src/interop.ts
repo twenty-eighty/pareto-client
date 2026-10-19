@@ -916,7 +916,7 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
     });
   }
 
-  async function processEvents(app, requestId, description, ndkEvents, filters) {
+  async function processEvents(app, requestId, description, ndkEvents, filters, emitComplete = true) {
 
     if (ndkEvents.size == 0) {
       // Prefer the filter kinds so Elm can settle kind-specific queries (e.g. articles).
@@ -932,7 +932,9 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
           app.ports.receiveMessage.send({ messageType: 'events', value: { kind: kind, events: [], requestId: requestId } });
         });
       }
-      app.ports.receiveMessage.send({ messageType: 'eventsComplete', value: { requestId: requestId } });
+      if (emitComplete) {
+        app.ports.receiveMessage.send({ messageType: 'eventsComplete', value: { requestId: requestId } });
+      }
       return;
     }
 
@@ -1093,7 +1095,9 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       app.ports.receiveMessage.send({ messageType: 'zap_receipts', value: zapReceipts });
     }
 
-    app.ports.receiveMessage.send({ messageType: 'eventsComplete', value: { requestId: requestId } });
+    if (emitComplete) {
+      app.ports.receiveMessage.send({ messageType: 'eventsComplete', value: { requestId: requestId } });
+    }
   }
 
   // Unused incomplete helper (kept from JS; previously referenced undefined symbols).

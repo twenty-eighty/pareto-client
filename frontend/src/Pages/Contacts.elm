@@ -6,12 +6,12 @@ import Components.Button as Button
 import Components.Categories as Categories
 import Components.ConfirmDialog as ConfirmDialog
 import Components.ContactCsvImportDialog as ContactCsvImportDialog
-import Components.TagCombination as TagCombination
 import Components.EntryField as EntryField
 import Components.Icon as Icon
 import Components.SearchBar as SearchBar
 import Components.SubscriberEditDialog as SubscriberEditDialog
 import Components.Switch as Switch
+import Components.TagCombination as TagCombination
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import FeatherIcons
@@ -306,9 +306,9 @@ init user shared route () =
     , Effect.batch
         [ contactDatabaseEffect
             |> Effect.map ContactDatabaseMsg
-        , Subscribers.loadRecipientSource (requestId + 1) user.pubKey
-            |> Effect.sendSharedMsg
         , Subscribers.loadSubscriptionCursor (requestId + 2) user.pubKey
+            |> Effect.sendSharedMsg
+        , Subscribers.loadRecipientSource (requestId + 1) user.pubKey
             |> Effect.sendSharedMsg
         , replaceCategoryRoute pageCategory
         ]
@@ -696,7 +696,7 @@ updateWithMessage user shared model message =
         "events" ->
             case Nostr.External.decodeRequestId message.value of
                 Ok incomingRequestId ->
-                    if incomingRequestId == model.cursorRequestId then
+                    if incomingRequestId == model.cursorRequestId && model.modificationScan == ScanWaitingForCursor then
                         case Nostr.External.decodeEvents message.value of
                             Ok events ->
                                 ( { model
@@ -709,7 +709,7 @@ updateWithMessage user shared model message =
                             Err _ ->
                                 ( model, Effect.none )
 
-                    else if incomingRequestId == model.modificationsRequestId then
+                    else if incomingRequestId == model.modificationsRequestId && model.modificationScan == ScanPaging then
                         case Nostr.External.decodeEvents message.value of
                             Ok events ->
                                 let
@@ -856,25 +856,25 @@ updateWithMessage user shared model message =
 
             else
                 case Decode.decodeValue Subscribers.subscriberDataDecoder message.value of
-                Ok subscribers ->
-                    let
-                        subscribersDict =
-                            List.foldl
-                                (\subscriber acc ->
-                                    Dict.insert subscriber.email subscriber acc
-                                )
-                                Dict.empty
-                                subscribers
-                    in
-                    ( { model
-                        | fileState = FileReady
-                        , subscribers = subscribersDict
-                      }
-                    , Effect.none
-                    )
+                    Ok subscribers ->
+                        let
+                            subscribersDict =
+                                List.foldl
+                                    (\subscriber acc ->
+                                        Dict.insert subscriber.email subscriber acc
+                                    )
+                                    Dict.empty
+                                    subscribers
+                        in
+                        ( { model
+                            | fileState = FileReady
+                            , subscribers = subscribersDict
+                          }
+                        , Effect.none
+                        )
 
-                Err error ->
-                    ( { model | fileState = FileError (Decode.errorToString error) }, Effect.none )
+                    Err error ->
+                        ( { model | fileState = FileError (Decode.errorToString error) }, Effect.none )
 
         "contactAdded" ->
             case Decode.decodeValue (Decode.maybe (Decode.field "error" Decode.string)) message.value of
@@ -1689,7 +1689,7 @@ requestModificationPage : Auth.User -> Shared.Model -> Model -> Maybe Posix -> (
 requestModificationPage user shared model until =
     let
         requestId =
-            Nostr.getLastRequestId shared.nostr
+            freshRequestId shared model
     in
     ( { model
         | modificationScan = ScanPaging
@@ -1701,6 +1701,20 @@ requestModificationPage user shared model until =
     , Subscribers.loadModificationPage requestId user.pubKey model.subscriptionCursor until
         |> Effect.sendSharedMsg
     )
+
+
+{-| Next id that cannot collide with the cursor, recipient source, subscriber file, or an earlier page.
+`doRequest` then keeps the global counter above this id.
+-}
+freshRequestId : Shared.Model -> Model -> Int
+freshRequestId shared model =
+    List.foldl max
+        (Nostr.getLastRequestId shared.nostr)
+        [ model.cursorRequestId + 1
+        , model.sourceRequestId + 1
+        , model.requestId + 1
+        , model.modificationsRequestId + 1
+        ]
 
 
 advanceSubscriptionCursor : Auth.User -> Shared.Model -> Model -> ( Model, Effect Msg )
