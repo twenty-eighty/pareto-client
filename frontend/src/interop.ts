@@ -4,7 +4,7 @@ import { exportContactCsvFile, importContactCsvFile, readCsvPreview, type CsvMap
 import { classifyEmails, cleanContactList, deliverabilityApiBaseUrl } from "./Newsletters/cleanContacts";
 import { parseSubscriptionChanges, syncSubscriptionEvents as applySubscriptionEvents } from "./Newsletters/subscriptionEvents";
 import { createNewsletterSender, isNewsletterSendCancelled } from "./Newsletters/Send";
-import { COURIER_PUBKEY, buildOptInPayload, submitOptIn } from "./Newsletters/optIn";
+import { COURIER_PUBKEY, buildOptInPayload, optInClientIp, optInSenderContext, submitOptIn, withOptInContext } from "./Newsletters/optIn";
 
 import NDK, { NDKEvent, NDKKind, NDKRelaySet, NDKNip07Signer, NDKPrivateKeySigner, NDKRelayAuthPolicies } from "@nostr-dev-kit/ndk";
 import NDKCacheAdapterDexie from "@nostr-dev-kit/cache-dexie";
@@ -30,6 +30,7 @@ declare global {
   interface Window {
     ndk: any;
     __PARETO_IMAGE_CACHE_KEY__?: string;
+    __PARETO_CLIENT_IP__?: string;
   }
 
   // Loaded dynamically from /js/nstart-modal.js
@@ -195,6 +196,10 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
   app.ports.sendCommand.subscribe(({ command: command, value: value }) => {
     if (command === 'reloadWindow') {
       reloadForNewVersion();
+      return;
+    }
+    if (command === 'markOptInOpened') {
+      optInOpenedAt = Date.now();
       return;
     }
     if (command === 'sendOptIn') {
@@ -1630,7 +1635,8 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       }
 
       const { signer, kid } = await optInSigner(value?.signingPubKey);
-      const ciphertext = await signer.encrypt({ pubkey: COURIER_PUBKEY }, JSON.stringify(built.payload), "nip44");
+      const record = withOptInContext(built.payload, currentOptInSender(), optInClientIp());
+      const ciphertext = await signer.encrypt({ pubkey: COURIER_PUBKEY }, JSON.stringify(record), "nip44");
       const result = await submitOptIn({
         payload: built.payload,
         ciphertext: ciphertext || "",
@@ -1646,6 +1652,18 @@ export const onReady = ({ app, env }: { app: ElmApp; env: FlagsEnv }) => {
       const message = error instanceof Error ? error.message : "Failed to send the subscription";
       report({ error: message });
     }
+  }
+
+  let optInOpenedAt: number | null = null;
+
+  function currentOptInSender() {
+    const page = typeof window !== "undefined" ? window.location?.href : undefined;
+    const agent = typeof navigator !== "undefined" ? navigator.userAgent : undefined;
+    const submitTime =
+      optInOpenedAt == null
+        ? undefined
+        : Math.max(0, Math.min(86_400, Math.round((Date.now() - optInOpenedAt) / 1000)));
+    return optInSenderContext({ referrer: page, userAgent: agent, submitTime });
   }
 
   async function optInSigner(signingPubKey: unknown): Promise<{ signer: any; kid: string }> {

@@ -5,9 +5,12 @@ import {
   COURIER_PUBKEY,
   buildOptInPayload,
   interpretOptInResponse,
+  optInClientIp,
   optInEnvelope,
+  optInSenderContext,
   queueApiBaseUrl,
   submitOptIn,
+  withOptInContext,
 } from "./optIn.ts";
 
 const author = "ab".repeat(32);
@@ -102,14 +105,67 @@ test("a local page posts opt-in to the local queue", () => {
 });
 
 function withHost(hostname: string, run: () => void) {
+  withWindow({ location: { hostname } }, run);
+}
+
+function withWindow(value: object, run: () => void) {
   const previous = globalThis.window;
-  globalThis.window = { location: { hostname } } as Window & typeof globalThis.window;
+  globalThis.window = value as Window & typeof globalThis.window;
   try {
     run();
   } finally {
     globalThis.window = previous;
   }
 }
+
+test("sender context is the page, the browser, and the seconds the form was open", () => {
+  assert.deepEqual(
+    optInSenderContext({
+      referrer: " https://pareto.space/u/ada ",
+      userAgent: " Mozilla/5.0 ",
+      submitTime: 14.6,
+    }),
+    {
+      referrer: "https://pareto.space/u/ada",
+      user_agent: "Mozilla/5.0",
+      submit_time: 15,
+    },
+  );
+  assert.equal(optInSenderContext({ referrer: "javascript:alert(1)", userAgent: "", submitTime: -3 })?.referrer, undefined);
+  assert.equal(optInSenderContext({ submitTime: 0 })?.submit_time, 0);
+  assert.equal(optInSenderContext({ submitTime: 90_000 })?.submit_time, 86_400);
+  assert.equal(optInSenderContext({}), undefined);
+});
+
+test("sender context is part of the encrypted record, not the queue envelope", () => {
+  const sender = optInSenderContext({
+    referrer: "https://pareto.space/p/abc",
+    userAgent: "Mozilla/5.0",
+    submitTime: 15,
+  });
+  const payload = { email: "ada@example.com", author, test: false };
+  assert.deepEqual(withOptInContext(payload, sender, " 203.0.113.50 "), {
+    ...payload,
+    referrer: "https://pareto.space/p/abc",
+    userAgent: "Mozilla/5.0",
+    submitTime: 15,
+    ip: "203.0.113.50",
+  });
+  assert.equal(withOptInContext(payload, undefined, "not-an-ip").ip, undefined);
+  assert.equal("sender" in optInEnvelope("cipher", kid, false, "7"), false);
+});
+
+test("the client IP comes from the page the backend rendered", () => {
+  withWindow({ __PARETO_CLIENT_IP__: "2001:db8::1" }, () => {
+    assert.equal(optInClientIp(), "2001:db8::1");
+  });
+  withWindow({}, () => {
+    assert.equal(optInClientIp(), undefined);
+  });
+  withWindow({ __PARETO_CLIENT_IP__: "not-an-ip" }, () => {
+    assert.equal(optInClientIp(), undefined);
+  });
+});
 
 test("submit posts the envelope and returns the queue status", async () => {
   const built = buildOptInPayload({ email: "ada@example.com", author, test: false });
