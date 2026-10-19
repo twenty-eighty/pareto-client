@@ -103,9 +103,11 @@ init _ =
         }
 
 
-show : Model -> Model
+show : Model -> ( Model, Effect msg )
 show (Model model) =
-    Model { model | state = DialogVisible { email = Nothing } }
+    ( Model { model | state = DialogVisible { email = Nothing } }
+    , Ports.markOptInOpened |> Effect.sendCmd
+    )
 
 
 hide : Model -> Model

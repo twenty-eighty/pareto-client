@@ -65,14 +65,14 @@ type alias Model =
 init : Shared.Model -> Route { profile : String } -> () -> ( Model, Effect Msg )
 init shared route () =
     let
-        emailSubscriptionDialog =
+        ( emailSubscriptionDialog, openedEffect ) =
             case route.hash of
                 Just "subscribe" ->
                     EmailSubscriptionDialog.init {}
                         |> EmailSubscriptionDialog.show
 
                 _ ->
-                    EmailSubscriptionDialog.init {}
+                    ( EmailSubscriptionDialog.init {}, Effect.none )
 
         model =
             decodeParam route.params.profile
@@ -121,6 +121,7 @@ init shared route () =
     , Effect.batch
         [ requestProfileEffect
         , requestArticlesEffect
+        , openedEffect
         , model.pubKey
             |> Maybe.map Shared.Msg.LoadUserDataByPubKey
             |> Maybe.map Effect.sendSharedMsg
@@ -206,8 +207,12 @@ update shared msg model =
             )
 
         OpenSubscribeDialog ->
-            ( { model | emailSubscriptionDialog = EmailSubscriptionDialog.show model.emailSubscriptionDialog }
-            , Effect.none
+            let
+                ( emailSubscriptionDialog, effect ) =
+                    EmailSubscriptionDialog.show model.emailSubscriptionDialog
+            in
+            ( { model | emailSubscriptionDialog = emailSubscriptionDialog }
+            , effect
             )
 
         EmailSubscriptionDialogSent innerMsg ->

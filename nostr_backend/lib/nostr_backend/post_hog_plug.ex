@@ -19,22 +19,7 @@ defmodule NostrBackend.PostHogPlug do
       Plug.Conn.get_req_header(conn, "user-agent")
       |> List.first()
 
-    # get client's IP address
-    forwarded_header =
-      Plug.Conn.get_req_header(conn, "x-forwarded-for")
-      |> List.first()
-
-    ip_address =
-      if forwarded_header != nil do
-        # IP address behind proxy
-        [{"x-forwarded-for", forwarded_header}]
-        |> RemoteIp.Headers.parse()
-        |> List.first()
-        |> ip_address_to_string()
-      else
-        # IP address of the client
-        ip_address_to_string(conn.remote_ip)
-      end
+    ip_address = NostrBackend.ClientIp.from_conn(conn)
 
     client_hints = extract_client_hints(conn)
     ua_result = UAInspector.parse(user_agent, client_hints)
@@ -273,10 +258,4 @@ defmodule NostrBackend.PostHogPlug do
 
   defp client_is_site_monitor?(%UAInspector.Result.Bot{category: "Site Monitor"}), do: true
   defp client_is_site_monitor?(_), do: false
-
-  defp ip_address_to_string({a, b, c, d}), do: "#{a}.#{b}.#{c}.#{d}"
-
-  defp ip_address_to_string({a, b, c, d, e, f, g, h}) do
-    Enum.join([a, b, c, d, e, f, g, h] |> Enum.map(&Integer.to_string(&1, 16)), ":")
-  end
 end

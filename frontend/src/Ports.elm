@@ -831,6 +831,14 @@ sendNewsletter newsletterData maybeBlob recipientSource maybeFilter =
         }
 
 
+markOptInOpened : Cmd msg
+markOptInOpened =
+    sendCommand
+        { command = "markOptInOpened"
+        , value = Encode.null
+        }
+
+
 sendOptIn :
     { requestId : String
     , author : String

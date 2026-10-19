@@ -1,4 +1,4 @@
-/** Public opt-in on the queue. Ciphertext only; the courier renders the confirmation. */
+/** Public opt-in on the queue. The subscription, including sender context, is ciphertext. */
 
 const LOCAL_QUEUE_API_URL = "http://localhost:4433/v1";
 const HOSTED_QUEUE_API_URL = "https://queue-server.pareto.space/v1";
@@ -17,6 +17,8 @@ export const COURIER_PUBKEY = "cefbf43addd677426c671d7cd275289be35f7b6b398fced7f
 
 const OPT_IN_TIMEOUT_MS = 20_000;
 const HEX_64 = /^[0-9a-fA-F]{64}$/;
+const IPV4 = /^(?:\d{1,3}\.){3}\d{1,3}$/;
+const IPV6 = /^[0-9A-Fa-f:]+$/;
 const MAILBOX = /^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/;
 
 export type OptInStatus = "SENT" | "QUEUED" | "REJECTED";
@@ -69,6 +71,60 @@ export function buildOptInPayload(input: OptInInput): { ok: true; payload: OptIn
   if (pubkey && HEX_64.test(pubkey)) payload.pubkey = pubkey;
   if (locale) payload.locale = locale;
   return { ok: true, payload };
+}
+
+/** Page URL, browser, and seconds the form was open. The connecting IP is injected when the page is rendered. */
+export type OptInSenderContext = {
+  referrer?: string;
+  user_agent?: string;
+  submit_time?: number;
+};
+
+export type OptInRecord = OptInPayload & {
+  referrer?: string;
+  userAgent?: string;
+  submitTime?: number;
+  ip?: string;
+};
+
+const SENDER_URL_LIMIT = 2048;
+const SENDER_AGENT_LIMIT = 512;
+const SUBMIT_TIME_LIMIT = 86_400;
+
+export function optInSenderContext(input: {
+  referrer?: unknown;
+  userAgent?: unknown;
+  submitTime?: unknown;
+}): OptInSenderContext | undefined {
+  const context: OptInSenderContext = {};
+  const referrer = httpUrl(input.referrer);
+  const userAgent = clipped(input.userAgent, SENDER_AGENT_LIMIT);
+  const submitTime = submitSeconds(input.submitTime);
+  if (referrer) context.referrer = referrer;
+  if (userAgent) context.user_agent = userAgent;
+  if (submitTime !== undefined) context.submit_time = submitTime;
+  return referrer || userAgent || submitTime !== undefined ? context : undefined;
+}
+
+/** Sender context belongs in the encrypted JSON. The queue envelope does not carry it. */
+export function withOptInContext(
+  payload: OptInPayload,
+  context?: OptInSenderContext,
+  ip?: string,
+): OptInRecord {
+  const record: OptInRecord = { ...payload };
+  if (context?.referrer) record.referrer = context.referrer;
+  if (context?.user_agent) record.userAgent = context.user_agent;
+  if (context?.submit_time !== undefined) record.submitTime = context.submit_time;
+  const address = inet(ip);
+  if (address) record.ip = address;
+  return record;
+}
+
+/** Address Phoenix wrote into the page. Absent for a static build that has no backend. */
+export function optInClientIp(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  return inet(window.__PARETO_CLIENT_IP__);
 }
 
 export function optInEnvelope(ciphertext: string, kid: string, test: boolean, idem?: string) {
@@ -146,6 +202,40 @@ function text(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed || undefined;
+}
+
+function clipped(value: unknown, limit: number): string | undefined {
+  const raw = text(value)?.replace(/[\u0000-\u001F\u007F]/g, "").trim();
+  if (!raw) return undefined;
+  return raw.slice(0, limit);
+}
+
+function inet(value: unknown): string | undefined {
+  const raw = text(value);
+  if (!raw || raw.length > 64) return undefined;
+  if (IPV4.test(raw)) {
+    const octets = raw.split(".");
+    return octets.every((part) => Number(part) <= 255) ? raw : undefined;
+  }
+  if (raw.includes(":") && IPV6.test(raw)) return raw;
+  return undefined;
+}
+
+function httpUrl(value: unknown): string | undefined {
+  const raw = clipped(value, SENDER_URL_LIMIT);
+  if (!raw) return undefined;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
+    return url.toString().slice(0, SENDER_URL_LIMIT);
+  } catch {
+    return undefined;
+  }
+}
+
+function submitSeconds(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  return Math.max(0, Math.min(SUBMIT_TIME_LIMIT, Math.round(value)));
 }
 
 function utf8ByteLength(value: string): number {
