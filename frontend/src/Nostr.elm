@@ -597,9 +597,10 @@ configuredRelaysWss model =
 doRequest : Model -> Request -> ( Model, Cmd Msg )
 doRequest model request =
     let
-        -- increment request ID for next request
+        -- Stay strictly above every id already handed out. A caller may pass an
+        -- id ahead of lastRequestId; bumping by one would issue that same id again.
         newModel =
-            { model | lastRequestId = model.lastRequestId + 1 }
+            { model | lastRequestId = max model.lastRequestId (request.id + 1) }
     in
     doRequestWithId newModel request.id request
 

@@ -1,5 +1,6 @@
 import { NDKRelaySet } from "@nostr-dev-kit/ndk";
 import { filterRelayUrls } from "./blocked-relays";
+import { createRequestBatch, finishFetch, relaysSettled, startFetch } from "./relay-request-batch";
 
 const QUEUE_TIMEOUT_MS = 15000;
 
@@ -12,6 +13,8 @@ export function createRelayManager(ndk, debugLog, processEvents) {
   const readyRelays = new Set();
   const queuedRequests = [];
   const trackedRelays = new Set(); // keep listeners attached only once per relay
+  const batches = new Map();
+  let nextGeneration = 1;
 
   const markReady = (relayUrl) => {
     const normalized = normalizeRelayUrl(relayUrl);
@@ -22,6 +25,43 @@ export function createRelayManager(ndk, debugLog, processEvents) {
   const markDisconnect = (relayUrl) => {
     const normalized = normalizeRelayUrl(relayUrl);
     readyRelays.delete(normalized);
+  };
+
+  const emitComplete = (app, requestId) => {
+    app.ports.receiveMessage.send({ messageType: "eventsComplete", value: { requestId } });
+  };
+
+  const currentBatch = (requestId, generation) => {
+    const batch = batches.get(requestId);
+    if (!batch || batch.generation !== generation) {
+      return null;
+    }
+    return batch;
+  };
+
+  const completeBatch = (app, requestId, generation) => {
+    const batch = batches.get(requestId);
+    if (!batch || batch.generation !== generation) {
+      return;
+    }
+    batches.delete(requestId);
+    emitComplete(app, requestId);
+  };
+
+  const settleWaitingRelays = (app, requestId, generation) => {
+    const batch = currentBatch(requestId, generation);
+    if (batch && relaysSettled(batch)) {
+      completeBatch(app, requestId, generation);
+    }
+  };
+
+  const dropQueued = (requestId, generation) => {
+    for (let i = queuedRequests.length - 1; i >= 0; i--) {
+      const request = queuedRequests[i];
+      if (request.requestId === requestId && request.generation === generation) {
+        queuedRequests.splice(i, 1);
+      }
+    }
   };
 
   const fetchEvents = (app, { requestId, filters, closeOnEose, description, relays }) => {
@@ -70,21 +110,33 @@ export function createRelayManager(ndk, debugLog, processEvents) {
     });
 
     const { readySubset, missing } = splitRelays(targetRelays);
+    const generation = nextGeneration++;
+    const batch = createRequestBatch(generation, missing.length > 0);
+    batches.set(requestId, batch);
+
+    const request = {
+      requestId,
+      generation,
+      filters,
+      closeOnEose,
+      description,
+      missing: new Set(missing),
+      createdAt: Date.now(),
+      app,
+    };
 
     if (readySubset.length > 0) {
-      sendFetch(readySubset, { requestId, filters, closeOnEose, description, app });
+      sendFetch(readySubset, request);
     }
 
     if (missing.length > 0) {
-      queuedRequests.push({
-        requestId,
-        filters,
-        closeOnEose,
-        description,
-        missing: new Set(missing),
-        createdAt: Date.now(),
-        app
-      });
+      queuedRequests.push(request);
+      setTimeout(() => {
+        dropQueued(requestId, generation);
+        settleWaitingRelays(app, requestId, generation);
+      }, QUEUE_TIMEOUT_MS);
+    } else if (readySubset.length === 0) {
+      settleWaitingRelays(app, requestId, generation);
     }
   };
 
@@ -107,9 +159,9 @@ export function createRelayManager(ndk, debugLog, processEvents) {
     for (let i = queuedRequests.length - 1; i >= 0; i--) {
       const request = queuedRequests[i];
 
-      // Remove expired requests to avoid leaking memory.
       if (now - request.createdAt > QUEUE_TIMEOUT_MS) {
         queuedRequests.splice(i, 1);
+        settleWaitingRelays(request.app, request.requestId, request.generation);
         continue;
       }
 
@@ -126,18 +178,37 @@ export function createRelayManager(ndk, debugLog, processEvents) {
 
       if (request.missing.size === 0) {
         queuedRequests.splice(i, 1);
+        settleWaitingRelays(request.app, request.requestId, request.generation);
       }
     }
   };
 
-  const sendFetch = (relayUrls, { requestId, filters, closeOnEose, description, app }) => {
-    const relaySet = NDKRelaySet.fromRelayUrls(relayUrls, ndk, false, ndk.pool);
+  const sendFetch = (relayUrls, request) => {
+    const batch = currentBatch(request.requestId, request.generation);
+    if (!batch) {
+      return;
+    }
+    startFetch(batch);
 
-    ndk.fetchEvents(filters, { closeOnEose: closeOnEose }, relaySet).then((ndkEvents) => {
-      processEvents(app, requestId, description, ndkEvents, filters);
-    }).catch((err) => {
+    const settleFetch = () => {
+      const current = currentBatch(request.requestId, request.generation);
+      if (current && finishFetch(current)) {
+        completeBatch(request.app, request.requestId, request.generation);
+      }
+    };
+
+    try {
+      const relaySet = NDKRelaySet.fromRelayUrls(relayUrls, ndk, false, ndk.pool);
+
+      ndk.fetchEvents(request.filters, { closeOnEose: request.closeOnEose }, relaySet).then((ndkEvents) => {
+        return processEvents(request.app, request.requestId, request.description, ndkEvents, request.filters, false);
+      }).catch((err) => {
+        debugLog('fetchEvents error', { relays: relayUrls, err });
+      }).finally(settleFetch);
+    } catch (err) {
       debugLog('fetchEvents error', { relays: relayUrls, err });
-    });
+      settleFetch();
+    }
   };
 
   return {
