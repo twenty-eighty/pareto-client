@@ -47,6 +47,19 @@ defmodule NostrBackendWeb.ContentControllerArticleIdTest do
     assert conn.resp_body =~ "Article/Profile Not Found"
   end
 
+  test "GET /a/:article_id returns 404 for a checksum-valid nprofile without a pubkey", %{
+    conn: conn
+  } do
+    tlv = <<1, 3, "wss">>
+    nprofile = Bech32.encode("nprofile", tlv)
+    assert {:ok, "nprofile", ^tlv} = Bech32.decode(nprofile)
+
+    conn = get(conn, "/a/#{nprofile}")
+
+    assert conn.status == 404
+    assert conn.resp_body =~ "Article/Profile Not Found"
+  end
+
   test "GET /a/:article_id returns 404 for a malformed ID", %{conn: conn} do
     conn = get(conn, "/a/not-a-nostr-id")
 

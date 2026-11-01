@@ -243,6 +243,15 @@ defmodule NostrBackend.NIP19Test do
       assert "wss://nos.lol" in decoded_relays
     end
 
+    test "returns an error for a checksum-valid nprofile without a pubkey" do
+      tlv = <<1, 3, "wss">>
+      nprofile = Bech32.encode("nprofile", tlv)
+
+      assert {:ok, "nprofile", ^tlv} = Bech32.decode(nprofile)
+      assert {:error, "Invalid TLV data in nprofile: No pubkey found in nprofile TLV"} =
+               NostrId.parse(nprofile)
+    end
+
     test "handles invalid naddr format" do
       assert {:error, _} = NostrId.parse("invalid_naddr")
     end
