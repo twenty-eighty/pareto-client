@@ -10,6 +10,7 @@ import {
 } from "./subscriberBlob";
 import { EncryptedContacts, contactsApiBaseUrl, signerFromNdk } from "./EncryptedContacts";
 import type { TagNameFilter } from "./EncryptedContacts/types";
+import { campaignSettled, progressDeliveryCounts, recipientKey, uniqueRecipients } from "./deliveryProgress";
 
 const DEFAULT_BASE_URL = "https://queue-server.pareto.space/v1";
 const EMAIL_GATEWAY_PUBKEY = "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345";
@@ -102,24 +103,6 @@ const TERMINAL_DELIVERIES = new Set(["sent", "failed", "partial"]);
 
 function isTerminalDelivery(delivery?: string | null): boolean {
   return !!delivery && TERMINAL_DELIVERIES.has(delivery);
-}
-
-function progressDeliveryCounts(
-  status?: CampaignStatus | null,
-  fallbackTotal = 0,
-): { sent: number; total: number } {
-  const counts = status?.counts;
-  const sent = counts?.done ?? 0;
-  const countedTotal = counts
-    ? (counts.done || 0) +
-      (counts.failed || 0) +
-      (counts.held || 0) +
-      (counts.available || 0) +
-      (counts.leased || 0) +
-      (counts.retryable || 0)
-    : 0;
-  const total = status?.expected_jobs || countedTotal || fallbackTotal;
-  return { sent, total };
 }
 
 function formatRecentErrors(errors?: CampaignStatusError[] | null): string {
@@ -344,50 +327,92 @@ export class NewsletterSendClient {
     totals: { fetched: number; built: number; accepted: number; duplicates: number; errors: number; pages: number },
     onProgress: ProgressFn | undefined,
     signal: AbortSignal | undefined,
-    filter?: TagNameFilter,
+    filter: TagNameFilter | undefined,
+    seen: Set<string>,
+    planned: number,
   ): Promise<void> {
     const api = this.contactDatabase();
     await api.ensureAuthenticated();
 
     const perPage = 100;
-    let page = 1;
-    while (true) {
-      throwIfAborted(signal);
-      const result = filter
-        ? await api.getContactsByCriteria(filter, page, perPage)
-        : await api.getContacts(page, perPage);
-      const records = result?.contacts || [];
-      const active = records.filter((contact) => contact.active === true);
-      totals.fetched += active.length;
-      totals.errors += (result?.errors || []).length;
-      totals.pages = page;
-
-      const jobs: JobSpec[] = [];
-      for (const contact of active) {
+    const missingIds = new Set<string>();
+    let unreadable = 0;
+    // Pages ordered only by inserted_at can repeat and skip rows. A later pass
+    // picks up recipients the previous pass did not return.
+    for (let pass = 1; pass <= 3; pass += 1) {
+      const seenBefore = seen.size;
+      let page = 1;
+      while (true) {
         throwIfAborted(signal);
-        try {
-          jobs.push(await this.buildJobSpec(campaignId, contact, isTest, author));
-        } catch (error: unknown) {
-          rethrowIfCancelled(error);
-          totals.errors += 1;
-          this.log("Failed to build job", (error as { message?: string })?.message);
+        const result = filter
+          ? await api.getContactsByCriteria(filter, page, perPage)
+          : await api.getContacts(page, perPage);
+        const records = result?.contacts || [];
+        const active = records.filter((contact) => contact.active === true);
+        if (pass === 1) {
+          totals.errors += (result?.errors || []).length;
+          unreadable += Math.max(0, result.sourceCount - records.length);
         }
-      }
-      totals.built += jobs.length;
-      onProgress?.({ phase: "page_built", campaignId, built: totals.built, totals: { ...totals } });
+        totals.pages = page;
 
-      if (jobs.length) {
-        const enqueued = await this.enqueueJobs(campaignId, jobs, signal);
-        totals.accepted += enqueued.accepted;
-        totals.duplicates += enqueued.duplicates;
-        totals.errors += enqueued.errors;
-        onProgress?.({ phase: "page_enqueued", campaignId, totals: { ...totals } });
+        const jobs: JobSpec[] = [];
+        for (const contact of active) {
+          throwIfAborted(signal);
+          const key = recipientKey(contact);
+          if (!key) {
+            const missingId = String(contact.id || "");
+            if (!missingId || !missingIds.has(missingId)) {
+              if (missingId) missingIds.add(missingId);
+              totals.errors += 1;
+            }
+            continue;
+          }
+          if (seen.has(key)) continue;
+          seen.add(key);
+          try {
+            jobs.push(await this.buildJobSpec(campaignId, contact, isTest, author));
+          } catch (error: unknown) {
+            rethrowIfCancelled(error);
+            totals.errors += 1;
+            this.log("Failed to build job", (error as { message?: string })?.message);
+          }
+        }
+        totals.built += jobs.length;
+        const queued = totals.accepted + totals.duplicates;
+        onProgress?.({
+          phase: "page_built",
+          campaignId,
+          built: totals.built,
+          totals: { ...totals },
+          ...progressDeliveryCounts(undefined, totals.fetched, queued),
+        });
+
+        if (jobs.length) {
+          const enqueued = await this.enqueueJobs(campaignId, jobs, signal);
+          totals.accepted += enqueued.accepted;
+          totals.duplicates += enqueued.duplicates;
+          totals.errors += enqueued.errors;
+          onProgress?.({
+            phase: "page_enqueued",
+            campaignId,
+            totals: { ...totals },
+            ...progressDeliveryCounts(undefined, totals.fetched, totals.accepted + totals.duplicates),
+          });
+        }
+
+        if (result.sourceCount < perPage) {
+          break;
+        }
+        page += 1;
       }
 
-      if (result.sourceCount < perPage) {
+      if (seen.size === seenBefore || seen.size + missingIds.size + unreadable >= planned) {
         break;
       }
-      page += 1;
+    }
+
+    if (seen.size + missingIds.size + unreadable < planned) {
+      throw new Error(`Loaded ${seen.size} of ${planned} active contacts. The campaign was not started.`);
     }
 
     if (totals.accepted + totals.duplicates === 0) {
@@ -523,24 +548,30 @@ export class NewsletterSendClient {
     onProgress?.({ phase: "preparing" });
     const recipients = pageContacts
       ? []
-      : await this.resolveRecipients(author, subscribers, subscriberBlob, recipientSource, signal);
+      : uniqueRecipients(await this.resolveRecipients(author, subscribers, subscriberBlob, recipientSource, signal));
     throwIfAborted(signal);
+    const planned = pageContacts
+      ? await this.countActiveRecipients(author, subscriberBlob, recipientSource, tagFilter)
+      : recipients.length;
     if (!pageContacts && !isTest && recipients.length === 0) {
       throw new Error("No active subscribers found. The subscriber list could not be loaded.");
     }
+    if (pageContacts && planned === 0) {
+      throw new Error("No active contacts found in the contact database.");
+    }
     const totals = {
-      fetched: recipients.length,
+      fetched: planned,
       built: 0,
       accepted: 0,
       duplicates: 0,
       errors: 0,
       pages: pageContacts ? 0 : 1,
     };
-    onProgress?.({ phase: "authenticating", totals });
+    onProgress?.({ phase: "authenticating", totals, ...progressDeliveryCounts(undefined, planned, 0) });
     const api = await this.client();
     throwIfAborted(signal);
     const externalId = identifier || newsletterData.identifier;
-    onProgress?.({ phase: "creating_campaign", totals });
+    onProgress?.({ phase: "creating_campaign", totals, ...progressDeliveryCounts(undefined, planned, 0) });
     const cipher = await this.buildCampaignCipher(newsletterData, author);
     throwIfAborted(signal);
     let created;
@@ -564,26 +595,31 @@ export class NewsletterSendClient {
     }
 
     throwIfAborted(signal);
-    onProgress?.({ phase: "queueing", campaignId, delivery: "queueing", sent: 0, total: totals.fetched, totals });
+    onProgress?.({
+      phase: "queueing",
+      campaignId,
+      delivery: "queueing",
+      totals,
+      ...progressDeliveryCounts(undefined, planned, 0),
+    });
     const watchAbort = new AbortController();
     const stopWatch = () => watchAbort.abort();
     signal?.addEventListener("abort", stopWatch);
+    const seenRecipients = new Set<string>();
     const deliveryWatch = this.watchCampaignDelivery(String(campaignId), (status) => {
       const delivery = status.delivery || "queueing";
-      const queuedJobs = totals.accepted + totals.duplicates;
-      const { sent, total } = progressDeliveryCounts(status, queuedJobs || totals.fetched);
+      const queued = totals.accepted + totals.duplicates;
       onProgress?.({
         phase: delivery,
         campaignId,
         delivery,
-        sent,
-        total,
         counts: status.counts,
         recent_errors: status.recent_errors || [],
         uploaded_jobs: status.uploaded_jobs,
         expected_jobs: status.expected_jobs,
         totals,
         error: isTerminalDelivery(delivery) && delivery !== "sent" ? formatRecentErrors(status.recent_errors) : undefined,
+        ...progressDeliveryCounts(status, planned, queued),
       });
     }, watchAbort.signal);
 
@@ -591,7 +627,17 @@ export class NewsletterSendClient {
       this.log("Send newsletter start", { externalId, campaignId, recipients: pageContacts ? "paged" : recipients.length, test: isTest });
 
       if (pageContacts) {
-        await this.enqueueContactPages(author, campaignId, isTest, totals, onProgress, signal, tagFilter);
+        await this.enqueueContactPages(
+          author,
+          campaignId,
+          isTest,
+          totals,
+          onProgress,
+          signal,
+          tagFilter,
+          seenRecipients,
+          planned,
+        );
       } else {
         const jobs: JobSpec[] = [];
         for (const contact of recipients) {
@@ -606,7 +652,13 @@ export class NewsletterSendClient {
         }
         totals.built = jobs.length;
         throwIfAborted(signal);
-        onProgress?.({ phase: "page_built", campaignId, built: jobs.length, totals });
+        onProgress?.({
+          phase: "page_built",
+          campaignId,
+          built: jobs.length,
+          totals,
+          ...progressDeliveryCounts(undefined, planned, 0),
+        });
 
         if (!jobs.length) {
           throw new Error("No newsletter jobs could be built from the subscriber list.");
@@ -619,24 +671,24 @@ export class NewsletterSendClient {
         onProgress?.({
           phase: "page_enqueued",
           campaignId,
-          sent: 0,
-          total: totals.accepted + totals.duplicates || totals.fetched,
           totals,
+          ...progressDeliveryCounts(undefined, planned, totals.accepted + totals.duplicates),
         });
       }
 
       throwIfAborted(signal);
       try {
+        // Retried uploads come back as duplicates and are already stored.
+        // Repeated addresses are removed before upload, so they are not included.
         const queuedJobs = totals.accepted + totals.duplicates;
         await api.commitCampaign(campaignId, { expected_jobs: queuedJobs }, { signal });
         onProgress?.({
           phase: "sending",
           campaignId,
           delivery: "sending",
-          sent: 0,
-          total: queuedJobs,
           expected_jobs: queuedJobs,
           totals,
+          ...progressDeliveryCounts(undefined, planned, queuedJobs),
         });
       } catch (error: unknown) {
         rethrowIfCancelled(error);
@@ -656,11 +708,12 @@ export class NewsletterSendClient {
         );
       }
 
-      const { sent, total } = progressDeliveryCounts(
+      const finalProgress = progressDeliveryCounts(
         finalStatus,
+        planned,
         totals.accepted + totals.duplicates,
       );
-      onProgress?.({ phase: "sent", campaignId, delivery: "sent", sent, total, counts: finalStatus?.counts, totals });
+      onProgress?.({ phase: "sent", campaignId, delivery: "sent", counts: finalStatus?.counts, totals, ...finalProgress });
       return { ok: true, totals, delivery: "sent" };
     } finally {
       stopWatch();
@@ -737,7 +790,7 @@ export class NewsletterSendClient {
       throwIfAborted(signal);
       const status = await this.getCampaignStatus(campaignId, signal);
       onStatus(status);
-      if (isTerminalDelivery(status.delivery)) {
+      if (campaignSettled(status, status.delivery)) {
         return status;
       }
       await sleep(2000, signal);
@@ -824,7 +877,7 @@ export class NewsletterSendClient {
             if (name === "status" && payload) {
               const status = payload as CampaignStatus;
               onStatus(status);
-              if (isTerminalDelivery(status.delivery)) {
+              if (campaignSettled(status, status.delivery)) {
                 finish(status);
               }
             }
@@ -875,7 +928,7 @@ export class NewsletterSendClient {
       return this.contactDatabase().countActiveRecipients(filter);
     }
     const subscribers = await this.resolveRecipients(author, undefined, subscriberBlob, recipientSource);
-    return subscribers.length;
+    return uniqueRecipients(subscribers).length;
   }
 }
 

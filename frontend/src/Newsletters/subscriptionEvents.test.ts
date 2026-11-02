@@ -11,6 +11,17 @@ import {
   type SubscriptionContactsApi,
 } from "./subscriptionEvents.ts";
 
+function activityOf(contact: SubscriptionContact | undefined) {
+  return {
+    email: contact?.email,
+    dnd: contact?.dnd,
+    dateunsub: contact?.dateunsub,
+    dateUnsubscription: contact?.dateUnsubscription,
+    reason: contact?.reason,
+    undeliverable: contact?.undeliverable,
+  };
+}
+
 function change(kind: "subscribe" | "unsubscribe", email: string, at: number): SubscriptionChange {
   return { kind, at, subscriber: { email } };
 }
@@ -81,9 +92,9 @@ test("applying a reversed event list leaves the newer unsubscribe in place", asy
     change("subscribe", "ada@example.com", 100),
   ];
   await syncSubscriptionEvents(api, events, true);
-  assert.equal(isActiveContact(stored.get("ada@example.com") || {}), false);
+  assert.equal(isActiveContact(activityOf(stored.get("ada@example.com"))), false);
 
   await syncSubscriptionEvents(api, [...events].reverse(), true);
-  assert.equal(isActiveContact(stored.get("ada@example.com") || {}), false);
+  assert.equal(isActiveContact(activityOf(stored.get("ada@example.com"))), false);
   assert.equal(stored.get("ada@example.com")?.dateunsub, 200);
 });
