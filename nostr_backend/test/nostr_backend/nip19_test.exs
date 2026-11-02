@@ -253,6 +253,26 @@ defmodule NostrBackend.NIP19Test do
                NostrId.parse(nprofile)
     end
 
+    test "returns an error for a checksum-valid nprofile with a truncated constructed TLV" do
+      tlv = <<0x21, 8, "1234567">>
+      nprofile = Bech32.encode("nprofile", tlv)
+
+      assert {:ok, "nprofile", ^tlv} = Bech32.decode(nprofile)
+
+      assert {:error, "Invalid TLV data in nprofile: :invalid_tlv_format"} =
+               NostrId.parse(nprofile)
+    end
+
+    test "returns an error for a constructed TLV with a truncated inner value" do
+      tlv = <<0x21, 2, 1, 4>>
+      nprofile = Bech32.encode("nprofile", tlv)
+
+      assert {:ok, "nprofile", ^tlv} = Bech32.decode(nprofile)
+
+      assert {:error, "Invalid TLV data in nprofile: :invalid_tlv_format"} =
+               NostrId.parse(nprofile)
+    end
+
     test "handles invalid naddr format" do
       assert {:error, _} = NostrId.parse("invalid_naddr")
     end
