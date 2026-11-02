@@ -50,7 +50,7 @@ defmodule NostrBackendWeb.ContentControllerArticleIdTest do
   test "GET /a/:article_id returns 404 for a checksum-valid nprofile without a pubkey", %{
     conn: conn
   } do
-    tlv = <<1, 3, "wss">>
+    tlv = <<1, 7, "wss://x">>
     nprofile = Bech32.encode("nprofile", tlv)
     assert {:ok, "nprofile", ^tlv} = Bech32.decode(nprofile)
 

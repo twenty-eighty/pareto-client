@@ -244,10 +244,11 @@ defmodule NostrBackend.NIP19Test do
     end
 
     test "returns an error for a checksum-valid nprofile without a pubkey" do
-      tlv = <<1, 3, "wss">>
+      tlv = <<1, 7, "wss://x">>
       nprofile = Bech32.encode("nprofile", tlv)
 
       assert {:ok, "nprofile", ^tlv} = Bech32.decode(nprofile)
+
       assert {:error, "Invalid TLV data in nprofile: No pubkey found in nprofile TLV"} =
                NostrId.parse(nprofile)
     end
