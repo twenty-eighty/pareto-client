@@ -685,6 +685,7 @@
         "test email sent text": "Test-E-Mail gesendet",
         "test email error text": "Fehler beim Senden der Test-E-Mail: {{error}}",
         "sending message text": "Sending newsletter…",
+        "queued close message text": "Der Newsletter liegt in der Warteschlange. Dieser Dialog kann geschlossen werden.",
         "sent message text": "Der Newsletter wurde gesendet",
         "error message text": "{{error}}",
         "close button title": "Schließen",
