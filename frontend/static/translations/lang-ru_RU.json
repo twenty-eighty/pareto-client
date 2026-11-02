@@ -685,6 +685,7 @@
         "test email sent text": "Test email sent",
         "test email error text": "Error sending test email: {{error}}",
         "sending message text": "Sending newsletter…",
+        "queued close message text": "The newsletter is in the queue. You can close this dialog.",
         "sent message text": "Newsletter has been sent",
         "error message text": "{{error}}",
         "close button title": "Close",
