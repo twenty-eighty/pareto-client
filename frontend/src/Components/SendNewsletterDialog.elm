@@ -105,6 +105,8 @@ type alias SendProgress =
     , recentErrors : List JobError
     , sent : Maybe Int
     , total : Maybe Int
+    , uploaded : Maybe Int
+    , delivered : Maybe Int
     }
 
 
@@ -124,6 +126,8 @@ initialSendProgress =
     , recentErrors = []
     , sent = Nothing
     , total = Nothing
+    , uploaded = Nothing
+    , delivered = Nothing
     }
 
 
@@ -418,7 +422,7 @@ jobErrorDecoder =
 
 sendProgressDecoder : Decode.Decoder SendProgress
 sendProgressDecoder =
-    Decode.map6 SendProgress
+    Decode.map8 SendProgress
         (Decode.field "phase" Decode.string)
         (Decode.maybe (Decode.field "totals" sendTotalsDecoder))
         (Decode.maybe (Decode.field "delivery" Decode.string))
@@ -429,6 +433,8 @@ sendProgressDecoder =
         )
         sentCountDecoder
         totalCountDecoder
+        (Decode.maybe (Decode.field "uploaded" Decode.int))
+        (Decode.maybe (Decode.field "delivered" Decode.int))
 
 
 sentCountDecoder : Decode.Decoder (Maybe Int)
@@ -464,32 +470,38 @@ progressWithCounts model progress =
                     Nothing
     in
     { progress
-        | sent =
-            case progress.sent of
-                Just _ ->
-                    progress.sent
-
-                Nothing ->
-                    previous |> Maybe.andThen .sent
+        | sent = mergeRising progress.sent (previous |> Maybe.andThen .sent)
+        , uploaded = mergeRising progress.uploaded (previous |> Maybe.andThen .uploaded)
+        , delivered = mergeRising progress.delivered (previous |> Maybe.andThen .delivered)
         , total =
-            case progress.total of
-                Just _ ->
-                    progress.total
+            mergeRising progress.total
+                (previous
+                    |> Maybe.andThen .total
+                    |> (\maybeTotal ->
+                            case maybeTotal of
+                                Just _ ->
+                                    maybeTotal
 
-                Nothing ->
-                    previous
-                        |> Maybe.andThen .total
-                        |> (\maybeTotal ->
-                                case maybeTotal of
-                                    Just _ ->
-                                        maybeTotal
-
-                                    Nothing ->
-                                        previous
-                                            |> Maybe.andThen .totals
-                                            |> Maybe.map .accepted
-                           )
+                                Nothing ->
+                                    previous
+                                        |> Maybe.andThen .totals
+                                        |> Maybe.map .accepted
+                       )
+                )
     }
+
+
+mergeRising : Maybe Int -> Maybe Int -> Maybe Int
+mergeRising next previous =
+    case ( next, previous ) of
+        ( Just newer, Just older ) ->
+            Just (max newer older)
+
+        ( Just newer, Nothing ) ->
+            Just newer
+
+        ( Nothing, older ) ->
+            older
 
 
 sendTotalsDecoder : Decode.Decoder SendTotals
@@ -1004,19 +1016,25 @@ completedSendProgress progress =
             progress
 
 
-progressCountText : List I18Next.Translations -> SendProgress -> Maybe String
-progressCountText translations progress =
-    case ( progress.sent, progress.total ) of
-        ( Just sent, Just total ) ->
-            Just
-                (Translations.sendProgressSent translations
-                    { sent = String.fromInt sent
-                    , total = String.fromInt total
-                    }
-                )
+progressCountLines : List I18Next.Translations -> SendProgress -> List String
+progressCountLines translations progress =
+    let
+        delivered =
+            case progress.delivered of
+                Just count ->
+                    Just count
 
-        _ ->
-            Nothing
+                Nothing ->
+                    progress.sent
+    in
+    List.filterMap identity
+        [ progress.uploaded
+            |> Maybe.map (\count -> Translations.uploadedCount translations { count = String.fromInt count })
+        , delivered
+            |> Maybe.map (\count -> Translations.deliveredCount translations { count = String.fromInt count })
+        , progress.total
+            |> Maybe.map (\count -> Translations.recipientTotal translations { count = String.fromInt count })
+        ]
 
 
 existingSentCountText : List I18Next.Translations -> StatusSummary -> Maybe String
@@ -1123,9 +1141,7 @@ viewSentDialog dialog progress =
         , content =
             [ statusContainer
                 [ div [] [ text (Translations.sentMessageText [ settings.browserEnv.translations ]) ]
-                , progressCountText [ settings.browserEnv.translations ] (completedSendProgress progress)
-                    |> Maybe.map (\count -> div [] [ text count ])
-                    |> Maybe.withDefault emptyHtml
+                , viewProgressCounts [ settings.browserEnv.translations ] (completedSendProgress progress)
                 ]
             , viewRecipientCount (Settings settings)
             ]
@@ -1186,20 +1202,22 @@ viewSendProgress (Settings settings) progress =
         phaseText =
             progressPhaseText model.recipientSource translations progress.phase
 
-        totalsText =
-            case progressCountText translations progress of
-                Just sentText ->
-                    Just sentText
-
-                Nothing ->
+        countLines =
+            case progressCountLines translations progress of
+                [] ->
                     progress.totals
                         |> Maybe.map
                             (\totals ->
-                                Translations.sendProgressRecipients translations
+                                [ Translations.sendProgressRecipients translations
                                     { accepted = String.fromInt totals.accepted
                                     , fetched = String.fromInt totals.fetched
                                     }
+                                ]
                             )
+                        |> Maybe.withDefault []
+
+                lines ->
+                    lines
 
         errorsText =
             if List.isEmpty progress.recentErrors then
@@ -1209,7 +1227,13 @@ viewSendProgress (Settings settings) progress =
                 progress.recentErrors
                     |> List.filterMap .code
                     |> String.join ", "
+                    |> (\codes -> "Errors: " ++ codes)
                     |> Just
+
+        rows =
+            phaseText
+                :: countLines
+                ++ (errorsText |> Maybe.map List.singleton |> Maybe.withDefault [])
     in
     statusContainer
         [ div
@@ -1224,15 +1248,19 @@ viewSendProgress (Settings settings) progress =
                 (styles.textStyle14
                     ++ [ css [ Tw.flex, Tw.flex_col, Tw.gap_1 ] ]
                 )
-                ([ Just phaseText
-                 , totalsText
-                 , errorsText |> Maybe.map (\codes -> "Errors: " ++ codes)
-                 ]
-                    |> List.filterMap identity
-                    |> List.map (\row -> div [] [ text row ])
-                )
+                (List.map (\row -> div [] [ text row ]) rows)
             ]
         ]
+
+
+viewProgressCounts : List I18Next.Translations -> SendProgress -> Html msg
+viewProgressCounts translations progress =
+    case progressCountLines translations progress of
+        [] ->
+            emptyHtml
+
+        lines ->
+            div [] (List.map (\line -> div [] [ text line ]) lines)
 
 
 sendCanBeCancelled : SendProgress -> Bool
