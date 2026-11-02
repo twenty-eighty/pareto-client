@@ -69,3 +69,16 @@ export function progressDeliveryCounts(
     total,
   };
 }
+
+const TERMINAL_DELIVERIES = new Set(["sent", "failed", "partial"]);
+
+/** The queue's terminal word is only final once every expected job has left the queue. */
+export function campaignSettled(status?: DeliveryStatus | null, delivery?: string | null): boolean {
+  if (!delivery || !TERMINAL_DELIVERIES.has(delivery)) {
+    return false;
+  }
+  const done = status?.counts?.done ?? 0;
+  const failed = status?.counts?.failed ?? 0;
+  const expected = status?.expected_jobs ?? 0;
+  return expected <= 0 || done + failed >= expected;
+}

@@ -10,7 +10,7 @@ import {
 } from "./subscriberBlob";
 import { EncryptedContacts, contactsApiBaseUrl, signerFromNdk } from "./EncryptedContacts";
 import type { TagNameFilter } from "./EncryptedContacts/types";
-import { progressDeliveryCounts, recipientKey, uniqueRecipients } from "./deliveryProgress";
+import { campaignSettled, progressDeliveryCounts, recipientKey, uniqueRecipients } from "./deliveryProgress";
 
 const DEFAULT_BASE_URL = "https://queue-server.pareto.space/v1";
 const EMAIL_GATEWAY_PUBKEY = "cefbf43addd677426c671d7cd275289be35f7b6b398fced7fae420d060e7a345";
@@ -790,7 +790,7 @@ export class NewsletterSendClient {
       throwIfAborted(signal);
       const status = await this.getCampaignStatus(campaignId, signal);
       onStatus(status);
-      if (isTerminalDelivery(status.delivery)) {
+      if (campaignSettled(status, status.delivery)) {
         return status;
       }
       await sleep(2000, signal);
@@ -877,7 +877,7 @@ export class NewsletterSendClient {
             if (name === "status" && payload) {
               const status = payload as CampaignStatus;
               onStatus(status);
-              if (isTerminalDelivery(status.delivery)) {
+              if (campaignSettled(status, status.delivery)) {
                 finish(status);
               }
             }

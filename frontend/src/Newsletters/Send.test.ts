@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { progressDeliveryCounts, uniqueRecipients } from "./deliveryProgress.ts";
+import { campaignSettled, progressDeliveryCounts, uniqueRecipients } from "./deliveryProgress.ts";
 
 test("duplicate recipients collapse to one job", () => {
   const unique = uniqueRecipients([
@@ -45,4 +45,16 @@ test("delivery advances while the recipient total stays put", () => {
   );
 
   assert.deepEqual(sending, { uploaded: 1119, delivered: 25, sent: 25, total: 1320 });
+});
+
+test("a sent status is not final until every expected job is done", () => {
+  const early = {
+    counts: { done: 5, failed: 0, held: 0, available: 1495, leased: 0, retryable: 0 },
+    expected_jobs: 1500,
+    uploaded_jobs: 1500,
+  };
+
+  assert.equal(campaignSettled(early, "sent"), false);
+  assert.equal(campaignSettled({ ...early, counts: { ...early.counts, done: 1500, available: 0 } }, "sent"), true);
+  assert.equal(campaignSettled(early, "sending"), false);
 });

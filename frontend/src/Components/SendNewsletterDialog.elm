@@ -606,10 +606,10 @@ updateWithMessage toMsg (Model model) userPubKey message =
                 Ok progress ->
                     case progress.phase of
                         "done" ->
-                            ( Model { model | state = DialogSent (completedSendProgress (progressWithCounts model progress)) }, Effect.none )
+                            ( Model { model | state = applySendProgress model progress }, Effect.none )
 
                         "sent" ->
-                            ( Model { model | state = DialogSent (completedSendProgress (progressWithCounts model progress)) }, Effect.none )
+                            ( Model { model | state = applySendProgress model progress }, Effect.none )
 
                         "failed" ->
                             ( Model { model | state = DialogError (deliveryError progress "All newsletter deliveries failed") }, Effect.none )
@@ -995,25 +995,45 @@ recipientFilter (Model model) =
         Nothing
 
 
-completedSendProgress : SendProgress -> SendProgress
-completedSendProgress progress =
+applySendProgress : { a | state : DialogState } -> SendProgress -> DialogState
+applySendProgress model progress =
+    let
+        next =
+            progressWithCounts model progress
+                |> showSendingUntilFinished
+    in
+    if campaignFinished next then
+        DialogSent next
+
+    else
+        case model.state of
+            DialogSending newsletterData _ ->
+                DialogSending newsletterData next
+
+            _ ->
+                model.state
+
+
+showSendingUntilFinished : SendProgress -> SendProgress
+showSendingUntilFinished progress =
+    if campaignFinished progress then
+        progress
+
+    else if progress.phase == "sent" || progress.phase == "done" then
+        { progress | phase = "sending" }
+
+    else
+        progress
+
+
+campaignFinished : SendProgress -> Bool
+campaignFinished progress =
     case ( progress.sent, progress.total ) of
-        ( Just sent, Just total ) ->
-            if sent < total && (progress.phase == "sent" || progress.phase == "done" || progress.delivery == Just "sent") then
-                { progress | sent = Just total }
-
-            else
-                progress
-
-        ( Nothing, Just total ) ->
-            if progress.phase == "sent" || progress.phase == "done" || progress.delivery == Just "sent" then
-                { progress | sent = Just total }
-
-            else
-                progress
+        ( Just done, Just total ) ->
+            total > 0 && done >= total
 
         _ ->
-            progress
+            False
 
 
 progressCountLines : List I18Next.Translations -> SendProgress -> List String
@@ -1101,29 +1121,27 @@ viewSendingDialog dialog progress =
         , onClose = CloseDialog
         , theme = settings.theme
         , buttons =
-            [ Button.new
-                { label = Translations.cancelButtonTitle [ settings.browserEnv.translations ]
-                , onClick =
-                    if sendCanBeCancelled progress then
-                        Just CancelSendClicked
+            if campaignQueued progress then
+                [ closeButton dialog ]
 
-                    else
-                        Nothing
-                , theme = settings.theme
-                }
-                |> Button.withTypeSecondary
-                |> Button.withDisabled (not (sendCanBeCancelled progress))
-                |> Button.view
-            , Button.new
-                { label = Translations.sendButtonTitle [ settings.browserEnv.translations ]
-                , onClick = Nothing
-                , theme = settings.theme
-                }
-                |> Button.withTypePrimary
-                |> Button.withDisabled True
-                |> Button.withIntermediateState True
-                |> Button.view
-            ]
+            else
+                [ Button.new
+                    { label = Translations.cancelButtonTitle [ settings.browserEnv.translations ]
+                    , onClick = Just CancelSendClicked
+                    , theme = settings.theme
+                    }
+                    |> Button.withTypeSecondary
+                    |> Button.view
+                , Button.new
+                    { label = Translations.sendButtonTitle [ settings.browserEnv.translations ]
+                    , onClick = Nothing
+                    , theme = settings.theme
+                    }
+                    |> Button.withTypePrimary
+                    |> Button.withDisabled True
+                    |> Button.withIntermediateState True
+                    |> Button.view
+                ]
         }
         |> ModalDialog.withFixedWidth
         |> ModalDialog.view
@@ -1141,7 +1159,7 @@ viewSentDialog dialog progress =
         , content =
             [ statusContainer
                 [ div [] [ text (Translations.sentMessageText [ settings.browserEnv.translations ]) ]
-                , viewProgressCounts [ settings.browserEnv.translations ] (completedSendProgress progress)
+                , viewProgressCounts [ settings.browserEnv.translations ] progress
                 ]
             , viewRecipientCount (Settings settings)
             ]
@@ -1263,26 +1281,18 @@ viewProgressCounts translations progress =
             div [] (List.map (\line -> div [] [ text line ]) lines)
 
 
-sendCanBeCancelled : SendProgress -> Bool
-sendCanBeCancelled progress =
+{-| Commit succeeded. Delivery continues after the dialog is closed. -}
+campaignQueued : SendProgress -> Bool
+campaignQueued progress =
     case progress.phase of
         "sending" ->
-            False
-
-        "sent" ->
-            False
-
-        "failed" ->
-            False
-
-        "partial" ->
-            False
+            True
 
         "committed" ->
-            False
+            True
 
         _ ->
-            True
+            False
 
 
 progressPhaseText : Subscribers.RecipientSource -> List I18Next.Translations -> String -> String
@@ -1315,10 +1325,10 @@ progressPhaseText recipientSource translations phase =
             "Uploading jobs to the queue…"
 
         "committed" ->
-            "Sending…"
+            Translations.queuedCloseMessageText translations
 
         "sending" ->
-            "Sending…"
+            Translations.queuedCloseMessageText translations
 
         "sent" ->
             "Sent"
