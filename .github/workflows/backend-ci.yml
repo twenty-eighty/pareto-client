@@ -25,7 +25,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Verify PR head
-        run: test "$(git rev-parse HEAD)" = "$PR_HEAD_SHA"
+        run: test "$(git -c safe.directory="$GITHUB_WORKSPACE" rev-parse HEAD)" = "$PR_HEAD_SHA"
 
       - name: Prepare backend test assets
         run: |
