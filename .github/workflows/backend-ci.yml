@@ -17,10 +17,15 @@ jobs:
         working-directory: nostr_backend
     env:
       MIX_ENV: test
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Verify PR head
+        run: test "$(git rev-parse HEAD)" = "$PR_HEAD_SHA"
 
       - name: Prepare backend test assets
         run: |
