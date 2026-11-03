@@ -42,5 +42,11 @@ jobs:
       - name: Compile backend
         run: mix compile
 
+      - name: Install NAK reference CLI
+        run: |
+          curl -fsSL --retry 3 --output /usr/local/bin/nak https://github.com/fiatjaf/nak/releases/download/v0.20.2/nak-v0.20.2-linux-amd64
+          printf '%s  %s\n' 424db88043d26d9c2f1cbd2d9bc06582c39526f91f8e5523590439d4257da087 /usr/local/bin/nak | sha256sum --check
+          chmod +x /usr/local/bin/nak
+
       - name: Test backend
         run: mix test
