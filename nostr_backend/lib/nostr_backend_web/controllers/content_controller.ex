@@ -82,11 +82,18 @@ defmodule NostrBackendWeb.ContentController do
             #            |> render(NostrBackendWeb.ErrorHTML, :"404")
         end
 
+      {:ok, _non_article_id} ->
+        conn
+        |> conn_with_default_meta()
+        |> put_status(:not_found)
+        |> render(:not_found, layout: false)
+
       {:error, reason} ->
         Logger.debug("Invalid Nostr ID: #{inspect(reason)}")
 
         conn
         |> conn_with_default_meta()
+        |> put_status(:not_found)
         |> render(:not_found, layout: false)
     end
   end
