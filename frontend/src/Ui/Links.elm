@@ -24,10 +24,10 @@ scaledImageLink environment width url =
             url
 
         (_, Production { imageCachingServer, imageCacheKey }) ->
-            cachingUrl imageCachingServer imageCacheKey url width
+            cachedOrOriginalUrl imageCachingServer imageCacheKey url width
 
         (_, Development { imageCachingServer, imageCacheKey }) ->
-            cachingUrl imageCachingServer imageCacheKey url width
+            cachedOrOriginalUrl imageCachingServer imageCacheKey url width
 
 
 scaledImageSources : Environment -> Int -> String -> { src : String, srcset : String }
@@ -46,6 +46,17 @@ scaledImageSources environment width url =
         { src = base
         , srcset = base ++ " 1x, " ++ retina ++ " 2x"
         }
+
+
+{-| Without an image caching server the image is loaded from its original URL.
+-}
+cachedOrOriginalUrl : String -> String -> String -> Int -> String
+cachedOrOriginalUrl imageCachingServer imageCacheKey url width =
+    if imageCachingServer == "" then
+        url
+
+    else
+        cachingUrl imageCachingServer imageCacheKey url width
 
 
 cachingUrl : String -> String -> String -> Int -> String
