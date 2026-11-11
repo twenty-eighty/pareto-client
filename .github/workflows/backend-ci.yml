@@ -1,0 +1,52 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    container:
+      image: elixir:1.18.3-otp-27@sha256:d40cc4144bdb9e2a21afa278d8e036a0b2dcf689cdaaff1e7532bfb568a6e2d5
+    defaults:
+      run:
+        working-directory: nostr_backend
+    env:
+      MIX_ENV: test
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Verify PR head
+        run: test "$(git -c safe.directory="$GITHUB_WORKSPACE" rev-parse HEAD)" = "$PR_HEAD_SHA"
+
+      - name: Prepare backend test assets
+        run: |
+          mkdir -p priv/static/translations
+          cp ../frontend/static/translations/languages.json priv/static/translations/languages.json
+          printf '%s\n' '<link href="/assets/index-ci.css"><script src="/assets/index-ci.js"></script>' > priv/static/index.html
+
+      - name: Install Mix tools and dependencies
+        run: |
+          mix local.hex --force
+          mix local.rebar --force
+          mix deps.get
+
+      - name: Compile backend
+        run: mix compile
+
+      - name: Install NAK reference CLI
+        run: |
+          curl -fsSL --retry 3 --output /usr/local/bin/nak https://github.com/fiatjaf/nak/releases/download/v0.20.2/nak-v0.20.2-linux-amd64
+          printf '%s  %s\n' 424db88043d26d9c2f1cbd2d9bc06582c39526f91f8e5523590439d4257da087 /usr/local/bin/nak | sha256sum --check
+          chmod +x /usr/local/bin/nak
+
+      - name: Test backend
+        run: mix test

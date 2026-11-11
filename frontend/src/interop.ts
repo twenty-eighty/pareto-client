@@ -86,11 +86,15 @@ export const flags = ({ env }: { env: FlagsEnv }) => {
     host === "localhost" || host === "127.0.0.1"
       ? "http://localhost:4001"
       : "https://pareto.town";
+  const imageCacheKey = window.__PARETO_IMAGE_CACHE_KEY__ || env.IMAGE_CACHE_KEY || "";
   return {
     environment: env.ELM_ENV,
     darkMode: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
-    imageCachingServer: env.IMAGE_CACHING_SERVER || "https://ics.pareto.space",
-    imageCacheKey: window.__PARETO_IMAGE_CACHE_KEY__ || env.IMAGE_CACHE_KEY || "",
+    // The default caching server only answers signed requests. Without a key (e.g. a
+    // self-hosted instance) pass no server, so images load from their original URL.
+    // An explicitly configured server is always used, with or without a key.
+    imageCachingServer: env.IMAGE_CACHING_SERVER || (imageCacheKey ? "https://ics.pareto.space" : ""),
+    imageCacheKey: imageCacheKey,
     locale: selectedLocale,
     nativeSharingAvailable: (navigator.share != undefined),
     testMode: JSON.parse(localStorage.getItem('testMode') || 'false') || false,

@@ -102,8 +102,12 @@ defmodule NostrBackend.TLVDecoder do
   end
 
   defp decode_value(true, len, v) do
-    {inner_tlvs, rest} = decode_value(false, len, v)
-    {decode_inner_tlvs([], false, inner_tlvs), rest}
+    with {inner_tlvs, rest} <- decode_value(false, len, v),
+         decoded when is_list(decoded) <- decode_inner_tlvs([], false, inner_tlvs) do
+      {decoded, rest}
+    else
+      _ -> :no_tlv
+    end
   end
 
   defp decode_inner_tlvs(acc, true, <<0x00, 0x00, rest::binary>>), do: {Enum.reverse(acc), rest}
