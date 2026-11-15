@@ -1,5 +1,5 @@
-# Use official Elixir image
-FROM elixir:1.17.3
+# Stage 1: build frontend and backend release with the official Elixir image
+FROM elixir:1.17.3 AS build
 
 ARG TARGETPLATFORM
 RUN echo "Building pareto-client for $TARGETPLATFORM"
@@ -53,6 +53,27 @@ RUN cp -r /app/frontend/dist/* ./priv/static/
 RUN mix phx.digest && \
     SECRET_KEY_BASE=buildtime_placeholder mix run --no-start priv/scripts/brotli_assets.exs && \
     mix release
+
+# Stage 2: runtime image. Only the release and priv/ are carried over; Node.js, Elm,
+# the frontend sources, node_modules and the Mix build tree stay in the build stage.
+# Must use the same Debian release as the elixir image above (ERTS and NIFs link against its glibc).
+FROM debian:bookworm-slim AS runtime
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libstdc++6 openssl libncurses6 ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV LANG=C.UTF-8
+
+# Keep the same paths as in the build stage: several modules resolve
+# :code.priv_dir/1 at compile time (-> /app/nostr_backend/_build/prod/lib/nostr_backend/priv),
+# and the feed/RSS generators write to "priv/static" relative to the working directory.
+WORKDIR /app/nostr_backend
+
+COPY --from=build /app/nostr_backend/_build/prod/rel/nostr_backend ./_build/prod/rel/nostr_backend
+COPY --from=build /app/nostr_backend/priv ./priv
+RUN mkdir -p _build/prod/lib/nostr_backend && \
+    ln -s ../../../../priv _build/prod/lib/nostr_backend/priv
 
 # Expose the Phoenix port
 EXPOSE 4000
